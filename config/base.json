@@ -1,0 +1,28 @@
+{
+  "enabled": true,
+  "retryConfig": {
+    "maxAttempts": 3,
+    "backoffMs": 1000,
+    "maxBackoffMs": 30000
+  },
+  "healthCheckIntervalMs": 60000,
+  "metricsConfig": {
+    "enabled": true,
+    "interval": 15000,
+    "prefix": "unit_talk"
+  },
+  "logging": {
+    "level": "info",
+    "enableActivityLogging": true,
+    "enableMetricsLogging": true,
+    "enableHealthLogging": true
+  },
+  "supabase": {
+    "tables": {
+      "logs": "agent_logs",
+      "metrics": "agent_metrics",
+      "health": "agent_health",
+      "tasks": "agent_tasks"
+    }
+  }
+} 

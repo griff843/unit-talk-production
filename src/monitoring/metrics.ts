@@ -1,4 +1,4 @@
-import client from 'prom-client';
+import { Registry, Counter, Gauge, Histogram } from 'prom-client';
 import express from 'express';
 import { Logger } from '../utils/logger';
 
@@ -9,176 +9,174 @@ export interface MetricsConfig {
 }
 
 export class Metrics {
-  private static readonly registry = new client.Registry();
+  private static instance: Metrics;
+  private readonly registry: Registry;
   private readonly logger: Logger;
+  private readonly metrics: Map<string, any> = new Map();
+  private readonly collectors: Map<string, any> = new Map();
   private server?: express.Express;
-  private collectors: Map<string, client.Metric<string>> = new Map();
 
-  constructor(
-    private readonly name: string,
-    private readonly config: MetricsConfig
-  ) {
-    this.logger = new Logger(`Metrics:${name}`);
+  // Standard metrics that all agents should track
+  private readonly standardMetrics = {
+    activityExecutions: {
+      name: 'activity_executions_total',
+      help: 'Total number of activity executions',
+      labelNames: ['agent', 'activity', 'status'] as const
+    },
+    activityDuration: {
+      name: 'activity_duration_seconds',
+      help: 'Duration of activity executions',
+      labelNames: ['agent', 'activity'] as const,
+      buckets: [0.1, 0.5, 1, 2, 5, 10, 30]
+    },
+    errorCount: {
+      name: 'error_count_total',
+      help: 'Total number of errors',
+      labelNames: ['agent', 'error_type'] as const
+    },
+    healthStatus: {
+      name: 'health_status',
+      help: 'Current health status (1 for healthy, 0 for unhealthy)',
+      labelNames: ['agent'] as const
+    },
+    lastActivityTimestamp: {
+      name: 'last_activity_timestamp',
+      help: 'Timestamp of last activity execution',
+      labelNames: ['agent', 'activity'] as const
+    }
+  };
+
+  private constructor() {
+    this.registry = new Registry();
+    this.logger = new Logger('Metrics');
+    this.initializeStandardMetrics();
+    this.initializeCustomMetrics();
   }
 
-  public async initialize(): Promise<void> {
-    // Initialize default metrics
-    client.collectDefaultMetrics({
-      prefix: `${this.name}_`,
-      register: Metrics.registry,
-      labels: { agent: this.name }
-    });
+  public static getInstance(): Metrics {
+    if (!Metrics.instance) {
+      Metrics.instance = new Metrics();
+    }
+    return Metrics.instance;
+  }
 
-    // Initialize custom metrics
-    this.initializeCustomMetrics();
+  private initializeStandardMetrics(): void {
+    try {
+      this.registerMetric('activityExecutions', new Counter(this.standardMetrics.activityExecutions));
+      this.registerMetric('activityDuration', new Histogram(this.standardMetrics.activityDuration));
+      this.registerMetric('errorCount', new Counter(this.standardMetrics.errorCount));
+      this.registerMetric('healthStatus', new Gauge(this.standardMetrics.healthStatus));
+      this.registerMetric('lastActivityTimestamp', new Gauge(this.standardMetrics.lastActivityTimestamp));
 
-    // Start metrics server
-    await this.startServer();
+      this.registry.setDefaultLabels({ app: 'unit-talk' });
+      this.logger.info('Standard metrics initialized');
+    } catch (error) {
+      this.logger.error('Failed to initialize standard metrics:', error);
+      throw error;
+    }
   }
 
   private initializeCustomMetrics(): void {
     // Operation metrics
-    this.collectors.set('operations_total', new client.Counter({
-      name: `${this.name}_operations_total`,
+    this.collectors.set('operations_total', new Counter({
+      name: 'operations_total',
       help: 'Total number of operations processed',
-      labelNames: ['operation', 'status'] as const,
-      registers: [Metrics.registry]
+      labelNames: ['operation', 'status'],
+      registers: [this.registry]
     }));
 
-    this.collectors.set('operation_duration_seconds', new client.Histogram({
-      name: `${this.name}_operation_duration_seconds`,
+    this.collectors.set('operation_duration_seconds', new Histogram({
+      name: 'operation_duration_seconds',
       help: 'Duration of operations in seconds',
-      labelNames: ['operation'] as const,
+      labelNames: ['operation'],
       buckets: [0.1, 0.5, 1, 2, 5, 10],
-      registers: [Metrics.registry]
+      registers: [this.registry]
     }));
 
-    // Error metrics
-    this.collectors.set('errors_total', new client.Counter({
-      name: `${this.name}_errors_total`,
+    this.collectors.set('errors_total', new Counter({
+      name: 'errors_total',
       help: 'Total number of errors',
-      labelNames: ['operation', 'error_type'] as const,
-      registers: [Metrics.registry]
+      labelNames: ['operation', 'error_type'],
+      registers: [this.registry]
     }));
 
-    // Queue metrics
-    this.collectors.set('queue_size', new client.Gauge({
-      name: `${this.name}_queue_size`,
+    this.collectors.set('queue_size', new Gauge({
+      name: 'queue_size',
       help: 'Current size of the processing queue',
-      labelNames: ['queue_type'] as const,
-      registers: [Metrics.registry]
+      labelNames: ['queue_type'],
+      registers: [this.registry]
     }));
 
-    // Resource metrics
-    this.collectors.set('resource_usage', new client.Gauge({
-      name: `${this.name}_resource_usage`,
+    this.collectors.set('resource_usage', new Gauge({
+      name: 'resource_usage',
       help: 'Resource usage metrics',
-      labelNames: ['resource_type'] as const,
-      registers: [Metrics.registry]
+      labelNames: ['resource_type'],
+      registers: [this.registry]
     }));
 
-    // Business metrics
-    this.collectors.set('business_metrics', new client.Gauge({
-      name: `${this.name}_business_metrics`,
+    this.collectors.set('business_metrics', new Gauge({
+      name: 'business_metrics',
       help: 'Business-related metrics',
-      labelNames: ['metric_type'] as const,
-      registers: [Metrics.registry]
+      labelNames: ['metric_type'],
+      registers: [this.registry]
     }));
+  }
+
+  private registerMetric(name: string, metric: any): void {
+    this.metrics.set(name, metric);
+    this.registry.registerMetric(metric);
+  }
+
+  public async initialize(): Promise<void> {
+    await this.startServer();
   }
 
   private async startServer(): Promise<void> {
     this.server = express();
 
-    this.server.get(this.config.path, async (req, res) => {
+    this.server.get('/metrics', async (req, res) => {
       try {
-        res.set('Content-Type', Metrics.registry.contentType);
-        res.end(await Metrics.registry.metrics());
+        res.set('Content-Type', this.registry.contentType);
+        res.end(await this.registry.metrics());
       } catch (error) {
         this.logger.error('Failed to serve metrics:', error);
         res.status(500).end();
       }
     });
 
-    this.server.listen(this.config.port, () => {
-      this.logger.info(`Metrics server listening on port ${this.config.port}`);
+    this.server.listen(9100, () => {
+      this.logger.info('Metrics server listening on port 9100');
     });
   }
 
-  // Operation tracking
   public trackOperation(operation: string, status: 'success' | 'failure'): void {
-    const counter = this.collectors.get('operations_total') as client.Counter<string>;
+    const counter = this.collectors.get('operations_total') as Counter<string>;
     counter.labels(operation, status).inc();
   }
 
   public trackDuration(operation: string, durationMs: number): void {
-    const histogram = this.collectors.get('operation_duration_seconds') as client.Histogram<string>;
+    const histogram = this.collectors.get('operation_duration_seconds') as Histogram<string>;
     histogram.labels(operation).observe(durationMs / 1000);
   }
 
-  // Error tracking
   public trackError(operation: string, errorType: string): void {
-    const counter = this.collectors.get('errors_total') as client.Counter<string>;
+    const counter = this.collectors.get('errors_total') as Counter<string>;
     counter.labels(operation, errorType).inc();
   }
 
-  // Queue tracking
   public setQueueSize(queueType: string, size: number): void {
-    const gauge = this.collectors.get('queue_size') as client.Gauge<string>;
+    const gauge = this.collectors.get('queue_size') as Gauge<string>;
     gauge.labels(queueType).set(size);
   }
 
-  // Resource tracking
   public setResourceUsage(resourceType: string, value: number): void {
-    const gauge = this.collectors.get('resource_usage') as client.Gauge<string>;
+    const gauge = this.collectors.get('resource_usage') as Gauge<string>;
     gauge.labels(resourceType).set(value);
   }
 
-  // Business metrics
   public setBusinessMetric(metricType: string, value: number): void {
-    const gauge = this.collectors.get('business_metrics') as client.Gauge<string>;
+    const gauge = this.collectors.get('business_metrics') as Gauge<string>;
     gauge.labels(metricType).set(value);
-  }
-
-  // Custom metric registration
-  public registerCustomMetric(
-    name: string,
-    help: string,
-    type: 'counter' | 'gauge' | 'histogram',
-    labelNames: string[] = []
-  ): void {
-    const metricName = `${this.name}_${name}`;
-    
-    let metric: client.Metric<string>;
-    
-    switch (type) {
-      case 'counter':
-        metric = new client.Counter({
-          name: metricName,
-          help,
-          labelNames,
-          registers: [Metrics.registry]
-        });
-        break;
-      case 'gauge':
-        metric = new client.Gauge({
-          name: metricName,
-          help,
-          labelNames,
-          registers: [Metrics.registry]
-        });
-        break;
-      case 'histogram':
-        metric = new client.Histogram({
-          name: metricName,
-          help,
-          labelNames,
-          buckets: [0.1, 0.5, 1, 2, 5, 10],
-          registers: [Metrics.registry]
-        });
-        break;
-    }
-
-    this.collectors.set(name, metric);
   }
 
   public async shutdown(): Promise<void> {
@@ -191,4 +189,4 @@ export class Metrics {
       });
     }
   }
-} 
+}
