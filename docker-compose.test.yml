@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  supabase:
+    image: supabase/postgres:14
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: unit_talk_test
+    volumes:
+      - supabase-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:6-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+  prometheus:
+    image: prom/prometheus:v2.30.3
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus:/etc/prometheus
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+
+  alertmanager:
+    image: prom/alertmanager:v0.23.0
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./config/alertmanager:/etc/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+
+  grafana:
+    image: grafana/grafana:8.2.5
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./config/grafana:/etc/grafana/provisioning
+      - grafana-data:/var/lib/grafana
+
+volumes:
+  supabase-data:
+  redis-data:
+  prometheus-data:
+  grafana-data: 

@@ -1,15 +1,14 @@
-export default {
-  preset: 'ts-jest/presets/default-esm', // Support ESM+TS
+/** @type {import('ts-jest').JestConfigWithTsJest} */
+module.exports = {
+  preset: 'ts-jest',
   testEnvironment: 'node',
-  extensionsToTreatAsEsm: ['.ts'],
-  globals: {
-    'ts-jest': {
-      useESM: true,
-      tsconfig: './tsconfig.json'
-    }
+  roots: ['<rootDir>/src'],
+  testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
+  transform: {
+    '^.+\\.tsx?$': 'ts-jest',
   },
   moduleNameMapper: {
-    '^(\\.{1,2}/.*)\\.js$': '$1'
+    '^@/(.*)$': '<rootDir>/src/$1',
   },
-  transform: {},
+  setupFiles: ['<rootDir>/src/test/setup.ts'],
 };

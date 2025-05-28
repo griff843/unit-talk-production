@@ -1,12 +1,21 @@
 {
   "compilerOptions": {
-    "target": "es2022",
-    "module": "commonjs",
+    "target": "ES2020",
+    "module": "NodeNext",
+    "lib": ["ES2020"],
+    "moduleResolution": "NodeNext",
     "rootDir": "src",
     "outDir": "dist",
     "strict": true,
     "esModuleInterop": true,
-    "resolveJsonModule": true
-  }
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }
 

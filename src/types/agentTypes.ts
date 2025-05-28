@@ -1,15 +1,37 @@
-// src/types/agentTypes.ts
+// /types/agent.ts
 
-export interface RecapAgentInput {
-  recap_type: 'daily' | 'weekly' | 'monthly'
-  recap_date?: string
-  // Add any other fields you want
+export interface AgentStatus {
+  name: string
+  online: boolean
+  lastCheck: string // ISO timestamp
+  health: 'ok' | 'warn' | 'error'
+  details?: string
 }
 
-export interface RecapAgentOutput {
-  status: 'success' | 'error'
-  summary?: string
-  leaderboard?: string
-  recapStats?: any[]
-  error?: string
+export interface AgentConfig {
+  agentName: string
+  enabled: boolean
+  cron?: string
+}
+
+export interface AgentTaskInput {
+  task_id: string
+  agent: string
+  data: any
+}
+
+export interface AgentTaskOutput {
+  task_id: string
+  agent: string
+  result: 'success' | 'fail' | 'pending'
+  details?: any
+}
+
+export interface AgentHealthReport {
+  agent: string
+  health: 'ok' | 'warn' | 'error'
+  lastCheck: string
+  uptime: number
+  incidents?: number
+  notes?: string
 }

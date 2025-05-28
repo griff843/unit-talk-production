@@ -27,25 +27,191 @@ type SystemEvent = {
 }
 
 export class OperatorAgent {
-  // ... (all previous methods: monitorAgents, prioritizeTasks, logEvent, handleIncident, createTask, controlAgent, generateSummary, learnAndEvolve) ...
+  static async monitorAgents() {
+    const { data: agentLogs } = await supabase.from('agent_logs').select('*').order('timestamp', { ascending: false }).limit(250)
+    const { data: agentTasks } = await supabase.from('operator_tasks').select('*').eq('status', 'pending')
+    const prioritized = this.prioritizeTasks(agentTasks ?? [], agentLogs ?? [])
+    for (const log of agentLogs ?? []) {
+      if (log.status === 'failed') await this.handleIncident(log)
+    }
+    await this.logEvent({
+      event_type: 'health_check',
+      agent: 'Operator',
+      message: 'Agent health and prioritization check complete',
+      status: 'ok',
+      escalation: false,
+      action_required: false,
+      meta: { prioritized }
+    })
+    return prioritized
+  }
 
-  // -- Insert all previous methods from the last version here, unchanged --
+  static prioritizeTasks(tasks: AgentTask[], logs: any[]): AgentTask[] {
+    return (tasks ?? []).map(task => ({
+      ...task,
+      urgency:
+        (task.priority === 'urgent' ? 100 : 0) +
+        (task.retries ? task.retries * 15 : 0) +
+        ((logs ?? []).filter(l => l.agent === task.agent && l.status === 'failed').length * 20) +
+        (task.due_date && new Date(task.due_date) < new Date() ? 50 : 0)
+    })).sort((a, b) => (b.urgency || 0) - (a.urgency || 0))
+  }
 
-  /** Conversational command handler for Retool or other interfaces */
+  static async logEvent(event: SystemEvent) {
+    await supabase.from('system_events').insert([{ ...event, timestamp: new Date().toISOString() }])
+    if (event.escalation || event.status === 'failed') {
+      await sendDiscordAlert(event)
+      await sendNotionLog(event)
+    }
+  }
+
+  static async handleIncident(event: any) {
+    const { data: recent } = await supabase
+      .from('agent_logs')
+      .select('id')
+      .eq('agent', event.agent)
+      .eq('status', 'failed')
+      .gte('timestamp', new Date(Date.now() - 60 * 60 * 1000).toISOString())
+    const escalate = recent && recent.length >= 3
+    await this.logEvent({
+      event_type: 'agent_error',
+      agent: event.agent,
+      message: event.message,
+      status: 'failed',
+      escalation: !!escalate,
+      action_required: !!escalate,
+      meta: event
+    })
+    if (escalate) {
+      await this.createTask({
+        type: 'escalation',
+        agent: event.agent,
+        details: event.message,
+        priority: 'urgent'
+      })
+    }
+  }
+
+  static async createTask(task: AgentTask) {
+    await supabase.from('operator_tasks').insert([{
+      ...task,
+      created_at: new Date().toISOString(),
+      status: 'pending'
+    }])
+  }
+
+  static async controlAgent(agent: string, command: 'pause' | 'rerun' | 'reset') {
+    await this.createTask({
+      type: command,
+      agent,
+      details: `${command} issued by Operator`,
+      priority: 'urgent'
+    })
+    await this.logEvent({
+      event_type: 'agent_control',
+      agent,
+      message: `${command} command sent to ${agent}`,
+      status: 'ok',
+      escalation: false,
+      action_required: false,
+      meta: {}
+    })
+  }
+
+  static async generateSummary(period: 'daily' | 'weekly' | 'monthly') {
+    const since = period === 'daily'
+      ? startOfDay(new Date())
+      : period === 'weekly'
+        ? subDays(new Date(), 7)
+        : subDays(new Date(), 30)
+    const { data: events } = await supabase
+      .from('system_events')
+      .select('*')
+      .gte('timestamp', since.toISOString())
+    const messages = (events ?? []).map(e => `${e.agent}: ${e.event_type} - ${e.message}`).join('\n') || ''
+    const aiSummary = await openai.chat.completions.create({
+      model: period === 'monthly' ? 'gpt-4-turbo' : 'gpt-3.5-turbo',
+      messages: [
+        { role: 'system', content: 'You are a world-class operations manager. Write a concise incident/event summary, highlight any repeating issues, and recommend next steps for the exec team.' },
+        { role: 'user', content: messages }
+      ]
+    })
+    await this.logEvent({
+      event_type: 'summary',
+      agent: 'Operator',
+      message: aiSummary.choices[0].message.content ?? '',
+      status: 'ok',
+      escalation: false,
+      action_required: false,
+      meta: {}
+    })
+    await sendNotionLog({ title: `Operator ${period} Summary`, content: aiSummary.choices[0].message.content ?? '' })
+    await sendDiscordAlert({ event_type: 'summary', agent: 'Operator', message: aiSummary.choices[0].message.content ?? '', status: 'ok', escalation: false, action_required: false, meta: {} })
+    return aiSummary.choices[0].message.content ?? ''
+  }
+
+  static async learnAndEvolve() {
+    const { data: events } = await supabase.from('system_events').select('*').gte('timestamp', subDays(new Date(), 14).toISOString())
+    const { data: agentLogs } = await supabase.from('agent_logs').select('*').gte('timestamp', subDays(new Date(), 14).toISOString())
+    const prompt =
+      `Review these system events and agent logs for the past 2 weeks.\n` +
+      `1. Identify recurring patterns, weak points, or system friction.\n` +
+      `2. Propose at least one new KPI, one SOP improvement, and any doc updates needed.\n` +
+      `3. If you detect repeated agent/workflow failures, suggest a new troubleshooting SOP.\n` +
+      `4. Output recommendations in structured format (KPIs, SOPs, Docs).\n\n` +
+      'Events:\n' +
+      (events ?? []).map(e => `${e.timestamp} | ${e.agent}: ${e.event_type} - ${e.message}`).join('\n') +
+      '\nAgentLogs:\n' +
+      (agentLogs ?? []).map(l => `${l.timestamp} | ${l.agent}: ${l.status} - ${l.message}`).join('\n')
+    const ai = await openai.chat.completions.create({
+      model: 'gpt-4-turbo',
+      messages: [
+        { role: 'system', content: 'You are a world-class ops automation architect.' },
+        { role: 'user', content: prompt }
+      ]
+    })
+    const learning = ai.choices[0].message.content ?? ''
+    await sendNotionLog({ title: 'OperatorAgent Learning/Evolution', content: learning })
+    if (learning.includes('SOP:')) {
+      const sop = extractSection(learning, 'SOP:')
+      await createNotionSOP({ title: sop.title, content: sop.content })
+    }
+    if (learning.includes('KPI:')) {
+      const kpi = extractSection(learning, 'KPI:')
+      await createNotionKPI({ title: kpi.title, content: kpi.content })
+    }
+    await this.logEvent({
+      event_type: 'learning',
+      agent: 'Operator',
+      message: 'Learning cycle complete',
+      status: 'ok',
+      escalation: false,
+      action_required: false,
+      meta: { learning }
+    })
+    await sendDiscordAlert({
+      event_type: 'learning',
+      agent: 'Operator',
+      message: `Learning/Evolution: ${learning.substring(0, 200)}...`,
+      status: 'ok',
+      escalation: false,
+      action_required: false,
+      meta: {}
+    })
+    return learning
+  }
+
   static async handleCommand(command: string, user: string = 'system') {
     let response = ''
     let summary = ''
     command = command.toLowerCase()
-    // Recognize some common system commands natively, else fallback to OpenAI
     if (command.includes('status')) {
-      // Give agent health, current open tasks, priorities
       const prioritized = await this.monitorAgents()
       response = `System status checked. Open prioritized tasks:\n` +
         prioritized.map(t =>
           `• ${t.agent}: ${t.type} (${t.priority}, urgency: ${t.urgency})`
         ).join('\n')
     } else if (command.startsWith('create sop')) {
-      // E.g. "create sop onboarding process"
       const sopTitle = command.replace('create sop', '').trim() || 'New SOP'
       await createNotionSOP({ title: sopTitle, content: 'Draft SOP. Please edit and expand as needed.' })
       response = `SOP "${sopTitle}" created in Notion.`
@@ -54,13 +220,12 @@ export class OperatorAgent {
       await createNotionKPI({ title: kpiTitle, content: 'Draft KPI. Please edit and expand as needed.' })
       response = `KPI "${kpiTitle}" created in Notion.`
     } else if (command.startsWith('summary')) {
-      summary = await this.generateSummary('daily')
+      summary = await this.generateSummary('daily') ?? ''
       response = `Summary generated: ${summary.substring(0, 400)}`
     } else if (command.startsWith('learn')) {
       const learn = await this.learnAndEvolve()
       response = `Learning/evolution run complete. Output: ${learn.substring(0, 400)}`
     } else {
-      // Fallback: Use OpenAI to interpret/route the command
       const ai = await openai.chat.completions.create({
         model: 'gpt-4-turbo',
         messages: [
@@ -83,7 +248,6 @@ export class OperatorAgent {
   }
 }
 
-// (Include the extractSection helper here as before)
 function extractSection(text: string, tag: string) {
   const idx = text.indexOf(tag)
   if (idx === -1) return { title: '', content: '' }
