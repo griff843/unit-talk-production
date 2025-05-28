@@ -1,5 +1,9 @@
 // /types/shared.ts
 
+import { SupabaseClient } from '@supabase/supabase-js';
+import { Logger } from '../utils/logger';
+import { ErrorHandler } from '../utils/errorHandling';
+
 export interface SystemEvent {
     event_id: string
     agent: string
@@ -19,7 +23,7 @@ export interface SystemEvent {
   export type HealthLevel = 'ok' | 'warn' | 'error'
   
   // Agent status types
-  export type AgentStatus = 'idle' | 'ready' | 'running' | 'stopped' | 'error';
+  export type AgentStatus = 'idle' | 'healthy' | 'unhealthy' | 'degraded' | 'error';
   
   // Health status types
   export type HealthStatusType = 'healthy' | 'unhealthy' | 'degraded';
@@ -118,5 +122,69 @@ export interface SystemEvent {
   export interface TimeRange {
     start: Date;
     end: Date;
+  }
+  
+  export interface Metrics {
+    errorCount: number;
+    warningCount: number;
+    successCount: number;
+    [key: string]: any;
+  }
+  
+  export interface ErrorDetails {
+    message: string;
+    code?: string;
+    stack?: string;
+    context?: Record<string, any>;
+  }
+  
+  export interface ValidationResult {
+    isValid: boolean;
+    errors: string[];
+  }
+  
+  export interface DatabaseResult<T> {
+    data: T | null;
+    error: Error | null;
+  }
+  
+  export interface PaginationParams {
+    page: number;
+    limit: number;
+  }
+  
+  export interface SortParams {
+    field: string;
+    direction: 'asc' | 'desc';
+  }
+  
+  export interface FilterParams {
+    field: string;
+    operator: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'in' | 'nin';
+    value: any;
+  }
+  
+  export interface QueryParams {
+    pagination?: PaginationParams;
+    sort?: SortParams[];
+    filters?: FilterParams[];
+  }
+  
+  export interface RetryConfig {
+    maxAttempts: number;
+    backoffMs: number;
+    maxBackoffMs: number;
+  }
+  
+  export interface MetricsConfig {
+    interval: number;
+    prefix: string;
+    enabled: boolean;
+  }
+  
+  export interface AlertConfig {
+    enabled: boolean;
+    channels: string[];
+    severity: 'info' | 'warning' | 'error' | 'critical';
   }
   

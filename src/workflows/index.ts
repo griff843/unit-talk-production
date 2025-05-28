@@ -1,13 +1,69 @@
 import { proxyActivities } from '@temporalio/workflow';
-import type * as analyticsActivities from '../agents/AnalyticsAgent/activities';
-import type * as gradingActivities from '../agents/GradingAgent/activities';
-import type * as contestActivities from '../agents/ContestAgent/activities';
-import type * as alertActivities from '../agents/AlertAgent/activities';
-import type * as promoActivities from '../agents/PromoAgent/activities';
-import type * as notificationActivities from '../agents/NotificationAgent/activities';
-import type * as feedActivities from '../agents/FeedAgent/activities';
-import type * as operatorActivities from '../agents/OperatorAgent/activities';
-import type * as auditActivities from '../agents/AuditAgent/activities';
+import type { BaseAgentActivities } from '../types/activities';
+import type { AnalyticsAgentActivities } from '../types/activities';
+import type { NotificationAgentActivities } from '../types/activities';
+import type { FeedAgentActivities } from '../types/activities';
+import type { AuditAgentActivities } from '../types/activities';
+import type { GradingAgentActivities } from '../types/activities';
+import type { AlertAgentActivities } from '../types/activities';
+import type { PromoAgentActivities } from '../types/activities';
+import type { ContestAgentActivities } from '../types/activities';
+import type { OperatorAgentActivities } from '../types/activities';
+
+// Create proxies for each agent's activities
+const baseActivities = proxyActivities<BaseAgentActivities>({
+  startToCloseTimeout: '1 minute'
+});
+
+const analyticsActivities = proxyActivities<AnalyticsAgentActivities>({
+  startToCloseTimeout: '5 minutes'
+});
+
+const notificationActivities = proxyActivities<NotificationAgentActivities>({
+  startToCloseTimeout: '1 minute'
+});
+
+const feedActivities = proxyActivities<FeedAgentActivities>({
+  startToCloseTimeout: '5 minutes'
+});
+
+const auditActivities = proxyActivities<AuditAgentActivities>({
+  startToCloseTimeout: '10 minutes'
+});
+
+const gradingActivities = proxyActivities<GradingAgentActivities>({
+  startToCloseTimeout: '5 minutes'
+});
+
+const alertActivities = proxyActivities<AlertAgentActivities>({
+  startToCloseTimeout: '1 minute'
+});
+
+const promoActivities = proxyActivities<PromoAgentActivities>({
+  startToCloseTimeout: '5 minutes'
+});
+
+const contestActivities = proxyActivities<ContestAgentActivities>({
+  startToCloseTimeout: '5 minutes'
+});
+
+const operatorActivities = proxyActivities<OperatorAgentActivities>({
+  startToCloseTimeout: '5 minutes'
+});
+
+// Export all activities
+export {
+  baseActivities,
+  analyticsActivities,
+  notificationActivities,
+  feedActivities,
+  auditActivities,
+  gradingActivities,
+  alertActivities,
+  promoActivities,
+  contestActivities,
+  operatorActivities
+};
 
 // Standard timeout configurations
 const DEFAULT_TIMEOUT = '10 minutes';

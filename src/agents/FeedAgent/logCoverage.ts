@@ -106,7 +106,7 @@ export const logCoverageActivity = async (
 ): Promise<PropCoverage> => {
   const supabase = new SupabaseClient(
     process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
   
   return await logCoverage(input, supabase);

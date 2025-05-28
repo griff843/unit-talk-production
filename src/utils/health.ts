@@ -4,15 +4,22 @@ import type { AgentHealthReport } from '../types/agent'
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Logger } from './logger';
 import { HealthStatus } from '../types/shared';
+import { AgentStatus, HealthCheckResult, healthCheckResultSchema, isValidAgentStatus } from '../types/agent';
 
 export function reportAgentHealth(agent: string, level: 'ok' | 'warn' | 'error', uptime = 0, incidents = 0, notes = ''): AgentHealthReport {
   return {
-    agent,
-    health: level,
-    lastCheck: new Date().toISOString(),
-    uptime,
-    incidents,
-    notes,
+    agentName: agent,
+    status: level === 'ok' ? 'healthy' : level === 'warn' ? 'degraded' : 'unhealthy',
+    timestamp: new Date().toISOString(),
+    details: {
+      errors: [],
+      warnings: [],
+      info: {
+        uptime,
+        incidents,
+        notes
+      }
+    }
   }
 }
 
@@ -27,7 +34,7 @@ export class HealthChecker {
   private static instance: HealthChecker;
   private readonly logger: Logger;
   private healthChecks: Map<string, HealthStatus> = new Map();
-  private checkIntervals: Map<string, NodeJS.Timer> = new Map();
+  private checkIntervals: Map<string, NodeJS.Timeout | null> = new Map();
 
   private constructor(
     private readonly supabase: SupabaseClient,
@@ -59,8 +66,9 @@ export class HealthChecker {
     const fullConfig = { ...this.defaultConfig, ...config };
 
     // Clear existing interval if any
-    if (this.checkIntervals.has(agentName)) {
-      clearInterval(this.checkIntervals.get(agentName));
+    const existingInterval = this.checkIntervals.get(agentName);
+    if (existingInterval) {
+      clearInterval(existingInterval);
     }
 
     // Start new health check interval
@@ -106,23 +114,23 @@ export class HealthChecker {
       await this.recordHealthCheck(agentName, health, duration);
 
       // Log health status
-      this.logger.logHealth(agentName, health.status, {
+      this.logger.logHealth(agentName, health.status === 'degraded' ? 'unhealthy' : health.status, {
         duration,
         details: health.details
       });
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       const unhealthyStatus: HealthStatus = {
         status: 'unhealthy',
         lastChecked: new Date().toISOString(),
-        error: error.message
+        error: errorMessage
       };
 
       this.healthChecks.set(agentName, unhealthyStatus);
       await this.recordHealthCheck(agentName, unhealthyStatus, this.defaultConfig.timeout);
       
       this.logger.error(`Health check failed for agent: ${agentName}`, {
-        error,
-        agent: agentName
+        error: errorMessage
       });
     }
   }
@@ -142,7 +150,8 @@ export class HealthChecker {
         timestamp: new Date().toISOString()
       });
     } catch (error) {
-      this.logger.error('Failed to record health check:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error('Failed to record health check:', { error: errorMessage });
     }
   }
 
@@ -180,16 +189,129 @@ export class HealthChecker {
 
       return data;
     } catch (error) {
-      this.logger.error('Failed to get health history:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.logger.error('Failed to get health history:', { error: errorMessage });
       throw error;
     }
   }
 
   public async cleanup(): Promise<void> {
-    for (const interval of this.checkIntervals.values()) {
-      clearInterval(interval);
+    for (const [agentName, interval] of this.checkIntervals.entries()) {
+      if (interval) {
+        clearInterval(interval);
+      }
     }
     this.checkIntervals.clear();
     this.healthChecks.clear();
+  }
+}
+
+export interface HealthReport {
+  agentName: string;
+  status: AgentStatus;
+  timestamp: string;
+  details?: {
+    errors: string[];
+    warnings: string[];
+    info: Record<string, any>;
+  };
+}
+
+export class HealthMonitor {
+  private readonly logger: Logger;
+  private readonly supabase: SupabaseClient;
+  private readonly checkIntervals = new Map<string, NodeJS.Timeout | null>();
+
+  constructor(supabase: SupabaseClient) {
+    this.logger = new Logger('HealthMonitor');
+    this.supabase = supabase;
+  }
+
+  public async recordHealth(agentName: string, health: HealthCheckResult): Promise<void> {
+    try {
+      const { error } = await this.supabase
+        .from('agent_health')
+        .insert({
+          agent_name: agentName,
+          status: health.status,
+          details: health.details,
+          timestamp: health.timestamp
+        });
+
+      if (error) {
+        this.logger.error('Failed to record health check:', { error: error.message });
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error('Failed to record health check:', { error: errorMessage });
+    }
+  }
+
+  public async getHealthHistory(agentName: string, limit = 10): Promise<HealthReport[]> {
+    try {
+      const { data, error } = await this.supabase
+        .from('agent_health')
+        .select('*')
+        .eq('agent_name', agentName)
+        .order('timestamp', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        throw error;
+      }
+
+      return (data || []).map(record => {
+        const status = record.status;
+        if (!isValidAgentStatus(status)) {
+          throw new Error(`Invalid health status: ${status}`);
+        }
+
+        return {
+          agentName: record.agent_name,
+          status,
+          timestamp: record.timestamp,
+          details: record.details
+        };
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error('Failed to get health history:', { error: errorMessage });
+      return [];
+    }
+  }
+
+  public startMonitoring(agentName: string, interval: number, checkFn: () => Promise<void>): void {
+    const existingInterval = this.checkIntervals.get(agentName);
+    if (existingInterval) {
+      clearInterval(existingInterval);
+    }
+
+    const intervalId = setInterval(async () => {
+      try {
+        await checkFn();
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        this.logger.error(`Health check failed for ${agentName}:`, { error: errorMessage });
+      }
+    }, interval);
+
+    this.checkIntervals.set(agentName, intervalId);
+  }
+
+  public stopMonitoring(agentName: string): void {
+    const intervalId = this.checkIntervals.get(agentName);
+    if (intervalId) {
+      clearInterval(intervalId);
+      this.checkIntervals.delete(agentName);
+    }
+  }
+
+  public stopAll(): void {
+    for (const [agentName, intervalId] of this.checkIntervals.entries()) {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    }
+    this.checkIntervals.clear();
   }
 }

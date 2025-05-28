@@ -15,6 +15,7 @@ import { RawProp } from '../../types/rawProps';
 import { normalizePublicProps } from './utils/normalizePublicProps';
 import { dedupePublicProps } from './utils/dedupePublicProps';
 import { fetchFromProviderActivity } from './activities/fetchFromProvider';
+import { BaseAgentDependencies } from '../BaseAgentDependencies';
 
 const activities = proxyActivities({
   startToCloseTimeout: '10 minutes',
@@ -25,7 +26,7 @@ const activities = proxyActivities({
 });
 
 export class FeedAgent extends BaseAgent {
-  private metrics: FeedMetrics = {
+  private feedMetrics: FeedMetrics = {
     totalProps: 0,
     uniqueProps: 0,
     duplicates: 0,
@@ -40,13 +41,63 @@ export class FeedAgent extends BaseAgent {
     }
   };
 
-  constructor(
-    config: FeedAgentConfig,
-    supabase: SupabaseClient,
-    errorConfig: ErrorHandlerConfig
-  ) {
-    super('FeedAgent', config, supabase, errorConfig);
-    FeedConfigSchema.parse(config);
+  constructor(dependencies: BaseAgentDependencies) {
+    super(dependencies);
+    FeedConfigSchema.parse(dependencies.config);
+  }
+
+  protected async initialize(): Promise<void> {
+    await this.validateDependencies();
+    await this.initializeResources();
+  }
+
+  protected async cleanup(): Promise<void> {
+    // No cleanup needed
+  }
+
+  protected async checkHealth(): Promise<HealthCheckResult> {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    
+    for (const [provider, stats] of Object.entries(this.feedMetrics.providerStats)) {
+      const errorRate = stats.failed / (stats.success + stats.failed);
+      if (errorRate > 0.1) {
+        errors.push(`High error rate for ${provider}: ${(errorRate * 100).toFixed(1)}%`);
+      }
+    }
+
+    return {
+      status: errors.length === 0 ? 'healthy' : (errors.length > 2 ? 'unhealthy' : 'degraded'),
+      details: {
+        errors,
+        warnings,
+        info: {
+          metrics: this.feedMetrics
+        }
+      },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  protected async collectMetrics(): Promise<Metrics> {
+    return {
+      errorCount: this.feedMetrics.errors,
+      warningCount: Object.values(this.feedMetrics.providerStats)
+        .filter(stats => stats.failed > 0).length,
+      successCount: Object.values(this.feedMetrics.providerStats)
+        .reduce((sum, stats) => sum + stats.success, 0),
+      ...this.feedMetrics
+    };
+  }
+
+  public async handleCommand(command: AgentCommand): Promise<void> {
+    switch (command.type) {
+      case 'FETCH_FEED':
+        await this.startProviderIngestion(command.payload.provider);
+        break;
+      default:
+        throw new Error(`Unknown command type: ${command.type}`);
+    }
   }
 
   protected async validateDependencies(): Promise<void> {
@@ -61,7 +112,7 @@ export class FeedAgent extends BaseAgent {
   }
 
   protected async initializeResources(): Promise<void> {
-    await this.metrics.initialize?.();
+    await this.feedMetrics.initialize?.();
   }
 
   protected async startProcessing(): Promise<void> {
@@ -77,27 +128,6 @@ export class FeedAgent extends BaseAgent {
     // No cleanup needed here
   }
 
-  protected async checkHealth(): Promise<HealthStatus> {
-    const errors = [];
-    for (const [provider, stats] of Object.entries(this.metrics.providerStats)) {
-      const errorRate = stats.failed / (stats.success + stats.failed);
-      if (errorRate > 0.1) {
-        errors.push(`High error rate for ${provider}: ${(errorRate * 100).toFixed(1)}%`);
-      }
-    }
-    return {
-      status: errors.length === 0 ? 'ok' : 'warn',
-      details: {
-        errors,
-        metrics: this.metrics
-      }
-    };
-  }
-
-  protected async collectMetrics(): Promise<FeedMetrics> {
-    return this.metrics;
-  }
-
   private async startProviderIngestion(provider: Provider): Promise<void> {
     const config = this.config as FeedAgentConfig;
     const settings = config.providers[provider];
@@ -111,13 +141,13 @@ export class FeedAgent extends BaseAgent {
       });
 
       if (!rawResult.success || !rawResult.data) {
-        this.metrics.providerStats[provider].failed++;
+        this.feedMetrics.providerStats[provider].failed++;
         throw new Error(`Failed to fetch from ${provider}: ${rawResult.error}`);
       }
 
-      this.metrics.providerStats[provider].success++;
-      this.metrics.providerStats[provider].avgLatencyMs =
-        (this.metrics.providerStats[provider].avgLatencyMs + rawResult.latencyMs) / 2;
+      this.feedMetrics.providerStats[provider].success++;
+      this.feedMetrics.providerStats[provider].avgLatencyMs =
+        (this.feedMetrics.providerStats[provider].avgLatencyMs + rawResult.latencyMs) / 2;
 
       const normalized = await normalizePublicProps(rawResult.data);
       const deduped = await dedupePublicProps(normalized);
@@ -125,10 +155,10 @@ export class FeedAgent extends BaseAgent {
 
       const processed = await this.processProps(props);
 
-      this.metrics.totalProps += props.length;
-      this.metrics.uniqueProps += processed.inserted;
-      this.metrics.duplicates += processed.duplicates;
-      this.metrics.errors += processed.errors;
+      this.feedMetrics.totalProps += props.length;
+      this.feedMetrics.uniqueProps += processed.inserted;
+      this.feedMetrics.duplicates += processed.duplicates;
+      this.feedMetrics.errors += processed.errors;
 
       this.logger.info('Provider ingestion completed', {
         provider,
@@ -137,7 +167,7 @@ export class FeedAgent extends BaseAgent {
       });
 
     } catch (error) {
-      this.metrics.providerStats[provider].failed++;
+      this.feedMetrics.providerStats[provider].failed++;
       await this.handleError(error, `${provider} ingestion`);
     }
   }

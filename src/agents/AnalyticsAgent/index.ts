@@ -15,6 +15,8 @@ import {
   calculateTrend,
   calculatePerformance
 } from './utils/calculations';
+import { AgentConfig, AgentCommand, HealthCheckResult, BaseAgentDependencies } from '../../types/agent';
+import { Metrics as SharedMetrics } from '../../types/shared';
 
 // Helper to compute trend tags based on streaks/win%
 function getTrendTag(stats: CapperStats): string {
@@ -30,16 +32,39 @@ function filterByWindow<T extends { settled_at: string }>(data: T[], days: numbe
   return data.filter(row => new Date(row.settled_at).getTime() >= cutoff);
 }
 
+export interface AnalyticsAgentConfig extends AgentConfig {
+  analysisWindowDays: number;
+  minPicksForAnalysis: number;
+  updateFrequencyMs: number;
+  batchSize: number;
+}
+
+export interface AnalyticsMetrics extends SharedMetrics {
+  totalProcessed: number;
+  capperCount: number;
+  avgROI: number;
+  profitableCappers: number;
+  activeStreaks: number;
+  processingTimeMs: number;
+  memoryUsageMb: number;
+  lastRunStats: {
+    startTime: string;
+    endTime: string;
+    recordsProcessed: number;
+  };
+}
+
 export class AnalyticsAgent extends BaseAgent {
-  private metrics: AnalyticsMetrics = {
+  private analyticsMetrics: AnalyticsMetrics = {
+    errorCount: 0,
+    warningCount: 0,
+    successCount: 0,
     totalProcessed: 0,
     capperCount: 0,
     avgROI: 0,
     profitableCappers: 0,
     activeStreaks: 0,
     processingTimeMs: 0,
-    errorCount: 0,
-    successCount: 0,
     memoryUsageMb: 0,
     lastRunStats: {
       startTime: '',
@@ -52,15 +77,11 @@ export class AnalyticsAgent extends BaseAgent {
   private logger: Logger;
   private metricsCollector: Metrics;
 
-  constructor(
-    config: AnalyticsAgentConfig,
-    supabase: SupabaseClient,
-    errorConfig: ErrorHandlerConfig
-  ) {
-    super(config, supabase, errorConfig);
-    this.errorHandler = new ErrorHandler(errorConfig);
-    this.logger = new Logger('AnalyticsAgent', config.logLevel);
-    this.metricsCollector = new Metrics('analytics_agent', config.metricsConfig);
+  constructor(dependencies: BaseAgentDependencies) {
+    super(dependencies);
+    this.errorHandler = new ErrorHandler(dependencies.errorConfig);
+    this.logger = new Logger('AnalyticsAgent', dependencies.config.logLevel);
+    this.metricsCollector = new Metrics('analytics_agent', dependencies.config.metricsConfig);
   }
 
   protected async initialize(): Promise<void> {
@@ -75,34 +96,13 @@ export class AnalyticsAgent extends BaseAgent {
     ];
 
     for (const table of requiredTables) {
-      try {
-        await this.errorHandler.withRetry(
-          async () => {
-            const { error } = await this.supabase
-              .from(table)
-              .select('id')
-              .limit(1);
+      const { error } = await this.supabase
+        .from(table)
+        .select('id')
+        .limit(1);
 
-            if (error) {
-              throw new DatabaseError(
-                `Failed to access ${table}`,
-                'SELECT',
-                table,
-                { supabaseError: error }
-              );
-            }
-          },
-          `initialize table check: ${table}`
-        );
-        
-        this.logger.debug(`Verified access to table: ${table}`);
-      } catch (error) {
-        this.logger.error(`Failed to initialize table: ${table}`, error);
-        throw new AgentError(
-          `Failed to initialize AnalyticsAgent: ${error.message}`,
-          'AnalyticsAgent',
-          { table, error }
-        );
+      if (error) {
+        throw new Error(`Failed to access table ${table}: ${error.message}`);
       }
     }
 
@@ -111,7 +111,7 @@ export class AnalyticsAgent extends BaseAgent {
 
   public async runAnalysis(): Promise<void> {
     const startTime = Date.now();
-    this.metrics.lastRunStats.startTime = new Date().toISOString();
+    this.analyticsMetrics.lastRunStats.startTime = new Date().toISOString();
     this.logger.info('Starting analytics run');
 
     try {
@@ -137,18 +137,18 @@ export class AnalyticsAgent extends BaseAgent {
         );
       }
       
-      this.metrics.capperCount = cappers?.length || 0;
-      this.metricsCollector.setGauge('capper_count', this.metrics.capperCount);
-      this.logger.info(`Found ${this.metrics.capperCount} cappers to analyze`);
+      this.analyticsMetrics.capperCount = cappers?.length || 0;
+      this.metricsCollector.setGauge('capper_count', this.analyticsMetrics.capperCount);
+      this.logger.info(`Found ${this.analyticsMetrics.capperCount} cappers to analyze`);
 
       // Process each capper
       for (const capper of (cappers || [])) {
         try {
           await this.processCapperAnalytics(capper.capper_id);
-          this.metrics.successCount++;
+          this.analyticsMetrics.successCount++;
           this.metricsCollector.incrementCounter('capper_processed_success');
         } catch (error) {
-          this.metrics.errorCount++;
+          this.analyticsMetrics.errorCount++;
           this.metricsCollector.incrementCounter('capper_processed_error');
           this.logger.error(
             `Failed to process capper ${capper.capper_id}:`,
@@ -158,26 +158,26 @@ export class AnalyticsAgent extends BaseAgent {
         }
       }
 
-      this.metrics.lastRunStats.endTime = new Date().toISOString();
-      this.metrics.processingTimeMs = Date.now() - startTime;
-      this.metrics.memoryUsageMb = process.memoryUsage().heapUsed / 1024 / 1024;
+      this.analyticsMetrics.lastRunStats.endTime = new Date().toISOString();
+      this.analyticsMetrics.processingTimeMs = Date.now() - startTime;
+      this.analyticsMetrics.memoryUsageMb = process.memoryUsage().heapUsed / 1024 / 1024;
 
       // Update final metrics
-      this.metricsCollector.setGauge('processing_time_ms', this.metrics.processingTimeMs);
-      this.metricsCollector.setGauge('memory_usage_mb', this.metrics.memoryUsageMb);
+      this.metricsCollector.setGauge('processing_time_ms', this.analyticsMetrics.processingTimeMs);
+      this.metricsCollector.setGauge('memory_usage_mb', this.analyticsMetrics.memoryUsageMb);
       this.metricsCollector.setGauge('success_rate', 
-        this.metrics.successCount / (this.metrics.successCount + this.metrics.errorCount)
+        this.analyticsMetrics.successCount / (this.analyticsMetrics.successCount + this.analyticsMetrics.errorCount)
       );
 
       this.logger.info('Analytics run completed', {
-        duration: this.metrics.processingTimeMs,
-        cappers: this.metrics.capperCount,
-        success: this.metrics.successCount,
-        errors: this.metrics.errorCount
+        duration: this.analyticsMetrics.processingTimeMs,
+        cappers: this.analyticsMetrics.capperCount,
+        success: this.analyticsMetrics.successCount,
+        errors: this.analyticsMetrics.errorCount
       });
 
     } catch (error) {
-      this.metrics.errorCount++;
+      this.analyticsMetrics.errorCount++;
       this.metricsCollector.incrementCounter('run_failed');
       this.logger.error('Analytics run failed', error as Error);
       throw new AgentError(
@@ -276,17 +276,17 @@ export class AnalyticsAgent extends BaseAgent {
       });
 
       // Update metrics
-      this.metrics.totalAnalyzed++;
+      this.analyticsMetrics.totalProcessed++;
       if (performance.roi > 0) {
-        this.metrics.profitableCappers++;
+        this.analyticsMetrics.profitableCappers++;
       }
-      this.metrics.avgROI = (this.metrics.avgROI * (this.metrics.totalAnalyzed - 1) + performance.roi) / this.metrics.totalAnalyzed;
-      this.metrics.activeStreaks += trendAnalyses.length;
+      this.analyticsMetrics.avgROI = (this.analyticsMetrics.avgROI * (this.analyticsMetrics.totalProcessed - 1) + performance.roi) / this.analyticsMetrics.totalProcessed;
+      this.analyticsMetrics.activeStreaks += trendAnalyses.length;
 
       // Update metrics collector
-      this.metricsCollector.setGauge('profitable_cappers', this.metrics.profitableCappers);
-      this.metricsCollector.setGauge('avg_roi', this.metrics.avgROI);
-      this.metricsCollector.setGauge('active_streaks', this.metrics.activeStreaks);
+      this.metricsCollector.setGauge('profitable_cappers', this.analyticsMetrics.profitableCappers);
+      this.metricsCollector.setGauge('avg_roi', this.analyticsMetrics.avgROI);
+      this.metricsCollector.setGauge('active_streaks', this.analyticsMetrics.activeStreaks);
 
       logger.info('Capper analytics processed successfully', {
         pickCount: picks.length,
@@ -454,15 +454,15 @@ export class AnalyticsAgent extends BaseAgent {
     const errors = [];
     const config = this.context.config as AnalyticsAgentConfig;
 
-    if (this.metrics.errorCount > 0) {
-      errors.push(`${this.metrics.errorCount} errors in last run`);
+    if (this.analyticsMetrics.errorCount > 0) {
+      errors.push(`${this.analyticsMetrics.errorCount} errors in last run`);
     }
 
-    if (this.metrics.processingTimeMs > 300000) { // 5 minutes
+    if (this.analyticsMetrics.processingTimeMs > 300000) { // 5 minutes
       errors.push('Processing time exceeds threshold');
     }
 
-    if (this.metrics.capperCount === 0) {
+    if (this.analyticsMetrics.capperCount === 0) {
       errors.push('No cappers found for analysis');
     }
 
@@ -473,7 +473,7 @@ export class AnalyticsAgent extends BaseAgent {
       status,
       message: errors.join('; '),
       details: {
-        metrics: this.metrics
+        metrics: this.analyticsMetrics
       }
     };
   }
@@ -482,6 +482,61 @@ export class AnalyticsAgent extends BaseAgent {
   async publishToDiscord(summaries: AnalyticsSummary[]) {
     // TODO: Format and send to Discord or Retool webhook/dashboard
     // Example: createLeaderboardEmbed(summaries)
+  }
+
+  protected async checkHealth(): Promise<HealthCheckResult> {
+    const health: HealthCheckResult = {
+      status: 'healthy',
+      details: {
+        errors: [],
+        warnings: [],
+        info: {
+          lastRunStats: this.analyticsMetrics.lastRunStats,
+          processingTimeMs: this.analyticsMetrics.processingTimeMs,
+          successCount: this.analyticsMetrics.successCount,
+          errorCount: this.analyticsMetrics.errorCount
+        }
+      },
+      timestamp: new Date().toISOString()
+    };
+
+    // Check processing time
+    if (this.analyticsMetrics.processingTimeMs > 5000) {
+      health.status = 'degraded';
+      health.details?.warnings.push('High processing time detected');
+    }
+
+    // Check error rate
+    if (this.analyticsMetrics.errorCount > 0) {
+      const errorRate = this.analyticsMetrics.errorCount / 
+        (this.analyticsMetrics.successCount + this.analyticsMetrics.errorCount);
+      
+      if (errorRate > 0.1) {
+        health.status = 'unhealthy';
+        health.details?.errors.push(`High error rate: ${(errorRate * 100).toFixed(1)}%`);
+      }
+    }
+
+    return health;
+  }
+
+  protected async collectMetrics(): Promise<Metrics> {
+    return {
+      errorCount: this.analyticsMetrics.errorCount,
+      warningCount: this.analyticsMetrics.warningCount,
+      successCount: this.analyticsMetrics.successCount,
+      ...this.analyticsMetrics
+    };
+  }
+
+  public async handleCommand(command: AgentCommand): Promise<void> {
+    switch (command.type) {
+      case 'RUN_ANALYSIS':
+        await this.runAnalysis();
+        break;
+      default:
+        throw new Error(`Unknown command type: ${command.type}`);
+    }
   }
 }
 

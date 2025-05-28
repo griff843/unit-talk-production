@@ -1,77 +1,69 @@
+import 'dotenv/config';
 import { Worker } from '@temporalio/worker';
-import { Logger } from './utils/logger';
+import { getEnv } from './utils/getEnv';
+import { createClient } from '@supabase/supabase-js';
 import { ErrorHandler } from './utils/errorHandling';
-import dotenv from 'dotenv';
+import { Logger } from './utils/logger';
 
-// Load environment variables
-dotenv.config();
+// Import base activities
+import * as baseActivities from './agents/BaseAgent/activities';
 
-// Import all agent activities
+// Import agent-specific activities
 import * as analyticsActivities from './agents/AnalyticsAgent/activities';
-import * as gradingActivities from './agents/GradingAgent/activities';
-import * as contestActivities from './agents/ContestAgent/activities';
-import * as alertActivities from './agents/AlertAgent/activities';
-import * as promoActivities from './agents/PromoAgent/activities';
 import * as notificationActivities from './agents/NotificationAgent/activities';
 import * as feedActivities from './agents/FeedAgent/activities';
-import * as operatorActivities from './agents/OperatorAgent/activities';
 import * as auditActivities from './agents/AuditAgent/activities';
+import * as gradingActivities from './agents/GradingAgent/activities';
+import * as alertActivities from './agents/AlertAgent/activities';
+import * as promoActivities from './agents/PromoAgent/activities';
+import * as contestActivities from './agents/ContestAgent/activities';
+import * as operatorActivities from './agents/OperatorAgent/activities';
 
-// Initialize logger and error handler
-const logger = new Logger('TemporalWorker');
-const errorHandler = ErrorHandler.getInstance();
+const env = getEnv();
+const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+const logger = new Logger('Worker');
+const errorHandler = new ErrorHandler('Worker', supabase);
 
 async function run() {
   try {
-    logger.info('Initializing Temporal worker...');
-
     const worker = await Worker.create({
       workflowsPath: require.resolve('./workflows'),
       activities: {
+        // Register base activities
+        ...baseActivities,
+
+        // Register agent-specific activities
         ...analyticsActivities,
-        ...gradingActivities,
-        ...contestActivities,
-        ...alertActivities,
-        ...promoActivities,
         ...notificationActivities,
         ...feedActivities,
-        ...operatorActivities,
         ...auditActivities,
+        ...gradingActivities,
+        ...alertActivities,
+        ...promoActivities,
+        ...contestActivities,
+        ...operatorActivities
       },
-      taskQueue: process.env.TEMPORAL_TASK_QUEUE || 'unit-talk-main',
-      // Add worker options for better reliability
-      maxConcurrentActivityTaskExecutions: 10,
-      maxConcurrentWorkflowTaskExecutions: 50,
-      // Add shutdown grace period
-      shutdownGraceTime: '30 seconds',
+      taskQueue: env.TEMPORAL_TASK_QUEUE
     });
 
-    // Register shutdown handlers
-    process.on('SIGINT', async () => {
-      logger.info('Received SIGINT. Shutting down worker...');
-      await worker.shutdown();
-      process.exit(0);
-    });
-
-    process.on('SIGTERM', async () => {
-      logger.info('Received SIGTERM. Shutting down worker...');
-      await worker.shutdown();
-      process.exit(0);
-    });
-
-    // Start the worker
-    logger.info('Starting Temporal worker...');
     await worker.run();
-    logger.info('Temporal worker started successfully!');
-  } catch (error) {
-    logger.error('Failed to start worker:', error);
-    await errorHandler.handleError(error, {
-      context: 'worker_startup',
-      severity: 'critical'
+
+    logger.info('Worker started successfully');
+
+    // Handle graceful shutdown
+    process.on('SIGINT', async () => {
+      logger.info('Shutting down worker...');
+      await worker.shutdown();
+      process.exit(0);
     });
+
+  } catch (error) {
+    logger.error('Failed to start worker:', { error: error instanceof Error ? error.message : String(error) });
     process.exit(1);
   }
 }
 
-// Run the worker
-run();
+run().catch((error) => {
+  logger.error('Unhandled error:', { error: error instanceof Error ? error.message : String(error) });
+  process.exit(1);
+});

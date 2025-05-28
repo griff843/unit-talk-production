@@ -1,142 +1,121 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import { IAgent, AgentStatus, AgentConfig, AgentCommand, HealthCheckResult } from '../../types/agent';
+import { AgentCommand, HealthCheckResult, BaseAgentDependencies } from '../../types/agent';
+import { BaseAgent } from '../BaseAgent';
 import { Logger } from '../../utils/logger';
 import { DataQualityCheck } from './types';
 import { ETLWorkflow } from './workflows';
 import { EnrichmentPipeline } from './pipelines';
+import { Metrics } from '../../types/shared';
 
 /**
  * DataAgent handles data quality, ETL processes, and data enrichment workflows
  * Follows agent-development-sop.md specifications for structure and implementation
  */
-export class DataAgent implements IAgent {
-  private supabase: SupabaseClient;
-  private logger: Logger;
+export class DataAgent extends BaseAgent {
   private etlWorkflows: Map<string, ETLWorkflow>;
   private enrichmentPipelines: Map<string, EnrichmentPipeline>;
-  
-  name = 'DataAgent';
-  status: AgentStatus = 'idle';
-  config: AgentConfig;
 
-  constructor(config: AgentConfig, supabase: SupabaseClient) {
-    this.config = config;
-    this.supabase = supabase;
-    this.logger = new Logger('DataAgent');
+  constructor(dependencies: BaseAgentDependencies) {
+    super(dependencies);
     this.etlWorkflows = new Map();
     this.enrichmentPipelines = new Map();
   }
 
-  async initialize(): Promise<void> {
-    try {
-      this.logger.info('Initializing DataAgent');
-      await this.setupETLWorkflows();
-      await this.setupEnrichmentPipelines();
-      await this.runInitialHealthCheck();
-      this.status = 'ready';
-      this.logger.info('DataAgent initialized successfully');
-    } catch (error) {
-      this.status = 'error';
-      this.logger.error('Failed to initialize DataAgent', error);
-      throw error;
+  protected async initialize(): Promise<void> {
+    await this.initializeETLWorkflows();
+    await this.initializeEnrichmentPipelines();
+  }
+
+  protected async cleanup(): Promise<void> {
+    for (const workflow of this.etlWorkflows.values()) {
+      await workflow.cleanup();
+    }
+    for (const pipeline of this.enrichmentPipelines.values()) {
+      await pipeline.cleanup();
     }
   }
 
-  async start(): Promise<void> {
-    try {
-      this.logger.info('Starting DataAgent');
-      this.status = 'running';
-      await this.startDataQualityMonitoring();
-      await this.startETLWorkflows();
-      this.logger.info('DataAgent started successfully');
-    } catch (error) {
-      this.status = 'error';
-      this.logger.error('Failed to start DataAgent', error);
-      throw error;
+  protected async checkHealth(): Promise<HealthCheckResult> {
+    const workflowHealth = await this.checkWorkflowsHealth();
+    const pipelineHealth = await this.checkPipelinesHealth();
+
+    const status = [workflowHealth, pipelineHealth].every(h => h.status === 'healthy')
+      ? 'healthy'
+      : 'degraded';
+
+    return {
+      status,
+      details: {
+        errors: [],
+        warnings: [],
+        info: {
+          workflows: workflowHealth,
+          pipelines: pipelineHealth
+        }
+      },
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  protected async collectMetrics(): Promise<Metrics> {
+    const workflowMetrics = await this.collectWorkflowMetrics();
+    const pipelineMetrics = await this.collectPipelineMetrics();
+
+    return {
+      errorCount: workflowMetrics.errors + pipelineMetrics.errors,
+      warningCount: workflowMetrics.warnings + pipelineMetrics.warnings,
+      successCount: workflowMetrics.successes + pipelineMetrics.successes,
+      workflows: workflowMetrics,
+      pipelines: pipelineMetrics
+    };
+  }
+
+  public async handleCommand(command: AgentCommand): Promise<void> {
+    switch (command.type) {
+      case 'RUN_ETL':
+        await this.runETLWorkflow(command.payload);
+        break;
+      case 'RUN_ENRICHMENT':
+        await this.runEnrichmentPipeline(command.payload);
+        break;
+      default:
+        throw new Error(`Unknown command type: ${command.type}`);
     }
   }
 
-  async stop(): Promise<void> {
-    try {
-      this.logger.info('Stopping DataAgent');
-      await this.stopETLWorkflows();
-      await this.stopDataQualityMonitoring();
-      this.status = 'stopped';
-      this.logger.info('DataAgent stopped successfully');
-    } catch (error) {
-      this.logger.error('Failed to stop DataAgent', error);
-      throw error;
-    }
+  private async initializeETLWorkflows(): Promise<void> {
+    // Initialize ETL workflows
   }
 
-  async handleCommand(command: AgentCommand): Promise<void> {
-    try {
-      this.logger.info('Handling command', { command });
-      
-      switch (command.action) {
-        case 'runETL':
-          await this.runETLWorkflow(command.parameters.workflowId);
-          break;
-        case 'enrichData':
-          await this.runEnrichmentPipeline(command.parameters.pipelineId);
-          break;
-        case 'checkDataQuality':
-          await this.runDataQualityCheck(command.parameters.tableId);
-          break;
-        default:
-          throw new Error(`Unknown command action: ${command.action}`);
-      }
-
-      this.logger.info('Command handled successfully', { command });
-    } catch (error) {
-      this.logger.error('Failed to handle command', { command, error });
-      throw error;
-    }
+  private async initializeEnrichmentPipelines(): Promise<void> {
+    // Initialize enrichment pipelines
   }
 
-  async healthCheck(): Promise<HealthCheckResult> {
-    try {
-      const etlStatus = await this.checkETLWorkflowsHealth();
-      const pipelineStatus = await this.checkEnrichmentPipelinesHealth();
-      const dbStatus = await this.checkDatabaseHealth();
-
-      return {
-        status: this.determineOverallHealth(etlStatus, pipelineStatus, dbStatus),
-        components: {
-          etl: etlStatus,
-          enrichment: pipelineStatus,
-          database: dbStatus
-        },
-        timestamp: new Date()
-      };
-    } catch (error) {
-      this.logger.error('Health check failed', error);
-      return {
-        status: 'failed',
-        components: {},
-        timestamp: new Date(),
-        error: error.message
-      };
-    }
+  private async checkWorkflowsHealth(): Promise<any> {
+    // Check ETL workflows health
+    return { status: 'healthy' };
   }
 
-  private async setupETLWorkflows(): Promise<void> {
-    // Implementation follows system-health-recovery-sop.md guidelines
+  private async checkPipelinesHealth(): Promise<any> {
+    // Check enrichment pipelines health
+    return { status: 'healthy' };
   }
 
-  private async setupEnrichmentPipelines(): Promise<void> {
-    // Implementation follows system-health-recovery-sop.md guidelines
+  private async collectWorkflowMetrics(): Promise<any> {
+    // Collect ETL workflow metrics
+    return { errors: 0, warnings: 0, successes: 0 };
   }
 
-  private async startDataQualityMonitoring(): Promise<void> {
-    // Implementation follows kpi-documentation-sop.md metrics
+  private async collectPipelineMetrics(): Promise<any> {
+    // Collect enrichment pipeline metrics
+    return { errors: 0, warnings: 0, successes: 0 };
   }
 
-  private async runDataQualityCheck(tableId: string): Promise<DataQualityCheck> {
-    // Implementation with comprehensive error handling
+  private async runETLWorkflow(payload: any): Promise<void> {
+    // Run ETL workflow
   }
 
-  private determineOverallHealth(...statuses: any[]): 'healthy' | 'degraded' | 'failed' {
-    // Implementation follows system-health-recovery-sop.md guidelines
+  private async runEnrichmentPipeline(payload: any): Promise<void> {
+    // Run enrichment pipeline
   }
 } 

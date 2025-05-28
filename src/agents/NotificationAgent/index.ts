@@ -2,37 +2,184 @@
 
 import { SupabaseClient } from '@supabase/supabase-js';
 import { NotificationAgentConfig, NotificationPayload, NotificationResult, NotificationChannel } from './types';
-import { BaseAgent } from '../BaseAgent';
+import { BaseAgent, BaseAgentDependencies } from '../BaseAgent';
 import { ErrorHandlerConfig } from '../../utils/errorHandling';
 import { Logger } from '../../utils/logger';
+import { 
+  AgentCommand, 
+  HealthCheckResult, 
+  AgentMetrics,
+  AgentStatus 
+} from '../../types/agent';
 
 import { sendDiscordNotification } from './channels/discord';
 import { sendEmailNotification } from './channels/email';
 import { sendNotionNotification } from './channels/notion';
-import { sendRetoolNotification } from './channels/retool';
+import { sendSlackNotification } from './channels/slack';
+import { sendSMSNotification } from './channels/sms';
+
+let instance: NotificationAgent | null = null;
 
 /**
  * NotificationAgent
  * Centralizes outbound notification routing, logging, and retry/escalation logic.
  */
 export class NotificationAgent extends BaseAgent {
-  private logger: Logger;
+  protected readonly logger: Logger;
+  private readonly config: NotificationAgentConfig;
   private maxRetries: number;
 
-  constructor(
-    config: NotificationAgentConfig,
-    supabase: SupabaseClient,
-    errorConfig: ErrorHandlerConfig
-  ) {
-    super('NotificationAgent', config, supabase, errorConfig);
-    this.logger = new Logger('NotificationAgent');
-    this.maxRetries = config.maxRetries ?? 3;
+  constructor(dependencies: BaseAgentDependencies) {
+    super(dependencies);
+    this.logger = dependencies.logger || new Logger('NotificationAgent');
+    this.config = dependencies.config as NotificationAgentConfig;
+    this.maxRetries = dependencies.config.maxRetries ?? 3;
   }
 
-  /**
-   * Dispatches a notification payload to one or more channels.
-   */
-  async sendNotification(payload: NotificationPayload): Promise<NotificationResult> {
+  public async initialize(): Promise<void> {
+    await this.validateDependencies();
+    await this.initializeResources();
+    this.logger.info('NotificationAgent initialized successfully');
+  }
+
+  public async cleanup(): Promise<void> {
+    // No cleanup needed
+  }
+
+  public async checkHealth(): Promise<HealthCheckResult> {
+    return this.healthCheck();
+  }
+
+  protected async validateDependencies(): Promise<void> {
+    // Verify access to required tables
+    const { error } = await this.supabase
+      .from('notifications')
+      .select('id')
+      .limit(1);
+
+    if (error) {
+      throw new Error(`Failed to access notifications table: ${error.message}`);
+    }
+
+    // Verify channel configurations
+    if (this.config.channels.discord?.enabled && !this.config.channels.discord.webhookUrl) {
+      throw new Error('Discord webhook URL is required when Discord is enabled');
+    }
+
+    if (this.config.channels.notion?.enabled && !this.config.channels.notion.apiKey) {
+      throw new Error('Notion API key is required when Notion is enabled');
+    }
+
+    if (this.config.channels.email?.enabled) {
+      const { smtpConfig } = this.config.channels.email;
+      if (!smtpConfig.host || !smtpConfig.port || !smtpConfig.auth.user || !smtpConfig.auth.pass) {
+        throw new Error('SMTP configuration is incomplete');
+      }
+    }
+
+    if (this.config.channels.sms?.enabled && !this.config.channels.sms.apiKey) {
+      throw new Error('SMS API key is required when SMS is enabled');
+    }
+
+    if (this.config.channels.slack?.enabled && !this.config.channels.slack.webhookUrl) {
+      throw new Error('Slack webhook URL is required when Slack is enabled');
+    }
+  }
+
+  protected async initializeResources(): Promise<void> {
+    // No additional resources needed
+  }
+
+  protected async process(): Promise<void> {
+    // Process any pending notifications
+    const { data: pendingNotifications, error } = await this.supabase
+      .from('notifications')
+      .select('*')
+      .eq('status', 'pending');
+
+    if (error) {
+      throw new Error(`Failed to fetch pending notifications: ${error.message}`);
+    }
+
+    for (const notification of pendingNotifications || []) {
+      try {
+        await this.processNotification(notification);
+        this.metrics.successCount++;
+      } catch (error) {
+        this.metrics.errorCount++;
+        if (error instanceof Error) {
+          this.logger.error(`Error processing notification ${notification.id}:`, error);
+        }
+      }
+    }
+  }
+
+  protected async healthCheck(): Promise<HealthCheckResult> {
+    const health: HealthCheckResult = {
+      status: 'healthy',
+      details: {
+        errors: [],
+        warnings: [],
+        info: {
+          lastCheck: new Date().toISOString(),
+          enabledChannels: Object.entries(this.config.channels)
+            .filter(([_, config]) => config?.enabled)
+            .map(([channel]) => channel)
+        }
+      },
+      timestamp: new Date().toISOString()
+    };
+
+    // Check database connectivity
+    const { error } = await this.supabase
+      .from('notifications')
+      .select('id')
+      .limit(1);
+
+    if (error) {
+      health.status = 'unhealthy';
+      if (health.details) {
+        health.details.errors.push(`Database connectivity issue: ${error.message}`);
+      }
+    }
+
+    return health;
+  }
+
+  protected async collectMetrics(): Promise<AgentMetrics> {
+    const { data: notificationStats } = await this.supabase
+      .from('notifications')
+      .select('status')
+      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+
+    const baseMetrics = this.metrics;
+    const status: AgentStatus = baseMetrics.errorCount > 0 ? 'degraded' : 'healthy';
+
+    return {
+      ...baseMetrics,
+      status,
+      agentName: this.config.name,
+      successCount: (notificationStats || []).filter(s => s.status === 'sent').length,
+      warningCount: (notificationStats || []).filter(s => s.status === 'pending').length,
+      errorCount: (notificationStats || []).filter(s => s.status === 'failed').length
+    };
+  }
+
+  public async handleCommand(command: AgentCommand): Promise<void> {
+    switch (command.type) {
+      case 'SEND_NOTIFICATION':
+        await this.sendNotification(command.payload);
+        break;
+      default:
+        throw new Error(`Unknown command type: ${command.type}`);
+    }
+  }
+
+  private async processNotification(notification: NotificationPayload): Promise<void> {
+    await this.sendNotification(notification);
+  }
+
+  public async sendNotification(payload: NotificationPayload): Promise<NotificationResult> {
     const results: Record<NotificationChannel, boolean> = {};
     const errors: Record<NotificationChannel, string> = {};
     let successCount = 0;
@@ -45,18 +192,20 @@ export class NotificationAgent extends BaseAgent {
         try {
           switch (channel) {
             case 'discord':
-              await sendDiscordNotification(payload);
+              await sendDiscordNotification(payload, this.config.channels.discord!);
               break;
             case 'email':
-              await sendEmailNotification(payload);
+              await sendEmailNotification(payload, this.config.channels.email!);
               break;
             case 'notion':
-              await sendNotionNotification(payload);
+              await sendNotionNotification(payload, this.config.channels.notion!);
               break;
-            case 'retool':
-              await sendRetoolNotification(payload);
+            case 'slack':
+              await sendSlackNotification(payload, this.config.channels.slack!);
               break;
-            // Add more channels as needed
+            case 'sms':
+              await sendSMSNotification(payload, this.config.channels.sms!);
+              break;
             default:
               throw new Error(`Unknown notification channel: ${channel}`);
           }
@@ -74,7 +223,7 @@ export class NotificationAgent extends BaseAgent {
       }
     }
 
-    // Log notification to Supabase (including success/failures)
+    // Log notification to Supabase
     await this.supabase.from('notification_log').insert([{
       ...payload,
       status: successCount === payload.channels.length ? 'success' : (successCount ? 'partial' : 'failed'),
@@ -86,42 +235,50 @@ export class NotificationAgent extends BaseAgent {
 
     this.logger.info('Notification dispatched', { results, errors });
 
-    // Optionally escalate failures to OperatorAgent or alert channel
+    // Optionally escalate failures to OperatorAgent
     if (Object.values(results).some(success => !success)) {
       await this.escalateFailures(payload, results, errors);
     }
 
-    return { results, errors };
+    return {
+      success: successCount > 0,
+      notificationId: payload.id || 'generated-id',
+      channels: payload.channels,
+      error: Object.keys(errors).length > 0 ? JSON.stringify(errors) : undefined
+    };
   }
 
-  /**
-   * Escalates notification failures to OperatorAgent or other escalation system.
-   */
-  private async escalateFailures(payload: NotificationPayload, results: Record<NotificationChannel, boolean>, errors: Record<NotificationChannel, string>) {
-    // Stub: Insert to operator_incidents, send to alert queue, etc.
+  private async escalateFailures(
+    payload: NotificationPayload,
+    results: Record<NotificationChannel, boolean>,
+    errors: Record<NotificationChannel, string>
+  ): Promise<void> {
     this.logger.error('Escalating notification failures', { payload, results, errors });
-    // Example: await this.supabase.from('operator_incidents').insert([...]);
+    // Insert to operator_incidents table
+    await this.supabase.from('operator_incidents').insert([{
+      type: 'notification_failure',
+      severity: payload.priority || 'low',
+      details: {
+        payload,
+        results,
+        errors
+      },
+      status: 'open',
+      createdAt: new Date().toISOString()
+    }]);
   }
+}
 
-  /**
-   * Health check: verifies logging and channel connectivity.
-   */
-  async healthCheck(): Promise<{ status: string; details?: any }> {
-    try {
-      // Try to insert dummy log
-      await this.supabase.from('notification_log').insert([{
-        type: 'health_check',
-        message: 'Test notification',
-        channels: ['discord'],
-        status: 'success',
-        deliveredChannels: ['discord'],
-        failedChannels: [],
-        createdAt: new Date().toISOString()
-      }]);
-      return { status: 'healthy' };
-    } catch (err) {
-      this.logger.error('Health check failed', err);
-      return { status: 'failed', details: err };
-    }
+export async function sendNotification(payload: NotificationPayload): Promise<NotificationResult> {
+  if (!instance) {
+    throw new Error('NotificationAgent not initialized');
   }
+  return instance.sendNotification(payload);
+}
+
+export function initializeNotificationAgent(dependencies: BaseAgentDependencies): NotificationAgent {
+  if (!instance) {
+    instance = new NotificationAgent(dependencies);
+  }
+  return instance;
 }

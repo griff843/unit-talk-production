@@ -1,4 +1,4 @@
-import { HealthCheckResult } from '../../types/agent';
+import { HealthCheckResult, AgentConfig } from '../../types/agent';
 
 export interface OnboardingFlow {
   id: string;
@@ -12,13 +12,7 @@ export interface OnboardingFlow {
   metrics: OnboardingMetrics;
 }
 
-export type UserType = 
-  | 'developer'
-  | 'trader'
-  | 'shiller'
-  | 'subscriber'
-  | 'admin'
-  | 'custom';
+export type UserType = 'customer' | 'capper' | 'staff' | 'mod' | 'va' | 'vip';
 
 export type OnboardingStatus =
   | 'not_started'
@@ -30,13 +24,30 @@ export type OnboardingStatus =
 
 export interface OnboardingStep {
   id: string;
-  name: string;
-  type: StepType;
-  status: StepStatus;
-  requirements: Requirement[];
-  dependencies?: string[];
-  completionCriteria: Record<string, any>;
-  resources: Resource[];
+  label: string;
+  completed: boolean;
+  completedAt?: string;
+}
+
+export interface OnboardingPayload {
+  userId: string;
+  userType: UserType;
+  meta?: Record<string, any>;
+}
+
+export interface OnboardingResult {
+  success: boolean;
+  onboardingId: string;
+  steps: OnboardingStep[];
+}
+
+export interface OnboardingAgentConfig extends AgentConfig {
+  agentName: 'OnboardingAgent';
+  enabled: boolean;
+  metricsConfig: {
+    interval: number;
+    prefix: string;
+  };
 }
 
 export type StepType =

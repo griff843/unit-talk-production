@@ -87,7 +87,7 @@ export const fetchFromProviderActivity = async (
 ): Promise<FetchResult> => {
   const supabase = new SupabaseClient(
     process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
   
   return await fetchFromProvider(input, supabase);

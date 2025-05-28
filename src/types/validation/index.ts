@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DatabaseError, ValidationError } from '../../utils/errorHandling';
+import { ValidationError, DatabaseError } from '../../utils/errorHandling';
 
 // --- Validation Result Types ---
 export interface ValidationResult<T> {
@@ -39,20 +39,27 @@ export const DatabaseModelSchema = z.object({
   updated_at: z.string().datetime().optional(),
 });
 
-export async function validateDatabaseModel<T extends z.ZodType>(
-  schema: T,
-  data: unknown
-): Promise<z.infer<T>> {
+export function validateModel<T>(schema: z.ZodSchema<T>, data: unknown): T {
   try {
     return schema.parse(data);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      throw new DatabaseError('Database model validation failed', {
-        errors: error.errors.map(e => ({
-          path: e.path.join('.'),
-          message: e.message,
-        })),
-      });
+      throw new ValidationError(
+        'Model validation failed: ' + error.errors.map(e => e.message).join(', ')
+      );
+    }
+    throw error;
+  }
+}
+
+export function validateDatabaseModel<T>(schema: z.ZodSchema<T>, data: unknown): T {
+  try {
+    return schema.parse(data);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      throw new DatabaseError(
+        'Database model validation failed: ' + error.errors.map(e => e.message).join(', ')
+      );
     }
     throw error;
   }
@@ -65,6 +72,19 @@ export const BaseConfigSchema = z.object({
   environment: z.enum(['development', 'staging', 'production']),
   logLevel: z.enum(['debug', 'info', 'warn', 'error']),
 });
+
+export function validateConfig<T>(schema: z.ZodSchema<T>, config: unknown): T {
+  try {
+    return schema.parse(config);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      throw new ValidationError(
+        'Configuration validation failed: ' + error.errors.map(e => e.message).join(', ')
+      );
+    }
+    throw error;
+  }
+}
 
 // --- API Validation ---
 export const PaginationSchema = z.object({

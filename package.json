@@ -1,26 +1,20 @@
 {
   "name": "unit-talk-platform",
   "version": "1.0.0",
-  "description": "Sports betting platform with multiple agents",
-  "main": "src/worker.ts",
+  "description": "Enterprise-grade betting automation platform",
+  "main": "dist/index.js",
   "scripts": {
-    "start": "tsx src/worker.ts",
-    "worker": "tsx src/worker.ts",
-    "worker:dev": "tsx watch src/worker.ts",
     "build": "tsc",
-    "build:clean": "rimraf dist && tsc",
-    "dev": "tsx watch src/worker.ts",
+    "start": "node dist/index.js",
+    "worker": "tsx src/worker.ts",
+    "worker:start": "tsx src/worker.ts",
     "test": "jest",
     "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
     "lint": "eslint . --ext .ts",
-    "lint:fix": "eslint . --ext .ts --fix",
-    "typecheck": "tsc --noEmit",
-    "prepare": "husky install",
-    "format": "prettier --write \"src/**/*.ts\"",
-    "validate": "npm run lint && npm run typecheck && npm run test",
-    "clean": "rimraf dist coverage",
-    "prestart": "npm run build",
-    "postinstall": "npm run build"
+    "type-check": "tsc --noEmit",
+    "metrics:show": "node scripts/showMetrics.js",
+    "health:check": "node scripts/healthCheck.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
@@ -28,48 +22,31 @@
     "@temporalio/client": "^1.8.0",
     "@temporalio/worker": "^1.8.0",
     "@temporalio/workflow": "^1.8.0",
-    "axios": "^1.6.2",
-    "canvas": "^2.11.2",
-    "date-fns": "^2.30.0",
     "discord.js": "^14.14.1",
-    "dotenv": "^16.5.0",
-    "express": "^4.18.2",
-    "form-data": "^4.0.0",
-    "openai": "^4.20.1",
+    "dotenv": "^16.3.1",
+    "openai": "^4.103.0",
     "pino": "^8.16.2",
-    "prom-client": "^15.0.0",
-    "uuid": "^9.0.1",
+    "pino-pretty": "^10.2.3",
+    "prom-client": "^15.1.3",
+    "twilio": "^4.19.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@jest/globals": "^29.7.0",
-    "@temporalio/testing": "^1.8.0",
-    "@types/express": "^4.17.21",
     "@types/jest": "^29.5.10",
     "@types/node": "^20.10.0",
-    "@types/uuid": "^9.0.7",
-    "@typescript-eslint/eslint-plugin": "^6.13.1",
-    "@typescript-eslint/parser": "^6.13.1",
+    "@types/nodemailer": "^6.4.14",
+    "@typescript-eslint/eslint-plugin": "^6.12.0",
+    "@typescript-eslint/parser": "^6.12.0",
     "eslint": "^8.54.0",
-    "eslint-config-prettier": "^9.0.0",
-    "eslint-plugin-prettier": "^5.0.1",
-    "husky": "^8.0.3",
     "jest": "^29.7.0",
-    "lint-staged": "^15.1.0",
-    "pino-pretty": "^13.0.0",
-    "prettier": "^3.1.0",
-    "rimraf": "^5.0.5",
+    "nodemailer": "^7.0.3",
     "ts-jest": "^29.1.1",
-    "tsx": "^4.6.2",
+    "tsx": "^4.6.0",
     "typescript": "^5.3.2"
   },
   "engines": {
     "node": ">=18.0.0"
   },
-  "lint-staged": {
-    "*.ts": [
-      "eslint --fix",
-      "prettier --write"
-    ]
-  }
+  "private": true,
+  "license": "UNLICENSED"
 }

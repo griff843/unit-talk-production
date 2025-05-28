@@ -1,54 +1,105 @@
 // src/agents/AnalyticsAgent/activities.ts
 
-import 'dotenv/config';
-import { createClient } from '@supabase/supabase-js';
-import { AnalyticsAgent } from './index';
-import { AnalyticsAgentConfig } from './types';
+import { AnalyticsAgentActivities, ActivityParams, ActivityResult } from '../../types/activities';
+import { AnalyticsAgent, AnalyticsAgentConfig } from './index';
+import { createSupabaseClient } from '../../utils/supabase';
+import { ErrorHandler } from '../../utils/errorHandling';
+import { Logger } from '../../utils/logger';
+import { HealthCheckResult, BaseAgentDependencies } from '../../types/agent';
+import { Metrics } from '../../types/shared';
 
-// Safely load env vars, throw descriptive error if missing
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+export class AnalyticsAgentActivitiesImpl implements AnalyticsAgentActivities {
+  private agent: AnalyticsAgent;
 
-if (!supabaseUrl) throw new Error('Missing SUPABASE_URL in environment');
-if (!supabaseKey) throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY in environment');
+  constructor() {
+    const supabase = createSupabaseClient();
+    const config: AnalyticsAgentConfig = {
+      name: 'AnalyticsAgent',
+      enabled: true,
+      healthCheckIntervalMs: 60000,
+      metricsIntervalMs: 30000,
+      analysisWindowDays: 30,
+      minPicksForAnalysis: 10,
+      updateFrequencyMs: 3600000,
+      batchSize: 100
+    };
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+    const logger = new Logger('AnalyticsAgent');
+    const errorHandler = ErrorHandler.getInstance(supabase, {
+      enableLogging: true,
+      enableMetrics: true
+    });
 
-// Default agent configuration (customize as needed)
-const config: AnalyticsAgentConfig = {
-  agentName: 'AnalyticsAgent',
-  enabled: true,
-  analysisConfig: {
-    minPicksForAnalysis: 10,
-    roiTimeframes: [7, 30, 90],
-    streakThreshold: 3,
-    trendWindowDays: 30,
-  },
-  alertConfig: {
-    roiAlertThreshold: 15,
-    streakAlertThreshold: 5,
-    volatilityThreshold: 0.2,
-  },
-  metricsConfig: {
-    interval: 60000,
-    prefix: 'analytics_agent',
-  },
-};
+    const dependencies: BaseAgentDependencies = {
+      supabase,
+      config,
+      errorHandler,
+      logger
+    };
 
-// Default error handling config (customize if needed)
-const errorConfig = {
-  maxRetries: 3,
-  backoffMs: 1000,
-};
+    this.agent = new AnalyticsAgent(dependencies);
+  }
 
-// Agent instance
-const agent = new AnalyticsAgent(
-  config,
-  supabase,
-  errorConfig
-);
+  async initialize(): Promise<void> {
+    await this.agent.start();
+  }
 
-// Exported Temporal activity
-export async function runAnalyticsAgent(): Promise<void> {
-  await agent.runAnalysis();
+  async cleanup(): Promise<void> {
+    await this.agent.stop();
+  }
+
+  async checkHealth(): Promise<HealthCheckResult> {
+    return await this.agent['checkHealth']();
+  }
+
+  async collectMetrics(): Promise<Metrics> {
+    const metrics = await this.agent['collectMetrics']();
+    return {
+      errorCount: metrics.errorCount,
+      warningCount: metrics.warningCount,
+      successCount: metrics.successCount,
+      ...metrics
+    };
+  }
+
+  async handleCommand(command: any): Promise<void> {
+    await this.agent.handleCommand(command);
+  }
+
+  async runAnalysis(params: ActivityParams): Promise<ActivityResult> {
+    try {
+      await this.agent.handleCommand({
+        type: 'RUN_ANALYSIS',
+        payload: params
+      });
+      return {
+        success: true
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error as Error
+      };
+    }
+  }
+
+  async generateReport(params: ActivityParams): Promise<ActivityResult> {
+    // Implement report generation logic
+    return {
+      success: true,
+      data: {
+        message: 'Report generation not yet implemented'
+      }
+    };
+  }
+
+  async exportData(params: ActivityParams): Promise<ActivityResult> {
+    // Implement data export logic
+    return {
+      success: true,
+      data: {
+        message: 'Data export not yet implemented'
+      }
+    };
+  }
 }

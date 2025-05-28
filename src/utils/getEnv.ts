@@ -1,13 +1,31 @@
 // /utils/getEnv.ts
 
-import type { EnvConfig } from '../types/config'
+import { z } from 'zod';
 
-export function getEnv(): EnvConfig {
-  return {
-    SUPABASE_URL: process.env.SUPABASE_URL || '',
-    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY || '',
-    DISCORD_BOT_TOKEN: process.env.DISCORD_BOT_TOKEN || '',
-    NOTION_API_KEY: process.env.NOTION_API_KEY || ''
-    // Add more as needed
+const envSchema = z.object({
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  TEMPORAL_TASK_QUEUE: z.string().default('unit-talk-main'),
+  SUPABASE_URL: z.string().url(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
+  METRICS_ENABLED: z.coerce.boolean().default(true),
+  HEALTH_CHECK_INTERVAL: z.coerce.number().default(30000)
+});
+
+export type Env = z.infer<typeof envSchema>;
+
+export function getEnv(): Env {
+  try {
+    return envSchema.parse(process.env);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      console.error('❌ Invalid environment variables:');
+      for (const issue of error.issues) {
+        console.error(`  - ${issue.path.join('.')}: ${issue.message}`);
+      }
+    } else {
+      console.error('❌ Failed to validate environment variables:', error);
+    }
+    process.exit(1);
   }
 }

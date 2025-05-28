@@ -1,87 +1,92 @@
-import { AgentStatus, HealthStatus } from './shared';
+import { AgentCommand, HealthCheckResult } from './agent';
+import { Metrics } from './shared';
 
 // Base interface for all agent activities
 export interface BaseAgentActivities {
   // Core operations
   initialize(): Promise<void>;
-  start(): Promise<void>;
-  stop(): Promise<void>;
+  cleanup(): Promise<void>;
   
   // Health and monitoring
-  checkHealth(): Promise<HealthStatus>;
-  reportStatus(): Promise<AgentStatus>;
+  checkHealth(): Promise<HealthCheckResult>;
+  collectMetrics(): Promise<Metrics>;
   
   // Error handling
-  handleError(error: Error, context: string): Promise<void>;
+  handleCommand(command: AgentCommand): Promise<void>;
 }
 
 // Analytics Agent Activities
 export interface AnalyticsAgentActivities extends BaseAgentActivities {
-  runAnalysis(params: any): Promise<void>;
-  generateReport(params: any): Promise<any>;
+  runAnalysis(params: ActivityParams): Promise<ActivityResult>;
+  generateReport(params: ActivityParams): Promise<ActivityResult>;
+  exportData(params: ActivityParams): Promise<ActivityResult>;
 }
 
 // Grading Agent Activities
 export interface GradingAgentActivities extends BaseAgentActivities {
-  processGrades(params: any): Promise<void>;
-  validateGrade(params: any): Promise<boolean>;
+  gradeSubmission(params: ActivityParams): Promise<ActivityResult>;
+  updateGrades(params: ActivityParams): Promise<ActivityResult>;
+  generateFeedback(params: ActivityParams): Promise<ActivityResult>;
 }
 
 // Contest Agent Activities
 export interface ContestAgentActivities extends BaseAgentActivities {
-  manageContest(params: any): Promise<void>;
-  validateEntry(params: any): Promise<boolean>;
+  createContest(params: ActivityParams): Promise<ActivityResult>;
+  processEntries(params: ActivityParams): Promise<ActivityResult>;
+  determineWinners(params: ActivityParams): Promise<ActivityResult>;
 }
 
 // Alert Agent Activities
 export interface AlertAgentActivities extends BaseAgentActivities {
-  processAlerts(params: any): Promise<void>;
-  sendAlert(params: any): Promise<void>;
+  processAlert(params: ActivityParams): Promise<ActivityResult>;
+  notifyStakeholders(params: ActivityParams): Promise<ActivityResult>;
+  escalateAlert(params: ActivityParams): Promise<ActivityResult>;
 }
 
 // Promo Agent Activities
 export interface PromoAgentActivities extends BaseAgentActivities {
-  executePromotion(params: any): Promise<void>;
-  validatePromo(params: any): Promise<boolean>;
+  createPromotion(params: ActivityParams): Promise<ActivityResult>;
+  validatePromoCode(params: ActivityParams): Promise<ActivityResult>;
+  trackPromoUsage(params: ActivityParams): Promise<ActivityResult>;
 }
 
 // Notification Agent Activities
 export interface NotificationAgentActivities extends BaseAgentActivities {
-  sendNotifications(params: any): Promise<void>;
-  validateNotification(params: any): Promise<boolean>;
+  sendNotification(params: ActivityParams): Promise<ActivityResult>;
+  processQueue(params: ActivityParams): Promise<ActivityResult>;
+  checkDeliveryStatus(params: ActivityParams): Promise<ActivityResult>;
 }
 
 // Feed Agent Activities
 export interface FeedAgentActivities extends BaseAgentActivities {
-  processFeed(params: any): Promise<void>;
-  validateFeedItem(params: any): Promise<boolean>;
+  fetchFeed(params: ActivityParams): Promise<ActivityResult>;
+  processFeedItems(params: ActivityParams): Promise<ActivityResult>;
+  updateFeedStatus(params: ActivityParams): Promise<ActivityResult>;
 }
 
 // Operator Agent Activities
 export interface OperatorAgentActivities extends BaseAgentActivities {
-  executeOperations(params: any): Promise<void>;
-  validateOperation(params: any): Promise<boolean>;
+  monitorSystem(params: ActivityParams): Promise<ActivityResult>;
+  handleIncident(params: ActivityParams): Promise<ActivityResult>;
+  generateStatusReport(params: ActivityParams): Promise<ActivityResult>;
 }
 
 // Audit Agent Activities
 export interface AuditAgentActivities extends BaseAgentActivities {
-  performAudit(params: any): Promise<void>;
-  generateAuditReport(params: any): Promise<any>;
+  runAudit(params: ActivityParams): Promise<ActivityResult>;
+  generateAuditReport(params: ActivityParams): Promise<ActivityResult>;
+  archiveAuditData(params: ActivityParams): Promise<ActivityResult>;
 }
 
 // Activity Parameters Types
 export interface ActivityParams {
-  agentId: string;
-  timestamp: string;
-  metadata: Record<string, any>;
+  agentName: string;
   [key: string]: any;
 }
 
 // Activity Result Types
-export interface ActivityResult {
+export interface ActivityResult<T = any> {
   success: boolean;
-  message: string;
-  data?: any;
+  data?: T;
   error?: Error;
-  timestamp: string;
 } 

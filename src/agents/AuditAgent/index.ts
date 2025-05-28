@@ -3,6 +3,7 @@ import { AuditAgentConfig, AuditIncident, AuditCheckResult } from './types';
 import { BaseAgent } from '../BaseAgent';
 import { ErrorHandlerConfig } from '../../utils/errorHandling';
 import { Logger } from '../../utils/logger';
+import { BaseAgentDependencies } from '../BaseAgent/types';
 
 /**
  * AuditAgent
@@ -12,12 +13,8 @@ import { Logger } from '../../utils/logger';
 export class AuditAgent extends BaseAgent {
   private logger: Logger;
 
-  constructor(
-    config: AuditAgentConfig,
-    supabase: SupabaseClient,
-    errorConfig: ErrorHandlerConfig
-  ) {
-    super('AuditAgent', config, supabase, errorConfig);
+  constructor(dependencies: BaseAgentDependencies) {
+    super(dependencies);
     this.logger = new Logger('AuditAgent');
   }
 

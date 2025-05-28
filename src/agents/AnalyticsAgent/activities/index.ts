@@ -2,6 +2,9 @@ import 'dotenv/config';
 import { createClient } from '@supabase/supabase-js';
 import { AnalyticsAgent } from '../';
 import { AnalyticsAgentConfig } from '../types';
+import { Logger } from '../../../utils/logger';
+
+const logger = new Logger('AnalyticsAgent:Activities');
 
 // Safely load env vars, throw descriptive error if missing
 const supabaseUrl = process.env.SUPABASE_URL;

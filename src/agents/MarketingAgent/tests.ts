@@ -3,7 +3,7 @@
 import { MarketingAgent } from '../src/agents/MarketingAgent'
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
+const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 const agentConfig = { agentName: 'MarketingAgent', enabled: true }
 
 describe('MarketingAgent smoke test', () => {

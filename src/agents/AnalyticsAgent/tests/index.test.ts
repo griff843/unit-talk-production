@@ -1,6 +1,17 @@
 import { AnalyticsAgent } from '../';
 import { createClient } from '@supabase/supabase-js';
+import { Logger } from '../../../utils/logger';
+import { sendNotification } from '../../NotificationAgent';
 import { AnalyticsAgentConfig } from '../types';
+
+// Mock sendNotification
+jest.mock('../../NotificationAgent', () => ({
+  sendNotification: jest.fn(() => Promise.resolve({
+    success: true,
+    notificationId: 'test-notification-id',
+    channels: ['discord']
+  }))
+}));
 
 // Mock Supabase client
 jest.mock('@supabase/supabase-js', () => ({
@@ -84,7 +95,7 @@ describe('AnalyticsAgent', () => {
   let supabase: any;
 
   beforeEach(() => {
-    supabase = createClient('test-url', 'test-key');
+    supabase = createClient('test-url', 'test-service-role-key');
     agent = new AnalyticsAgent(testConfig, supabase, errorConfig);
   });
 

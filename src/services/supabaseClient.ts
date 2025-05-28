@@ -1,7 +1,10 @@
+import 'dotenv/config';
 import { createClient } from '@supabase/supabase-js';
-import { config } from '../config/env';
+import { getEnv } from '../utils/getEnv';
+
+const env = getEnv();
 
 export const supabase = createClient(
-  config.supabaseUrl,
-  config.supabaseServiceRoleKey // <--- Service role for backend ops
+  env.SUPABASE_URL,
+  env.SUPABASE_SERVICE_ROLE_KEY
 );

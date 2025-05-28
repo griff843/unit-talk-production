@@ -1,35 +1,8 @@
-import { AgentConfig } from '../../types/agentTypes';
+import { z } from 'zod';
+import { AgentConfig } from '../../types/agent';
 import { RawProp } from '../../types/rawProps';
-import * as z from 'zod';
 
-export const ProviderSchema = z.enum(['SportsGameOdds']);
-export type Provider = z.infer<typeof ProviderSchema>;
-
-export const FeedConfigSchema = z.object({
-  agentName: z.literal('FeedAgent'),
-  enabled: z.boolean(),
-  cron: z.string().optional(),
-  providers: z.record(ProviderSchema, z.object({
-    enabled: z.boolean(),
-    baseUrl: z.string().url(),
-    apiKey: z.string(),
-    rateLimit: z.number().min(1),
-    retryConfig: z.object({
-      maxAttempts: z.number().min(1),
-      backoffMs: z.number().min(100)
-    })
-  })),
-  dedupeConfig: z.object({
-    checkInterval: z.number().min(1),
-    ttlHours: z.number().min(1)
-  }),
-  metricsConfig: z.object({
-    interval: z.number(),
-    prefix: z.string()
-  })
-});
-
-export type FeedAgentConfig = z.infer<typeof FeedConfigSchema>;
+export type Provider = 'SportsGameOdds';
 
 export interface FeedMetrics {
   totalProps: number;
@@ -44,15 +17,6 @@ export interface FeedMetrics {
   }>;
 }
 
-export interface FetchResult {
-  success: boolean;
-  props?: RawProp[];
-  error?: string;
-  latencyMs: number;
-  provider: Provider;
-  timestamp: string;
-}
-
 export interface ProcessedResult {
   inserted: number;
   duplicates: number;
@@ -62,4 +26,61 @@ export interface ProcessedResult {
     duplicateExternalIds: string[];
     errorMessages: string[];
   };
+}
+
+export interface FeedAgentConfig extends AgentConfig {
+  agentName: 'FeedAgent';
+  enabled: boolean;
+  metricsConfig: {
+    interval: number;
+    prefix: string;
+  };
+  providers: Partial<Record<Provider, {
+    enabled: boolean;
+    retryConfig: {
+      maxAttempts: number;
+      backoffMs: number;
+    };
+    baseUrl: string;
+    apiKey: string;
+    rateLimit: number;
+  }>>;
+  dedupeConfig: {
+    checkInterval: number;
+    ttlHours: number;
+  };
+  cron?: string;
+}
+
+export const FeedConfigSchema = z.object({
+  agentName: z.literal('FeedAgent'),
+  enabled: z.boolean(),
+  metricsConfig: z.object({
+    interval: z.number(),
+    prefix: z.string()
+  }),
+  providers: z.record(z.enum(['SportsGameOdds']), z.object({
+    enabled: z.boolean(),
+    retryConfig: z.object({
+      maxAttempts: z.number(),
+      backoffMs: z.number()
+    }),
+    baseUrl: z.string().url(),
+    apiKey: z.string(),
+    rateLimit: z.number()
+  })).optional(),
+  dedupeConfig: z.object({
+    checkInterval: z.number(),
+    ttlHours: z.number()
+  }),
+  cron: z.string().optional()
+});
+
+export interface FetchResult {
+  success: boolean;
+  props?: RawProp[];
+  error?: string;
+  latencyMs: number;
+  provider: Provider;
+  timestamp: string;
 } 

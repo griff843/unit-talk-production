@@ -1,8 +1,42 @@
 import { Logger } from '../../utils/logger';
 import { ErrorHandler } from '../../utils/errorHandling';
 import { BaseAgentActivities, ActivityParams, ActivityResult } from '../../types/activities';
-import { AgentStatus, HealthStatus } from '../../types/shared';
+import { AgentStatus, HealthStatus, Metrics } from '../../types/shared';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { proxyActivities } from '@temporalio/workflow';
+import { AgentCommand, AgentTaskInput, HealthCheckResult } from '../../types/agent';
+
+export interface BaseAgentActivities {
+  initialize(): Promise<void>;
+  cleanup(): Promise<void>;
+  checkHealth(): Promise<HealthCheckResult>;
+  collectMetrics(): Promise<Metrics>;
+  handleCommand(command: AgentCommand): Promise<void>;
+}
+
+const activities = proxyActivities<BaseAgentActivities>({
+  startToCloseTimeout: '1 minute'
+});
+
+export async function runHealthCheck(): Promise<HealthCheckResult> {
+  return await activities.checkHealth();
+}
+
+export async function collectMetrics(): Promise<Metrics> {
+  return await activities.collectMetrics();
+}
+
+export async function handleCommand(input: AgentTaskInput): Promise<void> {
+  await activities.handleCommand(input.command);
+}
+
+export async function initialize(): Promise<void> {
+  await activities.initialize();
+}
+
+export async function cleanup(): Promise<void> {
+  await activities.cleanup();
+}
 
 export abstract class BaseAgentActivitiesImpl implements BaseAgentActivities {
   protected readonly logger: Logger;

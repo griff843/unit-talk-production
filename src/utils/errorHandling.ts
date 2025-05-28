@@ -1,181 +1,130 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Logger } from './logger';
+import { AgentError } from '../types/agent';
 
-export interface ErrorHandlerConfig {
-  enableLogging?: boolean;
-  enableMetrics?: boolean;
-  enableNotifications?: boolean;
-  retryConfig?: {
-    maxAttempts: number;
-    backoffMs: number;
-  };
+export class ValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ValidationError';
+  }
 }
 
-export interface ErrorContext {
-  agent?: string;
-  operation?: string;
-  context?: string;
-  severity?: 'low' | 'medium' | 'high' | 'critical';
-  status?: string;
-  metadata?: Record<string, any>;
+export class DatabaseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'DatabaseError';
+  }
 }
 
 export class ErrorHandler {
-  private static instance: ErrorHandler;
   private readonly logger: Logger;
+  private readonly supabase: SupabaseClient;
+  private readonly context: string;
 
-  private constructor(
-    private readonly supabase: SupabaseClient,
-    private readonly config: ErrorHandlerConfig = {}
-  ) {
-    this.logger = new Logger('ErrorHandler');
+  constructor(context: string, supabase: SupabaseClient) {
+    this.context = context;
+    this.logger = new Logger(`ErrorHandler:${context}`);
+    this.supabase = supabase;
   }
 
-  public static getInstance(
-    supabase?: SupabaseClient,
-    config?: ErrorHandlerConfig
-  ): ErrorHandler {
-    if (!ErrorHandler.instance && supabase) {
-      ErrorHandler.instance = new ErrorHandler(supabase, config);
+  public async handleError(error: Error, additionalContext?: Record<string, any>): Promise<void> {
+    const errorRecord: AgentError = {
+      message: error.message,
+      code: error.name,
+      stack: error.stack,
+      context: {
+        source: this.context,
+        ...additionalContext
+      },
+      severity: this.determineSeverity(error)
+    };
+
+    await this.recordError(errorRecord);
+
+    if (this.isCriticalError(error)) {
+      await this.handleCriticalError(errorRecord);
     }
-    return ErrorHandler.instance;
   }
 
-  public async handleError(error: Error, context: ErrorContext): Promise<void> {
+  private determineSeverity(error: Error): 'low' | 'medium' | 'high' | 'critical' {
+    if (error instanceof ValidationError) return 'low';
+    if (error instanceof DatabaseError) return 'high';
+    if (error.message.includes('critical')) return 'critical';
+    return 'medium';
+  }
+
+  private isCriticalError(error: Error): boolean {
+    return error instanceof DatabaseError || error.message.includes('critical');
+  }
+
+  private async recordError(error: AgentError): Promise<void> {
     try {
-      // Log the error
-      if (this.config.enableLogging !== false) {
-        this.logError(error, context);
-      }
-
-      // Record in database
-      await this.recordError(error, context);
-
-      // Handle based on severity
-      if (context.severity === 'critical') {
-        await this.handleCriticalError(error, context);
-      }
-
-      // Notify if enabled
-      if (this.config.enableNotifications) {
-        await this.notifyError(error, context);
-      }
-    } catch (handlingError) {
-      // If error handling fails, log to console as last resort
-      console.error('Error handler failed:', handlingError);
-      console.error('Original error:', error);
-    }
-  }
-
-  private logError(error: Error, context: ErrorContext): void {
-    const message = this.formatErrorMessage(error, context);
-    
-    switch (context.severity) {
-      case 'critical':
-        this.logger.error(message, { error, context });
-        break;
-      case 'high':
-        this.logger.error(message, { error, context });
-        break;
-      case 'medium':
-        this.logger.warn(message, { error, context });
-        break;
-      default:
-        this.logger.info(message, { error, context });
-    }
-  }
-
-  private async recordError(error: Error, context: ErrorContext): Promise<void> {
-    try {
-      await this.supabase.from('agent_errors').insert({
-        agent: context.agent,
-        operation: context.operation,
-        context: context.context,
-        severity: context.severity,
-        error_message: error.message,
-        error_stack: error.stack,
-        status: context.status,
-        metadata: context.metadata,
-        timestamp: new Date().toISOString()
-      });
-    } catch (dbError) {
-      this.logger.error('Failed to record error in database:', dbError);
-    }
-  }
-
-  private async handleCriticalError(error: Error, context: ErrorContext): Promise<void> {
-    // Log to critical errors table
-    try {
-      await this.supabase.from('critical_errors').insert({
-        agent: context.agent,
-        operation: context.operation,
-        error_message: error.message,
-        error_stack: error.stack,
-        metadata: context.metadata,
-        timestamp: new Date().toISOString()
-      });
-    } catch (dbError) {
-      this.logger.error('Failed to record critical error:', dbError);
-    }
-
-    // Additional critical error handling logic can be added here
-    // For example: Stop the agent, notify administrators, etc.
-  }
-
-  private async notifyError(error: Error, context: ErrorContext): Promise<void> {
-    // Implement notification logic (e.g., Discord, email, etc.)
-    // This is a placeholder for the notification system
-    this.logger.info('Error notification system not implemented yet');
-  }
-
-  private formatErrorMessage(error: Error, context: ErrorContext): string {
-    const parts = [
-      context.agent ? `[${context.agent}]` : '',
-      context.operation ? `(${context.operation})` : '',
-      context.context ? `{${context.context}}` : '',
-      error.message
-    ];
-
-    return parts.filter(Boolean).join(' ');
-  }
-
-  public async getErrorStats(
-    agent?: string,
-    timeRange?: { start: Date; end: Date }
-  ): Promise<any> {
-    try {
-      let query = this.supabase
+      const { error: dbError } = await this.supabase
         .from('agent_errors')
-        .select('*');
+        .insert([{
+          message: error.message,
+          code: error.code,
+          stack: error.stack,
+          context: error.context,
+          severity: error.severity,
+          timestamp: new Date().toISOString()
+        }]);
 
-      if (agent) {
-        query = query.eq('agent', agent);
+      if (dbError) {
+        this.logger.error('Failed to record error in database:', { error: dbError.message });
+      }
+    } catch (err) {
+      this.logger.error('Failed to record error:', { error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+
+  private async handleCriticalError(error: AgentError): Promise<void> {
+    try {
+      const { error: dbError } = await this.supabase
+        .from('critical_errors')
+        .insert([{
+          message: error.message,
+          code: error.code,
+          stack: error.stack,
+          context: error.context,
+          severity: error.severity,
+          timestamp: new Date().toISOString()
+        }]);
+
+      if (dbError) {
+        this.logger.error('Failed to record critical error:', { error: dbError.message });
       }
 
-      if (timeRange) {
-        query = query
-          .gte('timestamp', timeRange.start.toISOString())
-          .lte('timestamp', timeRange.end.toISOString());
+      await this.triggerCriticalErrorAlerts(error);
+    } catch (err) {
+      this.logger.error('Failed to handle critical error:', { error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+
+  private async triggerCriticalErrorAlerts(error: AgentError): Promise<void> {
+    this.logger.warn('Critical error occurred:', { error });
+  }
+
+  public async getErrorStats(timeWindowMs = 3600000): Promise<Record<string, number>> {
+    try {
+      const startTime = new Date(Date.now() - timeWindowMs).toISOString();
+      
+      const { data, error } = await this.supabase
+        .from('agent_errors')
+        .select('severity')
+        .gte('timestamp', startTime);
+
+      if (error) {
+        throw error;
       }
 
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      return {
-        total: data.length,
-        bySeverity: data.reduce((acc: any, curr: any) => {
-          acc[curr.severity] = (acc[curr.severity] || 0) + 1;
-          return acc;
-        }, {}),
-        byAgent: data.reduce((acc: any, curr: any) => {
-          acc[curr.agent] = (acc[curr.agent] || 0) + 1;
-          return acc;
-        }, {})
-      };
+      return (data || []).reduce((acc, curr) => {
+        acc[curr.severity] = (acc[curr.severity] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
     } catch (error) {
-      this.logger.error('Failed to get error stats:', error);
-      throw error;
+      this.logger.error('Failed to get error stats:', { error: error instanceof Error ? error.message : String(error) });
+      return {};
     }
   }
 } 

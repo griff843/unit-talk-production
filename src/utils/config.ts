@@ -1,11 +1,23 @@
 import { z } from 'zod';
-import dotenv from 'dotenv';
+import 'dotenv/config';
 import path from 'path';
 import fs from 'fs';
 import { EnvConfigSchema, BaseAgentConfigSchema } from '../types/config';
 import { Logger } from './logger';
+import { AgentConfig } from '../types/agent';
+import { ValidationError } from './errorHandling';
 
 const logger = new Logger('ConfigLoader');
+
+const baseConfigSchema = z.object({
+  name: z.string(),
+  enabled: z.boolean(),
+  healthCheckInterval: z.number().optional(),
+  metricsConfig: z.object({
+    interval: z.number(),
+    prefix: z.string()
+  }).optional()
+});
 
 export class ConfigLoader {
   private static instance: ConfigLoader;
@@ -25,9 +37,6 @@ export class ConfigLoader {
 
   private loadEnvConfig(): void {
     try {
-      // Load .env file
-      dotenv.config();
-
       // Parse and validate environment variables
       this.envConfig = EnvConfigSchema.parse({
         NODE_ENV: process.env.NODE_ENV,
@@ -107,6 +116,37 @@ export class ConfigLoader {
       this.agentConfigs.clear();
       this.loadEnvConfig();
       logger.info('All configurations reloaded');
+    }
+  }
+}
+
+export function validateBaseConfig(config: unknown): AgentConfig {
+  try {
+    return baseConfigSchema.parse(config);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      throw new ValidationError(
+        'Invalid base configuration: ' + error.errors.map(e => e.message).join(', ')
+      );
+    }
+    throw error;
+  }
+}
+
+export function validateHealthCheckInterval(config: AgentConfig): void {
+  if (config.healthCheckInterval !== undefined && 
+      (typeof config.healthCheckInterval !== 'number' || config.healthCheckInterval < 0)) {
+    throw new ValidationError('Health check interval must be a positive number');
+  }
+}
+
+export function validateMetricsConfig(config: AgentConfig): void {
+  if (config.metricsConfig) {
+    if (typeof config.metricsConfig.interval !== 'number' || config.metricsConfig.interval < 0) {
+      throw new ValidationError('Metrics interval must be a positive number');
+    }
+    if (typeof config.metricsConfig.prefix !== 'string' || !config.metricsConfig.prefix) {
+      throw new ValidationError('Metrics prefix must be a non-empty string');
     }
   }
 } 
