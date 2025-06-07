@@ -1,35 +1,43 @@
-import { supabase } from '@/services/supabaseClient';
-import { RawProp } from '../../types/rawProps';
-import { logCoverage } from '../logCoverage';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { RawProp } from '../../../types/rawProps';
 
 /**
  * Filters out props with unique_keys that already exist in raw_props.
  * Returns only the deduplicated props safe to insert.
  */
-export async function dedupePublicProps(props: RawProp[]): Promise<RawProp[]> {
+export async function dedupePublicProps(props: RawProp[], supabase?: SupabaseClient): Promise<RawProp[]> {
   try {
     if (props.length === 0) return [];
 
-    // Get all unique_keys from props
-    const uniqueKeys = props.map(p => p.unique_key);
+    // If no supabase client provided, return props as-is (for testing or edge cases)
+    if (!supabase) {
+      return props;
+    }
 
-    // Query Supabase for existing keys
+    // Get all external_ids from props that have them
+    const externalIds = props.map(p => p.external_id).filter(Boolean) as string[];
+    
+    if (externalIds.length === 0) {
+      return props;
+    }
+
+    // Query Supabase for existing external_ids
     const { data: existing, error } = await supabase
       .from('raw_props')
-      .select('unique_key')
-      .in('unique_key', uniqueKeys);
+      .select('external_id')
+      .in('external_id', externalIds);
 
     if (error) throw error;
 
-    const existingKeys = new Set(existing?.map(e => e.unique_key) || []);
+    const existingIds = new Set(existing?.map(e => e.external_id) || []);
 
     // Filter out duplicates
-    const deduped = props.filter(p => !existingKeys.has(p.unique_key));
+    const deduped = props.filter(p => !p.external_id || !existingIds.has(p.external_id));
     return deduped;
   } catch (err) {
-    await logCoverage('dedupePublicProps', {
-      message: 'Error during deduplication',
+    console.warn('Error during deduplication', {
       error: err instanceof Error ? err.message : err,
+      propsCount: props.length
     });
     return [];
   }

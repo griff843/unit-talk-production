@@ -2,7 +2,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { Logger } from '../utils/logger';
 import { ErrorHandler } from '../utils/errorHandling';
 import { HealthCheckResult, AgentStatus, AgentConfig, AgentCommand, BaseAgentDependencies } from '../types/agent';
-import { validateConfig } from '../utils/config';
+import { validateBaseConfig } from '../utils/config';
 import { Metrics } from '../types/shared';
 
 export abstract class BaseAgent {
@@ -21,16 +21,17 @@ export abstract class BaseAgent {
   constructor({ supabase, config, errorHandler, logger }: BaseAgentDependencies) {
     this.supabase = supabase;
     this.config = config;
-    this.errorHandler = errorHandler || new ErrorHandler(config.name);
+    this.errorHandler = errorHandler || new ErrorHandler(config.name, supabase);
     this.logger = logger || new Logger(config.name);
 
-    validateConfig(config);
+    validateBaseConfig(config);
   }
 
   protected async runHealthCheck(): Promise<void> {
     try {
       const health = await this.checkHealth();
-      this.logger.logHealth(this.config.name, health.status, health.details);
+      const logStatus = health.status === 'idle' ? 'healthy' : health.status as 'healthy' | 'unhealthy';
+      this.logger.logHealth(this.config.name, logStatus, health.details);
     } catch (error) {
       this.logger.error('Health check failed:', { error });
     }
@@ -39,7 +40,7 @@ export abstract class BaseAgent {
   protected async runMetricsCollection(): Promise<void> {
     try {
       const metrics = await this.collectMetrics();
-      this.logger.logMetrics(this.config.name, metrics);
+      this.logger.info('Metrics collected', { metrics, agent: this.config.name });
     } catch (error) {
       this.logger.error('Metrics collection failed:', { error });
     }
@@ -54,17 +55,17 @@ export abstract class BaseAgent {
     try {
       await this.initialize();
       
-      if (this.config.healthCheckIntervalMs) {
+      if (this.config.healthCheckInterval) {
         this.healthCheckInterval = setInterval(
           () => this.runHealthCheck(),
-          this.config.healthCheckIntervalMs
+          this.config.healthCheckInterval
         );
       }
 
-      if (this.config.metricsIntervalMs) {
+      if (this.config.metricsConfig?.interval) {
         this.metricsInterval = setInterval(
           () => this.runMetricsCollection(),
-          this.config.metricsIntervalMs
+          this.config.metricsConfig.interval
         );
       }
 

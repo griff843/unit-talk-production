@@ -1,7 +1,6 @@
 // src/agents/FeedAgent/utils/normalizePublicProps.ts
 import { z } from 'zod';
-import { RawProp } from '../../types/rawProps';
-import { logCoverage } from '../logCoverage';
+import { RawProp } from '../../../types/rawProps';
 
 const allowedMarkets = [
   'Anytime Touchdown Scorer',
@@ -39,27 +38,20 @@ export async function normalizePublicProps(
 
       normalized.push({
         id: crypto.randomUUID(),
-        unique_key,
-        external_game_id: parsed.external_game_id,
+        external_id: `${parsed.external_game_id}-${parsed.player_name}-${parsed.market_type}`,
         player_name: parsed.player_name,
-        market_type: parsed.market_type,
-        team_name: parsed.team_name,
-        line: parsed.line ?? null,
-        odds: parsed.odds,
-        book_name: parsed.book_name,
-        game_date: parsed.game_date,
-        sport: parsed.sport ?? null,
-        league: parsed.league ?? null,
-        is_public_prop: true,
-        status: 'pending',
+        team: parsed.team_name,
+        stat_type: parsed.market_type,
+        line: parsed.line ?? 0,
+        market: parsed.market_type,
+        provider: 'SportsGameOdds',
+        game_time: parsed.game_date,
         scraped_at: new Date().toISOString(),
-        is_valid: true,
-        provider: 'SportsGameOdds'
+        is_valid: true
       });
     } catch (err) {
       if (enableLogging) {
-        await logCoverage('normalizePublicProps', {
-          message: 'Prop skipped or failed normalization',
+        console.warn('Prop skipped or failed normalization', {
           prop,
           error: err instanceof Error ? err.message : err
         });

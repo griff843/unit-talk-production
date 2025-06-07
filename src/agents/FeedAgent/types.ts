@@ -28,13 +28,17 @@ export interface ProcessedResult {
   };
 }
 
+export interface PropCoverage {
+  provider: Provider;
+  timestamp: string;
+  total: number;
+  covered: number;
+  missing: string[];
+}
+
 export interface FeedAgentConfig extends AgentConfig {
-  agentName: 'FeedAgent';
+  name: string;
   enabled: boolean;
-  metricsConfig: {
-    interval: number;
-    prefix: string;
-  };
   providers: Partial<Record<Provider, {
     enabled: boolean;
     retryConfig: {
@@ -49,16 +53,21 @@ export interface FeedAgentConfig extends AgentConfig {
     checkInterval: number;
     ttlHours: number;
   };
+  metricsConfig: {
+    interval: number;
+    prefix: string;
+  };
   cron?: string;
 }
 
 export const FeedConfigSchema = z.object({
-  agentName: z.literal('FeedAgent'),
+  name: z.string(),
   enabled: z.boolean(),
+  healthCheckInterval: z.number().optional(),
   metricsConfig: z.object({
     interval: z.number(),
     prefix: z.string()
-  }),
+  }).optional(),
   providers: z.record(z.enum(['SportsGameOdds']), z.object({
     enabled: z.boolean(),
     retryConfig: z.object({
