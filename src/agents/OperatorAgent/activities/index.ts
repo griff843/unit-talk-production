@@ -1,18 +1,28 @@
-import { Logger } from '../../../utils/logger';
+import { BaseAgentConfig, BaseAgentDependencies, AgentStatus, HealthStatus, BaseMetrics } from '../../BaseAgent/types';
+import { OperatorAgent } from '..';
 
-const logger = new Logger('OperatorAgent:Activities');
+// Mock dependencies for activities
+const getDependencies = (): BaseAgentDependencies => {
+  // This would be properly injected in production
+  return {
+    supabase: null as any,
+    logger: console as any,
+    errorHandler: null as any
+  };
+};
 
 export async function monitorSystem(): Promise<void> {
-  // Stub implementation
-  logger.info('Would monitor system');
+  const agent = OperatorAgent.getInstance(getDependencies());
+  await agent.monitorAgents();
 }
 
-export async function handleAlert(): Promise<void> {
-  // Stub implementation
-  logger.info('Would handle alert');
+export async function handleAlert(alert: any): Promise<void> {
+  const agent = OperatorAgent.getInstance(getDependencies());
+  await agent.handleCommand(`handle alert: ${JSON.stringify(alert)}`);
 }
 
 export async function performMaintenance(): Promise<void> {
-  // Stub implementation
-  logger.info('Would perform maintenance');
+  const agent = OperatorAgent.getInstance(getDependencies());
+  await agent.generateSummary('daily');
+  await agent.learnAndEvolve();
 } 
