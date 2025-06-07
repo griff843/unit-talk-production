@@ -1,5 +1,11 @@
+import { BaseAgent } from '../BaseAgent/index';
+import { 
+  BaseAgentConfig, 
+  BaseAgentDependencies,
+  HealthStatus,
+  BaseMetrics
+} from '../BaseAgent/types';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
-import { supabase } from '../../services/supabaseClient'; // Adjust path as needed
 
 const em = {
   win: '✅', lose: '❌', push: '➖',
@@ -56,61 +62,201 @@ function dollars(units: number, unit: number) {
   return (units * unit).toFixed(2);
 }
 
-// --- MAIN AGENT ---
-export async function RecapAgent({ date }: { date?: string }) {
-  const recapDate = date ? new Date(date) : subDays(new Date(), 1);
-  const from = startOfDay(recapDate);
-  const to = endOfDay(recapDate);
+let instance: RecapAgent | null = null;
 
-  // 1. Get picks for the recap day
-  const { data: picks, error } = await supabase
-    .from('final_picks')
-    .select('*')
-    .gte('graded_at', from.toISOString())
-    .lte('graded_at', to.toISOString());
+export class RecapAgent extends BaseAgent {
+  constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
+    super(config, deps);
+  }
 
-  if (error) throw error;
-  if (!picks || picks.length === 0) throw new Error('No picks found for recap period.');
+  protected async initialize(): Promise<void> {
+    this.deps.logger.info('Initializing RecapAgent...');
+    
+    try {
+      await this.validateDependencies();
+      this.deps.logger.info('RecapAgent initialized successfully');
+    } catch (error) {
+      this.deps.logger.error('Failed to initialize RecapAgent:', error);
+      throw error;
+    }
+  }
 
-  // 2. Per-capper grouping
-  const cappers = [...new Set(picks.map(p => p.capper))];
-  const grouped: Record<string, any[]> = {};
-  cappers.forEach(capper => {
-    grouped[capper] = picks.filter(p => p.capper === capper);
-  });
+  private async validateDependencies(): Promise<void> {
+    // Verify access to required tables
+    const { error } = await this.deps.supabase
+      .from('final_picks')
+      .select('id')
+      .limit(1);
 
-  // 3. Per-capper stats & pick lines
-  const capperStatsArr = cappers.map(capper => {
-    const picksArr = grouped[capper];
-    const stats = capperStats(picksArr);
-    const pickLines = picksArr.map(formatPickLine);
+    if (error) {
+      throw new Error(`Failed to access final_picks table: ${error.message}`);
+    }
+  }
+
+  protected async process(): Promise<void> {
+    try {
+      // Generate daily recap by default
+      const yesterday = subDays(new Date(), 1);
+      await this.generateRecap({ date: yesterday.toISOString() });
+    } catch (error) {
+      this.deps.logger.error('Error in RecapAgent process:', error);
+      throw error;
+    }
+  }
+
+  protected async cleanup(): Promise<void> {
+    this.deps.logger.info('RecapAgent cleanup completed');
+  }
+
+  protected async checkHealth(): Promise<HealthStatus> {
+    const errors: string[] = [];
+    
+    try {
+      const { error } = await this.deps.supabase
+        .from('final_picks')
+        .select('id')
+        .limit(1);
+
+      if (error) {
+        errors.push(`Database connectivity issue: ${error.message}`);
+      }
+    } catch (error) {
+      errors.push(`Health check failed: ${error}`);
+    }
+
     return {
-      capper,
-      ...stats,
-      pickLines
+      status: errors.length > 0 ? 'unhealthy' : 'healthy',
+      timestamp: new Date().toISOString(),
+      details: { errors }
     };
-  });
+  }
 
-  // 4. Team stats
-  const teamStats = capperStats(picks);
+  protected async collectMetrics(): Promise<BaseMetrics> {
+    const { data: recentPicks } = await this.deps.supabase
+      .from('final_picks')
+      .select('outcome, units')
+      .gte('graded_at', subDays(new Date(), 7).toISOString());
 
-  // 5. MVP logic
-  const mvp = bestCapper(capperStatsArr);
+    const wins = recentPicks?.filter(p => p.outcome === 'win').length || 0;
+    const losses = recentPicks?.filter(p => p.outcome === 'loss').length || 0;
+    const totalUnits = recentPicks?.reduce((sum, p) => sum + (p.units || 0), 0) || 0;
 
-  // 6. Dollar conversions
-  const dollarLine = DOLLAR_SIZES.map(d => `🟢 $${d} bettors: $${dollars(teamStats.units, d)}`).join('\n');
+    return {
+      successCount: wins,
+      errorCount: losses,
+      warningCount: 0,
+      processingTimeMs: 0,
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024,
+      'custom.totalUnits': totalUnits,
+      'custom.winRate': wins / (wins + losses) || 0
+    };
+  }
 
-  // 7. Full Results/Dashboard link
-  const fullResultsLink = `[See all picks](https://yourdashboard.com/results/${format(from, 'yyyy-MM-dd')})`;
+  // Public method for generating recap
+  public async generateRecap({ date }: { date?: string }) {
+    const recapDate = date ? new Date(date) : subDays(new Date(), 1);
+    const from = startOfDay(recapDate);
+    const to = endOfDay(recapDate);
 
-  // 8. Build output
-  return {
-    date: format(from, 'yyyy-MM-dd'),
-    teamStats,
-    capperStatsArr,
-    mvp,
-    dollarLine,
-    fullResultsLink,
-    picks
+    // 1. Get picks for the recap day
+    const { data: picks, error } = await this.deps.supabase
+      .from('final_picks')
+      .select('*')
+      .gte('graded_at', from.toISOString())
+      .lte('graded_at', to.toISOString());
+
+    if (error) throw error;
+    if (!picks || picks.length === 0) {
+      this.deps.logger.warn('No picks found for recap period.');
+      return null;
+    }
+
+    // 2. Per-capper grouping
+    const cappers = [...new Set(picks.map(p => p.capper))];
+    const grouped: Record<string, any[]> = {};
+    cappers.forEach(capper => {
+      grouped[capper] = picks.filter(p => p.capper === capper);
+    });
+
+    // 3. Per-capper stats & pick lines
+    const capperStatsArr = cappers.map(capper => {
+      const picksArr = grouped[capper];
+      const stats = capperStats(picksArr);
+      const pickLines = picksArr.map(formatPickLine);
+      return {
+        capper,
+        ...stats,
+        pickLines
+      };
+    });
+
+    // 4. Team stats
+    const teamStats = capperStats(picks);
+
+    // 5. MVP logic
+    const mvp = bestCapper(capperStatsArr);
+
+    // 6. Dollar conversions
+    const dollarLine = DOLLAR_SIZES.map(d => `🟢 $${d} bettors: $${dollars(teamStats.units, d)}`).join('\n');
+
+    // 7. Full Results/Dashboard link
+    const fullResultsLink = `[See all picks](https://yourdashboard.com/results/${format(from, 'yyyy-MM-dd')})`;
+
+    // 8. Store recap
+    const recap = {
+      date: format(from, 'yyyy-MM-dd'),
+      teamStats,
+      capperStatsArr,
+      mvp,
+      dollarLine,
+      fullResultsLink,
+      picks
+    };
+
+    // Save to database
+    await this.saveRecap(recap);
+
+    return recap;
+  }
+
+  private async saveRecap(recap: any): Promise<void> {
+    const { error } = await this.deps.supabase
+      .from('daily_recaps')
+      .upsert({
+        date: recap.date,
+        recap_data: recap,
+        created_at: new Date().toISOString()
+      });
+
+    if (error) {
+      this.deps.logger.error('Failed to save recap:', error);
+      throw error;
+    }
+  }
+
+  // Public API
+  public static getInstance(dependencies: BaseAgentDependencies): RecapAgent {
+    if (!instance) {
+      const config = dependencies.logger?.config || {} as BaseAgentConfig;
+      instance = new RecapAgent(config, dependencies);
+    }
+    return instance;
+  }
+}
+
+export function initializeRecapAgent(dependencies: BaseAgentDependencies): RecapAgent {
+  const config = dependencies.logger?.config || {} as BaseAgentConfig;
+  return new RecapAgent(config, dependencies);
+}
+
+// Legacy function export for backwards compatibility
+export async function RecapAgentFunction({ date }: { date?: string }) {
+  const deps: BaseAgentDependencies = {
+    supabase: (await import('../../services/supabaseClient')).supabase,
+    logger: console as any,
+    errorHandler: null as any
   };
+  
+  const agent = new RecapAgent({} as BaseAgentConfig, deps);
+  return await agent.generateRecap({ date });
 }
