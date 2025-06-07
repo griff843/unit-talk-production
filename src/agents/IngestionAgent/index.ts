@@ -1,3 +1,4 @@
+import { BaseAgentConfig, BaseAgentDependencies, AgentStatus, HealthStatus, BaseMetrics } from '../BaseAgent/types';
 import { fetchRawProps } from './fetchRawProps';
 import { validateRawProp } from './validateRawProp';
 import { isDuplicateRawProp } from './isDuplicate';

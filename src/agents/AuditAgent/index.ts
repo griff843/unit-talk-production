@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { AuditAgentConfig, AuditIncident, AuditCheckResult } from './types';
-import { BaseAgent } from '../BaseAgent';
+import { BaseAgent } from '../BaseAgent/index';
 import { ErrorHandlerConfig } from '../../utils/errorHandling';
 import { Logger } from '../../utils/logger';
 import { BaseAgentDependencies } from '../BaseAgent/types';
@@ -13,9 +13,9 @@ import { BaseAgentDependencies } from '../BaseAgent/types';
 export class AuditAgent extends BaseAgent {
   private logger: Logger;
 
-  constructor(dependencies: BaseAgentDependencies) {
-    super(dependencies);
-    this.logger = new Logger('AuditAgent');
+  constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
+    super(config, deps);
+    // Initialize agent-specific properties here
   }
 
   /**
@@ -189,5 +189,101 @@ export class AuditAgent extends BaseAgent {
     });
     // Example: await this.supabase.from('operator_incidents').insert(criticalIncidents)
     // Or: trigger webhook/alert/Discord
+  }
+
+  protected async initialize(): Promise<void> {
+    // TODO: Restore business logic here after base migration (initialize)
+  }
+
+  protected async process(): Promise<void> {
+    // TODO: Restore business logic here after base migration (process)
+  }
+
+  protected async cleanup(): Promise<void> {
+    // TODO: Restore business logic here after base migration (cleanup)
+  }
+
+  protected async checkHealth(): Promise<HealthStatus> {
+    // TODO: Restore business logic here after base migration (checkHealth)
+    return {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      details: {}
+    };
+  }
+
+  protected async collectMetrics(): Promise<BaseMetrics> {
+    // TODO: Restore business logic here after base migration (collectMetrics)
+    return {
+      successCount: 0,
+      errorCount: 0,
+      warningCount: 0,
+      processingTimeMs: 0,
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
+    };
+  }
+
+  protected async initialize(): Promise<void> {
+    // TODO: Restore business logic here after base migration (initialize)
+  }
+
+  protected async process(): Promise<void> {
+    // TODO: Restore business logic here after base migration (process)
+  }
+
+  protected async cleanup(): Promise<void> {
+    // TODO: Restore business logic here after base migration (cleanup)
+  }
+
+  protected async checkHealth(): Promise<HealthStatus> {
+    // TODO: Restore business logic here after base migration (checkHealth)
+    return {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      details: {}
+    };
+  }
+
+  protected async collectMetrics(): Promise<BaseMetrics> {
+    // TODO: Restore business logic here after base migration (collectMetrics)
+    return {
+      successCount: 0,
+      errorCount: 0,
+      warningCount: 0,
+      processingTimeMs: 0,
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
+    };
+  }
+
+  protected async initialize(): Promise<void> {
+    // TODO: Restore business logic here after base migration (initialize)
+  }
+
+  protected async process(): Promise<void> {
+    // TODO: Restore business logic here after base migration (process)
+  }
+
+  protected async cleanup(): Promise<void> {
+    // TODO: Restore business logic here after base migration (cleanup)
+  }
+
+  protected async checkHealth(): Promise<HealthStatus> {
+    // TODO: Restore business logic here after base migration (checkHealth)
+    return {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      details: {}
+    };
+  }
+
+  protected async collectMetrics(): Promise<BaseMetrics> {
+    // TODO: Restore business logic here after base migration (collectMetrics)
+    return {
+      successCount: 0,
+      errorCount: 0,
+      warningCount: 0,
+      processingTimeMs: 0,
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
+    };
   }
 }

@@ -113,4 +113,5 @@ export const agentMetricsSchema = z.object({
   warningCount: z.number(),
   errorCount: z.number(),
   timestamp: z.string()
-}).catchall(z.any()); 
+}).catchall(z.any()); // DRAGON PATCH: add name field if missing
+export interface FeedAgentConfig { name: string; }

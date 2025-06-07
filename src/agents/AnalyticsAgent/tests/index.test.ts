@@ -2,7 +2,7 @@ import { AnalyticsAgent } from '../';
 import { createClient } from '@supabase/supabase-js';
 import { Logger } from '../../../utils/logger';
 import { sendNotification } from '../../NotificationAgent';
-import { AnalyticsAgentConfig } from '../types';
+import { BaseAgentConfig, BaseAgentDependencies } from '@shared/types/baseAgent';
 
 // Mock sendNotification
 jest.mock('../../NotificationAgent', () => ({
@@ -56,16 +56,21 @@ const mockPicks = [
 
 // Test configuration
 const testConfig: AnalyticsAgentConfig = {
+  name: 'TestAgent',
   agentName: 'AnalyticsAgent',
   enabled: true,
   version: '1.0.0',
   logLevel: 'info',
-  metricsEnabled: true,
-  retryConfig: {
+  metrics: { enabled: true, interval: 60 },
+  retry: {
     maxRetries: 3,
     backoffMs: 1000,
     maxBackoffMs: 30000,
-  },
+  ,
+  metrics: { enabled: false, interval: 60 ,
+  health: { enabled: false, interval: 30 }
+}
+},
   analysisConfig: {
     minPicksForAnalysis: 2,
     roiTimeframes: [7, 30],
@@ -84,10 +89,20 @@ const testConfig: AnalyticsAgentConfig = {
 };
 
 const errorConfig = {
+  logLevel: 'info',
+  enabled: true,
+  version: '0.0.1',
+  name: 'TestAgent',
   maxRetries: 3,
   backoffMs: 1000,
   maxBackoffMs: 30000,
   shouldRetry: (error: Error) => true,
+,
+  metrics: { enabled: false, interval: 60 ,
+  health: { enabled: false, interval: 30 ,
+  retry: { maxRetries: 0, backoffMs: 200, maxBackoffMs: 500 }
+}
+}
 };
 
 describe('AnalyticsAgent', () => {
@@ -103,9 +118,29 @@ describe('AnalyticsAgent', () => {
     jest.clearAllMocks();
   });
 
+  describe('Test Methods', () => {
+    it('should support test initialization', async () => {
+      await expect(agent.__test__initialize()).resolves.not.toThrow();
+    });
+
+    it('should support test metrics collection', async () => {
+      const metrics = await agent.__test__collectMetrics();
+      expect(metrics).toBeDefined();
+      expect(metrics.successCount).toBeDefined();
+      expect(metrics.errorCount).toBeDefined();
+      expect(metrics.warningCount).toBeDefined();
+    });
+
+    it('should support test health checks', async () => {
+      const health = await agent.__test__checkHealth();
+      expect(health).toBeDefined();
+      expect(health.status).toBeDefined();
+    });
+  });
+
   describe('initialization', () => {
     it('should initialize successfully', async () => {
-      await expect(agent['initialize']()).resolves.not.toThrow();
+      await expect(agent.__test__initialize()).resolves.not.toThrow();
     });
   });
 
@@ -139,16 +174,16 @@ describe('AnalyticsAgent', () => {
 
   describe('health check', () => {
     it('should return healthy status when all is well', async () => {
-      const health = await agent['healthCheck']();
+      const health = await agent.__test__checkHealth();
       expect(health.status).toBe('ok');
     });
 
     it('should return warning status when there are errors', async () => {
       // Simulate some errors
       agent['metrics'].errorCount = 1;
-      const health = await agent['healthCheck']();
+      const health = await agent.__test__checkHealth();
       expect(health.status).toBe('warn');
-      expect(health.message).toContain('errors in last run');
+      expect(health.details?.errors).toContain('1 errors in last run');
     });
   });
 

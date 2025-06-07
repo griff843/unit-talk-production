@@ -21,16 +21,19 @@ describe('LeaderboardManager Integration Tests', () => {
     });
 
     // Create test contest
-    const { data: contest } = await supabase
+    const { data: contest, error } = await supabase
       .from('contests')
       .insert({
-        id: crypto.randomUUID(),
         name: 'Test Contest',
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + 86400000).toISOString(),
         status: 'active'
       })
       .select()
+      .limit(1)
       .single();
 
+    if (error) throw error;
     testContestId = contest.id;
 
     // Create test participants

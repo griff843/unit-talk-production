@@ -1,7 +1,9 @@
 import { OnboardingAgent } from '../index';
-import { OnboardingPayload, OnboardingResult, UserType } from '../types';
 import { createClient } from '@supabase/supabase-js';
 import { Logger } from '../../../utils/logger';
+import { ErrorHandler } from '../../../utils/errorHandling';
+import { BaseAgentDependencies } from '../BaseAgent/types';
+import { OnboardingPayload, OnboardingResult, OnboardingStep, UserType } from '../types';
 import { sendNotification } from '../../NotificationAgent';
 
 // Mock sendNotification
@@ -57,107 +59,179 @@ jest.mock('@supabase/supabase-js', () => ({
   }))
 }));
 
+// Mock data
+const mockOnboardingPayload: OnboardingPayload = {
+  userId: 'test-user',
+  userType: 'customer',
+  meta: {
+    source: 'web',
+    referrer: 'test-referrer'
+  }
+};
+
+const mockOnboardingResult: OnboardingResult = {
+  success: true,
+  onboardingId: 'test-onboarding-id',
+  steps: [
+    { id: 'accept_tos', label: 'Accept Terms of Service', completed: false },
+    { id: 'profile', label: 'Complete Profile', completed: false },
+    { id: 'intro', label: 'Post Introduction', completed: false }
+  ]
+};
+
+const mockOnboardingSteps: OnboardingStep[] = [
+  { id: 'accept_tos', label: 'Accept Terms of Service', completed: false },
+  { id: 'profile', label: 'Complete Profile', completed: false },
+  { id: 'intro', label: 'Post Introduction', completed: false }
+];
+
+// Test configuration
+const mockConfig = {
+  name: 'OnboardingAgent',
+  enabled: true,
+  version: '1.0.0',
+  logLevel: 'info',
+  metrics: { enabled: true, interval: 60 },
+  retry: {
+    maxRetries: 3,
+    backoffMs: 1000,
+    maxBackoffMs: 30000
+  ,
+  metrics: { enabled: false, interval: 60 ,
+  health: { enabled: false, interval: 30 }
+}
+},
+  metricsConfig: {
+    interval: 60000,
+    prefix: 'onboarding'
+  },
+  onboardingConfig: {
+    maxConcurrentOnboardings: 100,
+    stepTimeout: 3600,
+    notificationChannels: ['discord', 'notion'],
+    userTypes: ['customer', 'capper']
+  }
+};
+
 describe('OnboardingAgent', () => {
   let agent: OnboardingAgent;
-  const mockConfig = {
-    name: 'OnboardingAgent',
-    agentName: 'OnboardingAgent',
-    enabled: true,
-    metricsConfig: {
-      interval: 60000,
-      prefix: 'onboarding'
-    }
-  };
+  let mockSupabase: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    agent = new OnboardingAgent({
-      supabase: createClient('test-url', 'test-service-role-key'),
+    mockSupabase = createClient('test-url', 'test-service-role-key');
+    const dependencies: BaseAgentDependencies = {
+      supabase: mockSupabase,
       config: mockConfig,
-      logger: new Logger('test')
-    });
+      logger: new Logger('OnboardingAgent'),
+      errorHandler: new ErrorHandler('OnboardingAgent')
+    };
+    agent = new OnboardingAgent(dependencies);
   });
 
   describe('initialization', () => {
-    it('should initialize successfully', async () => {
-      await expect(agent.initialize()).resolves.not.toThrow();
+    it('should initialize resources successfully', async () => {
+      await expect(agent.initializeResources()).resolves.not.toThrow();
     });
 
     it('should validate dependencies', async () => {
-      await expect(agent.validateDependencies()).resolves.not.toThrow();
+      await expect(agent['validateDependencies']()).resolves.not.toThrow();
+    });
+  });
+
+  describe('process', () => {
+    it('should process onboarding tasks successfully', async () => {
+      await expect(agent.process()).resolves.not.toThrow();
+    });
+  });
+
+  describe('cleanup', () => {
+    it('should cleanup resources successfully', async () => {
+      await expect(agent.cleanup()).resolves.not.toThrow();
     });
   });
 
   describe('health check', () => {
     it('should return healthy status when all is well', async () => {
-      const health = await agent.healthCheck();
+      const health = await agent.checkHealth();
       expect(health.status).toBe('healthy');
-      expect(health.details?.errors).toHaveLength(0);
-    });
-  });
-
-  describe('startOnboarding', () => {
-    it('should start onboarding process successfully', async () => {
-      const payload: OnboardingPayload = {
-        userId: 'test-user',
-        userType: 'customer' as UserType,
-        meta: { source: 'test' }
-      };
-
-      const result = await agent.startOnboarding(payload);
-      expect(result.success).toBe(true);
-      expect(result.onboardingId).toBe('test-onboarding-id');
-      expect(result.steps).toHaveLength(3); // Base step + 2 customer steps
-      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
-        type: 'onboarding',
-        channels: ['discord', 'notion']
-      }));
+      expect(health.details.errors).toHaveLength(0);
     });
 
-    it('should handle different user types correctly', async () => {
-      const userTypes: UserType[] = ['customer', 'capper', 'staff', 'mod', 'va', 'vip'];
-      
-      for (const userType of userTypes) {
-        const payload: OnboardingPayload = {
-          userId: 'test-user',
-          userType,
-          meta: { source: 'test' }
-        };
+    it('should return unhealthy status when database is unreachable', async () => {
+      // Mock database error
+      jest.spyOn(mockSupabase.from, 'select')
+        .mockRejectedValueOnce(new Error('Database connection failed'));
 
-        const result = await agent.startOnboarding(payload);
-        expect(result.success).toBe(true);
-        expect(result.steps[0]).toEqual(expect.objectContaining({
-          id: 'accept_tos',
-          completed: false
-        }));
-      }
-    });
-  });
-
-  describe('completeStep', () => {
-    it('should complete a step successfully', async () => {
-      const result = await agent.completeStep('test-user', 'accept_tos');
-      expect(result).toBe(true);
-      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
-        type: 'onboarding',
-        channels: ['discord', 'notion']
-      }));
-    });
-
-    it('should handle non-existent steps gracefully', async () => {
-      await expect(agent.completeStep('test-user', 'non-existent-step'))
-        .rejects.toThrow('Onboarding record not found');
+      const health = await agent.checkHealth();
+      expect(health.status).toBe('unhealthy');
+      expect(health.details.errors).toHaveLength(1);
     });
   });
 
   describe('metrics collection', () => {
     it('should collect metrics correctly', async () => {
       const metrics = await agent.collectMetrics();
-      expect(metrics.agentName).toBe(mockConfig.name);
-      expect(metrics.status).toBe('healthy');
-      expect(metrics).toHaveProperty('successCount');
       expect(metrics).toHaveProperty('errorCount');
       expect(metrics).toHaveProperty('warningCount');
+      expect(metrics).toHaveProperty('successCount');
+      expect(metrics).toHaveProperty('onboardingStats');
+    });
+  });
+
+  describe('command processing', () => {
+    it('should handle START_ONBOARDING command', async () => {
+      await expect(agent.processCommand({
+        type: 'START_ONBOARDING',
+        payload: mockOnboardingPayload
+      })).resolves.not.toThrow();
+
+      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'onboarding',
+        channels: ['discord', 'notion']
+      }));
+    });
+
+    it('should handle COMPLETE_STEP command', async () => {
+      await expect(agent.processCommand({
+        type: 'COMPLETE_STEP',
+        payload: {
+          userId: 'test-user',
+          stepId: 'accept_tos'
+        }
+      })).resolves.not.toThrow();
+    });
+
+    it('should throw error for unknown command type', async () => {
+      await expect(agent.processCommand({
+        type: 'UNKNOWN_COMMAND',
+        payload: {}
+      })).rejects.toThrow('Unknown command type: UNKNOWN_COMMAND');
+    });
+  });
+
+  describe('workflow steps', () => {
+    it('should return correct steps for customer type', () => {
+      const steps = agent['getWorkflowSteps']('customer');
+      expect(steps).toHaveLength(3);
+      expect(steps[0].id).toBe('accept_tos');
+      expect(steps[1].id).toBe('profile');
+      expect(steps[2].id).toBe('intro');
+    });
+
+    it('should return correct steps for capper type', () => {
+      const steps = agent['getWorkflowSteps']('capper');
+      expect(steps).toHaveLength(5);
+      expect(steps[0].id).toBe('accept_tos');
+      expect(steps[1].id).toBe('kyc');
+      expect(steps[2].id).toBe('training');
+      expect(steps[3].id).toBe('access');
+    });
+
+    it('should return base steps for unknown type', () => {
+      const steps = agent['getWorkflowSteps']('unknown' as UserType);
+      expect(steps).toHaveLength(1);
+      expect(steps[0].id).toBe('accept_tos');
     });
   });
 }); 

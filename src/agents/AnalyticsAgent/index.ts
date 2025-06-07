@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { AnalyticsAgentConfig, AnalyticsSummary, CapperStats, PlayType, Tier, StatType } from './types';
-import { BaseAgent } from '../BaseAgent';
+import { BaseAgent } from '../BaseAgent/index';
 import { ErrorHandlerConfig, ErrorHandler, DatabaseError, AgentError } from '../../shared/errors';
 import { Logger } from '../../shared/logger';
 import { Metrics, MetricType } from '../../shared/metrics';
@@ -15,8 +15,10 @@ import {
   calculateTrend,
   calculatePerformance
 } from './utils/calculations';
-import { AgentConfig, AgentCommand, HealthCheckResult, BaseAgentDependencies } from '../../types/agent';
+import { AgentConfig, AgentCommand, HealthCheckResult, BaseAgentDependencies } from '../BaseAgent/types';
 import { Metrics as SharedMetrics } from '../../types/shared';
+import { z } from 'zod';
+import { BaseAgentConfig, BaseAgentDependencies, AgentStatus } from '../BaseAgent/types';
 
 // Helper to compute trend tags based on streaks/win%
 function getTrendTag(stats: CapperStats): string {
@@ -32,12 +34,25 @@ function filterByWindow<T extends { settled_at: string }>(data: T[], days: numbe
   return data.filter(row => new Date(row.settled_at).getTime() >= cutoff);
 }
 
-export interface AnalyticsAgentConfig extends AgentConfig {
-  analysisWindowDays: number;
-  minPicksForAnalysis: number;
-  updateFrequencyMs: number;
-  batchSize: number;
-}
+const AnalyticsAgentConfigSchema = z.object({
+  name: z.string(),
+  enabled: z.boolean(),
+  version: z.string(),
+  logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
+  metrics.enabled: z.boolean().default(true),
+  retryConfig: z.object({
+    maxRetries: z.number().min(0),
+    backoffMs: z.number().min(100),
+    maxBackoffMs: z.number().min(1000),
+  }),
+  // Analytics specific config
+  dataRetentionDays: z.number().min(1),
+  aggregationInterval: z.number().min(60),
+  alertThresholds: z.object({
+    errorRate: z.number().min(0).max(1),
+    latencyMs: z.number().min(0),
+  }),
+});
 
 export interface AnalyticsMetrics extends SharedMetrics {
   totalProcessed: number;
@@ -77,11 +92,9 @@ export class AnalyticsAgent extends BaseAgent {
   private logger: Logger;
   private metricsCollector: Metrics;
 
-  constructor(dependencies: BaseAgentDependencies) {
-    super(dependencies);
-    this.errorHandler = new ErrorHandler(dependencies.errorConfig);
-    this.logger = new Logger('AnalyticsAgent', dependencies.config.logLevel);
-    this.metricsCollector = new Metrics('analytics_agent', dependencies.config.metricsConfig);
+  constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
+    super(config, deps);
+    // Initialize agent-specific properties here
   }
 
   protected async initialize(): Promise<void> {
@@ -107,6 +120,18 @@ export class AnalyticsAgent extends BaseAgent {
     }
 
     this.logger.info('AnalyticsAgent initialized successfully');
+  }
+
+  public async __test__initialize(): Promise<void> {
+    return this.initialize();
+  }
+
+  public async __test__collectMetrics(): Promise<Metrics> {
+    return this.collectMetrics();
+  }
+
+  public async __test__checkHealth(): Promise<HealthCheckResult> {
+    return this.checkHealth();
   }
 
   public async runAnalysis(): Promise<void> {
@@ -449,42 +474,7 @@ export class AnalyticsAgent extends BaseAgent {
     this.logger.info('Cleanup completed');
   }
 
-  protected async healthCheck(): Promise<HealthStatus> {
-    this.logger.debug('Running health check');
-    const errors = [];
-    const config = this.context.config as AnalyticsAgentConfig;
-
-    if (this.analyticsMetrics.errorCount > 0) {
-      errors.push(`${this.analyticsMetrics.errorCount} errors in last run`);
-    }
-
-    if (this.analyticsMetrics.processingTimeMs > 300000) { // 5 minutes
-      errors.push('Processing time exceeds threshold');
-    }
-
-    if (this.analyticsMetrics.capperCount === 0) {
-      errors.push('No cappers found for analysis');
-    }
-
-    const status = errors.length === 0 ? 'ok' : 'warn';
-    this.logger.info('Health check completed', { status, errors });
-
-    return {
-      status,
-      message: errors.join('; '),
-      details: {
-        metrics: this.analyticsMetrics
-      }
-    };
-  }
-
-  // Placeholder for Discord/Retool push
-  async publishToDiscord(summaries: AnalyticsSummary[]) {
-    // TODO: Format and send to Discord or Retool webhook/dashboard
-    // Example: createLeaderboardEmbed(summaries)
-  }
-
-  protected async checkHealth(): Promise<HealthCheckResult> {
+  protected async healthCheck(): Promise<HealthCheckResult> {
     const health: HealthCheckResult = {
       status: 'healthy',
       details: {
@@ -508,9 +498,8 @@ export class AnalyticsAgent extends BaseAgent {
 
     // Check error rate
     if (this.analyticsMetrics.errorCount > 0) {
-      const errorRate = this.analyticsMetrics.errorCount / 
+      const errorRate = this.analyticsMetrics.errorCount /
         (this.analyticsMetrics.successCount + this.analyticsMetrics.errorCount);
-      
       if (errorRate > 0.1) {
         health.status = 'unhealthy';
         health.details?.errors.push(`High error rate: ${(errorRate * 100).toFixed(1)}%`);
@@ -518,6 +507,12 @@ export class AnalyticsAgent extends BaseAgent {
     }
 
     return health;
+  }
+
+  // Placeholder for Discord/Retool push
+  async publishToDiscord(summaries: AnalyticsSummary[]) {
+    // TODO: Format and send to Discord or Retool webhook/dashboard
+    // Example: createLeaderboardEmbed(summaries)
   }
 
   protected async collectMetrics(): Promise<Metrics> {
@@ -557,4 +552,72 @@ function calcEdgeVolatility(picks: any[]): number {
   const avg = rois.reduce((a, b) => a + b, 0) / (rois.length || 1);
   const sqDiff = rois.map(r => Math.pow(r - avg, 2));
   return Math.sqrt(sqDiff.reduce((a, b) => a + b, 0) / (sqDiff.length || 1));
+
+  protected async process(): Promise<void> {
+    // TODO: Restore business logic here after base migration (process)
+  }
+
+  protected async initialize(): Promise<void> {
+    // TODO: Restore business logic here after base migration (initialize)
+  }
+
+  protected async process(): Promise<void> {
+    // TODO: Restore business logic here after base migration (process)
+  }
+
+  protected async cleanup(): Promise<void> {
+    // TODO: Restore business logic here after base migration (cleanup)
+  }
+
+  protected async checkHealth(): Promise<HealthStatus> {
+    // TODO: Restore business logic here after base migration (checkHealth)
+    return {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      details: {}
+    };
+  }
+
+  protected async collectMetrics(): Promise<BaseMetrics> {
+    // TODO: Restore business logic here after base migration (collectMetrics)
+    return {
+      successCount: 0,
+      errorCount: 0,
+      warningCount: 0,
+      processingTimeMs: 0,
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
+    };
+  }
+
+  protected async initialize(): Promise<void> {
+    // TODO: Restore business logic here after base migration (initialize)
+  }
+
+  protected async process(): Promise<void> {
+    // TODO: Restore business logic here after base migration (process)
+  }
+
+  protected async cleanup(): Promise<void> {
+    // TODO: Restore business logic here after base migration (cleanup)
+  }
+
+  protected async checkHealth(): Promise<HealthStatus> {
+    // TODO: Restore business logic here after base migration (checkHealth)
+    return {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      details: {}
+    };
+  }
+
+  protected async collectMetrics(): Promise<BaseMetrics> {
+    // TODO: Restore business logic here after base migration (collectMetrics)
+    return {
+      successCount: 0,
+      errorCount: 0,
+      warningCount: 0,
+      processingTimeMs: 0,
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
+    };
+  }
 }

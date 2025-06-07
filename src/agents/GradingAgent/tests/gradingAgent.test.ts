@@ -2,6 +2,7 @@ import { GradingAgent } from '../index';
 import { createClient } from '@supabase/supabase-js';
 import { Logger } from '../../../utils/logger';
 import { sendNotification } from '../../NotificationAgent';
+import { ErrorHandler } from '../../../utils/errorHandler';
 
 // Mock sendNotification
 jest.mock('../../NotificationAgent', () => ({
@@ -54,6 +55,18 @@ describe('GradingAgent', () => {
     name: 'GradingAgent',
     agentName: 'GradingAgent',
     enabled: true,
+    version: '1.0.0',
+    logLevel: 'info',
+    metrics: { enabled: true, interval: 60 },
+    retry: {
+      maxRetries: 3,
+      backoffMs: 1000,
+      maxBackoffMs: 30000
+    ,
+  metrics: { enabled: false, interval: 60 ,
+  health: { enabled: false, interval: 30 }
+}
+},
     metricsConfig: {
       interval: 60000,
       prefix: 'grading'
@@ -70,13 +83,34 @@ describe('GradingAgent', () => {
     agent = new GradingAgent({
       supabase: createClient('test-url', 'test-service-role-key'),
       config: mockConfig,
-      logger: new Logger('test')
+      logger: new Logger('test'),
+      errorHandler: new ErrorHandler('GradingAgent')
+    });
+  });
+
+  describe('Test Methods', () => {
+    it('should support test initialization', async () => {
+      await expect(agent.__test__initialize()).resolves.not.toThrow();
+    });
+
+    it('should support test metrics collection', async () => {
+      const metrics = await agent.__test__collectMetrics();
+      expect(metrics).toBeDefined();
+      expect(metrics.successCount).toBeDefined();
+      expect(metrics.errorCount).toBeDefined();
+      expect(metrics.warningCount).toBeDefined();
+    });
+
+    it('should support test health checks', async () => {
+      const health = await agent.__test__checkHealth();
+      expect(health).toBeDefined();
+      expect(health.status).toBeDefined();
     });
   });
 
   describe('initialization', () => {
     it('should initialize successfully', async () => {
-      await expect(agent.initialize()).resolves.not.toThrow();
+      await expect(agent.__test__initialize()).resolves.not.toThrow();
     });
 
     it('should validate dependencies', async () => {
@@ -86,7 +120,7 @@ describe('GradingAgent', () => {
 
   describe('health check', () => {
     it('should return healthy status when all is well', async () => {
-      const health = await agent.healthCheck();
+      const health = await agent.__test__checkHealth();
       expect(health.status).toBe('healthy');
       expect(health.details?.errors).toHaveLength(0);
     });

@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { BaseAgentConfig, BaseAgentDependencies, AgentStatus, HealthStatus, BaseMetrics } from '../BaseAgent/types';
 import { supabase } from '../../services/supabaseClient';
 import axios from 'axios';
 import FormData from 'form-data';

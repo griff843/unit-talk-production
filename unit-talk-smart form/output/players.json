@@ -1,0 +1,422 @@
+[
+  {
+    "player_id": "JIMMY_BUTLER_1_NBA",
+    "name": "Jimmy Butler",
+    "team_id": "GOLDEN_STATE_WARRIORS_NBA",
+    "first_name": "Jimmy",
+    "last_name": "Butler"
+  },
+  {
+    "player_id": "DRAYMOND_GREEN_1_NBA",
+    "name": "Draymond Green",
+    "team_id": "GOLDEN_STATE_WARRIORS_NBA",
+    "first_name": "Draymond",
+    "last_name": "Green"
+  },
+  {
+    "player_id": "ANTHONY_EDWARDS_1_NBA",
+    "name": "Anthony Edwards",
+    "team_id": "MINNESOTA_TIMBERWOLVES_NBA",
+    "first_name": "Anthony",
+    "last_name": "Edwards"
+  },
+  {
+    "player_id": "JULIUS_RANDLE_1_NBA",
+    "name": "Julius Randle",
+    "team_id": "MINNESOTA_TIMBERWOLVES_NBA",
+    "first_name": "Julius",
+    "last_name": "Randle"
+  },
+  {
+    "player_id": "JADEN_MCDANIELS_1_NBA",
+    "name": "Jaden McDaniels",
+    "team_id": "MINNESOTA_TIMBERWOLVES_NBA",
+    "first_name": "Jaden",
+    "last_name": "McDaniels"
+  },
+  {
+    "player_id": "RUDY_GOBERT_1_NBA",
+    "name": "Rudy Gobert",
+    "team_id": "MINNESOTA_TIMBERWOLVES_NBA",
+    "first_name": "Rudy",
+    "last_name": "Gobert"
+  },
+  {
+    "player_id": "GARY_PAYTON_II_1_NBA",
+    "name": "Gary Payton II",
+    "team_id": "GOLDEN_STATE_WARRIORS_NBA",
+    "first_name": "Gary",
+    "last_name": "Payton"
+  },
+  {
+    "player_id": "BRANDIN_PODZIEMSKI_1_NBA",
+    "name": "Brandin Podziemski",
+    "team_id": "GOLDEN_STATE_WARRIORS_NBA",
+    "first_name": "Brandin",
+    "last_name": "Podziemski"
+  },
+  {
+    "player_id": "BUDDY_HIELD_1_NBA",
+    "name": "Buddy Hield",
+    "team_id": "GOLDEN_STATE_WARRIORS_NBA",
+    "first_name": "Buddy",
+    "last_name": "Hield"
+  },
+  {
+    "player_id": "MIKE_CONLEY_1_NBA",
+    "name": "Mike Conley",
+    "team_id": "MINNESOTA_TIMBERWOLVES_NBA",
+    "first_name": "Mike",
+    "last_name": "Conley"
+  },
+  {
+    "player_id": "NAZ_REID_1_NBA",
+    "name": "Naz Reid",
+    "team_id": "MINNESOTA_TIMBERWOLVES_NBA",
+    "first_name": "Naz",
+    "last_name": "Reid"
+  },
+  {
+    "player_id": "DONTE_DIVINCENZO_1_NBA",
+    "name": "Donte DiVincenzo",
+    "team_id": "MINNESOTA_TIMBERWOLVES_NBA",
+    "first_name": "Donte",
+    "last_name": "DiVincenzo"
+  },
+  {
+    "player_id": "KEVON_LOONEY_1_NBA",
+    "name": "Kevon Looney",
+    "team_id": "GOLDEN_STATE_WARRIORS_NBA",
+    "first_name": "Kevon",
+    "last_name": "Looney"
+  },
+  {
+    "player_id": "NICKEIL_ALEXANDERWALKER_1_NBA",
+    "name": "Nickeil Alexander-Walker",
+    "team_id": "MINNESOTA_TIMBERWOLVES_NBA",
+    "first_name": "Nickeil",
+    "last_name": "Alexander-Walker"
+  },
+  {
+    "player_id": "JONATHAN_KUMINGA_1_NBA",
+    "name": "Jonathan Kuminga",
+    "team_id": "GOLDEN_STATE_WARRIORS_NBA",
+    "first_name": "Jonathan",
+    "last_name": "Kuminga"
+  },
+  {
+    "player_id": "MOSES_MOODY_1_NBA",
+    "name": "Moses Moody",
+    "team_id": "GOLDEN_STATE_WARRIORS_NBA",
+    "first_name": "Moses",
+    "last_name": "Moody"
+  },
+  {
+    "player_id": "PAT_SPENCER_1_NBA",
+    "name": "Pat Spencer",
+    "team_id": "GOLDEN_STATE_WARRIORS_NBA",
+    "first_name": "Pat",
+    "last_name": "Spencer"
+  },
+  {
+    "player_id": "Q_POST_1_NBA",
+    "name": "Q. Post",
+    "team_id": "GOLDEN_STATE_WARRIORS_NBA",
+    "first_name": "Q.",
+    "last_name": "Post"
+  },
+  {
+    "player_id": "GUI_SANTOS_1_NBA",
+    "name": "Gui Santos",
+    "team_id": "GOLDEN_STATE_WARRIORS_NBA",
+    "first_name": "Gui",
+    "last_name": "Santos"
+  },
+  {
+    "player_id": "KEVIN_KNOX_1_NBA",
+    "name": "Kevin Knox",
+    "team_id": "GOLDEN_STATE_WARRIORS_NBA",
+    "first_name": "Kevin",
+    "last_name": "Knox"
+  },
+  {
+    "player_id": "TRAYCE_JACKSONDAVIS_1_NBA",
+    "name": "Trayce Jackson-Davis",
+    "team_id": "GOLDEN_STATE_WARRIORS_NBA",
+    "first_name": "Trayce",
+    "last_name": "JacksonDavis"
+  },
+  {
+    "player_id": "BRAXTON_KEY_1_NBA",
+    "name": "Braxton Key",
+    "team_id": "GOLDEN_STATE_WARRIORS_NBA",
+    "first_name": "Braxton",
+    "last_name": "Key"
+  },
+  {
+    "player_id": "JAYLEN_CLARK_1_NBA",
+    "name": "Jaylen Clark",
+    "team_id": "MINNESOTA_TIMBERWOLVES_NBA",
+    "first_name": "Jaylen",
+    "last_name": "Clark"
+  },
+  {
+    "player_id": "TERRENCE_SHANNON_1_NBA",
+    "name": "Terrence Shannon Jr",
+    "team_id": "MINNESOTA_TIMBERWOLVES_NBA",
+    "first_name": "Terrence",
+    "last_name": "Shannon"
+  },
+  {
+    "player_id": "JOSH_MINOTT_1_NBA",
+    "name": "Josh Minott",
+    "team_id": "MINNESOTA_TIMBERWOLVES_NBA",
+    "first_name": "Josh",
+    "last_name": "Minott"
+  },
+  {
+    "player_id": "LEONARD_MILLER_1_NBA",
+    "name": "Leonard Miller",
+    "team_id": "MINNESOTA_TIMBERWOLVES_NBA",
+    "first_name": "Leonard",
+    "last_name": "Miller"
+  },
+  {
+    "player_id": "LUKA_GARZA_1_NBA",
+    "name": "Luka Garza",
+    "team_id": "MINNESOTA_TIMBERWOLVES_NBA",
+    "first_name": "Luka",
+    "last_name": "Garza"
+  },
+  {
+    "player_id": "EVAN_MOBLEY_1_NBA",
+    "name": "Evan Mobley",
+    "team_id": "CLEVELAND_CAVALIERS_NBA",
+    "first_name": "Evan",
+    "last_name": "Mobley"
+  },
+  {
+    "player_id": "AARON_NESMITH_1_NBA",
+    "name": "Aaron Nesmith",
+    "team_id": "INDIANA_PACERS_NBA",
+    "first_name": "Aaron",
+    "last_name": "Nesmith"
+  },
+  {
+    "player_id": "ANDREW_NEMBHARD_1_NBA",
+    "name": "Andrew Nembhard",
+    "team_id": "INDIANA_PACERS_NBA",
+    "first_name": "Andrew",
+    "last_name": "Nembhard"
+  },
+  {
+    "player_id": "DARIUS_GARLAND_1_NBA",
+    "name": "Darius Garland",
+    "team_id": "CLEVELAND_CAVALIERS_NBA",
+    "first_name": "Darius",
+    "last_name": "Garland"
+  },
+  {
+    "player_id": "JARRETT_ALLEN_1_NBA",
+    "name": "Jarrett Allen",
+    "team_id": "CLEVELAND_CAVALIERS_NBA",
+    "first_name": "Jarrett",
+    "last_name": "Allen"
+  },
+  {
+    "player_id": "PASCAL_SIAKAM_1_NBA",
+    "name": "Pascal Siakam",
+    "team_id": "INDIANA_PACERS_NBA",
+    "first_name": "Pascal",
+    "last_name": "Siakam"
+  },
+  {
+    "player_id": "DONOVAN_MITCHELL_1_NBA",
+    "name": "Donovan Mitchell",
+    "team_id": "CLEVELAND_CAVALIERS_NBA",
+    "first_name": "Donovan",
+    "last_name": "Mitchell"
+  },
+  {
+    "player_id": "MYLES_TURNER_1_NBA",
+    "name": "Myles Turner",
+    "team_id": "INDIANA_PACERS_NBA",
+    "first_name": "Myles",
+    "last_name": "Turner"
+  },
+  {
+    "player_id": "TYRESE_HALIBURTON_1_NBA",
+    "name": "Tyrese Haliburton",
+    "team_id": "INDIANA_PACERS_NBA",
+    "first_name": "Tyrese",
+    "last_name": "Haliburton"
+  },
+  {
+    "player_id": "MAX_STRUS_1_NBA",
+    "name": "Max Strus",
+    "team_id": "CLEVELAND_CAVALIERS_NBA",
+    "first_name": "Max",
+    "last_name": "Strus"
+  },
+  {
+    "player_id": "SAM_MERRILL_1_NBA",
+    "name": "Sam Merrill",
+    "team_id": "CLEVELAND_CAVALIERS_NBA",
+    "first_name": "Sam",
+    "last_name": "Merrill"
+  },
+  {
+    "player_id": "TJ_MCCONNELL_1_NBA",
+    "name": "T.J. McConnell",
+    "team_id": "INDIANA_PACERS_NBA",
+    "first_name": "T.J.",
+    "last_name": "McConnell"
+  },
+  {
+    "player_id": "OBI_TOPPIN_1_NBA",
+    "name": "Obi Toppin",
+    "team_id": "INDIANA_PACERS_NBA",
+    "first_name": "Obi",
+    "last_name": "Toppin"
+  },
+  {
+    "player_id": "BENNEDICT_MATHURIN_1_NBA",
+    "name": "Bennedict Mathurin",
+    "team_id": "INDIANA_PACERS_NBA",
+    "first_name": "Bennedict",
+    "last_name": "Mathurin"
+  },
+  {
+    "player_id": "TY_JEROME_1_NBA",
+    "name": "Ty Jerome",
+    "team_id": "CLEVELAND_CAVALIERS_NBA",
+    "first_name": "Ty",
+    "last_name": "Jerome"
+  },
+  {
+    "player_id": "DEANDRE_HUNTER_1_NBA",
+    "name": "De'Andre Hunter",
+    "team_id": "CLEVELAND_CAVALIERS_NBA",
+    "first_name": "De'Andre",
+    "last_name": "Hunter"
+  },
+  {
+    "player_id": "CHET_HOLMGREN_1_NBA",
+    "name": "Chet Holmgren",
+    "team_id": "OKLAHOMA_CITY_THUNDER_NBA",
+    "first_name": "Chet",
+    "last_name": "Holmgren"
+  },
+  {
+    "player_id": "JALEN_WILLIAMS_1_NBA",
+    "name": "Jalen Williams",
+    "team_id": "OKLAHOMA_CITY_THUNDER_NBA",
+    "first_name": "Jalen",
+    "last_name": "Williams"
+  },
+  {
+    "player_id": "NIKOLA_JOKIC_1_NBA",
+    "name": "Nikola Jokić",
+    "team_id": "DENVER_NUGGETS_NBA",
+    "first_name": "Nikola",
+    "last_name": "Jokic"
+  },
+  {
+    "player_id": "MICHAEL_PORTER_JR_1_NBA",
+    "name": "Michael Porter Jr",
+    "team_id": "DENVER_NUGGETS_NBA",
+    "first_name": "Michael",
+    "last_name": "Porter"
+  },
+  {
+    "player_id": "ISAIAH_HARTENSTEIN_1_NBA",
+    "name": "Isaiah Hartenstein",
+    "team_id": "OKLAHOMA_CITY_THUNDER_NBA",
+    "first_name": "Isaiah",
+    "last_name": "Hartenstein"
+  },
+  {
+    "player_id": "CHRISTIAN_BRAUN_1_NBA",
+    "name": "Christian Braun",
+    "team_id": "DENVER_NUGGETS_NBA",
+    "first_name": "Christian",
+    "last_name": "Braun"
+  },
+  {
+    "player_id": "SHAI_GILGEOUSALEXANDER_1_NBA",
+    "name": "Shai Gilgeous-Alexander",
+    "team_id": "OKLAHOMA_CITY_THUNDER_NBA",
+    "first_name": "Shai",
+    "last_name": "Gilgeous-Alexander"
+  },
+  {
+    "player_id": "JAMAL_MURRAY_1_NBA",
+    "name": "Jamal Murray",
+    "team_id": "DENVER_NUGGETS_NBA",
+    "first_name": "Jamal",
+    "last_name": "Murray"
+  },
+  {
+    "player_id": "AARON_GORDON_1_NBA",
+    "name": "Aaron Gordon",
+    "team_id": "DENVER_NUGGETS_NBA",
+    "first_name": "Aaron",
+    "last_name": "Gordon"
+  },
+  {
+    "player_id": "LUGUENTZ_DORT_1_NBA",
+    "name": "Luguentz Dort",
+    "team_id": "OKLAHOMA_CITY_THUNDER_NBA",
+    "first_name": "Luguentz",
+    "last_name": "Dort"
+  },
+  {
+    "player_id": "RUSSELL_WESTBROOK_1_NBA",
+    "name": "Russell Westbrook",
+    "team_id": "DENVER_NUGGETS_NBA",
+    "first_name": "Russell",
+    "last_name": "Westbrook"
+  },
+  {
+    "player_id": "ALEX_CARUSO_1_NBA",
+    "name": "Alex Caruso",
+    "team_id": "OKLAHOMA_CITY_THUNDER_NBA",
+    "first_name": "Alex",
+    "last_name": "Caruso"
+  },
+  {
+    "player_id": "CASON_WALLACE_1_NBA",
+    "name": "Cason Wallace",
+    "team_id": "OKLAHOMA_CITY_THUNDER_NBA",
+    "first_name": "Cason",
+    "last_name": "Wallace"
+  },
+  {
+    "player_id": "ISAIAH_JOE_1_NBA",
+    "name": "Isaiah Joe",
+    "team_id": "OKLAHOMA_CITY_THUNDER_NBA",
+    "first_name": "Isaiah",
+    "last_name": "Joe"
+  },
+  {
+    "player_id": "AARON_WIGGINS_1_NBA",
+    "name": "Aaron Wiggins",
+    "team_id": "OKLAHOMA_CITY_THUNDER_NBA",
+    "first_name": "Aaron",
+    "last_name": "Wiggins"
+  },
+  {
+    "player_id": "PEYTON_WATSON_1_NBA",
+    "name": "Peyton Watson",
+    "team_id": "DENVER_NUGGETS_NBA",
+    "first_name": "Peyton",
+    "last_name": "Watson"
+  },
+  {
+    "player_id": "JAYLIN_WILLIAMS_1_NBA",
+    "name": "Jaylin Williams",
+    "team_id": "OKLAHOMA_CITY_THUNDER_NBA",
+    "first_name": "Jaylin",
+    "last_name": "Williams"
+  }
+]

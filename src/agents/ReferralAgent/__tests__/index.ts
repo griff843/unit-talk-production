@@ -2,7 +2,7 @@
 
 import { SupabaseClient } from '@supabase/supabase-js';
 import { ReferralAgentConfig, ReferralPayload, ReferralStatus, ReferralEvent, ReferralMetrics } from './types';
-import { BaseAgent } from '../BaseAgent';
+import { BaseAgent } from '../BaseAgent/index';
 import { ErrorHandlerConfig } from '../../utils/errorHandling';
 import { Logger } from '../../utils/logger';
 import { sendNotification } from '../NotificationAgent';

@@ -4,6 +4,9 @@ import { FeedAgent } from '../agents/FeedAgent';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { FeedAgentConfig } from '../agents/FeedAgent/types';
 import { RawProp } from '../types/rawProps';
+import { BaseAgentDependencies } from '../types/agent';
+import { ErrorHandler } from '../utils/errorHandling';
+import { Logger } from '../utils/logger';
 
 describe('FeedAgent', () => {
   let testEnv: TestWorkflowEnvironment;
@@ -11,6 +14,7 @@ describe('FeedAgent', () => {
   let mockSupabase: jest.Mocked<SupabaseClient>;
 
   const mockConfig: FeedAgentConfig = {
+    name: "FeedAgent",
     agentName: 'FeedAgent',
     enabled: true,
     providers: {
@@ -57,19 +61,37 @@ describe('FeedAgent', () => {
   });
 
   beforeEach(() => {
+    // Create type-safe mock for Supabase client
     mockSupabase = {
       from: jest.fn().mockReturnThis(),
       select: jest.fn().mockReturnThis(),
       insert: jest.fn().mockResolvedValue({ data: null, error: null }),
       in: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockReturnThis()
-    } as any;
+      limit: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
+      delete: jest.fn().mockReturnThis(),
+      single: jest.fn().mockReturnThis(),
+      gt: jest.fn().mockReturnThis(),
+      lt: jest.fn().mockReturnThis(),
+      gte: jest.fn().mockReturnThis(),
+      lte: jest.fn().mockReturnThis(),
+      filter: jest.fn().mockReturnThis(),
+      range: jest.fn().mockReturnThis(),
+      auth: {
+        signOut: jest.fn().mockResolvedValue({ error: null })
+      }
+    } as unknown as jest.Mocked<SupabaseClient>;
 
-    agent = new FeedAgent(
-      mockConfig,
-      mockSupabase,
-      { maxRetries: 3, backoffMs: 100 }
-    );
+    const dependencies: BaseAgentDependencies = {
+      supabase: mockSupabase,
+      config: mockConfig,
+      errorHandler: new ErrorHandler('FeedAgent'),
+      logger: new Logger('FeedAgent')
+    };
+
+    agent = new FeedAgent(dependencies);
   });
 
   afterAll(async () => {
@@ -78,8 +100,13 @@ describe('FeedAgent', () => {
 
   describe('Configuration', () => {
     it('should validate config successfully', () => {
-      expect(() => new FeedAgent(mockConfig, mockSupabase, { maxRetries: 3, backoffMs: 100 }))
-        .not.toThrow();
+      const dependencies: BaseAgentDependencies = {
+        supabase: mockSupabase,
+        config: mockConfig,
+        errorHandler: new ErrorHandler('FeedAgent'),
+        logger: new Logger('FeedAgent')
+      };
+      expect(() => new FeedAgent(dependencies)).not.toThrow();
     });
 
     it('should reject invalid config', () => {
@@ -93,36 +120,42 @@ describe('FeedAgent', () => {
         }
       };
 
-      expect(() => new FeedAgent(invalidConfig as any, mockSupabase, { maxRetries: 3, backoffMs: 100 }))
-        .toThrow();
+      const dependencies: BaseAgentDependencies = {
+        supabase: mockSupabase,
+        config: invalidConfig,
+        errorHandler: new ErrorHandler('FeedAgent'),
+        logger: new Logger('FeedAgent')
+      };
+
+      expect(() => new FeedAgent(dependencies)).toThrow();
     });
   });
 
   describe('Initialization', () => {
     it('should initialize successfully', async () => {
       mockSupabase.from.mockReturnValue({
-        select: jest.fn().mockReturnValue({
+        select: jest.fn().mockResolvedValue({
           limit: jest.fn().mockResolvedValue({ data: [], error: null })
         })
       } as any);
 
-      await expect(agent.initialize()).resolves.not.toThrow();
+      await expect(agent.__test__initialize()).resolves.not.toThrow();
     });
 
     it('should handle Supabase connection failure', async () => {
       mockSupabase.from.mockReturnValue({
-        select: jest.fn().mockReturnValue({
+        select: jest.fn().mockResolvedValue({
           limit: jest.fn().mockResolvedValue({ data: null, error: new Error('Connection failed') })
         })
       } as any);
 
-      await expect(agent.initialize()).rejects.toThrow('Connection failed');
+      await expect(agent.__test__initialize()).rejects.toThrow('Connection failed');
     });
   });
 
   describe('Data Ingestion', () => {
     beforeEach(() => {
-      global.fetch = jest.fn();
+      global.fetch = jest.fn() as any;
     });
 
     it('should fetch and process props successfully', async () => {
@@ -151,10 +184,10 @@ describe('FeedAgent', () => {
         insert: jest.fn().mockResolvedValue({ data: [mockRawProp], error: null })
       } as any);
 
-      await agent.initialize();
+      await agent.__test__initialize();
       await agent.start();
 
-      const metrics = await agent.collectMetrics();
+      const metrics = await agent.__test__collectMetrics();
       expect(metrics.totalProps).toBe(1);
       expect(metrics.uniqueProps).toBe(1);
       expect(metrics.duplicates).toBe(0);
@@ -192,10 +225,10 @@ describe('FeedAgent', () => {
         insert: jest.fn().mockResolvedValue({ data: null, error: null })
       } as any);
 
-      await agent.initialize();
+      await agent.__test__initialize();
       await agent.start();
 
-      const metrics = await agent.collectMetrics();
+      const metrics = await agent.__test__collectMetrics();
       expect(metrics.duplicates).toBe(1);
       expect(metrics.uniqueProps).toBe(0);
     });
@@ -205,10 +238,10 @@ describe('FeedAgent', () => {
         new Error('API timeout')
       );
 
-      await agent.initialize();
+      await agent.__test__initialize();
       await agent.start();
 
-      const metrics = await agent.collectMetrics();
+      const metrics = await agent.__test__collectMetrics();
       expect(metrics.errors).toBeGreaterThan(0);
       expect(metrics.providerStats.SportsGameOdds.failed).toBe(1);
     });
@@ -216,7 +249,7 @@ describe('FeedAgent', () => {
 
   describe('Health Checks', () => {
     it('should report healthy when error rate is low', async () => {
-      const health = await agent.checkHealth();
+      const health = await agent.__test__checkHealth();
       expect(health.status).toBe('ok');
     });
 
@@ -225,9 +258,9 @@ describe('FeedAgent', () => {
       agent['metrics'].providerStats.SportsGameOdds.failed = 5;
       agent['metrics'].providerStats.SportsGameOdds.success = 1;
 
-      const health = await agent.checkHealth();
+      const health = await agent.__test__checkHealth();
       expect(health.status).toBe('warn');
-      expect(health.details.errors).toHaveLength(1);
+      expect(health.details?.errors ?? []).toHaveLength(1);
     });
   });
 }); 

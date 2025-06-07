@@ -71,7 +71,7 @@ export class TestHarness {
       }
 
       // Initialize agent
-      await agent.initialize();
+      await agent.__test__initialize();
 
       // Run test with timeout
       await Promise.race([
@@ -101,7 +101,7 @@ export class TestHarness {
 
     try {
       // Initialize all agents
-      await Promise.all(agents.map(agent => agent.initialize()));
+      await Promise.all(agents.map(agent => agent.__test__initialize()));
 
       // Run test
       await testFn(this.testContext);
@@ -131,7 +131,7 @@ export class TestHarness {
     const workers: Promise<void>[] = [];
 
     try {
-      await agent.initialize();
+      await agent.__test__initialize();
 
       for (let i = 0; i < options.concurrency; i++) {
         if (options.rampUp) {

@@ -1,3 +1,4 @@
+import { BaseAgentConfig, BaseAgentDependencies, AgentStatus, HealthStatus, BaseMetrics } from '../BaseAgent/types';
 import { supabase } from '../../services/supabaseClient';
 import { logger } from '../../services/logging';
 

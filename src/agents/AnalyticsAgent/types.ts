@@ -79,4 +79,5 @@ export interface AnalyticsMetrics {
     endTime: string;
     recordsProcessed: number;
   };
-} 
+} // DRAGON PATCH: add missing fields from tests/code
+export interface Metrics { profitableCappers?: number; activeStreaks?: number; errorCount?: number; totalAnalyzed?: number; }

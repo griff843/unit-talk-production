@@ -1,0 +1,26 @@
+[
+  {
+    "event_id": "AcgQJhCN9h8w02M0NZX8",
+    "league": "NBA",
+    "sport": "BASKETBALL",
+    "status": "F",
+    "home_team": "MINNESOTA_TIMBERWOLVES_NBA",
+    "away_team": "GOLDEN_STATE_WARRIORS_NBA"
+  },
+  {
+    "event_id": "yvvCy3I3cIK2vA35yI7C",
+    "league": "NBA",
+    "sport": "BASKETBALL",
+    "status": null,
+    "home_team": "INDIANA_PACERS_NBA",
+    "away_team": "CLEVELAND_CAVALIERS_NBA"
+  },
+  {
+    "event_id": "lvspXVJNQwsesQfbWUs7",
+    "league": "NBA",
+    "sport": "BASKETBALL",
+    "status": null,
+    "home_team": "DENVER_NUGGETS_NBA",
+    "away_team": "OKLAHOMA_CITY_THUNDER_NBA"
+  }
+]

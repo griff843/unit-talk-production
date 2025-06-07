@@ -1,15 +1,8 @@
 // src/agents/OnboardingAgent/index.ts
 
 import { SupabaseClient } from '@supabase/supabase-js';
-import { BaseAgent } from '../BaseAgent';
-import { Logger } from '../../utils/logger';
-import { 
-  AgentCommand, 
-  HealthCheckResult, 
-  BaseAgentDependencies,
-  AgentMetrics,
-  AgentStatus 
-} from '../../types/agent';
+import { BaseAgent } from '../BaseAgent/index';
+import { BaseAgentDependencies, AgentCommand, HealthCheckResult, Metrics } from '../BaseAgent/types';
 import { 
   OnboardingStep, 
   OnboardingPayload, 
@@ -19,44 +12,14 @@ import {
 import { sendNotification } from '../NotificationAgent';
 
 export class OnboardingAgent extends BaseAgent {
-  protected readonly logger: Logger;
-
-  constructor(dependencies: BaseAgentDependencies) {
-    super(dependencies);
-    this.logger = dependencies.logger || new Logger('OnboardingAgent');
-  }
-
-  public async initialize(): Promise<void> {
-    await this.validateDependencies();
-    await this.initializeResources();
-    this.logger.info('OnboardingAgent initialized successfully');
-  }
-
-  public async cleanup(): Promise<void> {
-    // No cleanup needed
-  }
-
-  public async checkHealth(): Promise<HealthCheckResult> {
-    return this.healthCheck();
-  }
-
-  protected async validateDependencies(): Promise<void> {
-    // Verify access to required tables
-    const requiredTables = ['onboarding', 'users'];
-    for (const table of requiredTables) {
-      const { error } = await this.supabase
-        .from(table)
-        .select('id')
-        .limit(1);
-
-      if (error) {
-        throw new Error(`Failed to access table ${table}: ${error.message}`);
-      }
-    }
+  constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
+    super(config, deps);
+    // Initialize agent-specific properties here
   }
 
   protected async initializeResources(): Promise<void> {
-    // No additional resources needed
+    await this.validateDependencies();
+    this.logger.info('OnboardingAgent resources initialized successfully');
   }
 
   protected async process(): Promise<void> {
@@ -83,7 +46,11 @@ export class OnboardingAgent extends BaseAgent {
     }
   }
 
-  protected async healthCheck(): Promise<HealthCheckResult> {
+  protected async cleanup(): Promise<void> {
+    // No cleanup needed
+  }
+
+  protected async checkHealth(): Promise<HealthCheckResult> {
     const health: HealthCheckResult = {
       status: 'healthy',
       details: {
@@ -104,34 +71,33 @@ export class OnboardingAgent extends BaseAgent {
 
     if (error) {
       health.status = 'unhealthy';
-      if (health.details) {
-        health.details.errors.push(`Database connectivity issue: ${error.message}`);
-      }
+      health.details.errors.push(`Database connectivity issue: ${error.message}`);
     }
 
     return health;
   }
 
-  protected async collectMetrics(): Promise<AgentMetrics> {
+  protected async collectMetrics(): Promise<Metrics> {
     const { data: onboardingStats } = await this.supabase
       .from('onboarding')
       .select('status')
       .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
 
-    const baseMetrics = this.metrics;
-    const status: AgentStatus = baseMetrics.errorCount > 0 ? 'degraded' : 'healthy';
-
     return {
-      ...baseMetrics,
-      status,
-      agentName: this.config.name,
-      successCount: (onboardingStats || []).filter(s => s.status === 'complete').length,
+      errorCount: (onboardingStats || []).filter(s => s.status === 'failed').length,
       warningCount: (onboardingStats || []).filter(s => s.status === 'in_progress').length,
-      errorCount: (onboardingStats || []).filter(s => s.status === 'failed').length
+      successCount: (onboardingStats || []).filter(s => s.status === 'complete').length,
+      onboardingStats: {
+        total: onboardingStats?.length || 0,
+        byStatus: onboardingStats?.reduce((acc, curr) => {
+          acc[curr.status] = (acc[curr.status] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>) || {}
+      }
     };
   }
 
-  public async handleCommand(command: AgentCommand): Promise<void> {
+  protected async processCommand(command: AgentCommand): Promise<void> {
     switch (command.type) {
       case 'START_ONBOARDING':
         await this.startOnboarding(command.payload);
@@ -144,11 +110,26 @@ export class OnboardingAgent extends BaseAgent {
     }
   }
 
+  private async validateDependencies(): Promise<void> {
+    // Verify access to required tables
+    const requiredTables = ['onboarding', 'users'];
+    for (const table of requiredTables) {
+      const { error } = await this.supabase
+        .from(table)
+        .select('id')
+        .limit(1);
+
+      if (error) {
+        throw new Error(`Failed to access table ${table}: ${error.message}`);
+      }
+    }
+  }
+
   private async processOnboardingTask(task: any): Promise<void> {
     // Implement task processing logic
   }
 
-  async startOnboarding(payload: OnboardingPayload): Promise<OnboardingResult> {
+  private async startOnboarding(payload: OnboardingPayload): Promise<OnboardingResult> {
     const steps = this.getWorkflowSteps(payload.userType);
 
     const { data, error } = await this.supabase.from('onboarding').insert([{
@@ -180,7 +161,7 @@ export class OnboardingAgent extends BaseAgent {
     };
   }
 
-  async completeStep(userId: string, stepId: string): Promise<boolean> {
+  private async completeStep(userId: string, stepId: string): Promise<boolean> {
     const { data, error } = await this.supabase
       .from('onboarding')
       .select('*')
@@ -237,34 +218,76 @@ export class OnboardingAgent extends BaseAgent {
           { id: 'training', label: 'Complete Training', completed: false },
           { id: 'access', label: 'System Access Setup', completed: false }
         ];
-      case 'staff':
-      case 'mod':
-      case 'va':
-        return [
-          ...baseSteps,
-          { id: 'training', label: 'Complete Staff Training', completed: false },
-          { id: 'permissions', label: 'Permissions & Role Setup', completed: false }
-        ];
-      case 'vip':
-        return [
-          ...baseSteps,
-          { id: 'profile', label: 'Complete Profile', completed: false },
-          { id: 'welcome', label: 'Schedule Welcome Call', completed: false }
-        ];
       default:
         return baseSteps;
     }
   }
 
-  /** Escalate if onboarding is stuck or failed. */
-  async escalateStuckOnboarding(userId: string, reason: string) {
-    await sendNotification({
-      type: 'incident',
-      message: `🚨 Onboarding stuck for ${userId}: ${reason}`,
-      channels: ['discord', 'notion'],
-      priority: 'high',
-      meta: { userId, reason }
-    });
-    this.logger.warn('Onboarding escalation', { userId, reason });
+  protected async initialize(): Promise<void> {
+    // TODO: Restore business logic here after base migration (initialize)
+  }
+
+  protected async initialize(): Promise<void> {
+    // TODO: Restore business logic here after base migration (initialize)
+  }
+
+  protected async process(): Promise<void> {
+    // TODO: Restore business logic here after base migration (process)
+  }
+
+  protected async cleanup(): Promise<void> {
+    // TODO: Restore business logic here after base migration (cleanup)
+  }
+
+  protected async checkHealth(): Promise<HealthStatus> {
+    // TODO: Restore business logic here after base migration (checkHealth)
+    return {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      details: {}
+    };
+  }
+
+  protected async collectMetrics(): Promise<BaseMetrics> {
+    // TODO: Restore business logic here after base migration (collectMetrics)
+    return {
+      successCount: 0,
+      errorCount: 0,
+      warningCount: 0,
+      processingTimeMs: 0,
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
+    };
+  }
+
+  protected async initialize(): Promise<void> {
+    // TODO: Restore business logic here after base migration (initialize)
+  }
+
+  protected async process(): Promise<void> {
+    // TODO: Restore business logic here after base migration (process)
+  }
+
+  protected async cleanup(): Promise<void> {
+    // TODO: Restore business logic here after base migration (cleanup)
+  }
+
+  protected async checkHealth(): Promise<HealthStatus> {
+    // TODO: Restore business logic here after base migration (checkHealth)
+    return {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      details: {}
+    };
+  }
+
+  protected async collectMetrics(): Promise<BaseMetrics> {
+    // TODO: Restore business logic here after base migration (collectMetrics)
+    return {
+      successCount: 0,
+      errorCount: 0,
+      warningCount: 0,
+      processingTimeMs: 0,
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
+    };
   }
 }

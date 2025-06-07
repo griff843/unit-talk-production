@@ -113,7 +113,7 @@ export async function analyticsWorkflow(params: any): Promise<void> {
 }
 
 export async function gradingWorkflow(params: any): Promise<void> {
-  await grading.processGrades(params);
+  await grading.gradeSubmission(params);
 }
 
 export async function contestWorkflow(params: any): Promise<void> {
@@ -121,7 +121,7 @@ export async function contestWorkflow(params: any): Promise<void> {
 }
 
 export async function alertWorkflow(params: any): Promise<void> {
-  await alert.processAlerts(params);
+  await alert.processAlert(params);
 }
 
 export async function promoWorkflow(params: any): Promise<void> {
@@ -129,7 +129,7 @@ export async function promoWorkflow(params: any): Promise<void> {
 }
 
 export async function notificationWorkflow(params: any): Promise<void> {
-  await notification.sendNotifications(params);
+  await notification.sendNotification(params);
 }
 
 export async function feedWorkflow(params: any): Promise<void> {
@@ -137,7 +137,7 @@ export async function feedWorkflow(params: any): Promise<void> {
 }
 
 export async function operatorWorkflow(params: any): Promise<void> {
-  await operator.executeOperations(params);
+  await operator.executeOperation(params);
 }
 
 export async function auditWorkflow(params: any): Promise<void> {

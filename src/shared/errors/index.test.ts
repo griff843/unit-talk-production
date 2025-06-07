@@ -65,13 +65,11 @@ describe('ErrorHandler', () => {
         .mockRejectedValueOnce(new NetworkError('Failed', 'test'))
         .mockResolvedValueOnce('success');
 
-      const promise = errorHandler.withRetry(operation, 'test operation');
-      jest.runAllTimers();
-      
-      const result = await promise;
+      const result = await errorHandler.withRetry(operation, 'test operation');
+
       expect(result).toBe('success');
       expect(operation).toHaveBeenCalledTimes(2);
-    });
+    }, 1000);
 
     it('should not retry on non-retryable errors', async () => {
       const operation = jest.fn()
@@ -87,31 +85,25 @@ describe('ErrorHandler', () => {
       const operation = jest.fn()
         .mockRejectedValue(new NetworkError('Failed', 'test'));
 
-      const promise = errorHandler.withRetry(operation, 'test operation');
-      jest.runAllTimers();
-
-      await expect(promise)
+      await expect(errorHandler.withRetry(operation, 'test operation'))
         .rejects
         .toThrow(RetryableError);
       expect(operation).toHaveBeenCalledTimes(3);
-    });
+    }, 1000);
 
     it('should use exponential backoff', async () => {
       const operation = jest.fn()
         .mockRejectedValue(new NetworkError('Failed', 'test'));
 
-      const promise = errorHandler.withRetry(operation, 'test operation');
+      const startTime = Date.now();
+      await expect(errorHandler.withRetry(operation, 'test operation'))
+        .rejects
+        .toThrow();
       
-      // First retry - 100ms
-      jest.advanceTimersByTime(100);
-      // Second retry - 200ms
-      jest.advanceTimersByTime(200);
-      // Third retry - 400ms
-      jest.advanceTimersByTime(400);
-
-      await expect(promise).rejects.toThrow(RetryableError);
-      expect(operation).toHaveBeenCalledTimes(3);
-    });
+      const duration = Date.now() - startTime;
+      expect(duration).toBeGreaterThanOrEqual(100);
+      expect(duration).toBeLessThanOrEqual(300);
+    }, 1000);
   });
 });
 

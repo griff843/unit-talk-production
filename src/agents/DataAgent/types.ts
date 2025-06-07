@@ -1,17 +1,86 @@
 import { HealthCheckResult } from '../../types/agent';
+import { BaseAgentConfig } from '../BaseAgent/types';
+
+export interface DataAgentConfig extends BaseAgentConfig {
+  etl: {
+    enabled: boolean;
+    maxConcurrentWorkflows: number;
+    retryAttempts: number;
+    checkpointInterval: number;
+  };
+  enrichment: {
+    enabled: boolean;
+    maxConcurrentPipelines: number;
+    cacheTimeout: number;
+  };
+  quality: {
+    enabled: boolean;
+    checkInterval: number;
+    thresholds: {
+      completeness: number;
+      accuracy: number;
+      consistency: number;
+    };
+  };
+}
+
+export interface ETLWorkflow {
+  id: string;
+  name: string;
+  source: {
+    type: string;
+    config: Record<string, any>;
+  };
+  transform: {
+    steps: TransformStep[];
+    validation: ValidationRule[];
+  };
+  destination: {
+    type: string;
+    config: Record<string, any>;
+  };
+  schedule?: string;
+  status: 'idle' | 'running' | 'error' | 'completed';
+  metadata?: Record<string, any>;
+}
+
+export interface TransformStep {
+  type: string;
+  config: Record<string, any>;
+  dependencies?: string[];
+}
+
+export interface ValidationRule {
+  field: string;
+  type: string;
+  params: Record<string, any>;
+}
+
+export interface EnrichmentPipeline {
+  id: string;
+  name: string;
+  enrichers: Enricher[];
+  dataSource: string;
+  schedule?: string;
+  status: 'idle' | 'running' | 'error' | 'completed';
+  metadata?: Record<string, any>;
+}
+
+export interface Enricher {
+  type: string;
+  config: Record<string, any>;
+  priority: number;
+}
 
 export interface DataQualityCheck {
-  tableId: string;
-  timestamp: Date;
-  metrics: {
-    rowCount: number;
-    nullPercentage: number;
-    duplicateCount: number;
-    schemaValidation: boolean;
-    customChecks: Record<string, boolean>;
-  };
-  status: 'passed' | 'warning' | 'failed';
-  issues: DataQualityIssue[];
+  id: string;
+  type: string;
+  target: string;
+  rules: ValidationRule[];
+  schedule?: string;
+  lastRun?: string;
+  score?: number;
+  metadata?: Record<string, any>;
 }
 
 export interface DataQualityIssue {
@@ -49,12 +118,6 @@ export interface Transformation {
   type: string;
   config: Record<string, any>;
   validation?: ValidationRule[];
-}
-
-export interface ValidationRule {
-  field: string;
-  type: 'required' | 'format' | 'range' | 'custom';
-  config: Record<string, any>;
 }
 
 export interface RetryConfig {

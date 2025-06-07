@@ -1,8 +1,8 @@
 // /src/agents/MarketingAgent/index.ts
 
 import { SupabaseClient } from '@supabase/supabase-js'
-import { IAgent, AgentStatus, AgentConfig, AgentCommand, HealthCheckResult } from '../../types/agent'
-import { Logger } from '../../utils/logger'
+import { BaseAgent } from '../BaseAgent/index'
+import { BaseAgentDependencies, AgentCommand, HealthCheckResult, Metrics } from '../BaseAgent/types'
 import { Campaign, ReferralProgram, EngagementMetrics, MarketingEvent } from '../../types/marketing'
 import { CampaignManager } from './campaigns'
 import { ReferralManager } from './referrals'
@@ -12,159 +12,188 @@ import { EngagementTracker } from './engagement'
  * Production-grade MarketingAgent for campaigns, referrals, and engagement tracking.
  * Exposes event hooks for automation, detailed logging, and robust health checks.
  */
-export class MarketingAgent implements IAgent {
-  private supabase: SupabaseClient
-  private logger: Logger
+export class MarketingAgent extends BaseAgent {
   private campaignManager: CampaignManager
   private referralManager: ReferralManager
   private engagementTracker: EngagementTracker
 
-  name = 'MarketingAgent'
-  status: AgentStatus = 'idle'
-  config: AgentConfig
-
-  constructor(config: AgentConfig, supabase: SupabaseClient) {
-    this.config = config
-    this.supabase = supabase
-    this.logger = new Logger('MarketingAgent')
-    this.campaignManager = new CampaignManager(supabase, config)
-    this.referralManager = new ReferralManager(supabase, config)
-    this.engagementTracker = new EngagementTracker(supabase, config)
+  constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
+    super(config, deps);
+    // Initialize agent-specific properties here
   }
 
-  /** Initializes all subsystems and checks readiness */
-  async initialize(): Promise<void> {
+  protected async initializeResources(): Promise<void> {
     try {
-      this.logger.info('Initializing MarketingAgent')
-      this.status = 'initializing'
+      this.logger.info('Initializing MarketingAgent resources')
       await this.setupCampaignManager()
       await this.setupReferralPrograms()
       await this.setupEngagementTracking()
-      this.status = 'ready'
-      this.logger.info('MarketingAgent initialized successfully')
+      this.logger.info('MarketingAgent resources initialized successfully')
     } catch (error) {
-      this.status = 'error'
-      this.logger.error('Failed to initialize MarketingAgent', error)
+      this.logger.error('Failed to initialize MarketingAgent resources', error)
       throw error
     }
   }
 
-  /** Starts the agent event/campaign monitoring loops */
-  async start(): Promise<void> {
+  protected async process(): Promise<void> {
     try {
-      this.logger.info('Starting MarketingAgent')
-      this.status = 'running'
       await this.startCampaignMonitoring()
       await this.startReferralTracking()
       await this.startEngagementAnalysis()
-      this.logger.info('MarketingAgent started successfully')
     } catch (error) {
-      this.status = 'error'
-      this.logger.error('Failed to start MarketingAgent', error)
+      this.logger.error('Failed to process marketing tasks', error)
       throw error
     }
   }
 
-  async stop(): Promise<void> {
+  protected async cleanup(): Promise<void> {
     try {
-      this.logger.info('Stopping MarketingAgent')
+      this.logger.info('Cleaning up MarketingAgent')
       await this.stopCampaignMonitoring()
       await this.stopReferralTracking()
       await this.stopEngagementAnalysis()
-      this.status = 'stopped'
-      this.logger.info('MarketingAgent stopped successfully')
+      this.logger.info('MarketingAgent cleaned up successfully')
     } catch (error) {
-      this.logger.error('Failed to stop MarketingAgent', error)
+      this.logger.error('Failed to cleanup MarketingAgent', error)
       throw error
     }
   }
 
-  /** Handles agent commands (campaigns, referrals, etc) */
-  async handleCommand(command: AgentCommand): Promise<void> {
+  protected async checkHealth(): Promise<HealthCheckResult> {
     try {
-      this.logger.info('Handling command', { command })
+      const campaignHealth = await this.campaignManager.checkHealth();
+      const referralHealth = await this.referralManager.checkHealth();
+      const engagementHealth = await this.engagementTracker.checkHealth();
 
-      switch (command.action) {
-        case 'createCampaign':
-          await this.createCampaign(command.parameters)
+      const isHealthy = campaignHealth.status === 'healthy' && 
+                       referralHealth.status === 'healthy' && 
+                       engagementHealth.status === 'healthy';
+
+      return {
+        status: isHealthy ? 'healthy' : 'degraded',
+        details: {
+          errors: [],
+          warnings: [],
+          info: {
+            campaignHealth,
+            referralHealth,
+            engagementHealth
+          }
+        },
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      this.logger.error('Health check failed', error);
+      return {
+        status: 'unhealthy',
+        details: {
+          errors: [error instanceof Error ? error.message : 'Unknown error'],
+          warnings: [],
+          info: {}
+        },
+        timestamp: new Date().toISOString()
+      };
+    }
+  }
+
+  protected async collectMetrics(): Promise<Metrics> {
+    const campaignMetrics = await this.campaignManager.getMetrics();
+    const referralMetrics = await this.referralManager.getMetrics();
+    const engagementMetrics = await this.engagementTracker.getMetrics();
+
+    return {
+      errorCount: campaignMetrics.errorCount + referralMetrics.errorCount + engagementMetrics.errorCount,
+      warningCount: campaignMetrics.warningCount + referralMetrics.warningCount + engagementMetrics.warningCount,
+      successCount: campaignMetrics.successCount + referralMetrics.successCount + engagementMetrics.successCount,
+      campaigns: campaignMetrics,
+      referrals: referralMetrics,
+      engagement: engagementMetrics
+    };
+  }
+
+  protected async processCommand(command: AgentCommand): Promise<void> {
+    try {
+      this.logger.info('Processing command', { command })
+
+      switch (command.type) {
+        case 'CREATE_CAMPAIGN':
+          await this.createCampaign(command.payload)
           break
-        case 'updateReferralProgram':
-          await this.updateReferralProgram(command.parameters)
+        case 'UPDATE_REFERRAL':
+          await this.updateReferralProgram(command.payload)
           break
-        case 'generateEngagementReport':
-          await this.generateEngagementReport(command.parameters)
+        case 'GENERATE_REPORT':
+          await this.generateEngagementReport(command.payload)
           break
-        case 'triggerPromotion':
-          await this.triggerPromotion(command.parameters)
+        case 'TRIGGER_PROMOTION':
+          await this.triggerPromotion(command.payload)
           break
         default:
-          throw new Error(`Unknown command action: ${command.action}`)
+          throw new Error(`Unknown command type: ${command.type}`)
       }
 
-      this.logger.info('Command handled successfully', { command })
+      this.logger.info('Command processed successfully', { command })
     } catch (error) {
-      this.logger.error('Failed to handle command', { command, error })
+      this.logger.error('Failed to process command', { command, error })
       throw error
-    }
-  }
-
-  /** Returns a detailed health check result for dashboarding/automation */
-  async healthCheck(): Promise<HealthCheckResult> {
-    try {
-      const campaignStatus = await this.campaignManager.checkHealth()
-      const referralStatus = await this.referralManager.checkHealth()
-      const engagementStatus = await this.engagementTracker.checkHealth()
-
-      return {
-        status: this.determineOverallHealth(campaignStatus, referralStatus, engagementStatus),
-        components: {
-          campaigns: campaignStatus,
-          referrals: referralStatus,
-          engagement: engagementStatus
-        },
-        timestamp: new Date()
-      }
-    } catch (error) {
-      this.logger.error('Health check failed', error)
-      return {
-        status: 'failed',
-        components: {},
-        timestamp: new Date(),
-        error: error.message
-      }
     }
   }
 
   // --- PRIVATE METHODS ---
 
-  private async setupCampaignManager() {}
-  private async setupReferralPrograms() {}
-  private async setupEngagementTracking() {}
-  private async startCampaignMonitoring() {}
-  private async startReferralTracking() {}
-  private async startEngagementAnalysis() {}
-  private async stopCampaignMonitoring() {}
-  private async stopReferralTracking() {}
-  private async stopEngagementAnalysis() {}
+  private async setupCampaignManager() {
+    await this.campaignManager.initialize()
+  }
+
+  private async setupReferralPrograms() {
+    await this.referralManager.initialize()
+  }
+
+  private async setupEngagementTracking() {
+    await this.engagementTracker.initialize()
+  }
+
+  private async startCampaignMonitoring() {
+    await this.campaignManager.start()
+  }
+
+  private async startReferralTracking() {
+    await this.referralManager.start()
+  }
+
+  private async startEngagementAnalysis() {
+    await this.engagementTracker.start()
+  }
+
+  private async stopCampaignMonitoring() {
+    await this.campaignManager.stop()
+  }
+
+  private async stopReferralTracking() {
+    await this.referralManager.stop()
+  }
+
+  private async stopEngagementAnalysis() {
+    await this.engagementTracker.stop()
+  }
 
   private async createCampaign(params: any): Promise<Campaign> {
-    this.logger.info('createCampaign', params)
+    this.logger.info('Creating campaign', params)
     return this.campaignManager.createCampaign(params)
   }
 
   private async updateReferralProgram(params: any): Promise<ReferralProgram> {
-    this.logger.info('updateReferralProgram', params)
+    this.logger.info('Updating referral program', params)
     return this.referralManager.updateReferral(params)
   }
 
   private async generateEngagementReport(params: any): Promise<EngagementMetrics> {
-    this.logger.info('generateEngagementReport', params)
+    this.logger.info('Generating engagement report', params)
     return this.engagementTracker.generateReport(params)
   }
 
   private async triggerPromotion(params: any): Promise<MarketingEvent> {
-    this.logger.info('triggerPromotion', params)
-    // Dummy event for now
+    this.logger.info('Triggering promotion', params)
     return {
       id: 'promo-1',
       type: 'promotion',
@@ -173,22 +202,67 @@ export class MarketingAgent implements IAgent {
     }
   }
 
-  private determineOverallHealth(...statuses: any[]): 'healthy' | 'degraded' | 'failed' {
-    if (statuses.every(s => s.status === 'healthy')) return 'healthy'
-    if (statuses.some(s => s.status === 'failed')) return 'failed'
-    return 'degraded'
+  protected async initialize(): Promise<void> {
+    // TODO: Restore business logic here after base migration (initialize)
   }
 
-  // --- EVENT HOOKS ---
-
-  /** Example: called when a campaign is created */
-  async onCampaignCreated(campaign: Campaign) {
-    // Plug in Discord/Notion automation here
+  protected async process(): Promise<void> {
+    // TODO: Restore business logic here after base migration (process)
   }
 
-  /** Example: called when a referral program is updated */
-  async onReferralUpdated(referral: ReferralProgram) {}
+  protected async cleanup(): Promise<void> {
+    // TODO: Restore business logic here after base migration (cleanup)
+  }
 
-  /** Example: called when engagement report is generated */
-  async onEngagementReported(metrics: EngagementMetrics) {}
+  protected async checkHealth(): Promise<HealthStatus> {
+    // TODO: Restore business logic here after base migration (checkHealth)
+    return {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      details: {}
+    };
+  }
+
+  protected async collectMetrics(): Promise<BaseMetrics> {
+    // TODO: Restore business logic here after base migration (collectMetrics)
+    return {
+      successCount: 0,
+      errorCount: 0,
+      warningCount: 0,
+      processingTimeMs: 0,
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
+    };
+  }
+
+  protected async initialize(): Promise<void> {
+    // TODO: Restore business logic here after base migration (initialize)
+  }
+
+  protected async process(): Promise<void> {
+    // TODO: Restore business logic here after base migration (process)
+  }
+
+  protected async cleanup(): Promise<void> {
+    // TODO: Restore business logic here after base migration (cleanup)
+  }
+
+  protected async checkHealth(): Promise<HealthStatus> {
+    // TODO: Restore business logic here after base migration (checkHealth)
+    return {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      details: {}
+    };
+  }
+
+  protected async collectMetrics(): Promise<BaseMetrics> {
+    // TODO: Restore business logic here after base migration (collectMetrics)
+    return {
+      successCount: 0,
+      errorCount: 0,
+      warningCount: 0,
+      processingTimeMs: 0,
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
+    };
+  }
 }
