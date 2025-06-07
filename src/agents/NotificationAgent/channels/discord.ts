@@ -1,4 +1,5 @@
 import { EmbedBuilder } from 'discord.js';
+import { NotificationPayload, NotificationChannelConfig } from '../types';
 
 export interface UnitTalkAlert {
   type: 'injury' | 'line_move' | 'middling' | 'info';
@@ -61,4 +62,42 @@ export function buildUnitTalkAlertEmbed(alert: UnitTalkAlert) {
   }
 
   return embed;
+}
+
+export async function sendDiscordNotification(
+  payload: NotificationPayload,
+  config: NotificationChannelConfig
+): Promise<void> {
+  if (!config.webhookUrl) {
+    throw new Error('Discord webhook URL is required');
+  }
+
+  const embed = {
+    embeds: [{
+      title: payload.title || 'Notification',
+      description: payload.message,
+      color: 5814783, // Default blue color
+      fields: payload.meta ? Object.entries(payload.meta).map(([key, value]) => ({
+        name: key,
+        value: String(value),
+        inline: true
+      })) : [],
+      timestamp: new Date().toISOString()
+    }]
+  };
+
+  // Handle channel-specific options
+  if (payload.channelOptions?.discord?.embed) {
+    embed.embeds[0] = { ...embed.embeds[0], ...payload.channelOptions.discord.embed };
+  }
+
+  const response = await fetch(config.webhookUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(embed)
+  });
+
+  if (!response.ok) {
+    throw new Error(`Discord notification failed: ${response.statusText}`);
+  }
 }

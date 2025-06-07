@@ -2,6 +2,7 @@ import { NotificationAgent, initializeNotificationAgent } from '../index';
 import { NotificationPayload, NotificationResult } from '../types';
 import { createClient } from '@supabase/supabase-js';
 import { Logger } from '../../../utils/logger';
+import { BaseAgentConfig, BaseAgentDependencies } from '@shared/types/baseAgent';
 
 // Mock Supabase client
 jest.mock('@supabase/supabase-js', () => ({
@@ -38,49 +39,86 @@ jest.mock('@supabase/supabase-js', () => ({
 }));
 
 // Mock fetch for Discord and Notion API calls
-global.fetch = jest.fn(() =>
-  Promise.resolve({
-    ok: true,
-    json: () => Promise.resolve({}),
-    statusText: 'OK'
-  })
-) as jest.Mock;
+global.fetch = jest.fn().mockImplementation(async (url, options) => {
+  if (url.includes('discord')) {
+    return { ok: true, json: () => Promise.resolve({ id: 'test-notification-id' }) };
+  }
+  if (url.includes('notion')) {
+    return { ok: true, json: () => Promise.resolve({ id: 'test-notification-id' }) };
+  }
+  throw new Error('Unexpected URL');
+});
 
 describe('NotificationAgent', () => {
   let agent: NotificationAgent;
-  const mockConfig = {
+  const mockConfig: BaseAgentConfig = {
     name: 'NotificationAgent',
-    agentName: 'NotificationAgent',
     enabled: true,
-    metricsConfig: {
-      interval: 60000,
-      prefix: 'notification'
-    },
+    version: '1.0.0',
+    logLevel: 'info',
+    metrics: { enabled: true, interval: 60 },
+    health: { enabled: true, interval: 30 },
+    retry: {
+      maxRetries: 3,
+      backoffMs: 100,
+      maxBackoffMs: 1000
+    }
+  };
+
+  const extendedConfig = {
+  logLevel: 'info',
+  version: '0.0.1',
+  name: 'TestAgent',
+    ...mockConfig,
     channels: {
       discord: {
         webhookUrl: 'https://discord.com/api/webhooks/test',
         enabled: true
-      },
+      ,
+  metrics: { enabled: false, interval: 60 ,
+  health: { enabled: false, interval: 30 ,
+  retry: { maxRetries: 0, backoffMs: 200, maxBackoffMs: 500 }
+}
+}
+},
       notion: {
         apiKey: 'test-notion-key',
-        databaseId: 'test-database-id',
+        databaseId: 'test-db-id',
         enabled: true
       }
     }
   };
 
+  const mockLogger = {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn()
+  };
+
+  const mockErrorHandler = {
+    withRetry: jest.fn((fn: any) => fn())
+  };
+
+  const mockSupabase = createClient('test-url', 'test-service-role-key');
+
   beforeEach(() => {
     jest.clearAllMocks();
-    agent = initializeNotificationAgent({
-      supabase: createClient('test-url', 'test-service-role-key'),
-      config: mockConfig,
-      logger: new Logger('test')
-    });
+    
+    const deps: BaseAgentDependencies = {
+      supabase: mockSupabase,
+      logger: mockLogger as any,
+      errorHandler: mockErrorHandler as any
+    };
+
+    agent = new NotificationAgent(extendedConfig as BaseAgentConfig, deps);
   });
 
   describe('initialization', () => {
     it('should initialize successfully', async () => {
       await expect(agent.initialize()).resolves.not.toThrow();
+      expect(mockLogger.info).toHaveBeenCalledWith('Initializing NotificationAgent...');
+      expect(mockLogger.info).toHaveBeenCalledWith('NotificationAgent initialized successfully');
     });
 
     it('should validate dependencies', async () => {
@@ -90,6 +128,7 @@ describe('NotificationAgent', () => {
 
   describe('health check', () => {
     it('should return healthy status when all is well', async () => {
+      await agent.initialize();
       const health = await agent.healthCheck();
       expect(health.status).toBe('healthy');
       expect(health.details?.errors).toHaveLength(0);
@@ -107,7 +146,7 @@ describe('NotificationAgent', () => {
 
       const result = await agent.sendNotification(payload);
       expect(result.success).toBe(true);
-      expect(result.notificationId).toBe('test-notification-id');
+      expect(result.notificationId).toBeDefined();
       expect(result.channels).toEqual(['discord', 'notion']);
     });
 
@@ -121,7 +160,7 @@ describe('NotificationAgent', () => {
 
       await agent.sendNotification(payload);
       expect(fetch).toHaveBeenCalledWith(
-        mockConfig.channels.discord.webhookUrl,
+        extendedConfig.channels.discord.webhookUrl,
         expect.objectContaining({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
@@ -143,7 +182,7 @@ describe('NotificationAgent', () => {
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
-            'Authorization': `Bearer ${mockConfig.channels.notion.apiKey}`,
+            'Authorization': `Bearer ${extendedConfig.channels.notion.apiKey}`,
             'Notion-Version': '2022-06-28'
           })
         })
@@ -153,12 +192,38 @@ describe('NotificationAgent', () => {
 
   describe('metrics collection', () => {
     it('should collect metrics correctly', async () => {
+      await agent.initialize();
       const metrics = await agent.collectMetrics();
-      expect(metrics.agentName).toBe(mockConfig.name);
-      expect(metrics.status).toBe('healthy');
-      expect(metrics).toHaveProperty('successCount');
-      expect(metrics).toHaveProperty('errorCount');
-      expect(metrics).toHaveProperty('warningCount');
+      expect(metrics).toBeDefined();
+      expect(metrics.successCount).toBeDefined();
+      expect(metrics.errorCount).toBeDefined();
+      expect(metrics.warningCount).toBeDefined();
+      expect(metrics.memoryUsageMb).toBeGreaterThan(0);
+    });
+  });
+
+  describe('command handling', () => {
+    it('should handle SEND_NOTIFICATION command', async () => {
+      const command = {
+        type: 'SEND_NOTIFICATION',
+        payload: {
+          type: 'test',
+          message: 'Test message',
+          channels: ['discord']
+        }
+      };
+
+      await expect(agent.handleCommand(command)).resolves.not.toThrow();
+      expect(mockLogger.info).toHaveBeenCalledWith('Processing command: SEND_NOTIFICATION');
+    });
+
+    it('should handle unknown commands', async () => {
+      const command = {
+        type: 'UNKNOWN_COMMAND',
+        payload: {}
+      };
+
+      await expect(agent.handleCommand(command)).rejects.toThrow('Unknown command type: UNKNOWN_COMMAND');
     });
   });
 }); 

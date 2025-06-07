@@ -35,6 +35,9 @@ describe('Notification Channels', () => {
 
   describe('Email Channel', () => {
     const emailConfig = {
+  logLevel: 'info',
+  version: '0.0.1',
+  name: 'TestAgent',
       enabled: true,
       smtpConfig: {
         host: 'smtp.test.com',
@@ -43,7 +46,13 @@ describe('Notification Channels', () => {
         auth: {
           user: 'test@test.com',
           pass: 'password'
-        }
+        ,
+  metrics: { enabled: false, interval: 60 ,
+  health: { enabled: false, interval: 30 ,
+  retry: { maxRetries: 0, backoffMs: 200, maxBackoffMs: 500 }
+}
+}
+}
       }
     };
 
@@ -60,12 +69,21 @@ describe('Notification Channels', () => {
 
   describe('SMS Channel', () => {
     const smsConfig = {
+  logLevel: 'info',
+  version: '0.0.1',
+  name: 'TestAgent',
       enabled: true,
       provider: 'twilio',
       apiKey: 'test-key',
       accountSid: 'test-sid',
       fromNumber: '+1987654321'
-    };
+    ,
+  metrics: { enabled: false, interval: 60 ,
+  health: { enabled: false, interval: 30 ,
+  retry: { maxRetries: 0, backoffMs: 200, maxBackoffMs: 500 }
+}
+}
+};
 
     it('should send SMS successfully', async () => {
       await expect(sendSMSNotification(testPayload, smsConfig))
@@ -86,10 +104,19 @@ describe('Notification Channels', () => {
 
   describe('Slack Channel', () => {
     const slackConfig = {
+  logLevel: 'info',
+  version: '0.0.1',
+  name: 'TestAgent',
       enabled: true,
       webhookUrl: 'https://hooks.slack.com/test',
       defaultChannel: 'test-channel'
-    };
+    ,
+  metrics: { enabled: false, interval: 60 ,
+  health: { enabled: false, interval: 30 ,
+  retry: { maxRetries: 0, backoffMs: 200, maxBackoffMs: 500 }
+}
+}
+};
 
     it('should send Slack message successfully', async () => {
       await expect(sendSlackNotification(testPayload, slackConfig))

@@ -1,15 +1,15 @@
 // src/agents/NotificationAgent/types.ts
 
-import { AgentConfig } from '../../types/agent';
+import { BaseAgentConfig } from '../BaseAgent/types';
 
 /** Allowed notification channels */
-export type NotificationChannel = 'discord' | 'notion' | 'email' | 'sms' | 'slack';
+export type NotificationChannel = 'discord' | 'email' | 'notion' | 'slack' | 'sms';
 
 /** Notification event types (extend as you grow) */
 export type NotificationType = 'onboarding' | 'incident' | 'alert' | 'system' | 'test';
 
 /** NotificationAgent config (for runtime validation and channel/behavior options) */
-export interface NotificationAgentConfig extends AgentConfig {
+export interface NotificationAgentConfig extends BaseAgentConfig {
   agentName: 'NotificationAgent';
   enabled: boolean;
   metricsConfig: {
@@ -17,39 +17,7 @@ export interface NotificationAgentConfig extends AgentConfig {
     prefix: string;
   };
   channels: {
-    discord?: {
-      webhookUrl: string;
-      enabled: boolean;
-    };
-    notion?: {
-      apiKey: string;
-      databaseId: string;
-      enabled: boolean;
-    };
-    email?: {
-      smtpConfig: {
-        host: string;
-        port: number;
-        secure: boolean;
-        auth: {
-          user: string;
-          pass: string;
-        };
-      };
-      enabled: boolean;
-    };
-    sms?: {
-      provider: string;
-      apiKey: string;
-      accountSid?: string;
-      fromNumber?: string;
-      enabled: boolean;
-    };
-    slack?: {
-      webhookUrl: string;
-      defaultChannel?: string;
-      enabled: boolean;
-    };
+    [K in NotificationChannel]?: NotificationChannelConfig;
   };
 }
 
@@ -111,3 +79,20 @@ export interface NotificationLogRecord extends NotificationPayload {
 }
 
 export type NotificationPriority = 'low' | 'medium' | 'high' | 'critical';
+// DRAGON PATCH: add batchConfig if referenced
+export interface NotificationAgentConfig { batchConfig?: { maxBatchSize: number; }; }
+
+export interface NotificationChannelConfig {
+  enabled: boolean;
+  webhookUrl?: string;
+  apiKey?: string;
+  smtpConfig?: {
+    host: string;
+    port: number;
+    secure: boolean;
+    auth: {
+      user: string;
+      pass: string;
+    };
+  };
+}
