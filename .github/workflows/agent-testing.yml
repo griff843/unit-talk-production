@@ -1,0 +1,328 @@
+name: Agent Testing
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'src/agents/**'
+      - 'src/types/activities.ts'
+      - 'src/workflows/**'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'src/agents/**'
+      - 'src/types/activities.ts'
+      - 'src/workflows/**'
+  workflow_dispatch:
+    inputs:
+      agent:
+        description: 'Specific agent to test (leave empty for all)'
+        required: false
+        type: string
+      test_type:
+        description: 'Type of tests to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - unit
+          - integration
+
+jobs:
+  detect-changes:
+    name: Detect Changed Agents
+    runs-on: ubuntu-latest
+    outputs:
+      changed_agents: ${{ steps.filter.outputs.changes }}
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Filter changed files
+        uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          list-files: json
+          filters: |
+            ingestionAgent:
+              - 'src/agents/IngestionAgent/**'
+            finalizerAgent:
+              - 'src/agents/FinalizerAgent/**'
+            promoAgent:
+              - 'src/agents/PromoAgent/**'
+            promotionAgent:
+              - 'src/agents/PromotionAgent/**'
+            recapAgent:
+              - 'src/agents/RecapAgent/**'
+            referralAgent:
+              - 'src/agents/ReferralAgent/**'
+            gradingAgent:
+              - 'src/agents/GradingAgent/**'
+            analyticsAgent:
+              - 'src/agents/AnalyticsAgent/**'
+            baseAgent:
+              - 'src/agents/BaseAgent/**'
+            workflows:
+              - 'src/workflows/**'
+
+      - name: Set test matrix
+        id: set-matrix
+        run: |
+          if [ "${{ github.event.inputs.agent }}" != "" ]; then
+            # Use manually specified agent
+            echo "matrix={\"agent\":[\"${{ github.event.inputs.agent }}\"]}" >> $GITHUB_OUTPUT
+          else
+            # Use detected changes
+            CHANGED_AGENTS=$(echo '${{ steps.filter.outputs.changes }}' | jq -c 'keys | map(select(. != "workflows"))')
+            if [ "$CHANGED_AGENTS" == "[]" ]; then
+              echo "matrix={\"agent\":[\"all\"]}" >> $GITHUB_OUTPUT
+            else
+              echo "matrix={\"agent\":$CHANGED_AGENTS}" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+  unit-tests:
+    name: Unit Tests
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.matrix != '{"agent":[]}' && (github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'unit') }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJSON(needs.detect-changes.outputs.matrix) }}
+      fail-fast: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint on changed files
+        run: |
+          if [ "${{ matrix.agent }}" == "all" ]; then
+            npx eslint src/agents/
+          else
+            npx eslint src/agents/${{ matrix.agent }}/
+          fi
+
+      - name: Run unit tests
+        run: |
+          if [ "${{ matrix.agent }}" == "all" ]; then
+            npm test -- --testPathPattern=src/agents --coverage
+          else
+            npm test -- --testPathPattern=src/agents/${{ matrix.agent }} --coverage
+          fi
+        env:
+          NODE_ENV: test
+          SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.TEST_SUPABASE_KEY }}
+
+      - name: Upload test coverage
+        uses: actions/upload-artifact@v3
+        with:
+          name: unit-test-coverage-${{ matrix.agent }}
+          path: coverage/
+          retention-days: 7
+
+  integration-tests:
+    name: Integration Tests
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.matrix != '{"agent":[]}' && (github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'integration') }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJSON(needs.detect-changes.outputs.matrix) }}
+      fail-fast: false
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set up test database
+        run: |
+          npm run db:setup:test
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+
+      - name: Run integration tests
+        run: |
+          if [ "${{ matrix.agent }}" == "all" ]; then
+            npm run test:integration -- --testPathPattern=src/agents --coverage
+          else
+            npm run test:integration -- --testPathPattern=src/agents/${{ matrix.agent }} --coverage
+          fi
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+          SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.TEST_SUPABASE_KEY }}
+
+      - name: Upload test coverage
+        uses: actions/upload-artifact@v3
+        with:
+          name: integration-test-coverage-${{ matrix.agent }}
+          path: coverage/
+          retention-days: 7
+
+  workflow-tests:
+    name: Workflow Tests
+    needs: detect-changes
+    if: ${{ contains(needs.detect-changes.outputs.changed_agents, 'workflows') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run workflow tests
+        run: npm test -- --testPathPattern=src/workflows --coverage
+        env:
+          NODE_ENV: test
+
+      - name: Upload test coverage
+        uses: actions/upload-artifact@v3
+        with:
+          name: workflow-test-coverage
+          path: coverage/
+          retention-days: 7
+
+  coverage-report:
+    name: Generate Coverage Report
+    needs: [unit-tests, integration-tests, workflow-tests]
+    if: ${{ always() && (needs.unit-tests.result == 'success' || needs.integration-tests.result == 'success' || needs.workflow-tests.result == 'success') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download all coverage reports
+        uses: actions/download-artifact@v3
+        with:
+          path: all-coverage
+
+      - name: Merge coverage reports
+        run: |
+          mkdir -p coverage
+          npx nyc merge all-coverage coverage/coverage-final.json
+          npx nyc report --reporter=lcov --reporter=text --reporter=json --report-dir=coverage
+
+      - name: Upload combined coverage report
+        uses: actions/upload-artifact@v3
+        with:
+          name: combined-coverage-report
+          path: coverage/
+          retention-days: 14
+
+      - name: Generate coverage badges
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path-to-lcov: coverage/lcov.info
+
+  notify:
+    name: Notify Test Results
+    needs: [unit-tests, integration-tests, coverage-report]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check test results
+        id: check
+        run: |
+          if [[ "${{ needs.unit-tests.result }}" == "success" && "${{ needs.integration-tests.result }}" == "success" ]]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "message=✅ All agent tests passed!" >> $GITHUB_OUTPUT
+          elif [[ "${{ needs.unit-tests.result }}" == "failure" || "${{ needs.integration-tests.result }}" == "failure" ]]; then
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "message=❌ Some agent tests failed!" >> $GITHUB_OUTPUT
+          else
+            echo "status=cancelled" >> $GITHUB_OUTPUT
+            echo "message=⚠️ Agent tests were cancelled or skipped." >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send Slack notification
+        uses: slackapi/slack-github-action@v1
+        if: ${{ always() }}
+        with:
+          payload: |
+            {
+              "text": "${{ steps.check.outputs.message }}",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "Agent Testing Results"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "${{ steps.check.outputs.message }}\n*Repository:* ${{ github.repository }}\n*Branch:* ${{ github.ref_name }}\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}"
+                  }
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Workflow"
+                      },
+                      "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
