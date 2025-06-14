@@ -1,262 +1,622 @@
-import { BaseAgent } from '../BaseAgent/index';
-import { 
-  BaseAgentConfig, 
-  BaseAgentDependencies,
-  HealthStatus,
-  BaseMetrics
-} from '../BaseAgent/types';
-import { format, subDays, startOfDay, endOfDay } from 'date-fns';
+import 'dotenv/config';
+import { BaseAgent, BaseAgentConfig, BaseAgentDependencies, BaseMetrics, HealthStatus } from '../BaseAgent';
+import { RecapService } from './recapService';
+import { RecapFormatter } from './recapFormatter';
+import { NotionSyncService } from './notionSyncService';
+import { SlashCommandHandler } from './slashCommandHandler';
+import { PrometheusMetrics } from './prometheusMetrics';
+import { WebhookClient, EmbedBuilder } from 'discord.js';
+import { RecapConfig, RecapMetrics, MicroRecapData, RecapError } from '../../types/picks';
 
-const em = {
-  win: '✅', lose: '❌', push: '➖',
-  up: '🟢 ▲', down: '🔴 ▼', mvp: '🏆', fire: '🔥'
-};
-const DOLLAR_SIZES = [20, 50, 100, 250];
-
-function to2(n: number) {
-  return Number(n).toFixed(2);
-}
-
-function capperStats(picks: any[]) {
-  const units = picks.reduce((acc, p) => acc + (p.units ?? 0), 0);
-  const win = picks.filter(p => p.outcome === 'win').length;
-  const loss = picks.filter(p => p.outcome === 'loss').length;
-  const roi = picks.length ? ((units / Math.abs(picks.reduce((acc, p) => acc + Math.abs(p.units ?? 0), 0) || 1)) * 100) : 0;
-  const l3 = picks.slice(-3);
-  const l5 = picks.slice(-5);
-  const l10 = picks.slice(-10);
-  return {
-    units: +to2(units),
-    win,
-    loss,
-    roi: +to2(roi),
-    l3: `${l3.filter(p => p.outcome === 'win').length}-${l3.filter(p => p.outcome === 'loss').length}`,
-    l5: `${l5.filter(p => p.outcome === 'win').length}-${l5.filter(p => p.outcome === 'loss').length}`,
-    l10: `${l10.filter(p => p.outcome === 'win').length}-${l10.filter(p => p.outcome === 'loss').length}`,
-    streak: getStreak(picks)
-  };
-}
-
-function getStreak(picks: any[]) {
-  let streak = 0;
-  let last: string | null = null;
-  for (let i = picks.length - 1; i >= 0; i--) {
-    if (!last) last = picks[i].outcome;
-    if (picks[i].outcome === last) streak++;
-    else break;
-  }
-  return last ? `${last === 'win' ? 'W' : last === 'loss' ? 'L' : ''}${streak}` : '';
-}
-
-function formatPickLine(pick: any) {
-  const outcome = pick.outcome === 'win' ? em.win : pick.outcome === 'loss' ? em.lose : em.push;
-  const units = Number(pick.units ?? 0);
-  return `${outcome} ${pick.prop_name || pick.player_name || pick.market || 'N/A'} (${units >= 0 ? '+' : ''}${to2(units)}u)`;
-}
-
-function bestCapper(statsArr: any[]) {
-  return statsArr.sort((a, b) => b.units - a.units)[0];
-}
-
-function dollars(units: number, unit: number) {
-  return (units * unit).toFixed(2);
-}
-
-let instance: RecapAgent | null = null;
-
+/**
+ * Production-ready RecapAgent with comprehensive features
+ * Handles automated recap generation, real-time monitoring, and integrations
+ */
 export class RecapAgent extends BaseAgent {
+  private recapService: RecapService;
+  private recapFormatter: RecapFormatter;
+  private notionSync?: NotionSyncService;
+  private slashHandler?: SlashCommandHandler;
+  private prometheusMetrics?: PrometheusMetrics;
+  private discordClient?: WebhookClient;
+  private recapConfig: RecapConfig;
+  private recapMetrics: RecapMetrics;
+  private roiWatcherInterval?: NodeJS.Timeout;
+
+  // Schedule configuration (cron format)
+  private readonly RECAP_SCHEDULE = {
+    daily: '0 9 * * *',    // 9 AM daily
+    weekly: '0 10 * * 1',  // 10 AM Monday  
+    monthly: '0 11 1 * *'  // 11 AM 1st of month
+  };
+
   constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
     super(config, deps);
+
+    // Initialize configuration from environment
+    this.recapConfig = {
+      legendFooter: process.env.LEGEND_FOOTER === 'true',
+      microRecap: process.env.MICRO_RECAP === 'true',
+      notionSync: process.env.NOTION_SYNC === 'true',
+      clvDelta: process.env.CLV_DELTA === 'true',
+      streakSparkline: process.env.STREAK_SPARKLINE === 'true',
+      roiThreshold: parseFloat(process.env.ROI_THRESHOLD || '5.0'),
+      microRecapCooldown: parseInt(process.env.MICRO_RECAP_COOLDOWN || '60'),
+      discordWebhook: process.env.DISCORD_RECAP_WEBHOOK,
+      slashCommands: process.env.SLASH_COMMANDS === 'true',
+      notionToken: process.env.NOTION_TOKEN,
+      notionDatabaseId: process.env.NOTION_RECAP_DATABASE_ID,
+      metricsEnabled: process.env.METRICS_ENABLED !== 'false',
+      metricsPort: parseInt(process.env.METRICS_PORT || '3001')
+    };
+
+    // Initialize metrics
+    this.recapMetrics = {
+      recapsSent: 0,
+      recapsFailed: 0,
+      microRecapsSent: 0,
+      avgProcessingTimeMs: 0,
+      dailyRecaps: 0,
+      weeklyRecaps: 0,
+      monthlyRecaps: 0,
+      notionSyncs: 0,
+      slashCommandsUsed: 0
+    };
+
+    // Initialize services
+    this.recapService = new RecapService(this.recapConfig);
+    this.recapFormatter = new RecapFormatter(this.recapConfig);
+
+    // Initialize Discord client
+    if (this.recapConfig.discordWebhook) {
+      this.discordClient = new WebhookClient({ url: this.recapConfig.discordWebhook });
+    }
+
+    // Initialize optional services
+    if (this.recapConfig.notionSync && this.recapConfig.notionToken && this.recapConfig.notionDatabaseId) {
+      this.notionSync = new NotionSyncService(this.recapConfig.notionToken, this.recapConfig.notionDatabaseId);
+    }
+
+    if (this.recapConfig.slashCommands) {
+      this.slashHandler = new SlashCommandHandler(this);
+    }
+
+    if (this.recapConfig.metricsEnabled) {
+      this.prometheusMetrics = new PrometheusMetrics(this.recapConfig.metricsPort);
+    }
   }
 
+  /**
+   * Initialize the RecapAgent and all services
+   */
   protected async initialize(): Promise<void> {
-    this.deps.logger.info('Initializing RecapAgent...');
-    
     try {
-      await this.validateDependencies();
-      this.deps.logger.info('RecapAgent initialized successfully');
+      this.logger.info('Initializing RecapAgent...');
+
+      // Initialize core service
+      await this.recapService.initialize();
+
+      // Initialize optional services
+      if (this.notionSync) {
+        await this.notionSync.initialize();
+        this.logger.info('Notion sync service initialized');
+      }
+
+      if (this.slashHandler) {
+        await this.slashHandler.initialize();
+        this.logger.info('Slash command handler initialized');
+      }
+
+      if (this.prometheusMetrics) {
+        await this.prometheusMetrics.initialize();
+        this.logger.info('Prometheus metrics initialized');
+      }
+
+      // Start real-time ROI monitoring if enabled
+      if (this.recapConfig.microRecap) {
+        this.startRoiWatcher();
+        this.logger.info('ROI watcher started');
+      }
+
+      this.logger.info('RecapAgent initialized successfully');
     } catch (error) {
-      this.deps.logger.error('Failed to initialize RecapAgent:', error);
+      this.logger.error('Failed to initialize RecapAgent:', { error: error instanceof Error ? error.message : String(error) });
       throw error;
     }
   }
 
-  private async validateDependencies(): Promise<void> {
-    // Verify access to required tables
-    const { error } = await this.deps.supabase
-      .from('final_picks')
-      .select('id')
-      .limit(1);
-
-    if (error) {
-      throw new Error(`Failed to access final_picks table: ${error.message}`);
-    }
-  }
-
+  /**
+   * Main processing loop - handles scheduled recaps
+   */
   protected async process(): Promise<void> {
     try {
-      // Generate daily recap by default
-      const yesterday = subDays(new Date(), 1);
-      await this.generateRecap({ date: yesterday.toISOString() });
-    } catch (error) {
-      this.deps.logger.error('Error in RecapAgent process:', error);
-      throw error;
-    }
-  }
+      const now = new Date();
+      const hour = now.getHours();
+      const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday
+      const dayOfMonth = now.getDate();
 
-  protected async cleanup(): Promise<void> {
-    this.deps.logger.info('RecapAgent cleanup completed');
-  }
-
-  protected async checkHealth(): Promise<HealthStatus> {
-    const errors: string[] = [];
-    
-    try {
-      const { error } = await this.deps.supabase
-        .from('final_picks')
-        .select('id')
-        .limit(1);
-
-      if (error) {
-        errors.push(`Database connectivity issue: ${error.message}`);
+      // Check for scheduled recaps
+      if (hour === 9) {
+        // Daily recap at 9 AM
+        await this.triggerDailyRecap();
       }
+
+      if (hour === 10 && dayOfWeek === 1) {
+        // Weekly recap at 10 AM on Monday
+        await this.triggerWeeklyRecap();
+      }
+
+      if (hour === 11 && dayOfMonth === 1) {
+        // Monthly recap at 11 AM on 1st of month
+        await this.triggerMonthlyRecap();
+      }
+
+      // Check for micro-recap triggers if enabled
+      if (this.recapConfig.microRecap) {
+        await this.checkMicroRecapTriggers();
+      }
+
     } catch (error) {
-      errors.push(`Health check failed: ${error}`);
+      this.logger.error('Error in RecapAgent process:', { error: error instanceof Error ? error.message : String(error) });
+      this.recapMetrics.recapsFailed++;
+
+      if (this.prometheusMetrics) {
+        this.prometheusMetrics.incrementRecapsFailed();
+      }
     }
-
-    return {
-      status: errors.length > 0 ? 'unhealthy' : 'healthy',
-      timestamp: new Date().toISOString(),
-      details: { errors }
-    };
   }
 
-  protected async collectMetrics(): Promise<BaseMetrics> {
-    const { data: recentPicks } = await this.deps.supabase
-      .from('final_picks')
-      .select('outcome, units')
-      .gte('graded_at', subDays(new Date(), 7).toISOString());
+  /**
+   * Health check for all services
+   */
+  public async checkHealth(): Promise<HealthStatus> {
+    const checks = [];
 
-    const wins = recentPicks?.filter(p => p.outcome === 'win').length || 0;
-    const losses = recentPicks?.filter(p => p.outcome === 'loss').length || 0;
-    const totalUnits = recentPicks?.reduce((sum, p) => sum + (p.units || 0), 0) || 0;
-
-    return {
-      successCount: wins,
-      errorCount: losses,
-      warningCount: 0,
-      processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024,
-      'custom.totalUnits': totalUnits,
-      'custom.winRate': wins / (wins + losses) || 0
-    };
-  }
-
-  // Public method for generating recap
-  public async generateRecap({ date }: { date?: string }) {
-    const recapDate = date ? new Date(date) : subDays(new Date(), 1);
-    const from = startOfDay(recapDate);
-    const to = endOfDay(recapDate);
-
-    // 1. Get picks for the recap day
-    const { data: picks, error } = await this.deps.supabase
-      .from('final_picks')
-      .select('*')
-      .gte('graded_at', from.toISOString())
-      .lte('graded_at', to.toISOString());
-
-    if (error) throw error;
-    if (!picks || picks.length === 0) {
-      this.deps.logger.warn('No picks found for recap period.');
-      return null;
-    }
-
-    // 2. Per-capper grouping
-    const cappers = [...new Set(picks.map(p => p.capper))];
-    const grouped: Record<string, any[]> = {};
-    cappers.forEach(capper => {
-      grouped[capper] = picks.filter(p => p.capper === capper);
-    });
-
-    // 3. Per-capper stats & pick lines
-    const capperStatsArr = cappers.map(capper => {
-      const picksArr = grouped[capper];
-      const stats = capperStats(picksArr);
-      const pickLines = picksArr.map(formatPickLine);
-      return {
-        capper,
-        ...stats,
-        pickLines
-      };
-    });
-
-    // 4. Team stats
-    const teamStats = capperStats(picks);
-
-    // 5. MVP logic
-    const mvp = bestCapper(capperStatsArr);
-
-    // 6. Dollar conversions
-    const dollarLine = DOLLAR_SIZES.map(d => `🟢 $${d} bettors: $${dollars(teamStats.units, d)}`).join('\n');
-
-    // 7. Full Results/Dashboard link
-    const fullResultsLink = `[See all picks](https://yourdashboard.com/results/${format(from, 'yyyy-MM-dd')})`;
-
-    // 8. Store recap
-    const recap = {
-      date: format(from, 'yyyy-MM-dd'),
-      teamStats,
-      capperStatsArr,
-      mvp,
-      dollarLine,
-      fullResultsLink,
-      picks
-    };
-
-    // Save to database
-    await this.saveRecap(recap);
-
-    return recap;
-  }
-
-  private async saveRecap(recap: any): Promise<void> {
-    const { error } = await this.deps.supabase
-      .from('daily_recaps')
-      .upsert({
-        date: recap.date,
-        recap_data: recap,
-        created_at: new Date().toISOString()
+    try {
+      // Check RecapService
+      await this.recapService.testConnection();
+      checks.push({ service: 'recap-service', status: 'healthy' });
+    } catch (error) {
+      checks.push({
+        service: 'recap-service',
+        status: 'unhealthy',
+        error: error instanceof Error ? error.message : String(error)
       });
+    }
 
-    if (error) {
-      this.deps.logger.error('Failed to save recap:', error);
+    // Check Discord webhook
+    if (this.recapConfig.discordWebhook) {
+      try {
+        // Simple webhook test (you might want to implement a proper test)
+        checks.push({ service: 'discord-webhook', status: 'healthy' });
+      } catch (error) {
+        checks.push({
+          service: 'discord-webhook',
+          status: 'unhealthy',
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+
+    // Check Notion sync
+    if (this.notionSync) {
+      try {
+        await this.notionSync.testConnection();
+        checks.push({ service: 'notion-sync', status: 'healthy' });
+      } catch (error) {
+        checks.push({ 
+          service: 'notion-sync', 
+          status: 'unhealthy', 
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+
+    const isHealthy = checks.every(check => check.status === 'healthy');
+
+    return {
+      status: isHealthy ? 'healthy' : 'unhealthy',
+      timestamp: new Date().toISOString(),
+      details: {
+        checks,
+        metrics: this.recapMetrics,
+        config: {
+          legendFooter: this.recapConfig.legendFooter,
+          microRecap: this.recapConfig.microRecap,
+          notionSync: this.recapConfig.notionSync,
+          slashCommands: this.recapConfig.slashCommands
+        }
+      }
+    };
+  }
+
+  /**
+   * Collect and return metrics
+   */
+  protected async collectMetrics(): Promise<BaseMetrics> {
+    return {
+      ...this.metrics,
+      'custom.lastProcessedAt': new Date().toISOString(),
+      'custom.recapMetrics': this.recapMetrics
+    };
+  }
+
+  /**
+   * Cleanup resources
+   */
+  protected async cleanup(): Promise<void> {
+    if (this.roiWatcherInterval) {
+      clearInterval(this.roiWatcherInterval);
+    }
+
+    if (this.prometheusMetrics) {
+      await this.prometheusMetrics.cleanup();
+    }
+
+    if (this.slashHandler) {
+      await this.slashHandler.cleanup();
+    }
+
+    this.logger.info('RecapAgent cleanup completed');
+  }
+
+  /**
+   * Trigger daily recap manually or via schedule
+   */
+  async triggerDailyRecap(date?: string): Promise<void> {
+    const startTime = Date.now();
+    const targetDate = date || new Date().toISOString().split('T')[0];
+
+    try {
+      this.logger.info(`Generating daily recap for ${targetDate}`);
+
+      // Get recap data
+      const summary = await this.recapService.getDailyRecapData(targetDate);
+      if (!summary) {
+        this.logger.warn(`No data found for daily recap on ${targetDate}`);
+        return;
+      }
+
+      // Get parlay data
+      const parlayGroups = await this.recapService.getParlayGroups(targetDate);
+
+      // Build Discord embed
+      const embed = this.recapFormatter.buildDailyRecapEmbed(summary, parlayGroups);
+
+      // Send to Discord
+      if (!this.recapConfig.discordWebhook) {
+        this.logger.warn('Discord webhook not configured, skipping Discord send');
+        return;
+      }
+      if (this.discordClient) {
+        await this.discordClient.send({ embeds: [embed] });
+        this.logger.info('Daily recap sent to Discord');
+      }
+
+      // Sync to Notion if enabled
+      if (this.notionSync) {
+        await this.notionSync.syncRecap({
+          title: `Daily Recap - ${targetDate}`,
+          date: targetDate,
+          period: 'daily',
+          summary,
+          embedData: embed.toJSON(),
+          createdAt: new Date().toISOString()
+        });
+        this.recapMetrics.notionSyncs++;
+      }
+
+      // Update metrics
+      this.recapMetrics.recapsSent++;
+      this.recapMetrics.dailyRecaps++;
+      this.metrics.processingTimeMs = Date.now() - startTime;
+
+      if (this.prometheusMetrics) {
+        this.prometheusMetrics.incrementRecapsSent('daily');
+        this.prometheusMetrics.recordProcessingTime(Date.now() - startTime);
+      }
+
+      this.logger.info(`Daily recap completed in ${Date.now() - startTime}ms`);
+
+    } catch (error) {
+      this.logger.error('Failed to generate daily recap:', { error: error instanceof Error ? error.message : String(error) });
+      this.recapMetrics.recapsFailed++;
+
+      if (this.prometheusMetrics) {
+        this.prometheusMetrics.incrementRecapsFailed();
+      }
+
       throw error;
     }
   }
 
-  // Public API
-  public static getInstance(dependencies: BaseAgentDependencies): RecapAgent {
-    if (!instance) {
-      const config = dependencies.logger?.config || {} as BaseAgentConfig;
-      instance = new RecapAgent(config, dependencies);
+  /**
+   * Trigger weekly recap manually or via schedule
+   */
+  async triggerWeeklyRecap(): Promise<void> {
+    const startTime = Date.now();
+
+    try {
+      this.logger.info('Generating weekly recap');
+
+      // Calculate week range (Monday to Sunday)
+      const now = new Date();
+      const dayOfWeek = now.getDay();
+      const startDate = new Date(now);
+      startDate.setDate(now.getDate() - dayOfWeek + 1); // Monday
+      const endDate = new Date(startDate);
+      endDate.setDate(startDate.getDate() + 6); // Sunday
+
+      const startDateStr = startDate.toISOString().split('T')[0];
+      const endDateStr = endDate.toISOString().split('T')[0];
+
+      // Get recap data
+      const summary = await this.recapService.getWeeklyRecapData(startDateStr, endDateStr);
+      if (!summary) {
+        this.logger.warn('No data found for weekly recap');
+        return;
+      }
+
+      // Get parlay data
+      const parlayGroups = await this.recapService.getParlayGroups(startDateStr, endDateStr);
+
+      // Build Discord embed
+      const embed = this.recapFormatter.buildWeeklyRecapEmbed(summary, parlayGroups);
+
+      // Send to Discord
+      if (!this.recapConfig.discordWebhook) {
+        this.logger.warn('Discord webhook not configured, skipping Discord send');
+        return;
+      }
+      if (this.discordClient) {
+        await this.discordClient.send({ embeds: [embed] });
+        this.logger.info('Weekly recap sent to Discord');
+      }
+
+      // Sync to Notion if enabled
+      if (this.notionSync) {
+        await this.notionSync.syncRecap({
+          title: `Weekly Recap - ${startDateStr} to ${endDateStr}`,
+          date: startDateStr,
+          period: 'weekly',
+          summary,
+          embedData: embed.toJSON(),
+          createdAt: new Date().toISOString()
+        });
+        this.recapMetrics.notionSyncs++;
+      }
+
+      // Update metrics
+      if (this.notionSync) {
+        this.recapMetrics.notionSyncs++;
+      }
+
+      this.recapMetrics.recapsSent++;
+      this.recapMetrics.weeklyRecaps++;
+      this.metrics.processingTimeMs = Date.now() - startTime;
+
+      if (this.prometheusMetrics) {
+        this.prometheusMetrics.incrementRecapsSent('weekly');
+        this.prometheusMetrics.recordProcessingTime(Date.now() - startTime);
+      }
+
+      this.logger.info(`Weekly recap completed in ${Date.now() - startTime}ms`);
+
+    } catch (error) {
+      this.logger.error('Failed to generate weekly recap:', { error: error instanceof Error ? error.message : String(error) });
+      this.recapMetrics.recapsFailed++;
+
+      if (this.prometheusMetrics) {
+        this.prometheusMetrics.incrementRecapsFailed();
+      }
+
+      throw error;
     }
-    return instance;
   }
-}
 
-export function initializeRecapAgent(dependencies: BaseAgentDependencies): RecapAgent {
-  const config = dependencies.logger?.config || {} as BaseAgentConfig;
-  return new RecapAgent(config, dependencies);
-}
+  /**
+   * Trigger monthly recap manually or via schedule
+   */
+  async triggerMonthlyRecap(): Promise<void> {
+    const startTime = Date.now();
 
-// Legacy function export for backwards compatibility
-export async function RecapAgentFunction({ date }: { date?: string }) {
-  const deps: BaseAgentDependencies = {
-    supabase: (await import('../../services/supabaseClient')).supabase,
-    logger: console as any,
-    errorHandler: null as any
-  };
-  
-  const agent = new RecapAgent({} as BaseAgentConfig, deps);
-  return await agent.generateRecap({ date });
+    try {
+      this.logger.info('Generating monthly recap');
+
+      // Calculate month range
+      const now = new Date();
+      const startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1); // First day of last month
+      const endDate = new Date(now.getFullYear(), now.getMonth(), 0); // Last day of last month
+
+      const startDateStr = startDate.toISOString().split('T')[0];
+      const endDateStr = endDate.toISOString().split('T')[0];
+
+      // Get recap data
+      const summary = await this.recapService.getMonthlyRecapData(startDateStr, endDateStr);
+      if (!summary) {
+        this.logger.warn('No data found for monthly recap');
+        return;
+      }
+
+      // Get parlay data
+      const parlayGroups = await this.recapService.getParlayGroups(startDateStr, endDateStr);
+
+      // Build Discord embed
+      const embed = this.recapFormatter.buildMonthlyRecapEmbed(summary, parlayGroups);
+
+      // Send to Discord
+      if (!this.recapConfig.discordWebhook) {
+        this.logger.warn('Discord webhook not configured, skipping Discord send');
+        return;
+      }
+      if (this.discordClient) {
+        await this.discordClient.send({ embeds: [embed] });
+        this.logger.info('Monthly recap sent to Discord');
+      }
+
+      // Sync to Notion if enabled
+      if (this.notionSync) {
+        await this.notionSync.syncRecap({
+          title: `Monthly Recap - ${startDateStr} to ${endDateStr}`,
+          date: startDateStr,
+          period: 'monthly',
+          summary,
+          embedData: embed.toJSON(),
+          createdAt: new Date().toISOString()
+        });
+        this.recapMetrics.notionSyncs++;
+      }
+
+      // Update metrics
+      this.recapMetrics.recapsSent++;
+      this.recapMetrics.monthlyRecaps++;
+      this.metrics.processingTimeMs = Date.now() - startTime;
+
+      if (this.prometheusMetrics) {
+        this.prometheusMetrics.incrementRecapsSent('monthly');
+        this.prometheusMetrics.recordProcessingTime(Date.now() - startTime);
+      }
+
+      this.logger.info(`Monthly recap completed in ${Date.now() - startTime}ms`);
+
+    } catch (error) {
+      this.logger.error('Failed to generate monthly recap:', { error: error instanceof Error ? error.message : String(error) });
+      this.recapMetrics.recapsFailed++;
+
+      if (this.prometheusMetrics) {
+        this.prometheusMetrics.incrementRecapsFailed();
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Trigger micro-recap for instant notifications
+   */
+  async triggerMicroRecap(microData: MicroRecapData): Promise<void> {
+    if (!this.getRecapConfig().microRecap) {
+      return;
+    }
+
+    try {
+      this.logger.info(`Triggering micro-recap: ${microData.trigger}`);
+
+      // Build micro-recap embed
+      const embed = this.recapFormatter.buildMicroRecapEmbed(microData);
+
+      // Send to Discord
+      if (!this.recapConfig.discordWebhook) {
+        this.logger.warn('Discord webhook not configured, skipping Discord send');
+        return;
+      }
+      if (this.discordClient) {
+        await this.discordClient.send({ embeds: [embed] });
+        this.logger.info('Micro-recap sent to Discord');
+      }
+
+      // Update metrics
+      this.recapMetrics.microRecapsSent = (this.recapMetrics.microRecapsSent || 0) + 1;
+
+      if (this.prometheusMetrics) {
+        this.prometheusMetrics.incrementMicroRecaps();
+      }
+
+    } catch (error) {
+      this.logger.error('Failed to send micro-recap:', { error: error instanceof Error ? error.message : String(error) });
+      this.recapMetrics.recapsFailed++;
+      if (!this.metrics.errorCount) this.metrics.errorCount = 0;
+      this.metrics.errorCount++;
+    }
+  }
+
+  /**
+   * Handle slash command requests
+   */
+  async handleSlashCommand(options: any): Promise<EmbedBuilder> {
+    if (!this.slashHandler) {
+      throw new Error('Slash commands not enabled');
+    }
+
+    this.recapMetrics.slashCommandsUsed = (this.recapMetrics.slashCommandsUsed || 0) + 1;
+
+    if (this.prometheusMetrics) {
+      this.prometheusMetrics.incrementSlashCommands();
+    }
+
+    return await this.slashHandler.handleCommand(options);
+  }
+
+  /**
+   * Start real-time ROI monitoring
+   */
+  private startRoiWatcher(): void {
+    // Check every 5 minutes
+    this.roiWatcherInterval = setInterval(async () => {
+      try {
+        // Check ROI threshold
+        const roiMicroRecap = await this.recapService.checkRoiThreshold();
+        if (roiMicroRecap) {
+          await this.triggerMicroRecap(roiMicroRecap);
+        }
+
+        // Check last pick graded
+        const lastPickMicroRecap = await this.recapService.checkLastPickGraded();
+        if (lastPickMicroRecap) {
+          await this.triggerMicroRecap(lastPickMicroRecap);
+        }
+
+      } catch (error) {
+        this.logger.error('ROI watcher error:', { error: error instanceof Error ? error.message : String(error) });
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+  }
+
+  /**
+   * Check for micro-recap triggers
+   */
+  private async checkMicroRecapTriggers(): Promise<void> {
+    try {
+      // Check ROI threshold
+      const roiMicroRecap = await this.recapService.checkRoiThreshold();
+      if (roiMicroRecap) {
+        await this.triggerMicroRecap(roiMicroRecap);
+      }
+
+      // Check last pick graded
+      const lastPickMicroRecap = await this.recapService.checkLastPickGraded();
+      if (lastPickMicroRecap) {
+        await this.triggerMicroRecap(lastPickMicroRecap);
+      }
+
+    } catch (error) {
+      this.logger.error('Micro-recap trigger check failed:', { error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+
+  // Override base class methods to return proper types
+  getConfig(): BaseAgentConfig {
+    return this.config;
+  }
+
+  getMetrics(): BaseMetrics {
+    return this.metrics;
+  }
+
+  // Getters for recap-specific access
+  getRecapConfig(): RecapConfig {
+    return { ...this.recapConfig };
+  }
+
+  getRecapMetrics(): RecapMetrics {
+    return { ...this.recapMetrics };
+  }
+
+  getRecapService(): RecapService {
+    return this.recapService;
+  }
+
+  getRecapFormatter(): RecapFormatter {
+    return this.recapFormatter;
+  }
 }

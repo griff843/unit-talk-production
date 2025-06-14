@@ -1,16 +1,15 @@
-import { BaseAgent } from '../BaseAgent/index';
-import { BaseAgentDependencies, AgentMetrics, HealthCheckResult } from '../BaseAgent/types';
-import { Logger } from '../../utils/logger';
-import { gradeAndPromoteFinalPicks } from './gradeForFinalPicks';
-import { gradePick } from './scoring/edgeScore';
+import 'dotenv/config';
+import { BaseAgent } from '../BaseAgent';
+import { BaseAgentConfig, BaseAgentDependencies, AgentMetrics, HealthCheckResult } from '../BaseAgent/types';
 import { startMetricsServer } from '../../services/metricsServer';
-
-startMetricsServer(9002);
+import { finalEdgeScore } from '../../logic/scoring/edgeScoring';
+import { EDGE_CONFIG } from '../../logic/config/edgeConfig';
+import { analyzeMarketResistance } from '../../logic/enrichment/marketResistance';
+import { AlertAgent } from '../AlertAgent';
 
 export class GradingAgent extends BaseAgent {
   constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
     super(config, deps);
-    // Initialize agent-specific properties here
   }
 
   public async __test__initialize(): Promise<void> {
@@ -26,18 +25,33 @@ export class GradingAgent extends BaseAgent {
   }
 
   protected async collectMetrics(): Promise<AgentMetrics> {
-    const { data: gradingStats } = await this.supabase
-      .from('picks')
-      .select('status')
-      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+    try {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
-    return {
-      ...this.metrics,
-      agentName: this.config.name,
-      successCount: (gradingStats || []).filter(s => s.status === 'graded').length,
-      warningCount: (gradingStats || []).filter(s => s.status === 'pending').length,
-      errorCount: (gradingStats || []).filter(s => s.status === 'failed').length
-    };
+      const { data: gradingStats } = await this.supabase
+        .from('picks')
+        .select('status, created_at')
+        .gte('created_at', oneHourAgo);
+
+      return {
+        ...this.metrics,
+        agentName: this.config.name,
+        successCount: (gradingStats || []).filter(s => s.status === 'graded').length,
+        warningCount: (gradingStats || []).filter(s => s.status === 'pending').length,
+        errorCount: (gradingStats || []).filter(s => s.status === 'failed').length
+      };
+    } catch (error) {
+      this.logger.error('Failed to collect metrics', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      return {
+        ...this.metrics,
+        agentName: this.config.name,
+        successCount: 0,
+        errorCount: 1,
+        warningCount: 0
+      };
+    }
   }
 
   public async checkHealth(): Promise<HealthCheckResult> {
@@ -47,101 +61,142 @@ export class GradingAgent extends BaseAgent {
         .select('id')
         .limit(1);
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       return {
         status: 'healthy',
+        timestamp: new Date().toISOString(),
         details: {
           database: 'connected',
-          metrics: 'enabled'
-        }
+          metrics: 'enabled',
+        },
       };
     } catch (error) {
-      this.logger.error('Health check failed', error);
+      this.logger.error('Health check failed', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
       return {
         status: 'unhealthy',
+        timestamp: new Date().toISOString(),
         details: {
-          error: error instanceof Error ? error.message : 'Unknown error'
-        }
+          error: error instanceof Error ? error.message : 'Unknown error',
+        },
       };
     }
   }
 
-  gradeAndPromoteFinalPicks().then(() => {
-    console.log('GradingAgent complete');
-  });
-
   protected async process(): Promise<void> {
-    // TODO: Restore business logic here after base migration (process)
-  }
+    const startTime = Date.now();
+    this.logger.info('🎯 Starting grading process...');
 
-  protected async cleanup(): Promise<void> {
-    // TODO: Restore business logic here after base migration (cleanup)
+    const { data: picks, error } = await this.supabase
+      .from('daily_picks')
+      .select('*')
+      .is('edge_score', null)
+      .eq('play_status', 'pending')
+      .limit(100);
+
+    if (error) {
+      this.logger.error('Failed to fetch picks for grading', {
+        error: error.message,
+        code: error.code
+      });
+      throw error;
+    }
+
+    if (!picks || picks.length === 0) {
+      this.logger.info('✅ No picks found for grading');
+      return;
+    }
+
+    this.logger.info(`📊 Found ${picks.length} picks to grade`);
+
+    for (const pick of picks) {
+      try {
+        const result = finalEdgeScore(pick, EDGE_CONFIG);
+        const { score, tier, tags, breakdown, postable, solo_lock } = result;
+
+        const marketData = await analyzeMarketResistance(pick);
+
+        const { error: updateError } = await this.supabase
+          .from('daily_picks')
+          .update({
+            edge_score: score,
+            tier,
+            tags,
+            edge_breakdown: breakdown,
+            postable,
+            solo_lock,
+            ...marketData,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', pick.id);
+
+        if (updateError) {
+          throw updateError;
+        }
+
+        if (marketData.sharp_fade) {
+          await this.agentBus.publish('alert_triggered', {
+            type: 'market_fade',
+            pick_id: pick.id,
+            edge_score: score,
+            line_move_pct: marketData.line_move_pct,
+            ...pick
+          });
+        }
+
+        if (['S', 'A'].includes(tier)) {
+          const { error: insertError } = await this.supabase
+            .from('final_picks')
+            .insert([{
+              ...pick,
+              edge_score: score,
+              tier,
+              tags,
+              edge_breakdown: breakdown,
+              postable,
+              solo_lock,
+              promoted_at: new Date().toISOString(),
+              promoted_by: 'GradingAgent'
+            }]);
+
+          if (insertError) {
+            this.logger.warn(`⚠️ Failed to promote pick [${pick.id}] to final_picks`, {
+              error: insertError.message,
+              pickId: pick.id
+            });
+          } else {
+            this.logger.info(`🚀 Promoted pick [${pick.id}] to final_picks - Tier: ${tier}`);
+          }
+        }
+
+        this.logger.info(`✅ Graded pick [${pick.id}] - Score: ${score}, Tier: ${tier}`);
+      } catch (err) {
+        this.logger.error(`❌ Error grading pick [${pick.id}]`, {
+          error: err instanceof Error ? err.message : 'Unknown error',
+          pickId: pick.id,
+          stack: err instanceof Error ? err.stack : undefined
+        });
+      }
+    }
+
+    const processingTime = Date.now() - startTime;
+    this.logger.info(`Completed grading ${picks.length} picks in ${processingTime}ms`);
   }
 
   protected async initialize(): Promise<void> {
-    // TODO: Restore business logic here after base migration (initialize)
-  }
-
-  protected async process(): Promise<void> {
-    // TODO: Restore business logic here after base migration (process)
+    this.logger.info('🚀 GradingAgent initializing...');
   }
 
   protected async cleanup(): Promise<void> {
-    // TODO: Restore business logic here after base migration (cleanup)
+    this.logger.info('🧹 GradingAgent cleanup complete');
   }
 
-  protected async checkHealth(): Promise<HealthStatus> {
-    // TODO: Restore business logic here after base migration (checkHealth)
-    return {
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      details: {}
-    };
-  }
-
-  protected async collectMetrics(): Promise<BaseMetrics> {
-    // TODO: Restore business logic here after base migration (collectMetrics)
-    return {
-      successCount: 0,
-      errorCount: 0,
-      warningCount: 0,
-      processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
-    };
-  }
-
-  protected async initialize(): Promise<void> {
-    // TODO: Restore business logic here after base migration (initialize)
-  }
-
-  protected async process(): Promise<void> {
-    // TODO: Restore business logic here after base migration (process)
-  }
-
-  protected async cleanup(): Promise<void> {
-    // TODO: Restore business logic here after base migration (cleanup)
-  }
-
-  protected async checkHealth(): Promise<HealthStatus> {
-    // TODO: Restore business logic here after base migration (checkHealth)
-    return {
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      details: {}
-    };
-  }
-
-  protected async collectMetrics(): Promise<BaseMetrics> {
-    // TODO: Restore business logic here after base migration (collectMetrics)
-    return {
-      successCount: 0,
-      errorCount: 0,
-      warningCount: 0,
-      processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
-    };
+  public async startMetricsServer(): Promise<void> {
+    const port = this.config.metrics?.port || 9003;
+    startMetricsServer(port);
+    this.logger.info(`📊 Metrics server started on port ${port}`);
   }
 }

@@ -122,17 +122,9 @@ export function flattenSGOEvents(events: any[]): SGOFlattenedProp[] {
       let ou: string | null =
         offer.fairOverUnder ?? offer.openFairOverUnder ?? null;
       let line: number | string | null =
-        offer.line ??
-        offer.ou ??
-        offer.fairOverUnder ??
-        offer.openFairOverUnder ??
-        null;
+        offer.line ?? offer.ou ?? offer.fairOverUnder ?? offer.openFairOverUnder ?? null;
       let odds: number | string | null =
-        offer.bookOdds ??
-        offer.fairOdds ??
-        offer.openBookOdds ??
-        offer.openFairOdds ??
-        null;
+        offer.bookOdds ?? offer.fairOdds ?? offer.openBookOdds ?? offer.openFairOdds ?? null;
       let direction: string | null = offer.sideID ?? null;
 
       results.push({
@@ -160,4 +152,10 @@ export function flattenSGOEvents(events: any[]): SGOFlattenedProp[] {
     }
   }
   return results;
+}
+
+// ---- COMBINED: Fetch and Flatten in One ----
+export async function fetchAndFlattenSGOProps(opts: Parameters<typeof fetchSGOEvents>[0]): Promise<SGOFlattenedProp[]> {
+  const events = await fetchSGOEvents(opts);
+  return flattenSGOEvents(events);
 }

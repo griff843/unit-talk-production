@@ -6,19 +6,25 @@ export const BaseAgentConfigSchema = z.object({
   name: z.string(),
   version: z.string(),
   enabled: z.boolean(),
+  schedule: z.string().optional(), // Add schedule support
   logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   metrics: z.object({
     enabled: z.boolean().default(true),
-    interval: z.number().min(5).default(60)            // seconds
+    interval: z.number().min(5).default(60),            // seconds
+    port: z.number().optional()                         // Add port support
   }),
   health: z.object({
     enabled: z.boolean().default(true),
-    interval: z.number().min(5).default(30)            // seconds
+    interval: z.number().min(5).default(30),            // seconds
+    checkDb: z.boolean().optional()                     // Add checkDb support
   }),
   retry: z.object({
     maxRetries:   z.number().min(0).default(3),
     backoffMs:    z.number().min(100).default(200),
-    maxBackoffMs: z.number().min(500).default(5000)
+    maxBackoffMs: z.number().min(500).default(5000),
+    enabled: z.boolean().default(true),                 // Add enabled support
+    maxAttempts: z.number().min(0).default(3),          // Add maxAttempts alias
+    backoff: z.number().min(100).default(200)           // Add backoff alias
   })
 });
 export type BaseAgentConfig = z.infer<typeof BaseAgentConfigSchema>;
@@ -28,6 +34,7 @@ export type AgentStatus   =
   | 'stopping' | 'stopped' | 'error';
 
 export interface BaseMetrics {
+  agentName?: string; // Add agentName as optional property
   successCount: number;
   errorCount:   number;
   warningCount: number;
@@ -36,15 +43,21 @@ export interface BaseMetrics {
   [key: `custom.${string}`]: unknown;
 }
 
+// Export AgentMetrics as alias for BaseMetrics
+export type AgentMetrics = BaseMetrics;
+
 export interface HealthStatus {
   status: 'healthy' | 'degraded' | 'unhealthy';
   timestamp: string;
   details?: Record<string, unknown>;
 }
 
+// Export HealthCheckResult as alias for HealthStatus
+export type HealthCheckResult = HealthStatus;
+
 /** DI bundle every agent receives */
 export interface BaseAgentDependencies {
   supabase: import('@supabase/supabase-js').SupabaseClient;
   logger:   ReturnType<typeof import('../../utils/logger').createLogger>;
-  errorHandler: import('../../utils/errorHandling').ErrorHandler;
-} 
+  errorHandler?: import('../../utils/errorHandling').ErrorHandler; // Make optional for now
+}

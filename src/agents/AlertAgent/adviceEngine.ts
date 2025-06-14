@@ -1,38 +1,181 @@
-// /src/agents/AlertsAgent/adviceEngine.ts
+import { FinalPick } from '../../types/picks';
+import { AIOrchestrator } from './aiOrchestrator';
+import { logger } from '../../services/logging';
 
-import { AlertPayload } from '../../types/alert'
-import OpenAI from 'openai' // or use Claude, whichever LLM you prefer
+// Market context analyzer
+class MarketContextAnalyzer {
+  async analyzeContext(pick: FinalPick): Promise<any> {
+    const now = new Date();
+    const hour = now.getHours();
+    const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'long' });
+    
+    // Determine market regime based on recent performance
+    const regime = await this.determineMarketRegime();
+    
+    // Calculate volatility based on recent line movements
+    const volatility = await this.calculateVolatility(pick);
+    
+    // Analyze sentiment from various sources
+    const sentiment = await this.analyzeSentiment(pick);
+    
+    return {
+      regime,
+      volatility,
+      sentiment,
+      timeOfDay: this.getTimeOfDay(hour),
+      dayOfWeek
+    };
+  }
+  
+  private async determineMarketRegime(): Promise<'bull' | 'bear' | 'sideways'> {
+    // Simplified regime detection - in production, this would analyze
+    // recent market performance, volatility, and trend indicators
+    return 'sideways'; // Default for now
+  }
+  
+  private async calculateVolatility(pick: FinalPick): Promise<number> {
+    // Simplified volatility calculation
+    // In production, this would analyze historical line movements
+    return 0.5; // Default moderate volatility
+  }
+  
+  private async analyzeSentiment(pick: FinalPick): Promise<number> {
+    // Simplified sentiment analysis
+    // In production, this would analyze social media, news, etc.
+    return 0; // Neutral sentiment
+  }
+  
+  private getTimeOfDay(hour: number): string {
+    if (hour >= 9 && hour <= 16) return 'market_hours';
+    if (hour >= 17 && hour <= 23) return 'evening';
+    return 'overnight';
+  }
+}
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
+// Enhanced advice engine with caching and fallback
+export class AdviceEngine {
+  private aiOrchestrator: AIOrchestrator;
+  private contextAnalyzer: MarketContextAnalyzer;
+  private cache: Map<string, { advice: any; timestamp: number }> = new Map();
+  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-/**
- * Returns actionable Unit Talk advice for a live betting alert.
- * @param alert - The alert payload with context, odds, bet info, etc.
- * @returns {Promise<string>} - The actionable advice as a string.
- */
-export async function getUnitTalkAdvice(alert: AlertPayload): Promise<string> {
-  // Compose a detailed prompt for the LLM, using your full event context
-  const prompt = `
-You are Unit Talk, an elite sports betting analyst and community leader.
+  constructor() {
+    this.aiOrchestrator = new AIOrchestrator();
+    this.contextAnalyzer = new MarketContextAnalyzer();
+  }
 
-A live alert has been triggered:
-- Alert Type: ${alert.type}
-- Title: ${alert.title}
-- Description: ${alert.description}
-- Odds/context: ${JSON.stringify(alert.meta, null, 2)}
+  async getAdviceForPick(pick: FinalPick): Promise<string> {
+    try {
+      // Check cache first
+      const cacheKey = this.generateCacheKey(pick);
+      const cached = this.cache.get(cacheKey);
+      
+      if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+        logger.info(`Using cached advice for pick ${pick.id}`);
+        return this.formatAdvice(cached.advice);
+      }
 
-Provide concise, actionable advice as “Unit Talk advice” for high-level bettors.  
-Include: next steps, whether to hedge/cash out/hold, and why.  
-Do not mention “AI.” Speak as a real human expert.
-If applicable, reference specific EV, profit/loss, parlay status, or risk factor.
+      // Analyze market context
+      const context = await this.contextAnalyzer.analyzeContext(pick);
+      
+      // Get AI advice
+      const aiAdvice = await this.aiOrchestrator.getAdviceForPick(pick, context);
+      
+      // Cache the result
+      this.cache.set(cacheKey, {
+        advice: aiAdvice,
+        timestamp: Date.now()
+      });
+      
+      // Clean up old cache entries
+      this.cleanupCache();
+      
+      return this.formatAdvice(aiAdvice);
+      
+    } catch (error) {
+      logger.error('Failed to get AI advice:', error);
+      return this.getFallbackAdvice(pick);
+    }
+  }
 
-Output 1–3 sentences maximum.
-`
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4-turbo',
-    messages: [{ role: 'user', content: prompt }],
-    max_tokens: 140,
-    temperature: 0.6,
-  })
-  return response.choices[0].message.content?.trim() ?? "No advice available at this time."
+  private generateCacheKey(pick: FinalPick): string {
+    // Create a unique key based on pick characteristics
+    return `${pick.id}-${pick.player_name}-${pick.market_type}-${pick.line}-${pick.odds}`;
+  }
+
+  private formatAdvice(aiAdvice: any): string {
+    if (typeof aiAdvice === 'string') {
+      return aiAdvice;
+    }
+
+    const { advice, confidence, reasoning, model } = aiAdvice;
+    
+    let formattedAdvice = `**${advice}**`;
+    
+    if (confidence) {
+      const confidencePercent = Math.round(confidence * 100);
+      formattedAdvice += ` (${confidencePercent}% confidence)`;
+    }
+    
+    if (reasoning) {
+      formattedAdvice += `\n\n**Analysis:**\n${reasoning}`;
+    }
+    
+    if (model) {
+      formattedAdvice += `\n\n*Generated by ${model}*`;
+    }
+    
+    return formattedAdvice;
+  }
+
+  private getFallbackAdvice(pick: FinalPick): string {
+    // Rule-based fallback when AI is unavailable
+    if (pick.is_sharp_fade) {
+      return '**FADE** - Sharp money indicates line movement against this pick. Consider fading or avoiding.';
+    }
+    
+    if (pick.tier === 'S' || pick.tier === 'A') {
+      return '**HOLD** - High-tier pick with strong edge score. Monitor for optimal entry timing.';
+    }
+    
+    if (pick.edge_score && pick.edge_score < 10) {
+      return '**PASS** - Low edge score suggests limited value. Consider waiting for better opportunities.';
+    }
+    
+    return '**HOLD** - Standard pick requiring manual review. AI analysis unavailable.';
+  }
+
+  private cleanupCache(): void {
+    const now = Date.now();
+    for (const [key, value] of this.cache.entries()) {
+      if (now - value.timestamp > this.CACHE_TTL) {
+        this.cache.delete(key);
+      }
+    }
+  }
+
+  // Public methods for monitoring and management
+  public getCacheStats(): { size: number; hitRate: number } {
+    return {
+      size: this.cache.size,
+      hitRate: 0 // Would track this in production
+    };
+  }
+
+  public clearCache(): void {
+    this.cache.clear();
+    logger.info('Advice cache cleared');
+  }
+
+  public async getModelPerformance(): Promise<Map<string, any>> {
+    return this.aiOrchestrator.getModelPerformance();
+  }
+}
+
+// Export singleton instance
+export const adviceEngine = new AdviceEngine();
+
+// Legacy export for backward compatibility
+export async function getAdviceForPick(pick: FinalPick): Promise<string> {
+  return adviceEngine.getAdviceForPick(pick);
 }

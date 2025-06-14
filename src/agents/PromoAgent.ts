@@ -2,7 +2,7 @@ import { BaseAgent } from '@/types/BaseAgent';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Logger } from '@/utils/logger';
 import { AgentConfig, AgentMetrics, HealthCheckResult } from '@/types/agent';
-import { scorePropEdge } from '@/logic/providers/scoring/edgeScoring';
+import { scorePropEdge } from '@/logic/scoring/edgeScoring';
 
 interface PromoAgentDependencies {
   supabase: SupabaseClient;

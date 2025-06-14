@@ -1,132 +1,106 @@
 // src/agents/FeedAgent.ts
 
-import { BaseAgent } from '../BaseAgent/index';
-import { fetchSGOProps } from '../../logic/providers/sgoFetcher'; // Your new working SGO fetcher
-import { scoreEdge, getTier } from '../../logic/edgeScoring';    // Your scoring logic
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Logger } from '../../utils/logger';
-import type { BaseAgentConfig, BaseAgentDependencies, AgentStatus } from '../BaseAgent/types';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { fetchSGOEvents, flattenSGOEvents } from '../logic/providers/sgoFetcher';
 
-interface FeedAgentConfig extends BaseAgentConfig {
-  sgoApiKey: string;
-  leagueID: string;
-  fetchWindowHours?: number; // How far ahead/behind to fetch
-}
-
-interface FeedAgentMetrics {
-  fetched: number;
-  scored: number;
-  inserted: number;
-  duplicates: number;
-  errors: number;
-}
-
-export class FeedAgent extends BaseAgent {
-  private config: FeedAgentConfig;
+export class FeedAgent {
   private supabase: SupabaseClient;
-  private logger: Logger;
-  private metrics: FeedAgentMetrics;
+  private apiKey: string;
+  private leagueID: string;
 
-  constructor(config: FeedAgentConfig, deps: BaseAgentDependencies) {
-    super(config, deps);
-    this.config = config;
-    this.supabase = deps.supabase;
-    this.logger = deps.logger;
-    this.metrics = {
-      fetched: 0,
-      scored: 0,
-      inserted: 0,
-      duplicates: 0,
-      errors: 0,
-    };
+  constructor(supabase: SupabaseClient, apiKey: string, leagueID = 'MLB') {
+    this.supabase = supabase;
+    this.apiKey = apiKey;
+    this.leagueID = leagueID;
   }
 
-  /**
-   * Main entry point for ingestion—call this on schedule or from Temporal.
-   */
-  public async ingest(): Promise<void> {
-    this.metrics = { fetched: 0, scored: 0, inserted: 0, duplicates: 0, errors: 0 };
-    const { sgoApiKey, leagueID, fetchWindowHours = 48 } = this.config;
+  // Utility to batch an array into chunks of N
+  private chunkArray<T>(arr: T[], size: number): T[][] {
+    const out: T[][] = [];
+    for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+    return out;
+  }
 
-    // 1. Fetch/normalize props using your new working SGO fetcher
-    let props: any[];
+  public async fetchAndStoreProps() {
     try {
-      const now = new Date();
-      const after = now.toISOString();
-      const before = new Date(now.getTime() + fetchWindowHours * 60 * 60 * 1000).toISOString();
-      props = await fetchSGOProps({
-        apiKey: sgoApiKey,
-        leagueID,
-        startsAfter: after,
-        startsBefore: before,
+      // 1. Fetch events via SGO and flatten to props
+      const events = await fetchSGOEvents({
+        apiKey: this.apiKey,
+        leagueID: this.leagueID,
+        startsAfter: new Date().toISOString(),
+        startsBefore: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
         includeAltLine: true,
         oddsAvailable: true,
-        limit: 1000,
+        limit: 100,
       });
-      this.metrics.fetched = props.length;
-      this.logger.info(`[FeedAgent] Fetched ${props.length} props from SGO`);
-    } catch (err) {
-      this.logger.error(`[FeedAgent] SGO fetch failed: ${(err as Error).message}`);
-      return;
-    }
+      const props = flattenSGOEvents(events);
 
-    if (!props.length) {
-      this.logger.warn('[FeedAgent] No props fetched. Exiting.');
-      return;
-    }
+      if (!props.length) {
+        console.warn('[FeedAgent] No props fetched');
+        return;
+      }
 
-    // 2. Score and tier all props (plug in your own logic)
-    const scoredProps = props.map((p) => ({
-      ...p,
-      edgeScore: scoreEdge(p),
-      tier: getTier(scoreEdge(p)), // Optional, comment out if you tier elsewhere
-    }));
-    this.metrics.scored = scoredProps.length;
+      // 2. Deduplicate: check for external_id or marketKey in raw_props in BATCHES
+      const externalIds = props.map(p => p.marketKey);
+      const BATCH_SIZE = 100;
+      let existing: { external_id: string }[] = [];
 
-    // 3. Deduplicate and upsert into Supabase
-    try {
-      // Fetch all existing external_ids in this batch (idempotent insert)
-      const externalIds = scoredProps.map((p) => p.marketKey || p.external_id);
-      const { data: existing, error: fetchError } = await this.supabase
-        .from('raw_props')
-        .select('external_id')
-        .in('external_id', externalIds);
+      for (const chunk of this.chunkArray(externalIds, BATCH_SIZE)) {
+        const { data, error } = await this.supabase
+          .from('raw_props')
+          .select('external_id')
+          .in('external_id', chunk);
 
-      if (fetchError) throw fetchError;
-      const existingIds = new Set(existing?.map((e: any) => e.external_id));
-
-      // Insert new props only
-      for (const prop of scoredProps) {
-        const extId = prop.marketKey || prop.external_id;
-        if (!extId || existingIds.has(extId)) {
-          this.metrics.duplicates++;
+        if (error) {
+          console.error('[FeedAgent] Error fetching existing IDs in batch:', error.message);
           continue;
         }
-        const insert = {
-          ...prop,
-          external_id: extId,
-          inserted_at: new Date().toISOString(),
+        if (data) existing = existing.concat(data);
+      }
+
+      const existingSet = new Set(existing.map(e => e.external_id));
+      const newProps = props.filter(p => !existingSet.has(p.marketKey));
+      let inserted = 0, failed = 0;
+
+      // 3. Insert new (non-duplicate) props (can also batch insert if >500)
+      for (const prop of newProps) {
+        // Build insert object using only valid columns
+        const insertObj = {
+          event_id: prop.eventID,
+          external_id: prop.marketKey,
+          provider: 'SGO',
+          league: prop.leagueID,
+          sport: prop.sportID,
+          game_time: prop.startsAtUTC,
+          team: prop.homeTeam, // Use as main team
+          opponent: prop.awayTeam, // Use as opponent
+          player_id: null, // Fix: always null for now
+          player_slug: prop.playerId || null, // Save SGO/Outlier string
+          player_name: prop.playerName || null,
+          stat_type: prop.statType || null,
+          line: prop.line !== undefined ? Number(prop.line) : null,
+          direction: prop.direction || null,
+          odds: prop.odds !== undefined ? Number(prop.odds) : null,
+          matchup: `${prop.homeTeam} vs ${prop.awayTeam}`,
+          external_game_id: prop.eventID,
+          scraped_at: new Date().toISOString(),
+          is_valid: true,
         };
-        const { error } = await this.supabase.from('raw_props').insert(insert);
+
+        const { error } = await this.supabase.from('raw_props').insert(insertObj);
+
         if (error) {
-          this.metrics.errors++;
-          this.logger.error(`[FeedAgent] Insert failed: ${error.message} | prop: ${extId}`);
+          failed++;
+          console.error('[FeedAgent] Failed to insert prop', prop.marketKey, error.message);
         } else {
-          this.metrics.inserted++;
+          inserted++;
         }
       }
+
+      // 4. Log result
+      console.log(`[FeedAgent] SGO ingest: ${props.length} fetched, ${newProps.length} new, ${inserted} inserted, ${failed} failed`);
     } catch (err) {
-      this.logger.error(`[FeedAgent] Insert/upsert error: ${(err as Error).message}`);
-      this.metrics.errors++;
+      console.error('[FeedAgent] Error:', err);
     }
-
-    // 4. Log and report metrics
-    this.logger.info('[FeedAgent] Ingestion run complete', { metrics: this.metrics });
-  }
-
-  // (Optional) Implement health check, metrics, and agent lifecycle hooks if desired
-  protected async checkHealth(): Promise<AgentStatus> {
-    // Customize health check as needed
-    return 'healthy';
   }
 }

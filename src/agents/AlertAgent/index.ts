@@ -1,205 +1,275 @@
-import { BaseAgentConfig, BaseAgentDependencies, AgentStatus, HealthStatus, BaseMetrics } from '../BaseAgent/types';
-import { SupabaseClient } from '@supabase/supabase-js'
-import { Logger } from '../../utils/logger'
-import { AlertPayload, AlertType } from '../../types/alert'
-import { getUnitTalkAdvice } from './adviceEngine'
-import { logUnitTalkAdvice } from './log'
-import { sendDiscordAlert } from './integrations/discord'
-import { sendNotionAlert } from './integrations/notion'
-import { sendRetoolAlert } from './integrations/retool'
-import { detectInjuryImpact, isSignificantLineMove, isMiddlingOpportunity } from './utils/detection'
+import 'dotenv/config';
+import { BaseAgent } from '../BaseAgent';
+import { BaseAgentConfig, BaseAgentDependencies, BaseMetrics, HealthStatus } from '../BaseAgent/types';
+import { buildAlertEmbed } from './embedBuilder';
+import { getAdviceForPick } from './adviceEngine';
+import { sendDiscordAlert } from './integrations/discord';
+// import { postToNotion } from '../../services/notion';
+// import { updateRetoolTag } from '../../services/retool';
+import { logAlertRecord } from './log';
+import { startMetricsServer } from '../../services/metricsServer';
 
-export class AlertsAgent {
-  private supabase: SupabaseClient
-  private logger: Logger
+interface AlertMetrics extends BaseMetrics {
+  alertsSent: number;
+  alertsFailed: number;
+  duplicatesSkipped: number;
+  avgProcessingTimeMs: number;
+  llmCallsCount: number;
+  llmFailures: number;
+}
 
-  constructor(supabase: SupabaseClient) {
-    this.supabase = supabase
-    this.logger = new Logger('AlertsAgent')
+export class AlertAgent extends BaseAgent {
+  private alertMetrics: AlertMetrics;
+  private rateLimiter: Map<string, number> = new Map(); // service -> last call timestamp
+  private readonly RATE_LIMITS: Record<string, number> = {
+    discord: 2000, // 2 seconds between calls (30/min limit)
+    openai: 100,   // 100ms between calls
+  };
+
+  constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
+    super(config, deps);
+    this.alertMetrics = {
+      ...this.metrics,
+      alertsSent: 0,
+      alertsFailed: 0,
+      duplicatesSkipped: 0,
+      avgProcessingTimeMs: 0,
+      llmCallsCount: 0,
+      llmFailures: 0,
+    };
   }
 
-  async sendAlert(payload: AlertPayload, betId?: string, userId?: string): Promise<void> {
-    this.logger.info('Processing alert', payload)
-    const results: Record<string, any> = {}
-
-    // Generate Advice
-    const advice = await getUnitTalkAdvice(payload)
-
-    // Output Channels
-    if (payload.channels.includes('discord')) results.discord = await sendDiscordAlert(payload, advice)
-    if (payload.channels.includes('notion')) results.notion = await sendNotionAlert(payload, advice)
-    if (payload.channels.includes('retool')) results.retool = await sendRetoolAlert(payload, advice)
-
-    // Log
-    await logUnitTalkAdvice(this.supabase, payload, advice, betId ?? payload.meta?.bet_id, userId ?? payload.meta?.user_id)
-    this.logger.info('Alert processed and routed', results)
+  protected async initialize(): Promise<void> {
+    this.logger.info('🚀 AlertAgent initializing...');
+    
+    // Ensure alerts log table exists and is accessible
+    const { error } = await this.supabase
+      .from('unit_talk_alerts_log')
+      .select('count')
+      .limit(1);
+    
+    if (error) {
+      this.logger.warn('⚠️ Alert logging table not accessible', { error: error.message });
+    }
   }
 
-  async handleEvent(event: any): Promise<void> {
-    const payload = this.mapEventToAlert(event)
-    if (!payload.meta?.posted_to_discord) return
-    await this.sendAlert(payload, payload.meta?.bet_id, payload.meta?.user_id)
+  protected async cleanup(): Promise<void> {
+    this.logger.info('🧹 AlertAgent cleanup complete');
+    this.rateLimiter.clear();
   }
 
-  private mapEventToAlert(event: any): AlertPayload {
-    const type: AlertType = event.type ?? 'system'
-    const severity = this.deriveSeverity(event)
-    const title = this.getAlertTitle(type)
-
+  protected async collectMetrics(): Promise<BaseMetrics> {
     return {
-      id: event.id || `alert_${Date.now()}`,
-      type,
-      title,
-      description: event.description || 'No description provided',
-      severity,
-      source: event.source || 'unknown',
-      createdAt: event.createdAt ? new Date(event.createdAt) : new Date(),
-      meta: event.meta || {},
-      channels: event.channels || ['discord']
-    }
+      ...this.alertMetrics,
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024,
+    };
   }
 
-  private deriveSeverity(event: any): 'low' | 'medium' | 'high' | 'critical' {
-    if (event.type === 'injury' && detectInjuryImpact(event)) return 'critical'
-    if (event.type === 'line_move' && isSignificantLineMove(event)) return 'high'
-    if (event.type === 'middling' && isMiddlingOpportunity(event)) return 'medium'
-    return 'low'
-  }
+  public async checkHealth(): Promise<HealthStatus> {
+    const checks = [];
 
-  private getAlertTitle(type: AlertType): string {
-    switch (type) {
-      case 'injury': return '🚨 Injury Alert'
-      case 'steam': return '🔥 Steam Movement Detected'
-      case 'line_move': return '📈 Line Shift Detected'
-      case 'hedge': return '💸 Hedge Opportunity'
-      case 'middling': return '🟰 Middling Edge'
-      case 'system': return 'System Alert'
-      default: return 'Alert'
-    }
-  }
-
-  async updateAlertOutcome(alertId: string, response: string, outcome: string, evChange: number, wasPosEvAdvice: boolean, notes?: string, feedback?: string) {
-    await this.supabase.from('unit_talk_alerts_log').update({
-      response, outcome, ev_change: evChange,
-      was_pos_ev_advice: wasPosEvAdvice,
-      notes, feedback
-    }).eq('id', alertId)
-  }
-
-  async healthCheck(): Promise<{ status: string, details?: any }> {
+    // Check Supabase connectivity
     try {
-      const testPayload: AlertPayload = {
-        id: 'healthcheck',
-        type: 'system',
-        title: 'AlertsAgent Health Check',
-        description: 'Testing all alert channels and Unit Talk advice engine.',
-        severity: 'info',
-        source: 'AlertsAgent',
-        createdAt: new Date(),
-        channels: ['discord', 'notion'],
-        meta: { posted_to_discord: true }
-      }
-      await this.sendAlert(testPayload)
-      return { status: 'healthy' }
-    } catch (err) {
-      this.logger.error('Health check failed', err)
-      return { status: 'failed', details: err }
+      await this.supabase.from('final_picks').select('count').limit(1);
+      checks.push({ service: 'supabase', status: 'healthy' });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      checks.push({ service: 'supabase', status: 'unhealthy', error: errorMessage });
     }
+
+    // Check OpenAI connectivity (basic)
+    try {
+      const hasApiKey = !!process.env.OPENAI_API_KEY;
+      checks.push({
+        service: 'openai',
+        status: hasApiKey ? 'healthy' : 'unhealthy',
+        error: hasApiKey ? undefined : 'Missing API key'
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      checks.push({ service: 'openai', status: 'unhealthy', error: errorMessage });
+    }
+
+    const isHealthy = checks.every(check => check.status === 'healthy');
+
+    return {
+      status: isHealthy ? 'healthy' : 'unhealthy',
+      timestamp: new Date().toISOString(),
+      details: {
+        checks,
+        metrics: this.alertMetrics,
+      }
+    };
   }
 
-  protected async initialize(): Promise<void> {
-    // TODO: Restore business logic here after base migration (initialize)
+  public async startMetricsServer(): Promise<void> {
+    const port = this.config.metrics?.port || 9005;
+    startMetricsServer(port);
+    this.logger.info(`📊 Metrics server started on port ${port}`);
+  }
+
+  private async enforceRateLimit(service: string): Promise<void> {
+    const limit = this.RATE_LIMITS[service] as number | undefined;
+    if (!limit) return;
+
+    const lastCall = this.rateLimiter.get(service) || 0;
+    const timeSinceLastCall = Date.now() - lastCall;
+
+    if (timeSinceLastCall < limit) {
+      const waitTime = limit - timeSinceLastCall;
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+
+    this.rateLimiter.set(service, Date.now());
+  }
+
+  private async isAlertAlreadySent(pick: any): Promise<boolean> {
+    // Check database for persistent deduplication
+    const { data, error } = await this.supabase
+      .from('unit_talk_alerts_log')
+      .select('bet_id')
+      .eq('bet_id', pick.id)
+      .eq('player', pick.player_name)
+      .eq('market', pick.market_type)
+      .eq('line', pick.line)
+      .limit(1);
+
+    if (error) {
+      this.logger.warn('⚠️ Failed to check alert history, proceeding with send', { 
+        pickId: pick.id, 
+        error: error.message 
+      });
+      return false;
+    }
+
+    return data && data.length > 0;
+  }
+
+  private async retryWithBackoff<T>(
+    operation: () => Promise<T>,
+    maxRetries: number = 3,
+    baseDelay: number = 1000
+  ): Promise<T> {
+    let lastError: Error | undefined;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('Unknown error');
+
+        if (attempt === maxRetries) break;
+
+        const delay = baseDelay * Math.pow(2, attempt);
+        this.logger.warn(`⚠️ Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms`, {
+          error: lastError.message
+        });
+
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+
+    throw lastError!;
   }
 
   protected async process(): Promise<void> {
-    // TODO: Restore business logic here after base migration (process)
-  }
+    this.logger.info('🚨 Starting AlertAgent cycle...');
+    const cycleStartTime = Date.now();
 
-  protected async cleanup(): Promise<void> {
-    // TODO: Restore business logic here after base migration (cleanup)
-  }
+    const { data: picks, error } = await this.supabase
+      .from('final_picks')
+      .select('*')
+      .eq('play_status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(50); // Reduced from 100 for better performance
 
-  protected async checkHealth(): Promise<HealthStatus> {
-    // TODO: Restore business logic here after base migration (checkHealth)
-    return {
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      details: {}
-    };
-  }
+    if (error || !picks) {
+      this.logger.error('❌ Failed to fetch final picks for alerts', { error });
+      this.alertMetrics.errorCount++;
+      return;
+    }
 
-  protected async collectMetrics(): Promise<BaseMetrics> {
-    // TODO: Restore business logic here after base migration (collectMetrics)
-    return {
-      successCount: 0,
-      errorCount: 0,
-      warningCount: 0,
-      processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
-    };
-  }
+    this.logger.info(`📋 Processing ${picks.length} pending picks`);
 
-  protected async initialize(): Promise<void> {
-    // TODO: Restore business logic here after base migration (initialize)
-  }
+    for (const pick of picks) {
+      const pickStartTime = Date.now();
+      
+      try {
+        // Check for duplicates using persistent storage
+        if (await this.isAlertAlreadySent(pick)) {
+          this.alertMetrics.duplicatesSkipped++;
+          this.logger.debug(`⏭️ Skipping duplicate alert for pick [${pick.id}]`);
+          continue;
+        }
 
-  protected async process(): Promise<void> {
-    // TODO: Restore business logic here after base migration (process)
-  }
+        // Rate limit OpenAI calls
+        await this.enforceRateLimit('openai');
+        
+        // Get advice with retry logic
+        const advice = await this.retryWithBackoff(async () => {
+          this.alertMetrics.llmCallsCount++;
+          return await getAdviceForPick(pick);
+        });
 
-  protected async cleanup(): Promise<void> {
-    // TODO: Restore business logic here after base migration (cleanup)
-  }
+        const embed = buildAlertEmbed(pick, advice);
 
-  protected async checkHealth(): Promise<HealthStatus> {
-    // TODO: Restore business logic here after base migration (checkHealth)
-    return {
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      details: {}
-    };
-  }
+        // Rate limit Discord calls
+        await this.enforceRateLimit('discord');
 
-  protected async collectMetrics(): Promise<BaseMetrics> {
-    // TODO: Restore business logic here after base migration (collectMetrics)
-    return {
-      successCount: 0,
-      errorCount: 0,
-      warningCount: 0,
-      processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
-    };
-  }
+        // Send alerts with retry logic
+        await this.retryWithBackoff(async () => {
+          await Promise.all([
+            sendDiscordAlert(embed),
+            // postToNotion(pick, advice), // Commented out until service is available
+            // updateRetoolTag(pick.id, 'alerted'), // Commented out until service is available
+          ]);
+        });
 
-  protected async initialize(): Promise<void> {
-    // TODO: Restore business logic here after base migration (initialize)
-  }
+        // Log the alert for deduplication and analytics
+        await logAlertRecord(this.supabase, pick, advice);
 
-  protected async process(): Promise<void> {
-    // TODO: Restore business logic here after base migration (process)
-  }
+        this.alertMetrics.alertsSent++;
+        this.alertMetrics.successCount++;
+        
+        const processingTime = Date.now() - pickStartTime;
+        this.alertMetrics.avgProcessingTimeMs = 
+          (this.alertMetrics.avgProcessingTimeMs + processingTime) / 2;
 
-  protected async cleanup(): Promise<void> {
-    // TODO: Restore business logic here after base migration (cleanup)
-  }
+        this.logger.info(`✅ Alert sent for pick [${pick.id}] - ${pick.player_name} (${processingTime}ms)`);
 
-  protected async checkHealth(): Promise<HealthStatus> {
-    // TODO: Restore business logic here after base migration (checkHealth)
-    return {
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      details: {}
-    };
-  }
+      } catch (err) {
+        this.alertMetrics.alertsFailed++;
+        this.alertMetrics.errorCount++;
 
-  protected async collectMetrics(): Promise<BaseMetrics> {
-    // TODO: Restore business logic here after base migration (collectMetrics)
-    return {
-      successCount: 0,
-      errorCount: 0,
-      warningCount: 0,
-      processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
-    };
+        const error = err instanceof Error ? err : new Error('Unknown error');
+        if (error.message?.includes('openai') || error.message?.includes('OpenAI')) {
+          this.alertMetrics.llmFailures++;
+        }
+
+        this.logger.error(`❌ Failed to process pick [${pick.id}]`, {
+          error: error.message,
+          stack: error.stack,
+          pickId: pick.id,
+          playerName: pick.player_name,
+          pickData: {
+            id: pick.id,
+            player: pick.player_name,
+            market: pick.market_type,
+            tier: pick.tier
+          }
+        });
+      }
+    }
+
+    const totalCycleTime = Date.now() - cycleStartTime;
+    this.alertMetrics.processingTimeMs = totalCycleTime;
+
+    this.logger.info(`🏁 AlertAgent cycle complete`, {
+      totalPicks: picks?.length || 0,
+      alertsSent: this.alertMetrics.alertsSent,
+      duplicatesSkipped: this.alertMetrics.duplicatesSkipped,
+      failures: this.alertMetrics.alertsFailed,
+      cycleTimeMs: totalCycleTime
+    });
   }
 }

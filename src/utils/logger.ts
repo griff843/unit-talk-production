@@ -147,4 +147,11 @@ export class Logger {
     return this.logger;
   }
 }
-  
+
+// Export default logger instance for easy importing
+export const logger = Logger.getInstance('UnitTalk');
+
+// Export createLogger function for BaseAgent compatibility
+export const createLogger = (name: string, config?: LoggerConfig): Logger => {
+  return new Logger(name, config);
+};
