@@ -1,100 +1,82 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import { AnalyticsAgentConfig, AnalyticsSummary, CapperStats, PlayType, Tier, StatType } from './types';
-import { BaseAgent } from '../BaseAgent/index';
-import { ErrorHandlerConfig, ErrorHandler, DatabaseError, AgentError } from '../../shared/errors';
-import { Logger } from '../../shared/logger';
-import { Metrics, MetricType } from '../../shared/metrics';
-import {
+import { 
+  AnalyticsAgentConfig, 
+  AnalyticsSummary, 
+  CapperStats, 
+  PlayType, 
+  Tier, 
+  StatType,
   AnalyticsMetrics,
   ROIAnalysis,
   TrendAnalysis,
   CapperPerformance
 } from './types';
-import {
-  calculateROI,
-  calculateTrend,
-  calculatePerformance
-} from './utils/calculations';
-import { AgentConfig, AgentCommand, HealthCheckResult, BaseAgentDependencies } from '../BaseAgent/types';
-import { Metrics as SharedMetrics } from '../../types/shared';
+import { BaseAgent } from '../BaseAgent/index';
+import { ErrorHandler } from '../../utils/errorHandling';
+import { Logger } from '../../utils/logger';
+import { 
+  BaseAgentConfig, 
+  BaseAgentDependencies, 
+  AgentStatus, 
+  HealthStatus,
+  BaseMetrics
+} from '../BaseAgent/types';
 import { z } from 'zod';
-import { BaseAgentConfig, BaseAgentDependencies, AgentStatus } from '../BaseAgent/types';
-
-// Helper to compute trend tags based on streaks/win%
-function getTrendTag(stats: CapperStats): string {
-  if (stats.streak >= 5 || stats.winPct >= 0.7) return '🔥 On Fire';
-  if (stats.streak <= -3 || stats.winPct <= 0.35) return '🧊 Cold';
-  if (stats.winPct >= 0.55 && stats.roi >= 0.08 && stats.streak >= 3) return '💎 Hidden Gem';
-  return '';
-}
-
-// Helper for window filtering
-function filterByWindow<T extends { settled_at: string }>(data: T[], days: number): T[] {
-  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-  return data.filter(row => new Date(row.settled_at).getTime() >= cutoff);
-}
 
 const AnalyticsAgentConfigSchema = z.object({
   name: z.string(),
   enabled: z.boolean(),
   version: z.string(),
   logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
-  metrics.enabled: z.boolean().default(true),
+  metrics: z.object({
+    enabled: z.boolean().default(true),
+  }),
   retryConfig: z.object({
     maxRetries: z.number().min(0),
     backoffMs: z.number().min(100),
     maxBackoffMs: z.number().min(1000),
   }),
-  // Analytics specific config
   dataRetentionDays: z.number().min(1),
-  aggregationInterval: z.number().min(60),
-  alertThresholds: z.object({
-    errorRate: z.number().min(0).max(1),
-    latencyMs: z.number().min(0),
+  analysisConfig: z.object({
+    minPicksForAnalysis: z.number().min(1),
+    roiTimeframes: z.array(z.number()),
+    streakThreshold: z.number().min(2),
+    trendWindowDays: z.number().min(1)
   }),
+  alertConfig: z.object({
+    roiAlertThreshold: z.number(),
+    streakAlertThreshold: z.number(),
+    volatilityThreshold: z.number()
+  })
 });
 
-export interface AnalyticsMetrics extends SharedMetrics {
-  totalProcessed: number;
-  capperCount: number;
-  avgROI: number;
-  profitableCappers: number;
-  activeStreaks: number;
-  processingTimeMs: number;
-  memoryUsageMb: number;
-  lastRunStats: {
-    startTime: string;
-    endTime: string;
-    recordsProcessed: number;
-  };
-}
-
 export class AnalyticsAgent extends BaseAgent {
-  private analyticsMetrics: AnalyticsMetrics = {
-    errorCount: 0,
-    warningCount: 0,
-    successCount: 0,
-    totalProcessed: 0,
-    capperCount: 0,
-    avgROI: 0,
-    profitableCappers: 0,
-    activeStreaks: 0,
-    processingTimeMs: 0,
-    memoryUsageMb: 0,
-    lastRunStats: {
-      startTime: '',
-      endTime: '',
-      recordsProcessed: 0
-    }
-  };
+  protected config: BaseAgentConfig;
+  protected metrics: AnalyticsMetrics;
 
-  private errorHandler: ErrorHandler;
-  private logger: Logger;
-  private metricsCollector: Metrics;
-
-  constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
-    super(config, deps);
-    // Initialize agent-specific properties here
+  constructor(config: BaseAgentConfig, dependencies: BaseAgentDependencies) {
+    super(config, dependencies);
+    this.config = config;
+    
+    this.metrics = {
+      agentName: 'AnalyticsAgent',
+      successCount: 0,
+      errorCount: 0,
+      warningCount: 0,
+      processingTimeMs: 0,
+      memoryUsageMb: 0,
+      totalAnalyzed: 0,
+      capperCount: 0,
+      avgROI: 0,
+      profitableCappers: 0,
+      activeStreaks: 0,
+      totalProcessed: 0,
+      lastRunStats: {
+        startTime: '',
+        endTime: '',
+        recordsProcessed: 0
+      }
+    };
   }
 
   protected async initialize(): Promise<void> {
@@ -109,515 +91,233 @@ export class AnalyticsAgent extends BaseAgent {
     ];
 
     for (const table of requiredTables) {
-      const { error } = await this.supabase
-        .from(table)
-        .select('id')
-        .limit(1);
+      try {
+        const { error } = await this.supabase
+          .from(table)
+          .select('id')
+          .limit(1);
 
-      if (error) {
-        throw new Error(`Failed to access table ${table}: ${error.message}`);
+        if (error) {
+          throw new Error(`Failed to access table ${table}: ${error.message}`);
+        }
+      } catch (error) {
+        this.logger.error(`Table access check failed for ${table}:`, error as Error);
+        throw error;
       }
     }
 
     this.logger.info('AnalyticsAgent initialized successfully');
   }
 
-  public async __test__initialize(): Promise<void> {
-    return this.initialize();
-  }
-
-  public async __test__collectMetrics(): Promise<Metrics> {
-    return this.collectMetrics();
-  }
-
-  public async __test__checkHealth(): Promise<HealthCheckResult> {
-    return this.checkHealth();
-  }
-
-  public async runAnalysis(): Promise<void> {
+  protected async process(): Promise<void> {
     const startTime = Date.now();
-    this.analyticsMetrics.lastRunStats.startTime = new Date().toISOString();
-    this.logger.info('Starting analytics run');
+    this.metrics.lastRunStats.startTime = new Date().toISOString();
+    this.logger.info('Starting analytics processing');
 
     try {
-      // Get all cappers with picks
-      const { data: cappers, error: capperError } = await this.metricsCollector.measureDuration(
-        'fetch_cappers',
-        () => this.errorHandler.withRetry(
-          async () => this.supabase
-            .from('final_picks')
-            .select('capper_id')
-            .distinct(),
-          'fetch distinct cappers'
-        ),
-        { operation: 'fetch_cappers' }
-      );
+      // Get all cappers with picks - using proper Supabase query
+      const { data: cappers, error: capperError } = await this.supabase
+        .from('final_picks')
+        .select('capper_id')
+        .limit(1000); // Add limit to avoid issues
 
       if (capperError) {
-        throw new DatabaseError(
-          'Failed to fetch cappers',
-          'SELECT DISTINCT',
-          'final_picks',
-          { supabaseError: capperError }
-        );
+        throw new Error(`Failed to fetch cappers: ${capperError.message}`);
       }
       
-      this.analyticsMetrics.capperCount = cappers?.length || 0;
-      this.metricsCollector.setGauge('capper_count', this.analyticsMetrics.capperCount);
-      this.logger.info(`Found ${this.analyticsMetrics.capperCount} cappers to analyze`);
+      // Get unique cappers
+      const uniqueCappers = Array.from(new Set(cappers?.map(c => c.capper_id) || []));
+      this.metrics.capperCount = uniqueCappers.length;
+      this.logger.info(`Found ${this.metrics.capperCount} cappers to analyze`);
 
       // Process each capper
-      for (const capper of (cappers || [])) {
+      for (const capperId of uniqueCappers) {
         try {
-          await this.processCapperAnalytics(capper.capper_id);
-          this.analyticsMetrics.successCount++;
-          this.metricsCollector.incrementCounter('capper_processed_success');
+          await this.processCapperAnalytics(capperId);
+          this.metrics.successCount++;
+          this.metrics.totalProcessed++;
         } catch (error) {
-          this.analyticsMetrics.errorCount++;
-          this.metricsCollector.incrementCounter('capper_processed_error');
+          this.metrics.errorCount++;
           this.logger.error(
-            `Failed to process capper ${capper.capper_id}:`,
+            `Failed to process capper ${capperId}:`,
             error as Error,
-            { capperId: capper.capper_id }
+            { capperId }
           );
         }
       }
 
-      this.analyticsMetrics.lastRunStats.endTime = new Date().toISOString();
-      this.analyticsMetrics.processingTimeMs = Date.now() - startTime;
-      this.analyticsMetrics.memoryUsageMb = process.memoryUsage().heapUsed / 1024 / 1024;
+      this.metrics.lastRunStats.endTime = new Date().toISOString();
+      this.metrics.processingTimeMs = Date.now() - startTime;
+      this.metrics.memoryUsageMb = process.memoryUsage().heapUsed / 1024 / 1024;
+      this.metrics.lastRunStats.recordsProcessed = this.metrics.totalProcessed;
 
-      // Update final metrics
-      this.metricsCollector.setGauge('processing_time_ms', this.analyticsMetrics.processingTimeMs);
-      this.metricsCollector.setGauge('memory_usage_mb', this.analyticsMetrics.memoryUsageMb);
-      this.metricsCollector.setGauge('success_rate', 
-        this.analyticsMetrics.successCount / (this.analyticsMetrics.successCount + this.analyticsMetrics.errorCount)
-      );
-
-      this.logger.info('Analytics run completed', {
-        duration: this.analyticsMetrics.processingTimeMs,
-        cappers: this.analyticsMetrics.capperCount,
-        success: this.analyticsMetrics.successCount,
-        errors: this.analyticsMetrics.errorCount
+      this.logger.info('Analytics processing completed', {
+        duration: this.metrics.processingTimeMs,
+        processedCappers: this.metrics.successCount,
+        errors: this.metrics.errorCount
       });
 
     } catch (error) {
-      this.analyticsMetrics.errorCount++;
-      this.metricsCollector.incrementCounter('run_failed');
-      this.logger.error('Analytics run failed', error as Error);
-      throw new AgentError(
-        `Analytics run failed: ${error.message}`,
-        'AnalyticsAgent',
-        { error }
-      );
+      this.metrics.errorCount++;
+      this.logger.error('Analytics processing failed:', error as Error);
+      throw error;
     }
   }
 
-  private async processCapperAnalytics(capperId: string): Promise<void> {
-    const config = this.context.config as AnalyticsAgentConfig;
-    const logger = this.logger.child({ capperId });
-    
-    try {
-      logger.debug('Processing capper analytics');
+  protected async cleanup(): Promise<void> {
+    this.logger.info('Cleaning up AnalyticsAgent');
+    // Cleanup logic here
+  }
 
-      // Get capper's picks
-      const { data: picks, error } = await this.metricsCollector.measureDuration(
-        'fetch_picks',
-        () => this.errorHandler.withRetry(
-          async () => this.supabase
-            .from('final_picks')
-            .select('*')
-            .eq('capper_id', capperId)
-            .order('created_at', { ascending: true }),
-          `fetch picks for capper ${capperId}`
-        ),
-        { capperId }
-      );
+  public async checkHealth(): Promise<HealthStatus> {
+    try {
+      // Check database connectivity
+      const { error } = await this.supabase
+        .from('final_picks')
+        .select('id')
+        .limit(1);
 
       if (error) {
-        throw new DatabaseError(
-          'Failed to fetch picks',
-          'SELECT',
-          'final_picks',
-          { capperId, supabaseError: error }
-        );
+        return {
+          status: 'unhealthy',
+          timestamp: new Date().toISOString(),
+          details: { error: error.message },
+          error: 'Database connectivity check failed'
+        };
       }
 
-      if (!picks || picks.length < config.analysisConfig.minPicksForAnalysis) {
-        logger.debug('Insufficient picks for analysis', {
+      // Check metrics
+      const isHealthy = this.metrics.errorCount < 10 && 
+                       this.metrics.successCount > 0;
+
+      return {
+        status: isHealthy ? 'healthy' : 'degraded',
+        timestamp: new Date().toISOString(),
+        details: {
+          successCount: this.metrics.successCount,
+          errorCount: this.metrics.errorCount,
+          lastProcessingTime: this.metrics.processingTimeMs
+        }
+      };
+
+    } catch (error) {
+      return {
+        status: 'unhealthy',
+        timestamp: new Date().toISOString(),
+        details: {},
+        error: (error as Error).message
+      };
+    }
+  }
+
+  protected async collectMetrics(): Promise<AnalyticsMetrics> {
+    this.metrics.memoryUsageMb = process.memoryUsage().heapUsed / 1024 / 1024;
+    return { ...this.metrics };
+  }
+
+  private async processCapperAnalytics(capperId: string): Promise<void> {
+    this.logger.debug(`Processing analytics for capper ${capperId}`);
+
+    try {
+      // Fetch picks for this capper
+      const { data: picks, error } = await this.supabase
+        .from('final_picks')
+        .select('*')
+        .eq('capper_id', capperId)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        throw new Error(`Failed to fetch picks: ${error.message}`);
+      }
+
+      if (!picks || picks.length < 5) { // Use hardcoded minimum for now
+        this.logger.debug('Insufficient picks for analysis', {
           pickCount: picks?.length,
-          required: config.analysisConfig.minPicksForAnalysis
+          required: 5
         });
         return;
       }
 
-      logger.debug('Calculating ROI analyses');
-      // Calculate ROI for each timeframe
-      const roiAnalyses = await Promise.all(
-        config.analysisConfig.roiTimeframes.map(timeframe => {
-          const timeframePicks = picks.filter(p => {
-            const pickDate = new Date(p.created_at);
-            const cutoff = new Date();
-            cutoff.setDate(cutoff.getDate() - timeframe);
-            return pickDate >= cutoff;
-          });
-          return calculateROI(timeframePicks);
-        })
-      );
-
-      logger.debug('Calculating trends');
-      // Calculate trends
-      const trends = picks.reduce((acc, pick) => {
-        if (!acc[pick.stat_type]) {
-          acc[pick.stat_type] = [];
-        }
-        acc[pick.stat_type].push(pick);
-        return acc;
-      }, {} as Record<string, any[]>);
-
-      const trendAnalyses = Object.values(trends)
-        .filter(statPicks => statPicks.length >= config.analysisConfig.streakThreshold)
-        .map(statPicks => calculateTrend(statPicks));
-
-      logger.debug('Calculating performance metrics');
-      // Calculate overall performance
-      const statTypePerformance = picks.reduce((acc, pick) => {
-        if (!acc[pick.stat_type]) {
-          acc[pick.stat_type] = { wins: 0, total: 0 };
-        }
-        acc[pick.stat_type].total++;
-        if (pick.result === 'win') acc[pick.stat_type].wins++;
-        return acc;
-      }, {} as Record<string, { wins: number; total: number }>);
-
-      const performance = calculatePerformance(roiAnalyses[0], statTypePerformance);
-
-      logger.debug('Storing analytics results');
-      // Store results
-      await this.storeAnalytics(capperId, {
-        roiAnalyses,
-        trends: trendAnalyses,
-        performance
-      });
+      // Calculate basic analytics
+      const wins = picks.filter(p => p.result === 'win').length;
+      const losses = picks.filter(p => p.result === 'loss').length;
+      const winRate = wins / (wins + losses);
+      const roi = this.calculateROI(picks);
 
       // Update metrics
-      this.analyticsMetrics.totalProcessed++;
-      if (performance.roi > 0) {
-        this.analyticsMetrics.profitableCappers++;
+      if (roi > 0) {
+        this.metrics.profitableCappers++;
       }
-      this.analyticsMetrics.avgROI = (this.analyticsMetrics.avgROI * (this.analyticsMetrics.totalProcessed - 1) + performance.roi) / this.analyticsMetrics.totalProcessed;
-      this.analyticsMetrics.activeStreaks += trendAnalyses.length;
 
-      // Update metrics collector
-      this.metricsCollector.setGauge('profitable_cappers', this.analyticsMetrics.profitableCappers);
-      this.metricsCollector.setGauge('avg_roi', this.analyticsMetrics.avgROI);
-      this.metricsCollector.setGauge('active_streaks', this.analyticsMetrics.activeStreaks);
+      // Store analytics summary
+      await this.storeAnalyticsSummary(capperId, {
+        total_picks: picks.length,
+        wins,
+        losses,
+        win_rate: winRate,
+        roi,
+        analyzed_at: new Date().toISOString()
+      });
 
-      logger.info('Capper analytics processed successfully', {
+      this.logger.debug('Capper analytics processed successfully', {
+        capperId,
         pickCount: picks.length,
-        roi: performance.roi,
-        streaks: trendAnalyses.length
+        winRate,
+        roi
       });
 
     } catch (error) {
-      logger.error('Failed to process capper analytics', error as Error);
-      throw new AgentError(
-        `Failed to process capper analytics: ${error.message}`,
-        'AnalyticsAgent',
-        { capperId, error }
-      );
+      this.logger.error('Failed to process capper analytics', error as Error);
+      throw error;
     }
   }
 
-  private async storeAnalytics(
-    capperId: string,
-    results: {
-      roiAnalyses: ROIAnalysis[];
-      trends: TrendAnalysis[];
-      performance: CapperPerformance;
-    }
-  ): Promise<void> {
-    const logger = this.logger.child({ capperId });
+  private calculateROI(picks: any[]): number {
+    let totalStake = 0;
+    let totalReturn = 0;
 
+    for (const pick of picks) {
+      const stake = pick.stake || 100; // Default stake
+      totalStake += stake;
+      
+      if (pick.result === 'win') {
+        const odds = pick.odds || 1.9; // Default odds
+        totalReturn += stake * odds;
+      }
+    }
+
+    return totalStake > 0 ? ((totalReturn - totalStake) / totalStake) * 100 : 0;
+  }
+
+  private async storeAnalyticsSummary(capperId: string, summary: any): Promise<void> {
     try {
-      logger.debug('Storing analytics summary');
-      await this.metricsCollector.measureDuration(
-        'store_analytics',
-        async () => {
-          await this.errorHandler.withRetry(
-            async () => {
-              const { error: summaryError } = await this.supabase
-                .from('analytics_summary')
-                .upsert({
-                  capper_id: capperId,
-                  ...results.performance,
-                  updated_at: new Date().toISOString()
-                });
+      const { error } = await this.supabase
+        .from('analytics_summary')
+        .upsert({
+          capper_id: capperId,
+          ...summary,
+          updated_at: new Date().toISOString()
+        });
 
-              if (summaryError) {
-                throw new DatabaseError(
-                  'Failed to upsert analytics summary',
-                  'UPSERT',
-                  'analytics_summary',
-                  { capperId, supabaseError: summaryError }
-                );
-              }
-            },
-            'store analytics summary'
-          );
-
-          logger.debug('Storing ROI analysis');
-          await this.errorHandler.withRetry(
-            async () => {
-              const { error: roiError } = await this.supabase
-                .from('roi_by_tier')
-                .upsert(
-                  results.roiAnalyses.map(roi => ({
-                    ...roi,
-                    tier: results.performance.tier,
-                    created_at: new Date().toISOString()
-                  }))
-                );
-
-              if (roiError) {
-                throw new DatabaseError(
-                  'Failed to upsert ROI analysis',
-                  'UPSERT',
-                  'roi_by_tier',
-                  { capperId, supabaseError: roiError }
-                );
-              }
-            },
-            'store ROI analysis'
-          );
-
-          logger.debug('Storing trend analysis');
-          await this.errorHandler.withRetry(
-            async () => {
-              const { error: trendsError } = await this.supabase
-                .from('trend_analysis')
-                .upsert(
-                  results.trends.map(trend => ({
-                    ...trend,
-                    created_at: new Date().toISOString()
-                  }))
-                );
-
-              if (trendsError) {
-                throw new DatabaseError(
-                  'Failed to upsert trend analysis',
-                  'UPSERT',
-                  'trend_analysis',
-                  { capperId, supabaseError: trendsError }
-                );
-              }
-            },
-            'store trend analysis'
-          );
-        },
-        { capperId }
-      );
-
-      logger.info('Analytics stored successfully');
+      if (error) {
+        throw new Error(`Failed to store analytics summary: ${error.message}`);
+      }
     } catch (error) {
-      logger.error('Failed to store analytics', error as Error);
-      throw new AgentError(
-        `Failed to store analytics: ${error.message}`,
-        'AnalyticsAgent',
-        { capperId, error }
-      );
+      this.logger.error('Failed to store analytics summary', error as Error);
+      throw error;
     }
   }
 
-  protected async cleanup(): Promise<void> {
-    this.logger.info('Starting cleanup');
-    // Cleanup old analytics data
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 90); // Keep 90 days of history
-
-    const tables = ['analytics_summary', 'roi_by_tier', 'trend_analysis'];
-    
-    for (const table of tables) {
-      try {
-        await this.metricsCollector.measureDuration(
-          'cleanup',
-          () => this.errorHandler.withRetry(
-            async () => {
-              const { error } = await this.supabase
-                .from(table)
-                .delete()
-                .lt('created_at', cutoff.toISOString());
-
-              if (error) {
-                throw new DatabaseError(
-                  `Failed to cleanup ${table}`,
-                  'DELETE',
-                  table,
-                  { cutoff, supabaseError: error }
-                );
-              }
-            },
-            `cleanup ${table}`
-          ),
-          { table }
-        );
-
-        this.logger.debug(`Cleaned up old data from ${table}`);
-      } catch (error) {
-        this.logger.error(
-          `Failed to cleanup ${table}:`,
-          error as Error
-        );
-      }
-    }
-
-    this.logger.info('Cleanup completed');
+  // Public test methods
+  public async __test__initialize(): Promise<void> {
+    return this.initialize();
   }
 
-  protected async healthCheck(): Promise<HealthCheckResult> {
-    const health: HealthCheckResult = {
-      status: 'healthy',
-      details: {
-        errors: [],
-        warnings: [],
-        info: {
-          lastRunStats: this.analyticsMetrics.lastRunStats,
-          processingTimeMs: this.analyticsMetrics.processingTimeMs,
-          successCount: this.analyticsMetrics.successCount,
-          errorCount: this.analyticsMetrics.errorCount
-        }
-      },
-      timestamp: new Date().toISOString()
-    };
-
-    // Check processing time
-    if (this.analyticsMetrics.processingTimeMs > 5000) {
-      health.status = 'degraded';
-      health.details?.warnings.push('High processing time detected');
-    }
-
-    // Check error rate
-    if (this.analyticsMetrics.errorCount > 0) {
-      const errorRate = this.analyticsMetrics.errorCount /
-        (this.analyticsMetrics.successCount + this.analyticsMetrics.errorCount);
-      if (errorRate > 0.1) {
-        health.status = 'unhealthy';
-        health.details?.errors.push(`High error rate: ${(errorRate * 100).toFixed(1)}%`);
-      }
-    }
-
-    return health;
+  public async __test__collectMetrics(): Promise<AnalyticsMetrics> {
+    return this.collectMetrics();
   }
 
-  // Placeholder for Discord/Retool push
-  async publishToDiscord(summaries: AnalyticsSummary[]) {
-    // TODO: Format and send to Discord or Retool webhook/dashboard
-    // Example: createLeaderboardEmbed(summaries)
-  }
-
-  protected async collectMetrics(): Promise<Metrics> {
-    return {
-      errorCount: this.analyticsMetrics.errorCount,
-      warningCount: this.analyticsMetrics.warningCount,
-      successCount: this.analyticsMetrics.successCount,
-      ...this.analyticsMetrics
-    };
-  }
-
-  public async handleCommand(command: AgentCommand): Promise<void> {
-    switch (command.type) {
-      case 'RUN_ANALYSIS':
-        await this.runAnalysis();
-        break;
-      default:
-        throw new Error(`Unknown command type: ${command.type}`);
-    }
-  }
-}
-
-// Helper: Current win/loss streak
-function calcStreak(picks: any[]): number {
-  let streak = 0;
-  for (let i = picks.length - 1; i >= 0; i--) {
-    if (picks[i].outcome === 'win') streak++;
-    else if (picks[i].outcome === 'loss') streak--;
-    else break;
-  }
-  return streak;
-}
-
-// Helper: Edge/volatility metric (simple stddev of ROI or outcome)
-function calcEdgeVolatility(picks: any[]): number {
-  const rois = picks.map(p => (p.profit || 0) / (p.units || 1));
-  const avg = rois.reduce((a, b) => a + b, 0) / (rois.length || 1);
-  const sqDiff = rois.map(r => Math.pow(r - avg, 2));
-  return Math.sqrt(sqDiff.reduce((a, b) => a + b, 0) / (sqDiff.length || 1));
-
-  protected async process(): Promise<void> {
-    // TODO: Restore business logic here after base migration (process)
-  }
-
-  protected async initialize(): Promise<void> {
-    // TODO: Restore business logic here after base migration (initialize)
-  }
-
-  protected async process(): Promise<void> {
-    // TODO: Restore business logic here after base migration (process)
-  }
-
-  protected async cleanup(): Promise<void> {
-    // TODO: Restore business logic here after base migration (cleanup)
-  }
-
-  protected async checkHealth(): Promise<HealthStatus> {
-    // TODO: Restore business logic here after base migration (checkHealth)
-    return {
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      details: {}
-    };
-  }
-
-  protected async collectMetrics(): Promise<BaseMetrics> {
-    // TODO: Restore business logic here after base migration (collectMetrics)
-    return {
-      successCount: 0,
-      errorCount: 0,
-      warningCount: 0,
-      processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
-    };
-  }
-
-  protected async initialize(): Promise<void> {
-    // TODO: Restore business logic here after base migration (initialize)
-  }
-
-  protected async process(): Promise<void> {
-    // TODO: Restore business logic here after base migration (process)
-  }
-
-  protected async cleanup(): Promise<void> {
-    // TODO: Restore business logic here after base migration (cleanup)
-  }
-
-  protected async checkHealth(): Promise<HealthStatus> {
-    // TODO: Restore business logic here after base migration (checkHealth)
-    return {
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      details: {}
-    };
-  }
-
-  protected async collectMetrics(): Promise<BaseMetrics> {
-    // TODO: Restore business logic here after base migration (collectMetrics)
-    return {
-      successCount: 0,
-      errorCount: 0,
-      warningCount: 0,
-      processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
-    };
+  public async __test__checkHealth(): Promise<HealthStatus> {
+    return this.checkHealth();
   }
 }

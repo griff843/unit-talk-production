@@ -8,15 +8,10 @@ import {
   DataAgentConfig,
   DataAgentEvent,
   DataAgentEventType,
-  DataQualityIssue
+  DataQualityIssue,
+  DataAgentMetrics,
+  DataQualityResult
 } from './types';
-
-// Define AgentCommand interface locally
-interface AgentCommand {
-  type: string;
-  payload: any;
-  timestamp?: string;
-}
 
 /**
  * DataAgent handles data quality, ETL processes, and data enrichment workflows
@@ -28,49 +23,163 @@ export class DataAgent extends BaseAgent {
   private qualityChecks: Map<string, DataQualityCheck>;
   private activeJobs: Set<string>;
   private lastHealthCheck: Date;
-  private metrics: {
-    etl: { success: number; failed: number; total: number };
-    enrichment: { success: number; failed: number; total: number };
-    quality: { passed: number; failed: number; issues: number };
-  };
+  protected metrics: DataAgentMetrics;
 
   constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
     super(config, deps);
-    // Initialize agent-specific properties here
-  },
-      enrichment: { success: 0, failed: 0, total: 0 },
-      quality: { passed: 0, failed: 0, issues: 0 }
+
+    // Initialize collections
+    this.etlWorkflows = new Map();
+    this.enrichmentPipelines = new Map();
+    this.qualityChecks = new Map();
+    this.activeJobs = new Set();
+    this.lastHealthCheck = new Date();
+
+    // Initialize metrics
+    this.metrics = {
+      agentName: 'DataAgent',
+      successCount: 0,
+      errorCount: 0,
+      warningCount: 0,
+      processingTimeMs: 0,
+      memoryUsageMb: 0,
+      etlJobs: {
+        total: 0,
+        successful: 0,
+        failed: 0,
+        avgDurationMs: 0
+      },
+      enrichmentJobs: {
+        total: 0,
+        successful: 0,
+        failed: 0,
+        avgDurationMs: 0
+      },
+      qualityChecks: {
+        total: 0,
+        passed: 0,
+        failed: 0,
+        avgScore: 0
+      },
+      dataVolume: {
+        recordsProcessed: 0,
+        recordsEnriched: 0,
+        recordsRejected: 0
+      }
     };
   }
 
   protected async initialize(): Promise<void> {
-    this.deps.logger.info('Initializing DataAgent...');
-    
+    this.logger.info('Initializing DataAgent...');
+
     try {
       // Initialize default workflows
       this.initializeDefaultWorkflows();
-      
+
       // Initialize default pipelines
       this.initializeDefaultPipelines();
-      
+
       // Initialize quality checks
       this.initializeQualityChecks();
-      
+
       // Verify database connectivity
-      const { error } = await this.deps.supabase
+      const { error } = await this.supabase
         .from('data_agent_events')
         .select('id')
         .limit(1);
-        
+
       if (error) {
-        this.deps.logger.warn('Data agent events table not accessible:', error);
+        this.logger.warn('Data agent events table not accessible:', error);
       }
-      
-      this.deps.logger.info('DataAgent initialized successfully');
+
+      this.logger.info('DataAgent initialized successfully');
     } catch (error) {
-      this.deps.logger.error('Failed to initialize DataAgent:', error);
+      this.logger.error('Failed to initialize DataAgent:', error as Error);
       throw error;
     }
+  }
+
+  protected async process(): Promise<void> {
+    const startTime = Date.now();
+    this.logger.info('Starting DataAgent processing');
+
+    try {
+      // Run ETL workflows
+      await this.runETLWorkflows();
+
+      // Run enrichment pipelines
+      await this.runEnrichmentPipelines();
+
+      // Run quality checks
+      await this.runQualityChecks();
+
+      this.metrics.processingTimeMs = Date.now() - startTime;
+      this.metrics.successCount++;
+
+      this.logger.info('DataAgent processing completed', {
+        duration: this.metrics.processingTimeMs,
+        etlJobs: this.metrics.etlJobs.total,
+        enrichmentJobs: this.metrics.enrichmentJobs.total,
+        qualityChecks: this.metrics.qualityChecks.total
+      });
+
+    } catch (error) {
+      this.metrics.errorCount++;
+      this.logger.error('DataAgent processing failed:', error as Error);
+      throw error;
+    }
+  }
+
+  protected async cleanup(): Promise<void> {
+    this.logger.info('Cleaning up DataAgent');
+    this.activeJobs.clear();
+  }
+
+  public async checkHealth(): Promise<HealthStatus> {
+    try {
+      // Check database connectivity
+      const { error } = await this.supabase
+        .from('data_agent_events')
+        .select('id')
+        .limit(1);
+
+      if (error) {
+        return {
+          status: 'unhealthy',
+          timestamp: new Date().toISOString(),
+          details: { error: error.message },
+          error: 'Database connectivity check failed'
+        };
+      }
+
+      // Check active jobs
+      const activeJobCount = this.activeJobs.size;
+      const isHealthy = activeJobCount < 10 && this.metrics.errorCount < 5;
+
+      return {
+        status: isHealthy ? 'healthy' : 'degraded',
+        timestamp: new Date().toISOString(),
+        details: {
+          activeJobs: activeJobCount,
+          etlJobs: this.metrics.etlJobs,
+          enrichmentJobs: this.metrics.enrichmentJobs,
+          qualityChecks: this.metrics.qualityChecks
+        }
+      };
+
+    } catch (error) {
+      return {
+        status: 'unhealthy',
+        timestamp: new Date().toISOString(),
+        details: {},
+        error: (error as Error).message
+      };
+    }
+  }
+
+  protected async collectMetrics(): Promise<DataAgentMetrics> {
+    this.metrics.memoryUsageMb = process.memoryUsage().heapUsed / 1024 / 1024;
+    return { ...this.metrics };
   }
 
   private initializeDefaultWorkflows(): void {
@@ -78,34 +187,24 @@ export class DataAgent extends BaseAgent {
     this.etlWorkflows.set('user-data-sync', {
       id: 'user-data-sync',
       name: 'User Data Synchronization',
-      source: { type: 'supabase', config: { table: 'users' } },
-      transform: {
-        steps: [
-          { type: 'normalize', config: { fields: ['email', 'username'] } },
-          { type: 'validate', config: { required: ['email', 'username'] } }
-        ],
-        validation: []
+      description: 'Synchronizes user data across systems',
+      enabled: true,
+      schedule: '0 * * * *', // Every hour
+      extract: async (config: any) => {
+        const { data } = await this.supabase.from('users').select('*');
+        return data || [];
       },
-      destination: { type: 'supabase', config: { table: 'users_processed' } },
-      status: 'idle',
-      schedule: '0 * * * *' // Every hour
-    });
-
-    // Initialize analytics data workflow
-    this.etlWorkflows.set('analytics-etl', {
-      id: 'analytics-etl',
-      name: 'Analytics Data Processing',
-      source: { type: 'supabase', config: { table: 'events' } },
-      transform: {
-        steps: [
-          { type: 'aggregate', config: { groupBy: 'event_type', metrics: ['count'] } },
-          { type: 'enrich', config: { lookupTable: 'event_types' } }
-        ],
-        validation: []
+      transform: async (data: any[]) => {
+        return data.map(user => ({
+          ...user,
+          email: user.email?.toLowerCase(),
+          processed_at: new Date().toISOString()
+        }));
       },
-      destination: { type: 'supabase', config: { table: 'analytics_summary' } },
-      status: 'idle',
-      schedule: '0 */6 * * *' // Every 6 hours
+      load: async (data: any[], target: string) => {
+        const { error } = await this.supabase.from(target).upsert(data);
+        if (error) throw error;
+      }
     });
   }
 
@@ -114,437 +213,180 @@ export class DataAgent extends BaseAgent {
     this.enrichmentPipelines.set('user-enrichment', {
       id: 'user-enrichment',
       name: 'User Profile Enrichment',
-      enrichers: [
-        { type: 'social-media', config: { platforms: ['twitter', 'linkedin'] }, priority: 1 },
-        { type: 'location', config: { geocoding: true }, priority: 2 }
-      ],
-      dataSource: 'users',
-      status: 'idle',
-      schedule: '0 0 * * *' // Daily
+      description: 'Enriches user profiles with additional data',
+      enabled: true,
+      priority: 1,
+      enrich: async (data: any[]) => {
+        return data.map(user => ({
+          ...user,
+          enriched_at: new Date().toISOString(),
+          profile_completeness: this.calculateProfileCompleteness(user)
+        }));
+      }
     });
   }
 
   private initializeQualityChecks(): void {
-    // Initialize user data quality check
-    this.qualityChecks.set('user-data-quality', {
-      id: 'user-data-quality',
-      type: 'completeness',
-      target: 'users',
-      rules: [
-        { field: 'email', type: 'required', params: {} },
-        { field: 'username', type: 'unique', params: {} },
-        { field: 'created_at', type: 'date', params: { format: 'ISO8601' } }
-      ],
-      schedule: '0 */4 * * *' // Every 4 hours
+    // Initialize email validation check
+    this.qualityChecks.set('email-validation', {
+      id: 'email-validation',
+      name: 'Email Validation',
+      description: 'Validates email format and domain',
+      enabled: true,
+      threshold: 0.95,
+      execute: async (data: any[]): Promise<DataQualityResult> => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const validEmails = data.filter(item => emailRegex.test(item.email));
+        const score = validEmails.length / data.length;
+        
+        return {
+          passed: score >= 0.95,
+          score,
+          issues: data
+            .filter(item => !emailRegex.test(item.email))
+            .map(item => ({
+              type: 'invalid_email',
+              severity: 'medium' as const,
+              message: `Invalid email format: ${item.email}`,
+              field: 'email',
+              recordId: item.id
+            })),
+          metadata: { totalRecords: data.length, validRecords: validEmails.length }
+        };
+      }
     });
   }
 
-  protected async process(): Promise<void> {
-    try {
-      // Process scheduled ETL workflows
-      await this.processScheduledWorkflows();
-      
-      // Process scheduled enrichment pipelines
-      await this.processScheduledPipelines();
-      
-      // Run scheduled quality checks
-      await this.runScheduledQualityChecks();
-      
-    } catch (error) {
-      this.deps.logger.error('Error in DataAgent process:', error);
-      throw error;
-    }
-  }
-
-  private async processScheduledWorkflows(): Promise<void> {
+  private async runETLWorkflows(): Promise<void> {
     for (const [id, workflow] of this.etlWorkflows) {
-      if (workflow.status === 'idle' && this.shouldRunNow(workflow.schedule)) {
-        await this.runETLWorkflow(id);
-      }
-    }
-  }
+      if (!workflow.enabled) continue;
 
-  private async processScheduledPipelines(): Promise<void> {
-    for (const [id, pipeline] of this.enrichmentPipelines) {
-      if (pipeline.status === 'idle' && this.shouldRunNow(pipeline.schedule)) {
-        await this.runEnrichmentPipeline(id);
-      }
-    }
-  }
+      const startTime = Date.now();
+      this.activeJobs.add(id);
 
-  private async runScheduledQualityChecks(): Promise<void> {
-    for (const [id, check] of this.qualityChecks) {
-      if (this.shouldRunNow(check.schedule)) {
-        await this.runQualityCheck(id);
-      }
-    }
-  }
+      try {
+        this.logger.info(`Running ETL workflow: ${workflow.name}`);
+        
+        // Extract
+        const extractedData = await workflow.extract({});
+        
+        // Transform
+        const transformedData = await workflow.transform(extractedData);
+        
+        // Load
+        await workflow.load(transformedData, 'processed_data');
 
-  private shouldRunNow(schedule?: string): boolean {
-    // Simple implementation - in production, use a proper cron parser
-    if (!schedule) return false;
-    // For now, always return true for testing
-    return Math.random() > 0.95; // Run 5% of the time
-  }
+        this.metrics.etlJobs.successful++;
+        this.metrics.dataVolume.recordsProcessed += transformedData.length;
 
-  private async runETLWorkflow(workflowId: string): Promise<void> {
-    const workflow = this.etlWorkflows.get(workflowId);
-    if (!workflow) return;
-
-    this.deps.logger.info(`Running ETL workflow: ${workflowId}`);
-    workflow.status = 'running';
-    this.metrics.etl.total++;
-
-    try {
-      await this.logEvent('etl_started', { workflowId }, 'info');
-      
-      // Simulate ETL processing
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      workflow.status = 'completed';
-      this.metrics.etl.success++;
-      await this.logEvent('etl_completed', { workflowId }, 'info');
-    } catch (error) {
-      workflow.status = 'error';
-      this.metrics.etl.failed++;
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      await this.logEvent('etl_failed', { workflowId, error: errorMessage }, 'error');
-      throw error;
-    }
-  }
-
-  private async runEnrichmentPipeline(pipelineId: string): Promise<void> {
-    const pipeline = this.enrichmentPipelines.get(pipelineId);
-    if (!pipeline) return;
-
-    this.deps.logger.info(`Running enrichment pipeline: ${pipelineId}`);
-    pipeline.status = 'running';
-    this.metrics.enrichment.total++;
-
-    try {
-      await this.logEvent('enrichment_started', { pipelineId }, 'info');
-      
-      // Simulate enrichment processing
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      pipeline.status = 'completed';
-      this.metrics.enrichment.success++;
-      await this.logEvent('enrichment_completed', { pipelineId }, 'info');
-    } catch (error) {
-      pipeline.status = 'error';
-      this.metrics.enrichment.failed++;
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      await this.logEvent('enrichment_failed', { pipelineId, error: errorMessage }, 'error');
-      throw error;
-    }
-  }
-
-  private async runQualityCheck(checkId: string): Promise<void> {
-    const check = this.qualityChecks.get(checkId);
-    if (!check) return;
-
-    this.deps.logger.info(`Running quality check: ${checkId}`);
-
-    try {
-      await this.logEvent('quality_check_started', { checkId }, 'info');
-      
-      // Simulate quality check
-      const issues = Math.random() > 0.7 ? 1 : 0; // 30% chance of issues
-      
-      if (issues > 0) {
-        this.metrics.quality.failed++;
-        this.metrics.quality.issues += issues;
-        await this.logEvent('quality_issue_detected', { checkId, issues }, 'warn');
-      } else {
-        this.metrics.quality.passed++;
-      }
-      
-      check.lastRun = new Date().toISOString();
-      check.score = issues > 0 ? 0.7 : 1.0;
-      
-      await this.logEvent('quality_check_completed', { checkId, score: check.score }, 'info');
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      await this.logEvent('system_error', { checkId, error: errorMessage }, 'error');
-      throw error;
-    }
-  }
-
-  private async logEvent(type: DataAgentEventType, details: Record<string, any>, severity: 'info' | 'warn' | 'error'): Promise<void> {
-    const event: DataAgentEvent = {
-      type,
-      timestamp: new Date(),
-      details,
-      severity,
-      correlationId: `${type}-${Date.now()}`
-    };
-
-    try {
-      await this.deps.supabase
-        .from('data_agent_events')
-        .insert({
-          type: event.type,
-          timestamp: event.timestamp.toISOString(),
-          details: event.details,
-          severity: event.severity,
-          correlation_id: event.correlationId
+        this.logger.info(`ETL workflow completed: ${workflow.name}`, {
+          recordsProcessed: transformedData.length,
+          duration: Date.now() - startTime
         });
-    } catch (error) {
-      this.deps.logger.error('Failed to log event:', error);
+
+      } catch (error) {
+        this.metrics.etlJobs.failed++;
+        this.logger.error(`ETL workflow failed: ${workflow.name}`, error as Error);
+      } finally {
+        this.activeJobs.delete(id);
+        this.metrics.etlJobs.total++;
+        this.metrics.etlJobs.avgDurationMs = 
+          (this.metrics.etlJobs.avgDurationMs * (this.metrics.etlJobs.total - 1) + (Date.now() - startTime)) / 
+          this.metrics.etlJobs.total;
+      }
     }
   }
 
-  protected async cleanup(): Promise<void> {
-    this.deps.logger.info('Cleaning up DataAgent resources...');
-    
-    // Cancel any active jobs
-    for (const jobId of this.activeJobs) {
-      this.deps.logger.info(`Cancelling job: ${jobId}`);
-    }
-    this.activeJobs.clear();
-    
-    // Reset workflow statuses
-    for (const workflow of this.etlWorkflows.values()) {
-      if (workflow.status === 'running') {
-        workflow.status = 'idle';
+  private async runEnrichmentPipelines(): Promise<void> {
+    for (const [id, pipeline] of this.enrichmentPipelines) {
+      if (!pipeline.enabled) continue;
+
+      const startTime = Date.now();
+      this.activeJobs.add(id);
+
+      try {
+        this.logger.info(`Running enrichment pipeline: ${pipeline.name}`);
+        
+        // Get data to enrich
+        const { data } = await this.supabase.from('users').select('*').limit(100);
+        
+        if (data && data.length > 0) {
+          const enrichedData = await pipeline.enrich(data);
+          this.metrics.dataVolume.recordsEnriched += enrichedData.length;
+        }
+
+        this.metrics.enrichmentJobs.successful++;
+
+        this.logger.info(`Enrichment pipeline completed: ${pipeline.name}`, {
+          recordsEnriched: data?.length || 0,
+          duration: Date.now() - startTime
+        });
+
+      } catch (error) {
+        this.metrics.enrichmentJobs.failed++;
+        this.logger.error(`Enrichment pipeline failed: ${pipeline.name}`, error as Error);
+      } finally {
+        this.activeJobs.delete(id);
+        this.metrics.enrichmentJobs.total++;
+        this.metrics.enrichmentJobs.avgDurationMs = 
+          (this.metrics.enrichmentJobs.avgDurationMs * (this.metrics.enrichmentJobs.total - 1) + (Date.now() - startTime)) / 
+          this.metrics.enrichmentJobs.total;
       }
     }
-    
-    // Reset pipeline statuses
-    for (const pipeline of this.enrichmentPipelines.values()) {
-      if (pipeline.status === 'running') {
-        pipeline.status = 'idle';
-      }
-    }
-    
-    this.deps.logger.info('DataAgent cleanup completed');
   }
 
+  private async runQualityChecks(): Promise<void> {
+    for (const [id, check] of this.qualityChecks) {
+      if (!check.enabled) continue;
+
+      try {
+        this.logger.info(`Running quality check: ${check.name}`);
+        
+        // Get sample data for quality check
+        const { data } = await this.supabase.from('users').select('*').limit(1000);
+        
+        if (data && data.length > 0) {
+          const result = await check.execute(data);
+          
+          if (result.passed) {
+            this.metrics.qualityChecks.passed++;
+          } else {
+            this.metrics.qualityChecks.failed++;
+            this.metrics.dataVolume.recordsRejected += result.issues.length;
+          }
+
+          this.metrics.qualityChecks.avgScore = 
+            (this.metrics.qualityChecks.avgScore * this.metrics.qualityChecks.total + result.score) / 
+            (this.metrics.qualityChecks.total + 1);
+        }
+
+        this.metrics.qualityChecks.total++;
+
+        this.logger.info(`Quality check completed: ${check.name}`);
+
+      } catch (error) {
+        this.metrics.qualityChecks.failed++;
+        this.logger.error(`Quality check failed: ${check.name}`, error as Error);
+      }
+    }
+  }
+
+  private calculateProfileCompleteness(user: any): number {
+    const requiredFields = ['email', 'username', 'first_name', 'last_name'];
+    const completedFields = requiredFields.filter(field => user[field] && user[field].trim() !== '');
+    return completedFields.length / requiredFields.length;
+  }
+
+  // Public test methods
   public async __test__initialize(): Promise<void> {
     return this.initialize();
   }
 
-  public async __test__collectMetrics(): Promise<BaseMetrics> {
+  public async __test__collectMetrics(): Promise<DataAgentMetrics> {
     return this.collectMetrics();
   }
 
   public async __test__checkHealth(): Promise<HealthStatus> {
     return this.checkHealth();
-  }
-
-  protected async checkHealth(): Promise<HealthStatus> {
-    const now = new Date();
-    const timeSinceLastCheck = now.getTime() - this.lastHealthCheck.getTime();
-    this.lastHealthCheck = now;
-
-    const runningWorkflows = Array.from(this.etlWorkflows.values())
-      .filter(w => w.status === 'running').length;
-    const runningPipelines = Array.from(this.enrichmentPipelines.values())
-      .filter(p => p.status === 'running').length;
-    const errorWorkflows = Array.from(this.etlWorkflows.values())
-      .filter(w => w.status === 'error').length;
-    const errorPipelines = Array.from(this.enrichmentPipelines.values())
-      .filter(p => p.status === 'error').length;
-
-    const hasErrors = errorWorkflows > 0 || errorPipelines > 0;
-    const status: HealthStatus['status'] = hasErrors ? 'degraded' : 'healthy';
-
-    return {
-      status,
-      timestamp: now.toISOString(),
-      details: {
-        activeWorkflows: Array.from(this.etlWorkflows.keys()),
-        activePipelines: Array.from(this.enrichmentPipelines.keys()),
-        runningWorkflows,
-        runningPipelines,
-        errorWorkflows,
-        errorPipelines,
-        timeSinceLastCheck,
-        activeJobs: this.activeJobs.size
-      }
-    };
-  }
-
-  protected async collectMetrics(): Promise<BaseMetrics> {
-    const totalOps = this.metrics.etl.total + this.metrics.enrichment.total + this.metrics.quality.passed + this.metrics.quality.failed;
-    const successOps = this.metrics.etl.success + this.metrics.enrichment.success + this.metrics.quality.passed;
-    const failedOps = this.metrics.etl.failed + this.metrics.enrichment.failed + this.metrics.quality.failed;
-
-    return {
-      successCount: successOps,
-      errorCount: failedOps,
-      warningCount: this.metrics.quality.issues,
-      processingTimeMs: totalOps * 500, // Rough estimate
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024,
-      'custom.etl.total': this.metrics.etl.total,
-      'custom.etl.success': this.metrics.etl.success,
-      'custom.etl.failed': this.metrics.etl.failed,
-      'custom.enrichment.total': this.metrics.enrichment.total,
-      'custom.enrichment.success': this.metrics.enrichment.success,
-      'custom.enrichment.failed': this.metrics.enrichment.failed,
-      'custom.quality.passed': this.metrics.quality.passed,
-      'custom.quality.failed': this.metrics.quality.failed,
-      'custom.quality.issues': this.metrics.quality.issues
-    };
-  }
-
-  public async handleCommand(command: AgentCommand): Promise<void> {
-    await this.processCommand(command);
-  }
-
-  protected async processCommand(command: AgentCommand): Promise<void> {
-    this.deps.logger.info(`Processing command: ${command.type}`);
-
-    switch (command.type) {
-      case 'RUN_ETL':
-        await this.handleRunETLCommand(command.payload);
-        break;
-      case 'RUN_QUALITY_CHECK':
-        await this.handleRunQualityCheckCommand(command.payload);
-        break;
-      case 'RUN_ENRICHMENT':
-        await this.handleRunEnrichmentCommand(command.payload);
-        break;
-      default:
-        throw new Error(`Unknown command type: ${command.type}`);
-    }
-  }
-
-  private async handleRunETLCommand(payload: any): Promise<void> {
-    const { workflowId, source, target, transform } = payload;
-    
-    if (workflowId && this.etlWorkflows.has(workflowId)) {
-      await this.runETLWorkflow(workflowId);
-    } else if (source && target) {
-      // Create ad-hoc workflow
-      const adhocWorkflow: ETLWorkflow = {
-        id: `adhoc-${Date.now()}`,
-        name: `Ad-hoc ETL: ${source} to ${target}`,
-        source: { type: 'supabase', config: { table: source } },
-        transform: {
-          steps: transform ? [{ type: transform, config: {} }] : [],
-          validation: []
-        },
-        destination: { type: 'supabase', config: { table: target } },
-        status: 'idle'
-      };
-      
-      this.etlWorkflows.set(adhocWorkflow.id, adhocWorkflow);
-      await this.runETLWorkflow(adhocWorkflow.id);
-    } else {
-      throw new Error('Invalid ETL command payload');
-    }
-  }
-
-  private async handleRunQualityCheckCommand(payload: any): Promise<void> {
-    const { table, checks } = payload;
-    
-    if (!table) {
-      throw new Error('Table name is required for quality check');
-    }
-    
-    // Create ad-hoc quality check
-    const adhocCheck: DataQualityCheck = {
-      id: `adhoc-qc-${Date.now()}`,
-      type: 'adhoc',
-      target: table,
-      rules: checks?.map((check: string) => ({
-        field: '*',
-        type: check,
-        params: {}
-      })) || [],
-      lastRun: new Date().toISOString()
-    };
-    
-    this.qualityChecks.set(adhocCheck.id, adhocCheck);
-    await this.runQualityCheck(adhocCheck.id);
-  }
-
-  private async handleRunEnrichmentCommand(payload: any): Promise<void> {
-    const { pipelineId, dataSource } = payload;
-    
-    if (pipelineId && this.enrichmentPipelines.has(pipelineId)) {
-      await this.runEnrichmentPipeline(pipelineId);
-    } else if (dataSource) {
-      // Create ad-hoc pipeline
-      const adhocPipeline: EnrichmentPipeline = {
-        id: `adhoc-enrich-${Date.now()}`,
-        name: `Ad-hoc Enrichment: ${dataSource}`,
-        enrichers: [
-          { type: 'default', config: {}, priority: 1 }
-        ],
-        dataSource,
-        status: 'idle'
-      };
-      
-      this.enrichmentPipelines.set(adhocPipeline.id, adhocPipeline);
-      await this.runEnrichmentPipeline(adhocPipeline.id);
-    } else {
-      throw new Error('Invalid enrichment command payload');
-    }
-  }
-
-  protected async initialize(): Promise<void> {
-    // TODO: Restore business logic here after base migration (initialize)
-  }
-
-  protected async process(): Promise<void> {
-    // TODO: Restore business logic here after base migration (process)
-  }
-
-  protected async cleanup(): Promise<void> {
-    // TODO: Restore business logic here after base migration (cleanup)
-  }
-
-  protected async checkHealth(): Promise<HealthStatus> {
-    // TODO: Restore business logic here after base migration (checkHealth)
-    return {
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      details: {}
-    };
-  }
-
-  protected async collectMetrics(): Promise<BaseMetrics> {
-    // TODO: Restore business logic here after base migration (collectMetrics)
-    return {
-      successCount: 0,
-      errorCount: 0,
-      warningCount: 0,
-      processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
-    };
-  }
-
-  protected async initialize(): Promise<void> {
-    // TODO: Restore business logic here after base migration (initialize)
-  }
-
-  protected async process(): Promise<void> {
-    // TODO: Restore business logic here after base migration (process)
-  }
-
-  protected async cleanup(): Promise<void> {
-    // TODO: Restore business logic here after base migration (cleanup)
-  }
-
-  protected async checkHealth(): Promise<HealthStatus> {
-    // TODO: Restore business logic here after base migration (checkHealth)
-    return {
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      details: {}
-    };
-  }
-
-  protected async collectMetrics(): Promise<BaseMetrics> {
-    // TODO: Restore business logic here after base migration (collectMetrics)
-    return {
-      successCount: 0,
-      errorCount: 0,
-      warningCount: 0,
-      processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
-    };
   }
 }

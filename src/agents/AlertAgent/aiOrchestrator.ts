@@ -660,4 +660,36 @@ Please provide your analysis and recommendation in the following format:
     this.circuitBreaker.reset(modelId);
     logger.info(`Reset circuit breaker for model ${modelId}`);
   }
+
+  // Methods required by FeedbackLoopAgent
+  async initialize(): Promise<void> {
+    logger.info('Initializing AI Orchestrator');
+    // Initialize models and connections
+    this.initializeModels();
+  }
+
+  async checkHealth(): Promise<boolean> {
+    // Check if models are healthy
+    for (const [modelId, model] of this.models) {
+      if (model.enabled && this.circuitBreaker.isOpen(modelId)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  async switchToBackupModel(primaryModelId: string): Promise<string> {
+    // Find the next available model with highest priority
+    const availableModels = Array.from(this.models.entries())
+      .filter(([id, model]) => id !== primaryModelId && model.enabled && !this.circuitBreaker.isOpen(id))
+      .sort(([, a], [, b]) => b.priority - a.priority);
+
+    if (availableModels.length > 0) {
+      const [backupModelId] = availableModels[0];
+      logger.info(`Switching from ${primaryModelId} to backup model ${backupModelId}`);
+      return backupModelId;
+    }
+
+    throw new Error('No backup models available');
+  }
 }

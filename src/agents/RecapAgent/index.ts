@@ -1,5 +1,6 @@
 import 'dotenv/config';
-import { BaseAgent, BaseAgentConfig, BaseAgentDependencies, BaseMetrics, HealthStatus } from '../BaseAgent';
+import { BaseAgent } from '../BaseAgent/index';
+import { BaseAgentConfig, BaseAgentDependencies, BaseMetrics, HealthStatus } from '../BaseAgent/types';
 import { RecapService } from './recapService';
 import { RecapFormatter } from './recapFormatter';
 import { NotionSyncService } from './notionSyncService';

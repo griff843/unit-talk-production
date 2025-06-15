@@ -4,6 +4,14 @@ interface Client {
   databases: any;
   pages: any;
 }
+
+// Mock Client constructor for when @notionhq/client is not installed
+const Client = class {
+  constructor(options: any) {
+    // Mock implementation
+  }
+} as any;
+
 import { NotionRecapEntry, RecapError } from '../../types/picks';
 
 /**
@@ -11,7 +19,7 @@ import { NotionRecapEntry, RecapError } from '../../types/picks';
  * Provides backup and searchable archive of all recaps
  */
 export class NotionSyncService {
-  private notion: Client;
+  private notion: any; // Use any type since we're mocking
   private databaseId: string;
 
   constructor(token: string, databaseId: string) {

@@ -108,7 +108,7 @@ export class ErrorHandler {
   public async getErrorStats(timeWindowMs = 3600000): Promise<Record<string, number>> {
     try {
       const startTime = new Date(Date.now() - timeWindowMs).toISOString();
-      
+
       const { data, error } = await this.supabase
         .from('agent_errors')
         .select('severity')
@@ -126,5 +126,43 @@ export class ErrorHandler {
       this.logger.error('Failed to get error stats:', { error: error instanceof Error ? error.message : String(error) });
       return {};
     }
+  }
+
+  public async withRetry<T>(fn: () => Promise<T>, operation: string): Promise<T> {
+    const maxRetries = 3;
+    const baseDelay = 1000;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await fn();
+      } catch (error) {
+        const isLastAttempt = attempt === maxRetries;
+
+        if (isLastAttempt) {
+          this.logger.error(`Operation '${operation}' failed after ${maxRetries} attempts`, {
+            error: error instanceof Error ? error.message : String(error),
+            attempt
+          });
+          await this.handleError(error instanceof Error ? error : new Error(String(error)), {
+            operation,
+            attempt,
+            maxRetries
+          });
+          throw error;
+        }
+
+        const delay = baseDelay * Math.pow(2, attempt - 1);
+        this.logger.warn(`Operation '${operation}' failed on attempt ${attempt}, retrying in ${delay}ms`, {
+          error: error instanceof Error ? error.message : String(error),
+          attempt,
+          delay
+        });
+
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+
+    // This should never be reached, but TypeScript requires it
+    throw new Error(`Unexpected error in withRetry for operation: ${operation}`);
   }
 } 

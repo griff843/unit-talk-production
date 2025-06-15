@@ -2,6 +2,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { Logger } from '../../utils/logger';
+import { ErrorHandler } from '../../utils/errorHandling';
 import { BaseAgentDependencies } from './types';
 
 export async function loadBaseAgentDependencies(): Promise<BaseAgentDependencies> {
@@ -13,10 +14,11 @@ export async function loadBaseAgentDependencies(): Promise<BaseAgentDependencies
   });
 
   const logger = new Logger('BaseAgent');
+  const errorHandler = new ErrorHandler('BaseAgent', supabase);
 
   return {
     supabase,
     logger,
-    // errorHandler is optional for now
+    errorHandler,
   };
 }

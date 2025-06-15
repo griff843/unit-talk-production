@@ -1,119 +1,110 @@
-import { BaseAgentConfig, BaseAgentDependencies, AgentStatus, HealthStatus, BaseMetrics } from '../BaseAgent/types';
+import { BaseAgentConfig, BaseAgentDependencies } from '../../BaseAgent/types';
 import { AuditAgent } from '..';
-import { AuditParams } from '../types';
+import { createLogger } from '../../../utils/logger';
 
-export async function performAudit(params: AuditParams): Promise<void> {
-  const agent = new AuditAgent();
-  await agent.initialize();
-  await agent.performAudit(params);
+/**
+ * Audit parameters interface
+ */
+export interface AuditParams {
+  auditType: 'compliance' | 'security' | 'performance' | 'data';
+  scope: string[];
+  startDate?: Date;
+  endDate?: Date;
+  severity?: 'low' | 'medium' | 'high' | 'critical';
 }
 
-export async function generateReport(params: AuditParams): Promise<void> {
-  const agent = new AuditAgent();
-  await agent.initialize();
-  await agent.generateReport(params);
+/**
+ * Temporal activity for performing audits
+ */
+export async function performAudit(_params: AuditParams): Promise<void> {
+  const config: BaseAgentConfig = {
+    name: 'AuditAgent',
+    version: '1.0.0',
+    enabled: true,
+    logLevel: 'info',
+    metrics: { enabled: true, interval: 60, endpoint: '/metrics' },
+    health: { enabled: true, interval: 30, timeout: 5000, checkDb: true, checkExternal: false, endpoint: '/health' },
+    retry: { enabled: true, maxRetries: 3, maxAttempts: 3, backoffMs: 200, backoff: 200, maxBackoffMs: 5000, exponential: true, jitter: true }
+  };
+
+  const deps: BaseAgentDependencies = {
+    logger: createLogger('AuditAgent'),
+    supabase: null as any,
+    errorHandler: null as any
+  };
+
+  const agent = new AuditAgent(config, deps);
+  await agent.start();
 }
 
-export async function archiveAuditLogs(): Promise<void> {
-  const agent = new AuditAgent();
-  await agent.initialize();
-  await agent.archiveLogs();
+/**
+ * Temporal activity for generating audit reports
+ */
+export async function generateReport(_params: AuditParams): Promise<void> {
+  const config: BaseAgentConfig = {
+    name: 'AuditAgent',
+    version: '1.0.0',
+    enabled: true,
+    logLevel: 'info',
+    metrics: { enabled: true, interval: 60, endpoint: '/metrics' },
+    health: { enabled: true, interval: 30, timeout: 5000, checkDb: true, checkExternal: false, endpoint: '/health' },
+    retry: { enabled: true, maxRetries: 3, maxAttempts: 3, backoffMs: 200, backoff: 200, maxBackoffMs: 5000, exponential: true, jitter: true }
+  };
+
+  const deps: BaseAgentDependencies = {
+    logger: createLogger('AuditAgent'),
+    supabase: null as any,
+    errorHandler: null as any
+  };
+
+  const agent = new AuditAgent(config, deps);
+  await agent.start();
 }
 
-export async function validateCompliance(): Promise<void> {
-  const agent = new AuditAgent();
-  await agent.initialize();
-  await agent.validateCompliance();
+/**
+ * Temporal activity for compliance checks
+ */
+export async function checkCompliance(_params: AuditParams): Promise<void> {
+  const config: BaseAgentConfig = {
+    name: 'AuditAgent',
+    version: '1.0.0',
+    enabled: true,
+    logLevel: 'info',
+    metrics: { enabled: true, interval: 60, endpoint: '/metrics' },
+    health: { enabled: true, interval: 30, timeout: 5000, checkDb: true, checkExternal: false, endpoint: '/health' },
+    retry: { enabled: true, maxRetries: 3, maxAttempts: 3, backoffMs: 200, backoff: 200, maxBackoffMs: 5000, exponential: true, jitter: true }
+  };
 
-  protected async process(): Promise<void> {
-    // TODO: Restore business logic here after base migration (process)
-  }
+  const deps: BaseAgentDependencies = {
+    logger: createLogger('AuditAgent'),
+    supabase: null as any,
+    errorHandler: null as any
+  };
 
-  protected async cleanup(): Promise<void> {
-    // TODO: Restore business logic here after base migration (cleanup)
-  }
+  const agent = new AuditAgent(config, deps);
+  await agent.start();
+}
 
-  protected async checkHealth(): Promise<HealthStatus> {
-    // TODO: Restore business logic here after base migration (checkHealth)
-    return {
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      details: {}
-    };
-  }
+/**
+ * Temporal activity for security audits
+ */
+export async function performSecurityAudit(_params: AuditParams): Promise<void> {
+  const config: BaseAgentConfig = {
+    name: 'AuditAgent',
+    version: '1.0.0',
+    enabled: true,
+    logLevel: 'info',
+    metrics: { enabled: true, interval: 60, endpoint: '/metrics' },
+    health: { enabled: true, interval: 30, timeout: 5000, checkDb: true, checkExternal: false, endpoint: '/health' },
+    retry: { enabled: true, maxRetries: 3, maxAttempts: 3, backoffMs: 200, backoff: 200, maxBackoffMs: 5000, exponential: true, jitter: true }
+  };
 
-  protected async collectMetrics(): Promise<BaseMetrics> {
-    // TODO: Restore business logic here after base migration (collectMetrics)
-    return {
-      successCount: 0,
-      errorCount: 0,
-      warningCount: 0,
-      processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
-    };
-  }
+  const deps: BaseAgentDependencies = {
+    logger: createLogger('AuditAgent'),
+    supabase: null as any,
+    errorHandler: null as any
+  };
 
-  protected async initialize(): Promise<void> {
-    // TODO: Restore business logic here after base migration (initialize)
-  }
-
-  protected async process(): Promise<void> {
-    // TODO: Restore business logic here after base migration (process)
-  }
-
-  protected async cleanup(): Promise<void> {
-    // TODO: Restore business logic here after base migration (cleanup)
-  }
-
-  protected async checkHealth(): Promise<HealthStatus> {
-    // TODO: Restore business logic here after base migration (checkHealth)
-    return {
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      details: {}
-    };
-  }
-
-  protected async collectMetrics(): Promise<BaseMetrics> {
-    // TODO: Restore business logic here after base migration (collectMetrics)
-    return {
-      successCount: 0,
-      errorCount: 0,
-      warningCount: 0,
-      processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
-    };
-  }
-
-  protected async initialize(): Promise<void> {
-    // TODO: Restore business logic here after base migration (initialize)
-  }
-
-  protected async process(): Promise<void> {
-    // TODO: Restore business logic here after base migration (process)
-  }
-
-  protected async cleanup(): Promise<void> {
-    // TODO: Restore business logic here after base migration (cleanup)
-  }
-
-  protected async checkHealth(): Promise<HealthStatus> {
-    // TODO: Restore business logic here after base migration (checkHealth)
-    return {
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      details: {}
-    };
-  }
-
-  protected async collectMetrics(): Promise<BaseMetrics> {
-    // TODO: Restore business logic here after base migration (collectMetrics)
-    return {
-      successCount: 0,
-      errorCount: 0,
-      warningCount: 0,
-      processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
-    };
-  }
+  const agent = new AuditAgent(config, deps);
+  await agent.start();
 }

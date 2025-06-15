@@ -1,9 +1,7 @@
-import { BaseAgentConfig, BaseAgentDependencies, AgentStatus, HealthStatus, BaseMetrics } from '../BaseAgent/types';
-import { BaseAgentConfig } from '../../BaseAgent/types';
+import { BaseAgentConfig, BaseAgentDependencies, BaseMetrics } from '../../BaseAgent/types';
 import * as z from 'zod';
 
 export const AnalyticsConfigSchema = z.object({
-  ...BaseAgentConfig.shape,
   agentName: z.literal('AnalyticsAgent'),
   analysisConfig: z.object({
     minPicksForAnalysis: z.number().min(1),
@@ -19,6 +17,28 @@ export const AnalyticsConfigSchema = z.object({
 });
 
 export type AnalyticsAgentConfig = z.infer<typeof AnalyticsConfigSchema>;
+
+// Missing type exports that are referenced in the main file
+export interface AnalyticsSummary {
+  totalCappers: number;
+  avgROI: number;
+  topPerformers: CapperPerformance[];
+  trends: TrendAnalysis[];
+  generatedAt: string;
+}
+
+export interface CapperStats {
+  capper_id: string;
+  total_picks: number;
+  win_rate: number;
+  roi: number;
+  profit_loss: number;
+  tier: string;
+}
+
+export type PlayType = 'spread' | 'moneyline' | 'total' | 'prop';
+export type Tier = 'premium' | 'standard' | 'free';
+export type StatType = 'points' | 'rebounds' | 'assists' | 'yards' | 'touchdowns';
 
 export interface ROIAnalysis {
   capper_id: string;
@@ -62,113 +82,18 @@ export interface CapperPerformance {
   analyzed_at: string;
 }
 
-export interface AnalyticsMetrics {
+// Fix AnalyticsMetrics to properly extend BaseMetrics with all required properties
+export interface AnalyticsMetrics extends BaseMetrics {
+  // Additional analytics-specific metrics
   totalAnalyzed: number;
   capperCount: number;
   avgROI: number;
   profitableCappers: number;
   activeStreaks: number;
-  processingTimeMs: number;
-  errorCount: number;
+  totalProcessed: number;
   lastRunStats: {
     startTime: string;
     endTime: string;
     recordsProcessed: number;
   };
-
-  protected async initialize(): Promise<void> {
-    // TODO: Restore business logic here after base migration (initialize)
-  }
-
-  protected async process(): Promise<void> {
-    // TODO: Restore business logic here after base migration (process)
-  }
-
-  protected async cleanup(): Promise<void> {
-    // TODO: Restore business logic here after base migration (cleanup)
-  }
-
-  protected async checkHealth(): Promise<HealthStatus> {
-    // TODO: Restore business logic here after base migration (checkHealth)
-    return {
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      details: {}
-    };
-  }
-
-  protected async collectMetrics(): Promise<BaseMetrics> {
-    // TODO: Restore business logic here after base migration (collectMetrics)
-    return {
-      successCount: 0,
-      errorCount: 0,
-      warningCount: 0,
-      processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
-    };
-  }
-
-  protected async initialize(): Promise<void> {
-    // TODO: Restore business logic here after base migration (initialize)
-  }
-
-  protected async process(): Promise<void> {
-    // TODO: Restore business logic here after base migration (process)
-  }
-
-  protected async cleanup(): Promise<void> {
-    // TODO: Restore business logic here after base migration (cleanup)
-  }
-
-  protected async checkHealth(): Promise<HealthStatus> {
-    // TODO: Restore business logic here after base migration (checkHealth)
-    return {
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      details: {}
-    };
-  }
-
-  protected async collectMetrics(): Promise<BaseMetrics> {
-    // TODO: Restore business logic here after base migration (collectMetrics)
-    return {
-      successCount: 0,
-      errorCount: 0,
-      warningCount: 0,
-      processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
-    };
-  }
-
-  protected async initialize(): Promise<void> {
-    // TODO: Restore business logic here after base migration (initialize)
-  }
-
-  protected async process(): Promise<void> {
-    // TODO: Restore business logic here after base migration (process)
-  }
-
-  protected async cleanup(): Promise<void> {
-    // TODO: Restore business logic here after base migration (cleanup)
-  }
-
-  protected async checkHealth(): Promise<HealthStatus> {
-    // TODO: Restore business logic here after base migration (checkHealth)
-    return {
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      details: {}
-    };
-  }
-
-  protected async collectMetrics(): Promise<BaseMetrics> {
-    // TODO: Restore business logic here after base migration (collectMetrics)
-    return {
-      successCount: 0,
-      errorCount: 0,
-      warningCount: 0,
-      processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
-    };
-  }
 }

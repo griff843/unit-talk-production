@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { RecapAgent } from '../agents/RecapAgent';
 import { createLogger } from '../utils/logger';
+import { ErrorHandler } from '../utils/errorHandling';
 
 async function runRecapTest() {
   try {
@@ -15,26 +16,33 @@ async function runRecapTest() {
       logLevel: 'info' as const,
       metrics: {
         enabled: true,
-        interval: 60
+        interval: 60,
+        endpoint: '/metrics'
       },
       health: {
         enabled: true,
-        interval: 30
+        interval: 30,
+        timeout: 5000,
+        checkDb: true,
+        checkExternal: false,
+        endpoint: '/health'
       },
       retry: {
         maxRetries: 3,
-        backoffMs: 200,
-        maxBackoffMs: 5000,
-        enabled: true,
         maxAttempts: 3,
-        backoff: 200
+        backoffMs: 200,
+        backoff: 200,
+        maxBackoffMs: 5000,
+        exponential: true,
+        jitter: true,
+        enabled: true
       }
     };
 
     const deps = {
       logger,
       supabase: null as any, // Will be initialized by the agent
-      errorHandler: (error: Error) => logger.error(error)
+      errorHandler: new ErrorHandler('RecapAgentTest', null as any)
     };
 
     // Initialize RecapAgent

@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { BaseAgent } from '../BaseAgent';
+import { BaseAgent } from '../BaseAgent/index';
 import { BaseAgentConfig, BaseAgentDependencies, BaseMetrics, HealthStatus } from '../BaseAgent/types';
 import { buildAlertEmbed } from './embedBuilder';
 import { getAdviceForPick } from './adviceEngine';

@@ -19,7 +19,9 @@ export const FeedAgentConfigSchema = z.object({
   enabled: z.boolean(),
   version: z.string(),
   logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
-  metrics.enabled: z.boolean().default(true),
+  metrics: z.object({
+    enabled: z.boolean().default(true),
+  }),
   retryConfig: z.object({
     maxRetries: z.number().min(0),
     backoffMs: z.number().min(100),
@@ -42,7 +44,7 @@ export const FeedAgentConfigSchema = z.object({
 });
 
 export type FeedAgentConfig = z.infer<typeof FeedAgentConfigSchema>;
-export type { BaseDeps as BaseAgentDependencies };
+// Remove conflicting export - use BaseAgentDependencies from BaseAgent/types instead
 
 // --- Metrics Types ---
 export interface ProviderStats {
