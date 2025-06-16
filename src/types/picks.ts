@@ -252,3 +252,11 @@ export interface MigrationScript {
 }
 
 export type RecapPeriod = 'daily' | 'weekly' | 'monthly';
+
+// Market resistance analysis types
+export interface MarketReaction {
+  reaction: 'sharp_agree' | 'sharp_fade' | 'neutral' | 'unknown';
+  movement: number;
+  movementPct?: number;
+  updated_line?: number;
+}

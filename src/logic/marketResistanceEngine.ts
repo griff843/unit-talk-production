@@ -1,6 +1,6 @@
 // 📁 src/logic/marketResistanceEngine.ts
-import { fetchHistoricalOdds, fetchCurrentOdds } from '@/services/oddsService';
-import { FinalPick, MarketReaction } from '@/types/picks';
+import { fetchHistoricalOdds, fetchCurrentOdds } from '../services/oddsService';
+import { FinalPick, MarketReaction } from '../types/picks';
 
 /**
  * Detects market reaction for a given pick.
@@ -8,6 +8,11 @@ import { FinalPick, MarketReaction } from '@/types/picks';
  */
 export async function analyzeMarketResistance(pick: FinalPick): Promise<MarketReaction> {
   const { player_name, stat_type, line, matchup, game_date } = pick;
+
+  // Check for required fields
+  if (!player_name || !stat_type || !matchup || !game_date) {
+    return { reaction: 'unknown', movement: 0 };
+  }
 
   const historical = await fetchHistoricalOdds(player_name, stat_type, matchup, game_date);
   const current = await fetchCurrentOdds(player_name, stat_type, matchup);

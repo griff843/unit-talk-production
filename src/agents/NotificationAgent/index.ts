@@ -1,22 +1,19 @@
 // src/agents/NotificationAgent/index.ts
 
-import { SupabaseClient } from '@supabase/supabase-js';
 import { NotificationPayload, NotificationResult, NotificationChannel, NotificationAgentConfig, NotificationLogRecord } from './types';
-import { BaseAgent } from '../BaseAgent/index';
-import { 
-  BaseAgentConfig, 
-  BaseAgentDependencies,
-  HealthStatus,
-  BaseMetrics
-} from '../BaseAgent/types';
+import { BaseAgent } from '../BaseAgent';
+import { BaseAgentConfig, BaseAgentDependencies, BaseMetrics, HealthStatus } from '../BaseAgent/types';
 
+// Channel imports
 import { sendDiscordNotification } from './channels/discord';
 import { sendEmailNotification } from './channels/email';
 import { sendNotionNotification } from './channels/notion';
 import { sendSlackNotification } from './channels/slack';
 import { sendSMSNotification } from './channels/sms';
 
-// Define AgentCommand interface locally
+// Type for channel functions
+type ChannelFunction = (payload: NotificationPayload, config: any) => Promise<void>;
+
 interface AgentCommand {
   type: string;
   payload: any;
@@ -30,7 +27,7 @@ let instance: NotificationAgent | null = null;
  * Centralizes outbound notification routing, logging, and retry/escalation logic.
  */
 export class NotificationAgent extends BaseAgent {
-  private channels: Map<NotificationChannel, Function>;
+  private channels: Map<NotificationChannel, ChannelFunction>;
   private notificationStats: {
     sent: number;
     failed: number;
@@ -41,14 +38,14 @@ export class NotificationAgent extends BaseAgent {
 
   constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
     super(config, deps);
-    
-    // Initialize notification channels
-    this.channels = new Map([
-      ['discord', sendDiscordNotification],
-      ['email', sendEmailNotification],
-      ['notion', sendNotionNotification],
-      ['slack', sendSlackNotification],
-      ['sms', sendSMSNotification]
+
+    // Initialize notification channels with proper typing
+    this.channels = new Map<NotificationChannel, ChannelFunction>([
+      ['discord', sendDiscordNotification as ChannelFunction],
+      ['email', sendEmailNotification as ChannelFunction],
+      ['notion', sendNotionNotification as ChannelFunction],
+      ['slack', sendSlackNotification as ChannelFunction],
+      ['sms', sendSMSNotification as ChannelFunction]
     ]);
 
     this.notificationStats = {
@@ -72,7 +69,7 @@ export class NotificationAgent extends BaseAgent {
       await this.initializeChannels();
       this.deps.logger.info('NotificationAgent initialized successfully');
     } catch (error) {
-      this.deps.logger.error('Failed to initialize NotificationAgent:', error);
+      this.deps.logger.error('Failed to initialize NotificationAgent:', error as Error);
       throw error;
     }
   }
@@ -151,11 +148,11 @@ export class NotificationAgent extends BaseAgent {
           this.notificationStats.sent++;
         } catch (error) {
           this.notificationStats.failed++;
-          this.deps.logger.error(`Error processing notification ${notification.id}:`, error);
+          this.deps.logger.error(`Error processing notification ${notification.id}:`, error instanceof Error ? error : new Error(String(error)));
         }
       }
     } catch (error) {
-      this.deps.logger.error('Error in NotificationAgent process:', error);
+      this.deps.logger.error('Error in NotificationAgent process:', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -165,8 +162,8 @@ export class NotificationAgent extends BaseAgent {
   }
 
   public async sendNotification(payload: NotificationPayload): Promise<NotificationResult> {
-    const results: Partial<Record<NotificationChannel, boolean>> = {};
-    const errors: Partial<Record<NotificationChannel, string>> = {};
+    const results: Record<NotificationChannel, boolean> = {} as Record<NotificationChannel, boolean>;
+    const errors: Record<NotificationChannel, string> = {} as Record<NotificationChannel, string>;
     let successCount = 0;
     const config = this.config as NotificationAgentConfig;
 
@@ -175,8 +172,8 @@ export class NotificationAgent extends BaseAgent {
     for (const channel of payload.channels) {
       let attempts = 0;
       let delivered = false;
-      
-      while (attempts < this.config.retry.maxRetries && !delivered) {
+
+      while (attempts < (this.config.retry?.maxRetries || 3) && !delivered) {
         try {
           const channelConfig = config.channels?.[channel];
           if (!channelConfig || !channelConfig.enabled) {
@@ -188,7 +185,7 @@ export class NotificationAgent extends BaseAgent {
             throw new Error(`Unknown notification channel: ${channel}`);
           }
 
-          await sendFunction(payload, channelConfig);
+          await sendFunction(payload, channelConfig as any);
           delivered = true;
           results[channel] = true;
           successCount++;
@@ -197,14 +194,14 @@ export class NotificationAgent extends BaseAgent {
           const error = err instanceof Error ? err : new Error(String(err));
           errors[channel] = error.message;
           this.deps.logger.warn(`Notification failed on ${channel}, attempt ${attempts}: ${errors[channel]}`);
-          
-          if (attempts >= this.config.retry.maxRetries) {
+
+          if (attempts >= (this.config.retry?.maxRetries || 3)) {
             results[channel] = false;
           } else {
             // Exponential backoff
             const backoffMs = Math.min(
-              this.config.retry.backoffMs * Math.pow(2, attempts - 1),
-              this.config.retry.maxBackoffMs
+              (this.config.retry?.backoffMs || 1000) * Math.pow(2, attempts - 1),
+              (this.config.retry?.maxBackoffMs || 30000)
             );
             await new Promise(resolve => setTimeout(resolve, backoffMs));
           }
@@ -227,7 +224,7 @@ export class NotificationAgent extends BaseAgent {
     try {
       await this.deps.supabase.from('notification_log').insert([logRecord]);
     } catch (error) {
-      this.deps.logger.error('Failed to log notification:', error);
+      this.deps.logger.error('Failed to log notification:', error instanceof Error ? error : new Error(String(error)));
     }
 
     this.deps.logger.info('Notification dispatched', { results, errors });
@@ -240,7 +237,7 @@ export class NotificationAgent extends BaseAgent {
     return {
       success: successCount > 0,
       notificationId,
-      channels: payload.channels,
+      channels: payload.channels.filter(ch => results[ch]),
       error: Object.keys(errors).length > 0 ? JSON.stringify(errors) : undefined
     };
   }
@@ -250,8 +247,8 @@ export class NotificationAgent extends BaseAgent {
     results: Record<NotificationChannel, boolean>,
     errors: Record<NotificationChannel, string>
   ): Promise<void> {
-    this.deps.logger.error('Escalating notification failures', { payload, results, errors });
-    
+    this.deps.logger.error('Escalating notification failures', new Error('Notification failures detected'), { payload, results, errors });
+
     try {
       // Insert to operator_incidents table
       await this.deps.supabase.from('operator_incidents').insert([{
@@ -266,7 +263,7 @@ export class NotificationAgent extends BaseAgent {
         createdAt: new Date().toISOString()
       }]);
     } catch (error) {
-      this.deps.logger.error('Failed to escalate notification failure:', error);
+      this.deps.logger.error('Failed to escalate notification failure:', error instanceof Error ? error : new Error(String(error)));
     }
   }
 
@@ -276,12 +273,12 @@ export class NotificationAgent extends BaseAgent {
       await this.retryFailedNotifications();
       this.deps.logger.info('NotificationAgent cleanup completed');
     } catch (error) {
-      this.deps.logger.error('Error during NotificationAgent cleanup:', error);
+      this.deps.logger.error('Error during NotificationAgent cleanup:', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
 
-  protected async checkHealth(): Promise<HealthStatus> {
+  public async checkHealth(): Promise<HealthStatus> {
     const channelStatus = Object.fromEntries(this.channelHealth);
     const allChannelsHealthy = Array.from(this.channelHealth.values()).every(status => status);
 
@@ -302,6 +299,7 @@ export class NotificationAgent extends BaseAgent {
 
   protected async collectMetrics(): Promise<BaseMetrics> {
     return {
+      agentName: 'NotificationAgent',
       successCount: this.notificationStats.sent,
       errorCount: this.notificationStats.failed,
       warningCount: this.notificationStats.partialSuccess,
@@ -365,7 +363,7 @@ export class NotificationAgent extends BaseAgent {
       try {
         await this.sendNotification(notification);
       } catch (error) {
-        this.deps.logger.error(`Retry failed for notification ${notification.id}:`, error);
+        this.deps.logger.error(`Retry failed for notification ${notification.id}:`, error instanceof Error ? error : new Error(String(error)));
       }
     }
   }
@@ -386,16 +384,14 @@ export class NotificationAgent extends BaseAgent {
   }
 
   // Public API
-  public static getInstance(dependencies: BaseAgentDependencies): NotificationAgent {
+  public static getInstance(config: NotificationAgentConfig, dependencies: BaseAgentDependencies): NotificationAgent {
     if (!instance) {
-      const config = dependencies.config as NotificationAgentConfig;
       instance = new NotificationAgent(config, dependencies);
     }
     return instance;
   }
 }
 
-export function initializeNotificationAgent(dependencies: BaseAgentDependencies): NotificationAgent {
-  const config = dependencies.logger?.config || {} as NotificationAgentConfig;
+export function initializeNotificationAgent(config: NotificationAgentConfig, dependencies: BaseAgentDependencies): NotificationAgent {
   return new NotificationAgent(config, dependencies);
 }
