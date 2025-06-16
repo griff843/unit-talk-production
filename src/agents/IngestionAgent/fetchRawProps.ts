@@ -122,7 +122,8 @@ export async function fetchRawProps(provider: DataProvider): Promise<RawProp[]> 
     return mockData;
 
   } catch (error) {
-    throw new Error(`Failed to fetch props from provider ${provider.name}: ${error.message}`);
+    const err = error as Error;
+    throw new Error(`Failed to fetch props from provider ${provider.name}: ${err.message}`);
   }
 }
 
@@ -137,7 +138,8 @@ export async function fetchAllRawProps(): Promise<RawProp[]> {
     url: 'https://api.example.com',
     enabled: true,
     timeout: 30000,
-    retries: 3
+    retryAttempts: 3,
+    retryDelay: 1000
   };
 
   return fetchRawProps(defaultProvider);

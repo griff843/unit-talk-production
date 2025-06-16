@@ -97,3 +97,9 @@ export interface BaseAgentDependencies {
 
 // Agent configuration type (alias for backward compatibility)
 export type AgentConfig = BaseAgentConfig;
+
+// Metrics type alias for backward compatibility
+export type Metrics = BaseMetrics;
+
+// AgentMetrics type alias for backward compatibility
+export type AgentMetrics = BaseMetrics;

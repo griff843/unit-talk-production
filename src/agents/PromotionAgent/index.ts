@@ -110,12 +110,12 @@ export class PromotionAgent extends BaseAgent {
     const successCount = promotions24h?.length || 0;
 
     return {
+      agentName: 'PromotionAgent',
       successCount,
       errorCount: 0,
       warningCount: 0,
       processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024,
-      'custom.promotions24h': successCount
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
     };
   }
 
@@ -127,7 +127,16 @@ export class PromotionAgent extends BaseAgent {
   // Public API
   public static getInstance(dependencies: BaseAgentDependencies): PromotionAgent {
     if (!instance) {
-      const config = dependencies.logger?.config || {} as BaseAgentConfig;
+      const config: BaseAgentConfig = {
+        name: 'PromotionAgent',
+        enabled: true,
+        version: '1.0.0',
+        logLevel: 'info',
+        metrics: {
+          enabled: true,
+          interval: 60
+        }
+      };
       instance = new PromotionAgent(config, dependencies);
     }
     return instance;

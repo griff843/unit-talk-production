@@ -77,8 +77,7 @@ export class OnboardingAgent extends BaseAgent {
       await this.analyzeOnboardingMetrics();
       
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error('Error in OnboardingAgent process:', { error: errorMessage });
+      this.logger.error('Error in OnboardingAgent process:', error as Error);
       throw error;
     }
   }
@@ -170,7 +169,7 @@ export class OnboardingAgent extends BaseAgent {
       return learningPath;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(`Failed to create onboarding for user ${userId}:`, { error: errorMessage });
+      this.logger.error(`Failed to create onboarding for user ${userId}:`, error as Error);
       throw error;
     }
   }

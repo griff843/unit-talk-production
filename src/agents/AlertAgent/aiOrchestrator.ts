@@ -670,7 +670,7 @@ Please provide your analysis and recommendation in the following format:
 
   async checkHealth(): Promise<boolean> {
     // Check if models are healthy
-    for (const [modelId, model] of this.models) {
+    for (const [modelId, model] of Array.from(this.models)) {
       if (model.enabled && this.circuitBreaker.isOpen(modelId)) {
         return false;
       }

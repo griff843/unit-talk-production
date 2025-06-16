@@ -34,7 +34,7 @@ export const AuditConfigSchema = z.object({
 export type AuditAgentConfig = z.infer<typeof AuditConfigSchema>;
 
 /** Standard severity for incidents, violations, alerts, etc. */
-export type Severity = 'low' | 'medium' | 'high' | 'critical';
+export type Severity = 'low' | 'medium' | 'high' | 'critical' | 'warning';
 
 /** Audit record for change tracking */
 export interface AuditRecord {
@@ -90,5 +90,28 @@ export interface AuditMetrics {
     endTime: string;
     recordsProcessed: number;
   };
+  meta?: Record<string, any>;
+}
+
+/** Audit incident for tracking issues */
+export interface AuditIncident {
+  id: string;
+  row_id: string | number;
+  type: 'compliance' | 'integrity' | 'security' | 'performance' | 'stuck_pending' | 'duplicate_external_id' | 'stale_pick' | 'failed_agent_task';
+  severity: Severity | 'warning';
+  description: string;
+  tableName: string;
+  detectedAt: string;
+  resolvedAt?: string;
+  meta?: Record<string, any>;
+}
+
+/** Result of an audit check */
+export interface AuditCheckResult {
+  checkName: string;
+  passed: boolean;
+  severity: Severity;
+  message: string;
+  affectedRecords?: (string | number)[];
   meta?: Record<string, any>;
 }

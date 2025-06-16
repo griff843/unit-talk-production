@@ -173,7 +173,7 @@ export class ContestManager {
         activeContests: this.metrics.activeContests
       });
     } catch (error) {
-      this.errorHandler.handle(error, 'Failed to initialize ContestManager');
+      this.errorHandler.handleError(error, 'Failed to initialize ContestManager');
       throw error;
     }
   }
@@ -194,7 +194,7 @@ export class ContestManager {
 
       this.logger.info('ContestManager cleanup completed');
     } catch (error) {
-      this.errorHandler.handle(error, 'Failed to cleanup ContestManager');
+      this.errorHandler.handleError(error, 'Failed to cleanup ContestManager');
       throw error;
     }
   }
@@ -271,7 +271,7 @@ export class ContestManager {
       return contest;
     } catch (error) {
       this.metrics.errorCount++;
-      this.errorHandler.handle(error, 'Failed to create contest');
+      this.errorHandler.handleError(error, 'Failed to create contest');
       throw error;
     }
   }
@@ -318,7 +318,7 @@ export class ContestManager {
 
       await this.updateMetrics();
     } catch (error) {
-      this.errorHandler.handle(error, 'Failed to handle contest update');
+      this.errorHandler.handleError(error, 'Failed to handle contest update');
     }
   }
 
@@ -342,7 +342,7 @@ export class ContestManager {
         correlationId: crypto.randomUUID()
       });
     } catch (error) {
-      this.errorHandler.handle(error, 'Failed to start contest');
+      this.errorHandler.handleError(error, 'Failed to start contest');
       throw error;
     }
   }
@@ -371,7 +371,7 @@ export class ContestManager {
       for (const [index, participant] of (participants || []).entries()) {
         const rank = index + 1;
         const prize = this.calculatePrize(rank, contest.prizePool);
-        
+
         if (prize > 0) {
           const { error: prizeError } = await this.supabase
             .from('prize_distributions')
@@ -410,7 +410,7 @@ export class ContestManager {
       this.metrics.completedContests++;
       this.metrics.prizeValueDistributed += contest.prizePool.totalValue;
     } catch (error) {
-      this.errorHandler.handle(error, 'Failed to finalize contest');
+      this.errorHandler.handleError(error, 'Failed to finalize contest');
       throw error;
     }
   }
@@ -478,7 +478,7 @@ export class ContestManager {
 
       if (error) throw error;
     } catch (error) {
-      this.errorHandler.handle(error, 'Failed to log contest event');
+      this.errorHandler.handleError(error, 'Failed to log contest event');
     }
   }
 
@@ -512,7 +512,7 @@ export class ContestManager {
         }
       };
     } catch (error) {
-      this.errorHandler.handle(error, 'Health check failed');
+      this.errorHandler.handleError(error, 'Health check failed');
       return {
         status: 'unhealthy',
         details: { error: error instanceof Error ? error.message : 'Unknown error' }

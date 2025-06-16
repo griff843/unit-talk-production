@@ -1,6 +1,16 @@
 // src/agents/AlertAgent/utils/embedBuilder.ts
 
-import { EmbedBuilder } from 'discord.js';
+import { EmbedBuilder, APIEmbedField } from 'discord.js';
+
+interface UnitTalkEmbedOptions {
+  title: string;
+  description: string;
+  advice: string;
+  fields?: APIEmbedField[];
+  emoji?: string;
+  color?: number;
+  footer?: string;
+}
 
 export function buildUnitTalkEmbed({
   title,
@@ -10,7 +20,7 @@ export function buildUnitTalkEmbed({
   emoji = '🔥',
   color = 0x00ff99, // lime green
   footer = 'Unit Talk • Elite Betting Alerts',
-}) {
+}: UnitTalkEmbedOptions) {
   return new EmbedBuilder()
     .setTitle(`${emoji} ${title}`)
     .setDescription(description)

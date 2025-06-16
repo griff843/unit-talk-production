@@ -146,4 +146,29 @@ export interface ContestAgentMetrics {
     uptime: number;
   };
   healthStatus: HealthCheckResult;
+}
+
+// Missing types that are imported in contests.ts
+export type ContestType = 'daily' | 'weekly' | 'monthly' | 'season' | 'tournament' | 'special';
+
+export type ContestStatus = 'draft' | 'active' | 'completed' | 'cancelled' | 'paused';
+
+export interface ContestRule {
+  id: string;
+  name: string;
+  description: string;
+  type: 'eligibility' | 'scoring' | 'behavior' | 'payout';
+  parameters: Record<string, any>;
+  active: boolean;
+}
+
+export interface Participant {
+  id: string;
+  userId: string;
+  contestId: string;
+  joinedAt: string;
+  status: 'active' | 'disqualified' | 'withdrawn';
+  score: number;
+  rank?: number;
+  metadata?: Record<string, any>;
 } 

@@ -321,3 +321,6 @@ export class AnalyticsAgent extends BaseAgent {
     return this.checkHealth();
   }
 }
+
+// Export the config type for external use
+export type { AnalyticsAgentConfig } from './types';

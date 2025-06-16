@@ -17,7 +17,7 @@ import { IngestionAgentConfig, IngestionAgentConfigSchema, IngestionMetrics, Raw
  * - Inserting validated props into the database
  * - Providing comprehensive metrics and monitoring
  */
-export class IngestionAgent extends BaseAgent<IngestionAgentConfig, IngestionMetrics> {
+export class IngestionAgent extends BaseAgent {
   private fullConfig: IngestionAgentConfig;
   private ingestedCount = 0;
   private skippedCount = 0;
@@ -42,12 +42,12 @@ export class IngestionAgent extends BaseAgent<IngestionAgentConfig, IngestionMet
    * Sets up metrics collection and validates configuration
    */
   public async initialize(): Promise<void> {
-    this.logger.info('🚀 IngestionAgent initializing');
+    this.dependencies.logger.info('🚀 IngestionAgent initializing');
 
     // Initialize data providers
     for (const provider of this.fullConfig.providers) {
       if (provider.enabled) {
-        this.logger.info(`Initializing provider: ${provider.name}`);
+        this.dependencies.logger.info(`Initializing provider: ${provider.name}`);
         // Provider-specific initialization logic would go here
       }
     }

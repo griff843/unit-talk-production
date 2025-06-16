@@ -1,9 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { AuditAgentConfig, AuditIncident, AuditCheckResult } from './types';
 import { BaseAgent } from '../BaseAgent/index';
-import { ErrorHandlerConfig } from '../../utils/errorHandling';
-import { Logger } from '../../utils/logger';
-import { BaseAgentDependencies } from '../BaseAgent/types';
+import { BaseAgentConfig, BaseAgentDependencies, HealthStatus, BaseMetrics } from '../BaseAgent/types';
 
 /**
  * AuditAgent
@@ -11,8 +9,6 @@ import { BaseAgentDependencies } from '../BaseAgent/types';
  * Logs incidents and escalates red flags to OperatorAgent or incident tables.
  */
 export class AuditAgent extends BaseAgent {
-  private logger: Logger;
-
   constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
     super(config, deps);
     // Initialize agent-specific properties here
@@ -203,7 +199,7 @@ export class AuditAgent extends BaseAgent {
     // TODO: Restore business logic here after base migration (cleanup)
   }
 
-  protected async checkHealth(): Promise<HealthStatus> {
+  public async checkHealth(): Promise<HealthStatus> {
     // TODO: Restore business logic here after base migration (checkHealth)
     return {
       status: 'healthy',
@@ -212,10 +208,10 @@ export class AuditAgent extends BaseAgent {
     };
   }
 
-
   protected async collectMetrics(): Promise<BaseMetrics> {
     // TODO: Restore business logic here after base migration (collectMetrics)
     return {
+      agentName: this.config.name,
       successCount: 0,
       errorCount: 0,
       warningCount: 0,

@@ -86,7 +86,7 @@ export default class ScoringAgent extends BaseAgent {
           scoringStats.reduce((sum, s) => sum + (s.edge_score || 0), 0) / scoringStats.length : 0
       };
     } catch (error) {
-      this.logger.error('Failed to collect metrics', { error });
+      this.logger.error('Failed to collect metrics', error as Error);
       const baseMetrics = this.metrics || {
         agentName: this.config.name,
         successCount: 0,
@@ -120,7 +120,7 @@ export default class ScoringAgent extends BaseAgent {
       .limit(100);
 
     if (error) {
-      logger.error("❌ Failed to fetch props:", { error });
+      logger.error("❌ Failed to fetch props:", error as Error);
       throw error;
     }
 

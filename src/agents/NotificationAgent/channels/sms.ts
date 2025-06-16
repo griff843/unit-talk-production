@@ -1,4 +1,4 @@
-import * as twilio from 'twilio';
+import twilio from 'twilio';
 import { NotificationPayload } from '../types';
 
 interface SMSConfig {
