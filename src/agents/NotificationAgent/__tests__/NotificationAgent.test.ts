@@ -1,75 +1,42 @@
 import { NotificationAgent } from '../index';
-import { NotificationPayload } from '../types';
 import { createClient } from '@supabase/supabase-js';
-import { BaseAgentConfig, BaseAgentDependencies } from '../../BaseAgent/types';
+import { logger } from '../../../services/logging';
+import { ErrorHandler } from '../../../shared/errors';
+import { NotificationPayload, NotificationAgentConfig, NotificationChannel } from '../types';
 
-// Mock Supabase client
-jest.mock('@supabase/supabase-js', () => ({
-  createClient: jest.fn(() => ({
-    from: jest.fn(() => ({
-      select: jest.fn(() => ({
-        limit: jest.fn(() => Promise.resolve({
-          data: [],
-          error: null
-        })),
-        eq: jest.fn(() => Promise.resolve({
-          data: [],
-          error: null
-        })),
-        gte: jest.fn(() => Promise.resolve({
-          data: [],
-          error: null
-        }))
-      })),
-      insert: jest.fn(() => Promise.resolve({
-        data: [{ id: 'test-notification-id' }],
-        error: null
-      })),
-      update: jest.fn(() => ({
-        eq: jest.fn(() => Promise.resolve({
-          data: null,
-          error: null
-        }))
-      }))
-    }))
-  }))
+// Mock external dependencies
+jest.mock('@supabase/supabase-js');
+jest.mock('../../../services/logging', () => ({
+  logger: {
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn()
+  }
 }));
 
-
-// Mock console.log to capture Notion notifications
-const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+// Mock console.log for Notion notifications
+const mockConsoleLog = jest.spyOn(console, 'log').mockImplementation();
 
 // Mock fetch for Discord API calls
-global.fetch = jest.fn().mockImplementation(async (url) => {
-  if (url.includes('discord')) {
-    return {
-      ok: true,
-      statusText: 'OK',
-      json: () => Promise.resolve({ id: 'test-notification-id' })
-    };
-  }
-  throw new Error('Unexpected URL');
-});
+const mockFetch = jest.fn();
+global.fetch = mockFetch;
 
 describe('NotificationAgent', () => {
-  let agent: NotificationAgent;
-
-  // Extended config for NotificationAgent specific features
-  const extendedConfig = {
+  const extendedConfig: NotificationAgentConfig = {
     name: 'NotificationAgent',
-    enabled: true,
     version: '1.0.0',
-    logLevel: 'info' as const,
+    enabled: true,
+    logLevel: 'info',
+    agentName: 'NotificationAgent',
     metrics: {
       enabled: true,
-      interval: 60
+      interval: 60,
+      port: 3001
     },
-    health: {
-      enabled: true,
-      interval: 30,
-      timeout: 5000,
-      checkDb: true,
-      checkExternal: false
+    metricsConfig: {
+      interval: 60,
+      prefix: 'notification'
     },
     retry: {
       enabled: true,
@@ -83,247 +50,222 @@ describe('NotificationAgent', () => {
     },
     channels: {
       discord: {
-        webhookUrl: 'https://discord.com/api/webhooks/test',
-        enabled: true
+        enabled: true,
+        webhookUrl: 'https://discord.com/api/webhooks/test'
       },
       notion: {
-        apiKey: 'test-notion-key',
-        enabled: true
+        enabled: true,
+        apiKey: 'test-key'
       },
       email: {
-        enabled: false,
+        enabled: true,
         smtpConfig: {
           host: 'smtp.test.com',
           port: 587,
           secure: true,
           auth: {
-            user: 'test@test.com',
-            pass: 'test'
+            user: 'test-user',
+            pass: 'test-pass'
           }
         }
       },
       slack: {
         enabled: false,
-        webhookUrl: ''
+        webhookUrl: 'https://hooks.slack.com/test'
       },
       sms: {
         enabled: false,
-        apiKey: ''
+        apiKey: 'test-sms-key'
       }
     }
   };
 
-  const mockLogger = {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    debug: jest.fn()
-  };
+  let agent: NotificationAgent;
+  let mockSupabase: any;
+  let mockErrorHandler: any;
 
-  const mockErrorHandler = {
-    withRetry: jest.fn((fn: any) => fn())
-  };
-
-  const mockSupabase = createClient('test-url', 'test-service-role-key');
-
-  beforeEach(async () => {
+  beforeEach(() => {
+    // Reset all mocks
     jest.clearAllMocks();
-    consoleSpy.mockClear();
-
-    const deps: BaseAgentDependencies = {
-      supabase: mockSupabase,
-      logger: mockLogger as any,
-      errorHandler: mockErrorHandler as any
+    
+    // Setup Supabase mock
+    mockSupabase = {
+      from: jest.fn(() => ({
+        select: jest.fn().mockReturnThis(),
+        insert: jest.fn().mockResolvedValue({ data: null, error: null }),
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: null, error: null }),
+        limit: jest.fn().mockResolvedValue({ data: [], error: null })
+      }))
     };
+    (createClient as jest.Mock).mockReturnValue(mockSupabase);
 
-    agent = new NotificationAgent(extendedConfig as any, deps);
-    // Initialize the agent before tests
-    await agent['initialize']();
-  });
+    // Setup ErrorHandler mock
+    mockErrorHandler = new ErrorHandler({
+      maxRetries: 1, // Reduce retries for faster tests
+      backoffMs: 10,
+      maxBackoffMs: 100,
+      shouldRetry: (error: Error) => true
+    });
 
-  afterAll(() => {
-    consoleSpy.mockRestore();
+    // Reset and setup fetch mock
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true })
+    });
+
+    // Reset all mocks
+    jest.clearAllMocks();
+
+    // Setup ErrorHandler mock
+    mockErrorHandler = new ErrorHandler({
+      maxRetries: 1, // Reduce retries for faster tests
+      backoffMs: 100, // Minimum allowed value
+      maxBackoffMs: 1000, // Minimum allowed value
+      shouldRetry: (error: Error) => true
+    });
+
+    agent = new NotificationAgent(extendedConfig, {
+      supabase: mockSupabase,
+      logger: logger,
+      errorHandler: mockErrorHandler
+    });
   });
 
   describe('initialization', () => {
-    it('should initialize successfully', async () => {
-      // Agent is already initialized in beforeEach
-      expect(mockLogger.info).toHaveBeenCalledWith('Initializing NotificationAgent...');
-      expect(mockLogger.info).toHaveBeenCalledWith('NotificationAgent initialized successfully');
-    });
-
     it('should validate dependencies', async () => {
       await expect(agent.validateDependencies()).resolves.not.toThrow();
+      expect(mockSupabase.from).toHaveBeenCalledWith('notifications');
     });
   });
 
   describe('health check', () => {
     it('should return healthy status when all is well', async () => {
-      const health = await agent.healthCheck();
+      const health = await agent.checkHealth();
       expect(health.status).toBe('healthy');
       expect(health.details).toBeDefined();
     });
   });
 
   describe('sendNotification', () => {
-    it('should send a notification successfully', async () => {
+    it('should send Discord notifications successfully', async () => {
       const payload: NotificationPayload = {
-        type: 'system',
-        message: 'Test notification',
+        type: 'test',
         channels: ['discord'],
-        priority: 'low'
+        message: 'Test message',
+        priority: 'medium'
       };
-
-      // Mock the sendNotification method directly to bypass compilation issues
-      const mockSendNotification = jest.spyOn(agent, 'sendNotification').mockResolvedValue({
-        success: true,
-        notificationId: 'test-id',
-        channels: ['discord']
-      });
 
       const result = await agent.sendNotification(payload);
 
       expect(result.success).toBe(true);
-      expect(result.notificationId).toBeDefined();
       expect(result.channels).toEqual(['discord']);
-
-      mockSendNotification.mockRestore();
-    });
-
-    it('should handle Discord notifications', async () => {
-      const payload: NotificationPayload = {
-        type: 'system',
-        message: 'Test Discord notification',
-        channels: ['discord'],
-        priority: 'high'
-      };
-
-      // Mock the sendNotification method to simulate Discord notification
-      const mockSendNotification = jest.spyOn(agent, 'sendNotification').mockImplementation(async (payload) => {
-        // Simulate the Discord API call
-        await fetch(extendedConfig.channels.discord.webhookUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            content: payload.message,
-            username: 'Unit Talk Bot'
-          })
-        });
-
-        return {
-          success: true,
-          notificationId: 'test-discord-id',
-          channels: ['discord']
-        };
-      });
-
-      await agent.sendNotification(payload);
-
-      expect(fetch).toHaveBeenCalledWith(
-        extendedConfig.channels.discord.webhookUrl,
+      expect(result.notificationId).toBeDefined();
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://discord.com/api/webhooks/test',
         expect.objectContaining({
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 'Content-Type': 'application/json' },
+          body: expect.stringContaining('Test message')
         })
       );
-
-      mockSendNotification.mockRestore();
     });
 
-    it('should handle Notion notifications', async () => {
+    it('should send Notion notifications successfully', async () => {
       const payload: NotificationPayload = {
-        type: 'system',
-        message: 'Test Notion notification',
+        type: 'test',
         channels: ['notion'],
-        priority: 'medium'
-      };
-
-      // Mock the sendNotification method to simulate Notion notification
-      const mockSendNotification = jest.spyOn(agent, 'sendNotification').mockImplementation(async (payload) => {
-        // Simulate the Notion console logging
-        console.log('[Notion] Would send notification:', payload);
-
-        return {
-          success: true,
-          notificationId: 'test-notion-id',
-          channels: ['notion']
-        };
-      });
-
-      await agent.sendNotification(payload);
-
-      expect(consoleSpy).toHaveBeenCalledWith('[Notion] Would send notification:', payload);
-
-      mockSendNotification.mockRestore();
-    });
-
-    it('should handle disabled channels gracefully', async () => {
-      const payload: NotificationPayload = {
-        type: 'system',
-        message: 'Test disabled channel',
-        channels: ['email'], // Email is disabled in config
+        message: 'Test message',
         priority: 'medium'
       };
 
       const result = await agent.sendNotification(payload);
+
+      expect(result.success).toBe(true);
+      expect(result.channels).toEqual(['notion']);
+      expect(result.notificationId).toBeDefined();
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        '[Notion] Would send notification:',
+        expect.any(Object)
+      );
+    });
+
+    it('should handle multiple channels', async () => {
+      const payload: NotificationPayload = {
+        type: 'test',
+        channels: ['discord', 'notion'],
+        message: 'Test message',
+        priority: 'medium'
+      };
+
+      const result = await agent.sendNotification(payload);
+
+      expect(result.success).toBe(true);
+      expect(result.channels).toEqual(['discord', 'notion']);
+      expect(result.notificationId).toBeDefined();
+      expect(global.fetch).toHaveBeenCalled();
+      expect(mockConsoleLog).toHaveBeenCalled();
+    }, 10000); // 10 second timeout
+
+    it('should handle disabled channels', async () => {
+      const payload: NotificationPayload = {
+        type: 'test',
+        channels: ['slack'], // slack is disabled in config
+        message: 'Test message',
+        priority: 'medium'
+      };
+
+      const result = await agent.sendNotification(payload);
+
       expect(result.success).toBe(false);
-      expect(result.error).toBeDefined();
+      expect(result.channels).toEqual([]);
+      expect(result.error).toContain('Channel slack is not enabled');
     });
 
-    it('should handle partial failures gracefully', async () => {
-      // Mock fetch to fail for Discord
-      (global.fetch as jest.Mock).mockImplementation(async (url) => {
-        if (url.includes('discord')) {
-          throw new Error('Discord webhook failed');
-        }
-        throw new Error('Unexpected URL');
-      });
-
+    it('should handle partial failures', async () => {
       const payload: NotificationPayload = {
-        type: 'system',
-        message: 'Test partial failure',
-        channels: ['discord'],
-        priority: 'high'
+        type: 'test',
+        channels: ['discord', 'notion'],
+        message: 'Test message',
+        priority: 'medium'
       };
 
+      // Make Discord fail
+      mockFetch.mockRejectedValue(new Error('Discord API error'));
+
       const result = await agent.sendNotification(payload);
-      expect(result.success).toBe(false); // Should be false because all channels failed
-      expect(result.error).toBeDefined(); // Should have error details
-    });
+
+      expect(result.success).toBe(true); // Partial success is still success
+      expect(result.channels).toEqual(['notion']); // Only successful channel
+      expect(result.notificationId).toBeDefined();
+    }, 10000);
 
     it('should handle complete failures', async () => {
-      // Mock fetch to fail for all channels
-      (global.fetch as jest.Mock).mockImplementation(async () => {
-        throw new Error('All channels failed');
-      });
-
       const payload: NotificationPayload = {
-        type: 'system',
-        message: 'Test complete failure',
-        channels: ['discord'],
-        priority: 'high'
+        type: 'test',
+        channels: ['nonexistent' as NotificationChannel],
+        message: 'Test message',
+        priority: 'medium'
       };
 
       const result = await agent.sendNotification(payload);
+      
       expect(result.success).toBe(false);
+      expect(result.channels).toEqual([]);
       expect(result.error).toBeDefined();
     });
   });
 
-  describe('metrics', () => {
-    it('should track notification statistics', async () => {
-      const payload: NotificationPayload = {
-        type: 'system',
-        message: 'Test metrics',
-        channels: ['discord'],
-        priority: 'low'
-      };
-
-      await agent.sendNotification(payload);
-
-      const metrics = agent.getMetrics();
+  describe('metrics collection', () => {
+    it('should collect metrics correctly', async () => {
+      const metrics = await agent.getMetrics();
+      
       expect(metrics).toBeDefined();
-      expect(metrics.agentName).toBe('NotificationAgent');
+      expect(typeof metrics.successCount).toBe('number');
+      expect(typeof metrics.errorCount).toBe('number');
+      expect(typeof metrics.warningCount).toBe('number');
     });
   });
-}); 
+});

@@ -91,7 +91,30 @@ export interface ErrorHandlerConfig {
 }
 
 export class ErrorHandler {
+  private static instance: ErrorHandler | null = null;
+
   constructor(private readonly config: ErrorHandlerConfig) {}
+
+  static getInstance(config?: ErrorHandlerConfig): ErrorHandler {
+    if (!ErrorHandler.instance) {
+      ErrorHandler.instance = new ErrorHandler(config!);
+    }
+    return ErrorHandler.instance;
+  }
+
+  static resetInstance(): void {
+    ErrorHandler.instance = null;
+  }
+
+  handleError(error: Error, context?: any): void {
+    // Log the error with context
+    console.error('Error handled:', {
+      message: error.message,
+      name: error.name,
+      stack: error.stack,
+      context
+    });
+  }
 
   async withRetry<T>(
     operation: () => Promise<T>,
@@ -105,13 +128,15 @@ export class ErrorHandler {
         return await operation();
       } catch (error) {
         lastError = error as Error;
-        
+        attempt++;
+
+        // Check if we should retry this error
         if (!this.config.shouldRetry(lastError)) {
           throw lastError;
         }
 
-        attempt++;
-        if (attempt === this.config.maxRetries) {
+        // If we've reached max retries, throw RetryableError
+        if (attempt >= this.config.maxRetries) {
           throw new RetryableError(
             `${context} failed after ${attempt} attempts`,
             attempt,
@@ -120,17 +145,19 @@ export class ErrorHandler {
           );
         }
 
+        // Calculate backoff delay
         const backoff = Math.min(
           this.config.backoffMs * Math.pow(2, attempt - 1),
           this.config.maxBackoffMs
         );
 
+        // Wait before retrying
         await new Promise(resolve => setTimeout(resolve, backoff));
       }
     }
 
     // This should never happen due to the throw in the loop
-    throw lastError;
+    throw lastError || new Error('Unknown error in withRetry');
   }
 
   shouldRetry(error: Error): boolean {
@@ -138,8 +165,8 @@ export class ErrorHandler {
     return (
       error instanceof NetworkError ||
       error instanceof TimeoutError ||
-      (error instanceof DatabaseError && 
-       ['deadlock', 'connection', 'timeout'].some(type => 
+      (error instanceof DatabaseError &&
+       ['deadlock', 'connection', 'timeout'].some(type =>
          error.message.toLowerCase().includes(type)
        ))
     );

@@ -1,7 +1,7 @@
 import { execSync } from 'child_process';
 import { join } from 'path';
 import { createClient } from '@supabase/supabase-js';
-import { TestHarness } from '../testHarness';
+import { TestHarness } from '../testHarness.config';
 import { GradingAgent } from '../../agents/GradingAgent';
 import { DataAgent } from '../../agents/DataAgent';
 import { ContestAgent } from '../../agents/ContestAgent';
@@ -76,52 +76,36 @@ async function initializeTestDatabase(supabase: any) {
 
 export function createTestAgents(supabase: any) {
   const gradingAgent = new GradingAgent({
-    id: 'test-grading-agent',
     name: 'Test Grading Agent',
     version: '1.0.0',
     enabled: true,
+    logLevel: 'info',
     retryConfig: {
-      maxAttempts: 3,
+      maxRetries: 3,
       backoffMs: 100,
       maxBackoffMs: 1000
     },
-    metricsConfig: {
-      port: 9002,
-      path: '/metrics',
-      interval: 1000
-    },
-    alertConfig: {
+    metrics: {
       enabled: true,
-      thresholds: {
-        errorRate: 0.1,
-        latency: 1000
-      },
-      channels: ['test']
+      port: 9002,
+      interval: 1000
     }
   }, supabase);
 
   const dataAgent = new DataAgent({
-    id: 'test-data-agent',
     name: 'Test Data Agent',
     version: '1.0.0',
     enabled: true,
+    logLevel: 'info',
     retryConfig: {
-      maxAttempts: 3,
+      maxRetries: 3,
       backoffMs: 100,
       maxBackoffMs: 1000
     },
-    metricsConfig: {
-      port: 9003,
-      path: '/metrics',
-      interval: 1000
-    },
-    alertConfig: {
+    metrics: {
       enabled: true,
-      thresholds: {
-        errorRate: 0.1,
-        latency: 1000
-      },
-      channels: ['test']
+      port: 9003,
+      interval: 1000
     }
   }, supabase);
 
@@ -131,7 +115,7 @@ export function createTestAgents(supabase: any) {
     version: '1.0.0',
     enabled: true,
     retryConfig: {
-      maxAttempts: 3,
+      maxRetries: 3,
       backoffMs: 100,
       maxBackoffMs: 1000
     },

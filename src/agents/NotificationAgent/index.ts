@@ -35,9 +35,13 @@ export class NotificationAgent extends BaseAgent {
     partialSuccess: number;
   };
   private channelHealth: Map<NotificationChannel, boolean>;
+  private fullConfig: NotificationAgentConfig; // Store the full config
 
   constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
     super(config, deps);
+
+    // Store the full config before it gets parsed by BaseAgent
+    this.fullConfig = config as NotificationAgentConfig;
 
     // Initialize notification channels with proper typing
     this.channels = new Map<NotificationChannel, ChannelFunction>([
@@ -165,7 +169,7 @@ export class NotificationAgent extends BaseAgent {
     const results: Record<NotificationChannel, boolean> = {} as Record<NotificationChannel, boolean>;
     const errors: Record<NotificationChannel, string> = {} as Record<NotificationChannel, string>;
     let successCount = 0;
-    const config = this.config as NotificationAgentConfig;
+    const config = this.fullConfig;
 
     this.deps.logger.info('Dispatching notification', payload);
 

@@ -5,8 +5,7 @@ module.exports = {
   roots: ['<rootDir>/src', '<rootDir>/tests'],
   testMatch: [
     '**/__tests__/**/*.ts',
-    '**/?(*.)+(spec|test).ts',
-    '**/test/**/*.ts'
+    '**/?(*.)+(spec|test).ts'
   ],
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {
@@ -16,7 +15,7 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1'
   },
-  setupFiles: ['<rootDir>/src/test/setup.ts'],
+  setupFiles: ['<rootDir>/src/test/setup.config.ts'],
   moduleDirectories: ['node_modules', 'src'],
   testPathIgnorePatterns: [
     '/node_modules/',

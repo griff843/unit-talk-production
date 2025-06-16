@@ -1,0 +1,68 @@
+{
+  "config": {
+    "name": "Test Notification Agent",
+    "version": "1.0.0",
+    "enabled": true,
+    "agentName": "NotificationAgent",
+    "metrics": {
+      "enabled": true,
+      "interval": 60,
+      "port": 9001
+    },
+    "metricsConfig": {
+      "interval": 1000,
+      "prefix": "notification_agent"
+    },
+    "channels": {
+      "discord": {
+        "enabled": true,
+        "webhookUrl": "https://discord.com/api/webhooks/test"
+      },
+      "notion": {
+        "enabled": true,
+        "apiKey": "test-notion-key"
+      },
+      "email": {
+        "enabled": true,
+        "smtpConfig": {
+          "host": "smtp.test.com",
+          "port": 587,
+          "secure": false,
+          "auth": {
+            "user": "test@test.com",
+            "pass": "test-password"
+          }
+        }
+      },
+      "slack": {
+        "enabled": false,
+        "webhookUrl": "https://hooks.slack.com/test"
+      },
+      "sms": {
+        "enabled": false,
+        "apiKey": "test-sms-key"
+      }
+    }
+  },
+  "payload": {
+    "type": "test",
+    "channels": [
+      "discord"
+    ],
+    "message": "Test message",
+    "priority": "normal"
+  },
+  "timestamp": "2025-06-16T05:10:00.467Z",
+  "result": {
+    "success": false,
+    "notificationId": "notif-1750050603469",
+    "channels": [],
+    "error": "{\"discord\":\"Channel discord is not enabled\"}"
+  },
+  "success": false,
+  "channels": [],
+  "error": "Notification failed: {\"discord\":\"Channel discord is not enabled\"}",
+  "fetchCalled": false,
+  "fetchCallArgs": [],
+  "errorStack": "Error: Notification failed: {\"discord\":\"Channel discord is not enabled\"}\n    at Object.<anonymous> (C:\\Users\\griff\\Desktop\\Unit Talk Production v3\\unit-talk-production\\src\\agents\\NotificationAgent\\__tests__\\NotificationAgent.test.ts:150:17)"
+}

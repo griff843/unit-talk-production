@@ -7,7 +7,7 @@ import { FinalPick, MarketReaction } from '../types/picks';
  * Compares current line to opening line and infers signal strength.
  */
 export async function analyzeMarketResistance(pick: FinalPick): Promise<MarketReaction> {
-  const { player_name, stat_type, line, matchup, game_date } = pick;
+  const { player_name, stat_type, matchup, game_date } = pick;
 
   // Check for required fields
   if (!player_name || !stat_type || !matchup || !game_date) {

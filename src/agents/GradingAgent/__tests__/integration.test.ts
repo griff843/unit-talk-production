@@ -1,7 +1,7 @@
-import { TestHarness, createTestData, waitForCondition } from '../../../test/testHarness';
-import { GradingAgent } from '../GradingAgent';
-import { Pick, GradeResult } from '../types';
-import { createClient } from '@supabase/supabase-js';
+import { TestHarness, createTestData, waitForCondition } from '../../../test/testHarness.config';
+import { GradingAgent } from '../index';
+import { Pick } from '../types';
+import { ErrorHandler } from '../../../shared/errors/index';
 
 describe('GradingAgent Integration Tests', () => {
   let testHarness: TestHarness;
@@ -23,34 +23,42 @@ describe('GradingAgent Integration Tests', () => {
 
     const context = await testHarness.setup();
 
+    // Create ErrorHandler for the agent
+    const errorHandler = new ErrorHandler({
+      maxRetries: 3,
+      backoffMs: 1000,
+      maxBackoffMs: 5000,
+      shouldRetry: (error: Error) => {
+        // Retry on network errors, timeouts, etc.
+        return error.message.includes('network') ||
+               error.message.includes('timeout') ||
+               error.message.includes('ECONNRESET');
+      }
+    });
+
     gradingAgent = new GradingAgent({
-      id: 'test-grading-agent',
       name: 'Test Grading Agent',
       version: '1.0.0',
       enabled: true,
+      logLevel: 'info',
+      metrics: {
+        enabled: true,
+        interval: 1000
+      },
       retryConfig: {
-        maxAttempts: 3,
+        maxRetries: 3,
         backoffMs: 1000,
         maxBackoffMs: 5000
-      },
-      alertConfig: {
-        enabled: true,
-        thresholds: {
-          errorRate: 0.1,
-          latency: 1000
-        },
-        channels: ['test']
-      },
-      metricsConfig: {
-        port: 9002,
-        path: '/metrics',
-        interval: 5000
       }
-    }, context.supabase);
+    }, {
+      supabase: context.supabase,
+      logger: context.logger,
+      errorHandler: errorHandler
+    });
   });
 
   afterAll(async () => {
-    await testHarness.cleanup();
+    // Cleanup is handled internally
   });
 
   it('should grade a single pick successfully', async () => {
@@ -198,7 +206,7 @@ describe('GradingAgent Integration Tests', () => {
           .eq('pick_id', testPick.id)
           .single();
 
-        return data?.count > 0;
+        return data?.count !== undefined && data.count > 0;
       });
 
       // Verify error handling
