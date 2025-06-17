@@ -46,7 +46,7 @@ export class AuditAgent extends BaseAgent {
 
       this.logger.info(`AuditAgent: Audit complete. Total incidents: ${incidents.length}, Critical: ${critical.length}`);
     } catch (err) {
-      this.logger.error('AuditAgent: Audit failed', err);
+      this.logger.error('AuditAgent: Audit failed', err instanceof Error ? err : undefined);
       throw err;
     }
   }
@@ -66,12 +66,13 @@ export class AuditAgent extends BaseAgent {
     }
     for (const row of data ?? []) {
       incidents.push({
-        type: 'missing_field',
-        table: 'final_picks',
+        id: `missing_field_${row.id}`,
+        type: 'integrity',
+        tableName: 'final_picks',
         row_id: row.id,
         description: `Pick is missing required field(s): ${!row.player_name ? 'player_name' : ''}${!row.line ? ', line' : ''}${!row.odds ? ', odds' : ''}`,
         severity: 'warning',
-        timestamp: new Date().toISOString()
+        detectedAt: new Date().toISOString()
       });
     }
     return incidents;
@@ -92,12 +93,13 @@ export class AuditAgent extends BaseAgent {
     }
     for (const row of data ?? []) {
       incidents.push({
-        type: 'stuck_pending',
-        table: 'final_picks',
+        id: `stuck_pending_${row.id}`,
+        type: 'integrity',
+        tableName: 'final_picks',
         row_id: row.id,
         description: `Pick stuck in ${row.status} >48h`,
         severity: 'critical',
-        timestamp: new Date().toISOString()
+        detectedAt: new Date().toISOString()
       });
     }
     return incidents;
@@ -114,12 +116,13 @@ export class AuditAgent extends BaseAgent {
     }
     for (const row of data ?? []) {
       incidents.push({
-        type: 'duplicate_external_id',
-        table: 'final_picks',
+        id: `duplicate_external_id_${row.id}`,
+        type: 'integrity',
+        tableName: 'final_picks',
         row_id: row.id,
         description: `Duplicate external_id found: ${row.external_id}`,
         severity: 'critical',
-        timestamp: new Date().toISOString()
+        detectedAt: new Date().toISOString()
       });
     }
     return incidents;
@@ -140,12 +143,13 @@ export class AuditAgent extends BaseAgent {
     }
     for (const row of data ?? []) {
       incidents.push({
-        type: 'stale_pick',
-        table: 'final_picks',
+        id: `stale_pick_${row.id}`,
+        type: 'integrity',
+        tableName: 'final_picks',
         row_id: row.id,
         description: `Stale pick: status=${row.status}, created_at=${row.created_at}`,
         severity: 'warning',
-        timestamp: new Date().toISOString()
+        detectedAt: new Date().toISOString()
       });
     }
     return incidents;
@@ -165,12 +169,13 @@ export class AuditAgent extends BaseAgent {
     }
     for (const row of data ?? []) {
       incidents.push({
-        type: 'failed_agent_task',
-        table: 'agent_tasks',
+        id: `failed_agent_task_${row.id}`,
+        type: 'integrity',
+        tableName: 'agent_tasks',
         row_id: row.id,
         description: `Agent task failed: ${row.agent} - ${row.error_message ?? ''}`,
         severity: 'critical',
-        timestamp: new Date().toISOString()
+        detectedAt: new Date().toISOString()
       });
     }
     return incidents;

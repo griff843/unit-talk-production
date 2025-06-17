@@ -1,12 +1,14 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { BaseAgent } from '../BaseAgent/index';
-import { BaseAgentDependencies, AgentCommand, HealthCheckResult, Metrics } from '../BaseAgent/types';
+import { BaseAgentDependencies, AgentCommand, HealthCheckResult, BaseMetrics, BaseAgentConfig, HealthStatus } from '../BaseAgent/types';
+import { ErrorHandler } from '../../utils/errorHandling';
 import {
   Contest,
   Leaderboard,
   PrizePool,
   FairPlayReport,
-  ContestEvent
+  ContestEvent,
+  ContestAgentConfig
 } from './types';
 import { ContestManager } from './contests';
 import { LeaderboardManager } from './leaderboards';
@@ -23,28 +25,48 @@ export class ContestAgent extends BaseAgent {
   constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
     super(config, deps);
     // Initialize agent-specific properties here
+    this.contestManager = new ContestManager(deps.supabase, deps.logger, new ErrorHandler('ContestManager', deps.supabase), config);
+    this.leaderboardManager = new LeaderboardManager(config, deps);
+    this.fairPlayMonitor = new FairPlayMonitor(deps.supabase, config as ContestAgentConfig);
+  }
+
+  async initialize(): Promise<void> {
+    await this.initializeResources();
   }
 
   protected async initializeResources(): Promise<void> {
     // Initialize contest resources
-    // TODO: Restore business logic here after base migration
+    await this.contestManager.initialize();
+    await this.leaderboardManager.initialize();
+    await this.fairPlayMonitor.initialize();
   }
 
   protected async process(): Promise<void> {
     // Main contest processing loop
-    // TODO: Restore business logic here after base migration
+    // Process active contests (simplified for now)
+    await this.leaderboardManager.updateLeaderboards();
+    // Check fair play (simplified for now)
   }
 
   protected async cleanup(): Promise<void> {
     // Cleanup contest resources
-    // TODO: Restore business logic here after base migration
+    await this.contestManager.cleanup();
+    await this.leaderboardManager.cleanup();
+    await this.fairPlayMonitor.cleanup();
   }
 
-  protected async checkHealth(): Promise<HealthCheckResult> {
+  public async checkHealth(): Promise<HealthCheckResult> {
     // Check health of contest systems
-    // TODO: Restore business logic here after base migration
+    const contestHealth = await this.contestManager.checkHealth();
+    const leaderboardHealth = await this.leaderboardManager.checkHealth();
+    const fairPlayHealth = await this.fairPlayMonitor.checkHealth();
+
+    const allHealthy = contestHealth.status === 'healthy' && 
+                      leaderboardHealth.status === 'healthy' && 
+                      fairPlayHealth.status === 'healthy';
+
     return {
-      status: 'ok',
+      status: allHealthy ? 'healthy' : 'unhealthy',
       timestamp: new Date().toISOString(),
       details: {
         errors: [],
@@ -52,100 +74,48 @@ export class ContestAgent extends BaseAgent {
         info: {
           activeContests: 0,
           activePlayers: 0,
-          fairPlayStatus: 'ok'
+          fairPlayStatus: allHealthy ? 'ok' : 'degraded'
         }
       }
     };
   }
 
-  protected async collectMetrics(): Promise<Metrics> {
+  public async collectMetrics(): Promise<BaseMetrics> {
     // Collect contest metrics
-    // TODO: Restore business logic here after base migration
+    const contestMetrics = await this.contestManager.getMetrics();
+    const leaderboardMetrics = await this.leaderboardManager.getMetrics();
+    const fairPlayMetrics = await this.fairPlayMonitor.getMetrics();
+
     return {
-      agentName: this.config.name,
-      status: this.state.status,
-      successCount: 0,
-      warningCount: 0,
-      errorCount: 0,
-      timestamp: new Date().toISOString(),
-      processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024,
-      customMetrics: {
-        // Contest-specific metrics will go here
-      }
+      agentName: 'ContestAgent',
+      successCount: (contestMetrics as any).successCount || 0,
+      warningCount: (contestMetrics as any).warningCount || 0,
+      errorCount: (contestMetrics as any).errorCount || 0,
+      processingTimeMs: (contestMetrics as any).processingTimeMs || 0,
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
     };
   }
 
   protected async processCommand(command: AgentCommand): Promise<void> {
-    // Handle contest commands
-    // TODO: Restore business logic here after base migration
-  }
-
-  protected async initialize(): Promise<void> {
-    // TODO: Restore business logic here after base migration (initialize)
-  }
-
-  protected async initialize(): Promise<void> {
-    // TODO: Restore business logic here after base migration (initialize)
-  }
-
-  protected async process(): Promise<void> {
-    // TODO: Restore business logic here after base migration (process)
-  }
-
-  protected async cleanup(): Promise<void> {
-    // TODO: Restore business logic here after base migration (cleanup)
-  }
-
-  protected async checkHealth(): Promise<HealthStatus> {
-    // TODO: Restore business logic here after base migration (checkHealth)
-    return {
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      details: {}
-    };
-  }
-
-  protected async collectMetrics(): Promise<BaseMetrics> {
-    // TODO: Restore business logic here after base migration (collectMetrics)
-    return {
-      successCount: 0,
-      errorCount: 0,
-      warningCount: 0,
-      processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
-    };
-  }
-
-  protected async initialize(): Promise<void> {
-    // TODO: Restore business logic here after base migration (initialize)
-  }
-
-  protected async process(): Promise<void> {
-    // TODO: Restore business logic here after base migration (process)
-  }
-
-  protected async cleanup(): Promise<void> {
-    // TODO: Restore business logic here after base migration (cleanup)
-  }
-
-  protected async checkHealth(): Promise<HealthStatus> {
-    // TODO: Restore business logic here after base migration (checkHealth)
-    return {
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      details: {}
-    };
-  }
-
-  protected async collectMetrics(): Promise<BaseMetrics> {
-    // TODO: Restore business logic here after base migration (collectMetrics)
-    return {
-      successCount: 0,
-      errorCount: 0,
-      warningCount: 0,
-      processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
-    };
+    try {
+      switch (command.type) {
+        case 'CREATE_CONTEST':
+          await this.contestManager.createContest(command.payload);
+          break;
+        case 'UPDATE_LEADERBOARD':
+          // Simplified leaderboard update
+          await this.leaderboardManager.updateLeaderboards();
+          break;
+        case 'CHECK_FAIR_PLAY':
+          // Simplified fair play check
+          this.logger.info('Fair play check requested', { payload: command.payload });
+          break;
+        default:
+          throw new Error(`Unknown command type: ${command.type}`);
+      }
+    } catch (error) {
+      this.logger.error('Error processing command', error instanceof Error ? error : new Error(String(error)));
+      throw error instanceof Error ? error : new Error(String(error));
+    }
   }
 }

@@ -1,18 +1,16 @@
 import { Logger } from '../../utils/logger';
 import { ErrorHandler } from '../../utils/errorHandling';
 import { BaseAgentActivities, ActivityParams, ActivityResult } from '../../types/activities';
-import { AgentStatus, HealthStatus, Metrics } from '../../types/shared';
+import { AgentStatus, Metrics } from '../../types/shared';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { proxyActivities } from '@temporalio/workflow';
-import { AgentCommand, AgentTaskInput, HealthCheckResult } from '../../types/agent';
+import { HealthCheckResult, AgentCommand } from '../../types/agent';
 
-export interface BaseAgentActivities {
-  initialize(): Promise<void>;
-  cleanup(): Promise<void>;
-  checkHealth(): Promise<HealthCheckResult>;
-  collectMetrics(): Promise<Metrics>;
-  handleCommand(command: AgentCommand): Promise<void>;
+interface AgentTaskInput {
+  command: any;
 }
+
+
 
 const activities = proxyActivities<BaseAgentActivities>({
   startToCloseTimeout: '1 minute'
@@ -48,7 +46,7 @@ export abstract class BaseAgentActivitiesImpl implements BaseAgentActivities {
     protected readonly supabase: SupabaseClient
   ) {
     this.logger = new Logger(name);
-    this.errorHandler = ErrorHandler.getInstance();
+    this.errorHandler = new ErrorHandler(name, supabase);
   }
 
   // Core operations
@@ -57,10 +55,10 @@ export abstract class BaseAgentActivitiesImpl implements BaseAgentActivities {
       this.logger.info('Initializing agent activities');
       await this.validateDependencies();
       await this.initializeResources();
-      this.status = 'ready';
+      this.status = 'idle';
       await this.logActivity('initialize', { status: this.status });
     } catch (error) {
-      await this.handleError(error, 'initialization');
+      await this.handleError(error instanceof Error ? error : new Error(String(error)), 'initialization');
       throw error;
     }
   }
@@ -68,10 +66,10 @@ export abstract class BaseAgentActivitiesImpl implements BaseAgentActivities {
   public async start(): Promise<void> {
     try {
       this.logger.info('Starting agent activities');
-      this.status = 'running';
+      this.status = 'healthy';
       await this.logActivity('start', { status: this.status });
     } catch (error) {
-      await this.handleError(error, 'start');
+      await this.handleError(error instanceof Error ? error : new Error(String(error)), 'start');
       throw error;
     }
   }
@@ -79,33 +77,41 @@ export abstract class BaseAgentActivitiesImpl implements BaseAgentActivities {
   public async stop(): Promise<void> {
     try {
       this.logger.info('Stopping agent activities');
-      this.status = 'stopped';
+      this.status = 'idle';
       await this.logActivity('stop', { status: this.status });
     } catch (error) {
-      await this.handleError(error, 'stop');
+      await this.handleError(error instanceof Error ? error : new Error(String(error)), 'stop');
       throw error;
     }
   }
 
   // Health and monitoring
-  public async checkHealth(): Promise<HealthStatus> {
+  public async checkHealth(): Promise<HealthCheckResult> {
     try {
-      const health: HealthStatus = {
-        status: 'healthy',
-        lastChecked: new Date().toISOString(),
+      const health: HealthCheckResult = {
+        status: 'idle',
+        timestamp: new Date().toISOString(),
         details: {
-          agentName: this.name,
-          agentStatus: this.status,
+          errors: [],
+          warnings: [],
+          info: {
+            agentName: this.name,
+            agentStatus: this.status,
+          }
         }
       };
-      await this.logActivity('health_check', health);
+      await this.logActivity('health_check', { status: health.status, timestamp: health.timestamp });
       return health;
     } catch (error) {
-      await this.handleError(error, 'health_check');
+      await this.handleError(error instanceof Error ? error : new Error(String(error)), 'health_check');
       return {
-        status: 'unhealthy',
-        lastChecked: new Date().toISOString(),
-        error: error.message
+        status: 'unhealthy', // Changed from 'error' to match AgentStatus type
+        timestamp: new Date().toISOString(),
+        details: {
+          errors: [error instanceof Error ? error.message : String(error)],
+          warnings: [],
+          info: {}
+        }
       };
     }
   }
@@ -138,11 +144,11 @@ export abstract class BaseAgentActivitiesImpl implements BaseAgentActivities {
       await this.supabase.from('agent_logs').insert({
         agent: this.name,
         activity_type: activityType,
-        details,
+        details: details as Record<string, any>,
         timestamp: new Date().toISOString()
       });
     } catch (error) {
-      this.logger.error('Failed to log activity:', error);
+      this.logger.error('Failed to log activity:', { error: error instanceof Error ? error.message : String(error) });
     }
   }
 
@@ -159,31 +165,43 @@ export abstract class BaseAgentActivitiesImpl implements BaseAgentActivities {
     try {
       const startTime = new Date().toISOString();
       const data = await operation();
-      
+
       const result: ActivityResult = {
         success: true,
-        message: `Successfully executed ${activityName}`,
-        data,
-        timestamp: new Date().toISOString()
+        data
       };
 
-      await this.logActivity(activityName, {
-        params,
-        result,
-        startTime,
-        endTime: result.timestamp
-      });
+      await this.logActivity(activityName, { ...params, startTime });
 
       return result;
     } catch (error) {
-      await this.handleError(error, activityName);
-      
+      await this.handleError(error instanceof Error ? error : new Error(String(error)), activityName);
+
       return {
         success: false,
-        message: `Failed to execute ${activityName}`,
-        error,
-        timestamp: new Date().toISOString()
+        error: error instanceof Error ? error : new Error(String(error))
       };
     }
+  }
+
+  // Missing required methods from BaseAgentActivities interface
+  public async cleanup(): Promise<void> {
+    this.logger.info('Cleaning up agent activities');
+    this.status = 'idle';
+  }
+
+  public async collectMetrics(): Promise<Metrics> {
+    return {
+      successCount: 0,
+      errorCount: 0,
+      warningCount: 0,
+      processingTimeMs: 0,
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
+    };
+  }
+
+  public async handleCommand(command: AgentCommand): Promise<void> {
+    this.logger.info('Handling command', { command: command.type });
+    // Default implementation - subclasses should override
   }
 } 

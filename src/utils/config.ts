@@ -2,7 +2,7 @@ import { z } from 'zod';
 import 'dotenv/config';
 import path from 'path';
 import fs from 'fs';
-import { EnvConfigSchema, BaseAgentConfigSchema } from '../types/config';
+import { BaseAgentConfigSchema } from '../agents/BaseAgent/types';
 import { Logger } from './logger';
 import { AgentConfig } from '../types/agent';
 import { ValidationError } from './errorHandling';
@@ -17,6 +17,14 @@ const baseConfigSchema = z.object({
     interval: z.number(),
     prefix: z.string()
   }).optional()
+});
+
+const EnvConfigSchema = z.object({
+  NODE_ENV: z.string().default('development'),
+  PORT: z.string().default('3000'),
+  DATABASE_URL: z.string(),
+  SUPABASE_URL: z.string(),
+  SUPABASE_ANON_KEY: z.string(),
 });
 
 export class ConfigLoader {

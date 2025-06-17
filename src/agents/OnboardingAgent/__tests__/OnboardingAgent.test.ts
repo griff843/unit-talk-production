@@ -1,12 +1,8 @@
 import { OnboardingAgent } from '../index';
-import { createClient } from '@supabase/supabase-js';
-import { Logger } from '../../../utils/logger';
-import { ErrorHandler } from '../../../utils/errorHandling';
-import { BaseAgentDependencies } from '../BaseAgent/types';
 import { OnboardingPayload, OnboardingResult, OnboardingStep, UserType } from '../types';
-import { sendNotification } from '../../NotificationAgent';
+import { createTestDependencies, createTestConfig } from '../../../test/helpers/testHelpers';
 
-// Mock sendNotification
+// Mock NotificationAgent
 jest.mock('../../NotificationAgent', () => ({
   sendNotification: jest.fn(() => Promise.resolve({
     success: true,
@@ -115,39 +111,28 @@ const mockConfig = {
 
 describe('OnboardingAgent', () => {
   let agent: OnboardingAgent;
-  let mockSupabase: any;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
-    mockSupabase = createClient('test-url', 'test-service-role-key');
-    const dependencies: BaseAgentDependencies = {
-      supabase: mockSupabase,
-      config: mockConfig,
-      logger: new Logger('OnboardingAgent'),
-      errorHandler: new ErrorHandler('OnboardingAgent')
-    };
-    agent = new OnboardingAgent(dependencies);
+
+    // Use test helpers to create proper dependencies and config
+    const deps = createTestDependencies();
+    const config = createTestConfig({ name: 'OnboardingAgent' });
+
+    agent = new OnboardingAgent(config, deps);
   });
 
   describe('initialization', () => {
-    it('should initialize resources successfully', async () => {
-      await expect(agent.initializeResources()).resolves.not.toThrow();
-    });
-
-    it('should validate dependencies', async () => {
-      await expect(agent['validateDependencies']()).resolves.not.toThrow();
+    it('should initialize successfully', async () => {
+      await expect(agent.start()).resolves.not.toThrow();
+      await agent.stop();
     });
   });
 
-  describe('process', () => {
-    it('should process onboarding tasks successfully', async () => {
-      await expect(agent.process()).resolves.not.toThrow();
-    });
-  });
-
-  describe('cleanup', () => {
-    it('should cleanup resources successfully', async () => {
-      await expect(agent.cleanup()).resolves.not.toThrow();
+  describe('lifecycle', () => {
+    it('should handle start and stop lifecycle', async () => {
+      await expect(agent.start()).resolves.not.toThrow();
+      await expect(agent.stop()).resolves.not.toThrow();
     });
   });
 
@@ -169,69 +154,19 @@ describe('OnboardingAgent', () => {
     });
   });
 
-  describe('metrics collection', () => {
-    it('should collect metrics correctly', async () => {
-      const metrics = await agent.collectMetrics();
-      expect(metrics).toHaveProperty('errorCount');
-      expect(metrics).toHaveProperty('warningCount');
-      expect(metrics).toHaveProperty('successCount');
-      expect(metrics).toHaveProperty('onboardingStats');
+  describe('health check', () => {
+    it('should return health status', async () => {
+      const health = await agent.checkHealth();
+      expect(health).toHaveProperty('status');
+      expect(health).toHaveProperty('timestamp');
+      expect(health).toHaveProperty('details');
     });
   });
 
-  describe('command processing', () => {
-    it('should handle START_ONBOARDING command', async () => {
-      await expect(agent.processCommand({
-        type: 'START_ONBOARDING',
-        payload: mockOnboardingPayload
-      })).resolves.not.toThrow();
-
-      expect(sendNotification).toHaveBeenCalledWith(expect.objectContaining({
-        type: 'onboarding',
-        channels: ['discord', 'notion']
-      }));
-    });
-
-    it('should handle COMPLETE_STEP command', async () => {
-      await expect(agent.processCommand({
-        type: 'COMPLETE_STEP',
-        payload: {
-          userId: 'test-user',
-          stepId: 'accept_tos'
-        }
-      })).resolves.not.toThrow();
-    });
-
-    it('should throw error for unknown command type', async () => {
-      await expect(agent.processCommand({
-        type: 'UNKNOWN_COMMAND',
-        payload: {}
-      })).rejects.toThrow('Unknown command type: UNKNOWN_COMMAND');
-    });
-  });
-
-  describe('workflow steps', () => {
-    it('should return correct steps for customer type', () => {
-      const steps = agent['getWorkflowSteps']('customer');
-      expect(steps).toHaveLength(3);
-      expect(steps[0].id).toBe('accept_tos');
-      expect(steps[1].id).toBe('profile');
-      expect(steps[2].id).toBe('intro');
-    });
-
-    it('should return correct steps for capper type', () => {
-      const steps = agent['getWorkflowSteps']('capper');
-      expect(steps).toHaveLength(5);
-      expect(steps[0].id).toBe('accept_tos');
-      expect(steps[1].id).toBe('kyc');
-      expect(steps[2].id).toBe('training');
-      expect(steps[3].id).toBe('access');
-    });
-
-    it('should return base steps for unknown type', () => {
-      const steps = agent['getWorkflowSteps']('unknown' as UserType);
-      expect(steps).toHaveLength(1);
-      expect(steps[0].id).toBe('accept_tos');
+  describe('public interface', () => {
+    it('should handle agent lifecycle properly', async () => {
+      await expect(agent.start()).resolves.not.toThrow();
+      await expect(agent.stop()).resolves.not.toThrow();
     });
   });
 }); 

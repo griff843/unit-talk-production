@@ -27,7 +27,7 @@ export class EmailService {
       }
     };
 
-    this.transporter = nodemailer.createTransporter(this.config);
+    this.transporter = nodemailer.createTransport(this.config);
   }
 
   async sendAlert(to: string, subject: string, html: string): Promise<boolean> {

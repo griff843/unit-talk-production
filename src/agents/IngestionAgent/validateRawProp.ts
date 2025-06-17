@@ -31,12 +31,13 @@ export function validateRawPropDetailed(prop: unknown): ValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    if (error.errors) {
-      for (const err of error.errors) {
+    if (error && typeof error === 'object' && 'errors' in error) {
+      for (const err of (error as any).errors) {
         errors.push(`${err.path.join('.')}: ${err.message}`);
       }
     } else {
-      errors.push(error.message || 'Unknown validation error');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown validation error';
+      errors.push(errorMessage);
     }
 
     // Add business logic warnings
@@ -75,7 +76,8 @@ export function validateRequiredFields(prop: RawProp): boolean {
   const requiredFields = ['player_name', 'stat_type', 'line', 'sport'];
   
   for (const field of requiredFields) {
-    if (prop[field] === null || prop[field] === undefined || prop[field] === '') {
+    const value = (prop as any)[field];
+    if (value === null || value === undefined || value === '') {
       return false;
     }
   }

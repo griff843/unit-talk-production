@@ -1,6 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Logger } from '../utils/logger';
 import { z } from 'zod';
+import { EventEmitter } from 'events';
 
 export const DeadLetterSchema = z.object({
   id: z.string().uuid(),
@@ -29,15 +30,18 @@ export interface DLQConfig {
   processingIntervalMs: number;
 }
 
-export class DeadLetterQueue {
+
+
+export class DeadLetterQueue extends EventEmitter {
   private static instance: DeadLetterQueue;
   private readonly logger: Logger;
-  private processingInterval?: NodeJS.Timer;
+  private processingInterval?: NodeJS.Timeout;
 
   private constructor(
     private readonly supabase: SupabaseClient,
     private readonly config: DLQConfig
   ) {
+    super();
     this.logger = new Logger('DLQ');
   }
 
@@ -88,7 +92,7 @@ export class DeadLetterQueue {
         error: error.message,
       });
     } catch (error) {
-      this.logger.error('Failed to enqueue to DLQ:', error);
+      this.logger.error('Failed to enqueue to DLQ:', error as Record<string, any>);
       throw error;
     }
   }
@@ -116,7 +120,7 @@ export class DeadLetterQueue {
         await this.processDeadLetter(letter);
       }
     } catch (error) {
-      this.logger.error('Failed to process DLQ:', error);
+      this.logger.error('Failed to process DLQ:', error as Record<string, any>);
     }
   }
 
@@ -164,7 +168,7 @@ export class DeadLetterQueue {
         agent: letter.agent,
         operation: letter.operation,
         retryCount,
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }

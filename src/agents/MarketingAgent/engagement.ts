@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { EngagementMetrics } from '../../../types/marketing'
+import type { EngagementMetrics } from '../../types/marketing'
 
 export class EngagementTracker {
   private supabase: SupabaseClient

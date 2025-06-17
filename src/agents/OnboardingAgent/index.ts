@@ -1,7 +1,5 @@
-import { BaseAgent } from '../BaseAgent';
-import { BaseAgentConfig, BaseAgentDependencies } from '../BaseAgent/types';
+import { BaseAgent, BaseAgentConfig, BaseAgentDependencies } from '../BaseAgent';
 import { AIOrchestrator } from '../AlertAgent/aiOrchestrator';
-import { logger } from '../../services/logging';
 
 interface UserProfile {
   id: string;
@@ -37,13 +35,6 @@ interface LearningPath {
   difficulty: 'beginner' | 'intermediate' | 'advanced';
 }
 
-interface AdaptivePrompt {
-  context: string;
-  user_profile: UserProfile;
-  current_step: OnboardingStep;
-  performance_history: any[];
-  personalization_factors: any;
-}
 
 export class OnboardingAgent extends BaseAgent {
   private aiOrchestrator: AIOrchestrator;
@@ -168,97 +159,81 @@ export class OnboardingAgent extends BaseAgent {
 
       return learningPath;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(`Failed to create onboarding for user ${userId}:`, error as Error);
       throw error;
     }
   }
 
   private async analyzeUserProfile(userId: string, assessment: any): Promise<UserProfile> {
-    const prompt = this.buildProfileAnalysisPrompt(assessment);
-    
     try {
       const aiResponse = await this.aiOrchestrator.getAdviceForPick({
         id: `profile-${userId}`,
         market_type: 'user_analysis',
         line: 0,
-        odds: 0
-      } as any);
-
-      // Parse AI response to extract profile characteristics
-      const profile = this.parseProfileFromAI(aiResponse, userId);
-      
-      return {
-        ...profile,
-        id: userId,
-        experience_level: profile.experience_level || 'beginner',
-        risk_tolerance: profile.risk_tolerance || 'moderate',
-        preferred_sports: profile.preferred_sports || [],
-        bankroll_size: profile.bankroll_size || 'small',
-        goals: profile.goals || [],
-        learning_style: profile.learning_style || 'analytical',
-        onboarding_stage: profile.onboarding_stage || 'initial',
+        odds: 0,
+        provider: 'internal',
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        tier: 'standard',
+        edge_score: 0,
+        play_status: 'pending'
+      });
+
+      // Removed unused variables such as partialProfile result consequences here, but kept logic
+
+      const partialProfile = this.parseProfileFromAI(aiResponse, userId);
+
+      const completeProfile: UserProfile = {
+        id: userId,
+        experience_level: partialProfile.experience_level ?? 'beginner',
+        risk_tolerance: partialProfile.risk_tolerance ?? 'moderate',
+        learning_style: partialProfile.learning_style ?? 'visual',
+        bankroll_size: partialProfile.bankroll_size ?? 'small',
+        goals: partialProfile.goals ?? [],
+        preferred_sports: partialProfile.preferred_sports ?? [],
+        onboarding_stage: partialProfile.onboarding_stage ?? 'start',
+        created_at: partialProfile.created_at ?? new Date().toISOString(),
+        updated_at: partialProfile.updated_at ?? new Date().toISOString(),
       };
+
+      return completeProfile;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error('AI profile analysis failed, using fallback:', { error: errorMessage });
+      this.logger.error(`Failed to analyze user profile for ${userId}:`, error as Error);
       return this.createFallbackProfile(userId, assessment);
     }
   }
 
-  private buildProfileAnalysisPrompt(assessment: any): string {
-    return `
-USER PROFILE ANALYSIS
 
-Assessment Data:
-${JSON.stringify(assessment, null, 2)}
 
-Please analyze this user assessment and determine:
-
-1. Experience Level: beginner/intermediate/advanced/professional
-2. Risk Tolerance: conservative/moderate/aggressive  
-3. Learning Style: visual/analytical/hands-on/social
-4. Bankroll Category: small/medium/large/institutional
-5. Primary Goals: List 3-5 main objectives
-6. Preferred Sports: Extract mentioned sports interests
-
-Provide a structured analysis with reasoning for each classification.
-
-Response Format:
-Experience: [level] - [reasoning]
-Risk Tolerance: [level] - [reasoning]
-Learning Style: [style] - [reasoning]
-Bankroll: [size] - [reasoning]
-Goals: [list of goals]
-Sports: [list of sports]
-`;
-  }
-
-  private parseProfileFromAI(aiResponse: any, userId: string): Partial<UserProfile> {
+  private parseProfileFromAI(aiResponse: any, userId: string): UserProfile {
     // Parse AI response and extract profile data
     // This would use more sophisticated parsing in production
+    this.logger.debug(`Parsing AI response for user ${userId}`, { responseType: typeof aiResponse });
+
     return {
+      id: userId,
       experience_level: 'intermediate',
       risk_tolerance: 'moderate',
       learning_style: 'analytical',
       bankroll_size: 'medium',
       preferred_sports: ['NFL', 'NBA'],
-      goals: ['Learn bankroll management', 'Improve win rate', 'Understand value betting'],
-      onboarding_stage: 'assessment_complete'
+      goals: ['improve_roi', 'learn_strategy'],
+      onboarding_stage: 'profile_created',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
   }
 
   private createFallbackProfile(userId: string, assessment: any): UserProfile {
+    this.logger.debug(`Creating fallback profile for user ${userId}`, { assessmentProvided: !!assessment });
+
     return {
       id: userId,
-      experience_level: 'beginner',
-      risk_tolerance: 'conservative',
-      preferred_sports: ['NFL'],
-      bankroll_size: 'small',
-      goals: ['Learn basics'],
-      learning_style: 'hands-on',
+      experience_level: assessment?.experience_level || 'beginner',
+      risk_tolerance: assessment?.risk_tolerance || 'conservative',
+      preferred_sports: assessment?.preferred_sports || ['NFL'],
+      bankroll_size: assessment?.bankroll_size || 'small',
+      goals: assessment?.goals || ['Learn basics'],
+      learning_style: assessment?.learning_style || 'hands-on',
       onboarding_stage: 'started',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -268,14 +243,18 @@ Sports: [list of sports]
   private async generatePersonalizedPath(profile: UserProfile): Promise<LearningPath> {
     const basePathId = this.selectBaseLearningPath(profile);
     const basePath = this.learningPaths.get(basePathId);
-    
+
     if (!basePath) {
       throw new Error(`Base learning path ${basePathId} not found`);
     }
 
+    // Get workflow steps based on user type and merge with base path
+    const workflowSteps = this.getWorkflowSteps(profile.experience_level);
+    const allSteps = [...workflowSteps, ...basePath.steps];
+
     // Customize path based on profile
-    const customizedSteps = await this.customizeSteps(basePath.steps, profile);
-    
+    const customizedSteps = await this.customizeSteps(allSteps, profile);
+
     return {
       ...basePath,
       id: `${basePathId}-${profile.id}`,
@@ -309,14 +288,25 @@ Sports: [list of sports]
 
   private async customizeStepWithAI(step: OnboardingStep, profile: UserProfile): Promise<OnboardingStep> {
     const prompt = this.buildStepCustomizationPrompt(step, profile);
-    
+
     try {
       const aiResponse = await this.aiOrchestrator.getAdviceForPick({
         id: `step-${step.id}`,
-        market_type: 'content_customization',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        player_name: `User-${profile.id}`,
+        market_type: 'onboarding_customization',
         line: 0,
-        odds: 0
-      } as any);
+        odds: 100,
+        tier: 'educational',
+        edge_score: 0.5,
+        play_status: 'educational',
+        capper: 'onboarding_system',
+        units: 0,
+        outcome: 'pending' as const,
+        parlay_id: undefined,
+        metadata: { step_id: step.id, profile_id: profile.id, analysis: prompt }
+      });
 
       // Parse AI response to customize step content
       return {
@@ -324,9 +314,10 @@ Sports: [list of sports]
         content: this.parseCustomizedContent(aiResponse, step, profile)
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error('Step customization failed, using original:', { error: errorMessage });
-      return step;
+      this.logger.error('Failed to customize step', error instanceof Error ? error : new Error(String(error)), {
+        stepId: step.id
+      });
+      throw error;
     }
   }
 
@@ -359,9 +350,19 @@ Provide customized content that will be most effective for this specific user.
   private parseCustomizedContent(aiResponse: any, step: OnboardingStep, profile: UserProfile): any {
     // Parse AI response and create customized content
     // This would be more sophisticated in production
+    this.logger.debug(`Customizing content for step ${step.id}`, {
+      userId: profile.id,
+      experienceLevel: profile.experience_level,
+      aiResponseReceived: !!aiResponse
+    });
+
     return {
       ...step.content,
       customized: true,
+      user_experience_level: profile.experience_level,
+      preferred_sports: profile.preferred_sports,
+      learning_style: profile.learning_style,
+      ai_enhanced: !!aiResponse,
       personalization_applied: [
         'experience_level_adjustment',
         'sport_specific_examples',
@@ -385,12 +386,12 @@ Provide customized content that will be most effective for this specific user.
 
       // Analyze feedback with AI
       const analysis = await this.analyzeFeedbackWithAI(feedback);
-      
+
       // Update user profile if needed
       if (analysis.profileUpdates) {
         await this.updateUserProfile(userId, analysis.profileUpdates);
       }
-      
+
       // Adjust future steps if needed
       if (analysis.pathAdjustments) {
         await this.adjustLearningPath(userId, analysis.pathAdjustments);
@@ -401,8 +402,10 @@ Provide customized content that will be most effective for this specific user.
         adjustments: analysis.pathAdjustments
       });
     } catch (error) {
+      this.logger.error('Failed to analyze feedback with AI', error instanceof Error ? error : new Error(String(error)));
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(`Failed to process feedback for user ${userId}:`, { error: errorMessage });
+      this.logger.error(`Failed to process feedback for user ${userId}:`, new Error(errorMessage));
+      return;
     }
   }
 
@@ -426,26 +429,41 @@ Focus on actionable insights that can improve the learning experience.
     try {
       const aiResponse = await this.aiOrchestrator.getAdviceForPick({
         id: 'feedback-analysis',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        player_name: 'feedback-analyzer',
         market_type: 'feedback_analysis',
         line: 0,
-        odds: 0
-      } as any);
+        odds: 100,
+        tier: 'analysis',
+        edge_score: 0.5,
+        play_status: 'analysis',
+        capper: 'feedback_system',
+        units: 0,
+        outcome: 'pending' as const,
+        parlay_id: undefined,
+        metadata: { feedback_type: 'user_feedback_analysis', analysis: prompt }
+      });
 
       return this.parseFeedbackAnalysis(aiResponse);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error('AI feedback analysis failed:', { error: errorMessage });
+      this.logger.error('AI feedback analysis failed:', error as Error);
       return { sentiment: 'neutral', profileUpdates: null, pathAdjustments: null };
     }
   }
 
+
+
   private parseFeedbackAnalysis(aiResponse: any): any {
     // Parse AI response for feedback insights
+    this.logger.debug('Parsing feedback analysis from AI', { responseReceived: !!aiResponse });
+
     return {
-      sentiment: 'positive',
-      profileUpdates: null,
-      pathAdjustments: null,
-      confidence: 0.7
+      sentiment: aiResponse?.sentiment || 'positive',
+      profileUpdates: aiResponse?.profileUpdates || null,
+      pathAdjustments: aiResponse?.pathAdjustments || null,
+      confidence: aiResponse?.confidence || 0.7,
+      aiProcessed: !!aiResponse
     };
   }
 
@@ -518,6 +536,12 @@ Focus on actionable insights that can improve the learning experience.
   }
 
   private async processOnboardingSession(onboarding: any): Promise<void> {
+    this.logger.debug(`Processing onboarding session for user ${onboarding.user_id}`, {
+      sessionId: onboarding.id,
+      status: onboarding.status,
+      progress: onboarding.progress
+    });
+
     // Check for stalled sessions
     // Send reminders if needed
     // Update progress tracking
@@ -575,5 +599,138 @@ Focus on actionable insights that can improve the learning experience.
   private async adjustLearningPath(userId: string, adjustments: any): Promise<void> {
     // Implement path adjustments based on AI recommendations
     this.logger.info(`Adjusting learning path for user ${userId}`, adjustments);
+  }
+
+  /**
+   * Process commands for the OnboardingAgent
+   */
+  public async processCommand(command: any): Promise<any> {
+    this.logger.info(`Processing command: ${command.type}`, command);
+
+    switch (command.type) {
+      case 'CREATE_ONBOARDING':
+        return await this.createPersonalizedOnboarding(
+          command.payload.userId,
+          {
+            userType: command.payload.userType,
+            preferences: command.payload.preferences
+          }
+        );
+
+      case 'UPDATE_PROGRESS':
+        return await this.updateProgress(
+          command.payload.userId,
+          command.payload.stepId
+        );
+
+      case 'PROCESS_FEEDBACK':
+        return await this.processFeedback(
+          command.payload.userId,
+          command.payload.stepId,
+          command.payload.feedback
+        );
+
+      default:
+        throw new Error(`Unknown command type: ${command.type}`);
+    }
+  }
+
+  /**
+   * Get workflow steps for a specific user type
+   */
+  private getWorkflowSteps(userType: string): OnboardingStep[] {
+    const baseSteps: OnboardingStep[] = [
+      {
+        id: 'accept_tos',
+        title: 'Accept Terms of Service',
+        description: 'Review and accept our terms of service',
+        type: 'verification',
+        content: { tosVersion: '1.0' },
+        prerequisites: [],
+        estimated_time: 5,
+        completion_criteria: { accepted: true }
+      }
+    ];
+
+    switch (userType) {
+      case 'customer':
+        return [
+          ...baseSteps,
+          {
+            id: 'profile',
+            title: 'Create Profile',
+            description: 'Set up your betting profile',
+            type: 'assessment',
+            content: { fields: ['experience', 'preferences'] },
+            prerequisites: ['accept_tos'],
+            estimated_time: 10,
+            completion_criteria: { profileComplete: true }
+          },
+          {
+            id: 'intro',
+            title: 'Platform Introduction',
+            description: 'Learn how to use the platform',
+            type: 'education',
+            content: { tutorial: 'basic_navigation' },
+            prerequisites: ['profile'],
+            estimated_time: 15,
+            completion_criteria: { tutorialComplete: true }
+          }
+        ];
+
+      case 'capper':
+        return [
+          ...baseSteps,
+          {
+            id: 'kyc',
+            title: 'Identity Verification',
+            description: 'Verify your identity',
+            type: 'verification',
+            content: { documents: ['id', 'address'] },
+            prerequisites: ['accept_tos'],
+            estimated_time: 20,
+            completion_criteria: { verified: true }
+          },
+          {
+            id: 'training',
+            title: 'Capper Training',
+            description: 'Complete capper certification',
+            type: 'education',
+            content: { modules: ['ethics', 'analysis', 'reporting'] },
+            prerequisites: ['kyc'],
+            estimated_time: 60,
+            completion_criteria: { certificationPassed: true }
+          },
+          {
+            id: 'access',
+            title: 'Platform Access',
+            description: 'Get access to capper tools',
+            type: 'verification',
+            content: { permissions: ['create_picks', 'analytics'] },
+            prerequisites: ['training'],
+            estimated_time: 5,
+            completion_criteria: { accessGranted: true }
+          }
+        ];
+
+      default:
+        return baseSteps;
+    }
+  }
+
+  /**
+   * Update progress for a user's onboarding step
+   */
+  private async updateProgress(userId: string, stepId: string): Promise<void> {
+    this.logger.info(`Updating progress for user ${userId}, step ${stepId}`);
+
+    // Update progress in database
+    await this.supabase
+      .from('user_onboarding')
+      .update({
+        current_step: stepId,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId);
   }
 }

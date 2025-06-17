@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Campaign } from '../../../types/marketing'
+import type { Campaign } from '../../types/marketing'
 
 export class CampaignManager {
   private supabase: SupabaseClient

@@ -94,6 +94,11 @@ export interface IngestionMetrics extends BaseMetrics {
   lastIngestionTime: Date | null;
   providersConfigured: number;
   batchSize: number;
+  propsIngested: number;
+  duplicatesFiltered: number;
+  validationErrors: number;
+  providerStats: Record<string, any>;
+  processingTimeMs: number;
 }
 
 // Result of an ingestion run

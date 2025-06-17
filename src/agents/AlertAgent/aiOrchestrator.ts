@@ -1,5 +1,4 @@
 import OpenAI from 'openai';
-// import Anthropic from '@anthropic-ai/sdk'; // TODO: Install @anthropic-ai/sdk package
 import { FinalPick } from '../../types/picks';
 import { logger } from '../../services/logging';
 
@@ -100,14 +99,16 @@ export class AIOrchestrator {
   private models: Map<string, ModelConfig> = new Map();
   private openai: OpenAI;
   // private anthropic: Anthropic; // TODO: Uncomment when @anthropic-ai/sdk is installed
-  private fallbackChain: string[] = ['gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'];
   private performanceCache: Map<string, ModelPerformance> = new Map();
   private circuitBreaker: CircuitBreaker = new CircuitBreaker();
   private requestCounts: Map<string, { count: number; resetTime: number }> = new Map();
 
   constructor() {
+    // Handle missing API keys gracefully for testing
+    const openaiApiKey = process.env.OPENAI_API_KEY || 'test-key-for-testing';
+
     this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY!,
+      apiKey: openaiApiKey,
     });
 
     // TODO: Uncomment when @anthropic-ai/sdk is installed
@@ -217,13 +218,14 @@ export class AIOrchestrator {
   }
 
   // Main entry point for getting AI advice
-  async getAdviceForPick(pick: FinalPick, context?: MarketContext): Promise<AIAdvice> {
+  async getAdviceForPick(pick: FinalPick, _context?: MarketContext): Promise<AIAdvice> {
     const startTime = Date.now();
-    
+
     try {
       // Select optimal model based on context and performance
-      const selectedModel = await this.selectOptimalModel(pick, context);
-      
+      // Pass only the pick argument as selectOptimalModel expects one argument
+      const selectedModel = await this.selectOptimalModel(pick);
+
       if (!selectedModel) {
         throw new Error('No available models for advice generation');
       }
@@ -231,24 +233,24 @@ export class AIOrchestrator {
       // Check rate limits
       if (!this.checkRateLimit(selectedModel.id)) {
         logger.warn(`Rate limit exceeded for model ${selectedModel.id}, using fallback`);
-        return this.getFallbackAdvice(pick, context);
+        return this.getFallbackAdvice(pick);
       }
 
       // Generate advice with selected model
-      const advice = await this.queryModel(selectedModel, pick, context);
-      
+      const advice = await this.queryModel(selectedModel, pick);
+
       // Update performance metrics
       this.updateModelPerformance(selectedModel.id, true, Date.now() - startTime);
-      
+
       return advice;
     } catch (error) {
       logger.error('Primary advice generation failed, using fallback:', error);
-      return this.getFallbackAdvice(pick, context);
+      return this.getFallbackAdvice(pick);
     }
   }
 
   // Multi-model consensus for high-stakes decisions
-  async getConsensusAdvice(pick: FinalPick, context?: MarketContext): Promise<ConsensusAdvice> {
+  async getConsensusAdvice(pick: FinalPick): Promise<ConsensusAdvice> {
     const availableModels = this.getAvailableModels();
     const responses: AIAdvice[] = [];
     const errors: string[] = [];
@@ -259,7 +261,7 @@ export class AIOrchestrator {
         if (this.circuitBreaker.isOpen(model.id)) {
           throw new Error(`Circuit breaker open for ${model.id}`);
         }
-        return await this.queryModel(model, pick, context);
+        return await this.queryModel(model, pick);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         errors.push(`${model.id}: ${errorMessage}`);
@@ -269,7 +271,7 @@ export class AIOrchestrator {
     });
 
     const results = await Promise.allSettled(promises);
-    
+
     results.forEach((result, index) => {
       if (result.status === 'fulfilled' && result.value) {
         responses.push(result.value);
@@ -284,9 +286,9 @@ export class AIOrchestrator {
     return this.aggregateResponses(responses);
   }
 
-  private async selectOptimalModel(pick: FinalPick, context?: MarketContext): Promise<ModelConfig | null> {
+  private async selectOptimalModel(pick: FinalPick): Promise<ModelConfig | null> {
     const availableModels = this.getAvailableModels();
-    
+
     if (availableModels.length === 0) {
       return null;
     }
@@ -294,55 +296,42 @@ export class AIOrchestrator {
     // Score models based on multiple factors
     const scoredModels = availableModels.map(model => ({
       model,
-      score: this.calculateModelScore(model, pick, context)
+      score: this.calculateModelScore(model, pick)
     }));
 
     // Sort by score (highest first)
     scoredModels.sort((a, b) => b.score - a.score);
-    
+
     return scoredModels[0].model;
   }
 
-  private calculateModelScore(model: ModelConfig, pick: FinalPick, context?: MarketContext): number {
+  private calculateModelScore(model: ModelConfig, pick: FinalPick): number {
     let score = 0;
-    
+
     // Base performance score (40% weight)
     score += model.performance.accuracy * 0.4;
-    
+
     // Latency score (20% weight) - lower is better
     const latencyScore = Math.max(0, 1 - (model.performance.avgLatency / 5000));
     score += latencyScore * 0.2;
-    
+
     // Error rate score (20% weight) - lower is better
     const errorScore = Math.max(0, 1 - model.performance.errorRate);
     score += errorScore * 0.2;
-    
+
     // Success rate score (10% weight)
     score += model.performance.successRate * 0.1;
-    
+
     // Cost efficiency (10% weight) - lower cost is better for similar performance
     const costScore = Math.max(0, 1 - (model.costPerToken / 0.0001));
     score += costScore * 0.1;
-    
-    // Context-specific adjustments
-    if (context) {
-      // High volatility markets favor more accurate models
-      if (context.volatility > 0.7) {
-        score += model.performance.accuracy * 0.1;
-      }
-      
-      // Time-sensitive situations favor faster models
-      if (context.timeOfDay === 'game-time') {
-        score += latencyScore * 0.1;
-      }
-    }
-    
+
     // Tier-specific adjustments
     if (pick.tier === 'S' || pick.tier === 'A') {
       // High-tier picks get the most accurate model
       score += model.performance.accuracy * 0.15;
     }
-    
+
     return score;
   }
 
@@ -363,21 +352,21 @@ export class AIOrchestrator {
     const now = Date.now();
     const minute = Math.floor(now / 60000);
     const key = `${modelId}-${minute}`;
-    
+
     const current = this.requestCounts.get(key) || { count: 0, resetTime: now + 60000 };
-    
+
     if (current.count >= model.maxRequestsPerMinute) {
       return false;
     }
-    
+
     this.requestCounts.set(key, { ...current, count: current.count + 1 });
     return true;
   }
 
-  private async queryModel(model: ModelConfig, pick: FinalPick, context?: MarketContext): Promise<AIAdvice> {
+  private async queryModel(model: ModelConfig, pick: FinalPick): Promise<AIAdvice> {
     const startTime = Date.now();
-    const temperature = this.adjustTemperature(model, pick, context);
-    const prompt = this.buildPrompt(pick, context);
+    const temperature = this.adjustTemperature(model, pick);
+    const prompt = this.buildPrompt(pick);
 
     let response: string;
 
@@ -410,7 +399,7 @@ export class AIOrchestrator {
       }
 
       const processingTime = Date.now() - startTime;
-      
+
       return this.parseAdviceResponse(response, model.id, temperature, processingTime);
     } catch (error) {
       this.circuitBreaker.recordFailure(model.id);
@@ -419,7 +408,7 @@ export class AIOrchestrator {
   }
 
   private getSystemPrompt(): string {
-    return `You are an elite sports betting advisor with deep expertise in market analysis, player performance, and risk management. 
+    return `You are an elite sports betting advisor with deep expertise in market analysis, player performance, and risk management.
 
 Your role is to provide actionable betting advice based on comprehensive analysis of:
 - Player statistics and recent performance trends
@@ -437,7 +426,7 @@ Always provide:
 Be concise but thorough. Focus on actionable insights that can improve betting outcomes.`;
   }
 
-  private buildPrompt(pick: FinalPick, context?: MarketContext): string {
+  private buildPrompt(pick: FinalPick): string {
     const basePrompt = `
 BETTING ANALYSIS REQUEST
 
@@ -452,18 +441,7 @@ Pick Details:
 - Tags: ${pick.tags?.join(', ') || 'None'}
 `;
 
-    const contextInfo = context ? `
-Market Context:
-- Regime: ${context.regime}
-- Volatility: ${context.volatility}
-- Sentiment: ${context.sentiment}
-- Time: ${context.timeOfDay}
-- Day: ${context.dayOfWeek}
-- Market Pressure: ${context.marketPressure}
-- Line Movement: ${context.lineMovement}
-` : '';
-
-    return basePrompt + contextInfo + `
+    return basePrompt + `
 Please provide your analysis and recommendation in the following format:
 
 **RECOMMENDATION**: [HOLD/HEDGE/FADE]
@@ -474,27 +452,14 @@ Please provide your analysis and recommendation in the following format:
 `;
   }
 
-  private adjustTemperature(model: ModelConfig, pick: FinalPick, context?: MarketContext): number {
+  private adjustTemperature(model: ModelConfig, pick: FinalPick): number {
     let temperature = model.temperature;
-    
+
     // Lower temperature for high-tier picks (more conservative)
     if (pick.tier === 'S' || pick.tier === 'A') {
       temperature *= 0.8;
     }
-    
-    // Adjust based on market context
-    if (context) {
-      // Higher volatility = lower temperature (more conservative)
-      if (context.volatility > 0.7) {
-        temperature *= 0.9;
-      }
-      
-      // Game time = lower temperature (more focused)
-      if (context.timeOfDay === 'game-time') {
-        temperature *= 0.85;
-      }
-    }
-    
+
     // Ensure temperature stays within reasonable bounds
     return Math.max(0.1, Math.min(1.0, temperature));
   }
@@ -523,11 +488,11 @@ Please provide your analysis and recommendation in the following format:
     };
   }
 
-  private async getFallbackAdvice(pick: FinalPick, context?: MarketContext): Promise<AIAdvice> {
+  private async getFallbackAdvice(pick: FinalPick): Promise<AIAdvice> {
     // Rule-based fallback when AI is unavailable
     let advice = '';
     let confidence = 0.3;
-    
+
     if (pick.is_sharp_fade) {
       advice = '**FADE** - Sharp money indicates line movement against this pick. Consider fading or avoiding.';
       confidence = 0.6;
@@ -541,7 +506,7 @@ Please provide your analysis and recommendation in the following format:
       advice = '**HOLD** - Standard pick with moderate edge. Follow your bankroll management rules.';
       confidence = 0.3;
     }
-    
+
     return {
       advice,
       confidence,

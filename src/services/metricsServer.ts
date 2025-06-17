@@ -1,4 +1,4 @@
-import http from 'http';
+import * as http from 'http';
 import { collectDefaultMetrics, Registry, Counter, Histogram } from 'prom-client';
 
 // Create a registry for all metrics

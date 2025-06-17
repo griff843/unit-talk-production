@@ -18,14 +18,12 @@ export async function validateOrThrow<T>(
     return schema.parse(data);
   } catch (error) {
     if (error instanceof z.ZodError) {
+      const errorDetails = error.errors.map(e => ({
+        path: e.path.join('.'),
+        message: e.message,
+      }));
       throw new ValidationError(
-        `Validation failed${context ? ` for ${context}` : ''}`,
-        {
-          errors: error.errors.map(e => ({
-            path: e.path.join('.'),
-            message: e.message,
-          })),
-        }
+        `Validation failed${context ? ` for ${context}` : ''}: ${JSON.stringify(errorDetails)}`
       );
     }
     throw error;

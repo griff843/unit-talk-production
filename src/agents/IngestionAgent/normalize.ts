@@ -61,8 +61,10 @@ export function normalizeRawPropDetailed(prop: RawProp): NormalizationResult {
 
   // Track changes
   Object.keys(normalized).forEach(key => {
-    if (original[key] !== normalized[key]) {
-      changes.push(`${key}: "${original[key]}" -> "${normalized[key]}"`);
+    const originalValue = (original as any)[key];
+    const normalizedValue = (normalized as any)[key];
+    if (originalValue !== normalizedValue) {
+      changes.push(`${key}: "${originalValue}" -> "${normalizedValue}"`);
     }
   });
 

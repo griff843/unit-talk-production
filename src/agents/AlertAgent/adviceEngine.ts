@@ -147,7 +147,7 @@ export class AdviceEngine {
 
   private cleanupCache(): void {
     const now = Date.now();
-    for (const [key, value] of this.cache.entries()) {
+    for (const [key, value] of Array.from(this.cache.entries())) {
       if (now - value.timestamp > this.CACHE_TTL) {
         this.cache.delete(key);
       }

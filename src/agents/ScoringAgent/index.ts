@@ -74,16 +74,12 @@ export default class ScoringAgent extends BaseAgent {
       };
 
       return {
-        ...baseMetrics,
         agentName: this.config.name,
         successCount,
         errorCount,
         warningCount: 0,
-        processingTimeMs: baseMetrics.processingTimeMs,
-        memoryUsageMb: baseMetrics.memoryUsageMb,
-        'custom.totalProcessed': totalProcessed,
-        'custom.averageScore': scoringStats && scoringStats.length > 0 ? 
-          scoringStats.reduce((sum, s) => sum + (s.edge_score || 0), 0) / scoringStats.length : 0
+        processingTimeMs: baseMetrics.processingTimeMs || 0,
+        memoryUsageMb: baseMetrics.memoryUsageMb || 0
       };
     } catch (error) {
       this.logger.error('Failed to collect metrics', error as Error);
@@ -181,10 +177,8 @@ export default class ScoringAgent extends BaseAgent {
         successCount++;
       } catch (err) {
         errorCount++;
-        logger.error(`❌ Failed to process prop ID ${rawProp.id}:`, { error: err });
+        logger.error(`❌ Failed to process prop ID ${rawProp.id}:`, err instanceof Error ? err : new Error(String(err)));
       }
     }
-
-    logger.info(`🏁 ScoringAgent run complete. Processed: ${successCount} success, ${errorCount} errors`);
   }
 }

@@ -1,105 +1,107 @@
-// src/agents/AnalyticsAgent/activities.ts
+import { AnalyticsAgent } from './index';
 
-import { AnalyticsAgentActivities, ActivityParams, ActivityResult } from '../../types/activities';
-import { AnalyticsAgent, AnalyticsAgentConfig } from './index';
-import { createSupabaseClient } from '../../utils/supabase';
-import { ErrorHandler } from '../../utils/errorHandling';
-import { Logger } from '../../utils/logger';
-import { HealthCheckResult, BaseAgentDependencies } from '../../types/agent';
-import { Metrics } from '../../types/shared';
+export interface ActivityParams {
+  [key: string]: any;
+}
 
-export class AnalyticsAgentActivitiesImpl implements AnalyticsAgentActivities {
+export interface ActivityResult {
+  success: boolean;
+  data?: any;
+  error?: string;
+}
+
+/**
+ * AnalyticsAgentActivitiesImpl provides activity-oriented methods for the AnalyticsAgent
+ * This class serves as an intermediary to interact with the AnalyticsAgent instance
+ */
+export class AnalyticsAgentActivitiesImpl {
   private agent: AnalyticsAgent;
 
-  constructor() {
-    const supabase = createSupabaseClient();
-    const config: AnalyticsAgentConfig = {
-      name: 'AnalyticsAgent',
-      enabled: true,
-      healthCheckIntervalMs: 60000,
-      metricsIntervalMs: 30000,
-      analysisWindowDays: 30,
-      minPicksForAnalysis: 10,
-      updateFrequencyMs: 3600000,
-      batchSize: 100
-    };
-
-    const logger = new Logger('AnalyticsAgent');
-    const errorHandler = ErrorHandler.getInstance(supabase, {
-      enableLogging: true,
-      enableMetrics: true
-    });
-
-    const dependencies: BaseAgentDependencies = {
-      supabase,
-      config,
-      errorHandler,
-      logger
-    };
-
-    this.agent = new AnalyticsAgent(dependencies);
+  constructor(config: any, deps: any) {
+    this.agent = new AnalyticsAgent(config, deps);
   }
 
+  /**
+   * Initialize the analytics agent
+   */
   async initialize(): Promise<void> {
-    await this.agent.start();
+    return this.agent.initialize();
   }
 
+  /**
+   * Cleanup the analytics agent
+   */
   async cleanup(): Promise<void> {
-    await this.agent.stop();
+    return this.agent.cleanup();
   }
 
-  async checkHealth(): Promise<HealthCheckResult> {
-    return await this.agent['checkHealth']();
+  /**
+   * Check the health of the analytics agent
+   */
+  async checkHealth(): Promise<any> {
+    return this.agent.checkHealth();
   }
 
-  async collectMetrics(): Promise<Metrics> {
-    const metrics = await this.agent['collectMetrics']();
-    return {
-      errorCount: metrics.errorCount,
-      warningCount: metrics.warningCount,
-      successCount: metrics.successCount,
-      ...metrics
-    };
+  /**
+   * Collect metrics from the analytics agent
+   */
+  async collectMetrics(): Promise<any> {
+    return this.agent.collectMetrics();
   }
 
-  async handleCommand(command: any): Promise<void> {
-    await this.agent.handleCommand(command);
-  }
-
-  async runAnalysis(params: ActivityParams): Promise<ActivityResult> {
+  /**
+   * Handle a command for the analytics agent
+   */
+  async handleCommand(command: any): Promise<ActivityResult> {
     try {
-      await this.agent.handleCommand({
-        type: 'RUN_ANALYSIS',
-        payload: params
-      });
-      return {
-        success: true
-      };
+      if (this.agent.handleCommand) {
+        const result = await this.agent.handleCommand(command);
+        return { success: true, data: result };
+      } else {
+        throw new Error('handleCommand method not available on AnalyticsAgent');
+      }
     } catch (error) {
       return {
         success: false,
-        error: error as Error
+        error: error instanceof Error ? error.message : String(error)
       };
     }
   }
 
-  async generateReport(params: ActivityParams): Promise<ActivityResult> {
-    // Implement report generation logic
+  /**
+   * Run analysis activity
+   */
+  async runAnalysis(_params: ActivityParams): Promise<ActivityResult> {
+    try {
+      const result = await this.handleCommand({ type: 'RUN_ANALYSIS' });
+      return result;
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
+
+  /**
+   * Generate report activity (placeholder implementation)
+   */
+  async generateReport(_params: ActivityParams): Promise<ActivityResult> {
+    // TODO: Implement actual report generation logic
     return {
       success: true,
-      data: {
-        message: 'Report generation not yet implemented'
-      }
+      data: { message: 'Report generation not yet implemented' }
     };
   }
 
-  async exportData(params: ActivityParams): Promise<ActivityResult> {
-    // Implement data export logic
+  /**
+   * Export data activity (placeholder implementation)
+   */
+  async exportData(_params: ActivityParams): Promise<ActivityResult> {
+    // TODO: Implement actual data export logic
     return {
       success: true,
-      data: {
-        message: 'Data export not yet implemented'
-      }
+      data: { message: 'Data export not yet implemented' }
     };
   }
 }

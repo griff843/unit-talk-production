@@ -40,12 +40,11 @@ export function validateMessage<T extends z.ZodType>(schema: T) {
       return schema.parse(message);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        throw new ValidationError('Message validation failed', {
-          errors: error.errors.map(e => ({
-            path: e.path.join('.'),
-            message: e.message,
-          })),
-        });
+        const errorDetails = error.errors.map(e => ({
+          path: e.path.join('.'),
+          message: e.message,
+        }));
+        throw new ValidationError(`Message validation failed: ${JSON.stringify(errorDetails)}`);
       }
       throw error;
     }
@@ -58,12 +57,11 @@ export function validateConfig<T extends z.ZodType>(schema: T) {
       return schema.parse(config);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        throw new ValidationError('Configuration validation failed', {
-          errors: error.errors.map(e => ({
-            path: e.path.join('.'),
-            message: e.message,
-          })),
-        });
+        const errorDetails = error.errors.map(e => ({
+          path: e.path.join('.'),
+          message: e.message,
+        }));
+        throw new ValidationError(`Configuration validation failed: ${JSON.stringify(errorDetails)}`);
       }
       throw error;
     }
@@ -76,12 +74,11 @@ export function validateEvent<T extends z.ZodType>(schema: T) {
       return schema.parse(event);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        throw new ValidationError('Event validation failed', {
-          errors: error.errors.map(e => ({
-            path: e.path.join('.'),
-            message: e.message,
-          })),
-        });
+        const errorDetails = error.errors.map(e => ({
+          path: e.path.join('.'),
+          message: e.message,
+        }));
+        throw new ValidationError(`Event validation failed: ${JSON.stringify(errorDetails)}`);
       }
       throw error;
     }
@@ -98,12 +95,11 @@ export function validateResponse<T extends z.ZodType>(schema: T) {
           errors: error.errors,
           data,
         });
-        throw new ValidationError('Response validation failed', {
-          errors: error.errors.map(e => ({
-            path: e.path.join('.'),
-            message: e.message,
-          })),
-        });
+        const errorDetails = error.errors.map(e => ({
+          path: e.path.join('.'),
+          message: e.message,
+        }));
+        throw new ValidationError(`Response validation failed: ${JSON.stringify(errorDetails)}`);
       }
       throw error;
     }

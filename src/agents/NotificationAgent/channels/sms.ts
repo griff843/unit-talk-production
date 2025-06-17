@@ -1,4 +1,4 @@
-import twilio from 'twilio';
+const twilio = require('twilio');
 import { NotificationPayload } from '../types';
 
 interface SMSConfig {
@@ -9,7 +9,7 @@ interface SMSConfig {
   enabled: boolean;
 }
 
-let twilioClient: twilio.Twilio | null = null;
+let twilioClient: any = null;
 
 export async function sendSMSNotification(
   payload: NotificationPayload,
@@ -49,10 +49,10 @@ export async function sendSMSNotification(
 function formatSMSContent(payload: NotificationPayload): string {
   const title = payload.title ? `${payload.title}\n` : '';
   const message = payload.message;
-  
+
   // SMS should be concise, so we'll truncate if necessary
   const maxLength = 160 - title.length;
-  const truncatedMessage = message.length > maxLength 
+  const truncatedMessage = message.length > maxLength
     ? `${message.substring(0, maxLength - 3)}...`
     : message;
 

@@ -74,7 +74,7 @@ export class FeedbackLoopAgent extends BaseAgent {
       
       this.logger.info('FeedbackLoopAgent initialized successfully');
     } catch (error) {
-      this.logger.error('Failed to initialize FeedbackLoopAgent:', error as Record<string, any>);
+      this.logger.error('Failed to initialize FeedbackLoopAgent:', error instanceof Error ? error : undefined);
       throw error;
     }
   }
@@ -107,7 +107,7 @@ export class FeedbackLoopAgent extends BaseAgent {
         adaptationsApplied: this.processingStats.adaptationsApplied
       });
     } catch (error) {
-      this.logger.error('FeedbackLoopAgent processing error:', error as Record<string, any>);
+      this.logger.error('FeedbackLoopAgent processing error:', error instanceof Error ? error : undefined);
       throw error;
     }
   }
@@ -167,7 +167,7 @@ export class FeedbackLoopAgent extends BaseAgent {
     try {
       // Check AI orchestrator health
       const aiHealth = await this.aiOrchestrator.checkHealth();
-      checks.push({ service: 'ai_orchestrator', status: aiHealth.status });
+      checks.push({ service: 'ai_orchestrator', status: aiHealth ? 'healthy' : 'unhealthy' });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       checks.push({ service: 'ai_orchestrator', status: 'unhealthy', error: errorMessage });
@@ -234,7 +234,7 @@ export class FeedbackLoopAgent extends BaseAgent {
       
       this.logger.info(`Loaded ${this.feedbackQueue.length} historical feedback items`);
     } catch (error) {
-      this.logger.error('Error loading historical data:', error as Record<string, any>);
+      this.logger.error('Error loading historical data:', error instanceof Error ? error : undefined);
     }
   }
 
@@ -303,7 +303,7 @@ export class FeedbackLoopAgent extends BaseAgent {
         });
       }
     } catch (error) {
-      this.logger.error('Error collecting pick outcome feedback:', error as Record<string, any>);
+      this.logger.error('Error collecting pick outcome feedback:', error instanceof Error ? error : undefined);
     }
   }
 
@@ -348,7 +348,7 @@ export class FeedbackLoopAgent extends BaseAgent {
         });
       }
     } catch (error) {
-      this.logger.error('Error collecting model accuracy feedback:', error as Record<string, any>);
+      this.logger.error('Error collecting model accuracy feedback:', error instanceof Error ? error : undefined);
     }
   }
 
@@ -376,7 +376,7 @@ export class FeedbackLoopAgent extends BaseAgent {
       await this.saveFeedbackItem(feedback);
       
     } catch (error) {
-      this.logger.error(`Error processing feedback ${feedback.id}:`, error as Record<string, any>);
+      this.logger.error(`Error processing feedback ${feedback.id}:`, error instanceof Error ? error : error);
     }
   }
 
@@ -544,11 +544,11 @@ export class FeedbackLoopAgent extends BaseAgent {
 
   private async applyAdaptationRule(rule: AdaptationRule): Promise<void> {
     this.logger.info(`Applying adaptation rule: ${rule.action}`);
-    
+
     // Implement rule actions
     switch (rule.action) {
       case 'switch_to_backup_model':
-        await this.aiOrchestrator.switchToBackupModel();
+        await this.aiOrchestrator.switchToBackupModel('primary-model');
         break;
       case 'reduce_processing_rate':
         // Implement rate reduction
@@ -557,7 +557,7 @@ export class FeedbackLoopAgent extends BaseAgent {
         // Implement threshold adjustment
         break;
     }
-    
+
     rule.lastApplied = new Date().toISOString();
   }
 
@@ -593,7 +593,7 @@ export class FeedbackLoopAgent extends BaseAgent {
         this.logger.error('Failed to save feedback item:', error);
       }
     } catch (error) {
-      this.logger.error('Error saving feedback item:', error as Record<string, any>);
+      this.logger.error('Error saving feedback item:', error instanceof Error ? error : undefined);
     }
   }
 
@@ -611,7 +611,7 @@ export class FeedbackLoopAgent extends BaseAgent {
         this.logger.error('Failed to save recommendations:', error);
       }
     } catch (error) {
-      this.logger.error('Error saving recommendations:', error as Record<string, any>);
+      this.logger.error('Error saving recommendations:', error instanceof Error ? error : undefined);
     }
   }
 
@@ -637,7 +637,7 @@ export class FeedbackLoopAgent extends BaseAgent {
         this.logger.error('Failed to save agent state:', error);
       }
     } catch (error) {
-      this.logger.error('Error saving agent state:', error as Record<string, any>);
+      this.logger.error('Error saving agent state:', error instanceof Error ? error : undefined);
     }
   }
 }

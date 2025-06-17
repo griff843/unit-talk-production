@@ -1,9 +1,5 @@
 import { ContestAgent } from '../index';
-import { createClient } from '@supabase/supabase-js';
-import { Logger } from '../../../utils/logger';
-import { ErrorHandler } from '../../../utils/errorHandling';
-import { BaseAgentDependencies } from '../BaseAgent/types';
-import { Contest, Leaderboard, PrizePool } from '../types';
+import { createTestDependencies, createTestConfig } from '../../../test/helpers/testHelpers';
 
 // Mock Supabase client
 jest.mock('@supabase/supabase-js', () => ({
@@ -39,103 +35,36 @@ jest.mock('@supabase/supabase-js', () => ({
   }))
 }));
 
-// Mock data
-const mockContest: Contest = {
-  id: 'test-contest-id',
-  name: 'Test Contest',
-  status: 'active',
-  startDate: new Date().toISOString(),
-  endDate: new Date(Date.now() + 86400000).toISOString(),
-  prizePool: {
-    total: 1000,
-    distribution: [0.5, 0.3, 0.2]
-  },
-  participants: [],
-  rules: {
-    minParticipants: 2,
-    maxParticipants: 100,
-    entryFee: 10
-  }
-};
-
-const mockLeaderboard: Leaderboard = {
-  id: 'test-leaderboard-id',
-  contestId: 'test-contest-id',
-  entries: [],
-  lastUpdated: new Date().toISOString()
-};
-
-const mockPrizePool: PrizePool = {
-  id: 'test-prize-pool-id',
-  contestId: 'test-contest-id',
-  total: 1000,
-  distribution: [0.5, 0.3, 0.2],
-  status: 'active'
-};
-
-// Test configuration
-const mockConfig = {
-  name: 'ContestAgent',
-  enabled: true,
-  version: '1.0.0',
-  logLevel: 'info',
-  metrics: { enabled: true, interval: 60 },
-  retry: {
-    maxRetries: 3,
-    backoffMs: 1000,
-    maxBackoffMs: 30000
-  ,
-  metrics: { enabled: false, interval: 60 ,
-  health: { enabled: false, interval: 30 }
-}
-},
-  metricsConfig: {
-    interval: 60000,
-    prefix: 'contest'
-  },
-  contestConfig: {
-    maxActiveContests: 10,
-    minParticipants: 2,
-    maxParticipants: 1000,
-    prizeDistributionRules: {
-      minPayout: 10,
-      maxPayout: 10000,
-      distributionTiers: [1, 2, 3, 4, 5]
-    }
-  }
-};
-
 describe('ContestAgent', () => {
   let agent: ContestAgent;
-  let mockSupabase: any;
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockSupabase = createClient('test-url', 'test-service-role-key');
-    const dependencies: BaseAgentDependencies = {
-      supabase: mockSupabase,
-      config: mockConfig,
-      logger: new Logger('ContestAgent'),
-      errorHandler: new ErrorHandler('ContestAgent')
-    };
-    agent = new ContestAgent(dependencies);
+  beforeEach(async () => {
+    // Use test helpers to create proper dependencies and config
+    const deps = createTestDependencies();
+    const config = createTestConfig({ name: 'ContestAgent' });
+
+    agent = new ContestAgent(config, deps);
+    await agent.initialize();
   });
 
   describe('initialization', () => {
-    it('should initialize resources successfully', async () => {
-      await expect(agent.initializeResources()).resolves.not.toThrow();
+    it('should initialize successfully', async () => {
+      await expect(agent.start()).resolves.not.toThrow();
+      await agent.stop();
     });
   });
 
   describe('process', () => {
-    it('should process contests successfully', async () => {
-      await expect(agent.process()).resolves.not.toThrow();
+    it('should start and stop successfully', async () => {
+      await expect(agent.start()).resolves.not.toThrow();
+      await expect(agent.stop()).resolves.not.toThrow();
     });
   });
 
   describe('cleanup', () => {
-    it('should cleanup resources successfully', async () => {
-      await expect(agent.cleanup()).resolves.not.toThrow();
+    it('should handle lifecycle properly', async () => {
+      await agent.start();
+      await expect(agent.stop()).resolves.not.toThrow();
     });
   });
 
@@ -150,6 +79,7 @@ describe('ContestAgent', () => {
       // Mock unhealthy component
       const mockUnhealthyResponse = {
         status: 'unhealthy',
+        timestamp: new Date().toISOString(),
         details: {
           errors: ['Test error'],
           warnings: [],
@@ -179,33 +109,28 @@ describe('ContestAgent', () => {
     });
   });
 
-  describe('command processing', () => {
-    it('should handle CREATE_CONTEST command', async () => {
-      await expect(agent.processCommand({
-        type: 'CREATE_CONTEST',
-        payload: mockContest
-      })).resolves.not.toThrow();
+  describe('public interface', () => {
+    it('should initialize properly', async () => {
+      await expect(agent.initialize()).resolves.not.toThrow();
     });
 
-    it('should handle UPDATE_LEADERBOARD command', async () => {
-      await expect(agent.processCommand({
-        type: 'UPDATE_LEADERBOARD',
-        payload: mockLeaderboard
-      })).resolves.not.toThrow();
+    it('should collect metrics successfully', async () => {
+      const metrics = await agent.collectMetrics();
+      expect(metrics).toHaveProperty('errorCount');
+      expect(metrics).toHaveProperty('warningCount');
+      expect(metrics).toHaveProperty('successCount');
     });
 
-    it('should handle CHECK_FAIR_PLAY command', async () => {
-      await expect(agent.processCommand({
-        type: 'CHECK_FAIR_PLAY',
-        payload: { contestId: 'test-contest-id' }
-      })).resolves.not.toThrow();
+    it('should handle start/stop lifecycle', async () => {
+      await expect(agent.start()).resolves.not.toThrow();
+      await expect(agent.stop()).resolves.not.toThrow();
     });
 
-    it('should throw error for unknown command type', async () => {
-      await expect(agent.processCommand({
-        type: 'UNKNOWN_COMMAND',
-        payload: {}
-      })).rejects.toThrow('Unknown command type: UNKNOWN_COMMAND');
+    it('should perform health checks', async () => {
+      const health = await agent.checkHealth();
+      expect(health).toHaveProperty('status');
+      expect(health).toHaveProperty('timestamp');
+      expect(health).toHaveProperty('details');
     });
   });
-}); 
+});

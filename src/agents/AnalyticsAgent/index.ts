@@ -1,63 +1,31 @@
-import { SupabaseClient } from '@supabase/supabase-js';
-import { 
-  AnalyticsAgentConfig, 
-  AnalyticsSummary, 
-  CapperStats, 
-  PlayType, 
-  Tier, 
-  StatType,
-  AnalyticsMetrics,
-  ROIAnalysis,
-  TrendAnalysis,
-  CapperPerformance
-} from './types';
 import { BaseAgent } from '../BaseAgent/index';
-import { ErrorHandler } from '../../utils/errorHandling';
-import { Logger } from '../../utils/logger';
-import { 
-  BaseAgentConfig, 
-  BaseAgentDependencies, 
-  AgentStatus, 
-  HealthStatus,
-  BaseMetrics
-} from '../BaseAgent/types';
-import { z } from 'zod';
+import { BaseAgentConfig, BaseAgentDependencies, HealthStatus, BaseMetrics } from '../BaseAgent/types/index';
 
-const AnalyticsAgentConfigSchema = z.object({
-  name: z.string(),
-  enabled: z.boolean(),
-  version: z.string(),
-  logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
-  metrics: z.object({
-    enabled: z.boolean().default(true),
-  }),
-  retryConfig: z.object({
-    maxRetries: z.number().min(0),
-    backoffMs: z.number().min(100),
-    maxBackoffMs: z.number().min(1000),
-  }),
-  dataRetentionDays: z.number().min(1),
-  analysisConfig: z.object({
-    minPicksForAnalysis: z.number().min(1),
-    roiTimeframes: z.array(z.number()),
-    streakThreshold: z.number().min(2),
-    trendWindowDays: z.number().min(1)
-  }),
-  alertConfig: z.object({
-    roiAlertThreshold: z.number(),
-    streakAlertThreshold: z.number(),
-    volatilityThreshold: z.number()
-  })
-});
+interface AnalyticsMetrics extends BaseMetrics {
+  totalAnalyzed: number;
+  capperCount: number;
+  totalPicks: number;
+  avgROI: number;
+  avgWinRate: number;
+  streakCount: number;
+  profitableCappers: number;
+  activeStreaks: number;
+  totalProcessed: number;
+  lastRunStats: {
+    startTime: string;
+    endTime: string;
+    recordsProcessed: number;
+  };
+}
 
 export class AnalyticsAgent extends BaseAgent {
-  protected config: BaseAgentConfig;
-  protected metrics: AnalyticsMetrics;
+  public config: BaseAgentConfig;
+  public metrics: AnalyticsMetrics;
 
   constructor(config: BaseAgentConfig, dependencies: BaseAgentDependencies) {
     super(config, dependencies);
     this.config = config;
-    
+
     this.metrics = {
       agentName: 'AnalyticsAgent',
       successCount: 0,
@@ -67,7 +35,10 @@ export class AnalyticsAgent extends BaseAgent {
       memoryUsageMb: 0,
       totalAnalyzed: 0,
       capperCount: 0,
+      totalPicks: 0,
       avgROI: 0,
+      avgWinRate: 0,
+      streakCount: 0,
       profitableCappers: 0,
       activeStreaks: 0,
       totalProcessed: 0,
@@ -79,9 +50,9 @@ export class AnalyticsAgent extends BaseAgent {
     };
   }
 
-  protected async initialize(): Promise<void> {
+  public async initialize(): Promise<void> {
     this.logger.info('Initializing AnalyticsAgent');
-    
+
     // Verify access to required tables
     const requiredTables = [
       'final_picks',
@@ -109,7 +80,7 @@ export class AnalyticsAgent extends BaseAgent {
     this.logger.info('AnalyticsAgent initialized successfully');
   }
 
-  protected async process(): Promise<void> {
+  public async process(): Promise<void> {
     const startTime = Date.now();
     this.metrics.lastRunStats.startTime = new Date().toISOString();
     this.logger.info('Starting analytics processing');
@@ -124,7 +95,7 @@ export class AnalyticsAgent extends BaseAgent {
       if (capperError) {
         throw new Error(`Failed to fetch cappers: ${capperError.message}`);
       }
-      
+
       // Get unique cappers
       const uniqueCappers = Array.from(new Set(cappers?.map(c => c.capper_id) || []));
       this.metrics.capperCount = uniqueCappers.length;
@@ -164,7 +135,7 @@ export class AnalyticsAgent extends BaseAgent {
     }
   }
 
-  protected async cleanup(): Promise<void> {
+  public async cleanup(): Promise<void> {
     this.logger.info('Cleaning up AnalyticsAgent');
     // Cleanup logic here
   }
@@ -187,7 +158,7 @@ export class AnalyticsAgent extends BaseAgent {
       }
 
       // Check metrics
-      const isHealthy = this.metrics.errorCount < 10 && 
+      const isHealthy = this.metrics.errorCount < 10 &&
                        this.metrics.successCount > 0;
 
       return {
@@ -210,9 +181,18 @@ export class AnalyticsAgent extends BaseAgent {
     }
   }
 
-  protected async collectMetrics(): Promise<AnalyticsMetrics> {
+  public async collectMetrics(): Promise<AnalyticsMetrics> {
     this.metrics.memoryUsageMb = process.memoryUsage().heapUsed / 1024 / 1024;
     return { ...this.metrics };
+  }
+
+  public async handleCommand(command: any): Promise<void> {
+    this.logger.info(`Received command: ${JSON.stringify(command)}`);
+
+    // Example command handler implementation
+    if (command.type === 'RUN_ANALYSIS') {
+      await this.process();
+    }
   }
 
   private async processCapperAnalytics(capperId: string): Promise<void> {

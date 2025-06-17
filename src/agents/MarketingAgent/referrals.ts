@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { ReferralProgram } from '../../../types/marketing'
+import type { ReferralProgram } from '../../types/marketing'
 
 export class ReferralManager {
   private supabase: SupabaseClient

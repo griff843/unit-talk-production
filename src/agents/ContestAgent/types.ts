@@ -27,16 +27,22 @@ export interface Contest {
   startDate: string;
   endDate: string;
   status: 'draft' | 'active' | 'completed' | 'cancelled';
-  rules: string[];
+  type?: ContestType;
+  rules: ContestRule[];
   prizePool?: PrizePool;
-  participants: string[];
+  participants: Participant[];
+  metrics?: ContestMetrics;
   metadata?: Record<string, any>;
 }
 
 export interface Leaderboard {
+  id: string; // Added missing id property
   contestId: string;
+  type?: 'global' | 'regional' | 'division'; // Added missing type property
   entries: LeaderboardEntry[];
+  rankings?: LeaderboardEntry[]; // Added rankings property used in code
   lastUpdated: string;
+  stats?: any; // Added missing stats property
   metadata?: Record<string, any>;
 }
 
@@ -50,10 +56,36 @@ export interface LeaderboardEntry {
 
 export interface PrizePool {
   totalAmount: number;
-  distribution: number[];
+  totalValue: number; // Alias for totalAmount for backward compatibility
+  distribution: PrizeDistribution[];
   currency: string;
   winners: string[];
+  specialPrizes?: SpecialPrize[];
+  sponsorships?: Sponsorship[];
   metadata?: Record<string, any>;
+}
+
+export interface PrizeDistribution {
+  rank: string | number;
+  value: number;
+  type: 'cash' | 'credit' | 'item' | 'custom';
+  conditions?: Record<string, any>;
+}
+
+export interface SpecialPrize {
+  id: string;
+  name: string;
+  value: number;
+  type: 'bonus' | 'achievement' | 'milestone';
+  criteria: Record<string, any>;
+}
+
+export interface Sponsorship {
+  id: string;
+  sponsor: string;
+  value: number;
+  type: 'cash' | 'product' | 'service';
+  terms: Record<string, any>;
 }
 
 export interface FairPlayReport {
@@ -71,13 +103,6 @@ export interface FairPlayViolation {
   severity: 'low' | 'medium' | 'high';
   evidence: string[];
   timestamp: string;
-}
-
-export interface ContestEvent {
-  type: 'contest_created' | 'contest_started' | 'contest_ended' | 'participant_joined' | 'score_updated' | 'violation_detected';
-  contestId: string;
-  timestamp: string;
-  data: Record<string, any>;
 }
 
 export interface ContestMetrics {
@@ -110,6 +135,7 @@ export type ContestEventType =
   | 'contest_started'
   | 'contest_ended'
   | 'participant_registered'
+  | 'participant_joined'
   | 'score_updated'
   | 'prize_distributed'
   | 'violation_detected'
@@ -118,7 +144,7 @@ export type ContestEventType =
 
 export interface ContestEvent {
   type: ContestEventType;
-  timestamp: Date;
+  timestamp: string; // Changed from Date to string for consistency
   contestId: string;
   participantId?: string;
   details: Record<string, any>;
@@ -148,7 +174,7 @@ export interface ContestAgentMetrics {
   healthStatus: HealthCheckResult;
 }
 
-// Missing types that are imported in contests.ts
+// Contest types
 export type ContestType = 'daily' | 'weekly' | 'monthly' | 'season' | 'tournament' | 'special';
 
 export type ContestStatus = 'draft' | 'active' | 'completed' | 'cancelled' | 'paused';
@@ -167,8 +193,9 @@ export interface Participant {
   userId: string;
   contestId: string;
   joinedAt: string;
-  status: 'active' | 'disqualified' | 'withdrawn';
+  status: 'active' | 'disqualified' | 'withdrawn' | 'completed';
   score: number;
   rank?: number;
+  fairPlayScore?: number;
   metadata?: Record<string, any>;
-} 
+}

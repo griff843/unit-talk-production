@@ -3,7 +3,7 @@ import twilio from 'twilio';
 import { logger } from './logging';
 
 export class SMSService {
-  private client: twilio.Twilio;
+  private client: twilio.Twilio | null = null;
   private fromNumber: string;
 
   constructor() {
@@ -43,7 +43,9 @@ export class SMSService {
     if (!this.client) return false;
     
     try {
-      await this.client.api.accounts(process.env.TWILIO_ACCOUNT_SID).fetch();
+      const accountSid = process.env.TWILIO_ACCOUNT_SID;
+      if (!accountSid) return false;
+      await this.client.api.accounts(accountSid).fetch();
       return true;
     } catch (error) {
       logger.error('SMS service health check failed:', error);
