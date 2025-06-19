@@ -8,6 +8,7 @@ export const EDGE_CONFIG = {
     '3PM': 2,
     Hits: 2,
     'Total Bases': 2,
+    'Home Runs': 2,  // Added HR market type
     default: 1
   } as Record<string, number>,
   odds: {
@@ -37,6 +38,17 @@ export const EDGE_CONFIG = {
   tags: {
     rocket: 2,
     ladder: 1
+  },
+  // Zone Threat Rating configuration (INTERNAL ONLY)
+  zoneThreat: {
+    enabled: true,        // Feature flag for Zone Threat Rating
+    hrMarkets: [          // Market types eligible for Zone Threat boost
+      'Home Runs',
+      'Total Bases',
+      'rocket'            // Rocket props are often HR-related
+    ],
+    boost: 2,            // Points added for EXTREME + favorable conditions
+    logDecisions: true   // Whether to log boost decisions internally
   },
   max: 25
 };

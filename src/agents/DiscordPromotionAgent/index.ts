@@ -9,16 +9,6 @@ import { logger } from '../../services/logging';
 const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL || '';
 const PLAYER_HEADSHOT_CDN = process.env.PLAYER_HEADSHOT_CDN || 'https://your.cdn.com/headshots/';
 
-// ---- UTILS ----
-function getHeadshotUrl(player_slug: string) {
-  return player_slug ? `${PLAYER_HEADSHOT_CDN}${player_slug}.png` : '';
-}
-function getTierEmoji(tier: string) {
-  if (tier === 'S') return '💎 S-TIER LOCK 💎';
-  if (tier === 'A') return '🔥 A-TIER';
-  if (tier === 'B') return '🟨 B-TIER';
-  return '';
-}
 function formatOdds(odds: number) {
   return odds > 0 ? `+${odds}` : odds;
 }
@@ -28,14 +18,9 @@ function formatUnit(size: any) {
 function formatEV(ev: any) {
   return ev !== undefined && ev !== null ? `${ev}% EV` : 'N/A';
 }
-function formatDate(dateStr: string) {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  return d.toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' });
-}
 
 // ---- IMAGE GENERATOR ----
-async function generateEliteCard(pick: any): Promise<Buffer> {
+async function generateEliteCard(_: any): Promise<Buffer> {
   // Canvas module not available - returning empty buffer as fallback
   // TODO: Implement image generation when canvas module is available
   return Buffer.from('');

@@ -149,7 +149,7 @@ export class RecapService {
       if (error) throw error;
       if (!picks || picks.length === 0) return null;
 
-      return await this.processRecapData(picks, 'weekly', startDate, endDate);
+      return await this.processRecapData(picks, 'weekly', startDate);
     } catch (error) {
       throw new RecapError({
         code: 'WEEKLY_RECAP_FAILED',
@@ -177,7 +177,7 @@ export class RecapService {
       if (error) throw error;
       if (!picks || picks.length === 0) return null;
 
-      return await this.processRecapData(picks, 'monthly', startDate, endDate);
+      return await this.processRecapData(picks, 'monthly', startDate);
     } catch (error) {
       throw new RecapError({
         code: 'MONTHLY_RECAP_FAILED',
@@ -193,34 +193,33 @@ export class RecapService {
    * Process raw pick data into structured recap summary
    */
   private async processRecapData(
-    rawPicks: any[], 
-    period: 'daily' | 'weekly' | 'monthly', 
-    startDate: string, 
-    endDate?: string
+    rawPicks: any[],
+    period: 'daily' | 'weekly' | 'monthly',
+    startDate: string
   ): Promise<RecapSummary> {
     const picks: FinalPick[] = rawPicks.map(this.mapRawPickToFinalPick);
-    
+
     // Calculate basic stats
     const wins = picks.filter(p => p.outcome === 'win').length;
     const losses = picks.filter(p => p.outcome === 'loss').length;
     const pushes = picks.filter(p => p.outcome === 'push').length;
     const totalPicks = picks.length;
     const winRate = totalPicks > 0 ? (wins / (wins + losses)) * 100 : 0;
-    
+
     // Calculate units and ROI
     const totalUnits = picks.reduce((sum, pick) => sum + (pick.units || 1), 0);
     const netUnits = picks.reduce((sum, pick) => sum + (pick.profit_loss || 0), 0);
     const roi = totalUnits > 0 ? (netUnits / totalUnits) * 100 : 0;
-    
+
     // Calculate average edge and CLV
     const avgEdge = this.calculateAverageEdge(picks);
     const avgClvDelta = this.config.clvDelta ? this.calculateAverageClv(picks) : undefined;
-    
+
     // Generate breakdowns
     const capperBreakdown = await this.calculateCapperStats(picks);
     const tierBreakdown = this.calculateTierStats(picks);
     const hotStreaks = this.calculateHotStreaks(picks, capperBreakdown);
-    
+
     // Find best/worst picks
     const bestPick = this.findBestPick(picks);
     const worstPick = this.findWorstPick(picks);
@@ -746,9 +745,9 @@ export class RecapService {
   }
 
   private calculateParlayProfitLoss(
-    picks: FinalPick[], 
-    outcome: string, 
-    units: number, 
+    _: FinalPick[],
+    outcome: string,
+    units: number,
     totalOdds: number
   ): number {
     switch (outcome) {

@@ -11,10 +11,10 @@ export default {
       tsconfig: 'tsconfig.json'
     }]
   },
-  moduleNameMapping: {
+  moduleNameMapper: {  // Fixed: was "moduleNameMapping"
     '^@/(.*)$': '<rootDir>/src/$1'
   },
-  setupFiles: ['<rootDir>/src/test/setup.config.ts'],
+  setupFilesAfterEnv: ['<rootDir>/src/test/setup.ts'],  // Fixed: use existing setup.ts
   moduleDirectories: ['node_modules', 'src'],
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
   collectCoverageFrom: [

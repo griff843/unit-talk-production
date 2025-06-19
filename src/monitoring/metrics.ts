@@ -135,7 +135,7 @@ export class Metrics {
   private async startServer(): Promise<void> {
     const app = express();
 
-    app.get('/metrics', async (req: Request, res: Response) => {
+    app.get('/metrics', async (_: Request, res: Response) => {
       try {
         res.set('Content-Type', this.registry.contentType);
         res.end(await this.registry.metrics());

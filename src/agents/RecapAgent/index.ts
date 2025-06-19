@@ -24,13 +24,6 @@ export class RecapAgent extends BaseAgent {
   private recapMetrics: RecapMetrics;
   private roiWatcherInterval?: NodeJS.Timeout;
 
-  // Schedule configuration (cron format)
-  private readonly RECAP_SCHEDULE = {
-    daily: '0 9 * * *',    // 9 AM daily
-    weekly: '0 10 * * 1',  // 10 AM Monday  
-    monthly: '0 11 1 * *'  // 11 AM 1st of month
-  };
-
   constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
     super(config, deps);
 

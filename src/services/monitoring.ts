@@ -58,7 +58,7 @@ export class MonitoringService {
 
   private setupRoutes(): void {
     // Metrics endpoint for Prometheus
-    this.app.get('/metrics', async (req, res) => {
+    this.app.get('/metrics', async (_, res) => {
       try {
         res.set('Content-Type', register.contentType);
         res.end(await register.metrics());
@@ -68,7 +68,7 @@ export class MonitoringService {
     });
 
     // Health check endpoint
-    this.app.get('/health', async (req, res) => {
+    this.app.get('/health', async (_, res) => {
       const health = {
         status: 'healthy',
         timestamp: new Date().toISOString(),
@@ -81,7 +81,7 @@ export class MonitoringService {
     });
 
     // Ready check endpoint
-    this.app.get('/ready', async (req, res) => {
+    this.app.get('/ready', async (_, res) => {
       const ready = {
         status: 'ready',
         services: {

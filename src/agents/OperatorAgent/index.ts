@@ -1,4 +1,4 @@
-import { BaseAgent } from '../BaseAgent/index';
+import { BaseAgent } from '../BaseAgent';
 import {
   BaseAgentConfig,
   BaseAgentDependencies,
@@ -6,7 +6,6 @@ import {
   BaseMetrics
 } from '../BaseAgent/types';
 import { AgentTask, SystemEvent } from './types';
-import { supabase } from '../../services/supabaseClient';
 import { openai } from '../../services/openaiClient';
 import { sendDiscordAlert, sendNotionLog, createNotionSOP, createNotionKPI } from '../../services/operatorHelpers';
 import { startOfDay, subDays } from 'date-fns';
@@ -119,13 +118,6 @@ export class OperatorAgent extends BaseAgent {
 
     const successCount = events?.filter(e => e.status === 'ok').length || 0;
     const errorCount = events?.filter(e => e.status === 'failed').length || 0;
-
-    const { data: tasks } = await this.deps.supabase
-      .from('operator_tasks')
-      .select('status');
-
-    const pendingTasks = tasks?.filter(t => t.status === 'pending').length || 0;
-    const completedTasks = tasks?.filter(t => t.status === 'completed').length || 0;
 
     return {
       agentName: 'OperatorAgent',

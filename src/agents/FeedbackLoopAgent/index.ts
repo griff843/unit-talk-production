@@ -459,7 +459,7 @@ export class FeedbackLoopAgent extends BaseAgent {
     return insights;
   }
 
-  private async analyzeUserRating(feedback: FeedbackItem): Promise<LearningInsight[]> {
+  private async analyzeUserRating(_: FeedbackItem): Promise<LearningInsight[]> {
     // Implement user rating analysis
     return [];
   }
@@ -536,7 +536,7 @@ export class FeedbackLoopAgent extends BaseAgent {
     }
   }
 
-  private async evaluateRuleCondition(rule: AdaptationRule, category: string, insights: LearningInsight[]): Promise<boolean> {
+  private async evaluateRuleCondition(_: AdaptationRule, __: string, insights: LearningInsight[]): Promise<boolean> {
     // Implement rule condition evaluation logic
     // This is a simplified example
     return insights.length > 2 && insights.some(insight => insight.impact === 'high');
@@ -569,7 +569,7 @@ export class FeedbackLoopAgent extends BaseAgent {
     this.processingStats.modelOptimizations++;
   }
 
-  private async calculateModelAccuracy(model: any): Promise<number> {
+  private async calculateModelAccuracy(_: any): Promise<number> {
     // Implement model accuracy calculation
     // This would typically involve evaluating recent predictions against actual outcomes
     return 0.75; // Placeholder

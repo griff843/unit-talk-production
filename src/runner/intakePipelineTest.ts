@@ -3,7 +3,6 @@ dotenv.config();
 import { createClient } from '@supabase/supabase-js';
 import { logger } from '../utils/logger';
 import { ErrorHandler } from '../utils/errorHandler';
-import { FeedAgent } from '../agents/FeedAgent';
 import { IngestionAgent } from '../agents/IngestionAgent';
 import { PromoAgent } from '../agents/PromoAgent';
 import { BaseAgentConfig } from '../agents/BaseAgent/types';
@@ -17,17 +16,6 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const errorHandler = new ErrorHandler(logger);
 
 // Define configs per agent
-const feedConfig: BaseAgentConfig = {
-  name: 'FeedAgent',
-  version: '1.0.0',
-  enabled: true,
-  logLevel: 'info',
-  metrics: {
-    enabled: true,
-    interval: 60
-  },
-};
-
 const ingestionConfig: BaseAgentConfig = {
   name: 'IngestionAgent',
   version: '1.0.0',
@@ -58,7 +46,6 @@ const deps = {
 
 // Full agent runner
 async function run() {
-  const feedAgent = new FeedAgent(feedConfig, deps);
   const ingestionAgent = new IngestionAgent(ingestionConfig, deps);
   const promoAgent = new PromoAgent(promoConfig, deps);
 

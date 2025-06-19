@@ -319,7 +319,7 @@ export class FinalizerAgent extends BaseAgent {
     
     // Check recent processing errors
     const recentErrors = this.processingErrors.filter(
-      error => Date.now() - this.lastRunTimestamp < 300000 // Last 5 minutes
+      _ => Date.now() - this.lastRunTimestamp < 300000 // Last 5 minutes
     );
     
     const hasRecentErrors = recentErrors.length > 0;

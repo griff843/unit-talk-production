@@ -105,7 +105,6 @@ export class PromoAgent extends BaseAgent {
       .from('promotions')
       .select('active, applied_count');
 
-    const activeCount = promoStats?.filter(p => p.active).length || 0;
     const totalApplied = promoStats?.reduce((sum, p) => sum + (p.applied_count || 0), 0) || 0;
 
     return {

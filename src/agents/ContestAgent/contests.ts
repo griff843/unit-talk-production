@@ -86,25 +86,10 @@ const contestSchema = z.object({
   metadata: z.record(z.any()).optional()
 });
 
-const fixedSponsorships: Sponsorship[] = [
-  {
-    id: 'sponsor1',
-    sponsor: 'Example Sponsor',
-    value: 10000,
-    type: 'cash',
-    terms: {
-      duration: '1 year',
-      visibility: 'high',
-      branding: 'logo placement'
-    }
-  }
-]
-
 export class ContestManager {
   private supabase: SupabaseClient;
   private logger: Logger;
   private errorHandler: ErrorHandler;
-  private contests: Map<string, Contest> = new Map();
   private realtimeChannel: any;
 
   // Internal metrics tracking
