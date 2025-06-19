@@ -1,8 +1,7 @@
 import 'dotenv/config';
-import { BaseAgentConfig, BaseAgentDependencies, AgentStatus, HealthStatus, BaseMetrics } from '../BaseAgent/types';
 import { supabase } from '../../services/supabaseClient';
 import axios from 'axios';
-import * as FormData from 'form-data';
+import FormData from 'form-data';
 // import { createCanvas, loadImage } from 'canvas'; // Commented out - canvas module not available
 import { logger } from '../../services/logging';
 

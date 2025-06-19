@@ -4,12 +4,10 @@ import {
   RecapSummary, 
   CapperStats, 
   TierStats, 
-  HotStreak, 
+  HotStreak,
   ParlayGroup,
   MicroRecapData,
   RoiWatcherState,
-  ClvAnalysis,
-  StreakAnalysis,
   RecapConfig,
   RecapError
 } from '../../types/picks';
@@ -269,7 +267,7 @@ export class RecapService {
 
     const capperStats: CapperStats[] = [];
     
-    for (const [capper, capperPicks] of capperMap) {
+    for (const [capper, capperPicks] of Array.from(capperMap.entries())) {
       const wins = capperPicks.filter(p => p.outcome === 'win').length;
       const losses = capperPicks.filter(p => p.outcome === 'loss').length;
       const pushes = capperPicks.filter(p => p.outcome === 'push').length;
@@ -326,7 +324,7 @@ export class RecapService {
 
     const tierStats: TierStats[] = [];
     
-    for (const [tier, tierPicks] of tierMap) {
+    for (const [tier, tierPicks] of Array.from(tierMap.entries())) {
       const wins = tierPicks.filter(p => p.outcome === 'win').length;
       const losses = tierPicks.filter(p => p.outcome === 'loss').length;
       const pushes = tierPicks.filter(p => p.outcome === 'push').length;
@@ -412,7 +410,7 @@ export class RecapService {
 
       const parlayGroups: ParlayGroup[] = [];
       
-      for (const [parlayId, parlayPicks] of parlayMap) {
+      for (const [parlayId, parlayPicks] of Array.from(parlayMap.entries())) {
         const totalOdds = this.calculateParlayOdds(parlayPicks);
         const units = parlayPicks[0]?.units || 1;
         const outcome = this.determineParlayOutcome(parlayPicks);

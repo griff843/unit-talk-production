@@ -192,13 +192,13 @@ export class FeedbackLoopAgent extends BaseAgent {
   public async submitFeedback(feedback: Omit<FeedbackItem, 'id' | 'timestamp' | 'processed'>): Promise<void> {
     const feedbackItem: FeedbackItem = {
       ...feedback,
-      id: `feedback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `feedback_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
       timestamp: new Date().toISOString(),
       processed: false
     };
-    
+
     this.feedbackQueue.push(feedbackItem);
-    
+
     // Process high-priority feedback immediately
     if (feedback.priority === 'critical' || feedback.priority === 'high') {
       await this.processFeedbackItem(feedbackItem);
@@ -331,11 +331,11 @@ export class FeedbackLoopAgent extends BaseAgent {
   private async collectModelAccuracyFeedback(): Promise<void> {
     // Collect model accuracy metrics
     try {
-      const models = await this.aiOrchestrator.getAvailableModels();
-      
+      const models = this.aiOrchestrator.getAvailableModels();
+
       for (const model of models) {
         const accuracy = await this.calculateModelAccuracy(model);
-        
+
         await this.submitFeedback({
           type: 'model_accuracy',
           source: 'model_evaluator',
@@ -376,7 +376,7 @@ export class FeedbackLoopAgent extends BaseAgent {
       await this.saveFeedbackItem(feedback);
       
     } catch (error) {
-      this.logger.error(`Error processing feedback ${feedback.id}:`, error instanceof Error ? error : error);
+      this.logger.error(`Error processing feedback ${feedback.id}:`, error instanceof Error ? error : new Error(String(error)));
     }
   }
 

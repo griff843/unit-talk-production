@@ -1,11 +1,11 @@
 import { BaseAgent } from '../BaseAgent/index';
-import { 
-  BaseAgentConfig, 
+import {
+  BaseAgentConfig,
   BaseAgentDependencies,
   HealthStatus,
   BaseMetrics
 } from '../BaseAgent/types';
-import { AgentTask, SystemEvent, OperatorAgentConfig } from './types';
+import { AgentTask, SystemEvent } from './types';
 import { supabase } from '../../services/supabaseClient';
 import { openai } from '../../services/openaiClient';
 import { sendDiscordAlert, sendNotionLog, createNotionSOP, createNotionKPI } from '../../services/operatorHelpers';
@@ -25,7 +25,7 @@ export class OperatorAgent extends BaseAgent {
       await this.validateDependencies();
       this.deps.logger.info('OperatorAgent initialized successfully');
     } catch (error) {
-      this.deps.logger.error('Failed to initialize OperatorAgent:', error);
+      this.deps.logger.error('Failed to initialize OperatorAgent:', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -62,7 +62,7 @@ export class OperatorAgent extends BaseAgent {
         await this.learnAndEvolve();
       }
     } catch (error) {
-      this.deps.logger.error('Error in OperatorAgent process:', error);
+      this.deps.logger.error('Error in OperatorAgent process:', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -71,7 +71,7 @@ export class OperatorAgent extends BaseAgent {
     this.deps.logger.info('OperatorAgent cleanup completed');
   }
 
-  protected async checkHealth(): Promise<HealthStatus> {
+  public async checkHealth(): Promise<HealthStatus> {
     const errors: string[] = [];
     const warnings: string[] = [];
     
@@ -128,13 +128,12 @@ export class OperatorAgent extends BaseAgent {
     const completedTasks = tasks?.filter(t => t.status === 'completed').length || 0;
 
     return {
+      agentName: 'OperatorAgent',
       successCount,
       errorCount,
       warningCount: 0,
       processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024,
-      'custom.pendingTasks': pendingTasks,
-      'custom.completedTasks': completedTasks
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
     };
   }
 
@@ -389,7 +388,36 @@ export class OperatorAgent extends BaseAgent {
   // Public API
   public static getInstance(dependencies: BaseAgentDependencies): OperatorAgent {
     if (!instance) {
-      const config = dependencies.logger?.config || {} as BaseAgentConfig;
+      // Create a default config since logger doesn't have config property
+      const config: BaseAgentConfig = {
+        name: 'OperatorAgent',
+        enabled: true,
+        version: '1.0.0',
+        logLevel: 'info',
+        schedule: 'manual',
+        metrics: {
+          enabled: true,
+          interval: 60,
+          port: 9090
+        },
+        retry: {
+          enabled: true,
+          maxRetries: 3,
+          backoffMs: 1000,
+          maxBackoffMs: 30000,
+          maxAttempts: 3,
+          backoff: 1000,
+          exponential: true,
+          jitter: false
+        },
+        health: {
+          enabled: true,
+          interval: 30,
+          timeout: 5000,
+          checkDb: true,
+          checkExternal: false
+        }
+      };
       instance = new OperatorAgent(config, dependencies);
     }
     return instance;
@@ -397,7 +425,36 @@ export class OperatorAgent extends BaseAgent {
 }
 
 export function initializeOperatorAgent(dependencies: BaseAgentDependencies): OperatorAgent {
-  const config = dependencies.logger?.config || {} as BaseAgentConfig;
+  // Create a default config since logger doesn't have config property
+  const config: BaseAgentConfig = {
+    name: 'OperatorAgent',
+    enabled: true,
+    version: '1.0.0',
+    logLevel: 'info',
+    schedule: 'manual',
+    metrics: {
+      enabled: true,
+      interval: 60,
+      port: 9090
+    },
+    retry: {
+      enabled: true,
+      maxRetries: 3,
+      backoffMs: 1000,
+      maxBackoffMs: 30000,
+      maxAttempts: 3,
+      backoff: 1000,
+      exponential: true,
+      jitter: false
+    },
+    health: {
+      enabled: true,
+      interval: 30,
+      timeout: 5000,
+      checkDb: true,
+      checkExternal: false
+    }
+  };
   return new OperatorAgent(config, dependencies);
 }
 

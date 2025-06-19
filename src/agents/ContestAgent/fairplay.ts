@@ -1,8 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import { BaseAgentConfig } from '../BaseAgent/types/index';
 import { Logger } from '../../utils/logger';
 import { ErrorHandler } from '../../utils/errorHandling';
-import { Contest, Participant, FairPlayViolation, ContestAgentConfig } from './types';
+import { Participant, FairPlayViolation, ContestAgentConfig } from './types';
 import { Counter, Gauge, Histogram } from 'prom-client';
 import { z } from 'zod';
 
@@ -15,18 +14,6 @@ const fairPlayViolationSchema = z.object({
   evidence: z.record(z.any()),
   action: z.string(),
   status: z.enum(['pending', 'resolved', 'appealed'])
-});
-
-const fairPlayReportSchema = z.object({
-  contestId: z.string().uuid(),
-  timestamp: z.date(),
-  violations: z.array(fairPlayViolationSchema),
-  summary: z.object({
-    totalChecks: z.number(),
-    violations: z.number(),
-    severity: z.record(z.number())
-  }),
-  recommendations: z.array(z.string())
 });
 
 interface DetectionResult {

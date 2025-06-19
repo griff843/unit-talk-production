@@ -29,8 +29,8 @@ export async function gradeAndPromoteFinalPicks() {
       if (['parlay', 'teaser', 'roundrobin', 'sgp'].includes((pick.bet_type || '').toLowerCase())) {
         if (Array.isArray(pick.legs) && pick.legs.length > 1) {
           const legResults = pick.legs.map(gradePick);
-          const allQualified = legResults.every(r => ['S', 'A'].includes(r.tier));
-          const ticketScore = Math.round(legResults.reduce((sum, r) => sum + r.score, 0) / legResults.length);
+          const allQualified = legResults.every((r: any) => ['S', 'A'].includes(r.tier));
+          const ticketScore = Math.round(legResults.reduce((sum: number, r: any) => sum + r.score, 0) / legResults.length);
 
           if (allQualified) {
             await supabase.from('final_picks').insert([{
@@ -65,7 +65,6 @@ export async function gradeAndPromoteFinalPicks() {
           ...pick,
           score: grade.score,
           tier: overrideTier || grade.tier,
-          tags: grade.tags,
           score_breakdown: grade.breakdown || null,
           promoted_at: new Date().toISOString()
         }]);

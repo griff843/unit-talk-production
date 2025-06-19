@@ -1,4 +1,3 @@
-
 import express from 'express';
 import { register, collectDefaultMetrics, Counter, Histogram, Gauge } from 'prom-client';
 import { logger } from './logging';

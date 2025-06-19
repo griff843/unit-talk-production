@@ -50,8 +50,22 @@ export interface GradingAgentConfig {
   };
 }
 
-export interface GradingError extends Error {
+export interface GradingErrorData {
   pickId: string;
   operation: string;
   details?: any;
+}
+
+export class GradingError extends Error {
+  public pickId: string;
+  public operation: string;
+  public details?: any;
+
+  constructor(message: string, data?: Partial<GradingErrorData>) {
+    super(message);
+    this.name = 'GradingError';
+    this.pickId = data?.pickId || '';
+    this.operation = data?.operation || '';
+    this.details = data?.details;
+  }
 } 

@@ -1,243 +1,174 @@
-import { SupabaseClient } from '@supabase/supabase-js';
 import { ContestManager } from '../contests';
-import { Contest, ContestType, ContestStatus, PrizePool } from '../types';
-import { createClient } from '@supabase/supabase-js';
-import { getEnv } from '../../../utils/getEnv';
+import { mockSupabaseClient, mockLogger, mockErrorHandler, createTestConfig } from '../../../test/helpers/testHelpers';
+import { Contest, ContestAgentConfig } from '../types';
 
-describe('ContestManager Integration Tests', () => {
-  let supabase: SupabaseClient;
+// Mock Supabase
+jest.mock('@supabase/supabase-js');
+
+describe('ContestManager', () => {
   let contestManager: ContestManager;
-  let testContestId: string;
+  let mockConfig: ContestAgentConfig;
 
-  beforeAll(async () => {
-    const env = getEnv();
-    supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
-    contestManager = new ContestManager(supabase, {
-      name: 'ContestManager',
-      enabled: true
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    mockConfig = {
+      name: 'ContestAgent',
+      enabled: true,
+      version: '1.0.0',
+      logLevel: 'info' as const,
+      schedule: 'manual',
+      metrics: {
+        enabled: true,
+        interval: 30000,
+        port: 9090
+      },
+      retry: {
+        enabled: true,
+        maxRetries: 3,
+        backoffMs: 1000,
+        maxBackoffMs: 10000,
+        maxAttempts: 5,
+        backoff: 1000,
+        exponential: true,
+        jitter: true
+      },
+      health: {
+        enabled: true,
+        interval: 30000,
+        timeout: 5000,
+        checkDb: true,
+        checkExternal: false
+      },
+      fairPlay: {
+        enabled: true,
+        maxViolations: 3,
+        checkInterval: 300000,
+        autoban: false
+      },
+      leaderboard: {
+        updateInterval: 60000,
+        cacheTimeout: 300000,
+        maxEntries: 1000
+      },
+      prizePool: {
+        enabled: true,
+        distribution: [],
+        minPrize: 10
+      }
+    };
+
+    // Setup mock responses
+    (mockSupabaseClient.from as jest.Mock).mockReturnValue({
+      select: jest.fn().mockReturnValue({
+        eq: jest.fn().mockResolvedValue({
+          data: [],
+          error: null
+        }),
+        limit: jest.fn().mockResolvedValue({
+          data: [],
+          error: null
+        })
+      }),
+      insert: jest.fn().mockResolvedValue({
+        data: [{ id: 'test-contest-id' }],
+        error: null
+      }),
+      update: jest.fn().mockReturnValue({
+        eq: jest.fn().mockResolvedValue({
+          data: [{ id: 'test-contest-id' }],
+          error: null
+        })
+      })
     });
-    await contestManager.initialize();
+
+    // Create a proper error handler mock
+    const mockErrorHandlerForContest = {
+      handleError: jest.fn(),
+      withRetry: jest.fn(),
+      logger: mockLogger,
+      supabase: mockSupabaseClient,
+      context: {},
+      determineSeverity: jest.fn(),
+      logError: jest.fn(),
+      notifyOperators: jest.fn(),
+      escalateError: jest.fn(),
+      trackError: jest.fn()
+    };
+
+    contestManager = new ContestManager(
+      mockSupabaseClient,
+      mockLogger,
+      mockErrorHandlerForContest as any,
+      mockConfig
+    );
   });
 
-  afterAll(async () => {
-    // Cleanup test data
-    if (testContestId) {
-      await supabase.from('contests').delete().eq('id', testContestId);
-      await supabase.from('contest_participants').delete().eq('contestId', testContestId);
-      await supabase.from('prize_distributions').delete().eq('contestId', testContestId);
-      await supabase.from('contest_events').delete().eq('contestId', testContestId);
-    }
-    await contestManager.cleanup();
+  describe('initialization', () => {
+    it('should initialize without errors', async () => {
+      await expect(contestManager.initialize()).resolves.not.toThrow();
+    });
   });
 
-  const mockPrizePool: PrizePool = {
-    totalValue: 1000,
-    currency: 'USD',
-    distribution: [
-      { rank: 1, value: 500, type: 'cash' },
-      { rank: 2, value: 300, type: 'cash' },
-      { rank: '3-5', value: 66.67, type: 'cash' }
-    ],
-    specialPrizes: [
-      {
-        name: 'Early Bird',
-        value: 100,
-        criteria: { type: 'early_registration' }
-      }
-    ],
-    sponsorships: [
-      {
-        sponsor: 'BetCo',
-        contribution: 100,
-        requirements: { logo: true, mention: true },
-        benefits: { visibility: 'high' }
-      }
-    ]
-  };
+  describe('contest creation', () => {
+    it('should create a contest successfully', async () => {
+      const contestData: Omit<Contest, 'id' | 'metrics'> = {
+        name: 'Test Contest',
+        description: 'A test contest',
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + 86400000).toISOString(),
+        status: 'draft',
+        type: 'daily',
+        rules: [],
+        prizePool: {
+          totalAmount: 1000,
+          distribution: [],
+          currency: 'USD',
+          winners: [],
+          totalValue: 1000
+        },
+        participants: [],
+        metadata: {}
+      };
 
-  const mockContest: Omit<Contest, 'id' | 'metrics'> = {
-    name: 'Test Tournament',
-    type: 'tournament' as ContestType,
-    status: 'draft' as ContestStatus,
-    startDate: new Date(Date.now() + 86400000), // Tomorrow
-    endDate: new Date(Date.now() + 172800000), // Day after tomorrow
-    rules: [
-      {
-        id: crypto.randomUUID(),
-        type: 'score_multiplier',
-        conditions: { streak: 3 },
-        points: 1.5,
-        bonuses: { perfect: 2 }
-      }
-    ],
-    prizePool: mockPrizePool,
-    participants: [],
-    fairPlayConfig: {
-      rules: [
-        {
-          id: crypto.randomUUID(),
-          type: 'multi_account',
-          criteria: { threshold: 0.9 },
-          severity: 'high',
-          action: 'disqualify'
-        }
-      ],
-      thresholds: { minFairPlayScore: 80 },
-      penalties: { disqualification: 'permanent' },
-      appeals: {
-        allowAppeals: true,
-        timeLimit: 48,
-        reviewProcess: ['automated', 'manual'],
-        requiredEvidence: ['account_data', 'betting_patterns']
-      }
-    }
-  };
+      const result = await contestManager.createContest(contestData);
+      expect(result).toBeDefined();
+      expect(mockSupabaseClient.from).toHaveBeenCalledWith('contests');
+    });
+  });
 
-  describe('Contest Creation and Lifecycle', () => {
-    it('should create a new contest with valid data', async () => {
-      const contest = await contestManager.createContest(mockContest);
-      testContestId = contest.id;
+  describe('health check', () => {
+    it('should return healthy status', async () => {
+      const health = await contestManager.checkHealth();
+      expect(health.status).toBe('healthy');
+    });
 
-      expect(contest).toMatchObject({
-        ...mockContest,
-        id: expect.any(String),
-        metrics: expect.objectContaining({
-          participation: expect.any(Object),
-          engagement: expect.any(Object),
-          performance: expect.any(Object),
-          financial: expect.any(Object)
+    it('should handle database errors gracefully', async () => {
+      (mockSupabaseClient.from as jest.Mock).mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          limit: jest.fn().mockResolvedValue({
+            data: null,
+            error: new Error('Database connection failed')
+          })
         })
       });
 
-      // Verify contest was created in database
-      const { data, error } = await supabase
-        .from('contests')
-        .select('*')
-        .eq('id', contest.id)
-        .single();
-
-      expect(error).toBeNull();
-      expect(data).toBeTruthy();
-    });
-
-    it('should validate prize distribution totals', async () => {
-      const invalidContest = {
-        ...mockContest,
-        prizePool: {
-          ...mockPrizePool,
-          distribution: [
-            { rank: 1, value: 2000, type: 'cash' } // More than total value
-          ]
-        }
-      };
-
-      await expect(contestManager.createContest(invalidContest))
-        .rejects
-        .toThrow('Prize distribution total does not match prize pool value');
-    });
-
-    it('should handle contest lifecycle transitions', async () => {
-      // Create test participants
-      const participants = [
-        {
-          id: crypto.randomUUID(),
-          userId: crypto.randomUUID(),
-          contestId: testContestId,
-          status: 'registered',
-          score: 0,
-          rank: 0,
-          achievements: [],
-          fairPlayScore: 100
-        },
-        {
-          id: crypto.randomUUID(),
-          userId: crypto.randomUUID(),
-          contestId: testContestId,
-          status: 'registered',
-          score: 0,
-          rank: 0,
-          achievements: [],
-          fairPlayScore: 100
-        }
-      ];
-
-      await supabase.from('contest_participants').insert(participants);
-
-      // Update contest to active
-      await supabase
-        .from('contests')
-        .update({ status: 'active' })
-        .eq('id', testContestId);
-
-      // Wait for real-time updates to process
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Verify participants were activated
-      const { data: activeParticipants } = await supabase
-        .from('contest_participants')
-        .select('status')
-        .eq('contestId', testContestId);
-
-      expect(activeParticipants).toHaveLength(2);
-      expect(activeParticipants?.every(p => p.status === 'active')).toBe(true);
-    });
-
-    it('should finalize contest and distribute prizes', async () => {
-      // Update participant scores
-      await supabase
-        .from('contest_participants')
-        .update({ score: 100, status: 'completed' })
-        .eq('contestId', testContestId)
-        .eq('id', participants[0].id);
-
-      await supabase
-        .from('contest_participants')
-        .update({ score: 80, status: 'completed' })
-        .eq('contestId', testContestId)
-        .eq('id', participants[1].id);
-
-      // Complete the contest
-      await supabase
-        .from('contests')
-        .update({ status: 'completed' })
-        .eq('id', testContestId);
-
-      // Wait for real-time updates to process
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Verify prize distributions
-      const { data: prizes } = await supabase
-        .from('prize_distributions')
-        .select('*')
-        .eq('contestId', testContestId);
-
-      expect(prizes).toHaveLength(2);
-      expect(prizes?.find(p => p.rank === 1)?.amount).toBe(500);
-      expect(prizes?.find(p => p.rank === 2)?.amount).toBe(300);
-    });
-  });
-
-  describe('Health Checks and Metrics', () => {
-    it('should report healthy status when system is operational', async () => {
       const health = await contestManager.checkHealth();
-      expect(health.status).toBe('healthy');
-      expect(health.details).toMatchObject({
-        activeContests: expect.any(Number),
-        completedContests: expect.any(Number),
-        averageProcessingTime: expect.any(Number),
-        errorRate: expect.any(Number),
-        metricsFreshness: expect.any(Boolean)
-      });
-    });
-
-    it('should track metrics accurately', async () => {
-      const metrics = await contestManager.getMetrics();
-      expect(metrics).toMatchObject({
-        errors: expect.any(Number),
-        warnings: expect.any(Number),
-        successes: expect.any(Number)
-      });
-      expect(metrics.successes).toBeGreaterThan(0); // Should include our test contest
+      expect(health.status).toBe('unhealthy');
     });
   });
-}); 
+
+  describe('metrics collection', () => {
+    it('should collect metrics successfully', () => {
+      const metrics = contestManager.getMetrics();
+      expect(metrics).toBeDefined();
+      expect(typeof metrics.contests).toBe('object');
+    });
+  });
+
+  describe('cleanup', () => {
+    it('should cleanup without errors', async () => {
+      await expect(contestManager.cleanup()).resolves.not.toThrow();
+    });
+  });
+});

@@ -1,11 +1,10 @@
 import { BaseAgent } from '../BaseAgent/index';
-import { 
-  BaseAgentConfig, 
+import {
+  BaseAgentConfig,
   BaseAgentDependencies,
   HealthStatus,
   BaseMetrics
 } from '../BaseAgent/types';
-import { SupabaseClient } from '@supabase/supabase-js';
 import { PromotionConfig, PromoParams } from './types';
 
 let instance: PromoAgent | null = null;
@@ -22,7 +21,7 @@ export class PromoAgent extends BaseAgent {
       await this.validateDependencies();
       this.deps.logger.info('PromoAgent initialized successfully');
     } catch (error) {
-      this.deps.logger.error('Failed to initialize PromoAgent:', error);
+      this.deps.logger.error('Failed to initialize PromoAgent:', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -46,7 +45,7 @@ export class PromoAgent extends BaseAgent {
       // Clean up expired promotions
       await this.cleanupExpired();
     } catch (error) {
-      this.deps.logger.error('Error in PromoAgent process:', error);
+      this.deps.logger.error('Error in PromoAgent process:', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -73,12 +72,12 @@ export class PromoAgent extends BaseAgent {
       await this.cleanupExpired();
       this.deps.logger.info('PromoAgent cleanup completed');
     } catch (error) {
-      this.deps.logger.error('Error during PromoAgent cleanup:', error);
+      this.deps.logger.error('Error during PromoAgent cleanup:', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
 
-  protected async checkHealth(): Promise<HealthStatus> {
+  public async checkHealth(): Promise<HealthStatus> {
     const errors: string[] = [];
     
     try {
@@ -110,13 +109,12 @@ export class PromoAgent extends BaseAgent {
     const totalApplied = promoStats?.reduce((sum, p) => sum + (p.applied_count || 0), 0) || 0;
 
     return {
+      agentName: 'PromoAgent',
       successCount: totalApplied,
       errorCount: 0,
       warningCount: 0,
       processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024,
-      'custom.activePromos': activeCount,
-      'custom.totalApplied': totalApplied
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
     };
   }
 
@@ -186,7 +184,36 @@ export class PromoAgent extends BaseAgent {
   // Public API
   public static getInstance(dependencies: BaseAgentDependencies): PromoAgent {
     if (!instance) {
-      const config = dependencies.logger?.config || {} as BaseAgentConfig;
+      // Create a default config since logger doesn't have config property
+      const config: BaseAgentConfig = {
+        name: 'PromoAgent',
+        enabled: true,
+        version: '1.0.0',
+        logLevel: 'info',
+        schedule: 'manual',
+        metrics: {
+          enabled: true,
+          interval: 60,
+          port: 9090
+        },
+        retry: {
+          enabled: true,
+          maxRetries: 3,
+          backoffMs: 1000,
+          maxBackoffMs: 30000,
+          maxAttempts: 3,
+          backoff: 1000,
+          exponential: true,
+          jitter: false
+        },
+        health: {
+          enabled: true,
+          interval: 30,
+          timeout: 5000,
+          checkDb: true,
+          checkExternal: false
+        }
+      };
       instance = new PromoAgent(config, dependencies);
     }
     return instance;
@@ -194,6 +221,35 @@ export class PromoAgent extends BaseAgent {
 }
 
 export function initializePromoAgent(dependencies: BaseAgentDependencies): PromoAgent {
-  const config = dependencies.logger?.config || {} as BaseAgentConfig;
+  // Create a default config since logger doesn't have config property
+  const config: BaseAgentConfig = {
+    name: 'PromoAgent',
+    enabled: true,
+    version: '1.0.0',
+    logLevel: 'info',
+    schedule: 'manual',
+    metrics: {
+      enabled: true,
+      interval: 60,
+      port: 9090
+    },
+    retry: {
+      enabled: true,
+      maxRetries: 3,
+      backoffMs: 1000,
+      maxBackoffMs: 30000,
+      maxAttempts: 3,
+      backoff: 1000,
+      exponential: true,
+      jitter: false
+    },
+    health: {
+      enabled: true,
+      interval: 30,
+      timeout: 5000,
+      checkDb: true,
+      checkExternal: false
+    }
+  };
   return new PromoAgent(config, dependencies);
 }

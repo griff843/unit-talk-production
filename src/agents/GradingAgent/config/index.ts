@@ -1,12 +1,12 @@
-import { BaseAgentConfig, BaseAgentDependencies, AgentStatus, HealthStatus, BaseMetrics } from '../BaseAgent/types';
+import { HealthStatus, BaseMetrics } from '../../BaseAgent/types';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { GradingAgentConfig } from '../types';
 import { logger } from '../../../services/logging';
 
 export class ConfigManager {
   private static instance: ConfigManager;
-  private config: GradingAgentConfig;
-  private lastUpdate: Date;
+  private config!: GradingAgentConfig; // Using definite assignment assertion since it's initialized in setupConfigSync
+  private lastUpdate!: Date; // Using definite assignment assertion since it's initialized in setupConfigSync
   private readonly updateInterval: number = 5 * 60 * 1000; // 5 minutes
 
   private constructor(private supabase: SupabaseClient) {
@@ -97,70 +97,7 @@ export class ConfigManager {
   protected async collectMetrics(): Promise<BaseMetrics> {
     // TODO: Restore business logic here after base migration (collectMetrics)
     return {
-      successCount: 0,
-      errorCount: 0,
-      warningCount: 0,
-      processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
-    };
-  }
-
-  protected async initialize(): Promise<void> {
-    // TODO: Restore business logic here after base migration (initialize)
-  }
-
-  protected async process(): Promise<void> {
-    // TODO: Restore business logic here after base migration (process)
-  }
-
-  protected async cleanup(): Promise<void> {
-    // TODO: Restore business logic here after base migration (cleanup)
-  }
-
-  protected async checkHealth(): Promise<HealthStatus> {
-    // TODO: Restore business logic here after base migration (checkHealth)
-    return {
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      details: {}
-    };
-  }
-
-  protected async collectMetrics(): Promise<BaseMetrics> {
-    // TODO: Restore business logic here after base migration (collectMetrics)
-    return {
-      successCount: 0,
-      errorCount: 0,
-      warningCount: 0,
-      processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
-    };
-  }
-
-  protected async initialize(): Promise<void> {
-    // TODO: Restore business logic here after base migration (initialize)
-  }
-
-  protected async process(): Promise<void> {
-    // TODO: Restore business logic here after base migration (process)
-  }
-
-  protected async cleanup(): Promise<void> {
-    // TODO: Restore business logic here after base migration (cleanup)
-  }
-
-  protected async checkHealth(): Promise<HealthStatus> {
-    // TODO: Restore business logic here after base migration (checkHealth)
-    return {
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      details: {}
-    };
-  }
-
-  protected async collectMetrics(): Promise<BaseMetrics> {
-    // TODO: Restore business logic here after base migration (collectMetrics)
-    return {
+      agentName: 'GradingAgent',
       successCount: 0,
       errorCount: 0,
       warningCount: 0,

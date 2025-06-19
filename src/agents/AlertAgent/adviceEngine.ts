@@ -32,14 +32,14 @@ class MarketContextAnalyzer {
     // recent market performance, volatility, and trend indicators
     return 'sideways'; // Default for now
   }
-  
-  private async calculateVolatility(pick: FinalPick): Promise<number> {
+
+  private async calculateVolatility(_pick: FinalPick): Promise<number> {
     // Simplified volatility calculation
     // In production, this would analyze historical line movements
     return 0.5; // Default moderate volatility
   }
-  
-  private async analyzeSentiment(pick: FinalPick): Promise<number> {
+
+  private async analyzeSentiment(_pick: FinalPick): Promise<number> {
     // Simplified sentiment analysis
     // In production, this would analyze social media, news, etc.
     return 0; // Neutral sentiment

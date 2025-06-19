@@ -1,4 +1,4 @@
-import client from 'prom-client';
+import * as client from 'prom-client';
 import { BetType, GradeTier } from '../types';
 
 // Create registry

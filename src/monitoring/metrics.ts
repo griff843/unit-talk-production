@@ -1,5 +1,6 @@
 import { Registry, Counter, Gauge, Histogram } from 'prom-client';
-import express from 'express';
+import express, { Request, Response } from 'express';
+import * as http from 'http';
 import { Logger } from '../utils/logger';
 
 export interface MetricsConfig {
@@ -14,7 +15,7 @@ export class Metrics {
   private readonly logger: Logger;
   private readonly metrics: Map<string, any> = new Map();
   private readonly collectors: Map<string, any> = new Map();
-  private server?: express.Express;
+  private server?: http.Server;
 
   // Standard metrics that all agents should track
   private readonly standardMetrics = {
@@ -71,7 +72,7 @@ export class Metrics {
       this.registry.setDefaultLabels({ app: 'unit-talk' });
       this.logger.info('Standard metrics initialized');
     } catch (error) {
-      this.logger.error('Failed to initialize standard metrics:', error);
+      this.logger.error('Failed to initialize standard metrics:', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -132,19 +133,19 @@ export class Metrics {
   }
 
   private async startServer(): Promise<void> {
-    this.server = express();
+    const app = express();
 
-    this.server.get('/metrics', async (req, res) => {
+    app.get('/metrics', async (req: Request, res: Response) => {
       try {
         res.set('Content-Type', this.registry.contentType);
         res.end(await this.registry.metrics());
       } catch (error) {
-        this.logger.error('Failed to serve metrics:', error);
+        this.logger.error('Failed to serve metrics:', error instanceof Error ? error : new Error(String(error)));
         res.status(500).end();
       }
     });
 
-    this.server.listen(9100, () => {
+    this.server = app.listen(9100, () => {
       this.logger.info('Metrics server listening on port 9100');
     });
   }

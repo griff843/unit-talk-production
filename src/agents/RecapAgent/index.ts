@@ -7,7 +7,7 @@ import { NotionSyncService } from './notionSyncService';
 import { SlashCommandHandler } from './slashCommandHandler';
 import { PrometheusMetrics } from './prometheusMetrics';
 import { WebhookClient, EmbedBuilder } from 'discord.js';
-import { RecapConfig, RecapMetrics, MicroRecapData, RecapError } from '../../types/picks';
+import { RecapConfig, RecapMetrics, MicroRecapData } from '../../types/picks';
 
 /**
  * Production-ready RecapAgent with comprehensive features
@@ -121,7 +121,7 @@ export class RecapAgent extends BaseAgent {
 
       this.logger.info('RecapAgent initialized successfully');
     } catch (error) {
-      this.logger.error('Failed to initialize RecapAgent:', { error: error instanceof Error ? error.message : String(error) });
+      this.logger.error('Failed to initialize RecapAgent:', error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -158,7 +158,7 @@ export class RecapAgent extends BaseAgent {
       }
 
     } catch (error) {
-      this.logger.error('Error in RecapAgent process:', { error: error instanceof Error ? error.message : String(error) });
+      this.logger.error('Error in RecapAgent process:', error instanceof Error ? error : new Error(String(error)));
       this.recapMetrics.recapsFailed++;
 
       if (this.prometheusMetrics) {
@@ -236,9 +236,12 @@ export class RecapAgent extends BaseAgent {
    */
   protected async collectMetrics(): Promise<BaseMetrics> {
     return {
-      ...this.metrics,
-      'custom.lastProcessedAt': new Date().toISOString(),
-      'custom.recapMetrics': this.recapMetrics
+      agentName: 'RecapAgent',
+      successCount: this.metrics.successCount || 0,
+      errorCount: this.metrics.errorCount || 0,
+      warningCount: this.metrics.warningCount || 0,
+      processingTimeMs: this.metrics.processingTimeMs || 0,
+      memoryUsageMb: this.metrics.memoryUsageMb || 0
     };
   }
 
@@ -320,7 +323,7 @@ export class RecapAgent extends BaseAgent {
       this.logger.info(`Daily recap completed in ${Date.now() - startTime}ms`);
 
     } catch (error) {
-      this.logger.error('Failed to generate daily recap:', { error: error instanceof Error ? error.message : String(error) });
+      this.logger.error('Failed to generate daily recap:', error instanceof Error ? error : new Error(String(error)));
       this.recapMetrics.recapsFailed++;
 
       if (this.prometheusMetrics) {
@@ -404,7 +407,7 @@ export class RecapAgent extends BaseAgent {
       this.logger.info(`Weekly recap completed in ${Date.now() - startTime}ms`);
 
     } catch (error) {
-      this.logger.error('Failed to generate weekly recap:', { error: error instanceof Error ? error.message : String(error) });
+      this.logger.error('Failed to generate weekly recap:', error instanceof Error ? error : new Error(String(error)));
       this.recapMetrics.recapsFailed++;
 
       if (this.prometheusMetrics) {
@@ -481,7 +484,7 @@ export class RecapAgent extends BaseAgent {
       this.logger.info(`Monthly recap completed in ${Date.now() - startTime}ms`);
 
     } catch (error) {
-      this.logger.error('Failed to generate monthly recap:', { error: error instanceof Error ? error.message : String(error) });
+      this.logger.error('Failed to generate monthly recap:', error instanceof Error ? error : new Error(String(error)));
       this.recapMetrics.recapsFailed++;
 
       if (this.prometheusMetrics) {
@@ -524,7 +527,7 @@ export class RecapAgent extends BaseAgent {
       }
 
     } catch (error) {
-      this.logger.error('Failed to send micro-recap:', { error: error instanceof Error ? error.message : String(error) });
+      this.logger.error('Failed to send micro-recap:', error instanceof Error ? error : new Error(String(error)));
       this.recapMetrics.recapsFailed++;
       if (!this.metrics.errorCount) this.metrics.errorCount = 0;
       this.metrics.errorCount++;
@@ -568,7 +571,7 @@ export class RecapAgent extends BaseAgent {
         }
 
       } catch (error) {
-        this.logger.error('ROI watcher error:', { error: error instanceof Error ? error.message : String(error) });
+        this.logger.error('ROI watcher error:', error instanceof Error ? error : new Error(String(error)));
       }
     }, 5 * 60 * 1000); // 5 minutes
   }
@@ -591,7 +594,7 @@ export class RecapAgent extends BaseAgent {
       }
 
     } catch (error) {
-      this.logger.error('Micro-recap trigger check failed:', { error: error instanceof Error ? error.message : String(error) });
+      this.logger.error('Micro-recap trigger check failed:', error instanceof Error ? error : new Error(String(error)));
     }
   }
 
