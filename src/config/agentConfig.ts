@@ -14,15 +14,14 @@ export const gradingAgentConfig: BaseAgentConfig = {
   health: {
     enabled: true,
     interval: 30,
+    timeout: 5000,
     checkDb: true,
+    checkExternal: false,
   },
-  retry: {
-    enabled: true,
+  retryConfig: {
     maxRetries: 3,
     backoffMs: 2000,
     maxBackoffMs: 5000,
-    maxAttempts: 3,
-    backoff: 2000,
   },
 };
 
@@ -40,14 +39,13 @@ export const scoringAgentConfig: BaseAgentConfig = {
   health: {
     enabled: true,
     interval: 30,
+    timeout: 5000,
     checkDb: true,
+    checkExternal: false,
   },
-  retry: {
-    enabled: true,
+  retryConfig: {
     maxRetries: 3,
     backoffMs: 2000,
     maxBackoffMs: 5000,
-    maxAttempts: 3,
-    backoff: 2000,
   },
 };

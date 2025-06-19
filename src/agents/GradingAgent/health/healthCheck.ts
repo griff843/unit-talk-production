@@ -24,7 +24,7 @@ interface ComponentHealth {
 
 export class HealthChecker {
   private static instance: HealthChecker;
-  private lastStatus: HealthStatus;
+  private lastStatus: HealthStatus | undefined;
   private readonly version: string = '2.0.0';
 
   private constructor(
@@ -93,7 +93,7 @@ export class HealthChecker {
     } catch (error) {
       return {
         status: 'unhealthy',
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         latency_ms: Date.now() - start
       };
     }
@@ -113,7 +113,7 @@ export class HealthChecker {
     } catch (error) {
       return {
         status: 'unhealthy',
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       };
     }
   }
@@ -131,7 +131,7 @@ export class HealthChecker {
     } catch (error) {
       return {
         status: 'unhealthy',
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       };
     }
   }
@@ -149,7 +149,7 @@ export class HealthChecker {
     } catch (error) {
       return {
         status: 'unhealthy',
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       };
     }
   }
@@ -162,7 +162,7 @@ export class HealthChecker {
     return 'healthy';
   }
 
-  public getLastStatus(): HealthStatus {
+  public getLastStatus(): HealthStatus | undefined {
     return this.lastStatus;
   }
 } 

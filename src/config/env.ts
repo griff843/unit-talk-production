@@ -70,16 +70,16 @@ function validateEnv() {
   }
 
   if (result.data.EMAIL_ENABLED) {
-    const requiredEmailVars = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS'];
-    const missingVars = requiredEmailVars.filter(v => !result.data[v]);
+    const requiredEmailVars = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS'] as const;
+    const missingVars = requiredEmailVars.filter(v => !result.data[v as keyof typeof result.data]);
     if (missingVars.length > 0) {
       throw new Error(`Missing required email configuration: ${missingVars.join(', ')}`);
     }
   }
 
   if (result.data.SMS_ENABLED) {
-    const requiredSMSVars = ['SMS_PROVIDER', 'SMS_API_KEY', 'SMS_ACCOUNT_SID', 'SMS_FROM_NUMBER'];
-    const missingVars = requiredSMSVars.filter(v => !result.data[v]);
+    const requiredSMSVars = ['SMS_PROVIDER', 'SMS_API_KEY', 'SMS_ACCOUNT_SID', 'SMS_FROM_NUMBER'] as const;
+    const missingVars = requiredSMSVars.filter(v => !result.data[v as keyof typeof result.data]);
     if (missingVars.length > 0) {
       throw new Error(`Missing required SMS configuration: ${missingVars.join(', ')}`);
     }

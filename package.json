@@ -4,7 +4,7 @@
   "description": "Enterprise-grade betting automation platform",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --project tsconfig.prod.json",
     "build:watch": "tsc --watch",
     "start": "node dist/index.js",
     "start:dev": "tsx src/index.ts",

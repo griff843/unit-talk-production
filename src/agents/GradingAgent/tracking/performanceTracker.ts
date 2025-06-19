@@ -75,7 +75,7 @@ export class PerformanceTracker {
 
     } catch (error) {
       logger.error('Failed to track pick performance:', error);
-      metrics.trackFailedOperation('performance_tracking', error.message);
+      metrics.trackFailedOperation('performance_tracking', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -90,7 +90,7 @@ export class PerformanceTracker {
       this.resetMetrics();
     } catch (error) {
       logger.error('Failed to sync metrics:', error);
-      metrics.trackFailedOperation('metrics_sync', error.message);
+      metrics.trackFailedOperation('metrics_sync', error instanceof Error ? error.message : String(error));
     }
   }
 

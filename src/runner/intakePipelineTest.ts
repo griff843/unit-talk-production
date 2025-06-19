@@ -1,55 +1,66 @@
 import dotenv from 'dotenv';
 dotenv.config();
 import { createClient } from '@supabase/supabase-js';
-import { Logger } from '@/utils/logger';
-import { FeedAgent } from '@/agents/FeedAgent';
-import { IngestionAgent } from '@/agents/IngestionAgent';
-import { PromoAgent } from '@/agents/PromoAgent';
-import { AgentConfig } from '@/types/agent';
+import { logger } from '../utils/logger';
+import { ErrorHandler } from '../utils/errorHandler';
+import { FeedAgent } from '../agents/FeedAgent';
+import { IngestionAgent } from '../agents/IngestionAgent';
+import { PromoAgent } from '../agents/PromoAgent';
+import { BaseAgentConfig } from '../agents/BaseAgent/types';
 
 // Load Supabase credentials from environment
 const supabaseUrl = process.env.SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_KEY!;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Initialize logger
-const logger = new Logger('AgentRunner');
+// Initialize error handler
+const errorHandler = new ErrorHandler(logger);
 
 // Define configs per agent
-const feedConfig: AgentConfig = {
+const feedConfig: BaseAgentConfig = {
   name: 'FeedAgent',
+  version: '1.0.0',
   enabled: true,
-  healthCheckInterval: 0,
-  metricsConfig: { interval: 0, prefix: 'feed' },
+  logLevel: 'info',
+  metrics: {
+    enabled: true,
+    interval: 60
+  },
 };
 
-const ingestionConfig: AgentConfig = {
+const ingestionConfig: BaseAgentConfig = {
   name: 'IngestionAgent',
+  version: '1.0.0',
   enabled: true,
-  healthCheckInterval: 0,
-  metricsConfig: { interval: 0, prefix: 'ingestion' },
+  logLevel: 'info',
+  metrics: {
+    enabled: true,
+    interval: 60
+  },
 };
 
-const promoConfig: AgentConfig = {
+const promoConfig: BaseAgentConfig = {
   name: 'PromoAgent',
+  version: '1.0.0',
   enabled: true,
-  healthCheckInterval: 0,
-  metricsConfig: { interval: 0, prefix: 'promo' },
+  logLevel: 'info',
+  metrics: {
+    enabled: true,
+    interval: 60
+  },
 };
 
+const deps = {
+  supabase,
+  logger,
+  errorHandler
+};
 
 // Full agent runner
 async function run() {
-  const feedAgent = new FeedAgent({ supabase, logger, config: feedConfig });
-
-  const ingestionAgent = new IngestionAgent({
-    supabase,
-    logger,
-    config: ingestionConfig,
-    feedAgent,
-  });
-
-  const promoAgent = new PromoAgent({ supabase, logger, config: promoConfig });
+  const feedAgent = new FeedAgent(feedConfig, deps);
+  const ingestionAgent = new IngestionAgent(ingestionConfig, deps);
+  const promoAgent = new PromoAgent(promoConfig, deps);
 
   // Run full agent lifecycles using BaseAgent.start()
   await ingestionAgent.start();
@@ -59,4 +70,7 @@ async function run() {
 }
 
 // Execute
-run().catch((err) => console.error(err));
+run().catch(error => {
+  logger.error('Pipeline execution failed:', error);
+  process.exit(1);
+});
