@@ -5,18 +5,6 @@ import { startMetricsServer } from '../../services/metricsServer';
 import { unifiedEdgeScore } from '../../logic/scoring/unified-edge-score';
 import { analyzeMarketResistance } from '../../logic/marketResistanceEngine';
 import { EDGE_CONFIG } from '../../logic/config/edgeConfig';
-import { Pick } from '../../types/pick';
-import { FinalPick, MarketReaction } from '../../types/picks';
-import { AlertPayload } from '../../types/alerts';
-import { PropObject } from '../../types/propTypes';
-
-// Types for edge scoring and market analysis
-interface EdgeResult {
-  score: number;
-  confidence: number;
-  factors: Record<string, unknown>;
-  solo_lock: boolean;
-}
 
 export class GradingAgent extends BaseAgent {
   constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
@@ -139,23 +127,23 @@ export class GradingAgent extends BaseAgent {
 
   private async gradePickInternal(pick: any): Promise<void> {
     try {
-      // Calculate edge score
-      const edgeResult = finalEdgeScore(pick, EDGE_CONFIG);
-      
+      // Calculate edge score using centralized logic
+      const edgeResult = unifiedEdgeScore(pick, EDGE_CONFIG);
+
       // Analyze market resistance
       const marketReaction = await analyzeMarketResistance(pick);
-      
-      // Determine tier based on edge score
-      const tier = this.determineTier(edgeResult.score);
-      
+
+      // Tier is provided by unifiedEdgeScore
+      const tier = edgeResult.tier;
+
       // Update the pick with grading results
       const { error: updateError } = await this.supabase
         .from('daily_picks')
         .update({
           edge_score: edgeResult.score,
           tier,
-          tags: edgeScoreResult.tags,
-          edge_breakdown: edgeScoreResult.breakdown,
+          tags: edgeResult.tags,
+          edge_breakdown: edgeResult.breakdown,
           postable: tier === 'S' || tier === 'A',
           solo_lock: tier === 'S',
           market_reaction: marketReaction.reaction,
@@ -197,14 +185,6 @@ export class GradingAgent extends BaseAgent {
     }
   }
 
-  private determineTier(edgeScore: number): string {
-    if (edgeScore >= 85) return 'S';
-    if (edgeScore >= 75) return 'A';
-    if (edgeScore >= 65) return 'B';
-    if (edgeScore >= 55) return 'C';
-    return 'D';
-  }
-
   private async publishAlert(alert: any): Promise<void> {
     try {
       const { error } = await this.supabase
@@ -232,7 +212,7 @@ export class GradingAgent extends BaseAgent {
       const finalPick = {
         ...pick,
         edge_score: edgeResult.score,
-        tier,
+        tier: edgeResult?.tier ?? null,
         tags: edgeResult.tags,
         edge_breakdown: edgeResult.breakdown,
         market_reaction: marketReaction.reaction,

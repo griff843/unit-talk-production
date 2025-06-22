@@ -50,5 +50,11 @@ export const EDGE_CONFIG = {
     boost: 2,            // Points added for EXTREME + favorable conditions
     logDecisions: true   // Whether to log boost decisions internally
   },
-  max: 25
+  max: 25,
+  tier_thresholds: {
+    S: 85,
+    A: 75,
+    B: 65,
+    C: 55
+  }
 };

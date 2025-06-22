@@ -1,0 +1,25 @@
+[33m0620b2a[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m [QA Sprint] Refactor for Production Launch: Centralized edge scoring, Temporal-based scheduling, OpenAI token controls, test infra cleanup, improved docs. Zero critical errors. Ready for launch.
+[33m7234790[m fix: implement P0 pre-launch fixes - edge scoring, recap scheduling, OpenAI cost controls
+[33m29bb055[m Merge pull request #2 from griff843/qa/pre-launch-documentation
+[33m46de186[m[33m ([m[1;31morigin/qa/pre-launch-documentation[m[33m)[m docs: add comprehensive QA report, update README, add env example matrix
+[33mdb13e98[m[33m ([m[1;33mtag: [m[1;33mprod-green-2025-06-14[m[33m)[m 🚦 Production build green – all core agents, workflows, config and build scripts Fortune 100-ready. Zero errors, deployment-ready.
+[33m2d85beb[m 🔧 All critical errors resolved: codebase compiles, runs, and passes all core checks. Only minor unused variable warnings remain. Prep for full repo audit and business logic review.
+[33m2f42e75[m chore: checkpoint before full repo audit and QA - Saved current progress with 265 TypeScript errors across 44 files - All business logic, core agent fixes, and recent progress preserved - Preparing for CodellM/system-wide audit and production readiness review - Next step: Full codebase QA for Fortune 100/SaaS standard
+[33m4710770[m chore: reduce TypeScript errors from XXX to YYY - incremental agent cleanup
+[33m3a2e726[m[33m ([m[1;33mtag: [m[1;33mall-critical-errors-fixed-2025-06-15[m[33m)[m fix: resolve all critical errors; NotificationAgent, Errors module, and GradingAgent tests fully passing [2025-06-15]
+[33m380d645[m[33m ([m[1;33mtag: [m[1;33magents-pass-2025-06-15[m[33m)[m feat: NotificationAgent & GradingAgent production-ready; major TS/test fixes; 90% suite pass [2025-06-15]
+[33m6501c6f[m[33m ([m[1;33mtag: [m[1;33mphase1-infra-stable-2025-06-15[m[33m)[m feat: phase 1 complete – infra, agent stability, and monitoring ready [2025-06-15]
+[33md973fe4[m[33m ([m[1;33mtag: [m[1;33mpre-codellm-refactor-2025-06-15[m[33m)[m chore: baseline commit before CodellM refactor – 2025-06-15
+[33mc860898[m[33m ([m[1;33mtag: [m[1;33mrecapagent-v2-production[m[33m)[m feat: RecapAgent production-grade, CodeLLM-audited, all enhancements complete
+[33mdbcae65[m 🚀 Working SGO ingestion to raw_props, passing test harness
+[33mc397bc2[m[33m ([m[1;31morigin/develop[m[33m)[m Initial monorepo commit: backend, frontend, smart-form integrated
+[33m09e82df[m Initial commit with backend, frontend, and smart-form modules
+[33mbbad665[m fix: migrate PromotionAgent to BaseAgent v2 architecture
+[33m292e4a2[m fix: migrate OperatorAgent to BaseAgent v2 architecture
+[33m2616120[m fix: migrate RecapAgent to BaseAgent v2 architecture
+[33md0a9824[m fix: migrate PromoAgent to BaseAgent v2 architecture
+[33m52e1191[m fix: migrate NotificationAgent to BaseAgent v2 architecture
+[33m569b594[m[33m ([m[1;31morigin/chore/lock-main-for-migration[m[33m)[m Milestone: Temporal setup working, agent wiring, initial alert system production-ready
+[33m60800a6[m Backup before TypeScript fixes
+[33mab74d83[m Initial commit: Base structure with agents and workflows
+[33mb8cfa23[m Baseline: fully working production OperatorAgent, RecapAgent, system tables, helpers
