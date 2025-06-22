@@ -5,6 +5,18 @@ import { startMetricsServer } from '../../services/metricsServer';
 import { finalEdgeScore } from '../../logic/scoring/edgeScoring';
 import { analyzeMarketResistance } from '../../logic/marketResistanceEngine';
 import { EDGE_CONFIG } from '../../logic/config/edgeConfig';
+import { Pick } from '../../types/pick';
+import { FinalPick, MarketReaction } from '../../types/picks';
+import { AlertPayload } from '../../types/alerts';
+import { PropObject } from '../../types/propTypes';
+
+// Types for edge scoring and market analysis
+interface EdgeResult {
+  score: number;
+  confidence: number;
+  factors: Record<string, unknown>;
+  solo_lock: boolean;
+}
 
 export class GradingAgent extends BaseAgent {
   constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
@@ -40,8 +52,9 @@ export class GradingAgent extends BaseAgent {
         errorCount: (gradingStats || []).filter(s => s.status === 'failed').length
       };
     } catch (error) {
-      const errorObj = error instanceof Error ? error : new Error('Unknown error');
-      this.logger.error('Failed to collect metrics', errorObj);
+      this.logger.error('Failed to collect metrics', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       return {
         ...this.metrics,
         agentName: this.config.name,
@@ -72,7 +85,9 @@ export class GradingAgent extends BaseAgent {
       };
     } catch (error) {
       const errorObj = error instanceof Error ? error : new Error('Unknown error');
-      this.logger.error('Health check failed', errorObj);
+      this.logger.error('Health check failed', {
+        error: errorObj.message
+      });
       return {
         status: 'unhealthy',
         timestamp: new Date().toISOString(),
@@ -112,7 +127,9 @@ export class GradingAgent extends BaseAgent {
       try {
         await this.gradePickInternal(pick);
       } catch (error) {
-        this.logger.error(`Failed to grade pick ${pick.id}`, error instanceof Error ? error : new Error('Unknown error'));
+        this.logger.error(`Failed to grade pick ${pick.id}`, {
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
       }
     }
 
@@ -123,22 +140,46 @@ export class GradingAgent extends BaseAgent {
   private async gradePickInternal(pick: any): Promise<void> {
     try {
       // Calculate edge score
-      const edgeResult = finalEdgeScore(pick, EDGE_CONFIG);
-      
-      // Analyze market resistance
-      const marketReaction = await analyzeMarketResistance(pick);
-      
+      const edgeScoreResult = finalEdgeScore(pick, EDGE_CONFIG);
+      const edgeResult: EdgeResult = {
+        score: edgeScoreResult.score,
+        confidence: 0.8, // Default confidence value
+        factors: edgeScoreResult.breakdown,
+        solo_lock: edgeScoreResult.solo_lock
+      };
+
+      // Analyze market resistance - convert PropObject to FinalPick
+      const finalPick: FinalPick = {
+        id: pick.id || 'temp-id',
+        created_at: new Date().toISOString(),
+        player_name: pick.player_name,
+        team_name: pick.team_name,
+        matchup: pick.matchup,
+        market_type: pick.market_type || 'unknown',
+        line: typeof pick.line === 'number' ? pick.line : 0,
+        odds: typeof pick.odds === 'number' ? pick.odds : 100,
+        tier: 'pending',
+        edge_score: edgeResult.score,
+        play_status: 'pending',
+        capper: pick.capper,
+        units: pick.units,
+        direction: pick.direction,
+        stat_type: pick.stat_type,
+        game_date: pick.game_date
+      };
+      const marketReaction = await analyzeMarketResistance(finalPick);
+
       // Determine tier based on edge score
       const tier = this.determineTier(edgeResult.score);
-      
+
       // Update the pick with grading results
       const { error: updateError } = await this.supabase
         .from('daily_picks')
         .update({
           edge_score: edgeResult.score,
           tier,
-          tags: edgeResult.tags,
-          edge_breakdown: edgeResult.breakdown,
+          tags: edgeScoreResult.tags,
+          edge_breakdown: edgeScoreResult.breakdown,
           postable: tier === 'S' || tier === 'A',
           solo_lock: tier === 'S',
           market_reaction: marketReaction.reaction,
@@ -173,9 +214,10 @@ export class GradingAgent extends BaseAgent {
       this.logger.info(`✅ Graded pick ${pick.id} - Tier: ${tier}, Edge: ${edgeResult.score}`);
 
     } catch (error) {
-      const errorObj = error instanceof Error ? error : new Error('Unknown grading error');
-      this.logger.error(`Failed to grade pick ${pick.id}`, errorObj);
-      throw errorObj;
+      this.logger.error(`Failed to grade pick ${pick.id}`, {
+        error: error instanceof Error ? error.message : 'Unknown grading error'
+      });
+      throw error instanceof Error ? error : new Error('Unknown grading error');
     }
   }
 
@@ -198,10 +240,14 @@ export class GradingAgent extends BaseAgent {
         }]);
 
       if (error) {
-        this.logger.error('Failed to publish alert', new Error(error.message));
+        this.logger.error('Failed to publish alert', {
+          error: error.message
+        });
       }
     } catch (error) {
-      this.logger.error('Failed to publish alert', error instanceof Error ? error : new Error('Unknown error'));
+      this.logger.error('Failed to publish alert', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   }
 
@@ -226,12 +272,16 @@ export class GradingAgent extends BaseAgent {
         .insert([finalPick]);
 
       if (error) {
-        this.logger.error(`Failed to promote pick ${pick.id} to final`, new Error(error.message));
+        this.logger.error(`Failed to promote pick ${pick.id} to final`, {
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
       } else {
         this.logger.info(`🚀 Promoted pick ${pick.id} to final_picks`);
       }
     } catch (error) {
-      this.logger.error(`Failed to promote pick ${pick.id}`, error instanceof Error ? error : new Error('Unknown error'));
+      this.logger.error(`Failed to promote pick ${pick.id}`, {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   }
 

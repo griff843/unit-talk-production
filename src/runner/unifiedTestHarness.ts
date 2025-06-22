@@ -282,7 +282,7 @@ export class UnifiedTestHarness {
     // Log failures if any
     const failures = this.testResults.filter(r => r.success === false);
     if (failures.length > 0) {
-      this.logger.warn('❌ Failed Tests:', failures);
+      this.logger.warn('❌ Failed Tests:', { failures });
       failures.forEach(failure => {
         this.logger.error(`  - ${failure.agentName}: ${failure.error}`);
       });

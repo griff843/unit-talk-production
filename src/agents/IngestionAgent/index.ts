@@ -111,7 +111,9 @@ export class IngestionAgent extends BaseAgent {
         batchSize: this.ingestionMetrics.batchSize
       });
     } catch (error) {
-      this.logger.error('❌ Failed to initialize IngestionAgent', error instanceof Error ? error : new Error(String(error)));
+      this.logger.error('❌ Failed to initialize IngestionAgent', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       throw error;
     }
   }
@@ -150,7 +152,9 @@ export class IngestionAgent extends BaseAgent {
       });
       
     } catch (error) {
-      this.logger.error('❌ Ingestion process failed', error instanceof Error ? error : new Error(String(error)));
+      this.logger.error('❌ Ingestion process failed', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       this.errorHandler.handleError(error as Error);
       throw error;
     }
@@ -178,7 +182,9 @@ export class IngestionAgent extends BaseAgent {
         this.ingestionMetrics.providerStats[provider.name].lastFetch = new Date();
         
       } catch (error) {
-        this.logger.error(`Failed to fetch from provider: ${provider.name}`, error instanceof Error ? error : new Error(String(error)));
+        this.logger.error(`Failed to fetch from provider: ${provider.name}`, {
+          error: error instanceof Error ? error.message : String(error)
+        });
 
         if (!this.ingestionMetrics.providerStats[provider.name]) {
           this.ingestionMetrics.providerStats[provider.name] = { success: 0, failed: 0, lastFetch: null };
@@ -243,7 +249,9 @@ export class IngestionAgent extends BaseAgent {
       this.ingestionMetrics.propsIngested++;
       
     } catch (error) {
-      this.logger.error('Failed to process prop', error instanceof Error ? error : new Error(String(error)));
+      this.logger.error('Failed to process prop', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       this.errorCount++;
       this.ingestionMetrics.errorCount++;
     }

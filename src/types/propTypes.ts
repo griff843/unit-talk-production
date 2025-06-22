@@ -15,9 +15,9 @@ export interface PropObject {
   edge_score?: number | null;
   tier?: string;
   tags?: string[];
-  edge_breakdown?: Record<string, any>;
+  edge_breakdown?: Record<string, unknown>;
   postable?: boolean;
   solo_lock?: boolean;
   created_at?: string;
-  [key: string]: any; // Allow additional properties
+  [key: string]: string | number | boolean | string[] | Record<string, unknown> | null | undefined; // Allow additional properties
 }

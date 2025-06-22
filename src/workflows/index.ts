@@ -1,14 +1,17 @@
 import { proxyActivities } from '@temporalio/workflow';
-import type { BaseAgentActivities } from '../types/activities';
-import type { AnalyticsAgentActivities } from '../types/activities';
-import type { NotificationAgentActivities } from '../types/activities';
-import type { FeedAgentActivities } from '../types/activities';
-import type { AuditAgentActivities } from '../types/activities';
-import type { GradingAgentActivities } from '../types/activities';
-import type { AlertAgentActivities } from '../types/activities';
-import type { PromoAgentActivities } from '../types/activities';
-import type { ContestAgentActivities } from '../types/activities';
-import type { OperatorAgentActivities } from '../types/activities';
+import type {
+  BaseAgentActivities,
+  AnalyticsAgentActivities,
+  NotificationAgentActivities,
+  FeedAgentActivities,
+  AuditAgentActivities,
+  GradingAgentActivities,
+  AlertAgentActivities,
+  PromoAgentActivities,
+  ContestAgentActivities,
+  OperatorAgentActivities,
+  ActivityParams
+} from '../types/activities';
 
 // Create proxies for each agent's activities
 const baseActivities = proxyActivities<BaseAgentActivities>({
@@ -108,38 +111,38 @@ const audit = proxyActivities<typeof auditActivities>({
 });
 
 // Export all workflows with standardized patterns
-export async function analyticsWorkflow(params: any): Promise<void> {
+export async function analyticsWorkflow(params: ActivityParams): Promise<void> {
   await analytics.runAnalysis(params);
 }
 
-export async function gradingWorkflow(params: any): Promise<void> {
+export async function gradingWorkflow(params: ActivityParams): Promise<void> {
   await grading.gradeSubmission(params);
 }
 
-export async function contestWorkflow(params: any): Promise<void> {
+export async function contestWorkflow(params: ActivityParams): Promise<void> {
   await contest.createContest(params);
 }
 
-export async function alertWorkflow(params: any): Promise<void> {
+export async function alertWorkflow(params: ActivityParams): Promise<void> {
   await alert.processAlert(params);
 }
 
-export async function promoWorkflow(params: any): Promise<void> {
+export async function promoWorkflow(params: ActivityParams): Promise<void> {
   await promo.createPromotion(params);
 }
 
-export async function notificationWorkflow(params: any): Promise<void> {
+export async function notificationWorkflow(params: ActivityParams): Promise<void> {
   await notification.sendNotification(params);
 }
 
-export async function feedWorkflow(params: any): Promise<void> {
+export async function feedWorkflow(params: ActivityParams): Promise<void> {
   await feed.fetchFeed(params);
 }
 
-export async function operatorWorkflow(params: any): Promise<void> {
+export async function operatorWorkflow(params: ActivityParams): Promise<void> {
   await operator.monitorSystem(params);
 }
 
-export async function auditWorkflow(params: any): Promise<void> {
+export async function auditWorkflow(params: ActivityParams): Promise<void> {
   await audit.runAudit(params);
 } 

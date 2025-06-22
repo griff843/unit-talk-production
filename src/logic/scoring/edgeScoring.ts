@@ -22,15 +22,24 @@ function extractPitcherStats(prop: PropObject): PitcherStats | null {
     return null;
   }
 
+  const toNumber = (value: unknown): number => {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+      const parsed = parseFloat(value);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+    return 0;
+  };
+
   return {
-    pitcherId: prop.pitcher_id,
-    name: prop.pitcher_name,
-    hrPer9: prop.pitcher_hr_per_9 || 0,
-    barrelPercent: prop.pitcher_barrel_pct || 0,
-    meatballPercent: prop.pitcher_meatball_pct || 0,
-    hittableCountPct: prop.pitcher_hittable_count_pct || 0,
-    recentHRs: prop.pitcher_recent_hrs || 0,
-    walkRate: prop.pitcher_walk_rate || 0
+    pitcherId: typeof prop.pitcher_id === 'string' ? prop.pitcher_id : String(prop.pitcher_id || ''),
+    name: typeof prop.pitcher_name === 'string' ? prop.pitcher_name : String(prop.pitcher_name || ''),
+    hrPer9: toNumber(prop.pitcher_hr_per_9),
+    barrelPercent: toNumber(prop.pitcher_barrel_pct),
+    meatballPercent: toNumber(prop.pitcher_meatball_pct),
+    hittableCountPct: toNumber(prop.pitcher_hittable_count_pct),
+    recentHRs: toNumber(prop.pitcher_recent_hrs),
+    walkRate: toNumber(prop.pitcher_walk_rate)
   };
 }
 
@@ -39,16 +48,31 @@ function extractPitcherStats(prop: PropObject): PitcherStats | null {
  * Returns null if insufficient data for matchup analysis
  */
 function extractMatchupData(prop: PropObject): MatchupData | null {
+  const toNumber = (value: unknown): number => {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+      const parsed = parseFloat(value);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+    return 0;
+  };
+
+  const toBoolean = (value: unknown): boolean => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') return value.toLowerCase() === 'true';
+    return false;
+  };
+
   // Check if prop has batter and conditions data
   if (prop.batter_barrel_pct === undefined || prop.batter_launch_angle === undefined) {
     return null;
   }
 
   return {
-    batterBarrel: prop.batter_barrel_pct,
-    batterLaunch: prop.batter_launch_angle,
-    parkFactor: prop.park_factor || 1.0,
-    windOut: prop.wind_out || false
+    batterBarrel: toNumber(prop.batter_barrel_pct),
+    batterLaunch: toNumber(prop.batter_launch_angle),
+    parkFactor: toNumber(prop.park_factor) || 1.0,
+    windOut: toBoolean(prop.wind_out)
   };
 }
 

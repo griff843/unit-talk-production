@@ -63,19 +63,19 @@ export class Logger {
   }
 
   // Standard logging methods
-  public info(message: string, context: Record<string, any> = {}): void {
+  public info(message: string, context: Record<string, unknown> = {}): void {
     this.logger.info(context, message);
   }
 
-  public error(message: string, context: Record<string, any> = {}): void {
+  public error(message: string, context: Record<string, unknown> = {}): void {
     this.logger.error(context, message);
   }
 
-  public warn(message: string, context: Record<string, any> = {}): void {
+  public warn(message: string, context: Record<string, unknown> = {}): void {
     this.logger.warn(context, message);
   }
 
-  public debug(message: string, context: Record<string, any> = {}): void {
+  public debug(message: string, context: Record<string, unknown> = {}): void {
     this.logger.debug(context, message);
   }
 
@@ -83,7 +83,7 @@ export class Logger {
   public logAgentActivity(
     agent: string,
     activity: string,
-    details: Record<string, any> = {}
+    details: Record<string, unknown> = {}
   ): void {
     this.info(`Agent Activity: ${activity}`, {
       agent,
@@ -96,7 +96,7 @@ export class Logger {
   public logAgentError(
     agent: string,
     error: Error,
-    context: Record<string, any> = {}
+    context: Record<string, unknown> = {}
   ): void {
     this.error(`Agent Error: ${error.message}`, {
       agent,
@@ -113,7 +113,7 @@ export class Logger {
   public logMetric(
     metric: string,
     value: number,
-    tags: Record<string, any> = {}
+    tags: Record<string, unknown> = {}
   ): void {
     this.info(`Metric: ${metric}`, {
       metric,
@@ -127,7 +127,7 @@ export class Logger {
   public logHealth(
     component: string,
     status: 'healthy' | 'unhealthy',
-    details: Record<string, any> = {}
+    details: Record<string, unknown> = {}
   ): void {
     this.info(`Health Check: ${component}`, {
       component,
@@ -139,7 +139,7 @@ export class Logger {
   }
 
   // Utility methods
-  public child(bindings: Record<string, any>): pino.Logger {
+  public child(bindings: Record<string, unknown>): pino.Logger {
     return this.logger.child(bindings);
   }
 

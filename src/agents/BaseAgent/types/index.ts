@@ -74,16 +74,16 @@ export interface HealthCheckResult extends HealthStatus {}
 
 // Logger interface
 export interface Logger {
-  debug(message: string, ...args: any[]): void;
-  info(message: string, ...args: any[]): void;
-  warn(message: string, ...args: any[]): void;
-  error(message: string, error?: Error, context?: any): void;
-  child(context: any): Logger;
+  debug(message: string, context?: Record<string, unknown>): void;
+  info(message: string, context?: Record<string, unknown>): void;
+  warn(message: string, context?: Record<string, unknown>): void;
+  error(message: string, context?: Record<string, unknown>): void;
+  child(context: Record<string, unknown>): Logger;
 }
 
 // Error handler interface
 export interface ErrorHandler {
-  handleError(error: Error, context?: any): void;
+  handleError(error: Error, context?: Record<string, unknown>): void;
   withRetry<T>(fn: () => Promise<T>, operation: string): Promise<T>;
 }
 
@@ -92,7 +92,7 @@ export interface BaseAgentDependencies {
   supabase: SupabaseClient;
   logger: Logger;
   errorHandler: ErrorHandler;
-  metricsCollector?: any;
+  metricsCollector?: Record<string, unknown>;
 }
 
 // Agent configuration type (alias for backward compatibility)

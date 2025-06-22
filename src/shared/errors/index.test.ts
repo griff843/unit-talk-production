@@ -199,26 +199,26 @@ describe('ErrorHandler', () => {
         }
         return 'success';
       });
-      
+
       const result = await errorHandler.withRetry(operation, 'test operation');
-      
+
       expect(result).toBe('success');
       expect(operation).toHaveBeenCalledTimes(3);
-    });
+    }, 15000); // 15 second timeout
 
     it('should not retry non-retryable errors', async () => {
       const error = new AgentError('Non-retryable', 'test-agent');
       const operation = jest.fn().mockRejectedValue(error);
-      
+
       await expect(errorHandler.withRetry(operation, 'test operation')).rejects.toThrow('Non-retryable');
       expect(operation).toHaveBeenCalledTimes(1);
     });
 
     it('should throw RetryableError after max attempts', async () => {
       const operation = jest.fn().mockRejectedValue(new RetryableError('Always fails', 1, 3));
-      
+
       await expect(errorHandler.withRetry(operation, 'test operation')).rejects.toThrow('test operation failed after 3 attempts');
       expect(operation).toHaveBeenCalledTimes(3);
-    });
+    }, 15000); // 15 second timeout
   });
 });

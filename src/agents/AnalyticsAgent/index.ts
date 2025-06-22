@@ -72,7 +72,9 @@ export class AnalyticsAgent extends BaseAgent {
           throw new Error(`Failed to access table ${table}: ${error.message}`);
         }
       } catch (error) {
-        this.logger.error(`Table access check failed for ${table}:`, error as Error);
+        this.logger.error(`Table access check failed for ${table}:`, {
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
         throw error;
       }
     }
@@ -111,8 +113,10 @@ export class AnalyticsAgent extends BaseAgent {
           this.metrics.errorCount++;
           this.logger.error(
             `Failed to process capper ${capperId}:`,
-            error as Error,
-            { capperId }
+            {
+              error: error instanceof Error ? error.message : 'Unknown error',
+              capperId
+            }
           );
         }
       }
@@ -130,7 +134,9 @@ export class AnalyticsAgent extends BaseAgent {
 
     } catch (error) {
       this.metrics.errorCount++;
-      this.logger.error('Analytics processing failed:', error as Error);
+      this.logger.error('Analytics processing failed:', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       throw error;
     }
   }
@@ -247,7 +253,9 @@ export class AnalyticsAgent extends BaseAgent {
       });
 
     } catch (error) {
-      this.logger.error('Failed to process capper analytics', error as Error);
+      this.logger.error('Failed to process capper analytics', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       throw error;
     }
   }
@@ -283,7 +291,9 @@ export class AnalyticsAgent extends BaseAgent {
         throw new Error(`Failed to store analytics summary: ${error.message}`);
       }
     } catch (error) {
-      this.logger.error('Failed to store analytics summary', error as Error);
+      this.logger.error('Failed to store analytics summary', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       throw error;
     }
   }

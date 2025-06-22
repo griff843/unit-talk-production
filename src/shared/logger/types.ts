@@ -3,7 +3,7 @@ export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 export interface LogContext {
   context: string;
   level: LogLevel;
-  [key: string]: any;
+  [key: string]: string | number | boolean | LogLevel | undefined;
 }
 
 export interface LogEntry {
@@ -16,16 +16,16 @@ export interface LogEntry {
     stack?: string;
     name: string;
   };
-  args?: any[];
-  [key: string]: any;
+  args?: unknown[];
+  [key: string]: string | number | boolean | LogLevel | unknown[] | { message: string; stack?: string; name: string } | undefined;
 }
 
 export interface LoggerOptions {
   level?: LogLevel;
   context?: string;
   formatters?: {
-    level?: (label: string) => Record<string, any>;
-    [key: string]: any;
+    level?: (label: string) => Record<string, unknown>;
+    [key: string]: ((label: string) => Record<string, unknown>) | undefined;
   };
   redact?: {
     paths: string[];
@@ -33,13 +33,13 @@ export interface LoggerOptions {
   };
   transport?: {
     target: string;
-    options: Record<string, any>;
+    options: Record<string, unknown>;
   };
 }
 
 export interface LogMethod {
-  (msg: string, ...args: any[]): void;
-  (obj: object, msg?: string, ...args: any[]): void;
+  (msg: string, ...args: unknown[]): void;
+  (obj: object, msg?: string, ...args: unknown[]): void;
 }
 
 export interface Logger {
@@ -47,7 +47,6 @@ export interface Logger {
   info: LogMethod;
   warn: LogMethod;
   error: LogMethod;
-  child(bindings: Record<string, any>): Logger;
+  child(bindings: Record<string, unknown>): Logger;
   setLevel(level: LogLevel): void;
-  logExecution<T>(methodName: string, operation: () => Promise<T>): Promise<T>;
-} 
+}

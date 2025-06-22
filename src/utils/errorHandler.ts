@@ -8,8 +8,8 @@ export function handleError(error: unknown, context = '') {
 export class ErrorHandler {
   constructor(private logger: Logger) {}
 
-  handleError(error: Error, context?: any): void {
-    this.logger.error('Error occurred', error, context);
+  handleError(error: Error, context?: Record<string, unknown>): void {
+    this.logger.error('Error occurred', { error: error.message, ...context });
   }
 
   async withRetry<T>(fn: () => Promise<T>, operation: string): Promise<T> {
@@ -21,7 +21,7 @@ export class ErrorHandler {
         return await fn();
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        this.logger.warn(`${operation} failed (attempt ${attempt}/${maxRetries})`, lastError);
+        this.logger.warn(`${operation} failed (attempt ${attempt}/${maxRetries})`, { error: lastError.message });
         
         if (attempt === maxRetries) {
           break;

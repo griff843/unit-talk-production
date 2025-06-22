@@ -45,7 +45,7 @@ export interface AlertMeta {
   parlay_legs?: number
   resolved_legs?: number
   advice_id?: string // to tie advice/outcome logs
-  [key: string]: any // for any future needs
+  [key: string]: string | number | boolean | undefined // for any future needs
 }
 
 /** The full alert object sent to all integrations and logged for audit. */

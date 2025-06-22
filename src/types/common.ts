@@ -26,10 +26,10 @@ export interface DatabaseRecord {
   id: string;
   created_at: Date;
   updated_at: Date;
-  [key: string]: any;
+  [key: string]: string | Date | number | boolean | null | undefined;
 }
 
-export interface APIResponse<T = any> {
+export interface APIResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;

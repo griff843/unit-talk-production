@@ -21,7 +21,9 @@ export class PromoAgent extends BaseAgent {
       await this.validateDependencies();
       this.deps.logger.info('PromoAgent initialized successfully');
     } catch (error) {
-      this.deps.logger.error('Failed to initialize PromoAgent:', error instanceof Error ? error : new Error(String(error)));
+      this.deps.logger.error('Failed to initialize PromoAgent:', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       throw error;
     }
   }
@@ -45,7 +47,9 @@ export class PromoAgent extends BaseAgent {
       // Clean up expired promotions
       await this.cleanupExpired();
     } catch (error) {
-      this.deps.logger.error('Error in PromoAgent process:', error instanceof Error ? error : new Error(String(error)));
+      this.deps.logger.error('Error in PromoAgent process:', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       throw error;
     }
   }
@@ -72,7 +76,9 @@ export class PromoAgent extends BaseAgent {
       await this.cleanupExpired();
       this.deps.logger.info('PromoAgent cleanup completed');
     } catch (error) {
-      this.deps.logger.error('Error during PromoAgent cleanup:', error instanceof Error ? error : new Error(String(error)));
+      this.deps.logger.error('Error during PromoAgent cleanup:', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       throw error;
     }
   }
@@ -149,7 +155,7 @@ export class PromoAgent extends BaseAgent {
   }
 
   private async runPromotion(config: PromotionConfig): Promise<void> {
-    this.deps.logger.info('Running promotion', config.name);
+    this.deps.logger.info('Running promotion', { name: config.name });
 
     const result = await this.deps.supabase.from('promotions').insert({
       name: config.name,
@@ -162,7 +168,9 @@ export class PromoAgent extends BaseAgent {
     });
 
     if (result.error) {
-      this.deps.logger.error('Failed to insert promotion', result.error);
+      this.deps.logger.error('Failed to insert promotion', {
+        error: result.error?.message || 'Unknown database error'
+      });
       throw result.error;
     }
 

@@ -58,12 +58,16 @@ async function run() {
     });
 
   } catch (error) {
-    logger.error('Failed to start worker:', { error: error instanceof Error ? error.message : String(error) });
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error('Failed to start worker:', { error: errorMessage });
+    await errorHandler.handleError(error instanceof Error ? error : new Error(errorMessage), { context: 'worker-startup' });
     process.exit(1);
   }
 }
 
-run().catch((error) => {
-  logger.error('Unhandled error:', { error: error instanceof Error ? error.message : String(error) });
+run().catch(async (error) => {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  logger.error('Unhandled error:', { error: errorMessage });
+  await errorHandler.handleError(error instanceof Error ? error : new Error(errorMessage), { context: 'worker-unhandled' });
   process.exit(1);
 });

@@ -53,13 +53,13 @@ export interface GradingAgentConfig {
 export interface GradingErrorData {
   pickId: string;
   operation: string;
-  details?: any;
+  details?: Record<string, unknown>;
 }
 
 export class GradingError extends Error {
   public pickId: string;
   public operation: string;
-  public details?: any;
+  public details?: Record<string, unknown>;
 
   constructor(message: string, data?: Partial<GradingErrorData>) {
     super(message);

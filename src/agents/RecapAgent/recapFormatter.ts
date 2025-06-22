@@ -311,16 +311,20 @@ export class RecapFormatter {
   private buildSoloPicksText(summary: RecapSummary): string {
     const soloWins = summary.capperBreakdown.reduce((sum, capper) => sum + capper.wins, 0);
     const soloLosses = summary.capperBreakdown.reduce((sum, capper) => sum + capper.losses, 0);
-    
+
     const picks = [];
-    
+
     // Add sample picks (in production, you'd get actual pick details)
     if (summary.bestPick) {
-      picks.push(`✅ ${this.formatPick(summary.bestPick)} (+${summary.bestPick.profit_loss?.toFixed(1) || '0'}U)`);
+      const profitLoss = typeof summary.bestPick.profit_loss === 'number' ?
+        summary.bestPick.profit_loss.toFixed(1) : '0';
+      picks.push(`✅ ${this.formatPick(summary.bestPick)} (+${profitLoss}U)`);
     }
-    
+
     if (summary.worstPick) {
-      picks.push(`❌ ${this.formatPick(summary.worstPick)} (${summary.worstPick.profit_loss?.toFixed(1) || '0'}U)`);
+      const profitLoss = (summary.worstPick.profit_loss !== null && typeof summary.worstPick.profit_loss === 'number') ?
+        summary.worstPick.profit_loss.toFixed(1) : '0';
+      picks.push(`❌ ${this.formatPick(summary.worstPick)} (${profitLoss}U)`);
     }
 
     return picks.join('\n') || `${soloWins}W-${soloLosses}L solo picks processed`;
@@ -380,13 +384,17 @@ export class RecapFormatter {
 
   private buildWeeklyHighlights(summary: RecapSummary): string {
     const highlights = [];
-    
+
     if (summary.bestPick) {
-      highlights.push(`• Best Play: ${this.formatPick(summary.bestPick)} (+${summary.bestPick.profit_loss?.toFixed(1) || '0'}U)`);
+      const profitLoss = typeof summary.bestPick.profit_loss === 'number' ?
+        summary.bestPick.profit_loss.toFixed(1) : '0';
+      highlights.push(`• Best Play: ${this.formatPick(summary.bestPick)} (+${profitLoss}U)`);
     }
-    
+
     if (summary.badBeat) {
-      highlights.push(`• Bad Beat: ${this.formatPick(summary.badBeat)} (${summary.badBeat.profit_loss?.toFixed(1) || '0'}U)`);
+      const profitLoss = typeof summary.badBeat.profit_loss === 'number' ?
+        summary.badBeat.profit_loss.toFixed(1) : '0';
+      highlights.push(`• Bad Beat: ${this.formatPick(summary.badBeat)} (${profitLoss}U)`);
     }
 
     if (summary.hotStreaks.length > 0) {
@@ -401,7 +409,9 @@ export class RecapFormatter {
     const highlights = [];
     
     if (summary.biggestWin) {
-      highlights.push(`• Best Day: ${this.formatPick(summary.biggestWin)} (+${summary.biggestWin.profit_loss?.toFixed(1) || '0'}U)`);
+      const profitLoss = typeof summary.biggestWin.profit_loss === 'number' ?
+        summary.biggestWin.profit_loss.toFixed(1) : '0';
+      highlights.push(`• Best Day: ${this.formatPick(summary.biggestWin)} (+${profitLoss}U)`);
     }
     
     if (summary.badBeat) {

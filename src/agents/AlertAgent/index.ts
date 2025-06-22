@@ -184,8 +184,8 @@ export class AlertAgent extends BaseAgent {
       .limit(50); // Reduced from 100 for better performance
 
     if (error || !picks) {
-      this.logger.error('❌ Failed to fetch final picks for alerts', error, {
-        message: error?.message || 'Unknown error'
+      this.logger.error('❌ Failed to fetch final picks for alerts', {
+        error: error?.message || 'Unknown error'
       });
       this.alertMetrics.errorCount++;
       return;
@@ -248,7 +248,8 @@ export class AlertAgent extends BaseAgent {
           this.alertMetrics.llmFailures++;
         }
 
-        this.logger.error(`❌ Failed to process pick [${pick.id}]`, error, {
+        this.logger.error(`❌ Failed to process pick [${pick.id}]`, {
+          error: error instanceof Error ? error.message : 'Unknown error',
           pickId: pick.id,
           playerName: pick.player_name,
           pickData: {

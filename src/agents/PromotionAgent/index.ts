@@ -30,7 +30,9 @@ export class PromotionAgent extends BaseAgent {
       await this.validateDependencies();
       this.logger.info('PromotionAgent initialized successfully');
     } catch (error) {
-      this.logger.error('Failed to initialize PromotionAgent:', error instanceof Error ? error : new Error(String(error)));
+      this.logger.error('Failed to initialize PromotionAgent:', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       this.errorHandler.handleError(error as Error);
       throw error;
     }
@@ -66,7 +68,9 @@ export class PromotionAgent extends BaseAgent {
       
     } catch (error) {
       errorCounter.inc(); // Increment error counter
-      this.logger.error('Promotion cycle failed:', error instanceof Error ? error : new Error(String(error)));
+      this.logger.error('Promotion cycle failed:', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       this.errorHandler.handleError(error as Error);
       throw error;
     }
@@ -139,7 +143,9 @@ export class PromotionAgent extends BaseAgent {
       };
 
     } catch (error) {
-      this.logger.error('Failed to collect metrics:', error instanceof Error ? error : new Error(String(error)));
+      this.logger.error('Failed to collect metrics:', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       return {
         agentName: this.config.name,
         successCount: 0,

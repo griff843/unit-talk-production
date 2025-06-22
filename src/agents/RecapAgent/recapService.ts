@@ -208,7 +208,10 @@ export class RecapService {
 
     // Calculate units and ROI
     const totalUnits = picks.reduce((sum, pick) => sum + (pick.units || 1), 0);
-    const netUnits = picks.reduce((sum, pick) => sum + (pick.profit_loss || 0), 0);
+    const netUnits = picks.reduce((sum, pick) => {
+      const profitLoss = typeof pick.profit_loss === 'number' ? pick.profit_loss : 0;
+      return sum + profitLoss;
+    }, 0);
     const roi = totalUnits > 0 ? (netUnits / totalUnits) * 100 : 0;
 
     // Calculate average edge and CLV
@@ -257,7 +260,8 @@ export class RecapService {
     
     // Group picks by capper
     picks.forEach(pick => {
-      const capper = this.extractCapper(pick.tags || []) || 'Unknown';
+      const tags = Array.isArray(pick.tags) ? pick.tags : [];
+      const capper = this.extractCapper(tags) || 'Unknown';
       if (!capperMap.has(capper)) {
         capperMap.set(capper, []);
       }
@@ -271,7 +275,10 @@ export class RecapService {
       const losses = capperPicks.filter(p => p.outcome === 'loss').length;
       const pushes = capperPicks.filter(p => p.outcome === 'push').length;
       const totalUnits = capperPicks.reduce((sum, pick) => sum + (pick.units || 1), 0);
-      const netUnits = capperPicks.reduce((sum, pick) => sum + (pick.profit_loss || 0), 0);
+      const netUnits = capperPicks.reduce((sum, pick) => {
+        const profitLoss = typeof pick.profit_loss === 'number' ? pick.profit_loss : 0;
+        return sum + profitLoss;
+      }, 0);
       const winRate = (wins + losses) > 0 ? (wins / (wins + losses)) * 100 : 0;
       const roi = totalUnits > 0 ? (netUnits / totalUnits) * 100 : 0;
       const avgEdge = this.calculateAverageEdge(capperPicks);
@@ -328,7 +335,10 @@ export class RecapService {
       const losses = tierPicks.filter(p => p.outcome === 'loss').length;
       const pushes = tierPicks.filter(p => p.outcome === 'push').length;
       const totalUnits = tierPicks.reduce((sum, pick) => sum + (pick.units || 1), 0);
-      const netUnits = tierPicks.reduce((sum, pick) => sum + (pick.profit_loss || 0), 0);
+      const netUnits = tierPicks.reduce((sum, pick) => {
+        const profitLoss = typeof pick.profit_loss === 'number' ? pick.profit_loss : 0;
+        return sum + profitLoss;
+      }, 0);
       const winRate = (wins + losses) > 0 ? (wins / (wins + losses)) * 100 : 0;
       const roi = totalUnits > 0 ? (netUnits / totalUnits) * 100 : 0;
       const avgEdge = this.calculateAverageEdge(tierPicks);
@@ -358,17 +368,21 @@ export class RecapService {
     
     capperStats.forEach(capper => {
       if (capper.currentStreak >= 3 && capper.streakType === 'win') {
-        const capperPicks = picks.filter(p => 
-          this.extractCapper(p.tags || []) === capper.capper
-        );
-        
+        const capperPicks = picks.filter(p => {
+          const tags = Array.isArray(p.tags) ? p.tags : [];
+          return this.extractCapper(tags) === capper.capper;
+        });
+
         const streakPicks = this.getStreakPicks(capperPicks, 'win');
-        
+
         hotStreaks.push({
           capper: capper.capper,
           streakLength: capper.currentStreak,
           streakType: 'win',
-          totalUnits: streakPicks.reduce((sum, pick) => sum + (pick.profit_loss || 0), 0),
+          totalUnits: streakPicks.reduce((sum, pick) => {
+            const profitLoss = typeof pick.profit_loss === 'number' ? pick.profit_loss : 0;
+            return sum + profitLoss;
+          }, 0),
           startDate: streakPicks[streakPicks.length - 1]?.created_at || '',
           endDate: streakPicks[0]?.created_at || '',
           picks: streakPicks
@@ -414,7 +428,8 @@ export class RecapService {
         const units = parlayPicks[0]?.units || 1;
         const outcome = this.determineParlayOutcome(parlayPicks);
         const profit_loss = this.calculateParlayProfitLoss(parlayPicks, outcome, units, totalOdds);
-        const capper = this.extractCapper(parlayPicks[0]?.tags || []);
+        const tags = Array.isArray(parlayPicks[0]?.tags) ? parlayPicks[0]?.tags : [];
+        const capper = this.extractCapper(tags);
 
         parlayGroups.push({
           parlay_id: parlayId,
@@ -425,7 +440,7 @@ export class RecapService {
           profit_loss,
           capper,
           created_at: parlayPicks[0]?.created_at,
-          settled_at: parlayPicks[0]?.settled_at
+          settled_at: typeof parlayPicks[0]?.settled_at === 'string' ? parlayPicks[0]?.settled_at : undefined
         });
       }
 
@@ -637,24 +652,32 @@ export class RecapService {
   private calculateAverageClv(picks: FinalPick[]): number {
     const validPicks = picks.filter(p => typeof p.clv_delta === 'number');
     if (validPicks.length === 0) return 0;
-    
-    const totalClv = validPicks.reduce((sum, pick) => sum + (pick.clv_delta || 0), 0);
+
+    const totalClv = validPicks.reduce((sum, pick) => {
+      const clvDelta = typeof pick.clv_delta === 'number' ? pick.clv_delta : 0;
+      return sum + clvDelta;
+    }, 0);
     return totalClv / validPicks.length;
   }
 
   private calculateCurrentStreak(picks: FinalPick[]): { type: 'win' | 'loss' | 'none'; length: number } {
     if (picks.length === 0) return { type: 'none', length: 0 };
-    
+
     const sortedPicks = picks
       .filter(p => p.outcome && p.outcome !== 'push' && p.outcome !== 'pending')
-      .sort((a, b) => new Date(b.settled_at || b.created_at || '').getTime() - 
-                     new Date(a.settled_at || a.created_at || '').getTime());
-    
+      .sort((a, b) => {
+        const aDate = typeof a.settled_at === 'string' ? a.settled_at :
+                      typeof a.created_at === 'string' ? a.created_at : '';
+        const bDate = typeof b.settled_at === 'string' ? b.settled_at :
+                      typeof b.created_at === 'string' ? b.created_at : '';
+        return new Date(bDate).getTime() - new Date(aDate).getTime();
+      });
+
     if (sortedPicks.length === 0) return { type: 'none', length: 0 };
-    
+
     const latestOutcome = sortedPicks[0].outcome;
     let streakLength = 1;
-    
+
     for (let i = 1; i < sortedPicks.length; i++) {
       if (sortedPicks[i].outcome === latestOutcome) {
         streakLength++;
@@ -662,7 +685,7 @@ export class RecapService {
         break;
       }
     }
-    
+
     return {
       type: latestOutcome === 'win' ? 'win' : 'loss',
       length: streakLength
@@ -672,9 +695,14 @@ export class RecapService {
   private getStreakPicks(picks: FinalPick[], streakType: 'win' | 'loss'): FinalPick[] {
     const sortedPicks = picks
       .filter(p => p.outcome === streakType)
-      .sort((a, b) => new Date(b.settled_at || b.created_at || '').getTime() - 
-                     new Date(a.settled_at || a.created_at || '').getTime());
-    
+      .sort((a, b) => {
+        const aDate = typeof a.settled_at === 'string' ? a.settled_at :
+                      typeof a.created_at === 'string' ? a.created_at : '';
+        const bDate = typeof b.settled_at === 'string' ? b.settled_at :
+                      typeof b.created_at === 'string' ? b.created_at : '';
+        return new Date(bDate).getTime() - new Date(aDate).getTime();
+      });
+
     const streakPicks: FinalPick[] = [];
     for (const pick of sortedPicks) {
       if (pick.outcome === streakType) {
@@ -683,17 +711,22 @@ export class RecapService {
         break;
       }
     }
-    
+
     return streakPicks;
   }
 
   private generateStreakSparkline(picks: FinalPick[]): string {
     const recentPicks = picks
       .filter(p => p.outcome && p.outcome !== 'push')
-      .sort((a, b) => new Date(a.settled_at || a.created_at || '').getTime() - 
-                     new Date(b.settled_at || b.created_at || '').getTime())
+      .sort((a, b) => {
+        const aDate = typeof a.settled_at === 'string' ? a.settled_at :
+                      typeof a.created_at === 'string' ? a.created_at : '';
+        const bDate = typeof b.settled_at === 'string' ? b.settled_at :
+                      typeof b.created_at === 'string' ? b.created_at : '';
+        return new Date(aDate).getTime() - new Date(bDate).getTime();
+      })
       .slice(-10); // Last 10 picks
-    
+
     return recentPicks.map(pick => {
       switch (pick.outcome) {
         case 'win': return '▲';
@@ -706,19 +739,31 @@ export class RecapService {
   private findBestPick(picks: FinalPick[]): FinalPick | undefined {
     return picks
       .filter(p => p.outcome === 'win')
-      .sort((a, b) => (b.profit_loss || 0) - (a.profit_loss || 0))[0];
+      .sort((a, b) => {
+        const aProfitLoss = typeof a.profit_loss === 'number' ? a.profit_loss : 0;
+        const bProfitLoss = typeof b.profit_loss === 'number' ? b.profit_loss : 0;
+        return bProfitLoss - aProfitLoss;
+      })[0];
   }
 
   private findWorstPick(picks: FinalPick[]): FinalPick | undefined {
     return picks
       .filter(p => p.outcome === 'loss')
-      .sort((a, b) => (a.profit_loss || 0) - (b.profit_loss || 0))[0];
+      .sort((a, b) => {
+        const aProfitLoss = typeof a.profit_loss === 'number' ? a.profit_loss : 0;
+        const bProfitLoss = typeof b.profit_loss === 'number' ? b.profit_loss : 0;
+        return aProfitLoss - bProfitLoss;
+      })[0];
   }
 
   private findBiggestWin(picks: FinalPick[]): FinalPick | undefined {
     return picks
       .filter(p => p.outcome === 'win')
-      .sort((a, b) => (b.profit_loss || 0) - (a.profit_loss || 0))[0];
+      .sort((a, b) => {
+        const aProfitLoss = typeof a.profit_loss === 'number' ? a.profit_loss : 0;
+        const bProfitLoss = typeof b.profit_loss === 'number' ? b.profit_loss : 0;
+        return bProfitLoss - aProfitLoss;
+      })[0];
   }
 
   private findBadBeat(picks: FinalPick[]): FinalPick | undefined {

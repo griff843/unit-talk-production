@@ -1,4 +1,3 @@
-
 export interface ValidationResult {
   valid: boolean;
   errors: string[];
@@ -16,5 +15,5 @@ export interface ValidationRule {
 
 export interface Validator {
   rules: ValidationRule[];
-  validate(data: any): ValidationResult;
+  validate(data: unknown): ValidationResult;
 }

@@ -15,8 +15,8 @@ export interface FinalPick {
   units?: number;
   outcome?: 'win' | 'loss' | 'push' | 'pending';
   parlay_id?: string;
-  // Add any other properties that might be missing
-  [key: string]: any;
+  // Additional properties with proper typing
+  [key: string]: string | number | boolean | undefined;
 }
 
 

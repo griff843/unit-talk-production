@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  unit-talk-bot:
+    build: .
+    container_name: unit-talk-discord-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - redis
+    networks:
+      - unit-talk-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: unit-talk-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - unit-talk-network
+
+volumes:
+  redis_data:
+
+networks:
+  unit-talk-network:
+    driver: bridge

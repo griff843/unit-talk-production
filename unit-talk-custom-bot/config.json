@@ -1,0 +1,31 @@
+{
+    "directory": "/JS Project/Customer_griff843/src",
+    "booster":{
+        "channelCat1":["1127165888857116703","1190282198356590713"],
+        "channelCat2":["1172863396245413981","1196724146286108672"]
+    },
+    "dailyChannel":"1127165888857116703",
+    "engagmentLeaderboard":"1127165888857116703",
+    "vipPicks":"1127165888857116703",
+    "freePicks":"1190282198356590713",
+    "vipRole":"1355934847310368989",
+    "vipPlusRole":"1355934847310368989",
+    "firstTimePost":"1127165888857116703",
+    "logging":"1127165888857116703",
+    "modlogs":"1127165888857116703",
+    "threadChannel":{
+        "basketball":"1127165888857116703"
+    },
+    "api":{
+        "oddsApi":"800e7dbaaee3d8d8d78be9903175ff09"
+    },
+    "discord": {
+        "guildid": "1126427282853085235"
+    },
+    "bot": {
+        "clientid": "1045344984280346674"
+    } 
+}
+
+
+

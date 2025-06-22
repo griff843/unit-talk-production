@@ -438,7 +438,7 @@ Pick Details:
 - Tier: ${pick.tier || 'Ungraded'}
 - Edge Score: ${pick.edge_score || 'N/A'}
 - Sharp Fade: ${pick.is_sharp_fade ? 'YES' : 'NO'}
-- Tags: ${pick.tags?.join(', ') || 'None'}
+- Tags: ${Array.isArray(pick.tags) ? pick.tags.join(', ') : 'None'}
 `;
 
     return basePrompt + `

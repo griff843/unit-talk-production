@@ -1,4 +1,4 @@
-export function normalizeRawProps(rawProps: any[]) {
+export function normalizeRawProps(rawProps: Record<string, unknown>[]) {
   return rawProps.map((prop) => ({
     player_name: prop.playerName,
     market_type: prop.marketType,

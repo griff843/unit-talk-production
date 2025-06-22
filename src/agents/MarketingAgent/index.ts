@@ -36,7 +36,9 @@ export class MarketingAgent extends BaseAgent {
       await this.setupEngagementTracking()
       this.logger.info('MarketingAgent resources initialized successfully')
     } catch (error) {
-      this.logger.error('Failed to initialize MarketingAgent resources', error instanceof Error ? error : new Error(String(error)))
+      this.logger.error('Failed to initialize MarketingAgent resources', {
+        error: error instanceof Error ? error.message : String(error)
+      })
       throw error
     }
   }
@@ -47,7 +49,9 @@ export class MarketingAgent extends BaseAgent {
       await this.startReferralTracking()
       await this.startEngagementAnalysis()
     } catch (error) {
-      this.logger.error('Failed to process MarketingAgent tasks', error instanceof Error ? error : new Error(String(error)))
+      this.logger.error('Failed to process MarketingAgent tasks', {
+        error: error instanceof Error ? error.message : String(error)
+      })
       throw error
     }
   }
@@ -60,7 +64,9 @@ export class MarketingAgent extends BaseAgent {
       await this.stopEngagementAnalysis()
       this.logger.info('MarketingAgent cleaned up successfully')
     } catch (error) {
-      this.logger.error('Failed to cleanup MarketingAgent', error instanceof Error ? error : new Error(String(error)))
+      this.logger.error('Failed to cleanup MarketingAgent', {
+        error: error instanceof Error ? error.message : String(error)
+      })
       throw error
     }
   }
@@ -81,7 +87,9 @@ export class MarketingAgent extends BaseAgent {
         timestamp: new Date().toISOString()
       };
     } catch (error) {
-      this.logger.error('Health check failed', error instanceof Error ? error : new Error(String(error)));
+      this.logger.error('Health check failed', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       return {
         status: 'unhealthy',
         details: {
@@ -132,7 +140,9 @@ export class MarketingAgent extends BaseAgent {
 
       this.logger.info('Command processed successfully', { commandType: command.type })
     } catch (error) {
-      this.logger.error('Failed to process command', error instanceof Error ? error : new Error(String(error)))
+      this.logger.error('Failed to process command', {
+        error: error instanceof Error ? error.message : String(error)
+      })
       throw error instanceof Error ? error : new Error(String(error))
     }
   }

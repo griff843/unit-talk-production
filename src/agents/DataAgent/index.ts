@@ -93,12 +93,18 @@ export class DataAgent extends BaseAgent {
         .limit(1);
 
       if (error) {
-        this.logger.warn('Data agent events table not accessible:', error);
+        this.logger.warn('Data agent events table not accessible:', {
+          error: error.message,
+          code: error.code,
+          details: error.details
+        });
       }
 
       this.logger.info('DataAgent initialized successfully');
     } catch (error) {
-      this.logger.error('Failed to initialize DataAgent:', error as Error);
+      this.logger.error('Failed to initialize DataAgent:', {
+        error: (error as Error).message
+      });
       throw error;
     }
   }
@@ -129,7 +135,9 @@ export class DataAgent extends BaseAgent {
 
     } catch (error) {
       this.metrics.errorCount++;
-      this.logger.error('DataAgent processing failed:', error as Error);
+      this.logger.error('DataAgent processing failed:', {
+        error: (error as Error).message
+      });
       throw error;
     }
   }
@@ -288,7 +296,9 @@ export class DataAgent extends BaseAgent {
 
       } catch (error) {
         this.metrics.etlJobs.failed++;
-        this.logger.error(`ETL workflow failed: ${workflow.name}`, error instanceof Error ? error : new Error(String(error)));
+        this.logger.error(`ETL workflow failed: ${workflow.name}`, {
+          error: error instanceof Error ? error.message : String(error)
+        });
         throw error;
       } finally {
         this.activeJobs.delete(workflow.id);
@@ -344,7 +354,9 @@ export class DataAgent extends BaseAgent {
 
       } catch (error) {
         this.metrics.enrichmentJobs.failed++;
-        this.logger.error(`Enrichment pipeline failed: ${pipeline.name}`, error instanceof Error ? error : new Error(String(error)));
+        this.logger.error(`Enrichment pipeline failed: ${pipeline.name}`, {
+          error: error instanceof Error ? error.message : String(error)
+        });
       } finally {
         this.activeJobs.delete(key);
       }
@@ -385,7 +397,9 @@ export class DataAgent extends BaseAgent {
 
       } catch (error) {
         this.metrics.qualityChecks.failed++;
-        this.logger.error(`Quality check failed: ${check.name}`, error instanceof Error ? error : new Error(String(error)));
+        this.logger.error(`Quality check failed: ${check.name}`, {
+          error: error instanceof Error ? error.message : String(error)
+        });
       }
     }
   }

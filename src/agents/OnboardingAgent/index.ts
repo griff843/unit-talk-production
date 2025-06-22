@@ -68,7 +68,9 @@ export class OnboardingAgent extends BaseAgent {
       await this.analyzeOnboardingMetrics();
       
     } catch (error) {
-      this.logger.error('Error in OnboardingAgent process:', error as Error);
+      this.logger.error('Error in OnboardingAgent process:', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       throw error;
     }
   }
@@ -159,7 +161,9 @@ export class OnboardingAgent extends BaseAgent {
 
       return learningPath;
     } catch (error) {
-      this.logger.error(`Failed to create onboarding for user ${userId}:`, error as Error);
+      this.logger.error(`Failed to create onboarding for user ${userId}:`, {
+        error: error instanceof Error ? error.message : String(error)
+      });
       throw error;
     }
   }
@@ -197,7 +201,9 @@ export class OnboardingAgent extends BaseAgent {
 
       return completeProfile;
     } catch (error) {
-      this.logger.error(`Failed to analyze user profile for ${userId}:`, error as Error);
+      this.logger.error(`Failed to analyze user profile for ${userId}:`, {
+        error: error instanceof Error ? error.message : String(error)
+      });
       return this.createFallbackProfile(userId, assessment);
     }
   }
@@ -305,7 +311,7 @@ export class OnboardingAgent extends BaseAgent {
         units: 0,
         outcome: 'pending' as const,
         parlay_id: undefined,
-        metadata: { step_id: step.id, profile_id: profile.id, analysis: prompt }
+        metadata: JSON.stringify({ step_id: step.id, profile_id: profile.id, analysis: prompt })
       });
 
       // Parse AI response to customize step content
@@ -314,7 +320,8 @@ export class OnboardingAgent extends BaseAgent {
         content: this.parseCustomizedContent(aiResponse, step, profile)
       };
     } catch (error) {
-      this.logger.error('Failed to customize step', error instanceof Error ? error : new Error(String(error)), {
+      this.logger.error('Failed to customize step', {
+        error: error instanceof Error ? error.message : String(error),
         stepId: step.id
       });
       throw error;
@@ -402,9 +409,11 @@ Provide customized content that will be most effective for this specific user.
         adjustments: analysis.pathAdjustments
       });
     } catch (error) {
-      this.logger.error('Failed to analyze feedback with AI', error instanceof Error ? error : new Error(String(error)));
+      this.logger.error('Failed to analyze feedback with AI', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(`Failed to process feedback for user ${userId}:`, new Error(errorMessage));
+      this.logger.error(`Failed to process feedback for user ${userId}:`, { error: errorMessage });
       return;
     }
   }
@@ -442,12 +451,14 @@ Focus on actionable insights that can improve the learning experience.
         units: 0,
         outcome: 'pending' as const,
         parlay_id: undefined,
-        metadata: { feedback_type: 'user_feedback_analysis', analysis: prompt }
+        metadata: JSON.stringify({ feedback_type: 'user_feedback_analysis', analysis: prompt })
       });
 
       return this.parseFeedbackAnalysis(aiResponse);
     } catch (error) {
-      this.logger.error('AI feedback analysis failed:', error as Error);
+      this.logger.error('AI feedback analysis failed:', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       return { sentiment: 'neutral', profileUpdates: null, pathAdjustments: null };
     }
   }

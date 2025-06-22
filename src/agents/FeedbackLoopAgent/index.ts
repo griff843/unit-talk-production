@@ -74,7 +74,9 @@ export class FeedbackLoopAgent extends BaseAgent {
       
       this.logger.info('FeedbackLoopAgent initialized successfully');
     } catch (error) {
-      this.logger.error('Failed to initialize FeedbackLoopAgent:', error instanceof Error ? error : undefined);
+      this.logger.error('Failed to initialize FeedbackLoopAgent:', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       throw error;
     }
   }
@@ -107,7 +109,9 @@ export class FeedbackLoopAgent extends BaseAgent {
         adaptationsApplied: this.processingStats.adaptationsApplied
       });
     } catch (error) {
-      this.logger.error('FeedbackLoopAgent processing error:', error instanceof Error ? error : undefined);
+      this.logger.error('FeedbackLoopAgent processing error:', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       throw error;
     }
   }
@@ -217,7 +221,11 @@ export class FeedbackLoopAgent extends BaseAgent {
         .limit(1000);
       
       if (error) {
-        this.logger.warn('Failed to load historical feedback:', error);
+        this.logger.warn('Failed to load historical feedback:', {
+          error: error.message,
+          code: error.code,
+          details: error.details
+        });
         return;
       }
       
@@ -234,7 +242,9 @@ export class FeedbackLoopAgent extends BaseAgent {
       
       this.logger.info(`Loaded ${this.feedbackQueue.length} historical feedback items`);
     } catch (error) {
-      this.logger.error('Error loading historical data:', error instanceof Error ? error : undefined);
+      this.logger.error('Error loading historical data:', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   }
 
@@ -303,7 +313,9 @@ export class FeedbackLoopAgent extends BaseAgent {
         });
       }
     } catch (error) {
-      this.logger.error('Error collecting pick outcome feedback:', error instanceof Error ? error : undefined);
+      this.logger.error('Error collecting pick outcome feedback:', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   }
 
@@ -348,7 +360,9 @@ export class FeedbackLoopAgent extends BaseAgent {
         });
       }
     } catch (error) {
-      this.logger.error('Error collecting model accuracy feedback:', error instanceof Error ? error : undefined);
+      this.logger.error('Error collecting model accuracy feedback:', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   }
 
@@ -376,7 +390,9 @@ export class FeedbackLoopAgent extends BaseAgent {
       await this.saveFeedbackItem(feedback);
       
     } catch (error) {
-      this.logger.error(`Error processing feedback ${feedback.id}:`, error instanceof Error ? error : new Error(String(error)));
+      this.logger.error(`Error processing feedback ${feedback.id}:`, {
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   }
 
@@ -518,8 +534,10 @@ export class FeedbackLoopAgent extends BaseAgent {
       .filter((rec, index, arr) => arr.indexOf(rec) === index); // Deduplicate
     
     if (recommendations.length > 0) {
-      this.logger.info('Generated improvement recommendations:', recommendations);
-      
+      this.logger.info('Generated improvement recommendations:', {
+        recommendations: recommendations
+      });
+
       // Save recommendations to database
       await this.saveRecommendations(recommendations);
     }
@@ -588,12 +606,18 @@ export class FeedbackLoopAgent extends BaseAgent {
           processed: feedback.processed,
           created_at: feedback.timestamp
         });
-      
+
       if (error) {
-        this.logger.error('Failed to save feedback item:', error);
+        this.logger.error('Failed to save feedback item:', {
+          error: error.message,
+          code: error.code,
+          details: error.details
+        });
       }
     } catch (error) {
-      this.logger.error('Error saving feedback item:', error instanceof Error ? error : undefined);
+      this.logger.error('Error saving feedback item:', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   }
 
@@ -608,10 +632,16 @@ export class FeedbackLoopAgent extends BaseAgent {
         });
       
       if (error) {
-        this.logger.error('Failed to save recommendations:', error);
+        this.logger.error('Failed to save recommendations:', {
+          error: error.message,
+          code: error.code,
+          details: error.details
+        });
       }
     } catch (error) {
-      this.logger.error('Error saving recommendations:', error instanceof Error ? error : undefined);
+      this.logger.error('Error saving recommendations:', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   }
 
@@ -634,10 +664,16 @@ export class FeedbackLoopAgent extends BaseAgent {
         });
       
       if (error) {
-        this.logger.error('Failed to save agent state:', error);
+        this.logger.error('Failed to save agent state:', {
+          error: error.message,
+          code: error.code,
+          details: error.details
+        });
       }
     } catch (error) {
-      this.logger.error('Error saving agent state:', error instanceof Error ? error : undefined);
+      this.logger.error('Error saving agent state:', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   }
 }

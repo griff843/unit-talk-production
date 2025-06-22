@@ -73,7 +73,9 @@ export class NotificationAgent extends BaseAgent {
       await this.initializeChannels();
       this.deps.logger.info('NotificationAgent initialized successfully');
     } catch (error) {
-      this.deps.logger.error('Failed to initialize NotificationAgent:', error as Error);
+      this.deps.logger.error('Failed to initialize NotificationAgent:', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       throw error;
     }
   }
@@ -127,7 +129,9 @@ export class NotificationAgent extends BaseAgent {
           this.deps.logger.info(`Testing ${channel} channel connectivity...`);
           this.channelHealth.set(channel as NotificationChannel, true);
         } catch (error) {
-          this.deps.logger.warn(`${channel} channel test failed:`, error);
+          this.deps.logger.warn(`${channel} channel test failed:`, {
+            error: error instanceof Error ? error.message : String(error)
+          });
           this.channelHealth.set(channel as NotificationChannel, false);
         }
       }
@@ -152,11 +156,13 @@ export class NotificationAgent extends BaseAgent {
           this.notificationStats.sent++;
         } catch (error) {
           this.notificationStats.failed++;
-          this.deps.logger.error(`Error processing notification ${notification.id}:`, error instanceof Error ? error : new Error(String(error)));
+          this.deps.logger.error(`Error processing notification ${notification.id}:`, {
+            error: error instanceof Error ? error.message : String(error)
+          });
         }
       }
     } catch (error) {
-      this.deps.logger.error('Error in NotificationAgent process:', error instanceof Error ? error : new Error(String(error)));
+      this.deps.logger.error('Error in NotificationAgent process:', { error: error instanceof Error ? error.message : String(error) });
       throw error;
     }
   }
@@ -171,7 +177,7 @@ export class NotificationAgent extends BaseAgent {
     let successCount = 0;
     const config = this.fullConfig;
 
-    this.deps.logger.info('Dispatching notification', payload);
+    this.deps.logger.info('Dispatching notification', { payload });
 
     for (const channel of payload.channels) {
       let attempts = 0;
@@ -228,7 +234,9 @@ export class NotificationAgent extends BaseAgent {
     try {
       await this.deps.supabase.from('notification_log').insert([logRecord]);
     } catch (error) {
-      this.deps.logger.error('Failed to log notification:', error instanceof Error ? error : new Error(String(error)));
+      this.deps.logger.error('Failed to log notification:', {
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
 
     this.deps.logger.info('Notification dispatched', { results, errors });
@@ -251,7 +259,12 @@ export class NotificationAgent extends BaseAgent {
     results: Record<NotificationChannel, boolean>,
     errors: Record<NotificationChannel, string>
   ): Promise<void> {
-    this.deps.logger.error('Escalating notification failures', new Error('Notification failures detected'), { payload, results, errors });
+    this.deps.logger.error('Escalating notification failures', {
+      error: 'Notification failures detected',
+      payload,
+      results,
+      errors
+    });
 
     try {
       // Insert to operator_incidents table
@@ -267,7 +280,9 @@ export class NotificationAgent extends BaseAgent {
         createdAt: new Date().toISOString()
       }]);
     } catch (error) {
-      this.deps.logger.error('Failed to escalate notification failure:', error instanceof Error ? error : new Error(String(error)));
+      this.deps.logger.error('Failed to escalate notification failure:', {
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   }
 
@@ -277,7 +292,9 @@ export class NotificationAgent extends BaseAgent {
       await this.retryFailedNotifications();
       this.deps.logger.info('NotificationAgent cleanup completed');
     } catch (error) {
-      this.deps.logger.error('Error during NotificationAgent cleanup:', error instanceof Error ? error : new Error(String(error)));
+      this.deps.logger.error('Error during NotificationAgent cleanup:', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       throw error;
     }
   }
@@ -367,7 +384,9 @@ export class NotificationAgent extends BaseAgent {
       try {
         await this.sendNotification(notification);
       } catch (error) {
-        this.deps.logger.error(`Retry failed for notification ${notification.id}:`, error instanceof Error ? error : new Error(String(error)));
+        this.deps.logger.error(`Retry failed for notification ${notification.id}:`, {
+          error: error instanceof Error ? error.message : String(error)
+        });
       }
     }
   }

@@ -130,10 +130,16 @@ export class ContestManager {
         .insert([event]);
 
       if (error) {
-        this.logger.error('Failed to log contest event', error);
+        this.logger.error('Failed to log contest event', {
+          error: error.message,
+          code: error.code,
+          details: error.details
+        });
       }
     } catch (error) {
-      this.logger.error('Error logging contest event:', error instanceof Error ? error : new Error(String(error)));
+      this.logger.error('Error logging contest event:', {
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   }
 
@@ -165,11 +171,15 @@ export class ContestManager {
 
     } catch (error) {
       if (error instanceof Error) {
-        this.logger.error('Failed to initialize ContestManager', error);
+        this.logger.error('Failed to initialize ContestManager', {
+          error: error.message
+        });
         this.errorHandler.handleError(error);
       } else {
         const err = new Error(String(error));
-        this.logger.error('Failed to initialize ContestManager', err);
+        this.logger.error('Failed to initialize ContestManager', {
+          error: err.message
+        });
         this.errorHandler.handleError(err);
       }
       throw error;
@@ -197,11 +207,15 @@ export class ContestManager {
 
     } catch (err) {
       if (err instanceof Error) {
-        this.logger.error('Failed to cleanup ContestManager', err);
+        this.logger.error('Failed to cleanup ContestManager', {
+          error: err.message
+        });
         this.errorHandler.handleError(err);
       } else {
         const errorObj = new Error(String(err));
-        this.logger.error('Failed to cleanup ContestManager', errorObj);
+        this.logger.error('Failed to cleanup ContestManager', {
+          error: errorObj.message
+        });
         this.errorHandler.handleError(errorObj);
       }
     }
@@ -311,7 +325,9 @@ export class ContestManager {
 
       return data;
     } catch (err) {
-      this.logger.error('Failed to create contest', err instanceof Error ? err : new Error(String(err)));
+      this.logger.error('Failed to create contest', {
+        error: err instanceof Error ? err.message : String(err)
+      });
       this.errorHandler.handleError(err instanceof Error ? err : new Error(String(err)));
       throw err;
     } finally {
@@ -350,7 +366,9 @@ export class ContestManager {
       };
 
     } catch (error) {
-      this.logger.error('Health check failed', error instanceof Error ? error : new Error(String(error)));
+      this.logger.error('Health check failed', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       return {
         status: 'unhealthy',
         timestamp: new Date().toISOString(),

@@ -82,7 +82,9 @@ export default class ScoringAgent extends BaseAgent {
         memoryUsageMb: baseMetrics.memoryUsageMb || 0
       };
     } catch (error) {
-      this.logger.error('Failed to collect metrics', error as Error);
+      this.logger.error('Failed to collect metrics', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       const baseMetrics = this.metrics || {
         agentName: this.config.name,
         successCount: 0,
@@ -116,7 +118,9 @@ export default class ScoringAgent extends BaseAgent {
       .limit(100);
 
     if (error) {
-      logger.error("❌ Failed to fetch props:", error as Error);
+      logger.error("❌ Failed to fetch props:", {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       throw error;
     }
 
@@ -177,7 +181,9 @@ export default class ScoringAgent extends BaseAgent {
         successCount++;
       } catch (err) {
         errorCount++;
-        logger.error(`❌ Failed to process prop ID ${rawProp.id}:`, err instanceof Error ? err : new Error(String(err)));
+        logger.error(`❌ Failed to process prop ID ${rawProp.id}:`, {
+          error: err instanceof Error ? err.message : String(err)
+        });
       }
     }
   }

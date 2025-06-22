@@ -11,10 +11,10 @@ export const logger = isDev
     })
   : pino();
 
-export function logAgentEvent(agent: string, msg: string, meta?: any) {
+export function logAgentEvent(agent: string, msg: string, meta?: Record<string, unknown>) {
   logger.info({ agent, ...meta }, msg);
 }
 
-export function logAgentError(agent: string, err: any, meta?: any) {
+export function logAgentError(agent: string, err: Error | unknown, meta?: Record<string, unknown>) {
   logger.error({ agent, error: err, ...meta }, 'Agent error');
 }

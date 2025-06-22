@@ -24,7 +24,9 @@ export class OperatorAgent extends BaseAgent {
       await this.validateDependencies();
       this.deps.logger.info('OperatorAgent initialized successfully');
     } catch (error) {
-      this.deps.logger.error('Failed to initialize OperatorAgent:', error instanceof Error ? error : new Error(String(error)));
+      this.deps.logger.error('Failed to initialize OperatorAgent:', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       throw error;
     }
   }
@@ -61,7 +63,9 @@ export class OperatorAgent extends BaseAgent {
         await this.learnAndEvolve();
       }
     } catch (error) {
-      this.deps.logger.error('Error in OperatorAgent process:', error instanceof Error ? error : new Error(String(error)));
+      this.deps.logger.error('Error in OperatorAgent process:', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       throw error;
     }
   }
@@ -166,8 +170,13 @@ export class OperatorAgent extends BaseAgent {
   private async logEvent(event: SystemEvent) {
     await this.deps.supabase.from('system_events').insert([{ ...event, timestamp: new Date().toISOString() }]);
     if (event.escalation || event.status === 'failed') {
-      await sendDiscordAlert(event);
-      await sendNotionLog(event);
+      await sendDiscordAlert({ ...event } as Record<string, any>);
+      await sendNotionLog({
+        event: event.event_type,
+        status: event.status,
+        message: event.message,
+        timestamp: event.timestamp ?? new Date().toISOString()
+      });
     }
   }
 
@@ -190,7 +199,7 @@ export class OperatorAgent extends BaseAgent {
       action_required: !!escalate,
       meta: event
     });
-    
+
     if (escalate) {
       await this.createTask({
         type: 'escalation',

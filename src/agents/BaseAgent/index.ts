@@ -51,7 +51,9 @@ export abstract class BaseAgent extends EventEmitter {
     } catch (error) {
       // If validation fails, use factory to create proper config
       if (deps?.logger) {
-        deps.logger.warn('Config validation failed, using factory to create proper config', error instanceof Error ? error : new Error(String(error)));
+        deps.logger.warn('Config validation failed, using factory to create proper config', {
+          error: error instanceof Error ? error.message : String(error)
+        });
       }
       this.config = validateBaseAgentConfig(config);
     }
@@ -115,7 +117,9 @@ export abstract class BaseAgent extends EventEmitter {
       if (this.config.schedule) {
         this.processLoopActive = true;
         this.safeProcessLoop().catch(error => {
-          this.logger.error('Process loop failed', error instanceof Error ? error : new Error(String(error)));
+          this.logger.error('Process loop failed', {
+          error: error instanceof Error ? error.message : String(error)
+        });
           this.emit('error', error);
         });
       }
@@ -217,7 +221,9 @@ export abstract class BaseAgent extends EventEmitter {
 
       } catch (error) {
         this.metrics.errorCount++;
-        this.logger.error('Process cycle failed', error instanceof Error ? error : new Error(String(error)));
+        this.logger.error('Process cycle failed', {
+          error: error instanceof Error ? error.message : String(error)
+        });
 
         // Implement exponential backoff on errors
         const backoffMs = Math.min(
@@ -246,7 +252,9 @@ export abstract class BaseAgent extends EventEmitter {
           const health = await this.checkHealth();
           this.emit('healthCheck', health);
         } catch (error) {
-          this.logger.error('Health check failed', error instanceof Error ? error : new Error(String(error)));
+          this.logger.error('Health check failed', {
+            error: error instanceof Error ? error.message : String(error)
+          });
         }
       }, this.config.health.interval * 1000);
     }
@@ -258,7 +266,9 @@ export abstract class BaseAgent extends EventEmitter {
           this.metrics = { ...this.metrics, ...(await this.collectMetrics()) };
           this.emit('metrics', this.metrics);
         } catch (error) {
-          this.logger.error('Metrics collection failed', error instanceof Error ? error : new Error(String(error)));
+          this.logger.error('Metrics collection failed', {
+            error: error instanceof Error ? error.message : String(error)
+          });
         }
       }, this.config.metrics.interval * 1000);
     }

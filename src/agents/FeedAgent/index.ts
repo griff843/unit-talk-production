@@ -101,7 +101,9 @@ export class FeedAgent extends BaseAgent {
         }
       }
     } catch (error) {
-      this.logger.error('Failed to process feed data', error instanceof Error ? error : new Error(String(error)));
+      this.logger.error('Failed to process feed data', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       throw error;
     }
   }
@@ -177,7 +179,9 @@ export class FeedAgent extends BaseAgent {
       await this.processProps(rawProps);
 
     } catch (error) {
-      this.logger.error(`Provider ingestion failed: ${provider.name}`, error instanceof Error ? error : new Error(String(error)));
+      this.logger.error(`Provider ingestion failed: ${provider.name}`, {
+        error: error instanceof Error ? error.message : String(error)
+      });
       this.feedMetrics.errors++;
       throw error;
     }
@@ -209,8 +213,9 @@ export class FeedAgent extends BaseAgent {
         this.feedMetrics.totalProps++;
 
       } catch (error) {
-        this.logger.error('Failed to process prop', error instanceof Error ? error : new Error(String(error)), {
-          propId: prop.id
+        this.logger.error('Failed to process prop', {
+          error: error instanceof Error ? error.message : String(error),
+          prop: prop
         });
         this.feedMetrics.errors++;
       }

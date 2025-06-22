@@ -46,7 +46,9 @@ export class AuditAgent extends BaseAgent {
 
       this.logger.info(`AuditAgent: Audit complete. Total incidents: ${incidents.length}, Critical: ${critical.length}`);
     } catch (err) {
-      this.logger.error('AuditAgent: Audit failed', err instanceof Error ? err : undefined);
+      this.logger.error('AuditAgent: Audit failed', {
+        error: err instanceof Error ? err.message : 'Unknown error'
+      });
       throw err;
     }
   }
@@ -61,7 +63,9 @@ export class AuditAgent extends BaseAgent {
       .or('line.is.null,odds.is.null');
 
     if (error) {
-      this.logger.error('checkForMissingFields failed', error);
+      this.logger.error('checkForMissingFields failed', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       return [];
     }
     for (const row of data ?? []) {
@@ -88,7 +92,9 @@ export class AuditAgent extends BaseAgent {
       .lte('created_at', new Date(Date.now() - 48 * 3600 * 1000).toISOString()); // older than 48h
 
     if (error) {
-      this.logger.error('checkForStuckOrUngraded failed', error);
+      this.logger.error('checkForStuckOrUngraded failed', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       return [];
     }
     for (const row of data ?? []) {
@@ -111,7 +117,9 @@ export class AuditAgent extends BaseAgent {
     const { data, error } = await this.supabase.rpc('find_duplicate_external_ids');
 
     if (error) {
-      this.logger.error('checkForDuplicatePicks failed', error);
+      this.logger.error('checkForDuplicatePicks failed', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       return [];
     }
     for (const row of data ?? []) {
@@ -138,7 +146,9 @@ export class AuditAgent extends BaseAgent {
       .lte('created_at', new Date(Date.now() - 72 * 3600 * 1000).toISOString());
 
     if (error) {
-      this.logger.error('checkForStaleRecords failed', error);
+      this.logger.error('checkForStaleRecords failed', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       return [];
     }
     for (const row of data ?? []) {
@@ -164,7 +174,9 @@ export class AuditAgent extends BaseAgent {
       .in('status', ['failed', 'error']);
 
     if (error) {
-      this.logger.error('checkForFailedTasks failed', error);
+      this.logger.error('checkForFailedTasks failed', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       return [];
     }
     for (const row of data ?? []) {

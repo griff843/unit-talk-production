@@ -46,7 +46,9 @@ export class FinalizerAgent extends BaseAgent {
       await this.validateDependencies();
       this.logger.info('FinalizerAgent initialized successfully');
     } catch (error) {
-      this.logger.error('Failed to initialize FinalizerAgent:', error instanceof Error ? error : new Error(String(error)));
+      this.logger.error('Failed to initialize FinalizerAgent:', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       throw error;
     }
   }
@@ -130,7 +132,9 @@ export class FinalizerAgent extends BaseAgent {
         errors: this.publishingErrors
       });
     } catch (error) {
-      this.logger.error('FinalizerAgent process error:', error instanceof Error ? error : new Error(String(error)));
+      this.logger.error('FinalizerAgent process error:', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       
       if (error instanceof Error) {
         this.processingErrors.push(error);
@@ -271,7 +275,9 @@ export class FinalizerAgent extends BaseAgent {
       
       this.logger.info(`Pick ${finalPick.graded_pick_id} published to external channels`);
     } catch (error) {
-      this.logger.error(`Failed to publish pick ${finalPick.graded_pick_id}:`, error instanceof Error ? error : new Error(String(error)));
+      this.logger.error(`Failed to publish pick ${finalPick.graded_pick_id}:`, {
+        error: error instanceof Error ? error.message : String(error)
+      });
       throw error;
     }
   }

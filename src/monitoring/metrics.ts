@@ -72,7 +72,7 @@ export class Metrics {
       this.registry.setDefaultLabels({ app: 'unit-talk' });
       this.logger.info('Standard metrics initialized');
     } catch (error) {
-      this.logger.error('Failed to initialize standard metrics:', error instanceof Error ? error : new Error(String(error)));
+      this.logger.error('Failed to initialize standard metrics:', { error: error instanceof Error ? error.message : String(error) });
       throw error;
     }
   }
@@ -140,7 +140,7 @@ export class Metrics {
         res.set('Content-Type', this.registry.contentType);
         res.end(await this.registry.metrics());
       } catch (error) {
-        this.logger.error('Failed to serve metrics:', error instanceof Error ? error : new Error(String(error)));
+        this.logger.error('Failed to serve metrics:', { error: error instanceof Error ? error.message : String(error) });
         res.status(500).end();
       }
     });
