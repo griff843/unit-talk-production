@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { BaseAgent } from '../BaseAgent';
 import { BaseAgentConfig, BaseAgentDependencies, HealthCheckResult, BaseMetrics } from '../BaseAgent/types';
 import { startMetricsServer } from '../../services/metricsServer';
-import { finalEdgeScore } from '../../logic/scoring/edgeScoring';
+import { unifiedEdgeScore } from '../../logic/scoring/unified-edge-score';
 import { analyzeMarketResistance } from '../../logic/marketResistanceEngine';
 import { EDGE_CONFIG } from '../../logic/config/edgeConfig';
 import { Pick } from '../../types/pick';
@@ -140,38 +140,14 @@ export class GradingAgent extends BaseAgent {
   private async gradePickInternal(pick: any): Promise<void> {
     try {
       // Calculate edge score
-      const edgeScoreResult = finalEdgeScore(pick, EDGE_CONFIG);
-      const edgeResult: EdgeResult = {
-        score: edgeScoreResult.score,
-        confidence: 0.8, // Default confidence value
-        factors: edgeScoreResult.breakdown,
-        solo_lock: edgeScoreResult.solo_lock
-      };
-
-      // Analyze market resistance - convert PropObject to FinalPick
-      const finalPick: FinalPick = {
-        id: pick.id || 'temp-id',
-        created_at: new Date().toISOString(),
-        player_name: pick.player_name,
-        team_name: pick.team_name,
-        matchup: pick.matchup,
-        market_type: pick.market_type || 'unknown',
-        line: typeof pick.line === 'number' ? pick.line : 0,
-        odds: typeof pick.odds === 'number' ? pick.odds : 100,
-        tier: 'pending',
-        edge_score: edgeResult.score,
-        play_status: 'pending',
-        capper: pick.capper,
-        units: pick.units,
-        direction: pick.direction,
-        stat_type: pick.stat_type,
-        game_date: pick.game_date
-      };
-      const marketReaction = await analyzeMarketResistance(finalPick);
-
+      const edgeResult = finalEdgeScore(pick, EDGE_CONFIG);
+      
+      // Analyze market resistance
+      const marketReaction = await analyzeMarketResistance(pick);
+      
       // Determine tier based on edge score
       const tier = this.determineTier(edgeResult.score);
-
+      
       // Update the pick with grading results
       const { error: updateError } = await this.supabase
         .from('daily_picks')
@@ -256,7 +232,7 @@ export class GradingAgent extends BaseAgent {
       const finalPick = {
         ...pick,
         edge_score: edgeResult.score,
-        tier: this.determineTier(edgeResult.score),
+        tier,
         tags: edgeResult.tags,
         edge_breakdown: edgeResult.breakdown,
         market_reaction: marketReaction.reaction,

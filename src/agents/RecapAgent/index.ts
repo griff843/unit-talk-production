@@ -8,6 +8,7 @@ import { SlashCommandHandler } from './slashCommandHandler';
 import { PrometheusMetrics } from './prometheusMetrics';
 import { WebhookClient, EmbedBuilder } from 'discord.js';
 import { RecapConfig, RecapMetrics, MicroRecapData } from '../../types/picks';
+import { RecapStateManager, RecapState } from './recapStateManager';
 
 /**
  * Production-ready RecapAgent with comprehensive features
@@ -23,6 +24,13 @@ export class RecapAgent extends BaseAgent {
   private recapConfig: RecapConfig;
   private recapMetrics: RecapMetrics;
   private roiWatcherInterval?: NodeJS.Timeout;
+
+  // Schedule configuration (cron format)
+  private readonly RECAP_SCHEDULE = {
+    daily: '0 9 * * *',    // 9 AM daily
+    weekly: '0 10 * * 1',  // 10 AM Monday  
+    monthly: '0 11 1 * *'  // 11 AM 1st of month
+  };
 
   constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
     super(config, deps);
@@ -60,6 +68,9 @@ export class RecapAgent extends BaseAgent {
     // Initialize services
     this.recapService = new RecapService(this.recapConfig);
     this.recapFormatter = new RecapFormatter(this.recapConfig);
+    this.stateManager = new RecapStateManager(this.deps.supabase, this.deps.logger, {
+      version: parseInt(process.env.RECAP_STATE_VERSION || '1')
+    });
 
     // Initialize Discord client
     if (this.recapConfig.discordWebhook) {
@@ -78,6 +89,14 @@ export class RecapAgent extends BaseAgent {
     if (this.recapConfig.metricsEnabled) {
       this.prometheusMetrics = new PrometheusMetrics(this.recapConfig.metricsPort);
     }
+
+    // Load persisted recap state for idempotency
+    this.loadRecapState()
+      .then(state => {
+        this.recapState = state;
+        this.logger.debug('Loaded recap state', state);
+      })
+      .catch(err => this.logger.warn('Unable to load recap state', err));
   }
 
   /**
@@ -89,6 +108,9 @@ export class RecapAgent extends BaseAgent {
 
       // Initialize core service
       await this.recapService.initialize();
+
+      // Initialize state table if needed
+      await this.stateManager.initializeStateTable();
 
       // Initialize optional services
       if (this.notionSync) {
@@ -125,42 +147,21 @@ export class RecapAgent extends BaseAgent {
    * Main processing loop - handles scheduled recaps
    */
   protected async process(): Promise<void> {
+    /**
+     * The RecapAgent no longer runs time-based logic directly.
+     * All scheduling is delegated to Temporal cron workflows
+     * (see workflows/recap-workflows.ts).  This `process` method
+     * is kept to satisfy the BaseAgent contract and will be a
+     * no-op other than performing micro-recap checks when enabled.
+     */
     try {
-      const now = new Date();
-      const hour = now.getHours();
-      const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday
-      const dayOfMonth = now.getDate();
-
-      // Check for scheduled recaps
-      if (hour === 9) {
-        // Daily recap at 9 AM
-        await this.triggerDailyRecap();
-      }
-
-      if (hour === 10 && dayOfWeek === 1) {
-        // Weekly recap at 10 AM on Monday
-        await this.triggerWeeklyRecap();
-      }
-
-      if (hour === 11 && dayOfMonth === 1) {
-        // Monthly recap at 11 AM on 1st of month
-        await this.triggerMonthlyRecap();
-      }
-
-      // Check for micro-recap triggers if enabled
       if (this.recapConfig.microRecap) {
         await this.checkMicroRecapTriggers();
       }
-
     } catch (error) {
-      this.logger.error('Error in RecapAgent process:', {
-        error: error instanceof Error ? error.message : String(error)
-      });
+      this.logger.error('Error in RecapAgent process:', error instanceof Error ? error : new Error(String(error)));
       this.recapMetrics.recapsFailed++;
-
-      if (this.prometheusMetrics) {
-        this.prometheusMetrics.incrementRecapsFailed();
-      }
+      this.prometheusMetrics?.incrementRecapsFailed();
     }
   }
 
@@ -208,6 +209,18 @@ export class RecapAgent extends BaseAgent {
           error: error instanceof Error ? error.message : String(error)
         });
       }
+    }
+
+    // Check state persistence
+    try {
+      const stateTest = await this.stateManager.loadState();
+      checks.push({ service: 'state-persistence', status: 'healthy' });
+    } catch (error) {
+      checks.push({
+        service: 'state-persistence',
+        status: 'unhealthy',
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
 
     const isHealthy = checks.every(check => check.status === 'healthy');
@@ -262,6 +275,65 @@ export class RecapAgent extends BaseAgent {
   }
 
   /**
+   * Load recap state from persistent storage
+   * Used by Temporal workflows for idempotency
+   */
+  async loadRecapState(): Promise<RecapState> {
+    try {
+      // Initialize state table if needed
+      await this.stateManager.initializeStateTable();
+      
+      // Load state
+      const state = await this.stateManager.loadState();
+      this.recapState = state;
+      return state;
+    } catch (error) {
+      this.logger.error('Failed to load recap state', error instanceof Error ? error : new Error(String(error)));
+      return {
+        manualTriggers: { daily: 0, weekly: 0, monthly: 0 }
+      };
+    }
+  }
+
+  /**
+   * Persist recap state to storage
+   * Used by Temporal workflows to maintain state across restarts
+   */
+  async persistRecapState(state: RecapState): Promise<boolean> {
+    try {
+      const success = await this.stateManager.persistState(state);
+      if (success) {
+        this.recapState = state;
+      }
+      return success;
+    } catch (error) {
+      this.logger.error('Failed to persist recap state', error instanceof Error ? error : new Error(String(error)));
+      return false;
+    }
+  }
+
+  /**
+   * Update micro-recap cooldown
+   */
+  async updateMicroRecapCooldown(cooldownMinutes?: number): Promise<boolean> {
+    return this.stateManager.updateMicroRecapCooldown(cooldownMinutes || this.recapConfig.microRecapCooldown);
+  }
+
+  /**
+   * Check if micro-recap is in cooldown period
+   */
+  async isMicroRecapInCooldown(): Promise<boolean> {
+    return this.stateManager.isMicroRecapInCooldown();
+  }
+
+  /**
+   * Record a recap run
+   */
+  async recordRecapRun(type: 'daily' | 'weekly' | 'monthly', date?: string): Promise<boolean> {
+    return this.stateManager.recordRecapRun(type, date);
+  }
+
+  /**
    * Trigger daily recap manually or via schedule
    */
   async triggerDailyRecap(date?: string): Promise<void> {
@@ -306,6 +378,9 @@ export class RecapAgent extends BaseAgent {
         });
         this.recapMetrics.notionSyncs++;
       }
+
+      // Record this run in persistent state
+      await this.recordRecapRun('daily', targetDate);
 
       // Update metrics
       this.recapMetrics.recapsSent++;
@@ -388,6 +463,9 @@ export class RecapAgent extends BaseAgent {
         });
         this.recapMetrics.notionSyncs++;
       }
+
+      // Record this run in persistent state
+      await this.recordRecapRun('weekly');
 
       // Update metrics
       if (this.notionSync) {
@@ -472,6 +550,9 @@ export class RecapAgent extends BaseAgent {
         this.recapMetrics.notionSyncs++;
       }
 
+      // Record this run in persistent state
+      await this.recordRecapRun('monthly');
+
       // Update metrics
       this.recapMetrics.recapsSent++;
       this.recapMetrics.monthlyRecaps++;
@@ -522,6 +603,9 @@ export class RecapAgent extends BaseAgent {
         this.logger.info('Micro-recap sent to Discord');
       }
 
+      // Update cooldown state
+      await this.updateMicroRecapCooldown();
+
       // Update metrics
       this.recapMetrics.microRecapsSent = (this.recapMetrics.microRecapsSent || 0) + 1;
 
@@ -563,18 +647,7 @@ export class RecapAgent extends BaseAgent {
     // Check every 5 minutes
     this.roiWatcherInterval = setInterval(async () => {
       try {
-        // Check ROI threshold
-        const roiMicroRecap = await this.recapService.checkRoiThreshold();
-        if (roiMicroRecap) {
-          await this.triggerMicroRecap(roiMicroRecap);
-        }
-
-        // Check last pick graded
-        const lastPickMicroRecap = await this.recapService.checkLastPickGraded();
-        if (lastPickMicroRecap) {
-          await this.triggerMicroRecap(lastPickMicroRecap);
-        }
-
+        await this.checkMicroRecapTriggers();
       } catch (error) {
         this.logger.error('ROI watcher error:', {
           error: error instanceof Error ? error.message : String(error)
@@ -588,10 +661,17 @@ export class RecapAgent extends BaseAgent {
    */
   private async checkMicroRecapTriggers(): Promise<void> {
     try {
+      // Check if we're in cooldown
+      if (await this.isMicroRecapInCooldown()) {
+        this.logger.debug('Micro-recap in cooldown, skipping check');
+        return;
+      }
+
       // Check ROI threshold
       const roiMicroRecap = await this.recapService.checkRoiThreshold();
       if (roiMicroRecap) {
         await this.triggerMicroRecap(roiMicroRecap);
+        return;
       }
 
       // Check last pick graded
@@ -599,7 +679,6 @@ export class RecapAgent extends BaseAgent {
       if (lastPickMicroRecap) {
         await this.triggerMicroRecap(lastPickMicroRecap);
       }
-
     } catch (error) {
       this.logger.error('Micro-recap trigger check failed:', {
         error: error instanceof Error ? error.message : String(error)

@@ -1,9 +1,27 @@
 // src/services/openaiClient.ts
+//
+// Centralised OpenAI client initialisation.
+// Wraps the raw OpenAI SDK with our enterprise-grade cost-guard / circuit-breaker.
 
-import { OpenAI } from "openai";
+import { getOpenAICostGuard } from './openaiCostGuard';
+import { supabase } from './supabaseClient';
+import { logger } from './logging';
 
-// Load API key from .env or your secrets manager
-const apiKey = process.env.OPENAI_API_KEY;
-if (!apiKey) throw new Error('OPENAI_API_KEY not set in environment variables');
+/**
+ * Singleton CostGuard – enforces token quotas & cost ceilings.
+ * The first call initialises underlying tables if persistence is enabled.
+ */
+const costGuard = getOpenAICostGuard(supabase, logger);
 
-export const openai = new OpenAI({ apiKey });
+/**
+ * Wrapped OpenAI client.
+ * All calls go through costGuard which:
+ *  1. Tracks token usage & estimated cost
+ *  2. Applies daily / weekly circuit-breaker limits
+ *  3. Provides transparent fallback logic if quotas are hit
+ */
+export const openai = costGuard.createClient();
+
+// Re-export helpers for diagnostics (optional)
+export const getOpenAIUsageMetrics = () => costGuard.getMetrics();
+export const getOpenAICircuitStatus  = () => costGuard.getCircuitStatus();

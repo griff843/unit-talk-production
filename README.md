@@ -12,6 +12,21 @@ Unit Talk is an enterprise-grade betting automation platform built with TypeScri
 - **Logging**: Structured JSON logging with redaction
 - **Testing**: Jest with extensive mocking
 
+### Core Workflow
+
+```mermaid
+graph LR
+    A[SGO / Public Odds Feeds] -->|raw props| B(IngestionAgent)
+    B -->|normalized props| C(GradingAgent)
+    C -->|S/A tier picks| D(final_picks table)
+    D --> E(RecapAgent)
+    D --> F(AlertAgent)
+    E -->|Discord & Notion| G[Investors / Users]
+    F -->|Discord Alerts| G
+```
+
+The diagram shows the end-to-end Temporal workflow the system executes on every trading day.
+
 ## Quick Start Guide
 
 ### Prerequisites
@@ -35,7 +50,7 @@ cd unit-talk
 npm install
 ```
 
-3. Set up environment variables:
+3. Set up environment variables (see `.env.example` for the full matrix):
 ```bash
 cp .env.example .env
 # Edit .env with your configuration
@@ -51,7 +66,19 @@ npm run build
 npm test
 ```
 
-6. Start the worker:
+6. Run Temporal & start the worker:
+```bash
+# start Temporal server (Docker)
+docker compose -f docker-compose.test.yml up -d temporal
+
+# migrate DB / seed (optional)
+npm run db:migrate
+
+# start application worker – registers all agent activities & workflows
+npm run worker:start
+```
+
+> 🛈  **Tip:** a convenience script `npm run dev:all` spins up Temporal, Supabase local, Prometheus, and the worker for you.
 ```bash
 npm run worker:start
 ```
@@ -81,54 +108,43 @@ npm run type-check
    - Base class for all agents
    - Handles common functionality like health checks, metrics, and error handling
 
-2. **OnboardingAgent**
-   - Manages user onboarding workflows
-   - Handles role-specific onboarding steps
-   - Integrates with NotificationAgent for status updates
+2. **IngestionAgent**
+   - Polls SGO & book APIs
+   - Normalises props & deduplicates
 
-3. **NotificationAgent**
+3. **GradingAgent**
+   - Calculates edge score & market resistance
+   - Assigns tier (S-D) and promotes high-tier picks to `final_picks`
+
+4. **RecapAgent**
+   - Generates daily / weekly / monthly performance recaps
+   - Posts embeds to Discord and optionally Notion
+
+5. **AlertAgent**
+   - Sends real-time alerts for S/A tier picks
+   - Dedupes & enriches messages with OpenAI advice
+
+6. **NotificationAgent**
    - Centralizes all platform notifications
    - Supports multiple channels (Discord, Email, SMS, Notion)
    - Handles retry logic and failure escalation
 
-4. **FeedAgent**
+7. **OperatorAgent**
+   - Supervises health, restarts failed workflows via Temporal APIs
+
+### Auxiliary Agents
+
+**FeedAgent**
    - Manages data ingestion from external providers
    - Handles deduplication and validation
    - Maintains provider-specific rate limits
 
-### Business Logic Agents
-
-5. **ContestAgent**
-   - Manages betting contests and competitions
-   - Handles entry validation and scoring
-   - Integrates with GradingAgent for results
-
-6. **GradingAgent**
-   - Processes and grades contest entries
-   - Calculates user performance metrics
-   - Updates leaderboards and rankings
-
-7. **AnalyticsAgent**
-   - Tracks platform metrics and KPIs
-   - Generates reports and insights
-   - Monitors user engagement
-
-### Support Agents
-
-8. **AuditAgent**
+**AuditAgent**
    - Maintains audit logs of all system actions
    - Ensures compliance with regulations
    - Provides audit trail for investigations
 
-9. **OperatorAgent**
-   - Handles system operations and maintenance
-   - Manages incident response
-   - Coordinates between other agents
-
-10. **AlertAgent**
-    - Monitors system health
-    - Triggers alerts based on thresholds
-    - Manages alert routing and escalation
+**AnalyticsAgent, ContestAgent, MarketingAgent** – growth & reporting features (optional at launch)
 
 ## Monitoring & Metrics
 
@@ -169,23 +185,24 @@ Health checks are standardized across all agents:
 
 ## TODOs and Next Steps
 
-High Priority:
-1. Implement email notification channel in NotificationAgent
-2. Add rate limiting to FeedAgent providers
-3. Enhance metrics collection in AnalyticsAgent
-4. Add transaction support to ContestAgent
+### P0 – Launch Blocking
+1. **Consolidate Edge-Scoring engine** (remove duplicate modules).  
+2. **Migrate RecapAgent scheduling to Temporal cron**.  
+3. **Add OpenAI circuit-breaker & caching to AlertAgent**.  
+4. **Relocate all test files out of `/src` and enforce coverage ≥ 70 %.**  
+5. **Publish full `.env.example` & update docs.**
 
-Medium Priority:
-1. Implement SMS notification channel
-2. Add more provider integrations to FeedAgent
-3. Enhance audit logging
-4. Add more Grafana dashboards
+### P1 – First Week Post-Launch
+* Persist micro-recap cooldown state in Supabase  
+* Parameterise rate-limits & tier thresholds via env/config  
+* Extend IngestionAgent de-dupe hashing  
+* Add OperatorAgent auto-restart of failed workflows  
 
-Low Priority:
-1. Add more test coverage
-2. Enhance documentation
-3. Add performance benchmarks
-4. Implement more notification channels
+### P2 – Tech Debt / Enhancements
+* Secrets migration to Vault  
+* Retool dashboard guide & KPI mapping  
+* Multi-channel alerts (SMS / Email) via NotificationAgent  
+* Expand provider integrations & coverage thresholds
 
 ## Contributing
 
