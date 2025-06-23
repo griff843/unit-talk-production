@@ -1,0 +1,53 @@
+{
+  "name": "unit-talk-launch-qa",
+  "version": "1.0.0",
+  "description": "Comprehensive QA framework for Unit Talk platform launch readiness",
+  "main": "launch-qa-runner.js",
+  "scripts": {
+    "qa:launch": "ts-node run-launch-qa.ts",
+    "qa:staging": "QA_ENVIRONMENT=staging npm run qa:launch",
+    "qa:production": "QA_ENVIRONMENT=production npm run qa:launch",
+    "qa:local": "QA_ENVIRONMENT=local npm run qa:launch",
+    "build": "tsc",
+    "test": "jest",
+    "lint": "eslint . --ext .ts",
+    "format": "prettier --write ."
+  },
+  "keywords": [
+    "qa",
+    "testing",
+    "launch",
+    "unit-talk",
+    "automation",
+    "accessibility",
+    "security",
+    "ux"
+  ],
+  "author": "Unit Talk Team",
+  "license": "MIT",
+  "dependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "ts-node": "^10.9.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "jest": "^29.0.0",
+    "prettier": "^3.0.0",
+    "ts-jest": "^29.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/unit-talk/qa-framework"
+  },
+  "bugs": {
+    "url": "https://github.com/unit-talk/qa-framework/issues"
+  },
+  "homepage": "https://github.com/unit-talk/qa-framework#readme"
+}

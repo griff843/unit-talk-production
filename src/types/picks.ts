@@ -21,6 +21,8 @@ export interface FinalPick {
 
 
 // Enhanced recap interfaces
+export type RecapType = 'daily' | 'weekly' | 'monthly';
+
 export interface RecapSummary {
   date: string;
   period: 'daily' | 'weekly' | 'monthly';

@@ -196,27 +196,26 @@ export class PermissionUtils {
   static async isRateLimited(userId: string, action: string): Promise<boolean> {
     const key = `${userId}:${action}`;
     const cooldown = this.cooldowns.get(key);
-    
+
     if (!cooldown) return false;
-    
+
     const now = Date.now();
-    if (now >= cooldown.expiresAt) {
+    if (now >= cooldown.expires_at) {
       this.cooldowns.delete(key);
       return false;
     }
-    
+
     return true;
   }
 
   static setCooldown(userId: string, action: string, durationMs: number): void {
     const key = `${userId}:${action}`;
     const now = Date.now();
-    
+
     this.cooldowns.set(key, {
-      userId,
-      action,
-      lastUsed: now,
-      expiresAt: now + durationMs
+      user_id: userId,
+      command: action,
+      expires_at: now + durationMs
     });
 
     // Store in database for persistence

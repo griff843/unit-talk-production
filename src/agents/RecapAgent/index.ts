@@ -9,6 +9,7 @@ import { PrometheusMetrics } from './prometheusMetrics';
 import { WebhookClient, EmbedBuilder } from 'discord.js';
 import { RecapConfig, RecapMetrics, MicroRecapData } from '../../types/picks';
 import { RecapStateManager, RecapState } from './recapStateManager';
+import { Logger } from '../../shared/logger/types';
 
 /**
  * Production-ready RecapAgent with comprehensive features
@@ -25,10 +26,14 @@ export class RecapAgent extends BaseAgent {
   private recapMetrics: RecapMetrics;
   private roiWatcherInterval?: NodeJS.Timeout;
 
-  // Schedule configuration (cron format)
+  // Add missing properties
+  private stateManager: RecapStateManager;
+  private recapState: RecapState;
+
+  // Schedule configuration (cron format) - used for scheduling recaps
   private readonly RECAP_SCHEDULE = {
     daily: '0 9 * * *',    // 9 AM daily
-    weekly: '0 10 * * 1',  // 10 AM Monday  
+    weekly: '0 10 * * 1',  // 10 AM Monday
     monthly: '0 11 1 * *'  // 11 AM 1st of month
   };
 
@@ -68,9 +73,87 @@ export class RecapAgent extends BaseAgent {
     // Initialize services
     this.recapService = new RecapService(this.recapConfig);
     this.recapFormatter = new RecapFormatter(this.recapConfig);
-    this.stateManager = new RecapStateManager(this.deps.supabase, this.deps.logger, {
+
+    // Create logger adapter for RecapStateManager
+    const loggerAdapter: Logger = {
+      debug: (msg: string | object, ...args: unknown[]) => {
+        if (typeof msg === 'string') {
+          this.deps.logger.debug(msg, args[0] as Record<string, unknown>);
+        } else {
+          this.deps.logger.debug(args[0] as string, msg as Record<string, unknown>);
+        }
+      },
+      info: (msg: string | object, ...args: unknown[]) => {
+        if (typeof msg === 'string') {
+          this.deps.logger.info(msg, args[0] as Record<string, unknown>);
+        } else {
+          this.deps.logger.info(args[0] as string, msg as Record<string, unknown>);
+        }
+      },
+      warn: (msg: string | object, ...args: unknown[]) => {
+        if (typeof msg === 'string') {
+          this.deps.logger.warn(msg, args[0] as Record<string, unknown>);
+        } else {
+          this.deps.logger.warn(args[0] as string, msg as Record<string, unknown>);
+        }
+      },
+      error: (msg: string | object, ...args: unknown[]) => {
+        if (typeof msg === 'string') {
+          this.deps.logger.error(msg, args[0] as Record<string, unknown>);
+        } else {
+          this.deps.logger.error(args[0] as string, msg as Record<string, unknown>);
+        }
+      },
+      child: (bindings: Record<string, unknown>) => {
+        const childLogger = this.deps.logger.child(bindings);
+        return {
+          debug: (msg: string | object, ...args: unknown[]) => {
+            if (typeof msg === 'string') {
+              childLogger.debug(msg, args[0] as Record<string, unknown>);
+            } else {
+              childLogger.debug(args[0] as string, msg as Record<string, unknown>);
+            }
+          },
+          info: (msg: string | object, ...args: unknown[]) => {
+            if (typeof msg === 'string') {
+              childLogger.info(msg, args[0] as Record<string, unknown>);
+            } else {
+              childLogger.info(args[0] as string, msg as Record<string, unknown>);
+            }
+          },
+          warn: (msg: string | object, ...args: unknown[]) => {
+            if (typeof msg === 'string') {
+              childLogger.warn(msg, args[0] as Record<string, unknown>);
+            } else {
+              childLogger.warn(args[0] as string, msg as Record<string, unknown>);
+            }
+          },
+          error: (msg: string | object, ...args: unknown[]) => {
+            if (typeof msg === 'string') {
+              childLogger.error(msg, args[0] as Record<string, unknown>);
+            } else {
+              childLogger.error(args[0] as string, msg as Record<string, unknown>);
+            }
+          },
+          child: (bindings: Record<string, unknown>) => childLogger.child(bindings) as unknown as Logger,
+          setLevel: () => {} // Not implemented
+        } as Logger;
+      },
+      setLevel: () => {} // Not implemented
+    };
+
+    this.stateManager = new RecapStateManager(this.deps.supabase, loggerAdapter, {
       version: parseInt(process.env.RECAP_STATE_VERSION || '1')
     });
+
+    // Initialize default recap state
+    this.recapState = {
+      manualTriggers: {
+        daily: 0,
+        weekly: 0,
+        monthly: 0
+      }
+    };
 
     // Initialize Discord client
     if (this.recapConfig.discordWebhook) {
@@ -94,9 +177,9 @@ export class RecapAgent extends BaseAgent {
     this.loadRecapState()
       .then(state => {
         this.recapState = state;
-        this.logger.debug('Loaded recap state', state);
+        this.logger.debug('Loaded recap state', { state: JSON.stringify(state) });
       })
-      .catch(err => this.logger.warn('Unable to load recap state', err));
+      .catch(err => this.logger.warn('Unable to load recap state', { error: err.message }));
   }
 
   /**
@@ -159,7 +242,9 @@ export class RecapAgent extends BaseAgent {
         await this.checkMicroRecapTriggers();
       }
     } catch (error) {
-      this.logger.error('Error in RecapAgent process:', error instanceof Error ? error : new Error(String(error)));
+      this.logger.error('Error in RecapAgent process:', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       this.recapMetrics.recapsFailed++;
       this.prometheusMetrics?.incrementRecapsFailed();
     }
@@ -213,7 +298,7 @@ export class RecapAgent extends BaseAgent {
 
     // Check state persistence
     try {
-      const stateTest = await this.stateManager.loadState();
+      await this.stateManager.loadState();
       checks.push({ service: 'state-persistence', status: 'healthy' });
     } catch (error) {
       checks.push({
@@ -288,7 +373,9 @@ export class RecapAgent extends BaseAgent {
       this.recapState = state;
       return state;
     } catch (error) {
-      this.logger.error('Failed to load recap state', error instanceof Error ? error : new Error(String(error)));
+      this.logger.error('Failed to load recap state', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       return {
         manualTriggers: { daily: 0, weekly: 0, monthly: 0 }
       };
@@ -307,7 +394,9 @@ export class RecapAgent extends BaseAgent {
       }
       return success;
     } catch (error) {
-      this.logger.error('Failed to persist recap state', error instanceof Error ? error : new Error(String(error)));
+      this.logger.error('Failed to persist recap state', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       return false;
     }
   }

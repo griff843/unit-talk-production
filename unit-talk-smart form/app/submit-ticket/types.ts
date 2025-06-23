@@ -91,4 +91,115 @@ export const ticketFormSchema = z.object({
   legs: z.array(ticketLegSchema).min(1)
 });
 
-export type TicketFormData = z.infer<typeof ticketFormSchema>; 
+// Additional types for enhanced form functionality
+export interface EnhancedTicketFormData extends TicketFormData {
+  imageAttachments?: File[];
+  betType?: BetType;
+}
+
+export const enhancedTicketFormSchema = ticketFormSchema.extend({
+  confidence_level: z.number().min(1).max(10).optional(),
+  imageAttachments: z.array(z.instanceof(File)).optional(),
+  betType: z.enum(BET_TYPES).optional()
+});
+
+export type TicketFormData = z.infer<typeof ticketFormSchema>;
+
+// Additional types for enhanced form functionality
+export interface EnhancedTicketFormData extends TicketFormData {
+  imageAttachments?: File[];
+  betType?: BetType;
+}
+
+export interface EnhancedTicketLeg extends TicketLeg {
+  sport: Sport;
+  // Remove conflicting properties that are already in TicketLeg
+  // betType: BetType; // This conflicts with bet_type
+  selection: string;
+  // odds: number; // This conflicts with odds: string
+  player?: string;
+  game?: string;
+  // line?: number; // This conflicts with line: string
+  confidence: number;
+}
+
+export interface SubmissionResult {
+  success: boolean;
+  ticketId?: string;
+  errors?: ValidationError[];
+  warnings?: ValidationError[];
+  message: string;
+}
+
+export interface ValidationError {
+  field: string;
+  message: string;
+  severity: 'error' | 'warning' | 'info';
+  legIndex?: number;
+  code?: string;
+}
+
+export interface SportConfig {
+  name: string;
+  betTypes: string[];
+  color: string;
+  requiresPlayer?: boolean;
+  requiresGame?: boolean;
+  requiresLine?: boolean;
+  minOdds?: number;
+  maxOdds?: number;
+  logo?: string;
+  playerProps?: string[];
+  dynamicFields?: string[];
+  imageAssets?: {
+    playerPath?: string;
+    teamPath?: string;
+    [key: string]: string | undefined;
+  };
+  validation?: {
+    maxParlay?: number;
+    minOdds?: number;
+    maxOdds?: number;
+    [key: string]: any;
+  };
+}
+
+export interface PlayerSearchResult {
+  id: string;
+  name: string;
+  team: string;
+  position: string;
+  sport: string;
+  league: string;
+  // Database column names
+  player_name?: string;
+  image_url?: string;
+  team_logo?: string;
+  recent_performance?: any;
+  injury_status?: string;
+  player_id?: string;
+}
+
+export interface GameSearchResult {
+  id: string;
+  homeTeam: string;
+  awayTeam: string;
+  date: string;
+  time: string;
+  sport: string;
+  league: string;
+  status: 'SCHEDULED' | 'LIVE' | 'COMPLETED' | 'POSTPONED';
+  // Database column names
+  home_team?: string;
+  away_team?: string;
+  game_date?: string;
+  game_time?: string;
+  matchup?: string;
+  home_logo?: string;
+  away_logo?: string;
+  weather?: any;
+  lines?: any;
+}
+
+// Export the schema for enhanced form
+// (Already defined above with extensions) 

@@ -3,10 +3,10 @@ import { PropObject } from '../../types/propTypes';
 import { RawProp } from '../../types/rawProps';
 
 // Import league-specific rules
-import { nbaCoreStats, nbaSynergy } from '../scoring/rules/nba';
-import { mlbCoreStats, mlbSynergy } from '../scoring/rules/mlb';
-import { nhlCoreStats, nhlSynergy } from '../scoring/rules/nhl';
-import { nflCoreStats, nflSynergy } from '../scoring/rules/nfl';
+import { nbaCoreStats, nbaSynergy } from './rules/nba';
+import { mlbCoreStats, mlbSynergy } from './rules/mlb';
+import { nhlCoreStats, nhlSynergy } from './rules/nhl';
+import { nflCoreStats, nflSynergy } from './rules/nfl';
 
 // Version tracking for scoring algorithm
 export const EDGE_SCORING_VERSION = {
@@ -247,37 +247,42 @@ function calculateLeagueSpecificScore(prop: PropObject | RawProp): { score: numb
   const league = ((prop as PropObject).league || (prop as RawProp).league || '').toUpperCase();
   let score = 0;
   const breakdown: ScoreBreakdown = {};
-  let coreStats: string[] = [];
-  let synergy: Record<string, string[]> = {};
+  // League-specific scoring functions
+  let coreStatsFunc: ((prop: PropObject) => ScoreBreakdown) | null = null;
+  let synergyFunc: ((prop: PropObject) => ScoreBreakdown) | null = null;
 
   // Set league-specific rules
   if (league === 'NBA') {
-    coreStats = nbaCoreStats;
-    synergy = nbaSynergy;
+    coreStatsFunc = nbaCoreStats;
+    synergyFunc = nbaSynergy;
   } else if (league === 'MLB') {
-    coreStats = mlbCoreStats;
-    synergy = mlbSynergy;
+    coreStatsFunc = mlbCoreStats;
+    synergyFunc = mlbSynergy;
   } else if (league === 'NHL') {
-    coreStats = nhlCoreStats;
-    synergy = nhlSynergy;
+    coreStatsFunc = nhlCoreStats;
+    synergyFunc = nhlSynergy;
   } else if (league === 'NFL') {
-    coreStats = nflCoreStats;
-    synergy = nflSynergy;
+    coreStatsFunc = nflCoreStats;
+    synergyFunc = nflSynergy;
   }
 
   // 1. Odds sweet-spot
-  const odds = (prop as PropObject).odds || (prop as RawProp).odds || 
+  const odds = (prop as PropObject).odds || (prop as RawProp).odds ||
                (prop as RawProp).over_odds || (prop as RawProp).under_odds || 0;
   if (odds >= -125 && odds <= 115) {
     score += 1;
     breakdown.odds_sweet_spot = 1;
   }
 
-  // 2. Core stat type
-  const statType = ((prop as PropObject).market_type || (prop as RawProp).stat_type || '').toLowerCase();
-  if (coreStats.includes(statType)) {
-    score += 1;
-    breakdown.core_stat = 1;
+  // 2. Core stat type - use league-specific function
+  if (coreStatsFunc) {
+    const coreBreakdown = coreStatsFunc(prop as PropObject);
+    const coreScore = Object.values(coreBreakdown).reduce((sum: number, val) =>
+      sum + (typeof val === 'number' ? val : 0), 0);
+    if (coreScore > 0) {
+      score += Math.min(coreScore, 2); // Cap at 2 points
+      breakdown.core_stats = coreScore;
+    }
   }
 
   // 3. DVP or matchup score
@@ -287,11 +292,15 @@ function calculateLeagueSpecificScore(prop: PropObject | RawProp): { score: numb
     breakdown.dvp_score = 1;
   }
 
-  // 4. Synergy: position to stat
-  const position = (prop as PropObject).position || (prop as RawProp).position || '';
-  if (synergy[position]?.some((s) => s.toLowerCase() === statType)) {
-    score += 1;
-    breakdown.position_synergy = 1;
+  // 4. Synergy - use league-specific function
+  if (synergyFunc) {
+    const synergyBreakdown = synergyFunc(prop as PropObject);
+    const synergyScore = Object.values(synergyBreakdown).reduce((sum: number, val) =>
+      sum + (typeof val === 'number' ? val : 0), 0);
+    if (synergyScore > 0) {
+      score += Math.min(synergyScore, 2); // Cap at 2 points
+      breakdown.synergy = synergyScore;
+    }
   }
 
   // 5. No injury/context flag
