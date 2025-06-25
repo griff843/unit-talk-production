@@ -1,7 +1,7 @@
 import { Client, GuildMember, Message, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { SupabaseService } from './supabase';
 import { PermissionsService } from './permissions';
-import { KeywordTrigger, EmojiTrigger, AutoDMTemplate, TriggerCondition } from '../types';
+import { KeywordTrigger, EmojiTrigger, AutoDMTemplate, CreateAutoDMTemplate, TriggerCondition } from '../types';
 import { logger } from '../utils/logger';
 import { botConfig } from '../config';
 
@@ -191,7 +191,7 @@ export class KeywordEmojiDMService {
       await this.sendDMToUser(member.id, dmContent);
 
       // Set cooldown
-      this.setCooldown(member.id, trigger.id, trigger.cooldownMinutes);
+      this.setCooldown(member.id, trigger.id, trigger.cooldownMinutes || 0);
 
       // Log trigger activation
       await this.logTriggerActivation(trigger.id, member.id, 'keyword', matchedKeyword);
@@ -240,7 +240,7 @@ export class KeywordEmojiDMService {
       await this.sendDMToUser(member.id, dmContent);
 
       // Set cooldown
-      this.setCooldown(member.id, trigger.id, trigger.cooldownMinutes);
+      this.setCooldown(member.id, trigger.id, trigger.cooldownMinutes || 0);
 
       // Log trigger activation
       await this.logTriggerActivation(trigger.id, member.id, 'emoji', emojiIdentifier);
@@ -325,7 +325,7 @@ export class KeywordEmojiDMService {
   /**
    * Admin tool: Add new DM template
    */
-  async addDMTemplate(adminId: string, templateData: Partial<AutoDMTemplate>): Promise<string | null> {
+  async addDMTemplate(adminId: string, templateData: CreateAutoDMTemplate): Promise<string | null> {
     try {
       const { data, error } = await this.supabaseService.client
         .from('auto_dm_templates')
@@ -334,8 +334,8 @@ export class KeywordEmojiDMService {
           description: templateData.description,
           subject: templateData.subject,
           content: templateData.content,
-          embed_data: templateData.embedData,
-          components_data: templateData.componentsData,
+          embed_data: templateData.embed_data,
+          components_data: templateData.components_data,
           variables: templateData.variables || [],
           is_active: true,
           created_by: adminId,
@@ -536,14 +536,14 @@ export class KeywordEmojiDMService {
       content.content = processedContent;
     }
 
-    if (template.embedData) {
-      const embed = new EmbedBuilder(template.embedData);
+    if (template.embed_data) {
+      const embed = new EmbedBuilder(template.embed_data);
       content.embeds = [embed];
     }
 
-    if (template.componentsData) {
+    if (template.components_data) {
       // Process components data to create action rows
-      content.components = template.componentsData;
+      content.components = template.components_data;
     }
 
     return content;

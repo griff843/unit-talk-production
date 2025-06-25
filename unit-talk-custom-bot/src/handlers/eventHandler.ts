@@ -2,15 +2,25 @@ import {
   Client,
   Message,
   GuildMember,
-  PartialGuildMember
+  PartialGuildMember,
+  ThreadChannel,
+  PartialMessage,
+  MessageReaction,
+  PartialMessageReaction,
+  User,
+  PartialUser,
+  VoiceState
 } from 'discord.js';
 import { SupabaseService } from '../services/supabase';
 import { PermissionsService } from '../services/permissions';
+import { RoleChangeService } from '../services/roleChangeService';
+import { UserTier, UserProfile } from '../types/index';
 import { logger } from '../utils/logger';
 
 export class EventHandler {
   private supabaseService: SupabaseService;
   private permissionsService: PermissionsService;
+  private roleChangeService: RoleChangeService;
   private services: any;
 
   constructor(
@@ -21,6 +31,7 @@ export class EventHandler {
   ) {
     this.supabaseService = supabaseService;
     this.permissionsService = permissionsService;
+    this.roleChangeService = new RoleChangeService(client, services.vipNotificationService);
     this.services = services;
   }
 
@@ -64,26 +75,15 @@ export class EventHandler {
    */
   async handleMemberJoin(member: GuildMember): Promise<void> {
     try {
-      // Create or update user profile
-      await this.supabaseService.createOrUpdateUserProfile(member.id, {
+      // Create user profile
+      await this.supabaseService.createUserProfile({
         discord_id: member.id,
         username: member.user.username,
-        display_name: member.displayName || member.user.displayName,
-        tier: 'member',
-        is_active: true,
-        total_messages: 0,
-        total_reactions: 0,
-        activity_score: 0,
-        last_active: new Date(),
-        metadata: {
-          joinedAt: member.joinedAt?.toISOString(),
-          avatar: member.user.avatarURL(),
-          bot: member.user.bot
-        }
+        tier: 'member'
       });
 
       // Send welcome notification
-      await this.services.vipNotificationService.sendWelcomeNotification(member);
+      await this.services.vipNotificationService.handleNewMember(member);
 
       // Track join event
       await this.services.advancedAnalyticsService.logEvent({
@@ -105,45 +105,71 @@ export class EventHandler {
   }
 
   /**
-   * Handle member update events (role changes, etc.)
+   * Handle presence updates
+   */
+  async handlePresenceUpdate(oldPresence: any, newPresence: any): Promise<void> {
+    try {
+      const userId = newPresence.userId;
+      if (!userId) return;
+
+      // Track status changes for active users
+      if (oldPresence?.status !== newPresence.status) {
+        await this.services.advancedAnalyticsService.logEvent({
+          type: 'presence_updated',
+          userId,
+          guildId: newPresence.guild?.id,
+          data: {
+            oldStatus: oldPresence?.status,
+            newStatus: newPresence.status,
+            activities: newPresence.activities?.map((a: any) => a.name)
+          }
+        });
+      }
+
+    } catch (error) {
+      logger.error('Error handling presence update:', error);
+    }
+  }
+
+  /**
+   * Handle member updates (role changes, nickname changes, etc.)
    */
   async handleMemberUpdate(oldMember: GuildMember | PartialGuildMember, newMember: GuildMember): Promise<void> {
     try {
-      // Check for role changes that affect tier
-      const oldTier = this.permissionsService.getUserTier(oldMember as GuildMember);
-      const newTier = this.permissionsService.getUserTier(newMember);
+      // Handle role changes
+      await this.roleChangeService.handleRoleChange(oldMember as GuildMember, newMember);
+
+      // Update user profile if tier changed
+      const oldTier = this.roleChangeService.getUserTier(oldMember as GuildMember);
+      const newTier = this.roleChangeService.getUserTier(newMember);
 
       if (oldTier !== newTier) {
-        // Update user tier in database
-        await this.supabaseService.updateUserTier(newMember.id, newTier);
+        await this.supabaseService.updateUserProfile(newMember.id, { tier: newTier as UserTier });
 
-        // Send tier change notification
-        await this.services.vipNotificationService.handleTierChange(newMember, oldTier, newTier);
-
-        // Track tier change event
+        // Log tier change event
         await this.services.advancedAnalyticsService.logEvent({
-          type: 'tier_changed',
+          type: 'user_tier_changed',
           userId: newMember.id,
           guildId: newMember.guild.id,
           data: {
             oldTier,
             newTier,
-            username: newMember.user.username
+            username: newMember.user.username,
+            changedAt: new Date().toISOString()
           }
         });
 
-        logger.info(`User tier changed: ${newMember.user.username} (${oldTier} -> ${newTier})`);
+        logger.info(`User tier changed: ${newMember.user.username} (${oldTier} → ${newTier})`);
       }
 
-      // Update user profile with latest info
-      await this.supabaseService.createOrUpdateUserProfile(newMember.id, {
-        discord_id: newMember.id,
-        username: newMember.user.username,
-        display_name: newMember.displayName || newMember.user.username,
-        tier: newTier,
-        is_active: true,
-        last_active: new Date()
-      });
+      // Handle nickname changes
+      if (oldMember.displayName !== newMember.displayName) {
+        await this.supabaseService.updateUserProfile(newMember.id, {
+          username: newMember.displayName || newMember.user.username
+        });
+
+        logger.info(`User nickname changed: ${newMember.user.username} (${oldMember.displayName} → ${newMember.displayName})`);
+      }
 
     } catch (error) {
       logger.error('Error handling member update:', error);
@@ -350,33 +376,6 @@ export class EventHandler {
 
     } catch (error) {
       logger.error('Error handling voice state update:', error);
-    }
-  }
-
-  /**
-   * Handle presence updates
-   */
-  async handlePresenceUpdate(oldPresence: any, newPresence: any): Promise<void> {
-    try {
-      const userId = newPresence.userId;
-      if (!userId) return;
-
-      // Track status changes for active users
-      if (oldPresence?.status !== newPresence.status) {
-        await this.services.advancedAnalyticsService.logEvent({
-          type: 'presence_updated',
-          userId,
-          guildId: newPresence.guild?.id,
-          data: {
-            oldStatus: oldPresence?.status,
-            newStatus: newPresence.status,
-            activities: newPresence.activities?.map((a: any) => a.name)
-          }
-        });
-      }
-
-    } catch (error) {
-      logger.error('Error handling presence update:', error);
     }
   }
 }

@@ -1,320 +1,561 @@
 import { EmbedBuilder, ColorResolvable } from 'discord.js';
-import { UserProfile, SportsPick, UserTier } from '../types';
+import { UserProfile, UserTier } from '../types';
 
-// Color scheme for different tiers and statuses
 export const COLORS = {
-  // Tier colors
-  member: '#95A5A6' as ColorResolvable,
-  vip: '#F39C12' as ColorResolvable,
-  vip_plus: '#9B59B6' as ColorResolvable,
-  staff: '#E67E22' as ColorResolvable,
-  admin: '#E74C3C' as ColorResolvable,
-  owner: '#8E44AD' as ColorResolvable,
-  free: '#95A5A6' as ColorResolvable, // Add free tier for backward compatibility
-
-  // Status colors
-  success: '#2ECC71' as ColorResolvable,
-  error: '#E74C3C' as ColorResolvable,
-  warning: '#F39C12' as ColorResolvable,
-  info: '#3498DB' as ColorResolvable,
-
-  // Pick colors
-  win: '#2ECC71' as ColorResolvable,
-  loss: '#E74C3C' as ColorResolvable,
-  push: '#95A5A6' as ColorResolvable,
-  pending: '#F39C12' as ColorResolvable
+  primary: '#3498db' as const,
+  success: '#2ecc71' as const,
+  warning: '#f39c12' as const,
+  error: '#e74c3c' as const,
+  info: '#9b59b6' as const,
+  member: '#95a5a6' as const,
+  vip: '#f1c40f' as const,
+  vip_plus: '#e67e22' as const,
+  staff: '#9b59b6' as const,
+  admin: '#e74c3c' as const,
+  owner: '#2c3e50' as const,
+  trial: '#95a5a6' as const
 };
 
-export function createPickEmbed(pick: SportsPick): EmbedBuilder {
-  const embed = new EmbedBuilder()
-    .setTitle(`${pick.sport} Pick`)
-    .setDescription(pick.description || 'No description provided')
-    .setColor(COLORS[pick.tier || 'member'] || COLORS.info)
-    .addFields(
-      { name: '🎯 Pick', value: pick.pick || pick.selection, inline: true },
-      { name: '📊 Odds', value: pick.odds?.toString() || 'N/A', inline: true },
-      { name: '💰 Units', value: pick.units?.toString() || 'N/A', inline: true },
-      { name: '🔥 Confidence', value: `${pick.confidence || 0}/10`, inline: true },
-      { name: '⚡ Teams', value: Array.isArray(pick.teams) ? pick.teams.join(' vs ') : (pick.game || 'N/A'), inline: true },
-      { name: '🏆 League', value: pick.league || 'N/A', inline: true }
-    )
-    .setTimestamp(pick.submittedAt || pick.created_at)
-    .setFooter({ text: `Submitted by ${pick.submittedBy || 'Unknown'}` });
-
-  if (pick.reasoning) {
-    embed.addFields({ name: '💭 Reasoning', value: pick.reasoning });
-  }
-
-  // Add status indicator
-  if (pick.status && pick.status !== 'pending') {
-    const statusEmoji = pick.status === 'won' ? '✅' : pick.status === 'lost' ? '❌' : '➖';
-    embed.addFields({ name: '📈 Result', value: `${statusEmoji} ${pick.status.toUpperCase()}` });
-  }
-
-  return embed;
+export function getTierColor(tier: UserTier): ColorResolvable {
+  return COLORS[tier] || COLORS.member;
 }
 
-export function createUserStatsEmbed(user: UserProfile): EmbedBuilder {
-  const embed = new EmbedBuilder()
-    .setTitle(`📊 Stats for ${user.display_name || user.username}`)
-    .setColor(COLORS[user.tier])
-    .addFields(
-      { name: '🎖️ Tier', value: formatTierName(user.tier), inline: true },
-      { name: '💬 Messages', value: (user.total_messages || 0).toString(), inline: true },
-      { name: '⭐ Reactions', value: (user.total_reactions || 0).toString(), inline: true },
-      { name: '📈 Activity Score', value: Math.round(user.activity_score || 0).toString(), inline: true }
-    )
-    .setThumbnail(`https://cdn.discordapp.com/avatars/${user.discord_id}/avatar.png`)
-    .setTimestamp();
-
-  // Add last active if available
-  if (user.last_active) {
-    embed.addFields({
-      name: '🕒 Last Active',
-      value: `<t:${Math.floor(new Date(user.last_active).getTime() / 1000)}:R>`
-    });
-  }
-
-  // Add join date
-  if (user.created_at) {
-    embed.addFields({
-      name: '📅 Joined',
-      value: `<t:${Math.floor(new Date(user.created_at).getTime() / 1000)}:D>`
-    });
-  }
-
-  return embed;
-}
-
-export function createWelcomeEmbed(username: string): EmbedBuilder {
-  return new EmbedBuilder()
-    .setTitle('🎉 Welcome to Unit Talk!')
-    .setDescription(`Hey ${username}! Welcome to our sports betting community.`)
-    .setColor(COLORS.success)
-    .addFields(
-      { 
-        name: '🎯 What We Offer', 
-        value: '• Expert sports picks\n• Community discussions\n• Betting analysis\n• Educational content' 
-      },
-      { 
-        name: '📋 Getting Started', 
-        value: '• Check out our channels\n• Read the rules\n• Introduce yourself\n• Start engaging!' 
-      },
-      { 
-        name: '💎 VIP Benefits', 
-        value: '• Premium picks\n• Advanced analytics\n• Priority support\n• Exclusive content' 
-      }
-    )
-    .setFooter({ text: 'Use /help to see available commands' })
-    .setTimestamp();
-}
-
-export function createErrorEmbed(title: string, description: string): EmbedBuilder {
-  return new EmbedBuilder()
-    .setTitle(`❌ ${title}`)
-    .setDescription(description)
-    .setColor(COLORS.error)
-    .setTimestamp();
-}
-
-export function createSuccessEmbed(title: string, description: string): EmbedBuilder {
-  return new EmbedBuilder()
-    .setTitle(`✅ ${title}`)
-    .setDescription(description)
-    .setColor(COLORS.success)
-    .setTimestamp();
-}
-
-export function createWarningEmbed(title: string, description: string): EmbedBuilder {
-  return new EmbedBuilder()
-    .setTitle(`⚠️ ${title}`)
-    .setDescription(description)
-    .setColor(COLORS.warning)
-    .setTimestamp();
-}
-
-export function createInfoEmbed(title: string, description: string): EmbedBuilder {
-  return new EmbedBuilder()
-    .setTitle(`ℹ️ ${title}`)
-    .setDescription(description)
-    .setColor(COLORS.info)
-    .setTimestamp();
-}
-
-export function createHelpEmbed(userTier: UserTier): EmbedBuilder {
-  const embed = new EmbedBuilder()
-    .setTitle('🤖 Bot Commands')
-    .setDescription('Here are the available commands based on your tier:')
-    .setColor(COLORS[userTier])
-    .addFields(
-      {
-        name: '📊 General Commands',
-        value: '`/help` - Show this help message\n`/ping` - Check bot latency\n`/stats` - View your stats'
-      }
-    );
-
-  // Add tier-specific commands
-  if (userTier === 'vip' || userTier === 'vip_plus') {
-    embed.addFields({
-      name: '💎 VIP Commands',
-      value: '`/picks` - View premium picks\n`/analysis` - Get betting analysis'
-    });
-  }
-
-  if (userTier === 'vip_plus') {
-    embed.addFields({
-      name: '👑 VIP+ Commands',
-      value: '`/coaching` - Personal coaching insights\n`/advanced-stats` - Detailed analytics'
-    });
-  }
-
-  return embed.setFooter({ text: `Your tier: ${formatTierName(userTier)}` });
-}
-
-export function createLeaderboardEmbed(users: UserProfile[], title: string = 'Leaderboard'): EmbedBuilder {
-  const embed = new EmbedBuilder()
-    .setTitle(`🏆 ${title}`)
-    .setColor(COLORS.info)
-    .setTimestamp();
-
-  if (users.length === 0) {
-    embed.setDescription('No users found.');
-    return embed;
-  }
-
-  const leaderboardText = users
-    .slice(0, 10) // Top 10
-    .map((user, index) => {
-      const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
-      const tierEmoji = getTierEmoji(user.tier);
-      return `${medal} ${tierEmoji} **${user.display_name || user.username}** - ${Math.round(user.activity_score || 0)} pts`;
-    })
-    .join('\n');
-
-  embed.setDescription(leaderboardText);
-  return embed;
-}
-
-export function createSystemStatusEmbed(status: any): EmbedBuilder {
-  const embed = new EmbedBuilder()
-    .setTitle('🖥️ System Status')
-    .setColor(status.healthy ? COLORS.success : COLORS.error)
-    .addFields(
-      { name: '🟢 Status', value: status.healthy ? 'Online' : 'Issues Detected', inline: true },
-      { name: '⏱️ Uptime', value: formatUptime(status.uptime), inline: true },
-      { name: '👥 Users', value: status.userCount?.toString() || 'N/A', inline: true },
-      { name: '💾 Memory', value: formatMemoryUsage(status.memoryUsage), inline: true },
-      { name: '📊 Events/Hour', value: status.eventsPerHour?.toString() || 'N/A', inline: true },
-      { name: '⚠️ Errors', value: status.errorCount?.toString() || '0', inline: true }
-    )
-    .setTimestamp();
-
-  if (status.lastError) {
-    embed.addFields({ name: '🚨 Last Error', value: status.lastError });
-  }
-
-  return embed;
-}
-
-// Utility functions
-export function formatTierName(tier: UserTier): string {
+export function getTierDisplayName(tier: UserTier): string {
   switch (tier) {
-    case 'member':
-      return '👤 Member';
-    case 'vip':
-      return '💎 VIP';
-    case 'vip_plus':
-      return '👑 VIP+';
-    default:
-      return '❓ Unknown';
+    case 'member': return 'Member';
+    case 'vip': return 'VIP';
+    case 'vip_plus': return 'VIP+';
+    case 'staff': return 'Staff';
+    case 'admin': return 'Admin';
+    case 'owner': return 'Owner';
+    default: return 'Member';
   }
 }
 
 export function getTierEmoji(tier: UserTier): string {
   switch (tier) {
-    case 'member':
-      return '👤';
-    case 'vip':
-      return '💎';
-    case 'vip_plus':
-      return '👑';
-    default:
-      return '❓';
+    case 'member': return '👤';
+    case 'vip': return '⭐';
+    case 'vip_plus': return '🌟';
+    case 'staff': return '🛡️';
+    case 'admin': return '👑';
+    case 'owner': return '💎';
+    default: return '👤';
   }
 }
 
-export function formatUptime(uptime: number): string {
-  const days = Math.floor(uptime / (24 * 60 * 60 * 1000));
-  const hours = Math.floor((uptime % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
-  const minutes = Math.floor((uptime % (60 * 60 * 1000)) / (60 * 1000));
-  
-  if (days > 0) {
-    return `${days}d ${hours}h ${minutes}m`;
-  } else if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  } else {
-    return `${minutes}m`;
-  }
-}
-
-export function formatMemoryUsage(memoryUsage: NodeJS.MemoryUsage): string {
-  const used = Math.round(memoryUsage.heapUsed / 1024 / 1024 * 100) / 100;
-  const total = Math.round(memoryUsage.heapTotal / 1024 / 1024 * 100) / 100;
-  return `${used}MB / ${total}MB`;
-}
-
-export function createPickGradingEmbed(grading: any): EmbedBuilder {
-  const embed = new EmbedBuilder()
-    .setTitle('📊 Pick Analysis')
-    .setDescription(grading.feedback)
-    .setColor(getGradingColor(grading.tier))
-    .addFields(
-      { name: '🎯 Grade', value: grading.tier, inline: true },
-      { name: '📈 Edge', value: `${grading.edge.toFixed(1)}%`, inline: true },
-      { name: '🔥 Confidence', value: `${grading.confidence}/100`, inline: true },
-      { name: '⚠️ Risk Level', value: grading.riskLevel.toUpperCase(), inline: true },
-      { name: '💰 Expected Value', value: grading.expectedValue.toFixed(2), inline: true }
-    )
+/**
+ * Create a basic info embed
+ */
+export function createInfoEmbed(title: string, description: string): EmbedBuilder {
+  return new EmbedBuilder()
+    .setTitle(title)
+    .setDescription(description)
+    .setColor(COLORS.info)
     .setTimestamp();
+}
 
-  // Add factors breakdown
-  if (grading.factors && grading.factors.length > 0) {
-    const factorsText = grading.factors
-      .slice(0, 5) // Top 5 factors
-      .map((factor: any) => `**${factor.name}**: ${factor.score}/100`)
-      .join('\n');
-    
-    embed.addFields({ name: '🔍 Key Factors', value: factorsText });
+/**
+ * Create a success embed
+ */
+export function createSuccessEmbed(title: string, description: string): EmbedBuilder {
+  return new EmbedBuilder()
+    .setTitle(title)
+    .setDescription(description)
+    .setColor(COLORS.success)
+    .setTimestamp();
+}
+
+/**
+ * Create an error embed
+ */
+export function createErrorEmbed(title: string, description: string): EmbedBuilder {
+  return new EmbedBuilder()
+    .setTitle(title)
+    .setDescription(description)
+    .setColor(COLORS.error)
+    .setTimestamp();
+}
+
+/**
+ * Create user profile embed
+ */
+export function createUserProfileEmbed(profile: UserProfile): EmbedBuilder {
+  const profileData = profile as any; // Temporary type assertion
+  const embed = new EmbedBuilder()
+    .setTitle('👤 User Profile')
+    .setDescription(`Profile for ${profileData.display_name || 'Unknown User'}`)
+    .setColor(getTierColor(profileData.tier || 'member'))
+    .addFields(
+      {
+        name: '🎯 Tier',
+        value: getTierDisplayName(profileData.tier || 'member'),
+        inline: true
+      },
+      {
+        name: '📊 Activity',
+        value: `Messages: ${profileData.total_messages || 0} | Reactions: ${profileData.total_reactions || 0} | Score: ${profileData.activity_score || 0}`,
+        inline: false
+      },
+      {
+        name: '🆔 Discord ID',
+        value: profileData.discord_id || 'Unknown',
+        inline: true
+      }
+    );
+
+  if (profileData.last_active) {
+    const lastActive = new Date(profileData.last_active);
+    embed.addFields({
+      name: '⏰ Last Active',
+      value: lastActive.toLocaleDateString(),
+      inline: true
+    });
   }
 
-  // Add recommendations
-  if (grading.recommendations && grading.recommendations.length > 0) {
-    const recommendationsText = grading.recommendations
-      .slice(0, 3) // Top 3 recommendations
-      .map((rec: string) => `• ${rec}`)
-      .join('\n');
-    
-    embed.addFields({ name: '💡 Recommendations', value: recommendationsText });
+  embed.setTimestamp();
+  return embed;
+}
+
+/**
+ * Create help embed with tier-based commands
+ */
+export function createHelpEmbed(userTier: UserTier): EmbedBuilder {
+  const embed = new EmbedBuilder()
+    .setTitle('🤖 Unit Talk Bot Commands')
+    .setDescription('Here are the commands available to you:')
+    .setColor(getTierColor(userTier))
+    .addFields(
+      {
+        name: '📊 General Commands',
+        value: '`/help` - Show this help menu\n`/ping` - Check bot status\n`/stats` - View your statistics',
+        inline: false
+      }
+    );
+
+  // Add tier-specific commands
+  if (userTier === 'vip' || userTier === 'vip_plus' || userTier === 'staff' || userTier === 'admin' || userTier === 'owner') {
+    embed.addFields({
+      name: '💎 VIP Commands',
+      value: '`/vip-info` - View VIP membership info\n`/trial-status` - Check trial status\n`/upgrade` - Upgrade membership',
+      inline: false
+    });
   }
+
+  if (userTier === 'vip_plus' || userTier === 'staff' || userTier === 'admin' || userTier === 'owner') {
+    embed.addFields({
+      name: '🔥 VIP+ Commands',
+      value: '`/heat-signal` - Access live heat signals\n`/line-alert` - Line movement alerts\n`/hedge-alert` - Hedge opportunities',
+      inline: false
+    });
+  }
+
+  if (userTier === 'staff' || userTier === 'admin' || userTier === 'owner') {
+    embed.addFields({
+      name: '🛠️ Staff Commands',
+      value: '`/admin` - Admin panel\n`/moderate` - Moderation tools\n`/analytics` - View analytics',
+      inline: false
+    });
+  }
+
+  return embed.setTimestamp();
+}
+
+/**
+ * Create leaderboard embed
+ */
+export function createLeaderboardEmbed(profiles: UserProfile[], type: 'activity' | 'wins' | 'profit'): EmbedBuilder {
+  const embed = new EmbedBuilder()
+    .setTitle(`🏆 ${type.charAt(0).toUpperCase() + type.slice(1)} Leaderboard`)
+    .setColor('#FFD700');
+
+  const sortedProfiles = profiles.sort((a, b) => {
+    const profileA = a as any;
+    const profileB = b as any;
+    switch (type) {
+      case 'activity':
+        return (profileB.activity_score || 0) - (profileA.activity_score || 0);
+      case 'wins':
+        return (profileB.winning_picks || 0) - (profileA.winning_picks || 0);
+      case 'profit':
+        return (profileB.total_profit || 0) - (profileA.total_profit || 0);
+      default:
+        return 0;
+    }
+  });
+
+  const leaderboardText = sortedProfiles
+    .slice(0, 10)
+    .map((profile, index) => {
+      const profileData = profile as any;
+      const position = index + 1;
+      const name = profileData.display_name || 'Unknown User';
+      const tier = getTierDisplayName(profileData.tier || 'member');
+
+      let value: string;
+      switch (type) {
+        case 'activity':
+          value = `${profileData.activity_score || 0} points`;
+          break;
+        case 'wins':
+          value = `${profileData.winning_picks || 0} wins`;
+          break;
+        case 'profit':
+          value = `$${profileData.total_profit || 0}`;
+          break;
+        default:
+          value = '0';
+      }
+
+      return `${position}. **${name}** (${tier}) - ${value}`;
+    })
+    .join('\n');
+
+  embed.setDescription(leaderboardText || 'No data available');
+  embed.setTimestamp();
 
   return embed;
 }
 
-function getGradingColor(tier: string): ColorResolvable {
-  switch (tier.toLowerCase()) {
-    case 'elite':
-      return '#9B59B6';
-    case 'premium':
-      return '#3498DB';
-    case 'strong':
-      return '#2ECC71';
-    case 'good':
-      return '#F39C12';
-    case 'fair':
-      return '#E67E22';
-    case 'poor':
-      return '#E74C3C';
-    default:
-      return COLORS.info;
+/**
+ * Create a simple success embed
+ */
+
+/**
+ * Create VIP info embed
+ */
+export function createVIPInfoEmbed(): EmbedBuilder {
+  return new EmbedBuilder()
+    .setTitle('💎 VIP Membership Benefits')
+    .setDescription('Unlock premium features and exclusive access!')
+    .setColor(COLORS.vip)
+    .addFields(
+      {
+        name: '🎯 VIP Features ($29/month)',
+        value: '• Exclusive VIP picks\n• Daily analysis & recaps\n• VIP-only channels\n• Priority support\n• Performance tracking',
+        inline: true
+      },
+      {
+        name: '👑 VIP+ Features ($49/month)',
+        value: '• Everything in VIP\n• Live heat signals\n• Line movement alerts\n• Analyst chat access\n• Advanced analytics',
+        inline: true
+      },
+      {
+        name: '🎟️ Try Before You Buy',
+        value: 'Start with a 3-day trial for just $1!\nFull VIP access to test our service.',
+        inline: false
+      }
+    )
+    .setFooter({ text: 'Cancel anytime • Secure payment via Whop' })
+    .setTimestamp();
+}
+
+/**
+ * Create trial status embed
+ */
+export function createTrialStatusEmbed(hoursRemaining: number): EmbedBuilder {
+  const embed = new EmbedBuilder()
+    .setTitle('🎟️ Trial Status')
+    .setColor(COLORS.trial);
+
+  if (hoursRemaining > 0) {
+    embed.setDescription(`Your trial is active with **${hoursRemaining} hours** remaining!`)
+      .addFields(
+        {
+          name: '✅ Active Benefits',
+          value: '• Full VIP access\n• Exclusive picks\n• VIP channels\n• Daily analysis',
+          inline: true
+        },
+        {
+          name: '⏰ Time Remaining',
+          value: `**${hoursRemaining} hours**\n${Math.floor(hoursRemaining / 24)} days, ${hoursRemaining % 24} hours`,
+          inline: true
+        },
+        {
+          name: '💎 Upgrade Now',
+          value: 'Upgrade to VIP to continue your access after trial ends!',
+          inline: false
+        }
+      );
+  } else {
+    embed.setDescription('Your trial has expired.')
+      .addFields({
+        name: '🚀 Continue Your Journey',
+        value: 'Upgrade to VIP to regain access to all premium features!',
+        inline: false
+      });
   }
+
+  return embed.setTimestamp();
+}
+
+// Welcome message embeds for different tiers
+export function createFreeWelcomeEmbed(username: string): EmbedBuilder {
+  return new EmbedBuilder()
+    .setTitle(`👋 Welcome to Unit Talk, ${username}!`)
+    .setDescription('Thanks for joining our community! Here\'s how to get started:')
+    .setColor(COLORS.member)
+    .addFields(
+      {
+        name: '📊 Free Features',
+        value: '• Access to general channels\n• Community discussions\n• Basic pick tracking\n• Weekly free picks',
+        inline: true
+      },
+      {
+        name: '🚀 Ready to Upgrade?',
+        value: '• VIP: $29/month\n• VIP+: $49/month\n• Trial: $1 for 3 days\n• Cancel anytime',
+        inline: true
+      },
+      {
+        name: '🆘 Need Help?',
+        value: 'Use `/help` to see available commands or ask in <#general>!',
+        inline: false
+      }
+    )
+    .setFooter({ text: 'Welcome to the Unit Talk family!' })
+    .setTimestamp();
+}
+
+export function createVIPWelcomeEmbed(username: string): EmbedBuilder {
+  return new EmbedBuilder()
+    .setTitle(`💎 Welcome to VIP, ${username}!`)
+    .setDescription('You now have access to exclusive VIP features!')
+    .setColor(COLORS.vip)
+    .addFields(
+      {
+        name: '🎯 Your VIP Benefits',
+        value: '• Exclusive VIP picks\n• Daily analysis & recaps\n• VIP-only channels\n• Priority support\n• Performance tracking',
+        inline: true
+      },
+      {
+        name: '📍 VIP Channels',
+        value: '<#vip-general> - VIP discussions\n<#vip-picks> - Exclusive picks\n<#vip-analysis> - Detailed breakdowns',
+        inline: true
+      },
+      {
+        name: '🚀 Getting Started',
+        value: 'Check out today\'s picks and join the VIP discussion!',
+        inline: false
+      }
+    )
+    .setFooter({ text: 'Welcome to VIP! Let\'s make some money 💰' })
+    .setTimestamp();
+}
+
+export function createVIPPlusWelcomeEmbed(username: string): EmbedBuilder {
+  return new EmbedBuilder()
+    .setTitle(`👑 Welcome to VIP+, ${username}!`)
+    .setDescription('🎉 **You\'ve unlocked our most exclusive tier!** Get ready for elite-level betting intelligence.')
+    .setColor(COLORS.vip_plus)
+    .addFields(
+      {
+        name: '🔥 VIP+ Elite Features',
+        value: '• **Heat Signal** - Real-time line movement alerts\n• **Sharp Money Tracking** - Follow the pros\n• **Reverse Line Movement** - Catch the steam\n• **Analyst Direct Access** - Chat with experts\n• **Advanced Analytics** - Deep performance insights',
+        inline: false
+      },
+      {
+        name: '📊 Your Exclusive Channels',
+        value: '🔥 <#1288616507315589250> - Premium picks & analysis\n💎 <#1288616331503075441> - VIP+ elite discussions\n📈 <#1288616564655276032> - Advanced performance tracking\n🚨 **Heat Signal alerts** - Coming to your DMs!',
+        inline: false
+      },
+      {
+        name: '⚡ Quick Start Guide',
+        value: '1️⃣ **Check Heat Signal** - Use the button below\n2️⃣ **View Today\'s Picks** - Premium analysis ready\n3️⃣ **Set Up Alerts** - Never miss sharp action\n4️⃣ **Join Elite Chat** - Connect with top bettors',
+        inline: false
+      },
+      {
+        name: '💰 VIP+ Performance Stats',
+        value: '📈 **Average ROI**: +31% higher than VIP\n🎯 **Win Rate**: 73% on Heat Signal plays\n⚡ **Speed Advantage**: 15min before public\n🏆 **Top Performers**: 85% are VIP+ members',
+        inline: false
+      }
+    )
+    .setFooter({ text: '👑 Welcome to the elite tier! Your edge starts now.' })
+    .setTimestamp();
+}
+
+export function createTrialWelcomeEmbed(username: string): EmbedBuilder {
+  return new EmbedBuilder()
+    .setTitle(`🎟️ Welcome to Your Trial, ${username}!`)
+    .setDescription('You have 72 hours of full VIP access!')
+    .setColor(COLORS.trial)
+    .addFields(
+      {
+        name: '✅ Trial Includes',
+        value: '• All VIP picks & analysis\n• VIP channel access\n• Daily recaps\n• Performance tracking\n• Priority support',
+        inline: true
+      },
+      {
+        name: '⏰ Trial Duration',
+        value: '**72 hours** of full access\nWe\'ll remind you before it expires!',
+        inline: true
+      },
+      {
+        name: '💎 Love the service?',
+        value: 'Upgrade to VIP anytime to continue your access without interruption!',
+        inline: false
+      }
+    )
+    .setFooter({ text: 'Make the most of your trial! 🚀' })
+    .setTimestamp();
+}
+
+export function createTrialReminderEmbed(hoursRemaining: number): EmbedBuilder {
+  const embed = new EmbedBuilder()
+    .setTitle('⏰ Trial Reminder')
+    .setColor(COLORS.warning);
+
+  if (hoursRemaining <= 1) {
+    embed.setDescription('🚨 **Your trial expires in less than 1 hour!**')
+      .addFields({
+        name: '💎 Upgrade Now',
+        value: 'Don\'t lose access! Upgrade to VIP to continue enjoying premium features.',
+        inline: false
+      });
+  } else if (hoursRemaining <= 24) {
+    embed.setDescription(`⚠️ **Your trial expires in ${hoursRemaining} hours!**`)
+      .addFields({
+        name: '💎 Upgrade Soon',
+        value: 'Your trial is ending soon. Upgrade to VIP to maintain your access!',
+        inline: false
+      });
+  } else {
+    embed.setDescription(`📅 **Your trial expires in ${hoursRemaining} hours (${Math.floor(hoursRemaining / 24)} days)**`)
+      .addFields({
+        name: '💎 Consider Upgrading',
+        value: 'Enjoying the VIP experience? Upgrade now to secure your continued access!',
+        inline: false
+      });
+  }
+
+  return embed.setTimestamp();
+}
+
+export function createChannelUnlockEmbed(channelName: string, tier: UserTier): EmbedBuilder {
+  return new EmbedBuilder()
+    .setTitle(`🔓 ${channelName} Unlocked!`)
+    .setDescription(`Welcome to your exclusive ${tier.replace('_', ' ').toUpperCase()} channel!`)
+    .setColor(getTierColor(tier))
+    .addFields({
+      name: '🎉 You now have access to:',
+      value: `• Exclusive ${tier} discussions\n• Premium content\n• Direct interaction with other ${tier} members`,
+      inline: false
+    })
+    .setFooter({ text: 'Enjoy your exclusive access!' })
+    .setTimestamp();
+}
+
+export function createReEngagementEmbed(username: string, daysSinceActive: number): EmbedBuilder {
+  return new EmbedBuilder()
+    .setTitle(`👋 We miss you, ${username}!`)
+    .setDescription(`It's been ${daysSinceActive} days since we've seen you. Here's what you've missed:`)
+    .setColor(COLORS.info)
+    .addFields(
+      {
+        name: '🔥 Recent Highlights',
+        value: '• New winning strategies\n• Updated pick analysis\n• Community growth\n• Feature improvements',
+        inline: true
+      },
+      {
+        name: '📊 Your Stats',
+        value: 'Check your performance and see how you\'re doing compared to other members!',
+        inline: true
+      },
+      {
+        name: '🎯 Come Back',
+        value: 'Jump back in and see what\'s trending in the community!',
+        inline: false
+      }
+    )
+    .setFooter({ text: 'We\'re here when you\'re ready to return!' })
+    .setTimestamp();
+}
+
+export function createFirstWinCongratulationsEmbed(username: string): EmbedBuilder {
+  return new EmbedBuilder()
+    .setTitle(`🎉 Congratulations ${username}!`)
+    .setDescription('You just hit your first win! This is just the beginning.')
+    .setColor(COLORS.success)
+    .addFields(
+      {
+        name: '🏆 First Win!',
+        value: 'Great job on your first successful pick! This shows you\'re learning the system.',
+        inline: true
+      },
+      {
+        name: '📈 Keep Growing',
+        value: 'VIP members see 3x more wins on average. Ready to level up?',
+        inline: true
+      },
+      {
+        name: '💎 Upgrade Benefits',
+        value: '• More winning picks\n• Better analysis\n• Exclusive strategies\n• Higher success rate',
+        inline: false
+      }
+    )
+    .setFooter({ text: 'This is just the start of your winning journey!' })
+    .setTimestamp();
+}
+
+export function createMissedValueEmbed(username: string, missedWins: number, missedProfit: number): EmbedBuilder {
+  return new EmbedBuilder()
+    .setTitle(`💰 ${username}, you're missing out!`)
+    .setDescription('Here\'s what VIP members have gained while you were away:')
+    .setColor(COLORS.warning)
+    .addFields(
+      {
+        name: '📊 Missed Opportunities',
+        value: `**${missedWins} winning picks**\n**${missedProfit}u in profit**\n*Based on VIP member average*`,
+        inline: true
+      },
+      {
+        name: '💎 VIP Advantage',
+        value: 'VIP members get exclusive picks with higher win rates and better analysis.',
+        inline: true
+      },
+      {
+        name: '🚀 Catch Up Now',
+        value: 'Start your $1 trial today and see what you\'ve been missing!',
+        inline: false
+      }
+    )
+    .setFooter({ text: 'Don\'t let more opportunities slip away!' })
+    .setTimestamp();
+}
+
+export function createUpgradeSuccessEmbed(tier: UserTier): EmbedBuilder {
+  const tierName = tier.replace('_', ' ').toUpperCase();
+  return new EmbedBuilder()
+    .setTitle(`🎉 Welcome to ${tierName}!`)
+    .setDescription('Your upgrade was successful! You now have access to premium features.')
+    .setColor(getTierColor(tier))
+    .addFields({
+      name: '✅ Upgrade Complete',
+      value: `You are now a ${tierName} member with full access to exclusive features!`,
+      inline: false
+    })
+    .setFooter({ text: 'Thank you for upgrading!' })
+    .setTimestamp();
+}
+
+export function createPaymentFailedEmbed(): EmbedBuilder {
+  return new EmbedBuilder()
+    .setTitle('❌ Payment Failed')
+    .setDescription('We couldn\'t process your payment. Please update your payment method.')
+    .setColor(COLORS.error)
+    .addFields(
+      {
+        name: '🔄 Next Steps',
+        value: '1. Check your payment method\n2. Ensure sufficient funds\n3. Try again or contact support'
+      },
+      {
+        name: '⚠️ Account Status',
+        value: 'Your VIP features will be suspended until payment is resolved.'
+      },
+      {
+        name: '🆘 Need Help?',
+        value: 'Contact our support team if you need assistance.'
+      }
+    )
+    .setFooter({ text: 'Update payment method to restore access' })
+    .setTimestamp();
 }

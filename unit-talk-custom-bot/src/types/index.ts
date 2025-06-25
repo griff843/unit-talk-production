@@ -48,31 +48,60 @@ export interface BotConfig {
   supabase: {
     url: string;
     key: string;
-    serviceKey: string;
+    serviceRoleKey: string;
   };
-  redis: {
-    url: string;
+  discord: {
+    token: string;
+    clientId: string;
+    guildId: string;
   };
-  ai: {
-    openaiApiKey: string;
-    model: string;
+  agents: {
+    enabled: boolean;
+    endpoints: {
+      grading: string;
+      analytics: string;
+    };
+    baseUrl: string;
+    apiKey: string;
   };
-  token: string;
-  clientId: string;
-  guildId: string;
 }
 
 // User Management Types
 export type UserTier = 'member' | 'vip' | 'vip_plus' | 'staff' | 'admin' | 'owner';
 
-export interface UserProfile {
-  id: string;
+export interface BotUserProfile {
+  id?: string;
   discord_id: string;
-  username: string;
+  display_name?: string;
   tier: UserTier;
-  created_at: string;
-  updated_at: string;
-  preferences?: UserPreferences;
+  total_messages?: number;
+  total_reactions?: number;
+  activity_score?: number;
+  last_active?: Date | string;
+  winning_picks?: number;
+  total_profit?: number;
+  created_at?: Date | string;
+  updated_at?: Date | string;
+  // Allow any additional properties from database
+  [key: string]: any;
+}
+
+// Simplified UserProfile interface (removed BotUserProfile alias)
+export interface UserProfile {
+  id?: string;
+  discord_id: string;
+  display_name?: string;
+  tier: UserTier;
+  total_messages?: number;
+  total_reactions?: number;
+  activity_score?: number;
+  last_active?: Date | string;
+  winning_picks?: number;
+  total_profit?: number;
+  created_at?: Date | string;
+  updated_at?: Date | string;
+  // Allow any additional properties from database
+  [key: string]: any;
 }
 
 export interface UserPreferences {
@@ -83,6 +112,38 @@ export interface UserPreferences {
   betting_goals: string[];
   risk_tolerance: 'conservative' | 'moderate' | 'aggressive';
 }
+
+// User Permissions Types
+export interface UserPermissions {
+  tier: UserTier;
+  canSubmitPicks: boolean;
+  canViewVIPContent: boolean;
+  canViewVipPlusContent: boolean;
+  canUseCommand: boolean;
+  canCreateThreads: boolean;
+  canViewAnalytics: boolean;
+  canAccessAnalytics: boolean;
+  canEditConfig: boolean;
+  canUseAdminCommands: boolean;
+  canUseModeratorCommands: boolean;
+  isOwner: boolean;
+  isAdmin: boolean;
+  isModerator: boolean;
+  roles: string[];
+  canAccessVIP: boolean;
+  canAccessVIPPlus: boolean;
+  canAccessCoaching: boolean;
+  canUseDMs: boolean;
+  maxPicksPerDay: number;
+  maxDMsPerHour: number;
+  isRateLimited: boolean;
+  canUsePicks: boolean;
+  canUseAdmin: boolean;
+  canModerate: boolean;
+  cooldownSeconds: number;
+}
+
+// Onboarding Types
 
 // Onboarding Types
 export type OnboardingStep = 'welcome' | 'profile' | 'preferences' | 'tutorial' | 'completion';
@@ -325,8 +386,6 @@ export const pickValidationSchema = {
   confidence: { required: true, type: 'number', min: 1, max: 10 }
 };
 
-export type UserTier = 'free' | 'premium' | 'vip' | 'vip_plus';
-
 export type StrategyType = 'strategy' | 'bankroll' | 'selection' | 'timing';
 
 // Admin Dashboard Types
@@ -408,4 +467,99 @@ export interface UserPermissions {
   canAccessVIPPlus: boolean;
   maxPicksPerDay: number;
   cooldownSeconds: number;
+}
+
+export interface VIPNotificationSequence {
+  id: string;
+  name: string;
+  description: string;
+  tier: UserTier;
+  trigger: 'join' | 'upgrade' | 'activity' | 'manual';
+  steps: VIPNotificationStep[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VIPNotificationStep {
+  id: string;
+  order: number;
+  type: 'message' | 'reaction' | 'command' | 'delay';
+  title?: string;
+  description?: string;
+  content?: string;
+  delayMinutes?: number;
+  requiredReaction?: string;
+  requiredCommand?: string;
+  completed: boolean;
+  completedAt?: Date;
+}
+
+export interface VIPWelcomeFlow {
+  id: string;
+  name: string;
+  description?: string;
+  tier: UserTier;
+  steps: VIPWelcomeStep[];
+  isActive: boolean;
+  enabled?: boolean;
+  userId?: string;
+  currentStep?: number;
+  completed?: boolean;
+  startedAt?: Date;
+  trigger_type?: string;
+  target_tiers?: UserTier[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface VIPWelcomeStep {
+  id: string;
+  order: number;
+  delay: number; // in minutes
+  type: 'welcome' | 'features_tour' | 'first_pick_reminder' | 'engagement_check' | 'upgrade_suggestion' | 'message' | 'reaction' | 'command' | 'delay';
+  title?: string;
+  description?: string;
+  content?: any; // Can be embed, string, or other content
+  delayMinutes?: number;
+  requiredReaction?: string;
+  requiredCommand?: string;
+  requiresResponse?: boolean;
+  completed?: boolean;
+  completedAt?: Date;
+}
+
+import { CommandInteraction, ChatInputCommandInteraction, User, GuildMember, Guild } from 'discord.js';
+
+// Sports Pick Type (missing from imports)
+export interface SportsPick {
+  id: string;
+  user_id: string;
+  sport: string;
+  bet_type: string;
+  selection: string;
+  odds: number;
+  stake: number;
+  confidence: number;
+  reasoning?: string;
+  status: 'pending' | 'won' | 'lost' | 'void' | 'pushed';
+  game_date?: string;
+  team_home?: string;
+  team_away?: string;
+  player_name?: string;
+  line?: number;
+  created_at: string;
+  updated_at: string;
+  graded_at?: string;
+  profit?: number;
+}
+
+export interface CommandContext {
+  interaction?: ChatInputCommandInteraction;
+  user: User;
+  member: GuildMember;
+  channel: any;
+  guild?: Guild;
+  permissions: any;
+  userProfile?: UserProfile;
 }

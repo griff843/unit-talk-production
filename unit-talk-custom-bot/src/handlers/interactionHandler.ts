@@ -1,9 +1,10 @@
-import { 
-  Client, 
-  Interaction, 
-  CommandInteraction, 
-  ButtonInteraction, 
-  SelectMenuInteraction, 
+import {
+  Client,
+  Interaction,
+  CommandInteraction,
+  ChatInputCommandInteraction,
+  ButtonInteraction,
+  SelectMenuInteraction,
   ModalSubmitInteraction,
   AutocompleteInteraction
 } from 'discord.js';
@@ -43,7 +44,7 @@ export class InteractionHandler {
    */
   async handleInteraction(interaction: Interaction): Promise<void> {
     try {
-      if (interaction.isCommand()) {
+      if (interaction.isChatInputCommand()) {
         await this.handleSlashCommand(interaction);
       } else if (interaction.isButton()) {
         await this.handleButton(interaction);
@@ -71,7 +72,7 @@ export class InteractionHandler {
   /**
    * Handle slash command interactions
    */
-  private async handleSlashCommand(interaction: CommandInteraction): Promise<void> {
+  private async handleSlashCommand(interaction: ChatInputCommandInteraction): Promise<void> {
     await this.commandHandler.handleSlashCommand(interaction);
   }
 
@@ -80,36 +81,55 @@ export class InteractionHandler {
    */
   private async handleButton(interaction: ButtonInteraction): Promise<void> {
     const { customId } = interaction;
-    
+
     try {
-      // Parse custom ID to determine action
+      // Check if this is an onboarding-related button
+      const onboardingButtons = [
+        'view_vip_perks', 'view_vip_info', 'upgrade_vip', 'upgrade_vip_plus', 'start_trial',
+        'trial_status', 'trial_end_time', 'extend_trial', 'view_todays_picks', 'goto_vip_lounge',
+        'heat_signal_access', 'picks_dashboard', 'help_commands', 'slash_commands_help',
+        'trial_help', 'view_trending_picks', 'whats_new', 'upgrade_for_more_wins',
+        'upgrade_to_catch_up', 'refresh_heat_signal', 'heat_signal_settings', 'heat_signal_demo',
+        // Add the missing VIP+ onboarding button IDs
+        'vip_plus_tour_start', 'vip_plus_settings', 'vip_tour_start', 'vip_settings'
+      ];
+
+      if (onboardingButtons.includes(customId)) {
+        // Use the onboarding button handler
+        if (this.services.onboardingButtonHandler) {
+          await this.services.onboardingButtonHandler.handleButtonInteraction(interaction);
+          return;
+        }
+      }
+
+      // Parse custom ID to determine action for other buttons
       const [action, ...params] = customId.split('_');
-      
+
       switch (action) {
         case 'analytics':
           await this.handleAnalyticsButton(interaction, params);
           break;
-        
+
         case 'config':
           await this.handleConfigButton(interaction, params);
           break;
-        
+
         case 'admin':
           await this.handleAdminButton(interaction, params);
           break;
-        
+
         case 'vip':
           await this.handleVIPButton(interaction, params);
           break;
-        
+
         case 'thread':
           await this.handleThreadButton(interaction, params);
           break;
-        
+
         case 'ai':
           await this.handleAIButton(interaction, params);
           break;
-        
+
         default:
           await interaction.reply({
             content: '❌ Unknown button action.',
@@ -118,10 +138,12 @@ export class InteractionHandler {
       }
     } catch (error) {
       logger.error('Error handling button interaction:', error);
-      await interaction.reply({
-        content: '❌ An error occurred while processing the button.',
-        ephemeral: true
-      });
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply({
+          content: '❌ An error occurred while processing the button.',
+          ephemeral: true
+        });
+      }
     }
   }
 

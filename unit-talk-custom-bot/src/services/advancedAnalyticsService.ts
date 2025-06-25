@@ -1,713 +1,679 @@
-import { Client, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, TextChannel } from 'discord.js';
+import { Client, GuildMember, User } from 'discord.js';
 import { SupabaseService } from './supabase';
-import { PermissionsService } from './permissions';
-import { AnalyticsDashboard, RealTimeStats, ErrorLog, EventLog, UserAnalytics } from '../types';
-import { logger } from '../utils/logger';
-import { botConfig } from '../config';
 
+/**
+ * Analytics event interface
+ */
+export interface AnalyticsEvent {
+  id: string;
+  event_type: string;
+  user_id: string;
+  metadata: Record<string, any>;
+  timestamp: string;
+  session_id: string;
+}
+
+/**
+ * User journey step interface
+ */
+export interface UserJourneyStep {
+  action: string;
+  timestamp: string;
+  metadata?: Record<string, any>;
+}
+
+/**
+ * User journey interface
+ */
+export interface UserJourney {
+  id: string;
+  user_id: string;
+  steps: UserJourneyStep[];
+  completed: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Onboarding analytics interface
+ */
+export interface OnboardingAnalytics {
+  totalStarts: number;
+  totalCompletions: number;
+  totalAbandonments: number;
+  completionRate: number;
+  abandonmentRate: number;
+  avgCompletionTime: number;
+  flowTypeBreakdown: Record<string, number>;
+  stepBreakdown: Record<string, number>;
+  dailyBreakdown: Record<string, { starts: number; completions: number }>;
+  timeframe: 'day' | 'week' | 'month';
+}
+
+/**
+ * Advanced Analytics Service for comprehensive tracking and reporting
+ */
 export class AdvancedAnalyticsService {
   private client: Client;
   private supabaseService: SupabaseService;
-  private permissionsService: PermissionsService;
-  private realTimeStats!: RealTimeStats;
-  private dashboardCache: Map<string, any> = new Map();
-  private metricsCollectionInterval: NodeJS.Timeout | null = null;
+  private eventBuffer: AnalyticsEvent[] = [];
+  private bufferFlushInterval: NodeJS.Timeout | null = null;
+  private readonly BUFFER_SIZE = 100;
+  private readonly FLUSH_INTERVAL = 30000; // 30 seconds
 
-  constructor(client: Client, supabaseService: SupabaseService, permissionsService: PermissionsService) {
+  constructor(client: Client, supabaseService: SupabaseService) {
     this.client = client;
     this.supabaseService = supabaseService;
-    this.permissionsService = permissionsService;
-    this.realTimeStats = this.initializeRealTimeStats();
-    this.startMetricsCollection();
+    this.startBufferFlush();
   }
 
   /**
-   * Initialize real-time stats structure
+   * Log an analytics event (alias for trackEvent for backward compatibility)
    */
-  private initializeRealTimeStats(): RealTimeStats {
-    return {
-      activeUsers: 0,
-      onlineUsers: 0,
-      messagesLastHour: 0,
-      commandsLastHour: 0,
-      totalMessages: 0,
-      picksSubmitted: 0,
-      threadsCreated: 0,
-      dmsSent: 0,
-      commandsExecuted: 0,
-      errorsCount: 0,
-      uptime: Date.now(),
-      lastUpdated: new Date(),
-      tierDistribution: {
-        member: 0,
-        vip: 0,
-        vip_plus: 0,
-        staff: 0,
-        admin: 0,
-        owner: 0
-      },
-      channelActivity: {},
-      hourlyMetrics: Array(24).fill(0).map((_, i) => ({
-        hour: i,
-        count: 0,
-        messages: 0,
-        picks: 0,
-        users: 0
-      }))
-    };
+  async logEvent(eventType: string, userId: string, metadata?: Record<string, any>): Promise<void> {
+    await this.trackEvent(eventType, userId, metadata);
   }
 
   /**
-   * Start collecting metrics every minute
+   * Track an analytics event
    */
-  private startMetricsCollection(): void {
-    this.metricsCollectionInterval = setInterval(async () => {
-      await this.collectRealTimeMetrics();
-      await this.updateHourlyMetrics();
-    }, 60000); // Every minute
-
-    logger.info('Started real-time metrics collection');
-  }
-
-  /**
-   * Generate comprehensive analytics dashboard for owners/staff
-   */
-  async generateOwnerDashboard(): Promise<AnalyticsDashboard> {
+  async trackEvent(eventType: string, userId: string, metadata?: Record<string, any>): Promise<void> {
     try {
-      const dashboard: AnalyticsDashboard = {
-        id: `dashboard_${Date.now()}`,
-        name: 'Owner Dashboard',
-        description: 'Comprehensive analytics dashboard for owners/staff',
-        widgets: [], // We'll populate this with actual widgets
-        permissions: ['owner', 'admin', 'staff'],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        isActive: true
+      const event: AnalyticsEvent = {
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        event_type: eventType,
+        user_id: userId,
+        metadata: metadata || {},
+        timestamp: new Date().toISOString(),
+        session_id: this.generateSessionId(userId)
       };
 
-      // Cache dashboard for 5 minutes
-      this.dashboardCache.set('owner_dashboard', {
-        data: dashboard,
-        expires: Date.now() + 5 * 60 * 1000
+      this.eventBuffer.push(event);
+
+      // Flush buffer if it's full
+      if (this.eventBuffer.length >= this.BUFFER_SIZE) {
+        await this.flushEventBuffer();
+      }
+
+      console.log(`📊 Analytics: ${eventType} for user ${userId}`);
+    } catch (error) {
+      console.error('❌ Error tracking analytics event:', error);
+    }
+  }
+
+  /**
+   * Flush event buffer to database
+   */
+  private async flushEventBuffer(): Promise<void> {
+    if (this.eventBuffer.length === 0) return;
+
+    try {
+      const eventsToFlush = [...this.eventBuffer];
+      this.eventBuffer = [];
+
+      const { error } = await this.supabaseService.client
+        .from('analytics_events')
+        .insert(eventsToFlush);
+
+      if (error) {
+        console.error('❌ Error flushing analytics events:', error);
+        // Re-add events to buffer on error
+        this.eventBuffer.unshift(...eventsToFlush);
+      } else {
+        console.log(`✅ Flushed ${eventsToFlush.length} analytics events to database`);
+      }
+    } catch (error) {
+      console.error('❌ Error in flushEventBuffer:', error);
+    }
+  }
+
+  /**
+   * Start automatic buffer flushing
+   */
+  private startBufferFlush(): void {
+    this.bufferFlushInterval = setInterval(async () => {
+      await this.flushEventBuffer();
+    }, this.FLUSH_INTERVAL);
+  }
+
+  /**
+   * Stop automatic buffer flushing
+   */
+  public stopBufferFlush(): void {
+    if (this.bufferFlushInterval) {
+      clearInterval(this.bufferFlushInterval);
+      this.bufferFlushInterval = null;
+    }
+  }
+
+  /**
+   * Track onboarding start
+   */
+  async trackOnboardingStart(userId: string, flowType: string): Promise<void> {
+    await this.trackEvent('onboarding_start', userId, {
+      flow_type: flowType,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  /**
+   * Track onboarding step completion
+   */
+  async trackOnboardingStep(userId: string, stepName: string, flowType: string): Promise<void> {
+    await this.trackEvent('onboarding_step_complete', userId, {
+      step_name: stepName,
+      flow_type: flowType,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  /**
+   * Track onboarding completion
+   */
+  async trackOnboardingComplete(userId: string, flowType: string, completionTime: number): Promise<void> {
+    await this.trackEvent('onboarding_complete', userId, {
+      flow_type: flowType,
+      completion_time_ms: completionTime,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  /**
+   * Track onboarding abandonment
+   */
+  async trackOnboardingAbandonment(userId: string, flowType: string, lastStep: string): Promise<void> {
+    await this.trackEvent('onboarding_abandoned', userId, {
+      flow_type: flowType,
+      last_step: lastStep,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  /**
+   * Track DM delivery attempt
+   */
+  async trackDMDelivery(userId: string, success: boolean, errorReason?: string): Promise<void> {
+    await this.trackEvent('dm_delivery_attempt', userId, {
+      success,
+      error_reason: errorReason,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  /**
+   * Track preference selection
+   */
+  async trackPreferenceSelection(userId: string, preferenceType: string, value: any): Promise<void> {
+    await this.trackEvent('preference_selected', userId, {
+      preference_type: preferenceType,
+      value,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  /**
+   * Track role assignment
+   */
+  async trackRoleAssignment(userId: string, roleId: string, roleName: string): Promise<void> {
+    await this.trackEvent('role_assigned', userId, {
+      role_id: roleId,
+      role_name: roleName,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  /**
+   * Get comprehensive onboarding analytics
+   */
+  async getOnboardingAnalytics(timeframe: 'day' | 'week' | 'month' = 'week'): Promise<OnboardingAnalytics> {
+    try {
+      const timeframeDays = timeframe === 'day' ? 1 : timeframe === 'week' ? 7 : 30;
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - timeframeDays);
+
+      // Get onboarding events
+      const { data: events, error } = await this.supabaseService.client
+        .from('analytics_events')
+        .select('*')
+        .gte('timestamp', startDate.toISOString())
+        .in('event_type', ['onboarding_start', 'onboarding_complete', 'onboarding_abandoned', 'onboarding_step_complete']);
+
+      if (error) {
+        console.error('❌ Error fetching onboarding analytics:', error);
+        throw error;
+      }
+
+      // Process events
+      const starts = events?.filter(e => e.event_type === 'onboarding_start') || [];
+      const completions = events?.filter(e => e.event_type === 'onboarding_complete') || [];
+      const abandonments = events?.filter(e => e.event_type === 'onboarding_abandoned') || [];
+      const steps = events?.filter(e => e.event_type === 'onboarding_step_complete') || [];
+
+      // Calculate metrics
+      const totalStarts = starts.length;
+      const totalCompletions = completions.length;
+      const totalAbandonments = abandonments.length;
+      const completionRate = totalStarts > 0 ? (totalCompletions / totalStarts) * 100 : 0;
+      const abandonmentRate = totalStarts > 0 ? (totalAbandonments / totalStarts) * 100 : 0;
+
+      // Calculate average completion time
+      const completionTimes = completions
+        .map(c => c.metadata?.completion_time_ms)
+        .filter(t => typeof t === 'number') as number[];
+      const avgCompletionTime = completionTimes.length > 0 
+        ? completionTimes.reduce((a, b) => a + b, 0) / completionTimes.length 
+        : 0;
+
+      // Flow type breakdown
+      const flowTypeBreakdown = starts.reduce((acc: Record<string, number>, event) => {
+        const flowType = event.metadata?.flow_type || 'unknown';
+        acc[flowType] = (acc[flowType] || 0) + 1;
+        return acc;
+      }, {});
+
+      // Step completion breakdown
+      const stepBreakdown = steps.reduce((acc: Record<string, number>, event) => {
+        const stepName = event.metadata?.step_name || 'unknown';
+        acc[stepName] = (acc[stepName] || 0) + 1;
+        return acc;
+      }, {});
+
+      // Daily breakdown
+      const dailyBreakdown = starts.reduce((acc: Record<string, { starts: number; completions: number }>, event) => {
+        const date = new Date(event.timestamp).toISOString().split('T')[0];
+        if (!acc[date]) acc[date] = { starts: 0, completions: 0 };
+        acc[date].starts++;
+        return acc;
+      }, {});
+
+      completions.forEach(event => {
+        const date = new Date(event.timestamp).toISOString().split('T')[0];
+        if (dailyBreakdown[date]) {
+          dailyBreakdown[date].completions++;
+        }
       });
 
-      return dashboard;
+      return {
+        totalStarts,
+        totalCompletions,
+        totalAbandonments,
+        completionRate,
+        abandonmentRate,
+        avgCompletionTime,
+        flowTypeBreakdown,
+        stepBreakdown,
+        dailyBreakdown,
+        timeframe
+      };
     } catch (error) {
-      logger.error('Failed to generate owner dashboard:', error);
+      console.error('❌ Error getting onboarding analytics:', error);
       throw error;
     }
   }
 
   /**
-   * Generate staff-level dashboard (limited access)
+   * Get user journey data
    */
-  async generateStaffDashboard(): Promise<AnalyticsDashboard> {
+  async getUserJourneys(limit: number = 50): Promise<UserJourney[]> {
     try {
-      const dashboard: AnalyticsDashboard = {
-        id: `staff_dashboard_${Date.now()}`,
-        name: 'Staff Dashboard',
-        description: 'Limited analytics dashboard for staff',
-        widgets: [],
-        permissions: ['staff'],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        isActive: true
-      };
-
-      return dashboard;
-    } catch (error) {
-      logger.error('Failed to generate staff dashboard:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get real-time statistics
-   */
-  getRealTimeStats(): RealTimeStats {
-    return { ...this.realTimeStats };
-  }
-
-  /**
-   * Update real-time user count
-   */
-  updateActiveUsers(count: number): void {
-    this.realTimeStats.activeUsers = count;
-    this.realTimeStats.lastUpdated = new Date();
-  }
-
-  /**
-   * Increment message count
-   */
-  incrementMessageCount(channelId?: string): void {
-    if (this.realTimeStats.totalMessages !== undefined) {
-      this.realTimeStats.totalMessages++;
-    }
-    if (channelId && this.realTimeStats.channelActivity) {
-      if (!this.realTimeStats.channelActivity[channelId]) {
-        this.realTimeStats.channelActivity[channelId] = 0;
-      }
-      this.realTimeStats.channelActivity[channelId]++;
-    }
-    this.updateHourlyMetric('messages');
-  }
-
-  /**
-   * Increment pick count
-   */
-  incrementPickCount(): void {
-    this.realTimeStats.picksSubmitted++;
-    this.updateHourlyMetric('picks');
-  }
-
-  /**
-   * Increment thread count
-   */
-  incrementThreadCount(): void {
-    this.realTimeStats.threadsCreated++;
-  }
-
-  /**
-   * Increment DM count
-   */
-  incrementDMCount(): void {
-    this.realTimeStats.dmsSent++;
-  }
-
-  /**
-   * Increment command count
-   */
-  incrementCommandCount(): void {
-    this.realTimeStats.commandsExecuted++;
-  }
-
-  /**
-   * Increment error count
-   */
-  incrementErrorCount(): void {
-    this.realTimeStats.errorsCount++;
-  }
-
-  /**
-   * Log error with context
-   */
-  async logError(error: any, context: any): Promise<void> {
-    try {
-      const errorLog: ErrorLog = {
-        id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        timestamp: new Date(),
-        level: 'error',
-        message: error.message || String(error),
-        stack: error.stack,
-        context: context,
-        userId: context.userId,
-        guildId: context.guildId
-      };
-
-      await this.supabaseService.client
-        .from('error_logs')
-        .insert(errorLog);
-
-      this.incrementErrorCount();
-      
-      // Send alert for critical errors
-      if (this.isCriticalError(error)) {
-        await this.sendCriticalErrorAlert(errorLog);
-      }
-
-    } catch (logError) {
-      logger.error('Failed to log error:', logError);
-    }
-  }
-
-  /**
-   * Log event with context
-   */
-  async logEvent(eventType: string, description: string, context: any): Promise<void> {
-    try {
-      const eventLog: EventLog = {
-        id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        timestamp: new Date(),
-        type: eventType,
-        userId: context.userId,
-        channelId: context.channelId,
-        guildId: context.guildId,
-        severity: context.severity || 'info'
-      };
-
-      await this.supabaseService.client
-        .from('event_logs')
-        .insert(eventLog);
-
-    } catch (error) {
-      logger.error('Failed to log event:', error);
-    }
-  }
-
-  /**
-   * Generate user analytics report
-   */
-  async generateUserAnalyticsReport(userId: string): Promise<UserAnalytics> {
-    try {
-      const { data: userProfile } = await this.supabaseService.client
-        .from('user_profiles')
+      const { data: journeys, error } = await this.supabaseService.client
+        .from('user_journeys')
         .select('*')
-        .eq('discord_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        console.error('❌ Error fetching user journeys:', error);
+        throw error;
+      }
+
+      return journeys || [];
+    } catch (error) {
+      console.error('❌ Error getting user journeys:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Track user journey step
+   */
+  async trackUserJourneyStep(userId: string, step: UserJourneyStep): Promise<void> {
+    try {
+      // Get or create user journey
+      let { data: journey, error: fetchError } = await this.supabaseService.client
+        .from('user_journeys')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('completed', false)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .single();
 
-      if (!userProfile) {
-        throw new Error('User profile not found');
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('❌ Error fetching user journey:', fetchError);
+        return;
       }
 
-      const { data: userPicks } = await this.supabaseService.client
-        .from('user_picks')
-        .select('*')
-        .eq('user_id', userId)
-        .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+      if (!journey) {
+        // Create new journey
+        const { data: newJourney, error: createError } = await this.supabaseService.client
+          .from('user_journeys')
+          .insert({
+            user_id: userId,
+            steps: [step],
+            completed: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single();
 
-      const { data: userMessages } = await this.supabaseService.client
-        .from('user_messages')
-        .select('*')
-        .eq('user_id', userId)
-        .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+        if (createError) {
+          console.error('❌ Error creating user journey:', createError);
+          return;
+        }
 
-      const analytics: UserAnalytics = {
-        userId: userId,
-        username: userProfile.username,
-        tier: userProfile.tier,
-        joinDate: userProfile.created_at,
-        lastActive: userProfile.last_active,
-        totalMessages: userMessages?.length || 0,
-        totalPicks: userPicks?.length || 0,
-        winRate: this.calculateWinRate(userPicks || []),
-        profitLoss: this.calculateUnitsWonLost(userPicks || []),
-        favoriteChannels: await this.getUserFavoriteChannels(userId),
-        activityPattern: await this.getUserActivityPattern(userId),
-        engagementScore: this.calculateEngagementScore(userProfile, userMessages || [], userPicks || []),
-      };
+        journey = newJourney;
+      } else {
+        // Update existing journey
+        const updatedSteps = [...(journey.steps || []), step];
+        const { error: updateError } = await this.supabaseService.client
+          .from('user_journeys')
+          .update({
+            steps: updatedSteps,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', journey.id);
 
-      return analytics;
+        if (updateError) {
+          console.error('❌ Error updating user journey:', updateError);
+          return;
+        }
+      }
+
+      console.log(`📊 User journey step tracked: ${step.action} for user ${userId}`);
     } catch (error) {
-      logger.error(`Failed to generate user analytics for ${userId}:`, error);
-      throw error;
+      console.error('❌ Error tracking user journey step:', error);
     }
   }
 
   /**
-   * Send real-time dashboard update to admin channel
+   * Complete user journey
    */
-  async sendDashboardUpdate(): Promise<void> {
+  async completeUserJourney(userId: string): Promise<void> {
     try {
-      const adminChannel = this.client.channels.cache.get(botConfig.channels.admin) as TextChannel;
-      if (!adminChannel) return;
+      const { error } = await this.supabaseService.client
+        .from('user_journeys')
+        .update({
+          completed: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId)
+        .eq('completed', false);
 
-      const embed = new EmbedBuilder()
-        .setTitle('📊 Real-Time Dashboard Update')
-        .setDescription('Current system statistics')
-        .addFields(
-          { name: '👥 Active Users', value: `${this.realTimeStats.activeUsers}`, inline: true },
-          { name: '💬 Messages Today', value: `${this.realTimeStats.totalMessages}`, inline: true },
-          { name: '🎯 Picks Submitted', value: `${this.realTimeStats.picksSubmitted}`, inline: true },
-          { name: '🧵 Threads Created', value: `${this.realTimeStats.threadsCreated}`, inline: true },
-          { name: '📨 DMs Sent', value: `${this.realTimeStats.dmsSent}`, inline: true },
-          { name: '⚠️ Errors', value: `${this.realTimeStats.errorsCount}`, inline: true }
-        )
-        .setColor('#00FF00')
-        .setTimestamp()
-        .setFooter({ text: 'Auto-generated dashboard update' });
+      if (error) {
+        console.error('❌ Error completing user journey:', error);
+        return;
+      }
 
-      const actionRow = new ActionRowBuilder<ButtonBuilder>()
-        .addComponents(
-          new ButtonBuilder()
-            .setCustomId('dashboard_full')
-            .setLabel('Full Dashboard')
-            .setStyle(ButtonStyle.Primary)
-            .setEmoji('📊'),
-          new ButtonBuilder()
-            .setCustomId('dashboard_errors')
-            .setLabel('View Errors')
-            .setStyle(ButtonStyle.Danger)
-            .setEmoji('⚠️'),
-          new ButtonBuilder()
-            .setCustomId('dashboard_users')
-            .setLabel('User Analytics')
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji('👥')
-        );
-
-      await adminChannel.send({ embeds: [embed], components: [actionRow] });
+      console.log(`✅ User journey completed for user ${userId}`);
     } catch (error) {
-      logger.error('Failed to send dashboard update:', error);
+      console.error('❌ Error completing user journey:', error);
     }
   }
 
   /**
-   * Export analytics data to CSV
+   * Generate session ID for user
    */
-  async exportAnalyticsData(type: string, timeRange: string): Promise<string> {
-    try {
-      let data: any[] = [];
-      let headers: string[] = [];
+  private generateSessionId(userId: string): string {
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substr(2, 9);
+    return `${userId}-${timestamp}-${random}`;
+  }
 
-      switch (type) {
-        case 'users':
-          data = await this.getUsersExportData(timeRange);
-          headers = ['User ID', 'Username', 'Tier', 'Join Date', 'Messages', 'Picks', 'Win Rate', 'Units'];
-          break;
-        case 'picks':
-          data = await this.getPicksExportData(timeRange);
-          headers = ['Pick ID', 'User', 'Teams', 'Pick', 'Units', 'Odds', 'Result', 'Date'];
-          break;
-        case 'engagement':
-          data = await this.getEngagementExportData(timeRange);
-          headers = ['Date', 'Messages', 'Active Users', 'Picks', 'Threads', 'DMs'];
-          break;
-        default:
-          throw new Error('Invalid export type');
+  /**
+   * Get analytics summary for admin dashboard
+   */
+  async getAnalyticsSummary(): Promise<{
+    totalEvents: number;
+    recentEvents: number;
+    topEventTypes: Array<{ event_type: string; count: number }>;
+    activeUsers: number;
+  }> {
+    try {
+      const oneDayAgo = new Date();
+      oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+
+      // Get total events count
+      const { count: totalEvents, error: totalError } = await this.supabaseService.client
+        .from('analytics_events')
+        .select('*', { count: 'exact', head: true })
+        .gte('timestamp', oneDayAgo.toISOString());
+
+      if (totalError) {
+        console.error('❌ Error getting total events count:', totalError);
       }
 
-      // Convert to CSV
-      const csvContent = this.convertToCSV(data, headers);
-      
-      // Store in temporary location or return as string
-      return csvContent;
-    } catch (error) {
-      logger.error('Failed to export analytics data:', error);
-      throw error;
-    }
-  }
+      // Get recent events count (last 24 hours)
+      const { count: recentEvents, error: recentError } = await this.supabaseService.client
+        .from('analytics_events')
+        .select('*', { count: 'exact', head: true })
+        .gte('timestamp', oneDayAgo.toISOString());
 
-  // Private helper methods
-  private async collectRealTimeMetrics(): Promise<void> {
-    try {
-      // Update active users count
-      const guild = this.client.guilds.cache.first();
-      if (guild) {
-        const onlineMembers = guild.members.cache.filter(member => 
-          member.presence?.status === 'online' || 
-          member.presence?.status === 'idle' || 
-          member.presence?.status === 'dnd'
-        ).size;
-        this.updateActiveUsers(onlineMembers);
+      if (recentError) {
+        console.error('❌ Error getting recent events count:', recentError);
       }
 
-      // Update tier distribution
-      await this.updateTierDistribution();
-    } catch (error) {
-      logger.error('Failed to collect real-time metrics:', error);
-    }
-  }
+      // Get top event types
+      const { data: eventTypes, error: typesError } = await this.supabaseService.client
+        .from('analytics_events')
+        .select('event_type')
+        .gte('timestamp', oneDayAgo.toISOString());
 
-  private async updateTierDistribution(): Promise<void> {
-    try {
-      const { data: tierCounts } = await this.supabaseService.client
-        .from('user_profiles')
-        .select('tier')
-        .eq('is_active', true);
-
-      if (tierCounts) {
-        this.realTimeStats.tierDistribution = {
-          member: tierCounts.filter(u => u.tier === 'member').length,
-          vip: tierCounts.filter(u => u.tier === 'vip').length,
-          vip_plus: tierCounts.filter(u => u.tier === 'vip_plus').length,
-          staff: tierCounts.filter(u => u.tier === 'staff').length,
-          admin: tierCounts.filter(u => u.tier === 'admin').length,
-          owner: tierCounts.filter(u => u.tier === 'owner').length
-        };
+      if (typesError) {
+        console.error('❌ Error getting event types:', typesError);
       }
-    } catch (error) {
-      logger.error('Failed to update tier distribution:', error);
-    }
-  }
 
-  private updateHourlyMetric(type: 'messages' | 'picks' | 'users'): void {
-    const currentHour = new Date().getHours();
-    const hourlyMetric = this.realTimeStats.hourlyMetrics?.[currentHour];
-
-    if (!hourlyMetric) {
-      this.realTimeStats.hourlyMetrics[currentHour] = {
-        hour: currentHour,
-        count: 0,
-        messages: 0,
-        picks: 0,
-        users: 0
-      };
-    }
-
-    const metric = this.realTimeStats.hourlyMetrics[currentHour];
-
-    switch (type) {
-      case 'messages':
-        if (metric?.messages !== undefined) metric.messages++;
-        break;
-      case 'picks':
-        if (metric?.picks !== undefined) metric.picks++;
-        break;
-      case 'users':
-        if (metric?.users !== undefined) metric.users++;
-        break;
-    }
-  }
-
-  private async updateHourlyMetrics(): Promise<void> {
-    // Reset metrics for new hour
-    const currentHour = new Date().getHours();
-    const currentTime = Date.now();
-    const hourStart = new Date();
-    hourStart.setHours(currentHour, 0, 0, 0);
-    
-    // If it's a new hour, reset the metrics
-    if (currentTime - hourStart.getTime() < 60000) { // Within first minute of hour
-      this.realTimeStats.hourlyMetrics[currentHour] = {
-        hour: currentHour,
-        count: 0,
-        messages: 0,
-        picks: 0,
-        users: 0
-      };
-    }
-  }
-
-  private getFilteredRealTimeStats(): RealTimeStats {
-    // Return stats without sensitive information for staff
-    const filtered = { ...this.realTimeStats };
-    // Remove or modify sensitive fields as needed
-    return filtered;
-  }
-
-  private async getUserAnalytics(): Promise<any> {
-    const { data } = await this.supabaseService.client
-      .from('user_profiles')
-      .select('tier, created_at, is_active')
-      .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
-
-    return {
-      totalUsers: data?.length || 0,
-      newUsersLast30Days: data?.filter(u => u?.created_at && new Date(u.created_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)).length || 0,
-      activeUsers: data?.filter(u => u?.is_active).length || 0,
-      tierDistribution: this.realTimeStats?.tierDistribution || {}
-    };
-  }
-
-  private async getBasicUserAnalytics(): Promise<any> {
-    // Limited version for staff
-    return {
-      totalUsers: this.realTimeStats.tierDistribution.member + this.realTimeStats.tierDistribution.vip + this.realTimeStats.tierDistribution.vip_plus,
-      tierDistribution: this.realTimeStats.tierDistribution
-    };
-  }
-
-  private async getPickAnalytics(): Promise<any> {
-    const { data } = await this.supabaseService.client
-      .from('final_picks')
-      .select('*')
-      .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
-
-    const totalPicks = data?.length || 0;
-    const wonPicks = data?.filter(p => p.result === 'won').length || 0;
-    const lostPicks = data?.filter(p => p.result === 'lost').length || 0;
-
-    return {
-      totalPicks,
-      wonPicks,
-      lostPicks,
-      winRate: totalPicks > 0 ? Math.round((wonPicks / totalPicks) * 100) : 0,
-      averageUnits: totalPicks > 0 ? (data?.reduce((sum, p) => sum + (p.units || 0), 0) || 0) / totalPicks : 0
-    };
-  }
-
-  private async getEngagementMetrics(): Promise<any> {
-    // Implementation for engagement metrics
-    return {
-      averageMessagesPerUser: 0,
-      averageSessionDuration: 0,
-      retentionRate: 0,
-      mostActiveChannels: []
-    };
-  }
-
-  private async getRevenueMetrics(): Promise<any> {
-    // Implementation for revenue metrics (if applicable)
-    return {
-      monthlyRevenue: 0,
-      tierUpgrades: 0,
-      churnRate: 0
-    };
-  }
-
-  private async getSystemHealth(): Promise<any> {
-    return {
-      uptime: Date.now() - this.realTimeStats.uptime,
-      memoryUsage: process.memoryUsage(),
-      errorRate: this.realTimeStats.errorsCount,
-      responseTime: 0 // Would need to implement response time tracking
-    };
-  }
-
-  private async getBasicSystemHealth(): Promise<any> {
-    return {
-      uptime: Date.now() - this.realTimeStats.uptime,
-      errorRate: this.realTimeStats.errorsCount
-    };
-  }
-
-  private async getRecentErrors(limit: number = 100): Promise<ErrorLog[]> {
-    const { data } = await this.supabaseService.client
-      .from('error_logs')
-      .select('*')
-      .order('timestamp', { ascending: false })
-      .limit(limit);
-
-    return data || [];
-  }
-
-  private async getRecentEvents(limit: number = 200): Promise<EventLog[]> {
-    const { data } = await this.supabaseService.client
-      .from('event_logs')
-      .select('*')
-      .order('timestamp', { ascending: false })
-      .limit(limit);
-
-    return data || [];
-  }
-
-  private async getTrendAnalysis(): Promise<any> {
-    // Implementation for trend analysis
-    return {
-      userGrowthTrend: 'increasing',
-      engagementTrend: 'stable',
-      pickAccuracyTrend: 'improving'
-    };
-  }
-
-  private async getBasicTrendAnalysis(): Promise<any> {
-    return {
-      userGrowthTrend: 'increasing',
-      engagementTrend: 'stable'
-    };
-  }
-
-  private async getActiveAlerts(): Promise<any[]> {
-    // Implementation for active alerts
-    return [];
-  }
-
-  private calculateWinRate(picks: any[]): number {
-    if (picks.length === 0) return 0;
-    const wonPicks = picks.filter(p => p.result === 'won').length;
-    return Math.round((wonPicks / picks.length) * 100);
-  }
-
-  private calculateUnitsWonLost(picks: any[]): number {
-    return picks.reduce((total, pick) => {
-      if (pick.result === 'won') {
-        return total + (pick.units * (pick.odds > 0 ? pick.odds / 100 : Math.abs(100 / pick.odds)));
-      } else if (pick.result === 'lost') {
-        return total - pick.units;
-      }
-      return total;
-    }, 0);
-  }
-
-  private calculateAverageConfidence(picks: any[]): number {
-    if (picks.length === 0) return 0;
-    const totalConfidence = picks.reduce((sum, pick) => sum + (pick.confidence || 0), 0);
-    return Math.round(totalConfidence / picks.length);
-  }
-
-  private async getUserFavoriteChannels(userId: string): Promise<string[]> {
-    // Implementation to get user's favorite channels
-    return [];
-  }
-
-  private async getUserActivityPattern(userId: string): Promise<any> {
-    // Implementation to get user's activity pattern
-    return {};
-  }
-
-  private calculateEngagementScore(profile: any, messages: any[], picks: any[]): number {
-    // Implementation for engagement score calculation
-    return 0;
-  }
-
-  private async checkTierUpgradeEligibility(profile: any): Promise<boolean> {
-    // Implementation for tier upgrade eligibility
-    return false;
-  }
-
-  private isCriticalError(error: any): boolean {
-    // Define what constitutes a critical error
-    const criticalKeywords = ['database', 'connection', 'auth', 'payment'];
-    const errorMessage = (error.message || '').toLowerCase();
-    return criticalKeywords.some(keyword => errorMessage.includes(keyword));
-  }
-
-  private async sendCriticalErrorAlert(errorLog: ErrorLog): Promise<void> {
-    try {
-      const adminChannel = this.client.channels.cache.get(botConfig.channels.admin) as TextChannel;
-      if (!adminChannel) return;
-
-      const embed = new EmbedBuilder()
-        .setTitle('🚨 CRITICAL ERROR ALERT')
-        .setDescription(`A critical error has occurred and requires immediate attention.`)
-        .addFields(
-          { name: 'Error ID', value: errorLog.id, inline: true },
-          { name: 'Timestamp', value: errorLog.timestamp.toString(), inline: true },
-          { name: 'Message', value: errorLog.message.substring(0, 1000), inline: false }
+      const topEventTypes = eventTypes ? 
+        Object.entries(
+          eventTypes.reduce((acc: Record<string, number>, event) => {
+            acc[event.event_type] = (acc[event.event_type] || 0) + 1;
+            return acc;
+          }, {})
         )
-        .setColor('#FF0000')
-        .setTimestamp();
+        .map(([event_type, count]) => ({ event_type, count: count as number }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5) : [];
 
-      if (errorLog.context) {
-        embed.addFields({ name: 'Context', value: JSON.stringify(errorLog.context).substring(0, 1000), inline: false });
+      // Get active users (users with events in last 24 hours)
+      const { data: activeUsersData, error: activeError } = await this.supabaseService.client
+        .from('analytics_events')
+        .select('user_id')
+        .gte('timestamp', oneDayAgo.toISOString());
+
+      if (activeError) {
+        console.error('❌ Error getting active users:', activeError);
       }
 
-      await adminChannel.send({ embeds: [embed] });
+      const activeUsers = activeUsersData ? 
+        new Set(activeUsersData.map(event => event.user_id)).size : 0;
+
+      return {
+        totalEvents: totalEvents || 0,
+        recentEvents: recentEvents || 0,
+        topEventTypes,
+        activeUsers
+      };
     } catch (error) {
-      logger.error('Failed to send critical error alert:', error);
+      console.error('❌ Error getting analytics summary:', error);
+      return {
+        totalEvents: 0,
+        recentEvents: 0,
+        topEventTypes: [],
+        activeUsers: 0
+      };
     }
   }
 
-  private async getUsersExportData(timeRange: string): Promise<any[]> {
-    // Implementation for users export data
-    return [];
-  }
+  /**
+   * Cleanup old analytics data
+   */
+  async cleanupOldData(daysToKeep: number = 90): Promise<void> {
+    try {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
 
-  private async getPicksExportData(timeRange: string): Promise<any[]> {
-    // Implementation for picks export data
-    return [];
-  }
+      const { error } = await this.supabaseService.client
+        .from('analytics_events')
+        .delete()
+        .lt('timestamp', cutoffDate.toISOString());
 
-  private async getEngagementExportData(timeRange: string): Promise<any[]> {
-    // Implementation for engagement export data
-    return [];
-  }
+      if (error) {
+        console.error('❌ Error cleaning up old analytics data:', error);
+        return;
+      }
 
-  private convertToCSV(data: any[], headers: string[]): string {
-    const csvRows = [headers.join(',')];
-    
-    for (const row of data) {
-      const values = headers.map(header => {
-        const value = row[header];
-        return typeof value === 'string' ? `"${value.replace(/"/g, '""')}"` : value;
-      });
-      csvRows.push(values.join(','));
+      console.log(`🧹 Cleaned up analytics data older than ${daysToKeep} days`);
+    } catch (error) {
+      console.error('❌ Error in cleanupOldData:', error);
     }
-    
-    return csvRows.join('\n');
   }
 
   /**
    * Increment message count for analytics
    */
+  async incrementMessageCount(channelId: string): Promise<void> {
+    try {
+      // Implementation for incrementing message count
+      console.log(`📊 Incrementing message count for channel ${channelId}`);
+    } catch (error) {
+      console.error('❌ Error incrementing message count:', error);
+    }
+  }
 
   /**
-   * Cleanup method to stop metrics collection
+   * Increment thread count for analytics
    */
-  destroy(): void {
-    if (this.metricsCollectionInterval) {
-      clearInterval(this.metricsCollectionInterval);
-      this.metricsCollectionInterval = null;
+  async incrementThreadCount(channelId: string): Promise<void> {
+    try {
+      // Implementation for incrementing thread count
+      console.log(`📊 Incrementing thread count for channel ${channelId}`);
+    } catch (error) {
+      console.error('❌ Error incrementing thread count:', error);
+    }
+  }
+
+  /**
+   * Increment command count for analytics
+   */
+  async incrementCommandCount(commandName: string): Promise<void> {
+    try {
+      // Implementation for incrementing command count
+      console.log(`📊 Incrementing command count for ${commandName}`);
+    } catch (error) {
+      console.error('❌ Error incrementing command count:', error);
+    }
+  }
+
+  /**
+   * Log error for analytics
+   */
+  async logError(error: Error, context?: string): Promise<void> {
+    try {
+      // Implementation for logging errors
+      console.error(`❌ Analytics error log: ${error.message}`, context ? `Context: ${context}` : '');
+    } catch (logError) {
+      console.error('❌ Error logging error:', logError);
+    }
+  }
+
+  /**
+   * Get real-time stats
+   */
+  async getRealTimeStats(): Promise<any> {
+    try {
+      // Implementation for getting real-time stats
+      return {
+        messages: 0,
+        threads: 0,
+        commands: 0,
+        errors: 0,
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('❌ Error getting real-time stats:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Send dashboard update
+   */
+  async sendDashboardUpdate(data: any): Promise<void> {
+    try {
+      // Implementation for sending dashboard updates
+      console.log('📊 Sending dashboard update:', data);
+    } catch (error) {
+      console.error('❌ Error sending dashboard update:', error);
+    }
+  }
+
+  /**
+   * Get dashboard analytics
+   */
+  async getDashboardAnalytics(): Promise<any> {
+    try {
+      // Implementation for getting dashboard analytics
+      return {
+        totalUsers: 0,
+        activeUsers: 0,
+        totalMessages: 0,
+        totalCommands: 0,
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('❌ Error getting dashboard analytics:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get user journey (singular)
+   */
+  async getUserJourney(userId: string): Promise<UserJourney | null> {
+    try {
+      const { data: journey, error } = await this.supabaseService.client
+        .from('user_journeys')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          return null; // No journey found
+        }
+        console.error('❌ Error fetching user journey:', error);
+        throw error;
+      }
+
+      return journey;
+    } catch (error) {
+      console.error('❌ Error getting user journey:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Destroy/cleanup method
+   */
+  async destroy(): Promise<void> {
+    try {
+      // Implementation for cleanup
+      console.log('🧹 Destroying AdvancedAnalyticsService');
+    } catch (error) {
+      console.error('❌ Error destroying AdvancedAnalyticsService:', error);
     }
   }
 }

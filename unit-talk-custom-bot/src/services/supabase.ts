@@ -1,6 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Database } from '../../src/db/types/supabase';
-import { UserProfile, Pick, UserTier } from '../types';
+import { UserProfile, UserTier } from '../types/index';
 import { logger } from '../utils/logger';
 import { botConfig } from '../config';
 
@@ -24,7 +24,7 @@ export class SupabaseService {
     );
   }
 
-  async getUserProfile(discordId: string): Promise<UserProfile | null> {
+  async getUserProfile(discordId: string): Promise<any | null> {
     try {
       const { data, error } = await this.client
         .from('user_profiles')
@@ -46,7 +46,7 @@ export class SupabaseService {
     }
   }
 
-  async createUserProfile(profile: Partial<UserProfile>): Promise<UserProfile | null> {
+  async createUserProfile(profile: Partial<UserProfile>): Promise<any | null> {
     try {
       const { data, error } = await this.client
         .from('user_profiles')
@@ -62,7 +62,7 @@ export class SupabaseService {
     }
   }
 
-  async updateUserProfile(discordId: string, updates: Partial<UserProfile>): Promise<UserProfile | null> {
+  async updateUserProfile(discordId: string, updates: Partial<UserProfile>): Promise<any | null> {
     try {
       const updateData: any = {};
       
@@ -103,7 +103,7 @@ export class SupabaseService {
     }
   }
 
-  async getUserPicks(discordId: string, limit = 10): Promise<Pick[]> {
+  async getUserPicks(discordId: string, limit = 10): Promise<any[]> {
     try {
       const { data, error } = await this.client
         .from('final_picks')
@@ -113,14 +113,14 @@ export class SupabaseService {
         .limit(limit);
 
       if (error) throw error;
-      return (data || []) as Pick[];
+      return data || [];
     } catch (error) {
       logger.error('Error fetching user picks:', error);
       return [];
     }
   }
 
-  async createPick(pick: Partial<Pick>): Promise<Pick | null> {
+  async createPick(pick: Partial<any>): Promise<any | null> {
     try {
       const { data, error } = await this.client
         .from('final_picks')
@@ -129,14 +129,14 @@ export class SupabaseService {
         .single();
 
       if (error) throw error;
-      return data as Pick;
+      return data;
     } catch (error) {
       logger.error('Error creating pick:', error);
       return null;
     }
   }
 
-  async updatePick(pickId: string, updates: Partial<Pick>): Promise<Pick | null> {
+  async updatePick(pickId: string, updates: Partial<any>): Promise<any | null> {
     try {
       const { data, error } = await this.client
         .from('final_picks')
@@ -146,7 +146,7 @@ export class SupabaseService {
         .single();
 
       if (error) throw error;
-      return data as Pick;
+      return data;
     } catch (error) {
       logger.error('Error updating pick:', error);
       return null;
@@ -168,7 +168,7 @@ export class SupabaseService {
 
       // Update user's last_active timestamp
       await this.updateUserProfile(discordId, {
-        last_active: new Date()
+        last_active: new Date().toISOString()
       });
     } catch (error) {
       logger.error('Error tracking user activity:', error);
@@ -241,7 +241,7 @@ export class SupabaseService {
   /**
    * Create or update user profile
    */
-  async createOrUpdateUserProfile(userId: string, profile: Partial<UserProfile>): Promise<UserProfile> {
+  async createOrUpdateUserProfile(userId: string, profile: Partial<UserProfile>): Promise<any> {
     try {
       const { data, error } = await this.client
         .from('user_profiles')
@@ -254,7 +254,7 @@ export class SupabaseService {
         .single();
 
       if (error) throw error;
-      return data;
+      return data as any;
     } catch (error) {
       logger.error('Error creating/updating user profile:', error);
       throw error;

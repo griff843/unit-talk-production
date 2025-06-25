@@ -1,5 +1,5 @@
 import { GuildMember } from 'discord.js';
-import { UserTier, UserPermissions, CooldownData } from '../types';
+import { UserTier, UserPermissions, CooldownData } from '../types/';
 import { botConfig } from '../config';
 import { supabaseService } from '../services/supabase';
 import { logger } from './logger';
@@ -9,13 +9,13 @@ export class PermissionUtils {
 
   static async getUserTier(member: GuildMember): Promise<UserTier> {
     try {
-      // Check roles in order of priority
-      if (member.roles.cache.has(botConfig.roles.owner)) return 'owner';
+      // Check roles in order of hierarchy
+      if (member.roles.cache.has((botConfig.roles as any).owner)) return 'owner';
       if (member.roles.cache.has(botConfig.roles.admin)) return 'admin';
-      if (member.roles.cache.has(botConfig.roles.staff)) return 'staff';
+      if (member.roles.cache.has((botConfig.roles as any).staff)) return 'staff';
+      if (member.roles.cache.has(botConfig.roles.moderator)) return 'admin'; // Treat moderator as admin
       if (member.roles.cache.has(botConfig.roles.vipPlus)) return 'vip_plus';
       if (member.roles.cache.has(botConfig.roles.vip)) return 'vip';
-      
       return 'member';
     } catch (error) {
       logger.error('Error getting user tier', { error, userId: member.id });
@@ -34,6 +34,7 @@ export class PermissionUtils {
       canUseCommand: true,
       canCreateThreads: false,
       canViewAnalytics: false,
+      canAccessAnalytics: false,
       canEditConfig: false,
       canUseAdminCommands: false,
       canUseModeratorCommands: false,
@@ -47,7 +48,11 @@ export class PermissionUtils {
       canUseDMs: true,
       maxPicksPerDay: 3,
       maxDMsPerHour: 5,
-      isRateLimited: false
+      isRateLimited: false,
+      canUsePicks: true,
+      canUseAdmin: false,
+      canModerate: false,
+      cooldownSeconds: 120
     };
 
     // Apply tier-specific permissions

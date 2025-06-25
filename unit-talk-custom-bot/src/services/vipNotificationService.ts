@@ -1,7 +1,7 @@
 import { Client, User, GuildMember, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { SupabaseService } from './supabase';
 import { PermissionsService } from './permissions';
-import { UserTier, VIPNotificationSequence, VIPWelcomeFlow } from '../types';
+import { UserTier, VIPNotificationSequence, VIPWelcomeFlow } from '../types/index';
 import { logger } from '../utils/logger';
 import { botConfig } from '../config';
 
@@ -55,8 +55,9 @@ export class VIPNotificationService {
         trigger_type: 'event_based',
         target_tiers: ['vip_plus'],
         enabled: true,
-        created_at: new Date(),
-        updated_at: new Date(),
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
         userId: member.id,
         tier: 'vip_plus',
         startedAt: new Date(),
@@ -131,8 +132,9 @@ export class VIPNotificationService {
         trigger_type: 'event_based',
         target_tiers: ['vip'],
         enabled: true,
-        created_at: new Date(),
-        updated_at: new Date(),
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
         userId: member.id,
         tier: 'vip',
         startedAt: new Date(),
@@ -310,7 +312,7 @@ export class VIPNotificationService {
 
     if (step.delay > 0) {
       setTimeout(async () => {
-        if (step) {
+        if (step && flow.userId) {
           await this.sendDMToUser(flow.userId, step.content);
           flow.currentStep = stepIndex + 1;
 
@@ -320,11 +322,13 @@ export class VIPNotificationService {
         }
       }, step.delay * 60 * 1000);
     } else {
-      await this.sendDMToUser(flow.userId, step.content);
-      flow.currentStep = stepIndex + 1;
+      if (flow.userId) {
+        await this.sendDMToUser(flow.userId, step.content);
+        flow.currentStep = stepIndex + 1;
 
-      if (!step.requiresResponse) {
-        await this.executeWelcomeStep(flow, stepIndex + 1);
+        if (!step.requiresResponse) {
+          await this.executeWelcomeStep(flow, stepIndex + 1);
+        }
       }
     }
   }
@@ -383,7 +387,21 @@ export class VIPNotificationService {
       .setTimestamp()
       .setFooter({ text: 'Consider upgrading to VIP+ for instant alerts and AI features!' });
 
-    return { embeds: [embed] };
+    const actionRow = new ActionRowBuilder<ButtonBuilder>()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('vip_tour_start')
+          .setLabel('Start VIP Tour')
+          .setStyle(ButtonStyle.Primary)
+          .setEmoji('🚀'),
+        new ButtonBuilder()
+          .setCustomId('vip_settings')
+          .setLabel('Notification Settings')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('⚙️')
+      );
+
+    return { embeds: [embed], components: [actionRow] };
   }
 
   // Helper methods
@@ -613,10 +631,15 @@ export class VIPNotificationService {
   async handleNewMember(member: GuildMember): Promise<void> {
     try {
       const tier = this.permissionsService.getUserTier(member);
+
+      // Handle VIP members
       if (tier === 'vip_plus') {
         await this.handleVIPPlusWelcome(member);
       } else if (tier === 'vip') {
         await this.handleVIPWelcome(member);
+      } else {
+        // Handle regular members with enhanced onboarding
+        await this.handleRegularMemberWelcome(member);
       }
     } catch (error) {
       logger.error('Error handling new member:', error);
@@ -624,14 +647,158 @@ export class VIPNotificationService {
   }
 
   /**
+   * Handle regular member welcome with enhanced onboarding
+   */
+  async handleRegularMemberWelcome(member: GuildMember): Promise<void> {
+    try {
+      const welcomeEmbed = new EmbedBuilder()
+        .setTitle('🎉 Welcome to Unit Talk!')
+        .setDescription(`Hey ${member.displayName || member.user.username}! Welcome to our premium betting community!`)
+        .setColor(0x00FF00)
+        .addFields(
+          {
+            name: '🚀 Getting Started',
+            value: '• Check out our <#' + botConfig.channels.announcements + '> for important updates\n• Introduce yourself in <#' + botConfig.channels.general + '>\n• Use `/help` to see available commands\n• Read our community guidelines',
+            inline: false
+          },
+          {
+            name: '📊 Free Features',
+            value: '• Access to general discussions\n• Basic pick analysis\n• Community insights\n• Educational content',
+            inline: false
+          },
+          {
+            name: '💎 Want More?',
+            value: '• **VIP Access**: Get exclusive picks and advanced analytics\n• **VIP+ Access**: Premium features and direct expert access\n• Contact an admin for upgrade information',
+            inline: false
+          },
+          {
+            name: '🤖 Bot Commands',
+            value: '• `/ping` - Check bot status\n• `/help` - Show available commands\n• `/roles` - Check your current permissions\n• `/test` - Test bot functionality',
+            inline: false
+          }
+        )
+        .setFooter({ text: 'Unit Talk - Your Premium Betting Community' })
+        .setTimestamp()
+        .setThumbnail(member.user.displayAvatarURL());
+
+      // Try to send DM first
+      try {
+        await member.send({ embeds: [welcomeEmbed] });
+        logger.info(`Welcome DM sent to ${member.user.username}`);
+      } catch (dmError) {
+        logger.warn(`Could not send welcome DM to ${member.user.username}, sending to welcome channel`);
+
+        // Fallback to welcome channel
+        const welcomeChannel = member.guild.channels.cache.get(botConfig.channels.announcements);
+        if (welcomeChannel && welcomeChannel.isTextBased()) {
+          const publicWelcome = new EmbedBuilder()
+            .setTitle('👋 New Member!')
+            .setDescription(`Welcome ${member} to Unit Talk! 🎉`)
+            .setColor(0x00FF00)
+            .addFields({
+              name: '📬 DM Notice',
+              value: 'We tried to send you a welcome DM but couldn\'t reach you. Make sure your DMs are open for important notifications!',
+              inline: false
+            })
+            .setTimestamp();
+
+          await (welcomeChannel as any).send({ embeds: [publicWelcome] });
+        }
+      }
+
+      // Schedule follow-up messages
+      await this.scheduleFollowUpMessages(member);
+
+    } catch (error) {
+      logger.error(`Failed to handle regular member welcome for ${member.id}:`, error);
+    }
+  }
+
+  /**
+   * Schedule follow-up messages for new members
+   */
+  private async scheduleFollowUpMessages(member: GuildMember): Promise<void> {
+    // 1 hour follow-up
+    setTimeout(async () => {
+      try {
+        const followUpEmbed = new EmbedBuilder()
+          .setTitle('🔥 Getting the Most Out of Unit Talk')
+          .setDescription(`Hi ${member.displayName || member.user.username}! How are you settling in?`)
+          .setColor(0x3498DB)
+          .addFields(
+            {
+              name: '💡 Pro Tips',
+              value: '• Engage with the community to build your reputation\n• Share your insights and learn from others\n• Track your betting performance\n• Ask questions - our community loves to help!',
+              inline: false
+            },
+            {
+              name: '📈 Ready to Level Up?',
+              value: 'Consider upgrading to VIP for:\n• Exclusive high-value picks\n• Advanced analytics\n• Priority support\n• Access to expert strategies',
+              inline: false
+            }
+          )
+          .setFooter({ text: 'Unit Talk - Growing Together' })
+          .setTimestamp();
+
+        await member.send({ embeds: [followUpEmbed] });
+        logger.info(`1-hour follow-up sent to ${member.user.username}`);
+      } catch (error) {
+        logger.warn(`Could not send 1-hour follow-up to ${member.user.username}`);
+      }
+    }, 60 * 60 * 1000); // 1 hour
+
+    // 24 hour follow-up
+    setTimeout(async () => {
+      try {
+        const dayFollowUpEmbed = new EmbedBuilder()
+          .setTitle('🎯 Your First Day at Unit Talk')
+          .setDescription(`Hey ${member.displayName || member.user.username}! You've been with us for 24 hours now.`)
+          .setColor(0xE74C3C)
+          .addFields(
+            {
+              name: '🤔 How\'s it going?',
+              value: 'We hope you\'re finding value in our community! Here are some ways to get more involved:',
+              inline: false
+            },
+            {
+              name: '🎲 Next Steps',
+              value: '• Share your first pick or analysis\n• Join discussions in our channels\n• Connect with other members\n• Explore our educational content',
+              inline: false
+            },
+            {
+              name: '❓ Need Help?',
+              value: 'Don\'t hesitate to ask questions or reach out to our team. We\'re here to help you succeed!',
+              inline: false
+            }
+          )
+          .setFooter({ text: 'Unit Talk - Day 1 Complete!' })
+          .setTimestamp();
+
+        await member.send({ embeds: [dayFollowUpEmbed] });
+        logger.info(`24-hour follow-up sent to ${member.user.username}`);
+      } catch (error) {
+        logger.warn(`Could not send 24-hour follow-up to ${member.user.username}`);
+      }
+    }, 24 * 60 * 60 * 1000); // 24 hours
+  }
+
+  /**
    * Handle tier change
    */
   async handleTierChange(member: GuildMember, oldTier: UserTier, newTier: UserTier): Promise<void> {
     try {
+      // Handle upgrades
       if (newTier === 'vip_plus' && oldTier !== 'vip_plus') {
         await this.handleVIPPlusWelcome(member);
       } else if (newTier === 'vip' && oldTier !== 'vip') {
         await this.handleVIPWelcome(member);
+      }
+
+      // Handle downgrades
+      else if (oldTier === 'vip_plus' && newTier !== 'vip_plus') {
+        await this.handleVIPPlusDowngrade(member, newTier);
+      } else if (oldTier === 'vip' && newTier === 'member') {
+        await this.handleVIPDowngrade(member);
       }
     } catch (error) {
       logger.error('Error handling tier change:', error);
@@ -667,5 +834,117 @@ export class VIPNotificationService {
   private async processWelcomeFlow(userId: string, flow: VIPWelcomeFlow): Promise<void> {
     // Implementation for processing welcome flow steps
     // This would handle the step-by-step welcome process
+  }
+
+  /**
+   * Handle VIP+ downgrade notification
+   */
+  private async handleVIPPlusDowngrade(member: GuildMember, newTier: UserTier): Promise<void> {
+    try {
+      const embed = new EmbedBuilder()
+        .setTitle('📉 VIP+ Access Updated')
+        .setDescription(`Hi ${member.displayName}, your VIP+ access has been updated.`)
+        .addFields(
+          {
+            name: '📋 What Changed',
+            value: newTier === 'vip'
+              ? 'You now have VIP access instead of VIP+'
+              : 'You now have standard member access'
+          },
+          {
+            name: '🔒 Features No Longer Available',
+            value: '• Heat Signal alerts\n• AI coaching features\n• Instant pick notifications\n• Advanced analytics\n• Multi-language support'
+          },
+          {
+            name: '✅ Still Available',
+            value: newTier === 'vip'
+              ? '• VIP picks and analysis\n• Early access to picks\n• Basic analytics\n• VIP channels'
+              : '• Free daily picks\n• Basic community access'
+          },
+          {
+            name: '🔄 Want to Upgrade Again?',
+            value: 'Contact our team if you\'d like to restore your VIP+ access!'
+          }
+        )
+        .setColor('#FF6B6B')
+        .setThumbnail(member.user.displayAvatarURL())
+        .setTimestamp();
+
+      const upgradeButton = new ActionRowBuilder<ButtonBuilder>()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId('upgrade_vip_plus')
+            .setLabel('Upgrade to VIP+')
+            .setStyle(ButtonStyle.Success)
+            .setEmoji('⬆️')
+        );
+
+      await member.send({
+        embeds: [embed],
+        components: [upgradeButton]
+      });
+
+      logger.info('VIP+ downgrade notification sent', {
+        userId: member.id,
+        username: member.user.username,
+        newTier
+      });
+    } catch (error) {
+      logger.error('Error sending VIP+ downgrade notification:', error);
+    }
+  }
+
+  /**
+   * Handle VIP downgrade notification
+   */
+  private async handleVIPDowngrade(member: GuildMember): Promise<void> {
+    try {
+      const embed = new EmbedBuilder()
+        .setTitle('📉 VIP Access Updated')
+        .setDescription(`Hi ${member.displayName}, your VIP access has been updated to standard member access.`)
+        .addFields(
+          {
+            name: '🔒 Features No Longer Available',
+            value: '• VIP exclusive picks\n• Early access to picks\n• VIP channels\n• Basic analytics\n• Premium content'
+          },
+          {
+            name: '✅ Still Available',
+            value: '• Free daily picks\n• Community discussions\n• Basic support'
+          },
+          {
+            name: '🔄 Want VIP Access Again?',
+            value: 'You can upgrade back to VIP anytime to restore your premium features!'
+          }
+        )
+        .setColor('#FF6B6B')
+        .setThumbnail(member.user.displayAvatarURL())
+        .setTimestamp();
+
+      const upgradeButtons = new ActionRowBuilder<ButtonBuilder>()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId('upgrade_vip')
+            .setLabel('Upgrade to VIP')
+            .setStyle(ButtonStyle.Primary)
+            .setEmoji('⬆️'),
+          new ButtonBuilder()
+            .setCustomId('upgrade_vip_plus')
+            .setLabel('Upgrade to VIP+')
+            .setStyle(ButtonStyle.Success)
+            .setEmoji('💎')
+        );
+
+      await member.send({
+        embeds: [embed],
+        components: [upgradeButtons]
+      });
+
+      logger.info('VIP downgrade notification sent', {
+        userId: member.id,
+        username: member.user.username
+      });
+    } catch (error) {
+      logger.error('Error sending VIP downgrade notification:', error);
+    }
   }
 }

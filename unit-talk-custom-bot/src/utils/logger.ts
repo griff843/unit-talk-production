@@ -1,5 +1,4 @@
 import winston from 'winston';
-import { LogContext } from '../types';
 
 // Define log levels
 const logLevels = {
@@ -90,29 +89,32 @@ export const logger = winston.createLogger({
   ]
 });
 
+// Simple LogContext type for additional logging context
+type LogContext = Record<string, any>;
+
 // Enhanced logging methods with context support
 export const logWithContext = {
   error: (message: string, error?: any, context?: LogContext) => {
     logger.error(message, { error: error?.message || error, stack: error?.stack, ...context });
   },
-  
+
   warn: (message: string, context?: LogContext) => {
     logger.warn(message, context);
   },
-  
+
   info: (message: string, context?: LogContext) => {
     logger.info(message, context);
   },
-  
+
   debug: (message: string, context?: LogContext) => {
     logger.debug(message, context);
   },
-  
+
   // Special method for Discord events
   discordEvent: (event: string, data: any, context?: LogContext) => {
     logger.info(`Discord Event: ${event}`, { event, data, ...context });
   },
-  
+
   // Special method for command usage
   commandUsage: (command: string, userId: string, guildId: string, success: boolean) => {
     logger.info(`Command Usage: ${command}`, {

@@ -1,5 +1,6 @@
+
 import { GuildMember, User } from 'discord.js';
-import { UserTier, UserPermissions } from '../types';
+import { UserTier, UserPermissions, CooldownData } from '../types/';
 import { botConfig } from '../config';
 import { supabaseService } from './supabase';
 import { logger } from '../utils/logger';
@@ -56,11 +57,47 @@ export class PermissionsService {
    */
   isStaff(member: GuildMember): boolean {
     try {
-      return member.roles.cache.has(botConfig.roles.staff) ||
+      return member.roles.cache.has((botConfig.roles as any).staff) ||
              this.isAdmin(member) ||
              this.isModerator(member);
     } catch (error) {
       logger.error('Error checking staff status:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Check if user has a specific role
+   */
+  hasRole(member: GuildMember, roleType: string): boolean {
+    try {
+      switch (roleType.toLowerCase()) {
+        case 'admin':
+          return this.isAdmin(member);
+        case 'moderator':
+        case 'mod':
+          return this.isModerator(member);
+        case 'staff':
+          return this.isStaff(member);
+        case 'vip':
+          return member.roles.cache.has(botConfig.roles.vip) ||
+                 member.roles.cache.has(botConfig.roles.vipPlus) ||
+                 this.isAdmin(member);
+        case 'vipplus':
+        case 'vip_plus':
+          return member.roles.cache.has(botConfig.roles.vipPlus) ||
+                 this.isAdmin(member);
+        case 'member':
+          return true; // All users are members
+        default:
+          // Try to find role by name or ID
+          return member.roles.cache.some(role =>
+            role.name.toLowerCase() === roleType.toLowerCase() ||
+            role.id === roleType
+          );
+      }
+    } catch (error) {
+      logger.error(`Error checking role ${roleType}:`, error);
       return false;
     }
   }
@@ -72,26 +109,36 @@ export class PermissionsService {
     const tier = this.getUserTier(member);
     const isAdmin = this.isAdmin(member);
     const isModerator = this.isModerator(member);
+    const isOwner = tier === 'owner';
+    const isStaff = this.isStaff(member);
 
     return {
       tier,
-      roles: member.roles.cache.map(role => role.name),
+      canUsePicks: true, // All users can submit picks
+      canUseAdmin: isAdmin,
+      canModerate: isModerator || isAdmin,
       canAccessVIP: tier === 'vip' || tier === 'vip_plus' || isAdmin,
       canAccessVIPPlus: tier === 'vip_plus' || isAdmin,
-      canSubmitPicks: true, // All users can submit picks
-      canAccessCoaching: tier === 'vip' || tier === 'vip_plus' || isAdmin,
-      canUseDMs: true, // All users can receive DMs
-      canCreateThreads: tier === 'vip' || tier === 'vip_plus' || isAdmin || isModerator,
-      canViewVIPContent: tier === 'vip' || tier === 'vip_plus' || tier === 'staff' || tier === 'admin' || tier === 'owner',
+      maxPicksPerDay: tier === 'vip_plus' ? 20 : tier === 'vip' ? 15 : 10,
+      cooldownSeconds: tier === 'vip_plus' ? 30 : tier === 'vip' ? 60 : 120,
+      canSubmitPicks: true,
+      canViewVIPContent: tier === 'vip' || tier === 'vip_plus' || isAdmin,
       canViewVipPlusContent: tier === 'vip_plus' || isAdmin,
+      canUseCommand: true,
+      canCreateThreads: isStaff || isAdmin,
+      canViewAnalytics: isAdmin,
+      canAccessAnalytics: isAdmin,
+      canEditConfig: isAdmin,
       canUseAdminCommands: isAdmin,
       canUseModeratorCommands: isModerator || isAdmin,
-      canUseCommand: true, // All users can use basic commands
-      canViewAnalytics: isAdmin || tier === 'staff' || tier === 'owner',
-      canEditConfig: isAdmin || tier === 'owner',
-      isOwner: tier === 'owner',
+      isOwner,
       isAdmin,
-      isModerator
+      isModerator,
+      roles: member.roles.cache.map(role => role.id),
+      canAccessCoaching: tier === 'vip_plus' || isAdmin,
+      canUseDMs: true,
+      maxDMsPerHour: tier === 'vip_plus' ? 20 : tier === 'vip' ? 10 : 5,
+      isRateLimited: false
     };
   }
 
@@ -109,16 +156,16 @@ export class PermissionsService {
       case botConfig.channels.vipPicks:
       case botConfig.channels.vipGeneral:
         return permissions.canAccessVIP;
-        
+
       case botConfig.channels.vipPlusPicks:
       case botConfig.channels.vipPlusGeneral:
         return permissions.canAccessVIPPlus;
-        
-      case botConfig.channels.freePicks:
+
+      case (botConfig.channels as any).freePicks:
       case botConfig.channels.general:
       case botConfig.channels.announcements:
         return true; // Public channels
-        
+
       default:
         return true; // Allow access to unknown channels by default
     }
@@ -165,14 +212,14 @@ export class PermissionsService {
     try {
       const newTier = await this.getUserTier(member);
       const profile = await supabaseService.getUserProfile(member.id);
-      
-      if (profile && profile.tier !== newTier) {
+
+      if (profile && (profile as any).tier && (profile as any).tier !== newTier) {
         await supabaseService.updateUserProfile(member.id, {
           tier: newTier,
-          updated_at: new Date()
-        });
-        
-        logger.info(`Updated user ${member.user.username} tier from ${profile.tier} to ${newTier}`);
+          updated_at: new Date().toISOString()
+        } as any);
+
+        logger.info(`Updated user ${member.user.username} tier from ${(profile as any).tier} to ${newTier}`);
       }
     } catch (error) {
       logger.error('Error syncing user tier:', error);

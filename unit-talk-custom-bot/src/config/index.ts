@@ -1,4 +1,9 @@
-import { BotConfig } from '../types';
+import { BotConfig } from '../types/index';
+
+const getFirstRoleId = (envVar: string | undefined, defaultValue: string): string => {
+  if (!envVar) return defaultValue;
+  return envVar.split(',')[0].trim();
+};
 
 export const botConfig: BotConfig = {
   prefix: '!',
@@ -19,12 +24,12 @@ export const botConfig: BotConfig = {
   },
   roles: {
     member: process.env.MEMBER_ROLE_ID || '1234567890123456789',
-    vip: process.env.VIP_ROLE_ID || '1234567890123456789',
-    vipPlus: process.env.VIP_PLUS_ROLE_ID || '1234567890123456789',
+    vip: getFirstRoleId(process.env.VIP_ROLE_IDS, '1234567890123456789'),
+    vipPlus: getFirstRoleId(process.env.VIP_PLUS_ROLE_IDS, '1234567890123456789'),
     staff: process.env.STAFF_ROLE_ID || '1234567890123456789',
-    admin: process.env.ADMIN_ROLE_ID || '1234567890123456789',
+    admin: getFirstRoleId(process.env.ADMIN_ROLE_IDS, '1234567890123456789'),
     owner: process.env.OWNER_ROLE_ID || '1234567890123456789',
-    moderator: process.env.MODERATOR_ROLE_ID || '1234567890123456789'
+    moderator: getFirstRoleId(process.env.MODERATOR_ROLE_IDS, '1234567890123456789')
   },
   features: {
     vipNotifications: process.env.ENABLE_VIP_NOTIFICATIONS === 'true',

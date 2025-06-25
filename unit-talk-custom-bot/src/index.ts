@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { Client, GatewayIntentBits, Partials, GuildMember } from 'discord.js';
 import { botConfig } from './config';
 import { logger } from './utils/logger';
@@ -10,11 +11,21 @@ import { AdvancedAnalyticsService } from './services/advancedAnalyticsService';
 import { AIPoweredService } from './services/aiPoweredService';
 import { AdminOverrideService } from './services/adminOverrideService';
 import { QuickEditConfigService } from './services/quickEditConfigService';
+// import { OnboardingService } from './services/onboardingService';
+import { OnboardingService } from './services/onboardingService';
+import { ComprehensiveOnboardingService } from './services/comprehensiveOnboardingService';
+import { AdminDashboardService } from './services/adminDashboardService';
+import { AdminCommands } from './commands/adminCommands';
 import { CommandHandler } from './handlers/commandHandler';
 import { EventHandler } from './handlers/eventHandler';
 import { InteractionHandler } from './handlers/interactionHandler';
+import { OnboardingButtonHandler } from './handlers/onboardingButtonHandler';
 
-class UnitTalkBot {
+// Add startup logging
+console.log('🚀 Unit Talk Discord Bot starting...');
+console.log('📋 Loading environment configuration...');
+
+export class UnitTalkBot {
   private client: Client;
   private supabaseService!: SupabaseService;
   private permissionsService!: PermissionsService;
@@ -25,6 +36,11 @@ class UnitTalkBot {
   private aiPoweredService!: AIPoweredService;
   private adminOverrideService!: AdminOverrideService;
   private quickEditConfigService!: QuickEditConfigService;
+  private onboardingService!: OnboardingService;
+  private comprehensiveOnboardingService!: ComprehensiveOnboardingService;
+  private onboardingButtonHandler!: OnboardingButtonHandler;
+  private adminDashboardService!: AdminDashboardService;
+  private adminCommands!: AdminCommands;
   private commandHandler!: CommandHandler;
   private eventHandler!: EventHandler;
   private interactionHandler!: InteractionHandler;
@@ -59,9 +75,23 @@ class UnitTalkBot {
    */
   private initializeServices(): void {
     try {
+      console.log('🔧 Initializing core services...');
+
       // Core services
       this.supabaseService = new SupabaseService();
       this.permissionsService = new PermissionsService();
+
+      console.log('✅ Core services initialized');
+      console.log('🔧 Initializing analytics service...');
+
+      // Initialize analytics service first (needed by other services)
+      this.advancedAnalyticsService = new AdvancedAnalyticsService(
+        this.client,
+        this.supabaseService
+      );
+
+      console.log('✅ Analytics service initialized');
+      console.log('🔧 Initializing feature services...');
 
       // Feature services
       this.vipNotificationService = new VIPNotificationService(
@@ -82,18 +112,51 @@ class UnitTalkBot {
         this.permissionsService
       );
 
-      this.advancedAnalyticsService = new AdvancedAnalyticsService(
-        this.client,
-        this.supabaseService,
-        this.permissionsService
-      );
-
       this.aiPoweredService = new AIPoweredService(
         this.client,
         this.supabaseService,
         this.permissionsService
       );
 
+      console.log('✅ Feature services initialized');
+      console.log('🔧 Initializing onboarding services...');
+
+      // Onboarding services
+      this.onboardingService = new OnboardingService(
+        this.client,
+        this.supabaseService,
+        this.permissionsService,
+        this.advancedAnalyticsService
+      );
+
+      // Comprehensive onboarding service with tier-based flows
+      this.comprehensiveOnboardingService = new ComprehensiveOnboardingService(
+        this.client,
+        this.supabaseService,
+        this.permissionsService,
+        this.advancedAnalyticsService
+      );
+
+      // Onboarding button handler
+      this.onboardingButtonHandler = new OnboardingButtonHandler(
+        this.client,
+        this.supabaseService,
+        this.permissionsService,
+        this.comprehensiveOnboardingService
+      );
+
+      this.adminDashboardService = new AdminDashboardService(
+        this.client,
+        this.supabaseService,
+        this.permissionsService,
+        this.onboardingService,
+        this.advancedAnalyticsService
+      );
+
+      console.log('✅ Onboarding services initialized');
+      console.log('🔧 Initializing admin services...');
+
+      // Admin services
       this.adminOverrideService = new AdminOverrideService(
         this.client,
         this.supabaseService,
@@ -113,6 +176,16 @@ class UnitTalkBot {
         this.automatedThreadService,
         this.vipNotificationService
       );
+
+      this.adminCommands = new AdminCommands(
+        this.adminDashboardService,
+        null, // this.onboardingService,
+        this.advancedAnalyticsService,
+        this.permissionsService
+      );
+
+      console.log('✅ Admin services initialized');
+      console.log('🔧 Initializing handlers...');
 
       // Handlers
       this.commandHandler = new CommandHandler(
@@ -136,8 +209,10 @@ class UnitTalkBot {
         this.getAllServices()
       );
 
+      console.log('✅ All handlers initialized');
       logger.info('All services initialized successfully');
     } catch (error) {
+      console.error('❌ Failed to initialize services:', error);
       logger.error('Failed to initialize services:', error);
       throw error;
     }
@@ -154,7 +229,11 @@ class UnitTalkBot {
       advancedAnalyticsService: this.advancedAnalyticsService,
       aiPoweredService: this.aiPoweredService,
       adminOverrideService: this.adminOverrideService,
-      quickEditConfigService: this.quickEditConfigService
+      quickEditConfigService: this.quickEditConfigService,
+      onboardingService: this.onboardingService,
+      comprehensiveOnboardingService: this.comprehensiveOnboardingService,
+      onboardingButtonHandler: this.onboardingButtonHandler,
+      adminDashboardService: this.adminDashboardService
     };
   }
 
@@ -164,15 +243,34 @@ class UnitTalkBot {
   private setupEventHandlers(): void {
     // Bot ready event
     this.client.once('ready', async () => {
+      console.log(`🤖 Bot online: ${this.client.user?.tag}`);
+      console.log(`🏠 Serving ${this.client.guilds.cache.size} guilds`);
       logger.info(`Bot logged in as ${this.client.user?.tag}`);
       logger.info(`Serving ${this.client.guilds.cache.size} guilds`);
-      
+
+      // Set bot presence/status
+      try {
+        await this.client.user?.setPresence({
+          activities: [{
+            name: 'Unit Talk Community',
+            type: 3 // Watching
+          }],
+          status: 'online'
+        });
+        console.log('✅ Bot presence set to online');
+      } catch (error) {
+        console.log('⚠️ Failed to set bot presence:', error);
+      }
+
       // Initialize services that need the client to be ready
+      console.log('🔧 Running post-ready initialization...');
       await this.postReadyInitialization();
-      
+
       // Start periodic tasks
+      console.log('⏰ Starting periodic tasks...');
       this.startPeriodicTasks();
-      
+
+      console.log('🎉 Unit Talk Discord Bot is fully operational!');
       logger.info('Unit Talk Discord Bot is fully operational!');
     });
 
@@ -190,25 +288,37 @@ class UnitTalkBot {
         }
       } catch (error) {
         logger.error('Error handling message:', error);
-        await this.advancedAnalyticsService.logError(error, {
-          messageId: message.id,
-          channelId: message.channelId,
-          userId: message.author.id
-        });
+        await this.advancedAnalyticsService.logError(
+          error instanceof Error ? error : new Error(String(error)),
+          'message_handling'
+        );
       }
     });
 
     // Member events
     this.client.on('guildMemberAdd', async (member) => {
       try {
+        console.log(`👋 New member joined: ${member.user.username} (${member.id})`);
+
+        // Start comprehensive onboarding process
+        // await this.onboardingService.startOnboarding(member);
+
+        // Legacy handlers for backward compatibility
         await this.eventHandler.handleMemberJoin(member);
         await this.vipNotificationService.handleNewMember(member);
       } catch (error) {
         logger.error('Error handling member join:', error);
-        await this.advancedAnalyticsService.logError(error, {
-          userId: member.id,
-          guildId: member.guild.id
-        });
+        await this.advancedAnalyticsService.logError(
+          error instanceof Error ? error : new Error(String(error)),
+          'member_join'
+        );
+
+        // Handle onboarding errors
+        try {
+          // await this.onboardingService.handleOnboardingError(member, error);
+        } catch (onboardingError) {
+          logger.error('Error handling onboarding error:', onboardingError);
+        }
       }
     });
 
@@ -216,19 +326,14 @@ class UnitTalkBot {
       try {
         await this.eventHandler.handleMemberUpdate(oldMember, newMember);
 
-        // Check for tier changes
-        const oldTier = this.permissionsService.getUserTier(oldMember as GuildMember);
-        const newTier = this.permissionsService.getUserTier(newMember);
-
-        if (oldTier !== newTier) {
-          await this.vipNotificationService.handleTierChange(newMember, oldTier, newTier);
-        }
+        // Role change handling is now done in roleChangeService.ts to avoid duplicates
+        // The roleChangeService will handle tier changes and notifications
       } catch (error) {
         logger.error('Error handling member update:', error);
-        await this.advancedAnalyticsService.logError(error, {
-          userId: newMember.id,
-          guildId: newMember.guild.id
-        });
+        await this.advancedAnalyticsService.logError(
+          error instanceof Error ? error : new Error(String(error)),
+          'member_update'
+        );
       }
     });
 
@@ -236,13 +341,13 @@ class UnitTalkBot {
     this.client.on('threadCreate', async (thread) => {
       try {
         await this.eventHandler.handleThreadCreate(thread);
-        this.advancedAnalyticsService.incrementThreadCount();
+        this.advancedAnalyticsService.incrementThreadCount(thread.parentId || 'unknown');
       } catch (error) {
         logger.error('Error handling thread create:', error);
-        await this.advancedAnalyticsService.logError(error, {
-          threadId: thread.id,
-          channelId: thread.parentId
-        });
+        await this.advancedAnalyticsService.logError(
+          error instanceof Error ? error : new Error(String(error)),
+          'thread_create'
+        );
       }
     });
 
@@ -252,15 +357,14 @@ class UnitTalkBot {
         await this.interactionHandler.handleInteraction(interaction);
         
         if (interaction.isCommand()) {
-          this.advancedAnalyticsService.incrementCommandCount();
+          this.advancedAnalyticsService.incrementCommandCount(interaction.commandName);
         }
       } catch (error) {
         logger.error('Error handling interaction:', error);
-        await this.advancedAnalyticsService.logError(error, {
-          interactionId: interaction.id,
-          userId: interaction.user.id,
-          channelId: interaction.channelId
-        });
+        await this.advancedAnalyticsService.logError(
+          error instanceof Error ? error : new Error(String(error)),
+          'interaction_handling'
+        );
       }
     });
 
@@ -272,18 +376,17 @@ class UnitTalkBot {
         }
       } catch (error) {
         logger.error('Error handling reaction add:', error);
-        await this.advancedAnalyticsService.logError(error, {
-          messageId: reaction.message.id,
-          userId: user.id,
-          emoji: reaction.emoji.name
-        });
+        await this.advancedAnalyticsService.logError(
+          error instanceof Error ? error : new Error(String(error)),
+          'reaction_add'
+        );
       }
     });
 
     // Error handling
     this.client.on('error', async (error) => {
       logger.error('Discord client error:', error);
-      await this.advancedAnalyticsService.logError(error, { source: 'discord_client' });
+      await this.advancedAnalyticsService.logError(error, 'discord_client');
     });
 
     this.client.on('warn', (warning) => {
@@ -333,7 +436,8 @@ class UnitTalkBot {
     // Send analytics dashboard updates every 30 minutes
     setInterval(async () => {
       try {
-        await this.advancedAnalyticsService.sendDashboardUpdate();
+        const stats = await this.advancedAnalyticsService.getRealTimeStats();
+        await this.advancedAnalyticsService.sendDashboardUpdate(stats);
       } catch (error) {
         logger.error('Failed to send dashboard update:', error);
       }
@@ -456,23 +560,29 @@ class UnitTalkBot {
    */
   async start(): Promise<void> {
     try {
-      logger.info('Starting Unit Talk Discord Bot...');
-      
+      console.log('🔐 Validating environment variables...');
+
       // Validate environment variables
       if (!process.env.DISCORD_TOKEN) {
+        console.error('❌ DISCORD_TOKEN environment variable is required');
         throw new Error('DISCORD_TOKEN environment variable is required');
       }
 
       if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+        console.error('❌ Supabase environment variables are required');
         throw new Error('Supabase environment variables are required');
       }
 
+      console.log('✅ Environment variables validated');
+      console.log('🔗 Connecting to Discord...');
+
       // Login to Discord
       await this.client.login(process.env.DISCORD_TOKEN);
-      
+
     } catch (error) {
+      console.error('❌ Failed to start bot:', error);
       logger.error('Failed to start bot:', error);
-      throw error;
+      process.exit(1);
     }
   }
 
@@ -501,21 +611,26 @@ class UnitTalkBot {
 }
 
 // Create and start the bot
+console.log('🏗️ Creating bot instance...');
 const bot = new UnitTalkBot();
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
+  console.error('💥 Uncaught Exception:', error);
   logger.error('Uncaught Exception:', error);
   bot.shutdown();
 });
 
 process.on('unhandledRejection', (reason, promise) => {
+  console.error('💥 Unhandled Rejection at:', promise, 'reason:', reason);
   logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
   bot.shutdown();
 });
 
 // Start the bot
+console.log('🚀 Starting bot...');
 bot.start().catch((error) => {
+  console.error('💥 Failed to start bot:', error);
   logger.error('Failed to start bot:', error);
   process.exit(1);
 });

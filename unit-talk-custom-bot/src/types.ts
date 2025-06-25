@@ -1059,3 +1059,124 @@ export interface UserPickSubmission {
   submittedAt?: string;
   submitted_at?: string; // Alias for database compatibility
 }
+
+// Keyword and Emoji DM Service Types
+export interface KeywordTrigger {
+  id: string;
+  name: string;
+  description?: string;
+  keywords: string[];
+  matchType: 'EXACT' | 'CONTAINS' | 'STARTS_WITH' | 'ENDS_WITH' | 'exact' | 'partial' | 'regex';
+  template_id: string;
+  templateId: string; // Alias for compatibility
+  conditions?: TriggerCondition[];
+  cooldownMinutes?: number;
+  priority?: number;
+  is_active: boolean;
+  isActive: boolean; // Alias for compatibility
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  activation_count?: number;
+}
+
+export interface EmojiTrigger {
+  id: string;
+  name: string;
+  description?: string;
+  emoji: string[];
+  emoji_identifiers: string[];
+  template_id: string;
+  templateId: string; // Alias for compatibility
+  conditions?: TriggerCondition[];
+  cooldownMinutes?: number;
+  priority?: number;
+  is_active: boolean;
+  isActive: boolean; // Alias for compatibility
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  activation_count?: number;
+}
+
+export interface AutoDMTemplate {
+  id: string;
+  name: string;
+  title: string;
+  subject?: string;
+  description?: string;
+  content: string;
+  embed_color?: string;
+  embed_data?: any; // Changed from embedData
+  buttons?: DMButton[];
+  components_data?: any; // Changed from componentsData
+  variables?: Record<string, any>;
+  embeds?: any[];
+  is_active: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  usage_count?: number;
+}
+
+export interface DMButton {
+  label: string;
+  style: 'PRIMARY' | 'SECONDARY' | 'SUCCESS' | 'DANGER' | 'LINK';
+  emoji?: string;
+  custom_id?: string;
+  url?: string;
+}
+
+export interface TriggerCondition {
+  type: 'ROLE' | 'CHANNEL' | 'TIME' | 'USER_TIER' | 'MESSAGE_LENGTH';
+  operator: 'EQUALS' | 'NOT_EQUALS' | 'CONTAINS' | 'NOT_CONTAINS' | 'GREATER_THAN' | 'LESS_THAN';
+  value: string | number;
+}
+
+// Quick Edit Config Service Types
+export interface ConfigUpdate {
+  key: string;
+  value: any;
+  previous_value?: any;
+  updated_by: string;
+  updated_at: string;
+}
+
+export interface QuickEditSession {
+  id: string;
+  user_id: string;
+  config_section: string;
+  changes: ConfigUpdate[];
+  is_active: boolean;
+  created_at: string;
+  expires_at: string;
+}
+
+// Template creation types
+export interface CreateAutoDMTemplate {
+  name: string;
+  title: string;
+  description?: string;
+  subject?: string;
+  content: string;
+  embed_color?: string;
+  embed_data?: any;
+  buttons?: DMButton[];
+  components_data?: any;
+  variables?: Record<string, any>;
+  embeds?: any[];
+}
+
+// Thread Service Types
+export interface GameThread {
+  id: string;
+  game_id: string;
+  channel_id: string;
+  thread_id: string;
+  sport: string;
+  teams: string[];
+  game_time: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}

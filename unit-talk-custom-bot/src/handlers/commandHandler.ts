@@ -1,7 +1,9 @@
-import { Client, Message, CommandInteraction, ButtonInteraction, SelectMenuInteraction, ModalSubmitInteraction } from 'discord.js';
+import { Client, Message, ChatInputCommandInteraction, CommandInteraction, User, GuildMember, Guild, ButtonInteraction, SelectMenuInteraction, ModalSubmitInteraction, EmbedBuilder } from 'discord.js';
 import { SupabaseService } from '../services/supabase';
 import { PermissionsService } from '../services/permissions';
-import { CommandContext } from '../types';
+import { UserProfile, UserTier } from '../types';
+import { createUserProfileEmbed, createLeaderboardEmbed } from '../utils/embeds';
+import { CommandContext } from '../types/index';
 import { logger } from '../utils/logger';
 
 export class CommandHandler {
@@ -25,7 +27,7 @@ export class CommandHandler {
   /**
    * Handle slash commands
    */
-  async handleSlashCommand(interaction: CommandInteraction): Promise<void> {
+  async handleSlashCommand(interaction: ChatInputCommandInteraction): Promise<void> {
     try {
       const { commandName } = interaction;
 
@@ -54,39 +56,76 @@ export class CommandHandler {
         case 'ping':
           await this.handlePingCommand(context);
           break;
-        
-        case 'pick':
-          await this.handlePickCommand(context);
+
+        case 'profile':
+          await this.handleProfileCommand(context);
           break;
-        
+
         case 'stats':
           await this.handleStatsCommand(context);
           break;
-        
+
+        case 'leaderboard':
+          await this.handleLeaderboardCommand(context);
+          break;
+
+        case 'help':
+          await this.handleHelpCommand(context);
+          break;
+
+        case 'vip-info':
+          await this.handleVIPInfoCommand(context);
+          break;
+
+        case 'trial-status':
+          await this.handleTrialStatusCommand(context);
+          break;
+
+        case 'upgrade':
+          await this.handleUpgradeCommand(context);
+          break;
+
+
+        case 'heat-signal':
+          await this.handleHeatSignalCommand(context);
+          break;
+
+        case 'edge-tracker':
+          await this.handleEdgeTrackerCommand(context);
+          break;
+
+        case 'ask-unit-talk':
+          await this.handleAskUnitTalkCommand(context);
+          break;
+
+        case 'pick':
+          await this.handlePickCommand(context);
+          break;
+
         case 'admin':
           await this.handleAdminCommand(context);
           break;
-        
+
         case 'analytics':
           await this.handleAnalyticsCommand(context);
           break;
-        
+
         case 'ai-grade':
           await this.handleAIGradeCommand(context);
           break;
-        
+
         case 'ai-coach':
           await this.handleAICoachCommand(context);
           break;
-        
+
         case 'config':
           await this.handleConfigCommand(context);
           break;
-        
+
         case 'override':
           await this.handleOverrideCommand(context);
           break;
-        
+
         default:
           await interaction.reply({
             content: '❌ Unknown command.',
@@ -163,26 +202,75 @@ export class CommandHandler {
     try {
       const stats = await this.services.advancedAnalyticsService.getRealTimeStats();
 
+      const statsEmbed = new EmbedBuilder()
+        .setTitle('📊 Bot Statistics')
+        .setDescription('Current bot performance metrics')
+        .addFields(
+          { name: 'Total Users', value: stats?.totalUsers?.toString() || '0', inline: true },
+          { name: 'Active Today', value: stats?.activeToday?.toString() || '0', inline: true },
+          { name: 'Commands Used', value: stats?.commandsUsed?.toString() || '0', inline: true },
+          { name: 'Last Updated', value: stats?.timestamp || 'Unknown', inline: false }
+        )
+        .setColor(0x00ff00)
+        .setTimestamp();
+
       await interaction.reply({
-        embeds: [{
-          title: '📊 Bot Statistics',
-          fields: [
-            { name: 'Active Users', value: stats.activeUsers.toString(), inline: true },
-            { name: 'Total Messages', value: stats.totalMessages.toString(), inline: true },
-            { name: 'Picks Submitted', value: stats.picksSubmitted.toString(), inline: true },
-            { name: 'Threads Created', value: stats.threadsCreated.toString(), inline: true },
-            { name: 'DMs Sent', value: stats.dmsSent.toString(), inline: true },
-            { name: 'Commands Executed', value: stats.commandsExecuted.toString(), inline: true }
-          ],
-          color: 0x00ff00,
-          timestamp: new Date().toISOString()
-        }],
+        embeds: [statsEmbed],
         ephemeral: true
       });
     } catch (error) {
-      logger.error('Error getting stats:', error);
+      console.error('❌ Error getting stats:', error);
       await interaction.reply({
-        content: '❌ Failed to retrieve statistics.',
+        content: '❌ Error retrieving bot statistics.',
+        ephemeral: true
+      });
+    }
+  }
+
+  /**
+   * Handle leaderboard command
+   */
+  private async handleLeaderboardCommand(context: CommandContext): Promise<void> {
+    const { interaction } = context;
+
+    if (!interaction) {
+      return;
+    }
+
+    try {
+      // Get leaderboard data from analytics service
+      const leaderboardData = await this.services.advancedAnalyticsService.getLeaderboard();
+
+      const leaderboardEmbed = new EmbedBuilder()
+        .setTitle('🏆 Unit Talk Leaderboard')
+        .setDescription('Top performers this month')
+        .setColor(0xffd700)
+        .setTimestamp();
+
+      if (leaderboardData && leaderboardData.length > 0) {
+        leaderboardData.forEach((entry: any, index: number) => {
+          leaderboardEmbed.addFields({
+            name: `${index + 1}. ${entry.username || 'Unknown'}`,
+            value: `Score: ${entry.score || 0} | Wins: ${entry.wins || 0}`,
+            inline: false
+          });
+        });
+      } else {
+        leaderboardEmbed.addFields({
+          name: 'No data',
+          value: 'Leaderboard data not available',
+          inline: false
+        });
+      }
+
+      await interaction.reply({
+        embeds: [leaderboardEmbed],
+        ephemeral: true
+      });
+    } catch (error) {
+      console.error('❌ Error getting leaderboard:', error);
+      await interaction.reply({
+        content: '❌ Error retrieving leaderboard data.',
         ephemeral: true
       });
     }
@@ -406,5 +494,110 @@ export class CommandHandler {
     } catch (error) {
       logger.error('Error handling message command:', error);
     }
+  }
+
+  /**
+   * Handle help command
+   */
+  private async handleHelpCommand(context: CommandContext): Promise<void> {
+    if (!context.interaction) return;
+    const { helpCommand } = await import('../commands/help');
+    await helpCommand.execute(context.interaction);
+  }
+
+  /**
+   * Handle VIP info command
+   */
+  private async handleVIPInfoCommand(context: CommandContext): Promise<void> {
+    if (!context.interaction) return;
+    const { vipInfoCommand } = await import('../commands/vip-info');
+    await vipInfoCommand.execute(context.interaction);
+  }
+
+  /**
+   * Handle trial status command
+   */
+  private async handleTrialStatusCommand(context: CommandContext): Promise<void> {
+    if (!context.interaction) return;
+    const { trialStatusCommand } = await import('../commands/trial-status');
+    await trialStatusCommand.execute(context.interaction);
+  }
+
+  /**
+   * Handle upgrade command
+   */
+  private async handleUpgradeCommand(context: CommandContext): Promise<void> {
+    if (!context.interaction) return;
+    const { upgradeCommand } = await import('../commands/upgrade');
+    await upgradeCommand.execute(context.interaction);
+  }
+
+
+  /**
+   * Handle heat signal command
+   */
+  private async handleHeatSignalCommand(context: CommandContext): Promise<void> {
+    if (!context.interaction) return;
+    const { heatSignalCommand } = await import('../commands/heat-signal');
+    await heatSignalCommand.execute(context.interaction);
+  }
+
+  /**
+   * Handle profile command
+   */
+  private async handleProfileCommand(context: CommandContext): Promise<void> {
+    const { interaction, userProfile } = context;
+
+    if (!interaction) {
+      return;
+    }
+
+    try {
+      if (!userProfile) {
+        await interaction.reply({
+          content: '❌ Could not retrieve your profile information.',
+          ephemeral: true
+        });
+        return;
+      }
+
+      // Create profile embed with proper type handling
+      const profileData = {
+        ...userProfile,
+        tier: (userProfile as any).tier || 'member', // Type assertion for tier
+        display_name: (userProfile as any).display_name || context.user.username,
+        total_messages: (userProfile as any).total_messages || 0,
+        join_date: (userProfile as any).join_date || new Date().toISOString()
+      };
+
+      const embed = createUserProfileEmbed(profileData as any);
+
+      await interaction.reply({
+        embeds: [embed],
+        ephemeral: true
+      });
+    } catch (error) {
+      logger.error('Error handling profile command:', error);
+      await interaction.reply({
+        content: '❌ An error occurred while retrieving your profile.',
+        ephemeral: true
+      });
+    }
+  }
+
+  /**
+   * Handle edge-tracker command (VIP+ only)
+   */
+  private async handleEdgeTrackerCommand(context: CommandContext): Promise<void> {
+    const { execute } = await import('../commands/edge-tracker');
+    await execute(context.interaction as any);
+  }
+
+  /**
+   * Handle ask-unit-talk command (VIP+ only)
+   */
+  private async handleAskUnitTalkCommand(context: CommandContext): Promise<void> {
+    const { execute } = await import('../commands/ask-unit-talk');
+    await execute(context.interaction as any);
   }
 }
