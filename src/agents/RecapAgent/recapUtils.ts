@@ -294,7 +294,8 @@ export function groupPicksByParlay(picks: any[]): Map<string, any[]> {
 /**
  * Calculate win rate with proper handling of pushes
  */
-export function calculateWinRate(wins: number, losses: number, pushes: number = 0): number {
+// Commented out unused pushes parameter
+export function calculateWinRate(wins: number, losses: number, /* pushes: number = 0 */): number {
   const totalDecisiveGames = wins + losses;
   if (totalDecisiveGames === 0) return 0;
   return (wins / totalDecisiveGames) * 100;

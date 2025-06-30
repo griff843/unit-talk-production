@@ -1,21 +1,21 @@
 import { REST, Routes } from 'discord.js';
 import { botConfig } from '../config';
-import { helpCommand } from '../commands/help';
-import { vipInfoCommand } from '../commands/vip-info';
-import { trialStatusCommand } from '../commands/trial-status';
-import { upgradeCommand } from '../commands/upgrade';
-import { heatSignalCommand } from '../commands/heat-signal';
+import * as helpCommand from '../commands/help';
+import * as vipInfoCommand from '../commands/vip-info';
 import * as edgeTrackerCommand from '../commands/edge-tracker';
-import * as askUnitTalkCommand from '../commands/ask-unit-talk';
+import * as askUnitTalkCommand from '../commands/ask-unit-talk-enhanced';
+import * as evReportCommand from '../commands/ev-report';
+import * as trendBreakerCommand from '../commands/trend-breaker';
+import * as triggerOnboardingCommand from '../commands/trigger-onboarding';
 
 const commands = [
   helpCommand.data.toJSON(),
   vipInfoCommand.data.toJSON(),
-  trialStatusCommand.data.toJSON(),
-  upgradeCommand.data.toJSON(),
-  heatSignalCommand.data.toJSON(),
   edgeTrackerCommand.data.toJSON(),
   askUnitTalkCommand.data.toJSON(),
+  evReportCommand.data.toJSON(),
+  trendBreakerCommand.data.toJSON(),
+  triggerOnboardingCommand.data.toJSON(),
 ];
 
 const rest = new REST({ version: '10' }).setToken(botConfig.discord.token);

@@ -36,7 +36,7 @@ export interface User {
   username: string;
   discriminator: string;
   avatar: string | null;
-  subscription_tier: 'FREE' | 'PREMIUM' | 'VIP' | 'VIP_PLUS';
+  subscription_tier: 'FREE' | 'VIP' | 'VIP_PLUS';
   created_at: string;
   updated_at: string;
 }
@@ -354,7 +354,7 @@ export interface BotConfig {
 }
 
 export type SubscriptionTier = 'FREE' | 'PREMIUM' | 'VIP' | 'VIP_PLUS';
-export type UserTier = 'member' | 'vip' | 'vip_plus' | 'staff' | 'admin' | 'owner';
+export type UserTier = 'member' | 'trial' | 'vip' | 'vip_plus' | 'capper' | 'staff' | 'admin' | 'owner';
 export type PickStatus = 'PENDING' | 'WON' | 'LOST' | 'VOID';
 export type BetType = 'SPREAD' | 'MONEYLINE' | 'TOTAL' | 'PROP' | 'PARLAY';
 export type Sport = 'NFL' | 'NBA' | 'MLB' | 'NHL' | 'NCAAF' | 'NCAAB' | 'UFC' | 'SOCCER';
@@ -470,6 +470,14 @@ export interface BettingAnalysis {
     public_betting_percentage: number;
     sharp_money_indicator: boolean;
   };
+  // Added missing properties for coaching
+  summary?: string;
+  insights?: string[];
+  improvements?: string[];
+  strengths?: string[];
+  weaknesses?: string[];
+  trends?: string[];
+  userId?: string; // Add userId property
 }
 
 // Add missing interfaces for validation and analysis
@@ -507,12 +515,6 @@ export interface HistoricalComparison {
   sampleSize: number;
 }
 
-export interface RiskAssessment {
-  overallRisk: 'LOW' | 'MEDIUM' | 'HIGH';
-  overall_risk?: 'LOW' | 'MEDIUM' | 'HIGH'; // Alias for compatibility
-  factors: RiskFactor[];
-  recommendations: string[];
-}
 
 export interface BetTypeConfig {
   id?: string; // Added missing property
@@ -801,6 +803,12 @@ export interface UserPickSubmission {
   units: number;
   confidence: number;
   submittedAt?: string; // ISO string format
+  timestamp?: Date; // Add timestamp property
+  status?: string; // Add status property
+  sport?: string; // Add sport property
+  betType: string;
+  legs: BetLegInput[];
+  stake: number;
   pick: {
     id: string;
     user_id: string;
@@ -808,14 +816,16 @@ export interface UserPickSubmission {
     channel_id: string;
     sport: string;
     league: string;
-    game: string;
+    team1: string;
+    team2: string;
     pick_type: string;
-    selection: string;
-    odds: string;
+    description: string;
+    odds: number;
     units: number;
     confidence: number;
-    reasoning: string;
-    status: string;
+    reasoning?: string;
+    result?: string;
+    profit_loss?: number;
     created_at: Date;
     updated_at: Date;
   };
@@ -823,12 +833,22 @@ export interface UserPickSubmission {
 
 export interface GradingResult {
   pick_id: string;
+  pickId?: string; // For backward compatibility
   status: 'won' | 'lost' | 'void' | 'pushed';
   actual_result: string;
   expected_value: number;
   profit_loss: number;
   grade: 'S' | 'A' | 'B' | 'C' | 'D' | 'F';
   notes?: string;
+  // Additional properties used by gradingService
+  edge?: number;
+  tier?: string;
+  confidence?: number;
+  factors?: GradingFactor[];
+  feedback?: string;
+  coachNotes?: string;
+  improvementAreas?: string[];
+  analysis?: string;
 }
 
 // User Permissions Types
@@ -904,10 +924,19 @@ export interface UserProfile {
   username: string;
   discriminator: string;
   avatar?: string;
+  avatar_url?: string; // Added for Discord avatar URL
   subscription_tier: SubscriptionTier;
+  tier: UserTier; // Added for tier compatibility
   preferences?: UserPreferences;
   created_at: string;
   updated_at: string;
+  last_active?: string; // Added for last activity tracking
+  total_picks?: number; // Added for stats
+  total_wins?: number; // Added for stats
+  total_losses?: number; // Added for stats
+  total_profit?: number; // Added for stats
+  win_rate?: number; // Added for stats
+  trial_ends_at?: string; // Added for trial tracking
 }
 
 // Update OnboardingProgress to include missing properties
@@ -1035,30 +1064,12 @@ export interface SportConfig {
   }; // Added missing property
 }
 
-// Update UserPickSubmission to include all missing properties
-export interface UserPickSubmission {
-  userId: string;
-  user_id?: string; // Alias for database compatibility
-  sport: string;
-  betType: string;
-  bet_type?: string; // Alias for database compatibility
-  legs: BetLegInput[];
-  stake: number;
-  confidence: number;
-  reasoning?: string;
-  aiAnalysisRequested?: boolean;
-  ai_analysis_requested?: boolean; // Alias for database compatibility
-  riskTolerance?: 'LOW' | 'MEDIUM' | 'HIGH';
-  risk_tolerance?: 'LOW' | 'MEDIUM' | 'HIGH'; // Alias for database compatibility
-  tags?: string[];
-  notes?: string;
-  followUpReminder?: boolean;
-  follow_up_reminder?: boolean; // Alias for database compatibility
-  imageAttachments?: File[];
-  image_attachments?: File[]; // Alias for database compatibility
-  submittedAt?: string;
-  submitted_at?: string; // Alias for database compatibility
-}
+
+// ... existing code ...
+
+// Removed duplicate UserPickSubmission interface - consolidated above
+
+// ... existing code ...
 
 // Keyword and Emoji DM Service Types
 export interface KeywordTrigger {
@@ -1171,6 +1182,7 @@ export interface CreateAutoDMTemplate {
 export interface GameThread {
   id: string;
   game_id: string;
+
   channel_id: string;
   thread_id: string;
   sport: string;
@@ -1179,4 +1191,39 @@ export interface GameThread {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+// Additional Grading Types
+export interface GradingFactor {
+  name: string;
+  value: number;
+  weight: number;
+  description?: string;
+  category?: string; // Add category property
+  score?: number; // Add score property
+}
+
+export interface CoachingRecommendation {
+  type: 'improvement' | 'strength' | 'warning' | 'bankroll' | 'research' | 'sport_focus' | 'timing'; // Add missing types
+  title: string;
+  description: string;
+  priority: 'high' | 'medium' | 'low';
+  actionItems?: string[];
+}
+
+export interface RiskFactor {
+  name: string;
+  level: 'low' | 'medium' | 'high';
+  description: string;
+  impact: number;
+}
+
+export interface RiskAssessment {
+  overall: 'low' | 'medium' | 'high' | 'conservative' | 'moderate' | 'aggressive' | 'reckless';
+  level?: 'low' | 'medium' | 'high' | 'conservative' | 'moderate' | 'aggressive' | 'reckless'; // For backward compatibility
+  overallRisk?: 'LOW' | 'MEDIUM' | 'HIGH'; // Legacy compatibility
+  overall_risk?: 'LOW' | 'MEDIUM' | 'HIGH'; // Alias for compatibility
+  factors: RiskFactor[];
+  score: number;
+  recommendations: string[];
 }

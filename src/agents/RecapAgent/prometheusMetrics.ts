@@ -236,7 +236,7 @@ export class PrometheusMetrics {
       name: `recap_agent_${name}`,
       help,
       labelNames,
-      buckets
+      ...(buckets && { buckets })
     });
   }
 

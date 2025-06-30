@@ -1,6 +1,5 @@
 import 'dotenv/config';
-import { Client, GatewayIntentBits, Partials, GuildMember } from 'discord.js';
-import { botConfig } from './config';
+import { Client, GatewayIntentBits, Partials } from 'discord.js';
 import { logger } from './utils/logger';
 import { SupabaseService } from './services/supabase';
 import { PermissionsService } from './services/permissions';
@@ -11,7 +10,6 @@ import { AdvancedAnalyticsService } from './services/advancedAnalyticsService';
 import { AIPoweredService } from './services/aiPoweredService';
 import { AdminOverrideService } from './services/adminOverrideService';
 import { QuickEditConfigService } from './services/quickEditConfigService';
-// import { OnboardingService } from './services/onboardingService';
 import { OnboardingService } from './services/onboardingService';
 import { ComprehensiveOnboardingService } from './services/comprehensiveOnboardingService';
 import { AdminDashboardService } from './services/adminDashboardService';
@@ -20,6 +18,9 @@ import { CommandHandler } from './handlers/commandHandler';
 import { EventHandler } from './handlers/eventHandler';
 import { InteractionHandler } from './handlers/interactionHandler';
 import { OnboardingButtonHandler } from './handlers/onboardingButtonHandler';
+import { CapperSystem, createCapperSystem, CapperSystemConfig } from './services/capperSystem';
+import { FAQService } from './services/faqService';
+import { DiscordOnboardingAgent } from './agents/DiscordOnboardingAgent';
 
 // Add startup logging
 console.log('🚀 Unit Talk Discord Bot starting...');
@@ -44,6 +45,9 @@ export class UnitTalkBot {
   private commandHandler!: CommandHandler;
   private eventHandler!: EventHandler;
   private interactionHandler!: InteractionHandler;
+  private faqService!: FAQService;
+  private capperSystem!: CapperSystem;
+  private discordOnboardingAgent!: DiscordOnboardingAgent;
 
   constructor() {
     // Initialize Discord client with required intents
@@ -66,14 +70,27 @@ export class UnitTalkBot {
       ]
     });
 
-    this.initializeServices();
-    this.setupEventHandlers();
+    // Initialize services and setup handlers asynchronously
+    this.initialize();
+  }
+
+  /**
+   * Initialize the bot asynchronously
+   */
+  private async initialize(): Promise<void> {
+    try {
+      await this.initializeServices();
+      this.setupEventHandlers();
+    } catch (error) {
+      logger.error('Failed to initialize bot:', error);
+      process.exit(1);
+    }
   }
 
   /**
    * Initialize all bot services
    */
-  private initializeServices(): void {
+  private async initializeServices(): Promise<void> {
     try {
       console.log('🔧 Initializing core services...');
 
@@ -122,12 +139,11 @@ export class UnitTalkBot {
       console.log('🔧 Initializing onboarding services...');
 
       // Onboarding services
-      this.onboardingService = new OnboardingService(
-        this.client,
-        this.supabaseService,
-        this.permissionsService,
-        this.advancedAnalyticsService
-      );
+      this.onboardingService = new OnboardingService();
+
+      // Discord Onboarding Agent - NEW!
+      this.discordOnboardingAgent = new DiscordOnboardingAgent();
+      await this.discordOnboardingAgent.initialize();
 
       // Comprehensive onboarding service with tier-based flows
       this.comprehensiveOnboardingService = new ComprehensiveOnboardingService(
@@ -138,12 +154,7 @@ export class UnitTalkBot {
       );
 
       // Onboarding button handler
-      this.onboardingButtonHandler = new OnboardingButtonHandler(
-        this.client,
-        this.supabaseService,
-        this.permissionsService,
-        this.comprehensiveOnboardingService
-      );
+      this.onboardingButtonHandler = new OnboardingButtonHandler();
 
       this.adminDashboardService = new AdminDashboardService(
         this.client,
@@ -185,6 +196,25 @@ export class UnitTalkBot {
       );
 
       console.log('✅ Admin services initialized');
+      console.log('🔧 Initializing capper system...');
+
+      // Initialize Capper System
+      const capperConfig: CapperSystemConfig = {
+        discordClient: this.client,
+        publishingChannelId: process.env.CAPPER_PICKS_CHANNEL_ID || '',
+        enabled: process.env.CAPPER_SYSTEM_ENABLED === 'true'
+      };
+
+      this.capperSystem = createCapperSystem(capperConfig);
+      await this.capperSystem.initialize();
+
+      console.log('✅ Capper system initialized');
+      console.log('🔧 Initializing FAQ service...');
+
+      // FAQ Service
+      this.faqService = new FAQService(this.client);
+
+      console.log('✅ FAQ service initialized');
       console.log('🔧 Initializing handlers...');
 
       // Handlers
@@ -233,7 +263,10 @@ export class UnitTalkBot {
       onboardingService: this.onboardingService,
       comprehensiveOnboardingService: this.comprehensiveOnboardingService,
       onboardingButtonHandler: this.onboardingButtonHandler,
-      adminDashboardService: this.adminDashboardService
+      adminDashboardService: this.adminDashboardService,
+      capperSystem: this.capperSystem,
+      faqService: this.faqService,
+      discordOnboardingAgent: this.discordOnboardingAgent
     };
   }
 
@@ -250,13 +283,15 @@ export class UnitTalkBot {
 
       // Set bot presence/status
       try {
-        await this.client.user?.setPresence({
-          activities: [{
-            name: 'Unit Talk Community',
-            type: 3 // Watching
-          }],
-          status: 'online'
-        });
+        if (this.client.user) {
+          this.client.user.setPresence({
+            activities: [{
+              name: 'Unit Talk Community',
+              type: 3 // Watching
+            }],
+            status: 'online'
+          });
+        }
         console.log('✅ Bot presence set to online');
       } catch (error) {
         console.log('⚠️ Failed to set bot presence:', error);
@@ -300,8 +335,8 @@ export class UnitTalkBot {
       try {
         console.log(`👋 New member joined: ${member.user.username} (${member.id})`);
 
-        // Start comprehensive onboarding process
-        // await this.onboardingService.startOnboarding(member);
+        // Use Discord Onboarding Agent for enhanced onboarding
+        await this.discordOnboardingAgent.handleNewMemberOnboarding(member);
 
         // Legacy handlers for backward compatibility
         await this.eventHandler.handleMemberJoin(member);
@@ -312,18 +347,22 @@ export class UnitTalkBot {
           error instanceof Error ? error : new Error(String(error)),
           'member_join'
         );
-
-        // Handle onboarding errors
-        try {
-          // await this.onboardingService.handleOnboardingError(member, error);
-        } catch (onboardingError) {
-          logger.error('Error handling onboarding error:', onboardingError);
-        }
       }
     });
 
     this.client.on('guildMemberUpdate', async (oldMember, newMember) => {
       try {
+        // Ensure we have full member objects, not partial ones
+        if (oldMember.partial) {
+          oldMember = await oldMember.fetch();
+        }
+        if (newMember.partial) {
+          newMember = await newMember.fetch();
+        }
+
+        // Use Discord Onboarding Agent for enhanced role change handling
+        await this.discordOnboardingAgent.handleRoleChangeOnboarding(oldMember, newMember);
+
         await this.eventHandler.handleMemberUpdate(oldMember, newMember);
 
         // Role change handling is now done in roleChangeService.ts to avoid duplicates
@@ -412,16 +451,16 @@ export class UnitTalkBot {
     try {
       // Initialize VIP notification flows
       await this.vipNotificationService.initializeNotificationFlows();
-      
+
       // Load thread creation rules
       await this.automatedThreadService.loadThreadRules();
-      
+
       // Load keyword and emoji triggers
       await this.keywordEmojiDMService.loadTriggers();
-      
+
       // Start analytics collection
       await this.advancedAnalyticsService.getRealTimeStats();
-      
+
       logger.info('Post-ready initialization completed');
     } catch (error) {
       logger.error('Post-ready initialization failed:', error);
@@ -443,147 +482,35 @@ export class UnitTalkBot {
       }
     }, 30 * 60 * 1000);
 
-    // Process VIP notification queue every 5 minutes
+    // Cleanup old analytics data every 24 hours
     setInterval(async () => {
       try {
-        await this.vipNotificationService.processNotificationQueue();
+        await this.advancedAnalyticsService.cleanupOldData();
+        logger.info('Analytics data cleanup completed');
       } catch (error) {
-        logger.error('Failed to process VIP notification queue:', error);
+        logger.error('Failed to cleanup analytics data:', error);
+      }
+    }, 24 * 60 * 60 * 1000);
+
+    // Update bot presence every 5 minutes
+    setInterval(async () => {
+      try {
+        const stats = await this.advancedAnalyticsService.getRealTimeStats();
+        if (this.client.user) {
+          this.client.user.setPresence({
+            activities: [{
+              name: `${stats.totalUsers} members | ${stats.totalMessages} messages`,
+              type: 3 // Watching
+            }],
+            status: 'online'
+          });
+        }
+      } catch (error) {
+        logger.error('Failed to update bot presence:', error);
       }
     }, 5 * 60 * 1000);
 
-    // Clean up expired cooldowns every hour
-    setInterval(async () => {
-      try {
-        await this.cleanupExpiredCooldowns();
-      } catch (error) {
-        logger.error('Failed to cleanup expired cooldowns:', error);
-      }
-    }, 60 * 60 * 1000);
-
-    // Health check every 15 minutes
-    setInterval(async () => {
-      try {
-        await this.performHealthCheck();
-      } catch (error) {
-        logger.error('Health check failed:', error);
-      }
-    }, 15 * 60 * 1000);
-
     logger.info('Periodic tasks started');
-  }
-
-  /**
-   * Clean up expired cooldowns
-   */
-  private async cleanupExpiredCooldowns(): Promise<void> {
-    try {
-      await this.supabaseService.client
-        .from('user_cooldowns')
-        .delete()
-        .lt('expires_at', new Date().toISOString());
-      
-      logger.info('Cleaned up expired cooldowns');
-    } catch (error) {
-      logger.error('Failed to cleanup expired cooldowns:', error);
-    }
-  }
-
-  /**
-   * Perform system health check
-   */
-  private async performHealthCheck(): Promise<void> {
-    try {
-      const healthStatus = {
-        timestamp: new Date().toISOString(),
-        discord: {
-          connected: this.client.isReady(),
-          ping: this.client.ws.ping,
-          guilds: this.client.guilds.cache.size
-        },
-        database: await this.checkDatabaseHealth(),
-        memory: process.memoryUsage(),
-        uptime: process.uptime()
-      };
-
-      // Log health status
-      logger.info('Health check completed:', healthStatus);
-
-      // Store health check in database
-      await this.supabaseService.client
-        .from('system_health_checks')
-        .insert({
-          timestamp: healthStatus.timestamp,
-          performed_by: 'system',
-          discord: healthStatus.discord,
-          database: healthStatus.database,
-          memory: healthStatus.memory,
-          uptime: healthStatus.uptime,
-          errors: [],
-          recommendations: []
-        });
-
-    } catch (error) {
-      logger.error('Health check failed:', error);
-    }
-  }
-
-  /**
-   * Check database health
-   */
-  private async checkDatabaseHealth(): Promise<any> {
-    try {
-      const start = Date.now();
-      const { data, error } = await this.supabaseService.client
-        .from('user_profiles')
-        .select('count')
-        .limit(1);
-
-      const responseTime = Date.now() - start;
-
-      return {
-        connected: !error,
-        responseTime: responseTime,
-        error: error?.message
-      };
-    } catch (error) {
-      return {
-        connected: false,
-        responseTime: null,
-        error: error instanceof Error ? error.message : String(error)
-      };
-    }
-  }
-
-  /**
-   * Start the bot
-   */
-  async start(): Promise<void> {
-    try {
-      console.log('🔐 Validating environment variables...');
-
-      // Validate environment variables
-      if (!process.env.DISCORD_TOKEN) {
-        console.error('❌ DISCORD_TOKEN environment variable is required');
-        throw new Error('DISCORD_TOKEN environment variable is required');
-      }
-
-      if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
-        console.error('❌ Supabase environment variables are required');
-        throw new Error('Supabase environment variables are required');
-      }
-
-      console.log('✅ Environment variables validated');
-      console.log('🔗 Connecting to Discord...');
-
-      // Login to Discord
-      await this.client.login(process.env.DISCORD_TOKEN);
-
-    } catch (error) {
-      console.error('❌ Failed to start bot:', error);
-      logger.error('Failed to start bot:', error);
-      process.exit(1);
-    }
   }
 
   /**
@@ -592,20 +519,39 @@ export class UnitTalkBot {
   async shutdown(): Promise<void> {
     try {
       logger.info('Shutting down Unit Talk Discord Bot...');
-      
+
       // Cleanup services
       if (this.advancedAnalyticsService) {
         this.advancedAnalyticsService.destroy();
       }
-      
+
       // Destroy Discord client
       this.client.destroy();
-      
+
       logger.info('Bot shutdown completed');
       process.exit(0);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Error during shutdown:', error);
       process.exit(1);
+    }
+  }
+
+  /**
+   * Start the bot by logging into Discord
+   */
+  async start(): Promise<void> {
+    try {
+      const token = process.env.DISCORD_BOT_TOKEN;
+      if (!token) {
+        throw new Error('DISCORD_BOT_TOKEN environment variable is not set');
+      }
+
+      logger.info('Logging into Discord...');
+      await this.client.login(token);
+      logger.info('Bot successfully logged into Discord');
+    } catch (error: unknown) {
+      logger.error('Failed to start bot:', error);
+      throw error;
     }
   }
 }
@@ -629,7 +575,7 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // Start the bot
 console.log('🚀 Starting bot...');
-bot.start().catch((error) => {
+bot.start().catch((error: any) => {
   console.error('💥 Failed to start bot:', error);
   logger.error('Failed to start bot:', error);
   process.exit(1);

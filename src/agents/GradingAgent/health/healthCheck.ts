@@ -106,7 +106,7 @@ export class HealthChecker {
 
       return {
         status: 'healthy',
-        latency_ms: metrics.status === 200 ? 0 : undefined,
+        ...(metrics.status === 200 && { latency_ms: 0 }),
         last_success: new Date().toISOString()
       };
     } catch (error) {

@@ -274,28 +274,30 @@ export class ContestManager {
         startDate: validatedPayload.startDate || new Date().toISOString(),
         endDate: validatedPayload.endDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
         status: validatedPayload.status || 'draft',
-        type: validatedPayload.type,
+        type: validatedPayload.type || 'daily',
         rules: fixedRules,
-        prizePool: validatedPayload.prizePool ? {
-          totalAmount: validatedPayload.prizePool.totalAmount || 0,
-          totalValue: validatedPayload.prizePool.totalValue || validatedPayload.prizePool.totalAmount || 0,
-          currency: validatedPayload.prizePool.currency || 'USD',
-          distribution: (validatedPayload.prizePool.distribution || []).map((dist, index) => ({
-            rank: dist.rank || (index + 1),
-            value: dist.value || 0,
-            type: dist.type || 'cash' as const,
-            conditions: dist.conditions
-          })),
-          winners: validatedPayload.prizePool.winners || [],
-          specialPrizes: (validatedPayload.prizePool.specialPrizes || []).map((prize, index) => ({
-            id: prize.id || crypto.randomUUID(),
-            name: prize.name || `Special Prize ${index + 1}`,
-            value: prize.value || 0,
-            type: prize.type || 'bonus' as const,
-            criteria: prize.criteria || {}
-          })),
-          sponsorships: fixedSponsorships
-        } : undefined,
+        ...(validatedPayload.prizePool && {
+          prizePool: {
+            totalAmount: validatedPayload.prizePool.totalAmount || 0,
+            totalValue: validatedPayload.prizePool.totalValue || validatedPayload.prizePool.totalAmount || 0,
+            currency: validatedPayload.prizePool.currency || 'USD',
+            distribution: (validatedPayload.prizePool.distribution || []).map((dist, index) => ({
+              rank: dist.rank || (index + 1),
+              value: dist.value || 0,
+              type: dist.type || 'cash' as const,
+              ...(dist.conditions !== undefined && { conditions: dist.conditions })
+            })),
+            winners: validatedPayload.prizePool.winners || [],
+            specialPrizes: (validatedPayload.prizePool.specialPrizes || []).map((prize, index) => ({
+              id: prize.id || crypto.randomUUID(),
+              name: prize.name || `Special Prize ${index + 1}`,
+              value: prize.value || 0,
+              type: prize.type || 'bonus' as const,
+              criteria: prize.criteria || {}
+            })),
+            ...(fixedSponsorships !== undefined && { sponsorships: fixedSponsorships })
+          }
+        }),
         participants: fixedParticipants,
         metadata: validatedPayload.metadata || {}
       };

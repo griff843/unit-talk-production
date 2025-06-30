@@ -1,8 +1,7 @@
-import { Client, Message, ChatInputCommandInteraction, CommandInteraction, User, GuildMember, Guild, ButtonInteraction, SelectMenuInteraction, ModalSubmitInteraction, EmbedBuilder } from 'discord.js';
+import { Client, Message, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
 import { SupabaseService } from '../services/supabase';
 import { PermissionsService } from '../services/permissions';
-import { UserProfile, UserTier } from '../types';
-import { createUserProfileEmbed, createLeaderboardEmbed } from '../utils/embeds';
+import { createUserProfileEmbed } from '../utils/embeds';
 import { CommandContext } from '../types/index';
 import { logger } from '../utils/logger';
 
@@ -95,11 +94,44 @@ export class CommandHandler {
           break;
 
         case 'ask-unit-talk':
-          await this.handleAskUnitTalkCommand(context);
+          const { execute } = await import('../commands/ask-unit-talk-enhanced');
+          await execute(interaction);
+          break;
+
+        case 'ev-report':
+          await this.handleEvReportCommand(context);
+          break;
+
+        case 'trend-breaker':
+          await this.handleTrendBreakerCommand(context);
+          break;
+
+        case 'trigger-onboarding':
+          await this.handleTriggerOnboardingCommand(context);
           break;
 
         case 'pick':
           await this.handlePickCommand(context);
+          break;
+
+        case 'submit-pick':
+          await this.handleCapperCommand(context, 'submit-pick');
+          break;
+
+        case 'capper-onboard':
+          await this.handleCapperCommand(context, 'capper-onboard');
+          break;
+
+        case 'edit-pick':
+          await this.handleCapperCommand(context, 'edit-pick');
+          break;
+
+        case 'delete-pick':
+          await this.handleCapperCommand(context, 'delete-pick');
+          break;
+
+        case 'capper-stats':
+          await this.handleCapperCommand(context, 'capper-stats');
           break;
 
         case 'admin':
@@ -124,6 +156,22 @@ export class CommandHandler {
 
         case 'override':
           await this.handleOverrideCommand(context);
+          break;
+
+        case 'faq-add':
+          await this.handleFAQAddCommand(context);
+          break;
+
+        case 'faq-edit':
+          await this.handleFAQEditCommand(context);
+          break;
+
+        case 'faq-init':
+          await this.handleFAQInitCommand(context);
+          break;
+
+        case 'faq-bulk-update':
+          await this.handleFAQBulkUpdateCommand(context);
           break;
 
         default:
@@ -501,8 +549,8 @@ export class CommandHandler {
    */
   private async handleHelpCommand(context: CommandContext): Promise<void> {
     if (!context.interaction) return;
-    const { helpCommand } = await import('../commands/help');
-    await helpCommand.execute(context.interaction);
+    const helpModule = await import('../commands/help');
+    await helpModule.execute(context.interaction);
   }
 
   /**
@@ -510,8 +558,8 @@ export class CommandHandler {
    */
   private async handleVIPInfoCommand(context: CommandContext): Promise<void> {
     if (!context.interaction) return;
-    const { vipInfoCommand } = await import('../commands/vip-info');
-    await vipInfoCommand.execute(context.interaction);
+    const vipInfoModule = await import('../commands/vip-info');
+    await vipInfoModule.execute(context.interaction);
   }
 
   /**
@@ -519,8 +567,8 @@ export class CommandHandler {
    */
   private async handleTrialStatusCommand(context: CommandContext): Promise<void> {
     if (!context.interaction) return;
-    const { trialStatusCommand } = await import('../commands/trial-status');
-    await trialStatusCommand.execute(context.interaction);
+    const { execute } = await import('../commands/trial-status');
+    await execute(context.interaction);
   }
 
   /**
@@ -528,8 +576,8 @@ export class CommandHandler {
    */
   private async handleUpgradeCommand(context: CommandContext): Promise<void> {
     if (!context.interaction) return;
-    const { upgradeCommand } = await import('../commands/upgrade');
-    await upgradeCommand.execute(context.interaction);
+    const { execute } = await import('../commands/upgrade');
+    await execute(context.interaction);
   }
 
 
@@ -538,8 +586,8 @@ export class CommandHandler {
    */
   private async handleHeatSignalCommand(context: CommandContext): Promise<void> {
     if (!context.interaction) return;
-    const { heatSignalCommand } = await import('../commands/heat-signal');
-    await heatSignalCommand.execute(context.interaction);
+    const { execute } = await import('../commands/heat-signal');
+    await execute(context.interaction);
   }
 
   /**
@@ -596,8 +644,91 @@ export class CommandHandler {
   /**
    * Handle ask-unit-talk command (VIP+ only)
    */
-  private async handleAskUnitTalkCommand(context: CommandContext): Promise<void> {
-    const { execute } = await import('../commands/ask-unit-talk');
+  private async handleAskUnitTalk(interaction: ChatInputCommandInteraction): Promise<void> {
+    const { execute } = await import('../commands/ask-unit-talk-enhanced');
+    await execute(interaction);
+  }
+
+  /**
+   * Handle ev-report command (VIP/VIP+ only)
+   */
+  private async handleEvReportCommand(context: CommandContext): Promise<void> {
+    const { execute } = await import('../commands/ev-report');
     await execute(context.interaction as any);
+  }
+
+  /**
+   * Handle trend-breaker command (VIP+ only)
+   */
+  private async handleTrendBreakerCommand(context: CommandContext): Promise<void> {
+    const { execute } = await import('../commands/trend-breaker');
+    await execute(context.interaction as any);
+  }
+
+  /**
+   * Handle trigger-onboarding command (Admin only)
+   */
+  private async handleTriggerOnboardingCommand(context: CommandContext): Promise<void> {
+    const { execute } = await import('../commands/trigger-onboarding');
+    await execute(context.interaction as any);
+  }
+
+  /**
+   * Handle capper commands
+   */
+  private async handleCapperCommand(context: CommandContext, commandName: string): Promise<void> {
+    try {
+      // Check if interaction exists
+      if (!context.interaction) {
+        logger.error('No interaction found in context for capper command');
+        return;
+      }
+
+      // Import the capper interaction handler
+      const { handleCapperInteraction } = await import('../handlers/capperInteractionHandler');
+      await handleCapperInteraction(context.interaction, this.services.capperSystem);
+    } catch (error) {
+      logger.error(`Error handling capper command ${commandName}:`, error);
+
+      if (context.interaction && !context.interaction.replied && !context.interaction.deferred) {
+        await context.interaction.reply({
+          content: '❌ An error occurred while processing your capper command.',
+          ephemeral: true
+        });
+      }
+    }
+
+  }
+
+  /**
+   * Handle faq-add command (Staff only)
+   */
+  private async handleFAQAddCommand(context: CommandContext): Promise<void> {
+    const { execute } = await import('../commands/faq-add');
+    await execute(context.interaction as any);
+  }
+
+  /**
+   * Handle faq-edit command (Staff only)
+   */
+  private async handleFAQEditCommand(context: CommandContext): Promise<void> {
+    const { execute } = await import('../commands/faq-edit');
+    await execute(context.interaction as any);
+  }
+
+  /**
+   * Handle faq-init command (Admin only)
+   */
+  private async handleFAQInitCommand(context: CommandContext): Promise<void> {
+    const { execute } = await import('../commands/faq-init');
+    await execute(context.interaction as any);
+  }
+
+  /**
+   * Handle faq-bulk-update command (Admin only)
+   */
+  private async handleFAQBulkUpdateCommand(context: CommandContext): Promise<void> {
+    const { default: command } = await import('../commands/faq-bulk-update');
+    await command.execute(context.interaction as any);
   }
 }

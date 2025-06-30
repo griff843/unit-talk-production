@@ -14,7 +14,7 @@ export class ErrorHandler {
 
   async withRetry<T>(fn: () => Promise<T>, operation: string): Promise<T> {
     const maxRetries = 3;
-    let lastError: Error;
+    let lastError: Error | undefined;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -22,17 +22,21 @@ export class ErrorHandler {
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
         this.logger.warn(`${operation} failed (attempt ${attempt}/${maxRetries})`, { error: lastError.message });
-        
+
         if (attempt === maxRetries) {
           break;
         }
-        
+
         // Exponential backoff
         await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
       }
     }
 
-    this.handleError(lastError!, { operation, attempts: maxRetries });
-    throw lastError!;
+    if (!lastError) {
+      lastError = new Error(`${operation} failed after ${maxRetries} attempts`);
+    }
+
+    this.handleError(lastError, { operation, attempts: maxRetries });
+    throw lastError;
   }
 }

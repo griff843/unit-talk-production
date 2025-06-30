@@ -97,9 +97,9 @@ export class MonitoringService {
   start(): void {
     this.app.listen(this.port, () => {
       logger.info(`Monitoring service started on port ${this.port}`);
-      console.log(`📊 Metrics: http://localhost:${this.port}/metrics`);
-      console.log(`🏥 Health: http://localhost:${this.port}/health`);
-      console.log(`✅ Ready: http://localhost:${this.port}/ready`);
+      logger.info(`📊 Metrics: http://localhost:${this.port}/metrics`);
+      logger.info(`🏥 Health: http://localhost:${this.port}/health`);
+      logger.info(`✅ Ready: http://localhost:${this.port}/ready`);
     });
   }
 }

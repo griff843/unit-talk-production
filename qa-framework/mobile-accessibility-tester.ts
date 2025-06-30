@@ -237,7 +237,7 @@ export class MobileAccessibilityTester {
       const focusableElements = await this.page.$$('button, a, input, select, textarea, [tabindex]:not([tabindex="-1"])');
       
       let tabNavigationWorks = true;
-      let currentIndex = 0;
+      const currentIndex = 0;
       
       // Test first few elements for tab navigation
       const testCount = Math.min(5, focusableElements.length);

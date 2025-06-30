@@ -1,7 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Logger } from '../utils/logger';
 import { ErrorHandler } from '../utils/errorHandling';
-import { Metrics } from './shared';
+/* import { Metrics } from './shared'; */
 import { z } from 'zod';
 
 // Health Status Types
@@ -34,7 +34,7 @@ export interface AgentMetrics {
   warningCount: number;
   errorCount: number;
   timestamp: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface HealthCheckResult {
@@ -43,13 +43,13 @@ export interface HealthCheckResult {
   details?: {
     errors: string[];
     warnings: string[];
-    info: Record<string, any>;
+    info: Record<string, unknown>;
   };
 }
 
 export interface AgentCommand {
   type: string;
-  payload: any;
+  payload: unknown;
   timestamp?: string;
   priority?: 'low' | 'medium' | 'high' | 'critical';
 }
@@ -58,13 +58,13 @@ export interface AgentError {
   message: string;
   code: string;
   stack?: string;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
   severity?: 'low' | 'medium' | 'high' | 'critical';
 }
 
 export interface AgentTaskInput {
   command: AgentCommand;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface AgentHealthReport {
@@ -73,7 +73,7 @@ export interface AgentHealthReport {
   details?: {
     errors: string[];
     warnings: string[];
-    info: Record<string, any>;
+    info: Record<string, unknown>;
   };
   timestamp: string;
 }

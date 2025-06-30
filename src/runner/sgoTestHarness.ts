@@ -7,7 +7,7 @@ async function run() {
 
   // Fetch raw SGO event data
   const events = await fetchSGOEvents({
-    apiKey: process.env.SPORTS_GAME_ODDS_API_KEY!,
+    apiKey: process.env['SPORTS_GAME_ODDS_API_KEY']!,
     leagueID: "MLB", // or "NBA", etc.
     startsAfter: new Date().toISOString(),
     startsBefore: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),

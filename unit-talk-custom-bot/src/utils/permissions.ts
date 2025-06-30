@@ -236,8 +236,10 @@ export class PermissionUtils {
   static getTierName(tier: UserTier): string {
     const tierNames: Record<UserTier, string> = {
       member: 'Member',
+      trial: 'Trial',
       vip: 'VIP',
       vip_plus: 'VIP+',
+      capper: 'Capper',
       staff: 'Staff',
       admin: 'Admin',
       owner: 'Owner'
@@ -248,8 +250,10 @@ export class PermissionUtils {
   static getTierColor(tier: UserTier): string {
     const tierColors: Record<UserTier, string> = {
       member: '#95a5a6',
+      trial: '#17a2b8',
       vip: '#f39c12',
       vip_plus: '#e74c3c',
+      capper: '#E67E22',
       staff: '#3498db',
       admin: '#9b59b6',
       owner: '#1abc9c'
@@ -282,5 +286,15 @@ export class PermissionUtils {
     }
     
     return true; // Public channels
+  }
+
+  static async hasVipPlusAccess(member: GuildMember): Promise<boolean> {
+    const tier = await this.getUserTier(member);
+    return ['vip_plus', 'staff', 'admin', 'owner'].includes(tier);
+  }
+
+  static async hasVipAccess(member: GuildMember): Promise<boolean> {
+    const tier = await this.getUserTier(member);
+    return ['vip', 'vip_plus', 'staff', 'admin', 'owner'].includes(tier);
   }
 }

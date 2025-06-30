@@ -37,8 +37,8 @@ export class FinalizerAgent extends BaseAgent {
     
     try {
       // Start metrics server if not already started
-      if (!this.metricsStarted && this.config.metrics.enabled) {
-        const port = this.config.metrics.port || 9003;
+      if (!this.metricsStarted && this.config.metrics?.enabled) {
+        const port = this.config.metrics?.port || 9003;
         startMetricsServer(port);
         this.metricsStarted = true;
       }
@@ -56,7 +56,11 @@ export class FinalizerAgent extends BaseAgent {
   private async validateDependencies(): Promise<void> {
     // Verify access to required tables
     const tables = ['graded_picks', 'final_picks', 'published_picks'];
-    
+
+    if (!this.supabase) {
+      throw new Error('Supabase client is required for FinalizerAgent');
+    }
+
     for (const table of tables) {
       const { error } = await this.supabase
         .from(table)
@@ -82,6 +86,9 @@ export class FinalizerAgent extends BaseAgent {
       this.publishingErrors = 0;
       
       // Fetch graded picks ready for finalization
+      if (!this.supabase) {
+        throw new Error('Supabase client is required for FinalizerAgent');
+      }
       const { data: gradedPicks, error } = await this.supabase
         .from('graded_picks')
         .select('*')
@@ -187,6 +194,9 @@ export class FinalizerAgent extends BaseAgent {
 
   private async finalizePick(pick: any): Promise<void> {
     // 1. Update the pick status in graded_picks
+    if (!this.supabase) {
+      throw new Error('Supabase client is required for FinalizerAgent');
+    }
     const { error: updateError } = await this.supabase
       .from('graded_picks')
       .update({
@@ -216,7 +226,10 @@ export class FinalizerAgent extends BaseAgent {
       created_at: new Date().toISOString(),
       status: 'ready_for_publishing'
     };
-    
+
+    if (!this.supabase) {
+      throw new Error('Supabase client is required for FinalizerAgent');
+    }
     const { error: insertError } = await this.supabase
       .from('final_picks')
       .insert(finalPick);
@@ -234,6 +247,9 @@ export class FinalizerAgent extends BaseAgent {
   }
 
   private async rejectPick(pick: any): Promise<void> {
+    if (!this.supabase) {
+      throw new Error('Supabase client is required for FinalizerAgent');
+    }
     const { error } = await this.supabase
       .from('graded_picks')
       .update({
@@ -264,7 +280,10 @@ export class FinalizerAgent extends BaseAgent {
         channels: ['discord', 'twitter'], // Configure as needed
         status: 'published'
       };
-      
+
+      if (!this.supabase) {
+        throw new Error('Supabase client is required for FinalizerAgent');
+      }
       const { error } = await this.supabase
         .from('published_picks')
         .insert(publishedPick);
@@ -316,6 +335,9 @@ export class FinalizerAgent extends BaseAgent {
     
     try {
       // Check database connectivity
+      if (!this.supabase) {
+        throw new Error('Supabase client is required for FinalizerAgent');
+      }
       await this.supabase.from('graded_picks').select('count').limit(1);
       checks.push({ service: 'supabase', status: 'healthy' });
     } catch (error) {

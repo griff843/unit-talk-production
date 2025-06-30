@@ -17,10 +17,10 @@ class RedisService {
 
   constructor(config?: Partial<RedisConfig>) {
     this.config = {
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379'),
-      password: process.env.REDIS_PASSWORD,
-      db: parseInt(process.env.REDIS_DB || '0'),
+      host: process.env['REDIS_HOST'] || 'localhost',
+      port: parseInt(process.env['REDIS_PORT'] || '6379'),
+      ...(process.env['REDIS_PASSWORD'] && { password: process.env['REDIS_PASSWORD'] }),
+      db: parseInt(process.env['REDIS_DB'] || '0'),
       retryDelayOnFailover: 100,
       maxRetriesPerRequest: 3,
       ...config
@@ -58,7 +58,7 @@ class RedisService {
     }
   }
 
-  async get<T = any>(key: string): Promise<T | null> {
+  async get<T = unknown>(key: string): Promise<T | null> {
     try {
       const value = await this.client.get(key);
       return value ? JSON.parse(value) : null;

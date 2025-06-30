@@ -66,8 +66,8 @@ describe('Zone Threat Rating Integration', () => {
       const internalDetails = getInternalScoringDetails(extremeProp);
       
       // Should apply Zone Threat boost
-      expect(result.breakdown.zone_threat_boost).toBe(2);
-      expect(result.breakdown.zone_threat_level).toBe('EXTREME');
+      expect(result.breakdown['zone_threat_boost']).toBe(2);
+      expect(result.breakdown['zone_threat_level']).toBe('EXTREME');
       expect(internalDetails.zoneThreatAnalysis?.eligible).toBe(true);
       expect(internalDetails.zoneThreatAnalysis?.boostApplied).toBe(2);
     });
@@ -92,7 +92,7 @@ describe('Zone Threat Rating Integration', () => {
       const result = finalEdgeScore(averageProp, EDGE_CONFIG);
       
       // Should not apply boost for non-EXTREME pitcher
-      expect(result.breakdown.zone_threat_boost).toBeUndefined();
+      expect(result.breakdown['zone_threat_boost']).toBeUndefined();
     });
 
     test('should not apply boost for poor matchup conditions', () => {
@@ -104,7 +104,7 @@ describe('Zone Threat Rating Integration', () => {
         pitcher_hittable_count_pct: 35,
         pitcher_recent_hrs: 8,
         pitcher_walk_rate: 4.8,
-        
+
         // Poor matchup conditions
         batter_barrel_pct: 7.0,   // Low power
         batter_launch_angle: 12.0, // Too low
@@ -113,9 +113,9 @@ describe('Zone Threat Rating Integration', () => {
       });
 
       const result = finalEdgeScore(extremeProp, EDGE_CONFIG);
-      
+
       // Should not apply boost due to poor matchup
-      expect(result.breakdown.zone_threat_boost).toBeUndefined();
+      expect(result.breakdown['zone_threat_boost']).toBeUndefined();
     });
   });
 
@@ -136,7 +136,7 @@ describe('Zone Threat Rating Integration', () => {
       });
 
       const result = finalEdgeScore(hrProp, EDGE_CONFIG);
-      expect(result.breakdown.zone_threat_boost).toBe(2);
+      expect(result.breakdown['zone_threat_boost']).toBe(2);
     });
 
     test('should apply to rocket props regardless of market', () => {
@@ -156,7 +156,7 @@ describe('Zone Threat Rating Integration', () => {
       });
 
       const result = finalEdgeScore(rocketProp, EDGE_CONFIG);
-      expect(result.breakdown.zone_threat_boost).toBe(2);
+      expect(result.breakdown['zone_threat_boost']).toBe(2);
     });
 
     test('should not apply to ineligible markets', () => {
@@ -198,10 +198,10 @@ describe('Zone Threat Rating Integration', () => {
       // Import the public scoring function
       const { scorePropEdge } = require('../scoring/edgeScoring');
       const publicResult = scorePropEdge(extremeProp);
-      
+
       // Public result should not expose Zone Threat details
-      expect(publicResult.edge_breakdown.zone_threat_boost).toBeUndefined();
-      expect(publicResult.edge_breakdown.zone_threat_level).toBeUndefined();
+      expect(publicResult.edge_breakdown['zone_threat_boost']).toBeUndefined();
+      expect(publicResult.edge_breakdown['zone_threat_level']).toBeUndefined();
       expect(publicResult.context_tags).not.toContain('zone-threat-extreme');
     });
 
@@ -220,10 +220,10 @@ describe('Zone Threat Rating Integration', () => {
       });
 
       const internalResult = getInternalScoringDetails(extremeProp);
-      
+
       // Internal result should expose Zone Threat details
-      expect(internalResult.breakdown.zone_threat_boost).toBe(2);
-      expect(internalResult.breakdown.zone_threat_level).toBe('EXTREME');
+      expect(internalResult.breakdown['zone_threat_boost']).toBe(2);
+      expect(internalResult.breakdown['zone_threat_level']).toBe('EXTREME');
       expect(internalResult.tags).toContain('zone-threat-extreme');
       expect(internalResult.zoneThreatAnalysis?.eligible).toBe(true);
     });
@@ -238,9 +238,9 @@ describe('Zone Threat Rating Integration', () => {
 
       const result = finalEdgeScore(noPitcherDataProp, EDGE_CONFIG);
       const internalDetails = getInternalScoringDetails(noPitcherDataProp);
-      
+
       // Should not crash and should not apply boost
-      expect(result.breakdown.zone_threat_boost).toBeUndefined();
+      expect(result.breakdown['zone_threat_boost']).toBeUndefined();
       expect(internalDetails.zoneThreatAnalysis?.eligible).toBe(false);
     });
 
@@ -256,9 +256,9 @@ describe('Zone Threat Rating Integration', () => {
       });
 
       const result = finalEdgeScore(noMatchupDataProp, EDGE_CONFIG);
-      
+
       // Should not crash and should not apply boost (no matchup data)
-      expect(result.breakdown.zone_threat_boost).toBeUndefined();
+      expect(result.breakdown['zone_threat_boost']).toBeUndefined();
     });
 
     test('should handle disabled Zone Threat feature', () => {
@@ -277,10 +277,10 @@ describe('Zone Threat Rating Integration', () => {
       });
 
       const internalDetails = getInternalScoringDetails(extremeProp);
-      
+
       // Should not apply boost when disabled
       expect(internalDetails.zoneThreatAnalysis?.eligible).toBe(false);
-      
+
       // Restore original setting
       EDGE_CONFIG.zoneThreat.enabled = originalEnabled;
     });
@@ -324,10 +324,10 @@ describe('Zone Threat Rating Integration', () => {
 
       const baseResult = finalEdgeScore(baseProp, EDGE_CONFIG);
       const extremeResult = finalEdgeScore(extremeProp, EDGE_CONFIG);
-      
+
       // Extreme prop should score higher due to Zone Threat boost
       expect(extremeResult.score).toBeGreaterThanOrEqual(baseResult.score);
-      if (extremeResult.breakdown.zone_threat_boost) {
+      if (extremeResult.breakdown['zone_threat_boost']) {
         expect(extremeResult.score - baseResult.score).toBe(2); // Boost amount
       }
     });
@@ -339,7 +339,7 @@ describe('Zone Threat Rating Integration', () => {
         odds: -110,  // Gets some points
         trend_score: 0.5, // Below threshold
         matchup_score: 1.0, // Below threshold
-        
+
         // EXTREME pitcher for boost
         pitcher_id: 'pitcher_extreme',
         pitcher_name: 'Extreme Pitcher',
@@ -357,7 +357,7 @@ describe('Zone Threat Rating Integration', () => {
       });
 
       const result = finalEdgeScore(borderlineProp, EDGE_CONFIG);
-      
+
       // The +2 boost could push it to a higher tier
       expect(result.score).toBeGreaterThanOrEqual(2); // At least the boost
       expect(['D', 'C', 'B', 'A', 'S']).toContain(result.tier); // Should be valid tier
@@ -371,7 +371,7 @@ describe('Zone Threat Rating Integration', () => {
         market_type: 'Home Runs',
         odds: -125,
         is_rocket: true,
-        
+
         // Struggling pitcher facing power hitter in hitter-friendly park
         pitcher_id: 'pitcher_struggling',
         pitcher_name: 'Struggling Starter',
@@ -381,13 +381,13 @@ describe('Zone Threat Rating Integration', () => {
         pitcher_hittable_count_pct: 31, // Gets behind in counts
         pitcher_recent_hrs: 6,       // Bad recent form
         pitcher_walk_rate: 4.2,      // Poor control
-        
+
         // Power hitter in good conditions
         batter_barrel_pct: 13.2,    // Above average power
         batter_launch_angle: 19.5,  // Good launch angle
         park_factor: 1.09,           // Hitter-friendly park
         wind_out: true,              // Wind blowing out
-        
+
         // Additional scoring factors
         trend_score: 0.8,            // Strong trend
         matchup_score: 1.8           // Good matchup
@@ -395,16 +395,16 @@ describe('Zone Threat Rating Integration', () => {
 
       const result = finalEdgeScore(gameScenario, EDGE_CONFIG);
       const internalDetails = getInternalScoringDetails(gameScenario);
-      
+
       // Should be a high-scoring prop with Zone Threat boost
-      if (result.breakdown.zone_threat_boost) {
-        expect(result.breakdown.zone_threat_boost).toBe(2);
-        expect(result.breakdown.zone_threat_level).toBe('EXTREME');
+      if (result.breakdown['zone_threat_boost']) {
+        expect(result.breakdown['zone_threat_boost']).toBe(2);
+        expect(result.breakdown['zone_threat_level']).toBe('EXTREME');
       }
       expect(result.score).toBeGreaterThan(5); // Should be decent score
       expect(['C', 'B', 'A', 'S']).toContain(result.tier); // Reasonable tier
       expect(result.postable).toBeDefined();
-      
+
       // Internal analysis should be comprehensive
       expect(internalDetails.zoneThreatAnalysis?.eligible).toBe(true);
       if (internalDetails.zoneThreatAnalysis?.boostApplied) {
@@ -429,7 +429,7 @@ describe('Zone Threat Rating Integration', () => {
           park_factor: 1.04,
           wind_out: false
         }),
-        
+
         // Elite control pitcher with some risk factors
         createMockProp({
           pitcher_hr_per_9: 2.0,
@@ -448,17 +448,17 @@ describe('Zone Threat Rating Integration', () => {
       edgeCases.forEach((prop, index) => {
         const result = finalEdgeScore(prop, EDGE_CONFIG);
         const internalDetails = getInternalScoringDetails(prop);
-        
+
         // Should not crash
         expect(result.score).toBeGreaterThanOrEqual(0);
         expect(internalDetails.zoneThreatAnalysis?.eligible).toBe(true);
-        
+
         // Log for debugging if needed
         console.log(`Edge case ${index + 1}:`, {
           score: result.score,
           tier: result.tier,
-          boost: result.breakdown.zone_threat_boost,
-          level: result.breakdown.zone_threat_level
+          boost: result.breakdown['zone_threat_boost'],
+          level: result.breakdown['zone_threat_level']
         });
       });
     });
@@ -466,7 +466,7 @@ describe('Zone Threat Rating Integration', () => {
 
   describe('Performance and Reliability', () => {
     test('should handle batch processing without errors', () => {
-      const batchProps = Array.from({ length: 100 }, (_, i) => 
+      const batchProps = Array.from({ length: 100 }, (_, i) =>
         createMockProp({
           id: `batch_prop_${i}`,
           pitcher_hr_per_9: 1.0 + (i % 20) * 0.1, // Vary stats
@@ -477,11 +477,11 @@ describe('Zone Threat Rating Integration', () => {
       );
 
       const startTime = Date.now();
-      
+
       batchProps.forEach(prop => {
         const result = finalEdgeScore(prop, EDGE_CONFIG);
         const internalDetails = getInternalScoringDetails(prop);
-        
+
         // Basic validation
         expect(result.score).toBeGreaterThanOrEqual(0);
         expect(['D', 'C', 'B', 'A', 'S']).toContain(result.tier);
@@ -489,7 +489,7 @@ describe('Zone Threat Rating Integration', () => {
       });
 
       const processingTime = Date.now() - startTime;
-      
+
       // Should process 100 props quickly
       expect(processingTime).toBeLessThan(1000); // Under 1 second
     });

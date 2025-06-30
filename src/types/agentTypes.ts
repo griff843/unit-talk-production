@@ -17,14 +17,14 @@ export interface AgentConfig {
 export interface AgentTaskInput {
   task_id: string
   agent: string
-  data: any
+  data: unknown
 }
 
 export interface AgentTaskOutput {
   task_id: string
   agent: string
   result: 'success' | 'fail' | 'pending'
-  details?: any
+  details?: unknown
 }
 
 export interface AgentHealthReport {

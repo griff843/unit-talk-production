@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import { FinalPick } from '../../types/picks';
 import { logger } from '../../services/logging';
+import { env } from '../../config/env';
 
 // Enhanced model configuration with performance tracking
 interface ModelConfig {
@@ -103,9 +104,10 @@ export class AIOrchestrator {
   private circuitBreaker: CircuitBreaker = new CircuitBreaker();
   private requestCounts: Map<string, { count: number; resetTime: number }> = new Map();
 
+
   constructor() {
     // Handle missing API keys gracefully for testing
-    const openaiApiKey = process.env.OPENAI_API_KEY || 'test-key-for-testing';
+    const openaiApiKey = env.OPENAI_API_KEY || 'test-key-for-testing';
 
     this.openai = new OpenAI({
       apiKey: openaiApiKey,
@@ -275,7 +277,10 @@ export class AIOrchestrator {
     results.forEach((result, index) => {
       if (result.status === 'fulfilled' && result.value) {
         responses.push(result.value);
-        this.circuitBreaker.recordSuccess(availableModels[index].id);
+        const model = availableModels[index];
+        if (model) {
+          this.circuitBreaker.recordSuccess(model.id);
+        }
       }
     });
 
@@ -302,7 +307,7 @@ export class AIOrchestrator {
     // Sort by score (highest first)
     scoredModels.sort((a, b) => b.score - a.score);
 
-    return scoredModels[0].model;
+    return scoredModels.length > 0 ? scoredModels[0]?.model || null : null;
   }
 
   private calculateModelScore(model: ModelConfig, pick: FinalPick): number {
@@ -471,11 +476,11 @@ Please provide your analysis and recommendation in the following format:
     
     // Extract confidence
     const confidenceMatch = response.match(/\*\*CONFIDENCE\*\*:\s*(\d+)/);
-    const confidence = confidenceMatch ? parseInt(confidenceMatch[1]) / 100 : 0.5;
+    const confidence = confidenceMatch?.[1] ? parseInt(confidenceMatch[1]) / 100 : 0.5;
     
     // Extract reasoning
     const reasoningMatch = response.match(/\*\*REASONING\*\*:\s*([^*]+)/);
-    const reasoning = reasoningMatch ? reasoningMatch[1].trim() : 'No detailed reasoning provided';
+    const reasoning = reasoningMatch?.[1]?.trim() || 'No detailed reasoning provided';
     
     return {
       advice: `**${recommendation}** - ${reasoning}`,
@@ -525,6 +530,9 @@ Please provide your analysis and recommendation in the following format:
 
     if (responses.length === 1) {
       const response = responses[0];
+      if (!response) {
+        throw new Error('Invalid response in array');
+      }
       return {
         primaryAdvice: response.advice,
         confidence: response.confidence,
@@ -543,13 +551,19 @@ Please provide your analysis and recommendation in the following format:
 
     // Calculate agreement
     const recommendationCounts = recommendations.reduce((acc, rec) => {
-      acc[rec] = (acc[rec] || 0) + 1;
+      if (rec) {
+        acc[rec] = (acc[rec] || 0) + 1;
+      }
       return acc;
     }, {} as Record<string, number>);
 
     const mostCommon = Object.entries(recommendationCounts)
       .sort(([,a], [,b]) => b - a)[0];
-    
+
+    if (!mostCommon) {
+      throw new Error('Unable to determine consensus recommendation');
+    }
+
     const agreement = mostCommon[1] / responses.length;
     
     // Calculate weighted confidence
@@ -568,7 +582,7 @@ Please provide your analysis and recommendation in the following format:
     }
 
     return {
-      primaryAdvice: `**${mostCommon[0]}** - Consensus recommendation from ${responses.length} models`,
+      primaryAdvice: mostCommon ? `**${mostCommon[0]}** - Consensus recommendation from ${responses.length} models` : '',
       confidence: avgConfidence * agreement, // Reduce confidence if low agreement
       agreement,
       models: responses.map(r => r.model),
@@ -650,7 +664,11 @@ Please provide your analysis and recommendation in the following format:
       .sort(([, a], [, b]) => b.priority - a.priority);
 
     if (availableModels.length > 0) {
-      const [backupModelId] = availableModels[0];
+      const backupModel = availableModels[0];
+      if (!backupModel) {
+        throw new Error('No backup model available');
+      }
+      const [backupModelId] = backupModel;
       logger.info(`Switching from ${primaryModelId} to backup model ${backupModelId}`);
       return backupModelId;
     }

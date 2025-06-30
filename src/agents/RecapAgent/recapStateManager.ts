@@ -138,6 +138,18 @@ export class RecapStateManager {
       return false;
     }
   }
+
+  /**
+   * Save state (alias for persistState for compatibility)
+   * @param state - The recap state to save
+   * @returns Success indicator
+   */
+  async saveState(state: RecapState): Promise<void> {
+    const success = await this.persistState(state);
+    if (!success) {
+      throw new Error('Failed to save recap state');
+    }
+  }
   
   /**
    * Update specific fields in the recap state
@@ -215,7 +227,7 @@ export class RecapStateManager {
     
     switch (type) {
       case 'daily':
-        updates.lastDailyRecap = date || new Date().toISOString().split('T')[0];
+        updates.lastDailyRecap = date || new Date().toISOString().split('T')[0]!;
         break;
       case 'weekly':
         updates.lastWeeklyRecap = this.getWeekKey(new Date());

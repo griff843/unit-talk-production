@@ -55,7 +55,7 @@ export async function logAlertRecord(
       sport: pick.sport,
       league: pick.league,
       alert_priority: determineAlertPriority(pick),
-      processing_time_ms: processingTimeMs,
+      ...(processingTimeMs !== undefined && { processing_time_ms: processingTimeMs }),
       created_at: new Date().toISOString(),
     };
 
@@ -86,12 +86,19 @@ export async function logAlertOutcome(
     const outcomeEntry: AlertOutcome = {
       bet_id: betId,
       outcome,
-      actual_value: actualValue,
-      profit_loss: profitLoss,
-      closing_line: closingLine,
-      closing_line_value: closingLine ? calculateClosingLineValue(closingLine, actualValue) : undefined,
+      ...(actualValue !== undefined && { actual_value: actualValue }),
+      ...(profitLoss !== undefined && { profit_loss: profitLoss }),
+      ...(closingLine !== undefined && { closing_line: closingLine }),
       settled_at: new Date().toISOString(),
     };
+
+    // Add closing_line_value only if it's not undefined
+    if (closingLine !== undefined) {
+      const closingLineValue = calculateClosingLineValue(closingLine, actualValue);
+      if (closingLineValue !== undefined) {
+        outcomeEntry.closing_line_value = closingLineValue;
+      }
+    }
 
     const { error } = await supabase
       .from('unit_talk_alert_outcomes')
@@ -277,7 +284,7 @@ function groupAndCalculateMetrics(alerts: any[], groupBy: string): Record<string
 
 function extractAdviceType(advice: string): string {
   const match = advice.match(/^(HOLD|HEDGE|FADE)/i);
-  return match ? match[1].toUpperCase() : 'OTHER';
+  return match?.[1]?.toUpperCase() || 'OTHER';
 }
 
 function analyzeAdvicePatterns(alerts: any[]) {

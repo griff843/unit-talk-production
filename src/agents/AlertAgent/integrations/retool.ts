@@ -1,7 +1,8 @@
 import { AlertPayload } from '../../../types/alert'
 import axios from 'axios'
+import { env } from '../../../config/env';
 
-const retoolWebhookUrl = process.env.RETOOL_ALERT_WEBHOOK || ''
+const retoolWebhookUrl = env.RETOOL_ALERT_WEBHOOK || ''
 
 /**
  * Sends an alert with advice to Retool via webhook or API.

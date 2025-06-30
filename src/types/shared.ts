@@ -1,8 +1,8 @@
 // /types/shared.ts
 
-import { SupabaseClient } from '@supabase/supabase-js';
-import { Logger } from '../utils/logger';
-import { ErrorHandler } from '../utils/errorHandling';
+// import { SupabaseClient } from '@supabase/supabase-js';
+// import { Logger } from '../utils/logger';
+// import { ErrorHandler } from '../utils/errorHandling';
 
 export interface EventLog {
     id: string

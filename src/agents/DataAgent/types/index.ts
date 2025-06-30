@@ -1,4 +1,4 @@
-import { BaseAgentConfig, BaseAgentDependencies, BaseMetrics } from '../../BaseAgent/types';
+import { BaseMetrics } from '../../BaseAgent/types';
 import * as z from 'zod';
 
 export const DataAgentConfigSchema = z.object({

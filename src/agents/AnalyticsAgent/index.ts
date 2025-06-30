@@ -1,5 +1,5 @@
 import { BaseAgent } from '../BaseAgent/index';
-import { BaseAgentConfig, BaseAgentDependencies, HealthStatus, BaseMetrics } from '../BaseAgent/types/index';
+import { BaseAgentConfig, BaseAgentDependencies, HealthStatus, BaseMetrics } from '../BaseAgent/types';
 
 interface AnalyticsMetrics extends BaseMetrics {
   totalAnalyzed: number;
@@ -19,13 +19,12 @@ interface AnalyticsMetrics extends BaseMetrics {
 }
 
 export class AnalyticsAgent extends BaseAgent {
-  public config: BaseAgentConfig;
-  public metrics: AnalyticsMetrics;
+  public override metrics: AnalyticsMetrics;
 
   constructor(config: BaseAgentConfig, dependencies: BaseAgentDependencies) {
     super(config, dependencies);
-    this.config = config;
 
+    // Override the base metrics with our extended analytics metrics
     this.metrics = {
       agentName: 'AnalyticsAgent',
       successCount: 0,
@@ -63,7 +62,11 @@ export class AnalyticsAgent extends BaseAgent {
 
     for (const table of requiredTables) {
       try {
-        const { error } = await this.supabase
+        if (!this.hasSupabase()) {
+          throw new Error(`Supabase client not available for table ${table}`);
+        }
+
+        const { error } = await this.requireSupabase()
           .from(table)
           .select('id')
           .limit(1);
@@ -89,7 +92,7 @@ export class AnalyticsAgent extends BaseAgent {
 
     try {
       // Get all cappers with picks - using proper Supabase query
-      const { data: cappers, error: capperError } = await this.supabase
+      const { data: cappers, error: capperError } = await this.requireSupabase()
         .from('final_picks')
         .select('capper_id')
         .limit(1000); // Add limit to avoid issues
@@ -107,10 +110,16 @@ export class AnalyticsAgent extends BaseAgent {
       for (const capperId of uniqueCappers) {
         try {
           await this.processCapperAnalytics(capperId);
-          this.metrics.successCount++;
-          this.metrics.totalProcessed++;
+          const metrics = this.metrics;
+          if (metrics) {
+            metrics.successCount++;
+            metrics.totalProcessed++;
+          }
         } catch (error) {
-          this.metrics.errorCount++;
+          const metrics = this.metrics;
+          if (metrics) {
+            metrics.errorCount++;
+          }
           this.logger.error(
             `Failed to process capper ${capperId}:`,
             {
@@ -122,18 +131,24 @@ export class AnalyticsAgent extends BaseAgent {
       }
 
       this.metrics.lastRunStats.endTime = new Date().toISOString();
+      this.metrics.lastRunStats.endTime = new Date().toISOString();
       this.metrics.processingTimeMs = Date.now() - startTime;
       this.metrics.memoryUsageMb = process.memoryUsage().heapUsed / 1024 / 1024;
-      this.metrics.lastRunStats.recordsProcessed = this.metrics.totalProcessed;
+      if (this.metrics) {
+        this.metrics.lastRunStats.recordsProcessed = this.metrics.totalProcessed;
+      }
 
       this.logger.info('Analytics processing completed', {
-        duration: this.metrics.processingTimeMs,
-        processedCappers: this.metrics.successCount,
-        errors: this.metrics.errorCount
+        duration: this.metrics?.processingTimeMs,
+        processedCappers: this.metrics?.successCount,
+        errors: this.metrics?.errorCount
       });
 
     } catch (error) {
-      this.metrics.errorCount++;
+      const metrics = this.metrics;
+      if (metrics) {
+        metrics.errorCount++;
+      }
       this.logger.error('Analytics processing failed:', {
         error: error instanceof Error ? error.message : 'Unknown error'
       });
@@ -148,8 +163,16 @@ export class AnalyticsAgent extends BaseAgent {
 
   public async checkHealth(): Promise<HealthStatus> {
     try {
+      if (!this.hasSupabase()) {
+        return {
+          status: 'unhealthy',
+          timestamp: new Date().toISOString(),
+          details: { error: 'Supabase client not available' }
+        };
+      }
+
       // Check database connectivity
-      const { error } = await this.supabase
+      const { error } = await this.requireSupabase()
         .from('final_picks')
         .select('id')
         .limit(1);
@@ -158,22 +181,21 @@ export class AnalyticsAgent extends BaseAgent {
         return {
           status: 'unhealthy',
           timestamp: new Date().toISOString(),
-          details: { error: error.message },
-          error: 'Database connectivity check failed'
+          details: { error: 'Database connectivity check failed: ' + error.message }
         };
       }
 
       // Check metrics
-      const isHealthy = this.metrics.errorCount < 10 &&
-                       this.metrics.successCount > 0;
+      const isHealthy = (this.metrics?.errorCount || 0) < 10 &&
+                       (this.metrics?.successCount || 0) > 0;
 
       return {
         status: isHealthy ? 'healthy' : 'degraded',
         timestamp: new Date().toISOString(),
         details: {
-          successCount: this.metrics.successCount,
-          errorCount: this.metrics.errorCount,
-          lastProcessingTime: this.metrics.processingTimeMs
+          successCount: this.metrics?.successCount || 0,
+          errorCount: this.metrics?.errorCount || 0,
+          lastProcessingTime: this.metrics?.processingTimeMs || 0
         }
       };
 
@@ -181,8 +203,7 @@ export class AnalyticsAgent extends BaseAgent {
       return {
         status: 'unhealthy',
         timestamp: new Date().toISOString(),
-        details: {},
-        error: (error as Error).message
+        details: { error: (error as Error).message }
       };
     }
   }
@@ -192,6 +213,7 @@ export class AnalyticsAgent extends BaseAgent {
     return { ...this.metrics };
   }
 
+  // Remove override since handleCommand is not in BaseAgent
   public async handleCommand(command: any): Promise<void> {
     this.logger.info(`Received command: ${JSON.stringify(command)}`);
 
@@ -205,8 +227,13 @@ export class AnalyticsAgent extends BaseAgent {
     this.logger.debug(`Processing analytics for capper ${capperId}`);
 
     try {
+      if (!this.hasSupabase()) {
+        this.logger.error('Supabase client not available for capper analytics');
+        return;
+      }
+
       // Fetch picks for this capper
-      const { data: picks, error } = await this.supabase
+      const { data: picks, error } = await this.requireSupabase()
         .from('final_picks')
         .select('*')
         .eq('capper_id', capperId)
@@ -279,7 +306,12 @@ export class AnalyticsAgent extends BaseAgent {
 
   private async storeAnalyticsSummary(capperId: string, summary: any): Promise<void> {
     try {
-      const { error } = await this.supabase
+      if (!this.hasSupabase()) {
+        this.logger.error('Supabase client not available for storing analytics summary');
+        return;
+      }
+
+      const { error } = await this.requireSupabase()
         .from('analytics_summary')
         .upsert({
           capper_id: capperId,
@@ -292,7 +324,8 @@ export class AnalyticsAgent extends BaseAgent {
       }
     } catch (error) {
       this.logger.error('Failed to store analytics summary', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
+        capperId
       });
       throw error;
     }

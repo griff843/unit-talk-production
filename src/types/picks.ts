@@ -15,8 +15,10 @@ export interface FinalPick {
   units?: number;
   outcome?: 'win' | 'loss' | 'push' | 'pending';
   parlay_id?: string;
+  is_sharp_fade?: boolean;
+  tags?: string[];
   // Additional properties with proper typing
-  [key: string]: string | number | boolean | undefined;
+  [key: string]: string | number | boolean | string[] | undefined;
 }
 
 
@@ -166,7 +168,7 @@ export interface NotionRecapEntry {
   date: string;
   period: 'daily' | 'weekly' | 'monthly';
   summary: RecapSummary;
-  embedData: any;
+  embedData: Record<string, unknown>;
   createdAt: string;
   updatedAt?: string;
 }
@@ -225,21 +227,21 @@ export interface StreakAnalysis {
 export class RecapError extends Error {
   public code: string;
   public timestamp: string;
-  public context?: any;
+  public context?: Record<string, unknown>;
   public severity: 'low' | 'medium' | 'high';
 
   constructor(options: {
     code: string;
     message: string;
     timestamp: string;
-    context?: any;
+    context?: Record<string, unknown>;
     severity: 'low' | 'medium' | 'high';
   }) {
     super(options.message);
     this.name = 'RecapError';
     this.code = options.code;
     this.timestamp = options.timestamp;
-    this.context = options.context;
+    this.context = options.context || {};
     this.severity = options.severity;
   }
 }

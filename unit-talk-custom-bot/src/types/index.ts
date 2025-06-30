@@ -67,7 +67,9 @@ export interface BotConfig {
 }
 
 // User Management Types
-export type UserTier = 'member' | 'vip' | 'vip_plus' | 'staff' | 'admin' | 'owner';
+/** Force TypeScript to refresh UserTier type */
+// User tier system - Updated to include trial and capper tiers
+export type UserTier = 'member' | 'trial' | 'vip' | 'vip_plus' | 'capper' | 'staff' | 'admin' | 'owner';
 
 export interface BotUserProfile {
   id?: string;
@@ -300,12 +302,63 @@ export interface SubmissionResult {
 // Grading Types
 export interface GradingResult {
   pick_id: string;
+  pickId?: string; // For backward compatibility
   status: 'won' | 'lost' | 'void' | 'pushed';
   actual_result: string;
   expected_value: number;
   profit_loss: number;
   grade: 'S' | 'A' | 'B' | 'C' | 'D' | 'F';
   notes?: string;
+  // Additional properties used by gradingService
+  edge?: number;
+  tier?: string;
+  confidence?: number;
+  factors?: GradingFactor[];
+  feedback?: string;
+  coachNotes?: string;
+  improvementAreas?: string[];
+  analysis?: string;
+}
+
+export interface GradingFactor {
+  name: string;
+  value: number;
+  weight: number;
+  description?: string;
+}
+
+export interface CoachingRecommendation {
+  type: 'improvement' | 'strength' | 'warning';
+  title: string;
+  description: string;
+  priority: 'high' | 'medium' | 'low';
+  actionItems?: string[];
+}
+
+export interface RiskFactor {
+  name: string;
+  level: 'low' | 'medium' | 'high';
+  description: string;
+  impact: number;
+}
+
+export interface RiskAssessment {
+  overall: 'low' | 'medium' | 'high';
+  level?: 'low' | 'medium' | 'high'; // For backward compatibility
+  factors: RiskFactor[];
+  score: number;
+  recommendations: string[];
+}
+
+export interface BettingAnalysis {
+  pickId: string;
+  edge: number;
+  confidence: number;
+  riskLevel: 'low' | 'medium' | 'high';
+  expectedValue: number;
+  recommendation: 'strong_buy' | 'buy' | 'hold' | 'avoid';
+  factors: GradingFactor[];
+  // Remove userId as it's not part of the analysis itself
 }
 
 // Chart & Analytics Types
@@ -529,7 +582,7 @@ export interface VIPWelcomeStep {
   completedAt?: Date;
 }
 
-import { CommandInteraction, ChatInputCommandInteraction, User, GuildMember, Guild } from 'discord.js';
+import { ChatInputCommandInteraction, User, GuildMember, Guild } from 'discord.js';
 
 // Sports Pick Type (missing from imports)
 export interface SportsPick {
@@ -554,6 +607,7 @@ export interface SportsPick {
   profit?: number;
 }
 
+
 export interface CommandContext {
   interaction?: ChatInputCommandInteraction;
   user: User;
@@ -562,4 +616,24 @@ export interface CommandContext {
   guild?: Guild;
   permissions: any;
   userProfile?: UserProfile;
+}
+
+// Game Thread type with additional properties for local caching
+export interface GameThread {
+  id: string;
+  thread_id: string;
+  game_id?: string;
+  sport?: string;
+  home_team?: string;
+  away_team?: string;
+  game_time?: string;
+  status?: string;
+  created_at: string;
+  updated_at?: string;
+  last_activity?: string;
+  pick_count?: number;
+  // Additional properties for local caching
+  lastActivity?: Date;
+  pickCount?: number;
+  name?: string;
 }

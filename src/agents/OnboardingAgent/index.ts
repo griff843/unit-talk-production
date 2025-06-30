@@ -80,6 +80,9 @@ export class OnboardingAgent extends BaseAgent {
   }
 
   protected async collectMetrics(): Promise<any> {
+    if (!this.supabase) {
+      throw new Error('Supabase client is required for OnboardingAgent');
+    }
     const { data: onboardingStats } = await this.supabase
       .from('user_onboarding')
       .select('status, completion_rate, satisfaction_score')
@@ -103,6 +106,9 @@ export class OnboardingAgent extends BaseAgent {
       const models = this.aiOrchestrator.getAvailableModelIds();
       
       // Check database connectivity
+      if (!this.supabase) {
+        throw new Error('Supabase client is required for OnboardingAgent');
+      }
       const { error } = await this.supabase
         .from('user_onboarding')
         .select('id')
@@ -143,6 +149,9 @@ export class OnboardingAgent extends BaseAgent {
       this.userProfiles.set(userId, userProfile);
       
       // Create onboarding record
+      if (!this.supabase) {
+        throw new Error('Supabase client is required for OnboardingAgent');
+      }
       await this.supabase
         .from('user_onboarding')
         .insert({
@@ -310,7 +319,6 @@ export class OnboardingAgent extends BaseAgent {
         capper: 'onboarding_system',
         units: 0,
         outcome: 'pending' as const,
-        parlay_id: undefined,
         metadata: JSON.stringify({ step_id: step.id, profile_id: profile.id, analysis: prompt })
       });
 
@@ -382,6 +390,9 @@ Provide customized content that will be most effective for this specific user.
   async processFeedback(userId: string, stepId: string, feedback: any): Promise<void> {
     try {
       // Store feedback
+      if (!this.supabase) {
+        throw new Error('Supabase client is required for OnboardingAgent');
+      }
       await this.supabase
         .from('onboarding_feedback')
         .insert({
@@ -414,7 +425,7 @@ Provide customized content that will be most effective for this specific user.
       });
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(`Failed to process feedback for user ${userId}:`, { error: errorMessage });
-      return;
+      
     }
   }
 
@@ -450,7 +461,6 @@ Focus on actionable insights that can improve the learning experience.
         capper: 'feedback_system',
         units: 0,
         outcome: 'pending' as const,
-        parlay_id: undefined,
         metadata: JSON.stringify({ feedback_type: 'user_feedback_analysis', analysis: prompt })
       });
 
@@ -516,6 +526,9 @@ Focus on actionable insights that can improve the learning experience.
   }
 
   private async loadUserProfiles(): Promise<void> {
+    if (!this.supabase) {
+      throw new Error('Supabase client is required for OnboardingAgent');
+    }
     const { data: profiles } = await this.supabase
       .from('user_profiles')
       .select('*');
@@ -534,6 +547,9 @@ Focus on actionable insights that can improve the learning experience.
   }
 
   private async processActiveOnboardings(): Promise<void> {
+    if (!this.supabase) {
+      throw new Error('Supabase client is required for OnboardingAgent');
+    }
     const { data: activeOnboardings } = await this.supabase
       .from('user_onboarding')
       .select('*')
@@ -601,6 +617,9 @@ Focus on actionable insights that can improve the learning experience.
       Object.assign(profile, updates, { updated_at: new Date().toISOString() });
       this.userProfiles.set(userId, profile);
       
+      if (!this.supabase) {
+        throw new Error('Supabase client is required for OnboardingAgent');
+      }
       await this.supabase
         .from('user_profiles')
         .upsert(profile);
@@ -736,6 +755,9 @@ Focus on actionable insights that can improve the learning experience.
     this.logger.info(`Updating progress for user ${userId}, step ${stepId}`);
 
     // Update progress in database
+    if (!this.supabase) {
+      throw new Error('Supabase client is required for OnboardingAgent');
+    }
     await this.supabase
       .from('user_onboarding')
       .update({

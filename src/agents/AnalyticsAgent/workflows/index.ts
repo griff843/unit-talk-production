@@ -26,8 +26,8 @@ export async function scheduledAnalyticsWorkflow(): Promise<void> {
 
 // Batch analysis workflow
 export async function batchAnalyticsWorkflow(
-  startDate: string,
-  endDate: string
+  _startDate: string,
+  _endDate: string
 ): Promise<void> {
   await runAnalyticsAgentActivity();
 }

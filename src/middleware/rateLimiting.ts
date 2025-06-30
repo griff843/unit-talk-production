@@ -11,7 +11,7 @@ class SimpleRateLimiter {
   ) {}
 
   middleware() {
-    return (req: Request, res: Response, next: NextFunction) => {
+    return (req: Request, res: Response, next: NextFunction): void => {
       const key = this.getKey(req);
       const now = Date.now();
       const windowStart = now - this.windowMs;
@@ -24,10 +24,11 @@ class SimpleRateLimiter {
 
       // Check if limit exceeded
       if (requests.length >= this.maxRequests) {
-        return res.status(429).json({
+        res.status(429).json({
           error: this.message,
           retryAfter: Math.ceil(this.windowMs / 1000)
         });
+        return;
       }
 
       // Add current request
@@ -91,7 +92,7 @@ export const pickSubmissionLimiter = new SimpleRateLimiter(
 ).middleware();
 
 // API abuse protection middleware
-export const abuseProtection = (req: Request, res: Response, next: NextFunction) => {
+export const abuseProtection = (req: Request, res: Response, next: NextFunction): void => {
   const suspiciousPatterns = [
     /script/i,
     /<script/i,
@@ -103,7 +104,7 @@ export const abuseProtection = (req: Request, res: Response, next: NextFunction)
     /expression\(/i,
   ];
 
-  const checkForSuspiciousContent = (obj: any): boolean => {
+  const checkForSuspiciousContent = (obj: unknown): boolean => {
     if (typeof obj === 'string') {
       return suspiciousPatterns.some(pattern => pattern.test(obj));
     }
@@ -123,10 +124,11 @@ export const abuseProtection = (req: Request, res: Response, next: NextFunction)
   };
 
   if (checkForSuspiciousContent(requestData)) {
-    return res.status(400).json({
+    res.status(400).json({
       error: 'Request contains potentially malicious content',
       code: 'SUSPICIOUS_CONTENT'
     });
+    return;
   }
 
   next();
@@ -134,14 +136,15 @@ export const abuseProtection = (req: Request, res: Response, next: NextFunction)
 
 // Request size limiting
 export const requestSizeLimit = (maxSize: number = 1024 * 1024) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     const contentLength = parseInt(req.get('content-length') || '0', 10);
 
     if (contentLength > maxSize) {
-      return res.status(413).json({
+      res.status(413).json({
         error: 'Request entity too large',
         maxSize: `${maxSize} bytes`
       });
+      return;
     }
 
     next();
@@ -153,21 +156,24 @@ export const ipFilter = (options: {
   whitelist?: string[];
   blacklist?: string[];
 }) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     const clientIP = req.ip || req.socket.remoteAddress;
 
     if (!clientIP) {
-      return res.status(400).json({ error: 'Unable to determine client IP' });
+      res.status(400).json({ error: 'Unable to determine client IP' });
+      return;
     }
 
     // Check blacklist first
     if (options.blacklist && options.blacklist.includes(clientIP)) {
-      return res.status(403).json({ error: 'Access denied' });
+      res.status(403).json({ error: 'Access denied' });
+      return;
     }
 
     // Check whitelist if provided
     if (options.whitelist && !options.whitelist.includes(clientIP)) {
-      return res.status(403).json({ error: 'Access denied' });
+      res.status(403).json({ error: 'Access denied' });
+      return;
     }
 
     next();

@@ -162,8 +162,8 @@ describe('NotificationAgent', () => {
       expect(result.notificationId).toBeDefined();
     });
 
-    // Skip problematic tests for now
-    it.skip('should handle disabled channels', async () => {
+    // Test disabled channels and error handling
+    it('should handle disabled channels', async () => {
       const payload: NotificationPayload = {
         type: 'test',
         channels: ['slack'], // slack is disabled in config
@@ -178,7 +178,7 @@ describe('NotificationAgent', () => {
       expect(result.error).toContain('Channel slack is not enabled');
     });
 
-    it.skip('should handle complete failures', async () => {
+    it('should handle complete failures', async () => {
       const payload: NotificationPayload = {
         type: 'test',
         channels: ['nonexistent' as NotificationChannel],
@@ -187,7 +187,7 @@ describe('NotificationAgent', () => {
       };
 
       const result = await agent.sendNotification(payload);
-      
+
       expect(result.success).toBe(false);
       expect(result.channels).toEqual([]);
       expect(result.error).toBeDefined();

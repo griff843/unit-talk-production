@@ -66,6 +66,8 @@ export class GradingError extends Error {
     this.name = 'GradingError';
     this.pickId = data?.pickId || '';
     this.operation = data?.operation || '';
-    this.details = data?.details;
+    if (data?.details !== undefined) {
+      this.details = data.details;
+    }
   }
 } 

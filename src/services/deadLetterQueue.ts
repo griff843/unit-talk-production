@@ -74,7 +74,7 @@ export class DeadLetterQueue extends EventEmitter {
         error: {
           message: error.message,
           stack: error.stack,
-          code: (error as any).code,
+          code: (error as Error & { code?: string }).code,
         },
         retry_count: 0,
         max_retries: this.config.maxRetries,
@@ -92,7 +92,7 @@ export class DeadLetterQueue extends EventEmitter {
         error: error.message,
       });
     } catch (error) {
-      this.logger.error('Failed to enqueue to DLQ:', error as Record<string, any>);
+      this.logger.error('Failed to enqueue to DLQ:', error as Error);
       throw error;
     }
   }
@@ -120,7 +120,7 @@ export class DeadLetterQueue extends EventEmitter {
         await this.processDeadLetter(letter);
       }
     } catch (error) {
-      this.logger.error('Failed to process DLQ:', error as Record<string, any>);
+      this.logger.error('Failed to process DLQ:', error as Error);
     }
   }
 

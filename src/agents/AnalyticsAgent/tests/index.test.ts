@@ -80,17 +80,18 @@ const testDependencies: BaseAgentDependencies = {
     info: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
+    setLevel: jest.fn(),
     child: jest.fn(() => ({
       debug: jest.fn(),
       info: jest.fn(),
       warn: jest.fn(),
       error: jest.fn(),
+      setLevel: jest.fn(),
       child: jest.fn()
     }))
   },
   errorHandler: {
-    handleError: jest.fn(),
-    withRetry: jest.fn()
+    handleError: jest.fn()
   },
 };
 

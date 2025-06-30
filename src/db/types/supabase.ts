@@ -9,6 +9,188 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      daily_picks: {
+        Row: {
+          id: string
+          created_at: string
+          updated_at: string
+          capper_id: string
+          capper_discord_id: string
+          capper_username: string
+          event_date: string
+          status: 'pending' | 'finalized' | 'cancelled' | 'deleted'
+          pick_type: 'single' | 'parlay'
+          total_legs: number
+          total_odds: number
+          total_units: number
+          analysis: string | null
+          thread_id: string | null
+          message_id: string | null
+          legs: Json // Array of pick legs
+          metadata: Json | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          updated_at?: string
+          capper_id: string
+          capper_discord_id: string
+          capper_username: string
+          event_date: string
+          status?: 'pending' | 'finalized' | 'cancelled' | 'deleted'
+          pick_type: 'single' | 'parlay'
+          total_legs: number
+          total_odds: number
+          total_units: number
+          analysis?: string | null
+          thread_id?: string | null
+          message_id?: string | null
+          legs: Json
+          metadata?: Json | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          updated_at?: string
+          capper_id?: string
+          capper_discord_id?: string
+          capper_username?: string
+          event_date?: string
+          status?: 'pending' | 'finalized' | 'cancelled' | 'deleted'
+          pick_type?: 'single' | 'parlay'
+          total_legs?: number
+          total_odds?: number
+          total_units?: number
+          analysis?: string | null
+          thread_id?: string | null
+          message_id?: string | null
+          legs?: Json
+          metadata?: Json | null
+        }
+      }
+      capper_profiles: {
+        Row: {
+          id: string
+          created_at: string
+          updated_at: string
+          discord_id: string
+          username: string
+          display_name: string | null
+          tier: string
+          status: 'active' | 'inactive' | 'suspended'
+          onboarded_at: string | null
+          thread_id: string | null
+          stats: Json // Win rate, ROI, total picks, etc.
+          settings: Json | null
+          metadata: Json | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          updated_at?: string
+          discord_id: string
+          username: string
+          display_name?: string | null
+          tier: string
+          status?: 'active' | 'inactive' | 'suspended'
+          onboarded_at?: string | null
+          thread_id?: string | null
+          stats?: Json
+          settings?: Json | null
+          metadata?: Json | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          updated_at?: string
+          discord_id?: string
+          username?: string
+          display_name?: string | null
+          tier?: string
+          status?: 'active' | 'inactive' | 'suspended'
+          onboarded_at?: string | null
+          thread_id?: string | null
+          stats?: Json
+          settings?: Json | null
+          metadata?: Json | null
+        }
+      }
+      analytics_events: {
+        Row: {
+          id: string
+          created_at: string
+          event_type: string
+          user_id: string | null
+          capper_id: string | null
+          pick_id: string | null
+          event_data: Json
+          metadata: Json | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          event_type: string
+          user_id?: string | null
+          capper_id?: string | null
+          pick_id?: string | null
+          event_data: Json
+          metadata?: Json | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          event_type?: string
+          user_id?: string | null
+          capper_id?: string | null
+          pick_id?: string | null
+          event_data?: Json
+          metadata?: Json | null
+        }
+      }
+      sports_game_odds: {
+        Row: {
+          id: string
+          created_at: string
+          updated_at: string
+          game_id: string
+          sport: string
+          league: string
+          home_team: string
+          away_team: string
+          game_date: string
+          markets: Json // Available betting markets
+          players: Json // Player props
+          metadata: Json | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          updated_at?: string
+          game_id: string
+          sport: string
+          league: string
+          home_team: string
+          away_team: string
+          game_date: string
+          markets: Json
+          players: Json
+          metadata?: Json | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          updated_at?: string
+          game_id?: string
+          sport?: string
+          league?: string
+          home_team?: string
+          away_team?: string
+          game_date?: string
+          markets?: Json
+          players?: Json
+          metadata?: Json | null
+        }
+      }
       final_picks: {
         Row: {
           id: string
@@ -77,6 +259,7 @@ export interface Database {
           metadata?: Json | null
         }
       }
+      // ... existing code ...
       analytics_summary: {
         Row: {
           id: string
@@ -229,4 +412,4 @@ export interface Database {
       [_ in never]: never
     }
   }
-} 
+}

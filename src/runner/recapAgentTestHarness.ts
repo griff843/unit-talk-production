@@ -2,6 +2,9 @@ import 'dotenv/config';
 import { RecapAgent } from '../agents/RecapAgent';
 import { createLogger } from '../utils/logger';
 import { ErrorHandler } from '../utils/errorHandling';
+import { RecapService } from '../agents/RecapAgent/recapService';
+import { RecapFormatter } from '../agents/RecapAgent/recapFormatter';
+import { RecapStateManager } from '../agents/RecapAgent/recapStateManager';
 
 async function runRecapTest() {
   try {
@@ -45,27 +48,39 @@ async function runRecapTest() {
       errorHandler: new ErrorHandler('RecapAgentTest', null as any)
     };
 
+    // Create mock dependencies
+    // const recapConfig = {
+    //   // Add necessary configuration for RecapConfig
+    // };
+    const recapService = new RecapService();
+    const recapFormatter = new RecapFormatter();
+    const stateManager = new RecapStateManager(deps.supabase!, logger);
+
     // Initialize RecapAgent
-    const recapAgent = new RecapAgent(config, deps);
+    const recapAgent = new RecapAgent(
+      config,
+      deps,
+      recapService,
+      recapFormatter,
+      stateManager
+    );
 
     // Get test type from command line args
     const testType = process.argv[2] || 'daily';
+    const dateStr = process.argv[3];
 
-    logger.info(`Running ${testType} recap test...`);
-
-    switch (testType) {
-      case 'daily':
-        await testDailyRecap(recapAgent, logger);
-        break;
-      case 'weekly':
-        await testWeeklyRecap(recapAgent, logger);
-        break;
-      case 'monthly':
-        await testMonthlyRecap(recapAgent, logger);
-        break;
-      default:
-        logger.error(`Unknown test type: ${testType}`);
-        return;
+    if (testType === 'daily') {
+      if (dateStr) {
+        await testDailyRecap(recapAgent, logger, dateStr);
+      } else {
+        console.log('Usage: npm run test:recap daily <YYYY-MM-DD>');
+        process.exit(1);
+      }
+    } else if (testType === 'weekly') {
+      await testWeeklyRecap(recapAgent, logger);
+    } else {
+      console.log('Usage: npm run test:recap [daily|weekly] [date]');
+      process.exit(1);
     }
 
     logger.info('RecapAgent test completed successfully');
@@ -77,16 +92,14 @@ async function runRecapTest() {
   }
 }
 
-async function testDailyRecap(agent: RecapAgent, logger: any) {
+async function testDailyRecap(agent: RecapAgent, logger: any, dateStr: string) {
   try {
     logger.info('Testing daily recap...');
     
-    // Test with yesterday's date
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const dateStr = yesterday.toISOString().split('T')[0];
+    // Ensure dateStr is a valid date string
+    const validDateStr = dateStr || new Date().toISOString().split('T')[0];
     
-    await agent.triggerDailyRecap(dateStr);
+    await agent.triggerDailyRecap(validDateStr);
     logger.info('Daily recap test completed');
     
   } catch (error) {
@@ -108,13 +121,16 @@ async function testWeeklyRecap(agent: RecapAgent, logger: any) {
   }
 }
 
+  // Future test function for monthly recap functionality
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // @ts-ignore - Function reserved for future use
 async function testMonthlyRecap(agent: RecapAgent, logger: any) {
   try {
     logger.info('Testing monthly recap...');
-    
+
     await agent.triggerMonthlyRecap();
     logger.info('Monthly recap test completed');
-    
+
   } catch (error) {
     logger.error('Monthly recap test failed:', error);
     throw error;

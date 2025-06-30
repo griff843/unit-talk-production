@@ -18,16 +18,16 @@ export class RecapFormatter {
 
   constructor(config?: Partial<RecapConfig>) {
     this.config = {
-      legendFooter: process.env.LEGEND_FOOTER === 'true',
-      microRecap: process.env.MICRO_RECAP === 'true',
-      notionSync: process.env.NOTION_SYNC === 'true',
-      clvDelta: process.env.CLV_DELTA === 'true',
-      streakSparkline: process.env.STREAK_SPARKLINE === 'true',
-      roiThreshold: parseFloat(process.env.ROI_THRESHOLD || '5.0'),
-      microRecapCooldown: parseInt(process.env.MICRO_RECAP_COOLDOWN || '60'),
-      slashCommands: process.env.SLASH_COMMANDS === 'true',
-      metricsEnabled: process.env.METRICS_ENABLED !== 'false',
-      metricsPort: parseInt(process.env.METRICS_PORT || '3001'),
+      legendFooter: process.env['LEGEND_FOOTER'] === 'true',
+      microRecap: process.env['MICRO_RECAP'] === 'true',
+      notionSync: process.env['NOTION_SYNC'] === 'true',
+      clvDelta: process.env['CLV_DELTA'] === 'true',
+      streakSparkline: process.env['STREAK_SPARKLINE'] === 'true',
+      roiThreshold: parseFloat(process.env['ROI_THRESHOLD'] || '5.0'),
+      microRecapCooldown: parseInt(process.env['MICRO_RECAP_COOLDOWN'] || '60'),
+      slashCommands: process.env['SLASH_COMMANDS'] === 'true',
+      metricsEnabled: process.env['METRICS_ENABLED'] !== 'false',
+      metricsPort: parseInt(process.env['METRICS_PORT'] || '3001'),
       ...config
     };
   }
@@ -124,7 +124,9 @@ export class RecapFormatter {
   /**
    * Build weekly recap embed
    */
-  buildWeeklyRecapEmbed(summary: RecapSummary, parlayGroups: ParlayGroup[] = []): EmbedBuilder {
+  buildWeeklyRecapEmbed(summary: RecapSummary,
+    // parlayGroups: ParlayGroup[] = []
+  ): EmbedBuilder {
     const embed = new EmbedBuilder()
       .setTitle('📊 WEEKLY RECAP — TBD → TBD')
       .setColor(summary.netUnits >= 0 ? 0x00ff00 : 0xff0000)
@@ -133,7 +135,7 @@ export class RecapFormatter {
     // Weekly performance
     const profitEmoji = summary.netUnits >= 0 ? '📈' : '📉';
     const unitsText = summary.netUnits >= 0 ? `+${summary.netUnits.toFixed(1)}U` : `${summary.netUnits.toFixed(1)}U`;
-    
+
     embed.addFields({
       name: `${profitEmoji} Record: ${summary.wins}W - ${summary.losses}L`,
       value: `Net Units: ${unitsText}\n` +
@@ -207,7 +209,9 @@ export class RecapFormatter {
   /**
    * Build monthly recap embed
    */
-  buildMonthlyRecapEmbed(summary: RecapSummary, parlayGroups: ParlayGroup[] = []): EmbedBuilder {
+  buildMonthlyRecapEmbed(summary: RecapSummary,
+    // parlayGroups: ParlayGroup[] = []
+  ): EmbedBuilder {
     const embed = new EmbedBuilder()
       .setTitle('📊 MONTHLY RECAP — TBD')
       .setColor(summary.netUnits >= 0 ? 0x00ff00 : 0xff0000)
@@ -216,7 +220,7 @@ export class RecapFormatter {
     // Monthly performance
     const profitEmoji = summary.netUnits >= 0 ? '📈' : '📉';
     const unitsText = summary.netUnits >= 0 ? `+${summary.netUnits.toFixed(1)}U` : `${summary.netUnits.toFixed(1)}U`;
-    
+
     embed.addFields({
       name: `${profitEmoji} Record: ${summary.wins}W - ${summary.losses}L`,
       value: `Net Units: ${unitsText}\n` +
@@ -316,14 +320,14 @@ export class RecapFormatter {
 
     // Add sample picks (in production, you'd get actual pick details)
     if (summary.bestPick) {
-      const profitLoss = typeof summary.bestPick.profit_loss === 'number' ?
-        summary.bestPick.profit_loss.toFixed(1) : '0';
+      const profitLoss = typeof summary.bestPick['profit_loss'] === 'number' ?
+        summary.bestPick['profit_loss'].toFixed(1) : '0';
       picks.push(`✅ ${this.formatPick(summary.bestPick)} (+${profitLoss}U)`);
     }
 
     if (summary.worstPick) {
-      const profitLoss = (summary.worstPick.profit_loss !== null && typeof summary.worstPick.profit_loss === 'number') ?
-        summary.worstPick.profit_loss.toFixed(1) : '0';
+      const profitLoss = (summary.worstPick['profit_loss'] !== null && typeof summary.worstPick['profit_loss'] === 'number') ?
+        summary.worstPick['profit_loss'].toFixed(1) : '0';
       picks.push(`❌ ${this.formatPick(summary.worstPick)} (${profitLoss}U)`);
     }
 
@@ -386,19 +390,19 @@ export class RecapFormatter {
     const highlights = [];
 
     if (summary.bestPick) {
-      const profitLoss = typeof summary.bestPick.profit_loss === 'number' ?
-        summary.bestPick.profit_loss.toFixed(1) : '0';
+      const profitLoss = typeof summary.bestPick['profit_loss'] === 'number' ?
+        summary.bestPick['profit_loss'].toFixed(1) : '0';
       highlights.push(`• Best Play: ${this.formatPick(summary.bestPick)} (+${profitLoss}U)`);
     }
 
     if (summary.badBeat) {
-      const profitLoss = typeof summary.badBeat.profit_loss === 'number' ?
-        summary.badBeat.profit_loss.toFixed(1) : '0';
+      const profitLoss = typeof summary.badBeat['profit_loss'] === 'number' ?
+        summary.badBeat['profit_loss'].toFixed(1) : '0';
       highlights.push(`• Bad Beat: ${this.formatPick(summary.badBeat)} (${profitLoss}U)`);
     }
 
     if (summary.hotStreaks.length > 0) {
-      const longestStreak = summary.hotStreaks[0];
+      const longestStreak = summary.hotStreaks[0]!;
       highlights.push(`• Longest Streak: ${longestStreak.capper} (${longestStreak.streakLength} ${longestStreak.streakType}s)`);
     }
 
@@ -409,8 +413,8 @@ export class RecapFormatter {
     const highlights = [];
     
     if (summary.biggestWin) {
-      const profitLoss = typeof summary.biggestWin.profit_loss === 'number' ?
-        summary.biggestWin.profit_loss.toFixed(1) : '0';
+      const profitLoss = typeof summary.biggestWin['profit_loss'] === 'number' ?
+        summary.biggestWin['profit_loss'].toFixed(1) : '0';
       highlights.push(`• Best Day: ${this.formatPick(summary.biggestWin)} (+${profitLoss}U)`);
     }
     
@@ -419,7 +423,7 @@ export class RecapFormatter {
     }
 
     if (summary.hotStreaks.length > 0) {
-      const longestStreak = summary.hotStreaks[0];
+      const longestStreak = summary.hotStreaks[0]!;
       highlights.push(`• Longest Streak: ${longestStreak.capper} (${longestStreak.streakLength} ${longestStreak.streakType}s)`);
     }
 

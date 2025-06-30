@@ -3,10 +3,9 @@
 import { z } from 'zod';
 import { SupabaseClient } from '@supabase/supabase-js';
 import {
-  AgentConfig,
+
   HealthCheckResult as BaseHealthCheckResult,
-  AgentCommand as BaseAgentCommand,
-  BaseAgentDependencies as BaseDeps
+  AgentCommand as BaseAgentCommand
 } from '../../types/agent';
 
 // --- Provider Types ---

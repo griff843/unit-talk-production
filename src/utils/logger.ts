@@ -1,6 +1,8 @@
 // /utils/logger.ts
 
 import pino from 'pino';
+import { env } from '../config/env';
+import { Logger as LoggerInterface, LogLevel, LogMethod } from '../shared/logger/types';
 
 export interface LoggerConfig {
   level?: string;
@@ -10,7 +12,7 @@ export interface LoggerConfig {
   filePath?: string;
 }
 
-export class Logger {
+export class Logger implements LoggerInterface {
   private static instance: Logger;
   private readonly logger: pino.Logger;
 
@@ -20,7 +22,7 @@ export class Logger {
   ) {
     const loggerConfig: pino.LoggerOptions = {
       name,
-      level: config.level || process.env.LOG_LEVEL || 'info',
+      level: config.level || env.LOG_LEVEL || 'info',
       timestamp: pino.stdTimeFunctions.isoTime,
       formatters: {
         level: (label) => {
@@ -28,7 +30,7 @@ export class Logger {
         },
       },
       base: {
-        env: process.env.NODE_ENV,
+        env: env.NODE_ENV,
         name,
       }
     };
@@ -62,21 +64,82 @@ export class Logger {
     return Logger.instance;
   }
 
-  // Standard logging methods
-  public info(message: string, context: Record<string, unknown> = {}): void {
-    this.logger.info(context, message);
+  // Implement LogMethod interface for each log level
+  public debug: LogMethod = (msgOrObj: string | object, msgOrArgs?: string | unknown, ...args: unknown[]): void => {
+    if (typeof msgOrObj === 'string') {
+      // First overload: (msg: string, ...args: unknown[]): void
+      this.logger.debug(msgOrArgs ? { args: [msgOrArgs, ...args] } : {}, msgOrObj);
+    } else {
+      // Second overload: (obj: object, msg?: string, ...args: unknown[]): void
+      this.logger.debug(msgOrObj, msgOrArgs as string || '', ...(args || []));
+    }
+  };
+
+  public info: LogMethod = (msgOrObj: string | object, msgOrArgs?: string | unknown, ...args: unknown[]): void => {
+    if (typeof msgOrObj === 'string') {
+      // First overload: (msg: string, ...args: unknown[]): void
+      this.logger.info(msgOrArgs ? { args: [msgOrArgs, ...args] } : {}, msgOrObj);
+    } else {
+      // Second overload: (obj: object, msg?: string, ...args: unknown[]): void
+      this.logger.info(msgOrObj, msgOrArgs as string || '', ...(args || []));
+    }
+  };
+
+  public warn: LogMethod = (msgOrObj: string | object, msgOrArgs?: string | unknown, ...args: unknown[]): void => {
+    if (typeof msgOrObj === 'string') {
+      // First overload: (msg: string, ...args: unknown[]): void
+      this.logger.warn(msgOrArgs ? { args: [msgOrArgs, ...args] } : {}, msgOrObj);
+    } else {
+      // Second overload: (obj: object, msg?: string, ...args: unknown[]): void
+      this.logger.warn(msgOrObj, msgOrArgs as string || '', ...(args || []));
+    }
+  };
+
+  public error: LogMethod = (msgOrObj: string | object, msgOrArgs?: string | unknown, ...args: unknown[]): void => {
+    if (typeof msgOrObj === 'string') {
+      // First overload: (msg: string, ...args: unknown[]): void
+      this.logger.error(msgOrArgs ? { args: [msgOrArgs, ...args] } : {}, msgOrObj);
+    } else {
+      // Second overload: (obj: object, msg?: string, ...args: unknown[]): void
+      this.logger.error(msgOrObj, msgOrArgs as string || '', ...(args || []));
+    }
+  };
+
+  // Add setLevel method to match interface
+  public setLevel(level: LogLevel): void {
+    this.logger.level = level;
   }
 
-  public error(message: string, context: Record<string, unknown> = {}): void {
-    this.logger.error(context, message);
+  // Utility methods
+  public child(bindings: Record<string, unknown>): LoggerInterface {
+    const childLogger = this.logger.child(bindings);
+    // Create a new Logger instance that wraps the child logger
+    const childInstance = new Logger();
+    // Use Object.defineProperty to avoid type conflicts
+    Object.defineProperty(childInstance, 'logger', {
+      value: childLogger,
+      writable: false,
+      enumerable: false,
+      configurable: false
+    });
+    return childInstance;
   }
 
-  public warn(message: string, context: Record<string, unknown> = {}): void {
-    this.logger.warn(context, message);
+  // Legacy methods for backward compatibility
+  public logInfo(message: string, context: Record<string, unknown> = {}): void {
+    this.info(context, message);
   }
 
-  public debug(message: string, context: Record<string, unknown> = {}): void {
-    this.logger.debug(context, message);
+  public logError(message: string, context: Record<string, unknown> = {}): void {
+    this.error(context, message);
+  }
+
+  public logWarn(message: string, context: Record<string, unknown> = {}): void {
+    this.warn(context, message);
+  }
+
+  public logDebug(message: string, context: Record<string, unknown> = {}): void {
+    this.debug(context, message);
   }
 
   // Specialized logging methods for agents
@@ -85,12 +148,12 @@ export class Logger {
     activity: string,
     details: Record<string, unknown> = {}
   ): void {
-    this.info(`Agent Activity: ${activity}`, {
+    this.info({
       agent,
       activity,
       ...details,
       timestamp: new Date().toISOString()
-    });
+    }, `Agent Activity: ${activity}`);
   }
 
   public logAgentError(
@@ -98,7 +161,7 @@ export class Logger {
     error: Error,
     context: Record<string, unknown> = {}
   ): void {
-    this.error(`Agent Error: ${error.message}`, {
+    this.error({
       agent,
       error: {
         message: error.message,
@@ -107,7 +170,7 @@ export class Logger {
       },
       ...context,
       timestamp: new Date().toISOString()
-    });
+    }, `Agent Error: ${error.message}`);
   }
 
   public logMetric(
@@ -115,13 +178,13 @@ export class Logger {
     value: number,
     tags: Record<string, unknown> = {}
   ): void {
-    this.info(`Metric: ${metric}`, {
+    this.info({
       metric,
       value,
       tags,
       type: 'metric',
       timestamp: new Date().toISOString()
-    });
+    }, `Metric: ${metric}`);
   }
 
   public logHealth(
@@ -129,18 +192,13 @@ export class Logger {
     status: 'healthy' | 'unhealthy',
     details: Record<string, unknown> = {}
   ): void {
-    this.info(`Health Check: ${component}`, {
+    this.info({
       component,
       status,
       ...details,
       type: 'health',
       timestamp: new Date().toISOString()
-    });
-  }
-
-  // Utility methods
-  public child(bindings: Record<string, unknown>): pino.Logger {
-    return this.logger.child(bindings);
+    }, `Health Check: ${component}`);
   }
 
   public getLogger(): pino.Logger {

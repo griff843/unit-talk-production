@@ -1,4 +1,4 @@
-import { Client, User, GuildMember, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { Client, GuildMember, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, TextChannel } from 'discord.js';
 import { SupabaseService } from './supabase';
 import { PermissionsService } from './permissions';
 import { UserTier, VIPNotificationSequence, VIPWelcomeFlow } from '../types/index';
@@ -548,7 +548,7 @@ export class VIPNotificationService {
       .setTimestamp();
   }
 
-  private async createWeeklyRecapReminder(user: any, tier: UserTier): Promise<EmbedBuilder> {
+  private async createWeeklyRecapReminder(user: any, _tier: UserTier): Promise<EmbedBuilder> {
     // Get user's weekly stats
     const stats = await this.getUserWeeklyStats(user.discord_id);
     
@@ -564,11 +564,13 @@ export class VIPNotificationService {
       .setTimestamp();
   }
 
-  private createTierBenefitsReminder(user: any, tier: UserTier): EmbedBuilder {
+  private createTierBenefitsReminder(_user: any, tier: UserTier): EmbedBuilder {
     const benefits: Record<UserTier, string[]> = {
       member: ['Free picks access', 'Basic community features'],
+      trial: ['Limited AI coaching', 'Basic analysis', 'Community access'],
       vip: ['Early pick access', 'Detailed analysis', 'Performance tracking'],
       vip_plus: ['Instant alerts', 'AI coaching', 'Multi-language support', 'Advanced analytics'],
+      capper: ['Professional tools', 'Advanced analytics', 'Capper insights'],
       staff: ['All VIP+ features', 'Staff tools', 'Moderation access'],
       admin: ['All staff features', 'Admin panel access', 'System management'],
       owner: ['Full system access', 'All features unlocked']
@@ -587,7 +589,7 @@ export class VIPNotificationService {
       .setColor(tier === 'vip_plus' ? '#FFD700' : tier === 'vip' ? '#4169E1' : '#808080');
   }
 
-  private createEngagementBoostReminder(user: any, tier: UserTier): EmbedBuilder {
+  private createEngagementBoostReminder(user: any, _tier: UserTier): EmbedBuilder {
     return new EmbedBuilder()
       .setTitle('🚀 Boost Your Engagement!')
       .setDescription(`${user.username}, here are some ways to get more value:`)
@@ -600,7 +602,7 @@ export class VIPNotificationService {
       .setTimestamp();
   }
 
-  private async getUserWeeklyStats(userId: string): Promise<any> {
+  private async getUserWeeklyStats(_userId: string): Promise<any> {
     // Implementation would fetch actual stats from database
     return {
       picksTracked: 12,
@@ -792,6 +794,8 @@ export class VIPNotificationService {
         await this.handleVIPPlusWelcome(member);
       } else if (newTier === 'vip' && oldTier !== 'vip') {
         await this.handleVIPWelcome(member);
+      } else if (newTier === 'capper' && oldTier !== 'capper') {
+        await this.handleCapperWelcome(member);
       }
 
       // Handle downgrades
@@ -831,7 +835,7 @@ export class VIPNotificationService {
   /**
    * Process welcome flow for a user
    */
-  private async processWelcomeFlow(userId: string, flow: VIPWelcomeFlow): Promise<void> {
+  private async processWelcomeFlow(_userId: string, _flow: VIPWelcomeFlow): Promise<void> {
     // Implementation for processing welcome flow steps
     // This would handle the step-by-step welcome process
   }
@@ -945,6 +949,168 @@ export class VIPNotificationService {
       });
     } catch (error) {
       logger.error('Error sending VIP downgrade notification:', error);
+    }
+  }
+
+  /**
+   * Handle Capper welcome notification
+   */
+  private async handleCapperWelcome(member: GuildMember): Promise<void> {
+    try {
+      const embed = new EmbedBuilder()
+        .setTitle(`🎯 Welcome UT Capper ${member.displayName}!`)
+        .setDescription('You\'ve been granted capper privileges! Here\'s how to get started:')
+        .addFields(
+          {
+            name: '📋 Getting Started',
+            value: [
+              '• Complete your capper onboarding with `/capper-onboard`',
+              '• Set your display name and tier',
+              '• Learn the pick submission process',
+              '• Understand performance tracking'
+            ].join('\n'),
+            inline: false
+          },
+          {
+            name: '🎯 Your Capper Tools',
+            value: [
+              '• `/submit-pick` - Submit betting picks',
+              '• `/edit-pick` - Edit existing picks',
+              '• `/delete-pick` - Remove picks',
+              '• `/capper-stats` - View your performance'
+            ].join('\n'),
+            inline: false
+          },
+          {
+            name: '📊 Performance Tracking',
+            value: [
+              'All your picks are automatically tracked for:',
+              '• Win/Loss record',
+              '• ROI and profit tracking',
+              '• Leaderboard rankings',
+              '• Monthly performance reports'
+            ].join('\n'),
+            inline: false
+          },
+          {
+            name: '🏆 Capper Benefits',
+            value: [
+              '• Submit unlimited picks',
+              '• Access to capper-only channels',
+              '• Performance analytics dashboard',
+              '• Monthly leaderboard competitions',
+              '• Direct feedback from the community'
+            ].join('\n'),
+            inline: false
+          }
+        )
+        .setColor('#E67E22')
+        .setThumbnail(member.user.displayAvatarURL())
+        .setFooter({ text: 'Complete your onboarding to start submitting picks!' })
+        .setTimestamp();
+
+      const capperButtons = new ActionRowBuilder<ButtonBuilder>()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId('capper_onboard_start')
+            .setLabel('Complete Onboarding')
+            .setStyle(ButtonStyle.Success)
+            .setEmoji('🎯'),
+          new ButtonBuilder()
+            .setCustomId('capper_guide')
+            .setLabel('Capper Guide')
+            .setStyle(ButtonStyle.Primary)
+            .setEmoji('📖'),
+          new ButtonBuilder()
+            .setCustomId('capper_support')
+            .setLabel('Get Support')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji('🆘')
+        );
+
+      await member.send({
+        embeds: [embed],
+        components: [capperButtons]
+      });
+
+      logger.info('Capper welcome notification sent', {
+        userId: member.id,
+        username: member.user.username,
+        displayName: member.displayName
+      });
+
+      // Also notify admins about new capper
+      await this.notifyAdminsOfCapperAssignment(member);
+
+    } catch (error) {
+      logger.error('Error sending capper welcome notification:', error);
+
+      // If DM fails, try to notify in a channel
+      await this.fallbackCapperNotification(member);
+    }
+  }
+
+  /**
+   * Notify admins about new capper assignment
+   */
+  private async notifyAdminsOfCapperAssignment(member: GuildMember): Promise<void> {
+    try {
+      const adminChannelId = process.env.ADMIN_CHANNEL_ID;
+      if (!adminChannelId) return;
+
+      const adminChannel = member.guild.channels.cache.get(adminChannelId) as TextChannel;
+      if (!adminChannel) return;
+
+      const embed = new EmbedBuilder()
+        .setTitle('🎯 New Capper Assigned')
+        .setDescription(`${member.displayName} (${member.user.tag}) has been assigned the UT Capper role.`)
+        .addFields(
+          { name: 'User ID', value: member.id, inline: true },
+          { name: 'Join Date', value: member.joinedAt?.toDateString() || 'Unknown', inline: true },
+          { name: 'Account Created', value: member.user.createdAt.toDateString(), inline: true }
+        )
+        .setColor('#E67E22')
+        .setThumbnail(member.user.displayAvatarURL())
+        .setTimestamp();
+
+      await adminChannel.send({ embeds: [embed] });
+    } catch (error) {
+      logger.error('Error notifying admins of capper assignment:', error);
+    }
+  }
+
+  /**
+   * Fallback notification if DM fails
+   */
+  private async fallbackCapperNotification(member: GuildMember): Promise<void> {
+    try {
+      const welcomeChannelId = process.env.WELCOME_CHANNEL_ID;
+      if (!welcomeChannelId) return;
+
+      const channel = member.guild.channels.cache.get(welcomeChannelId) as TextChannel;
+      if (!channel) return;
+
+      const embed = new EmbedBuilder()
+        .setTitle('🎯 Welcome New UT Capper!')
+        .setDescription(`Welcome ${member.displayName}! You've been assigned as a UT Capper.`)
+        .addFields(
+          {
+            name: '📧 DM Issue',
+            value: 'We tried to send you a welcome DM but couldn\'t reach you. Make sure your DMs are open for important capper notifications!',
+            inline: false
+          },
+          {
+            name: '🚀 Next Steps',
+            value: 'Use `/capper-onboard` to complete your onboarding and start submitting picks!',
+            inline: false
+          }
+        )
+        .setColor('#E67E22')
+        .setTimestamp();
+
+      await channel.send({ embeds: [embed] });
+    } catch (error) {
+      logger.error('Error sending fallback capper notification:', error);
     }
   }
 }

@@ -1,4 +1,5 @@
 import { BaseAgentConfig } from '../BaseAgent/types';
+import { FinalPick } from '../../types/picks';
 
 export interface RecapAgentConfig extends BaseAgentConfig {
   recap?: {
@@ -14,6 +15,26 @@ export interface RecapParams {
   includeDetails?: boolean;
 }
 
+export interface CapperStats {
+  capper: string;
+  units: number;
+  win: number;
+  loss: number;
+  roi: number;
+  l3: string;
+  l5: string;
+  l10: string;
+  streak: string;
+  pickLines: string[];
+}
+
+export interface MVPData {
+  capper: string;
+  units: number;
+  roi: number;
+  winRate: number;
+}
+
 export interface RecapResult {
   date: string;
   teamStats: {
@@ -26,20 +47,9 @@ export interface RecapResult {
     l10: string;
     streak: string;
   };
-  capperStatsArr: Array<{
-    capper: string;
-    units: number;
-    win: number;
-    loss: number;
-    roi: number;
-    l3: string;
-    l5: string;
-    l10: string;
-    streak: string;
-    pickLines: string[];
-  }>;
-  mvp: any;
+  capperStatsArr: CapperStats[];
+  mvp: MVPData | null;
   dollarLine: string;
   fullResultsLink: string;
-  picks: any[];
-} 
+  picks: FinalPick[];
+}

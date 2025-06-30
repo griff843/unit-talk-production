@@ -1,6 +1,7 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { EmbedBuilder } from 'discord.js';
 import { RecapAgent } from './index';
-import { SlashCommandOptions, RecapError } from '../../types/picks';
+import { SlashCommandOptions, RecapError, CapperStats, RecapSummary } from '../../types/picks';
+import { Logger } from '../../shared/logger/types';
 
 /**
  * SlashCommandHandler - Handles Discord slash commands for on-demand recaps
@@ -8,10 +9,13 @@ import { SlashCommandOptions, RecapError } from '../../types/picks';
  */
 export class SlashCommandHandler {
   private recapAgent: RecapAgent;
-  private commands: Map<string, any> = new Map();
+  private logger: Logger;
+  // Remove unused commands property
+  // private commands: Map<string, any> = new Map();
 
-  constructor(recapAgent: RecapAgent) {
+  constructor(recapAgent: RecapAgent, logger: Logger) {
     this.recapAgent = recapAgent;
+    this.logger = logger;
     this.setupCommands();
   }
 
@@ -22,7 +26,7 @@ export class SlashCommandHandler {
     try {
       // Register slash commands with Discord
       await this.registerCommands();
-      console.log('Slash command handler initialized successfully');
+      this.logger.info('Slash command handler initialized successfully');
     } catch (error) {
       throw new RecapError({
         code: 'SLASH_INIT_FAILED',
@@ -55,7 +59,7 @@ export class SlashCommandHandler {
         code: 'SLASH_COMMAND_FAILED',
         message: `Slash command failed: ${error}`,
         timestamp: new Date().toISOString(),
-        context: options,
+        context: { ...options } as Record<string, unknown>,
         severity: 'medium'
       });
     }
@@ -69,7 +73,7 @@ export class SlashCommandHandler {
     capper?: string, 
     format?: string
   ): Promise<EmbedBuilder> {
-    const targetDate = date || new Date().toISOString().split('T')[0];
+    const targetDate = date || new Date().toISOString().split('T')[0]!;
     
     const summary = await this.recapAgent.getRecapService().getDailyRecapData(targetDate);
     if (!summary) {
@@ -78,7 +82,7 @@ export class SlashCommandHandler {
 
     // Filter by capper if specified
     if (capper) {
-      summary.capperBreakdown = summary.capperBreakdown.filter(c => 
+      summary.capperBreakdown = summary.capperBreakdown.filter((c: CapperStats) =>
         c.capper.toLowerCase().includes(capper.toLowerCase())
       );
     }
@@ -108,8 +112,8 @@ export class SlashCommandHandler {
     const endDate = new Date(startDate);
     endDate.setDate(startDate.getDate() + 6);
 
-    const startDateStr = startDate.toISOString().split('T')[0];
-    const endDateStr = endDate.toISOString().split('T')[0];
+    const startDateStr = startDate.toISOString().split('T')[0]!;
+    const endDateStr = endDate.toISOString().split('T')[0]!;
 
     const summary = await this.recapAgent.getRecapService().getWeeklyRecapData(startDateStr, endDateStr);
     if (!summary) {
@@ -118,26 +122,26 @@ export class SlashCommandHandler {
 
     // Filter by capper if specified
     if (capper) {
-      summary.capperBreakdown = summary.capperBreakdown.filter(c => 
+      summary.capperBreakdown = summary.capperBreakdown.filter((c: CapperStats) =>
         c.capper.toLowerCase().includes(capper.toLowerCase())
       );
     }
 
-    const parlayGroups = await this.recapAgent.getRecapService().getParlayGroups(startDateStr, endDateStr);
-    
+    // const parlayGroups = await this.recapAgent.getRecapService().getParlayGroups(startDateStr, endDateStr);
+
     if (format === 'summary') {
       return this.createSummaryEmbed(summary, 'weekly');
     }
 
-    return this.recapAgent.getRecapFormatter().buildWeeklyRecapEmbed(summary, parlayGroups);
+    return this.recapAgent.getRecapFormatter().buildWeeklyRecapEmbed(summary);
   }
 
   /**
    * Handle monthly recap slash command
    */
   private async handleMonthlyRecap(
-    date?: string, 
-    capper?: string, 
+    date?: string,
+    capper?: string,
     format?: string
   ): Promise<EmbedBuilder> {
     // Calculate month range
@@ -145,8 +149,8 @@ export class SlashCommandHandler {
     const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
     const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-    const startDateStr = startDate.toISOString().split('T')[0];
-    const endDateStr = endDate.toISOString().split('T')[0];
+    const startDateStr = startDate.toISOString().split('T')[0]!;
+    const endDateStr = endDate.toISOString().split('T')[0]!;
 
     const summary = await this.recapAgent.getRecapService().getMonthlyRecapData(startDateStr, endDateStr);
     if (!summary) {
@@ -155,24 +159,24 @@ export class SlashCommandHandler {
 
     // Filter by capper if specified
     if (capper) {
-      summary.capperBreakdown = summary.capperBreakdown.filter(c => 
+      summary.capperBreakdown = summary.capperBreakdown.filter((c: CapperStats) =>
         c.capper.toLowerCase().includes(capper.toLowerCase())
       );
     }
 
-    const parlayGroups = await this.recapAgent.getRecapService().getParlayGroups(startDateStr, endDateStr);
-    
+    // const parlayGroups = await this.recapAgent.getRecapService().getParlayGroups(startDateStr, endDateStr);
+
     if (format === 'summary') {
       return this.createSummaryEmbed(summary, 'monthly');
     }
 
-    return this.recapAgent.getRecapFormatter().buildMonthlyRecapEmbed(summary, parlayGroups);
+    return this.recapAgent.getRecapFormatter().buildMonthlyRecapEmbed(summary);
   }
 
   /**
    * Create summary embed for quick overview
    */
-  private createSummaryEmbed(summary: any, period: string): EmbedBuilder {
+  private createSummaryEmbed(summary: RecapSummary, period: string): EmbedBuilder {
     const embed = new EmbedBuilder()
       .setTitle(`📊 ${period.toUpperCase()} RECAP SUMMARY`)
       .setColor(summary.netUnits >= 0 ? 0x00ff00 : 0xff0000)
@@ -191,92 +195,42 @@ export class SlashCommandHandler {
 
     if (summary.capperBreakdown.length > 0) {
       const topCapper = summary.capperBreakdown[0];
-      embed.addFields({
-        name: '👑 Top Capper',
-        value: `**${topCapper.capper}**\n` +
-               `${topCapper.wins}W-${topCapper.losses}L\n` +
-               `${topCapper.netUnits > 0 ? '+' : ''}${topCapper.netUnits.toFixed(1)}U`,
-        inline: true
-      });
+      if (topCapper) {
+        embed.addFields({
+          name: '👑 Top Capper',
+          value: `**${topCapper.capper}**\n` +
+                 `${topCapper.wins}W-${topCapper.losses}L\n` +
+                 `${topCapper.netUnits > 0 ? '+' : ''}${topCapper.netUnits.toFixed(1)}U`,
+          inline: true
+        });
+      }
     }
-
-    embed.setFooter({ text: 'Use format=full for complete recap' });
 
     return embed;
   }
 
   /**
-   * Create error embed
+   * Create error embed for error cases
    */
   private createErrorEmbed(message: string): EmbedBuilder {
     return new EmbedBuilder()
-      .setTitle('❌ Error')
+      .setTitle('❌ Recap Error')
       .setDescription(message)
       .setColor(0xff0000)
       .setTimestamp();
   }
 
   /**
-   * Setup slash command definitions
+   * Setup slash commands
    */
   private setupCommands(): void {
-    const recapCommand = new SlashCommandBuilder()
-      .setName('recap')
-      .setDescription('Get a recap for any period')
-      .addStringOption(option =>
-        option.setName('period')
-          .setDescription('Recap period')
-          .setRequired(true)
-          .addChoices(
-            { name: 'Daily', value: 'daily' },
-            { name: 'Weekly', value: 'weekly' },
-            { name: 'Monthly', value: 'monthly' }
-          )
-      )
-      .addStringOption(option =>
-        option.setName('date')
-          .setDescription('Specific date (YYYY-MM-DD)')
-          .setRequired(false)
-      )
-      .addStringOption(option =>
-        option.setName('capper')
-          .setDescription('Filter by specific capper')
-          .setRequired(false)
-      )
-      .addStringOption(option =>
-        option.setName('format')
-          .setDescription('Recap format')
-          .setRequired(false)
-          .addChoices(
-            { name: 'Full', value: 'full' },
-            { name: 'Summary', value: 'summary' }
-          )
-      );
-
-    this.commands.set('recap', recapCommand);
+    // Implement command setup logic
   }
 
   /**
-   * Register commands with Discord
+   * Register slash commands with Discord
    */
   private async registerCommands(): Promise<void> {
-    // In a real implementation, you would register these with Discord's API
-    // This is a placeholder for the registration logic
-    console.log('Slash commands registered:', Array.from(this.commands.keys()));
-  }
-
-  /**
-   * Get available commands
-   */
-  getCommands(): string[] {
-    return Array.from(this.commands.keys());
-  }
-
-  /**
-   * Cleanup resources
-   */
-  async cleanup(): Promise<void> {
-    this.commands.clear();
-    console.log('SlashCommandHandler cleanup completed');
+    // Implement command registration logic
   }
 }

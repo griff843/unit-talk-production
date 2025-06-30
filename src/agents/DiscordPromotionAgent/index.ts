@@ -6,8 +6,7 @@ import FormData from 'form-data';
 import { logger } from '../../services/logging';
 
 // ---- CONFIG ----
-const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL || '';
-const PLAYER_HEADSHOT_CDN = process.env.PLAYER_HEADSHOT_CDN || 'https://your.cdn.com/headshots/';
+const DISCORD_WEBHOOK_URL = process.env['DISCORD_WEBHOOK_URL'] || '';
 
 function formatOdds(odds: number) {
   return odds > 0 ? `+${odds}` : odds;

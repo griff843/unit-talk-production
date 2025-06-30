@@ -120,8 +120,8 @@ export class OperatorAgent extends BaseAgent {
       .select('status')
       .gte('timestamp', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
 
-    const successCount = events?.filter(e => e.status === 'ok').length || 0;
-    const errorCount = events?.filter(e => e.status === 'failed').length || 0;
+    const successCount = events?.filter((e: any) => e.status === 'ok').length || 0;
+    const errorCount = events?.filter((e: any) => e.status === 'failed').length || 0;
 
     return {
       agentName: 'OperatorAgent',
@@ -249,7 +249,7 @@ export class OperatorAgent extends BaseAgent {
       .select('*')
       .gte('timestamp', since.toISOString());
     
-    const messages = (events ?? []).map(e => `${e.agent}: ${e.event_type} - ${e.message}`).join('\n') || '';
+    const messages = (events ?? []).map((e: any) => `${e.agent}: ${e.event_type} - ${e.message}`).join('\n') || '';
     
     const aiSummary = await openai.chat.completions.create({
       model: period === 'monthly' ? 'gpt-4-turbo' : 'gpt-3.5-turbo',
@@ -259,7 +259,7 @@ export class OperatorAgent extends BaseAgent {
       ]
     });
     
-    const summaryContent = aiSummary.choices[0].message.content ?? '';
+    const summaryContent = (aiSummary as any).choices?.[0]?.message?.content ?? '';
     
     await this.logEvent({
       event_type: 'summary',
@@ -288,9 +288,9 @@ export class OperatorAgent extends BaseAgent {
       `3. If you detect repeated agent/workflow failures, suggest a new troubleshooting SOP.\n` +
       `4. Output recommendations in structured format (KPIs, SOPs, Docs).\n\n` +
       'Events:\n' +
-      (events ?? []).map(e => `${e.timestamp} | ${e.agent}: ${e.event_type} - ${e.message}`).join('\n') +
+      (events ?? []).map((e: any) => `${e.timestamp} | ${e.agent}: ${e.event_type} - ${e.message}`).join('\n') +
       '\nAgentLogs:\n' +
-      (agentLogs ?? []).map(l => `${l.timestamp} | ${l.agent}: ${l.status} - ${l.message}`).join('\n');
+      (agentLogs ?? []).map((l: any) => `${l.timestamp} | ${l.agent}: ${l.status} - ${l.message}`).join('\n');
     
     const ai = await openai.chat.completions.create({
       model: 'gpt-4-turbo',
@@ -299,8 +299,8 @@ export class OperatorAgent extends BaseAgent {
         { role: 'user', content: prompt }
       ]
     });
-    
-    const learning = ai.choices[0].message.content ?? '';
+
+    const learning = (ai as any).choices?.[0]?.message?.content ?? '';
     
     await sendNotionLog({ title: 'OperatorAgent Learning/Evolution', content: learning });
     
@@ -370,7 +370,7 @@ export class OperatorAgent extends BaseAgent {
           { role: 'user', content: command }
         ]
       });
-      response = ai.choices[0].message.content?.trim() || '';
+      response = (ai as any).choices?.[0]?.message?.content?.trim() || '';
     }
     
     await this.logEvent({

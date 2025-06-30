@@ -1,6 +1,6 @@
 import { MarketingAgent } from '../index';
 import { createClient } from '@supabase/supabase-js';
-import { createTestConfig, createTestDependencies, resetMocks } from '../../../test/helpers/testHelpers';
+import { createTestConfig, createTestDependencies } from '../../../test/helpers/testHelpers';
 import { Campaign, ReferralProgram, EngagementMetrics } from '../../../types/marketing';
 
 // Mock Supabase client
@@ -86,11 +86,14 @@ describe('MarketingAgent', () => {
   let agent: MarketingAgent;
   let mockSupabase: any;
 
-  beforeEach(() => {
-    resetMocks();
+  beforeEach(async () => {
+    // Clear all mocks
+    jest.clearAllMocks();
     mockSupabase = createClient('test-url', 'test-service-role-key');
     const config = createTestConfig({ name: 'MarketingAgent' });
-    const dependencies = createTestDependencies({ supabase: mockSupabase });
+    const dependencies = createTestDependencies();
+    // Override the supabase instance in dependencies
+    dependencies.supabase = mockSupabase;
     agent = new MarketingAgent(config, dependencies);
   });
 

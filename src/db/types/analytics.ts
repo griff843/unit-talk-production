@@ -17,7 +17,7 @@ export interface AnalyticsSummary {
     longest_win_streak: number;
     longest_loss_streak: number;
   };
-  metadata: Record<string, any> | null;
+  metadata: Record<string, unknown> | null;
 }
 
 export interface ROIByTier {
@@ -35,7 +35,7 @@ export interface ROIByTier {
   volume: number;
   avg_odds: number;
   profit_loss: number;
-  metadata: Record<string, any> | null;
+  metadata: Record<string, unknown> | null;
 }
 
 export interface TrendAnalysis {
@@ -49,7 +49,7 @@ export interface TrendAnalysis {
   avg_performance: number;
   edge_volatility: number;
   confidence: number;
-  metadata: Record<string, any> | null;
+  metadata: Record<string, unknown> | null;
 }
 
 export type AnalyticsSummaryInsert = Omit<AnalyticsSummary, 'id' | 'created_at' | 'updated_at'>;

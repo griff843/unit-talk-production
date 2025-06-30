@@ -27,6 +27,9 @@ export class GradingAgent extends BaseAgent {
     try {
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
+      if (!this.supabase) {
+        throw new Error('Supabase client is required for GradingAgent');
+      }
       const { data: gradingStats } = await this.supabase
         .from('picks')
         .select('status, created_at')
@@ -55,6 +58,9 @@ export class GradingAgent extends BaseAgent {
 
   public async checkHealth(): Promise<HealthCheckResult> {
     try {
+      if (!this.supabase) {
+        throw new Error('Supabase client is required for GradingAgent');
+      }
       const { error } = await this.supabase
         .from('picks')
         .select('id')
@@ -91,6 +97,9 @@ export class GradingAgent extends BaseAgent {
     const startTime = Date.now();
     this.logger.info('🎯 Starting grading process...');
 
+    if (!this.supabase) {
+      throw new Error('Supabase client is required for GradingAgent');
+    }
     const { data: picks, error } = await this.supabase
       .from('daily_picks')
       .select('*')
@@ -137,6 +146,9 @@ export class GradingAgent extends BaseAgent {
       const tier = edgeResult.tier;
 
       // Update the pick with grading results
+      if (!this.supabase) {
+        throw new Error('Supabase client is required for GradingAgent');
+      }
       const { error: updateError } = await this.supabase
         .from('daily_picks')
         .update({
@@ -187,6 +199,9 @@ export class GradingAgent extends BaseAgent {
 
   private async publishAlert(alert: any): Promise<void> {
     try {
+      if (!this.supabase) {
+        throw new Error('Supabase client is required for GradingAgent');
+      }
       const { error } = await this.supabase
         .from('alerts')
         .insert([{
@@ -223,6 +238,9 @@ export class GradingAgent extends BaseAgent {
         source_pick_id: pick.id
       };
 
+      if (!this.supabase) {
+        throw new Error('Supabase client is required for GradingAgent');
+      }
       const { error } = await this.supabase
         .from('final_picks')
         .insert([finalPick]);

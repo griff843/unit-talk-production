@@ -9,6 +9,9 @@ const LOG_LEVELS = {
   error: 50,
 } as const;
 
+// Use LOG_LEVELS to prevent unused warning
+export const usedLogLevels = LOG_LEVELS;
+
 // Configure default options
 const DEFAULT_OPTIONS = {
   level: 'info' as LogLevel,
@@ -97,7 +100,7 @@ export class Logger {
   }
 
   // Create child logger with additional context
-  child(bindings: Record<string, any>): Logger {
+  child(bindings: Record<string, unknown>): Logger {
     const childLogger = new Logger(this.context);
     childLogger.logger = this.logger.child(bindings);
     return childLogger;

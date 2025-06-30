@@ -109,7 +109,7 @@ export function flattenSGOEvents(events: any[]): SGOFlattenedProp[] {
 
       let playerId: string | null = null;
       let playerName: string | null = null;
-      let statType: string = offer.statID ?? "";
+      const statType: string = offer.statID ?? "";
 
       if (offer.playerID && players?.[offer.playerID]?.name) {
         playerId = offer.playerID;
@@ -119,13 +119,13 @@ export function flattenSGOEvents(events: any[]): SGOFlattenedProp[] {
         playerName = players[offer.statEntityID].name;
       }
 
-      let ou: string | null =
+      const ou: string | null =
         offer.fairOverUnder ?? offer.openFairOverUnder ?? null;
-      let line: number | string | null =
+      const line: number | string | null =
         offer.line ?? offer.ou ?? offer.fairOverUnder ?? offer.openFairOverUnder ?? null;
-      let odds: number | string | null =
+      const odds: number | string | null =
         offer.bookOdds ?? offer.fairOdds ?? offer.openBookOdds ?? offer.openFairOdds ?? null;
-      let direction: string | null = offer.sideID ?? null;
+      const direction: string | null = offer.sideID ?? null;
 
       results.push({
         eventID,

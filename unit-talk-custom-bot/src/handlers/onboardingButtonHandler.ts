@@ -1,1466 +1,1747 @@
-import { ButtonInteraction, ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, EmbedBuilder } from 'discord.js';
-import { logger } from '../utils/logger';
-import { supabaseService } from '../services/supabase';
-import { permissionsService } from '../services/permissions';
-import { botConfig } from '../config';
 import {
-  createInfoEmbed,
-  createSuccessEmbed,
-  createErrorEmbed,
-  getTierColor
-} from '../utils/embeds';
+  ButtonInteraction,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  GuildMember,
+  TextChannel,
+  ThreadAutoArchiveDuration,
+  ChannelType,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  Colors
+} from 'discord.js';
+import { getUserTier, getTierDisplayName } from '../utils/roleUtils';
+import { logger } from '../utils/logger';
 
+/**
+ * Onboarding Button Handler
+ * Handles all button interactions from onboarding messages
+ */
 export class OnboardingButtonHandler {
-  private client: Client;
-  private supabaseService: any;
-  private permissionsService: any;
-  private comprehensiveOnboardingService: any;
+  
+  /**
+   * Handle onboarding button interactions
+   */
+  async handleOnboardingButton(interaction: ButtonInteraction): Promise<void> {
+    const { customId, user } = interaction;
 
-  constructor(
-    client: Client,
-    supabaseService: any,
-    permissionsService: any,
-    comprehensiveOnboardingService: any
-  ) {
-    this.client = client;
-    this.supabaseService = supabaseService;
-    this.permissionsService = permissionsService;
-    this.comprehensiveOnboardingService = comprehensiveOnboardingService;
-  }
+    // Add debug logging
+    logger.info(`🔘 Button interaction received: ${customId} from user ${user.tag} (${user.id})`);
 
-  async handleButtonInteraction(interaction: ButtonInteraction): Promise<void> {
     try {
-      const customId = interaction.customId;
-      
-      logger.info(`Button interaction received: ${customId}`, {
-        service: 'unit-talk-bot',
-        userId: interaction.user.id,
-        username: interaction.user.username
-      });
+      // Get user's current tier
+      const member = interaction.guild?.members.cache.get(user.id) || null;
 
-      switch (customId) {
-        case 'vip_plus_tour_start':
-          await this.handleVipPlusTourStart(interaction);
-          break;
-        case 'vip_plus_settings':
-          await this.handleVipPlusSettings(interaction);
-          break;
-        case 'vip_tour_start':
-          await this.handleVipTourStart(interaction);
-          break;
-        case 'vip_settings':
-          await this.handleVipSettings(interaction);
-          break;
-        case 'heat_signal_access':
-          await this.handleHeatSignalAccess(interaction);
-          break;
-        case 'customize_alerts':
-          await this.handleCustomizeAlerts(interaction);
-          break;
-        case 'view_analytics':
-          await this.handleViewAnalytics(interaction);
-          break;
-        case 'ai_coaching':
-          await this.handleAiCoaching(interaction);
-          break;
-        case 'upgrade_vip_plus':
-          await this.handleUpgradeVipPlus(interaction);
-          break;
-        case 'upgrade_vip':
-          await this.handleUpgradeVip(interaction);
-          break;
-        case 'view_vip_perks':
-          await this.handleViewVipPerks(interaction);
-          break;
-        case 'view_vip_info':
-          await this.handleViewVipInfo(interaction);
-          break;
-        case 'start_trial':
-          await this.handleStartTrial(interaction);
-          break;
-        case 'trial_status':
-          await this.handleTrialStatus(interaction);
-          break;
-        case 'view_todays_picks':
-          await this.handleViewTodaysPicks(interaction);
-          break;
-        case 'goto_vip_lounge':
-          await this.handleGotoVipLounge(interaction);
-          break;
-        case 'picks_dashboard':
-          await this.handlePicksDashboard(interaction);
-          break;
-        case 'help_commands':
-          await this.handleHelpCommands(interaction);
-          break;
-        case 'slash_commands_help':
-          await this.handleSlashCommandsHelp(interaction);
-          break;
-        case 'trial_help':
-          await this.handleTrialHelp(interaction);
-          break;
-        case 'view_trending_picks':
-          await this.handleViewTrendingPicks(interaction);
-          break;
-        case 'whats_new':
-          await this.handleWhatsNew(interaction);
-          break;
-        case 'upgrade_for_more_wins':
-          await this.handleUpgradeForMoreWins(interaction);
-          break;
-        case 'upgrade_to_catch_up':
-          await this.handleUpgradeToCatchUp(interaction);
-          break;
-        case 'refresh_heat_signal':
-          await this.handleRefreshHeatSignal(interaction);
-          break;
-        case 'heat_signal_settings':
-          await this.handleHeatSignalSettings(interaction);
-          break;
-        case 'heat_signal_demo':
-          await this.sendHeatSignalDemo(interaction);
-          break;
-        default:
-          logger.warn(`Unknown button interaction: ${customId}`);
-          await interaction.reply({
-            content: 'This button is not yet implemented.',
-            ephemeral: true
-          });
+      // Enhanced debug logging for roles
+      if (member && member.roles) {
+        const roleNames = member.roles.cache.map(role => role.name).join(', ');
+        logger.info(`👤 User ${user.tag} has roles: [${roleNames}]`);
+      } else {
+        logger.warn(`👤 User ${user.tag} - no member object or roles found`);
       }
-    } catch (error) {
-      logger.error('Error handling button interaction:', error);
-      if (!interaction.replied && !interaction.deferred) {
+
+      const currentTier = getUserTier(member);
+      logger.info(`👤 User ${user.tag} detected tier: ${currentTier}`);
+
+      // Validate button access with detailed logging
+      const hasAccess = this.validateButtonAccess(customId, currentTier);
+      logger.info(`🔍 Access check for button ${customId} with tier ${currentTier}: ${hasAccess ? 'GRANTED' : 'DENIED'}`);
+
+      if (!hasAccess) {
+        logger.warn(`❌ Access denied for button ${customId} - user tier: ${currentTier}`);
         await interaction.reply({
-          content: 'An error occurred while processing your request.',
+          content: `❌ You don't have access to this feature. Your current tier: ${getTierDisplayName(currentTier)}`,
           ephemeral: true
         });
+        return;
       }
+
+      logger.info(`✅ Access granted for button ${customId} - user tier: ${currentTier}`);
+
+      // Handle the specific button
+      // Handle the specific button
+      switch (customId) {
+        // Capper buttons
+        case 'capper_onboard_start':
+          await this.handleCapperOnboardingStart(interaction);
+          break;
+
+        case 'capper_guide':
+          await this.handleCapperGuide(interaction);
+          break;
+
+        case 'create_capper_thread':
+          await this.handleCreateCapperThread(interaction);
+          break;
+
+        case 'capper_practice_pick':
+          await this.handleCapperPracticePick(interaction);
+          break;
+
+        case 'view_leaderboard':
+          await this.handleViewLeaderboard(interaction);
+          break;
+
+        case 'capper_support':
+          await this.handleCapperSupport(interaction);
+          break;
+
+        // VIP buttons
+        case 'view_vip_guide':
+          await this.handleViewVipGuide(interaction);
+          break;
+
+        case 'setup_notifications':
+          await this.handleSetupNotifications(interaction);
+          break;
+
+        case 'start_vip_tour':
+          await this.handleStartVipTour(interaction);
+          break;
+
+        // VIP+ buttons
+        case 'view_vip_plus_guide':
+          await this.handleViewVipPlusGuide(interaction);
+          break;
+
+        case 'access_elite_features':
+          await this.handleAccessEliteFeatures(interaction);
+          break;
+
+        case 'vip_plus_tour':
+          await this.handleVipPlusTour(interaction);
+          break;
+
+        case 'setup_vip_plus_notifications':
+          await this.handleSetupVipPlusNotifications(interaction);
+          break;
+
+        // Trial/Upgrade buttons
+        case 'view_trial_features':
+          await this.handleViewTrialFeatures(interaction);
+          break;
+
+        case 'upgrade_to_vip':
+          await this.handleUpgradeToVip(interaction);
+          break;
+
+        case 'upgrade_to_vip_plus':
+          await this.handleUpgradeToVipPlus(interaction);
+          break;
+
+        // Basic buttons
+        case 'view_faq':
+          await this.handleViewFaq(interaction);
+          break;
+
+        case 'start_vip_trial':
+          await this.handleStartVipTrial(interaction);
+          break;
+
+        // Secondary buttons
+        case 'setup_notifications_now':
+          await this.handleSetupNotificationsNow(interaction);
+          break;
+
+        case 'notification_help':
+          await this.handleNotificationHelp(interaction);
+          break;
+
+        // Staff buttons
+        case 'staff_guide':
+          await this.handleStaffGuide(interaction);
+          break;
+
+        default:
+          logger.warn(`❓ Unknown onboarding button: ${customId}`);
+          await this.handleUnknownButton(interaction);
+      }
+
+      logger.info(`✅ Successfully handled button ${customId} for user ${user.tag}`);
+
+    } catch (error) {
+      logger.error(`❌ Error handling onboarding button ${customId}:`, error);
+      await this.handleButtonError(interaction, error);
+    }
+  }
+  
+  /**
+   * CAPPER ONBOARDING HANDLERS
+   */
+  
+  private async handleCapperOnboardingStart(interaction: ButtonInteraction): Promise<void> {
+    // Create onboarding modal
+    const modal = new ModalBuilder()
+      .setCustomId('capper_onboarding_modal')
+      .setTitle('🎯 Capper Onboarding - Step 1');
+    
+    const nameInput = new TextInputBuilder()
+      .setCustomId('capper_name')
+      .setLabel('Preferred Capper Name')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('Enter your capper display name')
+      .setRequired(true)
+      .setMaxLength(50);
+    
+    const experienceInput = new TextInputBuilder()
+      .setCustomId('capper_experience')
+      .setLabel('Experience Level')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('Beginner, Intermediate, or Expert')
+      .setRequired(true)
+      .setMaxLength(20);
+    
+    const sportsInput = new TextInputBuilder()
+      .setCustomId('capper_sports')
+      .setLabel('Sports Specialization')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('NFL, NBA, MLB, NHL, etc. (separate with commas)')
+      .setRequired(true)
+      .setMaxLength(100);
+    
+    const bioInput = new TextInputBuilder()
+      .setCustomId('capper_bio')
+      .setLabel('Brief Bio/Introduction')
+      .setStyle(TextInputStyle.Paragraph)
+      .setPlaceholder('Tell us about your betting background and approach...')
+      .setRequired(false)
+      .setMaxLength(500);
+    
+    const actionRow1 = new ActionRowBuilder<TextInputBuilder>().addComponents(nameInput);
+    const actionRow2 = new ActionRowBuilder<TextInputBuilder>().addComponents(experienceInput);
+    const actionRow3 = new ActionRowBuilder<TextInputBuilder>().addComponents(sportsInput);
+    const actionRow4 = new ActionRowBuilder<TextInputBuilder>().addComponents(bioInput);
+    
+    modal.addComponents(actionRow1, actionRow2, actionRow3, actionRow4);
+    
+    await interaction.showModal(modal);
+  }
+  
+  private async handleCapperGuide(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('📖 UT Capper Guide')
+      .setDescription('Everything you need to know about being a successful capper on Unit Talk!')
+      .setColor(0xE67E22)
+      .addFields(
+        {
+          name: '🎯 How to Submit Picks',
+          value: '• Use `/submit-pick` command\n• Include game details, pick type, and confidence\n• Add reasoning for your pick\n• Set proper units (1-5 scale)',
+          inline: false
+        },
+        {
+          name: '📊 Performance Tracking',
+          value: '• All picks automatically tracked\n• Win/Loss record maintained\n• ROI calculated in real-time\n• Leaderboard rankings updated daily',
+          inline: false
+        },
+        {
+          name: '🏆 Leaderboard System',
+          value: '• Ranked by ROI and win percentage\n• Monthly and all-time rankings\n• Special badges for top performers\n• Bonus rewards for consistency',
+          inline: false
+        },
+        {
+          name: '📋 Community Guidelines',
+          value: '• Be respectful and professional\n• Provide reasoning for picks\n• No spam or excessive posting\n• Help other cappers improve',
+          inline: false
+        },
+        {
+          name: '🔗 Quick Links',
+          value: '• <#1291911913361375372> - Submit picks here\n• `/capper-stats` - View your performance\n• `/leaderboard` - See rankings\n• Contact <@griff843> for help',
+          inline: false
+        }
+      )
+      .setFooter({ text: 'Good luck with your picks! 🍀' })
+      .setTimestamp();
+    
+    const actionRow = new ActionRowBuilder<ButtonBuilder>()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('capper_practice_pick')
+          .setLabel('Practice Pick')
+          .setStyle(ButtonStyle.Primary)
+          .setEmoji('🎯'),
+        new ButtonBuilder()
+          .setCustomId('view_leaderboard')
+          .setLabel('View Leaderboard')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('🏆'),
+        new ButtonBuilder()
+          .setCustomId('create_capper_thread')
+          .setLabel('Create My Threads')
+          .setStyle(ButtonStyle.Success)
+          .setEmoji('📝'),
+        new ButtonBuilder()
+          .setCustomId('capper_support')
+          .setLabel('Get Help')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('💬')
+      );
+    
+    await interaction.reply({
+      embeds: [embed],
+      components: [actionRow],
+      ephemeral: true
+    });
+  }
+
+  private async handleCreateCapperThread(interaction: ButtonInteraction): Promise<void> {
+    try {
+      const capperChannel = interaction.guild?.channels.cache.get('1291911913361375372') as TextChannel;
+      
+      if (!capperChannel) {
+        await interaction.reply({
+          content: '❌ Could not find the Capper Corner channel. Please contact support.',
+          ephemeral: true
+        });
+        return;
+      }
+
+      // Create Official Picks Thread
+      const officialThread = await capperChannel.threads.create({
+        name: `🔥 ${interaction.user.username} Official Picks`,
+        autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
+        reason: 'Capper official picks thread creation'
+      });
+
+      // Create Q&A Discussion Thread
+      const qaThread = await capperChannel.threads.create({
+        name: `💬 ${interaction.user.username} Q&A & Discussion`,
+        autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
+        reason: 'Capper Q&A discussion thread creation'
+      });
+
+      // Send pinned message to Official Picks thread
+      const officialPinnedMessage = await officialThread.send({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle(`📌 Welcome to ${interaction.user.username}'s Official Picks!`)
+            .setDescription(
+              `Only ${interaction.user.username} (or the bot) will post here. No chat—just official, time-stamped plays.\n\n` +
+              `For Q&A, feedback, or breakdowns, visit the ${qaThread} thread.\n\n` +
+              `Picks are posted daily by 10/11am ET. Subscribe for alerts so you never miss a play!\n\n` +
+              `🍀 Good luck and let's cash!`
+            )
+            .setColor(Colors.Green)
+            .setTimestamp()
+        ]
+      });
+
+      // Send pinned message to Q&A thread
+      const qaPinnedMessage = await qaThread.send({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle(`📌 Welcome to ${interaction.user.username}'s Q&A & Discussion!`)
+            .setDescription(
+              `Use this thread for questions, reactions, analysis, and postgame breakdowns about ${interaction.user.username}'s picks.\n\n` +
+              `Please keep conversations focused and respectful.\n\n` +
+              `For all official picks, see the ${officialThread} thread above.\n\n` +
+              `💬 Let's help each other win!`
+            )
+            .setColor(Colors.Blue)
+            .setTimestamp()
+        ]
+      });
+
+      // Pin both messages
+      await officialPinnedMessage.pin();
+      await qaPinnedMessage.pin();
+
+      // Send bio template to official thread
+      await officialThread.send({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle('🎯 Capper Profile Template')
+            .setDescription('Please fill out your capper profile below:')
+            .setColor(Colors.Orange)
+            .addFields(
+              { name: '📊 Experience Level', value: 'Beginner/Intermediate/Expert', inline: true },
+              { name: '🏈 Sports Specialization', value: 'NFL, NBA, MLB, etc.', inline: true },
+              { name: '📈 Betting Style', value: 'Conservative/Aggressive/Balanced', inline: true },
+              { name: '🎯 Strengths', value: 'What types of bets do you excel at?', inline: false },
+              { name: '📋 Bio/Background', value: 'Tell us about your betting journey and approach...', inline: false },
+              { name: '🎲 Fun Fact', value: 'Something interesting about you!', inline: false }
+            )
+            .setFooter({ text: 'Edit this message with your information!' })
+        ]
+      });
+
+      // Notify griff843
+      try {
+        const griff = await interaction.client.users.fetch('griff843');
+        await griff.send({
+          embeds: [
+            new EmbedBuilder()
+              .setTitle('🎯 New Capper Threads Created!')
+              .setDescription(`**${interaction.user.username}** just created their capper threads`)
+              .setColor(Colors.Green)
+              .addFields(
+                { name: '👤 User', value: `${interaction.user.tag} (${interaction.user.id})`, inline: true },
+                { name: '🔥 Official Picks', value: `${officialThread}`, inline: false },
+                { name: '💬 Q&A Discussion', value: `${qaThread}`, inline: false }
+              )
+              .setTimestamp()
+          ]
+        });
+      } catch (error) {
+        logger.error('Failed to notify griff843 about new capper threads:', error);
+      }
+
+      await interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle('🎉 Your Capper Threads Have Been Created!')
+            .setDescription('You now have two dedicated threads in Capper Corner:')
+            .setColor(Colors.Green)
+            .addFields(
+              { 
+                name: '🔥 Official Picks Thread', 
+                value: `${officialThread}\n*For your official picks only - read-only for public*`, 
+                inline: false 
+              },
+              { 
+                name: '💬 Q&A & Discussion Thread', 
+                value: `${qaThread}\n*For community interaction, questions, and analysis*`, 
+                inline: false 
+              },
+              {
+                name: '📝 Next Steps',
+                value: '1. Fill out your profile in the Official Picks thread\n2. Start posting your picks using `/submit-pick`\n3. Engage with the community in your Q&A thread',
+                inline: false
+              }
+            )
+            .setFooter({ text: 'Welcome to the Unit Talk capper community!' })
+        ],
+        ephemeral: true
+      });
+
+    } catch (error) {
+      logger.error('Error creating capper threads:', error);
+      await interaction.reply({
+        content: '❌ There was an error creating your threads. Please contact <@griff843> for assistance.',
+        ephemeral: true
+      });
     }
   }
 
-  async handleVipPlusTourStart(interaction: ButtonInteraction): Promise<void> {
-    const tourEmbed = createInfoEmbed('🚀 VIP+ Tour Started!', 'Welcome to your exclusive VIP+ features tour!')
+  private async handleCapperPracticePick(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('🎯 Practice Pick Tutorial')
+      .setDescription('Learn how to submit your first pick!')
+      .setColor(0x3498DB)
       .addFields(
         {
-          name: '⚡ Instant Alerts',
-          value: 'Get picks the moment they\'re released - no delays!'
+          name: '1️⃣ Use the Command',
+          value: 'Type `/submit-pick` in <#1291911913361375372>',
+          inline: false
         },
         {
-          name: '🤖 AI Coaching',
-          value: 'Personal AI analysis and coaching for your bets'
+          name: '2️⃣ Fill Out Details',
+          value: '• **Game**: Team vs Team\n• **Pick**: Your selection\n• **Units**: 1-5 scale\n• **Reasoning**: Why you like this pick',
+          inline: false
         },
         {
-          name: '🌐 Multi-Language',
-          value: 'Support in your preferred language'
-        },
-        {
-          name: '📊 Advanced Analytics',
-          value: 'Detailed performance tracking and insights'
-        },
-        {
-          name: '🎯 Premium Picks',
-          value: 'Access to highest confidence plays'
-        },
-        {
-          name: '🔥 Heat Signal',
-          value: 'Real-time line movement alerts and sharp money tracking'
+          name: '3️⃣ Example Pick',
+          value: '```Game: Lakers vs Warriors\nPick: Lakers -3.5\nUnits: 3\nReasoning: Lakers at home, Warriors missing key players```',
+          inline: false
         }
       )
-      .setColor('#FFD700');
+      .setFooter({ text: 'Ready to make your first pick?' });
 
-    const tourButtons = new ActionRowBuilder<ButtonBuilder>()
+    const actionRow = new ActionRowBuilder<ButtonBuilder>()
       .addComponents(
         new ButtonBuilder()
-          .setCustomId('heat_signal_access')
-          .setLabel('Try Heat Signal')
+          .setCustomId('create_capper_thread')
+          .setLabel('Create My Threads First')
+          .setStyle(ButtonStyle.Success)
+          .setEmoji('📝'),
+        new ButtonBuilder()
+          .setCustomId('view_leaderboard')
+          .setLabel('View Leaderboard')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('🏆')
+      );
+
+    await interaction.reply({
+      embeds: [embed],
+      components: [actionRow],
+      ephemeral: true
+    });
+  }
+
+  private async handleViewLeaderboard(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('🏆 Capper Leaderboard')
+      .setDescription('Top performing cappers on Unit Talk')
+      .setColor(0xFFD700)
+      .addFields(
+        {
+          name: '📊 Rankings Based On',
+          value: '• ROI (Return on Investment)\n• Win Percentage\n• Total Units Won\n• Pick Volume & Consistency',
+          inline: false
+        },
+        {
+          name: '🎯 How to Climb',
+          value: '• Submit quality picks daily\n• Provide detailed reasoning\n• Maintain consistency\n• Engage with community',
+          inline: false
+        },
+        {
+          name: '🏅 Rewards',
+          value: '• Monthly leaderboard prizes\n• Special badges and roles\n• Featured capper spotlights\n• Bonus perks and recognition',
+          inline: false
+        }
+      )
+      .setFooter({ text: 'Use /leaderboard to see current rankings!' });
+
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  private async handleCapperSupport(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('💬 Capper Support')
+      .setDescription('Need help with your capper journey?')
+      .setColor(0x9B59B6)
+      .addFields(
+        {
+          name: '🆘 Quick Help',
+          value: '• **Commands**: `/submit-pick`, `/capper-stats`, `/leaderboard`\n• **Channels**: <#1291911913361375372> for picks\n• **Guidelines**: Be respectful and provide reasoning',
+          inline: false
+        },
+        {
+          name: '📞 Contact Support',
+          value: 'For personalized help, contact <@griff843>\n\n*Response time: Usually within 2-4 hours*',
+          inline: false
+        }
+      );
+
+    const actionRow = new ActionRowBuilder<ButtonBuilder>()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('capper_guide')
+          .setLabel('View Full Guide')
+          .setStyle(ButtonStyle.Primary)
+          .setEmoji('📖'),
+        new ButtonBuilder()
+          .setCustomId('create_capper_thread')
+          .setLabel('Create My Threads')
+          .setStyle(ButtonStyle.Success)
+          .setEmoji('📝')
+      );
+
+    await interaction.reply({
+      embeds: [embed],
+      components: [actionRow],
+      ephemeral: true
+    });
+  }
+
+  /**
+   * VIP HANDLERS
+   */
+
+  private async handleVipGuide(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('⭐ VIP Member Guide')
+      .setDescription('Welcome to your VIP experience!')
+      .setColor(0xFFD700)
+      .addFields(
+        {
+          name: '🎯 VIP Features',
+          value: '• Access to <#1288610443723538584>\n• Premium pick alerts\n• Advanced analytics\n• Priority support\n• Exclusive content',
+          inline: false
+        },
+        {
+          name: '📊 VIP Insights',
+          value: '• Daily market analysis in <#1288611956575703120>\n• Expert breakdowns\n• Trend analysis\n• Sharp money tracking',
+          inline: false
+        },
+        {
+          name: '🔔 Notifications',
+          value: '• Real-time pick alerts\n• Market movement notifications\n• Injury updates\n• Line movement alerts',
+          inline: false
+        }
+      );
+
+    const actionRow = new ActionRowBuilder<ButtonBuilder>()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('setup_notifications')
+          .setLabel('Setup Notifications')
+          .setStyle(ButtonStyle.Primary)
+          .setEmoji('🔔'),
+        new ButtonBuilder()
+          .setCustomId('start_vip_tour')
+          .setLabel('Take VIP Tour')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('🎯'),
+        new ButtonBuilder()
+          .setCustomId('upgrade_to_vip_plus')
+          .setLabel('Upgrade to VIP+')
+          .setStyle(ButtonStyle.Success)
+          .setEmoji('⚡')
+      );
+
+    await interaction.reply({
+      embeds: [embed],
+      components: [actionRow],
+      ephemeral: true
+    });
+  }
+
+  private async handleNotificationSetup(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('🔔 Notification Setup')
+      .setDescription('Configure your alert preferences')
+      .setColor(0x3498DB)
+      .addFields(
+        {
+          name: '📱 Available Alerts',
+          value: '• **Pick Alerts**: New picks from top cappers\n• **Line Movement**: Significant odds changes\n• **Injury News**: Player status updates\n• **Market Analysis**: Daily insights',
+          inline: false
+        },
+        {
+          name: '⚙️ How to Setup',
+          value: '1. Enable Discord notifications\n2. Join notification channels\n3. Set your preferences\n4. Test alerts',
+          inline: false
+        },
+        {
+          name: '🎯 Pro Tips',
+          value: '• Enable mobile notifications\n• Set quiet hours\n• Choose your sports\n• Follow top cappers',
+          inline: false
+        }
+      );
+
+    const actionRow = new ActionRowBuilder<ButtonBuilder>()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('notification_help')
+          .setLabel('Need Help?')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('❓'),
+        new ButtonBuilder()
+          .setCustomId('start_vip_tour')
+          .setLabel('Continue VIP Tour')
+          .setStyle(ButtonStyle.Primary)
+          .setEmoji('▶️')
+      );
+
+    await interaction.reply({
+      embeds: [embed],
+      components: [actionRow],
+      ephemeral: true
+    });
+  }
+
+  private async handleStartVipTour(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('🎯 VIP Tour - Welcome!')
+      .setDescription('Let me show you around your VIP features')
+      .setColor(0xFFD700)
+      .addFields(
+        {
+          name: '🏠 VIP Lounge',
+          value: `<#1288610443723538584>\n*Your exclusive VIP community space*`,
+          inline: false
+        },
+        {
+          name: '📊 VIP Insights',
+          value: `<#1288611956575703120>\n*Daily market analysis and expert breakdowns*`,
+          inline: false
+        },
+        {
+          name: '🎯 Capper Corner',
+          value: `<#1291911913361375372>\n*Follow top cappers and their picks*`,
+          inline: false
+        },
+        {
+          name: '⚡ Want More?',
+          value: 'VIP+ members get elite features like steam alerts, hedge opportunities, and personalized advice!',
+          inline: false
+        }
+      );
+
+    const actionRow = new ActionRowBuilder<ButtonBuilder>()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('setup_notifications')
+          .setLabel('Setup Alerts')
+          .setStyle(ButtonStyle.Primary)
+          .setEmoji('🔔'),
+        new ButtonBuilder()
+          .setCustomId('upgrade_to_vip_plus')
+          .setLabel('Upgrade to VIP+')
+          .setStyle(ButtonStyle.Success)
+          .setEmoji('⚡'),
+        new ButtonBuilder()
+          .setCustomId('view_faq')
+          .setLabel('FAQ')
+          .setStyle(ButtonStyle.Secondary)
+          .setEmoji('❓')
+      );
+
+    await interaction.reply({
+      embeds: [embed],
+      components: [actionRow],
+      ephemeral: true
+    });
+  }
+
+  /**
+   * VIP+ HANDLERS
+   */
+
+  private async handleVipPlusGuide(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('⚡ VIP+ Elite Guide')
+      .setDescription('Welcome to the ultimate betting experience!')
+      .setColor(0x8A2BE2)
+      .addFields(
+        {
+          name: '🔥 Elite Features',
+          value: '• Steam Alerts - Sharp money movement\n• Injury Alerts - Real-time updates\n• Hedge Alerts - Profit protection\n• Middling Alerts - Guaranteed profits',
+          inline: false
+        },
+        {
+          name: '🤖 AI-Powered Tools',
+          value: '• Custom Personal Advice\n• Personalized Bet Tracking\n• Advanced ROI Analytics\n• Proprietary Data Models',
+          inline: false
+        },
+        {
+          name: '👑 Exclusive Perks',
+          value: '• VIP+ Only Giveaways\n• Priority Support\n• Early Access Features\n• Personalized Recaps',
+          inline: false
+        }
+      );
+
+    const actionRow = new ActionRowBuilder<ButtonBuilder>()
+      .addComponents(
+        new ButtonBuilder()
+          .setCustomId('access_elite_features')
+          .setLabel('Access Elite Features')
           .setStyle(ButtonStyle.Primary)
           .setEmoji('🔥'),
         new ButtonBuilder()
-          .setCustomId('vip_plus_settings')
-          .setLabel('Customize Settings')
+          .setCustomId('vip_plus_tour')
+          .setLabel('Take VIP+ Tour')
           .setStyle(ButtonStyle.Secondary)
-          .setEmoji('⚙️')
+          .setEmoji('🎯'),
+        new ButtonBuilder()
+          .setCustomId('setup_vip_plus_notifications')
+          .setLabel('Elite Alerts')
+          .setStyle(ButtonStyle.Success)
+          .setEmoji('⚡')
       );
 
     await interaction.reply({
-      embeds: [tourEmbed],
-      components: [tourButtons],
+      embeds: [embed],
+      components: [actionRow],
       ephemeral: true
     });
-
-    // Send Heat Signal demo after a short delay
-    setTimeout(async () => {
-      await this.sendHeatSignalDemo(interaction);
-    }, 2000);
   }
 
-  async handleVipTourStart(interaction: ButtonInteraction): Promise<void> {
-    const tourEmbed = createInfoEmbed('⭐ VIP Tour Started!', 'Welcome to your VIP features tour!')
+  private async handleEliteFeatures(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('🔥 VIP+ Elite Features')
+      .setDescription('Your complete arsenal of advanced betting tools')
+      .setColor(0x8A2BE2)
       .addFields(
         {
-          name: '🎯 VIP Picks',
-          value: 'Access to premium pick analysis'
+          name: '💨 Steam Alerts',
+          value: 'Real-time notifications when sharp money moves lines significantly',
+          inline: true
         },
         {
-          name: '⚡ Early Access',
-          value: 'Get picks before free members'
+          name: '🏥 Injury Alerts',
+          value: 'Instant updates on player injuries that affect betting lines',
+          inline: true
         },
         {
-          name: '📊 Basic Analytics',
-          value: 'Track your betting performance'
+          name: '🛡️ Hedge Alerts',
+          value: 'Opportunities to protect profits with strategic hedge bets',
+          inline: true
         },
         {
-          name: '🎨 Quality Content',
-          value: 'Curated picks with reasoning'
+          name: '🎯 Middling Alerts',
+          value: 'Guaranteed profit opportunities through line movement',
+          inline: true
+        },
+        {
+          name: '🤖 Personal AI Advice',
+          value: 'Custom betting guidance based on your history and preferences',
+          inline: true
+        },
+        {
+          name: '📊 Advanced Analytics',
+          value: 'Proprietary data models and personalized ROI tracking',
+          inline: true
+        },
+        {
+          name: '🏆 Hot/Cold Tracking',
+          value: 'Dynamic leaderboards showing current form and streaks',
+          inline: true
+        },
+        {
+          name: '🎁 Exclusive Contests',
+          value: 'VIP+ only giveaways and competitions with premium prizes',
+          inline: true
+        },
+        {
+          name: '⚡ Priority Support',
+          value: 'Fastest response times and dedicated VIP+ assistance',
+          inline: true
         }
-      )
-      .setColor('#f1c40f');
+      );
 
-    const tourButtons = new ActionRowBuilder<ButtonBuilder>()
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  private async handleVipPlusTour(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('🎯 VIP+ Elite Tour')
+      .setDescription('Experience the pinnacle of betting intelligence')
+      .setColor(0x8A2BE2)
+      .addFields(
+        {
+          name: '🔥 Step 1: Elite Alerts',
+          value: 'Setup steam, injury, hedge, and middling alerts for maximum edge',
+          inline: false
+        },
+        {
+          name: '🤖 Step 2: AI Advisor',
+          value: 'Configure your personal AI betting assistant for custom advice',
+          inline: false
+        },
+        {
+          name: '📊 Step 3: Analytics Vault',
+          value: 'Access proprietary data models and advanced tracking tools',
+          inline: false
+        },
+        {
+          name: '👑 Step 4: Elite Community',
+          value: 'Join exclusive VIP+ channels and contests',
+          inline: false
+        }
+      );
+
+    const actionRow = new ActionRowBuilder<ButtonBuilder>()
       .addComponents(
         new ButtonBuilder()
-          .setCustomId('view_analytics')
-          .setLabel('View Analytics')
+          .setCustomId('setup_vip_plus_notifications')
+          .setLabel('Setup Elite Alerts')
           .setStyle(ButtonStyle.Primary)
-          .setEmoji('📊'),
+          .setEmoji('⚡'),
         new ButtonBuilder()
-          .setCustomId('vip_settings')
-          .setLabel('Settings')
-          .setStyle(ButtonStyle.Secondary)
-          .setEmoji('⚙️')
+          .setCustomId('access_elite_features')
+          .setLabel('Access All Features')
+          .setStyle(ButtonStyle.Success)
+          .setEmoji('🔥')
       );
 
     await interaction.reply({
-      embeds: [tourEmbed],
-      components: [tourButtons],
+      embeds: [embed],
+      components: [actionRow],
       ephemeral: true
     });
   }
 
-  async handleVipPlusSettings(interaction: ButtonInteraction): Promise<void> {
-    const settingsEmbed = createInfoEmbed('⚙️ VIP+ Settings', 'Customize your VIP+ experience')
+  private async handleVipPlusNotifications(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('⚡ VIP+ Elite Alert Setup')
+      .setDescription('Configure your advanced notification system')
+      .setColor(0x8A2BE2)
       .addFields(
         {
-          name: '🔔 Alert Preferences',
-          value: 'Choose when and how you receive notifications'
+          name: '💨 Steam Alerts',
+          value: '✅ Sharp money movement notifications\n⚙️ Threshold: 2+ point moves\n📱 Delivery: Instant DM + Channel',
+          inline: false
         },
         {
-          name: '🎯 Pick Filters',
-          value: 'Set confidence thresholds and sport preferences'
+          name: '🏥 Injury Alerts',
+          value: '✅ Real-time player status updates\n⚙️ Filter: Impact players only\n📱 Delivery: Instant notifications',
+          inline: false
         },
         {
-          name: '📊 Analytics Dashboard',
-          value: 'Customize your performance tracking'
+          name: '🛡️ Hedge Opportunities',
+          value: '✅ Profit protection signals\n⚙️ Minimum: 10% guaranteed profit\n📱 Delivery: Priority alerts',
+          inline: false
         },
         {
-          name: '🤖 AI Coaching',
-          value: 'Configure your personal AI assistant'
+          name: '🎯 Middling Alerts',
+          value: '✅ Guaranteed profit opportunities\n⚙️ Threshold: 5% minimum edge\n📱 Delivery: Immediate notification',
+          inline: false
         }
-      )
-      .setColor('#FFD700');
+      );
 
-    const settingsButtons = new ActionRowBuilder<ButtonBuilder>()
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  /**
+   * TRIAL & UPGRADE HANDLERS
+   */
+
+  private async handleTrialFeatures(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('🎁 Trial Features Preview')
+      .setDescription('See what you get with VIP and VIP+ memberships')
+      .setColor(0x00FF00)
+      .addFields(
+        {
+          name: '⭐ VIP Features',
+          value: '• Access to VIP Lounge\n• Premium pick alerts\n• Daily market insights\n• Priority support',
+          inline: true
+        },
+        {
+          name: '⚡ VIP+ Features',
+          value: '• Steam & injury alerts\n• Hedge opportunities\n• AI personal advice\n• Elite analytics',
+          inline: true
+        },
+        {
+          name: '🎯 Trial Benefits',
+          value: '• 7-day free access\n• All VIP features included\n• No commitment required\n• Easy upgrade path',
+          inline: false
+        }
+      );
+
+    const actionRow = new ActionRowBuilder<ButtonBuilder>()
       .addComponents(
         new ButtonBuilder()
-          .setCustomId('customize_alerts')
-          .setLabel('Alert Settings')
+          .setCustomId('upgrade_to_vip')
+          .setLabel('Upgrade to VIP')
           .setStyle(ButtonStyle.Primary)
-          .setEmoji('🔔'),
+          .setEmoji('⭐'),
         new ButtonBuilder()
-          .setCustomId('ai_coaching')
-          .setLabel('AI Coaching')
+          .setCustomId('upgrade_to_vip_plus')
+          .setLabel('Upgrade to VIP+')
+          .setStyle(ButtonStyle.Success)
+          .setEmoji('⚡'),
+        new ButtonBuilder()
+          .setCustomId('view_faq')
+          .setLabel('FAQ')
           .setStyle(ButtonStyle.Secondary)
-          .setEmoji('🤖')
+          .setEmoji('❓')
       );
 
     await interaction.reply({
-      embeds: [settingsEmbed],
-      components: [settingsButtons],
+      embeds: [embed],
+      components: [actionRow],
       ephemeral: true
     });
   }
 
-  async handleVipSettings(interaction: ButtonInteraction): Promise<void> {
-    const settingsEmbed = createInfoEmbed('⚙️ VIP Settings', 'Customize your VIP experience')
+  private async handleUpgradeToVip(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('⭐ Upgrade to VIP')
+      .setDescription('Ready to unlock premium features?')
+      .setColor(0xFFD700)
       .addFields(
         {
-          name: '🔔 Notifications',
-          value: 'Choose your notification preferences'
-        },
-        {
-          name: '📊 Analytics',
-          value: 'Set up your performance tracking'
-        },
-        {
-          name: '🎯 Pick Preferences',
-          value: 'Configure your pick filters'
-        }
-      )
-      .setColor('#f1c40f');
-
-    const settingsButtons = new ActionRowBuilder<ButtonBuilder>()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId('customize_alerts')
-          .setLabel('Notifications')
-          .setStyle(ButtonStyle.Primary)
-          .setEmoji('🔔'),
-        new ButtonBuilder()
-          .setCustomId('view_analytics')
-          .setLabel('Analytics')
-          .setStyle(ButtonStyle.Secondary)
-          .setEmoji('📊')
-      );
-
-    await interaction.reply({
-      embeds: [settingsEmbed],
-      components: [settingsButtons],
-      ephemeral: true
-    });
-  }
-
-  async handleHeatSignalAccess(interaction: ButtonInteraction): Promise<void> {
-    try {
-      const member = interaction.guild?.members.cache.get(interaction.user.id);
-      if (!member) {
-        await interaction.reply({
-          content: '❌ Could not find your server membership.',
-          ephemeral: true
-        });
-        return;
-      }
-
-      const currentTier = this.permissionsService.getUserTier(member);
-
-      if (currentTier !== 'vip_plus') {
-        const upgradeEmbed = createInfoEmbed('🔥 Heat Signal Access', 'VIP+ Feature Required')
-          .setDescription('Heat Signal is an exclusive VIP+ feature that provides real-time line movement alerts and sharp money tracking.')
-          .addFields(
-            {
-              name: '🎯 What is Heat Signal?',
-              value: '• Real-time line movement tracking\n• Sharp money detection\n• Instant alerts for value opportunities\n• Professional betting insights',
-              inline: false
-            },
-            {
-              name: '💎 Upgrade to VIP+',
-              value: 'Get access to Heat Signal and all other VIP+ features',
-              inline: false
-            }
-          )
-          .setColor('#e74c3c');
-
-        const upgradeButtons = new ActionRowBuilder<ButtonBuilder>()
-          .addComponents(
-            new ButtonBuilder()
-              .setLabel('Upgrade to VIP+')
-              .setStyle(ButtonStyle.Primary)
-              .setEmoji('💎')
-              .setCustomId('upgrade_vip_plus'),
-            new ButtonBuilder()
-              .setLabel('View Demo')
-              .setStyle(ButtonStyle.Secondary)
-              .setEmoji('👀')
-              .setCustomId('heat_signal_demo')
-          );
-
-        await interaction.reply({
-          embeds: [upgradeEmbed],
-          components: [upgradeButtons],
-          ephemeral: true
-        });
-        return;
-      }
-
-      // VIP+ user - show heat signal
-      await this.sendHeatSignalDemo(interaction);
-
-    } catch (error) {
-      logger.error('Error handling heat signal access:', error);
-      await interaction.reply({
-        content: '❌ An error occurred while accessing heat signal.',
-        ephemeral: true
-      });
-    }
-  }
-
-  async sendHeatSignalDemo(interaction: ButtonInteraction): Promise<void> {
-    try {
-      const heatSignalEmbed = createInfoEmbed('🔥 Heat Signal Alert', 'Live Line Movement Detected!')
-        .addFields(
-          {
-            name: '🏀 Game',
-            value: 'Lakers vs Warriors',
-            inline: true
-          },
-          {
-            name: '📊 Line Movement',
-            value: 'Spread: -3.5 → -5.5',
-            inline: true
-          },
-          {
-            name: '💰 Sharp Money',
-            value: '78% on Lakers',
-            inline: true
-          },
-          {
-            name: '⚡ Action',
-            value: 'Heavy betting on Lakers causing line to move 2 points in 10 minutes',
-            inline: false
-          },
-          {
-            name: '🎯 Recommendation',
-            value: '**STRONG BUY** - Lakers -5.5\nConfidence: 87%',
-            inline: false
-          }
-        )
-        .setColor('#FF4500')
-        .setTimestamp();
-
-      const heatButtons = new ActionRowBuilder<ButtonBuilder>()
-        .addComponents(
-          new ButtonBuilder()
-            .setCustomId('place_bet')
-            .setLabel('Place Bet')
-            .setStyle(ButtonStyle.Success)
-            .setEmoji('💰'),
-          new ButtonBuilder()
-            .setCustomId('more_analysis')
-            .setLabel('More Analysis')
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji('📊')
-        );
-
-      // Send as a follow-up message to simulate real Heat Signal
-      await interaction.followUp({
-        embeds: [heatSignalEmbed],
-        components: [heatButtons],
-        ephemeral: true
-      });
-
-      // Also send a DM with Heat Signal
-      try {
-        const dmChannel = await interaction.user.createDM();
-        await dmChannel.send({
-          embeds: [heatSignalEmbed],
-          components: [heatButtons]
-        });
-        
-        logger.info('Heat Signal DM sent successfully', {
-          service: 'unit-talk-bot',
-          userId: interaction.user.id,
-          username: interaction.user.username
-        });
-      } catch (dmError) {
-        logger.warn('Could not send Heat Signal DM', {
-          service: 'unit-talk-bot',
-          userId: interaction.user.id,
-          error: dmError
-        });
-      }
-    } catch (error) {
-      logger.error('Error sending Heat Signal demo:', error);
-    }
-  }
-
-  async handleCustomizeAlerts(interaction: ButtonInteraction): Promise<void> {
-    const alertsEmbed = createInfoEmbed('🔔 Alert Customization', 'Configure your notification preferences')
-      .addFields(
-        {
-          name: '⚡ Instant Alerts',
-          value: 'Get notified immediately when picks are released'
-        },
-        {
-          name: '🔥 Heat Signals',
-          value: 'Real-time line movement and sharp money alerts'
-        },
-        {
-          name: '📊 Performance Updates',
-          value: 'Daily/weekly performance summaries'
-        },
-        {
-          name: '🎯 Custom Filters',
-          value: 'Only get alerts for your preferred sports/confidence levels'
-        }
-      )
-      .setColor('#3498db');
-
-    await interaction.reply({
-      embeds: [alertsEmbed],
-      ephemeral: true
-    });
-  }
-
-  async handleViewAnalytics(interaction: ButtonInteraction): Promise<void> {
-    const analyticsEmbed = createInfoEmbed('📊 Your Analytics Dashboard', 'Performance tracking and insights')
-      .addFields(
-        {
-          name: '🎯 Win Rate',
-          value: '67.3% (Last 30 days)',
-          inline: true
-        },
-        {
-          name: '💰 Profit',
-          value: '+$1,247.50',
-          inline: true
-        },
-        {
-          name: '📈 ROI',
-          value: '12.4%',
-          inline: true
-        },
-        {
-          name: '🏆 Best Sport',
-          value: 'NBA (74% win rate)',
-          inline: true
-        },
-        {
-          name: '📊 Total Bets',
-          value: '156 bets placed',
-          inline: true
-        },
-        {
-          name: '⭐ Streak',
-          value: '7 wins in a row',
-          inline: true
-        }
-      )
-      .setColor('#2ecc71');
-
-    await interaction.reply({
-      embeds: [analyticsEmbed],
-      ephemeral: true
-    });
-  }
-
-
-
-  async handleRefreshHeatSignal(interaction: ButtonInteraction): Promise<void> {
-    try {
-      const member = interaction.guild?.members.cache.get(interaction.user.id);
-      if (!member) {
-        await interaction.reply({
-          content: '❌ Could not find your server membership.',
-          ephemeral: true
-        });
-        return;
-      }
-
-      const currentTier = this.permissionsService.getUserTier(member);
-
-      if (currentTier !== 'vip_plus') {
-        await interaction.reply({
-          content: '❌ Heat Signal is a VIP+ exclusive feature. Upgrade to access real-time alerts!',
-          components: [
-            new ActionRowBuilder<ButtonBuilder>()
-              .addComponents(
-                new ButtonBuilder()
-                  .setLabel('Upgrade to VIP+')
-                  .setStyle(ButtonStyle.Primary)
-                  .setEmoji('💎')
-                  .setCustomId('upgrade_vip_plus')
-              )
-          ],
-          ephemeral: true
-        });
-        return;
-      }
-
-      await interaction.deferReply({ ephemeral: true });
-
-      // Simulate refreshing heat signal data
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      const refreshedEmbed = createSuccessEmbed('🔄 Heat Signal Refreshed', 'Latest market data loaded')
-        .addFields(
-          {
-            name: '🔥 Active Alerts',
-            value: '• Lakers total moving UP (220.5 → 222)\n• Chiefs spread tightening (-3.5 → -3)\n• Sharp money on Warriors +4.5',
-            inline: false
-          },
-          {
-            name: '⚡ New Opportunities',
-            value: '2 new value plays detected in the last 5 minutes',
-            inline: false
-          },
-          {
-            name: '📊 Market Status',
-            value: 'High activity detected - 15 lines moving',
-            inline: false
-          }
-        )
-        .setColor('#2ecc71');
-
-      const refreshButtons = new ActionRowBuilder<ButtonBuilder>()
-        .addComponents(
-          new ButtonBuilder()
-            .setLabel('View Details')
-            .setStyle(ButtonStyle.Primary)
-            .setEmoji('📊')
-            .setCustomId('heat_signal_access'),
-          new ButtonBuilder()
-            .setLabel('Settings')
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji('⚙️')
-            .setCustomId('heat_signal_settings')
-        );
-
-      await interaction.editReply({
-        embeds: [refreshedEmbed],
-        components: [refreshButtons]
-      });
-
-    } catch (error) {
-      logger.error('Error refreshing heat signal:', error);
-      await interaction.reply({
-        content: '❌ An error occurred while refreshing heat signal.',
-        ephemeral: true
-      });
-    }
-  }
-
-  async handleAiCoaching(interaction: ButtonInteraction): Promise<void> {
-    const coachingEmbed = createInfoEmbed('🤖 AI Coaching Assistant', 'Your personal betting coach')
-      .addFields(
-        {
-          name: '📈 Performance Analysis',
-          value: 'AI analyzes your betting patterns and suggests improvements'
-        },
-        {
-          name: '🎯 Personalized Tips',
-          value: 'Get custom advice based on your betting history'
-        },
-        {
-          name: '⚠️ Risk Management',
-          value: 'AI helps you manage bankroll and avoid common mistakes'
-        },
-        {
-          name: '🔍 Pick Analysis',
-          value: 'Detailed breakdown of why each pick was recommended'
-        }
-      )
-      .setColor('#9b59b6');
-
-    await interaction.reply({
-      embeds: [coachingEmbed],
-      ephemeral: true
-    });
-  }
-
-  // Stub implementations for the newly added handlers
-
-
-
-  async handleHeatSignalSettings(interaction: ButtonInteraction): Promise<void> {
-    try {
-      const member = interaction.guild?.members.cache.get(interaction.user.id);
-      if (!member) {
-        await interaction.reply({
-          content: '❌ Could not find your server membership.',
-          ephemeral: true
-        });
-        return;
-      }
-
-      const currentTier = this.permissionsService.getUserTier(member);
-
-      if (currentTier !== 'vip_plus') {
-        await interaction.reply({
-          content: '❌ Heat Signal settings are only available for VIP+ members.',
-          components: [
-            new ActionRowBuilder<ButtonBuilder>()
-              .addComponents(
-                new ButtonBuilder()
-                  .setLabel('Upgrade to VIP+')
-                  .setStyle(ButtonStyle.Primary)
-                  .setEmoji('💎')
-                  .setCustomId('upgrade_vip_plus')
-              )
-          ],
-          ephemeral: true
-        });
-        return;
-      }
-
-      const settingsEmbed = createInfoEmbed('⚙️ Heat Signal Settings', 'Configure your alert preferences')
-        .addFields(
-          {
-            name: '🔔 Notification Types',
-            value: '✅ Line Movement Alerts\n✅ Sharp Money Alerts\n✅ Value Play Alerts\n❌ Steam Alerts',
-            inline: false
-          },
-          {
-            name: '📊 Thresholds',
-            value: 'Line Movement: ±1.5 points\nSharp Money: 70%+ backing\nValue Plays: 5%+ edge',
-            inline: false
-          },
-          {
-            name: '⏰ Timing',
-            value: 'Instant notifications: ON\nDigest mode: OFF\nQuiet hours: 11 PM - 7 AM',
-            inline: false
-          },
-          {
-            name: '🎯 Sports Filter',
-            value: 'NFL: ✅ | NBA: ✅ | MLB: ❌\nNHL: ❌ | Soccer: ❌ | Tennis: ❌',
-            inline: false
-          }
-        )
-        .setColor('#3498db');
-
-      const settingsButtons = new ActionRowBuilder<ButtonBuilder>()
-        .addComponents(
-          new ButtonBuilder()
-            .setLabel('Edit Notifications')
-            .setStyle(ButtonStyle.Primary)
-            .setEmoji('🔔')
-            .setCustomId('edit_notifications'),
-          new ButtonBuilder()
-            .setLabel('Sports Filter')
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji('🏈')
-            .setCustomId('sports_filter'),
-          new ButtonBuilder()
-            .setLabel('Test Alert')
-            .setStyle(ButtonStyle.Success)
-            .setEmoji('🧪')
-            .setCustomId('test_heat_alert')
-        );
-
-      await interaction.reply({
-        embeds: [settingsEmbed],
-        components: [settingsButtons],
-        ephemeral: true
-      });
-
-    } catch (error) {
-      logger.error('Error showing heat signal settings:', error);
-      await interaction.reply({
-        content: '❌ An error occurred while loading settings.',
-        ephemeral: true
-      });
-    }
-  }
-
-  async handleUpgradeVip(interaction: ButtonInteraction): Promise<void> {
-    try {
-      const member = interaction.guild?.members.cache.get(interaction.user.id);
-      if (!member) {
-        await interaction.reply({
-          content: '❌ Could not find your server membership.',
-          ephemeral: true
-        });
-        return;
-      }
-
-      // Check current tier
-      const currentTier = this.permissionsService.getUserTier(member);
-
-      if (currentTier === 'vip' || currentTier === 'vip_plus') {
-        await interaction.reply({
-          content: '✅ You already have VIP access or higher! Use `/vip-dashboard` to access your features.',
-          ephemeral: true
-        });
-        return;
-      }
-
-      const upgradeEmbed = createInfoEmbed('⭐ VIP Upgrade', 'Ready to unlock VIP features?')
-        .addFields(
-          {
-            name: '🎯 VIP Picks',
-            value: 'Access to premium pick analysis',
-            inline: false
-          },
-          {
-            name: '⚡ Early Access',
-            value: 'Get picks before free members',
-            inline: false
-          },
-          {
-            name: '📊 Basic Analytics',
-            value: 'Track your betting performance',
-            inline: false
-          },
-          {
-            name: '🔔 Priority Notifications',
-            value: 'Get notified of important updates first',
-            inline: false
-          },
-          {
-            name: '💰 Pricing',
-            value: 'Contact admin for VIP upgrade pricing',
-            inline: false
-          }
-        )
-        .setColor('#f1c40f');
-
-      const upgradeButtons = new ActionRowBuilder<ButtonBuilder>()
-        .addComponents(
-          new ButtonBuilder()
-            .setLabel('Contact Admin')
-            .setStyle(ButtonStyle.Primary)
-            .setEmoji('💬')
-            .setCustomId('contact_admin_vip'),
-          new ButtonBuilder()
-            .setLabel('Start Trial')
-            .setStyle(ButtonStyle.Success)
-            .setEmoji('🆓')
-            .setCustomId('start_trial')
-        );
-
-      await interaction.reply({
-        embeds: [upgradeEmbed],
-        components: [upgradeButtons],
-        ephemeral: true
-      });
-
-    } catch (error) {
-      logger.error('Error handling VIP upgrade:', error);
-      await interaction.reply({
-        content: '❌ An error occurred while processing your upgrade request.',
-        ephemeral: true
-      });
-    }
-  }
-
-  async handleViewVipPerks(interaction: ButtonInteraction): Promise<void> {
-    const perksEmbed = createInfoEmbed('⭐ VIP Perks', 'See what VIP membership includes')
-      .addFields(
-        {
-          name: '🎯 Premium Picks',
-          value: 'Access to our highest confidence plays',
-          inline: false
-        },
-        {
-          name: '⚡ Early Access',
-          value: 'Get picks before they\'re released to free members',
-          inline: false
-        },
-        {
-          name: '📊 Performance Analytics',
-          value: 'Track your betting performance with detailed stats',
-          inline: false
-        },
-        {
-          name: '🔔 Priority Notifications',
-          value: 'Get notified of important updates and picks first',
-          inline: false
-        },
-        {
-          name: '💬 VIP Chat Access',
-          value: 'Join exclusive VIP discussions and strategies',
-          inline: false
-        }
-      )
-      .setColor('#f1c40f');
-
-    await interaction.reply({
-      embeds: [perksEmbed],
-      ephemeral: true
-    });
-  }
-
-  async handleViewVipInfo(interaction: ButtonInteraction): Promise<void> {
-    const infoEmbed = createInfoEmbed('ℹ️ VIP Information', 'Everything you need to know about VIP')
-      .addFields(
-        {
-          name: '💎 VIP vs VIP+',
-          value: 'VIP: Premium picks and early access\nVIP+: Everything in VIP plus Heat Signal, AI Coaching, and Advanced Analytics',
-          inline: false
-        },
-        {
-          name: '🆓 Free Trial',
-          value: 'Try VIP features for free before upgrading',
+          name: '🎯 VIP Benefits',
+          value: '• Exclusive VIP Lounge access\n• Premium pick notifications\n• Daily market analysis\n• Priority support response',
           inline: false
         },
         {
           name: '💰 Pricing',
-          value: 'Contact admin for current pricing and payment options',
+          value: '**$29.99/month** or **$299/year** (save 17%)',
           inline: false
         },
         {
-          name: '🔄 Cancellation',
-          value: 'Cancel anytime - no long-term commitments',
+          name: '📞 Ready to Upgrade?',
+          value: 'Contact <@griff843> to process your VIP upgrade\n\n*Mention this message for fastest processing*',
           inline: false
         }
-      )
-      .setColor('#3498db');
-
-    const infoButtons = new ActionRowBuilder<ButtonBuilder>()
-      .addComponents(
-        new ButtonBuilder()
-          .setLabel('Start Trial')
-          .setStyle(ButtonStyle.Success)
-          .setEmoji('🆓')
-          .setCustomId('start_trial'),
-        new ButtonBuilder()
-          .setLabel('Upgrade to VIP')
-          .setStyle(ButtonStyle.Primary)
-          .setEmoji('⭐')
-          .setCustomId('upgrade_vip'),
-        new ButtonBuilder()
-          .setLabel('Upgrade to VIP+')
-          .setStyle(ButtonStyle.Primary)
-          .setEmoji('💎')
-          .setCustomId('upgrade_vip_plus')
       );
 
     await interaction.reply({
-      embeds: [infoEmbed],
-      components: [infoButtons],
+      embeds: [embed],
       ephemeral: true
     });
   }
 
-  async handleStartTrial(interaction: ButtonInteraction): Promise<void> {
-    try {
-      const member = interaction.guild?.members.cache.get(interaction.user.id);
-      if (!member) {
-        await interaction.reply({
-          content: '❌ Could not find your server membership.',
-          ephemeral: true
-        });
-        return;
-      }
-
-      // Check if user already has VIP access
-      const currentTier = this.permissionsService.getUserTier(member);
-      if (currentTier === 'vip' || currentTier === 'vip_plus') {
-        await interaction.reply({
-          content: '✅ You already have VIP access! No trial needed.',
-          ephemeral: true
-        });
-        return;
-      }
-
-      // Check if user already has an active trial
-      const existingTrial = await this.supabaseService.getTrialUser(interaction.user.id);
-      if (existingTrial && existingTrial.active) {
-        const expiresAt = new Date(existingTrial.expires_at);
-        await interaction.reply({
-          content: `⏰ You already have an active trial that expires on ${expiresAt.toLocaleDateString()}.`,
-          ephemeral: true
-        });
-        return;
-      }
-
-      // Start new trial
-      const trialDuration = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
-      const expiresAt = new Date(Date.now() + trialDuration);
-
-      await this.supabaseService.createTrialUser({
-        discord_id: interaction.user.id,
-        started_at: new Date(),
-        expires_at: expiresAt,
-        active: true,
-        reminder_48h_sent: false,
-        reminder_24h_sent: false,
-        reminder_1h_sent: false
-      });
-
-      const trialEmbed = createSuccessEmbed('🆓 Trial Started!', 'Your 7-day VIP trial is now active!')
-        .addFields(
-          {
-            name: '⏰ Trial Duration',
-            value: '7 days',
-            inline: true
-          },
-          {
-            name: '📅 Expires',
-            value: expiresAt.toLocaleDateString(),
-            inline: true
-          },
-          {
-            name: '🎯 What\'s Included',
-            value: '• Premium picks\n• Early access\n• Performance analytics\n• Priority notifications',
-            inline: false
-          }
-        )
-        .setColor('#2ecc71');
-
-      const trialButtons = new ActionRowBuilder<ButtonBuilder>()
-        .addComponents(
-          new ButtonBuilder()
-            .setLabel('View Today\'s Picks')
-            .setStyle(ButtonStyle.Primary)
-            .setEmoji('🎯')
-            .setCustomId('view_todays_picks'),
-          new ButtonBuilder()
-            .setLabel('VIP Dashboard')
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji('📊')
-            .setCustomId('picks_dashboard')
-        );
-
-      await interaction.reply({
-        embeds: [trialEmbed],
-        components: [trialButtons],
-        ephemeral: true
-      });
-
-    } catch (error) {
-      logger.error('Error starting trial:', error);
-      await interaction.reply({
-        content: '❌ An error occurred while starting your trial.',
-        ephemeral: true
-      });
-    }
-  }
-
-  async handleTrialStatus(interaction: ButtonInteraction): Promise<void> {
-    try {
-      const trial = await this.supabaseService.getTrialUser(interaction.user.id);
-
-      if (!trial || !trial.active) {
-        await interaction.reply({
-          content: '❌ You don\'t have an active trial. Use the "Start Trial" button to begin your free trial!',
-          ephemeral: true
-        });
-        return;
-      }
-
-      const expiresAt = new Date(trial.expires_at);
-      const timeLeft = expiresAt.getTime() - Date.now();
-      const daysLeft = Math.ceil(timeLeft / (24 * 60 * 60 * 1000));
-
-      const statusEmbed = createInfoEmbed('⏰ Trial Status', 'Your current trial information')
-        .addFields(
-          {
-            name: '📅 Started',
-            value: new Date(trial.started_at).toLocaleDateString(),
-            inline: true
-          },
-          {
-            name: '⏰ Expires',
-            value: expiresAt.toLocaleDateString(),
-            inline: true
-          },
-          {
-            name: '📊 Days Left',
-            value: daysLeft > 0 ? `${daysLeft} days` : 'Expired',
-            inline: true
-          }
-        )
-        .setColor(daysLeft > 2 ? '#2ecc71' : '#e74c3c');
-
-      const statusButtons = new ActionRowBuilder<ButtonBuilder>()
-        .addComponents(
-          new ButtonBuilder()
-            .setLabel('Upgrade to VIP')
-            .setStyle(ButtonStyle.Primary)
-            .setEmoji('⭐')
-            .setCustomId('upgrade_vip'),
-          new ButtonBuilder()
-            .setLabel('Upgrade to VIP+')
-            .setStyle(ButtonStyle.Primary)
-            .setEmoji('💎')
-            .setCustomId('upgrade_vip_plus')
-        );
-
-      await interaction.reply({
-        embeds: [statusEmbed],
-        components: [statusButtons],
-        ephemeral: true
-      });
-
-    } catch (error) {
-      logger.error('Error checking trial status:', error);
-      await interaction.reply({
-        content: '❌ An error occurred while checking your trial status.',
-        ephemeral: true
-      });
-    }
-  }
-
-  async handleViewTodaysPicks(interaction: ButtonInteraction): Promise<void> {
-    try {
-      const member = interaction.guild?.members.cache.get(interaction.user.id);
-      if (!member) {
-        await interaction.reply({
-          content: '❌ Could not find your server membership.',
-          ephemeral: true
-        });
-        return;
-      }
-
-      const currentTier = this.permissionsService.getUserTier(member);
-
-      // Check if user has access to picks
-      if (currentTier === 'member') {
-        // Check for active trial
-        const trial = await this.supabaseService.getTrialUser(interaction.user.id);
-        if (!trial || !trial.active) {
-          await interaction.reply({
-            content: '❌ You need VIP access to view today\'s picks. Start a free trial or upgrade to VIP!',
-            components: [
-              new ActionRowBuilder<ButtonBuilder>()
-                .addComponents(
-                  new ButtonBuilder()
-                    .setLabel('Start Free Trial')
-                    .setStyle(ButtonStyle.Success)
-                    .setEmoji('🆓')
-                    .setCustomId('start_trial'),
-                  new ButtonBuilder()
-                    .setLabel('Upgrade to VIP')
-                    .setStyle(ButtonStyle.Primary)
-                    .setEmoji('⭐')
-                    .setCustomId('upgrade_vip')
-                )
-            ],
-            ephemeral: true
-          });
-          return;
+  private async handleUpgradeToVipPlus(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('⚡ Upgrade to VIP+')
+      .setDescription('Unlock the ultimate betting experience!')
+      .setColor(0x8A2BE2)
+      .addFields(
+        {
+          name: '🔥 VIP+ Elite Features',
+          value: '• Steam & injury alerts\n• Hedge & middling opportunities\n• AI personal betting advice\n• Advanced analytics vault\n• Exclusive contests & giveaways',
+          inline: false
+        },
+        {
+          name: '💎 Premium Value',
+          value: '**$79.99/month** or **$799/year** (save 17%)\n\n*Includes all VIP features plus elite tools*',
+          inline: false
+        },
+        {
+          name: '📞 Ready for Elite Status?',
+          value: 'Contact <@griff843> to upgrade to VIP+\n\n*Mention this message for priority processing*',
+          inline: false
         }
-      }
-
-      // User has access - show picks
-      const picksEmbed = createInfoEmbed('🎯 Today\'s Picks', 'Your premium picks for today')
-        .setDescription('Here are today\'s carefully analyzed picks:')
-        .addFields(
-          {
-            name: '🏀 NBA',
-            value: 'Lakers vs Warriors - Over 220.5 (3 units)\nConfidence: High | Line Movement: Favorable',
-            inline: false
-          },
-          {
-            name: '🏈 NFL',
-            value: 'Chiefs -3.5 vs Bills (2 units)\nConfidence: Medium | Sharp Money: 65%',
-            inline: false
-          },
-          {
-            name: '📊 Today\'s Stats',
-            value: `Total Picks: 2\nTotal Units: 5\nTier Access: ${currentTier.toUpperCase()}`,
-            inline: false
-          }
-        )
-        .setColor('#2ecc71');
-
-      const picksButtons = new ActionRowBuilder<ButtonBuilder>()
-        .addComponents(
-          new ButtonBuilder()
-            .setLabel('VIP Dashboard')
-            .setStyle(ButtonStyle.Primary)
-            .setEmoji('📊')
-            .setCustomId('picks_dashboard'),
-          new ButtonBuilder()
-            .setLabel('View Analytics')
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji('📈')
-            .setCustomId('view_analytics')
-        );
-
-      if (currentTier === 'vip_plus') {
-        picksButtons.addComponents(
-          new ButtonBuilder()
-            .setLabel('Heat Signal')
-            .setStyle(ButtonStyle.Danger)
-            .setEmoji('🔥')
-            .setCustomId('heat_signal_access')
-        );
-      }
-
-      await interaction.reply({
-        embeds: [picksEmbed],
-        components: [picksButtons],
-        ephemeral: true
-      });
-
-    } catch (error) {
-      logger.error('Error viewing today\'s picks:', error);
-      await interaction.reply({
-        content: '❌ An error occurred while loading today\'s picks.',
-        ephemeral: true
-      });
-    }
-  }
-
-  async handleGotoVipLounge(interaction: ButtonInteraction): Promise<void> {
-    try {
-      const member = interaction.guild?.members.cache.get(interaction.user.id);
-      if (!member) {
-        await interaction.reply({
-          content: '❌ Could not find your server membership.',
-          ephemeral: true
-        });
-        return;
-      }
-
-      const currentTier = this.permissionsService.getUserTier(member);
-
-      if (currentTier === 'member') {
-        await interaction.reply({
-          content: '❌ You need VIP access to enter the VIP lounge. Upgrade or start a free trial!',
-          components: [
-            new ActionRowBuilder<ButtonBuilder>()
-              .addComponents(
-                new ButtonBuilder()
-                  .setLabel('Start Free Trial')
-                  .setStyle(ButtonStyle.Success)
-                  .setEmoji('🆓')
-                  .setCustomId('start_trial'),
-                new ButtonBuilder()
-                  .setLabel('Upgrade to VIP')
-                  .setStyle(ButtonStyle.Primary)
-                  .setEmoji('⭐')
-                  .setCustomId('upgrade_vip')
-              )
-          ],
-          ephemeral: true
-        });
-        return;
-      }
-
-      // Get appropriate VIP channel based on tier
-      const channelId = currentTier === 'vip_plus'
-        ? botConfig.channels.vipPlusGeneral
-        : botConfig.channels.vipGeneral;
-
-      await interaction.reply({
-        content: `🎉 Welcome to the VIP Lounge! Click here to join: <#${channelId}>`,
-        ephemeral: true
-      });
-
-    } catch (error) {
-      logger.error('Error accessing VIP lounge:', error);
-      await interaction.reply({
-        content: '❌ An error occurred while accessing the VIP lounge.',
-        ephemeral: true
-      });
-    }
-  }
-
-  async handlePicksDashboard(interaction: ButtonInteraction): Promise<void> {
-    try {
-      const member = interaction.guild?.members.cache.get(interaction.user.id);
-      if (!member) {
-        await interaction.reply({
-          content: '❌ Could not find your server membership.',
-          ephemeral: true
-        });
-        return;
-      }
-
-      const currentTier = this.permissionsService.getUserTier(member);
-
-      if (currentTier === 'member') {
-        await interaction.reply({
-          content: '❌ You need VIP access to view the picks dashboard. Upgrade or start a free trial!',
-          ephemeral: true
-        });
-        return;
-      }
-
-      const dashboardEmbed = createInfoEmbed('📊 Picks Dashboard', `Your ${currentTier.toUpperCase()} Dashboard`)
-        .addFields(
-          {
-            name: '📈 This Week',
-            value: 'Record: 12-3 (80%)\nUnits: +8.5\nROI: 42%',
-            inline: true
-          },
-          {
-            name: '📅 This Month',
-            value: 'Record: 45-15 (75%)\nUnits: +28.2\nROI: 38%',
-            inline: true
-          },
-          {
-            name: '🏆 All Time',
-            value: 'Record: 234-89 (72%)\nUnits: +156.8\nROI: 35%',
-            inline: true
-          },
-          {
-            name: '🎯 Recent Picks',
-            value: '✅ Lakers Over 220.5\n✅ Chiefs -3.5\n❌ Warriors ML\n✅ Cowboys Under 48.5',
-            inline: false
-          }
-        )
-        .setColor('#3498db');
-
-      const dashboardButtons = new ActionRowBuilder<ButtonBuilder>()
-        .addComponents(
-          new ButtonBuilder()
-            .setLabel('View Analytics')
-            .setStyle(ButtonStyle.Primary)
-            .setEmoji('📈')
-            .setCustomId('view_analytics'),
-          new ButtonBuilder()
-            .setLabel('Today\'s Picks')
-            .setStyle(ButtonStyle.Secondary)
-            .setEmoji('🎯')
-            .setCustomId('view_todays_picks')
-        );
-
-      if (currentTier === 'vip_plus') {
-        dashboardButtons.addComponents(
-          new ButtonBuilder()
-            .setLabel('AI Coaching')
-            .setStyle(ButtonStyle.Success)
-            .setEmoji('🤖')
-            .setCustomId('ai_coaching')
-        );
-      }
-
-      await interaction.reply({
-        embeds: [dashboardEmbed],
-        components: [dashboardButtons],
-        ephemeral: true
-      });
-
-    } catch (error) {
-      logger.error('Error showing picks dashboard:', error);
-      await interaction.reply({
-        content: '❌ An error occurred while loading the dashboard.',
-        ephemeral: true
-      });
-    }
-  }
-
-  // Missing handler methods
-  async handleUpgradeVipPlus(interaction: ButtonInteraction): Promise<void> {
-    await this.handleUpgradeVip(interaction); // Reuse existing VIP upgrade logic
-  }
-
-  async handleHelpCommands(interaction: ButtonInteraction): Promise<void> {
-    const helpEmbed = new EmbedBuilder()
-      .setTitle('📚 Help Commands')
-      .setDescription('Here are the available commands and how to use them:')
-      .addFields(
-        { name: '/pick', value: 'Submit a new sports pick', inline: true },
-        { name: '/stats', value: 'View your betting statistics', inline: true },
-        { name: '/leaderboard', value: 'View the community leaderboard', inline: true },
-        { name: '/help', value: 'Get help and support', inline: true }
-      )
-      .setColor('#0099ff')
-      .setTimestamp();
-
-    await interaction.reply({
-      embeds: [helpEmbed],
-      ephemeral: true
-    });
-  }
-
-  async handleSlashCommandsHelp(interaction: ButtonInteraction): Promise<void> {
-    const slashHelpEmbed = new EmbedBuilder()
-      .setTitle('⚡ Slash Commands Guide')
-      .setDescription('Complete guide to using slash commands:')
-      .addFields(
-        { name: '🎯 Basic Commands', value: '`/pick` - Submit picks\n`/stats` - View stats\n`/help` - Get help', inline: false },
-        { name: '📊 Advanced Commands', value: '`/leaderboard` - Rankings\n`/analytics` - Detailed stats', inline: false },
-        { name: '💡 Tips', value: 'Type `/` to see all available commands\nUse Tab to autocomplete', inline: false }
-      )
-      .setColor('#00ff99')
-      .setTimestamp();
-
-    await interaction.reply({
-      embeds: [slashHelpEmbed],
-      ephemeral: true
-    });
-  }
-
-  async handleTrialHelp(interaction: ButtonInteraction): Promise<void> {
-    const trialHelpEmbed = new EmbedBuilder()
-      .setTitle('🆓 Trial Help')
-      .setDescription('Everything you need to know about your free trial:')
-      .addFields(
-        { name: '⏰ Trial Duration', value: '7 days of full VIP access', inline: true },
-        { name: '🎯 What\'s Included', value: 'All VIP picks and features', inline: true },
-        { name: '📈 Track Progress', value: 'Monitor your trial performance', inline: true },
-        { name: '🔄 After Trial', value: 'Upgrade to continue VIP access', inline: false }
-      )
-      .setColor('#ffaa00')
-      .setTimestamp();
-
-    await interaction.reply({
-      embeds: [trialHelpEmbed],
-      ephemeral: true
-    });
-  }
-
-  async handleViewTrendingPicks(interaction: ButtonInteraction): Promise<void> {
-    const trendingEmbed = new EmbedBuilder()
-      .setTitle('🔥 Trending Picks')
-      .setDescription('Most popular picks from the community:')
-      .addFields(
-        { name: '🏈 NFL', value: 'Chiefs -3.5 vs Bills\n85% community backing', inline: true },
-        { name: '🏀 NBA', value: 'Lakers Over 215.5\n78% community backing', inline: true },
-        { name: '⚽ Soccer', value: 'Man City to Win\n92% community backing', inline: true }
-      )
-      .setColor('#ff6600')
-      .setTimestamp();
-
-    await interaction.reply({
-      embeds: [trendingEmbed],
-      ephemeral: true
-    });
-  }
-
-  async handleWhatsNew(interaction: ButtonInteraction): Promise<void> {
-    const whatsNewEmbed = new EmbedBuilder()
-      .setTitle('🆕 What\'s New')
-      .setDescription('Latest updates and features:')
-      .addFields(
-        { name: '🔥 Heat Signal System', value: 'New AI-powered pick recommendations', inline: false },
-        { name: '📊 Enhanced Analytics', value: 'Improved statistics and tracking', inline: false },
-        { name: '🎯 Smart Alerts', value: 'Personalized notifications for better picks', inline: false }
-      )
-      .setColor('#9900ff')
-      .setTimestamp();
-
-    await interaction.reply({
-      embeds: [whatsNewEmbed],
-      ephemeral: true
-    });
-  }
-
-  async handleUpgradeForMoreWins(interaction: ButtonInteraction): Promise<void> {
-    const upgradeEmbed = new EmbedBuilder()
-      .setTitle('🚀 Upgrade for More Wins')
-      .setDescription('Unlock premium features to boost your success:')
-      .addFields(
-        { name: '🎯 VIP Picks', value: 'Access to expert-curated selections', inline: true },
-        { name: '📊 Advanced Analytics', value: 'Detailed performance insights', inline: true },
-        { name: '🔥 Heat Signals', value: 'AI-powered pick recommendations', inline: true }
-      )
-      .setColor('#00ff00')
-      .setTimestamp();
-
-    const upgradeButton = new ActionRowBuilder<ButtonBuilder>()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId('upgrade_vip')
-          .setLabel('Upgrade to VIP')
-          .setStyle(ButtonStyle.Success)
-          .setEmoji('⭐')
       );
 
     await interaction.reply({
-      embeds: [upgradeEmbed],
-      components: [upgradeButton],
+      embeds: [embed],
       ephemeral: true
     });
   }
 
-  async handleUpgradeToCatchUp(interaction: ButtonInteraction): Promise<void> {
-    const catchUpEmbed = new EmbedBuilder()
-      .setTitle('⚡ Upgrade to Catch Up')
-      .setDescription('Don\'t fall behind - upgrade now to access winning strategies:')
-      .addFields(
-        { name: '📈 Proven Results', value: 'Join winners with 70%+ success rate', inline: true },
-        { name: '🎯 Expert Picks', value: 'Curated by professional analysts', inline: true },
-        { name: '🔥 Hot Streaks', value: 'Ride the momentum with trending picks', inline: true }
-      )
-      .setColor('#ff0066')
-      .setTimestamp();
+  /**
+   * BASIC & SUPPORT HANDLERS
+   */
 
-    const upgradeButton = new ActionRowBuilder<ButtonBuilder>()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId('upgrade_vip_plus')
-          .setLabel('Upgrade to VIP+')
-          .setStyle(ButtonStyle.Danger)
-          .setEmoji('🚀')
+  private async handleViewFaq(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('❓ Frequently Asked Questions')
+      .setDescription('Quick answers to common questions')
+      .setColor(0x3498DB)
+      .addFields(
+        {
+          name: '🎯 How do I submit picks?',
+          value: 'Use `/submit-pick` command in <#1291911913361375372>',
+          inline: false
+        },
+        {
+          name: '📊 How is ROI calculated?',
+          value: 'ROI = (Total Winnings - Total Wagered) / Total Wagered × 100',
+          inline: false
+        },
+        {
+          name: '🏆 How does the leaderboard work?',
+          value: 'Rankings based on ROI, win %, and consistency over time',
+          inline: false
+        },
+        {
+          name: '💰 What are the membership tiers?',
+          value: '• **Basic**: Free access\n• **VIP**: $29.99/month\n• **VIP+**: $79.99/month',
+          inline: false
+        },
+        {
+          name: '📞 Need more help?',
+          value: 'Contact <@griff843> for personalized assistance',
+          inline: false
+        }
       );
 
     await interaction.reply({
-      embeds: [catchUpEmbed],
-      components: [upgradeButton],
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  private async handleStartVipTrial(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('🎁 Start Your VIP Trial')
+      .setDescription('7 days of premium features, completely free!')
+      .setColor(0x00FF00)
+      .addFields(
+        {
+          name: '🎯 Trial Includes',
+          value: '• Full VIP Lounge access\n• Premium pick alerts\n• Daily market insights\n• Priority support',
+          inline: false
+        },
+        {
+          name: '⏰ Trial Details',
+          value: '• **Duration**: 7 days\n• **Cost**: Completely free\n• **Auto-renewal**: No\n• **Upgrade anytime**: Yes',
+          inline: false
+        },
+        {
+          name: '🚀 Start Your Trial',
+          value: 'Contact <@griff843> to activate your free VIP trial\n\n*Mention "VIP Trial" for instant activation*',
+          inline: false
+        }
+      );
+
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  private async handleStaffGuide(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('👨‍💼 Staff Guide')
+      .setDescription('Welcome to the Unit Talk staff team!')
+      .setColor(0x9B59B6)
+      .addFields(
+        {
+          name: '🎯 Staff Responsibilities',
+          value: '• Monitor community guidelines\n• Assist members with questions\n• Moderate discussions\n• Report issues to management',
+          inline: false
+        },
+        {
+          name: '🔧 Staff Tools',
+          value: '• Moderation commands\n• Member management\n• Analytics access\n• Direct admin contact',
+          inline: false
+        },
+        {
+          name: '📞 Staff Support',
+          value: 'For staff-specific questions, contact <@griff843>',
+          inline: false
+        }
+      );
+
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  private async handleNotificationHelp(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('🔔 Notification Help')
+      .setDescription('Troubleshooting your alert settings')
+      .setColor(0x3498DB)
+      .addFields(
+        {
+          name: '📱 Not Getting Alerts?',
+          value: '1. Check Discord notification settings\n2. Ensure you\'re in the right channels\n3. Verify your role permissions\n4. Test with a sample alert',
+          inline: false
+        },
+        {
+          name: '🔧 Common Fixes',
+          value: '• Enable mobile notifications\n• Check "Do Not Disturb" mode\n• Verify channel permissions\n• Update Discord app',
+          inline: false
+        },
+        {
+          name: '📞 Still Need Help?',
+          value: 'Contact <@griff843> with your specific issue',
+          inline: false
+        }
+      );
+
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  /**
+   * UTILITY METHODS
+   */
+
+  private validateButtonAccess(customId: string, userTier: string): boolean {
+    const capperButtons = ['capper_onboard_start', 'capper_guide', 'capper_practice_pick', 'view_leaderboard', 'capper_support', 'create_capper_thread'];
+    const vipButtons = ['view_vip_guide', 'setup_notifications', 'start_vip_tour'];
+    const vipPlusButtons = ['view_vip_plus_guide', 'access_elite_features', 'vip_plus_tour', 'setup_vip_plus_notifications'];
+    const trialButtons = ['view_trial_features', 'upgrade_to_vip', 'upgrade_to_vip_plus'];
+    const basicButtons = ['view_faq', 'start_vip_trial'];
+    const staffButtons = ['staff_guide'];
+    const secondaryButtons = ['setup_notifications_now', 'notification_help'];
+
+    logger.info(`🔍 Validating access: customId=${customId}, userTier=${userTier}`);
+
+    // More permissive access control - allow access based on user tier
+    switch (userTier) {
+      case 'owner':
+      case 'admin':
+      case 'staff':
+        // Staff can access staff buttons plus all lower tier buttons
+        const staffAccess = staffButtons.includes(customId) ||
+               vipPlusButtons.includes(customId) ||
+               vipButtons.includes(customId) ||
+               trialButtons.includes(customId) ||
+               basicButtons.includes(customId) ||
+               secondaryButtons.includes(customId);
+        logger.info(`🔍 Staff access check for ${customId}: ${staffAccess}`);
+        return staffAccess;
+
+      case 'vip_plus':
+        // VIP+ can access VIP+, VIP, trial, basic, and secondary buttons
+        const vipPlusAccess = vipPlusButtons.includes(customId) ||
+               vipButtons.includes(customId) ||
+               trialButtons.includes(customId) ||
+               basicButtons.includes(customId) ||
+               secondaryButtons.includes(customId);
+        logger.info(`🔍 VIP+ access check for ${customId}: ${vipPlusAccess}`);
+        return vipPlusAccess;
+
+      case 'vip':
+        // VIP can access VIP, trial, basic, and secondary buttons
+        const vipAccess = vipButtons.includes(customId) ||
+               trialButtons.includes(customId) ||
+               basicButtons.includes(customId) ||
+               secondaryButtons.includes(customId);
+        logger.info(`🔍 VIP access check for ${customId}: ${vipAccess}`);
+        return vipAccess;
+
+      case 'trial':
+        // Trial can access trial, basic, and secondary buttons
+        const trialAccess = trialButtons.includes(customId) ||
+               basicButtons.includes(customId) ||
+               secondaryButtons.includes(customId);
+        logger.info(`🔍 Trial access check for ${customId}: ${trialAccess}`);
+        return trialAccess;
+
+      case 'capper':
+        // Cappers can access capper, basic, and secondary buttons
+        const capperAccess = capperButtons.includes(customId) ||
+               basicButtons.includes(customId) ||
+               secondaryButtons.includes(customId);
+        logger.info(`🔍 Capper access check for ${customId}: ${capperAccess}`);
+        return capperAccess;
+
+      case 'member':
+      case 'basic':
+      default:
+        // Basic members can access basic and secondary buttons
+        const basicAccess = basicButtons.includes(customId) ||
+               secondaryButtons.includes(customId);
+        logger.info(`🔍 Basic/Member access check for ${customId}: ${basicAccess}`);
+        return basicAccess;
+    }
+  }
+
+  private async handleUnknownButton(interaction: ButtonInteraction): Promise<void> {
+    await interaction.reply({
+      content: '❌ Unknown button interaction. Please contact support if this continues.',
+      ephemeral: true
+    });
+  }
+
+  private async handleButtonError(interaction: ButtonInteraction, _error: any): Promise<void> {
+    try {
+      await interaction.reply({
+        content: '❌ An error occurred processing your request. Please try again or contact support.',
+        ephemeral: true
+      });
+    } catch (replyError) {
+      logger.error('Failed to send error reply:', replyError);
+    }
+  }
+
+  /**
+   * Check if a button ID is an onboarding button
+   */
+  static isOnboardingButton(customId: string): boolean {
+    const onboardingButtons = [
+      // Capper buttons
+      'capper_onboard_start', 'capper_guide', 'capper_practice_pick', 'view_leaderboard', 'capper_support', 'create_capper_thread',
+      // VIP buttons
+      'view_vip_guide', 'setup_notifications', 'start_vip_tour',
+      // VIP+ buttons
+      'view_vip_plus_guide', 'access_elite_features', 'vip_plus_tour', 'setup_vip_plus_notifications',
+      // Trial buttons
+      'view_trial_features', 'upgrade_to_vip', 'upgrade_to_vip_plus',
+      // Basic buttons
+      'view_faq', 'start_vip_trial',
+      // Staff buttons
+      'staff_guide',
+      // Secondary buttons
+      'setup_notifications_now', 'notification_help'
+    ];
+    
+    return onboardingButtons.includes(customId);
+  }
+
+  /**
+   * VIP BUTTON HANDLERS
+   */
+
+  private async handleViewVipGuide(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('🌟 VIP Member Guide')
+      .setDescription('Welcome to VIP! Here\'s everything you need to know about your premium features.')
+      .setColor(0x3498DB)
+      .addFields(
+        {
+          name: '🎯 VIP Features',
+          value: '• Early access to picks\n• VIP exclusive channels\n• Basic analytics\n• Premium content',
+          inline: false
+        },
+        {
+          name: '📊 Getting Started',
+          value: '• Check #vip-picks for exclusive content\n• Use analytics to track performance\n• Join VIP discussions',
+          inline: false
+        }
+      );
+
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  private async handleSetupNotifications(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('🔔 Notification Settings')
+      .setDescription('Configure your notification preferences to stay updated with the latest picks and alerts.')
+      .setColor(0x9B59B6)
+      .addFields(
+        {
+          name: '📱 Available Notifications',
+          value: '• New pick alerts\n• Performance updates\n• VIP announcements\n• Contest notifications',
+          inline: false
+        },
+        {
+          name: '⚙️ How to Setup',
+          value: 'Use Discord\'s notification settings or contact support for custom preferences.',
+          inline: false
+        }
+      );
+
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  private async handleStartVipTour(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('🎯 VIP Tour - Welcome!')
+      .setDescription('Let\'s take a tour of your VIP features and exclusive areas.')
+      .setColor(0x3498DB)
+      .addFields(
+        {
+          name: '🏠 Step 1: VIP Channels',
+          value: 'Access exclusive VIP channels for premium content and discussions.',
+          inline: false
+        },
+        {
+          name: '📊 Step 2: Analytics',
+          value: 'Track your betting performance with detailed analytics.',
+          inline: false
+        },
+        {
+          name: '🎯 Step 3: Early Access',
+          value: 'Get picks before they\'re released to general members.',
+          inline: false
+        }
+      );
+
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  /**
+   * VIP+ BUTTON HANDLERS
+   */
+
+  private async handleViewVipPlusGuide(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('💎 VIP+ Elite Guide')
+      .setDescription('Welcome to the highest tier! Access all premium features and exclusive VIP+ content.')
+      .setColor(0x9932CC)
+      .addFields(
+        {
+          name: '⭐ VIP+ Features',
+          value: '• All VIP benefits\n• Advanced analytics\n• Priority support\n• Exclusive VIP+ channels\n• Early access to new features',
+          inline: false
+        },
+        {
+          name: '🚀 Elite Access',
+          value: '• VIP+ exclusive picks\n• Advanced market insights\n• Direct capper access\n• Custom notifications',
+          inline: false
+        }
+      );
+
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  private async handleAccessEliteFeatures(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('⭐ Elite Features Access')
+      .setDescription('Explore your exclusive VIP+ features and advanced tools.')
+      .setColor(0x9932CC)
+      .addFields(
+        {
+          name: '🔬 Advanced Analytics',
+          value: 'Deep dive into performance metrics and market analysis.',
+          inline: false
+        },
+        {
+          name: '🎯 Exclusive Content',
+          value: 'Access VIP+ only picks and premium market insights.',
+          inline: false
+        },
+        {
+          name: '💬 Priority Support',
+          value: 'Get priority assistance from our support team.',
+          inline: false
+        }
+      );
+
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  private async handleVipPlusTour(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('💎 VIP+ Elite Tour')
+      .setDescription('Discover all the exclusive features available to VIP+ members.')
+      .setColor(0x9932CC)
+      .addFields(
+        {
+          name: '🏆 Elite Channels',
+          value: 'Access VIP+ exclusive channels with premium content.',
+          inline: false
+        },
+        {
+          name: '📈 Advanced Tools',
+          value: 'Use sophisticated analytics and market analysis tools.',
+          inline: false
+        },
+        {
+          name: '🎯 Priority Access',
+          value: 'Get first access to new features and exclusive content.',
+          inline: false
+        }
+      );
+
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  private async handleSetupVipPlusNotifications(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('🔔 VIP+ Notification Setup')
+      .setDescription('Configure your premium notification preferences for VIP+ exclusive content.')
+      .setColor(0x9932CC)
+      .addFields(
+        {
+          name: '⭐ VIP+ Notifications',
+          value: '• Exclusive pick alerts\n• Advanced analytics updates\n• Priority announcements\n• Elite feature updates',
+          inline: false
+        },
+        {
+          name: '⚙️ Custom Settings',
+          value: 'Contact support for personalized notification preferences.',
+          inline: false
+        }
+      );
+
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  /**
+   * TRIAL/UPGRADE BUTTON HANDLERS
+   */
+
+  private async handleViewTrialFeatures(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('🎯 Trial Features Guide')
+      .setDescription('Explore what\'s available during your trial period and what you can unlock with upgrades.')
+      .setColor(0xF39C12)
+      .addFields(
+        {
+          name: '✅ Trial Features',
+          value: '• Free daily picks\n• Community discussions\n• Basic support\n• Limited analytics',
+          inline: false
+        },
+        {
+          name: '⭐ Upgrade Benefits',
+          value: '• Early access to picks\n• VIP channels\n• Advanced analytics\n• Premium content',
+          inline: false
+        }
+      );
+
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  private async handleUpgradeToVip(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('⭐ Upgrade to VIP')
+      .setDescription('Ready to unlock premium features? Here\'s how to upgrade to VIP membership.')
+      .setColor(0x3498DB)
+      .addFields(
+        {
+          name: '🌟 VIP Benefits',
+          value: '• Early access to picks\n• VIP exclusive channels\n• Basic analytics\n• Premium content\n• Priority support',
+          inline: false
+        },
+        {
+          name: '💳 How to Upgrade',
+          value: 'Contact our support team or visit our website to upgrade your membership.',
+          inline: false
+        },
+        {
+          name: '📞 Support',
+          value: 'Need help? Contact support for assistance with upgrading.',
+          inline: false
+        }
+      );
+
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  private async handleUpgradeToVipPlus(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('💎 Upgrade to VIP+')
+      .setDescription('Experience the ultimate premium tier with VIP+ membership.')
+      .setColor(0x9932CC)
+      .addFields(
+        {
+          name: '💎 VIP+ Benefits',
+          value: '• All VIP features\n• Advanced analytics\n• Priority support\n• Exclusive VIP+ channels\n• Early access to new features\n• Direct capper access',
+          inline: false
+        },
+        {
+          name: '💳 How to Upgrade',
+          value: 'Contact our support team or visit our website to upgrade to VIP+.',
+          inline: false
+        },
+        {
+          name: '🏆 Elite Experience',
+          value: 'Join the elite tier and get the best Unit Talk has to offer.',
+          inline: false
+        }
+      );
+
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  /**
+   * CAPPER ADDITIONAL HANDLERS
+   */
+
+  private async handleCapperPracticePick(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('🎯 Practice Pick')
+      .setDescription('Practice making picks to get familiar with the system before going live.')
+      .setColor(0xE67E22)
+      .addFields(
+        {
+          name: '🏋️ Practice Mode',
+          value: 'Make practice picks without affecting your stats or leaderboard position.',
+          inline: false
+        },
+        {
+          name: '📊 Learn the System',
+          value: 'Get familiar with pick formatting, reasoning, and submission process.',
+          inline: false
+        },
+        {
+          name: '🎯 Ready to Go Live?',
+          value: 'Once comfortable, start making real picks that count toward your record.',
+          inline: false
+        }
+      );
+
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  private async handleViewLeaderboard(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('🏆 Capper Leaderboard')
+      .setDescription('View the current leaderboard rankings and see how you stack up against other cappers.')
+      .setColor(0xF1C40F)
+      .addFields(
+        {
+          name: '📊 Rankings',
+          value: 'See top performers by win rate, ROI, and total picks.',
+          inline: false
+        },
+        {
+          name: '🎯 Your Stats',
+          value: 'Track your progress and see where you rank among other cappers.',
+          inline: false
+        },
+        {
+          name: '🏆 Compete',
+          value: 'Climb the leaderboard by making accurate, profitable picks.',
+          inline: false
+        }
+      );
+
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  private async handleCapperSupport(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('💬 Capper Support')
+      .setDescription('Get help with capper-specific questions and technical support.')
+      .setColor(0xE67E22)
+      .addFields(
+        {
+          name: '🎯 Capper Help',
+          value: 'Get assistance with pick submissions, formatting, and best practices.',
+          inline: false
+        },
+        {
+          name: '📊 Technical Support',
+          value: 'Help with leaderboard issues, stats tracking, and system problems.',
+          inline: false
+        },
+        {
+          name: '📞 Contact Support',
+          value: 'Reach out to our support team for personalized assistance.',
+          inline: false
+        }
+      );
+
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  /**
+   * BASIC/SECONDARY BUTTON HANDLERS
+   */
+
+  private async handleViewFaq(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('❓ Frequently Asked Questions')
+      .setDescription('Find answers to common questions about Unit Talk.')
+      .setColor(0x95A5A6)
+      .addFields(
+        {
+          name: '🎯 Getting Started',
+          value: 'Learn the basics of using Unit Talk and understanding picks.',
+          inline: false
+        },
+        {
+          name: '💰 Membership',
+          value: 'Information about different membership tiers and benefits.',
+          inline: false
+        },
+        {
+          name: '📊 Analytics',
+          value: 'How to read and understand performance metrics.',
+          inline: false
+        }
+      );
+
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  private async handleStartVipTrial(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('🎯 Start VIP Trial')
+      .setDescription('Begin your VIP trial and experience premium features.')
+      .setColor(0x3498DB)
+      .addFields(
+        {
+          name: '⭐ Trial Benefits',
+          value: '• Access VIP channels\n• Early pick access\n• Basic analytics\n• Premium content',
+          inline: false
+        },
+        {
+          name: '⏰ Trial Period',
+          value: 'Enjoy VIP features for the trial duration.',
+          inline: false
+        },
+        {
+          name: '💳 After Trial',
+          value: 'Upgrade to continue enjoying VIP benefits.',
+          inline: false
+        }
+      );
+
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  private async handleSetupNotificationsNow(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('🔔 Setup Notifications Now')
+      .setDescription('Configure your notification preferences immediately.')
+      .setColor(0x9B59B6)
+      .addFields(
+        {
+          name: '📱 Quick Setup',
+          value: 'Enable notifications for picks, updates, and important announcements.',
+          inline: false
+        },
+        {
+          name: '⚙️ Customize',
+          value: 'Choose which types of notifications you want to receive.',
+          inline: false
+        }
+      );
+
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  private async handleNotificationHelp(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('❓ Notification Help')
+      .setDescription('Get help with setting up and managing your notifications.')
+      .setColor(0x9B59B6)
+      .addFields(
+        {
+          name: '🔧 Troubleshooting',
+          value: 'Common issues and solutions for notification problems.',
+          inline: false
+        },
+        {
+          name: '📞 Support',
+          value: 'Contact support if you need additional help with notifications.',
+          inline: false
+        }
+      );
+
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true
+    });
+  }
+
+  private async handleStaffGuide(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('👨‍💼 Staff Guide')
+      .setDescription('Staff-specific information and tools.')
+      .setColor(0xE74C3C)
+      .addFields(
+        {
+          name: '🛠️ Staff Tools',
+          value: 'Access to administrative functions and staff-only features.',
+          inline: false
+        },
+        {
+          name: '📋 Responsibilities',
+          value: 'Guidelines and responsibilities for staff members.',
+          inline: false
+        }
+      );
+
+    await interaction.reply({
+      embeds: [embed],
       ephemeral: true
     });
   }

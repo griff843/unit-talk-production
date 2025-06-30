@@ -10,15 +10,12 @@ export function createBaseAgentConfig(overrides: Partial<BaseAgentConfig> = {}):
     enabled: overrides.enabled ?? true,
     version: overrides.version || '1.0.0',
     logLevel: overrides.logLevel || 'info',
-    schedule: overrides.schedule,
+    schedule: overrides.schedule || 'enabled',
     metrics: {
       enabled: true,
       interval: 60,
-      endpoint: undefined,
-      port: undefined,
       ...overrides.metrics
     },
-    retryConfig: overrides.retryConfig,
     retry: {
       maxRetries: 3,
       backoffMs: 1000,
@@ -36,7 +33,6 @@ export function createBaseAgentConfig(overrides: Partial<BaseAgentConfig> = {}):
       timeout: 5000,
       checkDb: true,
       checkExternal: false,
-      endpoint: undefined,
       ...overrides.health
     }
   };

@@ -81,11 +81,11 @@ export interface AuditAgentActivities extends BaseAgentActivities {
 // Activity Parameters Types
 export interface ActivityParams {
   agentName: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // Activity Result Types
-export interface ActivityResult<T = any> {
+export interface ActivityResult<T = unknown> {
   success: boolean;
   data?: T;
   error?: Error;

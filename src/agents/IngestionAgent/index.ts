@@ -60,6 +60,32 @@ export class IngestionAgent extends BaseAgent {
       // If ingestion config validation fails, create a minimal valid config
       ingestionConfig = {
         ...enhancedConfig,
+        version: enhancedConfig.version || '1.0.0',
+        enabled: enhancedConfig.enabled ?? true,
+        logLevel: enhancedConfig.logLevel || 'info',
+        schedule: enhancedConfig.schedule || 'enabled',
+        metrics: {
+          enabled: enhancedConfig.metrics?.enabled ?? true,
+          interval: enhancedConfig.metrics?.interval ?? 30000,
+          port: enhancedConfig.metrics?.port,
+          endpoint: enhancedConfig.metrics?.endpoint
+        },
+        health: {
+          enabled: enhancedConfig.health?.enabled ?? true,
+          interval: enhancedConfig.health?.interval ?? 30000,
+          timeout: enhancedConfig.health?.timeout ?? 5000,
+          checkDb: enhancedConfig.health?.checkDb ?? true,
+          checkExternal: enhancedConfig.health?.checkExternal ?? true,
+          endpoint: enhancedConfig.health?.endpoint
+        },
+        retry: {
+          enabled: enhancedConfig.retry?.enabled ?? true,
+          maxRetries: enhancedConfig.retry?.maxRetries ?? 3,
+          backoffMs: enhancedConfig.retry?.backoffMs ?? 1000,
+          maxBackoffMs: enhancedConfig.retry?.maxBackoffMs ?? 30000,
+          exponential: enhancedConfig.retry?.exponential ?? true,
+          jitter: enhancedConfig.retry?.jitter ?? true
+        },
         providers: config.providers || [],
         batchSize: config.batchSize || 100,
         processingTimeout: config.processingTimeout || 30000,
@@ -155,7 +181,7 @@ export class IngestionAgent extends BaseAgent {
       this.logger.error('❌ Ingestion process failed', {
         error: error instanceof Error ? error.message : String(error)
       });
-      this.errorHandler.handleError(error as Error);
+      this.errorHandler?.handleError(error as Error);
       throw error;
     }
   }
@@ -237,6 +263,9 @@ export class IngestionAgent extends BaseAgent {
       const normalizedProp = normalizeRawProp(prop);
 
       // Insert into database
+      if (!this.supabase) {
+        throw new Error('Supabase client is required for IngestionAgent');
+      }
       const { error } = await this.supabase
         .from('raw_props')
         .insert(normalizedProp);
@@ -294,6 +323,9 @@ export class IngestionAgent extends BaseAgent {
   public async checkHealth(): Promise<HealthStatus> {
     try {
       // Check database connectivity
+      if (!this.supabase) {
+        throw new Error('Supabase client is required for IngestionAgent');
+      }
       const { error } = await this.supabase
         .from('raw_props')
         .select('id')

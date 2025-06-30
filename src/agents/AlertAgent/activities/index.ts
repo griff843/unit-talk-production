@@ -19,8 +19,7 @@ export async function processAlert(): Promise<void> {
 
   const deps: BaseAgentDependencies = {
     logger: createLogger('AlertAgent'),
-    supabase: null as any, // Will be injected by the agent
-    errorHandler: null as any
+    supabase: undefined as any // Will be injected by the agent
   };
 
   const agent = new AlertAgent(config, deps);
@@ -43,8 +42,7 @@ export async function evaluateConditions(): Promise<void> {
 
   const deps: BaseAgentDependencies = {
     logger: createLogger('AlertAgent'),
-    supabase: null as any,
-    errorHandler: null as any
+    supabase: null as any
   };
 
   const agent = new AlertAgent(config, deps);
@@ -67,8 +65,7 @@ export async function sendNotification(): Promise<void> {
 
   const deps: BaseAgentDependencies = {
     logger: createLogger('AlertAgent'),
-    supabase: null as any,
-    errorHandler: null as any
+    supabase: null as any
   };
 
   const agent = new AlertAgent(config, deps);
@@ -91,8 +88,7 @@ export async function escalateAlert(): Promise<void> {
 
   const deps: BaseAgentDependencies = {
     logger: createLogger('AlertAgent'),
-    supabase: null as any,
-    errorHandler: null as any
+    supabase: null as any
   };
 
   const agent = new AlertAgent(config, deps);

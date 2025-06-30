@@ -1,7 +1,7 @@
-import { SupabaseClient } from '@supabase/supabase-js';
-import { AuditAgentConfig, AuditIncident, AuditCheckResult } from './types';
+import { AuditIncident, AuditIncidentSchema } from './types';
 import { BaseAgent } from '../BaseAgent/index';
 import { BaseAgentConfig, BaseAgentDependencies, HealthStatus, BaseMetrics } from '../BaseAgent/types';
+import * as crypto from 'crypto';
 
 /**
  * AuditAgent
@@ -35,7 +35,7 @@ export class AuditAgent extends BaseAgent {
 
       // Log all incidents to Supabase
       for (const incident of incidents) {
-        await this.supabase.from('audit_incidents').insert([incident]);
+        await this.requireSupabase().from('audit_incidents').insert([incident]);
       }
 
       // Send to OperatorAgent/escalation queue if critical
@@ -53,9 +53,23 @@ export class AuditAgent extends BaseAgent {
     }
   }
 
-  /** Example: Check for picks missing key fields (player, line, odds, etc) */
+  /** Create an audit incident with default values */
+  private createAuditIncident(data: Partial<AuditIncident>): AuditIncident {
+    return AuditIncidentSchema.parse({
+      id: data.id || crypto.randomUUID(),
+      table: data.table || 'default_table',
+      severity: data.severity || 'low',
+      description: data.description || 'Unspecified audit incident',
+      timestamp: data.timestamp || new Date(),
+      ...data
+    });
+  }
+
   private async checkForMissingFields(): Promise<AuditIncident[]> {
     const incidents: AuditIncident[] = [];
+    if (!this.supabase) {
+      throw new Error('Supabase client is required for AuditAgent');
+    }
     const { data, error } = await this.supabase
       .from('final_picks')
       .select('id, capper, player_name, line, odds, outcome')
@@ -69,7 +83,7 @@ export class AuditAgent extends BaseAgent {
       return [];
     }
     for (const row of data ?? []) {
-      incidents.push({
+      incidents.push(this.createAuditIncident({
         id: `missing_field_${row.id}`,
         type: 'integrity',
         tableName: 'final_picks',
@@ -77,7 +91,7 @@ export class AuditAgent extends BaseAgent {
         description: `Pick is missing required field(s): ${!row.player_name ? 'player_name' : ''}${!row.line ? ', line' : ''}${!row.odds ? ', odds' : ''}`,
         severity: 'warning',
         detectedAt: new Date().toISOString()
-      });
+      }));
     }
     return incidents;
   }
@@ -85,6 +99,9 @@ export class AuditAgent extends BaseAgent {
   /** Example: Picks stuck in pending or missing grading */
   private async checkForStuckOrUngraded(): Promise<AuditIncident[]> {
     const incidents: AuditIncident[] = [];
+    if (!this.supabase) {
+      throw new Error('Supabase client is required for AuditAgent');
+    }
     const { data, error } = await this.supabase
       .from('final_picks')
       .select('id, capper, status, outcome, settled_at, created_at')
@@ -98,7 +115,7 @@ export class AuditAgent extends BaseAgent {
       return [];
     }
     for (const row of data ?? []) {
-      incidents.push({
+      incidents.push(this.createAuditIncident({
         id: `stuck_pending_${row.id}`,
         type: 'integrity',
         tableName: 'final_picks',
@@ -106,7 +123,7 @@ export class AuditAgent extends BaseAgent {
         description: `Pick stuck in ${row.status} >48h`,
         severity: 'critical',
         detectedAt: new Date().toISOString()
-      });
+      }));
     }
     return incidents;
   }
@@ -114,6 +131,9 @@ export class AuditAgent extends BaseAgent {
   /** Example: Detect duplicate external_ids in picks */
   private async checkForDuplicatePicks(): Promise<AuditIncident[]> {
     const incidents: AuditIncident[] = [];
+    if (!this.supabase) {
+      throw new Error('Supabase client is required for AuditAgent');
+    }
     const { data, error } = await this.supabase.rpc('find_duplicate_external_ids');
 
     if (error) {
@@ -123,7 +143,7 @@ export class AuditAgent extends BaseAgent {
       return [];
     }
     for (const row of data ?? []) {
-      incidents.push({
+      incidents.push(this.createAuditIncident({
         id: `duplicate_external_id_${row.id}`,
         type: 'integrity',
         tableName: 'final_picks',
@@ -131,7 +151,7 @@ export class AuditAgent extends BaseAgent {
         description: `Duplicate external_id found: ${row.external_id}`,
         severity: 'critical',
         detectedAt: new Date().toISOString()
-      });
+      }));
     }
     return incidents;
   }
@@ -139,6 +159,9 @@ export class AuditAgent extends BaseAgent {
   /** Example: Stale or ungraded records older than 72h */
   private async checkForStaleRecords(): Promise<AuditIncident[]> {
     const incidents: AuditIncident[] = [];
+    if (!this.supabase) {
+      throw new Error('Supabase client is required for AuditAgent');
+    }
     const { data, error } = await this.supabase
       .from('final_picks')
       .select('id, capper, status, created_at')
@@ -152,7 +175,7 @@ export class AuditAgent extends BaseAgent {
       return [];
     }
     for (const row of data ?? []) {
-      incidents.push({
+      incidents.push(this.createAuditIncident({
         id: `stale_pick_${row.id}`,
         type: 'integrity',
         tableName: 'final_picks',
@@ -160,7 +183,7 @@ export class AuditAgent extends BaseAgent {
         description: `Stale pick: status=${row.status}, created_at=${row.created_at}`,
         severity: 'warning',
         detectedAt: new Date().toISOString()
-      });
+      }));
     }
     return incidents;
   }
@@ -168,6 +191,9 @@ export class AuditAgent extends BaseAgent {
   /** Example: Failed/incomplete agent tasks */
   private async checkForFailedTasks(): Promise<AuditIncident[]> {
     const incidents: AuditIncident[] = [];
+    if (!this.supabase) {
+      throw new Error('Supabase client is required for AuditAgent');
+    }
     const { data, error } = await this.supabase
       .from('agent_tasks')
       .select('id, agent, status, error_message, updated_at')
@@ -180,7 +206,7 @@ export class AuditAgent extends BaseAgent {
       return [];
     }
     for (const row of data ?? []) {
-      incidents.push({
+      incidents.push(this.createAuditIncident({
         id: `failed_agent_task_${row.id}`,
         type: 'integrity',
         tableName: 'agent_tasks',
@@ -188,7 +214,7 @@ export class AuditAgent extends BaseAgent {
         description: `Agent task failed: ${row.agent} - ${row.error_message ?? ''}`,
         severity: 'critical',
         detectedAt: new Date().toISOString()
-      });
+      }));
     }
     return incidents;
   }

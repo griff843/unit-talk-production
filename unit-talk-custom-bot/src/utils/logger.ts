@@ -1,4 +1,4 @@
-import winston from 'winston';
+import * as winston from 'winston';
 
 // Define log levels
 const logLevels = {
@@ -30,12 +30,12 @@ const consoleFormat = winston.format.combine(
   winston.format.colorize({ all: true }),
   winston.format.printf(({ timestamp, level, message, ...meta }) => {
     let logMessage = `${timestamp} [${level}]: ${message}`;
-    
+
     // Add metadata if present
     if (Object.keys(meta).length > 0) {
       logMessage += ` ${JSON.stringify(meta, null, 2)}`;
     }
-    
+
     return logMessage;
   })
 );
@@ -49,7 +49,7 @@ const fileFormat = winston.format.combine(
 
 // Create the logger
 export const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
+  level: process.env['LOG_LEVEL'] || 'info',
   levels: logLevels,
   format: fileFormat,
   defaultMeta: { service: 'unit-talk-bot' },
@@ -62,7 +62,7 @@ export const logger = winston.createLogger({
       maxFiles: 5,
       format: fileFormat
     }),
-    
+
     // Combined log file
     new winston.transports.File({
       filename: 'logs/combined.log',
@@ -70,19 +70,19 @@ export const logger = winston.createLogger({
       maxFiles: 5,
       format: fileFormat
     }),
-    
+
     // Console output
     new winston.transports.Console({
       format: consoleFormat,
-      level: process.env.NODE_ENV === 'production' ? 'info' : 'debug'
+      level: process.env['NODE_ENV'] === 'production' ? 'info' : 'debug'
     })
   ],
-  
+
   // Handle uncaught exceptions
   exceptionHandlers: [
     new winston.transports.File({ filename: 'logs/exceptions.log' })
   ],
-  
+
   // Handle unhandled promise rejections
   rejectionHandlers: [
     new winston.transports.File({ filename: 'logs/rejections.log' })
@@ -125,7 +125,7 @@ export const logWithContext = {
       timestamp: new Date().toISOString()
     });
   },
-  
+
   // Special method for API calls
   apiCall: (endpoint: string, method: string, statusCode: number, responseTime: number) => {
     logger.info(`API Call: ${method} ${endpoint}`, {
@@ -136,7 +136,7 @@ export const logWithContext = {
       timestamp: new Date().toISOString()
     });
   },
-  
+
   // Special method for database operations
   dbOperation: (operation: string, table: string, success: boolean, duration?: number) => {
     logger.info(`DB Operation: ${operation} on ${table}`, {
@@ -147,7 +147,7 @@ export const logWithContext = {
       timestamp: new Date().toISOString()
     });
   },
-  
+
   // Special method for security events
   security: (event: string, userId?: string, details?: any) => {
     logger.warn(`Security Event: ${event}`, {
@@ -165,10 +165,10 @@ export const redactSensitiveInfo = (obj: any): any => {
   if (typeof obj !== 'object' || obj === null) {
     return obj;
   }
-  
+
   const sensitiveKeys = ['password', 'token', 'key', 'secret', 'auth', 'credential'];
   const redacted = { ...obj };
-  
+
   for (const key in redacted) {
     if (sensitiveKeys.some(sensitive => key.toLowerCase().includes(sensitive))) {
       redacted[key] = '[REDACTED]';
@@ -176,13 +176,13 @@ export const redactSensitiveInfo = (obj: any): any => {
       redacted[key] = redactSensitiveInfo(redacted[key]);
     }
   }
-  
+
   return redacted;
 };
 
 // Create logs directory if it doesn't exist
-import fs from 'fs';
-import path from 'path';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const logsDir = path.join(process.cwd(), 'logs');
 if (!fs.existsSync(logsDir)) {

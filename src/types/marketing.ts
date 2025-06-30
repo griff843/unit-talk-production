@@ -26,7 +26,7 @@ export interface EngagementMetrics {
   campaignId: string;
   action: 'sent' | 'delivered' | 'opened' | 'clicked' | 'converted';
   timestamp: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface MarketingConfig {

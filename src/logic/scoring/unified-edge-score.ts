@@ -139,88 +139,96 @@ export function unifiedEdgeScore(
   if (options.useLeagueRules) {
     const leagueScore = calculateLeagueSpecificScore(prop);
     score += leagueScore.score;
-    breakdown.league_rules = leagueScore.score;
+    breakdown['league_rules'] = leagueScore.score;
     Object.assign(breakdown, leagueScore.breakdown);
   }
 
   // Apply market type bonus
-  const marketType = (prop as PropObject).market_type || (prop as RawProp).stat_type || 'default';
-  const marketMod = config.market[marketType.toLowerCase()] ?? config.market.default;
-  score += marketMod;
-  breakdown.market_type = marketMod;
+  const marketType = (prop as PropObject)['market_type'] || (prop as RawProp)['stat_type'] || 'default';
+  const marketMod = config.market[marketType.toLowerCase()] ?? config.market['default'];
+  if (marketMod !== undefined) {
+    score += marketMod;
+    breakdown['market_type'] = marketMod;
+  }
 
   // Odds logic
-  const odds = (prop as PropObject).odds || (prop as RawProp).odds;
+  const odds = (prop as PropObject)['odds'] || (prop as RawProp)['odds'];
   if (odds !== undefined) {
     if (odds < config.odds.threshold) {
       score += config.odds.high;
-      breakdown.odds = config.odds.high;
+      breakdown['odds'] = config.odds.high;
     }
   }
 
   // Trend score
-  const trendScore = (prop as PropObject).trend_score;
+  const trendScore = (prop as PropObject)['trend_score'];
   if (trendScore !== undefined && trendScore > config.trend_score.threshold) {
     score += config.trend_score.strong;
-    breakdown.trend_score = config.trend_score.strong;
+    breakdown['trend_score'] = config.trend_score.strong;
   }
 
   // Matchup score
-  const matchupScore = (prop as PropObject).matchup_score || (prop as RawProp).dvp_score;
+  const matchupScore = (prop as PropObject)['matchup_score'] || (prop as RawProp)['dvp_score'];
   if (matchupScore !== undefined && matchupScore > config.matchup_score.threshold) {
     score += config.matchup_score.strong;
-    breakdown.matchup_score = config.matchup_score.strong;
+    breakdown['matchup_score'] = config.matchup_score.strong;
   }
 
   // Role score
-  const roleScore = (prop as PropObject).role_score;
+  const roleScore = (prop as PropObject)['role_score'];
   if (roleScore !== undefined && roleScore > config.role_score.threshold) {
     score += config.role_score.strong;
-    breakdown.role_score = config.role_score.strong;
+    breakdown['role_score'] = config.role_score.strong;
   }
 
   // Source bonus
-  const source = (prop as PropObject).source || (prop as RawProp).provider;
+  const source = (prop as PropObject)['source'] || (prop as RawProp)['provider'];
   if (source && config.source[source]) {
     score += config.source[source];
-    breakdown.source = config.source[source];
+    breakdown['source'] = config.source[source];
   }
 
   // Line value
-  const lineValueScore = (prop as PropObject).line_value_score;
+  const lineValueScore = (prop as PropObject)['line_value_score'];
   if (lineValueScore !== undefined && lineValueScore > config.line_value_score.threshold) {
     score += config.line_value_score.strong;
-    breakdown.line_value_score = config.line_value_score.strong;
+    breakdown['line_value_score'] = config.line_value_score.strong;
   }
 
   // Tags + boosts
-  if ((prop as PropObject).is_rocket) {
-    score += config.tags.rocket;
-    tags.push('rocket');
-    breakdown.is_rocket = config.tags.rocket;
+  if ((prop as PropObject)['is_rocket']) {
+    const rocketBonus = config.tags?.['rocket'];
+    if (rocketBonus !== undefined) {
+      score += rocketBonus;
+      breakdown['is_rocket'] = rocketBonus;
+      tags.push('rocket');
+    }
   }
-  if ((prop as PropObject).is_ladder) {
-    score += config.tags.ladder;
-    tags.push('ladder');
-    breakdown.is_ladder = config.tags.ladder;
+  if ((prop as PropObject)['is_ladder']) {
+    const ladderBonus = config.tags?.['ladder'];
+    if (ladderBonus !== undefined) {
+      score += ladderBonus;
+      breakdown['is_ladder'] = ladderBonus;
+      tags.push('ladder');
+    }
   }
 
   // Context flag (lower score if present)
-  const contextFlag = (prop as RawProp).context_flag;
+  const contextFlag = (prop as RawProp)['context_flag'];
   if (contextFlag === false) {
     score += 1;
-    breakdown.no_context_flag = 1;
+    breakdown['no_context_flag'] = 1;
   }
 
   // Clamp score
   score = Math.min(config.max, Math.max(0, score));
-  breakdown.total = score;
+  breakdown['total'] = score;
 
   // Determine tier
   let tier = '';
   if (options.adminOverrideTier && typeof options.adminOverrideTier === 'string') {
     tier = options.adminOverrideTier;
-    breakdown.override = `Forced to ${tier}`;
+    breakdown['override'] = `Forced to ${tier}`;
   } else {
     tier = determineTier(score, config);
   }
@@ -244,7 +252,7 @@ export function unifiedEdgeScore(
  * Calculate league-specific score based on rules from edgeScoreEngine.ts
  */
 function calculateLeagueSpecificScore(prop: PropObject | RawProp): { score: number; breakdown: ScoreBreakdown } {
-  const league = ((prop as PropObject).league || (prop as RawProp).league || '').toUpperCase();
+  const league = ((prop as PropObject)['league'] || (prop as RawProp)['league'] || '').toUpperCase();
   let score = 0;
   const breakdown: ScoreBreakdown = {};
   // League-specific scoring functions
@@ -267,11 +275,11 @@ function calculateLeagueSpecificScore(prop: PropObject | RawProp): { score: numb
   }
 
   // 1. Odds sweet-spot
-  const odds = (prop as PropObject).odds || (prop as RawProp).odds ||
-               (prop as RawProp).over_odds || (prop as RawProp).under_odds || 0;
+  const odds = (prop as PropObject)['odds'] || (prop as RawProp)['odds'] ||
+               (prop as RawProp)['over_odds'] || (prop as RawProp)['under_odds'] || 0;
   if (odds >= -125 && odds <= 115) {
     score += 1;
-    breakdown.odds_sweet_spot = 1;
+    breakdown['odds_sweet_spot'] = 1;
   }
 
   // 2. Core stat type - use league-specific function
@@ -281,15 +289,15 @@ function calculateLeagueSpecificScore(prop: PropObject | RawProp): { score: numb
       sum + (typeof val === 'number' ? val : 0), 0);
     if (coreScore > 0) {
       score += Math.min(coreScore, 2); // Cap at 2 points
-      breakdown.core_stats = coreScore;
+      breakdown['core_stats'] = coreScore;
     }
   }
 
   // 3. DVP or matchup score
-  const dvpScore = (prop as PropObject).matchup_score || (prop as RawProp).dvp_score;
+  const dvpScore = (prop as PropObject)['matchup_score'] || (prop as RawProp)['dvp_score'];
   if (typeof dvpScore === 'number' && dvpScore >= 1) {
     score += 1;
-    breakdown.dvp_score = 1;
+    breakdown['dvp_score'] = 1;
   }
 
   // 4. Synergy - use league-specific function
@@ -299,15 +307,15 @@ function calculateLeagueSpecificScore(prop: PropObject | RawProp): { score: numb
       sum + (typeof val === 'number' ? val : 0), 0);
     if (synergyScore > 0) {
       score += Math.min(synergyScore, 2); // Cap at 2 points
-      breakdown.synergy = synergyScore;
+      breakdown['synergy'] = synergyScore;
     }
   }
 
   // 5. No injury/context flag
-  const contextFlag = (prop as RawProp).context_flag;
+  const contextFlag = (prop as RawProp)['context_flag'];
   if (contextFlag === false) {
     score += 1;
-    breakdown.no_context_flag = 1;
+    breakdown['no_context_flag'] = 1;
   }
 
   return { score, breakdown };
@@ -340,7 +348,7 @@ export function finalEdgeScore(
   postable: boolean;
   solo_lock: boolean;
 } {
-  const result = unifiedEdgeScore(prop, config, { adminOverrideTier, useLegacyScoring: true });
+  const result = unifiedEdgeScore(prop, config, { adminOverrideTier: adminOverrideTier || null, useLegacyScoring: true });
   // Remove version to match legacy return type
   const { version, ...legacyResult } = result;
   return legacyResult;

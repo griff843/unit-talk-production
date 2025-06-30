@@ -73,8 +73,12 @@ function determineTrendDirection(values: number[]): 'up' | 'down' | 'neutral' {
   let downs = 0;
   
   for (let i = 1; i < values.length; i++) {
-    if (values[i] > values[i-1]) ups++;
-    else if (values[i] < values[i-1]) downs++;
+    const current = values[i];
+    const previous = values[i - 1];
+    if (current !== undefined && previous !== undefined) {
+      if (current > previous) ups++;
+      else if (current < previous) downs++;
+    }
   }
 
   if (ups > downs * 1.5) return 'up';
@@ -89,12 +93,26 @@ function calculateVolatility(values: number[]): number {
 }
 
 function calculateStreakLength(values: number[]): number {
+  if (values.length < 2) return 0;
+
   let streak = 1;
-  const direction = values[1] > values[0];
-  
+  const first = values[0];
+  const second = values[1];
+
+  if (first === undefined || second === undefined) return 0;
+
+  const direction = second > first;
+
   for (let i = 2; i < values.length; i++) {
-    if ((values[i] > values[i-1]) === direction) streak++;
-    else break;
+    const current = values[i];
+    const previous = values[i-1];
+
+    if (current !== undefined && previous !== undefined) {
+      if ((current > previous) === direction) streak++;
+      else break;
+    } else {
+      break;
+    }
   }
 
   return streak;

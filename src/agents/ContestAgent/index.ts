@@ -1,10 +1,17 @@
 import { BaseAgent } from '../BaseAgent/index';
-import { BaseAgentDependencies, AgentCommand, HealthCheckResult, BaseMetrics, BaseAgentConfig } from '../BaseAgent/types';
+import { BaseAgentDependencies, HealthCheckResult, BaseMetrics, BaseAgentConfig } from '../BaseAgent/types';
 import { ErrorHandler } from '../../utils/errorHandling';
-import { ContestAgentConfig } from './types';
+// import { ContestAgentConfig } from './types';
 import { ContestManager } from './contests';
 import { LeaderboardManager } from './leaderboards';
 import { FairPlayMonitor } from './fairplay';
+
+interface AgentCommand {
+  type: string;
+  payload?: any;
+  timestamp?: string;
+  id?: string;
+}
 
 /**
  * ContestAgent manages contests, leaderboards, prize distribution, and fair-play enforcement
@@ -17,9 +24,45 @@ export class ContestAgent extends BaseAgent {
   constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
     super(config, deps);
     // Initialize agent-specific properties here
-    this.contestManager = new ContestManager(deps.supabase, deps.logger, new ErrorHandler('ContestManager', deps.supabase), config);
-    this.leaderboardManager = new LeaderboardManager(config, deps);
-    this.fairPlayMonitor = new FairPlayMonitor(deps.supabase, config as ContestAgentConfig);
+    const supabase = this.requireSupabase();
+    this.contestManager = new ContestManager(
+      supabase,
+      deps.logger,
+      new ErrorHandler('ContestManager', supabase),
+      {
+        ...config,
+        name: config.name || 'ContestAgent',
+        version: config.version || '1.0.0',
+        enabled: config.enabled ?? true,
+        logLevel: config.logLevel || 'info',
+        metrics: {
+          enabled: config.metrics?.enabled ?? true,
+          interval: config.metrics?.interval ?? 30000,
+          port: config.metrics?.port,
+          endpoint: config.metrics?.endpoint
+        },
+        health: config.health ? {
+          enabled: config.health.enabled ?? true,
+          interval: config.health.interval ?? 30000,
+          timeout: config.health.timeout ?? 5000,
+          checkDb: config.health.checkDb ?? true,
+          checkExternal: config.health.checkExternal ?? true,
+          endpoint: config.health.endpoint
+        } : undefined,
+        retry: config.retry ? {
+          enabled: config.retry.enabled ?? true,
+          maxRetries: config.retry.maxRetries ?? 3,
+          backoffMs: config.retry.backoffMs ?? 1000,
+          maxBackoffMs: config.retry.maxBackoffMs ?? 30000,
+          exponential: config.retry.exponential ?? true,
+          jitter: config.retry.jitter ?? true,
+          maxAttempts: config.retry.maxRetries ?? 3,
+          backoff: config.retry.backoffMs ?? 1000
+        } : undefined
+      }
+    );
+    this.leaderboardManager = new LeaderboardManager(config as any, deps as any);
+    this.fairPlayMonitor = new FairPlayMonitor(supabase, config as any);
   }
 
   async initialize(): Promise<void> {
@@ -54,25 +97,26 @@ export class ContestAgent extends BaseAgent {
       // Check contest manager health
       const contestHealth = await this.contestManager.checkHealth();
       if ((contestHealth as {status: string}).status !== 'healthy') {
-        errors.push('Contest manager is unhealthy');
+        warnings.push('Contest manager is unhealthy');
       }
 
       // Check leaderboard manager health
       const leaderboardHealth = await this.leaderboardManager.checkHealth();
       if ((leaderboardHealth as {status: string}).status !== 'healthy') {
-        errors.push('Leaderboard manager is unhealthy');
+        warnings.push('Leaderboard manager is unhealthy');
       }
 
       // Check fair play monitor health
       const fairPlayHealth = await this.fairPlayMonitor.checkHealth();
       if ((fairPlayHealth as {status: string}).status !== 'healthy') {
-        errors.push('Fair play monitor is unhealthy');
+        warnings.push('Fair play monitor is unhealthy');
       }
 
-      const allHealthy = errors.length === 0;
+      const allHealthy = warnings.length === 0;
+      const status = allHealthy ? 'healthy' : 'degraded';
 
       return {
-        status: allHealthy ? 'healthy' : 'unhealthy',
+        status,
         timestamp: new Date().toISOString(),
         details: {
           errors,
@@ -97,8 +141,10 @@ export class ContestAgent extends BaseAgent {
     }
   }
 
-  public async collectMetrics(): Promise<BaseMetrics> {
+  public async collectMetrics(): Promise<BaseMetrics & { contests?: any; leaderboards?: any; fairPlay?: any }> {
     const contestMetrics = this.contestManager.getMetrics();
+    const leaderboardMetrics = this.leaderboardManager.getMetrics();
+    const fairPlayMetrics = this.fairPlayMonitor.getMetrics();
 
     return {
       agentName: 'ContestAgent',
@@ -106,7 +152,10 @@ export class ContestAgent extends BaseAgent {
       errorCount: (contestMetrics as any).errorCount || 0,
       warningCount: (contestMetrics as any).warningCount || 0,
       processingTimeMs: (contestMetrics as any).processingTimeMs || 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024,
+      contests: contestMetrics,
+      leaderboards: leaderboardMetrics,
+      fairPlay: fairPlayMetrics
     };
   }
 

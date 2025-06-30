@@ -8,6 +8,7 @@ import { sendDiscordAlert } from './integrations/discord';
 // import { updateRetoolTag } from '../../services/retool';
 import { logAlertRecord } from './log';
 import { startMetricsServer } from '../../services/metricsServer';
+import { env } from '../../config/env';
 
 interface AlertMetrics extends BaseMetrics {
   alertsSent: number;
@@ -16,6 +17,9 @@ interface AlertMetrics extends BaseMetrics {
   avgProcessingTimeMs: number;
   llmCallsCount: number;
   llmFailures: number;
+  // Override optional properties to be required
+  errorCount: number;
+  successCount: number;
 }
 
 export class AlertAgent extends BaseAgent {
@@ -36,20 +40,26 @@ export class AlertAgent extends BaseAgent {
       avgProcessingTimeMs: 0,
       llmCallsCount: 0,
       llmFailures: 0,
+      errorCount: 0,
+      successCount: 0,
     };
   }
 
   protected async initialize(): Promise<void> {
     this.logger.info('🚀 AlertAgent initializing...');
-    
+
     // Ensure alerts log table exists and is accessible
-    const { error } = await this.supabase
-      .from('unit_talk_alerts_log')
-      .select('count')
-      .limit(1);
-    
-    if (error) {
-      this.logger.warn('⚠️ Alert logging table not accessible', { error: error.message });
+    if (this.hasSupabase()) {
+      const { error } = await this.requireSupabase()
+        .from('unit_talk_alerts_log')
+        .select('count')
+        .limit(1);
+
+      if (error) {
+        this.logger.warn('⚠️ Alert logging table not accessible', { error: error.message });
+      }
+    } else {
+      this.logger.warn('⚠️ Supabase client not available - alert logging disabled');
     }
   }
 
@@ -69,17 +79,21 @@ export class AlertAgent extends BaseAgent {
     const checks = [];
 
     // Check Supabase connectivity
-    try {
-      await this.supabase.from('final_picks').select('count').limit(1);
-      checks.push({ service: 'supabase', status: 'healthy' });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      checks.push({ service: 'supabase', status: 'unhealthy', error: errorMessage });
+    if (this.hasSupabase()) {
+      try {
+        await this.requireSupabase().from('final_picks').select('count').limit(1);
+        checks.push({ service: 'supabase', status: 'healthy' });
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        checks.push({ service: 'supabase', status: 'unhealthy', error: errorMessage });
+      }
+    } else {
+      checks.push({ service: 'supabase', status: 'unhealthy', error: 'Client not available' });
     }
 
     // Check OpenAI connectivity (basic)
     try {
-      const hasApiKey = !!process.env.OPENAI_API_KEY;
+      const hasApiKey = !!env.OPENAI_API_KEY;
       checks.push({
         service: 'openai',
         status: hasApiKey ? 'healthy' : 'unhealthy',
@@ -125,7 +139,12 @@ export class AlertAgent extends BaseAgent {
 
   private async isAlertAlreadySent(pick: any): Promise<boolean> {
     // Check database for persistent deduplication
-    const { data, error } = await this.supabase
+    if (!this.hasSupabase()) {
+      this.logger.warn('⚠️ Supabase not available, cannot check alert history');
+      return false;
+    }
+
+    const { data, error } = await this.requireSupabase()
       .from('unit_talk_alerts_log')
       .select('bet_id')
       .eq('bet_id', pick.id)
@@ -135,9 +154,9 @@ export class AlertAgent extends BaseAgent {
       .limit(1);
 
     if (error) {
-      this.logger.warn('⚠️ Failed to check alert history, proceeding with send', { 
-        pickId: pick.id, 
-        error: error.message 
+      this.logger.warn('⚠️ Failed to check alert history, proceeding with send', {
+        pickId: pick.id,
+        error: error.message
       });
       return false;
     }
@@ -176,7 +195,12 @@ export class AlertAgent extends BaseAgent {
     this.logger.info('🚨 Starting AlertAgent cycle...');
     const cycleStartTime = Date.now();
 
-    const { data: picks, error } = await this.supabase
+    if (!this.hasSupabase()) {
+      this.logger.error('❌ Supabase client not available, cannot fetch picks');
+      return;
+    }
+
+    const { data: picks, error } = await this.requireSupabase()
       .from('final_picks')
       .select('*')
       .eq('play_status', 'pending')
@@ -185,9 +209,8 @@ export class AlertAgent extends BaseAgent {
 
     if (error || !picks) {
       this.logger.error('❌ Failed to fetch final picks for alerts', {
-        error: error?.message || 'Unknown error'
+        error: error?.message || 'No picks returned'
       });
-      this.alertMetrics.errorCount++;
       return;
     }
 
@@ -195,7 +218,7 @@ export class AlertAgent extends BaseAgent {
 
     for (const pick of picks) {
       const pickStartTime = Date.now();
-      
+
       try {
         // Check for duplicates using persistent storage
         if (await this.isAlertAlreadySent(pick)) {
@@ -228,7 +251,9 @@ export class AlertAgent extends BaseAgent {
         });
 
         // Log the alert for deduplication and analytics
-        await logAlertRecord(this.supabase, pick, advice);
+        if (this.hasSupabase()) {
+          await logAlertRecord(this.requireSupabase(), pick, advice);
+        }
 
         this.alertMetrics.alertsSent++;
         this.alertMetrics.successCount++;

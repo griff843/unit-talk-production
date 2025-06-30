@@ -7,7 +7,13 @@ module.exports = {
     '**/?(*.)+(spec|test).ts'
   ],
   transform: {
-    '^.+\\.ts$': 'ts-jest'
+    '^.+\\.ts$': ['ts-jest', {
+      isolatedModules: true,
+      tsconfig: {
+        noImplicitAny: false,
+        skipLibCheck: true
+      }
+    }]
   },
   collectCoverageFrom: [
     'src/**/*.ts',

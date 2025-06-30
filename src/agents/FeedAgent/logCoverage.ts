@@ -43,15 +43,15 @@ export async function logCoverage(log: CoverageLog, supabase: SupabaseClient): P
     const missing = new Set(REQUIRED_MARKETS);
 
     if (log.data) {
-      if (log.provider === 'SportsGameOdds' && Array.isArray(log.data.markets)) {
-        log.data.markets.forEach((market: { type: string }) => {
+      if (log.provider === 'SportsGameOdds' && Array.isArray(log.data['markets'])) {
+        log.data['markets'].forEach((market: { type: string }) => {
           if (market.type) {
             covered.add(market.type.toLowerCase());
             missing.delete(market.type.toLowerCase());
           }
         });
-      } else if (log.provider === 'OddsAPI' && log.data.props) {
-        Object.keys(log.data.props).forEach(market => {
+      } else if (log.provider === 'OddsAPI' && log.data['props']) {
+        Object.keys(log.data['props']).forEach(market => {
           covered.add(market.toLowerCase());
           missing.delete(market.toLowerCase());
         });

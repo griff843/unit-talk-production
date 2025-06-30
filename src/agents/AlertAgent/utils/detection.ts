@@ -1,8 +1,9 @@
 import { buildUnitTalkEmbed } from './embedBuilder';
 import { OpenAI } from 'openai'; // adjust import if using a helper
 import { TextChannel } from 'discord.js';
+import { env } from '../../../config/env';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! }); // adjust for your setup
+const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY! }); // adjust for your setup
 async function getUnitTalkAdvice(eventSummary: string): Promise<string> {
   const prompt = `You are an elite sports betting advisor for a Fortune 100-level betting group. Given this scenario, provide clear, actionable advice as if you are a top-tier human capper (never mention AI or automation):
 
@@ -16,7 +17,7 @@ Respond with one concise paragraph.`;
     max_tokens: 120,
     temperature: 0.6,
   });
-  return response.choices[0].message.content?.trim() || '';
+  return response.choices?.[0]?.message?.content?.trim() || '';
 }
 export async function detectInjuryImpact(ctx: any, channel: TextChannel) {
   if (!ctx.injury) return false;

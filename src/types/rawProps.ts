@@ -16,5 +16,5 @@ export interface RawProp {
   scraped_at?: string;
   promoted?: boolean;
   is_valid?: boolean;
-  [key: string]: any; // For flexibility (extra fields as needed)
+  [key: string]: unknown; // For flexibility (extra fields as needed)
 }

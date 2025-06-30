@@ -227,7 +227,7 @@ export class NotificationAgent extends BaseAgent {
       status: successCount === payload.channels.length ? 'success' : (successCount > 0 ? 'partial' : 'failed'),
       deliveredChannels: payload.channels.filter(ch => results[ch]),
       failedChannels: payload.channels.filter(ch => !results[ch]),
-      errors: Object.keys(errors).length > 0 ? errors : undefined,
+      ...(Object.keys(errors).length > 0 && { errors }),
       createdAt: new Date().toISOString()
     };
 
@@ -250,7 +250,7 @@ export class NotificationAgent extends BaseAgent {
       success: successCount > 0,
       notificationId,
       channels: payload.channels.filter(ch => results[ch]),
-      error: Object.keys(errors).length > 0 ? JSON.stringify(errors) : undefined
+      ...(Object.keys(errors).length > 0 && { error: JSON.stringify(errors) })
     };
   }
 

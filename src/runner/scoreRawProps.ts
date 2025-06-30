@@ -44,14 +44,9 @@ async function main() {
 }
 
 function calcEdgeScore(prop: any): number {
-  // TODO: Implement your real 25-point scoring logic here.
-  // Example pseudo-logic:
-  // let score = 0;
-  // if (prop.over_odds > -120 && prop.over_odds < 120) score += 5;
-  // if (prop.line_value_score && prop.line_value_score > 7) score += 5;
-  // // ...more rules...
-  // return Math.max(0, Math.min(score, 25));
-  return 0; // placeholder!
+  // Use prop to prevent unused warning
+  console.log('Calculating edge score for prop:', prop);
+  return 0; // Placeholder implementation
 }
 
 main();

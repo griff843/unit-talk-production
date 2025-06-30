@@ -2,7 +2,7 @@
 export type LegResult = {
   outcome: 'win' | 'loss' | 'push' | 'void';
   units_result: number;
-  [key: string]: any;
+  [key: string]: unknown;
 };
 
 export type OutcomeInfo = {

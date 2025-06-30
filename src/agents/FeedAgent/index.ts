@@ -149,6 +149,9 @@ export class FeedAgent extends BaseAgent {
 
   private async validateDependencies(): Promise<void> {
     // Check database connectivity
+    if (!this.supabase) {
+      throw new Error('Supabase client is required for FeedAgent');
+    }
     const { error } = await this.supabase
       .from('raw_props')
       .select('id')
@@ -165,6 +168,11 @@ export class FeedAgent extends BaseAgent {
 
       // Fetch data from provider
       const rawData = await this.fetchFromProvider(provider);
+
+      // Ensure supabase is available
+      if (!this.supabase) {
+        throw new Error('Supabase client is required for FeedAgent');
+      }
 
       // Normalize the data
       const normalizedData = await normalizePublicProps(rawData, provider, true, this.supabase);
@@ -193,6 +201,10 @@ export class FeedAgent extends BaseAgent {
   }
 
   private async processProps(props: RawProp[]): Promise<void> {
+    if (!this.supabase) {
+      throw new Error('Supabase client is required for FeedAgent');
+    }
+
     for (const prop of props) {
       try {
         // Insert into database

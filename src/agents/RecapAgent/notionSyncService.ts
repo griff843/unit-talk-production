@@ -7,7 +7,7 @@ interface Client {
 
 // Mock Client constructor for when @notionhq/client is not installed
 const Client = class {
-  constructor(options: any) {
+  constructor(/* options: any */) {
     // Mock implementation
   }
 } as any;

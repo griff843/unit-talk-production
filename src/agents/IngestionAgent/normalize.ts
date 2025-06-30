@@ -230,7 +230,8 @@ function normalizeGameDate(date: string | Date | null | undefined): string | nul
   try {
     const dateObj = new Date(date);
     if (isNaN(dateObj.getTime())) return null;
-    return dateObj.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+    const datePart = dateObj.toISOString().split('T')[0];
+    return datePart || null; // Return YYYY-MM-DD format
   } catch {
     return null;
   }

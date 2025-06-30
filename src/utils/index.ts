@@ -14,10 +14,10 @@ export { getEnv, type Env } from './getEnv.js';
 
 // Health monitoring
 export { agentHealthMap } from './agentHealthMap.js';
-export { 
-  reportAgentHealth,
-  HealthChecker,
-  type HealthCheckConfig,
+export {
+  HealthCheck,
+  type AgentStatus,
+  type HealthStatus,
   type HealthReport,
   HealthMonitor
 } from './health.js';

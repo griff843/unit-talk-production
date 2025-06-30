@@ -1,10 +1,9 @@
 import {
   Client,
   Interaction,
-  CommandInteraction,
   ChatInputCommandInteraction,
   ButtonInteraction,
-  SelectMenuInteraction,
+  StringSelectMenuInteraction,
   ModalSubmitInteraction,
   AutocompleteInteraction
 } from 'discord.js';
@@ -82,22 +81,44 @@ export class InteractionHandler {
   private async handleButton(interaction: ButtonInteraction): Promise<void> {
     const { customId } = interaction;
 
+    // Add debug logging
+    logger.info(`🔘 Button interaction received: ${customId} from user ${interaction.user.tag}`);
+
     try {
-      // Check if this is an onboarding-related button
-      const onboardingButtons = [
+      // Import the onboarding button handler
+      const OnboardingButtonHandlerModule = await import('./onboardingButtonHandler');
+      const OnboardingButtonHandler = OnboardingButtonHandlerModule.OnboardingButtonHandler;
+
+      // Check if this is an onboarding button first
+      if (OnboardingButtonHandler.isOnboardingButton(customId)) {
+        logger.info(`📋 Routing to onboarding handler: ${customId}`);
+        const onboardingHandler = new OnboardingButtonHandler();
+        await onboardingHandler.handleOnboardingButton(interaction);
+        return;
+      }
+
+      // Check if this is a capper-related button
+      if (customId.startsWith('confirm_onboard_') || customId === 'cancel_onboard') {
+        logger.info(`🎯 Routing to capper handler: ${customId}`);
+        const { handleCapperButtonInteraction } = await import('./capperButtonHandler');
+        await handleCapperButtonInteraction(interaction);
+        return;
+      }
+
+      // Legacy onboarding buttons (keep for backward compatibility)
+      const legacyOnboardingButtons = [
         'view_vip_perks', 'view_vip_info', 'upgrade_vip', 'upgrade_vip_plus', 'start_trial',
         'trial_status', 'trial_end_time', 'extend_trial', 'view_todays_picks', 'goto_vip_lounge',
         'heat_signal_access', 'picks_dashboard', 'help_commands', 'slash_commands_help',
         'trial_help', 'view_trending_picks', 'whats_new', 'upgrade_for_more_wins',
         'upgrade_to_catch_up', 'refresh_heat_signal', 'heat_signal_settings', 'heat_signal_demo',
-        // Add the missing VIP+ onboarding button IDs
         'vip_plus_tour_start', 'vip_plus_settings', 'vip_tour_start', 'vip_settings'
       ];
 
-      if (onboardingButtons.includes(customId)) {
-        // Use the onboarding button handler
+      if (legacyOnboardingButtons.includes(customId)) {
+        // Use the legacy onboarding button handler if available
         if (this.services.onboardingButtonHandler) {
-          await this.services.onboardingButtonHandler.handleButtonInteraction(interaction);
+          await this.services.onboardingButtonHandler.handleOnboardingButton(interaction);
           return;
         }
       }
@@ -131,8 +152,9 @@ export class InteractionHandler {
           break;
 
         default:
+          logger.warn(`Unknown button interaction: ${customId}`);
           await interaction.reply({
-            content: '❌ Unknown button action.',
+            content: '❌ This button is not yet implemented. Please contact support if you need assistance.',
             ephemeral: true
           });
       }
@@ -150,9 +172,9 @@ export class InteractionHandler {
   /**
    * Handle select menu interactions
    */
-  private async handleSelectMenu(interaction: SelectMenuInteraction): Promise<void> {
+  private async handleSelectMenu(interaction: StringSelectMenuInteraction): Promise<void> {
     const { customId, values } = interaction;
-    
+
     try {
       // Parse custom ID to determine action
       const [action, ...params] = customId.split('_');
@@ -194,40 +216,53 @@ export class InteractionHandler {
    */
   private async handleModalSubmit(interaction: ModalSubmitInteraction): Promise<void> {
     const { customId } = interaction;
-    
+
     try {
-      // Parse custom ID to determine action
+      // Import the onboarding modal handler
+      const { OnboardingModalHandler } = await import('./onboardingModalHandler');
+
+      // Check if this is an onboarding modal first
+      if (OnboardingModalHandler.isOnboardingModal(customId)) {
+        const onboardingModalHandler = new OnboardingModalHandler();
+        await onboardingModalHandler.handleOnboardingModal(interaction);
+        return;
+      }
+
+      // Parse custom ID to determine action for other modals
       const [action, ...params] = customId.split('_');
-      
+
       switch (action) {
         case 'config':
           await this.handleConfigModal(interaction, params);
           break;
-        
+
         case 'admin':
           await this.handleAdminModal(interaction, params);
           break;
-        
+
         case 'pick':
           await this.handlePickModal(interaction, params);
           break;
-        
+
         case 'ai':
           await this.handleAIModal(interaction, params);
           break;
-        
+
         default:
+          logger.warn(`Unknown modal interaction: ${customId}`);
           await interaction.reply({
-            content: '❌ Unknown modal action.',
+            content: '❌ This form is not yet implemented. Please contact support if you need assistance.',
             ephemeral: true
           });
       }
     } catch (error) {
       logger.error('Error handling modal submit interaction:', error);
-      await interaction.reply({
-        content: '❌ An error occurred while processing the form.',
-        ephemeral: true
-      });
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply({
+          content: '❌ An error occurred while processing the form.',
+          ephemeral: true
+        });
+      }
     }
   }
 
@@ -250,7 +285,11 @@ export class InteractionHandler {
         case 'config':
           await this.handleConfigAutocomplete(interaction);
           break;
-        
+
+        case 'faq-edit':
+          await this.handleFAQEditAutocomplete(interaction);
+          break;
+
         default:
           await interaction.respond([]);
       }
@@ -525,10 +564,10 @@ export class InteractionHandler {
   /**
    * Handle config select menu interactions
    */
-  private async handleConfigSelect(interaction: SelectMenuInteraction, params: string[], values: string[]): Promise<void> {
+  private async handleConfigSelect(interaction: StringSelectMenuInteraction, params: string[], values: string[]): Promise<void> {
     const [configType] = params;
     const [selectedValue] = values;
-    
+
     await this.services.quickEditConfigService.updateConfig(
       interaction.user.id,
       configType,
@@ -544,9 +583,9 @@ export class InteractionHandler {
   /**
    * Handle analytics select menu interactions
    */
-  private async handleAnalyticsSelect(interaction: SelectMenuInteraction, params: string[], values: string[]): Promise<void> {
+  private async handleAnalyticsSelect(interaction: StringSelectMenuInteraction, params: string[], values: string[]): Promise<void> {
     const [timeRange] = values;
-    
+
     const dashboard = await this.services.advancedAnalyticsService.generateDashboard(
       interaction.user.id,
       'staff',
@@ -562,9 +601,9 @@ export class InteractionHandler {
   /**
    * Handle admin select menu interactions
    */
-  private async handleAdminSelect(interaction: SelectMenuInteraction, params: string[], values: string[]): Promise<void> {
+  private async handleAdminSelect(interaction: StringSelectMenuInteraction, params: string[], values: string[]): Promise<void> {
     const [action] = values;
-    
+
     await interaction.reply({
       content: `🔧 Admin action "${action}" will be implemented soon!`,
       ephemeral: true
@@ -574,11 +613,11 @@ export class InteractionHandler {
   /**
    * Handle AI select menu interactions
    */
-  private async handleAISelect(interaction: SelectMenuInteraction, params: string[], values: string[]): Promise<void> {
+  private async handleAISelect(interaction: StringSelectMenuInteraction, params: string[], values: string[]): Promise<void> {
     const [sessionType] = values;
-    
+
     await this.services.aiPoweredService.startCoachingSession(interaction.user.id, sessionType);
-    
+
     await interaction.reply({
       content: `🤖 Started ${sessionType} AI coaching session!`,
       ephemeral: true
@@ -707,5 +746,13 @@ export class InteractionHandler {
     );
     
     await interaction.respond(filtered.slice(0, 25));
+  }
+
+  /**
+   * Handle FAQ edit autocomplete
+   */
+  private async handleFAQEditAutocomplete(interaction: AutocompleteInteraction): Promise<void> {
+    const { autocomplete } = await import('../commands/faq-edit');
+    await autocomplete(interaction);
   }
 }

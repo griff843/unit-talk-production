@@ -75,7 +75,7 @@ export async function isDuplicateRawProp(prop: RawProp, supabase: SupabaseClient
  * Legacy function for backward compatibility
  * @deprecated Use isDuplicateRawProp with supabase parameter instead
  */
-export async function isDuplicateRawPropLegacy(prop: RawProp): Promise<boolean> {
+export async function isDuplicateRawPropLegacy(_prop: RawProp): Promise<boolean> {
   // This would need to import supabase, but we'll make it return false for now
   // to avoid breaking existing code during migration
   console.warn('isDuplicateRawPropLegacy is deprecated. Use isDuplicateRawProp with supabase parameter.');

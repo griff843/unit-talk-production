@@ -1,19 +1,24 @@
 import { EventEmitter } from 'events';
 import {
-  BaseAgentConfigSchema,
   BaseAgentConfig,
   BaseMetrics,
-  HealthStatus,
   BaseAgentDependencies,
   AgentStatus,
   Logger,
   ErrorHandler
 } from './types';
-import { validateBaseAgentConfig } from './config';
+import { validateBaseAgentConfig, createBaseAgentConfig } from './config';
+import { SupabaseClient } from '@supabase/supabase-js';
 
 export type { BaseAgentConfig, BaseAgentDependencies } from './types';
 export { createBaseAgentConfig } from './config';
-import { SupabaseClient } from '@supabase/supabase-js';
+
+// Define HealthCheckResult interface
+export interface HealthCheckResult {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  details?: Record<string, unknown>;
+  timestamp?: string;
+}
 
 /**
  * Production-grade BaseAgent with enhanced lifecycle management
@@ -24,7 +29,7 @@ export abstract class BaseAgent extends EventEmitter {
   protected readonly deps: BaseAgentDependencies;
 
   // Expose commonly used dependencies as protected properties
-  protected get supabase(): SupabaseClient {
+  protected get supabase(): SupabaseClient | undefined {
     return this.deps.supabase;
   }
 
@@ -32,22 +37,24 @@ export abstract class BaseAgent extends EventEmitter {
     return this.deps.logger;
   }
 
-  protected get errorHandler(): ErrorHandler {
+  protected get errorHandler(): ErrorHandler | undefined {
     return this.deps.errorHandler;
   }
 
   private status: AgentStatus = 'idle';
-  protected metrics: BaseMetrics;
-  private healthCheckInterval?: NodeJS.Timeout;
-  private metricsInterval?: NodeJS.Timeout;
-  private processLoopActive = false;
+  protected metrics!: BaseMetrics;
+  private healthCheckInterval?: NodeJS.Timeout | undefined;
+  private metricsInterval?: NodeJS.Timeout | undefined;
+  protected processLoopActive = false;
 
   constructor(config: BaseAgentConfig | any, deps: BaseAgentDependencies) {
     super();
 
+    this.deps = deps;
+
     // Validate and fix config using factory function
     try {
-      this.config = BaseAgentConfigSchema.parse(config);
+      this.config = validateBaseAgentConfig(config);
     } catch (error) {
       // If validation fails, use factory to create proper config
       if (deps?.logger) {
@@ -55,10 +62,8 @@ export abstract class BaseAgent extends EventEmitter {
           error: error instanceof Error ? error.message : String(error)
         });
       }
-      this.config = validateBaseAgentConfig(config);
+      this.config = createBaseAgentConfig(config);
     }
-
-    this.deps = deps;
 
     // Initialize metrics
     this.metrics = {
@@ -72,7 +77,7 @@ export abstract class BaseAgent extends EventEmitter {
 
     // Set up error handling
     this.on('error', (error) => {
-      this.metrics.errorCount++;
+      this.metrics.errorCount = (this.metrics.errorCount || 0) + 1;
       if (this.deps.errorHandler) {
         this.deps.errorHandler.handleError(error, {
           agentName: this.config.name,
@@ -83,271 +88,191 @@ export abstract class BaseAgent extends EventEmitter {
     });
   }
 
-  // Abstract methods that child classes must implement
+  // Abstract methods that must be implemented by subclasses
   protected abstract initialize(): Promise<void>;
   protected abstract process(): Promise<void>;
   protected abstract cleanup(): Promise<void>;
+  protected abstract checkHealth(): Promise<HealthCheckResult>;
   protected abstract collectMetrics(): Promise<BaseMetrics>;
-  public abstract checkHealth(): Promise<HealthStatus>;
 
-  /**
-   * Start the agent with enhanced lifecycle management
-   */
+  // Public lifecycle methods
   public async start(): Promise<void> {
-    if (this.status !== 'idle') {
-      this.logger.warn(`Agent ${this.config.name} already started or in transition`);
-      return;
-    }
-
     try {
-      this.status = 'initializing';
-      this.emit('statusChange', this.status);
-      this.logger.info(`Starting agent: ${this.config.name}`);
+      this.status = 'starting';
+      this.logger.info(`Starting ${this.config.name}...`);
 
       await this.initialize();
 
-      this.status = 'running';
-      this.emit('statusChange', this.status);
-      this.logger.info(`Agent ${this.config.name} started successfully`);
-
-      // Start background processes
-      this.startBackgroundProcesses();
-
-      // Start process loop if schedule is defined
-      if (this.config.schedule) {
-        this.processLoopActive = true;
-        this.safeProcessLoop().catch(error => {
-          this.logger.error('Process loop failed', {
-          error: error instanceof Error ? error.message : String(error)
-        });
-          this.emit('error', error);
-        });
+      // Start health checks if enabled
+      if (this.config.health?.enabled) {
+        this.healthCheckInterval = setInterval(
+          () => this.runHealthCheck(),
+          (this.config.health.interval || 30) * 1000
+        );
       }
 
-    } catch (error) {
-      this.status = 'error';
-      this.emit('statusChange', this.status);
-      this.emit('error', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Stop the agent gracefully
-   */
-  public async stop(): Promise<void> {
-    if (this.status === 'stopped' || this.status === 'stopping') {
-      return;
-    }
-
-    try {
-      this.status = 'stopping';
-      this.emit('statusChange', this.status);
-      this.logger.info(`Stopping agent: ${this.config.name}`);
-
-      // Stop background processes
-      this.processLoopActive = false;
-      this.stopBackgroundProcesses();
-
-      await this.cleanup();
-
-      this.status = 'stopped';
-      this.emit('statusChange', this.status);
-      this.logger.info(`Agent ${this.config.name} stopped successfully`);
-
-    } catch (error) {
-      this.status = 'error';
-      this.emit('statusChange', this.status);
-      this.emit('error', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Run a single execution cycle (for manual/scheduled execution)
-   */
-  public async run(): Promise<void> {
-    if (this.status !== 'idle' && this.status !== 'stopped') {
-      throw new Error(`Cannot run agent ${this.config.name} in status: ${this.status}`);
-    }
-
-    try {
-      this.status = 'initializing';
-      this.emit('statusChange', this.status);
-
-      await this.initialize();
+      // Start metrics collection if enabled
+      if (this.config.metrics?.enabled) {
+        this.metricsInterval = setInterval(
+          () => this.runMetricsCollection(),
+          (this.config.metrics.interval || 60) * 1000
+        );
+      }
 
       this.status = 'running';
-      this.emit('statusChange', this.status);
+      this.logger.info(`${this.config.name} started successfully`);
+    } catch (error) {
+      this.status = 'error';
+      this.logger.error(`Failed to start ${this.config.name}:`, {
+        error: error instanceof Error ? error.message : String(error)
+      });
+      throw error;
+    }
+  }
 
+  public async stop(): Promise<void> {
+    try {
+      this.status = 'stopping';
+      this.logger.info(`Stopping ${this.config.name}...`);
+
+      // Clear intervals
+      if (this.healthCheckInterval) {
+        clearInterval(this.healthCheckInterval);
+        this.healthCheckInterval = undefined;
+      }
+
+      if (this.metricsInterval) {
+        clearInterval(this.metricsInterval);
+        this.metricsInterval = undefined;
+      }
+
+      // Stop process loop
+      this.processLoopActive = false;
+
+      // Run cleanup
+      await this.cleanup();
+
+      this.status = 'idle';
+      this.logger.info(`${this.config.name} stopped successfully`);
+    } catch (error) {
+      this.status = 'error';
+      this.logger.error(`Failed to stop ${this.config.name}:`, {
+        error: error instanceof Error ? error.message : String(error)
+      });
+      throw error;
+    }
+  }
+
+  // Add the run method that agents are expecting
+  public async run(): Promise<void> {
+    try {
+      this.processLoopActive = true;
+      this.logger.info(`Running ${this.config.name} process...`);
+      
       const startTime = Date.now();
       await this.process();
-
-      // Update processing time
-      this.metrics.processingTimeMs = Date.now() - startTime;
-      this.metrics.memoryUsageMb = process.memoryUsage().heapUsed / 1024 / 1024;
-      this.metrics.successCount++;
-
-      // Collect final metrics
-      this.metrics = { ...this.metrics, ...(await this.collectMetrics()) };
-
-      this.status = 'stopping';
-      this.emit('statusChange', this.status);
-
-      await this.cleanup();
-
-      this.status = 'stopped';
-      this.emit('statusChange', this.status);
-
+      const processingTime = Date.now() - startTime;
+      
+      this.metrics.processingTimeMs = processingTime;
+      this.metrics.successCount = (this.metrics.successCount || 0) + 1;
+      
+      this.logger.info(`${this.config.name} process completed`, {
+        processingTimeMs: processingTime
+      });
     } catch (error) {
-      this.status = 'error';
-      this.emit('statusChange', this.status);
-      this.emit('error', error);
+      this.metrics.errorCount = (this.metrics.errorCount || 0) + 1;
+      this.logger.error(`${this.config.name} process failed:`, {
+        error: error instanceof Error ? error.message : String(error)
+      });
       throw error;
     }
   }
 
-  /**
-   * Safe processing loop with error handling
-   */
-  private async safeProcessLoop(): Promise<void> {
-    while (this.processLoopActive && this.status === 'running') {
-      const startTime = Date.now();
+  // Health check runner
+  private async runHealthCheck(): Promise<void> {
+    try {
+      const health = await this.checkHealth();
+      this.status = health.status === 'healthy' ? 'running' : 'degraded';
+      await this.recordHealth(health);
+    } catch (error) {
+      this.logger.error('Health check failed:', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+      this.status = 'error';
+    }
+  }
 
-      try {
-        await this.process();
-        this.metrics.successCount++;
-        this.metrics.processingTimeMs = Date.now() - startTime;
-
-      } catch (error) {
-        this.metrics.errorCount++;
-        this.logger.error('Process cycle failed', {
-          error: error instanceof Error ? error.message : String(error)
-        });
-
-        // Implement exponential backoff on errors
-        const backoffMs = Math.min(
-          this.config.retry?.backoffMs || 1000,
-          this.config.retry?.maxBackoffMs || 30000
-        );
-        await this.sleep(backoffMs);
-      }
-
-      // Update memory usage
+  // Metrics collection runner
+  private async runMetricsCollection(): Promise<void> {
+    try {
+      this.metrics = await this.collectMetrics();
       this.metrics.memoryUsageMb = process.memoryUsage().heapUsed / 1024 / 1024;
-
-      // Wait for next cycle (simple interval for now, could be enhanced with cron)
-      await this.sleep(5000); // 5 second default interval
+      await this.recordMetrics(this.metrics);
+    } catch (error) {
+      this.logger.error('Metrics collection failed:', {
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   }
 
-  /**
-   * Start background processes (health checks, metrics collection)
-   */
-  private startBackgroundProcesses(): void {
-    // Health check interval
-    if (this.config.health?.enabled && this.config.health.interval) {
-      this.healthCheckInterval = setInterval(async () => {
-        try {
-          const health = await this.checkHealth();
-          this.emit('healthCheck', health);
-        } catch (error) {
-          this.logger.error('Health check failed', {
-            error: error instanceof Error ? error.message : String(error)
-          });
-        }
-      }, this.config.health.interval * 1000);
-    }
-
-    // Metrics collection interval
-    if (this.config.metrics?.enabled && this.config.metrics.interval) {
-      this.metricsInterval = setInterval(async () => {
-        try {
-          this.metrics = { ...this.metrics, ...(await this.collectMetrics()) };
-          this.emit('metrics', this.metrics);
-        } catch (error) {
-          this.logger.error('Metrics collection failed', {
-            error: error instanceof Error ? error.message : String(error)
-          });
-        }
-      }, this.config.metrics.interval * 1000);
+  // Record health check results
+  private async recordHealth(health: HealthCheckResult): Promise<void> {
+    try {
+      if (this.deps.supabase) {
+        await this.deps.supabase.from('agent_health').insert([{
+          agent: this.config.name,
+          status: health.status,
+          details: health.details,
+          timestamp: health.timestamp || new Date().toISOString()
+        }]);
+      }
+    } catch (error) {
+      this.logger.error('Failed to record health check:', {
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   }
 
-  /**
-   * Stop background processes
-   */
-  private stopBackgroundProcesses(): void {
-    if (this.healthCheckInterval) {
-      clearInterval(this.healthCheckInterval);
-      this.healthCheckInterval = undefined;
-    }
-
-    if (this.metricsInterval) {
-      clearInterval(this.metricsInterval);
-      this.metricsInterval = undefined;
+  // Record metrics
+  private async recordMetrics(metrics: BaseMetrics): Promise<void> {
+    try {
+      if (this.deps.supabase) {
+        await this.deps.supabase.from('agent_metrics').insert([{
+          agent: this.config.name,
+          ...metrics,
+          timestamp: new Date().toISOString()
+        }]);
+      }
+    } catch (error) {
+      this.logger.error('Failed to record metrics:', {
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   }
 
-  /**
-   * Get current agent status
-   */
+  // Getters for status and metrics
   public getStatus(): AgentStatus {
     return this.status;
   }
 
-  /**
-   * Get current metrics
-   */
   public getMetrics(): BaseMetrics {
     return { ...this.metrics };
   }
 
-  /**
-   * Get agent configuration
-   */
   public getConfig(): BaseAgentConfig {
     return { ...this.config };
   }
 
-  /**
-   * Utility method for sleeping
-   */
-  protected sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+  // Helper method to safely access supabase
+  protected requireSupabase(): SupabaseClient {
+    if (!this.supabase) {
+      throw new Error(`${this.config.name}: Supabase client is required but not provided`);
+    }
+    return this.supabase as SupabaseClient;
   }
 
-  /**
-   * Handle commands (can be overridden by child classes)
-   */
-  public async handleCommand(command: any): Promise<any> {
-    this.logger.info(`Received command: ${command.type}`, command);
-
-    switch (command.type) {
-      case 'START':
-        await this.start();
-        return { success: true, message: 'Agent started' };
-
-      case 'STOP':
-        await this.stop();
-        return { success: true, message: 'Agent stopped' };
-
-      case 'STATUS':
-        return {
-          success: true,
-          data: {
-            status: this.status,
-            metrics: this.metrics,
-            config: this.config
-          }
-        };
-
-      case 'HEALTH_CHECK':
-        const health = await this.checkHealth();
-        return { success: true, data: health };
-
-      default:
-        throw new Error(`Unknown command type: ${command.type}`);
-    }
+  // Helper method to check if supabase is available
+  protected hasSupabase(): boolean {
+    return !!this.supabase;
   }
 }

@@ -21,7 +21,7 @@ export async function fetchFromProviderActivity(input: FetchProviderInput): Prom
   const { provider, baseUrl, apiKey, timestamp } = input;
   const startTime = Date.now();
 
-  let url = `${baseUrl}/api/v1/odds`;
+  const url = `${baseUrl}/api/v1/odds`;
 
   // Future: Add provider-specific handling here if needed
 
@@ -56,7 +56,7 @@ export async function fetchFromProviderActivity(input: FetchProviderInput): Prom
           latencyMs,
           timestamp,
           statusCode: response.status,
-          responseText: responseBody
+          ...(responseBody !== undefined && { responseText: responseBody })
         };
       }
     } else {
@@ -67,7 +67,7 @@ export async function fetchFromProviderActivity(input: FetchProviderInput): Prom
         latencyMs,
         timestamp,
         statusCode: response.status,
-        responseText: responseBody
+        ...(responseBody !== undefined && { responseText: responseBody })
       };
     }
 
@@ -78,7 +78,7 @@ export async function fetchFromProviderActivity(input: FetchProviderInput): Prom
         latencyMs,
         timestamp,
         statusCode: response.status,
-        responseText: responseBody
+        ...(responseBody !== undefined && { responseText: responseBody })
       };
     }
 

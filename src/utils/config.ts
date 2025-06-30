@@ -1,15 +1,15 @@
 import { z } from 'zod';
 import 'dotenv/config';
-import path from 'path';
-import fs from 'fs';
-import { BaseAgentConfigSchema } from '../agents/BaseAgent/types';
+import * as path from 'path';
+import * as fs from 'fs';
 import { Logger } from './logger';
 import { AgentConfig } from '../types/agent';
 import { ValidationError } from './errorHandling';
+import { env } from '../config/env';
 
 const logger = new Logger('ConfigLoader');
 
-const baseConfigSchema = z.object({
+const BaseAgentConfigSchema = z.object({
   name: z.string(),
   enabled: z.boolean(),
   healthCheckInterval: z.number().optional(),
@@ -30,7 +30,7 @@ const EnvConfigSchema = z.object({
 export class ConfigLoader {
   private static instance: ConfigLoader;
   private envConfig!: z.infer<typeof EnvConfigSchema>;
-  private agentConfigs: Map<string, any> = new Map();
+  private agentConfigs: Map<string, unknown> = new Map();
 
   private constructor() {
     this.loadEnvConfig();
@@ -47,13 +47,13 @@ export class ConfigLoader {
     try {
       // Parse and validate environment variables
       this.envConfig = EnvConfigSchema.parse({
-        NODE_ENV: process.env.NODE_ENV,
-        TEMPORAL_TASK_QUEUE: process.env.TEMPORAL_TASK_QUEUE,
-        SUPABASE_URL: process.env.SUPABASE_URL,
-        SUPABASE_KEY: process.env.SUPABASE_KEY,
-        LOG_LEVEL: process.env.LOG_LEVEL,
-        METRICS_ENABLED: process.env.METRICS_ENABLED === 'true',
-        HEALTH_CHECK_INTERVAL: parseInt(process.env.HEALTH_CHECK_INTERVAL || '60000')
+        NODE_ENV: env['NODE_ENV'],
+        TEMPORAL_TASK_QUEUE: env['TEMPORAL_TASK_QUEUE'],
+        SUPABASE_URL: env['SUPABASE_URL'],
+        SUPABASE_KEY: env['SUPABASE_KEY'],
+        LOG_LEVEL: env['LOG_LEVEL'],
+        METRICS_ENABLED: env['METRICS_ENABLED'],
+        HEALTH_CHECK_INTERVAL: env['HEALTH_CHECK_INTERVAL']
       });
 
       logger.info('Environment configuration loaded successfully');
@@ -130,7 +130,7 @@ export class ConfigLoader {
 
 export function validateBaseConfig(config: unknown): AgentConfig {
   try {
-    return baseConfigSchema.parse(config);
+    return BaseAgentConfigSchema.parse(config) as AgentConfig;
   } catch (error) {
     if (error instanceof z.ZodError) {
       throw new ValidationError(

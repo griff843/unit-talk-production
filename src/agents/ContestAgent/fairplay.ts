@@ -16,10 +16,50 @@ const fairPlayViolationSchema = z.object({
   status: z.enum(['pending', 'resolved', 'appealed'])
 });
 
+interface BettingEvidence {
+  consistentTiming?: number;
+  consistentSizes?: {
+    variance: number;
+    average: number;
+  };
+  rapidSequences?: number;
+  complementaryBetting?: {
+    frequency: number;
+    correlation: number;
+    count?: number;
+    total?: number;
+  };
+  frequentCounterparties?: Array<{
+    participantId: string;
+    frequency: number;
+  }>;
+  profitSharing?: any;
+  unusualHours?: {
+    percentage: number;
+    hours: number[];
+    distribution?: number[];
+  };
+  inhumanReactions?: {
+    averageMs: number;
+    consistency: number;
+    count?: number;
+    times?: number[];
+  };
+  perfectTiming?: {
+    frequency: number;
+    accuracy: number;
+    variance?: number;
+  };
+  // Additional properties for collusion detection
+  alternatingActivity?: boolean;
+  similarBehavior?: boolean;
+  resourceSharing?: boolean;
+}
+
 interface DetectionResult {
   isViolation: boolean;
   confidence: number;
-  evidence: Record<string, any>;
+  evidence: BettingEvidence;
   severity: 'low' | 'medium' | 'high' | 'critical';
 }
 
@@ -32,7 +72,6 @@ interface BehaviorPattern {
 
 export class FairPlayMonitor {
   private supabase: SupabaseClient;
-  private config: ContestAgentConfig;
   private logger: Logger;
   private errorHandler: ErrorHandler;
   private metrics: {
@@ -44,9 +83,8 @@ export class FairPlayMonitor {
   };
   private patternCache: Map<string, BehaviorPattern[]>;
 
-  constructor(supabase: SupabaseClient, config: ContestAgentConfig) {
+  constructor(supabase: SupabaseClient, _config: ContestAgentConfig) {
     this.supabase = supabase;
-    this.config = config;
     this.logger = new Logger('FairPlayMonitor');
     this.errorHandler = new ErrorHandler('FairPlayMonitor', supabase);
     this.patternCache = new Map();
@@ -368,6 +406,7 @@ export class FairPlayMonitor {
 
     for (let i = 1; i < allTimestamps.length; i++) {
       const currentTimestamp = allTimestamps[i];
+      if (!currentTimestamp) continue;
       const isAccount1 = patterns1.some(p => 
         p.timestamps.some(t => t.getTime() === currentTimestamp.getTime())
       );
@@ -486,18 +525,18 @@ export class FairPlayMonitor {
         });
       }
     } catch (error) {
-      this.errorHandler.handleError(error as Error, { context: 'Failed to check betting patterns' });
+      this.errorHandler?.handleError(error as Error, { context: 'Failed to check betting patterns' });
     }
   }
 
   private analyzeBettingBehavior(patterns: BehaviorPattern[]): DetectionResult {
-    const evidence: Record<string, any> = {};
+    const evidence: BettingEvidence = {};
     let suspiciousFactors = 0;
 
     // Check for consistent bet timing
     const timeDiffs = patterns.flatMap(p => {
       const times = p.timestamps.map(t => t.getTime());
-      return times.slice(1).map((t, i) => t - times[i]);
+      return times.slice(1).map((t, i) => t - (times[i] || 0));
     });
 
     const timeVariance = this.calculateVariance(timeDiffs);
@@ -520,9 +559,9 @@ export class FairPlayMonitor {
     }
 
     // Check for rapid sequence betting
-    const rapidSequences = this.findRapidSequences(patterns[0].timestamps, 1000);
+    const rapidSequences = patterns[0] ? this.findRapidSequences(patterns[0].timestamps, 1000) : [];
     if (rapidSequences.length > 0) {
-      evidence.rapidSequences = rapidSequences;
+      evidence.rapidSequences = rapidSequences.length;
       suspiciousFactors++;
     }
 
@@ -556,7 +595,11 @@ export class FairPlayMonitor {
     let currentSequence: number[] = [];
     
     for (let i = 1; i < timestamps.length; i++) {
-      const timeDiff = timestamps[i].getTime() - timestamps[i-1].getTime();
+      const current = timestamps[i];
+      const previous = timestamps[i-1];
+      if (!current || !previous) continue;
+
+      const timeDiff = current.getTime() - previous.getTime();
       if (timeDiff < threshold) {
         if (currentSequence.length === 0) {
           currentSequence.push(i-1);
@@ -616,7 +659,7 @@ export class FairPlayMonitor {
     participantBets: any[],
     relatedBets: any[]
   ): DetectionResult {
-    const evidence: Record<string, any> = {};
+    const evidence: BettingEvidence = {};
     let suspiciousFactors = 0;
 
     // Group bets by event
@@ -640,6 +683,8 @@ export class FairPlayMonitor {
 
     if (complementaryCount > participantBets.length * 0.3) {
       evidence.complementaryBetting = {
+        frequency: complementaryCount / participantBets.length,
+        correlation: complementaryCount > participantBets.length * 0.5 ? 0.8 : 0.5,
         count: complementaryCount,
         total: participantBets.length
       };
@@ -659,7 +704,10 @@ export class FairPlayMonitor {
       .filter(([_, count]) => count > participantBets.length * 0.2);
 
     if (frequentCounterparties.length > 0) {
-      evidence.frequentCounterparties = frequentCounterparties;
+      evidence.frequentCounterparties = frequentCounterparties.map(([participantId, frequency]) => ({
+        participantId,
+        frequency
+      }));
       suspiciousFactors++;
     }
 
@@ -744,8 +792,12 @@ export class FairPlayMonitor {
     let yVariance = 0;
 
     for (let i = 0; i < n; i++) {
-      const xDiff = x[i] - xMean;
-      const yDiff = y[i] - yMean;
+      const xVal = x[i];
+      const yVal = y[i];
+      if (xVal === undefined || yVal === undefined) continue;
+
+      const xDiff = xVal - xMean;
+      const yDiff = yVal - yMean;
       numerator += xDiff * yDiff;
       xVariance += xDiff * xDiff;
       yVariance += yDiff * yDiff;
@@ -775,7 +827,7 @@ export class FairPlayMonitor {
   }
 
   private analyzeTimingPatterns(patterns: BehaviorPattern[]): DetectionResult {
-    const evidence: Record<string, any> = {};
+    const evidence: BettingEvidence = {};
     let suspiciousFactors = 0;
 
     // Check for activity during unusual hours
@@ -794,6 +846,7 @@ export class FairPlayMonitor {
     if (unusualHourActivity > totalActivity * 0.3) {
       evidence.unusualHours = {
         percentage: unusualHourActivity / totalActivity,
+        hours: [1, 2, 3, 4, 5], // Unusual hours (1 AM to 5 AM)
         distribution: hourDistribution
       };
       suspiciousFactors++;
@@ -807,6 +860,8 @@ export class FairPlayMonitor {
 
     if (reactionTimes.length > 0) {
       evidence.inhumanReactions = {
+        averageMs: reactionTimes.reduce((a, b) => a + b, 0) / reactionTimes.length,
+        consistency: reactionTimes.length / patterns.length,
         count: reactionTimes.length,
         times: reactionTimes
       };
@@ -823,6 +878,8 @@ export class FairPlayMonitor {
 
     if (timingVariance < 50) { // Suspiciously consistent
       evidence.perfectTiming = {
+        frequency: patterns.filter(p => p.type === 'bet_placed').length,
+        accuracy: timingVariance < 10 ? 0.9 : 0.7,
         variance: timingVariance
       };
       suspiciousFactors++;

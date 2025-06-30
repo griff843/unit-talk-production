@@ -1,7 +1,7 @@
 import { GradingAgent } from '../index';
 import { createClient } from '@supabase/supabase-js';
-import { logger } from '../../../services/logging';
 import { ErrorHandler } from '../../../shared/errors';
+import { createTestDependencies } from '../../../test/helpers/testHelpers';
 
 // Mock the notification activities
 jest.mock('../../NotificationAgent/activities', () => ({
@@ -30,30 +30,18 @@ jest.mock('@supabase/supabase-js', () => ({
           data: [{ id: 1 }],
           error: null
         })),
-        is: jest.fn(() => ({
-          eq: jest.fn(() => ({
-            limit: jest.fn(() => ({
-              data: [
-                {
-                  id: 1,
-                  player_name: 'Test Player',
-                  stat_type: 'points',
-                  line: 25.5,
-                  direction: 'over'
-                }
-              ],
-              error: null
-            }))
-          }))
+        eq: jest.fn(() => ({
+          data: [{ id: 1, status: 'pending' }],
+          error: null
         }))
       })),
       insert: jest.fn(() => ({
-        data: null,
+        data: [{ id: 1 }],
         error: null
       })),
       update: jest.fn(() => ({
         eq: jest.fn(() => ({
-          data: null,
+          data: [{ id: 1 }],
           error: null
         }))
       }))
@@ -61,12 +49,23 @@ jest.mock('@supabase/supabase-js', () => ({
   }))
 }));
 
+// Mock the logger
+jest.mock('../../../services/logging', () => ({
+  logger: {
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+    setLevel: jest.fn()
+  }
+}));
+
 let agent: GradingAgent;
 
 describe('GradingAgent', () => {
   beforeAll(() => {
     // Set up test environment
-    process.env.NODE_ENV = 'test';
+    process.env['NODE_ENV'] = 'test';
   });
 
   const mockConfig = {
@@ -99,16 +98,8 @@ describe('GradingAgent', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    agent = new GradingAgent(mockConfig, {
-      supabase: createClient('test-url', 'test-service-role-key'),
-      logger: logger,
-      errorHandler: new ErrorHandler({
-        maxRetries: 3,
-        backoffMs: 1000,
-        maxBackoffMs: 10000,
-        shouldRetry: () => true
-      })
-    });
+    const testDeps = createTestDependencies();
+    agent = new GradingAgent(mockConfig, testDeps);
   });
 
   describe('Test Methods', () => {

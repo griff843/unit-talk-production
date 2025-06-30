@@ -1,7 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import { BaseAgentConfig, BaseAgentDependencies, BaseMetrics } from '../BaseAgent/types';
-import { Logger } from '../../utils/logger';
-import { ErrorHandler } from '../../utils/errorHandling';
+import { BaseAgentConfig, BaseAgentDependencies, BaseMetrics, Logger } from '../BaseAgent/types';
+
 import { Leaderboard, LeaderboardEntry, Participant } from './types';
 import { z } from 'zod';
 
@@ -42,14 +41,13 @@ export class LeaderboardManager {
   private supabase: SupabaseClient;
   private config: BaseAgentConfig;
   private logger: Logger;
-  private errorHandler: ErrorHandler;
+
   private updateQueue: Map<string, any>;
 
   constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
     this.supabase = deps.supabase;
     this.config = config;
-    this.logger = new Logger('LeaderboardManager');
-    this.errorHandler = new ErrorHandler('LeaderboardManager', this.supabase);
+    this.logger = deps.logger;
     this.updateQueue = new Map();
   }
 
@@ -102,7 +100,7 @@ export class LeaderboardManager {
       const { new: newScore, old: oldScore } = payload;
       if (!newScore || !oldScore || newScore.score === oldScore.score) return;
 
-      const startTime = Date.now();
+
 
       // Get leaderboard for this participant's contest
       const { data: leaderboard, error } = await this.supabase
@@ -240,7 +238,7 @@ export class LeaderboardManager {
 
   private async applyTiebreakers(
     participants: Participant[],
-    leaderboard: Leaderboard
+    _leaderboard: Leaderboard
   ): Promise<Participant[]> {
     // Group participants by score
     const scoreGroups = new Map<number, Participant[]>();
@@ -252,9 +250,12 @@ export class LeaderboardManager {
 
     // Apply tiebreakers for each group with multiple participants
     const result: Participant[] = [];
-    for (const [score, group] of Array.from(scoreGroups.entries())) {
+    for (const [_score, group] of Array.from(scoreGroups.entries())) {
       if (group.length === 1) {
-        result.push(group[0]);
+        const participant = group[0];
+        if (participant) {
+          result.push(participant);
+        }
         continue;
       }
 

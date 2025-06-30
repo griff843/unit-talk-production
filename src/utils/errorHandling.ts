@@ -27,11 +27,11 @@ export class ErrorHandler {
     this.supabase = supabase;
   }
 
-  public async handleError(error: Error, additionalContext?: Record<string, any>): Promise<void> {
+  public async handleError(error: Error, additionalContext?: Record<string, unknown>): Promise<void> {
     const errorRecord: AgentError = {
       message: error.message,
       code: error.name,
-      stack: error.stack,
+      ...(error.stack && { stack: error.stack }),
       context: {
         source: this.context,
         ...additionalContext

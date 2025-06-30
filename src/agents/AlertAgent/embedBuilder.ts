@@ -58,7 +58,9 @@ function formatAdvice(advice: string): string {
   const match = advice.match(/^(HOLD|HEDGE|FADE):\s*(.+)$/i);
   if (match) {
     const [, recommendation, reasoning] = match;
-    return `**${recommendation.toUpperCase()}**\n${reasoning}`;
+    if (recommendation) {
+      return `**${recommendation.toUpperCase()}**\n${reasoning || ''}`;
+    }
   }
   return advice;
 }
@@ -136,7 +138,7 @@ export function buildBatchAlertEmbed(picks: FinalPick[], title: string = 'Daily 
     .setColor(0x0099FF)
     .setTimestamp();
 
-  const pickSummaries = picks.slice(0, 10).map((pick, index) => {
+  const pickSummaries = picks.slice(0, 10).map((pick) => {
     const priority = getAlertPriority(pick);
     return `${priority.emoji} **${pick.player_id}** ${pick.stat_type} ${pick.line} @ ${formatOdds(pick.odds)} (${pick.tier})`;
   }).join('\n');

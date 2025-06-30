@@ -1,4 +1,6 @@
 // Mock odds service for testing and development
+import { logger } from '../utils/logger';
+
 export interface OddsData {
   line: number;
   odds: number;
@@ -12,7 +14,7 @@ export async function fetchHistoricalOdds(
   gameDate: string
 ): Promise<OddsData | null> {
   // Mock implementation - in production this would call external odds API
-  console.log(`Fetching historical odds for ${playerName} ${statType} in ${matchup} on ${gameDate}`);
+  logger.info(`Fetching historical odds for ${playerName} ${statType} in ${matchup} on ${gameDate}`);
   
   return {
     line: 25.5,
@@ -27,7 +29,7 @@ export async function fetchCurrentOdds(
   matchup: string
 ): Promise<OddsData | null> {
   // Mock implementation - in production this would call external odds API
-  console.log(`Fetching current odds for ${playerName} ${statType} in ${matchup}`);
+  logger.info(`Fetching current odds for ${playerName} ${statType} in ${matchup}`);
   
   return {
     line: 26.0,

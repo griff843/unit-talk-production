@@ -1,6 +1,7 @@
 // src/workflows/recap-workflows.ts
-import { proxyActivities, defineSignal, setHandler, sleep, CancellationScope } from '@temporalio/workflow';
+import { proxyActivities, defineSignal, setHandler, sleep, CancellationScope, log } from '@temporalio/workflow';
 import type { RecapType } from '../types/picks';
+import { env } from '../config/env';
 
 // Define activity interfaces
 export interface RecapActivities {
@@ -8,8 +9,6 @@ export interface RecapActivities {
   triggerWeeklyRecap(): Promise<void>;
   triggerMonthlyRecap(): Promise<void>;
   checkMicroRecapTriggers(): Promise<void>;
-  persistRecapState(state: RecapState): Promise<void>;
-  loadRecapState(): Promise<RecapState>;
 }
 
 // Define state interface for persisting recap information
@@ -48,41 +47,37 @@ export const triggerMonthlyRecapSignal = defineSignal('triggerMonthlyRecap');
  */
 export async function dailyRecapWorkflow(): Promise<void> {
   // Initialize state
-  let state = await recapActivities.loadRecapState();
-  if (!state) {
-    state = {
-      manualTriggers: { daily: 0, weekly: 0, monthly: 0 }
-    };
-  }
+  const state: RecapState = {
+    manualTriggers: { daily: 0, weekly: 0, monthly: 0 }
+  };
 
   // Set up signal handlers for manual triggering
   setHandler(triggerDailyRecapSignal, async () => {
     state.manualTriggers.daily++;
-    await recapActivities.persistRecapState(state);
     await recapActivities.triggerDailyRecap();
   });
 
   // Main workflow loop - continues indefinitely
+  // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
       // Get current date in YYYY-MM-DD format
       const today = new Date().toISOString().split('T')[0];
-      
+
       // Check if we've already run today's recap
       if (state.lastDailyRecap !== today) {
         // Execute daily recap
         await recapActivities.triggerDailyRecap();
-        
+
         // Update state
-        state.lastDailyRecap = today;
-        await recapActivities.persistRecapState(state);
+        state.lastDailyRecap = today as string;
       }
 
       // Sleep until next check (1 hour)
       await sleep('1 hour');
     } catch (error) {
       // Log error but continue workflow
-      console.error('Error in daily recap workflow:', error);
+      log.error('Error in daily recap workflow:', { error });
       // Sleep before retry to avoid rapid failure loops
       await sleep('5 minutes');
     }
@@ -95,38 +90,34 @@ export async function dailyRecapWorkflow(): Promise<void> {
  */
 export async function weeklyRecapWorkflow(): Promise<void> {
   // Initialize state
-  let state = await recapActivities.loadRecapState();
-  if (!state) {
-    state = {
-      manualTriggers: { daily: 0, weekly: 0, monthly: 0 }
-    };
-  }
+  const state: RecapState = {
+    manualTriggers: { daily: 0, weekly: 0, monthly: 0 }
+  };
 
   // Set up signal handlers for manual triggering
   setHandler(triggerWeeklyRecapSignal, async () => {
     state.manualTriggers.weekly++;
-    await recapActivities.persistRecapState(state);
     await recapActivities.triggerWeeklyRecap();
   });
 
   // Main workflow loop - continues indefinitely
+  // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
       const now = new Date();
       const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday
       const hour = now.getHours();
-      
+
       // Check if it's Monday at 10 AM and we haven't run this week's recap
       if (dayOfWeek === 1 && hour === 10) {
         const weekKey = getWeekKey(now);
-        
+
         if (state.lastWeeklyRecap !== weekKey) {
           // Execute weekly recap
           await recapActivities.triggerWeeklyRecap();
-          
+
           // Update state
           state.lastWeeklyRecap = weekKey;
-          await recapActivities.persistRecapState(state);
         }
       }
 
@@ -134,7 +125,7 @@ export async function weeklyRecapWorkflow(): Promise<void> {
       await sleep('1 hour');
     } catch (error) {
       // Log error but continue workflow
-      console.error('Error in weekly recap workflow:', error);
+      log.error('Error in weekly recap workflow:', { error });
       // Sleep before retry to avoid rapid failure loops
       await sleep('5 minutes');
     }
@@ -147,38 +138,34 @@ export async function weeklyRecapWorkflow(): Promise<void> {
  */
 export async function monthlyRecapWorkflow(): Promise<void> {
   // Initialize state
-  let state = await recapActivities.loadRecapState();
-  if (!state) {
-    state = {
-      manualTriggers: { daily: 0, weekly: 0, monthly: 0 }
-    };
-  }
+  const state: RecapState = {
+    manualTriggers: { daily: 0, weekly: 0, monthly: 0 }
+  };
 
   // Set up signal handlers for manual triggering
   setHandler(triggerMonthlyRecapSignal, async () => {
     state.manualTriggers.monthly++;
-    await recapActivities.persistRecapState(state);
     await recapActivities.triggerMonthlyRecap();
   });
 
   // Main workflow loop - continues indefinitely
+  // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
       const now = new Date();
       const dayOfMonth = now.getDate();
       const hour = now.getHours();
-      
+
       // Check if it's the 1st of the month at 11 AM and we haven't run this month's recap
       if (dayOfMonth === 1 && hour === 11) {
         const monthKey = getMonthKey(now);
-        
+
         if (state.lastMonthlyRecap !== monthKey) {
           // Execute monthly recap
           await recapActivities.triggerMonthlyRecap();
-          
+
           // Update state
           state.lastMonthlyRecap = monthKey;
-          await recapActivities.persistRecapState(state);
         }
       }
 
@@ -186,7 +173,7 @@ export async function monthlyRecapWorkflow(): Promise<void> {
       await sleep('1 hour');
     } catch (error) {
       // Log error but continue workflow
-      console.error('Error in monthly recap workflow:', error);
+      log.error('Error in monthly recap workflow:', { error });
       // Sleep before retry to avoid rapid failure loops
       await sleep('5 minutes');
     }
@@ -198,41 +185,37 @@ export async function monthlyRecapWorkflow(): Promise<void> {
  */
 export async function microRecapWorkflow(): Promise<void> {
   // Initialize state
-  let state = await recapActivities.loadRecapState();
-  if (!state) {
-    state = {
-      manualTriggers: { daily: 0, weekly: 0, monthly: 0 }
-    };
-  }
+  const state: RecapState = {
+    manualTriggers: { daily: 0, weekly: 0, monthly: 0 }
+  };
 
   // Main workflow loop - continues indefinitely
+  // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
       const now = new Date();
-      
+
       // Check if cooldown period has passed
       const cooldownUntil = state.microRecapCooldownUntil ? new Date(state.microRecapCooldownUntil) : null;
       if (!cooldownUntil || now > cooldownUntil) {
         // Execute micro recap check
         await recapActivities.checkMicroRecapTriggers();
-        
+
         // Update state with current timestamp
         state.lastMicroRecap = now.toISOString();
-        
+
         // Set cooldown (5 minutes from now)
-        const cooldownMinutes = parseInt(process.env.MICRO_RECAP_COOLDOWN || '5', 10);
+        const cooldownMinutes = env.MICRO_RECAP_COOLDOWN || 5;
         const cooldownMs = cooldownMinutes * 60 * 1000;
         const newCooldown = new Date(now.getTime() + cooldownMs);
         state.microRecapCooldownUntil = newCooldown.toISOString();
-        
-        await recapActivities.persistRecapState(state);
       }
 
       // Sleep until next check (1 minute)
       await sleep('1 minute');
     } catch (error) {
       // Log error but continue workflow
-      console.error('Error in micro recap workflow:', error);
+      log.error('Error in micro recap workflow:', { error });
       // Sleep before retry to avoid rapid failure loops
       await sleep('1 minute');
     }
@@ -282,7 +265,7 @@ export async function triggerRecapWorkflow(type: RecapType, date?: string): Prom
         throw new Error(`Invalid recap type: ${type}`);
     }
   } catch (error) {
-    console.error(`Error triggering ${type} recap:`, error);
+    log.error(`Error triggering ${type} recap:`, { error, type });
     throw error;
   }
 }

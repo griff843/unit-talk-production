@@ -1,40 +1,23 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
-import { createHelpEmbed } from '../utils/embeds';
-import { permissionsService } from '../services/permissions';
-import { logger } from '../utils/logger';
+import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
+import { onboardingPrompts } from '../config/onboarding.prompts';
 
-export const helpCommand = {
-  data: new SlashCommandBuilder()
-    .setName('help')
-    .setDescription('Show available commands and bot information'),
+export const data = new SlashCommandBuilder()
+  .setName('help')
+  .setDescription('Show available commands based on your tier');
 
-  async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    try {
-      // Get user's permissions to determine available commands
-      const member = interaction.member;
-      if (!member || typeof member === 'string') {
-        await interaction.reply({ 
-          content: 'Unable to determine your permissions.', 
-          ephemeral: true 
-        });
-        return;
-      }
+export async function execute(interaction: ChatInputCommandInteraction) {
+  try {
+    const embed = new EmbedBuilder()
+      .setTitle(onboardingPrompts.commandHelp.embed.title)
+      .setDescription(onboardingPrompts.commandHelp.embed.description)
+      .setColor(onboardingPrompts.commandHelp.embed.color);
 
-      const permissions = await permissionsService.getUserPermissions(member as any);
-      const helpEmbed = createHelpEmbed(permissions.tier);
-
-      await interaction.reply({ 
-        embeds: [helpEmbed], 
-        ephemeral: true 
-      });
-
-      logger.info(`Help command used by ${interaction.user.username}`);
-    } catch (error) {
-      logger.error('Error in help command:', error);
-      await interaction.reply({ 
-        content: 'An error occurred while showing help information.', 
-        ephemeral: true 
-      });
-    }
+    await interaction.reply({ embeds: [embed], ephemeral: true });
+  } catch (error) {
+    console.error('Error in help command:', error);
+    await interaction.reply({ 
+      content: '❌ An error occurred while showing the help menu.', 
+      ephemeral: true 
+    });
   }
-};
+}

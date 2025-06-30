@@ -56,23 +56,9 @@ export class RoleChangeService {
   }
 
   /**
-   * Check for VIP upgrades and send notifications
-   */
-  private async checkVIPUpgrade(member: GuildMember, addedRoles: any, oldTier: string, newTier: string): Promise<void> {
-    // Only send our notifications if it's a significant upgrade
-    if ((oldTier === 'member' && newTier === 'vip') ||
-        (oldTier === 'member' && newTier === 'vip_plus') ||
-        (oldTier === 'vip' && newTier === 'vip_plus')) {
-
-      await this.sendUpgradeNotification(member, oldTier, newTier);
-      await this.notifyAdminsOfUpgrade(member, oldTier, newTier);
-    }
-  }
-
-  /**
    * Send upgrade notification via DM
    */
-  private async sendUpgradeNotification(member: GuildMember, oldTier: string, newTier: string): Promise<void> {
+  private async _sendUpgradeNotification(member: GuildMember, oldTier: string, newTier: string): Promise<void> {
     try {
       const embed = this.createUpgradeEmbed(member, oldTier, newTier);
 
@@ -98,7 +84,7 @@ export class RoleChangeService {
   /**
    * Create upgrade embed
    */
-  private createUpgradeEmbed(member: GuildMember, oldTier: string, newTier: string): EmbedBuilder {
+  private createUpgradeEmbed(member: GuildMember, _oldTier: string, newTier: string): EmbedBuilder {
     const isVipPlus = newTier === 'vip_plus';
     const isVip = newTier === 'vip';
 
@@ -148,7 +134,7 @@ export class RoleChangeService {
   /**
    * Notify admins of user upgrade
    */
-  private async notifyAdminsOfUpgrade(member: GuildMember, oldTier: string, newTier: string): Promise<void> {
+  private async _notifyAdminsOfUpgrade(member: GuildMember, oldTier: string, newTier: string): Promise<void> {
     try {
       const adminChannel = this.client.channels.cache.get(botConfig.channels.admin) as TextChannel;
       if (!adminChannel) return;
@@ -215,11 +201,9 @@ export class RoleChangeService {
   /**
    * Get user's current tier based on roles
    */
-  getUserTier(member: GuildMember): 'member' | 'vip' | 'vip_plus' | 'staff' | 'admin' {
-    if (member.roles.cache.has(botConfig.roles.admin)) return 'admin';
-    if (member.roles.cache.has(botConfig.roles.staff)) return 'staff';
-    if (member.roles.cache.has(botConfig.roles.vipPlus)) return 'vip_plus';
-    if (member.roles.cache.has(botConfig.roles.vip)) return 'vip';
-    return 'member';
+  getUserTier(member: GuildMember): 'member' | 'trial' | 'vip' | 'vip_plus' | 'capper' | 'staff' | 'admin' | 'owner' {
+    // Use the centralized getUserTier function from roleUtils
+    const { getUserTier } = require('../utils/roleUtils');
+    return getUserTier(member) as 'member' | 'trial' | 'vip' | 'vip_plus' | 'capper' | 'staff' | 'admin' | 'owner';
   }
 }

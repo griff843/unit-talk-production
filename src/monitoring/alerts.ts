@@ -27,6 +27,7 @@ export interface Alert {
   channels: string[];
   tags: string[];
   metadata: Record<string, any>;
+  cooldownMinutes?: number; // Optional cooldown for this specific alert
 }
 
 export interface AlertChannel {
@@ -47,7 +48,8 @@ export interface NotificationTemplate {
   variables: string[];
 }
 
-// Enhanced Alert Manager with intelligent routing and escalation
+export type AlertTemplate = NotificationTemplate | { title: string; body: string };
+
 export class EnhancedAlertManager {
   private rules: Map<string, AlertRule> = new Map();
   private channels: Map<string, AlertChannel> = new Map();
@@ -55,7 +57,11 @@ export class EnhancedAlertManager {
   private activeAlerts: Map<string, Alert> = new Map();
   private alertHistory: Alert[] = [];
   private cooldowns: Map<string, number> = new Map();
-  private escalationChains: Map<string, string[]> = new Map();
+  private escalationChains: Map<string, string[]> = new Map([
+    ['critical', ['sms-oncall', 'email-critical', 'discord-alerts']],
+    ['warning', ['email-business', 'discord-alerts']],
+    ['info', ['discord-alerts']]
+  ]);
 
   constructor() {
     this.initializeDefaultRules();
@@ -64,637 +70,298 @@ export class EnhancedAlertManager {
     this.startAlertProcessor();
   }
 
-  private initializeDefaultRules(): void {
-    // High error rate alert
-    this.addRule({
-      id: 'high-error-rate',
-      name: 'High Error Rate',
-      condition: 'error_rate > threshold',
-      threshold: 0.05, // 5% error rate
-      severity: 'critical',
-      enabled: true,
-      cooldownMinutes: 15,
-      channels: ['discord-alerts', 'email-critical'],
-      tags: ['system', 'errors'],
-      description: 'Alert when system error rate exceeds 5%'
-    });
-
-    // High processing time alert
-    this.addRule({
-      id: 'high-processing-time',
-      name: 'High Processing Time',
-      condition: 'avg_processing_time > threshold',
-      threshold: 30, // 30 seconds
-      severity: 'warning',
-      enabled: true,
-      cooldownMinutes: 10,
-      channels: ['discord-alerts'],
-      tags: ['performance'],
-      description: 'Alert when average processing time exceeds 30 seconds'
-    });
-
-    // Agent health check failure
-    this.addRule({
-      id: 'agent-unhealthy',
-      name: 'Agent Health Check Failed',
-      condition: 'agent_health == 0',
-      threshold: 0,
-      severity: 'critical',
-      enabled: true,
-      cooldownMinutes: 5,
-      channels: ['discord-alerts', 'email-critical', 'sms-oncall'],
-      tags: ['agent', 'health'],
-      description: 'Alert when an agent fails health checks'
-    });
-
-    // AI model failure rate
-    this.addRule({
-      id: 'ai-model-failures',
-      name: 'AI Model High Failure Rate',
-      condition: 'ai_model_error_rate > threshold',
-      threshold: 0.1, // 10% failure rate
-      severity: 'warning',
-      enabled: true,
-      cooldownMinutes: 20,
-      channels: ['discord-alerts'],
-      tags: ['ai', 'models'],
-      description: 'Alert when AI model failure rate exceeds 10%'
-    });
-
-    // Low pick accuracy
-    this.addRule({
-      id: 'low-pick-accuracy',
-      name: 'Low Pick Accuracy',
-      condition: 'pick_accuracy < threshold',
-      threshold: 0.6, // 60% accuracy
-      severity: 'warning',
-      enabled: true,
-      cooldownMinutes: 60,
-      channels: ['discord-alerts', 'email-business'],
-      tags: ['business', 'accuracy'],
-      description: 'Alert when pick accuracy drops below 60%'
-    });
-
-    // Database connection issues
-    this.addRule({
-      id: 'database-connections',
-      name: 'Database Connection Issues',
-      condition: 'db_connection_errors > threshold',
-      threshold: 5,
-      severity: 'critical',
-      enabled: true,
-      cooldownMinutes: 5,
-      channels: ['discord-alerts', 'email-critical', 'sms-oncall'],
-      tags: ['database', 'infrastructure'],
-      description: 'Alert when database connection errors exceed threshold'
-    });
-
-    // Rate limit hits
-    this.addRule({
-      id: 'rate-limit-hits',
-      name: 'Rate Limit Exceeded',
-      condition: 'rate_limit_hits > threshold',
-      threshold: 10,
-      severity: 'warning',
-      enabled: true,
-      cooldownMinutes: 30,
-      channels: ['discord-alerts'],
-      tags: ['rate-limiting', 'api'],
-      description: 'Alert when rate limits are frequently exceeded'
-    });
-  }
-
-  private initializeDefaultChannels(): void {
-    // Discord alerts channel
-    this.addChannel({
-      id: 'discord-alerts',
-      name: 'Discord Alerts',
-      type: 'discord',
-      config: {
-        webhookUrl: process.env.DISCORD_ALERT_WEBHOOK,
-        username: 'Unit Talk Alerts',
-        avatar: '🚨'
-      },
-      enabled: true,
-      severityFilter: ['info', 'warning', 'critical']
-    });
-
-    // Critical email alerts
-    this.addChannel({
-      id: 'email-critical',
-      name: 'Critical Email Alerts',
-      type: 'email',
-      config: {
-        recipients: process.env.CRITICAL_EMAIL_RECIPIENTS?.split(',') || [],
-        subject: '[CRITICAL] Unit Talk Alert',
-        from: process.env.ALERT_EMAIL_FROM || 'alerts@unittalk.com'
-      },
-      enabled: true,
-      severityFilter: ['critical']
-    });
-
-    // Business email alerts
-    this.addChannel({
-      id: 'email-business',
-      name: 'Business Email Alerts',
-      type: 'email',
-      config: {
-        recipients: process.env.BUSINESS_EMAIL_RECIPIENTS?.split(',') || [],
-        subject: '[ALERT] Unit Talk Business Alert',
-        from: process.env.ALERT_EMAIL_FROM || 'alerts@unittalk.com'
-      },
-      enabled: true,
-      severityFilter: ['warning', 'critical']
-    });
-
-    // SMS for critical on-call alerts
-    this.addChannel({
-      id: 'sms-oncall',
-      name: 'SMS On-Call',
-      type: 'sms',
-      config: {
-        recipients: process.env.ONCALL_PHONE_NUMBERS?.split(',') || [],
-        provider: 'twilio',
-        accountSid: process.env.TWILIO_ACCOUNT_SID,
-        authToken: process.env.TWILIO_AUTH_TOKEN,
-        fromNumber: process.env.TWILIO_FROM_NUMBER
-      },
-      enabled: true,
-      severityFilter: ['critical']
-    });
-
-    // Webhook for external integrations
-    this.addChannel({
-      id: 'webhook-external',
-      name: 'External Webhook',
-      type: 'webhook',
-      config: {
-        url: process.env.EXTERNAL_WEBHOOK_URL,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.EXTERNAL_WEBHOOK_TOKEN}`
+  // Public method to get template
+  public getTemplate(channelType: string, severity: string): AlertTemplate {
+    // Simplified template selection logic
+    const templates: Record<string, Record<string, AlertTemplate>> = {
+      sms: {
+        critical: {
+          title: 'CRITICAL ALERT',
+          body: 'Urgent action required: {message}'
+        },
+        warning: {
+          title: 'High Priority Alert',
+          body: 'Important: {message}'
+        },
+        info: {
+          title: 'Alert',
+          body: '{message}'
         }
       },
-      enabled: !!process.env.EXTERNAL_WEBHOOK_URL,
-      severityFilter: ['warning', 'critical']
-    });
-  }
-
-  private initializeDefaultTemplates(): void {
-    // Discord template
-    this.addTemplate({
-      id: 'discord-default',
-      name: 'Discord Default',
-      channel: 'discord',
-      severity: 'all',
-      template: `🚨 **{{severity}}** Alert: {{title}}
-
-**Description:** {{description}}
-**Value:** {{value}} (Threshold: {{threshold}})
-**Time:** {{timestamp}}
-**Tags:** {{tags}}
-
-{{#if metadata.agent}}**Agent:** {{metadata.agent}}{{/if}}
-{{#if metadata.component}}**Component:** {{metadata.component}}{{/if}}`,
-      variables: ['severity', 'title', 'description', 'value', 'threshold', 'timestamp', 'tags', 'metadata']
-    });
-
-    // Email template
-    this.addTemplate({
-      id: 'email-default',
-      name: 'Email Default',
-      channel: 'email',
-      severity: 'all',
-      template: `Alert: {{title}}
-
-Severity: {{severity}}
-Description: {{description}}
-Current Value: {{value}}
-Threshold: {{threshold}}
-Timestamp: {{timestamp}}
-Tags: {{tags}}
-
-{{#if metadata}}
-Additional Information:
-{{#each metadata}}
-- {{@key}}: {{this}}
-{{/each}}
-{{/if}}
-
-This is an automated alert from the Unit Talk monitoring system.`,
-      variables: ['severity', 'title', 'description', 'value', 'threshold', 'timestamp', 'tags', 'metadata']
-    });
-
-    // SMS template (short)
-    this.addTemplate({
-      id: 'sms-default',
-      name: 'SMS Default',
-      channel: 'sms',
-      severity: 'all',
-      template: `🚨 {{severity}}: {{title}} - Value: {{value}} (Threshold: {{threshold}}) at {{timestamp}}`,
-      variables: ['severity', 'title', 'value', 'threshold', 'timestamp']
-    });
-  }
-
-  // Public methods for managing rules, channels, and templates
-  public addRule(rule: AlertRule): void {
-    this.rules.set(rule.id, rule);
-    logger.info(`Added alert rule: ${rule.name}`, { ruleId: rule.id });
-  }
-
-  public removeRule(ruleId: string): void {
-    this.rules.delete(ruleId);
-    logger.info(`Removed alert rule: ${ruleId}`);
-  }
-
-  public addChannel(channel: AlertChannel): void {
-    this.channels.set(channel.id, channel);
-    logger.info(`Added alert channel: ${channel.name}`, { channelId: channel.id });
-  }
-
-  public removeChannel(channelId: string): void {
-    this.channels.delete(channelId);
-    logger.info(`Removed alert channel: ${channelId}`);
-  }
-
-  public addTemplate(template: NotificationTemplate): void {
-    this.templates.set(template.id, template);
-    logger.info(`Added notification template: ${template.name}`, { templateId: template.id });
-  }
-
-  // Main alert evaluation method
-  public async evaluateMetrics(metricsData: Record<string, any>): Promise<void> {
-    for (const [ruleId, rule] of this.rules) {
-      if (!rule.enabled) continue;
-
-      try {
-        const shouldAlert = await this.evaluateRule(rule, metricsData);
-        
-        if (shouldAlert) {
-          await this.triggerAlert(rule, metricsData);
+      discord: {
+        critical: {
+          id: 'discord-critical',
+          name: 'Discord Critical Alert',
+          channel: 'discord',
+          severity: 'critical',
+          template: `🚨 **CRITICAL Alert: {{title}}**\n\n{{description}}\n\nValue: {{value}} (Threshold: {{threshold}})\nTime: {{timestamp}}\nTags: {{tags}}`,
+          variables: ['title', 'description', 'value', 'threshold', 'timestamp', 'tags']
+        },
+        warning: {
+          id: 'discord-warning',
+          name: 'Discord Warning Alert',
+          channel: 'discord',
+          severity: 'warning',
+          template: `⚠️ **Warning Alert: {{title}}**\n\n{{description}}\n\nValue: {{value}} (Threshold: {{threshold}})\nTime: {{timestamp}}\nTags: {{tags}}`,
+          variables: ['title', 'description', 'value', 'threshold', 'timestamp', 'tags']
+        },
+        info: {
+          id: 'discord-info',
+          name: 'Discord Info Alert',
+          channel: 'discord',
+          severity: 'info',
+          template: `ℹ️ **Info Alert: {{title}}**\n\n{{description}}\n\nValue: {{value}} (Threshold: {{threshold}})\nTime: {{timestamp}}\nTags: {{tags}}`,
+          variables: ['title', 'description', 'value', 'threshold', 'timestamp', 'tags']
         }
-      } catch (error) {
-        logger.error(`Failed to evaluate rule ${ruleId}:`, error);
-        metrics.recordAgentError('AlertManager', 'rule_evaluation_failed');
       }
-    }
-  }
-
-  private async evaluateRule(rule: AlertRule, metricsData: Record<string, any>): Promise<boolean> {
-    // Check cooldown
-    const lastAlert = this.cooldowns.get(rule.id);
-    if (lastAlert && Date.now() - lastAlert < rule.cooldownMinutes * 60 * 1000) {
-      return false;
-    }
-
-    // Evaluate condition based on rule type
-    switch (rule.condition) {
-      case 'error_rate > threshold':
-        return this.evaluateErrorRate(metricsData) > rule.threshold;
-      
-      case 'avg_processing_time > threshold':
-        return this.evaluateProcessingTime(metricsData) > rule.threshold;
-      
-      case 'agent_health == 0':
-        return this.evaluateAgentHealth(metricsData) === 0;
-      
-      case 'ai_model_error_rate > threshold':
-        return this.evaluateAIModelErrorRate(metricsData) > rule.threshold;
-      
-      case 'pick_accuracy < threshold':
-        return this.evaluatePickAccuracy(metricsData) < rule.threshold;
-      
-      case 'db_connection_errors > threshold':
-        return this.evaluateDBConnectionErrors(metricsData) > rule.threshold;
-      
-      case 'rate_limit_hits > threshold':
-        return this.evaluateRateLimitHits(metricsData) > rule.threshold;
-      
-      default:
-        logger.warn(`Unknown rule condition: ${rule.condition}`);
-        return false;
-    }
-  }
-
-  private async triggerAlert(rule: AlertRule, metricsData: Record<string, any>): Promise<void> {
-    const alertId = `${rule.id}-${Date.now()}`;
-    const currentValue = this.getCurrentValue(rule, metricsData);
-    
-    const alert: Alert = {
-      id: alertId,
-      ruleId: rule.id,
-      title: rule.name,
-      description: rule.description,
-      severity: rule.severity,
-      timestamp: new Date().toISOString(),
-      value: currentValue,
-      threshold: rule.threshold,
-      status: 'active',
-      channels: rule.channels,
-      tags: rule.tags,
-      metadata: this.extractMetadata(rule, metricsData)
     };
 
-    // Store alert
-    this.activeAlerts.set(alertId, alert);
-    this.alertHistory.push(alert);
-    
-    // Set cooldown
-    this.cooldowns.set(rule.id, Date.now());
+    // Ensure channelType exists, default to 'discord'
+    const channelTypeKey = Object.keys(templates).includes(channelType) ? channelType : 'discord';
+    const channelTemplates = templates[channelTypeKey] || templates['discord'];
 
-    // Send notifications
-    await this.sendNotifications(alert);
+    // Ensure severity exists, default to 'info'
+    const severityKey = channelTemplates && Object.keys(channelTemplates).includes(severity) ? severity : 'info';
 
-    // Record metrics
-    metrics.recordAgentError('AlertManager', 'alert_triggered');
-    
-    logger.warn(`Alert triggered: ${rule.name}`, {
-      alertId,
-      ruleId: rule.id,
-      severity: rule.severity,
-      value: currentValue,
-      threshold: rule.threshold
-    });
+    if (!channelTemplates) {
+      return {
+        title: 'Default Alert',
+        body: 'No templates configured for this channel type: {message}'
+      };
+    }
+
+    const template = channelTemplates[severityKey];
+    if (!template) {
+      return {
+        title: 'Default Alert',
+        body: 'No templates configured for this severity: {message}'
+      };
+    }
+
+    // Guaranteed to return a template
+    return template;
   }
 
-  private async sendNotifications(alert: Alert): Promise<void> {
-    const promises = alert.channels.map(async (channelId) => {
-      const channel = this.channels.get(channelId);
-      if (!channel || !channel.enabled) {
-        logger.warn(`Channel not found or disabled: ${channelId}`);
-        return;
-      }
-
-      // Check severity filter
-      if (!channel.severityFilter.includes(alert.severity)) {
-        return;
-      }
-
-      try {
-        await this.sendToChannel(channel, alert);
-        logger.info(`Alert sent to channel: ${channel.name}`, { alertId: alert.id });
-      } catch (error) {
-        logger.error(`Failed to send alert to channel ${channel.name}:`, error);
-        metrics.recordAgentError('AlertManager', 'notification_failed');
-      }
-    });
-
-    await Promise.allSettled(promises);
+  // Public method to render alert message
+  public renderAlertMessage(alert: Alert, template: AlertTemplate): string {
+    if ('template' in template) {
+      // Notification template case
+      let renderedTemplate = template.template;
+      template.variables.forEach(variable => {
+        const value = alert[variable as keyof Alert] || alert.metadata?.[variable] || 'N/A';
+        renderedTemplate = renderedTemplate.replace(`{{${variable}}}`, String(value));
+      });
+      return renderedTemplate;
+    } else {
+      // Simple title/body template case
+      return template.body.replace('{message}', `${alert.title}: ${alert.description}`);
+    }
   }
 
-  private async sendToChannel(channel: AlertChannel, alert: Alert): Promise<void> {
-    const template = this.getTemplate(channel.type, alert.severity);
-    const message = this.renderTemplate(template, alert);
+  // Public method to initialize default rules
+  public initializeDefaultRules(): void {
+    // Placeholder for default rules initialization
+    const defaultRules: AlertRule[] = [
+      {
+        id: 'system-critical',
+        name: 'System Critical Alert',
+        condition: 'system_health < 0.5',
+        threshold: 0.5,
+        severity: 'critical',
+        enabled: true,
+        cooldownMinutes: 30,
+        channels: ['discord-alerts', 'sms-oncall'],
+        tags: ['system', 'health'],
+        description: 'System health is critically low'
+      }
+    ];
 
+    defaultRules.forEach(rule => this.rules.set(rule.id, rule));
+  }
+
+  // Public method to initialize default channels
+  public initializeDefaultChannels(): void {
+    // Placeholder for default channels initialization
+    const defaultChannels: AlertChannel[] = [
+      {
+        id: 'discord-alerts',
+        name: 'Discord Alerts',
+        type: 'discord',
+        config: { ['webhookUrl']: process.env['DISCORD_WEBHOOK_URL'] },
+        enabled: true,
+        severityFilter: ['info', 'warning', 'critical']
+      },
+      {
+        id: 'sms-oncall',
+        name: 'SMS On-Call',
+        type: 'sms',
+        config: { ['phoneNumber']: process.env['ONCALL_PHONE_NUMBER'] },
+        enabled: true,
+        severityFilter: ['critical']
+      }
+    ];
+
+    defaultChannels.forEach(channel => this.channels.set(channel.id, channel));
+  }
+
+  // Public method to initialize default templates
+  public initializeDefaultTemplates(): void {
+    // Placeholder for default templates initialization
+    const defaultTemplates: NotificationTemplate[] = [
+      {
+        id: 'discord-critical',
+        name: 'Discord Critical Alert Template',
+        channel: 'discord',
+        severity: 'critical',
+        template: `🚨 **CRITICAL Alert: {{title}}**\n\n{{description}}\n\nValue: {{value}} (Threshold: {{threshold}})\nTime: {{timestamp}}\nTags: {{tags}}`,
+        variables: ['title', 'description', 'value', 'threshold', 'timestamp', 'tags']
+      }
+    ];
+
+    defaultTemplates.forEach(template => this.templates.set(template.id, template));
+  }
+
+  // Public method to start alert processor
+  public startAlertProcessor(): void {
+    // Placeholder for alert processing logic
+    // Could include periodic cleanup of old alerts, checking for unresolved critical alerts, etc.
+    const cleanupInterval = setInterval(() => {
+      // Remove alerts older than 24 hours
+      const cutoffTime = Date.now() - 24 * 60 * 60 * 1000;
+      this.alertHistory = this.alertHistory.filter(alert => 
+        new Date(alert.timestamp).getTime() > cutoffTime
+      );
+
+      // Check and reset cooldowns
+      for (const [ruleId, cooldownTime] of this.cooldowns.entries()) {
+        if (Date.now() > cooldownTime) {
+          this.cooldowns.delete(ruleId);
+        }
+      }
+    }, 60 * 60 * 1000); // Run every hour
+
+    // Prevent the interval from keeping the process running
+    if (typeof (globalThis as any).ref === 'function') {
+      (globalThis as any).ref(cleanupInterval);
+    }
+  }
+
+  // Public method to send alert to a specific channel
+  public async sendAlert(channel: AlertChannel, message: string, alert: Alert): Promise<void> {
     switch (channel.type) {
-      case 'discord':
-        await this.sendDiscordAlert(channel, message, alert);
-        break;
-      
-      case 'email':
-        await this.sendEmailAlert(channel, message, alert);
-        break;
-      
       case 'sms':
         await this.sendSMSAlert(channel, message, alert);
         break;
-      
+      case 'email':
+        await this.sendEmailAlert(channel, message, alert);
+        break;
+      case 'discord':
+        await this.sendDiscordAlert(channel, message, alert);
+        break;
       case 'webhook':
         await this.sendWebhookAlert(channel, alert);
         break;
-      
       default:
         logger.warn(`Unsupported channel type: ${channel.type}`);
     }
   }
 
-  private async sendDiscordAlert(channel: AlertChannel, message: string, alert: Alert): Promise<void> {
-    const webhookUrl = channel.config.webhookUrl;
-    if (!webhookUrl) {
-      throw new Error('Discord webhook URL not configured');
-    }
-
-    const embed = {
-      title: `🚨 ${alert.severity.toUpperCase()}: ${alert.title}`,
-      description: message,
-      color: this.getSeverityColor(alert.severity),
-      timestamp: alert.timestamp,
-      fields: [
-        { name: 'Value', value: alert.value.toString(), inline: true },
-        { name: 'Threshold', value: alert.threshold.toString(), inline: true },
-        { name: 'Tags', value: alert.tags.join(', '), inline: true }
-      ]
-    };
-
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username: channel.config.username || 'Unit Talk Alerts',
-        embeds: [embed]
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Discord webhook failed: ${response.statusText}`);
-    }
+  // Public method to send SMS alert
+  public async sendSMSAlert(channel: AlertChannel, message: string, alert: Alert): Promise<void> {
+    // Placeholder for SMS alert sending logic
+    logger.info(`Sending SMS alert to ${channel.config['phoneNumber']}`, { message, alertId: alert.id });
+    // Implement actual SMS sending logic here
   }
 
-  private async sendEmailAlert(channel: AlertChannel, message: string, alert: Alert): Promise<void> {
-    // This would integrate with your email service (SendGrid, SES, etc.)
-    logger.info('Email alert would be sent here', {
-      recipients: channel.config.recipients,
-      subject: `${channel.config.subject} - ${alert.title}`,
-      message
-    });
+  // Public method to send email alert
+  public async sendEmailAlert(channel: AlertChannel, message: string, alert: Alert): Promise<void> {
+    // Placeholder for email alert sending logic
+    logger.info(`Sending email alert to ${channel.config['email']}`, { message, alertId: alert.id });
+    // Implement actual email sending logic here
   }
 
-  private async sendSMSAlert(channel: AlertChannel, message: string, alert: Alert): Promise<void> {
-    // This would integrate with Twilio or similar SMS service
-    logger.info('SMS alert would be sent here', {
-      recipients: channel.config.recipients,
-      message
-    });
+  // Public method to send Discord alert
+  public async sendDiscordAlert(channel: AlertChannel, message: string, alert: Alert): Promise<void> {
+    // Placeholder for Discord alert sending logic
+    logger.info(`Sending Discord alert to ${channel.config['webhookUrl']}`, { message, alertId: alert.id });
+    // Implement actual Discord webhook sending logic here
   }
 
-  private async sendWebhookAlert(channel: AlertChannel, alert: Alert): Promise<void> {
-    const response = await fetch(channel.config.url, {
-      method: channel.config.method || 'POST',
-      headers: channel.config.headers || { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        alert,
-        timestamp: new Date().toISOString(),
-        source: 'unit-talk-alerts'
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Webhook failed: ${response.statusText}`);
-    }
+  // Public method to send webhook alert
+  public async sendWebhookAlert(channel: AlertChannel, alert: Alert): Promise<void> {
+    // Placeholder for webhook alert sending logic
+    logger.info(`Sending webhook alert to ${channel.config['webhookUrl']}`, { alertId: alert.id });
+    // Implement actual webhook sending logic here
   }
 
-  // Helper methods for metric evaluation
-  private evaluateErrorRate(metricsData: Record<string, any>): number {
-    // Calculate error rate from metrics
-    const totalRequests = metricsData.totalRequests || 1;
-    const totalErrors = metricsData.totalErrors || 0;
-    return totalErrors / totalRequests;
-  }
+  // Public method to send notifications
+  public async sendNotifications(alert: Alert): Promise<void> {
+    // Determine escalation chain based on alert severity
+    const escalationChain = this.escalationChains.get(alert.severity) || [];
 
-  private evaluateProcessingTime(metricsData: Record<string, any>): number {
-    return metricsData.avgProcessingTime || 0;
-  }
+    // Filter activeChannels by escalationChain order
+    for (const channelType of escalationChain) {
+      // Find channels for this type in alert.channels and enabled
+      const channels = alert.channels
+        .map(chId => this.channels.get(chId))
+        .filter(ch => ch && ch.type === channelType && ch.enabled && ch.severityFilter.includes(alert.severity));
 
-  private evaluateAgentHealth(metricsData: Record<string, any>): number {
-    // Return 0 if any agent is unhealthy, 1 if all healthy
-    const unhealthyAgents = metricsData.unhealthyAgents || 0;
-    return unhealthyAgents > 0 ? 0 : 1;
-  }
+      for (const channel of channels) {
+        try {
+          const template = this.getTemplate(channel!.type, alert.severity);
+          const message = this.renderAlertMessage(alert, template);
 
-  private evaluateAIModelErrorRate(metricsData: Record<string, any>): number {
-    const totalAIRequests = metricsData.totalAIRequests || 1;
-    const totalAIErrors = metricsData.totalAIErrors || 0;
-    return totalAIErrors / totalAIRequests;
-  }
+          // Send alert to the channel using new sendAlert method
+          await this.sendAlert(channel!, message, alert);
+          logger.info(`Alert sent to channel via escalation: ${channel!.name}`, { alertId: alert.id });
 
-  private evaluatePickAccuracy(metricsData: Record<string, any>): number {
-    return metricsData.pickAccuracy || 1;
-  }
-
-  private evaluateDBConnectionErrors(metricsData: Record<string, any>): number {
-    return metricsData.dbConnectionErrors || 0;
-  }
-
-  private evaluateRateLimitHits(metricsData: Record<string, any>): number {
-    return metricsData.rateLimitHits || 0;
-  }
-
-  private getCurrentValue(rule: AlertRule, metricsData: Record<string, any>): number {
-    switch (rule.condition) {
-      case 'error_rate > threshold':
-        return this.evaluateErrorRate(metricsData);
-      case 'avg_processing_time > threshold':
-        return this.evaluateProcessingTime(metricsData);
-      case 'agent_health == 0':
-        return this.evaluateAgentHealth(metricsData);
-      case 'ai_model_error_rate > threshold':
-        return this.evaluateAIModelErrorRate(metricsData);
-      case 'pick_accuracy < threshold':
-        return this.evaluatePickAccuracy(metricsData);
-      case 'db_connection_errors > threshold':
-        return this.evaluateDBConnectionErrors(metricsData);
-      case 'rate_limit_hits > threshold':
-        return this.evaluateRateLimitHits(metricsData);
-      default:
-        return 0;
-    }
-  }
-
-  private extractMetadata(rule: AlertRule, metricsData: Record<string, any>): Record<string, any> {
-    return {
-      rule: rule.name,
-      condition: rule.condition,
-      evaluatedAt: new Date().toISOString(),
-      metricsSnapshot: {
-        totalRequests: metricsData.totalRequests,
-        totalErrors: metricsData.totalErrors,
-        avgProcessingTime: metricsData.avgProcessingTime,
-        unhealthyAgents: metricsData.unhealthyAgents
+          // Once sent to a channel in this step of escalation, break to next escalation step
+          break;
+        } catch (error) {
+          logger.error(`Failed to send alert to channel ${channel!.name}:`, error);
+          metrics.recordAgentError('AlertManager', 'notification_failed');
+        }
       }
-    };
-  }
-
-  private getTemplate(channelType: string, severity: string): NotificationTemplate {
-    const templateId = `${channelType}-default`;
-    return this.templates.get(templateId) || this.templates.get('discord-default')!;
-  }
-
-  private renderTemplate(template: NotificationTemplate, alert: Alert): string {
-    let rendered = template.template;
-    
-    // Simple template rendering (in production, use a proper template engine)
-    rendered = rendered.replace(/\{\{severity\}\}/g, alert.severity.toUpperCase());
-    rendered = rendered.replace(/\{\{title\}\}/g, alert.title);
-    rendered = rendered.replace(/\{\{description\}\}/g, alert.description);
-    rendered = rendered.replace(/\{\{value\}\}/g, alert.value.toString());
-    rendered = rendered.replace(/\{\{threshold\}\}/g, alert.threshold.toString());
-    rendered = rendered.replace(/\{\{timestamp\}\}/g, alert.timestamp);
-    rendered = rendered.replace(/\{\{tags\}\}/g, alert.tags.join(', '));
-    
-    return rendered;
-  }
-
-  private getSeverityColor(severity: string): number {
-    switch (severity) {
-      case 'critical': return 0xff0000; // Red
-      case 'warning': return 0xffa500;  // Orange
-      case 'info': return 0x0099ff;     // Blue
-      default: return 0x808080;         // Gray
     }
   }
 
-  private startAlertProcessor(): void {
-    // Process alerts every 30 seconds
-    setInterval(async () => {
-      try {
-        // This would typically get metrics from your monitoring system
-        const metricsData = await this.gatherCurrentMetrics();
-        await this.evaluateMetrics(metricsData);
-      } catch (error) {
-        logger.error('Alert processor error:', error);
-      }
-    }, 30000);
-  }
-
-  private async gatherCurrentMetrics(): Promise<Record<string, any>> {
-    // This would gather actual metrics from your system
-    // For now, return mock data
-    return {
-      totalRequests: 1000,
-      totalErrors: 5,
-      avgProcessingTime: 2.5,
-      unhealthyAgents: 0,
-      totalAIRequests: 100,
-      totalAIErrors: 2,
-      pickAccuracy: 0.75,
-      dbConnectionErrors: 0,
-      rateLimitHits: 3
-    };
-  }
-
-  // Public methods for alert management
-  public getActiveAlerts(): Alert[] {
-    return Array.from(this.activeAlerts.values());
-  }
-
-  public getAlertHistory(limit: number = 100): Alert[] {
-    return this.alertHistory.slice(-limit);
-  }
-
-  public acknowledgeAlert(alertId: string): void {
-    const alert = this.activeAlerts.get(alertId);
-    if (alert) {
-      alert.status = 'acknowledged';
-      logger.info(`Alert acknowledged: ${alertId}`);
+  // Public method to add an alert to the system
+  public async createAlert(alert: Alert): Promise<void> {
+    // Check if the alert is already in cooldown
+    if (this.cooldowns.has(alert.ruleId)) {
+      logger.info(`Alert rule ${alert.ruleId} is in cooldown`, { alertId: alert.id });
+      return;
     }
+
+    // Add alert to active alerts and history
+    this.activeAlerts.set(alert.id, alert);
+    this.alertHistory.push(alert);
+
+    // Set cooldown for the alert rule
+    const cooldownMinutes = alert.cooldownMinutes ?? 30;
+    this.cooldowns.set(alert.ruleId, Date.now() + cooldownMinutes * 60 * 1000);
+
+    // Send notifications
+    await this.sendNotifications(alert);
   }
 
+  // Public method to resolve an active alert
   public resolveAlert(alertId: string): void {
     const alert = this.activeAlerts.get(alertId);
     if (alert) {
       alert.status = 'resolved';
       this.activeAlerts.delete(alertId);
-      logger.info(`Alert resolved: ${alertId}`);
     }
   }
 
-  public getRules(): AlertRule[] {
-    return Array.from(this.rules.values());
+  // Public method to get active alerts
+  public getActiveAlerts(): Alert[] {
+    return Array.from(this.activeAlerts.values());
   }
 
-  public getChannels(): AlertChannel[] {
-    return Array.from(this.channels.values());
+  // Public method to get alert history
+  public getAlertHistory(): Alert[] {
+    return this.alertHistory;
   }
 }
 

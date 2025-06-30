@@ -1,9 +1,21 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Database } from '../../src/db/types/supabase';
+import { Database } from '../db/types/supabase-complete';
 import { UserProfile, UserTier } from '../types/index';
 import { logger } from '../utils/logger';
 import { botConfig } from '../config';
+import {
+  databaseService,
+  UserProfileRow,
+  UserProfileInsert,
+  UserProfileUpdate,
+  UserPicksRow
+} from './database';
 
+/**
+ * Legacy Supabase service - now uses the new strictly typed DatabaseService
+ * This maintains backward compatibility while providing strict typing
+ * @deprecated Use DatabaseService directly for new code
+ */
 export class SupabaseService {
   public client: SupabaseClient<Database>;
 
@@ -24,195 +36,195 @@ export class SupabaseService {
     );
   }
 
-  async getUserProfile(discordId: string): Promise<any | null> {
+  // ==================== USER PROFILE OPERATIONS ====================
+
+  /**
+   * @deprecated Use databaseService.getUserProfile() instead
+   */
+  async getUserProfile(discordId: string): Promise<UserProfile | null> {
     try {
-      const { data, error } = await this.client
-        .from('user_profiles')
-        .select('*')
-        .eq('discord_id', discordId)
-        .single();
-
-      if (error) {
-        if (error.code === 'PGRST116') {
-          return null; // User not found
-        }
-        throw error;
-      }
-
-      return data as UserProfile;
+      const profile = await databaseService.getUserProfile(discordId);
+      return profile ? this.mapUserProfileRowToLegacy(profile) : null;
     } catch (error) {
       logger.error('Error fetching user profile:', error);
       return null;
     }
   }
 
-  async createUserProfile(profile: Partial<UserProfile>): Promise<any | null> {
+  /**
+   * @deprecated Use databaseService.createUserProfile() instead
+   */
+  async createUserProfile(profile: Partial<UserProfile>): Promise<UserProfile | null> {
     try {
-      const { data, error } = await this.client
-        .from('user_profiles')
-        .insert([profile])
-        .select()
-        .single();
+      const insertData: UserProfileInsert = {
+        discord_id: profile.discord_id!,
+        username: profile.username || null,
+        discriminator: profile.discriminator || null,
+        avatar: profile.avatar_url || null,
+        tier: profile.tier || 'member',
+        subscription_tier: this.mapTierToSubscription(profile.tier || 'member'),
+        metadata: {}
+      };
 
-      if (error) throw error;
-      return data as UserProfile;
+      const result = await databaseService.createUserProfile(insertData);
+      return result ? this.mapUserProfileRowToLegacy(result) : null;
     } catch (error) {
       logger.error('Error creating user profile:', error);
       return null;
     }
   }
 
-  async updateUserProfile(discordId: string, updates: Partial<UserProfile>): Promise<any | null> {
+  /**
+   * @deprecated Use databaseService.updateUserProfile() instead
+   */
+  async updateUserProfile(discordId: string, updates: Partial<UserProfile>): Promise<UserProfile | null> {
     try {
-      const updateData: any = {};
+      const updateData: UserProfileUpdate = {};
       
-      // Map the updates to the correct database fields
+      // Map legacy fields to new schema
       if (updates.tier !== undefined) updateData.tier = updates.tier;
       if (updates.username !== undefined) updateData.username = updates.username;
-      if (updates.avatar_url !== undefined) updateData.avatar_url = updates.avatar_url;
-      if (updates.total_picks !== undefined) updateData.total_picks = updates.total_picks;
-      if (updates.winning_picks !== undefined) updateData.winning_picks = updates.winning_picks;
-      if (updates.losing_picks !== undefined) updateData.losing_picks = updates.losing_picks;
-      if (updates.pending_picks !== undefined) updateData.pending_picks = updates.pending_picks;
-      if (updates.total_units !== undefined) updateData.total_units = updates.total_units;
-      if (updates.units_won !== undefined) updateData.units_won = updates.units_won;
-      if (updates.units_lost !== undefined) updateData.units_lost = updates.units_lost;
-      if (updates.win_rate !== undefined) updateData.win_rate = updates.win_rate;
-      if (updates.roi !== undefined) updateData.roi = updates.roi;
-      if (updates.streak !== undefined) updateData.streak = updates.streak;
-      if (updates.best_streak !== undefined) updateData.best_streak = updates.best_streak;
-      if (updates.worst_streak !== undefined) updateData.worst_streak = updates.worst_streak;
-      if (updates.average_odds !== undefined) updateData.average_odds = updates.average_odds;
-      if (updates.total_profit !== undefined) updateData.total_profit = updates.total_profit;
-      if (updates.last_active !== undefined) updateData.last_active = updates.last_active;
-      if (updates.created_at !== undefined) updateData.created_at = updates.created_at;
-      if (updates.updated_at !== undefined) updateData.updated_at = updates.updated_at;
+      if (updates.avatar_url !== undefined) updateData.avatar = updates.avatar_url;
+      if (updates.discriminator !== undefined) updateData.discriminator = updates.discriminator;
+      if (updates.last_active !== undefined) {
+        updateData.last_active = typeof updates.last_active === 'string'
+          ? updates.last_active
+          : updates.last_active.toISOString();
+      }
 
-      const { data, error } = await this.client
-        .from('user_profiles')
-        .update(updateData)
-        .eq('discord_id', discordId)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data as UserProfile;
+      const result = await databaseService.updateUserProfile(discordId, updateData);
+      return result ? this.mapUserProfileRowToLegacy(result) : null;
     } catch (error) {
       logger.error('Error updating user profile:', error);
       return null;
     }
   }
 
+  /**
+   * @deprecated Use databaseService.getUserPicks() instead
+   */
   async getUserPicks(discordId: string, limit = 10): Promise<any[]> {
     try {
-      const { data, error } = await this.client
-        .from('final_picks')
-        .select('*')
-        .eq('capper_id', discordId)
-        .order('created_at', { ascending: false })
-        .limit(limit);
-
-      if (error) throw error;
-      return data || [];
+      const picks = await databaseService.getUserPicks(discordId, { limit });
+      return picks.map(pick => this.mapUserPickRowToLegacy(pick));
     } catch (error) {
       logger.error('Error fetching user picks:', error);
       return [];
     }
   }
 
+  /**
+   * @deprecated Use databaseService.createUserPick() instead
+   */
   async createPick(pick: Partial<any>): Promise<any | null> {
     try {
-      const { data, error } = await this.client
-        .from('final_picks')
-        .insert([pick])
-        .select()
-        .single();
+      // Try to create as final pick first (legacy behavior)
+      const finalPickResult = await databaseService.createFinalPick({
+        capper_id: pick.capper_id || pick.user_id || '',
+        player_id: pick.player_id || '',
+        game_id: pick.game_id || '',
+        stat_type: pick.stat_type || '',
+        line: pick.line || 0,
+        odds: pick.odds || 0,
+        stake: pick.stake || 0,
+        payout: pick.payout || 0,
+        result: pick.result || 'pending',
+        actual_value: pick.actual_value || 0,
+        tier: pick.tier || 'member',
+        ticket_type: pick.ticket_type || 'single',
+        sport: pick.sport || '',
+        league: pick.league || '',
+        confidence: pick.confidence || 0,
+        analysis: pick.analysis || null,
+        metadata: pick.metadata || null
+      });
 
-      if (error) throw error;
-      return data;
+      return finalPickResult;
     } catch (error) {
       logger.error('Error creating pick:', error);
       return null;
     }
   }
 
+  /**
+   * @deprecated Use databaseService.updateFinalPick() instead
+   */
   async updatePick(pickId: string, updates: Partial<any>): Promise<any | null> {
     try {
-      const { data, error } = await this.client
-        .from('final_picks')
-        .update(updates)
-        .eq('id', pickId)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      const result = await databaseService.updateFinalPick(pickId, updates);
+      return result;
     } catch (error) {
       logger.error('Error updating pick:', error);
       return null;
     }
   }
 
+  /**
+   * @deprecated Use databaseService.getFinalPicks() instead
+   */
+  async getPick(pickId: string): Promise<any | null> {
+    try {
+      const { data, error } = await this.client
+        .from('final_picks')
+        .select('*')
+        .eq('id', pickId)
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      logger.error('Error getting pick:', error);
+      return null;
+    }
+  }
+
+  /**
+   * @deprecated Use databaseService.trackUserActivity() instead
+   */
   async trackUserActivity(discordId: string, activityType: string, metadata?: Record<string, any>): Promise<void> {
     try {
-      // Insert activity record
-      await this.client
-        .from('analytics_events')
-        .insert({
-          type: 'activity',
-          user_id: discordId,
-          action: activityType,
-          metadata: metadata || {},
-          timestamp: new Date().toISOString()
-        });
-
-      // Update user's last_active timestamp
-      await this.updateUserProfile(discordId, {
-        last_active: new Date().toISOString()
-      });
+      await databaseService.trackUserActivity(discordId, activityType, metadata);
     } catch (error) {
       logger.error('Error tracking user activity:', error);
     }
   }
 
+  /**
+   * @deprecated Use databaseService.getUserPickStats() instead
+   */
   async incrementUserStats(discordId: string, statType: 'messages' | 'reactions', increment = 1): Promise<void> {
     try {
-      const profile = await this.getUserProfile(discordId);
+      const profile = await databaseService.getUserProfile(discordId);
       if (!profile) return;
 
-      const updates: Partial<UserProfile> = {};
-      if (statType === 'messages') {
-        updates.total_picks = (profile.total_picks || 0) + increment;
-      }
-
-      if (Object.keys(updates).length > 0) {
-        await this.updateUserProfile(discordId, updates);
-      }
+      // Legacy behavior - just track activity
+      await databaseService.trackUserActivity(discordId, statType, { increment });
     } catch (error) {
       logger.error('Error incrementing user stats:', error);
     }
   }
 
+  /**
+   * @deprecated Use databaseService.getUserTier() instead
+   */
   async getUserTier(discordId: string): Promise<UserTier> {
     try {
-      const profile = await this.getUserProfile(discordId);
-      return profile?.tier || 'member';
+      return await databaseService.getUserTier(discordId);
     } catch (error) {
       logger.error('Error getting user tier:', error);
       return 'member';
     }
   }
 
+  /**
+   * @deprecated Use databaseService.updateUserProfile() instead
+   */
   async updateUserActivity(discordId: string, activityData: Record<string, any>): Promise<void> {
     try {
-      await this.client
-        .from('user_profiles')
-        .update({
-          last_active: new Date(),
-          activity_score: activityData['activityScore'] || 0,
-          updated_at: new Date()
-        })
-        .eq('discord_id', discordId);
+      await databaseService.updateUserProfile(discordId, {
+        last_active: new Date().toISOString(),
+        metadata: activityData
+      });
     } catch (error) {
       logger.error('Error updating user activity:', error);
       throw error;
@@ -220,18 +232,16 @@ export class SupabaseService {
   }
 
   /**
-   * Upsert user cooldown
+   * @deprecated Use databaseService.upsertUserCooldown() instead
    */
   async upsertUserCooldown(userId: string, action: string, expiresAt: Date): Promise<void> {
     try {
-      await this.client
-        .from('user_cooldowns')
-        .upsert({
-          user_id: userId,
-          action: action,
-          expires_at: expiresAt.toISOString(),
-          created_at: new Date().toISOString()
-        });
+      await databaseService.upsertUserCooldown({
+        user_id: userId,
+        discord_id: userId,
+        command_type: action,
+        expires_at: expiresAt.toISOString()
+      });
     } catch (error) {
       logger.error('Error upserting user cooldown:', error);
       throw error;
@@ -239,22 +249,22 @@ export class SupabaseService {
   }
 
   /**
-   * Create or update user profile
+   * @deprecated Use databaseService.upsertUserProfile() instead
    */
   async createOrUpdateUserProfile(userId: string, profile: Partial<UserProfile>): Promise<any> {
     try {
-      const { data, error } = await this.client
-        .from('user_profiles')
-        .upsert({
-          discord_id: userId,
-          ...profile,
-          updated_at: new Date().toISOString()
-        })
-        .select()
-        .single();
+      const insertData: UserProfileInsert = {
+        discord_id: userId,
+        username: profile.username || null,
+        discriminator: profile.discriminator || null,
+        avatar: profile.avatar_url || null,
+        tier: profile.tier || 'member',
+        subscription_tier: this.mapTierToSubscription(profile.tier || 'member'),
+        metadata: profile.metadata || {}
+      };
 
-      if (error) throw error;
-      return data as any;
+      const result = await databaseService.upsertUserProfile(insertData);
+      return result ? this.mapUserProfileRowToLegacy(result) : null;
     } catch (error) {
       logger.error('Error creating/updating user profile:', error);
       throw error;
@@ -262,16 +272,11 @@ export class SupabaseService {
   }
 
   /**
-   * Update user tier
+   * @deprecated Use databaseService.updateUserTier() instead
    */
   async updateUserTier(userId: string, tier: UserTier): Promise<void> {
     try {
-      const { error } = await this.client
-        .from('user_profiles')
-        .update({ tier, updated_at: new Date().toISOString() })
-        .eq('discord_id', userId);
-
-      if (error) throw error;
+      await databaseService.updateUserTier(userId, tier);
     } catch (error) {
       logger.error('Error updating user tier:', error);
       throw error;
@@ -279,20 +284,109 @@ export class SupabaseService {
   }
 
   /**
-   * Update user status
+   * @deprecated Use databaseService.updateUserProfile() instead
    */
   async updateUserStatus(userId: string, isActive: boolean): Promise<void> {
     try {
-      const { error } = await this.client
-        .from('user_profiles')
-        .update({ isActive, updated_at: new Date().toISOString() })
-        .eq('discord_id', userId);
-
-      if (error) throw error;
+      await databaseService.updateUserProfile(userId, {
+        metadata: { isActive }
+      });
     } catch (error) {
       logger.error('Error updating user status:', error);
       throw error;
     }
+  }
+
+  // ==================== MAPPING FUNCTIONS ====================
+
+  /**
+   * Map new UserProfileRow to legacy UserProfile interface
+   */
+  private mapUserProfileRowToLegacy(profile: UserProfileRow): UserProfile {
+    return {
+      id: profile.id,
+      discord_id: profile.discord_id,
+      username: profile.username,
+      discriminator: profile.discriminator,
+      avatar_url: profile.avatar,
+      tier: profile.tier,
+      subscription_tier: profile.subscription_tier,
+      created_at: profile.created_at,
+      updated_at: profile.updated_at,
+      last_active: profile.last_active,
+      metadata: profile.metadata,
+      // Legacy fields that might be expected
+      total_picks: 0,
+      winning_picks: 0,
+      losing_picks: 0,
+      pending_picks: 0,
+      total_units: 0,
+      units_won: 0,
+      units_lost: 0,
+      win_rate: 0,
+      roi: 0,
+      streak: 0,
+      best_streak: 0,
+      worst_streak: 0,
+      average_odds: 0,
+      total_profit: 0
+    };
+  }
+
+  /**
+   * Map UserPicksRow to legacy pick format
+   */
+  private mapUserPickRowToLegacy(pick: UserPicksRow): any {
+    return {
+      id: pick.id,
+      user_id: pick.user_id,
+      discord_id: pick.discord_id,
+      game_id: pick.game_id,
+      thread_id: pick.thread_id,
+      pick_type: pick.pick_type,
+      player_name: pick.player_name,
+      stat_type: pick.stat_type,
+      line: pick.line,
+      over_under: pick.over_under,
+      odds: pick.odds,
+      stake: pick.stake,
+      confidence: pick.confidence,
+      reasoning: pick.reasoning,
+      result: pick.result,
+      actual_value: pick.actual_value,
+      profit_loss: pick.profit_loss,
+      created_at: pick.created_at,
+      updated_at: pick.updated_at,
+      metadata: pick.metadata
+    };
+  }
+
+  /**
+   * Map tier to subscription tier
+   */
+  private mapTierToSubscription(tier: UserTier): 'FREE' | 'PREMIUM' | 'VIP' | 'VIP_PLUS' {
+    switch (tier) {
+      case 'vip_plus':
+        return 'VIP_PLUS';
+      case 'vip':
+        return 'VIP';
+      case 'staff':
+      case 'admin':
+      case 'owner':
+        return 'VIP_PLUS';
+      default:
+        return 'FREE';
+    }
+  }
+
+  // ==================== DIRECT ACCESS TO NEW SERVICE ====================
+
+  /**
+   * Get direct access to the new DatabaseService
+   * Use this for new code that wants strict typing
+   */
+  get database(): typeof databaseService {
+    return databaseService;
   }
 }
 

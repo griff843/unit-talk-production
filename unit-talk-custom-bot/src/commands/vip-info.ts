@@ -1,46 +1,49 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { createVIPInfoEmbed } from '../utils/embeds';
-import { logger } from '../utils/logger';
+import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
+import { onboardingPrompts } from '../config/onboarding.prompts';
+import { getUserTier } from '../utils/roleUtils';
 
-export const vipInfoCommand = {
-  data: new SlashCommandBuilder()
-    .setName('vip-info')
-    .setDescription('View VIP membership benefits, pricing, and upgrade options'),
+export const data = new SlashCommandBuilder()
+  .setName('vip-info')
+  .setDescription('View benefits of upgrading to VIP/VIP+');
 
-  async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    try {
-      const vipInfoEmbed = createVIPInfoEmbed();
-      
-      // Create action buttons
-      const actionRow = new ActionRowBuilder<ButtonBuilder>()
-        .addComponents(
-          new ButtonBuilder()
-            .setCustomId('upgrade_vip')
-            .setLabel('🚀 Upgrade to VIP')
-            .setStyle(ButtonStyle.Primary),
-          new ButtonBuilder()
-            .setCustomId('upgrade_vip_plus')
-            .setLabel('👑 Upgrade to VIP+')
-            .setStyle(ButtonStyle.Success),
-          new ButtonBuilder()
-            .setCustomId('start_trial')
-            .setLabel('🎟️ Start $1 Trial')
-            .setStyle(ButtonStyle.Secondary)
-        );
-
-      await interaction.reply({ 
-        embeds: [vipInfoEmbed], 
-        components: [actionRow],
-        ephemeral: true 
-      });
-
-      logger.info(`VIP info command used by ${interaction.user.username}`);
-    } catch (error) {
-      logger.error('Error in vip-info command:', error);
-      await interaction.reply({ 
-        content: 'An error occurred while showing VIP information.', 
-        ephemeral: true 
-      });
+export async function execute(interaction: ChatInputCommandInteraction) {
+  try {
+    // Fetch the full guild member to avoid API member type issues
+    const member = await interaction.guild?.members.fetch(interaction.user.id);
+    if (!member) {
+      await interaction.reply({ content: 'Unable to fetch your member information.', ephemeral: true });
+      return;
     }
+
+    const userTier = getUserTier(member);
+
+    let embed: EmbedBuilder;
+
+    if (userTier === 'vip_plus') {
+      embed = new EmbedBuilder()
+        .setTitle('🔥 You\'re already VIP+ Elite!')
+        .setDescription('You have access to all our premium features. Use `/edge-tracker` and `/trend-breaker` to maximize your edge!')
+        .setColor(0xff4500);
+    } else if (userTier === 'vip') {
+      embed = new EmbedBuilder()
+        .setTitle(onboardingPrompts.vipPlusPreview.embed.title)
+        .setDescription(onboardingPrompts.vipPlusPreview.embed.description)
+        .setColor(onboardingPrompts.vipPlusPreview.embed.color)
+        .setFooter({ text: onboardingPrompts.vipPlusPreview.embed.footer.text });
+    } else {
+      embed = new EmbedBuilder()
+        .setTitle(onboardingPrompts.vipFeatures.embed.title)
+        .setDescription(onboardingPrompts.vipFeatures.embed.description)
+        .setColor(onboardingPrompts.vipFeatures.embed.color)
+        .setFooter({ text: onboardingPrompts.vipFeatures.embed.footer.text });
+    }
+
+    await interaction.reply({ embeds: [embed], ephemeral: true });
+  } catch (error) {
+    console.error('Error in vip-info command:', error);
+    await interaction.reply({ 
+      content: '❌ An error occurred while showing VIP information.', 
+      ephemeral: true 
+    });
   }
-};
+}

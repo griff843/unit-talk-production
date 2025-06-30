@@ -4,10 +4,11 @@ import { createClient } from '@supabase/supabase-js';
 import { Logger } from '../../utils/logger';
 import { ErrorHandler } from '../../utils/errorHandling';
 import { BaseAgentDependencies } from './types';
+import { env } from '../../config/env';
 
 export async function loadBaseAgentDependencies(): Promise<BaseAgentDependencies> {
-  const supabaseUrl = process.env.SUPABASE_URL!;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const supabaseUrl = env.SUPABASE_URL!;
+  const supabaseServiceKey = env.SUPABASE_SERVICE_ROLE_KEY!;
 
   const supabase = createClient(supabaseUrl, supabaseServiceKey, {
     auth: { persistSession: false }

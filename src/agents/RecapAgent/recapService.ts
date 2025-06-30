@@ -24,21 +24,21 @@ export class RecapService {
 
   constructor(config?: Partial<RecapConfig>) {
     this.supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_ANON_KEY!
+      process.env['SUPABASE_URL']!,
+      process.env['SUPABASE_ANON_KEY']!
     );
 
     this.config = {
-      legendFooter: process.env.LEGEND_FOOTER === 'true',
-      microRecap: process.env.MICRO_RECAP === 'true',
-      notionSync: process.env.NOTION_SYNC === 'true',
-      clvDelta: process.env.CLV_DELTA === 'true',
-      streakSparkline: process.env.STREAK_SPARKLINE === 'true',
-      roiThreshold: parseFloat(process.env.ROI_THRESHOLD || '5.0'),
-      microRecapCooldown: parseInt(process.env.MICRO_RECAP_COOLDOWN || '60'),
-      slashCommands: process.env.SLASH_COMMANDS === 'true',
-      metricsEnabled: process.env.METRICS_ENABLED !== 'false',
-      metricsPort: parseInt(process.env.METRICS_PORT || '3001'),
+      legendFooter: process.env['LEGEND_FOOTER'] === 'true',
+      microRecap: process.env['MICRO_RECAP'] === 'true',
+      notionSync: process.env['NOTION_SYNC'] === 'true',
+      clvDelta: process.env['CLV_DELTA'] === 'true',
+      streakSparkline: process.env['STREAK_SPARKLINE'] === 'true',
+      roiThreshold: parseFloat(process.env['ROI_THRESHOLD'] || '5.0'),
+      microRecapCooldown: parseInt(process.env['MICRO_RECAP_COOLDOWN'] || '60'),
+      slashCommands: process.env['SLASH_COMMANDS'] === 'true',
+      metricsEnabled: process.env['METRICS_ENABLED'] !== 'false',
+      metricsPort: parseInt(process.env['METRICS_PORT'] || '3001'),
       ...config
     };
 
@@ -209,7 +209,7 @@ export class RecapService {
     // Calculate units and ROI
     const totalUnits = picks.reduce((sum, pick) => sum + (pick.units || 1), 0);
     const netUnits = picks.reduce((sum, pick) => {
-      const profitLoss = typeof pick.profit_loss === 'number' ? pick.profit_loss : 0;
+      const profitLoss = typeof pick['profit_loss'] === 'number' ? pick['profit_loss'] : 0;
       return sum + profitLoss;
     }, 0);
     const roi = totalUnits > 0 ? (netUnits / totalUnits) * 100 : 0;
@@ -241,14 +241,14 @@ export class RecapService {
       netUnits,
       roi,
       avgEdge,
-      avgClvDelta,
+      ...(avgClvDelta !== undefined && { avgClvDelta }),
       capperBreakdown,
       tierBreakdown,
       hotStreaks,
-      bestPick,
-      worstPick,
-      biggestWin,
-      badBeat
+      ...(bestPick && { bestPick }),
+      ...(worstPick && { worstPick }),
+      ...(biggestWin && { biggestWin }),
+      ...(badBeat && { badBeat })
     };
   }
 
@@ -276,7 +276,7 @@ export class RecapService {
       const pushes = capperPicks.filter(p => p.outcome === 'push').length;
       const totalUnits = capperPicks.reduce((sum, pick) => sum + (pick.units || 1), 0);
       const netUnits = capperPicks.reduce((sum, pick) => {
-        const profitLoss = typeof pick.profit_loss === 'number' ? pick.profit_loss : 0;
+        const profitLoss = typeof pick['profit_loss'] === 'number' ? pick['profit_loss'] : 0;
         return sum + profitLoss;
       }, 0);
       const winRate = (wins + losses) > 0 ? (wins / (wins + losses)) * 100 : 0;
@@ -291,6 +291,10 @@ export class RecapService {
       const streakSparkline = this.config.streakSparkline ? 
         this.generateStreakSparkline(capperPicks) : undefined;
 
+      // Find best and worst picks
+      const bestPick = this.findBestPick(capperPicks);
+      const worstPick = this.findWorstPick(capperPicks);
+
       capperStats.push({
         capper,
         picks: capperPicks.length,
@@ -302,12 +306,12 @@ export class RecapService {
         netUnits,
         roi,
         avgEdge,
-        avgClvDelta,
+        ...(avgClvDelta !== undefined && { avgClvDelta }),
         currentStreak: streak.length,
         streakType: streak.type,
-        streakSparkline,
-        bestPick: this.findBestPick(capperPicks),
-        worstPick: this.findWorstPick(capperPicks)
+        ...(streakSparkline && { streakSparkline }),
+        ...(bestPick && { bestPick }),
+        ...(worstPick && { worstPick })
       });
     }
 
@@ -336,7 +340,7 @@ export class RecapService {
       const pushes = tierPicks.filter(p => p.outcome === 'push').length;
       const totalUnits = tierPicks.reduce((sum, pick) => sum + (pick.units || 1), 0);
       const netUnits = tierPicks.reduce((sum, pick) => {
-        const profitLoss = typeof pick.profit_loss === 'number' ? pick.profit_loss : 0;
+        const profitLoss = typeof pick['profit_loss'] === 'number' ? pick['profit_loss'] : 0;
         return sum + profitLoss;
       }, 0);
       const winRate = (wins + losses) > 0 ? (wins / (wins + losses)) * 100 : 0;
@@ -380,7 +384,7 @@ export class RecapService {
           streakLength: capper.currentStreak,
           streakType: 'win',
           totalUnits: streakPicks.reduce((sum, pick) => {
-            const profitLoss = typeof pick.profit_loss === 'number' ? pick.profit_loss : 0;
+            const profitLoss = typeof pick['profit_loss'] === 'number' ? pick['profit_loss'] : 0;
             return sum + profitLoss;
           }, 0),
           startDate: streakPicks[streakPicks.length - 1]?.created_at || '',
@@ -436,11 +440,11 @@ export class RecapService {
           picks: parlayPicks,
           totalOdds,
           units,
-          outcome,
-          profit_loss,
-          capper,
-          created_at: parlayPicks[0]?.created_at,
-          settled_at: typeof parlayPicks[0]?.settled_at === 'string' ? parlayPicks[0]?.settled_at : undefined
+          ...(outcome && { outcome }),
+          ...(profit_loss !== undefined && { profit_loss }),
+          ...(capper && { capper }),
+          ...(parlayPicks[0]?.created_at && { created_at: parlayPicks[0]?.created_at }),
+          ...(typeof parlayPicks[0]?.['settled_at'] === 'string' && { settled_at: parlayPicks[0]?.['settled_at'] })
         });
       }
 
@@ -471,7 +475,7 @@ export class RecapService {
         }
       }
 
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date().toISOString().split('T')[0]!;
       const dailyData = await this.getDailyRecapData(today);
       
       if (!dailyData) return null;
@@ -515,7 +519,7 @@ export class RecapService {
     if (!this.config.microRecap) return null;
     
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date().toISOString().split('T')[0]!;
       
       // Get all picks for today
       const { data: picks, error } = await this.supabase
@@ -566,7 +570,7 @@ export class RecapService {
    * Initialize ROI watcher state
    */
   private async initializeRoiWatcher(): Promise<void> {
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0]!;
     const dailyData = await this.getDailyRecapData(today);
     
     if (dailyData) {
@@ -650,11 +654,11 @@ export class RecapService {
   }
 
   private calculateAverageClv(picks: FinalPick[]): number {
-    const validPicks = picks.filter(p => typeof p.clv_delta === 'number');
+    const validPicks = picks.filter(p => typeof p['clv_delta'] === 'number');
     if (validPicks.length === 0) return 0;
 
     const totalClv = validPicks.reduce((sum, pick) => {
-      const clvDelta = typeof pick.clv_delta === 'number' ? pick.clv_delta : 0;
+      const clvDelta = typeof pick['clv_delta'] === 'number' ? pick['clv_delta'] : 0;
       return sum + clvDelta;
     }, 0);
     return totalClv / validPicks.length;
@@ -666,20 +670,20 @@ export class RecapService {
     const sortedPicks = picks
       .filter(p => p.outcome && p.outcome !== 'push' && p.outcome !== 'pending')
       .sort((a, b) => {
-        const aDate = typeof a.settled_at === 'string' ? a.settled_at :
+        const aDate = typeof a['settled_at'] === 'string' ? a['settled_at'] :
                       typeof a.created_at === 'string' ? a.created_at : '';
-        const bDate = typeof b.settled_at === 'string' ? b.settled_at :
+        const bDate = typeof b['settled_at'] === 'string' ? b['settled_at'] :
                       typeof b.created_at === 'string' ? b.created_at : '';
         return new Date(bDate).getTime() - new Date(aDate).getTime();
       });
 
     if (sortedPicks.length === 0) return { type: 'none', length: 0 };
 
-    const latestOutcome = sortedPicks[0].outcome;
+    const latestOutcome = sortedPicks[0]!.outcome;
     let streakLength = 1;
 
     for (let i = 1; i < sortedPicks.length; i++) {
-      if (sortedPicks[i].outcome === latestOutcome) {
+      if (sortedPicks[i]!.outcome === latestOutcome) {
         streakLength++;
       } else {
         break;
@@ -696,9 +700,9 @@ export class RecapService {
     const sortedPicks = picks
       .filter(p => p.outcome === streakType)
       .sort((a, b) => {
-        const aDate = typeof a.settled_at === 'string' ? a.settled_at :
+        const aDate = typeof a['settled_at'] === 'string' ? a['settled_at'] :
                       typeof a.created_at === 'string' ? a.created_at : '';
-        const bDate = typeof b.settled_at === 'string' ? b.settled_at :
+        const bDate = typeof b['settled_at'] === 'string' ? b['settled_at'] :
                       typeof b.created_at === 'string' ? b.created_at : '';
         return new Date(bDate).getTime() - new Date(aDate).getTime();
       });
@@ -719,9 +723,9 @@ export class RecapService {
     const recentPicks = picks
       .filter(p => p.outcome && p.outcome !== 'push')
       .sort((a, b) => {
-        const aDate = typeof a.settled_at === 'string' ? a.settled_at :
+        const aDate = typeof a['settled_at'] === 'string' ? a['settled_at'] :
                       typeof a.created_at === 'string' ? a.created_at : '';
-        const bDate = typeof b.settled_at === 'string' ? b.settled_at :
+        const bDate = typeof b['settled_at'] === 'string' ? b['settled_at'] :
                       typeof b.created_at === 'string' ? b.created_at : '';
         return new Date(aDate).getTime() - new Date(bDate).getTime();
       })
@@ -740,8 +744,8 @@ export class RecapService {
     return picks
       .filter(p => p.outcome === 'win')
       .sort((a, b) => {
-        const aProfitLoss = typeof a.profit_loss === 'number' ? a.profit_loss : 0;
-        const bProfitLoss = typeof b.profit_loss === 'number' ? b.profit_loss : 0;
+        const aProfitLoss = typeof a['profit_loss'] === 'number' ? a['profit_loss'] : 0;
+        const bProfitLoss = typeof b['profit_loss'] === 'number' ? b['profit_loss'] : 0;
         return bProfitLoss - aProfitLoss;
       })[0];
   }
@@ -750,8 +754,8 @@ export class RecapService {
     return picks
       .filter(p => p.outcome === 'loss')
       .sort((a, b) => {
-        const aProfitLoss = typeof a.profit_loss === 'number' ? a.profit_loss : 0;
-        const bProfitLoss = typeof b.profit_loss === 'number' ? b.profit_loss : 0;
+        const aProfitLoss = typeof a['profit_loss'] === 'number' ? a['profit_loss'] : 0;
+        const bProfitLoss = typeof b['profit_loss'] === 'number' ? b['profit_loss'] : 0;
         return aProfitLoss - bProfitLoss;
       })[0];
   }
@@ -760,8 +764,8 @@ export class RecapService {
     return picks
       .filter(p => p.outcome === 'win')
       .sort((a, b) => {
-        const aProfitLoss = typeof a.profit_loss === 'number' ? a.profit_loss : 0;
-        const bProfitLoss = typeof b.profit_loss === 'number' ? b.profit_loss : 0;
+        const aProfitLoss = typeof a['profit_loss'] === 'number' ? a['profit_loss'] : 0;
+        const bProfitLoss = typeof b['profit_loss'] === 'number' ? b['profit_loss'] : 0;
         return bProfitLoss - aProfitLoss;
       })[0];
   }

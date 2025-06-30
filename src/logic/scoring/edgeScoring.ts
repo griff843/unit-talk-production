@@ -18,7 +18,7 @@ export type ScoreBreakdown = Record<string, number | string>;
  */
 function extractPitcherStats(prop: PropObject): PitcherStats | null {
   // Check if prop has pitcher data (these fields would be populated by data pipeline)
-  if (!prop.pitcher_id || !prop.pitcher_name) {
+  if (!prop['pitcher_id'] || !prop['pitcher_name']) {
     return null;
   }
 
@@ -32,14 +32,14 @@ function extractPitcherStats(prop: PropObject): PitcherStats | null {
   };
 
   return {
-    pitcherId: typeof prop.pitcher_id === 'string' ? prop.pitcher_id : String(prop.pitcher_id || ''),
-    name: typeof prop.pitcher_name === 'string' ? prop.pitcher_name : String(prop.pitcher_name || ''),
-    hrPer9: toNumber(prop.pitcher_hr_per_9),
-    barrelPercent: toNumber(prop.pitcher_barrel_pct),
-    meatballPercent: toNumber(prop.pitcher_meatball_pct),
-    hittableCountPct: toNumber(prop.pitcher_hittable_count_pct),
-    recentHRs: toNumber(prop.pitcher_recent_hrs),
-    walkRate: toNumber(prop.pitcher_walk_rate)
+    pitcherId: typeof prop['pitcher_id'] === 'string' ? prop['pitcher_id'] : String(prop['pitcher_id'] || ''),
+    name: typeof prop['pitcher_name'] === 'string' ? prop['pitcher_name'] : String(prop['pitcher_name'] || ''),
+    hrPer9: toNumber(prop['pitcher_hr_per_9']),
+    barrelPercent: toNumber(prop['pitcher_barrel_pct']),
+    meatballPercent: toNumber(prop['pitcher_meatball_pct']),
+    hittableCountPct: toNumber(prop['pitcher_hittable_count_pct']),
+    recentHRs: toNumber(prop['pitcher_recent_hrs']),
+    walkRate: toNumber(prop['pitcher_walk_rate'])
   };
 }
 
@@ -64,15 +64,15 @@ function extractMatchupData(prop: PropObject): MatchupData | null {
   };
 
   // Check if prop has batter and conditions data
-  if (prop.batter_barrel_pct === undefined || prop.batter_launch_angle === undefined) {
+  if (prop['batter_barrel_pct'] === undefined || prop['batter_launch_angle'] === undefined) {
     return null;
   }
 
   return {
-    batterBarrel: toNumber(prop.batter_barrel_pct),
-    batterLaunch: toNumber(prop.batter_launch_angle),
-    parkFactor: toNumber(prop.park_factor) || 1.0,
-    windOut: toBoolean(prop.wind_out)
+    batterBarrel: toNumber(prop['batter_barrel_pct']),
+    batterLaunch: toNumber(prop['batter_launch_angle']),
+    parkFactor: toNumber(prop['park_factor']) || 1.0,
+    windOut: toBoolean(prop['wind_out'])
   };
 }
 
@@ -86,24 +86,24 @@ function isZoneThreatEligible(prop: PropObject): boolean {
 
   // Check if market type is eligible for Zone Threat boost
   const eligibleMarkets = EDGE_CONFIG.zoneThreat.hrMarkets;
-  const marketEligible = eligibleMarkets.includes(prop.market_type) || prop.is_rocket === true;
+  const marketEligible = eligibleMarkets.includes(prop['market_type']) || prop['is_rocket'] === true;
 
   if (!marketEligible) {
     return false;
   }
 
   // Check if required pitcher data is present
-  const hasPitcherData = prop.pitcher_id && prop.pitcher_name &&
-    typeof prop.pitcher_hr_per_9 === 'number' &&
-    typeof prop.pitcher_barrel_pct === 'number';
+  const hasPitcherData = prop['pitcher_id'] && prop['pitcher_name'] &&
+    typeof prop['pitcher_hr_per_9'] === 'number' &&
+    typeof prop['pitcher_barrel_pct'] === 'number';
 
   if (!hasPitcherData) {
     return false;
   }
 
   // Check if required matchup data is present
-  const hasMatchupData = typeof prop.batter_barrel_pct === 'number' &&
-    typeof prop.batter_launch_angle === 'number';
+  const hasMatchupData = typeof prop['batter_barrel_pct'] === 'number' &&
+    typeof prop['batter_launch_angle'] === 'number';
 
   if (!hasMatchupData) {
     return false;
@@ -129,58 +129,58 @@ export function finalEdgeScore(
     tags: string[] = [];
 
   // Market type bonus
-  const marketMod = config.market[prop.market_type] ?? config.market.default;
-  score += marketMod;
-  breakdown.market_type = marketMod;
+  const marketMod = config.market[prop['market_type']] ?? config.market['default'];
+  score += marketMod!;
+  breakdown['market_type'] = marketMod!;
 
   // Odds logic
-  if (prop.odds !== undefined) {
-    if (prop.odds < config.odds.threshold) {
+  if (prop['odds'] !== undefined) {
+    if (prop['odds'] < config.odds.threshold) {
       score += config.odds.high;
-      breakdown.odds = config.odds.high;
+      breakdown['odds'] = config.odds.high;
     }
   }
 
   // Trend score
-  if (prop.trend_score !== undefined && prop.trend_score > config.trend_score.threshold) {
+  if (prop['trend_score'] !== undefined && prop['trend_score'] > config.trend_score.threshold) {
     score += config.trend_score.strong;
-    breakdown.trend_score = config.trend_score.strong;
+    breakdown['trend_score'] = config.trend_score.strong;
   }
 
   // Matchup score
-  if (prop.matchup_score !== undefined && prop.matchup_score > config.matchup_score.threshold) {
+  if (prop['matchup_score'] !== undefined && prop['matchup_score'] > config.matchup_score.threshold) {
     score += config.matchup_score.strong;
-    breakdown.matchup_score = config.matchup_score.strong;
+    breakdown['matchup_score'] = config.matchup_score.strong;
   }
 
   // Role score
-  if (prop.role_score !== undefined && prop.role_score > config.role_score.threshold) {
+  if (prop['role_score'] !== undefined && prop['role_score'] > config.role_score.threshold) {
     score += config.role_score.strong;
-    breakdown.role_score = config.role_score.strong;
+    breakdown['role_score'] = config.role_score.strong;
   }
 
   // Source bonus
-  if (prop.source && config.source[prop.source]) {
-    score += config.source[prop.source];
-    breakdown.source = config.source[prop.source];
+  if (prop['source'] && config.source[prop['source']]) {
+    score += config.source[prop['source']]!;
+    breakdown['source'] = config.source[prop['source']]!;
   }
 
   // Line value
-  if (prop.line_value_score !== undefined && prop.line_value_score > config.line_value_score.threshold) {
+  if (prop['line_value_score'] !== undefined && prop['line_value_score'] > config.line_value_score.threshold) {
     score += config.line_value_score.strong;
-    breakdown.line_value_score = config.line_value_score.strong;
+    breakdown['line_value_score'] = config.line_value_score.strong;
   }
 
   // Tags + boosts
-  if (prop.is_rocket) {
+  if (prop['is_rocket']) {
     score += config.tags.rocket;
     tags.push('rocket');
-    breakdown.is_rocket = config.tags.rocket;
+    breakdown['is_rocket'] = config.tags.rocket;
   }
-  if (prop.is_ladder) {
+  if (prop['is_ladder']) {
     score += config.tags.ladder;
     tags.push('ladder');
-    breakdown.is_ladder = config.tags.ladder;
+    breakdown['is_ladder'] = config.tags.ladder;
   }
 
   // ZONE THREAT RATING ANALYSIS (INTERNAL ONLY)
@@ -188,36 +188,36 @@ export function finalEdgeScore(
   if (isZoneThreatEligible(prop)) {
     const pitcherStats = extractPitcherStats(prop);
     const matchupData = extractMatchupData(prop);
-    
+
     if (pitcherStats && matchupData) {
       const zoneThreatBoost = calculateZoneThreatBoost(pitcherStats, matchupData);
-      
+
       if (zoneThreatBoost > 0) {
         score += zoneThreatBoost;
-        breakdown.zone_threat_boost = zoneThreatBoost;
+        breakdown['zone_threat_boost'] = zoneThreatBoost;
         tags.push('zone-threat-extreme'); // Internal tag only
-        
+
         // Internal logging for analysis (not exposed publicly)
         if (config.zoneThreat.logDecisions) {
-          logZoneThreatDecision(pitcherStats, matchupData, prop.id);
+          logZoneThreatDecision(pitcherStats, matchupData, prop['id']);
         }
       }
-      
+
       // Add zone threat level to breakdown for internal analysis
       const threatLevel = zoneThreatRating(pitcherStats);
-      breakdown.zone_threat_level = threatLevel;
+      breakdown['zone_threat_level'] = threatLevel;
     }
   }
 
   // Clamp score
   score = Math.min(config.max, Math.max(0, score));
-  breakdown.total = score;
+  breakdown['total'] = score;
 
   // Determine tier
   let tier = '';
   if (adminOverrideTier && typeof adminOverrideTier === 'string') {
     tier = adminOverrideTier;
-    breakdown.override = `Forced to ${tier}`;
+    breakdown['override'] = `Forced to ${tier}`;
   } else {
     tier = score >= 23 ? 'S'
       : score >= 20 ? 'A'
@@ -247,9 +247,9 @@ export function scorePropEdge(prop: PropObject): {
   
   // Create public breakdown (remove internal Zone Threat details)
   const publicBreakdown = { ...result.breakdown };
-  delete publicBreakdown.zone_threat_boost;
-  delete publicBreakdown.zone_threat_level;
-  
+  delete publicBreakdown['zone_threat_boost'];
+  delete publicBreakdown['zone_threat_level'];
+
   return {
     edge_score: result.score,
     tier: result.tier,
@@ -278,16 +278,16 @@ export function getInternalScoringDetails(prop: PropObject): {
   };
 } {
   const result = finalEdgeScore(prop, EDGE_CONFIG);
-  
+
   // Add Zone Threat analysis details for internal use
   let zoneThreatAnalysis;
   if (isZoneThreatEligible(prop)) {
     const pitcherStats = extractPitcherStats(prop);
     zoneThreatAnalysis = {
       eligible: true,
-      threatLevel: result.breakdown.zone_threat_level as string,
-      boostApplied: result.breakdown.zone_threat_boost as number || 0,
-      pitcherName: pitcherStats?.name
+      ...(result.breakdown['zone_threat_level'] && { threatLevel: result.breakdown['zone_threat_level'] as string }),
+      ...(result.breakdown['zone_threat_boost'] !== undefined && { boostApplied: result.breakdown['zone_threat_boost'] as number || 0 }),
+      ...(pitcherStats?.name && { pitcherName: pitcherStats.name })
     };
   } else {
     zoneThreatAnalysis = { eligible: false };

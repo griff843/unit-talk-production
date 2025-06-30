@@ -1,0 +1,100 @@
+{
+  "name": "DiscordOnboardingAgent",
+  "version": "1.0.0",
+  "description": "Monitors and manages Discord member onboarding process",
+  "enabled": true,
+  "config": {
+    "monitoring": {
+      "enabled": true,
+      "interval": 300000,
+      "healthCheckInterval": 300000,
+      "alertThresholds": {
+        "unresolvedIssues": 5,
+        "hourlyFailures": 3,
+        "responseTimeMs": 5000
+      }
+    },
+    "onboarding": {
+      "retryAttempts": 3,
+      "retryDelayMs": 30000,
+      "cooldownMs": 60000,
+      "enableDmFallback": true,
+      "enableChannelFallback": true
+    },
+    "notifications": {
+      "enabled": true,
+      "channels": {
+        "monitoring": "onboarding-logs",
+        "alerts": "admin-alerts",
+        "reports": "analytics"
+      },
+      "webhooks": {
+        "enabled": false,
+        "urls": []
+      }
+    },
+    "metrics": {
+      "enabled": true,
+      "retentionDays": 30,
+      "exportInterval": 86400000
+    },
+    "logging": {
+      "level": "info",
+      "enableFileLogging": true,
+      "enableConsoleLogging": true,
+      "logRotation": true
+    }
+  },
+  "dependencies": [
+    "OnboardingService",
+    "RoleUtils",
+    "Logger"
+  ],
+  "capabilities": [
+    "Monitor onboarding success/failure rates",
+    "Detect onboarding issues and failures", 
+    "Provide onboarding analytics and insights",
+    "Auto-retry failed onboardings",
+    "Generate onboarding reports",
+    "Handle manual onboarding triggers",
+    "Send health alerts and notifications",
+    "Track performance metrics",
+    "Manage onboarding cooldowns"
+  ],
+  "events": {
+    "listens": [
+      "guildMemberAdd",
+      "guildMemberUpdate",
+      "interactionCreate"
+    ],
+    "emits": [
+      "onboardingSuccess",
+      "onboardingFailure", 
+      "onboardingRetry",
+      "healthAlert",
+      "metricsUpdate"
+    ]
+  },
+  "commands": [
+    {
+      "name": "onboarding-status",
+      "description": "Get onboarding system status and metrics"
+    },
+    {
+      "name": "onboarding-report",
+      "description": "Generate detailed onboarding report"
+    },
+    {
+      "name": "onboarding-issues",
+      "description": "List unresolved onboarding issues"
+    },
+    {
+      "name": "retry-onboarding",
+      "description": "Manually retry onboarding for a user"
+    },
+    {
+      "name": "onboarding-health",
+      "description": "Check onboarding system health"
+    }
+  ]
+}

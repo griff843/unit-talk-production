@@ -3,7 +3,7 @@ import type { Campaign } from '../../types/marketing'
 
 export class CampaignManager {
   private supabase: SupabaseClient
-  constructor(supabase: SupabaseClient, config: any) {
+  constructor(supabase: SupabaseClient, _config: any) {
     this.supabase = supabase
     // Config can be used for feature toggles, etc.
   }

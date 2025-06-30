@@ -2,12 +2,19 @@
 
 import type { AgentTaskInput } from '../types/agent'
 
+interface InputCandidate {
+  task_id?: unknown;
+  agent?: unknown;
+  data?: unknown;
+}
+
 export function validateInput(input: unknown): input is AgentTaskInput {
+  const candidate = input as InputCandidate;
   return (
     typeof input === 'object' &&
     input !== null &&
-    typeof (input as Record<string, unknown>).task_id === 'string' &&
-    typeof (input as Record<string, unknown>).agent === 'string' &&
+    typeof candidate.task_id === 'string' &&
+    typeof candidate.agent === 'string' &&
     'data' in input
   )
 }

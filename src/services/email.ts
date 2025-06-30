@@ -18,12 +18,12 @@ export class EmailService {
 
   constructor() {
     this.config = {
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true',
+      host: process.env['SMTP_HOST'] || 'smtp.gmail.com',
+      port: parseInt(process.env['SMTP_PORT'] || '587'),
+      secure: process.env['SMTP_SECURE'] === 'true',
       auth: {
-        user: process.env.SMTP_USER || '',
-        pass: process.env.SMTP_PASS || ''
+        user: process.env['SMTP_USER'] || '',
+        pass: process.env['SMTP_PASS'] || ''
       }
     };
 
@@ -33,7 +33,7 @@ export class EmailService {
   async sendAlert(to: string, subject: string, html: string): Promise<boolean> {
     try {
       const info = await this.transporter.sendMail({
-        from: process.env.SMTP_FROM || this.config.auth.user,
+        from: process.env['SMTP_FROM'] || this.config.auth.user,
         to,
         subject,
         html

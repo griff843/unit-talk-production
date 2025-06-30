@@ -1,15 +1,16 @@
 
 import twilio from 'twilio';
 import { logger } from './logging';
+import { env } from '../config/env';
 
 export class SMSService {
   private client: twilio.Twilio | null = null;
   private fromNumber: string;
 
   constructor() {
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken = process.env.TWILIO_AUTH_TOKEN;
-    this.fromNumber = process.env.TWILIO_FROM_NUMBER || '';
+    const accountSid = env.TWILIO_ACCOUNT_SID;
+    const authToken = env.TWILIO_AUTH_TOKEN;
+    this.fromNumber = env.TWILIO_FROM_NUMBER || '';
 
     if (accountSid && authToken) {
       this.client = twilio(accountSid, authToken);
@@ -43,7 +44,7 @@ export class SMSService {
     if (!this.client) return false;
     
     try {
-      const accountSid = process.env.TWILIO_ACCOUNT_SID;
+      const accountSid = env.TWILIO_ACCOUNT_SID;
       if (!accountSid) return false;
       await this.client.api.accounts(accountSid).fetch();
       return true;

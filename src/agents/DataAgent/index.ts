@@ -1,5 +1,5 @@
 import { BaseAgent } from '../BaseAgent/index';
-import { BaseAgentConfig, BaseAgentDependencies, HealthStatus } from '../BaseAgent/types/index';
+import { BaseAgentConfig, BaseAgentDependencies, HealthStatus } from '../BaseAgent/types';
 import { ETLWorkflow, EnrichmentPipeline, DataQualityCheck, DataAgentMetrics } from './types';
 
 // Add DataQualityResult interface to fix missing type error
@@ -28,7 +28,7 @@ export class DataAgent extends BaseAgent {
   private enrichmentPipelines: Map<string, EnrichmentPipeline>;
   private qualityChecks: Map<string, DataQualityCheck>;
   private activeJobs: Set<string>;
-  protected metrics: DataAgentMetrics;
+  protected override metrics: DataAgentMetrics;
 
   constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
     super(config, deps);
@@ -87,6 +87,9 @@ export class DataAgent extends BaseAgent {
       this.initializeQualityChecks();
 
       // Verify database connectivity
+      if (!this.supabase) {
+        throw new Error('Supabase client is required for DataAgent');
+      }
       const { error } = await this.supabase
         .from('data_agent_events')
         .select('id')
@@ -150,6 +153,9 @@ export class DataAgent extends BaseAgent {
   public async checkHealth(): Promise<HealthStatus> {
     try {
       // Check database connectivity
+      if (!this.supabase) {
+        throw new Error('Supabase client is required for DataAgent');
+      }
       const { error } = await this.supabase
         .from('data_agent_events')
         .select('id')
@@ -159,8 +165,10 @@ export class DataAgent extends BaseAgent {
         return {
           status: 'unhealthy',
           timestamp: new Date().toISOString(),
-          details: { error: error.message },
-          error: 'Database connectivity check failed'
+          details: {
+            error: error.message,
+            message: 'Database connectivity check failed'
+          }
         };
       }
 
@@ -183,8 +191,9 @@ export class DataAgent extends BaseAgent {
       return {
         status: 'unhealthy',
         timestamp: new Date().toISOString(),
-        details: {},
-        error: (error as Error).message
+        details: {
+          error: (error as Error).message
+        }
       };
     }
   }
@@ -203,6 +212,9 @@ export class DataAgent extends BaseAgent {
       enabled: true,
       schedule: '0 * * * *', // Every hour
       extract: async () => {
+        if (!this.supabase) {
+          throw new Error('Supabase client is required for DataAgent');
+        }
         const { data } = await this.supabase.from('users').select('*');
         return data || [];
       },
@@ -214,6 +226,9 @@ export class DataAgent extends BaseAgent {
         }));
       },
       load: async (data: any[], target: string) => {
+        if (!this.supabase) {
+          throw new Error('Supabase client is required for DataAgent');
+        }
         const { error } = await this.supabase.from(target).upsert(data);
         if (error) throw error;
       }
@@ -382,6 +397,9 @@ export class DataAgent extends BaseAgent {
         this.logger.info(`Running quality check: ${check.name}`);
 
         // Get sample data for quality check
+        if (!this.supabase) {
+          throw new Error('Supabase client is required for DataAgent');
+        }
         const { data } = await this.supabase.from('users').select('*').limit(1000);
 
         if (data && data.length > 0) {

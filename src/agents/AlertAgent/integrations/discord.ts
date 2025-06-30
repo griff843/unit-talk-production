@@ -1,4 +1,5 @@
 import { WebhookClient, EmbedBuilder } from 'discord.js';
+import { env } from '../../../config/env';
 
 interface DiscordConfig {
   webhookUrl: string;
@@ -15,7 +16,7 @@ class DiscordAlertService {
   private isProcessingQueue: boolean = false;
 
   constructor(config?: Partial<DiscordConfig>) {
-    const webhookUrl = process.env.DISCORD_ALERT_WEBHOOK;
+    const webhookUrl = env.DISCORD_ALERT_WEBHOOK;
     if (!webhookUrl) {
       throw new Error('DISCORD_ALERT_WEBHOOK environment variable is required');
     }

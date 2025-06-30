@@ -8,8 +8,8 @@ import { PromoAgent } from '../agents/PromoAgent';
 import { BaseAgentConfig } from '../agents/BaseAgent/types';
 
 // Load Supabase credentials from environment
-const supabaseUrl = process.env.SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseUrl = process.env['SUPABASE_URL']!;
+const supabaseKey = process.env['SUPABASE_SERVICE_ROLE_KEY']!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Initialize error handler

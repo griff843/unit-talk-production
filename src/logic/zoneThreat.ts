@@ -199,12 +199,13 @@ export function generateZoneThreatSummary(
   pitcher: PitcherStats,
   matchup?: MatchupData
 ): string {
+  // const ztr = zoneThreatRating(pitcher);
   const ztr = zoneThreatRating(pitcher);
   const boost = matchup ? calculateZoneThreatBoost(pitcher, matchup) : 0;
-  
+
   let summary = `## Zone Threat Analysis - ${pitcher.name}\n\n`;
   summary += `**Threat Level:** ${ztr}\n\n`;
-  
+
   summary += `### Pitcher Metrics\n`;
   summary += `- HR/9: ${pitcher.hrPer9.toFixed(2)} (Threshold: ${ZONE_THREAT_CONFIG.hrPer9.high})\n`;
   summary += `- Barrel%: ${pitcher.barrelPercent.toFixed(1)}% (Threshold: ${ZONE_THREAT_CONFIG.barrelPercent.high}%)\n`;
@@ -212,7 +213,7 @@ export function generateZoneThreatSummary(
   summary += `- Hittable Count%: ${pitcher.hittableCountPct.toFixed(1)}% (Threshold: ${ZONE_THREAT_CONFIG.hittableCountPct.high}%)\n`;
   summary += `- Recent HRs (3 starts): ${pitcher.recentHRs} (Threshold: ${ZONE_THREAT_CONFIG.recentHRs.high})\n`;
   summary += `- BB/9: ${pitcher.walkRate.toFixed(2)} (Elite: <${ZONE_THREAT_CONFIG.walkRate.elite})\n\n`;
-  
+
   if (matchup) {
     summary += `### Matchup Context\n`;
     summary += `- Batter Barrel%: ${matchup.batterBarrel.toFixed(1)}%\n`;
@@ -221,7 +222,7 @@ export function generateZoneThreatSummary(
     summary += `- Wind Out: ${matchup.windOut ? 'Yes' : 'No'}\n\n`;
     summary += `**Edge Boost Applied:** ${boost > 0 ? `+${boost} points` : 'None'}\n`;
   }
-  
+
   return summary;
 }
 
@@ -240,11 +241,11 @@ export function logZoneThreatDecision(
 ): void {
   const ztr = zoneThreatRating(pitcher);
   const boost = calculateZoneThreatBoost(pitcher, matchup);
-  
+
   if (boost > 0) {
-    console.log(`[ZONE THREAT BOOST] Prop ${propId}: ${pitcher.name} flagged EXTREME, boost +${boost}`);
+    console.log(`[ZONE THREAT BOOST] Prop ${propId}: ${pitcher.name} flagged EXTREME (ZTR: ${ztr}), boost +${boost}`);
   }
-  
+
   // Additional internal logging can be added here
   // e.g., send to monitoring service, write to internal logs, etc.
 }

@@ -46,20 +46,18 @@ export class PickGradingService {
       const result: GradingResult = {
         pick_id: pickSubmission.id || 'temp-id',
         pickId: pickSubmission.id || 'temp-id',
-        result: 'win', // This will be updated when the pick is settled
-        grade: tier === 'A' ? 90 : tier === 'B' ? 75 : tier === 'C' ? 60 : 45,
+        status: 'won', // This will be updated when the pick is settled
+        actual_result: 'pending',
+        expected_value: edge,
+        profit_loss: 0, // Will be calculated when settled
+        grade: tier as 'S' | 'A' | 'B' | 'C' | 'D' | 'F',
         edge,
         tier,
         confidence,
         factors,
-        feedback: typeof feedback === 'string' ? {
-          strengths: [feedback],
-          weaknesses: [],
-          suggestions: []
-        } : feedback,
+        feedback: typeof feedback === 'string' ? feedback : JSON.stringify(feedback), // Convert object to string
         reasoning: coachNotes,
         risk_assessment: confidence > 80 ? 'low' : confidence > 60 ? 'medium' : 'high',
-        expected_value: edge * (pickSubmission.units || 1),
         created_at: new Date()
       };
 
@@ -904,6 +902,134 @@ export class CoachingService {
       winningPicks,
       winRate,
       consistency: winRate > 0.6 ? 'high' : winRate > 0.4 ? 'medium' : 'low'
+    };
+  }
+
+  /**
+   * Get detailed coaching for a specific pick
+   */
+  async getDetailedCoaching(pick: any): Promise<BettingAnalysis> {
+    try {
+      const analysis = await this.generateBettingAnalysis(pick.userId || pick.user_id, '30d');
+
+      // Add specific coaching insights for this pick
+      const insights = [
+        `This ${pick.sport} pick has ${pick.confidence}% confidence`,
+        `Your recent win rate in ${pick.sport} is ${(analysis.winRate * 100).toFixed(1)}%`,
+        `Recommended stake: ${pick.units} units based on your bankroll`
+      ];
+
+      const improvements = [
+        'Consider diversifying across more sports',
+        'Track your performance by bet type',
+        'Monitor line movement before placing bets'
+      ];
+
+      return {
+        ...analysis,
+        summary: `Detailed analysis for your ${pick.sport} pick with ${pick.confidence}% confidence`,
+        insights,
+        improvements
+      };
+    } catch (error) {
+      logger.error('Failed to get detailed coaching:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get general coaching based on recent picks
+   */
+  async getGeneralCoaching(recentPicks: any[]): Promise<BettingAnalysis> {
+    try {
+      if (recentPicks.length === 0) {
+        return {
+          userId: '',
+          period: '30d',
+          totalBets: 0,
+          winRate: 0,
+          profitLoss: 0,
+          avgOdds: 0,
+          avgUnits: 0,
+          avgEdge: 0,
+          sportBreakdown: {},
+          recommendations: ['Start by submitting your first pick!'],
+          riskAssessment: 'LOW',
+          edge: 0,
+          confidence: 0,
+          factors: {},
+          riskLevel: 'LOW',
+          summary: 'Welcome to Unit Talk! Submit your first pick to get personalized coaching.',
+          insights: ['Track your picks consistently', 'Focus on value betting', 'Manage your bankroll wisely'],
+          improvements: ['Submit more picks for better analysis', 'Add reasoning to your picks', 'Set realistic expectations']
+        };
+      }
+
+      const userId = recentPicks[0].userId || recentPicks[0].user_id;
+      const analysis = await this.generateBettingAnalysis(userId, '30d');
+
+      const insights = [
+        `You've submitted ${analysis.totalBets} picks with a ${(analysis.winRate * 100).toFixed(1)}% win rate`,
+        `Your average stake is ${analysis.avgUnits.toFixed(1)} units`,
+        `Most active sport: ${Object.keys(analysis.sportBreakdown)[0] || 'N/A'}`
+      ];
+
+      const improvements = [
+        'Consider tracking your reasoning for each pick',
+        'Monitor your performance by sport and bet type',
+        'Set stop-loss limits to protect your bankroll'
+      ];
+
+      return {
+        ...analysis,
+        summary: `General coaching based on your last ${recentPicks.length} picks`,
+        insights,
+        improvements
+      };
+    } catch (error) {
+      logger.error('Failed to get general coaching:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Analyze pick timing factors
+   */
+  private analyzePickTiming(pick: UserPickSubmission): { score: number; timing: string } {
+    // Simple timing analysis - in a real implementation, this would analyze
+    // when the pick was made relative to game time, line movements, etc.
+    const now = new Date();
+    const submittedAt = pick.submittedAt ? new Date(pick.submittedAt) : now;
+
+    // For now, return a default analysis
+    return {
+      score: 0.7, // Default score
+      timing: 'Pick submitted at optimal timing window'
+    };
+  }
+
+  /**
+   * Assess pick risk factors
+   */
+  private assessPickRisk(pick: UserPickSubmission): { score: number; description: string } {
+    // Simple risk assessment based on units and confidence
+    const units = pick.units || 1;
+    const confidence = pick.confidence || 50;
+
+    let riskScore = 0.5; // Default medium risk
+    let description = 'Medium risk pick';
+
+    if (units > 3 || confidence < 30) {
+      riskScore = 0.3; // High risk
+      description = 'High risk pick - consider reducing stake';
+    } else if (units <= 1 && confidence > 70) {
+      riskScore = 0.8; // Low risk
+      description = 'Low risk pick with good confidence';
+    }
+
+    return {
+      score: riskScore,
+      description
     };
   }
 }

@@ -1,0 +1,190 @@
+# Unit Talk SaaS - Staging Environment Configuration
+# Docker Compose for staging deployment and testing
+
+version: '3.8'
+
+services:
+  # Main Application - Staging
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=staging
+      - PORT=3000
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - LOG_LEVEL=debug
+    depends_on:
+      - redis
+      - postgres
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    volumes:
+      - ./logs:/app/logs
+      - ./staging-data:/app/data
+    networks:
+      - staging-network
+
+  # Discord Bot - Staging
+  discord-bot:
+    build:
+      context: ./unit-talk-custom-bot
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=staging
+      - DISCORD_TOKEN=${DISCORD_TOKEN_STAGING}
+      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID_STAGING}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - API_BASE_URL=http://app:3000
+    depends_on:
+      - app
+      - redis
+    restart: unless-stopped
+    networks:
+      - staging-network
+
+  # Redis for caching and queues
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"  # Different port for staging
+    volumes:
+      - staging-redis-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - staging-network
+
+  # PostgreSQL Database for staging
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-unittalk_staging}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    ports:
+      - "5433:5432"  # Different port for staging
+    volumes:
+      - staging-postgres-data:/var/lib/postgresql/data
+      - ./scripts/database_optimization.sql:/docker-entrypoint-initdb.d/01-optimization.sql
+      - ./scripts/staging-seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - staging-network
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"  # Different port for staging
+    volumes:
+      - ./nginx.staging.conf:/etc/nginx/nginx.conf
+      - ./logs/nginx:/var/log/nginx
+    depends_on:
+      - app
+    restart: unless-stopped
+    networks:
+      - staging-network
+
+  # Monitoring with Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9091:9090"  # Different port for staging
+    volumes:
+      - ./monitoring/prometheus.staging.yml:/etc/prometheus/prometheus.yml
+      - staging-prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=72h'  # Shorter retention for staging
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    networks:
+      - staging-network
+
+  # Grafana for dashboards
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-staging123}
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - staging-grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    restart: unless-stopped
+    networks:
+      - staging-network
+
+  # Test Runner Service
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      - NODE_ENV=test
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - API_BASE_URL=http://app:3000
+    depends_on:
+      - app
+      - postgres
+      - redis
+    volumes:
+      - ./tests:/app/tests
+      - ./coverage:/app/coverage
+    networks:
+      - staging-network
+    profiles:
+      - testing
+
+  # Load Testing Service
+  load-tester:
+    image: loadimpact/k6:latest
+    volumes:
+      - ./tests/load:/scripts
+    environment:
+      - API_BASE_URL=http://app:3000
+    depends_on:
+      - app
+    networks:
+      - staging-network
+    profiles:
+      - load-testing
+
+volumes:
+  staging-redis-data:
+  staging-postgres-data:
+  staging-prometheus-data:
+  staging-grafana-data:
+
+networks:
+  staging-network:
+    driver: bridge

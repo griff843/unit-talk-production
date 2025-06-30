@@ -1,6 +1,6 @@
 import { supabase } from '../services/supabaseClient';
 
-export async function fetchEdgeConfig(): Promise<any> {
+export async function fetchEdgeConfig(): Promise<unknown> {
   const { data, error } = await supabase
     .from('edge_config')
     .select('config')

@@ -6,7 +6,7 @@ import { ErrorHandler } from '../utils/errorHandler';
 
 async function run() {
   console.log('=== FEED AGENT HARNESS RUN STARTED ===');
-  const apiKey = process.env.SPORTS_GAME_ODDS_API_KEY;
+  const apiKey = process.env['SPORTS_GAME_ODDS_API_KEY'];
   if (!apiKey) {
     throw new Error('Missing SPORTS_GAME_ODDS_API_KEY in environment');
   }

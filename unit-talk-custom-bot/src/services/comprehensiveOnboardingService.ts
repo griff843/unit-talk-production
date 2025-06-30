@@ -5,9 +5,7 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  TextChannel,
-  DMChannel,
-  User
+  TextChannel
 } from 'discord.js';
 import { SupabaseService } from './supabase';
 import { PermissionsService } from './permissions';
@@ -25,7 +23,7 @@ import {
 } from '../utils/embeds';
 import { logger } from '../utils/logger';
 import { botConfig } from '../config';
-import { UserTier } from '../types';
+import { UserTier } from '../types/index';
 
 export interface OnboardingStep {
   id: string;
@@ -94,9 +92,54 @@ export class ComprehensiveOnboardingService {
     this.supabaseService = supabaseService;
     this.permissionsService = permissionsService;
     this.analyticsService = analyticsService;
-    
+
     this.initializeOnboardingFlows();
     this.startTrialReminderSystem();
+  }
+
+  /**
+   * Create capper welcome embed
+   */
+  public createCapperWelcomeEmbed(username: string): EmbedBuilder {
+    return new EmbedBuilder()
+      .setTitle(`🎯 Welcome UT Capper ${username}!`)
+      .setColor('#E67E22')
+      .setDescription('You\'ve been granted capper privileges! Here\'s how to get started:')
+      .addFields(
+        {
+          name: '📋 Getting Started',
+          value: [
+            '• Complete your capper onboarding',
+            '• Set your display name and tier',
+            '• Learn the pick submission process',
+            '• Understand performance tracking'
+          ].join('\n'),
+          inline: false
+        },
+        {
+          name: '🎯 Your Capper Tools',
+          value: [
+            '• `/submit-pick` - Submit betting picks',
+            '• `/edit-pick` - Edit existing picks',
+            '• `/delete-pick` - Remove picks',
+            '• `/capper-stats` - View your performance'
+          ].join('\n'),
+          inline: false
+        },
+        {
+          name: '📊 Performance Tracking',
+          value: [
+            'All your picks are automatically tracked for:',
+            '• Win/Loss record',
+            '• ROI and profit tracking',
+            '• Leaderboard rankings',
+            '• Monthly performance reports'
+          ].join('\n'),
+          inline: false
+        }
+      )
+      .setFooter({ text: 'Complete your onboarding to start submitting picks!' })
+      .setTimestamp();
   }
 
   /**
@@ -183,24 +226,17 @@ export class ComprehensiveOnboardingService {
       let embed: EmbedBuilder;
       let actionRow: ActionRowBuilder<ButtonBuilder> | null = null;
 
-      switch (tier) {
+      switch (tier as UserTier) {
         case 'member':
-          embed = createFreeWelcomeEmbed(member.user.username);
-          actionRow = new ActionRowBuilder<ButtonBuilder>()
-            .addComponents(
-              new ButtonBuilder()
-                .setCustomId('view_vip_perks')
-                .setLabel('📈 View VIP Perks')
-                .setStyle(ButtonStyle.Secondary),
-              new ButtonBuilder()
-                .setCustomId('upgrade_vip')
-                .setLabel('🚀 Upgrade to VIP')
-                .setStyle(ButtonStyle.Primary),
-              new ButtonBuilder()
-                .setCustomId('help_commands')
-                .setLabel('🆘 Help')
-                .setStyle(ButtonStyle.Secondary)
-            );
+          const freeWelcome = createFreeWelcomeEmbed(member.user.username);
+          embed = freeWelcome.embed;
+          actionRow = freeWelcome.buttons;
+          break;
+
+        case 'trial':
+          const trialWelcome = createTrialWelcomeEmbed(member.user.username);
+          embed = trialWelcome.embed;
+          actionRow = trialWelcome.buttons;
           break;
 
         case 'vip':
@@ -208,17 +244,20 @@ export class ComprehensiveOnboardingService {
           actionRow = new ActionRowBuilder<ButtonBuilder>()
             .addComponents(
               new ButtonBuilder()
-                .setCustomId('view_todays_picks')
-                .setLabel('📊 View Today\'s Picks')
-                .setStyle(ButtonStyle.Primary),
+                .setCustomId('start_vip_tour')
+                .setLabel('Start VIP Tour')
+                .setStyle(ButtonStyle.Success)
+                .setEmoji('🎯'),
               new ButtonBuilder()
                 .setCustomId('goto_vip_lounge')
-                .setLabel('🎯 Go to VIP Lounge')
-                .setStyle(ButtonStyle.Secondary),
+                .setLabel('VIP Lounge')
+                .setStyle(ButtonStyle.Primary)
+                .setEmoji('🏆'),
               new ButtonBuilder()
-                .setCustomId('slash_commands_help')
-                .setLabel('🤖 Slash Commands')
+                .setCustomId('upgrade_vip_plus')
+                .setLabel('Upgrade to VIP+')
                 .setStyle(ButtonStyle.Secondary)
+                .setEmoji('💎')
             );
           break;
 
@@ -227,23 +266,50 @@ export class ComprehensiveOnboardingService {
           actionRow = new ActionRowBuilder<ButtonBuilder>()
             .addComponents(
               new ButtonBuilder()
-                .setCustomId('heat_signal_access')
-                .setLabel('🔥 Heat Signal Access')
-                .setStyle(ButtonStyle.Danger),
+                .setCustomId('vip_plus_tour_start')
+                .setLabel('Start VIP+ Tour')
+                .setStyle(ButtonStyle.Success)
+                .setEmoji('🚀'),
               new ButtonBuilder()
-                .setCustomId('picks_dashboard')
-                .setLabel('📊 Picks Dashboard')
-                .setStyle(ButtonStyle.Primary),
+                .setCustomId('ai_coaching')
+                .setLabel('AI Coach')
+                .setStyle(ButtonStyle.Primary)
+                .setEmoji('🧠'),
               new ButtonBuilder()
-                .setCustomId('betting_insights')
-                .setLabel('🧠 Betting Insights')
+                .setCustomId('view_analytics')
+                .setLabel('Analytics')
                 .setStyle(ButtonStyle.Secondary)
+                .setEmoji('📊')
+            );
+          break;
+
+        case 'capper':
+          embed = this.createCapperWelcomeEmbed(member.user.username);
+          actionRow = new ActionRowBuilder<ButtonBuilder>()
+            .addComponents(
+              new ButtonBuilder()
+                .setCustomId('capper_onboard_start')
+                .setLabel('Complete Onboarding')
+                .setStyle(ButtonStyle.Success)
+                .setEmoji('🎯'),
+              new ButtonBuilder()
+                .setCustomId('capper_guide')
+                .setLabel('Capper Guide')
+                .setStyle(ButtonStyle.Primary)
+                .setEmoji('📖'),
+              new ButtonBuilder()
+                .setCustomId('capper_support')
+                .setLabel('Get Support')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('🆘')
             );
           break;
 
         default:
           // For staff/admin/owner, use basic welcome
-          embed = createFreeWelcomeEmbed(member.user.username);
+          const defaultWelcome = createFreeWelcomeEmbed(member.user.username);
+          embed = defaultWelcome.embed;
+          actionRow = defaultWelcome.buttons;
           break;
       }
 

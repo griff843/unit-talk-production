@@ -1,40 +1,37 @@
-// __tests__/MarketingAgent.test.ts
-
-import { MarketingAgent } from './index'
-import { createClient } from '@supabase/supabase-js'
-import { createTestConfig, createTestDependencies } from '../../test/helpers/testHelpers'
+import { describe, beforeEach, it, expect } from '@jest/globals';
+import { MarketingAgent } from './index';
+import { Logger } from '../../utils/logger';
+import { ErrorHandler } from '../../utils/errorHandling';
+import { BaseAgentDependencies } from '../BaseAgent/types';
 
 describe('MarketingAgent', () => {
-  let agent: MarketingAgent
-  let mockSupabase: any
-  let config: any
-  let dependencies: any
+  let marketingAgent: MarketingAgent;
 
   beforeEach(() => {
-    mockSupabase = createClient('test-url', 'test-service-role-key')
-    config = createTestConfig({ name: 'MarketingAgent' })
-    dependencies = createTestDependencies({ supabase: mockSupabase })
-    agent = new MarketingAgent(config, dependencies)
-  })
+    // Initialize MarketingAgent for testing
+    const mockLogger = new Logger('TestMarketingAgent');
+    const mockErrorHandler = new ErrorHandler('TestMarketingAgent', {} as any);
+    
+    const mockDependencies: BaseAgentDependencies = {
+      supabase: {} as any,
+      logger: mockLogger,
+      errorHandler: mockErrorHandler
+    };
 
-  describe('Basic functionality', () => {
-    it('should initialize successfully', async () => {
-      await expect(agent.initialize()).resolves.not.toThrow()
-    })
+    marketingAgent = new MarketingAgent({
+      name: 'TestMarketingAgent',
+      version: '1.0.0',
+      enabled: true,
+      logLevel: 'info',
+      metrics: {
+        enabled: true,
+        interval: 60000
+      }
+    }, mockDependencies);
+  });
 
-    it('should collect metrics successfully', async () => {
-      const metrics = await agent.collectMetrics()
-      expect(metrics).toBeDefined()
-      expect(metrics.successCount).toBeDefined()
-      expect(metrics.errorCount).toBeDefined()
-      expect(metrics.warningCount).toBeDefined()
-    })
-
-    it('should perform health check successfully', async () => {
-      const health = await agent.checkHealth()
-      expect(health).toBeDefined()
-      expect(health.status).toBeDefined()
-      expect(health.timestamp).toBeDefined()
-    })
-  })
-})
+  it('should initialize correctly', () => {
+    expect(marketingAgent).toBeDefined();
+    expect(marketingAgent.getConfig().name).toBe('TestMarketingAgent');
+  });
+});

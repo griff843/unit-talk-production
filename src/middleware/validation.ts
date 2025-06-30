@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Request, Response, NextFunction } from 'express';
+import { logger } from '../utils/logger';
 
 const sanitizeHtml = (input: string): string => {
   return input
@@ -14,7 +15,7 @@ const sanitizeHtml = (input: string): string => {
 declare global {
   namespace Express {
     interface Request {
-      validatedData?: any;
+      validatedData?: unknown;
       user?: {
         id: string;
         tier: string;
@@ -33,7 +34,7 @@ export const commonSchemas = {
   dateString: z.string().datetime('Invalid date format'),
   positiveNumber: z.number().positive('Must be a positive number'),
   nonEmptyString: z.string().min(1, 'Cannot be empty'),
-  tier: z.enum(['member', 'vip', 'vip_plus', 'staff', 'admin', 'owner']),
+  tier: z.enum(['member', 'trial', 'vip', 'vip_plus', 'capper', 'staff', 'admin', 'owner']),
   sport: z.enum(['NBA', 'NFL', 'MLB', 'NHL', 'NCAAB', 'NCAAF']),
   pickType: z.enum(['spread', 'moneyline', 'total', 'prop']),
   betResult: z.enum(['win', 'loss', 'push', 'pending']),
@@ -95,7 +96,7 @@ export const querySchema = z.object({
 });
 
 // Input sanitization
-export const sanitizeInput = (input: any): any => {
+export const sanitizeInput = (input: unknown): unknown => {
   if (typeof input === 'string') {
     return sanitizeHtml(input).trim();
   }
@@ -105,9 +106,9 @@ export const sanitizeInput = (input: any): any => {
   }
 
   if (typeof input === 'object' && input !== null) {
-    const sanitized: any = {};
+    const sanitized: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(input)) {
-      sanitized[sanitizeInput(key)] = sanitizeInput(value);
+      sanitized[sanitizeInput(key) as string] = sanitizeInput(value);
     }
     return sanitized;
   }
@@ -117,12 +118,12 @@ export const sanitizeInput = (input: any): any => {
 
 // Main validation middleware
 export const validateRequest = (schema: z.ZodSchema) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       // Sanitize inputs first
-      req.body = sanitizeInput(req.body);
-      req.query = sanitizeInput(req.query);
-      req.params = sanitizeInput(req.params);
+      req.body = sanitizeInput(req.body) as typeof req.body;
+      req.query = sanitizeInput(req.query) as typeof req.query;
+      req.params = sanitizeInput(req.params) as typeof req.params;
 
       // Validate against schema
       const result = await schema.safeParseAsync({
@@ -132,7 +133,7 @@ export const validateRequest = (schema: z.ZodSchema) => {
       });
 
       if (!result.success) {
-        return res.status(400).json({
+        res.status(400).json({
           error: 'Validation failed',
           details: result.error.errors.map(err => ({
             field: err.path.join('.'),
@@ -140,23 +141,25 @@ export const validateRequest = (schema: z.ZodSchema) => {
             code: err.code,
           })),
         });
+        return;
       }
 
       // Store validated data
       req.validatedData = result.data;
       next();
     } catch (error) {
-      console.error('Validation middleware error:', error);
-      res.status(500).json({ 
+      logger.error('Validation middleware error:', error);
+      res.status(500).json({
         error: 'Internal validation error',
         message: 'Please try again later'
       });
+      
     }
   };
 };
 
 // SQL injection protection
-export const sqlInjectionProtection = (req: Request, res: Response, next: NextFunction) => {
+export const sqlInjectionProtection = (req: Request, res: Response, next: NextFunction): void => {
   const sqlPatterns = [
     /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION|SCRIPT)\b)/gi,
     /(\b(OR|AND)\s+\d+\s*=\s*\d+)/gi,
@@ -165,15 +168,15 @@ export const sqlInjectionProtection = (req: Request, res: Response, next: NextFu
     /(\bxp_\w+)/gi,
   ];
 
-  const checkForSQLInjection = (obj: any): boolean => {
+  const checkForSQLInjection = (obj: unknown): boolean => {
     if (typeof obj === 'string') {
       return sqlPatterns.some(pattern => pattern.test(obj));
     }
-    
+
     if (typeof obj === 'object' && obj !== null) {
       return Object.values(obj).some(value => checkForSQLInjection(value));
     }
-    
+
     return false;
   };
 
@@ -184,17 +187,18 @@ export const sqlInjectionProtection = (req: Request, res: Response, next: NextFu
   };
 
   if (checkForSQLInjection(requestData)) {
-    return res.status(400).json({
+    res.status(400).json({
       error: 'Request contains potentially malicious SQL patterns',
       code: 'SQL_INJECTION_DETECTED'
     });
+    return;
   }
 
   next();
 };
 
 // XSS protection
-export const xssProtection = (req: Request, res: Response, next: NextFunction) => {
+export const xssProtection = (req: Request, res: Response, next: NextFunction): void => {
   const xssPatterns = [
     /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
     /javascript:/gi,
@@ -205,15 +209,15 @@ export const xssProtection = (req: Request, res: Response, next: NextFunction) =
     /onmouseover\s*=/gi,
   ];
 
-  const checkForXSS = (obj: any): boolean => {
+  const checkForXSS = (obj: unknown): boolean => {
     if (typeof obj === 'string') {
       return xssPatterns.some(pattern => pattern.test(obj));
     }
-    
+
     if (typeof obj === 'object' && obj !== null) {
       return Object.values(obj).some(value => checkForXSS(value));
     }
-    
+
     return false;
   };
 
@@ -224,10 +228,11 @@ export const xssProtection = (req: Request, res: Response, next: NextFunction) =
   };
 
   if (checkForXSS(requestData)) {
-    return res.status(400).json({
+    res.status(400).json({
       error: 'Request contains potentially malicious XSS patterns',
       code: 'XSS_DETECTED'
     });
+    return;
   }
 
   next();
@@ -249,7 +254,7 @@ export const fileUploadValidation = (options: {
     }
 
     const { maxSize = 5 * 1024 * 1024, allowedTypes = [], maxFiles = 1 } = options;
-    const files = (req as any).files;
+    const files = (req as Request & { files?: { [fieldname: string]: Array<{ size: number; mimetype: string }> } }).files;
 
     if (!files || Object.keys(files).length === 0) {
       return next();
@@ -277,7 +282,7 @@ export const fileUploadValidation = (options: {
       }
     }
 
-    next();
+    return next();
   };
 };
 

@@ -161,6 +161,9 @@ export class FeedbackLoopAgent extends BaseAgent {
     
     try {
       // Check database connectivity
+      if (!this.supabase) {
+        throw new Error('Supabase client is required for FeedbackLoopAgent');
+      }
       await this.supabase.from('feedback_log').select('count').limit(1);
       checks.push({ service: 'supabase', status: 'healthy' });
     } catch (error) {
@@ -213,6 +216,9 @@ export class FeedbackLoopAgent extends BaseAgent {
   private async loadHistoricalData(): Promise<void> {
     try {
       // Load recent feedback from database
+      if (!this.supabase) {
+        throw new Error('Supabase client is required for FeedbackLoopAgent');
+      }
       const { data: feedback, error } = await this.supabase
         .from('feedback_log')
         .select('*')
@@ -288,6 +294,9 @@ export class FeedbackLoopAgent extends BaseAgent {
   private async collectPickOutcomeFeedback(): Promise<void> {
     try {
       // Get recent pick outcomes for feedback analysis
+      if (!this.supabase) {
+        throw new Error('Supabase client is required for FeedbackLoopAgent');
+      }
       const { data: picks, error } = await this.supabase
         .from('final_picks')
         .select('*')
@@ -424,7 +433,7 @@ export class FeedbackLoopAgent extends BaseAgent {
     const insights: LearningInsight[] = [];
     
     // Example insight generation
-    if (feedback.data.outcome === 'loss' && feedback.data.confidence > 0.8) {
+    if (feedback.data['outcome'] === 'loss' && feedback.data['confidence'] > 0.8) {
       insights.push({
         id: `insight_${Date.now()}`,
         category: 'confidence_calibration',
@@ -442,11 +451,11 @@ export class FeedbackLoopAgent extends BaseAgent {
   private async analyzeModelAccuracy(feedback: FeedbackItem): Promise<LearningInsight[]> {
     const insights: LearningInsight[] = [];
     
-    if (feedback.data.accuracy < 0.7) {
+    if (feedback.data['accuracy'] < 0.7) {
       insights.push({
         id: `insight_${Date.now()}`,
         category: 'model_performance',
-        description: `Model ${feedback.data.modelName} accuracy below threshold`,
+        description: `Model ${feedback.data['modelName']} accuracy below threshold`,
         confidence: 0.9,
         impact: 'high',
         recommendations: ['Consider model retraining', 'Switch to backup model', 'Review training data'],
@@ -460,7 +469,7 @@ export class FeedbackLoopAgent extends BaseAgent {
   private async analyzeSystemPerformance(feedback: FeedbackItem): Promise<LearningInsight[]> {
     const insights: LearningInsight[] = [];
     
-    if (feedback.data.memoryUsage > 500) { // 500MB threshold
+    if (feedback.data['memoryUsage'] > 500) { // 500MB threshold
       insights.push({
         id: `insight_${Date.now()}`,
         category: 'system_resources',
@@ -489,7 +498,7 @@ export class FeedbackLoopAgent extends BaseAgent {
     // Group insights by category
     const insightsByCategory = recentInsights.reduce((acc, insight) => {
       if (!acc[insight.category]) acc[insight.category] = [];
-      acc[insight.category].push(insight);
+      acc[insight.category]!.push(insight);
       return acc;
     }, {} as Record<string, LearningInsight[]>);
     
@@ -595,6 +604,9 @@ export class FeedbackLoopAgent extends BaseAgent {
 
   private async saveFeedbackItem(feedback: FeedbackItem): Promise<void> {
     try {
+      if (!this.supabase) {
+        throw new Error('Supabase client is required for FeedbackLoopAgent');
+      }
       const { error } = await this.supabase
         .from('feedback_log')
         .upsert({
@@ -623,6 +635,9 @@ export class FeedbackLoopAgent extends BaseAgent {
 
   private async saveRecommendations(recommendations: string[]): Promise<void> {
     try {
+      if (!this.supabase) {
+        throw new Error('Supabase client is required for FeedbackLoopAgent');
+      }
       const { error } = await this.supabase
         .from('improvement_recommendations')
         .insert({
@@ -654,7 +669,10 @@ export class FeedbackLoopAgent extends BaseAgent {
         processing_stats: this.processingStats,
         last_updated: new Date().toISOString()
       };
-      
+
+      if (!this.supabase) {
+        throw new Error('Supabase client is required for FeedbackLoopAgent');
+      }
       const { error } = await this.supabase
         .from('agent_state')
         .upsert({

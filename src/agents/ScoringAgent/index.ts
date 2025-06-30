@@ -22,8 +22,15 @@ export default class ScoringAgent extends BaseAgent {
 
   public async checkHealth(): Promise<HealthCheckResult> {
     try {
+      if (!this.hasSupabase()) {
+        return {
+          status: 'unhealthy',
+          details: { error: 'Supabase client not available' }
+        };
+      }
+
       // Test database connection
-      const { error } = await this.supabase
+      const { error } = await this.requireSupabase()
         .from('raw_props')
         .select('id')
         .limit(1);
@@ -52,10 +59,18 @@ export default class ScoringAgent extends BaseAgent {
 
   protected async collectMetrics(): Promise<AgentMetrics> {
     try {
+      if (!this.hasSupabase()) {
+        return {
+          ...this.metrics,
+          errorCount: 1,
+          successCount: 0,
+        };
+      }
+
       // Get scoring statistics from the last hour
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-      
-      const { data: scoringStats } = await this.supabase
+
+      const { data: scoringStats } = await this.requireSupabase()
         .from('raw_props')
         .select('edge_score, tier, updated_at')
         .gte('updated_at', oneHourAgo);
@@ -100,8 +115,8 @@ export default class ScoringAgent extends BaseAgent {
         successCount: 0,
         errorCount: 1,
         warningCount: 0,
-        processingTimeMs: baseMetrics.processingTimeMs,
-        memoryUsageMb: baseMetrics.memoryUsageMb
+        processingTimeMs: baseMetrics.processingTimeMs || 0,
+        memoryUsageMb: baseMetrics.memoryUsageMb || 0
       };
     }
   }
@@ -111,7 +126,12 @@ export default class ScoringAgent extends BaseAgent {
 
     logger.info("🔍 Scanning raw_props for props needing scoring...");
 
-    const { data: propsToScore, error } = await this.supabase
+    if (!this.hasSupabase()) {
+      logger.error("❌ Supabase client not available, cannot fetch props");
+      return;
+    }
+
+    const { data: propsToScore, error } = await this.requireSupabase()
       .from("raw_props")
       .select("*")
       .is("edge_score", null)
@@ -148,7 +168,7 @@ export default class ScoringAgent extends BaseAgent {
           updated_at: new Date().toISOString(),
         };
 
-        const { error: updateError } = await this.supabase
+        const { error: updateError } = await this.requireSupabase()
           .from("raw_props")
           .update(update)
           .eq("id", rawProp.id);
@@ -158,18 +178,18 @@ export default class ScoringAgent extends BaseAgent {
         }
 
         if (["S", "A"].includes(result.tier)) {
-          logger.info(`🚀 Promoting ${prop.player_name} (${prop.market_type}) to daily_picks`);
+          logger.info(`🚀 Promoting ${prop['player_name']} (${prop['market_type']}) to daily_picks`);
 
           const insert = {
             ...prop,
             ...update,
-            source: prop.source || "SGO",
+            source: prop['source'] || "SGO",
             approved: true,
             created_at: new Date().toISOString(),
             promoted_by: "ScoringAgent",
           };
 
-          const { error: insertError } = await this.supabase
+          const { error: insertError } = await this.requireSupabase()
             .from("daily_picks")
             .insert([insert]);
 
@@ -186,5 +206,7 @@ export default class ScoringAgent extends BaseAgent {
         });
       }
     }
+
+    logger.info(`✅ Scoring completed: ${successCount} successful, ${errorCount} errors`);
   }
 }

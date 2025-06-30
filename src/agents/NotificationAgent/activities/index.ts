@@ -1,4 +1,4 @@
-import { BaseAgentConfig, BaseAgentDependencies, AgentStatus, HealthStatus, BaseMetrics } from '../../BaseAgent/types';
+import { BaseAgentDependencies } from '../../BaseAgent/types';
 import { NotificationAgent } from '..';
 import { NotificationPayload, NotificationAgentConfig } from '../types';
 

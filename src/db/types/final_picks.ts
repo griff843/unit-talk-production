@@ -20,7 +20,7 @@ export interface FinalPick {
   league: string;
   confidence: number;
   analysis: string | null;
-  metadata: Record<string, any> | null;
+  metadata: Record<string, unknown> | null;
 }
 
 export type FinalPickInsert = Omit<FinalPick, 'id' | 'created_at' | 'updated_at'>;

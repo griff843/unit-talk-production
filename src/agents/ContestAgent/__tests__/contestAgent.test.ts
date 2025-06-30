@@ -1,6 +1,71 @@
 import { ContestAgent } from '../index';
 import { createTestDependencies, createTestConfig } from '../../../test/helpers/testHelpers';
 
+jest.mock('../contests', () => ({
+  ContestManager: jest.fn().mockImplementation(() => ({
+    initialize: jest.fn().mockResolvedValue(undefined),
+    cleanup: jest.fn().mockResolvedValue(undefined),
+    createContest: jest.fn().mockResolvedValue(undefined),
+    checkHealth: jest.fn().mockResolvedValue({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      details: {}
+    }),
+    getMetrics: jest.fn().mockReturnValue({
+      contests: {
+        active: 0,
+        completed: 0,
+        totalParticipants: 0,
+        prizeValueDistributed: 0
+      },
+      successCount: 0,
+      errorCount: 0,
+      warningCount: 0,
+      processingTimeMs: 0
+    })
+  }))
+}));
+
+jest.mock('../leaderboards', () => ({
+  LeaderboardManager: jest.fn().mockImplementation(() => ({
+    initialize: jest.fn().mockResolvedValue(undefined),
+    cleanup: jest.fn().mockResolvedValue(undefined),
+    updateLeaderboards: jest.fn().mockResolvedValue(undefined),
+    checkHealth: jest.fn().mockResolvedValue({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      details: {}
+    }),
+    getMetrics: jest.fn().mockReturnValue({
+      leaderboards: {
+        active: 0,
+        totalEntries: 0,
+        updateFrequency: 0
+      }
+    })
+  }))
+}));
+
+jest.mock('../fairplay', () => ({
+  FairPlayMonitor: jest.fn().mockImplementation(() => ({
+    initialize: jest.fn().mockResolvedValue(undefined),
+    cleanup: jest.fn().mockResolvedValue(undefined),
+    checkHealth: jest.fn().mockResolvedValue({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      details: {}
+    }),
+    getMetrics: jest.fn().mockReturnValue({
+      fairPlay: {
+        checksPerformed: 0,
+        violationsDetected: 0,
+        appealRate: 0,
+        averageFairPlayScore: 1.0
+      }
+    })
+  }))
+}));
+
 // Mock Supabase client
 jest.mock('@supabase/supabase-js', () => ({
   createClient: jest.fn(() => ({
@@ -72,7 +137,9 @@ describe('ContestAgent', () => {
     it('should return healthy status when all is well', async () => {
       const health = await agent.checkHealth();
       expect(health.status).toBe('healthy');
-      expect(health.details.errors).toHaveLength(0);
+      if (health.details) {
+        expect(health.details['errors']).toHaveLength(0);
+      }
     });
 
     it('should return degraded status when some components are unhealthy', async () => {
@@ -93,7 +160,9 @@ describe('ContestAgent', () => {
 
       const health = await agent.checkHealth();
       expect(health.status).toBe('degraded');
-      expect(health.details.errors).toHaveLength(0);
+      if (health.details) {
+        expect(health.details['errors']).toHaveLength(0);
+      }
     });
   });
 

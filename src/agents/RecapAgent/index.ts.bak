@@ -1,0 +1,144 @@
+import { RecapState } from './recapStateManager';
+
+export interface RecapAgentType {
+  processRecap(): Promise<void>;
+  generateRecap(): Promise<MicroRecapData>;
+  triggerDailyRecap(dateStr: string): Promise<void>;
+  triggerWeeklyRecap(): Promise<void>;
+  triggerMonthlyRecap(): Promise<void>;
+  getRecapService(): RecapService;
+  getRecapFormatter(): RecapFormatter;
+  
+  // Add recapState property to the interface
+  getRecapState(): RecapState;
+  updateRecapState(newState: Partial<RecapState>): Promise<void>;
+}
+
+export class RecapAgent extends BaseAgent implements RecapAgentType {
+  private recapService: RecapService;
+  private recapFormatter: RecapFormatter;
+  private notionSync?: NotionSyncService;
+  private slashHandler?: SlashCommandHandler;
+  private prometheusMetrics?: PrometheusMetrics;
+  private discordClient?: WebhookClient;
+  private recapConfig: RecapConfig;
+  private recapMetrics: RecapMetrics;
+  private roiWatcherInterval?: NodeJS.Timeout;
+
+  // Add missing properties
+  private stateManager: RecapStateManager;
+  private _recapState: RecapState = {
+    // Initialize with default values
+    manualTriggers: {
+      daily: 0,
+      weekly: 0,
+      monthly: 0
+    }
+  }; 
+
+  constructor(
+    config: BaseAgentConfig,
+    dependencies: BaseAgentDependencies,
+    recapConfig: RecapConfig,
+    recapService: RecapService,
+    recapFormatter: RecapFormatter,
+    stateManager: RecapStateManager,
+    logger: Logger,
+    notionSync?: NotionSyncService,
+    slashHandler?: SlashCommandHandler,
+    prometheusMetrics?: PrometheusMetrics,
+    discordClient?: WebhookClient
+  ) {
+    super(config, dependencies);
+
+    this.recapConfig = recapConfig;
+    this.recapService = recapService;
+    this.recapFormatter = recapFormatter;
+    this.stateManager = stateManager;
+    this.notionSync = notionSync;
+    this.slashHandler = slashHandler;
+    this.prometheusMetrics = prometheusMetrics;
+    this.discordClient = discordClient;
+    
+    // Initialize recapState
+    this._recapState = this.stateManager.loadState() || this._recapState;
+  }
+
+  // Implement interface methods for recapState
+  public getRecapState(): RecapState {
+    return this._recapState;
+  }
+
+  public async updateRecapState(newState: Partial<RecapState>): Promise<void> {
+    this._recapState = { ...this._recapState, ...newState };
+    await this.stateManager.updateState(this._recapState);
+  }
+
+  // Add methods that use recapState
+  public async processRecap(): Promise<void> {
+    // Implement recap processing logic
+    const currentState = await this.stateManager.loadState();
+    // Perform operations based on the current state
+    this._recapState = currentState || this._recapState;
+    await this.updateRecapState(this._recapState);
+  }
+
+  public async generateRecap(): Promise<MicroRecapData> {
+    // Implement recap generation logic
+    const currentState = await this.stateManager.loadState();
+    // Generate recap based on the current state
+    this._recapState = currentState || this._recapState;
+    return {} as MicroRecapData;
+  }
+
+  // Add methods for test harness
+  public async triggerDailyRecap(dateStr: string): Promise<void> {
+    // Implement daily recap logic
+    this.logger.info(`Triggering daily recap for ${dateStr}`);
+    const updatedState: Partial<RecapState> = {
+      lastDailyRecap: dateStr,
+      manualTriggers: {
+        daily: (this._recapState.manualTriggers?.daily || 0) + 1
+      }
+    };
+    await this.updateRecapState(updatedState);
+    await this.processRecap();
+  }
+
+  public async triggerWeeklyRecap(): Promise<void> {
+    // Implement weekly recap logic
+    this.logger.info('Triggering weekly recap');
+    const updatedState: Partial<RecapState> = {
+      lastWeeklyRecap: new Date().toISOString(),
+      manualTriggers: {
+        weekly: (this._recapState.manualTriggers?.weekly || 0) + 1
+      }
+    };
+    await this.updateRecapState(updatedState);
+    await this.processRecap();
+  }
+
+  public async triggerMonthlyRecap(): Promise<void> {
+    // Implement monthly recap logic
+    this.logger.info('Triggering monthly recap');
+    const updatedState: Partial<RecapState> = {
+      lastMonthlyRecap: new Date().toISOString(),
+      manualTriggers: {
+        monthly: (this._recapState.manualTriggers?.monthly || 0) + 1
+      }
+    };
+    await this.updateRecapState(updatedState);
+    await this.processRecap();
+  }
+
+  // Existing methods
+  public getRecapService(): RecapService {
+    return this.recapService;
+  }
+
+  public getRecapFormatter(): RecapFormatter {
+    return this.recapFormatter;
+  }
+
+  // Rest of the code remains the same
+}

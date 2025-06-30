@@ -33,7 +33,7 @@ export class PromotionAgent extends BaseAgent {
       this.logger.error('Failed to initialize PromotionAgent:', {
         error: error instanceof Error ? error.message : String(error)
       });
-      this.errorHandler.handleError(error as Error);
+      this.errorHandler?.handleError(error as Error);
       throw error;
     }
   }
@@ -41,7 +41,11 @@ export class PromotionAgent extends BaseAgent {
   private async validateDependencies(): Promise<void> {
     // Verify access to required tables
     const tables = ['graded_picks', 'final_picks'];
-    
+
+    if (!this.supabase) {
+      throw new Error('Supabase client is required for PromotionAgent');
+    }
+
     for (const table of tables) {
       const { error } = await this.supabase
         .from(table)
@@ -71,7 +75,7 @@ export class PromotionAgent extends BaseAgent {
       this.logger.error('Promotion cycle failed:', {
         error: error instanceof Error ? error.message : String(error)
       });
-      this.errorHandler.handleError(error as Error);
+      this.errorHandler?.handleError(error as Error);
       throw error;
     }
   }
@@ -89,6 +93,9 @@ export class PromotionAgent extends BaseAgent {
   public async checkHealth(): Promise<HealthStatus> {
     try {
       // Check if there are recent promotions in final_picks
+      if (!this.supabase) {
+        throw new Error('Supabase client is required for PromotionAgent');
+      }
       const { data, error } = await this.supabase
         .from('final_picks')
         .select('created_at')
@@ -98,7 +105,7 @@ export class PromotionAgent extends BaseAgent {
       if (error) throw error;
 
       const hasRecentActivity = data && data.length > 0 && 
-        new Date(data[0].created_at).getTime() > Date.now() - 24 * 60 * 60 * 1000; // 24 hours
+        new Date(data[0]!.created_at).getTime() > Date.now() - 24 * 60 * 60 * 1000; // 24 hours
 
       return {
         status: hasRecentActivity ? 'healthy' : 'degraded',
@@ -123,6 +130,9 @@ export class PromotionAgent extends BaseAgent {
   public async collectMetrics(): Promise<BaseMetrics> {
     try {
       // Get promotion counts from the last 24 hours
+      if (!this.supabase) {
+        throw new Error('Supabase client is required for PromotionAgent');
+      }
       const { data, error } = await this.supabase
         .from('final_picks')
         .select('id')

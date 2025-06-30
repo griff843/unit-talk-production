@@ -1,15 +1,12 @@
-import { 
-  Client, 
-  User, 
-  GuildMember, 
-  EmbedBuilder, 
-  ActionRowBuilder, 
-  ButtonBuilder, 
+import {
+  Client,
+  GuildMember,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
   ButtonStyle,
   StringSelectMenuBuilder,
-  DMChannel,
-  TextChannel,
-  ComponentType
+  User
 } from 'discord.js';
 import {
   OnboardingStep,
@@ -55,7 +52,18 @@ export class OnboardingService {
   /**
    * Start the onboarding process for a new user
    */
-  async startOnboarding(user: User, tier: UserTier = 'member'): Promise<void> {
+  /**
+   * Start onboarding for a guild member or user
+   */
+  async startOnboarding(userOrMember: User | GuildMember, tier: UserTier = 'member'): Promise<void> {
+    const user = userOrMember instanceof GuildMember ? userOrMember.user : userOrMember;
+    return this.startOnboardingForUser(user, tier);
+  }
+
+  /**
+   * Internal method to start onboarding for a user
+   */
+  private async startOnboardingForUser(user: User, tier: UserTier = 'member'): Promise<void> {
     try {
       const existingProgress = await database.getOnboardingProgress(user.id);
       if (existingProgress && existingProgress.completed_at) {
@@ -76,7 +84,7 @@ export class OnboardingService {
 
       // Send welcome DM
       await this.sendWelcomeMessage(user, tier);
-      
+
       logger.info(`Started onboarding for user ${user.username} (${user.id})`);
     } catch (error) {
       logger.error('Failed to start onboarding', { userId: user.id, error });
@@ -573,7 +581,7 @@ export class OnboardingService {
     const followUpSchedule = this.getFollowUpSchedule(tier);
     
     // Schedule messages (in a real implementation, this would use a job queue)
-    followUpSchedule.forEach(({ delay, message }) => {
+    followUpSchedule.forEach(({ delay, message }: { delay: number; message: string }) => {
       setTimeout(async () => {
         try {
           const user = await this.client.users.fetch(userId);
@@ -591,13 +599,15 @@ export class OnboardingService {
   private getTierConfig(tier: UserTier) {
     const configs = {
       member: { emoji: '👋', color: 0x3498db, title: 'Member' },
+      trial: { emoji: '🆓', color: 0x17a2b8, title: 'Trial Member' },
       vip: { emoji: '⭐', color: 0xf39c12, title: 'VIP Member' },
       vip_plus: { emoji: '💎', color: 0x9b59b6, title: 'VIP+ Member' },
+      capper: { emoji: '🎯', color: 0xE67E22, title: 'Capper' },
       staff: { emoji: '🛡️', color: 0xe74c3c, title: 'Staff Member' },
       admin: { emoji: '👑', color: 0x27ae60, title: 'Administrator' },
       owner: { emoji: '🔥', color: 0xff6b6b, title: 'Owner' }
     };
-    
+
     return configs[tier] || configs.member;
   }
 
@@ -607,13 +617,15 @@ export class OnboardingService {
   private getWelcomeMessage(tier: UserTier): string {
     const messages = {
       member: 'Welcome to Unit Talk! We\'re excited to help you improve your betting game with our community-driven insights and tools.',
+      trial: 'Welcome to Unit Talk! You\'re on a trial membership - explore our features and upgrade anytime for full access.',
       vip: 'Welcome to Unit Talk VIP! You now have access to premium features including advanced analytics and priority support.',
       vip_plus: 'Welcome to Unit Talk VIP+! Enjoy our most exclusive features including AI coaching, custom charts, and personalized strategies.',
+      capper: 'Welcome UT Capper! You have special privileges to submit picks and contribute to our community insights.',
       staff: 'Welcome to the Unit Talk team! You have staff-level access to help manage and support our community.',
       admin: 'Welcome, Administrator! You have full access to all platform features and administrative tools.',
       owner: 'Welcome back, Owner! Full platform access enabled.'
     };
-    
+
     return messages[tier] || messages.member;
   }
 
@@ -623,13 +635,15 @@ export class OnboardingService {
   private getTierBenefits(tier: UserTier): string {
     const benefits = {
       member: '• Community access\n• Basic pick tracking\n• Daily recaps',
+      trial: '• Limited community access\n• Basic pick tracking\n• 7-day trial period',
       vip: '• Everything in Member\n• Advanced analytics\n• Priority support\n• Exclusive channels',
       vip_plus: '• Everything in VIP\n• AI coaching\n• Custom charts\n• Parlay optimization\n• 1-on-1 support',
+      capper: '• Pick submission privileges\n• Performance tracking\n• Capper dashboard\n• Community recognition',
       staff: '• All platform features\n• Moderation tools\n• Admin dashboard access',
       admin: '• Full administrative access\n• User management\n• System configuration',
       owner: '• Complete platform control\n• All features unlocked'
     };
-    
+
     return benefits[tier] || benefits.member;
   }
 
@@ -659,11 +673,16 @@ export class OnboardingService {
    * Get follow-up message schedule
    */
   private getFollowUpSchedule(tier: UserTier) {
-    const schedules = {
+    const schedules: Record<UserTier, { delay: number; message: string }[]> = {
       member: [
         { delay: 24 * 60 * 60 * 1000, message: '👋 How\'s your first day going? Remember to submit your picks with `/pick submit`!' },
         { delay: 3 * 24 * 60 * 60 * 1000, message: '📊 Check out your performance so far with `/pick analytics`. Keep up the great work!' },
         { delay: 7 * 24 * 60 * 60 * 1000, message: '🎯 One week in! Consider upgrading to VIP for advanced features and better insights.' }
+      ],
+      trial: [
+        { delay: 24 * 60 * 60 * 1000, message: '🆓 Welcome to your trial! You have 7 days to explore our features.' },
+        { delay: 3 * 24 * 60 * 60 * 1000, message: '⏰ 4 days left in your trial! Consider upgrading to keep access to all features.' },
+        { delay: 6 * 24 * 60 * 60 * 1000, message: '🚨 Last day of trial! Upgrade now to continue your betting journey with us.' }
       ],
       vip: [
         { delay: 24 * 60 * 60 * 1000, message: '⭐ Welcome to VIP! Try out the advanced analytics and let us know what you think.' },
@@ -674,9 +693,51 @@ export class OnboardingService {
         { delay: 24 * 60 * 60 * 1000, message: '💎 VIP+ activated! Your AI coach is ready to help optimize your strategy.' },
         { delay: 3 * 24 * 60 * 60 * 1000, message: '🤖 How are you finding the AI coaching? It gets smarter as you use it more!' },
         { delay: 7 * 24 * 60 * 60 * 1000, message: '🏆 You\'re making the most of VIP+! Keep up the excellent work.' }
+      ],
+      capper: [
+        { delay: 24 * 60 * 60 * 1000, message: '🎯 Welcome, Capper! Start submitting your picks and building your reputation.' },
+        { delay: 3 * 24 * 60 * 60 * 1000, message: '📊 How are your picks performing? Check your capper dashboard for insights.' },
+        { delay: 7 * 24 * 60 * 60 * 1000, message: '🏆 Keep up the great work! Your picks are helping the community.' }
+      ],
+      staff: [
+        { delay: 24 * 60 * 60 * 1000, message: '👨‍💼 Welcome to the staff team! Check out the admin tools and let us know if you need help.' }
+      ],
+      admin: [
+        { delay: 24 * 60 * 60 * 1000, message: '🛡️ Admin access granted! You have full control over the platform.' }
+      ],
+      owner: [
+        { delay: 24 * 60 * 60 * 1000, message: '👑 Welcome, owner! The platform is yours to command.' }
       ]
     };
-    
+
     return schedules[tier] || schedules.member;
+  }
+
+  /**
+   * Get onboarding status for a user
+   */
+  async getOnboardingStatus(userId: string): Promise<OnboardingProgress | null> {
+    try {
+      return this.onboardingFlows.get(userId) || await database.getOnboardingProgress(userId);
+    } catch (error) {
+      logger.error('Failed to get onboarding status', { userId, error });
+      return null;
+    }
+  }
+
+
+
+  /**
+   * Reset onboarding for a user
+   */
+  async resetOnboarding(userId: string): Promise<void> {
+    try {
+      this.onboardingFlows.delete(userId);
+      // In a real implementation, this would also clear the database record
+      logger.info(`Reset onboarding for user ${userId}`);
+    } catch (error) {
+      logger.error('Failed to reset onboarding', { userId, error });
+      throw error;
+    }
   }
 }

@@ -3,7 +3,7 @@ import type { EngagementMetrics } from '../../types/marketing'
 
 export class EngagementTracker {
   private supabase: SupabaseClient
-  constructor(supabase: SupabaseClient, config: any) {
+  constructor(supabase: SupabaseClient, _config: any) {
     this.supabase = supabase
   }
 
