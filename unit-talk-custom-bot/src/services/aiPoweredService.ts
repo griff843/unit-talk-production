@@ -54,11 +54,13 @@ export class AIPoweredService {
       
       const gradingResult: AIGradingResult = {
         pickId: pickData.id,
-        grade: this.convertGradeToNumber(this.extractGradeFromAnalysis(aiAnalysis)),
+        grade: this.extractGradeFromAnalysis(aiAnalysis),
+        score: this.convertGradeToNumber(this.extractGradeFromAnalysis(aiAnalysis)),
         accuracy: this.extractAccuracyScore(aiAnalysis),
         reasoning: this.extractReasoningFromAnalysis(aiAnalysis),
         suggestions: this.extractImprovementSuggestions(aiAnalysis),
-        confidence: this.assessConfidenceAccuracy(pickData, actualResult),
+        confidence: this.extractAccuracyScore(aiAnalysis),
+        createdAt: new Date(),
         analysis: {
           strengths: this.extractStrengths(aiAnalysis),
           weaknesses: this.extractWeaknesses(aiAnalysis),
@@ -104,24 +106,28 @@ export class AIPoweredService {
       const userHistory = await this.getUserBettingHistory(userId);
       
       // Create coaching session
+      const userProfile = await this.getUserProfile(userId);
       const session: AICoachingSession = {
         id: `coaching_${Date.now()}_${userId}`,
         userId: userId,
-        sessionType: sessionType,
+        sessionType: 'interactive',
         startedAt: new Date(),
         lastActivity: new Date(),
         status: 'active',
         messages: [],
-        userProfile: await this.getUserProfile(userId),
-        currentFocus: sessionType,
-        improvementAreas: await this.identifyImprovementAreas(userId),
-        goals: []
+        userProfile: userProfile,
+        currentFocus: 'general',
+        improvementAreas: [],
+        goals: [],
+        insights: [],
+        recommendations: []
       };
 
       this.activeCoachingSessions.set(session.id, session);
 
       // Generate initial coaching message
       const initialMessage = await this.generateCoachingMessage(session, 'welcome');
+      session.messages = session.messages || [];
       session.messages.push({
         role: 'assistant',
         content: initialMessage,
@@ -162,6 +168,7 @@ export class AIPoweredService {
       }
 
       // Add user message to session
+      session.messages = session.messages || [];
       session.messages.push({
         role: 'user',
         content: userMessage,
@@ -172,6 +179,7 @@ export class AIPoweredService {
       const aiResponse = await this.generateCoachingResponse(session, userMessage);
 
       // Add AI response to session
+      session.messages = session.messages || [];
       session.messages.push({
         role: 'assistant',
         content: aiResponse,
@@ -231,6 +239,8 @@ export class AIPoweredService {
       const translatedContent = response.data.choices[0].message.content;
 
       const multiLangResponse: MultiLangResponse = {
+        en: content,
+        [targetLanguage]: translatedContent,
         id: `translation_${Date.now()}_${userId}`,
         originalContent: content,
         translatedContent: translatedContent,
@@ -489,7 +499,7 @@ export class AIPoweredService {
   }
 
   private async generateCoachingResponse(session: AICoachingSession, userMessage: string): Promise<string> {
-    const conversationHistory = session.messages.slice(-10); // Last 10 messages for context
+    const conversationHistory = (session.messages || []).slice(-10); // Last 10 messages for context
     
     const messages = [
       {
@@ -500,7 +510,7 @@ export class AIPoweredService {
         Session Focus: ${session.currentFocus}
         Improvement Areas: ${JSON.stringify(session.improvementAreas)}`
       },
-      ...conversationHistory.map(msg => ({
+      ...conversationHistory.map((msg: any) => ({
         role: msg.role,
         content: msg.content
       })),
@@ -767,30 +777,4 @@ export class AIPoweredService {
     return riskMatch ? riskMatch[1].toLowerCase() : 'medium';
   }
 
-  /**
-   * Convert grade string to number
-   */
-  private convertGradeToNumber(grade: string): number {
-    const gradeMap: { [key: string]: number } = {
-      'A+': 97, 'A': 93, 'A-': 90,
-      'B+': 87, 'B': 83, 'B-': 80,
-      'C+': 77, 'C': 73, 'C-': 70,
-      'D+': 67, 'D': 63, 'D-': 60,
-      'F': 50
-    };
-    return gradeMap[grade] || 75;
-  }
-
-  /**
-   * Assess confidence accuracy
-   */
-  private assessConfidenceAccuracy(pickData: any, actualResult: any): number {
-    const confidence = pickData.confidence || 0.5;
-    const wasCorrect = actualResult?.result === 'won';
-
-    if (wasCorrect && confidence > 0.7) return 0.9;
-    if (wasCorrect && confidence > 0.5) return 0.8;
-    if (!wasCorrect && confidence < 0.5) return 0.7;
-    return 0.6;
-  }
 }

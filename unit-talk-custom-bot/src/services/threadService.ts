@@ -39,7 +39,13 @@ export class ThreadService {
       if (threads) {
         this.activeThreads.clear();
         threads.forEach(thread => {
-          this.activeThreads.set(thread.game_id, thread as GameThread);
+          // Map database fields to local properties
+          const gameThread: GameThread = {
+            ...thread,
+            lastActivity: thread.last_activity ? new Date(thread.last_activity) : undefined,
+            pickCount: thread.pick_count || 0
+          };
+          this.activeThreads.set(thread.game_id, gameThread);
         });
         logger.info(`Loaded ${threads.length} active game threads`);
       }
@@ -64,13 +70,13 @@ export class ThreadService {
       const existingThread = this.activeThreads.get(gameData.gameId);
       if (existingThread) {
         try {
-          const channel = await this.client.channels.fetch(existingThread.threadId || existingThread.thread_id);
+          const channel = await this.client.channels.fetch(existingThread.thread_id);
           if (channel && channel.isThread() && !channel.archived) {
             return channel as ThreadChannel;
           }
         } catch (error) {
           // Thread might be deleted, create new one
-          logger.warn(`Existing thread ${existingThread.threadId} not found, creating new one`);
+          logger.warn(`Existing thread ${existingThread.thread_id} not found, creating new one`);
         }
       }
 
@@ -101,26 +107,17 @@ export class ThreadService {
       // Save to database
       const gameThread: GameThread = {
         id: `${gameData.gameId}_${Date.now()}`,
-        threadId: thread.id,
         thread_id: thread.id,
-        channel_id: thread.parentId || '',
-        gameId: gameData.gameId,
-        name: `🎯 ${gameData.teams} - ${gameData.sport}`,
+        game_id: gameData.gameId,
         sport: gameData.sport,
-        league: gameData.league || 'Unknown',
-        teams: Array.isArray(gameData.teams) ? gameData.teams : [gameData.teams],
-        game_time: gameData.gameTime ? (typeof gameData.gameTime === 'string' ? new Date(gameData.gameTime) : gameData.gameTime) : new Date(),
-        gameTime: gameData.gameTime ? (typeof gameData.gameTime === 'string' ? new Date(gameData.gameTime) : gameData.gameTime) : new Date(),
-        status: 'scheduled',
-        created_at: new Date(),
-        createdAt: new Date(),
-        updated_at: new Date(),
-        lastActivity: new Date(),
-        messageCount: 1,
-        participant_count: 0,
+        home_team: gameData.teams.split(' vs ')[1] || 'Unknown',
+        away_team: gameData.teams.split(' vs ')[0] || 'Unknown',
+        game_time: gameData.gameTime ? (typeof gameData.gameTime === 'string' ? gameData.gameTime : new Date(gameData.gameTime).toISOString()) : new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
         pick_count: 0,
-        userCount: 0,
-        isPinned: true
+        user_count: 0,
+        is_pinned: true
       };
 
       await this.saveGameThread(gameThread);
@@ -184,7 +181,7 @@ export class ThreadService {
       const gameThread = this.activeThreads.get(gameId);
       if (!gameThread) return;
 
-      const channel = await this.client.channels.fetch(gameThread.threadId || gameThread.thread_id || '');
+      const channel = await this.client.channels.fetch(gameThread.thread_id || '');
       if (!channel || !channel.isThread() || channel.archived) return;
 
       const thread = channel as ThreadChannel;
@@ -209,7 +206,7 @@ export class ThreadService {
       const gameThread = this.activeThreads.get(gameId);
       if (!gameThread) return;
 
-      const channel = await this.client.channels.fetch(gameThread.threadId || gameThread.thread_id || '');
+      const channel = await this.client.channels.fetch(gameThread.thread_id || '');
       if (!channel || !channel.isThread() || channel.archived) return;
 
       const thread = channel as ThreadChannel;
@@ -287,17 +284,17 @@ export class ThreadService {
       const cutoffDate = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000); // 3 days ago
 
       for (const [gameId, gameThread] of this.activeThreads) {
-        const lastActivity = gameThread.lastActivity || gameThread.created_at;
+        const lastActivity = (gameThread as any).lastActivity || gameThread.created_at;
         if (lastActivity && new Date(lastActivity) < cutoffDate) {
           try {
-            const channel = await this.client.channels.fetch(gameThread.threadId || gameThread.thread_id || '');
+            const channel = await this.client.channels.fetch(gameThread.thread_id || '');
             if (channel && channel.isThread() && !channel.archived) {
               const thread = channel as ThreadChannel;
               await thread.setArchived(true, 'Auto-archive after 3 days of inactivity');
               logger.info(`Archived thread for game ${gameId}`);
             }
           } catch (error) {
-            logger.warn(`Failed to archive thread ${gameThread.threadId}:`, error);
+            logger.warn(`Failed to archive thread ${gameThread.thread_id}:`, error);
           }
 
           this.activeThreads.delete(gameId);
@@ -473,16 +470,17 @@ export class ThreadService {
         .from('game_threads')
         .upsert({
           id: gameThread.id,
-          thread_id: gameThread.threadId,
-          game_id: gameThread.gameId,
-          sport: gameThread.sport,
-          teams: gameThread.teams,
-          game_time: gameThread.gameTime,
-          created_at: gameThread.createdAt,
-          last_activity: gameThread.lastActivity,
-          pick_count: gameThread.pickCount,
-          user_count: gameThread.userCount,
-          is_pinned: gameThread.isPinned
+          thread_id: gameThread.thread_id,
+          game_id: (gameThread as any).game_id || gameThread.id,
+          sport: (gameThread as any).sport,
+          home_team: (gameThread as any).home_team,
+          away_team: (gameThread as any).away_team,
+          game_time: (gameThread as any).game_time,
+          created_at: gameThread.created_at,
+          last_activity: (gameThread as any).last_activity,
+          pick_count: (gameThread as any).pick_count,
+          user_count: (gameThread as any).user_count,
+          is_pinned: (gameThread as any).is_pinned
         });
     } catch (error) {
       logger.error('Failed to save game thread:', error);
@@ -498,17 +496,30 @@ export class ThreadService {
       if (!gameThread) return;
 
       // Update local cache
-      gameThread.lastActivity = new Date();
+      if ('lastActivity' in gameThread) {
+        (gameThread as any).lastActivity = new Date();
+      }
+      if ('last_activity' in gameThread) {
+        (gameThread as any).last_activity = new Date().toISOString();
+      }
+
       if (action === 'pick_added') {
-        gameThread.pickCount = (gameThread.pickCount || 0) + 1;
+        if ('pickCount' in gameThread) {
+          const currentCount = (gameThread as any).pickCount || 0;
+          (gameThread as any).pickCount = currentCount + 1;
+        }
+        if ('pick_count' in gameThread) {
+          const currentCount = (gameThread as any).pick_count || 0;
+          (gameThread as any).pick_count = currentCount + 1;
+        }
       }
 
       // Update database
       await this.supabaseService.client
         .from('game_threads')
         .update({
-          last_activity: gameThread.lastActivity,
-          pick_count: gameThread.pickCount || 0
+          last_activity: (gameThread as any).last_activity || new Date().toISOString(),
+          pick_count: (gameThread as any).pick_count || 0
         })
         .eq('id', gameThread.id);
 
@@ -767,10 +778,12 @@ export class ThreadService {
       const cutoffTime = Date.now() - (7 * 24 * 60 * 60 * 1000); // 7 days ago
 
       for (const [gameId, thread] of this.activeThreads) {
-        const lastActivity = new Date(thread.lastActivity || thread.created_at || Date.now()).getTime();
+        const lastActivity = new Date(
+          (thread as any).lastActivity || (thread as any).last_activity || thread.created_at || Date.now()
+        ).getTime();
         if (lastActivity < cutoffTime) {
           this.activeThreads.delete(gameId);
-          logger.info(`Cleaned up inactive thread: ${thread.name}`);
+          logger.info(`Cleaned up inactive thread: ${gameId}`);
         }
       }
     } catch (error) {

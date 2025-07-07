@@ -22,7 +22,7 @@ export class PickGradingService {
    */
   async gradeUserPick(pickSubmission: UserPickSubmission): Promise<GradingResult> {
     try {
-      logger.info(`Grading pick for user ${pickSubmission.userId}: ${pickSubmission.description}`);
+      logger.info(`Grading pick for user ${pickSubmission.user_id}: ${pickSubmission.description}`);
 
       // Extract key factors for grading
       const factors = await this.extractGradingFactors(pickSubmission);
@@ -80,11 +80,12 @@ export class PickGradingService {
     const factors: GradingFactor[] = [];
 
     // Odds analysis
-    const oddsValue = pick.odds ? parseFloat(pick.odds) : 0;
+    const oddsValue = pick.odds ? (typeof pick.odds === 'string' ? parseFloat(pick.odds) : pick.odds) : 0;
     const oddsAnalysis = this.analyzeOdds(oddsValue);
     factors.push({
       name: 'Odds Value',
       category: 'value',
+      value: oddsAnalysis.score,
       weight: 0.25,
       score: oddsAnalysis.score,
       description: oddsAnalysis.description
@@ -96,6 +97,7 @@ export class PickGradingService {
       factors.push({
         name: 'Market Movement',
         category: 'market',
+        value: marketData.favorability,
         weight: 0.20,
         score: marketData.favorability,
         description: `Line moved ${marketData.movement > 0 ? 'favorably' : 'unfavorably'} by ${Math.abs(marketData.movement)} points`
@@ -107,17 +109,19 @@ export class PickGradingService {
     factors.push({
       name: 'Pick Timing',
       category: 'timing',
+      value: timingAnalysis.score,
       weight: 0.15,
       score: timingAnalysis.score,
       description: timingAnalysis.timing
     });
 
     // Historical performance
-    const userHistory = await this.getUserHistoricalPerformance(pick.userId || '', pick.description || '');
+    const userHistory = await this.getUserHistoricalPerformance(pick.user_id || '', pick.description || '');
     factors.push({
       name: 'User Track Record',
       category: 'history',
-      weight: 0.25,
+      value: userHistory.score,
+      weight: 0.3,
       score: userHistory.score,
       description: userHistory.description
     });
@@ -127,9 +131,10 @@ export class PickGradingService {
     factors.push({
       name: 'Risk Level',
       category: 'risk',
-      weight: 0.15,
-      score: riskAssessment.level === 'high' ? 30 : riskAssessment.level === 'medium' ? 15 : 5,
-      description: `Risk level assessed as ${riskAssessment.level}`
+      value: riskAssessment.score,
+      weight: 0.2,
+      score: riskAssessment.score * 100,
+      description: `Risk level assessed as ${riskAssessment.description}`
     });
 
     return factors;
@@ -143,7 +148,7 @@ export class PickGradingService {
     let totalWeight = 0;
 
     factors.forEach(factor => {
-      weightedScore += factor.score * factor.weight;
+      weightedScore += (factor.score || 0) * factor.weight;
       totalWeight += factor.weight;
     });
 
@@ -175,7 +180,7 @@ export class PickGradingService {
    * Calculate overall confidence score
    */
   private calculateConfidence(factors: GradingFactor[]): number {
-    const avgScore = factors.reduce((sum, factor) => sum + factor.score, 0) / factors.length;
+    const avgScore = factors.reduce((sum, factor) => sum + (factor.score || 0), 0) / factors.length;
     const consistency = this.calculateConsistency(factors);
     
     return Math.round((avgScore * 0.7 + consistency * 0.3) * 100) / 100;
@@ -186,8 +191,8 @@ export class PickGradingService {
    */
   private calculateConsistency(factors: GradingFactor[]): number {
     const scores = factors.map(f => f.score);
-    const mean = scores.reduce((sum, score) => sum + score, 0) / scores.length;
-    const variance = scores.reduce((sum, score) => sum + Math.pow(score - mean, 2), 0) / scores.length;
+    const mean = scores.reduce((sum: number, score) => sum + (score || 0), 0) / scores.length;
+    const variance = scores.reduce((sum: number, score) => sum + Math.pow((score || 0) - mean, 2), 0) / scores.length;
     const standardDeviation = Math.sqrt(variance);
     
     // Lower standard deviation = higher consistency
@@ -218,8 +223,8 @@ export class PickGradingService {
     // Factor breakdown
     feedback += `**Key Factors:**\n`;
     factors.forEach(factor => {
-      const emoji = factor.score >= 70 ? '✅' : factor.score >= 50 ? '⚠️' : '❌';
-      feedback += `${emoji} ${factor.name}: ${Math.round(factor.score)}% - ${factor.description}\n`;
+      const emoji = (factor.score || 0) >= 70 ? '✅' : (factor.score || 0) >= 50 ? '⚠️' : '❌';
+      feedback += `${emoji} ${factor.name}: ${Math.round(factor.score || 0)}% - ${factor.description}\n`;
     });
 
     // Unit size assessment
@@ -243,11 +248,11 @@ export class PickGradingService {
     pick: UserPickSubmission, 
     factors: GradingFactor[]
   ): Promise<string> {
-    const userStats = await this.getUserStats(pick.userId);
+    const userStats = await this.getUserStats(pick.user_id);
     let notes = `**Coaching Notes:**\n\n`;
 
     // Identify strengths
-    const strongFactors = factors.filter(f => f.score >= 70);
+    const strongFactors = factors.filter(f => (f.score || 0) >= 70);
     if (strongFactors.length > 0) {
       notes += `**Strengths:**\n`;
       strongFactors.forEach(factor => {
@@ -257,7 +262,7 @@ export class PickGradingService {
     }
 
     // Identify areas for improvement
-    const weakFactors = factors.filter(f => f.score < 50);
+    const weakFactors = factors.filter(f => (f.score || 0) < 50);
     if (weakFactors.length > 0) {
       notes += `**Areas to Improve:**\n`;
       weakFactors.forEach(factor => {
@@ -291,7 +296,7 @@ export class PickGradingService {
     const improvements: string[] = [];
     
     factors.forEach(factor => {
-      if (factor.score < 50) {
+      if ((factor.score || 0) < 50) {
         switch (factor.name) {
           case 'Odds Value':
             improvements.push('Line shopping and odds comparison');
@@ -362,6 +367,48 @@ export class PickGradingService {
     return {
       favorability: Math.random() * 100,
       movement: (Math.random() - 0.5) * 10
+    };
+
+  }
+
+  /**
+   * Analyze pick timing factors
+   */
+  public analyzePickTiming(pick: UserPickSubmission): { score: number; timing: string } {
+    // Simple timing analysis - in a real implementation, this would analyze
+    // when the pick was made relative to game time, line movements, etc.
+    const now = new Date();
+    const submittedAt = pick.submitted_at ? new Date(pick.submitted_at) : now;
+
+    // For now, return a default analysis
+    return {
+      score: 0.7, // Default score
+      timing: 'Pick submitted at optimal timing window'
+    };
+  }
+
+  /**
+   * Assess pick risk factors
+   */
+  public assessPickRisk(pick: UserPickSubmission): { score: number; description: string } {
+    // Simple risk assessment based on units and confidence
+    const units = pick.units || 1;
+    const confidence = pick.confidence || 50;
+
+    let riskScore = 0.5; // Default medium risk
+    let description = 'Medium risk pick';
+
+    if (units > 3 || confidence < 30) {
+      riskScore = 0.3; // High risk
+      description = 'High risk pick - consider reducing stake';
+    } else if (units <= 1 && confidence > 70) {
+      riskScore = 0.8; // Low risk
+      description = 'Low risk pick with good confidence';
+    }
+
+    return {
+      score: riskScore,
+      description
     };
   }
 
@@ -560,6 +607,15 @@ export class CoachingService {
       return {
         userId,
         period,
+        confidence_score: analysis.confidence || 0.5,
+        expected_value: analysis.avgEdge || 0,
+        risk_assessment: riskAssessment === 'reckless' || riskAssessment === 'aggressive' ? 'high' :
+                        riskAssessment === 'moderate' ? 'medium' : 'low',
+        key_factors: analysis.strengths || [],
+        market_context: 'Analysis based on recent betting patterns',
+        summary: 'Betting analysis summary',
+        insights: analysis.strengths || [],
+        improvements: analysis.weaknesses || [],
         totalBets: analysis.totalBets,
         winRate: analysis.winRate,
         profitLoss: analysis.profitLoss,
@@ -570,12 +626,12 @@ export class CoachingService {
         strengths: analysis.strengths || [],
         weaknesses: analysis.weaknesses || [],
         trends: analysis.trends || [],
-        recommendations,
+        recommendations: recommendations.map(r => r.title || r.description),
         riskAssessment,
         edge: analysis.avgEdge || 0,
         confidence: analysis.confidence || 0.5,
-        factors: analysis.factors || {},
-        riskLevel: riskAssessment
+        factors: analysis.factors || [],
+        riskLevel: riskAssessment as 'low' | 'medium' | 'high'
       };
     } catch (error) {
       logger.error('Failed to generate betting analysis:', error);
@@ -771,9 +827,16 @@ export class CoachingService {
                                level === 'moderate' ? 3 : 5;
 
     return {
+      overall: level === 'reckless' ? 'high' : level === 'aggressive' ? 'high' : level === 'moderate' ? 'medium' : 'low',
       level,
       score: riskScore,
-      factors,
+      factors: factors.map(factor => ({
+        name: factor,
+        level: 'medium' as 'low' | 'medium' | 'high',
+        description: factor,
+        impact: 0.5
+      })),
+      recommendations: suggestions,
       warnings: suggestions,
       maxRecommendedUnits
     };
@@ -835,59 +898,12 @@ export class CoachingService {
   /**
    * Assess pick risk
    */
-  assessPickRisk(pick: any): any {
-    const odds = parseFloat(pick.odds) || 0;
-    const units = parseFloat(pick.units) || 1;
-
-    let riskLevel = 'medium';
-    let score = 50;
-
-    if (odds > 200 || units > 5) {
-      riskLevel = 'high';
-      score = 30;
-    } else if (odds < -200 && units <= 2) {
-      riskLevel = 'low';
-      score = 80;
-    }
-
-    return {
-      level: riskLevel,
-      score,
-      factors: {
-        odds: odds > 200 ? 'high' : odds < -200 ? 'low' : 'medium',
-        units: units > 5 ? 'high' : units <= 2 ? 'low' : 'medium'
-      }
-    };
-  }
+  // Removed duplicate assessPickRisk function
 
   /**
    * Analyze pick timing
    */
-  analyzePickTiming(pick: any): any {
-    const submittedAt = new Date(pick.submittedAt || Date.now());
-    const gameTime = new Date(pick.gameTime || Date.now());
-    const hoursBeforeGame = (gameTime.getTime() - submittedAt.getTime()) / (1000 * 60 * 60);
 
-    let timing = 'optimal';
-    let score = 75;
-
-    if (hoursBeforeGame < 1) {
-      timing = 'last-minute';
-      score = 40;
-    } else if (hoursBeforeGame < 4) {
-      timing = 'late';
-      score = 60;
-    } else if (hoursBeforeGame > 48) {
-      timing = 'early';
-      score = 65;
-    }
-
-    return {
-      timing,
-      score,
-      hoursBeforeGame: Math.round(hoursBeforeGame * 10) / 10
-    };
-  }
 
   /**
    * Analyze user history
@@ -944,21 +960,24 @@ export class CoachingService {
     try {
       if (recentPicks.length === 0) {
         return {
-          userId: '',
           period: '30d',
           totalBets: 0,
           winRate: 0,
           profitLoss: 0,
           avgOdds: 0,
           avgUnits: 0,
-          avgEdge: 0,
           sportBreakdown: {},
-          recommendations: ['Start by submitting your first pick!'],
+          confidence_score: 0,
+          expected_value: 0,
+          risk_assessment: 'low',
+          key_factors: [],
+          recommendations: [],
+          market_context: 'No picks available for analysis',
           riskAssessment: 'LOW',
           edge: 0,
           confidence: 0,
-          factors: {},
-          riskLevel: 'LOW',
+          factors: [],
+          riskLevel: 'low',
           summary: 'Welcome to Unit Talk! Submit your first pick to get personalized coaching.',
           insights: ['Track your picks consistently', 'Focus on value betting', 'Manage your bankroll wisely'],
           improvements: ['Submit more picks for better analysis', 'Add reasoning to your picks', 'Set realistic expectations']
@@ -992,46 +1011,7 @@ export class CoachingService {
     }
   }
 
-  /**
-   * Analyze pick timing factors
-   */
-  private analyzePickTiming(pick: UserPickSubmission): { score: number; timing: string } {
-    // Simple timing analysis - in a real implementation, this would analyze
-    // when the pick was made relative to game time, line movements, etc.
-    const now = new Date();
-    const submittedAt = pick.submittedAt ? new Date(pick.submittedAt) : now;
 
-    // For now, return a default analysis
-    return {
-      score: 0.7, // Default score
-      timing: 'Pick submitted at optimal timing window'
-    };
-  }
-
-  /**
-   * Assess pick risk factors
-   */
-  private assessPickRisk(pick: UserPickSubmission): { score: number; description: string } {
-    // Simple risk assessment based on units and confidence
-    const units = pick.units || 1;
-    const confidence = pick.confidence || 50;
-
-    let riskScore = 0.5; // Default medium risk
-    let description = 'Medium risk pick';
-
-    if (units > 3 || confidence < 30) {
-      riskScore = 0.3; // High risk
-      description = 'High risk pick - consider reducing stake';
-    } else if (units <= 1 && confidence > 70) {
-      riskScore = 0.8; // Low risk
-      description = 'Low risk pick with good confidence';
-    }
-
-    return {
-      score: riskScore,
-      description
-    };
-  }
 }
 
 export const pickGradingService = new PickGradingService({} as SupabaseService);

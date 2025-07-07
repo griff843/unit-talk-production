@@ -102,8 +102,8 @@ export class ValidationService {
       await this.validateParlayPermissions(userId, formData, errors);
 
       // Image attachment validation
-      if (formData.imageAttachments) {
-        this.validateImageAttachments(formData.imageAttachments, errors, warnings);
+      if (formData.image_attachments) {
+        this.validateImageAttachments(formData.image_attachments, errors, warnings);
       }
 
       return {
@@ -206,10 +206,10 @@ export class ValidationService {
 
     // Validate bet type for sport
     const validBetTypes = sportConfig.betTypes.map((bt: any) => bt.id);
-    if (!validBetTypes.includes(pickData.betType)) {
+    if (!validBetTypes.includes(pickData.bet_type)) {
       errors.push({
         field: 'betType',
-        message: `Invalid bet type for ${pickData.sport}: ${pickData.betType}`,
+        message: `Invalid bet type for ${pickData.sport}: ${pickData.bet_type}`,
         code: 'INVALID_BET_TYPE',
         severity: 'ERROR'
       });
@@ -377,7 +377,7 @@ export class ValidationService {
       });
     }
 
-    if (!formData.bet_type && !formData.betType) {
+    if (!formData.bet_type) {
       errors.push({
         field: 'bet_type',
         message: 'Bet type is required',
@@ -694,7 +694,7 @@ export class ValidationService {
     if (odds > 300 || odds < -300) riskScore += 3;
 
     // Add risk for high stakes
-    const stake = 'stake' in pickData ? pickData.stake : ('totalStake' in pickData ? pickData.totalStake : 0);
+    const stake = 'stake' in pickData ? pickData.stake : 0;
     if (typeof stake === 'number' && stake > 100) riskScore += 2;
 
     // Add risk for low confidence

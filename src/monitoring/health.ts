@@ -184,7 +184,7 @@ export class HealthMonitor {
       timestamp: new Date().toISOString(),
       checks,
       uptime: Date.now() - this.startTime,
-      version: process.env.npm_package_version || '1.0.0'
+      version: process.env['npm_package_version'] || '1.0.0'
     };
 
     // Log health status

@@ -18,6 +18,7 @@ import * as alertActivities from './agents/AlertAgent/activities';
 import * as promoActivities from './agents/PromoAgent/activities';
 import * as contestActivities from './agents/ContestAgent/activities';
 import * as operatorActivities from './agents/OperatorAgent/activities';
+import * as playerEnrichmentActivities from './agents/PlayerEnrichmentAgent/activities';
 
 const env = getEnv();
 const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
@@ -41,7 +42,8 @@ export default async function startWorker() {
         ...alertActivities,
         ...promoActivities,
         ...contestActivities,
-        ...operatorActivities
+        ...operatorActivities,
+        ...playerEnrichmentActivities
       },
       taskQueue: env.TEMPORAL_TASK_QUEUE
     });

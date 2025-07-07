@@ -1,4 +1,4 @@
-// Core Discord Types
+/** Core Discord Types */
 export interface BotConfig {
   prefix: string;
   channels: {
@@ -187,6 +187,7 @@ export interface SportConfig {
 export interface BetType {
   id: string;
   name: string;
+  displayName?: string;
   description: string;
   category: 'spread' | 'total' | 'moneyline' | 'prop' | 'futures';
   requiresLine?: boolean;
@@ -210,6 +211,14 @@ export interface PickData {
   graded_at?: string;
   expected_value?: number;
   risk_level?: 'low' | 'medium' | 'high';
+  description?: string;
+  units?: number;
+  team1?: string;
+  team2?: string;
+  league?: string;
+  pick_type?: string;
+  legs?: any[];
+  timestamp?: string;
 }
 
 export interface PickValidationResult {
@@ -217,23 +226,51 @@ export interface PickValidationResult {
   errors: ValidationError[];
   warnings: string[];
   suggestions: string[];
+  confidenceScore?: number;
+  riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
 }
 
 export interface ValidationError {
   field: string;
   message: string;
   code: string;
+  severity?: 'ERROR' | 'WARNING' | 'INFO';
 }
 
 // AI & Analysis Types
 export interface BettingAnalysis {
+  pickId?: string;
+  period?: string;
   confidence_score: number;
+  confidence?: number; // Alias for confidence_score
   expected_value: number;
+  expectedValue?: number; // Alias for expected_value
   risk_assessment: 'low' | 'medium' | 'high';
+  riskLevel?: 'low' | 'medium' | 'high'; // Alias for risk_assessment
+  risk_level?: string; // Alias for risk_assessment
   key_factors: string[];
+  factors?: GradingFactor[];
   recommendations: string[];
+  recommendation?: 'strong_buy' | 'buy' | 'hold' | 'avoid';
   market_context: string;
+  summary: string;
+  insights: string[];
+  improvements: string[];
+  totalBets: number;
+  winRate: number;
+  avgUnits: number;
+  sportBreakdown: Record<string, number>;
+  edge?: number;
+  profitLoss?: number;
+  avgOdds?: number;
+  avgEdge?: number;
+  strengths?: string[];
+  weaknesses?: string[];
+  trends?: string[];
+  riskAssessment?: any;
+  userId?: string;
 }
+
 
 export interface AICoachingInsight {
   type: 'strategy' | 'bankroll' | 'selection' | 'timing';
@@ -241,6 +278,8 @@ export interface AICoachingInsight {
   description: string;
   actionable_steps: string[];
   priority: 'low' | 'medium' | 'high';
+  actionable?: boolean;
+  category?: string;
 }
 
 // Enhanced Form Types
@@ -309,6 +348,10 @@ export interface GradingResult {
   profit_loss: number;
   grade: 'S' | 'A' | 'B' | 'C' | 'D' | 'F';
   notes?: string;
+  graded_at?: string;
+  graded_by?: string;
+  actual_odds?: number;
+  payout?: number;
   // Additional properties used by gradingService
   edge?: number;
   tier?: string;
@@ -318,6 +361,9 @@ export interface GradingResult {
   coachNotes?: string;
   improvementAreas?: string[];
   analysis?: string;
+  reasoning?: string;
+  risk_assessment?: 'low' | 'medium' | 'high';
+  created_at?: Date;
 }
 
 export interface GradingFactor {
@@ -325,14 +371,19 @@ export interface GradingFactor {
   value: number;
   weight: number;
   description?: string;
+  score?: number;
+  category?: string;
 }
 
 export interface CoachingRecommendation {
-  type: 'improvement' | 'strength' | 'warning';
+  id?: string;
+  type: 'improvement' | 'strength' | 'warning' | 'timing' | 'bankroll' | 'research' | 'sport_focus';
   title: string;
   description: string;
   priority: 'high' | 'medium' | 'low';
   actionItems?: string[];
+  category?: string;
+  expectedImpact?: string;
 }
 
 export interface RiskFactor {
@@ -344,22 +395,15 @@ export interface RiskFactor {
 
 export interface RiskAssessment {
   overall: 'low' | 'medium' | 'high';
-  level?: 'low' | 'medium' | 'high'; // For backward compatibility
+  level?: 'low' | 'medium' | 'high' | 'conservative' | 'moderate' | 'aggressive' | 'reckless'; // For backward compatibility
   factors: RiskFactor[];
   score: number;
   recommendations: string[];
+  warnings?: string[];
+  maxRecommendedUnits?: number;
 }
 
-export interface BettingAnalysis {
-  pickId: string;
-  edge: number;
-  confidence: number;
-  riskLevel: 'low' | 'medium' | 'high';
-  expectedValue: number;
-  recommendation: 'strong_buy' | 'buy' | 'hold' | 'avoid';
-  factors: GradingFactor[];
-  // Remove userId as it's not part of the analysis itself
-}
+
 
 // Chart & Analytics Types
 export interface ChartData {
@@ -383,6 +427,8 @@ export interface EnhancedPermissions {
   canCreateParlays: boolean;
   canViewCoaching: boolean;
   canExportData: boolean;
+  canUploadImages: boolean;
+  canAccessPremiumFeatures: boolean;
   maxPicksPerDay: number;
   maxStakeAmount: number;
 }
@@ -502,6 +548,74 @@ export interface DMTrigger {
   created_by: string;
   created_at: string;
   usage_count: number;
+  type?: string;
+  trigger?: string;
+  template?: string | any;
+  conditions?: {
+    timeWindow?: any;
+    tiers?: string[];
+    cooldown?: number;
+    channels?: string[];
+  };
+}
+
+export interface DMConditions {
+  timeWindow?: any;
+  tiers?: string[];
+  cooldown?: number;
+  channels?: string[];
+
+}
+
+export interface DMTemplate {
+  id: string;
+  name: string;
+  content: string;
+  variables?: string[];
+  created_by: string;
+  created_at: string;
+}
+
+export interface ThreadLinkingRule {
+  id: string;
+  name: string;
+  conditions: any[];
+  actions: any[];
+}
+
+export interface DMTemplate {
+  id: string;
+  name: string;
+  content: string;
+  variables?: string[];
+  created_by: string;
+  created_at: string;
+  embeds?: any[];
+  enabled: boolean;
+}
+
+export interface ThreadLinkingRule {
+  id: string;
+  name: string;
+  conditions: any[];
+  actions: any[];
+  enabled: boolean;
+  targetChannels?: string[];
+}
+
+export interface CrossPostConfig {
+  enabled: boolean;
+  channels: string[];
+  rules: ThreadLinkingRule[];
+  conditions?: any;
+  targetChannels?: string[];
+}
+
+export interface MultiLangResponse {
+  en: string;
+  es?: string;
+  fr?: string;
+  [key: string]: any;
 }
 
 // Cooldown Types
@@ -632,8 +746,216 @@ export interface GameThread {
   updated_at?: string;
   last_activity?: string;
   pick_count?: number;
+  user_count?: number;
+  is_pinned?: boolean;
+  channel_id?: string;
+  league?: string;
+  teams?: any[];
   // Additional properties for local caching
   lastActivity?: Date;
   pickCount?: number;
+  userCount?: number;
+  isPinned?: boolean;
   name?: string;
+  threadId?: string; // Alias for thread_id
 }
+
+// Pick Submission Types
+export interface UserPickSubmission {
+  id?: string;
+  user_id: string;
+  sport: string;
+  bet_type: string;
+  selection: string;
+  odds: number;
+  stake: number;
+  confidence: number;
+  reasoning?: string;
+  status: 'pending' | 'won' | 'lost' | 'void' | 'pushed';
+  created_at: string;
+  expected_value?: number;
+  risk_level?: 'low' | 'medium' | 'high';
+  pick_data: PickData;
+  submitted_at: string;
+  gameId?: string;
+  description?: string;
+  units?: number;
+  timestamp?: string;
+  legs?: any[];
+  pick?: any;
+}
+
+
+
+
+
+
+
+// Keyword and Emoji DM Service Types
+export interface KeywordTrigger {
+  id: string;
+  name: string;
+  description: string;
+  keywords: string[];
+  template_id: string;
+  templateId?: string; // Alias for template_id
+  conditions?: TriggerCondition[];
+  cooldownMinutes?: number;
+  cooldown_minutes?: number;
+  priority?: 'low' | 'medium' | 'high';
+  matchType?: 'contains' | 'exact' | 'regex' | 'partial';
+  match_type?: 'contains' | 'exact' | 'regex' | 'partial';
+  is_active: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  isActive?: boolean; // Alias for is_active
+}
+
+export interface EmojiTrigger {
+  id: string;
+  name: string;
+  description: string;
+  emoji: string;
+  templateId: string;
+  template_id: string;
+  conditions?: TriggerCondition[];
+  cooldownMinutes?: number;
+  cooldown_minutes?: number;
+  priority?: 'low' | 'medium' | 'high';
+  is_active: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  isActive?: boolean; // Alias for is_active
+}
+
+export interface AutoDMTemplate {
+  id: string;
+  name: string;
+  content: string;
+  embed_data?: any;
+  embeds?: any[];
+  components_data?: any;
+  variables?: string[];
+  created_at: string;
+  updated_at: string;
+  is_active: boolean;
+}
+
+export interface CreateAutoDMTemplate {
+  name: string;
+  description: string;
+  subject: string;
+  content: string;
+  embed_data?: any;
+  components_data?: any;
+  variables?: string[];
+}
+
+export interface TriggerCondition {
+  type: 'role' | 'channel' | 'time' | 'user_tier';
+  value: string;
+  operator: 'equals' | 'contains' | 'greater_than' | 'less_than';
+}
+
+// Quick Edit Config Service Types
+export interface ConfigUpdate {
+  id: string;
+  adminId: string;
+  sessionId: string;
+  userId?: string;
+  applied: boolean;
+  field: string;
+  key: string;
+  value: any;
+  oldValue?: any;
+  newValue?: any;
+  updateType: string;
+  configType: string;
+  timestamp: Date;
+  reason: string;
+  result?: any;
+  completedAt?: Date;
+  updated_by?: string;
+}
+
+export interface AdminOverride {
+  id: string;
+  admin_id: string;
+  adminId: string; // Alias for admin_id
+  target_user_id?: string;
+  action?: string;
+  command: ExtendedSystemCommand;
+  parameters: Record<string, any>;
+  reason: string;
+  timestamp: Date;
+  status: 'executing' | 'completed' | 'failed';
+  created_at: string;
+  expires_at?: string;
+  is_active: boolean;
+  result?: any;
+  completedAt?: Date;
+}
+
+export interface QuickEditSession {
+  id: string;
+  user_id: string;
+  userId?: string; // Alias for user_id
+  config_key: string;
+  configType?: string;
+  changes?: ConfigUpdate[];
+  started_at: string;
+  startedAt?: string; // Alias for started_at
+  expires_at: string;
+  is_active: boolean;
+  status?: string;
+  completedAt?: string;
+  currentConfig?: any;
+}
+
+// System Command Types
+export interface SystemCommand {
+  name: string;
+  parameters: Record<string, any>;
+  reason: string;
+}
+
+export type ExtendedSystemCommand =
+  | 'force_user_tier_change'
+  | 'emergency_shutdown'
+  | 'force_channel_cleanup'
+  | 'override_permissions'
+  | 'force_data_sync'
+  | 'emergency_broadcast'
+  | 'force_user_reset'
+  | 'override_rate_limits'
+  | 'force_cache_clear'
+  | 'emergency_maintenance';
+
+export interface AIGradingResult {
+  grade: string | number;
+  score: number;
+  reasoning: string;
+  createdAt: Date | string;
+  confidence: number | string;
+  [key: string]: any;
+}
+
+export interface AICoachingSession {
+  id: string;
+  userId: string;
+  sessionType: string;
+  startedAt: Date | string;
+  endedAt?: Date | string;
+  insights: any[];
+  recommendations: string[];
+  status: string;
+  lastActivity?: Date;
+  messages?: any[];
+  userProfile?: any;
+  improvementAreas?: any[];
+  currentFocus?: string;
+  goals?: any[];
+}
+

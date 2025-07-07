@@ -54,12 +54,15 @@ export class AdminOverrideService {
 
       const override: AdminOverride = {
         id: `override_${Date.now()}_${adminId}`,
+        admin_id: adminId,
         adminId: adminId,
         command: command.name as ExtendedSystemCommand,
         parameters: command.parameters,
         reason: command.reason,
         timestamp: new Date(),
-        status: 'executing'
+        status: 'executing',
+        created_at: new Date().toISOString(),
+        is_active: true
       };
 
       this.activeOverrides.set(override.id, override);
@@ -525,8 +528,8 @@ export class AdminOverrideService {
       await this.analyticsService.getRealTimeStats();
       
       // Regenerate dashboards
-      const ownerDashboard = await this.analyticsService.generateOwnerDashboard();
-      const staffDashboard = await this.analyticsService.generateStaffDashboard();
+      const dashboardData = await this.analyticsService.getDashboardAnalytics();
+      const analyticsSummary = await this.analyticsService.getAnalyticsSummary();
 
       // Refresh keyword/emoji triggers
       await this.keywordDMService.reloadConfiguration();
@@ -536,9 +539,9 @@ export class AdminOverrideService {
         refreshedAt: new Date().toISOString(),
         refreshedBy: adminId,
         dashboards: {
-          owner: ownerDashboard.id,
-          staff: staffDashboard.id
-        }
+          owner: dashboardData,
+          staff: analyticsSummary
+        },
       };
 
     } catch (error) {

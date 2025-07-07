@@ -1,7 +1,7 @@
 import { Client, GuildMember, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, TextChannel } from 'discord.js';
 import { SupabaseService } from './supabase';
 import { PermissionsService } from './permissions';
-import { UserTier, VIPNotificationSequence, VIPWelcomeFlow } from '../types/index';
+import { UserTier, VIPNotificationSequence } from '../types/index';
 import { logger } from '../utils/logger';
 import { botConfig } from '../config';
 
@@ -10,7 +10,6 @@ export class VIPNotificationService {
   private supabaseService: SupabaseService;
   private permissionsService: PermissionsService;
   private activeSequences: Map<string, VIPNotificationSequence> = new Map();
-  private welcomeFlows: Map<string, VIPWelcomeFlow> = new Map();
 
   constructor(client: Client, supabaseService: SupabaseService, permissionsService: PermissionsService) {
     this.client = client;
@@ -42,139 +41,9 @@ export class VIPNotificationService {
 
   /**
    * Handle new VIP+ member welcome flow
+   * DISABLED: ComprehensiveOnboardingService now handles all welcome messages
    */
-  async handleVIPPlusWelcome(member: GuildMember): Promise<void> {
-    try {
-      const tier = this.permissionsService.getUserTier(member);
-      if (tier !== 'vip_plus') return;
 
-      const welcomeFlow: VIPWelcomeFlow = {
-        id: `vip_plus_welcome_${member.id}_${Date.now()}`,
-        name: 'VIP Plus Welcome Flow',
-        description: 'Welcome flow for new VIP Plus members',
-        trigger_type: 'event_based',
-        target_tiers: ['vip_plus'],
-        enabled: true,
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        userId: member.id,
-        tier: 'vip_plus',
-        startedAt: new Date(),
-        currentStep: 0,
-        completed: false,
-        steps: [
-          {
-            id: 'welcome-1',
-            order: 0,
-            delay: 0, // Immediate
-            type: 'welcome',
-            content: this.createVIPPlusWelcomeMessage(member),
-            requiresResponse: false
-          },
-          {
-            id: 'features-tour-1',
-            order: 1,
-            delay: 30, // 30 minutes
-            type: 'features_tour',
-            content: this.createFeaturesTourMessage(),
-            requiresResponse: true
-          },
-          {
-            id: 'first-pick-reminder-1',
-            order: 2,
-            delay: 1440, // 24 hours
-            type: 'first_pick_reminder',
-            content: this.createFirstPickReminderMessage(),
-            requiresResponse: false
-          },
-          {
-            id: 'engagement-check-1',
-            order: 3,
-            delay: 4320, // 72 hours
-            type: 'engagement_check',
-            content: this.createEngagementCheckMessage(),
-            requiresResponse: true
-          }
-        ]
-      };
-
-      this.welcomeFlows.set(member.id, welcomeFlow);
-      await this.executeWelcomeStep(welcomeFlow, 0);
-
-      // Store in database
-      await this.supabaseService.client
-        .from('vip_welcome_flows')
-        .insert({
-          user_id: member.id,
-          tier: 'vip_plus',
-          flow_data: welcomeFlow,
-          started_at: welcomeFlow.startedAt
-        });
-
-    } catch (error) {
-      logger.error(`Failed to handle VIP+ welcome for ${member.id}:`, error);
-    }
-  }
-
-  /**
-   * Handle VIP member welcome flow (different from VIP+)
-   */
-  async handleVIPWelcome(member: GuildMember): Promise<void> {
-    try {
-      const tier = this.permissionsService.getUserTier(member);
-      if (tier !== 'vip') return;
-
-      const welcomeFlow: VIPWelcomeFlow = {
-        id: `vip_welcome_${member.id}_${Date.now()}`,
-        name: 'VIP Welcome Flow',
-        description: 'Welcome flow for new VIP members',
-        trigger_type: 'event_based',
-        target_tiers: ['vip'],
-        enabled: true,
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        userId: member.id,
-        tier: 'vip',
-        startedAt: new Date(),
-        currentStep: 0,
-        completed: false,
-        steps: [
-          {
-            id: 'welcome-1',
-            order: 0,
-            delay: 0,
-            type: 'welcome',
-            content: this.createVIPWelcomeMessage(member),
-            requiresResponse: false
-          },
-          {
-            id: 'features-tour-1',
-            order: 1,
-            delay: 60, // 1 hour (longer delay than VIP+)
-            type: 'features_tour',
-            content: this.createVIPFeaturesTourMessage(),
-            requiresResponse: false
-          },
-          {
-            id: 'upgrade-suggestion-1',
-            order: 2,
-            delay: 2880, // 48 hours (longer than VIP+)
-            type: 'upgrade_suggestion',
-            content: this.createUpgradeSuggestionMessage(),
-            requiresResponse: false
-          }
-        ]
-      };
-
-      this.welcomeFlows.set(member.id, welcomeFlow);
-      await this.executeWelcomeStep(welcomeFlow, 0);
-
-    } catch (error) {
-      logger.error(`Failed to handle VIP welcome for ${member.id}:`, error);
-    }
-  }
 
   /**
    * Send instant pick alerts to VIP+ users
@@ -299,7 +168,7 @@ export class VIPNotificationService {
   /**
    * Execute welcome flow step
    */
-  private async executeWelcomeStep(flow: VIPWelcomeFlow, stepIndex: number): Promise<void> {
+  private async executeWelcomeStep(flow: any, stepIndex: number): Promise<void> {
     if (!flow.steps || stepIndex >= flow.steps.length) {
       flow.completed = true;
       return;
@@ -336,73 +205,7 @@ export class VIPNotificationService {
   /**
    * Create VIP+ welcome message
    */
-  private createVIPPlusWelcomeMessage(member: GuildMember): any {
-    const embed = new EmbedBuilder()
-      .setTitle('🌟 Welcome to VIP+ Exclusive!')
-      .setDescription(`Hey ${member.displayName}! Welcome to the elite tier of Unit Talk!`)
-      .addFields(
-        { name: '⚡ Instant Alerts', value: 'Get picks the moment they\'re released', inline: true },
-        { name: '🤖 AI Coaching', value: 'Personal AI analysis and coaching', inline: true },
-        { name: '🌍 Multi-language', value: 'Support in your preferred language', inline: true },
-        { name: '📊 Advanced Analytics', value: 'Detailed performance tracking', inline: true },
-        { name: '🎯 Premium Picks', value: 'Access to highest confidence plays', inline: true },
-        { name: '💬 Direct Access', value: 'Priority support and feedback', inline: true }
-      )
-      .setColor('#FFD700')
-      .setThumbnail(member.user.displayAvatarURL())
-      .setTimestamp();
 
-    const actionRow = new ActionRowBuilder<ButtonBuilder>()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId('vip_plus_tour_start')
-          .setLabel('Start VIP+ Tour')
-          .setStyle(ButtonStyle.Primary)
-          .setEmoji('🚀'),
-        new ButtonBuilder()
-          .setCustomId('vip_plus_settings')
-          .setLabel('Notification Settings')
-          .setStyle(ButtonStyle.Secondary)
-          .setEmoji('⚙️')
-      );
-
-    return { embeds: [embed], components: [actionRow] };
-  }
-
-  /**
-   * Create VIP welcome message
-   */
-  private createVIPWelcomeMessage(member: GuildMember): any {
-    const embed = new EmbedBuilder()
-      .setTitle('🎉 Welcome to VIP!')
-      .setDescription(`Welcome ${member.displayName}! You now have access to VIP features.`)
-      .addFields(
-        { name: '📈 VIP Picks', value: 'Access to premium pick analysis', inline: true },
-        { name: '⏰ Early Access', value: 'Get picks before free members', inline: true },
-        { name: '📊 Basic Analytics', value: 'Track your betting performance', inline: true },
-        { name: '🎯 Quality Content', value: 'Curated picks with reasoning', inline: true }
-      )
-      .setColor('#4169E1')
-      .setThumbnail(member.user.displayAvatarURL())
-      .setTimestamp()
-      .setFooter({ text: 'Consider upgrading to VIP+ for instant alerts and AI features!' });
-
-    const actionRow = new ActionRowBuilder<ButtonBuilder>()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId('vip_tour_start')
-          .setLabel('Start VIP Tour')
-          .setStyle(ButtonStyle.Primary)
-          .setEmoji('🚀'),
-        new ButtonBuilder()
-          .setCustomId('vip_settings')
-          .setLabel('Notification Settings')
-          .setStyle(ButtonStyle.Secondary)
-          .setEmoji('⚙️')
-      );
-
-    return { embeds: [embed], components: [actionRow] };
-  }
 
   // Helper methods
   private async getVIPPlusUsers(): Promise<any[]> {
@@ -634,13 +437,12 @@ export class VIPNotificationService {
     try {
       const tier = this.permissionsService.getUserTier(member);
 
-      // Handle VIP members
-      if (tier === 'vip_plus') {
-        await this.handleVIPPlusWelcome(member);
-      } else if (tier === 'vip') {
-        await this.handleVIPWelcome(member);
-      } else {
-        // Handle regular members with enhanced onboarding
+      // NOTE: Welcome messages are now handled by OnboardingService
+      // This service focuses only on VIP notification functionality
+      logger.info(`New member ${member.user.username} (${tier}) - onboarding handled by OnboardingService`);
+
+      // Handle regular members with enhanced onboarding
+      if (tier === 'member') {
         await this.handleRegularMemberWelcome(member);
       }
     } catch (error) {
@@ -650,66 +452,19 @@ export class VIPNotificationService {
 
   /**
    * Handle regular member welcome with enhanced onboarding
+   * DISABLED: ComprehensiveOnboardingService now handles all welcome messages
    */
   async handleRegularMemberWelcome(member: GuildMember): Promise<void> {
     try {
-      const welcomeEmbed = new EmbedBuilder()
-        .setTitle('🎉 Welcome to Unit Talk!')
-        .setDescription(`Hey ${member.displayName || member.user.username}! Welcome to our premium betting community!`)
-        .setColor(0x00FF00)
-        .addFields(
-          {
-            name: '🚀 Getting Started',
-            value: '• Check out our <#' + botConfig.channels.announcements + '> for important updates\n• Introduce yourself in <#' + botConfig.channels.general + '>\n• Use `/help` to see available commands\n• Read our community guidelines',
-            inline: false
-          },
-          {
-            name: '📊 Free Features',
-            value: '• Access to general discussions\n• Basic pick analysis\n• Community insights\n• Educational content',
-            inline: false
-          },
-          {
-            name: '💎 Want More?',
-            value: '• **VIP Access**: Get exclusive picks and advanced analytics\n• **VIP+ Access**: Premium features and direct expert access\n• Contact an admin for upgrade information',
-            inline: false
-          },
-          {
-            name: '🤖 Bot Commands',
-            value: '• `/ping` - Check bot status\n• `/help` - Show available commands\n• `/roles` - Check your current permissions\n• `/test` - Test bot functionality',
-            inline: false
-          }
-        )
-        .setFooter({ text: 'Unit Talk - Your Premium Betting Community' })
-        .setTimestamp()
-        .setThumbnail(member.user.displayAvatarURL());
+      // DISABLED: Preventing duplicate welcome messages
+      // ComprehensiveOnboardingService now handles all tier-based onboarding
+      logger.info(`Regular member welcome disabled for ${member.user.username} - handled by ComprehensiveOnboardingService`);
+      return;
 
-      // Try to send DM first
-      try {
-        await member.send({ embeds: [welcomeEmbed] });
-        logger.info(`Welcome DM sent to ${member.user.username}`);
-      } catch (dmError) {
-        logger.warn(`Could not send welcome DM to ${member.user.username}, sending to welcome channel`);
-
-        // Fallback to welcome channel
-        const welcomeChannel = member.guild.channels.cache.get(botConfig.channels.announcements);
-        if (welcomeChannel && welcomeChannel.isTextBased()) {
-          const publicWelcome = new EmbedBuilder()
-            .setTitle('👋 New Member!')
-            .setDescription(`Welcome ${member} to Unit Talk! 🎉`)
-            .setColor(0x00FF00)
-            .addFields({
-              name: '📬 DM Notice',
-              value: 'We tried to send you a welcome DM but couldn\'t reach you. Make sure your DMs are open for important notifications!',
-              inline: false
-            })
-            .setTimestamp();
-
-          await (welcomeChannel as any).send({ embeds: [publicWelcome] });
-        }
-      }
-
-      // Schedule follow-up messages
-      await this.scheduleFollowUpMessages(member);
+      // ... existing code ...
+      // Use new onboarding service instead of old welcome embed
+      // Welcome message functionality temporarily disabled
+      // to avoid unreachable code warnings
 
     } catch (error) {
       logger.error(`Failed to handle regular member welcome for ${member.id}:`, error);
@@ -789,12 +544,12 @@ export class VIPNotificationService {
    */
   async handleTierChange(member: GuildMember, oldTier: UserTier, newTier: UserTier): Promise<void> {
     try {
-      // Handle upgrades
-      if (newTier === 'vip_plus' && oldTier !== 'vip_plus') {
-        await this.handleVIPPlusWelcome(member);
-      } else if (newTier === 'vip' && oldTier !== 'vip') {
-        await this.handleVIPWelcome(member);
-      } else if (newTier === 'capper' && oldTier !== 'capper') {
+      // NOTE: Welcome messages for tier upgrades are now handled by OnboardingService
+      // This service focuses only on VIP notification functionality
+      logger.info(`Tier change for ${member.user.username}: ${oldTier} -> ${newTier} - onboarding handled by OnboardingService`);
+
+      // Handle capper welcome (if still needed)
+      if (newTier === 'capper' && oldTier !== 'capper') {
         await this.handleCapperWelcome(member);
       }
 
@@ -822,11 +577,12 @@ export class VIPNotificationService {
   async processNotificationQueue(): Promise<void> {
     try {
       // Process any pending notifications
-      for (const [userId, flow] of this.welcomeFlows) {
-        if (!flow.completed) {
-          await this.processWelcomeFlow(userId, flow);
-        }
-      }
+      // Temporarily disable welcome flows processing
+      // for (const [userId, flow] of this.welcomeFlows) {
+      //   if (!flow.completed) {
+      //     await this.processWelcomeFlow(userId, flow);
+      //   }
+      // }
     } catch (error) {
       logger.error('Error processing notification queue:', error);
     }
@@ -835,9 +591,9 @@ export class VIPNotificationService {
   /**
    * Process welcome flow for a user
    */
-  private async processWelcomeFlow(_userId: string, _flow: VIPWelcomeFlow): Promise<void> {
-    // Implementation for processing welcome flow steps
-    // This would handle the step-by-step welcome process
+  private async processWelcomeFlow(userId: string, flow: any): Promise<void> {
+    // Placeholder for welcome flow processing
+    // This will be implemented when needed
   }
 
   /**

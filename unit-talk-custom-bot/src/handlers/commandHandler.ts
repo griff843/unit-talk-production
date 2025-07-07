@@ -68,14 +68,6 @@ export class CommandHandler {
           await this.handleLeaderboardCommand(context);
           break;
 
-        case 'help':
-          await this.handleHelpCommand(context);
-          break;
-
-        case 'vip-info':
-          await this.handleVIPInfoCommand(context);
-          break;
-
         case 'trial-status':
           await this.handleTrialStatusCommand(context);
           break;
@@ -84,31 +76,83 @@ export class CommandHandler {
           await this.handleUpgradeCommand(context);
           break;
 
+        case 'test-onboarding':
+          {
+            const testOnboardingModule = await import('../commands/test-onboarding');
+            await testOnboardingModule.execute(interaction, this.services);
+          }
+          break;
+
+        case 'deploy-content':
+          {
+            const deployContentModule = await import('../commands/deploy-content');
+            await deployContentModule.execute(interaction);
+          }
+          break;
+
+        case 'roles':
+          {
+            const rolesModule = await import('../commands/roles');
+            await rolesModule.execute(interaction);
+          }
+          break;
 
         case 'heat-signal':
           await this.handleHeatSignalCommand(context);
           break;
 
         case 'edge-tracker':
-          await this.handleEdgeTrackerCommand(context);
+          {
+            const edgeTrackerModule = await import('../commands/edge-tracker');
+            await edgeTrackerModule.execute(interaction);
+          }
           break;
 
-        case 'ask-unit-talk':
-          const { execute } = await import('../commands/ask-unit-talk-enhanced');
-          await execute(interaction);
+        case 'ask-ai':
+          {
+            const askAiModule = await import('../commands/ask-ai');
+            await askAiModule.execute(interaction);
+          }
           break;
 
-        case 'ev-report':
-          await this.handleEvReportCommand(context);
+        case 'sample-picks':
+          {
+            const samplePicksModule = await import('../commands/sample-picks');
+            await samplePicksModule.execute(interaction);
+          }
           break;
 
-        case 'trend-breaker':
-          await this.handleTrendBreakerCommand(context);
+        case 'recap':
+          {
+            const recapModule = await import('../commands/recap');
+            await recapModule.execute(interaction);
+          }
           break;
 
-        case 'trigger-onboarding':
-          await this.handleTriggerOnboardingCommand(context);
+        case 'capper-leader':
+          {
+            const capperLeaderModule = await import('../commands/capper-leader');
+            await capperLeaderModule.execute(interaction);
+          }
           break;
+
+        case 'alerts-setup':
+          {
+            const alertsSetupModule = await import('../commands/alerts-setup');
+            await alertsSetupModule.execute(interaction);
+          }
+          break;
+
+        case 'top-plays':
+          {
+            const topPlaysModule = await import('../commands/top-plays');
+            await topPlaysModule.execute(interaction);
+          }
+          break;
+
+
+
+
 
         case 'pick':
           await this.handlePickCommand(context);
@@ -183,12 +227,21 @@ export class CommandHandler {
 
     } catch (error) {
       logger.error('Error handling slash command:', error);
-      
-      if (!interaction.replied && !interaction.deferred) {
-        await interaction.reply({
-          content: '❌ An error occurred while processing your command.',
-          ephemeral: true
-        });
+
+      try {
+        if (!interaction.replied && !interaction.deferred) {
+          await interaction.reply({
+            content: '❌ An error occurred while processing your command.',
+            ephemeral: true
+          });
+        } else if (interaction.deferred) {
+          await interaction.editReply({
+            content: '❌ An error occurred while processing your command.'
+          });
+        }
+        // If already replied, we can't send another response
+      } catch (replyError) {
+        logger.error('Error sending error response:', replyError);
       }
     }
   }
@@ -206,10 +259,9 @@ export class CommandHandler {
     const ping = this.client.ws.ping;
     const uptime = process.uptime();
 
-    await interaction.reply({
-      content: `🏓 Pong!\n**Bot Latency:** ${ping}ms\n**Uptime:** ${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m`,
-      ephemeral: true
-    });
+    const response = `🏓 Pong!\n**Bot Latency:** ${ping}ms\n**Uptime:** ${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m`;
+
+    await interaction.reply({ content: response, ephemeral: true });
   }
 
   /**
@@ -544,23 +596,7 @@ export class CommandHandler {
     }
   }
 
-  /**
-   * Handle help command
-   */
-  private async handleHelpCommand(context: CommandContext): Promise<void> {
-    if (!context.interaction) return;
-    const helpModule = await import('../commands/help');
-    await helpModule.execute(context.interaction);
-  }
 
-  /**
-   * Handle VIP info command
-   */
-  private async handleVIPInfoCommand(context: CommandContext): Promise<void> {
-    if (!context.interaction) return;
-    const vipInfoModule = await import('../commands/vip-info');
-    await vipInfoModule.execute(context.interaction);
-  }
 
   /**
    * Handle trial status command
@@ -644,34 +680,11 @@ export class CommandHandler {
   /**
    * Handle ask-unit-talk command (VIP+ only)
    */
-  private async handleAskUnitTalk(interaction: ChatInputCommandInteraction): Promise<void> {
-    const { execute } = await import('../commands/ask-unit-talk-enhanced');
-    await execute(interaction);
-  }
+  // Removed handleAskUnitTalk method as the command was deleted
 
-  /**
-   * Handle ev-report command (VIP/VIP+ only)
-   */
-  private async handleEvReportCommand(context: CommandContext): Promise<void> {
-    const { execute } = await import('../commands/ev-report');
-    await execute(context.interaction as any);
-  }
 
-  /**
-   * Handle trend-breaker command (VIP+ only)
-   */
-  private async handleTrendBreakerCommand(context: CommandContext): Promise<void> {
-    const { execute } = await import('../commands/trend-breaker');
-    await execute(context.interaction as any);
-  }
 
-  /**
-   * Handle trigger-onboarding command (Admin only)
-   */
-  private async handleTriggerOnboardingCommand(context: CommandContext): Promise<void> {
-    const { execute } = await import('../commands/trigger-onboarding');
-    await execute(context.interaction as any);
-  }
+
 
   /**
    * Handle capper commands

@@ -166,16 +166,34 @@ async function handlePickSubmission(interaction: ChatInputCommandInteraction): P
   // Create pick submission
   const pickSubmission: UserPickSubmission = {
     id: `temp-${Date.now()}`, // Add required id
-    userId: interaction.user.id,
+    user_id: interaction.user.id,
+    selection: description, // Add required selection
+    created_at: new Date().toISOString(), // Add required created_at
+    pick_data: { // Add required pick_data
+      id: `pick-${Date.now()}`,
+      user_id: interaction.user.id,
+      sport,
+      bet_type: 'standard',
+      selection: description,
+      odds,
+      stake: units,
+      confidence,
+      status: 'pending' as const,
+      created_at: new Date().toISOString(),
+      description,
+      units,
+      timestamp: new Date().toISOString()
+    },
+    submitted_at: new Date().toISOString(), // Add required submitted_at
     gameId: `game-${Date.now()}`, // Add required gameId
     description,
-    odds: odds.toString(), // Convert number to string
+    odds: odds, // Keep as number
     units,
     confidence,
     sport,
-    timestamp: new Date(),
+    timestamp: new Date().toISOString(),
     status: 'pending',
-    betType: 'single', // Add required betType
+    bet_type: 'single', // Add required bet_type
     legs: [], // Add required legs array
     stake: units, // Add required stake (same as units for now)
     pick: { // Add required pick object

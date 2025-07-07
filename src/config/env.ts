@@ -1,5 +1,5 @@
+
 import { z } from 'zod';
-import { logger } from '../utils/logger';
 
 // Base environment schema
 const envSchema = z.object({
@@ -78,9 +78,9 @@ const envSchema = z.object({
     const result = envSchema.safeParse(process.env);
 
     if (!result.success) {
-      logger.error('❌ Invalid environment variables:');
+      console.error('❌ Invalid environment variables:');
       for (const error of result.error.errors) {
-        logger.error(`  - ${error.path.join('.')}: ${error.message}`);
+        console.error(`  - ${error.path.join('.')}: ${error.message}`);
       }
 
       // Don't exit in test environment
@@ -98,7 +98,7 @@ const envSchema = z.object({
       if (process.env['NODE_ENV'] !== 'test') {
         throw error;
       }
-      logger.warn('Warning:', error.message);
+      console.warn('Warning:', error.message);
     }
 
     if (result.data.NOTION_ENABLED && !result.data.NOTION_API_KEY) {
@@ -106,7 +106,7 @@ const envSchema = z.object({
       if (process.env['NODE_ENV'] !== 'test') {
         throw error;
       }
-      logger.warn('Warning:', error.message);
+      console.warn('Warning:', error.message);
     }
 
     if (result.data.SLACK_ENABLED && !result.data.SLACK_WEBHOOK_URL) {
@@ -114,7 +114,7 @@ const envSchema = z.object({
       if (process.env['NODE_ENV'] !== 'test') {
         throw error;
       }
-      logger.warn('Warning:', error.message);
+      console.warn('Warning:', error.message);
     }
 
     return result.data;

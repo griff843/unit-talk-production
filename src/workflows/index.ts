@@ -10,8 +10,10 @@ import type {
   PromoAgentActivities,
   ContestAgentActivities,
   OperatorAgentActivities,
+  PlayerEnrichmentAgentActivities,
   ActivityParams
 } from '../types/activities';
+import type { SupportedLeague } from '../agents/PlayerEnrichmentAgent';
 
 // Create proxies for each agent's activities
 const baseActivities = proxyActivities<BaseAgentActivities>({
@@ -54,6 +56,10 @@ const operatorActivities = proxyActivities<OperatorAgentActivities>({
   startToCloseTimeout: '5 minutes'
 });
 
+const playerEnrichmentActivities = proxyActivities<PlayerEnrichmentAgentActivities>({
+  startToCloseTimeout: '10 minutes'
+});
+
 // Export all activities
 export {
   baseActivities,
@@ -65,7 +71,8 @@ export {
   alertActivities,
   promoActivities,
   contestActivities,
-  operatorActivities
+  operatorActivities,
+  playerEnrichmentActivities
 };
 
 // Standard timeout configurations
@@ -110,6 +117,10 @@ const audit = proxyActivities<typeof auditActivities>({
   startToCloseTimeout: EXTENDED_TIMEOUT,
 });
 
+const playerEnrichment = proxyActivities<typeof playerEnrichmentActivities>({
+  startToCloseTimeout: EXTENDED_TIMEOUT,
+});
+
 // Export all workflows with standardized patterns
 export async function analyticsWorkflow(params: ActivityParams): Promise<void> {
   await analytics.runAnalysis(params);
@@ -145,4 +156,38 @@ export async function operatorWorkflow(params: ActivityParams): Promise<void> {
 
 export async function auditWorkflow(params: ActivityParams): Promise<void> {
   await audit.runAudit(params);
-} 
+}
+
+  // Player Enrichment Workflows - Multi-League Support
+  export async function playerEnrichmentWorkflow(params: ActivityParams & { league?: SupportedLeague }): Promise<void> {
+    await playerEnrichment.enrichAllPlayers(params);
+  }
+
+  export async function enrichPlayerByIdWorkflow(params: ActivityParams & { playerId: string }): Promise<void> {
+    await playerEnrichment.enrichPlayerById(params);
+  }
+
+  export async function getPlayerHeadshotWorkflow(params: ActivityParams & { playerName: string; league: SupportedLeague }): Promise<void> {
+    await playerEnrichment.getPlayerHeadshot(params);
+  }
+
+  // League-specific workflows
+  export async function getMlbHeadshotWorkflow(params: ActivityParams & { playerName: string }): Promise<void> {
+    await playerEnrichment.getMlbHeadshot(params);
+  }
+
+  export async function getNbaHeadshotWorkflow(params: ActivityParams & { playerName: string }): Promise<void> {
+    await playerEnrichment.getNbaHeadshot(params);
+  }
+
+  export async function getNflHeadshotWorkflow(params: ActivityParams & { playerName: string }): Promise<void> {
+    await playerEnrichment.getNflHeadshot(params);
+  }
+
+  export async function getNhlHeadshotWorkflow(params: ActivityParams & { playerName: string }): Promise<void> {
+    await playerEnrichment.getNhlHeadshot(params);
+  }
+
+  export async function enrichLeaguePlayersWorkflow(params: ActivityParams & { league: SupportedLeague }): Promise<void> {
+    await playerEnrichment.enrichAllPlayers(params);
+  }

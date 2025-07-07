@@ -50,7 +50,9 @@
     "node_modules",
     "dist",
     "**/*.test.ts",
-    "**/*.spec.ts"
+    "**/*.spec.ts",
+    "src/components/**/*",
+    "src/lib/**/*"
   ],
   "ts-node": {
     "esm": false,

@@ -47,14 +47,25 @@ export async function handleCapperInteraction(interaction: ChatInputCommandInter
 }
 
 async function handleSubmitPick(interaction: ChatInputCommandInteraction) {
-  // Check if user has capper permissions
-  const hasPermissions = await capperService.hasCapperPermissions(interaction.user.id);
-  if (!hasPermissions) {
-    await interaction.reply({
-      content: '❌ You need to be an approved capper to submit picks. Use `/capper-onboard` to get started.',
-      ephemeral: true
-    });
-    return;
+  // Check if user is owner (bypass capper check)
+  const member = interaction.member;
+  const isOwner = member && typeof member === 'object' && 'roles' in member && member != null &&
+    member.roles instanceof Map ?
+    Array.from(member.roles.values()).some((role: any) => role.name.toLowerCase().includes('owner')) :
+    member && member.roles && 'cache' in member.roles ?
+    member.roles.cache.some((role: any) => role.name.toLowerCase().includes('owner')) :
+    false;
+
+  if (!isOwner) {
+    // Check if user has capper permissions
+    const hasPermissions = await capperService.hasCapperPermissions(interaction.user.id);
+    if (!hasPermissions) {
+      await interaction.reply({
+        content: '❌ You need to be an approved capper to submit picks. Use `/capper-onboard` to get started.',
+        ephemeral: true
+      });
+      return;
+    }
   }
 
   const _pickType = interaction.options.getString('pick_type');
@@ -238,17 +249,47 @@ async function handleDeletePick(interaction: ChatInputCommandInteraction) {
 }
 
 async function handleCapperStats(interaction: ChatInputCommandInteraction) {
-  // Check if user has capper permissions
-  const capper = await capperService.getCapperByDiscordId(interaction.user.id);
-  if (!capper) {
-    await interaction.reply({
-      content: '❌ You need to be an approved capper to view stats. Use `/capper-onboard` to get started.',
-      ephemeral: true
-    });
-    return;
+  // Check if user is owner (bypass capper check)
+  const member = interaction.member;
+  const isOwner = member && typeof member === 'object' && 'roles' in member &&
+    member.roles instanceof Map ?
+    Array.from(member.roles.values()).some((role: any) => role?.name?.toLowerCase()?.includes('owner')) :
+    member && member.roles && 'cache' in member.roles ?
+    member.roles.cache.some((role: any) => role?.name?.toLowerCase()?.includes('owner')) :
+    false;
+
+  if (!isOwner) {
+    // Check if user has capper permissions
+    const capper = await capperService.getCapperByDiscordId(interaction.user.id);
+    if (!capper) {
+      await interaction.reply({
+        content: '❌ You need to be an approved capper to view stats. Use `/capper-onboard` to get started.',
+        ephemeral: true
+      });
+      return;
+    }
   }
 
-  const stats = await capperService.getCapperStats(capper.id);
+  // If owner, create a mock capper object or get actual capper data
+  let capper;
+  let stats;
+
+  if (isOwner) {
+    // Try to get actual capper data first
+    capper = await capperService.getCapperByDiscordId(interaction.user.id);
+    if (!capper) {
+      // Create mock data for owner
+      await interaction.reply({
+        content: '👑 **Owner Access**: You have full access to all capper features. No capper profile found - you can view all capper data through admin commands.',
+        ephemeral: true
+      });
+      return;
+    }
+  } else {
+    capper = await capperService.getCapperByDiscordId(interaction.user.id);
+  }
+
+  stats = await capperService.getCapperStats(capper.id);
   if (!stats) {
     await interaction.reply({
       content: '❌ Unable to fetch your statistics at this time.',
@@ -259,7 +300,7 @@ async function handleCapperStats(interaction: ChatInputCommandInteraction) {
 
   const embed = new EmbedBuilder()
     .setTitle('📊 Your Capper Statistics')
-    .setDescription(`Statistics for **${capper.display_name || capper.username}**`)
+    .setDescription(`Statistics for **${capper.display_name || capper.username}**${isOwner ? ' (Owner Access)' : ''}`)
     .addFields(
       { name: 'Total Picks', value: stats.totalPicks.toString(), inline: true },
       { name: 'Wins', value: stats.wins.toString(), inline: true },
@@ -271,7 +312,7 @@ async function handleCapperStats(interaction: ChatInputCommandInteraction) {
       { name: 'Tier', value: capper.tier.charAt(0).toUpperCase() + capper.tier.slice(1), inline: true },
       { name: 'Status', value: capper.status.charAt(0).toUpperCase() + capper.status.slice(1), inline: true }
     )
-    .setColor(0x0099ff)
+    .setColor(isOwner ? 0xFFD700 : 0x0099ff)
     .setTimestamp();
 
   await interaction.reply({

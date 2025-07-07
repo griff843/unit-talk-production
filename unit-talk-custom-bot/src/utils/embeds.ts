@@ -1,4 +1,4 @@
-import { EmbedBuilder, ColorResolvable } from 'discord.js';
+import { EmbedBuilder, ColorResolvable, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { UserProfile, UserTier } from '../types/index';
 
 export const COLORS = {
@@ -334,8 +334,6 @@ export function createTrialStatusEmbed(hoursRemaining: number): EmbedBuilder {
   return embed.setTimestamp();
 }
 
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-
 /**
  * Create free welcome embed with upgrade buttons
  */
@@ -432,21 +430,39 @@ export function createVIPWelcomeEmbed(username: string): EmbedBuilder {
  */
 export function createVIPPlusWelcomeEmbed(username: string): EmbedBuilder {
   return new EmbedBuilder()
-    .setTitle(`🌟 Welcome VIP+ Member ${username}!`)
+    .setTitle(`🌟 Welcome to VIP+ Exclusive!`)
     .setColor(COLORS.vip_plus)
-    .setDescription('You have unlocked our highest tier of premium features!')
+    .setDescription(`Hey ${username}! Welcome to the elite tier of Unit Talk!`)
     .addFields(
       {
-        name: '🌟 VIP+ Exclusive Benefits',
-        value: [
-          '• All VIP features included',
-          '• Premium pick analysis tools',
-          '• Advanced trend analysis',
-          '• Risk management dashboard',
-          '• Exclusive market insights',
-          '• Direct capper access'
-        ].join('\n'),
-        inline: false
+        name: '⚡ Instant Alerts',
+        value: 'Get picks the moment they\'re released',
+        inline: true
+      },
+      {
+        name: '🤖 AI Coaching',
+        value: 'Personal AI analysis and coaching',
+        inline: true
+      },
+      {
+        name: '🌍 Multi-language',
+        value: 'Support in your preferred language',
+        inline: true
+      },
+      {
+        name: '📊 Advanced Analytics',
+        value: 'Detailed performance tracking',
+        inline: true
+      },
+      {
+        name: '🎯 Premium Picks',
+        value: 'Access to highest confidence plays',
+        inline: true
+      },
+      {
+        name: '💬 Direct Access',
+        value: 'Priority support and feedback',
+        inline: true
       },
       {
         name: '🎯 Advanced Tools',
@@ -801,3 +817,141 @@ export function createUserStatsEmbed(profile: UserProfile, stats?: any): EmbedBu
 
   return embed;
 }
+
+/**
+ * Create staff welcome embed
+ */
+export function createStaffWelcomeEmbed(username: string): EmbedBuilder {
+  return new EmbedBuilder()
+    .setTitle(`👨‍💼 Welcome Staff Member ${username}!`)
+    .setColor(COLORS.staff)
+    .setDescription('Welcome to the Unit Talk staff team! You have access to all moderation and management tools.')
+    .addFields(
+      {
+        name: '🛠️ Staff Tools',
+        value: [
+          '• Full moderation capabilities',
+          '• User management tools',
+          '• Analytics dashboard access',
+          '• Content management system'
+        ].join('\n'),
+        inline: false
+      },
+      {
+        name: '📊 Access Level',
+        value: [
+          '• All VIP+ features included',
+          '• Staff-only channels',
+          '• Administrative commands',
+          '• System monitoring tools'
+        ].join('\n'),
+        inline: false
+      },
+      {
+        name: '📋 Responsibilities',
+        value: [
+          '• Community moderation',
+          '• User support assistance',
+          '• Content quality control',
+          '• System maintenance support'
+        ].join('\n'),
+        inline: false
+      }
+    )
+    .setFooter({ text: 'Use /help-staff to see staff-specific commands' })
+    .setTimestamp();
+}
+
+/**
+ * Create admin welcome embed
+ */
+export function createAdminWelcomeEmbed(username: string): EmbedBuilder {
+  return new EmbedBuilder()
+    .setTitle(`⚡ Welcome Administrator ${username}!`)
+    .setColor(COLORS.admin)
+    .setDescription('Welcome to the Unit Talk administration team! You have full system access and control.')
+    .addFields(
+      {
+        name: '🔧 Admin Powers',
+        value: [
+          '• Complete system administration',
+          '• Database management access',
+          '• Server configuration control',
+          '• Advanced analytics and reporting'
+        ].join('\n'),
+        inline: false
+      },
+      {
+        name: '🎯 Full Access',
+        value: [
+          '• All user tier features',
+          '• Admin-only channels and tools',
+          '• System override capabilities',
+          '• Emergency response tools'
+        ].join('\n'),
+        inline: false
+      },
+      {
+        name: '⚠️ Key Responsibilities',
+        value: [
+          '• System security and integrity',
+          '• Staff management and oversight',
+          '• Critical decision making',
+          '• Platform stability maintenance'
+        ].join('\n'),
+        inline: false
+      }
+    )
+    .setFooter({ text: 'Use /help-admin to see administrator commands' })
+    .setTimestamp();
+}
+
+/**
+ * Create owner welcome embed
+ */
+export function createOwnerWelcomeEmbed(username: string): EmbedBuilder {
+  return new EmbedBuilder()
+    .setTitle(`👑 Welcome Owner ${username}!`)
+    .setColor(COLORS.owner)
+    .setDescription('Welcome back, boss! You have ultimate control over the entire Unit Talk platform.')
+    .addFields(
+      {
+        name: '🌟 Ultimate Authority',
+        value: [
+          '• Complete platform ownership',
+          '• All system privileges',
+          '• Financial and business controls',
+          '• Strategic decision authority'
+        ].join('\n'),
+        inline: false
+      },
+      {
+        name: '🚀 Platform Control',
+        value: [
+          '• All features and capabilities',
+          '• Owner-exclusive channels',
+          '• Business intelligence dashboard',
+          '• Revenue and analytics oversight'
+        ].join('\n'),
+        inline: false
+      },
+      {
+        name: '💼 Leadership Role',
+        value: [
+          '• Team leadership and vision',
+          '• Strategic platform direction',
+          '• Business development oversight',
+          '• Community growth leadership'
+        ].join('\n'),
+        inline: false
+      }
+    )
+    .setFooter({ text: 'Use /help-owner to see owner-specific commands' })
+    .setTimestamp();
+}
+
+/**
+ * NOTE: Multi-message onboarding functionality has been moved to OnboardingService
+ * The old onboarding functions have been removed to avoid duplication and confusion
+ * Use OnboardingService for all tier-based welcome sequences
+ */

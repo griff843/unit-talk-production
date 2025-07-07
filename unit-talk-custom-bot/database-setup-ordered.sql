@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS onboarding_config (
     default_role_id TEXT,
     welcome_message TEXT DEFAULT 'Welcome to Unit Talk!',
     onboarding_flow_id UUID,
+    config JSONB DEFAULT '{}'::jsonb,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

@@ -1,16 +1,12 @@
-import { 
-  SlashCommandBuilder, 
-  CommandInteraction, 
-  EmbedBuilder, 
-  ActionRowBuilder, 
-  ButtonBuilder, 
+import {
+  SlashCommandBuilder,
+  ChatInputCommandInteraction,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
   ButtonStyle,
-  StringSelectMenuBuilder,
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
-  ComponentType,
-  User,
+  PermissionFlagsBits,
+  ChannelType,
   AttachmentBuilder
 } from 'discord.js';
 import { 
@@ -141,7 +137,7 @@ export const data = new SlashCommandBuilder()
       )
   );
 
-export async function execute(interaction: CommandInteraction) {
+export async function execute(interaction: ChatInputCommandInteraction) {
   const subcommand = interaction.options.getSubcommand();
 
   try {
@@ -162,14 +158,14 @@ export async function execute(interaction: CommandInteraction) {
         await handleHistory(interaction);
         break;
       default:
-        await interaction.reply({ 
-          content: 'Unknown subcommand. Please try again.', 
-          ephemeral: true 
+        await interaction.reply({
+          content: 'Unknown subcommand. Please try again.',
+          ephemeral: true
         });
     }
   } catch (error) {
     console.error('Enhanced pick command error:', error);
-    
+
     const errorEmbed = new EmbedBuilder()
       .setTitle('❌ Command Error')
       .setDescription('An error occurred while processing your request. Please try again.')
@@ -187,7 +183,7 @@ export async function execute(interaction: CommandInteraction) {
 /**
  * Handle pick submission with enhanced form
  */
-async function handleSubmitPick(interaction: CommandInteraction) {
+async function handleSubmitPick(interaction: ChatInputCommandInteraction) {
   const sport = interaction.options.get('sport')?.value as string;
   const betType = interaction.options.get('type')?.value as string;
   const userTier = await database.getUserTier(interaction.user.id);
@@ -237,7 +233,7 @@ async function handleSubmitPick(interaction: CommandInteraction) {
 /**
  * Handle analytics display with advanced charts
  */
-async function handleAnalytics(interaction: CommandInteraction) {
+async function handleAnalytics(interaction: ChatInputCommandInteraction) {
   const timeframe = interaction.options.get('timeframe')?.value as string || '30d';
   const sport = interaction.options.get('sport')?.value as string || 'all';
   const userTier = await database.getUserTier(interaction.user.id);
@@ -308,7 +304,7 @@ async function handleAnalytics(interaction: CommandInteraction) {
 /**
  * Handle AI coaching insights
  */
-async function handleCoaching(interaction: CommandInteraction) {
+async function handleCoaching(interaction: ChatInputCommandInteraction) {
   const userTier = await database.getUserTier(interaction.user.id);
   
   if (userTier === 'member') {
@@ -371,7 +367,7 @@ async function handleCoaching(interaction: CommandInteraction) {
     embed.addFields([
       {
         name: `${priorityEmoji} ${insight.title}`,
-        value: `${insight.description}\n\n**Action Steps:**\n${insight.actionable_steps.map(step => `• ${step}`).join('\n')}`,
+        value: `${insight.description}\n\n**Action Steps:**\n${insight.actionable_steps?.map(step => `• ${step}`).join('\n') || 'No specific action steps available'}`,
         inline: false
       }
     ]);
@@ -402,7 +398,7 @@ async function handleCoaching(interaction: CommandInteraction) {
 /**
  * Handle parlay builder with correlation analysis
  */
-async function handleParlayBuilder(interaction: CommandInteraction) {
+async function handleParlayBuilder(interaction: ChatInputCommandInteraction) {
   const userTier = await database.getUserTier(interaction.user.id);
   
   const embed = new EmbedBuilder()
@@ -454,7 +450,7 @@ async function handleParlayBuilder(interaction: CommandInteraction) {
 /**
  * Handle pick history with detailed breakdowns
  */
-async function handleHistory(interaction: CommandInteraction) {
+async function handleHistory(interaction: ChatInputCommandInteraction) {
   const limit = interaction.options.get('limit')?.value as number || 10;
   const userTier = await database.getUserTier(interaction.user.id);
 
@@ -478,7 +474,7 @@ async function handleHistory(interaction: CommandInteraction) {
     embed.addFields([
       {
         name: `${statusEmoji} ${pick.sport.toUpperCase()} - ${pick.bet_type}`,
-        value: `**Selection:** ${pick.selection}\n**Odds:** ${pick.odds > 0 ? '+' : ''}${pick.odds}\n**Stake:** $${pick.stake}\n**P/L:** ${profitLoss > 0 ? '+' : ''}$${profitLoss.toFixed(2)}\n**Date:** ${new Date(pick.created_at).toLocaleDateString()}`,
+        value: `**Selection:** ${pick.selection}\n**Odds:** ${pick.odds > 0 ? '+' : ''}${pick.odds}\n**Stake:** $${pick.stake}\n**P/L:** ${profitLoss > 0 ? '+' : ''}$${profitLoss.toFixed(2)}\n**Date:** ${pick.created_at ? new Date(pick.created_at).toLocaleDateString() : 'Unknown'}`,
         inline: true
       }
     ]);
@@ -511,39 +507,45 @@ async function handleHistory(interaction: CommandInteraction) {
 function getTierFeatures(tier: UserTier): string {
   const features = {
     member: '• Basic pick submission\n• Standard validation\n• Community access',
+    trial: '• Limited pick submission\n• Basic validation\n• Trial access',
     vip: '• AI analysis\n• Advanced validation\n• Priority support\n• Enhanced charts',
     vip_plus: '• Full AI coaching\n• Correlation analysis\n• Custom charts\n• Parlay optimization\n• OCR image processing',
+    capper: '• All VIP+ features\n• Capper tools\n• Publishing access',
     staff: '• All VIP+ features\n• Moderation tools\n• Admin dashboard',
     admin: '• Full platform access\n• User management\n• System configuration',
     owner: '• Complete control\n• All features unlocked'
   };
-  
+
   return features[tier] || features.member;
 }
 
 function getTierAnalyticsFeatures(tier: UserTier): string {
   const features = {
     member: '• Basic win/loss tracking\n• Simple charts\n• 30-day history',
+    trial: '• Limited tracking\n• Basic charts\n• 7-day history',
     vip: '• Advanced metrics\n• Custom timeframes\n• Peer comparisons\n• Export capabilities',
     vip_plus: '• AI-powered insights\n• Predictive analytics\n• Custom dashboards\n• Real-time updates\n• Advanced visualizations',
+    capper: '• All VIP+ features\n• Capper analytics\n• Performance tracking',
     staff: '• All VIP+ features\n• Community analytics\n• Moderation insights',
     admin: '• Platform-wide analytics\n• User behavior insights\n• System performance metrics',
     owner: '• Complete analytics suite\n• Business intelligence\n• Revenue tracking'
   };
-  
+
   return features[tier] || features.member;
 }
 
 function getTierParlayFeatures(tier: UserTier): string {
   const features = {
     member: '• Basic parlay building\n• Up to 5 legs\n• Standard validation',
+    trial: '• Limited parlay building\n• Up to 3 legs\n• Basic validation',
     vip: '• Correlation warnings\n• Up to 8 legs\n• EV calculations\n• Risk assessment',
     vip_plus: '• Full correlation analysis\n• Unlimited legs\n• AI optimization\n• Alternative suggestions\n• Market movement tracking',
+    capper: '• All VIP+ features\n• Capper parlay tools\n• Publishing capabilities',
     staff: '• All VIP+ features\n• Community parlay insights',
     admin: '• Platform parlay analytics\n• User parlay patterns',
     owner: '• Complete parlay intelligence\n• Revenue optimization'
   };
-  
+
   return features[tier] || features.member;
 }
 
@@ -601,7 +603,7 @@ async function generateAdvancedChart(data: any): Promise<AttachmentBuilder | nul
 
 async function getRecentPicks(userId: string, limit: number): Promise<PickData[]> {
   // Mock implementation - replace with actual database query
-  return Array.from({ length: Math.min(limit, 10) }, (_, i) => ({
+  const mockData = Array.from({ length: Math.min(limit, 10) }, (_, i) => ({
     id: `pick_${i}`,
     user_id: userId,
     sport: ['NFL', 'NBA', 'MLB'][i % 3],
@@ -610,7 +612,10 @@ async function getRecentPicks(userId: string, limit: number): Promise<PickData[]
     odds: [-110, +150, -200][i % 3],
     stake: 100,
     confidence: Math.floor(Math.random() * 5) + 6,
-    status: ['won', 'lost', 'pending'][i % 3] as any,
+    status: ['won', 'lost', 'pending'][i % 3] as 'won' | 'lost' | 'pending',
     created_at: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString()
   }));
+
+  // Return as PickData[] - TypeScript should accept this as the interface matches
+  return mockData as PickData[];
 }

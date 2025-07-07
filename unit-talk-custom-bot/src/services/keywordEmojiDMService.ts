@@ -169,7 +169,8 @@ export class KeywordEmojiDMService {
       }
 
       // Get template
-      const template = this.dmTemplates.get(trigger.templateId);
+      const templateId = trigger.templateId || trigger.template_id;
+      const template = this.dmTemplates.get(templateId);
       if (!template) {
         logger.error(`Template not found for trigger ${trigger.id}`);
         return;
@@ -594,12 +595,15 @@ export class KeywordEmojiDMService {
         if (trigger.emoji === emoji) {
           const member = reaction.message.guild?.members.cache.get(user.id);
           if (member && this.checkTriggerConditions(trigger.conditions, member)) {
-            await this.sendAutoDM(member, trigger.templateId, {
-              emoji: emoji,
-              message: reaction.message.content,
-              channel: reaction.message.channel.name
-            });
-            await this.logTriggerActivation(triggerId, user.id, 'emoji', emoji);
+            const templateId = trigger.templateId || trigger.template_id;
+            if (templateId) {
+              await this.sendAutoDM(member, templateId, {
+                emoji: emoji,
+                message: reaction.message.content,
+                channel: reaction.message.channel.name
+              });
+              await this.logTriggerActivation(triggerId, user.id, 'emoji', emoji);
+            }
           }
         }
       }

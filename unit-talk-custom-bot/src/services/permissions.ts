@@ -274,7 +274,8 @@ export class PermissionsService {
       this.rateLimits.delete(`${userId}:${action}`);
     } else {
       // Clear all rate limits for user
-      for (const key of this.rateLimits.keys()) {
+      const keys = Array.from(this.rateLimits.keys());
+      for (const key of keys) {
         if (key.startsWith(`${userId}:`)) {
           this.rateLimits.delete(key);
         }

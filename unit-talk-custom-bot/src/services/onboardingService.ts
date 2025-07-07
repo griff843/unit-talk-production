@@ -1,446 +1,793 @@
-import { GuildMember, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, User } from 'discord.js';
 import { logger } from '../utils/logger';
-import { getUserTier } from '../utils/roleUtils';
+
+// Define types locally since they don't exist in the project
+type UserTier = 'free' | 'member' | 'trial' | 'vip' | 'vip_plus' | 'capper' | 'staff' | 'admin' | 'owner';
+
+interface OnboardingMessage {
+  embed: EmbedBuilder;
+  components?: ActionRowBuilder<ButtonBuilder>[];
+  delay: number;
+}
+
+interface OnboardingSequence {
+  messages: OnboardingMessage[];
+  tier: UserTier;
+}
 
 export class OnboardingService {
-  private recentOnboardings: Map<string, number> = new Map(); // userId -> timestamp
-  private readonly ONBOARDING_COOLDOWN = 60000; // 1 minute cooldown
+  private activeSequences: Map<string, NodeJS.Timeout[]> = new Map();
 
   constructor() {
-    // Constructor no longer needs client parameter
+    logger.info('OnboardingService initialized');
   }
 
   /**
-   * Handle member onboarding based on their tier
+   * Handle user onboarding based on their tier
    */
-  async handleMemberOnboarding(member: GuildMember, isNewMember: boolean = false): Promise<void> {
+  async handleUserOnboarding(user: User, tier: UserTier, testMode: boolean = false): Promise<void> {
     try {
-      // Check cooldown to prevent duplicate messages
-      const now = Date.now();
-      const lastOnboarding = this.recentOnboardings.get(member.id);
+      // Cancel any existing onboarding sequence for this user
+      await this.cancelOnboarding(user.id);
 
-      if (lastOnboarding && (now - lastOnboarding) < this.ONBOARDING_COOLDOWN) {
-        logger.info(`Skipping onboarding for ${member.user.tag} - cooldown active`);
+      const sequence = this.createOnboardingSequence(user, tier);
+      if (!sequence || sequence.messages.length === 0) {
+        logger.info(`No onboarding sequence for tier: ${tier}`);
         return;
       }
 
-      // Set cooldown
-      this.recentOnboardings.set(member.id, now);
+      logger.info(`Starting onboarding sequence for ${user.username} (${tier}) - ${sequence.messages.length} messages`);
 
-      const userTier = getUserTier(member);
-      logger.info(`Handling onboarding for ${member.user.tag} with tier: ${userTier}`);
-
-      // Get appropriate welcome configuration
-      const welcomeConfig = this.getWelcomeConfig(userTier, isNewMember);
-      
-      if (!welcomeConfig) {
-        logger.warn(`No welcome config found for tier: ${userTier}`);
-        return;
-      }
-
-      // Create embed
-      const embed = new EmbedBuilder()
-        .setTitle(welcomeConfig.title)
-        .setDescription(welcomeConfig.description)
-        .setColor(welcomeConfig.color)
-        .setTimestamp();
-
-      // Add fields if they exist
-      if (welcomeConfig.fields) {
-        embed.addFields(welcomeConfig.fields);
-      }
-
-      // Create action row with buttons if they exist
-      const components = [];
-      if (welcomeConfig.buttons && welcomeConfig.buttons.length > 0) {
-        const actionRow = new ActionRowBuilder<ButtonBuilder>();
-        
-        for (const buttonConfig of welcomeConfig.buttons) {
-          const button = new ButtonBuilder()
-            .setCustomId(buttonConfig.customId)
-            .setLabel(buttonConfig.label)
-            .setStyle(buttonConfig.style);
-          
-          if (buttonConfig.emoji) {
-            button.setEmoji(buttonConfig.emoji);
-          }
-          
-          actionRow.addComponents(button);
-        }
-        
-        components.push(actionRow);
-      }
-
-      // Send DM to user
-      try {
-        const dmMessage: any = { embeds: [embed] };
-        if (components.length > 0) {
-          dmMessage.components = components;
-        }
-        
-        await member.send(dmMessage);
-        logger.info(`✅ Sent onboarding DM to ${member.user.tag} (${userTier})`);
-      } catch (dmError) {
-        logger.warn(`Failed to send DM to ${member.user.tag}:`, dmError);
-        
-        // Try to send in a welcome channel as fallback
-        const welcomeChannel = member.guild.channels.cache.find(
-          channel => channel.name.includes('welcome') || channel.name.includes('general')
-        );
-        
-        if (welcomeChannel && welcomeChannel.isTextBased()) {
-          const publicMessage: any = { 
-            content: `Welcome ${member}!`, 
-            embeds: [embed] 
-          };
-          if (components.length > 0) {
-            publicMessage.components = components;
-          }
-          
-          await welcomeChannel.send(publicMessage);
-          logger.info(`✅ Sent welcome message in channel for ${member.user.tag}`);
-        }
+      if (testMode) {
+        // In test mode, send all messages immediately with 2-second intervals
+        await this.sendTestSequence(user, sequence);
+      } else {
+        // Normal mode with proper delays
+        await this.sendSequenceWithDelays(user, sequence);
       }
 
     } catch (error) {
-      logger.error('Error in handleMemberOnboarding:', error);
+      logger.error('Error in handleUserOnboarding:', error);
     }
   }
 
   /**
-   * Handle role changes for existing members
+   * Send sequence in test mode (immediate with short intervals)
    */
-  async handleRoleChange(oldMember: GuildMember, newMember: GuildMember): Promise<void> {
-    try {
-      const oldTier = getUserTier(oldMember);
-      const newTier = getUserTier(newMember);
-      
-      // Only trigger onboarding if tier actually changed and upgraded
-      if (oldTier !== newTier && this.isTierUpgrade(oldTier, newTier)) {
-        logger.info(`Member ${newMember.user.tag} upgraded from ${oldTier} to ${newTier}`);
-        await this.handleMemberOnboarding(newMember, false);
-      }
-    } catch (error) {
-      logger.error('Error in handleRoleChange:', error);
-    }
-  }
-
-  /**
-   * Handle new member joining
-   */
-  async handleNewMember(member: GuildMember): Promise<void> {
-    try {
-      // Wait a moment for roles to be assigned
-      setTimeout(async () => {
-        await this.handleMemberOnboarding(member, true);
-      }, 2000);
-    } catch (error) {
-      logger.error('Error in handleNewMember:', error);
-    }
-  }
-
-  /**
-   * Manually trigger onboarding for a member (for testing/admin purposes)
-   */
-  async triggerOnboarding(member: GuildMember): Promise<void> {
-    try {
-      await this.handleMemberOnboarding(member, false);
-      logger.info(`✅ Manually triggered onboarding for ${member.user.tag}`);
-    } catch (error) {
-      logger.error('Error in triggerOnboarding:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Check if a tier change represents an upgrade
-   */
-  private isTierUpgrade(oldTier: string, newTier: string): boolean {
-    const tierHierarchy = ['member', 'trial', 'vip', 'vip_plus', 'capper', 'staff', 'admin', 'owner'];
-    const oldIndex = tierHierarchy.indexOf(oldTier);
-    const newIndex = tierHierarchy.indexOf(newTier);
+  private async sendTestSequence(user: User, sequence: OnboardingSequence): Promise<void> {
+    const dmChannel = await user.createDM();
     
-    return newIndex > oldIndex;
-  }
-
-  /**
-   * Get welcome configuration based on user tier
-   */
-  private getWelcomeConfig(tier: string, isNewMember: boolean): any {
-    // Map tier names to config keys
-    const tierConfigMap: Record<string, string> = {
-      'member': 'BASIC',
-      'trial': 'TRIAL', 
-      'vip': 'VIP',
-      'vip_plus': 'VIP_PLUS',
-      'capper': 'CAPPER',
-      'staff': 'STAFF',
-      'admin': 'STAFF',
-      'owner': 'STAFF'
-    };
-
-    const configKey = tierConfigMap[tier] || 'BASIC';
-
-    const configs: Record<string, any> = {
-      'BASIC': {
-        title: '👋 Welcome to Unit Talk!',
-        description: isNewMember
-          ? 'Welcome to the Unit Talk community! We\'re excited to have you here.'
-          : 'Thanks for joining Unit Talk!',
-        color: 0x7289DA,
-        fields: [
-          {
-            name: '🚀 Get Started',
-            value: '• Check out our FAQ section\n• Browse community discussions\n• See what VIP members are saying\n• Start your VIP trial for full access to picks!',
-            inline: false
-          }
-        ],
-        buttons: [
-          {
-            customId: 'view_faq',
-            label: 'View FAQ',
-            style: ButtonStyle.Secondary,
-            emoji: '❓'
-          },
-          {
-            customId: 'start_vip_trial',
-            label: 'Start VIP Trial',
-            style: ButtonStyle.Success,
-            emoji: '🚀'
-          }
-        ]
-      },
-      'TRIAL': {
-        title: '🚀 Welcome to Unit Talk!',
-        description: 'Welcome to the Unit Talk community! Start your journey with our expert picks and analysis.',
-        color: 0xFFA500,
-        fields: [
-          {
-            name: '🎯 Getting Started',
-            value: '• Check out our FAQ section\n• Browse daily picks in Capper Corner\n• Join community discussions\n• Consider upgrading to VIP for full access',
-            inline: false
-          }
-        ],
-        buttons: [
-          {
-            customId: 'view_trial_features',
-            label: 'Getting Started Guide',
-            style: ButtonStyle.Primary,
-            emoji: '🎯'
-          },
-          {
-            customId: 'upgrade_to_vip',
-            label: 'Upgrade to VIP',
-            style: ButtonStyle.Success,
-            emoji: '⭐'
-          },
-          {
-            customId: 'upgrade_to_vip_plus',
-            label: 'Upgrade to VIP+',
-            style: ButtonStyle.Success,
-            emoji: '💎'
-          }
-        ]
-      },
-      'VIP': {
-        title: '⭐ Welcome VIP Member!',
-        description: 'You now have access to all VIP features and benefits! Let\'s get you started.',
-        color: 0xFFD700,
-        fields: [
-          {
-            name: '🎯 VIP Benefits',
-            value: '• Access to all capper picks\n• Exclusive VIP channels\n• Priority customer support\n• Advanced analytics\n• Early access to new features',
-            inline: false
-          },
-          {
-            name: '📍 Next Steps',
-            value: '1. Check out <#1387837517298139270> for daily picks\n2. Enable notifications for your favorite cappers\n3. Join VIP discussions in exclusive channels',
-            inline: false
-          }
-        ],
-        buttons: [
-          {
-            customId: 'view_vip_guide',
-            label: 'VIP Guide',
-            style: ButtonStyle.Primary,
-            emoji: '📖'
-          },
-          {
-            customId: 'setup_notifications',
-            label: 'Setup Notifications',
-            style: ButtonStyle.Secondary,
-            emoji: '🔔'
-          }
-        ]
-      },
-      'VIP_PLUS': {
-        title: '✨ Welcome to Unit Talk VIP+ Elite!',
-        description: 'You have unlocked the highest tier with exclusive VIP+ features and priority access!',
-        color: 0x9932CC,
-        fields: [
-          {
-            name: '🏆 Elite Access',
-            value: '• All VIP benefits\n• Advanced analytics and insights\n• Priority support\n• Exclusive VIP+ channels\n• Early access to new features',
-            inline: false
-          },
-          {
-            name: '📍 Next Steps',
-            value: '1. Explore VIP+ exclusive channels\n2. Access advanced analytics\n3. Connect with other elite members',
-            inline: false
-          }
-        ],
-        buttons: [
-          {
-            customId: 'view_vip_plus_guide',
-            label: 'VIP+ Guide',
-            style: ButtonStyle.Primary,
-            emoji: '💎'
-          },
-          {
-            customId: 'access_elite_features',
-            label: 'Elite Features',
-            style: ButtonStyle.Success,
-            emoji: '⭐'
-          },
-          {
-            customId: 'vip_plus_tour',
-            label: 'Take Tour',
-            style: ButtonStyle.Secondary,
-            emoji: '🎯'
-          },
-          {
-            customId: 'setup_vip_plus_notifications',
-            label: 'Setup Notifications',
-            style: ButtonStyle.Secondary,
-            emoji: '🔔'
-          }
-        ]
-      },
-      'CAPPER': {
-        title: '🎯 Welcome UT Capper!',
-        description: 'You\'ve been granted capper privileges! Ready to share your expertise with the community.',
-        color: 0xE67E22,
-        fields: [
-          {
-            name: '🚀 Getting Started',
-            value: 'Complete your capper setup and start building your reputation in the community!',
-            inline: false
-          },
-          {
-            name: '📊 Track Your Performance',
-            value: 'All your picks are automatically tracked for wins, losses, ROI, and leaderboard rankings.',
-            inline: false
-          }
-        ],
-        buttons: [
-          {
-            customId: 'capper_guide',
-            label: 'Capper Guide',
-            style: ButtonStyle.Primary,
-            emoji: '📋'
-          },
-          {
-            customId: 'create_capper_thread',
-            label: 'Create Threads',
-            style: ButtonStyle.Success,
-            emoji: '🧵'
-          },
-          {
-            customId: 'capper_practice_pick',
-            label: 'Practice Pick',
-            style: ButtonStyle.Secondary,
-            emoji: '🎯'
-          },
-          {
-            customId: 'view_leaderboard',
-            label: 'View Leaderboard',
-            style: ButtonStyle.Secondary,
-            emoji: '🏆'
-          },
-          {
-            customId: 'capper_support',
-            label: 'Get Support',
-            style: ButtonStyle.Secondary,
-            emoji: '💬'
-          }
-        ]
-      },
-      'STAFF': {
-        title: '👮 Welcome Staff Member!',
-        description: 'You have staff privileges. Welcome to the Unit Talk team!',
-        color: 0x00FF00,
-        fields: [
-          {
-            name: '🛡️ Staff Responsibilities',
-            value: '• Help moderate the community\n• Assist members with questions\n• Maintain a positive environment\n• Report issues to admins',
-            inline: false
-          }
-        ],
-        buttons: [
-          {
-            customId: 'staff_guide',
-            label: 'Staff Guide',
-            style: ButtonStyle.Primary,
-            emoji: '📋'
-          }
-        ]
+    for (let i = 0; i < sequence.messages.length; i++) {
+      const message = sequence.messages[i];
+      
+      try {
+        await dmChannel.send({
+          embeds: [message.embed],
+          components: message.components || []
+        });
+        
+        logger.info(`✅ Test message ${i + 1}/${sequence.messages.length} sent to ${user.username}`);
+        
+        // Short delay between test messages (2 seconds)
+        if (i < sequence.messages.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      } catch (error) {
+        logger.error(`Failed to send test message ${i + 1} to ${user.username}:`, error);
       }
-    };
-
-    return configs[configKey] || configs['BASIC'];
-  }
-
-  /**
-   * Get onboarding status for a user
-   */
-  async getOnboardingStatus(userId: string): Promise<any | null> {
-    try {
-      // Simple implementation - in a real app this would check database
-      return null;
-    } catch (error) {
-      logger.error('Failed to get onboarding status', { userId, error });
-      return null;
     }
   }
 
   /**
-   * Start onboarding for a guild member
+   * Send sequence with proper delays (production mode)
    */
-  async startOnboarding(member: GuildMember): Promise<void> {
-    try {
-      await this.handleMemberOnboarding(member, true);
-    } catch (error) {
-      logger.error('Failed to start onboarding', { userId: member.id, error });
-      throw error;
+  private async sendSequenceWithDelays(user: User, sequence: OnboardingSequence): Promise<void> {
+    const timeouts: NodeJS.Timeout[] = [];
+    
+    for (let i = 0; i < sequence.messages.length; i++) {
+      const message = sequence.messages[i];
+      
+      const timeout = setTimeout(async () => {
+        try {
+          const dmChannel = await user.createDM();
+          await dmChannel.send({
+            embeds: [message.embed],
+            components: message.components || []
+          });
+          
+          logger.info(`✅ Onboarding message ${i + 1}/${sequence.messages.length} sent to ${user.username}`);
+        } catch (error) {
+          logger.error(`Failed to send onboarding message ${i + 1} to ${user.username}:`, error);
+        }
+      }, message.delay);
+      
+      timeouts.push(timeout);
+    }
+    
+    // Store timeouts for potential cancellation
+    this.activeSequences.set(user.id, timeouts);
+    
+    // Clean up after the last message
+    setTimeout(() => {
+      this.activeSequences.delete(user.id);
+    }, Math.max(...sequence.messages.map(m => m.delay)) + 5000);
+  }
+
+  /**
+   * Cancel ongoing onboarding sequence for a user
+   */
+  async cancelOnboarding(userId: string): Promise<void> {
+    const timeouts = this.activeSequences.get(userId);
+    if (timeouts) {
+      timeouts.forEach(timeout => clearTimeout(timeout));
+      this.activeSequences.delete(userId);
+      logger.info(`Cancelled onboarding sequence for user ${userId}`);
     }
   }
 
   /**
-   * Reset onboarding progress for a user
+   * Create onboarding sequence based on user tier
    */
-  async resetOnboardingProgress(userId: string): Promise<void> {
-    try {
-      // Remove from recent onboardings to allow immediate re-onboarding
-      this.recentOnboardings.delete(userId);
-      logger.info(`Reset onboarding progress for user: ${userId}`);
-    } catch (error) {
-      logger.error('Failed to reset onboarding progress', { userId, error });
-      throw error;
+  private createOnboardingSequence(user: User, tier: UserTier): OnboardingSequence | null {
+    switch (tier) {
+      case 'vip_plus':
+        return this.createVIPPlusSequence(user);
+      case 'vip':
+        return this.createVIPSequence(user);
+      case 'capper':
+        return this.createCapperSequence(user);
+      case 'staff':
+      case 'admin':
+      case 'owner':
+        return this.createStaffSequence(user, tier);
+      default:
+        return this.createFreeSequence(user);
     }
   }
 
   /**
-   * Send a DM to a user
+   * Create VIP+ onboarding sequence - Ultimate Elite Experience
    */
-  async sendDM(userId: string, message: string): Promise<boolean> {
-    try {
-      // Note: This method would need a Discord client instance to actually send DMs
-      // For now, we'll just log the action and return true
-      logger.info(`Would send DM to user ${userId}: ${message}`);
-      return true;
-    } catch (error) {
-      logger.error('Failed to send DM', { userId, message, error });
-      return false;
-    }
+  private createVIPPlusSequence(user: User): OnboardingSequence {
+    const messages: OnboardingMessage[] = [
+      // Single Comprehensive VIP+ Welcome Message
+      {
+        embed: new EmbedBuilder()
+          .setColor('#FFD700')
+          .setTitle('💎+ Welcome to VIP+ Elite - The Ultimate Edge')
+          .setDescription(`${user.username}, you've reached the pinnacle of sports intelligence. Welcome to VIP+ Elite - where institutional-grade analytics meet professional execution.`)
+          .addFields(
+            {
+              name: '🏆 Your VIP+ Elite Arsenal',
+              value: [
+                '• **AI-Powered Advice Engine** - Real-time pick analysis with OpenAI integration',
+                '• **S/A Tier Picks Only** - Unified edge scoring system filters top opportunities',
+                '• **Market Resistance Analysis** - Sharp money tracking & line movement detection',
+                '• **SGO Data Integration** - Professional-grade odds feeds from SportsGameOdds',
+                '• **Automated Grading System** - Instant pick results with performance tracking',
+                '• **Advanced Analytics Dashboard** - ROI by tier, trend analysis, streak tracking'
+              ].join('\n'),
+              inline: false
+            },
+            {
+              name: '⚡ Real-Time Intelligence Features',
+              value: [
+                '• **Instant Discord Alerts** - First to know with rate-limited delivery',
+                '• **Circuit Breaker Protection** - Cost-optimized AI usage with fallback systems',
+                '• **Duplicate Detection** - Smart alert deduplication prevents spam',
+                '• **Multi-League Coverage** - NBA, MLB, NHL, NFL with league-specific rules'
+              ].join('\n'),
+              inline: false
+            },
+            {
+              name: '📊 Your VIP+ Performance Advantage',
+              value: [
+                '• **Institutional-Grade Scoring** - Multi-factor edge detection algorithm',
+                '• **Zone Threat Analysis** - Advanced player performance modeling',
+                '• **Market Context Analysis** - Time-of-day and volatility considerations',
+                '• **Performance Metrics** - Comprehensive tracking with Supabase integration'
+              ].join('\n'),
+              inline: false
+            },
+            {
+              name: '🎯 What Makes VIP+ Elite Different',
+              value: [
+                '• **Agent-Based Architecture** - AlertAgent, GradingAgent, IngestionAgent working 24/7',
+                '• **Professional Data Pipeline** - From raw props to graded picks automatically',
+                '• **Enterprise Monitoring** - Prometheus metrics, health checks, error tracking',
+                '• **Scalable Infrastructure** - Built for high-volume professional operations'
+              ].join('\n'),
+              inline: false
+            },
+            {
+              name: '🚀 Ready to Dominate?',
+              value: 'Your VIP+ Elite system is powered by the same technology used by institutional traders. Let\'s configure your ultimate edge and start your journey to consistent profitability.',
+              inline: false
+            }
+          )
+          .setFooter({ text: 'VIP+ Elite - Institutional-Grade Sports Intelligence | Welcome to the Top 1%' })
+          .setThumbnail('https://cdn.discordapp.com/attachments/1234567890/wise-owl-avatar.png')
+          .setTimestamp(),
+        components: [
+          new ActionRowBuilder<ButtonBuilder>()
+            .addComponents(
+              new ButtonBuilder()
+                .setCustomId('start_vip_plus_tour')
+                .setLabel('🚀 Start VIP+ Elite Tour')
+                .setStyle(ButtonStyle.Primary),
+              new ButtonBuilder()
+                .setCustomId('ai_coach')
+                .setLabel('🤖 Meet Your AI Coach')
+                .setStyle(ButtonStyle.Success),
+              new ButtonBuilder()
+                .setCustomId('analytics')
+                .setLabel('📊 View Elite Analytics')
+                .setStyle(ButtonStyle.Secondary)
+            )
+        ],
+        delay: 0 // Immediate
+      },
+
+      // Follow-up: Technical Deep Dive
+      {
+        embed: new EmbedBuilder()
+          .setColor('#FF6B35')
+          .setTitle('🔥 Your VIP+ Elite Technical Architecture')
+          .setDescription(`${user.username}, let's explore the sophisticated technology stack that gives you the ultimate edge.`)
+          .addFields(
+            {
+              name: '🤖 AI-Powered Analysis Engine',
+              value: [
+                '• **OpenAI Integration** - GPT-powered pick analysis with cost optimization',
+                '• **Market Context Analyzer** - Bull/bear/sideways regime detection',
+                '• **Sentiment Analysis** - Multi-source sentiment aggregation',
+                '• **Caching System** - 5-minute TTL for optimal performance'
+              ].join('\n'),
+              inline: false
+            },
+            {
+              name: '📊 Advanced Scoring & Analytics',
+              value: [
+                '• **Unified Edge Score** - Multi-factor algorithm with version tracking',
+                '• **League-Specific Rules** - NBA, MLB, NHL, NFL optimized scoring',
+                '• **Tier Classification** - S/A/B/C automatic tier assignment',
+                '• **Performance Tracking** - Win rate, ROI, streak analysis'
+              ].join('\n'),
+              inline: false
+            },
+            {
+              name: '🎯 Professional Data Pipeline',
+              value: [
+                '• **SGO Integration** - Real-time odds from SportsGameOdds API',
+                '• **Data Normalization** - Automated prop validation and cleaning',
+                '• **Automated Grading** - Instant pick resolution and tracking',
+                '• **Alert Distribution** - Multi-channel delivery with rate limiting'
+              ].join('\n'),
+              inline: false
+            },
+            {
+              name: '⚡ Enterprise Infrastructure',
+              value: [
+                '• **Agent Architecture** - Microservices for scalability',
+                '• **Supabase Backend** - Enterprise PostgreSQL with real-time sync',
+                '• **Monitoring Stack** - Prometheus metrics with health checks',
+                '• **Circuit Breakers** - Fault tolerance and cost protection'
+              ].join('\n'),
+              inline: false
+            }
+          )
+          .setFooter({ text: 'VIP+ Elite - Technical Excellence | Your Competitive Advantage' })
+          .setTimestamp(),
+        components: [
+          new ActionRowBuilder<ButtonBuilder>()
+            .addComponents(
+              new ButtonBuilder()
+                .setCustomId('notification_settings')
+                .setLabel('⚙️ Configure Elite Alerts')
+                .setStyle(ButtonStyle.Primary),
+              new ButtonBuilder()
+                .setCustomId('access_elite_features')
+                .setLabel('🔓 Access Elite Features')
+                .setStyle(ButtonStyle.Success),
+              new ButtonBuilder()
+                .setCustomId('vip_plus_settings')
+                .setLabel('🎛️ Customize Experience')
+                .setStyle(ButtonStyle.Secondary)
+            )
+        ],
+        delay: 20 * 60 * 1000 // 20 minutes
+      }
+    ];
+
+    return { messages, tier: 'vip_plus' };
+  }
+
+  /**
+   * Create VIP onboarding sequence - Professional Grade Experience
+   */
+  private createVIPSequence(user: User): OnboardingSequence {
+    const messages: OnboardingMessage[] = [
+      // Message 1: Professional Welcome
+      {
+        embed: new EmbedBuilder()
+          .setColor('#8B4513')
+          .setTitle('👑 Welcome to VIP Professional Status')
+          .setDescription(`Congratulations ${user.username}! You've joined the professional tier with access to institutional-grade sports intelligence.`)
+          .addFields(
+            {
+              name: '🏆 Your VIP Professional Access',
+              value: [
+                '• **Professional Capper Network** - Vetted experts with proven track records',
+                '• **Advanced Analytics Suite** - ROI tracking, trend analysis, performance metrics',
+                '• **Priority Alert System** - First access to market-moving opportunities',
+                '• **Edge Scoring Algorithm** - Multi-factor analysis for pick quality',
+                '• **Automated Grading** - Instant pick resolution and performance tracking',
+                '• **Professional Community** - Network with serious sports investors'
+              ].join('\n'),
+              inline: false
+            },
+            {
+              name: '🎯 Your VIP Technology Stack',
+              value: [
+                '• **Real-Time Data Feeds** - SGO integration for live odds',
+                '• **Market Analysis Tools** - Line movement and sharp money tracking',
+                '• **Performance Dashboard** - Comprehensive analytics and reporting',
+                '• **Alert Optimization** - Smart delivery with duplicate prevention'
+              ].join('\n'),
+              inline: false
+            },
+            {
+              name: '📊 VIP Performance Metrics',
+              value: [
+                '• **A/B Tier Picks** - Access to high-quality opportunities',
+                '• **Professional Analytics** - Same tools used by institutional traders',
+                '• **24/7 System Monitoring** - Reliable service with health checks',
+                '• **Scalable Architecture** - Built for professional-grade operations'
+              ].join('\n'),
+              inline: false
+            },
+            {
+              name: '🚀 Next Steps',
+              value: 'Your VIP professional dashboard is ready. Let\'s configure your alerts and start accessing institutional-grade sports intelligence.',
+              inline: false
+            }
+          )
+          .setFooter({ text: 'Unit Talk VIP - Professional Sports Intelligence | Welcome to Excellence' })
+          .setThumbnail('https://cdn.discordapp.com/attachments/1234567890/wise-owl-avatar.png')
+          .setTimestamp(),
+        components: [
+          new ActionRowBuilder<ButtonBuilder>()
+            .addComponents(
+              new ButtonBuilder()
+                .setCustomId('vip_tour')
+                .setLabel('🎯 Start VIP Tour')
+                .setStyle(ButtonStyle.Primary)
+                .setEmoji('🚀'),
+              new ButtonBuilder()
+                .setCustomId('setup_notifications')
+                .setLabel('⚙️ Configure Alerts')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('🔔'),
+              new ButtonBuilder()
+                .setCustomId('upgrade_to_vip_plus')
+                .setLabel('💎 Upgrade to VIP+')
+                .setStyle(ButtonStyle.Success)
+                .setEmoji('⬆️')
+            )
+        ],
+        delay: 0 // Immediate
+      },
+
+      // Message 2: VIP+ Upgrade Opportunity
+      {
+        embed: new EmbedBuilder()
+          .setColor('#DAA520')
+          .setTitle('💎 Ready for VIP+ Elite Technology?')
+          .setDescription(`${user.username}, as a VIP professional, you have access to advanced tools. But VIP+ Elite unlocks our complete institutional-grade technology stack.`)
+          .addFields(
+            {
+              name: '🔥 What VIP+ Elite Adds',
+              value: [
+                '• **AI-Powered Analysis** - OpenAI integration for intelligent pick advice',
+                '• **S-Tier Exclusive Picks** - Highest-scoring opportunities only',
+                '• **Advanced Market Intelligence** - Circuit breaker protection and cost optimization',
+                '• **Professional Agent Architecture** - Dedicated microservices for your account',
+                '• **Enterprise Monitoring** - Prometheus metrics and advanced health checks',
+                '• **Priority Processing** - Dedicated resources for faster execution'
+              ].join('\n'),
+              inline: false
+            },
+            {
+              name: '📊 VIP+ Technical Advantages',
+              value: [
+                '• **Enhanced Scoring Algorithm** - Multi-league optimization with version control',
+                '• **Advanced Caching** - Optimized performance with intelligent data management',
+                '• **Professional Data Pipeline** - From ingestion to grading, fully automated',
+                '• **Enterprise Infrastructure** - Built for institutional-scale operations'
+              ].join('\n'),
+              inline: false
+            },
+            {
+              name: '⚡ VIP Professional Exclusive Offer',
+              value: 'Upgrade to VIP+ Elite and unlock the complete institutional-grade technology stack. Limited availability for existing VIP professionals.',
+              inline: false
+            }
+          )
+          .setFooter({ text: 'VIP+ Elite - Complete Technology Stack | Professional Upgrade Available' })
+          .setTimestamp(),
+        components: [
+          new ActionRowBuilder<ButtonBuilder>()
+            .addComponents(
+              new ButtonBuilder()
+                .setCustomId('upgrade_to_vip_plus')
+                .setLabel('💎 Upgrade to VIP+ Elite')
+                .setStyle(ButtonStyle.Primary),
+              new ButtonBuilder()
+                .setCustomId('view_vip_plus_guide')
+                .setLabel('📋 Compare Technology')
+                .setStyle(ButtonStyle.Secondary),
+              new ButtonBuilder()
+                .setCustomId('setup_notifications')
+                .setLabel('⚙️ Optimize VIP Setup')
+                .setStyle(ButtonStyle.Success)
+            )
+        ],
+        delay: 45 * 60 * 1000 // 45 minutes
+      }
+    ];
+
+    return { messages, tier: 'vip' };
+  }
+
+  /**
+   * Create Capper onboarding sequence - Professional Contributor Program
+   */
+  private createCapperSequence(user: User): OnboardingSequence {
+    const messages: OnboardingMessage[] = [
+      // Message 1: Professional Capper Welcome
+      {
+        embed: new EmbedBuilder()
+          .setColor('#8E44AD')
+          .setTitle('🎯 Welcome to the Professional Capper Program')
+          .setDescription(`${user.username}, welcome to Unit Talk's exclusive Capper Program - where your expertise meets our institutional-grade technology platform.`)
+          .addFields(
+            {
+              name: '🏆 Your Professional Capper Platform',
+              value: [
+                '• **Advanced Submission System** - Professional pick management with validation',
+                '• **Automated Grading Engine** - Instant pick resolution and performance tracking',
+                '• **Unified Edge Scoring** - Your picks evaluated with institutional-grade algorithms',
+                '• **Performance Analytics** - Comprehensive ROI, win rate, and streak analysis',
+                '• **Leaderboard Integration** - Real-time ranking with professional recognition',
+                '• **Revenue Sharing Program** - Earn from your successful pick performance'
+              ].join('\n'),
+              inline: false
+            },
+            {
+              name: '📊 Professional Capper Technology',
+              value: [
+                '• **Real-Time Data Integration** - SGO feeds for accurate line information',
+                '• **Market Analysis Tools** - Line movement tracking and sharp money detection',
+                '• **AI-Powered Insights** - OpenAI integration for enhanced pick analysis',
+                '• **Professional Dashboard** - Comprehensive performance monitoring'
+              ].join('\n'),
+              inline: false
+            },
+            {
+              name: '💰 Capper Success Metrics & Earnings',
+              value: [
+                '• **Performance-Based Revenue** - Higher win rates generate higher earnings',
+                '• **Tier-Based Recognition** - S/A tier picks receive premium placement',
+                '• **Professional Reputation** - Build credibility with verified performance data',
+                '• **Community Recognition** - Top performers featured in leaderboards'
+              ].join('\n'),
+              inline: false
+            },
+            {
+              name: '🚀 Getting Started',
+              value: 'Let\'s set up your professional capper profile and integrate you with our automated grading and analytics systems.',
+              inline: false
+            }
+          )
+          .setFooter({ text: 'Unit Talk Capper Program - Professional Technology Platform | Where Expertise Meets Innovation' })
+          .setThumbnail('https://cdn.discordapp.com/attachments/1234567890/wise-owl-avatar.png')
+          .setTimestamp(),
+        components: [
+          new ActionRowBuilder<ButtonBuilder>()
+            .addComponents(
+              new ButtonBuilder()
+                .setCustomId('capper_onboard_start')
+                .setLabel('🎯 Complete Capper Setup')
+                .setStyle(ButtonStyle.Primary),
+              new ButtonBuilder()
+                .setCustomId('capper_practice_pick')
+                .setLabel('📝 Submit Sample Pick')
+                .setStyle(ButtonStyle.Success),
+              new ButtonBuilder()
+                .setCustomId('capper_guide')
+                .setLabel('📋 Technology Guide')
+                .setStyle(ButtonStyle.Secondary)
+            )
+        ],
+        delay: 0 // Immediate
+      },
+
+      // Message 2: Technical Integration & Tools
+      {
+        embed: new EmbedBuilder()
+          .setColor('#E67E22')
+          .setTitle('📝 Professional Pick Submission & Analytics')
+          .setDescription(`${user.username}, let's integrate you with our professional-grade pick submission and automated grading systems.`)
+          .addFields(
+            {
+              name: '🎯 Professional Submission Requirements',
+              value: [
+                '• **Detailed Analysis** - Comprehensive research methodology documentation',
+                '• **Confidence Rating** - Professional confidence assessment (1-10 scale)',
+                '• **Unit Recommendation** - Risk-appropriate unit sizing guidance',
+                '• **Edge Score Integration** - Your picks evaluated by our unified scoring algorithm'
+              ].join('\n'),
+              inline: false
+            },
+            {
+              name: '🔧 Professional Capper Technology Stack',
+              value: [
+                '• **Automated Grading System** - Instant pick resolution with GradingAgent',
+                '• **Performance Analytics** - Real-time ROI, win rate, and trend analysis',
+                '• **Market Intelligence** - Line movement tracking and resistance analysis',
+                '• **Alert Distribution** - Your picks delivered via our AlertAgent system'
+              ].join('\n'),
+              inline: false
+            },
+            {
+              name: '📊 Integration Process',
+              value: [
+                '1. **Submit Sample Pick** - Demonstrate your analysis methodology',
+                '2. **System Integration** - Connect with our automated grading pipeline',
+                '3. **Performance Baseline** - Establish your professional track record',
+                '4. **Revenue Activation** - Begin earning from successful picks'
+              ].join('\n'),
+              inline: false
+            },
+            {
+              name: '⚡ Advanced Features Available',
+              value: [
+                '• **AI-Enhanced Analysis** - OpenAI integration for pick optimization',
+                '• **Multi-League Support** - NBA, MLB, NHL, NFL with league-specific rules',
+                '• **Professional Monitoring** - Enterprise-grade system health and performance',
+                '• **Scalable Infrastructure** - Built for high-volume professional operations'
+              ].join('\n'),
+              inline: false
+            }
+          )
+          .setFooter({ text: 'Professional Capper Integration - Technology-Driven Excellence | Your Success, Automated' })
+          .setTimestamp(),
+        components: [
+          new ActionRowBuilder<ButtonBuilder>()
+            .addComponents(
+              new ButtonBuilder()
+                .setCustomId('capper_practice_pick')
+                .setLabel('📝 Submit Sample Pick')
+                .setStyle(ButtonStyle.Primary),
+              new ButtonBuilder()
+                .setCustomId('view_leaderboard')
+                .setLabel('🏆 View Performance Rankings')
+                .setStyle(ButtonStyle.Success),
+              new ButtonBuilder()
+                .setCustomId('capper_support')
+                .setLabel('🆘 Technical Support')
+                .setStyle(ButtonStyle.Secondary)
+            )
+        ],
+        delay: 15 * 60 * 1000 // 15 minutes
+      },
+
+      // Message 3: Professional Community & Advanced Features
+      {
+        embed: new EmbedBuilder()
+          .setColor('#27AE60')
+          .setTitle('🌟 Professional Capper Community & Technology')
+          .setDescription(`${user.username}, you're now part of an exclusive network of professional cappers powered by institutional-grade technology.`)
+          .addFields(
+            {
+              name: '🤝 Professional Capper Network',
+              value: [
+                '• **Private Capper Channels** - Discuss strategies with verified professionals',
+                '• **Technology Collaboration** - Share insights on system optimization',
+                '• **Performance Benchmarking** - Compare results with peer professionals',
+                '• **Industry Integration** - Connect with sportsbook and data professionals'
+              ].join('\n'),
+              inline: false
+            },
+            {
+              name: '💰 Revenue & Recognition Systems',
+              value: [
+                '• **Automated Revenue Tracking** - Performance-based earnings calculation',
+                '• **Tier-Based Bonuses** - S/A tier picks receive premium compensation',
+                '• **Professional Recognition** - Verified performance builds industry reputation',
+                '• **Technology Partnerships** - Access to exclusive data and tool integrations'
+              ].join('\n'),
+              inline: false
+            },
+            {
+              name: '🎯 Professional Success Optimization',
+              value: [
+                '• **Consistency Tracking** - Automated analysis of submission patterns',
+                '• **Performance Analytics** - AI-powered insights for improvement',
+                '• **Community Engagement** - Active participation increases opportunities',
+                '• **Continuous Improvement** - System learns and adapts to your style'
+              ].join('\n'),
+              inline: false
+            },
+            {
+              name: '⚡ Advanced Technology Access',
+              value: [
+                '• **Professional API Access** - Direct integration with our systems',
+                '• **Custom Analytics** - Personalized performance dashboards',
+                '• **Priority Processing** - Dedicated resources for your submissions',
+                '• **Enterprise Support** - Professional-grade technical assistance'
+              ].join('\n'),
+              inline: false
+            }
+          )
+          .setFooter({ text: 'Professional Capper Network - Technology-Driven Excellence | Your Success is Our Innovation' })
+          .setTimestamp(),
+        components: [
+          new ActionRowBuilder<ButtonBuilder>()
+            .addComponents(
+              new ButtonBuilder()
+                .setCustomId('create_capper_thread')
+                .setLabel('💬 Join Professional Network')
+                .setStyle(ButtonStyle.Primary),
+              new ButtonBuilder()
+                .setCustomId('capper_guide')
+                .setLabel('📚 Advanced Technology Guide')
+                .setStyle(ButtonStyle.Success),
+              new ButtonBuilder()
+                .setCustomId('view_leaderboard')
+                .setLabel('🏆 Performance Rankings')
+                .setStyle(ButtonStyle.Secondary)
+            )
+        ],
+        delay: 45 * 60 * 1000 // 45 minutes
+      }
+    ];
+
+    return { messages, tier: 'capper' };
+  }
+
+  /**
+   * Create Staff onboarding sequence - Administrative Access
+   */
+  private createStaffSequence(user: User, tier: UserTier): OnboardingSequence {
+    const messages: OnboardingMessage[] = [
+      {
+        embed: new EmbedBuilder()
+          .setColor('#3498DB')
+          .setTitle(`🛡️ Welcome ${tier.toUpperCase()} - Administrative Access`)
+          .setDescription(`Welcome to the team, ${user.username}! You now have administrative access to Unit Talk's professional platform.`)
+          .addFields(
+            {
+              name: '⚙️ Administrative Tools & Systems',
+              value: [
+                '• **Agent Management** - Monitor AlertAgent, GradingAgent, IngestionAgent',
+                '• **User Management** - Tier assignments, permissions, and access control',
+                '• **Analytics Dashboard** - System performance, user metrics, and reporting',
+                '• **Configuration Management** - System settings and operational parameters'
+              ].join('\n'),
+              inline: false
+            },
+            {
+              name: '📊 System Monitoring & Analytics',
+              value: [
+                '• **Prometheus Metrics** - Real-time system performance monitoring',
+                '• **Health Check Dashboard** - Service status and operational health',
+                '• **Performance Analytics** - User engagement and system efficiency',
+                '• **Error Tracking** - System issues and resolution monitoring'
+              ].join('\n'),
+              inline: false
+            },
+            {
+              name: '🔧 Technical Administration',
+              value: [
+                '• **Database Management** - Supabase administration and optimization',
+                '• **API Management** - OpenAI, SGO, and other service integrations',
+                '• **Alert System Control** - Discord, Notion, and Retool configurations',
+                '• **Capper System Oversight** - Professional contributor management'
+              ].join('\n'),
+              inline: false
+            },
+            {
+              name: '🚀 Administrative Responsibilities',
+              value: [
+                '• **System Maintenance** - Ensure optimal platform performance',
+                '• **User Support** - Assist with technical issues and questions',
+                '• **Quality Assurance** - Monitor pick quality and system accuracy',
+                '• **Strategic Planning** - Contribute to platform development and growth'
+              ].join('\n'),
+              inline: false
+            }
+          )
+          .setFooter({ text: `Unit Talk ${tier.toUpperCase()} - Administrative Excellence | Professional Platform Management` })
+          .setTimestamp(),
+        delay: 0
+      }
+    ];
+
+    return { messages, tier };
+  }
+
+  /**
+   * Create Free tier welcome message - Introduction to Professional Platform
+   */
+  private createFreeSequence(user: User): OnboardingSequence {
+    const messages: OnboardingMessage[] = [
+      {
+        embed: new EmbedBuilder()
+          .setColor('#2C3E50')
+          .setTitle('🏆 Welcome to Unit Talk - Professional Sports Intelligence Platform')
+          .setDescription(`Welcome ${user.username}! You've joined the premier destination for institutional-grade sports betting intelligence and technology.`)
+          .addFields(
+            {
+              name: '🎯 What Makes Unit Talk Different',
+              value: [
+                '• **Institutional-Grade Technology** - Agent-based architecture with AI integration',
+                '• **Professional Capper Network** - Vetted experts with automated performance tracking',
+                '• **Advanced Analytics Engine** - Unified edge scoring with multi-league optimization',
+                '• **Real-Time Data Integration** - SGO feeds with automated grading systems'
+              ].join('\n'),
+              inline: false
+            },
+            {
+              name: '🔧 Our Technology Stack',
+              value: [
+                '• **AI-Powered Analysis** - OpenAI integration with cost optimization',
+                '• **Automated Systems** - AlertAgent, GradingAgent, IngestionAgent working 24/7',
+                '• **Enterprise Infrastructure** - Supabase backend with Prometheus monitoring',
+                '• **Professional Tools** - Market resistance analysis and performance tracking'
+              ].join('\n'),
+              inline: false
+            },
+            {
+              name: '📊 Your Current Access (Free Tier)',
+              value: [
+                '• **Community Discussions** - Connect with other sports intelligence enthusiasts',
+                '• **Educational Content** - Learn about professional sports betting strategies',
+                '• **Platform Overview** - Understand our institutional-grade technology',
+                '• **Limited Previews** - Sample our professional-grade analysis'
+              ].join('\n'),
+              inline: false
+            },
+            {
+              name: '🚀 Ready to Access Professional Tools?',
+              value: 'Our VIP and VIP+ members have access to the complete institutional-grade technology stack. Join the professional tier that treats sports betting like the sophisticated technology-driven investment strategy it is.',
+              inline: false
+            }
+          )
+          .setFooter({ text: 'Unit Talk - Professional Sports Intelligence Platform | Upgrade to unlock institutional-grade technology' })
+          .setThumbnail('https://cdn.discordapp.com/attachments/1234567890/wise-owl-avatar.png')
+          .setTimestamp(),
+        components: [
+          new ActionRowBuilder<ButtonBuilder>()
+            .addComponents(
+              new ButtonBuilder()
+                .setCustomId('upgrade_to_vip')
+                .setLabel('🔥 Upgrade to VIP Professional')
+                .setStyle(ButtonStyle.Success),
+              new ButtonBuilder()
+                .setCustomId('upgrade_to_vip_plus')
+                .setLabel('💎 Upgrade to VIP+ Elite')
+                .setStyle(ButtonStyle.Primary),
+              new ButtonBuilder()
+                .setCustomId('view_faq')
+                .setLabel('❓ Learn About Our Technology')
+                .setStyle(ButtonStyle.Secondary)
+            )
+        ],
+        delay: 0 // Immediate
+      }
+    ];
+
+    return { messages, tier: 'free' };
   }
 }

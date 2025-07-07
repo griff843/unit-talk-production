@@ -1,5 +1,6 @@
 import { AgentCommand, HealthCheckResult } from './agent';
 import { Metrics } from './shared';
+import { SupportedLeague } from '../agents/PlayerEnrichmentAgent';
 
 // Base interface for all agent activities
 export interface BaseAgentActivities {
@@ -78,9 +79,26 @@ export interface AuditAgentActivities extends BaseAgentActivities {
   archiveAuditData(params: ActivityParams): Promise<ActivityResult>;
 }
 
+// Player Enrichment Agent Activities - Multi-League Support
+export interface PlayerEnrichmentAgentActivities extends BaseAgentActivities {
+  // Core enrichment activities
+  enrichAllPlayers(params: ActivityParams & { league?: SupportedLeague }): Promise<void>;
+  enrichPlayerById(params: ActivityParams & { playerId: string }): Promise<void>;
+  
+  // Multi-league headshot retrieval
+  getPlayerHeadshot(params: ActivityParams & { playerName: string; league: SupportedLeague }): Promise<string | null>;
+  
+  // League-specific headshot activities (for backward compatibility)
+  getMlbHeadshot(params: ActivityParams & { playerName: string }): Promise<string | null>;
+  getNbaHeadshot(params: ActivityParams & { playerName: string }): Promise<string | null>;
+  getNflHeadshot(params: ActivityParams & { playerName: string }): Promise<string | null>;
+  getNhlHeadshot(params: ActivityParams & { playerName: string }): Promise<string | null>;
+}
+
 // Activity Parameters Types
 export interface ActivityParams {
-  agentName: string;
+  activityId?: string;
+  agentName?: string;
   [key: string]: unknown;
 }
 
@@ -89,4 +107,4 @@ export interface ActivityResult<T = unknown> {
   success: boolean;
   data?: T;
   error?: Error;
-} 
+}

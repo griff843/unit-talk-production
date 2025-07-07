@@ -9,20 +9,21 @@ import {
   GuildMember
 } from 'discord.js';
 import { AdminDashboardService } from '../services/adminDashboardService';
-import { OnboardingService } from '../services/onboardingService';
+// import { ComprehensiveOnboardingService } from '../services/comprehensiveOnboardingService'; // REMOVED - using new OnboardingService
 import { AdvancedAnalyticsService } from '../services/advancedAnalyticsService';
 import { PermissionsService } from '../services/permissions';
 import { logger } from '../utils/logger';
 
 export class AdminCommands {
   private adminDashboardService: AdminDashboardService;
-  private onboardingService: OnboardingService | null;
+  private onboardingService: any | null; // TODO: Replace with new OnboardingService
   private analyticsService: AdvancedAnalyticsService;
   private permissionsService: PermissionsService;
 
+
   constructor(
     adminDashboardService: AdminDashboardService,
-    onboardingService: OnboardingService | null,
+    onboardingService: any | null,
     analyticsService: AdvancedAnalyticsService,
     permissionsService: PermissionsService
   ) {
@@ -31,6 +32,8 @@ export class AdminCommands {
     this.analyticsService = analyticsService;
     this.permissionsService = permissionsService;
   }
+
+
 
   /**
    * Get all admin slash commands

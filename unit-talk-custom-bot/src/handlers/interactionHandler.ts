@@ -97,6 +97,25 @@ export class InteractionHandler {
         return;
       }
 
+      // Check if this is a welcome button
+      if (customId.startsWith('welcome_')) {
+        logger.info(`👋 Routing to welcome handler: ${customId}`);
+        const { WelcomeButtonHandler } = await import('./welcomeButtonHandler');
+        const welcomeHandler = new WelcomeButtonHandler();
+        await welcomeHandler.handleWelcomeButton(interaction);
+        return;
+      }
+
+      // Check if this is a content button (quick_start_, checklist_, capper_, map_, analytics_, vip_)
+      const contentButtonPrefixes = ['quick_start_', 'checklist_', 'capper_', 'map_', 'analytics_', 'vip_'];
+      if (contentButtonPrefixes.some(prefix => customId.startsWith(prefix))) {
+        logger.info(`📄 Routing to content handler: ${customId}`);
+        const { ContentButtonHandler } = await import('./contentButtonHandler');
+        const contentHandler = new ContentButtonHandler();
+        await contentHandler.handleContentButton(interaction);
+        return;
+      }
+
       // Check if this is a capper-related button
       if (customId.startsWith('confirm_onboard_') || customId === 'cancel_onboard') {
         logger.info(`🎯 Routing to capper handler: ${customId}`);

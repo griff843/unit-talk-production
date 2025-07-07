@@ -132,7 +132,7 @@ export class AutomatedThreadService {
       const gameThread: GameThread = {
         id: thread.id,
         thread_id: thread.id,
-        gameId: gameData.id,
+        game_id: gameData.id,
         name: threadName,
         channel_id: channel.id,
         sport: gameData.sport || 'Unknown',
@@ -140,10 +140,8 @@ export class AutomatedThreadService {
         teams: gameData.teams || [],
         game_time: gameData.gameTime || new Date(),
         status: 'scheduled' as const,
-        created_at: new Date(),
-        updated_at: new Date(),
-        createdAt: new Date(),
-        isActive: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
         pickCount: 0,
         lastActivity: new Date()
       };
@@ -160,7 +158,7 @@ export class AutomatedThreadService {
           channel_id: channel.id,
           message_id: message.id,
           game_data: gameData,
-          created_at: gameThread.createdAt
+          created_at: gameThread.created_at
         });
 
       // Apply linking rules
@@ -293,7 +291,7 @@ export class AutomatedThreadService {
     try {
       for (const [ruleId, rule] of this.linkingRules) {
         if (this.shouldApplyRule(rule, gameData)) {
-          await this.linkThreadToChannels(thread, rule.targetChannels);
+          await this.linkThreadToChannels(thread, rule.targetChannels || []);
           
           // Send linking message
           const linkEmbed = new EmbedBuilder()
@@ -302,7 +300,7 @@ export class AutomatedThreadService {
             .setColor('#FFA500')
             .setTimestamp();
 
-          for (const channelId of rule.targetChannels) {
+          for (const channelId of rule.targetChannels || []) {
             const channel = this.client.channels.cache.get(channelId) as TextChannel;
             if (channel) {
               await channel.send({ embeds: [linkEmbed] });
@@ -350,7 +348,7 @@ export class AutomatedThreadService {
   async updateGameThread(gameId: string, updateData: any): Promise<void> {
     try {
       const gameThread = Array.from(this.activeThreads.values())
-        .find(thread => thread.gameId === gameId);
+        .find(thread => thread.game_id === gameId);
 
       if (!gameThread) return;
 
@@ -392,7 +390,7 @@ export class AutomatedThreadService {
       
       for (const game of completedGames) {
         const gameThread = Array.from(this.activeThreads.values())
-          .find(thread => thread.gameId === game.id);
+          .find(thread => thread.game_id === game.id);
 
         if (!gameThread) continue;
 
@@ -454,7 +452,7 @@ export class AutomatedThreadService {
         if (!thread) continue;
 
         // Categorize thread type
-        if (gameThread.gameId) {
+        if (gameThread.game_id) {
           analytics.threadsByType.game++;
         } else if (thread.name.includes('PICK')) {
           analytics.threadsByType.pick++;
@@ -498,7 +496,7 @@ export class AutomatedThreadService {
 
   private async findExistingGameThread(gameId: string): Promise<ThreadChannel | null> {
     const gameThread = Array.from(this.activeThreads.values())
-      .find(thread => thread.gameId === gameId);
+      .find(thread => thread.game_id === gameId);
     
     if (gameThread) {
       return this.client.channels.cache.get(gameThread.id) as ThreadChannel;
@@ -541,7 +539,7 @@ export class AutomatedThreadService {
 
   private shouldApplyRule(rule: ThreadLinkingRule, gameData: any): boolean {
     // Check if rule conditions match the game data
-    return rule.conditions.every(condition => {
+    return rule.conditions.every((condition: any) => {
       switch (condition.type) {
         case 'custom':
           // Handle custom conditions based on the value structure

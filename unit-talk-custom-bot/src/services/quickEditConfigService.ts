@@ -45,9 +45,14 @@ export class QuickEditConfigService {
 
       const session: QuickEditSession = {
         id: `edit_${Date.now()}_${userId}`,
-        userId: userId,
+        user_id: userId,
+        userId: userId, // Alias
+        config_key: configType,
         configType: configType,
-        startedAt: new Date().toISOString(),
+        started_at: new Date().toISOString(),
+        startedAt: new Date().toISOString(), // Alias
+        expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 minutes
+        is_active: true,
         status: 'active',
         changes: [],
         currentConfig: await this.getCurrentConfig(configType)
@@ -74,13 +79,13 @@ export class QuickEditConfigService {
       const user = await this.client.users.fetch(userId);
       
       const embed = new EmbedBuilder()
-        .setTitle(`⚙️ Quick Config Editor - ${session.configType.toUpperCase()}`)
+        .setTitle(`⚙️ Quick Config Editor - ${(session.configType || 'UNKNOWN').toUpperCase()}`)
         .setDescription('Select what you want to configure:')
         .setColor('#4169E1')
         .setTimestamp()
         .setFooter({ text: `Session ID: ${session.id}` });
 
-      const selectMenu = this.createConfigSelectMenu(session.configType, session.id);
+      const selectMenu = this.createConfigSelectMenu(session.configType || 'unknown', session.id);
       const actionRow = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
 
       const buttonRow = new ActionRowBuilder<ButtonBuilder>()
@@ -295,15 +300,18 @@ export class QuickEditConfigService {
 
       const update: ConfigUpdate = {
         id: `update_${Date.now()}`,
+        key: updateData.field || 'unknown',
+        value: updateData.newValue,
         sessionId: sessionId,
-        userId: session.userId,
-        configType: session.configType,
+        userId: session.userId || 'unknown',
+        configType: session.configType || 'unknown',
         field: updateData.field || 'unknown',
-        updateType: updateData.type,
-        oldValue: updateData.oldValue,
-        newValue: updateData.newValue,
+        updateType: updateData.type || 'unknown',
+        oldValue: updateData.oldValue || '',
+        newValue: updateData.newValue || '',
         reason: updateData.reason || 'Quick edit update',
-        adminId: session.userId, // Using userId as adminId for now
+        adminId: session.userId || 'unknown', // Using userId as adminId for now
+        updated_by: session.userId || 'unknown',
         timestamp: new Date(),
         applied: false
       };
@@ -325,7 +333,7 @@ export class QuickEditConfigService {
       await this.logConfigChange(update);
 
       // Send confirmation
-      await this.sendUpdateConfirmation(session.userId, update);
+      await this.sendUpdateConfirmation(session.userId || session.user_id, update);
 
       return update;
 
@@ -398,7 +406,7 @@ export class QuickEditConfigService {
 
       // Update session status
       session.status = 'completed';
-      session.completedAt = new Date();
+      session.completedAt = new Date().toISOString();
 
       // Store session record
       await this.supabaseService.client
@@ -414,7 +422,7 @@ export class QuickEditConfigService {
         });
 
       // Reload affected services
-      await this.reloadAffectedServices(session.configType);
+      await this.reloadAffectedServices(session.configType || 'unknown');
 
       // Send completion confirmation
       await this.sendSessionCompletionConfirmation(session);
@@ -460,7 +468,7 @@ export class QuickEditConfigService {
       };
 
       // Send preview to user
-      await this.sendPreviewToUser(session.userId, preview);
+      await this.sendPreviewToUser(session.userId || session.user_id, preview);
 
       return preview;
 
@@ -488,10 +496,10 @@ export class QuickEditConfigService {
 
       // Update session status
       session.status = 'cancelled';
-      session.completedAt = new Date();
+      session.completedAt = new Date().toISOString();
 
       // Send cancellation confirmation
-      await this.sendCancellationConfirmation(session.userId, session);
+      await this.sendCancellationConfirmation(session.userId || session.user_id, session);
 
       // Clean up session
       this.activeEditSessions.delete(sessionId);
@@ -565,15 +573,21 @@ export class QuickEditConfigService {
   private async applyKeywordUpdate(update: ConfigUpdate): Promise<void> {
     switch (update.updateType) {
       case 'add_keyword':
-        await this.keywordDMService.addKeywordTrigger(update.adminId, update.newValue);
+        await this.keywordDMService.addKeywordTrigger(update.adminId || update.updated_by || 'unknown', update.newValue);
         break;
       case 'remove_keyword':
-        await this.keywordDMService.updateTriggerStatus(update.adminId, update.oldValue.id, false, 'keyword');
+        await this.keywordDMService.updateTriggerStatus(update.adminId || update.updated_by || 'unknown', update.oldValue.id, false, 'keyword');
+        break;
+      case 'add_emoji':
+        await this.keywordDMService.addEmojiTrigger(update.adminId || update.updated_by || 'unknown', update.newValue);
+        break;
+      case 'remove_emoji':
+        await this.keywordDMService.addKeywordTrigger(update.adminId || update.updated_by || 'unknown', update.newValue);
         break;
       case 'edit_keyword':
         // For now, we'll disable the old and add the new
-        await this.keywordDMService.updateTriggerStatus(update.adminId, update.oldValue.id, false, 'keyword');
-        await this.keywordDMService.addKeywordTrigger(update.adminId, update.newValue);
+        await this.keywordDMService.updateTriggerStatus(update.adminId || update.updated_by || 'unknown', update.oldValue.id, false, 'keyword');
+        await this.keywordDMService.addKeywordTrigger(update.adminId || update.updated_by || 'unknown', update.newValue);
         break;
     }
   }
@@ -622,9 +636,9 @@ export class QuickEditConfigService {
         .setTitle('✅ Configuration Updated')
         .setDescription(`${update.updateType || 'Unknown'} has been applied successfully`)
         .addFields(
-          { name: 'Config Type', value: update.configType, inline: true },
+          { name: 'Config Type', value: update.configType || 'Unknown', inline: true },
           { name: 'Update Type', value: update.updateType || 'unknown', inline: true },
-          { name: 'Applied At', value: update.timestamp.toISOString(), inline: true }
+          { name: 'Applied At', value: update.timestamp?.toISOString() || new Date().toISOString(), inline: true }
         )
         .setColor('#00FF00')
         .setTimestamp();
@@ -654,14 +668,14 @@ export class QuickEditConfigService {
 
   private async sendSessionCompletionConfirmation(session: QuickEditSession): Promise<void> {
     try {
-      const user = await this.client.users.fetch(session.userId);
+      const user = await this.client.users.fetch(session.userId || session.user_id);
       
       const embed = new EmbedBuilder()
         .setTitle('🎉 Configuration Session Complete')
         .setDescription(`All changes have been saved and applied successfully!`)
         .addFields(
           { name: 'Session ID', value: session.id, inline: true },
-          { name: 'Config Type', value: session.configType, inline: true },
+          { name: 'Config Type', value: session.configType || 'Unknown', inline: true },
           { name: 'Changes Applied', value: (session.changes as ConfigUpdate[] || []).length.toString(), inline: true }
         )
         .setColor('#00FF00')
@@ -749,7 +763,7 @@ export class QuickEditConfigService {
         .setDescription('The configuration session has been cancelled and changes reverted.')
         .addFields(
           { name: 'Session ID', value: session.id, inline: true },
-          { name: 'Config Type', value: session.configType, inline: true },
+          { name: 'Config Type', value: session.configType || 'Unknown', inline: true },
           { name: 'Changes Reverted', value: (session.changes as ConfigUpdate[] || []).length.toString(), inline: true }
         )
         .setColor('#FF0000')

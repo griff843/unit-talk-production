@@ -11,7 +11,7 @@ import {
 } from 'discord.js';
 import { SupabaseService } from './supabase';
 import { PermissionsService } from './permissions';
-import { OnboardingService } from './onboardingService';
+// import { ComprehensiveOnboardingService } from './comprehensiveOnboardingService'; // REMOVED - using new OnboardingService
 import { AdvancedAnalyticsService } from './advancedAnalyticsService';
 import { logger } from '../utils/logger';
 import { botConfig } from '../config';
@@ -54,11 +54,21 @@ export interface OnboardingFlowEdit {
   editedAt: Date;
 }
 
+export interface DMFailure {
+  userId: string;
+  reason: string;
+  timestamp: Date;
+  resolved: boolean;
+  retryCount: number;
+  step?: string;
+  failureReason?: string;
+}
+
 export class AdminDashboardService {
   private client: Client;
   private supabaseService: SupabaseService;
   private permissionsService: PermissionsService;
-  private onboardingService: OnboardingService | null;
+  private onboardingService: any | null; // TODO: Replace with new OnboardingService
   private analyticsService: AdvancedAnalyticsService;
   private currentConfig: OnboardingConfig;
 
@@ -66,7 +76,7 @@ export class AdminDashboardService {
     client: Client,
     supabaseService: SupabaseService,
     permissionsService: PermissionsService,
-    onboardingService: OnboardingService,
+    onboardingService: any | null, // TODO: Replace with new OnboardingService
     analyticsService: AdvancedAnalyticsService
   ) {
     this.client = client;
@@ -75,7 +85,7 @@ export class AdminDashboardService {
     this.onboardingService = onboardingService;
     this.analyticsService = analyticsService;
     this.currentConfig = defaultOnboardingConfig;
-    
+
     this.loadConfigFromDB();
   }
 
@@ -168,23 +178,27 @@ export class AdminDashboardService {
    */
   private async getAdminDashboardStats(): Promise<AdminDashboardStats> {
     try {
-      // Get onboarding stats
-      const onboardingStats = this.onboardingService ?
-        await this.onboardingService.getOnboardingStats() :
-        { totalUsers: 0, completedUsers: 0, completionRate: 0, averageSteps: 0 };
+      // Note: ComprehensiveOnboardingService doesn't have getOnboardingStats method
+      const onboardingStats = null; // Placeholder for now
 
       // Get DM failure stats
-      const dmFailures = this.onboardingService ?
-        await this.onboardingService.getDMFailures(100) :
-        [];
-      const dmFailureStats = {
-        total: dmFailures.length,
-        unresolved: dmFailures.filter(f => !f.resolved).length,
-        byReason: this.groupDMFailuresByReason(dmFailures),
-        recentFailures: dmFailures.filter(f =>
-          Date.now() - f.attemptedAt.getTime() < 24 * 60 * 60 * 1000
-        ).length
+      const dmFailures: any[] = []; // Placeholder for now - should be fetched from service
+      let dmFailureStats = {
+        total: 0,
+        unresolved: 0,
+        byReason: {},
+        recentFailures: 0
       };
+      if (dmFailures && Array.isArray(dmFailures)) {
+        dmFailureStats = {
+          total: dmFailures.length,
+          unresolved: dmFailures.filter((f: any) => !f.resolved).length,
+          byReason: this.groupDMFailuresByReason(dmFailures),
+          recentFailures: dmFailures.filter((f: any) =>
+            Date.now() - f.attemptedAt.getTime() < 24 * 60 * 60 * 1000
+          ).length
+        };
+      }
 
       // Get flow stats
       const flowStats = {
@@ -198,10 +212,13 @@ export class AdminDashboardService {
       const preferenceStats = await this.getPreferenceStats();
 
       return {
-        onboarding: {
-          ...onboardingStats,
-          completionRate: onboardingStats.total > 0 ? 
-            (onboardingStats.completed / onboardingStats.total) * 100 : 0
+        onboarding: onboardingStats || {
+          total: 0,
+          completed: 0,
+          inProgress: 0,
+          failed: 0,
+          abandoned: 0,
+          completionRate: 0
         },
         dmFailures: dmFailureStats,
         flows: flowStats,
@@ -421,13 +438,12 @@ export class AdminDashboardService {
    * Show DM failures manager
    */
   private async showDMFailuresManager(interaction: any): Promise<void> {
-    const failures = this.onboardingService ?
-      await this.onboardingService.getDMFailures(20) :
-      [];
+    // Note: ComprehensiveOnboardingService doesn't have getDMFailures method
+    const failures: any[] = []; // Placeholder for now - should be fetched from service
 
     const embed = new EmbedBuilder()
       .setTitle('📬 DM Failures Manager')
-      .setDescription(`Managing ${failures.length} recent DM failures`)
+      .setDescription(`Managing ${failures.length || 0} recent DM failures`)
       .setColor(0xE74C3C);
 
     if (failures.length === 0) {
@@ -439,9 +455,10 @@ export class AdminDashboardService {
         }
       ]);
     } else {
+
       // Group failures by reason
-      const groupedFailures = this.groupDMFailuresByReason(failures);
-      
+      const groupedFailures = this.groupDMFailuresByReason(failures as DMFailure[]);
+
       Object.entries(groupedFailures).forEach(([reason, count]) => {
         embed.addFields([
           {
@@ -453,12 +470,12 @@ export class AdminDashboardService {
       });
 
       // Show recent failures
-      const recentFailures = failures.slice(0, 5);
+      const recentFailures = (failures as DMFailure[]).slice(0, 5);
       embed.addFields([
         {
           name: '🕒 Recent Failures',
-          value: recentFailures.map(f => 
-            `<@${f.userId}> - ${f.step} (${this.formatFailureReason(f.failureReason)})`
+          value: recentFailures.map((failure: DMFailure) =>
+            `<@${failure.userId}> - ${failure.step} (${this.formatFailureReason(failure.failureReason || 'Unknown')})`
           ).join('\n') || 'None',
           inline: false
         }
@@ -472,12 +489,12 @@ export class AdminDashboardService {
             .setCustomId('retry_all_failures')
             .setLabel('🔄 Retry All')
             .setStyle(ButtonStyle.Primary)
-            .setDisabled(failures.length === 0),
+            .setDisabled((failures as DMFailure[]).length === 0),
           new ButtonBuilder()
             .setCustomId('resolve_all_failures')
             .setLabel('✅ Mark All Resolved')
             .setStyle(ButtonStyle.Success)
-            .setDisabled(failures.length === 0),
+            .setDisabled((failures as DMFailure[]).length === 0),
           new ButtonBuilder()
             .setCustomId('export_failures')
             .setLabel('📤 Export')

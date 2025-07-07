@@ -1,6 +1,7 @@
 import { GuildMember, EmbedBuilder, TextChannel } from 'discord.js';
 import { logger } from '../utils/logger';
 import { botConfig } from '../config';
+import { getUserTier, handleRoleUpgradeWithDelay, setOptimisticTier } from '../utils/roleUtils';
 
 export class RoleChangeService {
   private client: any;
@@ -21,63 +22,120 @@ export class RoleChangeService {
   /**
    * Handle role changes for a guild member
    */
+  /**
+   * Handle role changes for a guild member with enhanced detection
+   */
   async handleRoleChange(oldMember: GuildMember, newMember: GuildMember): Promise<void> {
     try {
       // Get role changes
       const addedRoles = newMember.roles.cache.filter(role => !oldMember.roles.cache.has(role.id));
       const removedRoles = oldMember.roles.cache.filter(role => !newMember.roles.cache.has(role.id));
 
-      // Check for tier changes
-      const oldTier = this.getUserTier(oldMember);
-      const newTier = this.getUserTier(newMember);
+      // Check for tier changes with enhanced detection
+      const oldTier = getUserTier(oldMember);
+      const newTier = getUserTier(newMember);
 
       if (oldTier !== newTier) {
+        logger.info(`🔄 Tier change detected for ${newMember.user.tag}`, {
+          userId: newMember.id,
+          username: newMember.user.username,
+          oldTier,
+          newTier,
+          addedRoles: addedRoles.map(role => role.name),
+          removedRoles: removedRoles.map(role => role.name)
+        });
+
+        // Set optimistic tier for immediate recognition
+        setOptimisticTier(newMember.id, newTier);
+
+        // Handle tier upgrade with delay for Discord propagation
+        if (this.isUpgrade(oldTier, newTier)) {
+          await this.handleTierUpgrade(newMember, oldTier, newTier);
+        }
+
         // Only use VIP notification service to avoid duplicates
         if (this.vipNotificationService) {
           await this.vipNotificationService.handleTierChange(newMember, oldTier, newTier);
         }
       }
 
-      // Log role changes
+      // Log role changes with enhanced details
       if (addedRoles.size > 0 || removedRoles.size > 0) {
         logger.info('Role change detected', {
           userId: newMember.id,
           username: newMember.user.username,
-          addedRoles: addedRoles.map(role => role.name),
-          removedRoles: removedRoles.map(role => role.name),
+          tag: newMember.user.tag,
+          addedRoles: addedRoles.map(role => ({ name: role.name, id: role.id })),
+          removedRoles: removedRoles.map(role => ({ name: role.name, id: role.id })),
           oldTier,
-          newTier
+          newTier,
+          isUpgrade: this.isUpgrade(oldTier, newTier)
         });
       }
 
     } catch (error) {
-      logger.error('Error handling role change:', error);
+      logger.error(`Error handling role change for ${newMember.user.tag} (${newMember.id}):`, {
+        userId: newMember.id,
+        username: newMember.user.username,
+        tag: newMember.user.tag,
+        error: error instanceof Error ? error.message : String(error),
+        fullError: error
+      });
+    }
+  }
+
+  /**
+   * Check if a tier change is an upgrade
+   */
+  private isUpgrade(oldTier: string, newTier: string): boolean {
+    const tierHierarchy = ['member', 'trial', 'vip', 'vip_plus', 'capper', 'staff', 'admin', 'owner'];
+    const oldIndex = tierHierarchy.indexOf(oldTier);
+    const newIndex = tierHierarchy.indexOf(newTier);
+    return newIndex > oldIndex;
+  }
+
+  /**
+   * Handle tier upgrade with enhanced processing
+   */
+  private async handleTierUpgrade(member: GuildMember, oldTier: string, newTier: string): Promise<void> {
+    try {
+      logger.info(`🎉 Processing tier upgrade for ${member.user.tag}`, {
+        userId: member.id,
+        oldTier,
+        newTier
+      });
+
+      // Wait a moment for Discord to fully propagate the role change
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Send upgrade notification
+      await this._sendUpgradeNotification(member, oldTier, newTier);
+
+      // Notify admins
+      await this._notifyAdminsOfUpgrade(member, oldTier, newTier);
+
+    } catch (error) {
+      logger.error(`Error processing tier upgrade for ${member.user.tag}:`, {
+        userId: member.id,
+        oldTier,
+        newTier,
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   }
 
   /**
    * Send upgrade notification via DM
+   * DISABLED: ComprehensiveOnboardingService now handles all welcome messages
    */
   private async _sendUpgradeNotification(member: GuildMember, oldTier: string, newTier: string): Promise<void> {
     try {
-      const embed = this.createUpgradeEmbed(member, oldTier, newTier);
-
-      // Send DM to user
-      await member.send({ embeds: [embed] });
-
-      // Log the notification
-      logger.info('Upgrade notification sent', {
-        userId: member.id,
-        username: member.user.username,
-        oldTier,
-        newTier
-      });
-
+      // DISABLED: Preventing duplicate welcome messages
+      // ComprehensiveOnboardingService now handles all tier-based onboarding
+      logger.info(`Upgrade notification disabled for ${member.user.username} (${oldTier} -> ${newTier}) - handled by ComprehensiveOnboardingService`);
+      return;
     } catch (error) {
-      logger.error('Error sending upgrade notification:', error);
-
-      // If DM fails, try to notify in a channel
-      await this.fallbackChannelNotification(member, newTier);
+      logger.error('Error in upgrade notification method:', error);
     }
   }
 
@@ -202,8 +260,7 @@ export class RoleChangeService {
    * Get user's current tier based on roles
    */
   getUserTier(member: GuildMember): 'member' | 'trial' | 'vip' | 'vip_plus' | 'capper' | 'staff' | 'admin' | 'owner' {
-    // Use the centralized getUserTier function from roleUtils
-    const { getUserTier } = require('../utils/roleUtils');
+    // Deprecated / unused method, since we now use imported getUserTier directly
     return getUserTier(member) as 'member' | 'trial' | 'vip' | 'vip_plus' | 'capper' | 'staff' | 'admin' | 'owner';
   }
 }

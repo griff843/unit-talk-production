@@ -14,6 +14,7 @@ import {
 import { SupabaseService } from '../services/supabase';
 import { PermissionsService } from '../services/permissions';
 import { RoleChangeService } from '../services/roleChangeService';
+import { OnboardingService } from '../services/onboardingService';
 import { UserTier, UserProfile } from '../types/index';
 import { logger } from '../utils/logger';
 
@@ -21,6 +22,7 @@ export class EventHandler {
   private supabaseService: SupabaseService;
   private permissionsService: PermissionsService;
   private roleChangeService: RoleChangeService;
+  private onboardingService: OnboardingService;
   private services: any;
 
   constructor(
@@ -32,6 +34,7 @@ export class EventHandler {
     this.supabaseService = supabaseService;
     this.permissionsService = permissionsService;
     this.roleChangeService = new RoleChangeService(client, services.vipNotificationService);
+    this.onboardingService = new OnboardingService();
     this.services = services;
   }
 
@@ -99,6 +102,10 @@ export class EventHandler {
 
       logger.info(`New member joined: ${member.user.username} (${member.id})`);
 
+      // Trigger onboarding for new member
+      const userTier = this.permissionsService.getUserTier(member);
+      await this.onboardingService.handleUserOnboarding(member.user, userTier);
+
     } catch (error) {
       logger.error('Error handling member join:', error);
     }
@@ -160,6 +167,11 @@ export class EventHandler {
         });
 
         logger.info(`User tier changed: ${newMember.user.username} (${oldTier} → ${newTier})`);
+
+        // Trigger onboarding for tier upgrade (especially for VIP/VIP+ upgrades)
+        if (newTier === 'vip' || newTier === 'vip_plus' || newTier === 'capper' || newTier === 'staff' || newTier === 'admin' || newTier === 'owner') {
+          await this.onboardingService.handleUserOnboarding(newMember.user, newTier as UserTier);
+        }
       }
 
       // Handle nickname changes

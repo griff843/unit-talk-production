@@ -1,6 +1,7 @@
 import 'dotenv/config';
-import { Client, GatewayIntentBits, Partials } from 'discord.js';
+import { Client, GatewayIntentBits, Partials, GuildMember } from 'discord.js';
 import { logger } from './utils/logger';
+import { registerCommands } from './utils/registerCommands';
 import { SupabaseService } from './services/supabase';
 import { PermissionsService } from './services/permissions';
 import { VIPNotificationService } from './services/vipNotificationService';
@@ -11,16 +12,18 @@ import { AIPoweredService } from './services/aiPoweredService';
 import { AdminOverrideService } from './services/adminOverrideService';
 import { QuickEditConfigService } from './services/quickEditConfigService';
 import { OnboardingService } from './services/onboardingService';
-import { ComprehensiveOnboardingService } from './services/comprehensiveOnboardingService';
+import { OnboardingButtonHandler } from './handlers/onboardingButtonHandler';
+import { WelcomeService } from './services/welcomeService';
+import { WelcomeButtonHandler } from './handlers/welcomeButtonHandler';
+import { ContentButtonHandler } from './handlers/contentButtonHandler';
 import { AdminDashboardService } from './services/adminDashboardService';
 import { AdminCommands } from './commands/adminCommands';
+import { FAQService } from './services/faqService';
 import { CommandHandler } from './handlers/commandHandler';
 import { EventHandler } from './handlers/eventHandler';
 import { InteractionHandler } from './handlers/interactionHandler';
-import { OnboardingButtonHandler } from './handlers/onboardingButtonHandler';
-import { CapperSystem, createCapperSystem, CapperSystemConfig } from './services/capperSystem';
-import { FAQService } from './services/faqService';
-import { DiscordOnboardingAgent } from './agents/DiscordOnboardingAgent';
+import { createCapperSystem, CapperSystemConfig } from './services/capperSystem';
+
 
 // Add startup logging
 console.log('🚀 Unit Talk Discord Bot starting...');
@@ -38,16 +41,17 @@ export class UnitTalkBot {
   private adminOverrideService!: AdminOverrideService;
   private quickEditConfigService!: QuickEditConfigService;
   private onboardingService!: OnboardingService;
-  private comprehensiveOnboardingService!: ComprehensiveOnboardingService;
   private onboardingButtonHandler!: OnboardingButtonHandler;
+  private welcomeService!: WelcomeService;
+  private welcomeButtonHandler!: WelcomeButtonHandler;
+  private contentButtonHandler!: ContentButtonHandler;
   private adminDashboardService!: AdminDashboardService;
   private adminCommands!: AdminCommands;
+  private faqService!: FAQService;
   private commandHandler!: CommandHandler;
   private eventHandler!: EventHandler;
   private interactionHandler!: InteractionHandler;
-  private faqService!: FAQService;
-  private capperSystem!: CapperSystem;
-  private discordOnboardingAgent!: DiscordOnboardingAgent;
+  private capperSystem: any;
 
   constructor() {
     // Initialize Discord client with required intents
@@ -139,19 +143,22 @@ export class UnitTalkBot {
       console.log('🔧 Initializing onboarding services...');
 
       // Onboarding services
-      this.onboardingService = new OnboardingService();
-
       // Discord Onboarding Agent - NEW!
-      this.discordOnboardingAgent = new DiscordOnboardingAgent();
-      await this.discordOnboardingAgent.initialize();
+      // this.discordOnboardingAgent = new DiscordOnboardingAgent(
+      //   this.client,
+      //   this.supabaseService,
+      //   this.permissionsService,
+      //   this.advancedAnalyticsService
+      // );
+      // await this.discordOnboardingAgent.initialize();
 
       // Comprehensive onboarding service with tier-based flows
-      this.comprehensiveOnboardingService = new ComprehensiveOnboardingService(
-        this.client,
-        this.supabaseService,
-        this.permissionsService,
-        this.advancedAnalyticsService
-      );
+      // this.comprehensiveOnboardingService = new ComprehensiveOnboardingService(
+      //   this.client,
+      //   this.supabaseService,
+      //   this.permissionsService,
+      //   this.advancedAnalyticsService
+      // );
 
       // Onboarding button handler
       this.onboardingButtonHandler = new OnboardingButtonHandler();
@@ -163,6 +170,14 @@ export class UnitTalkBot {
         this.onboardingService,
         this.advancedAnalyticsService
       );
+
+      this.onboardingService = new OnboardingService();
+
+      this.onboardingButtonHandler = new OnboardingButtonHandler();
+
+      // Welcome services for new member onboarding
+      this.welcomeService = new WelcomeService();
+      this.welcomeButtonHandler = new WelcomeButtonHandler();
 
       console.log('✅ Onboarding services initialized');
       console.log('🔧 Initializing admin services...');
@@ -190,7 +205,7 @@ export class UnitTalkBot {
 
       this.adminCommands = new AdminCommands(
         this.adminDashboardService,
-        null, // this.onboardingService,
+        this.onboardingService,
         this.advancedAnalyticsService,
         this.permissionsService
       );
@@ -198,11 +213,11 @@ export class UnitTalkBot {
       console.log('✅ Admin services initialized');
       console.log('🔧 Initializing capper system...');
 
-      // Initialize Capper System
+      // Initialize Capper System with comprehensive onboarding integration
       const capperConfig: CapperSystemConfig = {
         discordClient: this.client,
-        publishingChannelId: process.env.CAPPER_PICKS_CHANNEL_ID || '',
-        enabled: process.env.CAPPER_SYSTEM_ENABLED === 'true'
+        publishingChannelId: process.env['CAPPER_PICKS_CHANNEL_ID'] || '',
+        enabled: process.env['CAPPER_SYSTEM_ENABLED'] === 'true'
       };
 
       this.capperSystem = createCapperSystem(capperConfig);
@@ -260,13 +275,11 @@ export class UnitTalkBot {
       aiPoweredService: this.aiPoweredService,
       adminOverrideService: this.adminOverrideService,
       quickEditConfigService: this.quickEditConfigService,
-      onboardingService: this.onboardingService,
-      comprehensiveOnboardingService: this.comprehensiveOnboardingService,
       onboardingButtonHandler: this.onboardingButtonHandler,
       adminDashboardService: this.adminDashboardService,
       capperSystem: this.capperSystem,
       faqService: this.faqService,
-      discordOnboardingAgent: this.discordOnboardingAgent
+      // discordOnboardingAgent: this.discordOnboardingAgent // Temporarily disabled
     };
   }
 
@@ -295,6 +308,15 @@ export class UnitTalkBot {
         console.log('✅ Bot presence set to online');
       } catch (error) {
         console.log('⚠️ Failed to set bot presence:', error);
+      }
+
+      // Register slash commands
+      console.log('🔧 Registering slash commands...');
+      try {
+        await registerCommands();
+        console.log('✅ Slash commands registered successfully');
+      } catch (error) {
+        console.error('❌ Failed to register commands:', error);
       }
 
       // Initialize services that need the client to be ready
@@ -335,12 +357,11 @@ export class UnitTalkBot {
       try {
         console.log(`👋 New member joined: ${member.user.username} (${member.id})`);
 
-        // Use Discord Onboarding Agent for enhanced onboarding
-        await this.discordOnboardingAgent.handleNewMemberOnboarding(member);
+        // Send personalized welcome message for Free tier members
+        await this.welcomeService.handleNewMemberWelcome(member);
 
-        // Legacy handlers for backward compatibility
-        await this.eventHandler.handleMemberJoin(member);
-        await this.vipNotificationService.handleNewMember(member);
+        // Handle user profile creation and analytics tracking
+        await this.createUserProfileAndTrackJoin(member);
       } catch (error) {
         logger.error('Error handling member join:', error);
         await this.advancedAnalyticsService.logError(
@@ -361,7 +382,7 @@ export class UnitTalkBot {
         }
 
         // Use Discord Onboarding Agent for enhanced role change handling
-        await this.discordOnboardingAgent.handleRoleChangeOnboarding(oldMember, newMember);
+        // await this.discordOnboardingAgent.handleRoleChangeOnboarding(oldMember, newMember); // Temporarily disabled
 
         await this.eventHandler.handleMemberUpdate(oldMember, newMember);
 
@@ -541,7 +562,7 @@ export class UnitTalkBot {
    */
   async start(): Promise<void> {
     try {
-      const token = process.env.DISCORD_BOT_TOKEN;
+      const token = process.env['DISCORD_BOT_TOKEN'];
       if (!token) {
         throw new Error('DISCORD_BOT_TOKEN environment variable is not set');
       }
@@ -552,6 +573,36 @@ export class UnitTalkBot {
     } catch (error: unknown) {
       logger.error('Failed to start bot:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Helper method to create user profile and track join event without sending welcome messages
+   */
+  private async createUserProfileAndTrackJoin(member: GuildMember): Promise<void> {
+    try {
+      // Create user profile
+      await this.supabaseService.createUserProfile({
+        discord_id: member.id,
+        username: member.user.username,
+        tier: 'member'
+      });
+
+      // Track join event
+      await this.advancedAnalyticsService.logEvent(
+        'member_joined',
+        member.id,
+        {
+          guildId: member.guild.id,
+          username: member.user.username,
+          joinedAt: member.joinedAt?.toISOString(),
+          accountCreated: member.user.createdAt.toISOString()
+        }
+      );
+
+      logger.info(`User profile created and join tracked: ${member.user.username} (${member.id})`);
+    } catch (error) {
+      logger.error('Error creating user profile and tracking join:', error);
     }
   }
 }

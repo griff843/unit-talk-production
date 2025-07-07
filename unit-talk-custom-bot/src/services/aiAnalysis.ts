@@ -24,7 +24,15 @@ export class AIAnalysisService {
         risk_assessment: this.assessRisk(pickData),
         key_factors: this.identifyKeyFactors(pickData, context),
         recommendations: this.generateRecommendations(pickData),
-        market_context: this.analyzeMarketContext(pickData)
+        market_context: this.analyzeMarketContext(pickData),
+        summary: 'AI analysis completed',
+        insights: [],
+        improvements: [],
+        totalBets: 1,
+        winRate: 0,
+        profitLoss: 0,
+        avgUnits: 0,
+        sportBreakdown: {}
       };
 
       return analysis;
@@ -153,7 +161,7 @@ export class AIAnalysisService {
   /**
    * Assess risk level
    */
-  private assessRisk(pickData: PickData): 'LOW' | 'MEDIUM' | 'HIGH' {
+  private assessRisk(pickData: PickData): 'low' | 'medium' | 'high' {
     const factors = [
       pickData.stake > 100 ? 1 : 0,
       Math.abs(pickData.odds) < 150 ? 0 : 1,
@@ -163,9 +171,9 @@ export class AIAnalysisService {
 
     const riskScore = factors.reduce((sum, factor) => sum + factor, 0);
 
-    if (riskScore <= 1) return 'LOW';
-    if (riskScore <= 2) return 'MEDIUM';
-    return 'HIGH';
+    if (riskScore <= 1) return 'low';
+    if (riskScore <= 2) return 'medium';
+    return 'high';
   }
 
   /**
@@ -237,11 +245,12 @@ export class AIAnalysisService {
     const avgConfidence = picks.reduce((sum, pick) => sum + pick.confidence, 0) / picks.length;
     if (avgConfidence > 8) {
       insights.push({
-        type: 'WARNING',
+        type: 'strategy',
         title: 'Overconfidence Pattern Detected',
         description: 'Your average confidence is very high. Consider being more selective with high-confidence picks.',
+        actionable_steps: ['Be more selective', 'Lower confidence on uncertain picks'],
         actionable: true,
-        priority: 'HIGH',
+        priority: 'high',
         category: 'PSYCHOLOGY'
       });
     }
@@ -251,11 +260,12 @@ export class AIAnalysisService {
     const stakeVariance = this.calculateVariance(stakes);
     if (stakeVariance > 10000) {
       insights.push({
-        type: 'TIP',
+        type: 'bankroll',
         title: 'Inconsistent Bet Sizing',
         description: 'Your bet sizes vary significantly. Consider implementing a more systematic approach.',
+        actionable_steps: ['Set a standard unit size', 'Use percentage-based betting'],
         actionable: true,
-        priority: 'MEDIUM',
+        priority: 'medium',
         category: 'BANKROLL'
       });
     }
@@ -273,11 +283,12 @@ export class AIAnalysisService {
 
     if (avgStake > 200) {
       insights.push({
-        type: 'WARNING',
+        type: 'bankroll',
         title: 'High Average Stake Size',
         description: 'Your average bet size may be too large for optimal bankroll management.',
+        actionable_steps: ['Reduce unit size', 'Implement bankroll management rules'],
         actionable: true,
-        priority: 'HIGH',
+        priority: 'high',
         category: 'BANKROLL'
       });
     }
@@ -294,13 +305,14 @@ export class AIAnalysisService {
 
     Object.entries(sportGroups).forEach(([sport, sportPicks]) => {
       const winRate = this.calculateWinRate(sportPicks);
-      if (winRate < 0.45) {
+      if (winRate < 0.4) {
         insights.push({
-          type: 'OPPORTUNITY',
+          type: 'strategy',
           title: `Struggling in ${sport.toUpperCase()}`,
           description: `Your ${sport} picks are underperforming. Consider focusing on your stronger sports.`,
+          actionable_steps: ['Focus on stronger sports', 'Research more before betting'],
           actionable: true,
-          priority: 'MEDIUM',
+          priority: 'medium',
           category: 'STRATEGY'
         });
       }
@@ -308,6 +320,8 @@ export class AIAnalysisService {
 
     return insights;
   }
+
+
 
   /**
    * Analyze market timing
@@ -321,11 +335,12 @@ export class AIAnalysisService {
 
     if (latePicks > earlyPicks * 2) {
       insights.push({
-        type: 'TIP',
+        type: 'timing',
         title: 'Late Market Entry Pattern',
         description: 'You tend to place bets late in the day when lines may be less favorable.',
+        actionable_steps: ['Place bets earlier in the day', 'Monitor line movements'],
         actionable: true,
-        priority: 'LOW',
+        priority: 'low',
         category: 'STRATEGY'
       });
     }
@@ -387,13 +402,13 @@ export class AIAnalysisService {
     return count > 0 ? sum / count : 0;
   }
 
-  private assessParlayRisk(legs: any[], correlationMatrix: number[][]): 'LOW' | 'MEDIUM' | 'HIGH' {
+  private assessParlayRisk(legs: any[], correlationMatrix: number[][]): 'low' | 'medium' | 'high' {
     const avgCorrelation = this.calculateOverallCorrelation(correlationMatrix);
     const legCount = legs.length;
 
-    if (legCount >= 5 || avgCorrelation > 0.3) return 'HIGH';
-    if (legCount >= 3 || avgCorrelation > 0.15) return 'MEDIUM';
-    return 'LOW';
+    if (legCount >= 5 || avgCorrelation > 0.3) return 'high';
+    if (legCount >= 3 || avgCorrelation > 0.15) return 'medium';
+    return 'low';
   }
 
   private calculateParlayEV(legs: any[]): number {
