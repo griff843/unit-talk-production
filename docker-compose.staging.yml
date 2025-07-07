@@ -1,190 +1,342 @@
-# Unit Talk SaaS - Staging Environment Configuration
-# Docker Compose for staging deployment and testing
+# Unit Talk Platform - Staging Environment
+# Docker Compose for staging deployment and pre-production testing
 
 version: '3.8'
 
 services:
+  # Temporal Server - Staging configuration
+  temporal:
+    image: temporalio/auto-setup:1.22.0
+    container_name: temporal-staging
+    ports:
+      - "7233:7233"
+      - "8233:8233"
+    environment:
+      - DB=postgresql
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=${TEMPORAL_DB_PASSWORD}
+      - POSTGRES_SEEDS=postgres
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+      - TEMPORAL_CLI_ADDRESS=temporal:7233
+    volumes:
+      - ./config/temporal:/etc/temporal/config/dynamicconfig
+      - temporal-staging-data:/etc/temporal/config/dynamicconfig
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - unit-talk-staging
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "tctl", "--address", "temporal:7233", "workflow", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Temporal Web UI - Staging
+  temporal-web:
+    image: temporalio/web:2.21.3
+    container_name: temporal-web-staging
+    ports:
+      - "8080:8080"
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=https://staging.unittalk.com
+    depends_on:
+      temporal:
+        condition: service_healthy
+    networks:
+      - unit-talk-staging
+    restart: unless-stopped
+
   # Main Application - Staging
   app:
     build:
       context: .
       dockerfile: Dockerfile
       target: production
+    container_name: unit-talk-app-staging
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=staging
       - PORT=3000
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - SUPABASE_URL=${SUPABASE_URL_STAGING}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY_STAGING}
       - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
-      - LOG_LEVEL=debug
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_NAMESPACE=unit-talk-staging
+      - TEMPORAL_TASK_QUEUE=unit-talk-staging
+      - JWT_SECRET=${JWT_SECRET_STAGING}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY_STAGING}
+      - LOG_LEVEL=info
+      - DISCORD_TOKEN=${DISCORD_TOKEN_STAGING}
+      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID_STAGING}
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL_STAGING}
+      - DISCORD_OPERATOR_WEBHOOK_URL=${DISCORD_OPERATOR_WEBHOOK_URL_STAGING}
+      - OPTIMAL_API_KEY=${OPTIMAL_API_KEY_STAGING}
+      - SGO_API_KEY=${SGO_API_KEY_STAGING}
     depends_on:
-      - redis
-      - postgres
+      temporal:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+      - ./staging-data:/app/data
+    networks:
+      - unit-talk-staging
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Temporal Worker - Staging
+  temporal-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: temporal-worker-staging
+    environment:
+      - NODE_ENV=staging
+      - SUPABASE_URL=${SUPABASE_URL_STAGING}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY_STAGING}
+      - REDIS_URL=redis://redis:6379
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_NAMESPACE=unit-talk-staging
+      - TEMPORAL_TASK_QUEUE=unit-talk-staging
+      - LOG_LEVEL=info
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL_STAGING}
+      - DISCORD_OPERATOR_WEBHOOK_URL=${DISCORD_OPERATOR_WEBHOOK_URL_STAGING}
+      - OPTIMAL_API_KEY=${OPTIMAL_API_KEY_STAGING}
+      - SGO_API_KEY=${SGO_API_KEY_STAGING}
+    depends_on:
+      temporal:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+    command: ["node", "dist/workers/temporal-worker.js"]
     volumes:
       - ./logs:/app/logs
-      - ./staging-data:/app/data
     networks:
-      - staging-network
+      - unit-talk-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # Discord Bot - Staging
   discord-bot:
     build:
       context: ./unit-talk-custom-bot
       dockerfile: Dockerfile
+    container_name: discord-bot-staging
     environment:
       - NODE_ENV=staging
       - DISCORD_TOKEN=${DISCORD_TOKEN_STAGING}
       - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID_STAGING}
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - SUPABASE_URL=${SUPABASE_URL_STAGING}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY_STAGING}
       - API_BASE_URL=http://app:3000
+      - LOG_LEVEL=info
     depends_on:
-      - app
-      - redis
+      app:
+        condition: service_healthy
     restart: unless-stopped
     networks:
-      - staging-network
+      - unit-talk-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  # Redis for caching and queues
+  # Redis - Staging cache
   redis:
     image: redis:7-alpine
+    container_name: redis-staging
     ports:
-      - "6380:6379"  # Different port for staging
+      - "6379:6379"
     volumes:
-      - staging-redis-data:/data
+      - redis-staging-data:/data
+      - ./config/redis/redis-staging.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
     restart: unless-stopped
+    networks:
+      - unit-talk-staging
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
       timeout: 10s
       retries: 3
-    networks:
-      - staging-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  # PostgreSQL Database for staging
+  # PostgreSQL - Staging database
   postgres:
     image: postgres:15-alpine
+    container_name: postgres-staging
     environment:
-      - POSTGRES_DB=${POSTGRES_DB:-unittalk_staging}
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=unit_talk_staging
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD_STAGING}
+      - POSTGRES_MULTIPLE_DATABASES=temporal
     ports:
-      - "5433:5432"  # Different port for staging
+      - "5432:5432"
     volumes:
-      - staging-postgres-data:/var/lib/postgresql/data
-      - ./scripts/database_optimization.sql:/docker-entrypoint-initdb.d/01-optimization.sql
-      - ./scripts/staging-seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+      - postgres-staging-data:/var/lib/postgresql/data
+      - ./scripts/init-temporal-db.sql:/docker-entrypoint-initdb.d/01-temporal.sql
+      - ./scripts/database_optimization.sql:/docker-entrypoint-initdb.d/02-optimization.sql
     restart: unless-stopped
+    networks:
+      - unit-talk-staging
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 30s
       timeout: 10s
       retries: 3
-    networks:
-      - staging-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  # Nginx Reverse Proxy
+  # Nginx - Reverse proxy and SSL termination
   nginx:
     image: nginx:alpine
+    container_name: nginx-staging
     ports:
-      - "8080:80"  # Different port for staging
+      - "80:80"
+      - "443:443"
     volumes:
-      - ./nginx.staging.conf:/etc/nginx/nginx.conf
+      - ./config/nginx/staging.conf:/etc/nginx/nginx.conf
+      - ./ssl/staging:/etc/nginx/ssl
       - ./logs/nginx:/var/log/nginx
     depends_on:
       - app
     restart: unless-stopped
     networks:
-      - staging-network
+      - unit-talk-staging
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  # Monitoring with Prometheus
+  # Prometheus - Staging metrics
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.45.0
+    container_name: prometheus-staging
     ports:
-      - "9091:9090"  # Different port for staging
+      - "9090:9090"
     volumes:
-      - ./monitoring/prometheus.staging.yml:/etc/prometheus/prometheus.yml
-      - staging-prometheus-data:/prometheus
+      - ./config/prometheus/prometheus-staging.yml:/etc/prometheus/prometheus.yml
+      - ./config/prometheus/rules:/etc/prometheus/rules
+      - prometheus-staging-data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=72h'  # Shorter retention for staging
+      - '--storage.tsdb.retention.time=168h'  # 7 days
       - '--web.enable-lifecycle'
     restart: unless-stopped
     networks:
-      - staging-network
+      - unit-talk-staging
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  # Grafana for dashboards
+  # Grafana - Staging dashboards
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:10.0.0
+    container_name: grafana-staging
     ports:
       - "3001:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-staging123}
-      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD_STAGING}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=redis-datasource
+      - GF_SERVER_ROOT_URL=https://staging-grafana.unittalk.com
     volumes:
-      - staging-grafana-data:/var/lib/grafana
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
-      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+      - grafana-staging-data:/var/lib/grafana
+      - ./config/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./config/grafana/datasources:/etc/grafana/provisioning/datasources
     restart: unless-stopped
     networks:
-      - staging-network
+      - unit-talk-staging
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  # Test Runner Service
-  test-runner:
-    build:
-      context: .
-      dockerfile: Dockerfile.test
-    environment:
-      - NODE_ENV=test
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-      - API_BASE_URL=http://app:3000
-    depends_on:
-      - app
-      - postgres
-      - redis
+  # Loki - Log aggregation
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: loki-staging
+    ports:
+      - "3100:3100"
     volumes:
-      - ./tests:/app/tests
-      - ./coverage:/app/coverage
+      - ./config/loki/loki-staging.yml:/etc/loki/local-config.yaml
+      - loki-staging-data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
     networks:
-      - staging-network
-    profiles:
-      - testing
+      - unit-talk-staging
 
-  # Load Testing Service
-  load-tester:
-    image: loadimpact/k6:latest
+  # Promtail - Log shipping
+  promtail:
+    image: grafana/promtail:2.9.0
+    container_name: promtail-staging
     volumes:
-      - ./tests/load:/scripts
-    environment:
-      - API_BASE_URL=http://app:3000
-    depends_on:
-      - app
+      - ./logs:/var/log/app
+      - ./config/promtail/promtail-staging.yml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+    restart: unless-stopped
     networks:
-      - staging-network
-    profiles:
-      - load-testing
+      - unit-talk-staging
 
 volumes:
-  staging-redis-data:
-  staging-postgres-data:
-  staging-prometheus-data:
-  staging-grafana-data:
+  redis-staging-data:
+    driver: local
+  postgres-staging-data:
+    driver: local
+  prometheus-staging-data:
+    driver: local
+  grafana-staging-data:
+    driver: local
+  loki-staging-data:
+    driver: local
+  temporal-staging-data:
+    driver: local
 
 networks:
-  staging-network:
+  unit-talk-staging:
     driver: bridge
+    name: unit-talk-staging

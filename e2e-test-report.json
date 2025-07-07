@@ -1,0 +1,76 @@
+{
+  "timestamp": "2025-07-07T21:57:06.741Z",
+  "summary": {
+    "passedTests": 4,
+    "totalTests": 4,
+    "totalDuration": 1378,
+    "successRate": 100
+  },
+  "results": [
+    {
+      "test": "Database Connectivity",
+      "duration": 449,
+      "success": true,
+      "details": {
+        "rawPropsCount": 1914,
+        "rawPropsError": null,
+        "finalPicksCount": 1,
+        "finalPicksError": null,
+        "recentRawPropsCount": 10,
+        "validationChecks": {
+          "validRecords": 10,
+          "totalRecords": 10
+        }
+      }
+    },
+    {
+      "test": "Agent Processing",
+      "duration": 329,
+      "success": true,
+      "details": {
+        "samplePropsCount": 5,
+        "ingestionResults": {
+          "total": 5,
+          "processed": 5,
+          "success": true
+        },
+        "gradingResults": {
+          "total": 5,
+          "graded": 5,
+          "averageScore": 75
+        },
+        "tierResults": {
+          "S": 0,
+          "A": 0,
+          "B": 2,
+          "C": 3
+        }
+      }
+    },
+    {
+      "test": "E2E Workflow",
+      "duration": 321,
+      "success": true,
+      "details": {
+        "testPropCreated": true,
+        "processedProp": true
+      }
+    },
+    {
+      "test": "Performance",
+      "duration": 274,
+      "success": true,
+      "details": {
+        "queryTime": 75,
+        "recordsRetrieved": 100,
+        "concurrentTime": 198,
+        "concurrentSuccess": true,
+        "memoryUsage": {
+          "rss": 56,
+          "heapUsed": 12,
+          "heapTotal": 19
+        }
+      }
+    }
+  ]
+}

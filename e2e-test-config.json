@@ -1,0 +1,149 @@
+{
+  "name": "Unit Talk E2E Testing Configuration",
+  "version": "1.0.0",
+  "description": "Configuration for comprehensive end-to-end testing using real-world data",
+  
+  "testing": {
+    "environment": "production",
+    "useRealData": true,
+    "testTimeout": 30000,
+    "maxConcurrentTests": 5,
+    "retryFailedTests": 2
+  },
+
+  "database": {
+    "tables": {
+      "rawProps": "raw_props",
+      "finalPicks": "final_picks",
+      "testPrefix": "e2e_test_"
+    },
+    "limits": {
+      "maxSampleSize": 100,
+      "defaultBatchSize": 10,
+      "queryTimeout": 5000
+    }
+  },
+
+  "agents": {
+    "ingestionAgent": {
+      "enabled": true,
+      "testSampleSize": 5,
+      "expectedProcessingTime": 200
+    },
+    "gradingAgent": {
+      "enabled": true,
+      "testSampleSize": 5,
+      "expectedProcessingTime": 300,
+      "minimumScore": 0,
+      "maximumScore": 100
+    },
+    "recapAgent": {
+      "enabled": true,
+      "testRecapGeneration": true,
+      "expectedProcessingTime": 500
+    },
+    "alertAgent": {
+      "enabled": true,
+      "testAlertGeneration": true,
+      "expectedProcessingTime": 150,
+      "channels": ["vip-picks", "general-picks", "test-channel"]
+    }
+  },
+
+  "workflow": {
+    "steps": [
+      "dataIngestion",
+      "propGrading", 
+      "tierAssignment",
+      "finalPickCreation",
+      "alertGeneration",
+      "recapGeneration"
+    ],
+    "tierThresholds": {
+      "S": 80,
+      "A": 60,
+      "B": 40,
+      "C": 0
+    },
+    "autoApprovalThreshold": 75
+  },
+
+  "performance": {
+    "benchmarks": {
+      "maxQueryTime": 1000,
+      "maxProcessingTimePerProp": 500,
+      "minThroughput": 10,
+      "maxMemoryUsage": 512
+    },
+    "loadTesting": {
+      "concurrentUsers": 5,
+      "propsPerBatch": 20,
+      "testDuration": 10000
+    }
+  },
+
+  "reporting": {
+    "outputFormats": ["json", "console"],
+    "saveReports": true,
+    "reportDirectory": "./test-reports",
+    "includeDetailedLogs": true,
+    "generateCharts": false
+  },
+
+  "alerts": {
+    "onTestFailure": {
+      "enabled": false,
+      "channels": ["test-alerts"],
+      "severity": "warning"
+    },
+    "onPerformanceIssue": {
+      "enabled": true,
+      "thresholds": {
+        "slowQuery": 2000,
+        "highMemoryUsage": 256,
+        "lowThroughput": 5
+      }
+    }
+  },
+
+  "cleanup": {
+    "autoCleanup": true,
+    "preserveTestData": false,
+    "cleanupTimeout": 5000
+  },
+
+  "sports": {
+    "supported": ["NBA", "NFL", "MLB", "NHL", "NCAAB", "NCAAF"],
+    "testCoverage": {
+      "NBA": true,
+      "NFL": true,
+      "MLB": false,
+      "NHL": false,
+      "NCAAB": false,
+      "NCAAF": false
+    }
+  },
+
+  "statTypes": {
+    "supported": [
+      "PTS", "REB", "AST", "STL", "BLK", "3PM",
+      "RUSH_YDS", "PASS_YDS", "PASS_TD", "REC_YDS",
+      "HITS", "RBI", "HR", "SB",
+      "GOALS", "ASSISTS", "SAVES", "SHOTS"
+    ],
+    "testCoverage": ["PTS", "REB", "AST", "RUSH_YDS", "PASS_YDS"]
+  },
+
+  "mockData": {
+    "generateIfNeeded": true,
+    "sampleSize": 50,
+    "includeEdgeCases": true,
+    "scenarios": [
+      "highConfidenceProp",
+      "lowConfidenceProp", 
+      "injuryImpactedProp",
+      "lineMovementProp",
+      "steamProp"
+    ]
+  }
+}

@@ -1,5 +1,5 @@
 import { BaseAgentActivitiesImpl } from '../../BaseAgent/activities';
-import { ActivityParams, ActivityResult, ContestAgentActivities } from '../../../types/activities';
+import { ContestAgentActivities } from '../../../types/activities';
 import { BaseAgentConfig, BaseAgentDependencies } from '../../BaseAgent/types';
 
 export class ContestAgentActivitiesImpl extends BaseAgentActivitiesImpl implements ContestAgentActivities {

@@ -1,61 +1,229 @@
+# Unit Talk Platform - Test Environment
+# Docker Compose for automated testing and CI/CD
+
 version: '3.8'
 
 services:
-  supabase:
-    image: supabase/postgres:14
+  # Temporal Server - Test configuration
+  temporal:
+    image: temporalio/auto-setup:1.22.0
+    container_name: temporal-test
     ports:
-      - "5432:5432"
+      - "7233:7233"
+      - "8233:8233"
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: unit_talk_test
+      - DB=postgresql
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal
+      - POSTGRES_SEEDS=postgres
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+      - TEMPORAL_CLI_ADDRESS=temporal:7233
     volumes:
-      - supabase-data:/var/lib/postgresql/data
+      - ./config/temporal:/etc/temporal/config/dynamicconfig
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - unit-talk-test
+    healthcheck:
+      test: ["CMD", "tctl", "--address", "temporal:7233", "workflow", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
-  redis:
-    image: redis:6-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-
-  prometheus:
-    image: prom/prometheus:v2.30.3
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./config/prometheus:/etc/prometheus
-      - prometheus-data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
-
-  alertmanager:
-    image: prom/alertmanager:v0.23.0
-    ports:
-      - "9093:9093"
-    volumes:
-      - ./config/alertmanager:/etc/alertmanager
-    command:
-      - '--config.file=/etc/alertmanager/alertmanager.yml'
-      - '--storage.path=/alertmanager'
-
-  grafana:
-    image: grafana/grafana:8.2.5
+  # Main Application - Test mode
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: unit-talk-app-test
     ports:
       - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_USERS_ALLOW_SIGN_UP=false
+      - NODE_ENV=test
+      - PORT=3000
+      - SUPABASE_URL=${SUPABASE_URL_TEST}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY_TEST}
+      - REDIS_URL=redis://redis:6379
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_NAMESPACE=unit-talk-test
+      - TEMPORAL_TASK_QUEUE=unit-talk-test
+      - JWT_SECRET=${JWT_SECRET_TEST}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY_TEST}
+      - LOG_LEVEL=info
+      - DISCORD_TOKEN=${DISCORD_TOKEN_TEST}
+      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID_TEST}
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL_TEST}
+      - DISCORD_OPERATOR_WEBHOOK_URL=${DISCORD_OPERATOR_WEBHOOK_URL_TEST}
+      - OPTIMAL_API_KEY=${OPTIMAL_API_KEY_TEST}
+      - SGO_API_KEY=test_dummy_key
+      - E2E_TEST_MODE=true
+    depends_on:
+      temporal:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: "no"  # Don't restart in test mode
     volumes:
-      - ./config/grafana:/etc/grafana/provisioning
-      - grafana-data:/var/lib/grafana
+      - ./logs:/app/logs
+      - ./test-results:/app/test-results
+    networks:
+      - unit-talk-test
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Temporal Worker - Test configuration
+  temporal-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: temporal-worker-test
+    environment:
+      - NODE_ENV=test
+      - SUPABASE_URL=${SUPABASE_URL_TEST}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY_TEST}
+      - REDIS_URL=redis://redis:6379
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_NAMESPACE=unit-talk-test
+      - TEMPORAL_TASK_QUEUE=unit-talk-test
+      - LOG_LEVEL=info
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL_TEST}
+      - DISCORD_OPERATOR_WEBHOOK_URL=${DISCORD_OPERATOR_WEBHOOK_URL_TEST}
+      - OPTIMAL_API_KEY=${OPTIMAL_API_KEY_TEST}
+      - SGO_API_KEY=test_dummy_key
+      - E2E_TEST_MODE=true
+    depends_on:
+      temporal:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+    restart: "no"
+    command: ["node", "dist/workers/temporal-worker.js"]
+    volumes:
+      - ./logs:/app/logs
+      - ./test-results:/app/test-results
+    networks:
+      - unit-talk-test
+
+  # PostgreSQL - Test database
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres-test
+    environment:
+      - POSTGRES_DB=unit_talk_test
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=test_password
+      - POSTGRES_MULTIPLE_DATABASES=temporal
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-test-data:/var/lib/postgresql/data
+      - ./scripts/init-temporal-db.sql:/docker-entrypoint-initdb.d/01-temporal.sql
+      - ./scripts/test-data.sql:/docker-entrypoint-initdb.d/02-test-data.sql
+    restart: "no"
+    networks:
+      - unit-talk-test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis - Test cache
+  redis:
+    image: redis:7-alpine
+    container_name: redis-test
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-test-data:/data
+    restart: "no"
+    networks:
+      - unit-talk-test
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Prometheus - Test metrics
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: prometheus-test
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./config/prometheus/rules:/etc/prometheus/rules
+      - prometheus-test-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=24h'  # Shorter retention for tests
+      - '--web.enable-lifecycle'
+    restart: "no"
+    networks:
+      - unit-talk-test
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Test Runner - E2E test execution
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: test-runner
+    environment:
+      - NODE_ENV=test
+      - SUPABASE_URL=${SUPABASE_URL_TEST}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY_TEST}
+      - REDIS_URL=redis://redis:6379
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_NAMESPACE=unit-talk-test
+      - TEMPORAL_TASK_QUEUE=unit-talk-test
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL_TEST}
+      - DISCORD_OPERATOR_WEBHOOK_URL=${DISCORD_OPERATOR_WEBHOOK_URL_TEST}
+      - OPTIMAL_API_KEY=${OPTIMAL_API_KEY_TEST}
+      - SGO_API_KEY=test_dummy_key
+      - E2E_TEST_MODE=true
+    depends_on:
+      app:
+        condition: service_healthy
+      temporal-worker:
+        condition: service_started
+    command: ["npm", "run", "test:e2e:ci"]
+    volumes:
+      - ./logs:/app/logs
+      - ./test-results:/app/test-results
+      - ./coverage:/app/coverage
+    networks:
+      - unit-talk-test
+    profiles:
+      - test  # Only start when explicitly requested
 
 volumes:
-  supabase-data:
-  redis-data:
-  prometheus-data:
-  grafana-data: 
+  postgres-test-data:
+    driver: local
+  redis-test-data:
+    driver: local
+  prometheus-test-data:
+    driver: local
+
+networks:
+  unit-talk-test:
+    driver: bridge
+    name: unit-talk-test

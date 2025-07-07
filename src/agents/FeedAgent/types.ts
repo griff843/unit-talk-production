@@ -9,7 +9,7 @@ import {
 } from '../../types/agent';
 
 // --- Provider Types ---
-export const ProviderSchema = z.enum(['SportsGameOdds', 'OddsAPI', 'Pinnacle']);
+export const ProviderSchema = z.enum(['SportsGameOdds', 'OddsAPI', 'Pinnacle', 'Optimal']);
 export type Provider = z.infer<typeof ProviderSchema>;
 
 // --- Agent Config ---

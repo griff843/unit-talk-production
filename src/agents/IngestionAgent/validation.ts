@@ -46,7 +46,8 @@ export function normalizeRawProp(prop: any): NormalizationResult {
 
   const normalizedProp: RawProp = {
     ...prop,
-    id: prop.id || crypto.randomUUID(),
+    id: crypto.randomUUID(), // Always generate a proper UUID
+    external_id: prop.id || null, // Store the original external ID if provided
     created_at: prop.created_at || new Date().toISOString(),
     updated_at: new Date().toISOString(),
     scraped_at: prop.scraped_at || new Date().toISOString(),
@@ -94,13 +95,15 @@ export function normalizeRawProp(prop: any): NormalizationResult {
     sport_key: prop.sport_key || null,
     fair_odds: prop.fair_odds || null,
     source: prop.source || null,
-    raw_data: prop.raw_data || null,
     odds: prop.odds || null,
     outcome: prop.outcome || null
   };
 
-  if (!prop.id) {
-    changes.push('Generated new UUID for id');
+  // Always log that we generated a new UUID
+  changes.push('Generated new UUID for id');
+
+  if (prop.id) {
+    changes.push('Stored original external ID in external_id field');
   }
 
   if (!prop.created_at) {

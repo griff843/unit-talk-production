@@ -80,7 +80,8 @@ export class FeedAgent extends BaseAgent {
       providerStats: {
         SportsGameOdds: { success: 0, failed: 0, avgLatencyMs: 0 },
         OddsAPI: { success: 0, failed: 0, avgLatencyMs: 0 },
-        Pinnacle: { success: 0, failed: 0, avgLatencyMs: 0 }
+        Pinnacle: { success: 0, failed: 0, avgLatencyMs: 0 },
+        Optimal: { success: 0, failed: 0, avgLatencyMs: 0 }
       }
     };
   }
@@ -257,3 +258,6 @@ export class FeedAgent extends BaseAgent {
     }));
   }
 }
+
+// Export Optimal integration
+export { fetchOptimalProps, getRateLimitStatus } from './optimal';

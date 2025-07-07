@@ -1,5 +1,5 @@
 import { BaseAgentActivitiesImpl } from '../../BaseAgent/activities';
-import { ActivityParams, ActivityResult, GradingAgentActivities } from '../../../types/activities';
+import { GradingAgentActivities } from '../../../types/activities';
 import { BaseAgentConfig, BaseAgentDependencies } from '../../BaseAgent/types';
 
 export class GradingAgentActivitiesImpl extends BaseAgentActivitiesImpl implements GradingAgentActivities {

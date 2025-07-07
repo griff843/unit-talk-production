@@ -1,0 +1,289 @@
+{
+  "testRunner": {
+    "name": "Unit Talk E2E Test Runner",
+    "version": "1.0.0",
+    "description": "Comprehensive end-to-end testing for the Unit Talk syndicate system",
+    "maxDuration": 1800000,
+    "timeouts": {
+      "workflow": 120000,
+      "activity": 30000,
+      "healthCheck": 10000,
+      "apiCall": 5000
+    }
+  },
+  "testScenarios": {
+    "basic": {
+      "enabled": true,
+      "description": "Basic pipeline test with single league",
+      "leagues": ["MLB"],
+      "cycles": 1,
+      "simulateFailures": false
+    },
+    "comprehensive": {
+      "enabled": true,
+      "description": "Full pipeline test with multiple leagues",
+      "leagues": ["MLB", "WNBA", "MLS"],
+      "cycles": 3,
+      "simulateFailures": true
+    },
+    "stress": {
+      "enabled": false,
+      "description": "Stress test with high volume",
+      "leagues": ["MLB", "WNBA", "MLS", "NFL"],
+      "cycles": 10,
+      "simulateFailures": true,
+      "concurrentWorkflows": 5
+    }
+  },
+  "leagues": {
+    "MLB": {
+      "enabled": true,
+      "expectedProps": 50,
+      "liveGames": true,
+      "uspTypes": ["steam", "line", "hedge", "middle", "stale", "injury", "suspicious"]
+    },
+    "WNBA": {
+      "enabled": true,
+      "expectedProps": 30,
+      "liveGames": true,
+      "uspTypes": ["steam", "line", "hedge", "middle", "stale", "injury"]
+    },
+    "MLS": {
+      "enabled": true,
+      "expectedProps": 25,
+      "liveGames": true,
+      "uspTypes": ["steam", "line", "hedge", "middle", "stale"]
+    },
+    "NFL": {
+      "enabled": false,
+      "expectedProps": 100,
+      "liveGames": false,
+      "uspTypes": ["steam", "line", "hedge", "middle", "stale", "injury", "suspicious"]
+    }
+  },
+  "workflows": {
+    "syndicateScheduler": {
+      "enabled": true,
+      "timeout": 120000,
+      "retries": 3,
+      "testParams": {
+        "cycleCount": 1,
+        "isLiveMode": true,
+        "leagues": ["MLB"]
+      }
+    },
+    "leagueIngestion": {
+      "enabled": true,
+      "timeout": 90000,
+      "retries": 2,
+      "testParams": {
+        "league": "MLB",
+        "isLiveMode": true,
+        "cycleCount": 1
+      }
+    },
+    "uspProcessing": {
+      "enabled": true,
+      "timeout": 60000,
+      "retries": 2,
+      "testParams": {
+        "leagues": ["MLB"],
+        "isLiveMode": true,
+        "cycleCount": 1
+      }
+    },
+    "gradingAndScoring": {
+      "enabled": true,
+      "timeout": 60000,
+      "retries": 2,
+      "testParams": {
+        "leagues": ["MLB"],
+        "isLiveMode": true,
+        "cycleCount": 1
+      }
+    },
+    "discordAlert": {
+      "enabled": true,
+      "timeout": 30000,
+      "retries": 3,
+      "testParams": {
+        "cycleCount": 1,
+        "isLiveMode": true
+      }
+    },
+    "liveGameDetector": {
+      "enabled": true,
+      "timeout": 30000,
+      "retries": 1,
+      "testParams": {
+        "leagues": ["MLB"],
+        "cycleCount": 1
+      }
+    },
+    "apiQuotaMonitor": {
+      "enabled": true,
+      "timeout": 15000,
+      "retries": 1,
+      "testParams": {
+        "providers": ["optimal", "sgo", "oddsapi"],
+        "cycleCount": 1
+      }
+    },
+    "systemHealthMonitor": {
+      "enabled": true,
+      "timeout": 20000,
+      "retries": 1,
+      "testParams": {
+        "cycleCount": 1
+      }
+    }
+  },
+  "activities": {
+    "feedAgent": {
+      "ingestOptimalProps": { "timeout": 30000, "retries": 2 },
+      "ingestFallbackProps": { "timeout": 30000, "retries": 2 },
+      "getLiveGames": { "timeout": 10000, "retries": 1 },
+      "deduplicateAndNormalize": { "timeout": 15000, "retries": 1 },
+      "triggerGrading": { "timeout": 5000, "retries": 1 }
+    },
+    "alertAgent": {
+      "detectSteamMovement": { "timeout": 10000, "retries": 1 },
+      "detectLineMovement": { "timeout": 10000, "retries": 1 },
+      "detectHedgeOpportunities": { "timeout": 15000, "retries": 1 },
+      "detectMiddleOpportunities": { "timeout": 15000, "retries": 1 },
+      "detectStaleLines": { "timeout": 10000, "retries": 1 },
+      "detectInjuryImpacts": { "timeout": 20000, "retries": 1 },
+      "detectSuspiciousActivity": { "timeout": 15000, "retries": 1 }
+    },
+    "gradingAgent": {
+      "gradeNewProps": { "timeout": 30000, "retries": 2 },
+      "scoreTopTierPicks": { "timeout": 20000, "retries": 1 },
+      "updateFinalPicks": { "timeout": 10000, "retries": 2 }
+    },
+    "notificationAgent": {
+      "sendCriticalDiscordAlerts": { "timeout": 15000, "retries": 3 },
+      "batchDiscordAlerts": { "timeout": 30000, "retries": 2 },
+      "buildPickEmbeds": { "timeout": 10000, "retries": 1 },
+      "sendDiscordEmbed": { "timeout": 10000, "retries": 3 }
+    },
+    "operatorAgent": {
+      "updateLiveGameStatus": { "timeout": 15000, "retries": 1 },
+      "checkApiQuota": { "timeout": 5000, "retries": 1 },
+      "activateFallbackMode": { "timeout": 5000, "retries": 1 },
+      "checkDatabaseHealth": { "timeout": 5000, "retries": 1 },
+      "checkApiEndpoints": { "timeout": 10000, "retries": 1 },
+      "getWorkflowMetrics": { "timeout": 5000, "retries": 1 },
+      "getSystemMetrics": { "timeout": 5000, "retries": 1 }
+    }
+  },
+  "failureSimulation": {
+    "enabled": true,
+    "scenarios": [
+      {
+        "name": "Primary API Failure",
+        "description": "Simulate Optimal API failure to test fallback",
+        "type": "api_failure",
+        "target": "optimal",
+        "duration": 60000,
+        "expectedFallback": "sgo"
+      },
+      {
+        "name": "Database Connection Loss",
+        "description": "Simulate temporary database connection issues",
+        "type": "database_failure",
+        "duration": 30000,
+        "expectedRecovery": true
+      },
+      {
+        "name": "Discord Webhook Failure",
+        "description": "Simulate Discord webhook unavailability",
+        "type": "webhook_failure",
+        "target": "discord",
+        "duration": 45000,
+        "expectedRetry": true
+      },
+      {
+        "name": "High API Quota Usage",
+        "description": "Simulate approaching API quota limits",
+        "type": "quota_simulation",
+        "target": "optimal",
+        "quotaPercentage": 95,
+        "expectedFallback": true
+      }
+    ]
+  },
+  "performance": {
+    "targets": {
+      "cycleTime": {
+        "target": 90000,
+        "warning": 110000,
+        "critical": 120000
+      },
+      "discordDelivery": {
+        "critical": 15000,
+        "high": 30000,
+        "medium": 60000
+      },
+      "apiResponse": {
+        "target": 2000,
+        "warning": 5000,
+        "critical": 10000
+      },
+      "databaseQuery": {
+        "target": 500,
+        "warning": 1000,
+        "critical": 2000
+      }
+    },
+    "monitoring": {
+      "enabled": true,
+      "interval": 5000,
+      "metrics": [
+        "cycleTime",
+        "discordDeliveryTime",
+        "apiResponseTime",
+        "databaseResponseTime",
+        "memoryUsage",
+        "cpuUsage"
+      ]
+    }
+  },
+  "validation": {
+    "dataIntegrity": {
+      "enabled": true,
+      "checks": [
+        "noDuplicateProps",
+        "validPropStructure",
+        "correctTierAssignment",
+        "timestampConsistency",
+        "foreignKeyIntegrity"
+      ]
+    },
+    "businessLogic": {
+      "enabled": true,
+      "checks": [
+        "onlySTierPropsPromoted",
+        "correctUSPDetection",
+        "properFallbackActivation",
+        "accurateQuotaTracking",
+        "timelyAlertDelivery"
+      ]
+    }
+  },
+  "reporting": {
+    "formats": ["json", "markdown", "console"],
+    "includeDetails": true,
+    "saveToFile": true,
+    "outputDirectory": "./logs/e2e-test",
+    "generateSummary": true,
+    "includeMetrics": true,
+    "includeScreenshots": false
+  },
+  "cleanup": {
+    "enabled": true,
+    "removeTestData": true,
+    "preserveLogs": true,
+    "shutdownGracefully": true,
+    "timeoutMs": 30000
+  }
+}

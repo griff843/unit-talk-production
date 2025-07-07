@@ -236,8 +236,22 @@ export class IngestionAgent extends BaseAgent {
    */
   private async processSingleProp(prop: unknown): Promise<void> {
     try {
+      // Add detailed logging for debugging
+      console.log('[DEBUG] Processing prop:', {
+        player_name: (prop as RawProp).player_name,
+        stat_type: (prop as RawProp).stat_type,
+        line: (prop as RawProp).line,
+        sport: (prop as RawProp).sport,
+        provider: (prop as RawProp).provider
+      });
+
       // Validate the prop
       if (!validateRawProp(prop)) {
+        console.log('[DEBUG] Validation failed for prop:', {
+          player_name: (prop as RawProp).player_name,
+          stat_type: (prop as RawProp).stat_type,
+          keys: Object.keys(prop as any)
+        });
         this.logger.warn('Invalid prop skipped', {
           player_name: (prop as RawProp).player_name,
           stat_type: (prop as RawProp).stat_type
@@ -247,9 +261,12 @@ export class IngestionAgent extends BaseAgent {
         return;
       }
 
+      console.log('[DEBUG] Validation passed, checking for duplicates...');
+
       // Check for duplicates (simplified check)
       const isDuplicate = await this.checkForDuplicate(prop as RawProp);
       if (isDuplicate) {
+        console.log('[DEBUG] Duplicate found, skipping...');
         this.logger.debug('Duplicate prop skipped', {
           player_name: (prop as RawProp).player_name,
           stat_type: (prop as RawProp).stat_type
@@ -259,8 +276,12 @@ export class IngestionAgent extends BaseAgent {
         return;
       }
 
+      console.log('[DEBUG] No duplicate found, normalizing...');
+
       // Normalize the prop
-      const normalizedProp = normalizeRawProp(prop);
+      const normalizationResult = normalizeRawProp(prop);
+
+      console.log('[DEBUG] Normalized prop, inserting to database...');
 
       // Insert into database
       if (!this.supabase) {
@@ -268,16 +289,20 @@ export class IngestionAgent extends BaseAgent {
       }
       const { error } = await this.supabase
         .from('raw_props')
-        .insert(normalizedProp);
+        .insert(normalizationResult.normalizedProp);
 
       if (error) {
+        console.error('[DEBUG] Database insertion error:', error);
         throw error;
       }
 
+      console.log('[DEBUG] Successfully inserted prop to database');
+
       this.ingestedCount++;
       this.ingestionMetrics.propsIngested++;
-      
+
     } catch (error) {
+      console.error('[DEBUG] Error processing prop:', error);
       this.logger.error('Failed to process prop', {
         error: error instanceof Error ? error.message : String(error)
       });

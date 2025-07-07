@@ -1,0 +1,62 @@
+# Temporal Production Configuration
+# Dynamic configuration for production environment
+
+# Frontend service configuration
+frontend.enableUpdateWorkflowExecution: true
+frontend.enableUpdateWorkflowExecutionAsyncAccepted: true
+frontend.rps: 2000
+frontend.maxConcurrentLongRunningRequestHandlers: 1000
+
+# History service configuration
+history.enableActivityEagerExecution: true
+history.enableWorkflowExecutionTimeoutTimer: true
+history.rps: 3000
+history.maxAutoResetPoints: 20
+
+# Matching service configuration
+matching.enableTaskQueuePartition: true
+matching.rps: 2000
+matching.maxTaskQueuePartitions: 4
+
+# Worker service configuration
+worker.enableReplicateLocalActivity: true
+worker.rps: 1000
+
+# System configuration
+system.enableActivityLocalDispatchByDomain: true
+system.enableCrossNamespaceCommands: true
+
+# Production specific settings
+system.enableDebugMode: false
+system.enableVerboseLogging: false
+
+# Limits for production
+limit.maxIDLength: 1000
+limit.maxWorkflowTimeout: "24h"
+limit.maxActivityTimeout: "1h"
+limit.maxWorkflowRetentionTTL: "30d"
+limit.maxConcurrentWorkflowTaskExecutionSize: 1000
+
+# Persistence configuration
+persistence.defaultStore: "default"
+persistence.visibilityStore: "visibility"
+persistence.numHistoryShards: 4
+
+# Archival configuration (enabled for production)
+archival.history.state: "enabled"
+archival.history.enableRead: true
+archival.visibility.state: "enabled"
+archival.visibility.enableRead: true
+
+# Metrics configuration
+metrics.tags:
+  environment: "production"
+  service: "unit-talk"
+
+# Security configuration
+authorization.jwtKeyProvider.keySourceURIs:
+  - "https://your-auth-provider.com/.well-known/jwks.json"
+
+# Performance tuning
+system.advancedVisibilityWritingMode: "dual"
+system.enableReadFromClosedExecutionV2: true
