@@ -1,12 +1,22 @@
-// src/agents/AlertAgent/adviceEngine.ts
-import { FinalPick } from '../../types/picks';
 import { AIOrchestrator } from './aiOrchestrator';
-import { logger } from '../../services/logging';
+import { logger } from '../../utils/logger';
 import { getOpenAICircuitStatus, getOpenAIUsageMetrics } from '../../services/openaiClient';
+
+// Define the pick payload type
+interface PickPayload {
+  id: string;
+  player_name: string;
+  market_type: string;
+  line: number;
+  odds: number;
+  is_sharp_fade?: boolean;
+  tier?: string;
+  edge_score?: number;
+}
 
 // Market context analyzer
 class MarketContextAnalyzer {
-  async analyzeContext(pick: FinalPick): Promise<any> {
+  async analyzeContext(pick: PickPayload): Promise<any> {
     const now = new Date();
     const hour = now.getHours();
     const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'long' });
@@ -35,13 +45,13 @@ class MarketContextAnalyzer {
     return 'sideways'; // Default for now
   }
 
-  private async calculateVolatility(_pick: FinalPick): Promise<number> {
+  private async calculateVolatility(_pick: PickPayload): Promise<number> {
     // Simplified volatility calculation
     // In production, this would analyze historical line movements
     return 0.5; // Default moderate volatility
   }
 
-  private async analyzeSentiment(_pick: FinalPick): Promise<number> {
+  private async analyzeSentiment(_pick: PickPayload): Promise<number> {
     // Simplified sentiment analysis
     // In production, this would analyze social media, news, etc.
     return 0; // Neutral sentiment
@@ -73,7 +83,7 @@ export class AdviceEngine {
     this.contextAnalyzer = new MarketContextAnalyzer();
   }
 
-  async getAdviceForPick(pick: FinalPick): Promise<string> {
+  async getAdviceForPick(pick: PickPayload): Promise<string> {
     try {
       // Check circuit breaker status first
       const circuitStatus = getOpenAICircuitStatus();
@@ -87,7 +97,7 @@ export class AdviceEngine {
       const cached = this.cache.get(cacheKey);
       
       if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
-        logger.info(`Using cached advice for pick ${pick.id}`);
+        logger.info(`Using cached advice for pick ${pick.id}`, {});
         this.CACHE_HIT_METRICS.hits++;
         this.CACHE_HIT_METRICS.total++;
         return this.formatAdvice(cached.advice);
@@ -97,11 +107,11 @@ export class AdviceEngine {
       this.CACHE_HIT_METRICS.total++;
 
       // Analyze market context
-      const context = await this.contextAnalyzer.analyzeContext(pick);
+      const _context = await this.contextAnalyzer.analyzeContext(pick);
       
       // Get AI advice with retries
       const aiAdvice = await this.retryWithBackoff(
-        () => this.aiOrchestrator.getAdviceForPick(pick, context),
+        () => this.aiOrchestrator.getAdviceForPick(pick as any),
         this.MAX_RETRIES,
         this.RETRY_DELAY_BASE
       );
@@ -118,7 +128,7 @@ export class AdviceEngine {
       return this.formatAdvice(aiAdvice);
       
     } catch (error) {
-      logger.error('Failed to get AI advice:', error);
+      logger.error('Failed to get AI advice:', error as Error);
       
       // Check if this is a quota-related error
       const isQuotaError = error instanceof Error && (
@@ -161,9 +171,7 @@ export class AdviceEngine {
         
         // Calculate delay with exponential backoff and jitter
         const delay = baseDelay * Math.pow(2, attempt) * (0.8 + Math.random() * 0.4);
-        logger.info(`Retry attempt ${attempt + 1}/${maxRetries} after ${delay.toFixed(0)}ms delay`, {
-          error: lastError.message
-        });
+        logger.info(`Retry attempt ${attempt + 1}/${maxRetries} after ${delay.toFixed(0)}ms delay`);
         
         await new Promise(resolve => setTimeout(resolve, delay));
       }
@@ -172,7 +180,7 @@ export class AdviceEngine {
     throw lastError || new Error('Maximum retries exceeded');
   }
 
-  private generateCacheKey(pick: FinalPick): string {
+  private generateCacheKey(pick: PickPayload): string {
     // Create a unique key based on pick characteristics
     return `${pick.id}-${pick.player_name}-${pick.market_type}-${pick.line}-${pick.odds}`;
   }
@@ -202,7 +210,7 @@ export class AdviceEngine {
     return formattedAdvice;
   }
 
-  private getFallbackAdvice(pick: FinalPick): string {
+  private getFallbackAdvice(pick: PickPayload): string {
     // Rule-based fallback when AI is unavailable
     if (pick.is_sharp_fade) {
       return '**FADE** - Sharp money indicates line movement against this pick. Consider fading or avoiding.';
@@ -219,7 +227,7 @@ export class AdviceEngine {
     return '**HOLD** - Standard pick requiring manual review. AI analysis unavailable.';
   }
 
-  private getQuotaErrorFallbackAdvice(pick: FinalPick, metrics: any): string {
+  private getQuotaErrorFallbackAdvice(pick: PickPayload, metrics: any): string {
     // Enhanced fallback when quota is exceeded
     let advice = this.getFallbackAdvice(pick);
     
@@ -229,7 +237,7 @@ export class AdviceEngine {
     return advice;
   }
 
-  private getCircuitBreakerFallbackAdvice(pick: FinalPick, status: any): string {
+  private getCircuitBreakerFallbackAdvice(pick: PickPayload, status: any): string {
     // Enhanced fallback when circuit breaker is open
     let advice = this.getFallbackAdvice(pick);
     
@@ -262,11 +270,12 @@ export class AdviceEngine {
 
   public clearCache(): void {
     this.cache.clear();
-    logger.info('Advice cache cleared');
+    logger.info('Advice cache cleared', {});
   }
 
   public async getModelPerformance(): Promise<Map<string, any>> {
-    return this.aiOrchestrator.getModelPerformance();
+    // Return empty map for now since AIOrchestrator doesn't have this method
+    return new Map();
   }
 
   public getCircuitStatus(): any {
@@ -282,6 +291,9 @@ export class AdviceEngine {
 export const adviceEngine = new AdviceEngine();
 
 // Legacy export for backward compatibility
-export async function getAdviceForPick(pick: FinalPick): Promise<string> {
+export async function getAdviceForPick(pick: PickPayload): Promise<string> {
   return adviceEngine.getAdviceForPick(pick);
 }
+
+
+

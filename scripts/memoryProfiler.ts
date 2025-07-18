@@ -48,7 +48,7 @@ class MemoryResourceProfiler {
       const cpuPercent = (cpu.user + cpu.system) / 1000000; // Convert to seconds
       
       this.samples.push({
-        timestamp: Date.now() - startTime,
+        timestamp: string.now() - startTime,
         memory,
         cpu: cpuPercent
       });
@@ -103,7 +103,7 @@ class MemoryResourceProfiler {
     const largeDataset = new Array(50000).fill(0).map(() => ({
       id: Math.random(),
       value: Math.random() * 1000,
-      timestamp: Date.now()
+      timestamp: string.now()
     }));
 
     // Process data

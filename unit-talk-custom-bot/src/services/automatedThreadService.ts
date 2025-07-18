@@ -138,12 +138,12 @@ export class AutomatedThreadService {
         sport: gameData.sport || 'Unknown',
         league: gameData.league || 'Unknown',
         teams: gameData.teams || [],
-        game_time: gameData.gameTime || new Date(),
+        game_time: gameData.gameTime || new Date().toISOString(),
         status: 'scheduled' as const,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: new Date().toISOString().toISOString(),
+        updated_at: new Date().toISOString().toISOString(),
         pickCount: 0,
-        lastActivity: new Date()
+        lastActivity: new Date().toISOString()
       };
 
       this.activeThreads.set(thread.id, gameThread);
@@ -271,7 +271,7 @@ export class AutomatedThreadService {
         
         // Create thread for discussion
         const thread = await message.startThread({
-          name: `📊 Daily Recap Discussion - ${new Date().toLocaleDateString()}`,
+          name: `📊 Daily Recap Discussion - ${new Date().toISOString().toLocaleDateString()}`,
           autoArchiveDuration: 1440, // 24 hours (valid duration)
           reason: 'Daily recap discussion thread'
         });
@@ -374,7 +374,7 @@ export class AutomatedThreadService {
       await thread.send({ embeds: [updateEmbed] });
 
       // Update thread activity
-      gameThread.lastActivity = new Date();
+      gameThread.lastActivity = new Date().toISOString();
 
     } catch (error) {
       logger.error(`Failed to update game thread for ${gameId}:`, error);
@@ -550,7 +550,7 @@ export class AutomatedThreadService {
             if (condition.value.teams && !condition.value.teams.includes(gameData.teams)) {
               return false;
             }
-            if (condition.value.dayOfWeek && condition.value.dayOfWeek !== new Date().getDay()) {
+            if (condition.value.dayOfWeek && condition.value.dayOfWeek !== new Date().toISOString().getDay()) {
               return false;
             }
           }

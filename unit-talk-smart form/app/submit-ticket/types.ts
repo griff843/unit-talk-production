@@ -45,6 +45,8 @@ export interface SearchResults {
     props: Player[];
     games: Game[];
   };
+  props?: Player[];
+  games?: Game[];
 }
 
 export interface TicketLeg {
@@ -88,19 +90,9 @@ export const ticketFormSchema = z.object({
   auto_parlay: z.boolean(),
   sport: z.enum(SPORTS),
   game_date: z.string(),
-  legs: z.array(ticketLegSchema).min(1)
-});
-
-// Additional types for enhanced form functionality
-export interface EnhancedTicketFormData extends TicketFormData {
-  imageAttachments?: File[];
-  betType?: BetType;
-}
-
-export const enhancedTicketFormSchema = ticketFormSchema.extend({
+  legs: z.array(ticketLegSchema).min(1),
   confidence_level: z.number().min(1).max(10).optional(),
-  imageAttachments: z.array(z.instanceof(File)).optional(),
-  betType: z.enum(BET_TYPES).optional()
+  user_tier: z.enum(['member', 'vip', 'vip_plus', 'staff', 'admin']).optional()
 });
 
 export type TicketFormData = z.infer<typeof ticketFormSchema>;
@@ -110,6 +102,11 @@ export interface EnhancedTicketFormData extends TicketFormData {
   imageAttachments?: File[];
   betType?: BetType;
 }
+
+export const enhancedTicketFormSchema = ticketFormSchema.extend({
+  imageAttachments: z.array(z.instanceof(File)).optional(),
+  betType: z.enum(BET_TYPES).optional()
+});
 
 export interface EnhancedTicketLeg extends TicketLeg {
   sport: Sport;
@@ -198,8 +195,4 @@ export interface GameSearchResult {
   home_logo?: string;
   away_logo?: string;
   weather?: any;
-  lines?: any;
 }
-
-// Export the schema for enhanced form
-// (Already defined above with extensions) 

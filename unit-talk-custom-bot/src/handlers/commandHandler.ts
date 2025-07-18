@@ -1,3 +1,4 @@
+import { CommandInteraction, CacheType, ButtonInteraction } from '@discordjs/core';
 import { Client, Message, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
 import { SupabaseService } from '../services/supabase';
 import { PermissionsService } from '../services/permissions';
@@ -651,7 +652,7 @@ export class CommandHandler {
         tier: (userProfile as any).tier || 'member', // Type assertion for tier
         display_name: (userProfile as any).display_name || context.user.username,
         total_messages: (userProfile as any).total_messages || 0,
-        join_date: (userProfile as any).join_date || new Date().toISOString()
+        join_date: (userProfile as any).join_date || new Date().toISOString().toISOString()
       };
 
       const embed = createUserProfileEmbed(profileData as any);

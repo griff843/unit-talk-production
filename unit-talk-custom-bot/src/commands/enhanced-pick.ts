@@ -1,3 +1,4 @@
+import { CommandInteraction, CacheType, ButtonInteraction } from '@discordjs/core';
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
@@ -266,7 +267,7 @@ async function handleAnalytics(interaction: ChatInputCommandInteraction) {
       }
     ])
     .setThumbnail(interaction.user.displayAvatarURL())
-    .setFooter({ text: `${userTier.toUpperCase()} Analytics • Updated ${new Date().toLocaleString()}` })
+    .setFooter({ text: `${userTier.toUpperCase()} Analytics • Updated ${new Date().toISOString().toLocaleString()}` })
     .setTimestamp();
 
   const actionRow = new ActionRowBuilder<ButtonBuilder>()

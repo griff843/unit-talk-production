@@ -75,7 +75,7 @@ export async function getUserTierWithFreshFetch(guild: Guild, userId: string, op
  * Set optimistic tier for recently upgraded users
  */
 export function setOptimisticTier(userId: string, tier: string): void {
-  recentUpgrades.set(userId, { tier, timestamp: Date.now() });
+  recentUpgrades.set(userId, { tier, timestamp: string.now() });
   logger.info(`🎯 Set optimistic tier ${tier} for user ${userId}`);
 
   // Clean up after 60 seconds

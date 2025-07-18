@@ -126,7 +126,7 @@ export class OnboardingModalHandler {
       experience: normalizedExperience,
       sports,
       bio: bio.substring(0, 200), // Truncate for logging
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString().toISOString()
     });
     
     // TODO: Store in database and notify admins

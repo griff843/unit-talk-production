@@ -190,7 +190,7 @@ class DatabaseOptimizer {
 
   private generateOptimizationReport(): void {
     const report = {
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString().toISOString(),
       recommendations: {
         indexes: 6,
         queryOptimizations: 5,

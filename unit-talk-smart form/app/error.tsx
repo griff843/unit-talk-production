@@ -1,5 +1,8 @@
 "use client";
 
+export const dynamic = "error";
+export const revalidate = 0;
+
 import { useEffect } from "react";
 import Link from "next/link";
 
@@ -11,26 +14,28 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error(error);
+    console.error("Error:", error);
   }, [error]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen">
-      <h1 className="text-4xl font-bold mb-4">Something went wrong!</h1>
-      <p className="text-xl mb-8">
-        {error.message || "An unexpected error occurred"}
-      </p>
-      <div className="flex gap-4">
-        <button
-          onClick={reset}
-          className="text-blue-500 hover:text-blue-600"
-        >
-          Try again
-        </button>
-        <Link href="/" className="text-blue-500 hover:text-blue-600">
-          Return to home
-        </Link>
+    <div className="min-h-screen flex flex-col items-center justify-center p-4">
+      <div className="max-w-md w-full bg-card border rounded-lg shadow-lg p-6">
+        <h2 className="text-2xl font-bold mb-4">Something went wrong</h2>
+        <p className="mb-4 text-muted-foreground">
+          {error?.message || "An unexpected error occurred"}
+        </p>
+        <div className="flex flex-col space-y-2">
+          <button
+            onClick={() => reset()}
+            className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md"
+          >
+            Try again
+          </button>
+          <Link href="/" className="text-center text-primary hover:underline">
+            Go back to home
+          </Link>
+        </div>
       </div>
     </div>
   );
-} 
+}

@@ -67,7 +67,7 @@ export class ThreadService {
   }): Promise<ThreadChannel | null> {
     try {
       // Check if thread already exists
-      const existingThread = this.activeThreads.get(gameData.gameId);
+      const existingThread = this.activeThreads.get(gameData.game_id);
       if (existingThread) {
         try {
           const channel = await this.client.channels.fetch(existingThread.thread_id);
@@ -91,7 +91,7 @@ export class ThreadService {
       const starterEmbed = this.createGameThreadEmbed(gameData);
       const starterMessage = await threadsChannel.send({
         embeds: [starterEmbed],
-        components: [this.createThreadButtons(gameData.gameId)]
+        components: [this.createThreadButtons(gameData.game_id)]
       });
 
       // Create thread
@@ -106,22 +106,22 @@ export class ThreadService {
 
       // Save to database
       const gameThread: GameThread = {
-        id: `${gameData.gameId}_${Date.now()}`,
+        id: `${gameData.game_id}_${Date.now()}`,
         thread_id: thread.id,
-        game_id: gameData.gameId,
+        game_id: gameData.game_id,
         sport: gameData.sport,
         home_team: gameData.teams.split(' vs ')[1] || 'Unknown',
         away_team: gameData.teams.split(' vs ')[0] || 'Unknown',
-        game_time: gameData.gameTime ? (typeof gameData.gameTime === 'string' ? gameData.gameTime : new Date(gameData.gameTime).toISOString()) : new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        game_time: gameData.gameTime ? (typeof gameData.gameTime === 'string' ? gameData.gameTime : new Date(gameData.gameTime).toISOString()) : new Date().toISOString().toISOString(),
+        created_at: new Date().toISOString().toISOString(),
+        updated_at: new Date().toISOString().toISOString(),
         pick_count: 0,
         user_count: 0,
         is_pinned: true
       };
 
       await this.saveGameThread(gameThread);
-      this.activeThreads.set(gameData.gameId, gameThread);
+      this.activeThreads.set(gameData.game_id, gameThread);
 
       // Send welcome message
       await thread.send({
@@ -161,7 +161,7 @@ export class ThreadService {
       }
 
       // Update thread stats
-      await this.updateThreadStats(pickData.gameId, 'pick_added');
+      await this.updateThreadStats(pickData.game_id, 'pick_added');
 
       // Notify VIP+ users in thread
       if (pickData.tier === 'premium') {
@@ -362,7 +362,7 @@ export class ThreadService {
         { name: '📊 Confidence', value: `${pickData.confidence}/10`, inline: true },
         { name: '⚡ Edge', value: `${pickData.edge}%`, inline: true },
         { name: '🏆 Tier', value: pickData.tier, inline: true },
-        { name: '⏰ Posted', value: new Date().toLocaleTimeString(), inline: true }
+        { name: '⏰ Posted', value: new Date().toISOString().toLocaleTimeString(), inline: true }
       )
       .setColor(pickData.confidence >= 8 ? 0x00FF00 : 0xFFFF00)
       .setTimestamp();
@@ -450,9 +450,9 @@ export class ThreadService {
    * Get or create thread for pick
    */
   private async getOrCreateThreadForPick(pickData: any): Promise<ThreadChannel | null> {
-    if (pickData.gameId) {
+    if (pickData.game_id) {
       return await this.createGameThread({
-        gameId: pickData.gameId,
+        gameId: pickData.game_id,
         sport: pickData.sport,
         teams: pickData.teams,
         gameTime: pickData.gameTime
@@ -497,10 +497,10 @@ export class ThreadService {
 
       // Update local cache
       if ('lastActivity' in gameThread) {
-        (gameThread as any).lastActivity = new Date();
+        (gameThread as any).lastActivity = new Date().toISOString();
       }
       if ('last_activity' in gameThread) {
-        (gameThread as any).last_activity = new Date().toISOString();
+        (gameThread as any).last_activity = new Date().toISOString().toISOString();
       }
 
       if (action === 'pick_added') {
@@ -518,7 +518,7 @@ export class ThreadService {
       await this.supabaseService.client
         .from('game_threads')
         .update({
-          last_activity: (gameThread as any).last_activity || new Date().toISOString(),
+          last_activity: (gameThread as any).last_activity || new Date().toISOString().toISOString(),
           pick_count: (gameThread as any).pick_count || 0
         })
         .eq('id', gameThread.id);
@@ -559,7 +559,7 @@ export class ThreadService {
         .upsert({
           user_id: userId,
           thread_id: threadId,
-          followed_at: new Date().toISOString()
+          followed_at: new Date().toISOString().toISOString()
         });
     } catch (error) {
       logger.error('Failed to follow thread:', error);
@@ -597,7 +597,7 @@ export class ThreadService {
           odds: pickData.odds,
           units: pickData.units,
           confidence: pickData.confidence,
-          submitted_at: new Date().toISOString(),
+          submitted_at: new Date().toISOString().toISOString(),
           source: 'thread_track'
         });
     } catch (error) {
@@ -763,7 +763,7 @@ export class ThreadService {
           gameId: `game_${Date.now()}`,
           teams: `${match[1]} vs ${match[2]}`,
           sport: 'Unknown',
-          gameTime: new Date().toISOString()
+          gameTime: new Date().toISOString().toISOString()
         };
       }
     }

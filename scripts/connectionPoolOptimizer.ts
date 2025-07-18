@@ -195,7 +195,7 @@ const redisConfig = {
       const cpu = process.cpuUsage();
       
       samples.push({
-        timestamp: Date.now() - startTime,
+        timestamp: string.now() - startTime,
         memory: {
           heapUsed: memory.heapUsed / 1024 / 1024, // MB
           heapTotal: memory.heapTotal / 1024 / 1024, // MB

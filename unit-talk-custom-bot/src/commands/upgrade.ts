@@ -1,3 +1,4 @@
+import { CommandInteraction, CacheType, ButtonInteraction } from '@discordjs/core';
 import { ChatInputCommandInteraction, SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { createVIPInfoEmbed } from '../utils/embeds';
 import { permissionsService } from '../services/permissions';

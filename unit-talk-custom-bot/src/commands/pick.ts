@@ -1,3 +1,4 @@
+import { CommandInteraction, CacheType, ButtonInteraction } from '@discordjs/core';
 import { 
   SlashCommandBuilder, 
   ChatInputCommandInteraction, 
@@ -168,7 +169,7 @@ async function handlePickSubmission(interaction: ChatInputCommandInteraction): P
     id: `temp-${Date.now()}`, // Add required id
     user_id: interaction.user.id,
     selection: description, // Add required selection
-    created_at: new Date().toISOString(), // Add required created_at
+    created_at: new Date().toISOString().toISOString(), // Add required created_at
     pick_data: { // Add required pick_data
       id: `pick-${Date.now()}`,
       user_id: interaction.user.id,
@@ -179,19 +180,19 @@ async function handlePickSubmission(interaction: ChatInputCommandInteraction): P
       stake: units,
       confidence,
       status: 'pending' as const,
-      created_at: new Date().toISOString(),
+      created_at: new Date().toISOString().toISOString(),
       description,
       units,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString().toISOString()
     },
-    submitted_at: new Date().toISOString(), // Add required submitted_at
+    submitted_at: new Date().toISOString().toISOString(), // Add required submitted_at
     gameId: `game-${Date.now()}`, // Add required gameId
     description,
     odds: odds, // Keep as number
     units,
     confidence,
     sport,
-    timestamp: new Date().toISOString(),
+    timestamp: new Date().toISOString().toISOString(),
     status: 'pending',
     bet_type: 'single', // Add required bet_type
     legs: [], // Add required legs array
@@ -213,8 +214,8 @@ async function handlePickSubmission(interaction: ChatInputCommandInteraction): P
       reasoning: undefined,
       result: undefined,
       profit_loss: undefined,
-      created_at: new Date(),
-      updated_at: new Date()
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     }
   };
 

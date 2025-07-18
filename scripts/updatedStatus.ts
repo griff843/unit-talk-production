@@ -8,7 +8,7 @@
 console.log(`
 🚀 UNIT TALK PRODUCTION v3 - UPDATED STATUS REPORT
 ==================================================
-Generated: ${new Date().toISOString()}
+Generated: ${new Date().toISOString().toISOString()}
 
 📊 MAJOR PROGRESS UPDATE
 ========================
@@ -94,7 +94,7 @@ System Status: STABLE & READY FOR ADVANCED CONFIGURATION
 
 // Export updated metrics
 export const updatedDeploymentStatus = {
-  timestamp: new Date(),
+  timestamp: new Date().toISOString(),
   overallReadiness: 85,
   phase1Complete: true,
   tracks: {

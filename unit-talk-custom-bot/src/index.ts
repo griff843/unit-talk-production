@@ -596,7 +596,7 @@ export class UnitTalkBot {
           guildId: member.guild.id,
           username: member.user.username,
           joinedAt: member.joinedAt?.toISOString(),
-          accountCreated: member.user.createdAt.toISOString()
+          accountCreated: member.user.created_at.toISOString()
         }
       );
 

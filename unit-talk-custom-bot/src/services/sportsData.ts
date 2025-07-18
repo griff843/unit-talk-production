@@ -114,7 +114,7 @@ export class SportsDataService {
           over: -105,
           under: -115
         },
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString().toISOString()
       };
     } catch (error) {
       console.error('Error fetching odds:', error);
@@ -265,7 +265,7 @@ export class SportsDataService {
           position: 'TE',
           injury: 'Ankle',
           status: 'Questionable',
-          lastUpdated: new Date().toISOString()
+          lastUpdated: new Date().toISOString().toISOString()
         }
       ];
     } catch (error) {

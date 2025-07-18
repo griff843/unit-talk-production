@@ -1,3 +1,4 @@
+import { CommandInteraction, CacheType, ButtonInteraction } from '@discordjs/core';
 /** Core Discord Types */
 export interface BotConfig {
   prefix: string;
@@ -676,8 +677,8 @@ export interface VIPWelcomeFlow {
   startedAt?: Date;
   trigger_type?: string;
   target_tiers?: UserTier[];
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface VIPWelcomeStep {
@@ -873,7 +874,7 @@ export interface ConfigUpdate {
   newValue?: any;
   updateType: string;
   configType: string;
-  timestamp: Date;
+  timestamp: string;
   reason: string;
   result?: any;
   completedAt?: Date;
@@ -889,7 +890,7 @@ export interface AdminOverride {
   command: ExtendedSystemCommand;
   parameters: Record<string, any>;
   reason: string;
-  timestamp: Date;
+  timestamp: string;
   status: 'executing' | 'completed' | 'failed';
   created_at: string;
   expires_at?: string;
@@ -937,7 +938,7 @@ export interface AIGradingResult {
   grade: string | number;
   score: number;
   reasoning: string;
-  createdAt: Date | string;
+  createdAt: string | string;
   confidence: number | string;
   [key: string]: any;
 }
@@ -946,7 +947,7 @@ export interface AICoachingSession {
   id: string;
   userId: string;
   sessionType: string;
-  startedAt: Date | string;
+  startedAt: string | string;
   endedAt?: Date | string;
   insights: any[];
   recommendations: string[];

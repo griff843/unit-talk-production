@@ -8,7 +8,7 @@
 console.log(`
 🚀 UNIT TALK PRODUCTION v3 - DEPLOYMENT STATUS REPORT
 =====================================================
-Generated: ${new Date().toISOString()}
+Generated: ${new Date().toISOString().toISOString()}
 
 📊 SYSTEM ANALYSIS SUMMARY
 ==========================
@@ -119,7 +119,7 @@ Next Update: Run this report again after type system fixes
 
 // Export for programmatic use
 export const deploymentStatus = {
-  timestamp: new Date(),
+  timestamp: new Date().toISOString(),
   overallReadiness: 65,
   tracks: {
     systemIntegration: { status: 'partial', completion: 75 },

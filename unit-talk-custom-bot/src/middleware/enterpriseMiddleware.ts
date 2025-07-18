@@ -222,7 +222,7 @@ export function requestLogger() {
       path: req.path,
       ip: req.ip,
       userAgent: req.get('User-Agent'),
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString().toISOString(),
     });
 
     // Override res.end to log response
@@ -329,7 +329,7 @@ export function healthCheck() {
       
       res.json({
         status: 'healthy',
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toISOString().toISOString(),
         uptime: process.uptime(),
         memory: process.memoryUsage(),
         redis: 'connected',
@@ -339,7 +339,7 @@ export function healthCheck() {
       
       res.status(503).json({
         status: 'unhealthy',
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toISOString().toISOString(),
         error: 'Service unavailable',
       });
     }

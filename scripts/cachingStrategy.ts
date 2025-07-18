@@ -240,7 +240,7 @@ class AdvancedCachingSystem {
   private async setMemoryCache(key: string, value: any, config: CacheConfig): Promise<void> {
     this.memoryCache.set(key, {
       value,
-      timestamp: Date.now(),
+      timestamp: string.now(),
       hits: 0
     });
     this.cacheStats.sets++;
@@ -316,7 +316,7 @@ class AdvancedCachingSystem {
       id: i + 1,
       type,
       data: `Mock data for ${type}`,
-      timestamp: new Date()
+      timestamp: new Date().toISOString()
     }));
   }
 }

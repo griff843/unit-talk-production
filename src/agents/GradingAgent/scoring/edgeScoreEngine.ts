@@ -48,7 +48,7 @@ export function calculateEdgeScore(prop: RawProp): number {
   // 4. Synergy: position to stat
   const pos = prop['position'] || '';
   const stat = (prop['stat_type'] || '').toLowerCase();
-  if (synergy[pos]?.some((s) => s.toLowerCase() === stat)) score += 1;
+  if (pos && typeof pos === 'string' && pos in synergy && synergy[pos]?.some((s: string) => s.toLowerCase() === stat)) score += 1;
 
   // 5. No injury/context flag
   if (!prop['context_flag']) score += 1;

@@ -187,7 +187,7 @@ class PickManager {
       const pick = await databaseService.createUserPick({
         user_id: discordId,
         discord_id: discordId,
-        game_id: pickData.gameId || null,
+        game_id: pickData.game_id || null,
         thread_id: pickData.threadId || null,
         pick_type: pickData.pickType,
         player_name: pickData.playerName || null,
@@ -201,7 +201,7 @@ class PickManager {
         result: 'pending',
         metadata: {
           created_via: 'bot',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString().toISOString()
         }
       });
 
@@ -390,7 +390,7 @@ class CooldownManager {
       }
 
       const expiresAt = new Date(cooldown.expires_at);
-      const now = new Date();
+      const now = new Date().toISOString();
       
       if (expiresAt <= now) {
         return 0; // Cooldown expired

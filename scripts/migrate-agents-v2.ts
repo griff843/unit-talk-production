@@ -131,7 +131,7 @@ function migrateAgentClass(filePath: string) {
     ${addTodo(filePath, name)}
     return {
       status: 'healthy',
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString().toISOString(),
       details: {}
     };
   }`;
@@ -305,7 +305,7 @@ async function migrate() {
 function generateMigrationSummary() {
   let summary = `# BaseAgent v2 Migration Summary
 
-Generated on: ${new Date().toISOString()}
+Generated on: ${new Date().toISOString().toISOString()}
 
 ## Files Modified
 

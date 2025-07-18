@@ -100,7 +100,7 @@ export class WorkflowTester {
                 testName: 'User Registration Workflow',
         status: 'PASS',
         message: 'Complete user registration workflow successful',
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
 
@@ -111,7 +111,7 @@ export class WorkflowTester {
                 testName: 'User Registration Workflow',
         status: 'FAIL',
         message: `Registration workflow failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -166,7 +166,7 @@ export class WorkflowTester {
                 testName: 'User Onboarding Workflow',
         status: 'PASS',
         message: 'Complete user onboarding workflow successful',
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
 
@@ -177,7 +177,7 @@ export class WorkflowTester {
                 testName: 'User Onboarding Workflow',
         status: 'FAIL',
         message: `Onboarding workflow failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -233,7 +233,7 @@ export class WorkflowTester {
                 testName: 'Pick Submission Workflow',
         status: 'PASS',
         message: 'Complete pick submission workflow successful',
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
 
@@ -244,7 +244,7 @@ export class WorkflowTester {
                 testName: 'Pick Submission Workflow',
         status: 'FAIL',
         message: `Pick submission workflow failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -307,7 +307,7 @@ export class WorkflowTester {
                 testName: 'Parlay Creation Workflow',
         status: 'PASS',
         message: 'Complete parlay creation workflow successful',
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
 
@@ -318,7 +318,7 @@ export class WorkflowTester {
                 testName: 'Parlay Creation Workflow',
         status: 'FAIL',
         message: `Parlay creation workflow failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -371,7 +371,7 @@ export class WorkflowTester {
         message: this.config.environment.name === 'production' 
           ? 'Payment workflow skipped in production' 
           : 'Complete payment workflow successful',
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
 
@@ -382,7 +382,7 @@ export class WorkflowTester {
                 testName: 'Payment Workflow',
         status: 'FAIL',
         message: `Payment workflow failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -431,7 +431,7 @@ export class WorkflowTester {
                 testName: 'Analytics Workflow',
         status: 'PASS',
         message: 'Complete analytics workflow successful',
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
 
@@ -442,7 +442,7 @@ export class WorkflowTester {
                 testName: 'Analytics Workflow',
         status: 'FAIL',
         message: `Analytics workflow failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -484,7 +484,7 @@ export class WorkflowTester {
                 testName: 'Discord Pick Submission Workflow',
         status: 'PASS',
         message: 'Discord integration workflow successful',
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
 
@@ -495,7 +495,7 @@ export class WorkflowTester {
                 testName: 'Discord Pick Submission Workflow',
         status: 'FAIL',
         message: `Discord workflow failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -551,7 +551,7 @@ export class WorkflowTester {
                 testName: 'Admin Workflows',
         status: 'PASS',
         message: 'Admin workflow tests successful',
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
 
@@ -562,7 +562,7 @@ export class WorkflowTester {
                 testName: 'Admin Workflows',
         status: 'FAIL',
         message: `Admin workflow failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -601,7 +601,7 @@ export class WorkflowTester {
                 testName: 'Error Handling Workflows',
         status: 'PASS',
         message: 'Error handling workflows successful',
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
 
@@ -612,7 +612,7 @@ export class WorkflowTester {
                 testName: 'Error Handling Workflows',
         status: 'FAIL',
         message: `Error handling workflow failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }

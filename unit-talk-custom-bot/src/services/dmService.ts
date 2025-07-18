@@ -397,7 +397,7 @@ export class DMService {
 
     // Check time window
     if (trigger.conditions?.timeWindow) {
-      const now = new Date();
+      const now = new Date().toISOString();
 
       // Null safety for startHour and endHour
       const startHour = (trigger.conditions.timeWindow as any)?.startHour;
@@ -405,8 +405,8 @@ export class DMService {
       const timezone = (trigger.conditions.timeWindow as any)?.timezone;
 
       const currentHour = timezone && typeof timezone === 'string' ?
-        parseInt((new Date().toLocaleString('en-US', { timeZone: timezone, hour12: false }).split(' ')[1] || '0:0').split(':')[0] ?? '0') :
-        (now?.getHours() ?? new Date().getHours());
+        parseInt((new Date().toISOString().toLocaleString('en-US', { timeZone: timezone, hour12: false }).split(' ')[1] || '0:0').split(':')[0] ?? '0') :
+        (now?.getHours() ?? new Date().toISOString().getHours());
 
       if (typeof startHour === 'number' && typeof endHour === 'number') {
         if (currentHour < startHour || currentHour > endHour) {
@@ -498,7 +498,7 @@ export class DMService {
           user_id: userId,
           content_type: contentType,
           tier: tier,
-          sent_at: new Date().toISOString()
+          sent_at: new Date().toISOString().toISOString()
         });
     } catch (error) {
       logger.error('Failed to track DM sent:', error);
@@ -516,7 +516,7 @@ export class DMService {
           user_id: userId,
           content: JSON.stringify(content),
           template_id: templateId,
-          sent_at: new Date().toISOString(),
+          sent_at: new Date().toISOString().toISOString(),
           status: 'sent'
         });
     } catch (error) {
@@ -542,7 +542,7 @@ export class DMService {
         .from('dm_triggers')
         .update({
           trigger_count: newCount,
-          last_triggered: new Date().toISOString()
+          last_triggered: new Date().toISOString().toISOString()
         })
         .eq('id', triggerId);
     } catch (error) {

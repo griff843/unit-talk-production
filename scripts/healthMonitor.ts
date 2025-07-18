@@ -14,7 +14,7 @@ const PORT = process.env.MONITOR_PORT || 3001;
 interface HealthStatus {
   service: string;
   status: 'healthy' | 'degraded' | 'unhealthy';
-  lastCheck: Date;
+  lastCheck: string;
   details?: any;
 }
 
@@ -27,7 +27,7 @@ class SimpleHealthMonitor {
       const status: HealthStatus = {
         service: agentName,
         status: 'healthy',
-        lastCheck: new Date(),
+        lastCheck: new Date().toISOString(),
         details: {
           uptime: process.uptime(),
           memory: process.memoryUsage(),
@@ -41,7 +41,7 @@ class SimpleHealthMonitor {
       const status: HealthStatus = {
         service: agentName,
         status: 'unhealthy',
-        lastCheck: new Date(),
+        lastCheck: new Date().toISOString(),
         details: { error: error instanceof Error ? error.message : 'Unknown error' }
       };
       
@@ -64,7 +64,7 @@ class SimpleHealthMonitor {
         degraded: services.filter(s => s.status === 'degraded').length,
         unhealthy: services.filter(s => s.status === 'unhealthy').length
       },
-      timestamp: new Date()
+      timestamp: new Date().toISOString()
     };
   }
 }

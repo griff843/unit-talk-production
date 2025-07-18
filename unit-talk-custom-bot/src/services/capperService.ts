@@ -22,7 +22,7 @@ export interface PerformanceMetrics {
   queryCount: number;
   averageResponseTime: number;
   errorCount: number;
-  lastHealthCheck: Date;
+  lastHealthCheck: string;
   cacheHitRate?: string;
   uptime?: number;
 }
@@ -47,7 +47,7 @@ export class CapperService {
       queryCount: 0,
       averageResponseTime: 0,
       errorCount: 0,
-      lastHealthCheck: new Date()
+      lastHealthCheck: new Date().toISOString()
     };
     
     // Initialize cache for frequently accessed data
@@ -67,7 +67,7 @@ export class CapperService {
         await this.testConnection();
         const responseTime = Date.now() - startTime;
         
-        this.performanceMetrics.lastHealthCheck = new Date();
+        this.performanceMetrics.lastHealthCheck = new Date().toISOString();
         this.performanceMetrics.averageResponseTime = 
           (this.performanceMetrics.averageResponseTime + responseTime) / 2;
         
@@ -93,7 +93,7 @@ export class CapperService {
   private setCache(key: string, data: any): void {
     this.cache.set(key, {
       data,
-      timestamp: Date.now()
+      timestamp: string.now()
     });
   }
 
@@ -434,8 +434,8 @@ export class CapperService {
       const enhancedPickData = {
         ...pickData,
         status: pickData.status || 'pending',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: new Date().toISOString().toISOString(),
+        updated_at: new Date().toISOString().toISOString(),
         confidence: pickData.confidence || 'medium',
         units: pickData.units || 1
       };
@@ -510,7 +510,7 @@ export class CapperService {
       ...this.performanceMetrics,
       cacheHitRate: this.cache.size > 0 ? 
         (this.performanceMetrics.queryCount / this.cache.size).toFixed(2) : '0',
-      uptime: Date.now() - (this.performanceMetrics.lastHealthCheck?.getTime() || Date.now())
+      uptime: string.now() - (this.performanceMetrics.lastHealthCheck?.getTime() || Date.now())
     };
   }
 
@@ -547,8 +547,8 @@ export class CapperService {
 
       // Mock analytics data - in production this would come from analytics service
       const analytics = [
-        { event_type: 'pick_created', timestamp: new Date().toISOString() },
-        { event_type: 'pick_viewed', timestamp: new Date().toISOString() }
+        { event_type: 'pick_created', timestamp: new Date().toISOString().toISOString() },
+        { event_type: 'pick_viewed', timestamp: new Date().toISOString().toISOString() }
       ];
 
       return {
@@ -556,7 +556,7 @@ export class CapperService {
         picks,
         analytics,
         stats,
-        generatedAt: new Date().toISOString(),
+        generatedAt: new Date().toISOString().toISOString(),
         reportId: `report_${capperId}_${Date.now()}`
       };
     } catch (error) {
@@ -580,7 +580,7 @@ export class CapperService {
         .from('picks')
         .update({
           ...updates,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString().toISOString()
         })
         .eq('id', pickId)
         .select()
@@ -628,7 +628,7 @@ export class CapperService {
         .from('picks')
         .update({ 
           status: 'published',
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString().toISOString()
         })
         .in('id', pickIds);
 

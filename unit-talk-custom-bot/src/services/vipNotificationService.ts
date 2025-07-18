@@ -423,7 +423,7 @@ export class VIPNotificationService {
           type: 'reminder',
           subtype: reminderType,
           tier: tier,
-          sent_at: new Date().toISOString()
+          sent_at: new Date().toISOString().toISOString()
         });
     } catch (error) {
       logger.error('Failed to track reminder sent:', error);
@@ -823,7 +823,7 @@ export class VIPNotificationService {
         .addFields(
           { name: 'User ID', value: member.id, inline: true },
           { name: 'Join Date', value: member.joinedAt?.toDateString() || 'Unknown', inline: true },
-          { name: 'Account Created', value: member.user.createdAt.toDateString(), inline: true }
+          { name: 'Account Created', value: member.user.created_at.toDateString(), inline: true }
         )
         .setColor('#E67E22')
         .setThumbnail(member.user.displayAvatarURL())

@@ -5,7 +5,7 @@ import { logger } from '../utils/logger';
 export interface AgentHealthStatus {
   agentId: string;
   status: 'healthy' | 'error';
-  lastHeartbeat: Date;
+  lastHeartbeat: string;
   errorCount: number;
   responseTime: number;
   metadata?: Record<string, any>;
@@ -13,7 +13,7 @@ export interface AgentHealthStatus {
 
 export interface HealthCheckResult {
   agentId: string;
-  timestamp: Date;
+  timestamp: string;
   status: 'healthy' | 'error';
   responseTime: number;
   errorMessage?: string;
@@ -60,7 +60,7 @@ export class AgentMonitoringService {
     this.agents.set(agentId, {
       agentId,
       status: 'healthy',
-      lastHeartbeat: new Date(),
+      lastHeartbeat: new Date().toISOString(),
       errorCount: 0,
       responseTime: 0,
       metadata: metadata || {}
@@ -79,7 +79,7 @@ export class AgentMonitoringService {
       return;
     }
 
-    agent.lastHeartbeat = new Date();
+    agent.lastHeartbeat = new Date().toISOString();
     agent.status = 'healthy';
     agent.errorCount = 0;
     if (metadata) {
@@ -89,7 +89,7 @@ export class AgentMonitoringService {
     // Store health check result
     const healthResult: HealthCheckResult = {
       agentId,
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
       status: 'healthy',
       responseTime: 0,
       metadata: metadata || {}
@@ -110,7 +110,7 @@ export class AgentMonitoringService {
     const agentStatus = this.agents.get(agentId)!;
     agentStatus.status = 'error';
     agentStatus.errorCount++;
-    agentStatus.lastHeartbeat = new Date();
+    agentStatus.lastHeartbeat = new Date().toISOString();
     if (metadata) {
       agentStatus.metadata = { ...agentStatus.metadata, ...metadata };
     }
@@ -118,7 +118,7 @@ export class AgentMonitoringService {
     // Store health check result
     const healthResult: HealthCheckResult = {
       agentId,
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
       status: 'error',
       responseTime: 0,
       errorMessage: error.message,
@@ -164,11 +164,11 @@ export class AgentMonitoringService {
       if (response.success) {
         agent.status = 'healthy';
         agent.errorCount = 0;
-        agent.lastHeartbeat = new Date();
+        agent.lastHeartbeat = new Date().toISOString();
 
         await this.storeHealthCheckResult({
           agentId,
-          timestamp: new Date(),
+          timestamp: new Date().toISOString(),
           status: 'healthy',
           responseTime,
           metadata: response.data || {}
@@ -179,7 +179,7 @@ export class AgentMonitoringService {
 
         await this.storeHealthCheckResult({
           agentId,
-          timestamp: new Date(),
+          timestamp: new Date().toISOString(),
           status: 'error',
           responseTime,
           errorMessage: response.error || 'Health check failed',
@@ -202,7 +202,7 @@ export class AgentMonitoringService {
 
         await this.storeHealthCheckResult({
           agentId,
-          timestamp: new Date(),
+          timestamp: new Date().toISOString(),
           status: 'error',
           responseTime,
           errorMessage: error instanceof Error ? error.message : 'Unknown error',

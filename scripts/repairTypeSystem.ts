@@ -66,7 +66,7 @@ export interface BaseAgent {
 }
 
 export interface BaseMetrics {
-  timestamp: Date;
+  timestamp: string;
   agent: string;
   operation: string;
   duration: number;
@@ -76,8 +76,8 @@ export interface BaseMetrics {
 
 export interface DatabaseRecord {
   id: string;
-  created_at: Date;
-  updated_at: Date;
+  created_at: string;
+  updated_at: string;
   [key: string]: any;
 }
 
@@ -85,7 +85,7 @@ export interface APIResponse<T = any> {
   success: boolean;
   data?: T;
   error?: string;
-  timestamp: Date;
+  timestamp: string;
 }
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';

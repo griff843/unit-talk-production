@@ -1,3 +1,4 @@
+import { CommandInteraction, CacheType, ButtonInteraction } from '@discordjs/core';
 import { 
   Message, 
   MessageReaction, 
@@ -16,7 +17,7 @@ export interface FeedbackData {
   userId: string;
   messageType: 'recap' | 'alert' | 'notification' | 'command_response';
   feedbackType: 'positive' | 'negative' | 'neutral';
-  timestamp: Date;
+  timestamp: string;
   metadata?: Record<string, any>;
 }
 
@@ -94,7 +95,7 @@ export class FeedbackService {
           userId: user.id,
           messageType,
           feedbackType,
-          timestamp: new Date(),
+          timestamp: new Date().toISOString(),
           metadata: {
             source: 'reaction',
             emoji: reaction.emoji.name
@@ -138,7 +139,7 @@ export class FeedbackService {
         userId: interaction.user.id,
         messageType,
         feedbackType,
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         metadata: {
           source: 'button',
           customId

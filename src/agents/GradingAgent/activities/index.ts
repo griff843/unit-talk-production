@@ -1,51 +1,51 @@
-import { GradingAgentActivitiesImpl } from './activities.js';
+import { GradingAgentActivitiesImpl } from './activities';
 import { BaseAgentConfig, BaseAgentDependencies } from '../../BaseAgent/types';
 
-// Factory function to create activities implementation
 function createActivitiesImpl(config: BaseAgentConfig, deps: BaseAgentDependencies) {
   return new GradingAgentActivitiesImpl(config, deps);
 }
 
-// Export factory function for Temporal worker
-export { createActivitiesImpl };
-
-// Export individual activity functions for direct use
-export function gradeSubmission(config: BaseAgentConfig, deps: BaseAgentDependencies) {
+// Export individual activity functions
+export function gradeProp(config: BaseAgentConfig, deps: BaseAgentDependencies) {
   const impl = createActivitiesImpl(config, deps);
-  return impl.gradeSubmission.bind(impl);
+  return impl.gradeProp.bind(impl);
 }
 
-export function updateGrades(config: BaseAgentConfig, deps: BaseAgentDependencies) {
+export function validateGrade(config: BaseAgentConfig, deps: BaseAgentDependencies) {
   const impl = createActivitiesImpl(config, deps);
-  return impl.updateGrades.bind(impl);
+  return impl.validateGrade.bind(impl);
 }
 
-export function generateFeedback(config: BaseAgentConfig, deps: BaseAgentDependencies) {
+export function monitorGrading(config: BaseAgentConfig, deps: BaseAgentDependencies) {
   const impl = createActivitiesImpl(config, deps);
-  return impl.generateFeedback.bind(impl);
+  return impl.monitorGrading.bind(impl);
 }
 
+// Export base agent activities
 export function initialize(config: BaseAgentConfig, deps: BaseAgentDependencies) {
   const impl = createActivitiesImpl(config, deps);
   return impl.initialize.bind(impl);
 }
 
-export function cleanup(config: BaseAgentConfig, deps: BaseAgentDependencies) {
+export function healthCheck(config: BaseAgentConfig, deps: BaseAgentDependencies) {
   const impl = createActivitiesImpl(config, deps);
-  return impl.cleanup.bind(impl);
+  return impl.healthCheck.bind(impl);
 }
 
-export function checkHealth(config: BaseAgentConfig, deps: BaseAgentDependencies) {
+export function validateDependencies(config: BaseAgentConfig, deps: BaseAgentDependencies) {
   const impl = createActivitiesImpl(config, deps);
-  return impl.checkHealth.bind(impl);
+  return impl.validateDependencies.bind(impl);
 }
 
-export function collectMetrics(config: BaseAgentConfig, deps: BaseAgentDependencies) {
+// Export all activities as a single object
+export function createActivities(config: BaseAgentConfig, deps: BaseAgentDependencies) {
   const impl = createActivitiesImpl(config, deps);
-  return impl.collectMetrics.bind(impl);
-}
-
-export function handleCommand(config: BaseAgentConfig, deps: BaseAgentDependencies) {
-  const impl = createActivitiesImpl(config, deps);
-  return impl.handleCommand.bind(impl);
+  return {
+    gradeProp: impl.gradeProp.bind(impl),
+    validateGrade: impl.validateGrade.bind(impl),
+    monitorGrading: impl.monitorGrading.bind(impl),
+    initialize: impl.initialize.bind(impl),
+    healthCheck: impl.healthCheck.bind(impl),
+    validateDependencies: impl.validateDependencies.bind(impl)
+  };
 }

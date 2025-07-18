@@ -1,3 +1,4 @@
+import { CommandInteraction, CacheType, ButtonInteraction } from '@discordjs/core';
 import { ChatInputCommandInteraction, SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { createTrialStatusEmbed, createErrorEmbed } from '../utils/embeds';
 import { SupabaseService } from '../services/supabase';
@@ -47,7 +48,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
     // Calculate remaining time
     const trialEndTime = new Date(trialData.expires_at);
-    const now = new Date();
+    const now = new Date().toISOString();
     const timeRemaining = trialEndTime.getTime() - now.getTime();
     
     if (timeRemaining <= 0) {

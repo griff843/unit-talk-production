@@ -90,7 +90,7 @@ export class MobileAccessibilityTester {
         testName: 'Touch Target Sizes',
         status: failCount === 0 ? 'PASS' : 'WARNING',
         message: `${passCount} elements passed, ${failCount} elements below minimum size (${this.config.mobile.minTouchTargetSize}px)`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp(),
         metrics: {
           passCount,
@@ -104,7 +104,7 @@ export class MobileAccessibilityTester {
         testName: 'Touch Target Sizes',
         status: 'FAIL',
         message: `Test failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -135,7 +135,7 @@ export class MobileAccessibilityTester {
           testName: 'Mobile Menu Accessibility',
           status: hasProperAria ? 'PASS' : 'WARNING',
           message: hasProperAria ? 'Mobile menu has proper ARIA attributes' : 'Mobile menu missing ARIA attributes',
-          duration: Date.now() - startTime,
+          duration: string.now() - startTime,
           timestamp: createTimestamp()
         });
       } else {
@@ -143,7 +143,7 @@ export class MobileAccessibilityTester {
           testName: 'Mobile Menu Accessibility',
           status: 'WARNING',
           message: 'No mobile menu button found',
-          duration: Date.now() - startTime,
+          duration: string.now() - startTime,
           timestamp: createTimestamp()
         });
       }
@@ -153,7 +153,7 @@ export class MobileAccessibilityTester {
         testName: 'Mobile Navigation',
         status: 'FAIL',
         message: `Test failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -200,7 +200,7 @@ export class MobileAccessibilityTester {
         testName: 'Screen Reader Compatibility',
         status: h1Count === 1 && skipLinks.length > 0 && labelingScore >= 90 ? 'PASS' : 'WARNING',
         message: `H1 count: ${h1Count}, Skip links: ${skipLinks.length}, Form labeling: ${labelingScore.toFixed(1)}%`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp(),
         metrics: {
           h1Count,
@@ -216,7 +216,7 @@ export class MobileAccessibilityTester {
         testName: 'Screen Reader Compatibility',
         status: 'FAIL',
         message: `Test failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -256,7 +256,7 @@ export class MobileAccessibilityTester {
         testName: 'Mobile Keyboard Navigation',
         status: tabNavigationWorks ? 'PASS' : 'WARNING',
         message: tabNavigationWorks ? 'Tab navigation works correctly' : 'Tab navigation issues detected',
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp(),
         metrics: {
           focusableElements: focusableElements.length,
@@ -269,7 +269,7 @@ export class MobileAccessibilityTester {
         testName: 'Mobile Keyboard Navigation',
         status: 'FAIL',
         message: `Test failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -311,7 +311,7 @@ export class MobileAccessibilityTester {
           testName: `Viewport Accessibility - ${viewport.name}`,
           status: !hasHorizontalScroll && overflowingElements === 0 ? 'PASS' : 'WARNING',
           message: `Horizontal scroll: ${hasHorizontalScroll}, Overflowing elements: ${overflowingElements}`,
-          duration: Date.now() - startTime,
+          duration: string.now() - startTime,
           timestamp: createTimestamp(),
           metrics: {
             viewport: viewport.name,
@@ -326,7 +326,7 @@ export class MobileAccessibilityTester {
         testName: 'Mobile Viewport Accessibility',
         status: 'FAIL',
         message: `Test failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -351,7 +351,7 @@ export class MobileAccessibilityTester {
           testName: 'Mobile Form Accessibility',
           status: 'WARNING',
           message: 'No forms found to test',
-          duration: Date.now() - startTime,
+          duration: string.now() - startTime,
           timestamp: createTimestamp()
         });
         return results;
@@ -392,7 +392,7 @@ export class MobileAccessibilityTester {
         testName: 'Mobile Form Accessibility',
         status: accessibilityScore >= 80 ? 'PASS' : 'WARNING',
         message: `${accessibleInputs}/${totalInputs} inputs have proper mobile attributes (${accessibilityScore.toFixed(1)}%)`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp(),
         metrics: {
           totalInputs,
@@ -407,7 +407,7 @@ export class MobileAccessibilityTester {
         testName: 'Mobile Form Accessibility',
         status: 'FAIL',
         message: `Test failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }

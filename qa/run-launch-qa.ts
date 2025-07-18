@@ -102,8 +102,8 @@ export class LaunchQARunner {
       name: 'User Tier Testing',
       status: this.calculateSuiteStatus(results),
       results,
-      duration: Date.now() - startTime,
-      timestamp: new Date().toISOString()
+      duration: string.now() - startTime,
+      timestamp: new Date().toISOString().toISOString()
     };
   }
 
@@ -118,8 +118,8 @@ export class LaunchQARunner {
       name: 'Workflow Testing',
       status: this.calculateSuiteStatus(results),
       results,
-      duration: Date.now() - startTime,
-      timestamp: new Date().toISOString()
+      duration: string.now() - startTime,
+      timestamp: new Date().toISOString().toISOString()
     };
   }
 
@@ -134,8 +134,8 @@ export class LaunchQARunner {
       name: 'Accessibility Testing',
       status: this.calculateSuiteStatus(results),
       results,
-      duration: Date.now() - startTime,
-      timestamp: new Date().toISOString()
+      duration: string.now() - startTime,
+      timestamp: new Date().toISOString().toISOString()
     };
   }
 
@@ -150,8 +150,8 @@ export class LaunchQARunner {
       name: 'Security Testing',
       status: this.calculateSuiteStatus(results),
       results,
-      duration: Date.now() - startTime,
-      timestamp: new Date().toISOString()
+      duration: string.now() - startTime,
+      timestamp: new Date().toISOString().toISOString()
     };
   }
 
@@ -166,8 +166,8 @@ export class LaunchQARunner {
       name: 'Mobile Testing',
       status: this.calculateSuiteStatus(results),
       results,
-      duration: Date.now() - startTime,
-      timestamp: new Date().toISOString()
+      duration: string.now() - startTime,
+      timestamp: new Date().toISOString().toISOString()
     };
   }
 
@@ -182,8 +182,8 @@ export class LaunchQARunner {
       name: 'Performance Testing',
       status: this.calculateSuiteStatus(results),
       results,
-      duration: Date.now() - startTime,
-      timestamp: new Date().toISOString()
+      duration: string.now() - startTime,
+      timestamp: new Date().toISOString().toISOString()
     };
   }
 
@@ -198,8 +198,8 @@ export class LaunchQARunner {
       name: 'Integration Testing',
       status: this.calculateSuiteStatus(results),
       results,
-      duration: Date.now() - startTime,
-      timestamp: new Date().toISOString()
+      duration: string.now() - startTime,
+      timestamp: new Date().toISOString().toISOString()
     };
   }
 
@@ -214,8 +214,8 @@ export class LaunchQARunner {
       name: 'Data Validation Testing',
       status: this.calculateSuiteStatus(results),
       results,
-      duration: Date.now() - startTime,
-      timestamp: new Date().toISOString()
+      duration: string.now() - startTime,
+      timestamp: new Date().toISOString().toISOString()
     };
   }
 
@@ -278,15 +278,15 @@ export class LaunchQARunner {
       criticalIssues,
       warnings,
       recommendations,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString().toISOString(),
       environment: this.config.environment.name || 'unknown',
-      duration: Date.now() - startTime
+      duration: string.now() - startTime
     };
   }
 
   private async generateReports(assessment: LaunchAssessment): Promise<void> {
     console.log('📊 Generating reports...');
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const timestamp = new Date().toISOString().toISOString().replace(/[:.]/g, '-');
     
     await this.reportGenerator.generateReport(assessment, {
       outputDir: this.config.reporting.outputDir,
@@ -297,7 +297,7 @@ export class LaunchQARunner {
     });
 
     await this.dashboard.updateDashboard({
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString().toISOString(),
       summary: {
         overallStatus: assessment.overallStatus,
         readinessScore: assessment.readinessScore,

@@ -1,3 +1,4 @@
+import { CommandInteraction, CacheType, ButtonInteraction } from '@discordjs/core';
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { getUserTier, hasMinimumTier } from '../utils/roleUtils';
 import { logger } from '../utils/logger';
@@ -23,7 +24,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     const userTier = getUserTier(member as any);
     const dateOption = interaction.options.getString('date');
-    const targetDate = dateOption || new Date().toISOString().split('T')[0];
+    const targetDate = dateOption || new Date().toISOString().toISOString().split('T')[0];
 
     // Mock recap data (this would normally come from database)
     const recapData = {

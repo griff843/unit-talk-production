@@ -209,7 +209,7 @@ export class MonitoringService {
     this.app.get('/health', async (req, res) => {
       const health = {
         status: 'healthy',
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toISOString().toISOString(),
         uptime: process.uptime(),
         memory: process.memoryUsage(),
         redis: await redis.healthCheck()

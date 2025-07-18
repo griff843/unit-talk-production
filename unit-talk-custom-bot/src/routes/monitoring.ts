@@ -16,7 +16,7 @@ router.get('/metrics', (_req: Request, res: Response) => {
       cpu: process.cpuUsage(),
       
       // Custom business metrics
-      timestamp: Date.now(),
+      timestamp: string.now(),
       version: process.env.npm_package_version || '1.0.0',
       environment: process.env.NODE_ENV || 'development',
       
@@ -62,7 +62,7 @@ router.get('/health', async (_req: Request, res: Response) => {
   try {
     const health = {
       status: 'healthy',
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString().toISOString(),
       uptime: process.uptime(),
       memory: process.memoryUsage(),
       cache: await cache.healthCheck(),
@@ -74,7 +74,7 @@ router.get('/health', async (_req: Request, res: Response) => {
     logger.error('Health check failed', { error });
     res.status(503).json({
       status: 'unhealthy',
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString().toISOString(),
       error: 'Service unavailable',
     });
   }
@@ -90,7 +90,7 @@ router.get('/ready', async (_req: Request, res: Response) => {
     if (cacheReady.status === 'healthy') {
       res.json({
         status: 'ready',
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toISOString().toISOString(),
         services: {
           cache: cacheReady.status,
           // database: dbReady ? 'ready' : 'not ready', // Commented out
@@ -103,7 +103,7 @@ router.get('/ready', async (_req: Request, res: Response) => {
     logger.error('Readiness check failed', { error });
     res.status(503).json({
       status: 'not ready',
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString().toISOString(),
       error: 'Services not ready',
     });
   }
@@ -115,14 +115,14 @@ router.get('/live', async (_req: Request, res: Response) => {
     // Basic liveness check
     res.json({
       status: 'alive',
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString().toISOString(),
       uptime: process.uptime(),
     });
   } catch (error) {
     logger.error('Liveness check failed', { error });
     res.status(503).json({
       status: 'dead',
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString().toISOString(),
       error: 'Service not responding',
     });
   }
@@ -139,7 +139,7 @@ router.get('/info', (_req: Request, res: Response) => {
       platform: process.platform,
       architecture: process.arch,
       uptime: process.uptime(),
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString().toISOString(),
     };
 
     res.json(info);

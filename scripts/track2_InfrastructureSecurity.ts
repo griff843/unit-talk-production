@@ -220,7 +220,7 @@ class RedisDeploymentValidator {
   private async testCaching(): Promise<boolean> {
     try {
       const testKey = 'test:cache:' + Date.now();
-      const testValue = { message: 'Redis cache test', timestamp: new Date() };
+      const testValue = { message: 'Redis cache test', timestamp: new Date().toISOString() };
       
       // Set value
       await redis.set(testKey, testValue, 60);

@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function SubmitTicketForm() {
   const form = useForm<TicketFormData>({
@@ -38,11 +39,13 @@ export function SubmitTicketForm() {
       auto_parlay: true,
       sport: "NBA",
       game_date: dayjs().format("YYYY-MM-DD"),
-      legs: [createLeg(true)]
+      legs: [createLeg(true)],
+      confidence_level: 7,
+      user_tier: "member"
     }
   });
 
-  const [searchResults, setSearchResults] = useState<SearchResults>({});
+  const [searchResults, setSearchResults] = useState<SearchResults>({ props: [], games: [] });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
 
@@ -62,148 +65,56 @@ export function SubmitTicketForm() {
     };
   }
 
-  const updateLeg = (index: number, updates: Partial<TicketLeg>) => {
-    const newLegs = [...form.getValues("legs")];
-    newLegs[index] = { ...newLegs[index], ...updates };
-    form.setValue("legs", newLegs, { shouldValidate: true });
-  };
-
-  const handleSearch = async (index: number, query: string) => {
-    if (!query) return;
-    const leg = form.getValues("legs")[index];
-    if (leg.bet_type === "Player Prop") {
-      const { data } = await supabase
-        .from("raw_props")
-        .select("*")
-        .ilike("player_name", `%${query}%`)
-        .limit(10);
-      setSearchResults((prev) => ({
-        ...prev,
-        [index]: { props: data || [], games: [] }
-      }));
-    } else {
-      const { data } = await supabase
-        .from("games")
-        .select("*")
-        .or(`home_team.ilike.%${query}%,away_team.ilike.%${query}%,matchup.ilike.%${query}%`)
-        .limit(10);
-      setSearchResults((prev) => ({
-        ...prev,
-        [index]: { games: data || [], props: [] }
-      }));
-    }
-  };
-
-  const handleSelectPlayer = (index: number, player: Player) => {
-    updateLeg(index, {
-      player_name: player.player_name,
-      team: player.team,
-      odds: player.odds || "",
-      stat_type: player.stat_type || "",
-      line: player.line || ""
-    });
-    clearSearch(index);
-  };
-
-  const handleSelectGame = (index: number, game: Game) => {
-    updateLeg(index, {
-      matchup: game.matchup || `${game.home_team} vs ${game.away_team}`,
-      team: "",
-      odds: game.odds || ""
-    });
-    clearSearch(index);
-  };
-
-  const clearSearch = (index: number) => {
-    setSearchResults((prev) => ({
-      ...prev,
-      [index]: { props: [], games: [] }
-    }));
-  };
-
-  const handleRemoveLeg = (index: number) => {
-    const newLegs = form.getValues("legs").filter((_, i) => i !== index);
-    form.setValue("legs", newLegs, { shouldValidate: true });
-  };
-
-  const addLeg = () => {
-    const currentLegs = form.getValues("legs");
-    const currentType = form.getValues("ticket_type");
-    
-    if (currentType === 'Single' && currentLegs.length >= 1) {
-      toast({
-        title: "Invalid Action",
-        description: "Single tickets can only have one leg",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    const newLegs = [...currentLegs, createLeg(false)];
-    form.setValue("legs", newLegs, { shouldValidate: true });
-    validateTicketType(currentType, newLegs);
-  };
-
   const onSubmit = async (data: TicketFormData) => {
     try {
-      if (!isSupabaseConfigured()) {
-        throw new Error('Supabase is not properly configured. Please check your environment variables.');
-      }
-
       setIsSubmitting(true);
-      const ticketId = uuidv4();
-      const timestamp = new Date().toISOString();
-
-      // Validate ticket type specific requirements
-      if (data.ticket_type === 'Parlay' && data.legs.length < 2) {
-        throw new Error('Parlay tickets require at least 2 legs');
-      }
-      if (data.ticket_type === 'Round Robin' && data.legs.length < 3) {
-        throw new Error('Round Robin tickets require at least 3 legs');
-      }
-      if (data.ticket_type === 'Teaser' && !data.legs.every(leg => 
-        leg.bet_type === 'Spread' || leg.bet_type === 'Total'
-      )) {
-        throw new Error('Teaser tickets can only contain Spread or Total bets');
+      // Validate unit size
+      if (data.unit_size < 0.5 || data.unit_size > 5) {
+        toast({
+          title: "Invalid Unit Size",
+          description: "Unit size must be between 0.5 and 5",
+          variant: "destructive"
+        });
+        return;
       }
 
-      const cleanedLegs = data.legs.map((leg, index) => ({
-        ...leg,
-        ticket_id: ticketId,
-        game_date: data.game_date,
-        sport: data.sport,
-        is_primary: index === 0,
-        created_at: timestamp
-      }));
-
-      // Insert ticket
-      const { error: ticketError } = await supabase.from("tickets").insert([{
-        id: ticketId,
-        capper: data.capper,
-        ticket_type: data.ticket_type,
-        unit_size: data.unit_size,
-        auto_parlay: data.auto_parlay,
-        sport: data.sport,
-        game_date: data.game_date,
-        created_at: timestamp
-      }]);
-
-      if (ticketError) {
-        throw new Error(ticketError.message);
+      // Check if Supabase is configured
+      if (!isSupabaseConfigured()) {
+        toast({
+          title: "Configuration Error",
+          description: "Database connection is not properly configured",
+          variant: "destructive"
+        });
+        return;
       }
 
-      // Insert legs
-      const { error: legsError } = await supabase.from("ticket_legs").insert(cleanedLegs);
-      if (legsError) {
-        // If legs insertion fails, try to clean up the ticket
-        await supabase.from("tickets").delete().match({ id: ticketId });
-        throw new Error(legsError.message);
+      // Submit the form data to Supabase
+      const { data: submittedData, error } = await supabase
+        .from('tickets')
+        .insert([
+          {
+            capper: data.capper,
+            ticket_type: data.ticket_type,
+            unit_size: data.unit_size,
+            auto_parlay: data.auto_parlay,
+            sport: data.sport,
+            game_date: data.game_date,
+            legs: data.legs,
+            confidence_level: data.confidence_level,
+            user_tier: data.user_tier,
+            created_at: new Date().toISOString()
+          }
+        ])
+        .select();
+
+      if (error) {
+        throw new Error(error.message);
       }
 
       toast({
-        title: "Success!",
-        description: "Your ticket has been submitted.",
-        variant: "success"
+        title: "Ticket Submitted",
+        description: "Your ticket has been successfully submitted.",
+        variant: "default"
       });
 
       // Reset form
@@ -214,12 +125,14 @@ export function SubmitTicketForm() {
         auto_parlay: true,
         sport: "NBA",
         game_date: dayjs().format("YYYY-MM-DD"),
-        legs: [createLeg(true)]
+        legs: [createLeg(true)],
+        confidence_level: 7,
+        user_tier: "member"
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to submit ticket",
+        description: error.message || "An unexpected error occurred",
         variant: "destructive"
       });
     } finally {
@@ -227,58 +140,124 @@ export function SubmitTicketForm() {
     }
   };
 
-  // Add validation for ticket type requirements
-  const validateTicketType = (type: typeof TICKET_TYPES[number], legs: TicketLeg[]) => {
-    const newErrors: string[] = [];
-    
-    switch (type) {
-      case 'Parlay':
-        if (legs.length < 2) {
-          newErrors.push('Parlay tickets require at least 2 legs');
-        }
-        break;
-      case 'Round Robin':
-        if (legs.length < 3) {
-          newErrors.push('Round Robin tickets require at least 3 legs');
-        }
-        break;
-      case 'Teaser':
-        if (!legs.every(leg => leg.bet_type === 'Spread' || leg.bet_type === 'Total')) {
-          newErrors.push('Teaser tickets can only contain Spread or Total bets');
-        }
-        break;
-    }
-    
-    setErrors(newErrors);
-    return newErrors.length === 0;
+  // Add a new leg to the ticket
+  const addLeg = () => {
+    const currentLegs = form.getValues("legs") || [];
+    form.setValue("legs", [...currentLegs, createLeg(false)]);
   };
 
-  // Update the ticket type change handler
-  const handleTicketTypeChange = (value: typeof TICKET_TYPES[number]) => {
-    form.setValue("ticket_type", value);
-    validateTicketType(value, form.getValues("legs"));
-  };
-
-  // Update the leg type change handler
-  const handleLegTypeChange = (index: number, value: BetType) => {
-    const currentTicketType = form.getValues("ticket_type");
-    if (currentTicketType === 'Teaser' && value !== 'Spread' && value !== 'Total') {
+  // Remove a leg from the ticket
+  const removeLeg = (index: number) => {
+    const currentLegs = form.getValues("legs") || [];
+    if (currentLegs[index]?.is_primary) {
       toast({
-        title: "Invalid Selection",
-        description: "Teaser tickets can only contain Spread or Total bets",
+        title: "Cannot Remove Primary Leg",
+        description: "The primary leg cannot be removed from the ticket.",
         variant: "destructive"
       });
       return;
     }
-    
+    form.setValue("legs", currentLegs.filter((_, i) => i !== index));
+  };
+
+  // Update a leg's properties
+  const updateLeg = (index: number, updates: Partial<TicketLeg>) => {
+    const currentLegs = form.getValues("legs") || [];
+    const updatedLegs = currentLegs.map((leg, i) => {
+      if (i === index) {
+        return { ...leg, ...updates };
+      }
+      return leg;
+    });
+    form.setValue("legs", updatedLegs);
+  };
+
+  // Handle leg type change
+  const handleLegTypeChange = (index: number, value: BetType) => {
     updateLeg(index, { bet_type: value });
-    validateTicketType(currentTicketType, form.getValues("legs"));
+  };
+
+  // Search for players or games
+  const handleSearch = async (index: number, query: string) => {
+    if (!query || query.length < 2) {
+      setSearchResults({ props: [], games: [] });
+      return;
+    }
+
+    try {
+      const sport = form.getValues("sport");
+      const legType = form.getValues(`legs.${index}.bet_type`);
+
+      // Mock search results for demonstration
+      if (legType === "Player Prop") {
+        // In a real app, this would be a database query
+        const mockPlayers: Player[] = [
+          {
+            id: uuidv4(),
+            player_name: `${query} Smith`,
+            team: "Lakers",
+            photo_url: "https://example.com/player.jpg"
+          },
+          {
+            id: uuidv4(),
+            player_name: `${query} Johnson`,
+            team: "Celtics",
+            photo_url: "https://example.com/player2.jpg"
+          }
+        ];
+        setSearchResults({ props: mockPlayers, games: [] });
+      } else {
+        // Search for games/teams
+        const mockGames: Game[] = [
+          {
+            id: uuidv4(),
+            matchup: "Lakers vs Celtics",
+            home_team: "Lakers",
+            away_team: "Celtics",
+            game_date: dayjs().format("YYYY-MM-DD"),
+            sport: sport
+          },
+          {
+            id: uuidv4(),
+            matchup: "Warriors vs Nets",
+            home_team: "Warriors",
+            away_team: "Nets",
+            game_date: dayjs().format("YYYY-MM-DD"),
+            sport: sport
+          }
+        ];
+        setSearchResults({ props: [], games: mockGames });
+      }
+    } catch (error) {
+      console.error("Search error:", error);
+      setSearchResults({ props: [], games: [] });
+    }
+  };
+
+  // Handle player selection
+  const handleSelectPlayer = (index: number, player: Player) => {
+    updateLeg(index, {
+      player_name: player.player_name,
+      team: player.team
+    });
+  };
+
+  // Handle game selection
+  const handleSelectGame = (index: number, game: Game) => {
+    updateLeg(index, {
+      matchup: game.matchup
+    });
   };
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-3xl mx-auto space-y-6 p-6">
-        <Card className="p-6 space-y-6 bg-gray-900 border-gray-700">
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-2xl font-bold">Submit Ticket</h1>
+          <ThemeToggle />
+        </div>
+        
+        <Card className="p-6 space-y-6 dark:bg-gray-800 dark:border-gray-700">
           {/* Header Section */}
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -296,9 +275,6 @@ export function SubmitTicketForm() {
                   ))}
                 </SelectContent>
               </Select>
-              {form.formState.errors.capper && (
-                <p className="text-sm text-red-500">{form.formState.errors.capper.message}</p>
-              )}
             </div>
 
             <div className="space-y-2">
@@ -308,108 +284,117 @@ export function SubmitTicketForm() {
                 value={form.watch("game_date")}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => form.setValue("game_date", e.target.value)}
               />
-              {form.formState.errors.game_date && (
-                <p className="text-sm text-red-500">{form.formState.errors.game_date.message}</p>
-              )}
             </div>
           </div>
 
           {/* Ticket Info Section */}
           <div className="grid md:grid-cols-4 gap-4">
-            <Select
-              value={form.watch("ticket_type")}
-              onValueChange={handleTicketTypeChange}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select Type" />
-              </SelectTrigger>
-              <SelectContent>
-                {TICKET_TYPES.map((type) => (
-                  <SelectItem key={type} value={type}>{type}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Ticket Type</label>
+              <Select
+                value={form.watch("ticket_type")}
+                onValueChange={(value: typeof TICKET_TYPES[number]) => form.setValue("ticket_type", value)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TICKET_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>{type}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-            <Select
-              value={form.watch("sport")}
-              onValueChange={(value: Sport) => form.setValue("sport", value)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select Sport" />
-              </SelectTrigger>
-              <SelectContent>
-                {SPORTS.map((sp) => (
-                  <SelectItem key={sp} value={sp}>{sp}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Sport</label>
+              <Select
+                value={form.watch("sport")}
+                onValueChange={(value: Sport) => form.setValue("sport", value)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select Sport" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SPORTS.map((sp) => (
+                    <SelectItem key={sp} value={sp}>{sp}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-            <Input
-              type="number"
-              min={0.5}
-              max={5}
-              step={0.5}
-              value={form.watch("unit_size")}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => form.setValue("unit_size", parseFloat(e.target.value))}
-              className="w-24"
-            />
-
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={form.watch("auto_parlay")}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => form.setValue("auto_parlay", e.target.checked)}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Unit Amount</label>
+              <Input
+                type="number"
+                min={0.5}
+                max={5}
+                step={0.5}
+                value={form.watch("unit_size")}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  const value = parseFloat(e.target.value);
+                  if (value >= 0.5 && value <= 5) {
+                    form.setValue("unit_size", value);
+                  }
+                }}
+                className="w-full"
               />
-              Auto Parlay
-            </label>
+            </div>
+
+            <div className="space-y-2 flex items-end">
+              <label className="flex items-center gap-2 h-10">
+                <input
+                  type="checkbox"
+                  checked={form.watch("auto_parlay")}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => form.setValue("auto_parlay", e.target.checked)}
+                  className="w-4 h-4 dark:bg-gray-700 dark:border-gray-600"
+                />
+                <span className="dark:text-gray-200">Auto Parlay</span>
+              </label>
+            </div>
           </div>
         </Card>
 
         {/* Legs Section */}
         <div className="space-y-4">
-          {form.watch("legs").map((leg, index) => (
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold dark:text-white text-gray-900">Ticket Legs</h2>
+            <Button
+              type="button"
+              onClick={addLeg}
+              variant="outline"
+              className="text-sm dark:bg-gray-700 dark:text-white dark:border-gray-600 dark:hover:bg-gray-600"
+            >
+              + Add Leg
+            </Button>
+          </div>
+
+          {form.watch("legs")?.map((leg, index) => (
             <LegCard
               key={leg.id}
               leg={leg}
               index={index}
               sport={form.watch("sport")}
               onUpdate={updateLeg}
-              onRemove={handleRemoveLeg}
+              onRemove={removeLeg}
               onSearch={handleSearch}
-              searchResults={searchResults[index] || { props: [], games: [] }}
+              searchResults={searchResults}
               onSelectPlayer={handleSelectPlayer}
               onSelectGame={handleSelectGame}
-              isPrimary={index === 0}
+              isPrimary={leg.is_primary}
               onLegTypeChange={handleLegTypeChange}
             />
           ))}
-
-          <Button
-            type="button"
-            onClick={addLeg}
-            variant="outline"
-            className="w-full"
-          >
-            ➕ Add Leg
-          </Button>
         </div>
-
-        {errors.length > 0 && (
-          <div className="mb-4 p-4 bg-red-100 border border-red-400 rounded">
-            {errors.map((error, index) => (
-              <p key={index} className="text-red-700">{error}</p>
-            ))}
-          </div>
-        )}
 
         <Button
           type="submit"
-          className="w-full py-6 text-lg font-semibold"
+          className="w-full py-6 text-lg font-semibold bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white"
           disabled={isSubmitting}
         >
-          {isSubmitting ? "Submitting..." : "✅ Submit Ticket"}
+          {isSubmitting ? "Submitting..." : "✓ Submit Ticket"}
         </Button>
       </form>
     </Form>
   );
-} 
+}

@@ -51,13 +51,13 @@ export interface OnboardingFlowEdit {
   oldValue: any;
   newValue: any;
   editedBy: string;
-  editedAt: Date;
+  editedAt: string;
 }
 
 export interface DMFailure {
   userId: string;
   reason: string;
-  timestamp: Date;
+  timestamp: string;
   resolved: boolean;
   retryCount: number;
   step?: string;
@@ -129,7 +129,7 @@ export class AdminDashboardService {
         .upsert({
           config: this.currentConfig,
           is_active: true,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString().toISOString()
         });
 
       if (error) throw error;
@@ -279,7 +279,7 @@ export class AdminDashboardService {
           inline: true
         }
       ])
-      .setFooter({ text: `Last updated: ${new Date().toLocaleString()}` })
+      .setFooter({ text: `Last updated: ${new Date().toISOString().toLocaleString()}` })
       .setTimestamp();
   }
 
@@ -600,7 +600,7 @@ export class AdminDashboardService {
               `**Total Records:** ${exportData.totalRecords}`,
               `**Date Range:** ${exportData.dateRange}`,
               `**File Size:** ${exportData.fileSize}`,
-              `**Generated:** ${new Date().toLocaleString()}`
+              `**Generated:** ${new Date().toISOString().toLocaleString()}`
             ].join('\n'),
             inline: false
           }
@@ -837,7 +837,7 @@ export class AdminDashboardService {
         oldValue: flow[Object.keys(updates)[0] as keyof typeof flow],
         newValue: updates[Object.keys(updates)[0]],
         editedBy,
-        editedAt: new Date()
+        editedAt: new Date().toISOString()
       };
 
       await this.logFlowEdit(edit);
@@ -890,7 +890,7 @@ export class AdminDashboardService {
         .addFields([
           {
             name: '📊 Current Configuration',
-            value: `Active Flows: ${Object.keys(this.currentConfig.flows).length}\nLast Updated: ${new Date().toLocaleString()}`,
+            value: `Active Flows: ${Object.keys(this.currentConfig.flows).length}\nLast Updated: ${new Date().toISOString().toLocaleString()}`,
             inline: false
           }
         ]);

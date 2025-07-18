@@ -1,3 +1,4 @@
+import { CommandInteraction, CacheType, ButtonInteraction } from '@discordjs/core';
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { ChatInputCommandInteraction, User } from 'discord.js';
 import { execute } from '../commands/ev-report';
@@ -61,9 +62,9 @@ describe('EV Report Command', () => {
       avatar: null,
       tier: 'vip',
       subscription_tier: 'VIP',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      last_active: new Date().toISOString(),
+      created_at: new Date().toISOString().toISOString(),
+      updated_at: new Date().toISOString().toISOString(),
+      last_active: new Date().toISOString().toISOString(),
       metadata: {}
     });
 

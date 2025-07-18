@@ -364,7 +364,7 @@ class AlertSystemTester {
       id: 'test-alert-001',
       type: 'info' as const,
       message: 'Test alert for production validation',
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
       priority: 'medium' as const
     };
 
@@ -663,7 +663,7 @@ class ProductionMonitoringDashboard {
   private async getSystemHealth(): Promise<any> {
     return {
       status: 'healthy',
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString().toISOString(),
       uptime: process.uptime(),
       memory: process.memoryUsage(),
       redis: await redis.healthCheck()
@@ -675,7 +675,7 @@ class ProductionMonitoringDashboard {
     return agents.map(name => ({
       name,
       status: 'healthy', // TODO: Implement actual health checks
-      lastActivity: new Date().toISOString()
+      lastActivity: new Date().toISOString().toISOString()
     }));
   }
 

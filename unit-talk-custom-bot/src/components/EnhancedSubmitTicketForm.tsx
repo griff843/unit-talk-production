@@ -198,7 +198,7 @@ export function EnhancedSubmitTicketForm({
       ai_analysis: null,
       is_primary: isPrimary,
       validation_status: 'pending',
-      created_at: new Date().toISOString(),
+      created_at: new Date().toISOString().toISOString(),
       // Enhanced fields
       touchdown_type: "",
       anytime_td: false,
@@ -491,7 +491,7 @@ export function EnhancedSubmitTicketForm({
       const enhancedSubmissionData = {
         ...data,
         user_id: userId,
-        submission_timestamp: new Date().toISOString(),
+        submission_timestamp: new Date().toISOString().toISOString(),
         sport_config: currentSportConfig,
         total_edge_score: Object.values(edgeScores).reduce((sum, score) => sum + score, 0) / Object.keys(edgeScores).length,
         ai_suggestions: aiSuggestions,

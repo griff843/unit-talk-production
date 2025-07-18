@@ -174,7 +174,7 @@ describe('Agent System Tests', () => {
         home_team: 'Team A',
         away_team: 'Team B',
         final_score: '21-14',
-        game_date: new Date().toISOString()
+        game_date: new Date().toISOString().toISOString()
       };
 
       const result = await recapAgent.process(gameData);

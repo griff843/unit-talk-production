@@ -9,7 +9,7 @@ export interface ABTestCohort {
   percentage: number;
   isActive: boolean;
   config: Record<string, any>;
-  createdAt: Date;
+  createdAt: string;
   endDate?: Date;
 }
 
@@ -18,7 +18,7 @@ export interface UserCohortAssignment {
   userId: string;
   cohortId: string;
   testType: string;
-  assignedAt: Date;
+  assignedAt: string;
   metadata?: Record<string, any>;
 }
 
@@ -29,7 +29,7 @@ export interface ABTestResult {
   testType: string;
   metric: string;
   value: number;
-  timestamp: Date;
+  timestamp: string;
   metadata?: Record<string, any>;
 }
 
@@ -40,8 +40,8 @@ export interface MessageTemplate {
   template: string;
   variables: string[];
   isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export class ABTestingService {

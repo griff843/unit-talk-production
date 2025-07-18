@@ -113,9 +113,9 @@ export class TrendAnalysisService {
       const statisticalOutliers = await this.analyzeStatisticalOutliers(picks, min_sample_size);
       const regressionCandidates = await this.analyzeRegressionToMean(picks, min_sample_size);
 
-      const startDate = new Date();
+      const startDate = new Date().toISOString();
       startDate.setDate(startDate.getDate() - days_back);
-      const endDate = new Date();
+      const endDate = new Date().toISOString();
 
       return {
         streaks: streaks.filter(s => s.confidence_score >= confidence_threshold),
@@ -142,7 +142,7 @@ export class TrendAnalysisService {
    * Get historical picks from the database
    */
   private async getHistoricalPicks(daysBack: number, sportFilter?: string): Promise<PickData[]> {
-    const startDate = new Date();
+    const startDate = new Date().toISOString();
     startDate.setDate(startDate.getDate() - daysBack);
 
     let query = this.databaseService.client
@@ -506,7 +506,7 @@ export class TrendAnalysisService {
         total_picks_analyzed: 0,
         date_range: {
           start: new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000).toISOString(),
-          end: new Date().toISOString()
+          end: new Date().toISOString().toISOString()
         },
         confidence_threshold: confidenceThreshold,
         min_sample_size: minSampleSize

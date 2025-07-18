@@ -33,7 +33,7 @@ async function checkRawPropsSchema() {
       player_name: 'Test Player',
       stat_type: 'Test Stat',
       line: 1.5,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString().toISOString()
     };
     
     console.log('🧪 Testing minimal insert to understand required fields...');
@@ -48,8 +48,8 @@ async function checkRawPropsSchema() {
       console.log('🧪 Trying with more fields...');
       const extendedRecord = {
         ...testRecord,
-        scraped_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        scraped_at: new Date().toISOString().toISOString(),
+        updated_at: new Date().toISOString().toISOString(),
         provider: 'Test',
         sport: 'Test Sport',
         league: 'Test League'

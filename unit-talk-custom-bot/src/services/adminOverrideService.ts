@@ -59,9 +59,9 @@ export class AdminOverrideService {
         command: command.name as ExtendedSystemCommand,
         parameters: command.parameters,
         reason: command.reason,
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         status: 'executing',
-        created_at: new Date().toISOString(),
+        created_at: new Date().toISOString().toISOString(),
         is_active: true
       };
 
@@ -106,7 +106,7 @@ export class AdminOverrideService {
 
       override.status = 'completed';
       override.result = result;
-      override.completedAt = new Date();
+      override.completedAt = new Date().toISOString();
 
       // Log admin action
       await this.logAdminAction(override);
@@ -136,7 +136,7 @@ export class AdminOverrideService {
           tier: newTier,
           tier_changed_by: adminId,
           tier_change_reason: reason,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString().toISOString()
         })
         .eq('discord_id', userId);
 
@@ -234,7 +234,7 @@ export class AdminOverrideService {
           result: newResult,
           result_overridden_by: adminId,
           result_override_reason: reason,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString().toISOString()
         })
         .eq('id', pickId);
 
@@ -276,7 +276,7 @@ export class AdminOverrideService {
             message: message,
             estimatedDuration: estimatedDuration,
             enabledBy: adminId,
-            enabledAt: new Date().toISOString()
+            enabledAt: new Date().toISOString().toISOString()
           }
         });
 
@@ -492,7 +492,7 @@ export class AdminOverrideService {
   private async performSystemHealthCheck(adminId: string): Promise<any> {
     try {
       const healthCheck = {
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toISOString().toISOString(),
         performedBy: adminId,
         database: await this.checkDatabaseHealth(),
         discord: await this.checkDiscordHealth(),
@@ -536,7 +536,7 @@ export class AdminOverrideService {
 
       return {
         success: true,
-        refreshedAt: new Date().toISOString(),
+        refreshedAt: new Date().toISOString().toISOString(),
         refreshedBy: adminId,
         dashboards: {
           owner: dashboardData,
@@ -578,7 +578,7 @@ export class AdminOverrideService {
 
       const report = {
         timeRange: timeRange,
-        generatedAt: new Date().toISOString(),
+        generatedAt: new Date().toISOString().toISOString(),
         generatedBy: adminId,
         totalErrors: errors?.length || 0,
         totalEvents: events?.length || 0,
@@ -744,7 +744,7 @@ export class AdminOverrideService {
       return {
         status: error ? 'unhealthy' : 'healthy',
         error: error?.message,
-        responseTime: Date.now() // Would measure actual response time
+        responseTime: string.now() // Would measure actual response time
       };
     } catch (error: unknown) {
       return {

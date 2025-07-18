@@ -30,7 +30,7 @@ router.get('/health', async (_req: Request, res: Response) => {
     logger.error('Health check failed', { error: error instanceof Error ? error.message : 'Unknown error' });
     res.status(503).json({
       status: 'unhealthy',
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
       error: 'Health check system failure'
     });
   }
@@ -60,7 +60,7 @@ router.get('/health/detailed', async (_req: Request, res: Response) => {
     logger.error('Detailed health check failed', { error: error instanceof Error ? error.message : 'Unknown error' });
     res.status(503).json({
       status: 'unhealthy',
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
       error: 'Health check system failure'
     });
   }
@@ -80,12 +80,12 @@ router.get('/ready', async (_req: Request, res: Response) => {
     if (criticalStatus) {
       res.status(200).json({
         status: 'ready',
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
       });
     } else {
       res.status(503).json({
         status: 'not ready',
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         failedChecks: criticalChecks.filter(check => 
           health.checks[check]?.status !== 'healthy'
         )
@@ -94,7 +94,7 @@ router.get('/ready', async (_req: Request, res: Response) => {
   } catch (error) {
     res.status(503).json({
       status: 'not ready',
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
       error: 'Readiness check failed'
     });
   }
@@ -104,7 +104,7 @@ router.get('/ready', async (_req: Request, res: Response) => {
 router.get('/live', (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'alive',
-    timestamp: new Date(),
+    timestamp: new Date().toISOString(),
     pid: process.pid,
     uptime: process.uptime()
   });
@@ -129,7 +129,7 @@ router.get('/performance', (_req: Request, res: Response) => {
     const systemMetrics = getSystemMetrics();
 
     res.json({
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
       performance: metrics,
       system: systemMetrics,
       uptime: process.uptime()
@@ -138,7 +138,7 @@ router.get('/performance', (_req: Request, res: Response) => {
     logger.error('Performance metrics failed', { error: error instanceof Error ? error.message : 'Unknown error' });
     res.status(500).json({
       error: 'Performance metrics generation failed',
-      timestamp: new Date()
+      timestamp: new Date().toISOString()
     });
   }
 });
@@ -160,7 +160,7 @@ function initializeHealthChecks(): void {
       if (error) {
         return {
           status: 'unhealthy',
-          timestamp: new Date(),
+          timestamp: new Date().toISOString(),
           duration,
           details: { error: error.message }
         };
@@ -168,14 +168,14 @@ function initializeHealthChecks(): void {
 
       return {
         status: duration < 1000 ? 'healthy' : 'degraded',
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         duration,
         details: { responseTime: `${Math.round(duration)}ms` }
       };
     } catch (error) {
       return {
         status: 'unhealthy',
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         duration: performance.now() - startTime,
         details: { error: error instanceof Error ? error.message : 'Unknown error' }
       };
@@ -200,14 +200,14 @@ function initializeHealthChecks(): void {
 
       return {
         status: duration < 500 ? 'healthy' : 'degraded',
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         duration,
         details: { responseTime: `${Math.round(duration)}ms` }
       };
     } catch (error) {
       return {
         status: 'unhealthy',
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         duration: performance.now() - startTime,
         details: { error: error instanceof Error ? error.message : 'Redis connection failed' }
       };
@@ -232,7 +232,7 @@ function initializeHealthChecks(): void {
       if (!response.ok) {
         return {
           status: 'unhealthy',
-          timestamp: new Date(),
+          timestamp: new Date().toISOString(),
           duration,
           details: { 
             error: `Discord API returned ${response.status}`,
@@ -243,7 +243,7 @@ function initializeHealthChecks(): void {
 
       return {
         status: duration < 2000 ? 'healthy' : 'degraded',
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         duration,
         details: { 
           responseTime: `${Math.round(duration)}ms`,
@@ -253,7 +253,7 @@ function initializeHealthChecks(): void {
     } catch (error) {
       return {
         status: 'unhealthy',
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         duration: performance.now() - startTime,
         details: { error: error instanceof Error ? error.message : 'Discord API check failed' }
       };
@@ -278,7 +278,7 @@ function initializeHealthChecks(): void {
 
     return {
       status,
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
       duration: 0,
       details: {
         heapUsed: `${Math.round(memUsage.heapUsed / 1024 / 1024)}MB`,
@@ -315,7 +315,7 @@ function initializeHealthChecks(): void {
 
     return {
       status,
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
       duration: 1000,
       details: {
         cpuUsage: `${totalCpuPercent.toFixed(1)}%`,

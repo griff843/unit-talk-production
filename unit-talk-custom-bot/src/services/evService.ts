@@ -115,7 +115,7 @@ export class EVService {
     try {
       const {
         startDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // Default: last 24 hours
-        endDate = new Date().toISOString(),
+        endDate = new Date().toISOString().toISOString(),
         discordId,
         sport,
         minEV,
@@ -235,7 +235,7 @@ export class EVService {
       }
 
       // Calculate EV by time range (daily)
-      const dateGroups = this.groupBy(analyses, (pick) => pick.createdAt.split('T')[0]);
+      const dateGroups = this.groupBy(analyses, (pick) => pick.created_at.split('T')[0]);
       summary.evByTimeRange = Object.entries(dateGroups).map(([date, picks]) => ({
         date,
         totalPicks: picks.length,
@@ -262,7 +262,7 @@ export class EVService {
     const { timeRange, limit = 10, minEV = 0 } = options;
     
     let startDate: string;
-    const now = new Date();
+    const now = new Date().toISOString();
     
     switch (timeRange) {
       case 'today':
@@ -362,7 +362,7 @@ export class EVService {
   }
 
   private getStartDateForRange(timeRange: 'today' | 'week' | 'month'): string {
-    const now = new Date();
+    const now = new Date().toISOString();
     
     switch (timeRange) {
       case 'today':

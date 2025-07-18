@@ -21,7 +21,7 @@ async function testCapperService() {
     
     // Test getting picks for today
     console.log('🎯 Testing getPicksForDate...');
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().toISOString().split('T')[0];
     const picks = await capperService.getPicksForDate(today, 'pending');
     console.log(`✅ Found ${picks.length} pending picks for today`);
     

@@ -222,7 +222,7 @@ export class SupabaseService {
   async updateUserActivity(discordId: string, activityData: Record<string, any>): Promise<void> {
     try {
       await databaseService.updateUserProfile(discordId, {
-        last_active: new Date().toISOString(),
+        last_active: new Date().toISOString().toISOString(),
         metadata: activityData
       });
     } catch (error) {
@@ -234,7 +234,7 @@ export class SupabaseService {
   /**
    * @deprecated Use databaseService.upsertUserCooldown() instead
    */
-  async upsertUserCooldown(userId: string, action: string, expiresAt: Date): Promise<void> {
+  async upsertUserCooldown(userId: string, action: string, expiresAt: string): Promise<void> {
     try {
       await databaseService.upsertUserCooldown({
         user_id: userId,

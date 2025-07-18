@@ -183,7 +183,7 @@ async function detectUSPType(_uspType: string, _props: any[]): Promise<{ success
   return { success: true, detected };
 }
 
-async function calculatePropScore(prop: any): Promise<{ confidence: number; edge: number }> {
+async function calculatePropScore(_prop: any): Promise<{ confidence: number; edge: number }> {
   // Mock scoring logic - replace with actual implementation
   return {
     confidence: Math.random() * 100,

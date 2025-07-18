@@ -151,7 +151,7 @@ export class SecurityTester {
           weakPasswordsRejected,
           totalWeakPasswords: weakPasswords.length
         },
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
 
@@ -162,7 +162,7 @@ export class SecurityTester {
                 testName: 'Password Strength Requirements',
         status: 'FAIL',
         message: `Password strength test failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -216,7 +216,7 @@ export class SecurityTester {
           attemptsBeforeBlock: blockedAfterAttempts,
           maxAttemptsTested: maxAttempts
         },
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
 
@@ -227,7 +227,7 @@ export class SecurityTester {
                 testName: 'Brute Force Protection',
         status: 'FAIL',
         message: `Brute force protection test failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -330,7 +330,7 @@ export class SecurityTester {
           payloadsTested: xssPayloads.length,
           formsTestedCount: formsToTest.length
         },
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
 
@@ -341,7 +341,7 @@ export class SecurityTester {
                 testName: 'XSS Protection',
         status: 'FAIL',
         message: `XSS protection test failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -406,7 +406,7 @@ export class SecurityTester {
           protectedEndpoints: csrfProtectionPassed,
           totalEndpoints: csrfTests.length
         },
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
 
@@ -417,7 +417,7 @@ export class SecurityTester {
                 testName: 'CSRF Protection',
         status: 'FAIL',
         message: `CSRF protection test failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -504,7 +504,7 @@ export class SecurityTester {
           payloadsTested: sqlPayloads.length,
           fieldsTestedCount: fieldsToTest.length
         },
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
 
@@ -515,7 +515,7 @@ export class SecurityTester {
                 testName: 'SQL Injection Protection',
         status: 'FAIL',
         message: `SQL injection protection test failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -587,7 +587,7 @@ export class SecurityTester {
           securityHeaders,
           missingHeaders
         },
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
 
@@ -598,7 +598,7 @@ export class SecurityTester {
                 testName: 'Transport Security',
         status: 'FAIL',
         message: `Transport security test failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -650,7 +650,7 @@ export class SecurityTester {
           cspHeader,
           cspAnalysis
         },
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
 
@@ -661,7 +661,7 @@ export class SecurityTester {
                 testName: 'Content Security Policy',
         status: 'FAIL',
         message: `CSP test failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }

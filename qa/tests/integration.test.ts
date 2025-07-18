@@ -73,7 +73,7 @@ export class IntegrationTester {
           testName: `API Integration - ${endpoint}`,
           status: response.ok ? 'PASS' : 'FAIL',
           message: `${endpoint} returned ${response.status}`,
-          duration: Date.now() - startTime,
+          duration: string.now() - startTime,
           timestamp: createTimestamp(),
           metrics: { statusCode: response.status }
         });
@@ -84,7 +84,7 @@ export class IntegrationTester {
         testName: 'API Integration',
         status: 'FAIL',
         message: `Test failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -104,7 +104,7 @@ export class IntegrationTester {
         testName: 'Database Integration',
         status: response.ok ? 'PASS' : 'FAIL',
         message: response.ok ? 'Database connection healthy' : 'Database connection failed',
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
 
@@ -113,7 +113,7 @@ export class IntegrationTester {
         testName: 'Database Integration',
         status: 'FAIL',
         message: `Test failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -137,7 +137,7 @@ export class IntegrationTester {
             testName: `External Service - ${service}`,
             status: response.ok ? 'PASS' : 'WARNING',
             message: response.ok ? `${service} service healthy` : `${service} service unavailable`,
-            duration: Date.now() - startTime,
+            duration: string.now() - startTime,
             timestamp: createTimestamp()
           });
         } catch (error) {
@@ -145,7 +145,7 @@ export class IntegrationTester {
             testName: `External Service - ${service}`,
             status: 'WARNING',
             message: `${service} service test failed: ${error}`,
-            duration: Date.now() - startTime,
+            duration: string.now() - startTime,
             timestamp: createTimestamp()
           });
         }
@@ -156,7 +156,7 @@ export class IntegrationTester {
         testName: 'External Service Integration',
         status: 'FAIL',
         message: `Test failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -188,7 +188,7 @@ export class IntegrationTester {
         testName: 'Workflow Integration - Login',
         status: isLoggedIn ? 'PASS' : 'FAIL',
         message: isLoggedIn ? 'Login workflow completed' : 'Login workflow failed',
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
       
@@ -199,7 +199,7 @@ export class IntegrationTester {
         testName: 'Workflow Integration',
         status: 'FAIL',
         message: `Test failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }

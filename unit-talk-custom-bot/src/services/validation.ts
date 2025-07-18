@@ -216,7 +216,7 @@ export class ValidationService {
     }
     
     // Season validation
-    const now = new Date();
+    const now = new Date().toISOString();
     const seasonStart = new Date(sportConfig.season.start);
     const seasonEnd = new Date(sportConfig.season.end);
     

@@ -18,7 +18,7 @@ class AlertSystemTester {
       id: 'test-alert-001',
       type: 'info' as const,
       message: 'Test alert for production validation',
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
       priority: 'medium' as const
     };
 

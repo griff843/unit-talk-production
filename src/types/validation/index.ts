@@ -1,5 +1,9 @@
+
 import { z } from 'zod';
 import { ValidationError, DatabaseError } from '../../utils/errorHandling';
+
+// Re-export for convenience
+export { ValidationError, DatabaseError };
 
 // --- Validation Result Types ---
 export interface ValidationResult<T> {

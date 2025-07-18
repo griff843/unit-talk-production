@@ -49,8 +49,8 @@ export class QuickEditConfigService {
         userId: userId, // Alias
         config_key: configType,
         configType: configType,
-        started_at: new Date().toISOString(),
-        startedAt: new Date().toISOString(), // Alias
+        started_at: new Date().toISOString().toISOString(),
+        startedAt: new Date().toISOString().toISOString(), // Alias
         expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 minutes
         is_active: true,
         status: 'active',
@@ -312,7 +312,7 @@ export class QuickEditConfigService {
         reason: updateData.reason || 'Quick edit update',
         adminId: session.userId || 'unknown', // Using userId as adminId for now
         updated_by: session.userId || 'unknown',
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         applied: false
       };
 
@@ -406,7 +406,7 @@ export class QuickEditConfigService {
 
       // Update session status
       session.status = 'completed';
-      session.completedAt = new Date().toISOString();
+      session.completedAt = new Date().toISOString().toISOString();
 
       // Store session record
       await this.supabaseService.client
@@ -496,7 +496,7 @@ export class QuickEditConfigService {
 
       // Update session status
       session.status = 'cancelled';
-      session.completedAt = new Date().toISOString();
+      session.completedAt = new Date().toISOString().toISOString();
 
       // Send cancellation confirmation
       await this.sendCancellationConfirmation(session.userId || session.user_id, session);
@@ -638,7 +638,7 @@ export class QuickEditConfigService {
         .addFields(
           { name: 'Config Type', value: update.configType || 'Unknown', inline: true },
           { name: 'Update Type', value: update.updateType || 'unknown', inline: true },
-          { name: 'Applied At', value: update.timestamp?.toISOString() || new Date().toISOString(), inline: true }
+          { name: 'Applied At', value: update.timestamp?.toISOString() || new Date().toISOString().toISOString(), inline: true }
         )
         .setColor('#00FF00')
         .setTimestamp();
@@ -745,7 +745,7 @@ export class QuickEditConfigService {
         id: `revert_${change.id}`,
         oldValue: change.newValue,
         newValue: change.oldValue,
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
       };
 
       await this.applyConfigUpdate(revertUpdate);

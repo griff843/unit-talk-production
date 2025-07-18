@@ -25,7 +25,7 @@ interface RawProp {
   line: number;
   odds: number;
   book: string;
-  timestamp: Date;
+  timestamp: string;
   source: 'optimal' | 'sgo' | 'oddsapi';
 }
 
@@ -83,7 +83,7 @@ class E2ESimulationTest {
         line: 1.5,
         odds: -110,
         book: 'DraftKings',
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         source: 'optimal'
       },
       {
@@ -95,7 +95,7 @@ class E2ESimulationTest {
         line: 0.5,
         odds: +150,
         book: 'FanDuel',
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         source: 'sgo'
       },
       // WNBA Props
@@ -108,7 +108,7 @@ class E2ESimulationTest {
         line: 22.5,
         odds: -115,
         book: 'BetMGM',
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         source: 'optimal'
       },
       // MLS Props
@@ -121,7 +121,7 @@ class E2ESimulationTest {
         line: 2.5,
         odds: +105,
         book: 'Caesars',
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         source: 'oddsapi'
       }
     ];

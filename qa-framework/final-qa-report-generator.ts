@@ -776,7 +776,7 @@ export class FinalQAReportGenerator {
     </div>
 
     <div style="margin-top: 20px; text-align: center; color: #6b7280;">
-        <p>Report generated on ${new Date().toLocaleString()}</p>
+        <p>Report generated on ${new Date().toISOString().toLocaleString()}</p>
     </div>
 </body>
 </html>

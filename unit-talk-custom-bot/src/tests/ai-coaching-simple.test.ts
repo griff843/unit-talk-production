@@ -29,7 +29,7 @@ const mockDatabaseService = {
       completedSessions: 3,
       totalQuestions: 12,
       averageSessionDuration: 15,
-      lastSessionDate: new Date().toISOString()
+      lastSessionDate: new Date().toISOString().toISOString()
     };
   },
   
@@ -38,13 +38,13 @@ const mockDatabaseService = {
     return [
       {
         id: 'session-1',
-        startedAt: new Date().toISOString(),
+        startedAt: new Date().toISOString().toISOString(),
         status: 'completed',
         metadata: { totalQuestions: 3 }
       },
       {
         id: 'session-2', 
-        startedAt: new Date().toISOString(),
+        startedAt: new Date().toISOString().toISOString(),
         status: 'completed',
         metadata: { totalQuestions: 2 }
       }
@@ -162,7 +162,7 @@ class TestAICoachingService {
     
     const updates = {
       status: 'completed',
-      completed_at: new Date().toISOString(),
+      completed_at: new Date().toISOString().toISOString(),
       duration_minutes: Math.floor(Math.random() * 30) + 5 // 5-35 minutes
     };
     

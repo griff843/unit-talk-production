@@ -1,3 +1,4 @@
+import { CommandInteraction, CacheType, ButtonInteraction } from '@discordjs/core';
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
 import { getUserTier, getTierDisplayName, getTierColor } from '../utils/roleUtils';
 import logger from '../utils/logger';

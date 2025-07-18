@@ -216,7 +216,7 @@ export class PermissionsService {
       if (profile && (profile as any).tier && (profile as any).tier !== newTier) {
         await supabaseService.updateUserProfile(member.id, {
           tier: newTier,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString().toISOString()
         } as any);
 
         logger.info(`Updated user ${member.user.username} tier from ${(profile as any).tier} to ${newTier}`);

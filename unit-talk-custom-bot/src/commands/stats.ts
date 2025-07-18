@@ -1,3 +1,4 @@
+import { CommandInteraction, CacheType, ButtonInteraction } from '@discordjs/core';
 import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
 import { supabaseService } from '../services/supabase';
 import { createUserStatsEmbed } from '../utils/embeds';

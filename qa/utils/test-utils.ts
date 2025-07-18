@@ -4,7 +4,7 @@
  */
 
 export function createTimestamp(): string {
-  return new Date().toISOString();
+  return new Date().toISOString().toISOString();
 }
 
 export function createQATestResult(

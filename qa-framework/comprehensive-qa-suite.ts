@@ -15,7 +15,7 @@ interface QATestResult {
   severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
   platform: 'DISCORD' | 'SMART_FORM' | 'BOTH' | 'BACKEND';
   userTier?: 'FREE' | 'TRIAL' | 'VIP' | 'VIP_PLUS';
-  timestamp: Date;
+  timestamp: string;
   recommendations?: string[];
 }
 
@@ -149,7 +149,7 @@ export class ComprehensiveQASuite {
         details: `QA Suite failed to execute: ${error}`,
         severity: 'CRITICAL',
         platform: 'BOTH',
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
       });
       return this.testResults;
     }
@@ -195,7 +195,7 @@ export class ComprehensiveQASuite {
         confidence: 75,
         description: 'Test pick for tier validation',
         status: 'PENDING' as const,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString().toISOString()
       };
 
       // Simulate multiple pick submissions
@@ -220,7 +220,7 @@ export class ComprehensiveQASuite {
         severity: isWithinLimit ? 'LOW' : 'HIGH',
         platform: 'BOTH',
         userTier: tier,
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
       });
     } catch (error) {
       this.addTestResult({
@@ -231,7 +231,7 @@ export class ComprehensiveQASuite {
         severity: 'HIGH',
         platform: 'BOTH',
         userTier: tier,
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
       });
     }
   }
@@ -260,7 +260,7 @@ export class ComprehensiveQASuite {
           confidence: 75,
           description: `Stake limit test: $${stake}`,
           status: 'PENDING' as const,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString().toISOString()
         };
 
         const result = await this.validationService.validatePick(mockPickData, testUserId);
@@ -275,7 +275,7 @@ export class ComprehensiveQASuite {
           severity: isCorrect ? 'LOW' : 'HIGH',
           platform: 'BOTH',
           userTier: tier,
-          timestamp: new Date()
+          timestamp: new Date().toISOString()
         });
       }
     } catch (error) {
@@ -287,7 +287,7 @@ export class ComprehensiveQASuite {
         severity: 'HIGH',
         platform: 'BOTH',
         userTier: tier,
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
       });
     }
   }
@@ -314,7 +314,7 @@ export class ComprehensiveQASuite {
         severity: 'MEDIUM',
         platform: 'BOTH',
         userTier: tier,
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         recommendations: hasAccess ? [] : [`Ensure ${feature} is properly restricted for ${tier} tier`]
       });
     }
@@ -348,7 +348,7 @@ export class ComprehensiveQASuite {
         severity: 'MEDIUM',
         platform: 'BOTH',
         userTier: tier,
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
       });
     } catch (error) {
       this.addTestResult({
@@ -359,7 +359,7 @@ export class ComprehensiveQASuite {
         severity: 'HIGH',
         platform: 'BOTH',
         userTier: tier,
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
       });
     }
   }
@@ -393,7 +393,7 @@ export class ComprehensiveQASuite {
       details: `Workflow scenario testing requires live system integration`,
       severity: 'MEDIUM',
       platform: 'BOTH',
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
       recommendations: [
         'Implement automated workflow testing',
         'Create test data fixtures',
@@ -424,7 +424,7 @@ export class ComprehensiveQASuite {
         details: 'Requires live platform testing',
         severity: 'HIGH',
         platform: 'BOTH',
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         recommendations: [
           'Set up integration test environment',
           'Create automated platform sync tests',
@@ -456,7 +456,7 @@ export class ComprehensiveQASuite {
         details: 'Requires live agent system testing',
         severity: 'CRITICAL',
         platform: 'BACKEND',
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         recommendations: [
           'Set up agent testing environment',
           'Create agent performance benchmarks',
@@ -489,7 +489,7 @@ export class ComprehensiveQASuite {
         details: 'Requires manual accessibility testing',
         severity: 'HIGH',
         platform: 'BOTH',
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         recommendations: [
           'Use automated accessibility testing tools',
           'Conduct manual accessibility audit',
@@ -523,7 +523,7 @@ export class ComprehensiveQASuite {
         details: 'Requires security penetration testing',
         severity: 'CRITICAL',
         platform: 'BOTH',
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         recommendations: [
           'Conduct professional security audit',
           'Implement automated security scanning',
@@ -556,7 +556,7 @@ export class ComprehensiveQASuite {
         details: 'Requires UX review and user testing',
         severity: 'MEDIUM',
         platform: 'BOTH',
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         recommendations: [
           'Conduct user experience testing',
           'Review all error messages for clarity',
@@ -588,7 +588,7 @@ export class ComprehensiveQASuite {
         details: 'Requires documentation review',
         severity: 'MEDIUM',
         platform: 'BOTH',
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         recommendations: [
           'Create comprehensive documentation',
           'Regular documentation updates',

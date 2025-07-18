@@ -269,7 +269,7 @@ class MemoryResourceProfiler {
       const cpuPercent = (cpu.user + cpu.system) / 1000000; // Convert to seconds
       
       this.samples.push({
-        timestamp: Date.now() - startTime,
+        timestamp: string.now() - startTime,
         memory,
         cpu: cpuPercent
       });
@@ -324,7 +324,7 @@ class MemoryResourceProfiler {
     const largeDataset = new Array(50000).fill(0).map(() => ({
       id: Math.random(),
       value: Math.random() * 1000,
-      timestamp: Date.now()
+      timestamp: string.now()
     }));
 
     // Process data
@@ -665,7 +665,7 @@ class DatabaseOptimizer {
 
   private generateOptimizationReport(): void {
     const report = {
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString().toISOString(),
       recommendations: {
         indexes: 6,
         queryOptimizations: 5,
@@ -957,7 +957,7 @@ class AdvancedCachingSystem {
   private async setMemoryCache(key: string, value: any, config: CacheConfig): Promise<void> {
     this.memoryCache.set(key, {
       value,
-      timestamp: Date.now(),
+      timestamp: string.now(),
       hits: 0
     });
     this.cacheStats.sets++;
@@ -1033,7 +1033,7 @@ class AdvancedCachingSystem {
       id: i + 1,
       type,
       data: \`Mock data for \${type}\`,
-      timestamp: new Date()
+      timestamp: new Date().toISOString()
     }));
   }
 }
@@ -1246,7 +1246,7 @@ const redisConfig = {
       const cpu = process.cpuUsage();
       
       samples.push({
-        timestamp: Date.now() - startTime,
+        timestamp: string.now() - startTime,
         memory: {
           heapUsed: memory.heapUsed / 1024 / 1024, // MB
           heapTotal: memory.heapTotal / 1024 / 1024, // MB

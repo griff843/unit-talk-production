@@ -182,7 +182,7 @@ export class KeywordEmojiDMService {
         keyword: matchedKeyword,
         channel: message.channel.toString(),
         tier: this.permissionsService.getUserTier(member),
-        timestamp: new Date().toLocaleString()
+        timestamp: new Date().toISOString().toLocaleString()
       });
 
       // Create DM content
@@ -231,7 +231,7 @@ export class KeywordEmojiDMService {
         emoji: emojiIdentifier,
         channel: reaction.message.channel.toString(),
         tier: this.permissionsService.getUserTier(member),
-        timestamp: new Date().toLocaleString()
+        timestamp: new Date().toISOString().toLocaleString()
       });
 
       // Create DM content
@@ -270,7 +270,7 @@ export class KeywordEmojiDMService {
           priority: triggerData.priority || 'medium',
           is_active: true,
           created_by: adminId,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString().toISOString()
         })
         .select()
         .single();
@@ -305,7 +305,7 @@ export class KeywordEmojiDMService {
           priority: triggerData.priority || 'medium',
           is_active: true,
           created_by: adminId,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString().toISOString()
         })
         .select()
         .single();
@@ -340,7 +340,7 @@ export class KeywordEmojiDMService {
           variables: templateData.variables || [],
           is_active: true,
           created_by: adminId,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString().toISOString()
         })
         .select()
         .single();
@@ -370,7 +370,7 @@ export class KeywordEmojiDMService {
         .update({ 
           is_active: isActive,
           updated_by: adminId,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString().toISOString()
         })
         .eq('id', triggerId);
 
@@ -487,7 +487,7 @@ export class KeywordEmojiDMService {
 
     // Check time conditions
     if (trigger.conditions.timeRestrictions) {
-      const now = new Date();
+      const now = new Date().toISOString();
       const hour = now.getHours();
       if (trigger.conditions.timeRestrictions.startHour && hour < trigger.conditions.timeRestrictions.startHour) {
         return false;
@@ -568,7 +568,7 @@ export class KeywordEmojiDMService {
           user_id: userId,
           trigger_type: triggerType,
           trigger_value: triggerValue,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString().toISOString()
         });
     } catch (error) {
       logger.error('Failed to log trigger activation:', error);

@@ -8,7 +8,7 @@ export class AppError extends Error {
   public readonly statusCode: number;
   public readonly errorCode: string;
   public readonly isOperational: boolean;
-  public readonly timestamp: Date;
+  public readonly timestamp: string;
   public readonly requestId?: string;
 
   constructor(
@@ -22,7 +22,7 @@ export class AppError extends Error {
     this.statusCode = statusCode;
     this.errorCode = errorCode;
     this.isOperational = isOperational;
-    this.timestamp = new Date();
+    this.timestamp = new Date().toISOString();
     this.requestId = requestId;
     
     Error.captureStackTrace(this, this.constructor);
@@ -229,7 +229,7 @@ export function globalErrorHandler(
       error: {
         code: 'INTERNAL_ERROR',
         message: 'An unexpected error occurred',
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         requestId
       }
     });
@@ -297,7 +297,7 @@ export class CircuitBreaker {
 // Health check utilities
 export interface HealthCheckResult {
   status: 'healthy' | 'unhealthy' | 'degraded';
-  timestamp: Date;
+  timestamp: string;
   duration: number;
   details?: any;
 }
@@ -319,7 +319,7 @@ export class HealthChecker {
       } catch (error) {
         results[name] = {
           status: 'unhealthy',
-          timestamp: new Date(),
+          timestamp: new Date().toISOString(),
           duration: performance.now() - startTime,
           details: { error: error instanceof Error ? error.message : 'Unknown error' }
         };
@@ -332,7 +332,7 @@ export class HealthChecker {
   async getOverallHealth(): Promise<{
     status: 'healthy' | 'unhealthy' | 'degraded';
     checks: { [key: string]: HealthCheckResult };
-    timestamp: Date;
+    timestamp: string;
   }> {
     const checks = await this.runChecks();
     const statuses = Object.values(checks).map(check => check.status);
@@ -348,7 +348,7 @@ export class HealthChecker {
     return {
       status: overallStatus,
       checks,
-      timestamp: new Date()
+      timestamp: new Date().toISOString()
     };
   }
 }

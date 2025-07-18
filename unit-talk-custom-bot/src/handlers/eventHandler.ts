@@ -96,7 +96,7 @@ export class EventHandler {
         data: {
           username: member.user.username,
           joinedAt: member.joinedAt?.toISOString(),
-          accountCreated: member.user.createdAt.toISOString()
+          accountCreated: member.user.created_at.toISOString()
         }
       });
 
@@ -162,7 +162,7 @@ export class EventHandler {
             oldTier,
             newTier,
             username: newMember.user.username,
-            changedAt: new Date().toISOString()
+            changedAt: new Date().toISOString().toISOString()
           }
         });
 
@@ -203,7 +203,7 @@ export class EventHandler {
         guildId: member.guild.id,
         data: {
           username: member.user?.username,
-          leftAt: new Date().toISOString()
+          leftAt: new Date().toISOString().toISOString()
         }
       });
 
@@ -258,7 +258,7 @@ export class EventHandler {
         guildId: message.guildId,
         data: {
           messageId: message.id,
-          deletedAt: new Date().toISOString()
+          deletedAt: new Date().toISOString().toISOString()
         }
       });
 
@@ -280,7 +280,7 @@ export class EventHandler {
         guildId: newMessage.guildId,
         data: {
           messageId: newMessage.id,
-          editedAt: new Date().toISOString(),
+          editedAt: new Date().toISOString().toISOString(),
           oldContent: oldMessage.content?.substring(0, 100),
           newContent: newMessage.content?.substring(0, 100)
         }
@@ -297,7 +297,7 @@ export class EventHandler {
   private async updateUserActivity(userId: string, _guildId: string): Promise<void> {
     try {
       await this.supabaseService.updateUserActivity(userId, {
-        lastActive: new Date().toISOString(),
+        lastActive: new Date().toISOString().toISOString(),
         totalMessages: { increment: 1 },
         activity_score: { increment: 1 }
       });

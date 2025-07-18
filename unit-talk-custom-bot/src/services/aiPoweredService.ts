@@ -60,14 +60,14 @@ export class AIPoweredService {
         reasoning: this.extractReasoningFromAnalysis(aiAnalysis),
         suggestions: this.extractImprovementSuggestions(aiAnalysis),
         confidence: this.extractAccuracyScore(aiAnalysis),
-        createdAt: new Date(),
+        createdAt: new Date().toISOString(),
         analysis: {
           strengths: this.extractStrengths(aiAnalysis),
           weaknesses: this.extractWeaknesses(aiAnalysis),
           marketAnalysis: await this.getMarketAnalysis(pickData),
           riskAssessment: this.extractRiskAssessment(aiAnalysis)
         },
-        gradedAt: new Date(),
+        gradedAt: new Date().toISOString(),
         gradedBy: 'ai' as const,
         accuracyScore: this.extractAccuracyScore(aiAnalysis)
       };
@@ -111,8 +111,8 @@ export class AIPoweredService {
         id: `coaching_${Date.now()}_${userId}`,
         userId: userId,
         sessionType: 'interactive',
-        startedAt: new Date(),
-        lastActivity: new Date(),
+        startedAt: new Date().toISOString(),
+        lastActivity: new Date().toISOString(),
         status: 'active',
         messages: [],
         userProfile: userProfile,
@@ -131,7 +131,7 @@ export class AIPoweredService {
       session.messages.push({
         role: 'assistant',
         content: initialMessage,
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
       });
 
       // Send initial coaching message
@@ -172,7 +172,7 @@ export class AIPoweredService {
       session.messages.push({
         role: 'user',
         content: userMessage,
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
       });
 
       // Generate AI response
@@ -183,7 +183,7 @@ export class AIPoweredService {
       session.messages.push({
         role: 'assistant',
         content: aiResponse,
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
       });
 
       // Update session in database
@@ -191,7 +191,7 @@ export class AIPoweredService {
         .from('ai_coaching_sessions')
         .update({
           session_data: session,
-          updated_at: new Date()
+          updated_at: new Date().toISOString()
         })
         .eq('id', sessionId);
 
@@ -247,7 +247,7 @@ export class AIPoweredService {
         sourceLanguage: 'en',
         targetLanguage: targetLanguage,
         userId: userId,
-        createdAt: new Date(),
+        createdAt: new Date().toISOString(),
         confidence: 0.95 // Would be calculated based on AI response
       };
 
@@ -308,7 +308,7 @@ export class AIPoweredService {
         recommendations: this.extractRecommendations(analysis),
         riskAssessment: this.assessRiskLevel(userHistory),
         profitabilityTrend: this.calculateProfitabilityTrend(userHistory),
-        analyzedAt: new Date().toISOString()
+        analyzedAt: new Date().toISOString().toISOString()
       };
 
       // Store analysis
@@ -368,7 +368,7 @@ export class AIPoweredService {
         .insert({
           user_id: userId,
           recommendations: recommendations,
-          generated_at: new Date().toISOString()
+          generated_at: new Date().toISOString().toISOString()
         });
 
       return recommendations;
@@ -429,7 +429,7 @@ export class AIPoweredService {
           game_id: gameId,
           situation: currentSituation,
           advice: coachingAdvice,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString().toISOString()
         });
 
       return coachingAdvice;

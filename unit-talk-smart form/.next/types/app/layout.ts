@@ -1,4 +1,4 @@
-// File: C:\Users\griff\Projects\UnitTalk\unit-talk-app\app\layout.tsx
+// File: C:\Users\griff\Desktop\Unit Talk Production v3\unit-talk-production\unit-talk-smart form\app\layout.tsx
 import * as entry from '../../../app/layout.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

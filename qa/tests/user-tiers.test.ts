@@ -90,7 +90,7 @@ export class UserTierTester {
                 testName: 'Free Tier Tests',
         status: 'FAIL',
         message: `Free tier testing failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -132,7 +132,7 @@ export class UserTierTester {
                 testName: 'Trial Tier Tests',
         status: 'FAIL',
         message: `Trial tier testing failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -174,7 +174,7 @@ export class UserTierTester {
                 testName: 'VIP Tier Tests',
         status: 'FAIL',
         message: `VIP tier testing failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -212,7 +212,7 @@ export class UserTierTester {
                 testName: 'VIP+ Tier Tests',
         status: 'FAIL',
         message: `VIP+ tier testing failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -247,7 +247,7 @@ export class UserTierTester {
                 testName: `${tier.toUpperCase()} Tier Registration`,
         status: isSuccess ? 'PASS' : 'FAIL',
         message: isSuccess ? 'User registration successful' : 'User registration failed',
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       };
       
@@ -256,7 +256,7 @@ export class UserTierTester {
                 testName: `${tier.toUpperCase()} Tier Registration`,
         status: 'FAIL',
         message: `Registration test failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       };
     }
@@ -281,7 +281,7 @@ export class UserTierTester {
                             testName: `${tier.toUpperCase()} Pick Limits`,
               status: 'FAIL',
               message: `Failed to create pick ${i + 1} of ${maxPicks}`,
-              duration: Date.now() - startTime,
+              duration: string.now() - startTime,
               timestamp: createTimestamp()
             };
           }
@@ -298,7 +298,7 @@ export class UserTierTester {
                             testName: `${tier.toUpperCase()} Pick Limits`,
               status: 'FAIL',
               message: `Pick limit not enforced - allowed more than ${maxPicks} picks`,
-              duration: Date.now() - startTime,
+              duration: string.now() - startTime,
               timestamp: createTimestamp()
             };
           }
@@ -309,7 +309,7 @@ export class UserTierTester {
                 testName: `${tier.toUpperCase()} Pick Limits`,
         status: 'PASS',
         message: `Pick limit of ${maxPicks} correctly enforced`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       };
       
@@ -318,7 +318,7 @@ export class UserTierTester {
                 testName: `${tier.toUpperCase()} Pick Limits`,
         status: 'FAIL',
         message: `Pick limit test failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       };
     }
@@ -343,7 +343,7 @@ export class UserTierTester {
                             testName: `${tier.toUpperCase()} Parlay Limits`,
               status: 'FAIL',
               message: `Failed to create parlay ${i + 1} of ${maxParlays}`,
-              duration: Date.now() - startTime,
+              duration: string.now() - startTime,
               timestamp: createTimestamp()
             };
           }
@@ -360,7 +360,7 @@ export class UserTierTester {
                             testName: `${tier.toUpperCase()} Parlay Limits`,
               status: 'FAIL',
               message: `Parlay limit not enforced - allowed more than ${maxParlays} parlays`,
-              duration: Date.now() - startTime,
+              duration: string.now() - startTime,
               timestamp: createTimestamp()
             };
           }
@@ -371,7 +371,7 @@ export class UserTierTester {
                 testName: `${tier.toUpperCase()} Parlay Limits`,
         status: 'PASS',
         message: `Parlay limit of ${maxParlays} correctly enforced`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       };
       
@@ -380,7 +380,7 @@ export class UserTierTester {
                 testName: `${tier.toUpperCase()} Parlay Limits`,
         status: 'FAIL',
         message: `Parlay limit test failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       };
     }
@@ -409,7 +409,7 @@ export class UserTierTester {
                         testName: `${tier.toUpperCase()} Feature Access`,
             status: 'FAIL',
             message: `${tier} tier should have access to ${test.feature} but doesn't`,
-            duration: Date.now() - startTime,
+            duration: string.now() - startTime,
             timestamp: createTimestamp()
           };
         }
@@ -419,7 +419,7 @@ export class UserTierTester {
                         testName: `${tier.toUpperCase()} Feature Access`,
             status: 'FAIL',
             message: `${tier} tier should not have access to ${test.feature} but does`,
-            duration: Date.now() - startTime,
+            duration: string.now() - startTime,
             timestamp: createTimestamp()
           };
         }
@@ -429,7 +429,7 @@ export class UserTierTester {
                 testName: `${tier.toUpperCase()} Feature Access`,
         status: 'PASS',
         message: `All feature access permissions correct for ${tier} tier`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       };
       
@@ -438,7 +438,7 @@ export class UserTierTester {
                 testName: `${tier.toUpperCase()} Feature Access`,
         status: 'FAIL',
         message: `Feature access test failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       };
     }

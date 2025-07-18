@@ -362,13 +362,13 @@ The key to long-term success in sports betting is maintaining discipline, proper
         coach_id: 'ai_coach',
         session_type: sessionType,
         status: 'in_progress',
-        scheduled_at: new Date().toISOString(),
-        started_at: new Date().toISOString(),
+        scheduled_at: new Date().toISOString().toISOString(),
+        started_at: new Date().toISOString().toISOString(),
         notes: `AI coaching session started for ${userTier} user`,
         feedback: {
           userTier,
           totalQuestions: 0,
-          sessionStarted: new Date().toISOString()
+          sessionStarted: new Date().toISOString().toISOString()
         }
       });
 
@@ -406,14 +406,14 @@ The key to long-term success in sports betting is maintaining discipline, proper
       questions.push({
         question,
         response,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString().toISOString()
       });
 
       const updatedFeedback = {
         ...currentFeedback,
         questions,
         totalQuestions: questions.length,
-        lastActivity: new Date().toISOString()
+        lastActivity: new Date().toISOString().toISOString()
       };
 
       const success = await databaseService.updateCoachingSession(sessionId, {
@@ -446,7 +446,7 @@ The key to long-term success in sports betting is maintaining discipline, proper
       }
 
       const startTime = new Date(session.started_at || session.created_at);
-      const endTime = new Date();
+      const endTime = new Date().toISOString();
       const durationMinutes = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60));
 
       const success = await databaseService.updateCoachingSession(sessionId, {

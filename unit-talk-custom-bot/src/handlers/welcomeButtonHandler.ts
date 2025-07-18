@@ -1,3 +1,4 @@
+import { CommandInteraction, CacheType, ButtonInteraction } from '@discordjs/core';
 import { ButtonInteraction, EmbedBuilder, Colors } from 'discord.js';
 import { WelcomeService } from '../services/welcomeService';
 import { logger } from '../utils/logger';

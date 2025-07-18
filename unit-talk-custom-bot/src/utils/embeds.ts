@@ -105,7 +105,7 @@ export function createUserProfileEmbed(profile: UserProfile): EmbedBuilder {
   // Add trial info if applicable
   if (profile.trial_ends_at) {
     const trialEnd = new Date(profile.trial_ends_at);
-    const now = new Date();
+    const now = new Date().toISOString();
     const hoursLeft = Math.max(0, Math.floor((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60)));
 
     embed.addFields({

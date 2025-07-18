@@ -1,6 +1,4 @@
 import { GradingAgent } from '../index';
-import { createClient } from '@supabase/supabase-js';
-import { ErrorHandler } from '../../../shared/errors';
 import { createTestDependencies } from '../../../test/helpers/testHelpers';
 
 // Mock the notification activities

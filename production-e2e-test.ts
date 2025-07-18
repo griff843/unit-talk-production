@@ -51,7 +51,7 @@ class ProductionE2ETestSuite {
     this.startTime = performance.now();
     console.log('🚀 Production E2E Testing Suite with Real Agents');
     console.log('================================================');
-    console.log(`Started at: ${new Date().toISOString()}\n`);
+    console.log(`Started at: ${new Date().toISOString().toISOString()}\n`);
 
     // Initialize agents - commented out until we have proper constructor parameters
     // this.ingestionAgent = new IngestionAgent();
@@ -579,7 +579,7 @@ class ProductionE2ETestSuite {
 
     // Save detailed report
     const reportData = {
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString().toISOString(),
       environment: 'production',
       summary: {
         passedTests,

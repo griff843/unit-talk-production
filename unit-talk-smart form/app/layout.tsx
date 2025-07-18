@@ -1,15 +1,12 @@
-// app/layout.tsx
-import type { Metadata } from "next";
+"use client";
+
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { Providers } from "@/components/Providers";
 import { Toaster } from "@/components/toaster";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const inter = Inter({ subsets: ["latin"] });
-
-export const metadata: Metadata = {
-  title: "Unit Talk",
-  description: "Sports betting ticket management system",
-};
 
 export default function RootLayout({
   children,
@@ -17,12 +14,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${inter.className} min-h-screen bg-background text-foreground antialiased`}>
-        <main className="container mx-auto py-8">
-          {children}
-        </main>
-        <Toaster />
+    <html lang="en" suppressHydrationWarning>
+      <body className={inter.className}>
+        <Providers>
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
+          <Toaster />
+        </Providers>
       </body>
     </html>
   );

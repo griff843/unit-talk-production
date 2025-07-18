@@ -1,3 +1,4 @@
+import { CommandInteraction, CacheType, ButtonInteraction } from '@discordjs/core';
 import {
   ButtonInteraction,
   EmbedBuilder,

@@ -84,7 +84,7 @@ export class AdvancedAnalyticsService {
         event_type: eventType,
         user_id: userId,
         metadata: metadata || {},
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toISOString().toISOString(),
         session_id: this.generateSessionId(userId)
       };
 
@@ -152,7 +152,7 @@ export class AdvancedAnalyticsService {
   async trackOnboardingStart(userId: string, flowType: string): Promise<void> {
     await this.trackEvent('onboarding_start', userId, {
       flow_type: flowType,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString().toISOString()
     });
   }
 
@@ -163,7 +163,7 @@ export class AdvancedAnalyticsService {
     await this.trackEvent('onboarding_step_complete', userId, {
       step_name: stepName,
       flow_type: flowType,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString().toISOString()
     });
   }
 
@@ -174,7 +174,7 @@ export class AdvancedAnalyticsService {
     await this.trackEvent('onboarding_complete', userId, {
       flow_type: flowType,
       completion_time_ms: completionTime,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString().toISOString()
     });
   }
 
@@ -185,7 +185,7 @@ export class AdvancedAnalyticsService {
     await this.trackEvent('onboarding_abandoned', userId, {
       flow_type: flowType,
       last_step: lastStep,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString().toISOString()
     });
   }
 
@@ -196,7 +196,7 @@ export class AdvancedAnalyticsService {
     await this.trackEvent('dm_delivery_attempt', userId, {
       success,
       error_reason: errorReason,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString().toISOString()
     });
   }
 
@@ -207,7 +207,7 @@ export class AdvancedAnalyticsService {
     await this.trackEvent('preference_selected', userId, {
       preference_type: preferenceType,
       value,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString().toISOString()
     });
   }
 
@@ -218,7 +218,7 @@ export class AdvancedAnalyticsService {
     await this.trackEvent('role_assigned', userId, {
       role_id: roleId,
       role_name: roleName,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString().toISOString()
     });
   }
 
@@ -228,7 +228,7 @@ export class AdvancedAnalyticsService {
   async getOnboardingAnalytics(timeframe: 'day' | 'week' | 'month' = 'week'): Promise<OnboardingAnalytics> {
     try {
       const timeframeDays = timeframe === 'day' ? 1 : timeframe === 'week' ? 7 : 30;
-      const startDate = new Date();
+      const startDate = new Date().toISOString();
       startDate.setDate(startDate.getDate() - timeframeDays);
 
       // Get onboarding events
@@ -362,8 +362,8 @@ export class AdvancedAnalyticsService {
             user_id: userId,
             steps: [step],
             completed: false,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            created_at: new Date().toISOString().toISOString(),
+            updated_at: new Date().toISOString().toISOString()
           })
           .select()
           .single();
@@ -381,7 +381,7 @@ export class AdvancedAnalyticsService {
           .from('user_journeys')
           .update({
             steps: updatedSteps,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString().toISOString()
           })
           .eq('id', journey.id);
 
@@ -406,7 +406,7 @@ export class AdvancedAnalyticsService {
         .from('user_journeys')
         .update({
           completed: true,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString().toISOString()
         })
         .eq('user_id', userId)
         .eq('completed', false);
@@ -441,7 +441,7 @@ export class AdvancedAnalyticsService {
     activeUsers: number;
   }> {
     try {
-      const oneDayAgo = new Date();
+      const oneDayAgo = new Date().toISOString();
       oneDayAgo.setDate(oneDayAgo.getDate() - 1);
 
       // Get total events count
@@ -520,7 +520,7 @@ export class AdvancedAnalyticsService {
    */
   async cleanupOldData(daysToKeep: number = 90): Promise<void> {
     try {
-      const cutoffDate = new Date();
+      const cutoffDate = new Date().toISOString();
       cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
 
       const { error } = await this.supabaseService.client
@@ -598,7 +598,7 @@ export class AdvancedAnalyticsService {
         threads: 0,
         commands: 0,
         errors: 0,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString().toISOString()
       };
     } catch (error) {
       console.error('❌ Error getting real-time stats:', error);
@@ -629,7 +629,7 @@ export class AdvancedAnalyticsService {
         activeUsers: 0,
         totalMessages: 0,
         totalCommands: 0,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString().toISOString()
       };
     } catch (error) {
       console.error('❌ Error getting dashboard analytics:', error);

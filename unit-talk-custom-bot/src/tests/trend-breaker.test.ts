@@ -1,3 +1,4 @@
+import { CommandInteraction, CacheType, ButtonInteraction } from '@discordjs/core';
 // @ts-nocheck
 import { jest, describe, it, beforeEach, expect } from '@jest/globals';
 import { ChatInputCommandInteraction, GuildMember, User } from 'discord.js';
@@ -603,7 +604,7 @@ function createMockAnalysis(): TrendAnalysisSummary {
       total_picks_analyzed: 0,
       date_range: {
         start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-        end: new Date().toISOString()
+        end: new Date().toISOString().toISOString()
       },
       confidence_threshold: 0.7,
       min_sample_size: 10

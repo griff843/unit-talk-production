@@ -119,7 +119,7 @@ export class DatabaseService {
         .from('user_profiles')
         .update({
           ...updates,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString().toISOString()
         })
         .eq('discord_id', discordId)
         .select()
@@ -142,7 +142,7 @@ export class DatabaseService {
         .from('user_profiles')
         .upsert({
           ...profile,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString().toISOString()
         })
         .select()
         .single();
@@ -177,7 +177,7 @@ export class DatabaseService {
         .from('user_profiles')
         .update({ 
           tier, 
-          updated_at: new Date().toISOString() 
+          updated_at: new Date().toISOString().toISOString() 
         })
         .eq('discord_id', discordId);
 
@@ -243,8 +243,8 @@ export class DatabaseService {
         .from('user_picks')
         .insert({
           ...pick,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          created_at: new Date().toISOString().toISOString(),
+          updated_at: new Date().toISOString().toISOString()
         })
         .select()
         .single();
@@ -266,7 +266,7 @@ export class DatabaseService {
         .from('user_picks')
         .update({
           ...updates,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString().toISOString()
         })
         .eq('id', pickId)
         .select()
@@ -413,8 +413,8 @@ export class DatabaseService {
         .from('final_picks')
         .insert({
           ...pick,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          created_at: new Date().toISOString().toISOString(),
+          updated_at: new Date().toISOString().toISOString()
         })
         .select()
         .single();
@@ -436,7 +436,7 @@ export class DatabaseService {
         .from('final_picks')
         .update({
           ...updates,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString().toISOString()
         })
         .eq('id', pickId)
         .select()
@@ -494,8 +494,8 @@ export class DatabaseService {
         .from('game_threads')
         .insert({
           ...thread,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          created_at: new Date().toISOString().toISOString(),
+          updated_at: new Date().toISOString().toISOString()
         })
         .select()
         .single();
@@ -517,7 +517,7 @@ export class DatabaseService {
         .from('game_threads')
         .update({
           ...updates,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString().toISOString()
         })
         .eq('thread_id', threadId)
         .select()
@@ -568,7 +568,7 @@ export class DatabaseService {
         .from('user_cooldowns')
         .upsert({
           ...cooldown,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString().toISOString()
         });
 
       if (error) throw error;
@@ -588,7 +588,7 @@ export class DatabaseService {
       if (!cooldown) return false;
 
       const expiresAt = new Date(cooldown.expires_at);
-      return expiresAt > new Date();
+      return expiresAt > new Date().toISOString();
     } catch (error) {
       logger.error('Error checking user cooldown:', { error, userId, commandType });
       return false;
@@ -606,7 +606,7 @@ export class DatabaseService {
         .from('analytics_events')
         .insert({
           ...event,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString().toISOString()
         });
 
       if (error) throw error;
@@ -632,12 +632,12 @@ export class DatabaseService {
         guild_id: botConfig.discord?.guildId || 'unknown',
         event_type: activityType,
         event_data: metadata || {},
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString().toISOString()
       });
 
       // Update user's last_active timestamp
       await this.updateUserProfile(discordId, {
-        last_active: new Date().toISOString()
+        last_active: new Date().toISOString().toISOString()
       });
     } catch (error) {
       logger.error('Error tracking user activity:', { error, discordId, activityType, metadata });
@@ -681,7 +681,7 @@ export class DatabaseService {
         .upsert({
           thread_id: threadId,
           ...updates,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString().toISOString()
         })
         .select()
         .single();

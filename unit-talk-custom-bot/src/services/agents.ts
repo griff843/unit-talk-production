@@ -5,7 +5,7 @@ import { logger } from '../utils/logger';
 export interface AgentHealthCheck {
   status: 'healthy' | 'unhealthy';
   details?: string;
-  timestamp: Date;
+  timestamp: string;
 }
 
 export interface AgentResponse {
@@ -39,20 +39,20 @@ export class AgentService {
       if (response.status === 200) {
         return {
           status: 'healthy',
-          timestamp: new Date()
+          timestamp: new Date().toISOString()
         };
       } else {
         return {
           status: 'unhealthy',
           details: `HTTP ${response.status}`,
-          timestamp: new Date()
+          timestamp: new Date().toISOString()
         };
       }
     } catch (error) {
       return {
         status: 'unhealthy',
         details: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date()
+        timestamp: new Date().toISOString()
       };
     }
   }
@@ -130,7 +130,7 @@ export class AgentService {
     return this.sendToAgent('OperatorAgent', 'notify', {
       message,
       severity,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString().toISOString()
     });
   }
 

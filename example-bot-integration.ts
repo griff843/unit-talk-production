@@ -231,7 +231,7 @@ async function handleAdminSystemStatus(interaction: any) {
           inline: false
         }
       ],
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString().toISOString()
     };
 
     await interaction.editReply({ embeds: [statusEmbed] });

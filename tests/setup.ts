@@ -1,62 +1,91 @@
-/**
- * Test Setup Configuration
- * Global test environment setup for Unit Talk SaaS
- */
+import { jest, beforeAll, afterAll } from '@jest/globals';
+import { Logger } from '../src/shared/logger/types';
 
-// Mock environment variables
-process.env.NODE_ENV = 'test';
-process.env.SUPABASE_URL = 'https://test.supabase.co';
-process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-key';
-process.env.JWT_SECRET = 'test-jwt-secret';
-process.env.ENCRYPTION_KEY = 'test-encryption-key';
+declare global {
+  namespace NodeJS {
+    interface ProcessEnv {
+      NODE_ENV: 'development' | 'test' | 'production';
+      SUPABASE_URL: string;
+      SUPABASE_SERVICE_ROLE_KEY: string;
+      JWT_SECRET: string;
+      ENCRYPTION_KEY: string;
+      [key: string]: string | undefined;
+    }
+  }
 
-// Mock console methods for cleaner test output
-global.console = {
-  ...console,
-  log: jest.fn(),
+  var testUtils: {
+    mockLogger: Logger;
+    mockSupabase: any;
+    mockDeps: any;
+  };
+}
+
+// Set up test environment
+process.env['NODE_ENV'] = 'test';
+process.env['SUPABASE_URL'] = 'https://test.supabase.co';
+process.env['SUPABASE_SERVICE_ROLE_KEY'] = 'test-key';
+process.env['JWT_SECRET'] = 'test-jwt-secret';
+process.env['ENCRYPTION_KEY'] = 'test-encryption-key';
+
+// Mock logger
+const mockLogger: Logger = {
   debug: jest.fn(),
   info: jest.fn(),
   warn: jest.fn(),
   error: jest.fn(),
+  child: jest.fn(() => mockLogger),
+  setLevel: jest.fn()
 };
 
-// Global test utilities
+// Set up global test utilities
 global.testUtils = {
-  createMockUser: (overrides = {}) => ({
-    id: 'test-user-id',
-    email: 'test@example.com',
-    role: 'user',
-    status: 'active',
-    display_name: 'Test User',
-    ...overrides
-  }),
-  
-  createMockGame: (overrides = {}) => ({
-    game_id: 123,
-    home_team: 'Team A',
-    away_team: 'Team B',
-    game_date: new Date().toISOString(),
-    status: 'completed',
-    ...overrides
-  }),
-  
-  createMockPick: (overrides = {}) => ({
-    game_id: 123,
-    bet_type: 'spread',
-    selection: 'Team A -3.5',
-    confidence: 4,
-    reasoning: 'Test reasoning',
-    ...overrides
-  })
+  mockLogger,
+  mockSupabase: {
+    from: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    insert: jest.fn().mockReturnThis(),
+    update: jest.fn().mockReturnThis(),
+    delete: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    gt: jest.fn().mockReturnThis(),
+    lt: jest.fn().mockReturnThis(),
+    gte: jest.fn().mockReturnThis(),
+    lte: jest.fn().mockReturnThis(),
+    in: jest.fn().mockReturnThis(),
+    notIn: jest.fn().mockReturnThis(),
+    like: jest.fn().mockReturnThis(),
+    ilike: jest.fn().mockReturnThis(),
+    is: jest.fn().mockReturnThis(),
+    not: jest.fn().mockReturnThis(),
+    or: jest.fn().mockReturnThis(),
+    and: jest.fn().mockReturnThis(),
+    contains: jest.fn().mockReturnThis(),
+    containedBy: jest.fn().mockReturnThis(),
+    overlaps: jest.fn().mockReturnThis(),
+    textSearch: jest.fn().mockReturnThis(),
+    match: jest.fn().mockReturnThis(),
+    neq: jest.fn().mockReturnThis(),
+    filter: jest.fn().mockReturnThis(),
+    order: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis(),
+    single: jest.fn().mockReturnThis(),
+    maybeSingle: jest.fn().mockReturnThis(),
+    range: jest.fn().mockReturnThis(),
+    abortSignal: jest.fn().mockReturnThis(),
+    count: jest.fn().mockReturnThis(),
+    then: jest.fn().mockReturnThis()
+  },
+  mockDeps: {
+    logger: mockLogger,
+    supabase: null
+  }
 };
 
-// Setup and teardown
 beforeAll(async () => {
-  // Global setup
+  // Set up test database
+  global.testUtils.mockDeps.supabase = global.testUtils.mockSupabase;
 });
 
 afterAll(async () => {
-  // Global cleanup
+  // Clean up test database
 });
-
-export {};

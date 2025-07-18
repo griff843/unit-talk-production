@@ -29,7 +29,7 @@ class CoreAgentTester {
         agent: agentName,
         status: 'pass',
         message: 'Agent loaded and basic functionality verified',
-        duration: Date.now() - startTime
+        duration: string.now() - startTime
       };
       
       this.results.push(result);
@@ -41,7 +41,7 @@ class CoreAgentTester {
         agent: agentName,
         status: 'fail',
         message: 'Agent failed to load or execute',
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         error: error instanceof Error ? error.message : 'Unknown error'
       };
       
@@ -60,7 +60,7 @@ class CoreAgentTester {
       description: 'Testing alert system functionality',
       severity: 'info',
       source: 'CoreAgentTester',
-      createdAt: new Date(),
+      createdAt: new Date().toISOString(),
       channels: ['discord']
     };
 
@@ -73,7 +73,7 @@ class CoreAgentTester {
   async testDataAgent() {
     // Test basic data processing
     const testData = {
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
       source: 'test',
       data: { test: true }
     };
@@ -93,7 +93,7 @@ class CoreAgentTester {
       market: 'spread',
       line: -3.5,
       odds: -110,
-      timestamp: new Date()
+      timestamp: new Date().toISOString()
     };
     
     // Basic validation

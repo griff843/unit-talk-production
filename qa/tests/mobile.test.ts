@@ -78,7 +78,7 @@ export class MobileTester {
           testName: `Mobile Responsiveness - ${device}`,
           status: hasHorizontalScroll ? 'WARNING' : 'PASS',
           message: hasHorizontalScroll ? 'Page has horizontal scroll on mobile' : 'Page is responsive',
-          duration: Date.now() - startTime,
+          duration: string.now() - startTime,
           timestamp: createTimestamp()
         });
       }
@@ -90,7 +90,7 @@ export class MobileTester {
         testName: 'Mobile Responsiveness',
         status: 'FAIL',
         message: `Test failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -124,7 +124,7 @@ export class MobileTester {
         testName: 'Touch Target Sizes',
         status: touchTargetIssues === 0 ? 'PASS' : 'WARNING',
         message: `${touchTargetIssues} touch targets below 44px minimum`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
       
@@ -135,7 +135,7 @@ export class MobileTester {
         testName: 'Touch Interactions',
         status: 'FAIL',
         message: `Test failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -161,7 +161,7 @@ export class MobileTester {
         testName: 'Mobile Load Performance',
         status: loadTime <= this.config.mobile.maxLoadTime ? 'PASS' : 'WARNING',
         message: `Page loaded in ${loadTime}ms (max: ${this.config.mobile.maxLoadTime}ms)`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp(),
         metrics: { loadTime }
       });
@@ -173,7 +173,7 @@ export class MobileTester {
         testName: 'Mobile Performance',
         status: 'FAIL',
         message: `Test failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }
@@ -199,7 +199,7 @@ export class MobileTester {
         testName: 'Mobile Navigation',
         status: mobileMenu ? 'PASS' : 'WARNING',
         message: mobileMenu ? 'Mobile menu found' : 'No mobile menu detected',
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
       
@@ -210,7 +210,7 @@ export class MobileTester {
         testName: 'Mobile Navigation',
         status: 'FAIL',
         message: `Test failed: ${error}`,
-        duration: Date.now() - startTime,
+        duration: string.now() - startTime,
         timestamp: createTimestamp()
       });
     }

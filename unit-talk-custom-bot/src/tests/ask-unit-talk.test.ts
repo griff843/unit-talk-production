@@ -1,3 +1,4 @@
+import { CommandInteraction, CacheType, ButtonInteraction } from '@discordjs/core';
 import { jest } from '@jest/globals';
 import { ChatInputCommandInteraction, GuildMember, User, Guild } from 'discord.js';
 import { execute } from '../commands/ask-unit-talk-enhanced';
@@ -69,9 +70,9 @@ describe('ask-unit-talk command', () => {
       avatar: null,
       tier: 'vip',
       subscription_tier: 'VIP',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      last_active: new Date().toISOString(),
+      created_at: new Date().toISOString().toISOString(),
+      updated_at: new Date().toISOString().toISOString(),
+      last_active: new Date().toISOString().toISOString(),
       metadata: {},
     });
     mockDatabaseService.getUserPicks.mockResolvedValue([]);
@@ -151,9 +152,9 @@ describe('ask-unit-talk command', () => {
         avatar: null,
         tier: 'vip',
         subscription_tier: 'VIP',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        last_active: new Date().toISOString(),
+        created_at: new Date().toISOString().toISOString(),
+        updated_at: new Date().toISOString().toISOString(),
+        last_active: new Date().toISOString().toISOString(),
         metadata: { created_via: 'ask_unit_talk' },
       });
       mockInteraction.options.getString.mockReturnValue('Test question');
@@ -203,8 +204,8 @@ describe('ask-unit-talk command', () => {
           result: 'win' as const,
           actual_value: 28,
           profit_loss: 1.8,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          created_at: new Date().toISOString().toISOString(),
+          updated_at: new Date().toISOString().toISOString(),
           metadata: {},
         },
       ];
@@ -280,14 +281,14 @@ describe('ask-unit-talk command', () => {
         coach_id: 'ai-coach',
         session_type: 'ai_analysis',
         status: 'in_progress' as const,
-        scheduled_at: new Date().toISOString(),
-        started_at: new Date().toISOString(),
+        scheduled_at: new Date().toISOString().toISOString(),
+        started_at: new Date().toISOString().toISOString(),
         completed_at: null,
         duration_minutes: null,
         notes: null,
         feedback: {},
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: new Date().toISOString().toISOString(),
+        updated_at: new Date().toISOString().toISOString(),
       };
       mockDatabaseService.getActiveCoachingSession.mockResolvedValue(mockSession);
       mockInteraction.options.getString.mockReturnValue('Test question');

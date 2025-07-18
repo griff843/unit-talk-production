@@ -58,7 +58,7 @@ export class PickGradingService {
         feedback: typeof feedback === 'string' ? feedback : JSON.stringify(feedback), // Convert object to string
         reasoning: coachNotes,
         risk_assessment: confidence > 80 ? 'low' : confidence > 60 ? 'medium' : 'high',
-        created_at: new Date()
+        created_at: new Date().toISOString()
       };
 
       // Save grading result
@@ -377,7 +377,7 @@ export class PickGradingService {
   public analyzePickTiming(pick: UserPickSubmission): { score: number; timing: string } {
     // Simple timing analysis - in a real implementation, this would analyze
     // when the pick was made relative to game time, line movements, etc.
-    const now = new Date();
+    const now = new Date().toISOString();
     const submittedAt = pick.submitted_at ? new Date(pick.submitted_at) : now;
 
     // For now, return a default analysis
@@ -521,7 +521,7 @@ export class PickGradingService {
           feedback: result.feedback,
           coach_notes: result.coachNotes,
           improvement_areas: result.improvementAreas,
-          graded_at: new Date().toISOString()
+          graded_at: new Date().toISOString().toISOString()
         });
     } catch (error) {
       logger.error('Failed to save grading result:', error);
@@ -537,7 +537,7 @@ export class PickGradingService {
         .from('user_picks')
         .update({
           result,
-          graded_at: new Date().toISOString()
+          graded_at: new Date().toISOString().toISOString()
         })
         .eq('id', pickId);
 
@@ -868,7 +868,7 @@ export class CoachingService {
           scheduled_at: preferences.scheduledAt,
           type: preferences.type || 'general',
           status: 'scheduled',
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString().toISOString()
         });
 
       logger.info(`Coaching session scheduled for user ${userId}`);
