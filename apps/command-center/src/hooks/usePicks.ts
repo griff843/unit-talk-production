@@ -148,14 +148,6 @@ export function usePicks() {
             discord_id,
             tier,
             capper_tier
-          ),
-          raw_props (
-            stat_type,
-            player_name,
-            line,
-            over_odds,
-            under_odds,
-            sport
           )
         `
         )
@@ -172,12 +164,11 @@ export function usePicks() {
       // Transform unified_picks data to Pick interface
       const transformedPicks: Pick[] = (picksData || []).map(pick => {
         const user = Array.isArray(pick.users) ? pick.users[0] : pick.users;
-        const rawProp = Array.isArray(pick.raw_props) ? pick.raw_props[0] : pick.raw_props;
 
         // Type-safe conversions
         const pickId = String(pick.id || '');
         const confidence = Number(pick.confidence || 50);
-        const odds = Number(pick.odds || rawProp?.over_odds || rawProp?.under_odds || 0);
+        const odds = Number(pick.odds || 0);
         const selection = String(pick.selection || '');
         const workflowStage = String(pick.workflow_stage || 'draft');
 
@@ -185,7 +176,7 @@ export function usePicks() {
           id: pickId,
           capper_discord_id: user?.discord_id || pick.user_id,
           capper: user?.username || 'Unknown Capper',
-          sport: pick.sport || rawProp?.sport || 'Unknown',
+          sport: pick.sport || 'Unknown',
           selection: selection,
           odds: odds,
           status: mapWorkflowStageToStatus(workflowStage, String(pick.status || '')),
@@ -196,9 +187,9 @@ export function usePicks() {
           roi: calculateRoi(String(pick.status || 'pending'), odds),
           submitted_at: String(pick.placed_at || pick.created_at || new Date().toISOString()),
           created_at: String(pick.created_at || new Date().toISOString()),
-          player_name: rawProp?.player_name || extractPlayerFromSelection(selection),
-          line: rawProp ? `${rawProp.stat_type} ${rawProp.line}` : selection,
-          market_type: rawProp?.stat_type || 'player_prop',
+          player_name: extractPlayerFromSelection(selection),
+          line: selection,
+          market_type: 'player_prop',
         };
       });
 

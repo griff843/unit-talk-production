@@ -4,6 +4,8 @@ import express from 'express';
 
 import healthRouter from './routes/health';
 import { smartFormRouter } from './routes/smart-form';
+import opsRouter from './routes/ops';
+import picksRouter from './routes/picks';
 import { ErrorHandler } from './utils/errorHandling';
 import { getEnv } from './utils/getEnv';
 import { createLogger } from './utils/logger';
@@ -64,6 +66,92 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api/smart-form', smartFormRouter);
 app.use('/api/health', healthRouter);
+app.use('/api/picks', picksRouter);
+app.use('/ops', opsRouter);
+
+// Provider health endpoint
+app.get('/health/provider', async (req, res) => {
+  try {
+    const { getProviderHealth } = await import('./agents/FeedAgent/activities');
+    const providerHealth = getProviderHealth();
+    
+    // Get data freshness from database
+    const { supabaseClient } = await import('./services/supabaseClient');
+    const { data: latestProp } = await supabaseClient
+      .from('raw_props')
+      .select('created_at')
+      .order('created_at', { ascending: false })
+      .limit(1);
+    
+    const lastIngestion = latestProp?.[0]?.created_at || null;
+    const minutesSinceLastIngestion = lastIngestion 
+      ? Math.floor((Date.now() - new Date(lastIngestion).getTime()) / 60000)
+      : null;
+    
+    const dataFreshness = {
+      status: minutesSinceLastIngestion === null ? 'critical' :
+              minutesSinceLastIngestion < 15 ? 'fresh' :
+              minutesSinceLastIngestion < 60 ? 'stale' : 'critical',
+      lastIngestion,
+      minutesSinceLastIngestion,
+      statusText: minutesSinceLastIngestion === null ? 'No data ingested' :
+                  minutesSinceLastIngestion < 15 ? `Fresh data (${minutesSinceLastIngestion}m ago)` :
+                  minutesSinceLastIngestion < 60 ? `Stale data (${minutesSinceLastIngestion}m ago)` :
+                  `Critical - No data for ${minutesSinceLastIngestion}m`
+    };
+    
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.json({
+      success: true,
+      dataFreshness,
+      ...providerHealth,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Provider health check failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Health check failed',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Admin endpoints
+app.post('/admin/reload-secrets', async (req, res) => {
+  // Simple auth check
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer admin-')) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  
+  try {
+    const { SecretDriftGuard } = await import('./agents/FeedAgent/secretDriftGuard');
+    const secretGuard = new (SecretDriftGuard as any)();
+    const result = await secretGuard.reloadSecrets(req.body);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to reload secrets',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+app.post('/admin/invalidate-cache', async (req, res) => {
+  // Simple auth check
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer admin-')) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  
+  res.json({
+    success: true,
+    message: 'Cache invalidation is not implemented yet',
+    clearedNamespaces: ['raw_props', 'unified_picks'],
+    timestamp: new Date().toISOString()
+  });
+});
 
 // Root endpoint
 app.get('/', (_req, res) => {
@@ -75,7 +163,15 @@ app.get('/', (_req, res) => {
     endpoints: [
       'GET /api/health',
       'POST /api/smart-form/process',
-      'GET /api/smart-form/health'
+      'GET /api/smart-form/health',
+      'GET /api/picks/recent',
+      'GET /api/picks/stats',
+      'GET /health/provider',
+      'POST /admin/reload-secrets',
+      'POST /admin/invalidate-cache',
+      'POST /ops/ingest-now',
+      'GET /ops/status/:runId',
+      'GET /ops/health'
     ]
   });
 });
