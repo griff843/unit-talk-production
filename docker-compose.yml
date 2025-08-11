@@ -1,6 +1,5 @@
 # Unit Talk Platform - Fortune 100 Development Environment
 # Complete local development orchestration
-version: "3.8"
 
 services:
   # ==============================================
@@ -188,12 +187,12 @@ services:
       temporal:
         condition: service_started
     ports:
-      - "8088:8088"
+      - "8088:8080"
     environment:
       - TEMPORAL_ADDRESS=temporal:7233
       - TEMPORAL_CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003,http://localhost:3004
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8088"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -317,8 +316,8 @@ services:
       - TEMPORAL_SERVER_URL=temporal:7233
       - WORKER_MODE=true
       - LOG_LEVEL=debug
-      - OPTIMAL_API_KEY=optimalbet_LZsTNl2SGX0o9Bz9GhLurvSTQuAMQapp
-      - ODDS_API_KEY=8014c48eb8a05f289de049c0961ac4cf
+      - OPTIMAL_API_KEY=${OPTIMAL_API_KEY}
+      - ODDS_API_KEY=${ODDS_API_KEY}
     volumes:
       - ./apps/api/src:/app/src
       - ./apps/api/logs:/app/logs
