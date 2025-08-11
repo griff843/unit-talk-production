@@ -147,8 +147,10 @@ export async function liveGameDetectorWorkflow(): Promise<void> {
       
       for (const league of leagues) {
         try {
-          const liveGames = await feedActivities.getLiveGames({ league });
-          allLiveGames.push(...liveGames);
+          const liveGamesResult = await feedActivities.getLiveGames({ league });
+          if (liveGamesResult.success && liveGamesResult.games) {
+            allLiveGames.push(...liveGamesResult.games);
+          }
         } catch (error) {
           await operatorActivities.logError({ 
             error: `Error getting live games for ${league}: ${error}`,

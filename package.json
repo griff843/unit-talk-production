@@ -37,6 +37,7 @@
     "health:check": "bash scripts/health-check.sh",
     "alerts:test": "bash scripts/test-alerts.sh",
     "db:reset": "bash scripts/reset-database.sh",
+    "db:audit": "node scripts/db/audit.js",
     "prepare": "husky"
   },
   "keywords": [
@@ -64,6 +65,7 @@
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-security": "^3.0.1",
     "lint-staged": "^16.1.4",
+    "pg": "^8.11.5",
     "prettier": "^3.0.0",
     "typescript": "^5.0.0"
   },

@@ -41,15 +41,19 @@ export interface FeedAgentActivities {
   }>;
 
   // Live game detection
-  getLiveGames(params: { league: string }): Promise<Array<{
-    id: string;
-    league: string;
-    homeTeam: string;
-    awayTeam: string;
-    startTime: Date;
-    status: 'scheduled' | 'live' | 'completed';
-    inningPeriod?: string;
-  }>>;
+  getLiveGames(params: { league: string }): Promise<{
+    success: boolean;
+    games: Array<{
+      id: string;
+      league: string;
+      homeTeam: string;
+      awayTeam: string;
+      startTime: Date;
+      status: 'scheduled' | 'live' | 'completed';
+      inningPeriod?: string;
+    }>;
+    error?: string;
+  }>;
 
   // Data processing
   deduplicateAndNormalize(params: {

@@ -199,7 +199,7 @@ export function getCreditUsageStatus() {
  * Make authenticated API request to The Odds API
  */
 async function makeOddsApiRequest<T>(endpoint: string, params?: Record<string, any>): Promise<T> {
-  const apiKey = process.env['ODDS_API_KEY'] || '8014c48eb8a05f289de049c0961ac4cf';
+  const apiKey = process.env['ODDS_API_KEY'];
   
   if (!apiKey) {
     throw new Error('ODDS_API_KEY environment variable is required');
@@ -248,11 +248,17 @@ async function makeOddsApiRequest<T>(endpoint: string, params?: Record<string, a
 
       // Handle specific error codes
       if (status === 401) {
+        // Check if it's a credit exhaustion issue
+        if (responseData?.error_code === 'OUT_OF_USAGE_CREDITS') {
+          throw new Error('OddsAPI usage quota exceeded - credits exhausted');
+        }
         throw new Error('Invalid API key for The Odds API');
       } else if (status === 429) {
         throw new Error('Rate limit exceeded for The Odds API');
       } else if (status === 422) {
         throw new Error(`Invalid request parameters: ${JSON.stringify(responseData)}`);
+      } else if (responseData?.error_code === 'OUT_OF_USAGE_CREDITS') {
+        throw new Error('OddsAPI usage quota exceeded - credits exhausted');
       }
 
       throw new Error(`Odds API request failed (${status}): ${responseData?.message || error.message}`);
@@ -569,7 +575,7 @@ export class OddsApiClient {
   private apiKey: string;
   
   constructor(apiKey?: string) {
-    this.apiKey = apiKey || process.env['ODDS_API_KEY'] || '8014c48eb8a05f289de049c0961ac4cf';
+    this.apiKey = apiKey || process.env['ODDS_API_KEY']!;
   }
 
   async fetchAvailableSports(): Promise<OddsApiSport[]> {

@@ -27,8 +27,8 @@ if (typeof window !== 'undefined') {
       publicSupabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
     },
     apiKeys: {
-      optimal: process.env.OPTIMAL_API_KEY || 'optimalbet_T0PpLGK63PPwE8xSnQNgpZcpi3HoN4UC',
-      odds: process.env.ODDS_API_KEY || '8014c48eb8a05f289de049c0961ac4cf',
+      optimal: process.env.OPTIMAL_API_KEY || '',
+      odds: process.env.ODDS_API_KEY || '',
       sync: process.env.SYNC_API_KEY || '',
     },
     urls: {
@@ -72,8 +72,8 @@ if (typeof window !== 'undefined') {
       publicSupabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
     },
     apiKeys: {
-      optimal: process.env.OPTIMAL_API_KEY || 'optimalbet_T0PpLGK63PPwE8xSnQNgpZcpi3HoN4UC',
-      odds: process.env.ODDS_API_KEY || '8014c48eb8a05f289de049c0961ac4cf',
+      optimal: process.env.OPTIMAL_API_KEY || '',
+      odds: process.env.ODDS_API_KEY || '',
       sync: process.env.SYNC_API_KEY || '',
     },
     urls: {

@@ -103,4 +103,29 @@ export async function logUSPError(params: { uspType: string; error: string; cycl
       message: `Failed to log USP error: ${errorMessage}`
     };
   }
+}
+
+export async function logError(params: { error: string; timestamp?: Date | string; context?: any }): Promise<{ success: boolean; message: string }> {
+  const agent = OperatorAgent.getInstance(getDependencies());
+  
+  try {
+    const timestampStr = params.timestamp instanceof Date ? params.timestamp.toISOString() : (params.timestamp || new Date().toISOString());
+    console.log(`[OperatorAgent] Logging error: ${params.error} at ${timestampStr}`);
+    
+    // Log the error for monitoring and alerting
+    await agent.handleCommand(`error logged: ${params.error} - timestamp: ${timestampStr} ${params.context ? '- context: ' + JSON.stringify(params.context) : ''}`);
+    
+    return {
+      success: true,
+      message: 'Error logged successfully'
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`[OperatorAgent] Failed to log error:`, errorMessage);
+    
+    return {
+      success: false,
+      message: `Failed to log error: ${errorMessage}`
+    };
+  }
 } 

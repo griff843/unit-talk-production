@@ -34,8 +34,8 @@ class SecretDriftGuard {
    */
   private loadSecretsFromEnv(): SecretConfig {
     return {
-      odds_api_key: process.env.ODDS_API_KEY || '8014c48eb8a05f289de049c0961ac4cf',
-      optimal_api_key: process.env.OPTIMAL_API_KEY || 'optimalbet_LZsTNl2SGX0o9Bz9GhLurvSTQuAMQapp'
+      odds_api_key: process.env.ODDS_API_KEY || '',
+      optimal_api_key: process.env.OPTIMAL_API_KEY || ''
     };
   }
 

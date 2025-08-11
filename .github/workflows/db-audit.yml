@@ -1,0 +1,27 @@
+name: DB Audit (Supabase)
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm run db:audit
+        env:
+          SUPABASE_DB_URL_STAGING: ${{ secrets.SUPABASE_DB_URL_STAGING }}
+          SUPABASE_DB_URL_POOLER: ${{ secrets.SUPABASE_DB_URL_POOLER }}
+      - name: Commit report
+        run: |
+          if [ -n "$(git status --porcelain reports)" ]; then
+            git config user.email "bot@unit-talk.com"
+            git config user.name "UnitTalk-Bot"
+            git add reports
+            git commit -m "chore(audit): add DB audit report [skip ci]"
+            git push || true
+          fi
