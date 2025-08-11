@@ -13,7 +13,9 @@ import {
   AlertCircle,
   Settings,
   Shield,
-  Eye
+  Eye,
+  Calculator,
+  TrendingUp
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -33,9 +35,17 @@ type DataFreshness = {
   statusText: string;
 }
 
+type SettlementStats = {
+  unsettledCount: number;
+  settledCount24h: number;
+  successRate: number;
+  lastRun: string | null;
+}
+
 export default function DashboardPage() {
   const [pipelineHealth, setPipelineHealth] = useState<PipelineHealthData | null>(null)
   const [providerHealth, setProviderHealth] = useState<{ dataFreshness: DataFreshness } | null>(null)
+  const [settlementStats, setSettlementStats] = useState<SettlementStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -64,6 +74,15 @@ export default function DashboardPage() {
           setProviderHealth(providerData)
         } else {
           console.warn('Provider health endpoint not available')
+        }
+        
+        // Fetch settlement statistics
+        const settlementResponse = await fetch('/api/settlement/stats')
+        if (settlementResponse.ok) {
+          const settlementData = await settlementResponse.json()
+          setSettlementStats(settlementData)
+        } else {
+          console.warn('Settlement stats endpoint not available')
         }
         
         setError(null)
@@ -106,6 +125,13 @@ export default function DashboardPage() {
       if (providerResponse.ok) {
         const providerData = await providerResponse.json()
         setProviderHealth(providerData)
+      }
+      
+      // Fetch settlement statistics
+      const settlementResponse = await fetch('/api/settlement/stats')
+      if (settlementResponse.ok) {
+        const settlementData = await settlementResponse.json()
+        setSettlementStats(settlementData)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
@@ -280,6 +306,70 @@ export default function DashboardPage() {
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 Overall pipeline status
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Settlement Pipeline Metrics */}
+      {settlementStats && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Unsettled Picks</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{settlementStats.unsettledCount.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Awaiting automated settlement
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Settled (24h)</CardTitle>
+              <Calculator className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{settlementStats.settledCount24h.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Picks settled in last 24 hours
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{(settlementStats.successRate * 100).toFixed(1)}%</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Settlement pipeline accuracy
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Last Run</CardTitle>
+              <Activity className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center space-x-2">
+                <div className="text-lg font-bold">
+                  {settlementStats.lastRun 
+                    ? new Date(settlementStats.lastRun).toLocaleTimeString()
+                    : 'Never'
+                  }
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Last settlement pipeline run
               </p>
             </CardContent>
           </Card>

@@ -11,7 +11,7 @@ async function tryConnect(url) {
   let sslConfig = { rejectUnauthorized: false };
   
   // For pooler connections, use more lenient SSL
-  if (url.includes('pooler.supabase.com')) {
+  if (url.includes('pooler.supabase.com') || url.includes('pgbouncer=true')) {
     sslConfig = {
       rejectUnauthorized: false,
       requestCert: false,
@@ -21,7 +21,11 @@ async function tryConnect(url) {
   
   const client = new Client({
     connectionString: url,
-    ssl: sslConfig
+    ssl: sslConfig,
+    connectionTimeoutMillis: 10000,
+    query_timeout: 60000,
+    statement_timeout: 60000,
+    idle_in_transaction_session_timeout: 60000
   });
   
   await client.connect();

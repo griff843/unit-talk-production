@@ -38,6 +38,9 @@
     "alerts:test": "bash scripts/test-alerts.sh",
     "db:reset": "bash scripts/reset-database.sh",
     "db:audit": "node scripts/db/audit.js",
+    "settlement:backfill": "npx tsx scripts/settlement-backfill.ts",
+    "settlement:test": "npx tsx scripts/settlement-backfill.ts --league=MLB --max=10 --dry-run --verbose",
+    "settlement:migrate": "npm run db:migrate && node scripts/db/create-functions.js",
     "prepare": "husky"
   },
   "keywords": [

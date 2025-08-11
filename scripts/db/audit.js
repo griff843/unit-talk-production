@@ -5,20 +5,26 @@ const fs = require("fs");
 const path = require("path");
 const { tryConnect } = require('./pgConnect');
 
-// Get database URL with fallback support
-const raw = process.env.SUPABASE_DB_URL_STAGING || 
-           process.env.DATABASE_URL || 
-           process.env.SUPABASE_DATABASE_URL ||
-           '';
+// Get database URL with fallback support - prefer pooler for better connectivity
+const pooler = process.env.SUPABASE_DB_URL_POOLER || '';
+const direct = process.env.DATABASE_URL || 
+               process.env.SUPABASE_DB_URL_STAGING || 
+               process.env.SUPABASE_DATABASE_URL ||
+               '';
+
+// Try pooler first if available (better connectivity in restricted environments)
+const raw = pooler || direct;
 
 if (!raw) {
-  console.error('Missing SUPABASE_DB_URL_STAGING or DATABASE_URL');
+  console.error('Missing SUPABASE_DB_URL_POOLER or DATABASE_URL');
   console.error('Please set one of these environment variables in your .env file');
   process.exit(1);
 }
 
-// Ensure SSL mode is set
-const url = raw.includes('sslmode=') ? raw : raw + (raw.includes('?') ? '&' : '?') + 'sslmode=require';
+// For pooler connections, ensure pgbouncer param; for direct, ensure sslmode
+const url = pooler ? 
+  (pooler.includes('pgbouncer=true') ? pooler : pooler + (pooler.includes('?') ? '&' : '?') + 'pgbouncer=true') :
+  (raw.includes('sslmode=') ? raw : raw + (raw.includes('?') ? '&' : '?') + 'sslmode=require');
 
 // Redacted log for debugging
 const redacted = url.replace(/:\/\/([^:]+):([^@]+)@/, '://$1:***@');
@@ -36,24 +42,22 @@ function w(s) { fs.appendFileSync(outFile, s + "\n"); }
   try {
     client = await tryConnect(url);
   } catch (e) {
-    console.error('[audit] Direct connect failed:', e.code || e.message);
+    console.error('[audit] Connect failed:', e.code || e.message);
     
-    // Fallback: optional pooler URL if provided
-    const pooler = process.env.SUPABASE_DB_URL_POOLER || '';
-    if (!pooler) {
-      console.error('[audit] No SUPABASE_DB_URL_POOLER provided for fallback');
-      process.exit(1);
-    }
-    
-    // Pooler connections might not need sslmode parameter
-    const poolerUrl = pooler;
-    const redactedPool = poolerUrl.replace(/:\/\/([^:]+):([^@]+)@/, '://$1:***@');
-    console.log('[audit] Trying pooler:', redactedPool);
-    
-    try {
-      client = await tryConnect(poolerUrl);
-    } catch (poolerError) {
-      console.error('[audit] Pooler connect also failed:', poolerError.code || poolerError.message);
+    // If we were using pooler, try direct as fallback
+    if (pooler && direct) {
+      const fallbackUrl = direct.includes('sslmode=') ? direct : 
+                          direct + (direct.includes('?') ? '&' : '?') + 'sslmode=require';
+      const redactedFallback = fallbackUrl.replace(/:\/\/([^:]+):([^@]+)@/, '://$1:***@');
+      console.log('[audit] Trying fallback direct URL:', redactedFallback);
+      
+      try {
+        client = await tryConnect(fallbackUrl);
+      } catch (fallbackError) {
+        console.error('[audit] Fallback also failed:', fallbackError.code || fallbackError.message);
+        process.exit(1);
+      }
+    } else {
       process.exit(1);
     }
   }
