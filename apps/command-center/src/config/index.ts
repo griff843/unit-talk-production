@@ -1,0 +1,332 @@
+/**
+ * Unit Talk Command Center - Configuration Adapter
+ * 
+ * This adapter provides Command Center-specific configuration by importing from the
+ * centralized environment configuration. This follows SaaS-level monorepo
+ * best practices by maintaining a single source of truth while providing
+ * application-specific interfaces.
+ */
+
+// Import centralized configuration - SERVER SIDE ONLY
+let env: any;
+
+// Check if we're in browser environment (client-side)
+if (typeof window !== 'undefined') {
+  // Browser environment - use simple client-safe config
+  console.log('🔧 Using client-side configuration (browser environment)');
+  env = {
+    ports: { commandCenter: 3015 },
+    environment: 'development',
+    logLevel: 'info',
+    debugMode: false,
+    database: {
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+      supabaseServiceRoleKey: '', // Not available in browser
+      publicSupabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      publicSupabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+    },
+    apiKeys: {
+      optimal: process.env.OPTIMAL_API_KEY || 'optimalbet_T0PpLGK63PPwE8xSnQNgpZcpi3HoN4UC',
+      odds: process.env.ODDS_API_KEY || '8014c48eb8a05f289de049c0961ac4cf',
+      sync: process.env.SYNC_API_KEY || '',
+    },
+    urls: {
+      app: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3015',
+      platformApi: process.env.NEXT_PUBLIC_PLATFORM_API_URL || 'http://localhost:3000',
+      analytics: process.env.NEXT_PUBLIC_ANALYTICS_API_URL || 'http://localhost:3005',
+      agents: process.env.AGENTS_BASE_URL || 'http://localhost:3001',
+      production: process.env.UNIT_TALK_PRODUCTION_URL || 'http://localhost:3000',
+      nextAuth: process.env.NEXTAUTH_URL || 'http://localhost:3015',
+    },
+    performance: {
+      redis: { url: 'redis://localhost:6379' },
+      cacheEnabled: true,
+      rateLimitEnabled: true,
+      securityHeadersEnabled: true,
+    },
+    security: {
+      nextAuthSecret: 'client-side-placeholder',
+    },
+    features: {
+      analyticsEnabled: true,
+      capperTrackingEnabled: true,
+    },
+    isProduction: false,
+    isDevelopment: true,
+    isStaging: false,
+  };
+} else {
+  // Server-side environment - use process.env directly for now to avoid import issues
+  console.log('🔧 Using server-side configuration from process.env');
+  env = {
+    ports: { commandCenter: Number(process.env.COMMAND_CENTER_PORT) || 3015 },
+    environment: process.env.NODE_ENV || 'development',
+    logLevel: process.env.LOG_LEVEL || 'info',
+    debugMode: process.env.DEBUG_MODE === 'true',
+    database: {
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+      supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+      publicSupabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      publicSupabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+    },
+    apiKeys: {
+      optimal: process.env.OPTIMAL_API_KEY || 'optimalbet_T0PpLGK63PPwE8xSnQNgpZcpi3HoN4UC',
+      odds: process.env.ODDS_API_KEY || '8014c48eb8a05f289de049c0961ac4cf',
+      sync: process.env.SYNC_API_KEY || '',
+    },
+    urls: {
+      app: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3015',
+      platformApi: process.env.NEXT_PUBLIC_PLATFORM_API_URL || 'http://localhost:3000',
+      analytics: process.env.NEXT_PUBLIC_ANALYTICS_API_URL || 'http://localhost:3005',
+      agents: process.env.AGENTS_BASE_URL || 'http://localhost:3001',
+      production: process.env.UNIT_TALK_PRODUCTION_URL || 'http://localhost:3000',
+      nextAuth: process.env.NEXTAUTH_URL || 'http://localhost:3015',
+    },
+    performance: {
+      redis: { url: process.env.REDIS_URL || 'redis://localhost:6379' },
+      cacheEnabled: process.env.CACHE_ENABLED === 'true',
+      rateLimitEnabled: process.env.RATE_LIMIT_ENABLED !== 'false',
+      securityHeadersEnabled: process.env.SECURITY_HEADERS_ENABLED !== 'false',
+    },
+    security: {
+      nextAuthSecret: process.env.NEXTAUTH_SECRET || 'fallback-secret-for-dev',
+    },
+    features: {
+      analyticsEnabled: process.env.ANALYTICS_ENABLED !== 'false',
+      capperTrackingEnabled: process.env.CAPPER_TRACKING_ENABLED !== 'false',
+    },
+    isProduction: process.env.NODE_ENV === 'production',
+    isDevelopment: process.env.NODE_ENV === 'development',
+    isStaging: false,
+  };
+}
+
+// =============================================================================
+// COMMAND CENTER-SPECIFIC CONFIGURATION INTERFACE
+// =============================================================================
+
+export interface CommandCenterConfiguration {
+  // Server Configuration
+  port: number;
+  nodeEnv: string;
+  logLevel: string;
+  debugMode: boolean;
+
+  // Next.js Configuration
+  nextjs: {
+    appUrl: string;
+    nextAuthUrl: string;
+    nextAuthSecret: string;
+  };
+
+  // Database Configuration (v3.0.0 Unified Schema)
+  database: {
+    supabaseUrl: string;
+    supabaseAnonKey: string;
+    supabaseServiceRoleKey: string;
+    publicSupabaseUrl: string;
+    publicSupabaseAnonKey: string;
+  };
+
+  // External API Keys (CRITICAL FOR MONITORING)
+  apiKeys: {
+    optimal: string;
+    odds: string;
+    sync: string;
+  };
+
+  // Platform Integration URLs
+  urls: {
+    platformApi: string;
+    analyticsApi: string;
+    agentsBase: string;
+    production: string;
+  };
+
+  // Redis & Caching
+  redis: {
+    url: string;
+    enabled: boolean;
+  };
+
+  // Feature Flags
+  features: {
+    analyticsEnabled: boolean;
+    capperTrackingEnabled: boolean;
+    performanceMonitoring: boolean;
+    realTimeUpdates: boolean;
+  };
+
+  // Performance Settings
+  performance: {
+    rateLimitEnabled: boolean;
+    cacheEnabled: boolean;
+    securityHeadersEnabled: boolean;
+  };
+}
+
+// =============================================================================
+// COMMAND CENTER CONFIGURATION IMPLEMENTATION
+// =============================================================================
+
+class CommandCenterConfig implements CommandCenterConfiguration {
+  // Server Configuration
+  get port(): number {
+    return env.ports.commandCenter;
+  }
+
+  get nodeEnv(): string {
+    return env.environment;
+  }
+
+  get logLevel(): string {
+    return env.logLevel;
+  }
+
+  get debugMode(): boolean {
+    return env.debugMode;
+  }
+
+  // Next.js Configuration
+  get nextjs() {
+    return {
+      appUrl: env.urls.app,
+      nextAuthUrl: env.urls.nextAuth,
+      nextAuthSecret: env.security.nextAuthSecret,
+    };
+  }
+
+  // Database Configuration (v3.0.0 Unified Schema)
+  get database() {
+    return {
+      supabaseUrl: env.database.supabaseUrl,
+      supabaseAnonKey: env.database.supabaseAnonKey,
+      supabaseServiceRoleKey: env.database.supabaseServiceRoleKey,
+      publicSupabaseUrl: env.database.publicSupabaseUrl,
+      publicSupabaseAnonKey: env.database.publicSupabaseAnonKey,
+    };
+  }
+
+  // External API Keys (CRITICAL FOR MONITORING)
+  get apiKeys() {
+    return {
+      optimal: env.apiKeys.optimal,
+      odds: env.apiKeys.odds,
+      sync: env.apiKeys.sync,
+    };
+  }
+
+  // Platform Integration URLs
+  get urls() {
+    return {
+      platformApi: env.urls.platformApi,
+      analyticsApi: env.urls.analytics,
+      agentsBase: env.urls.agents,
+      production: env.urls.production,
+    };
+  }
+
+  // Redis & Caching
+  get redis() {
+    return {
+      url: env.performance.redis.url,
+      enabled: env.performance.cacheEnabled,
+    };
+  }
+
+  // Feature Flags
+  get features() {
+    return {
+      analyticsEnabled: env.features.analyticsEnabled,
+      capperTrackingEnabled: env.features.capperTrackingEnabled,
+      performanceMonitoring: true, // Always enabled for Command Center
+      realTimeUpdates: true, // Always enabled for Command Center
+    };
+  }
+
+  // Performance Settings
+  get performance() {
+    return {
+      rateLimitEnabled: env.performance.rateLimitEnabled,
+      cacheEnabled: env.performance.cacheEnabled,
+      securityHeadersEnabled: env.performance.securityHeadersEnabled,
+    };
+  }
+
+  // Convenience Methods
+  get isProduction(): boolean {
+    return env.isProduction;
+  }
+
+  get isDevelopment(): boolean {
+    return env.isDevelopment;
+  }
+
+  get isStaging(): boolean {
+    return env.isStaging;
+  }
+}
+
+// =============================================================================
+// SINGLETON EXPORT
+// =============================================================================
+
+export const commandCenterConfig = new CommandCenterConfig();
+export default commandCenterConfig;
+
+// =============================================================================
+// ENVIRONMENT VARIABLES FOR NEXT.JS (CLIENT-SIDE ACCESS)
+// =============================================================================
+
+/**
+ * Environment variables that need to be available in the browser
+ * These are prefixed with NEXT_PUBLIC_ and sourced from the centralized config
+ */
+export const publicEnvVars = {
+  NEXT_PUBLIC_SUPABASE_URL: env.database.publicSupabaseUrl,
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: env.database.publicSupabaseAnonKey,
+  NEXT_PUBLIC_PLATFORM_API_URL: env.urls.platformApi,
+  NEXT_PUBLIC_ANALYTICS_API_URL: env.urls.analytics,
+  NEXT_PUBLIC_APP_URL: env.urls.app,
+};
+
+// =============================================================================
+// LEGACY SUPPORT (for existing .env.local usage)
+// =============================================================================
+
+/**
+ * Legacy environment variable mapping for gradual migration
+ * @deprecated Use commandCenterConfig instead
+ */
+export const legacyConfig = {
+  // Supabase Configuration
+  NEXT_PUBLIC_SUPABASE_URL: commandCenterConfig.database.publicSupabaseUrl,
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: commandCenterConfig.database.publicSupabaseAnonKey,
+  SUPABASE_SERVICE_ROLE_KEY: commandCenterConfig.database.supabaseServiceRoleKey,
+
+  // Platform APIs
+  NEXT_PUBLIC_PLATFORM_API_URL: commandCenterConfig.urls.platformApi,
+  UNIT_TALK_PRODUCTION_URL: commandCenterConfig.urls.production,
+  SYNC_API_KEY: commandCenterConfig.apiKeys.sync,
+
+  // Analytics
+  NEXT_PUBLIC_ANALYTICS_API_URL: commandCenterConfig.urls.analyticsApi,
+
+  // Command Center Configuration
+  NEXT_PUBLIC_APP_URL: commandCenterConfig.nextjs.appUrl,
+  NEXTAUTH_SECRET: commandCenterConfig.nextjs.nextAuthSecret,
+  NEXTAUTH_URL: commandCenterConfig.nextjs.nextAuthUrl,
+
+  // Redis
+  REDIS_URL: commandCenterConfig.redis.url,
+
+  // Data Provider API Keys
+  OPTIMAL_API_KEY: commandCenterConfig.apiKeys.optimal,
+  ODDS_API_KEY: commandCenterConfig.apiKeys.odds,
+
+  // Environment
+  NODE_ENV: commandCenterConfig.nodeEnv,
+  DEBUG: commandCenterConfig.debugMode,
+};

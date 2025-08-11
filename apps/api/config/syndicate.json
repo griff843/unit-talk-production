@@ -1,0 +1,301 @@
+{
+  "syndicate": {
+    "enabled": true,
+    "intervals": {
+      "live_mode_ms": 120000,
+      "off_peak_ms": 600000,
+      "health_check_ms": 120000,
+      "quota_check_ms": 300000
+    },
+    "timeouts": {
+      "critical_activities_ms": 30000,
+      "fast_activities_ms": 60000,
+      "standard_activities_ms": 300000,
+      "extended_activities_ms": 600000
+    },
+    "performance": {
+      "max_cycle_time_live_ms": 110000,
+      "max_cycle_time_off_peak_ms": 300000,
+      "discord_delivery_target_ms": 30000,
+      "api_response_target_ms": 5000
+    },
+    "leagues": {
+      "enabled": ["MLB", "NBA", "NFL", "NHL", "NCAAB", "NCAAF"],
+      "peak_hours": {
+        "MLB": { "start": 13, "end": 23 },
+        "NBA": { "start": 19, "end": 23 },
+        "NFL": { "start": 13, "end": 20, "days": [0] },
+        "NHL": { "start": 19, "end": 23 },
+        "NCAAB": { "start": 18, "end": 22 },
+        "NCAAF": { "start": 12, "end": 23, "days": [6] }
+      }
+    },
+    "usp_detection": {
+      "steam_movement": {
+        "threshold_live": 0.5,
+        "threshold_off_peak": 1.0,
+        "time_window_seconds": 120
+      },
+      "line_movement": {
+        "significant_threshold_live": 1.0,
+        "significant_threshold_off_peak": 2.0,
+        "time_window_seconds": 120
+      },
+      "hedge_opportunities": {
+        "min_profit_margin": 0.05,
+        "enabled": true
+      },
+      "middle_opportunities": {
+        "min_gap": 2.0,
+        "enabled": true
+      },
+      "stale_lines": {
+        "max_age_live_seconds": 300,
+        "max_age_off_peak_seconds": 600,
+        "enabled": true
+      },
+      "injury_impacts": {
+        "sources": ["ESPN", "RotoBaller", "FantasyPros"],
+        "enabled": true
+      },
+      "suspicious_activity": {
+        "patterns": ["unusual_volume", "coordinated_betting", "line_manipulation"],
+        "enabled": true
+      }
+    },
+    "api_quotas": {
+      "optimal": {
+        "hourly_limit": 900,
+        "warning_threshold": 0.8,
+        "critical_threshold": 0.95,
+        "fallback_providers": ["sgo", "oddsapi"]
+      },
+      "sgo": {
+        "hourly_limit": 500,
+        "warning_threshold": 0.8,
+        "critical_threshold": 0.95
+      },
+      "oddsapi": {
+        "hourly_limit": 500,
+        "warning_threshold": 0.8,
+        "critical_threshold": 0.95
+      }
+    },
+    "discord": {
+      "webhooks": {
+        "approved": "${DISCORD_APPROVED_WEBHOOK_URL}",
+        "alerts": "${DISCORD_ALERTS_WEBHOOK_URL}",
+        "health": "${DISCORD_HEALTH_WEBHOOK_URL}"
+      },
+      "delivery_targets": {
+        "critical_ms": 15000,
+        "high_ms": 30000,
+        "medium_ms": 60000
+      },
+      "batch_sizes": {
+        "critical": 1,
+        "high": 3,
+        "medium": 5
+      }
+    },
+    "health_monitoring": {
+      "database": {
+        "max_response_time_ms": 1000,
+        "max_connections": 100
+      },
+      "system": {
+        "max_memory_usage": 0.8,
+        "max_cpu_usage": 0.8,
+        "max_disk_usage": 0.9
+      },
+      "workflows": {
+        "max_failure_rate": 0.1,
+        "max_execution_time_ms": 300000
+      }
+    },
+    "maintenance": {
+      "daily_cleanup": {
+        "hour": 2,
+        "minute": 0,
+        "log_retention_days": 30,
+        "metrics_retention_days": 90,
+        "raw_props_retention_days": 7
+      },
+      "weekly_reports": {
+        "day": 0,
+        "hour": 3,
+        "minute": 0,
+        "include_metrics": [
+          "ingestion_performance",
+          "grading_accuracy",
+          "alert_delivery_times",
+          "api_usage",
+          "system_health",
+          "usp_detection_rates"
+        ]
+      }
+    },
+    "emergency_controls": {
+      "auto_pause_on_errors": true,
+      "max_consecutive_failures": 5,
+      "pause_duration_minutes": 10,
+      "escalation_thresholds": {
+        "warning": 3,
+        "critical": 5,
+        "emergency": 10
+      }
+    },
+    "logging": {
+      "level": "info",
+      "structured": true,
+      "redaction": {
+        "enabled": true,
+        "fields": ["api_keys", "webhooks", "passwords"]
+      },
+      "metrics": {
+        "enabled": true,
+        "prometheus_port": 9090,
+        "health_check_port": 9091
+      }
+    }
+  },
+  "temporal": {
+    "namespace": "unit-talk-syndicate",
+    "task_queue": "syndicate-operations",
+    "schedules": {
+      "main_scheduler": {
+        "id": "syndicate-main-scheduler",
+        "spec": {
+          "intervals": [
+            {
+              "every": "2m",
+              "comment": "Live mode - 2 minute intervals"
+            }
+          ]
+        },
+        "action": {
+          "type": "start_workflow",
+          "workflow_type": "syndicateSchedulerWorkflow"
+        },
+        "policies": {
+          "overlap_policy": "SKIP",
+          "catchup_window": "1m"
+        }
+      },
+      "live_game_detector": {
+        "id": "live-game-detector",
+        "spec": {
+          "intervals": [
+            {
+              "every": "30s",
+              "comment": "Live game detection every 30 seconds"
+            }
+          ]
+        },
+        "action": {
+          "type": "start_workflow",
+          "workflow_type": "liveGameDetectorWorkflow"
+        }
+      },
+      "api_quota_monitor": {
+        "id": "api-quota-monitor",
+        "spec": {
+          "intervals": [
+            {
+              "every": "5m",
+              "comment": "API quota monitoring every 5 minutes"
+            }
+          ]
+        },
+        "action": {
+          "type": "start_workflow",
+          "workflow_type": "apiQuotaMonitorWorkflow"
+        }
+      },
+      "system_health_monitor": {
+        "id": "system-health-monitor",
+        "spec": {
+          "intervals": [
+            {
+              "every": "2m",
+              "comment": "System health monitoring every 2 minutes"
+            }
+          ]
+        },
+        "action": {
+          "type": "start_workflow",
+          "workflow_type": "systemHealthMonitorWorkflow"
+        }
+      },
+      "daily_cleanup": {
+        "id": "daily-cleanup",
+        "spec": {
+          "calendars": [
+            {
+              "comment": "Daily cleanup at 2 AM",
+              "second": "0",
+              "minute": "0",
+              "hour": "2"
+            }
+          ]
+        },
+        "action": {
+          "type": "start_workflow",
+          "workflow_type": "dailyCleanupWorkflow"
+        }
+      },
+      "weekly_reports": {
+        "id": "weekly-performance-reports",
+        "spec": {
+          "calendars": [
+            {
+              "comment": "Weekly reports on Sunday at 3 AM",
+              "second": "0",
+              "minute": "0",
+              "hour": "3",
+              "day_of_week": "0"
+            }
+          ]
+        },
+        "action": {
+          "type": "start_workflow",
+          "workflow_type": "weeklyPerformanceReportWorkflow"
+        }
+      },
+      "league_peak_monitor": {
+        "id": "league-peak-monitor",
+        "spec": {
+          "intervals": [
+            {
+              "every": "30m",
+              "comment": "League peak monitoring every 30 minutes"
+            }
+          ]
+        },
+        "action": {
+          "type": "start_workflow",
+          "workflow_type": "leaguePeakMonitorWorkflow"
+        }
+      }
+    }
+  },
+  "environment": {
+    "required_vars": [
+      "SUPABASE_URL",
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "OPTIMAL_API_KEY",
+      "DISCORD_APPROVED_WEBHOOK_URL",
+      "OPENAI_API_KEY",
+      "TEMPORAL_TASK_QUEUE"
+    ],
+    "optional_vars": [
+      "SGO_API_KEY",
+      "ODDS_API_KEY",
+      "DISCORD_ALERTS_WEBHOOK_URL",
+      "DISCORD_HEALTH_WEBHOOK_URL",
+      "NOTION_API_KEY",
+      "MONITOR_PORT",
+      "HEALTH_CHECK_PORT"
+    ]
+  }
+}

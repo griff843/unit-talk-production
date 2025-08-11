@@ -1,0 +1,96 @@
+src/agents/UserRetentionAgent/index.ts(258,67): error TS2339: Property 'type' does not exist on type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/index.ts(283,67): error TS2339: Property 'type' does not exist on type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(93,56): error TS2339: Property 'type' does not exist on type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(145,50): error TS2345: Argument of type 'RetentionStrategyData' is not assignable to parameter of type 'RetentionStrategy'.
+  Type 'RetentionStrategyData' is missing the following properties from type 'RetentionStrategy': logger, strategies, campaigns, strategyPerformance, and 25 more.
+src/agents/UserRetentionAgent/retentionStrategy.ts(148,53): error TS2345: Argument of type 'RetentionStrategyData' is not assignable to parameter of type 'RetentionStrategy'.
+  Type 'RetentionStrategyData' is missing the following properties from type 'RetentionStrategy': logger, strategies, campaigns, strategyPerformance, and 25 more.
+src/agents/UserRetentionAgent/retentionStrategy.ts(151,52): error TS2345: Argument of type 'RetentionStrategyData' is not assignable to parameter of type 'RetentionStrategy'.
+  Type 'RetentionStrategyData' is missing the following properties from type 'RetentionStrategy': logger, strategies, campaigns, strategyPerformance, and 25 more.
+src/agents/UserRetentionAgent/retentionStrategy.ts(154,53): error TS2345: Argument of type 'RetentionStrategyData' is not assignable to parameter of type 'RetentionStrategy'.
+  Type 'RetentionStrategyData' is missing the following properties from type 'RetentionStrategy': logger, strategies, campaigns, strategyPerformance, and 25 more.
+src/agents/UserRetentionAgent/retentionStrategy.ts(157,52): error TS2345: Argument of type 'RetentionStrategyData' is not assignable to parameter of type 'RetentionStrategy'.
+  Type 'RetentionStrategyData' is missing the following properties from type 'RetentionStrategy': logger, strategies, campaigns, strategyPerformance, and 25 more.
+src/agents/UserRetentionAgent/retentionStrategy.ts(160,52): error TS2345: Argument of type 'RetentionStrategyData' is not assignable to parameter of type 'RetentionStrategy'.
+  Type 'RetentionStrategyData' is missing the following properties from type 'RetentionStrategy': logger, strategies, campaigns, strategyPerformance, and 25 more.
+src/agents/UserRetentionAgent/retentionStrategy.ts(163,52): error TS2345: Argument of type 'RetentionStrategyData' is not assignable to parameter of type 'RetentionStrategy'.
+  Type 'RetentionStrategyData' is missing the following properties from type 'RetentionStrategy': logger, strategies, campaigns, strategyPerformance, and 25 more.
+src/agents/UserRetentionAgent/retentionStrategy.ts(166,57): error TS2345: Argument of type 'RetentionStrategyData' is not assignable to parameter of type 'RetentionStrategy'.
+  Type 'RetentionStrategyData' is missing the following properties from type 'RetentionStrategy': logger, strategies, campaigns, strategyPerformance, and 25 more.
+src/agents/UserRetentionAgent/retentionStrategy.ts(213,9): error TS2353: Object literal may only specify known properties, and 'id' does not exist in type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(245,9): error TS2353: Object literal may only specify known properties, and 'id' does not exist in type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(277,9): error TS2353: Object literal may only specify known properties, and 'id' does not exist in type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(308,9): error TS2353: Object literal may only specify known properties, and 'id' does not exist in type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(339,9): error TS2353: Object literal may only specify known properties, and 'id' does not exist in type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(371,9): error TS2353: Object literal may only specify known properties, and 'id' does not exist in type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(405,36): error TS2339: Property 'id' does not exist on type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(405,40): error TS2345: Argument of type 'RetentionStrategy' is not assignable to parameter of type 'RetentionStrategyData'.
+  Type 'RetentionStrategy' is missing the following properties from type 'RetentionStrategyData': id, type, name, description, and 8 more.
+src/agents/UserRetentionAgent/retentionStrategy.ts(453,27): error TS2345: Argument of type 'RetentionStrategyData' is not assignable to parameter of type 'RetentionStrategy'.
+  Type 'RetentionStrategyData' is missing the following properties from type 'RetentionStrategy': logger, strategies, campaigns, strategyPerformance, and 25 more.
+src/agents/UserRetentionAgent/retentionStrategy.ts(462,27): error TS2345: Argument of type 'RetentionStrategyData' is not assignable to parameter of type 'RetentionStrategy'.
+  Type 'RetentionStrategyData' is missing the following properties from type 'RetentionStrategy': logger, strategies, campaigns, strategyPerformance, and 25 more.
+src/agents/UserRetentionAgent/retentionStrategy.ts(486,36): error TS2339: Property 'effectiveness' does not exist on type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(487,35): error TS2339: Property 'urgency' does not exist on type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(488,54): error TS2339: Property 'cost' does not exist on type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(489,35): error TS2339: Property 'targetSegment' does not exist on type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(505,5): error TS2322: Type '{ content: any; }[]' is not assignable to type 'RetentionStrategy[]'.
+  Type '{ content: any; }' is missing the following properties from type 'RetentionStrategy': logger, strategies, campaigns, strategyPerformance, and 25 more.
+src/agents/UserRetentionAgent/retentionStrategy.ts(508,21): error TS2339: Property 'content' does not exist on type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(510,23): error TS2339: Property 'content' does not exist on type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(524,28): error TS2339: Property 'id' does not exist on type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(525,26): error TS2339: Property 'content' does not exist on type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(535,28): error TS2339: Property 'id' does not exist on type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(536,33): error TS2339: Property 'content' does not exist on type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(546,28): error TS2339: Property 'id' does not exist on type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(547,26): error TS2339: Property 'content' does not exist on type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(557,28): error TS2339: Property 'id' does not exist on type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(558,25): error TS2339: Property 'urgency' does not exist on type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(568,28): error TS2339: Property 'id' does not exist on type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(569,29): error TS2339: Property 'content' does not exist on type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(579,28): error TS2339: Property 'id' does not exist on type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(580,27): error TS2339: Property 'content' does not exist on type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(590,28): error TS2339: Property 'id' does not exist on type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(600,28): error TS2339: Property 'id' does not exist on type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/retentionStrategy.ts(608,84): error TS2339: Property 'cost' does not exist on type 'RetentionStrategy'.
+src/agents/UserRetentionAgent/userSegmentation.ts(343,52): error TS2339: Property 'length' does not exist on type 'Map<string, string>'.
+src/api/dashboardAPI.ts(303,47): error TS2551: Property 'toISOString' does not exist on type 'string'. Did you mean 'toString'?
+src/api/dashboardAPI.ts(370,45): error TS2551: Property 'toISOString' does not exist on type 'string'. Did you mean 'toString'?
+src/api/dashboardAPI.ts(380,45): error TS2551: Property 'toISOString' does not exist on type 'string'. Did you mean 'toString'?
+src/api/dashboardAPI.ts(392,44): error TS2551: Property 'toISOString' does not exist on type 'string'. Did you mean 'toString'?
+src/api/dashboardAPI.ts(548,46): error TS2551: Property 'toISOString' does not exist on type 'string'. Did you mean 'toString'?
+src/api/dashboardAPI.ts(565,12): error TS2339: Property 'setUTCDate' does not exist on type 'string'.
+src/api/dashboardAPI.ts(565,28): error TS2339: Property 'getUTCDate' does not exist on type 'string'.
+src/api/dashboardAPI.ts(570,20): error TS2551: Property 'toISOString' does not exist on type 'string'. Did you mean 'toString'?
+src/api/dashboardAPI.ts(570,56): error TS2551: Property 'toDateString' does not exist on type 'string'. Did you mean 'toString'?
+src/api/dashboardAPI.ts(584,12): error TS2339: Property 'setDate' does not exist on type 'string'.
+src/api/dashboardAPI.ts(584,25): error TS2339: Property 'getDate' does not exist on type 'string'.
+src/api/dashboardAPI.ts(587,20): error TS2551: Property 'toISOString' does not exist on type 'string'. Did you mean 'toString'?
+src/api/dashboardAPI.ts(587,56): error TS2551: Property 'toDateString' does not exist on type 'string'. Did you mean 'toString'?
+src/commands/ask-unit-talk.ts(3,34): error TS6059: File 'C:/Users/griff/Desktop/Unit Talk Production v3/unit-talk-production/apps/api/test/types/test-types.ts' is not under 'rootDir' 'C:/Users/griff/Desktop/Unit Talk Production v3/unit-talk-production/apps/api/src'. 'rootDir' is expected to contain all source files.
+  The file is in the program because:
+    Imported via '../../test/types/test-types' from file 'C:/Users/griff/Desktop/Unit Talk Production v3/unit-talk-production/apps/api/src/commands/ask-unit-talk.ts'
+    Imported via '../../test/types/test-types' from file 'C:/Users/griff/Desktop/Unit Talk Production v3/unit-talk-production/apps/api/src/commands/ev-report.ts'
+    Imported via '../../test/types/test-types' from file 'C:/Users/griff/Desktop/Unit Talk Production v3/unit-talk-production/apps/api/src/commands/trend-breaker.ts'
+src/commands/ask-unit-talk.ts(13,24): error TS2339: Property 'cache' does not exist on type 'string[] | GuildMemberRoleManager'.
+  Property 'cache' does not exist on type 'string[]'.
+src/commands/capper-onboard.ts(38,29): error TS2352: Conversion of type 'import("C:/Users/griff/Desktop/Unit Talk Production v3/unit-talk-production/apps/api/src/services/capperService").CapperProfile' to type 'import("C:/Users/griff/Desktop/Unit Talk Production v3/unit-talk-production/apps/api/src/types/capper").CapperProfile' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'CapperProfile' is missing the following properties from type 'CapperProfile': name, status
+src/commands/capper-stats.ts(29,27): error TS2352: Conversion of type 'import("C:/Users/griff/Desktop/Unit Talk Production v3/unit-talk-production/apps/api/src/services/capperService").CapperProfile' to type 'import("C:/Users/griff/Desktop/Unit Talk Production v3/unit-talk-production/apps/api/src/types/capper").CapperProfile' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'CapperProfile' is missing the following properties from type 'CapperProfile': name, status
+src/commands/ev-report.ts(13,24): error TS2339: Property 'cache' does not exist on type 'string[] | GuildMemberRoleManager'.
+  Property 'cache' does not exist on type 'string[]'.
+src/commands/trend-breaker.ts(15,24): error TS2339: Property 'cache' does not exist on type 'string[] | GuildMemberRoleManager'.
+  Property 'cache' does not exist on type 'string[]'.
+src/ml/cached-pipeline.ts(2,10): error TS2305: Module '"../cache/enhanced-cache"' has no exported member 'MLPredictionCache'.
+src/monitoring/advanced-analytics-dashboard.ts(295,43): error TS2339: Property 'getLiveMonitoringData' does not exist on type 'AdvancedAnalyticsDashboard'.
+src/monitoring/advanced-analytics-dashboard.ts(423,27): error TS2339: Property 'used' does not exist on type 'MemoryUsage'.
+src/monitoring/advanced-analytics-dashboard.ts(423,43): error TS2339: Property 'total' does not exist on type 'MemoryUsage'.
+src/monitoring/AgentMonitoringIntegration.ts(116,19): error TS2445: Property 'checkHealth' is protected and only accessible within class 'BaseAgent' and its subclasses.
+src/monitoring/AgentMonitoringIntegration.ts(363,21): error TS2353: Object literal may only specify known properties, and 'behaviorEventsTracked' does not exist in type '{ operationsCompleted: number; predictionsGenerated?: number; usersProcessed?: number; optimizationsApplied?: number; alertsTriggered?: number; }'.
+src/monitoring/AgentMonitoringIntegration.ts(364,9): error TS2739: Type '{ responseTime: any; }' is missing the following properties from type '{ cpuUsage: number; memoryUsage: number; responseTime: number; throughput: number; errorRate: number; successRate: number; }': cpuUsage, memoryUsage, throughput, errorRate, successRate
+src/monitoring/AgentMonitoringIntegration.ts(371,21): error TS2353: Object literal may only specify known properties, and 'conversationsGenerated' does not exist in type '{ operationsCompleted: number; predictionsGenerated?: number; usersProcessed?: number; optimizationsApplied?: number; alertsTriggered?: number; }'.
+src/monitoring/AgentMonitoringIntegration.ts(372,9): error TS2739: Type '{ responseTime: any; }' is missing the following properties from type '{ cpuUsage: number; memoryUsage: number; responseTime: number; throughput: number; errorRate: number; successRate: number; }': cpuUsage, memoryUsage, throughput, errorRate, successRate
+src/monitoring/AgentMonitoringIntegration.ts(381,21): error TS2561: Object literal may only specify known properties, but 'churnPredictionsGenerated' does not exist in type '{ operationsCompleted: number; predictionsGenerated?: number; usersProcessed?: number; optimizationsApplied?: number; alertsTriggered?: number; }'. Did you mean to write 'predictionsGenerated'?
+src/monitoring/AgentMonitoringIntegration.ts(382,9): error TS2739: Type '{ responseTime: any; }' is missing the following properties from type '{ cpuUsage: number; memoryUsage: number; responseTime: number; throughput: number; errorRate: number; successRate: number; }': cpuUsage, memoryUsage, throughput, errorRate, successRate
+src/monitoring/AgentMonitoringIntegration.ts(391,11): error TS2353: Object literal may only specify known properties, and 'segmentationUpdates' does not exist in type '{ operationsCompleted: number; predictionsGenerated?: number; usersProcessed?: number; optimizationsApplied?: number; alertsTriggered?: number; }'.

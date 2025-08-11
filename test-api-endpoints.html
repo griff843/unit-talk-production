@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Logic Updates Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-header {
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .test-result {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .loading {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .json-display {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .metric {
+            display: inline-block;
+            background-color: #e9ecef;
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin: 5px;
+            font-weight: bold;
+        }
+        .metric.good { background-color: #d4edda; color: #155724; }
+        .metric.warning { background-color: #fff3cd; color: #856404; }
+        .metric.error { background-color: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Business Logic Updates Test</h1>
+    <p>This page tests your enhanced APIs to verify business logic updates are working correctly.</p>
+
+    <!-- Test 1: Enhanced Props API -->
+    <div class="test-container">
+        <h2 class="test-header">📊 Test 1: Enhanced Props API</h2>
+        <p>Testing props API with confidence, expected value, and game context.</p>
+        <button onclick="testPropsAPI()">Test Props API</button>
+        <div id="props-result"></div>
+    </div>
+
+    <!-- Test 2: Enhanced User Analytics API -->
+    <div class="test-container">
+        <h2 class="test-header">👤 Test 2: Enhanced User Analytics API</h2>
+        <p>Testing user analytics with sport-specific performance breakdown.</p>
+        <input type="text" id="user-id" placeholder="Enter User ID" style="padding: 8px; margin: 5px;">
+        <button onclick="testUserAnalyticsAPI()">Test User Analytics</button>
+        <div id="analytics-result"></div>
+    </div>
+
+    <!-- Test 3: Enhanced Contests API -->
+    <div class="test-container">
+        <h2 class="test-header">🏆 Test 3: Enhanced Contests API</h2>
+        <p>Testing contests API with sport filtering and enhanced data.</p>
+        <select id="sport-filter" style="padding: 8px; margin: 5px;">
+            <option value="all">All Sports</option>
+            <option value="MLB">MLB</option>
+            <option value="NBA">NBA</option>
+            <option value="NFL">NFL</option>
+            <option value="NHL">NHL</option>
+        </select>
+        <button onclick="testContestsAPI()">Test Contests API</button>
+        <div id="contests-result"></div>
+    </div>
+
+    <!-- Test 4: Database Performance -->
+    <div class="test-container">
+        <h2 class="test-header">⚡ Test 4: Performance Metrics</h2>
+        <p>Testing query performance and response times.</p>
+        <button onclick="runPerformanceTests()">Run Performance Tests</button>
+        <div id="performance-result"></div>
+    </div>
+
+    <!-- Test Summary -->
+    <div class="test-container">
+        <h2 class="test-header">📋 Test Summary</h2>
+        <div id="test-summary">
+            <p>Run the tests above to see a comprehensive summary of your business logic updates.</p>
+        </div>
+    </div>
+
+    <script>
+        let testResults = {
+            props: null,
+            analytics: null,
+            contests: null,
+            performance: null
+        };
+
+        async function testPropsAPI() {
+            const resultDiv = document.getElementById('props-result');
+            resultDiv.innerHTML = '<div class="test-result loading">🔄 Testing Enhanced Props API...</div>';
+
+            try {
+                const response = await fetch('/api/props?sport=MLB&limit=5');
+                const data = await response.json();
+
+                if (data.success && data.props) {
+                    const props = data.props;
+                    const analytics = data.analytics || {};
+                    
+                    let resultHTML = '<div class="test-result success">✅ Enhanced Props API Working!</div>';
+                    resultHTML += `<div class="metric good">Props Returned: ${props.length}</div>`;
+                    
+                    if (analytics.avg_confidence) {
+                        resultHTML += `<div class="metric ${analytics.avg_confidence >= 0.7 ? 'good' : 'warning'}">Avg Confidence: ${(analytics.avg_confidence * 100).toFixed(1)}%</div>`;
+                    }
+                    
+                    if (analytics.high_confidence_props !== undefined) {
+                        resultHTML += `<div class="metric good">High Confidence Props: ${analytics.high_confidence_props}</div>`;
+                    }
+
+                    // Check if props have enhanced data
+                    const sampleProp = props[0];
+                    if (sampleProp) {
+                        resultHTML += '<h4>Sample Enhanced Prop:</h4>';
+                        resultHTML += `<div class="metric">Player: ${sampleProp.player_name}</div>`;
+                        
+                        if (sampleProp.confidence !== undefined) {
+                            resultHTML += `<div class="metric ${sampleProp.confidence >= 0.7 ? 'good' : 'warning'}">Confidence: ${(sampleProp.confidence * 100).toFixed(1)}%</div>`;
+                        }
+                        
+                        if (sampleProp.expected_value !== undefined) {
+                            resultHTML += `<div class="metric ${sampleProp.expected_value > 0 ? 'good' : 'error'}">Expected Value: ${sampleProp.expected_value.toFixed(3)}</div>`;
+                        }
+                        
+                        if (sampleProp.game_info) {
+                            resultHTML += `<div class="metric good">Game Context: ${sampleProp.game_info.away_team} @ ${sampleProp.game_info.home_team}</div>`;
+                        }
+                    }
+
+                    resultDiv.innerHTML = resultHTML;
+                    testResults.props = { success: true, data };
+                } else {
+                    resultDiv.innerHTML = `<div class="test-result error">❌ Props API Error: ${data.error || 'No props returned'}</div>`;
+                    testResults.props = { success: false, error: data.error };
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="test-result error">❌ Props API Error: ${error.message}</div>`;
+                testResults.props = { success: false, error: error.message };
+            }
+            
+            updateTestSummary();
+        }
+
+        async function testUserAnalyticsAPI() {
+            const userId = document.getElementById('user-id').value;
+            const resultDiv = document.getElementById('analytics-result');
+            
+            if (!userId) {
+                resultDiv.innerHTML = '<div class="test-result error">❌ Please enter a User ID</div>';
+                return;
+            }
+
+            resultDiv.innerHTML = '<div class="test-result loading">🔄 Testing Enhanced User Analytics API...</div>';
+
+            try {
+                const response = await fetch(`/api/users/${userId}/analytics?days=30`);
+                const data = await response.json();
+
+                if (data.success) {
+                    let resultHTML = '<div class="test-result success">✅ Enhanced User Analytics API Working!</div>';
+                    
+                    const metrics = data.overall_metrics || {};
+                    resultHTML += `<div class="metric good">Total Picks: ${metrics.total_picks || 0}</div>`;
+                    resultHTML += `<div class="metric ${(metrics.overall_win_rate || 0) >= 0.6 ? 'good' : 'warning'}">Win Rate: ${((metrics.overall_win_rate || 0) * 100).toFixed(1)}%</div>`;
+                    resultHTML += `<div class="metric good">Sports Active: ${(metrics.sports_active || []).join(', ') || 'None'}</div>`;
+                    
+                    if (data.sport_performance && data.sport_performance.length > 0) {
+                        resultHTML += '<h4>Sport-Specific Performance:</h4>';
+                        data.sport_performance.forEach(sport => {
+                            resultHTML += `<div class="metric ${sport.win_rate >= 0.6 ? 'good' : 'warning'}">${sport.sport}: ${sport.wins}/${sport.total_picks} (${(sport.win_rate * 100).toFixed(1)}%)</div>`;
+                        });
+                    }
+
+                    if (data.query_performance) {
+                        resultHTML += `<div class="metric ${data.query_performance.response_time_ms < 100 ? 'good' : 'warning'}">Query Time: ${data.query_performance.response_time_ms}ms</div>`;
+                    }
+
+                    resultDiv.innerHTML = resultHTML;
+                    testResults.analytics = { success: true, data };
+                } else {
+                    resultDiv.innerHTML = `<div class="test-result error">❌ Analytics API Error: ${data.error}</div>`;
+                    testResults.analytics = { success: false, error: data.error };
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="test-result error">❌ Analytics API Error: ${error.message}</div>`;
+                testResults.analytics = { success: false, error: error.message };
+            }
+            
+            updateTestSummary();
+        }
+
+        async function testContestsAPI() {
+            const sport = document.getElementById('sport-filter').value;
+            const resultDiv = document.getElementById('contests-result');
+            
+            resultDiv.innerHTML = '<div class="test-result loading">🔄 Testing Enhanced Contests API...</div>';
+
+            try {
+                const url = sport === 'all' ? '/api/contests?status=active&limit=5' : `/api/contests?sport=${sport}&status=active&limit=5`;
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.success) {
+                    let resultHTML = '<div class="test-result success">✅ Enhanced Contests API Working!</div>';
+                    
+                    const contests = data.contests || [];
+                    const analytics = data.analytics || {};
+                    
+                    resultHTML += `<div class="metric good">Contests Returned: ${contests.length}</div>`;
+                    resultHTML += `<div class="metric good">Total Prize Pool: $${analytics.total_prize_pool || 0}</div>`;
+                    resultHTML += `<div class="metric good">Sports Available: ${(analytics.sports_available || []).join(', ') || 'None'}</div>`;
+                    
+                    if (contests.length > 0) {
+                        const sampleContest = contests[0];
+                        resultHTML += '<h4>Sample Contest:</h4>';
+                        resultHTML += `<div class="metric">Title: ${sampleContest.title}</div>`;
+                        resultHTML += `<div class="metric good">Sport: ${sampleContest.sport}</div>`;
+                        resultHTML += `<div class="metric">Prize: $${sampleContest.prize_pool}</div>`;
+                        resultHTML += `<div class="metric">Participants: ${sampleContest.current_participants}/${sampleContest.max_participants}</div>`;
+                    }
+
+                    if (data.query_performance) {
+                        resultHTML += `<div class="metric ${data.query_performance.response_time_ms < 100 ? 'good' : 'warning'}">Query Time: ${data.query_performance.response_time_ms}ms</div>`;
+                    }
+
+                    resultDiv.innerHTML = resultHTML;
+                    testResults.contests = { success: true, data };
+                } else {
+                    resultDiv.innerHTML = `<div class="test-result error">❌ Contests API Error: ${data.error}</div>`;
+                    testResults.contests = { success: false, error: data.error };
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="test-result error">❌ Contests API Error: ${error.message}</div>`;
+                testResults.contests = { success: false, error: error.message };
+            }
+            
+            updateTestSummary();
+        }
+
+        async function runPerformanceTests() {
+            const resultDiv = document.getElementById('performance-result');
+            resultDiv.innerHTML = '<div class="test-result loading">🔄 Running Performance Tests...</div>';
+
+            const tests = [
+                { name: 'Props API', url: '/api/props?sport=MLB&limit=10' },
+                { name: 'Contests API', url: '/api/contests?limit=10' }
+            ];
+
+            let resultHTML = '';
+            const performanceResults = [];
+
+            for (const test of tests) {
+                try {
+                    const startTime = Date.now();
+                    const response = await fetch(test.url);
+                    const queryTime = Date.now() - startTime;
+                    const data = await response.json();
+
+                    const status = queryTime < 100 ? 'good' : queryTime < 500 ? 'warning' : 'error';
+                    const statusIcon = queryTime < 100 ? '✅' : queryTime < 500 ? '⚠️' : '❌';
+                    
+                    resultHTML += `<div class="metric ${status}">${statusIcon} ${test.name}: ${queryTime}ms</div>`;
+                    performanceResults.push({ test: test.name, time: queryTime, success: response.ok });
+                } catch (error) {
+                    resultHTML += `<div class="metric error">❌ ${test.name}: Error - ${error.message}</div>`;
+                    performanceResults.push({ test: test.name, time: null, success: false, error: error.message });
+                }
+            }
+
+            const avgTime = performanceResults
+                .filter(r => r.time !== null)
+                .reduce((sum, r) => sum + r.time, 0) / performanceResults.filter(r => r.time !== null).length;
+
+            resultHTML = `<div class="test-result ${avgTime < 100 ? 'success' : 'error'}">Performance Test Results:</div>` + resultHTML;
+            resultHTML += `<div class="metric ${avgTime < 100 ? 'good' : 'warning'}">Average Response Time: ${avgTime.toFixed(0)}ms</div>`;
+
+            resultDiv.innerHTML = resultHTML;
+            testResults.performance = { success: avgTime < 500, avgTime, results: performanceResults };
+            
+            updateTestSummary();
+        }
+
+        function updateTestSummary() {
+            const summaryDiv = document.getElementById('test-summary');
+            const completedTests = Object.values(testResults).filter(r => r !== null).length;
+            const successfulTests = Object.values(testResults).filter(r => r && r.success).length;
+
+            let summaryHTML = `<div class="metric good">Tests Completed: ${completedTests}/4</div>`;
+            summaryHTML += `<div class="metric ${successfulTests === completedTests ? 'good' : 'warning'}">Tests Passed: ${successfulTests}/${completedTests}</div>`;
+
+            if (completedTests === 4) {
+                if (successfulTests === 4) {
+                    summaryHTML += '<div class="test-result success">🎉 All Business Logic Updates Working Perfectly!</div>';
+                    summaryHTML += '<p><strong>Your enterprise-grade database transformation is complete and all enhancements are operational!</strong></p>';
+                } else {
+                    summaryHTML += '<div class="test-result warning">⚠️ Some tests failed. Check the individual test results above.</div>';
+                }
+            }
+
+            summaryDiv.innerHTML = summaryHTML;
+        }
+    </script>
+</body>
+</html>

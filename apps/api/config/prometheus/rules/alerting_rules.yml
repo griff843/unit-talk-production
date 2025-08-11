@@ -1,0 +1,116 @@
+groups:
+  - name: agent_alerts
+    rules:
+      # High Error Rate
+      - alert: HighErrorRate
+        expr: |
+          rate(agent_errors_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: High error rate detected
+          description: "{{ $labels.agent }} has error rate > 5% over 5m"
+
+      # Agent Down
+      - alert: AgentDown
+        expr: |
+          up{job=~".*_agent"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Agent is down
+          description: "{{ $labels.instance }} has been down for 5m"
+
+      # High Processing Latency
+      - alert: HighProcessingLatency
+        expr: |
+          histogram_quantile(0.95, 
+            rate(agent_operation_duration_seconds_bucket[5m])
+          ) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High processing latency
+          description: "{{ $labels.agent }} p95 latency > 10s"
+
+      # Queue Buildup
+      - alert: QueueBuildup
+        expr: |
+          agent_queue_size > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Queue size too large
+          description: "{{ $labels.agent }} queue size > 1000"
+
+      # Memory Usage
+      - alert: HighMemoryUsage
+        expr: |
+          process_resident_memory_bytes / 1024 / 1024 > 2048
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High memory usage
+          description: "{{ $labels.instance }} using > 2GB memory"
+
+      # CPU Usage
+      - alert: HighCPUUsage
+        expr: |
+          rate(process_cpu_seconds_total[5m]) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High CPU usage
+          description: "{{ $labels.instance }} CPU usage > 80%"
+
+  - name: business_alerts
+    rules:
+      # Grading Accuracy
+      - alert: LowGradingAccuracy
+        expr: |
+          rate(grading_accuracy[1h]) < 0.95
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: Low grading accuracy
+          description: "Grading accuracy < 95% over 15m"
+
+      # Pick Processing Delay
+      - alert: PickProcessingDelay
+        expr: |
+          time() - max(pick_last_processed_timestamp) > 300
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Pick processing delayed
+          description: "Picks not processed for > 5m"
+
+      # Data Freshness
+      - alert: StaleData
+        expr: |
+          time() - max(data_last_updated_timestamp) > 900
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Stale data detected
+          description: "Data not updated for > 15m"
+
+      # Contest Health
+      - alert: ContestIssues
+        expr: |
+          contest_health_score < 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Contest health issues
+          description: "Contest health score < 90%" 

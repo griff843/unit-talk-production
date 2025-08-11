@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Command Center Performance Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .info { background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+        .warning { background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }
+    </style>
+</head>
+<body>
+    <h1>Command Center Performance Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        const results = document.getElementById('results');
+        
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.textContent = message;
+            results.appendChild(div);
+        }
+        
+        // Test loading time
+        const startTime = performance.now();
+        
+        window.addEventListener('load', () => {
+            const loadTime = performance.now() - startTime;
+            addResult(`Page load time: ${loadTime.toFixed(2)}ms`, 'info');
+            
+            if (loadTime < 1000) {
+                addResult('✅ EXCELLENT: Load time under 1 second', 'success');
+            } else if (loadTime < 3000) {
+                addResult('✅ GOOD: Load time under 3 seconds', 'success');
+            } else {
+                addResult('⚠️ SLOW: Load time over 3 seconds', 'warning');
+            }
+        });
+        
+        // Test connection to command center
+        fetch('http://localhost:3018')
+            .then(response => {
+                if (response.ok) {
+                    addResult('✅ Command Center is accessible', 'success');
+                } else {
+                    addResult('❌ Command Center returned error: ' + response.status, 'warning');
+                }
+            })
+            .catch(error => {
+                addResult('❌ Command Center not accessible: ' + error.message, 'warning');
+            });
+        
+        // Test API endpoints
+        fetch('http://localhost:3018/api/health')
+            .then(response => response.json())
+            .then(data => {
+                addResult('✅ Health API working: ' + JSON.stringify(data).substring(0, 50) + '...', 'success');
+            })
+            .catch(error => {
+                addResult('⚠️ Health API issue: ' + error.message, 'warning');
+            });
+    </script>
+</body>
+</html>

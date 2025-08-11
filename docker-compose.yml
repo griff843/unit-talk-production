@@ -1,0 +1,542 @@
+# Unit Talk Platform - Fortune 100 Development Environment
+# Complete local development orchestration
+version: "3.8"
+
+services:
+  # ==============================================
+  # DATABASE LAYER
+  # ==============================================
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: unit-talk-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: unit_talk_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./apps/api/migrations:/docker-entrypoint-initdb.d
+      - ./apps/discord-bot/database:/docker-entrypoint-initdb.d/discord
+      - ./apps/smart-form/migrations:/docker-entrypoint-initdb.d/smart-form
+      - ./apps/command-center/database:/docker-entrypoint-initdb.d/command-center
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d unit_talk_dev"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - unit-talk-network
+    restart: unless-stopped
+
+  # PostgreSQL Read Replica for High Availability
+  postgres-replica:
+    image: postgres:15-alpine
+    container_name: unit-talk-postgres-replica
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: unit_talk_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+      # Replication settings
+      POSTGRES_REPLICA_USER: replicator
+      POSTGRES_REPLICA_PASSWORD: replicator_pass
+      POSTGRES_MASTER_SERVICE: postgres
+      POSTGRES_MASTER_PORT: 5432
+    volumes:
+      - postgres_replica_data:/var/lib/postgresql/data
+      - ./scripts/postgres-replica-setup.sh:/docker-entrypoint-initdb.d/setup-replica.sh:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d unit_talk_dev"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    networks:
+      - unit-talk-network
+    restart: unless-stopped
+    profiles:
+      - ha  # High Availability profile
+
+  # Redis Cache & Session Store
+  redis:
+    image: redis:7-alpine
+    container_name: unit-talk-redis
+    ports:
+      - "6379:6379"
+    command: >
+      redis-server 
+      --appendonly yes 
+      --appendfsync everysec
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - unit-talk-network
+    restart: unless-stopped
+
+  # ==============================================
+  # TEMPORAL ORCHESTRATION
+  # ==============================================
+
+  # Temporal Database
+  temporal-postgres:
+    image: postgres:13
+    container_name: unit-talk-temporal-db
+    environment:
+      POSTGRES_PASSWORD: temporal
+      POSTGRES_USER: temporal
+      POSTGRES_DB: temporal
+    volumes:
+      - temporal_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - unit-talk-network
+
+  # Temporal Setup
+  temporal-admin-tools:
+    image: temporalio/admin-tools:1.20.0
+    container_name: unit-talk-temporal-setup
+    depends_on:
+      temporal-postgres:
+        condition: service_healthy
+    environment:
+      - TEMPORAL_CLI_ADDRESS=temporal:7233
+      - TEMPORAL_ADDRESS=temporal:7233
+      - DB=postgresql
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal
+      - POSTGRES_SEEDS=temporal-postgres
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+    volumes:
+      - ./apps/api/config/temporal:/etc/temporal/config/dynamicconfig
+    entrypoint: bash
+    command: >
+      -c "
+        until nc -z temporal-postgres 5432; do
+          echo 'Waiting for PostgreSQL to be ready...'
+          sleep 2
+        done
+        echo 'PostgreSQL is ready. Setting up Temporal schema...'
+        temporal-sql-tool --plugin postgres --ep temporal-postgres:5432 -u temporal -p temporal --db temporal setup-schema -v 0.0
+        temporal-sql-tool --plugin postgres --ep temporal-postgres:5432 -u temporal -p temporal --db temporal update-schema -d /etc/temporal/schema/postgresql/v96
+        echo 'Temporal schema setup complete.'
+      "
+    networks:
+      - unit-talk-network
+
+  # Temporal Server with Auto-Setup for Windows Gaming PC
+  temporal:
+    image: temporalio/auto-setup:1.20.0
+    container_name: unit-talk-temporal
+    depends_on:
+      temporal-postgres:
+        condition: service_healthy
+    ports:
+      - "7233:7233"
+    environment:
+      - DB=postgresql
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal
+      - POSTGRES_SEEDS=temporal-postgres
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+    volumes:
+      - ./apps/api/config/temporal:/etc/temporal/config/dynamicconfig
+    networks:
+      - unit-talk-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "sh",
+          "-c",
+          "temporal operator cluster health --address temporal:7233 2>/dev/null | grep -q SERVING",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # Temporal UI
+  temporal-ui:
+    image: temporalio/ui:2.27.0
+    container_name: unit-talk-temporal-ui
+    depends_on:
+      temporal:
+        condition: service_started
+    ports:
+      - "8088:8088"
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003,http://localhost:3004
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8088"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - unit-talk-network
+
+  # ==============================================
+  # MONITORING & OBSERVABILITY
+  # ==============================================
+
+  # Prometheus Metrics
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: unit-talk-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+      - "--storage.tsdb.retention.time=200h"
+      - "--web.enable-lifecycle"
+      - "--web.enable-admin-api"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - unit-talk-network
+    restart: unless-stopped
+
+  # Grafana Dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: unit-talk-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=redis-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - unit-talk-network
+    restart: unless-stopped
+
+  # ==============================================
+  # APPLICATION SERVICES
+  # ==============================================
+
+  # Main API Platform
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+      target: development
+    container_name: unit-talk-api
+    ports:
+      - "3010:3000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
+      - REDIS_URL=redis://redis:6379
+      - TEMPORAL_SERVER_URL=temporal:7233
+      - PROMETHEUS_ENABLED=true
+      - PROMETHEUS_PORT=9464
+      - LOG_LEVEL=debug
+      - HEALTH_CHECK_INTERVAL=30000
+    volumes:
+      - ./apps/api/src:/app/src
+      - ./apps/api/logs:/app/logs
+      - ./packages:/app/packages
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - unit-talk-network
+    restart: unless-stopped
+
+  # Temporal Workers
+  workers:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+      target: development
+    container_name: unit-talk-workers
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
+      - REDIS_URL=redis://redis:6379
+      - TEMPORAL_SERVER_URL=temporal:7233
+      - WORKER_MODE=true
+      - LOG_LEVEL=debug
+      - OPTIMAL_API_KEY=optimalbet_LZsTNl2SGX0o9Bz9GhLurvSTQuAMQapp
+      - ODDS_API_KEY=8014c48eb8a05f289de049c0961ac4cf
+    volumes:
+      - ./apps/api/src:/app/src
+      - ./apps/api/logs:/app/logs
+      - ./packages:/app/packages
+    command: npm run worker:dev
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.exit(0)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+    networks:
+      - unit-talk-network
+    restart: unless-stopped
+
+  # Discord Bot
+  discord-bot:
+    build:
+      context: ./apps/discord-bot
+      dockerfile: Dockerfile
+      target: development
+    container_name: unit-talk-discord-bot
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
+      - REDIS_URL=redis://redis:6379
+      - API_URL=http://api:3000
+      - LOG_LEVEL=debug
+    volumes:
+      - ./apps/discord-bot/src:/app/src
+      - ./apps/discord-bot/logs:/app/logs
+      - ./packages:/app/packages
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.exit(0)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+    networks:
+      - unit-talk-network
+    restart: unless-stopped
+
+  # Smart Form Application
+  smart-form:
+    build:
+      context: ./apps/smart-form
+      dockerfile: Dockerfile
+      target: development
+    container_name: unit-talk-smart-form
+    ports:
+      - "3002:3021"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
+      - NEXT_PUBLIC_API_URL=http://localhost:3001
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+    volumes:
+      - ./apps/smart-form:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3021"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - unit-talk-network
+    restart: unless-stopped
+
+  # Dashboard Application
+  dashboard:
+    build:
+      context: ./apps/dashboard
+      dockerfile: Dockerfile
+      target: development
+    container_name: unit-talk-dashboard
+    ports:
+      - "3003:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:3001
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    volumes:
+      - ./apps/dashboard:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - unit-talk-network
+    restart: unless-stopped
+
+  # Command Center
+  command-center:
+    build:
+      context: ./apps/command-center
+      dockerfile: Dockerfile
+      target: development
+    container_name: unit-talk-command-center
+    ports:
+      - "3004:3015"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
+      - NEXT_PUBLIC_API_URL=http://localhost:3001
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - PROMETHEUS_URL=http://prometheus:9090
+      - TEMPORAL_UI_URL=http://localhost:8088
+    volumes:
+      - ./apps/command-center:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      api:
+        condition: service_healthy
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3015/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - unit-talk-network
+    restart: unless-stopped
+
+  # ==============================================
+  # DEVELOPMENT UTILITIES
+  # ==============================================
+
+  # pgAdmin Database Management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: unit-talk-pgadmin
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@unittalk.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - unit-talk-network
+    profiles:
+      - tools
+
+  # Redis Commander
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: unit-talk-redis-commander
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    depends_on:
+      - redis
+    networks:
+      - unit-talk-network
+    profiles:
+      - tools
+
+  # Mailhog for Email Testing
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: unit-talk-mailhog
+    ports:
+      - "1025:1025" # SMTP
+      - "8025:8025" # Web UI
+    networks:
+      - unit-talk-network
+    profiles:
+      - tools
+
+# ==============================================
+# VOLUMES
+# ==============================================
+volumes:
+  postgres_data:
+    driver: local
+  postgres_replica_data:
+    driver: local
+  temporal_postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+# ==============================================
+# NETWORKS
+# ==============================================
+networks:
+  unit-talk-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

@@ -1,0 +1,16 @@
+#!/bin/sh
+echo "🔍 Running pre-commit checks..."
+
+# Documentation validation
+echo "📚 Validating documentation..."
+npm run docs:validate
+
+# Lint and format staged files only (much faster)
+echo "🧹 Running lint-staged..."
+npx lint-staged
+
+# TypeScript check on all files
+echo "🔧 Running TypeScript checks..."
+npm run type-check
+
+echo "✅ All pre-commit checks passed!"

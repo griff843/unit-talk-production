@@ -1,0 +1,11 @@
+Cursor global refactor rules
+
+BaseAgent lives at: src/agents/BaseAgent/**
+
+Shared types live at: src/shared/types/**
+
+Do NOT redefine BaseAgentConfig; import from @shared/types/base
+
+All tests reside in tests directories beside code
+
+Never modify files under docs/ during automated refactors 

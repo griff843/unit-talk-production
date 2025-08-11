@@ -1,0 +1,44 @@
+name: Deploy Command Center
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/command-center/**"
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: apps/command-center
+
+      - name: Run tests
+        run: npm test
+        working-directory: apps/command-center
+
+      - name: Build application
+        run: npm run build
+        working-directory: apps/command-center
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+
+      - name: Build Docker image
+        run: docker build -t command-center .
+        working-directory: apps/command-center
+
+      # Deploy to your preferred platform (Vercel, AWS, etc.)
+      - name: Deploy to production
+        run: echo "Add your deployment steps here"

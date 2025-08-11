@@ -1,0 +1,38 @@
+{
+  "name": "@unit-talk/database",
+  "version": "1.0.0",
+  "description": "Shared database utilities and migrations for Unit Talk Platform",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "test": "jest",
+    "type-check": "tsc --noEmit",
+    "migrate": "node dist/migrate.js"
+  },
+  "keywords": [
+    "database",
+    "supabase",
+    "postgresql",
+    "migrations"
+  ],
+  "author": "Unit Talk Team",
+  "license": "PROPRIETARY",
+  "dependencies": {
+    "@unit-talk/shared-types": "^1.0.0",
+    "@unit-talk/shared-utils": "^1.0.0",
+    "@supabase/supabase-js": "^2.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "jest": "^29.0.0",
+    "@types/jest": "^29.0.0"
+  },
+  "files": [
+    "dist/**/*",
+    "src/**/*",
+    "migrations/**/*"
+  ]
+}

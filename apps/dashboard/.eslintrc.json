@@ -1,0 +1,25 @@
+{
+  "extends": [
+    "next/core-web-vitals"
+  ],
+  "rules": {
+    "no-console": "off",
+    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/no-unused-vars": "off",
+    "curly": "off",
+    "require-await": "off",
+    "no-redeclare": "off"
+  },
+  "globals": {
+    "React": "readonly",
+    "localStorage": "readonly",
+    "window": "readonly",
+    "document": "readonly",
+    "HTMLDivElement": "readonly",
+    "HTMLButtonElement": "readonly",
+    "HTMLInputElement": "readonly",
+    "HTMLParagraphElement": "readonly",
+    "HTMLHeadingElement": "readonly",
+    "HTMLSpanElement": "readonly"
+  }
+}

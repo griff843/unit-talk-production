@@ -1,0 +1,29 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'unit-talk-api'
+    static_configs:
+      - targets: ['api:9464']
+    scrape_interval: 5s
+    metrics_path: /metrics
+
+  - job_name: 'unit-talk-workers'
+    static_configs:
+      - targets: ['workers:9464']
+    scrape_interval: 5s
+    metrics_path: /metrics
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres:5432']
+
+  - job_name: 'temporal'
+    static_configs:
+      - targets: ['temporal:7233']
+    scrape_interval: 10s
