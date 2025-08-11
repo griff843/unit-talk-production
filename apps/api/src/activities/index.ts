@@ -53,7 +53,8 @@ export {
   monitorAPIQuota,
   checkSystemHealth,
   detectLiveGames,
-  logWorkflowMetrics
+  logWorkflowMetrics,
+  logError
 } from './operator';
 
 // Activity type definitions for Temporal
@@ -168,5 +169,12 @@ export interface OperatorActivities {
   processLivePick(params: BaseActivityParams & {timestamp: string, error?: Error, context?: Record<string, unknown>, 
     pickId: string;
     pickData: any;
+  }): Promise<ActivityResult>;
+
+  // General logging activity for workflow error handling
+  logError(params: BaseActivityParams & {
+    error: string;
+    timestamp: string;
+    context?: Record<string, unknown>;
   }): Promise<ActivityResult>;
 }

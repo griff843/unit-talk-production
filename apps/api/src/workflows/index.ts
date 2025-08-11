@@ -246,3 +246,9 @@ export {
 
 // Test workflow for E2E testing
 export { testWorkflow } from './test-workflow';
+
+// FeedAgent Backfill Workflow
+export { FeedAgentBackfillWorkflow } from './FeedAgentBackfillWorkflow';
+
+// Alias for backward compatibility
+export { FeedAgentBackfillWorkflow as feedAgentWorkflow } from './FeedAgentBackfillWorkflow';

@@ -5,6 +5,7 @@ import { Worker, NativeConnection } from '@temporalio/worker';
 
 // Import base activities
 import * as healthMonitoringActivities from './activities/healthMonitoring';
+import * as mainOperatorActivities from './activities/operator';
 
 // Import agent-specific activities
 import * as alertActivities from './agents/AlertAgent/activities';
@@ -45,6 +46,7 @@ export default async function startWorker() {
         // Register base activities
         ...baseActivities,
         ...healthMonitoringActivities,
+        ...mainOperatorActivities,
 
         // Register agent-specific activities
         ...analyticsActivities,

@@ -254,3 +254,26 @@ async function mockLiveGameDetection(league: string): Promise<any[]> {
     }
   ];
 }
+
+/**
+ * General error logging activity for workflow error handling
+ */
+export async function logError(params: {
+  error: string;
+  timestamp: string;
+  context?: Record<string, unknown>;
+}): Promise<{ success: boolean }> {
+  try {
+    logger.error('Workflow Error:', {
+      error: params.error,
+      timestamp: params.timestamp,
+      context: params.context || {},
+      loggedAt: new Date().toISOString()
+    });
+
+    return { success: true };
+  } catch (logErr) {
+    logger.error('Failed to log workflow error:', logErr);
+    return { success: false };
+  }
+}
