@@ -71,43 +71,43 @@ const WORKFLOWS_TO_START: WorkflowConfig[] = [
     name: 'nbaSchedule',
     workflowFunction: nbaScheduleWorkflow,
     workflowId: 'nba-schedule',
-    description: 'NBA-specific scheduling and peak hours management',
-    critical: false
+    description: 'NBA-specific scheduling and 24/7 data ingestion',
+    critical: true
   },
   {
     name: 'mlbSchedule',
     workflowFunction: mlbScheduleWorkflow,
     workflowId: 'mlb-schedule',
-    description: 'MLB-specific scheduling and peak hours management',
-    critical: false
+    description: 'MLB-specific scheduling and 24/7 data ingestion',
+    critical: true
   },
   {
     name: 'nhlSchedule',
     workflowFunction: nhlScheduleWorkflow,
     workflowId: 'nhl-schedule',
-    description: 'NHL-specific scheduling and peak hours management (6PM-11PM)',
-    critical: false
+    description: 'NHL-specific scheduling and 24/7 data ingestion',
+    critical: true
   },
   {
     name: 'ncaafSchedule',
     workflowFunction: ncaafScheduleWorkflow,
     workflowId: 'ncaaf-schedule',
-    description: 'NCAAF-specific scheduling and peak hours management (11AM-11PM Saturday)',
+    description: 'NCAAF-specific scheduling and 24/7 data ingestion',
     critical: true
   },
   {
     name: 'ncaabSchedule',
     workflowFunction: ncaabScheduleWorkflow,
     workflowId: 'ncaab-schedule',
-    description: 'NCAAB-specific scheduling and peak hours management (6PM-11PM)',
-    critical: false
+    description: 'NCAAB-specific scheduling and 24/7 data ingestion',
+    critical: true
   },
   {
     name: 'wnbaSchedule',
     workflowFunction: wnbaScheduleWorkflow,
     workflowId: 'wnba-schedule',
-    description: 'WNBA-specific scheduling and peak hours management',
-    critical: false
+    description: 'WNBA-specific scheduling and 24/7 data ingestion',
+    critical: true
   },
   {
     name: 'recapAgent',

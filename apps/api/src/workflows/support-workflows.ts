@@ -591,16 +591,8 @@ export async function wnbaScheduleWorkflow(): Promise<void> {
 /**
  * Helper function to get league-specific peak hours
  */
-function getLeaguePeakHours(league: string): { start: number; end: number } {
-  const peakHours: Record<string, { start: number; end: number }> = {
-    'MLB': { start: 18, end: 23 }, // 6 PM - 11 PM
-    'NBA': { start: 18, end: 23 }, // 6 PM - 11 PM
-    'NFL': { start: 12, end: 23 }, // 12 PM - 11 PM (Sunday/Monday)
-    'NHL': { start: 18, end: 23 }, // 6 PM - 11 PM
-    'NCAAB': { start: 18, end: 23 }, // 6 PM - 11 PM
-    'NCAAF': { start: 11, end: 23 }, // 11 AM - 11 PM (Saturday)
-    'WNBA': { start: 18, end: 22 }  // 6 PM - 10 PM (typically evening games)
-  };
-  
-  return peakHours[league] || { start: 18, end: 23 };
+function getLeaguePeakHours(_league: string): { start: number; end: number } {
+  // 🚀 PRODUCTION MODE: 24/7 continuous data ingestion
+  // All sports now operate continuously to capture every available game and prop
+  return { start: 0, end: 23 }; // 24/7 operation for all sports
 }
