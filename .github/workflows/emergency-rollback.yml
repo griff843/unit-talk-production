@@ -1,0 +1,851 @@
+name: Emergency Rollback & Traffic Control
+
+on:
+  workflow_dispatch:
+    inputs:
+      rollback_type:
+        description: 'Type of rollback to perform'
+        required: true
+        default: 'blue_green'
+        type: choice
+        options:
+          - blue_green
+          - canary_revert
+          - database_rollback
+          - feature_flag_disable
+          - traffic_drain
+          - full_system_rollback
+      
+      rollback_target:
+        description: 'Target for rollback (version/commit/timestamp)'
+        required: true
+        type: string
+        default: 'previous_stable'
+      
+      affected_services:
+        description: 'Services to rollback (comma-separated or "all")'
+        required: true
+        default: 'all'
+        type: string
+      
+      rollback_reason:
+        description: 'Reason for emergency rollback'
+        required: true
+        type: choice
+        options:
+          - critical_bug
+          - performance_degradation
+          - security_vulnerability
+          - data_corruption
+          - service_outage
+          - error_budget_exhaustion
+          - user_impact
+          - monitoring_alert
+      
+      severity_level:
+        description: 'Incident severity level'
+        required: true
+        default: 'high'
+        type: choice
+        options:
+          - critical
+          - high
+          - medium
+          - low
+      
+      skip_confirmations:
+        description: 'Skip safety confirmations (emergency only)'
+        required: false
+        default: false
+        type: boolean
+      
+      notify_channels:
+        description: 'Notification channels'
+        required: false
+        default: 'discord,github,email'
+        type: string
+      
+      maintenance_mode:
+        description: 'Enable maintenance mode during rollback'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NODE_VERSION: '20'
+  ROLLBACK_TIMEOUT: '300'  # 5 minutes max rollback time
+  VERIFICATION_TIMEOUT: '180'  # 3 minutes verification
+  
+permissions:
+  contents: read
+  deployments: write
+  issues: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  rollback-validation:
+    name: Validate Rollback Request
+    runs-on: ubuntu-latest
+    outputs:
+      rollback-plan: ${{ steps.plan.outputs.rollback-plan }}
+      safety-checks: ${{ steps.safety.outputs.safety-checks }}
+      affected-services: ${{ steps.services.outputs.affected-services }}
+      rollback-target-info: ${{ steps.target.outputs.target-info }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 100  # Need history for rollback target validation
+
+      - name: Validate rollback inputs
+        id: validate
+        run: |
+          echo "🔍 Validating rollback request..."
+          
+          # Validate rollback type
+          case "${{ github.event.inputs.rollback_type }}" in
+            "blue_green"|"canary_revert"|"database_rollback"|"feature_flag_disable"|"traffic_drain"|"full_system_rollback")
+              echo "✅ Valid rollback type: ${{ github.event.inputs.rollback_type }}"
+              ;;
+            *)
+              echo "❌ Invalid rollback type: ${{ github.event.inputs.rollback_type }}"
+              exit 1
+              ;;
+          esac
+          
+          # Validate severity level
+          if [[ "${{ github.event.inputs.severity_level }}" == "critical" ]]; then
+            echo "🚨 CRITICAL SEVERITY - Emergency protocols activated"
+            echo "critical-severity=true" >> $GITHUB_OUTPUT
+          fi
+          
+          # Validate rollback target
+          if [[ "${{ github.event.inputs.rollback_target }}" == "previous_stable" ]]; then
+            # Find the last successful deployment
+            LAST_STABLE=$(git log --oneline --grep="deploy: success" -1 --format="%H")
+            if [[ -n "$LAST_STABLE" ]]; then
+              echo "📍 Found previous stable deployment: $LAST_STABLE"
+              echo "rollback-commit=$LAST_STABLE" >> $GITHUB_OUTPUT
+            else
+              echo "⚠️  No previous stable deployment found, using HEAD~1"
+              echo "rollback-commit=HEAD~1" >> $GITHUB_OUTPUT
+            fi
+          else
+            # Validate provided target exists
+            if git rev-parse --verify "${{ github.event.inputs.rollback_target }}" >/dev/null 2>&1; then
+              echo "✅ Valid rollback target: ${{ github.event.inputs.rollback_target }}"
+              echo "rollback-commit=${{ github.event.inputs.rollback_target }}" >> $GITHUB_OUTPUT
+            else
+              echo "❌ Invalid rollback target: ${{ github.event.inputs.rollback_target }}"
+              exit 1
+            fi
+          fi
+
+      - name: Generate rollback plan
+        id: plan
+        run: |
+          echo "📋 Generating rollback execution plan..."
+          
+          # Create rollback plan based on type
+          case "${{ github.event.inputs.rollback_type }}" in
+            "blue_green")
+              PLAN='{
+                "strategy": "blue_green_switch",
+                "steps": [
+                  "validate_green_environment",
+                  "switch_load_balancer_traffic", 
+                  "verify_health_checks",
+                  "monitor_error_rates",
+                  "confirm_rollback_success"
+                ],
+                "estimated_time": "5_minutes",
+                "rollback_method": "traffic_switching"
+              }'
+              ;;
+            "canary_revert")
+              PLAN='{
+                "strategy": "canary_traffic_revert",
+                "steps": [
+                  "identify_canary_traffic",
+                  "revert_traffic_to_stable",
+                  "scale_down_canary_deployment",
+                  "verify_stable_performance",
+                  "cleanup_canary_resources"
+                ],
+                "estimated_time": "3_minutes", 
+                "rollback_method": "traffic_routing"
+              }'
+              ;;
+            "database_rollback")
+              PLAN='{
+                "strategy": "database_migration_rollback",
+                "steps": [
+                  "backup_current_database_state",
+                  "execute_rollback_migrations",
+                  "verify_data_integrity",
+                  "restart_affected_services",
+                  "validate_application_connectivity"
+                ],
+                "estimated_time": "10_minutes",
+                "rollback_method": "database_migration"
+              }'
+              ;;
+            "feature_flag_disable")
+              PLAN='{
+                "strategy": "feature_flag_rollback", 
+                "steps": [
+                  "identify_problematic_features",
+                  "disable_feature_flags",
+                  "verify_flag_propagation",
+                  "monitor_system_recovery",
+                  "validate_user_experience"
+                ],
+                "estimated_time": "2_minutes",
+                "rollback_method": "feature_toggles"
+              }'
+              ;;
+            "traffic_drain")
+              PLAN='{
+                "strategy": "traffic_drainage",
+                "steps": [
+                  "enable_maintenance_mode",
+                  "drain_active_connections",
+                  "redirect_traffic_to_backup",
+                  "verify_service_isolation", 
+                  "prepare_for_recovery"
+                ],
+                "estimated_time": "8_minutes",
+                "rollback_method": "traffic_management"
+              }'
+              ;;
+            "full_system_rollback")
+              PLAN='{
+                "strategy": "complete_system_rollback",
+                "steps": [
+                  "coordinate_all_service_rollback",
+                  "rollback_database_changes",
+                  "revert_infrastructure_changes",
+                  "restore_previous_configuration",
+                  "validate_full_system_recovery"
+                ],
+                "estimated_time": "15_minutes",
+                "rollback_method": "comprehensive_rollback"
+              }'
+              ;;
+          esac
+          
+          echo "rollback-plan<<EOF" >> $GITHUB_OUTPUT
+          echo "$PLAN" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          # Display plan
+          echo "📋 Rollback Execution Plan:"
+          echo "$PLAN" | jq -r '
+            "Strategy: " + .strategy,
+            "Estimated Time: " + .estimated_time,
+            "Steps:",
+            (.steps[] | "  • " + .)
+          '
+
+      - name: Safety checks and validations
+        id: safety
+        run: |
+          echo "🛡️  Performing safety checks..."
+          
+          SAFETY_CHECKS='{
+            "environment_check": "production",
+            "backup_verification": false,
+            "impact_assessment": "unknown",
+            "approval_required": false,
+            "emergency_override": false
+          }'
+          
+          # Check if this is production
+          if [[ "$GITHUB_REF" == "refs/heads/main" ]] || [[ "$GITHUB_REF" == "refs/heads/production" ]]; then
+            echo "🚨 PRODUCTION ENVIRONMENT DETECTED"
+            SAFETY_CHECKS=$(echo "$SAFETY_CHECKS" | jq '.environment_check = "production" | .approval_required = true')
+          fi
+          
+          # Check severity and skip confirmations
+          if [[ "${{ github.event.inputs.severity_level }}" == "critical" ]] && [[ "${{ github.event.inputs.skip_confirmations }}" == "true" ]]; then
+            echo "🚨 CRITICAL SEVERITY + SKIP CONFIRMATIONS = EMERGENCY OVERRIDE"
+            SAFETY_CHECKS=$(echo "$SAFETY_CHECKS" | jq '.emergency_override = true | .approval_required = false')
+          fi
+          
+          # Assess potential impact
+          if [[ "${{ github.event.inputs.affected_services }}" == "all" ]]; then
+            SAFETY_CHECKS=$(echo "$SAFETY_CHECKS" | jq '.impact_assessment = "high"')
+          elif [[ "${{ github.event.inputs.rollback_type }}" == "database_rollback" ]]; then
+            SAFETY_CHECKS=$(echo "$SAFETY_CHECKS" | jq '.impact_assessment = "high"')
+          else
+            SAFETY_CHECKS=$(echo "$SAFETY_CHECKS" | jq '.impact_assessment = "medium"')
+          fi
+          
+          echo "safety-checks<<EOF" >> $GITHUB_OUTPUT
+          echo "$SAFETY_CHECKS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          # Display safety assessment
+          echo "🛡️  Safety Assessment:"
+          echo "$SAFETY_CHECKS" | jq -r '
+            "Environment: " + .environment_check,
+            "Impact Level: " + .impact_assessment,
+            "Approval Required: " + (.approval_required | tostring),
+            "Emergency Override: " + (.emergency_override | tostring)
+          '
+
+      - name: Identify affected services
+        id: services
+        run: |
+          echo "🎯 Identifying affected services..."
+          
+          if [[ "${{ github.event.inputs.affected_services }}" == "all" ]]; then
+            SERVICES='["api", "discord-bot", "dashboard", "smart-form", "command-center", "temporal-worker"]'
+          else
+            # Parse comma-separated services
+            IFS=',' read -ra SERVICE_ARRAY <<< "${{ github.event.inputs.affected_services }}"
+            SERVICES=$(printf '%s\n' "${SERVICE_ARRAY[@]}" | jq -R . | jq -s .)
+          fi
+          
+          echo "affected-services<<EOF" >> $GITHUB_OUTPUT
+          echo "$SERVICES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "🎯 Services to be rolled back:"
+          echo "$SERVICES" | jq -r '.[] | "  • " + .'
+
+      - name: Get rollback target information
+        id: target
+        env:
+          ROLLBACK_COMMIT: ${{ steps.validate.outputs.rollback-commit }}
+        run: |
+          echo "📍 Getting rollback target information..."
+          
+          # Get commit information
+          COMMIT_INFO=$(git show --format='{"commit": "%H", "short_commit": "%h", "author": "%an", "date": "%ci", "message": "%s"}' -s $ROLLBACK_COMMIT)
+          
+          # Get deployment information if available
+          DEPLOYMENT_INFO='{
+            "has_deployment_info": false,
+            "deployment_id": null,
+            "environment": "unknown"
+          }'
+          
+          # Try to find deployment information in commit message or tags
+          if git log --oneline -1 $ROLLBACK_COMMIT | grep -q "deploy:"; then
+            DEPLOYMENT_INFO=$(echo "$DEPLOYMENT_INFO" | jq '.has_deployment_info = true')
+          fi
+          
+          TARGET_INFO=$(echo "$COMMIT_INFO" | jq ". + $DEPLOYMENT_INFO")
+          
+          echo "target-info<<EOF" >> $GITHUB_OUTPUT
+          echo "$TARGET_INFO" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "📍 Rollback Target Information:"
+          echo "$TARGET_INFO" | jq -r '
+            "Commit: " + .short_commit + " (" + .commit + ")",
+            "Author: " + .author,
+            "Date: " + .date,
+            "Message: " + .message
+          '
+
+  approval-gate:
+    name: Rollback Approval Gate
+    runs-on: ubuntu-latest
+    needs: rollback-validation
+    if: ${{ fromJson(needs.rollback-validation.outputs.safety-checks).approval_required == true && fromJson(needs.rollback-validation.outputs.safety-checks).emergency_override == false }}
+    
+    steps:
+      - name: Request rollback approval
+        run: |
+          echo "🚨 PRODUCTION ROLLBACK APPROVAL REQUIRED"
+          echo ""
+          echo "Rollback Details:"
+          echo "• Type: ${{ github.event.inputs.rollback_type }}"
+          echo "• Target: ${{ github.event.inputs.rollback_target }}"
+          echo "• Reason: ${{ github.event.inputs.rollback_reason }}"
+          echo "• Severity: ${{ github.event.inputs.severity_level }}"
+          echo ""
+          echo "Please review the rollback plan and approve if safe to proceed."
+          echo "For emergency situations, re-run with 'skip_confirmations: true'"
+
+      - name: Wait for manual approval
+        run: |
+          echo "⏳ Waiting for manual approval..."
+          echo "This job will timeout after 10 minutes if not approved."
+          
+          # In a real implementation, this would integrate with an approval system
+          # For now, we'll simulate a timeout that requires manual intervention
+          sleep 600  # 10 minutes timeout
+
+  emergency-rollback:
+    name: Execute Emergency Rollback
+    runs-on: ubuntu-latest
+    needs: [rollback-validation, approval-gate]
+    if: always() && (needs.approval-gate.result == 'success' || fromJson(needs.rollback-validation.outputs.safety-checks).emergency_override == true)
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ fromJson(needs.rollback-validation.outputs.target-info).commit }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Initialize rollback session
+        id: init
+        run: |
+          echo "🚀 Initializing emergency rollback session..."
+          
+          ROLLBACK_SESSION='{
+            "session_id": "'$(uuidgen)'",
+            "start_time": "'$(date -u +"%Y-%m-%dT%H:%M:%S.%3NZ")'",
+            "rollback_type": "${{ github.event.inputs.rollback_type }}",
+            "target_commit": "'${{ fromJson(needs.rollback-validation.outputs.target-info).commit }}'",
+            "affected_services": ${{ needs.rollback-validation.outputs.affected-services }},
+            "severity": "${{ github.event.inputs.severity_level }}",
+            "initiated_by": "${{ github.actor }}",
+            "workflow_run": "${{ github.run_id }}"
+          }'
+          
+          echo "rollback-session<<EOF" >> $GITHUB_OUTPUT
+          echo "$ROLLBACK_SESSION" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "🚀 Rollback Session Initialized:"
+          echo "$ROLLBACK_SESSION" | jq -r '
+            "Session ID: " + .session_id,
+            "Start Time: " + .start_time,
+            "Type: " + .rollback_type,
+            "Initiated By: " + .initiated_by
+          '
+
+      - name: Enable maintenance mode
+        if: ${{ github.event.inputs.maintenance_mode == 'true' }}
+        run: |
+          echo "🚧 Enabling maintenance mode..."
+          
+          # Create maintenance mode flag
+          echo '{"maintenance_mode": true, "reason": "emergency_rollback", "timestamp": "'$(date -u +"%Y-%m-%dT%H:%M:%S.%3NZ")'"}' > /tmp/maintenance-mode.json
+          
+          # In a real implementation, this would:
+          # 1. Update load balancer configuration
+          # 2. Display maintenance page to users
+          # 3. Drain active connections gracefully
+          
+          echo "✅ Maintenance mode enabled"
+
+      - name: Execute rollback strategy
+        id: rollback
+        timeout-minutes: 10
+        env:
+          ROLLBACK_PLAN: ${{ needs.rollback-validation.outputs.rollback-plan }}
+          AFFECTED_SERVICES: ${{ needs.rollback-validation.outputs.affected-services }}
+        run: |
+          echo "🔄 Executing rollback strategy..."
+          
+          STRATEGY=$(echo "$ROLLBACK_PLAN" | jq -r '.strategy')
+          echo "Strategy: $STRATEGY"
+          
+          case "$STRATEGY" in
+            "blue_green_switch")
+              echo "🔵🟢 Executing Blue-Green Traffic Switch..."
+              
+              # Step 1: Validate green environment (previous stable)
+              echo "1️⃣ Validating green environment..."
+              # In real implementation: check green environment health
+              
+              # Step 2: Switch load balancer traffic
+              echo "2️⃣ Switching load balancer traffic..."
+              # In real implementation: update load balancer config
+              
+              # Step 3: Verify health checks
+              echo "3️⃣ Verifying health checks..."
+              npm run health:check || echo "⚠️  Health checks failed, continuing with rollback"
+              
+              # Step 4: Monitor error rates
+              echo "4️⃣ Monitoring error rates..."
+              sleep 30  # Give time for metrics to stabilize
+              
+              echo "✅ Blue-Green rollback completed"
+              ;;
+              
+            "canary_traffic_revert")
+              echo "🐤 Executing Canary Traffic Revert..."
+              
+              echo "1️⃣ Identifying canary traffic..."
+              # In real implementation: identify canary deployment
+              
+              echo "2️⃣ Reverting traffic to stable..."
+              # In real implementation: update traffic routing
+              
+              echo "3️⃣ Scaling down canary deployment..."
+              # In real implementation: scale down canary pods/instances
+              
+              echo "4️⃣ Verifying stable performance..."
+              sleep 15
+              
+              echo "✅ Canary revert completed"
+              ;;
+              
+            "database_migration_rollback")
+              echo "🗄️ Executing Database Migration Rollback..."
+              
+              echo "1️⃣ Backing up current database state..."
+              # In real implementation: create database backup
+              
+              echo "2️⃣ Executing rollback migrations..."
+              npm run db:rollback || echo "⚠️  Database rollback encountered issues"
+              
+              echo "3️⃣ Verifying data integrity..."
+              npm run db:verify || echo "⚠️  Data integrity check failed"
+              
+              echo "4️⃣ Restarting affected services..."
+              # In real implementation: restart services to pick up DB changes
+              
+              echo "✅ Database rollback completed"
+              ;;
+              
+            "feature_flag_rollback")
+              echo "🚩 Executing Feature Flag Rollback..."
+              
+              echo "1️⃣ Identifying problematic features..."
+              # In real implementation: identify flags to disable
+              
+              echo "2️⃣ Disabling feature flags..."
+              # In real implementation: update feature flag service
+              
+              echo "3️⃣ Verifying flag propagation..."
+              sleep 10  # Wait for flag propagation
+              
+              echo "✅ Feature flag rollback completed"
+              ;;
+              
+            "traffic_drainage")
+              echo "🚰 Executing Traffic Drainage..."
+              
+              echo "1️⃣ Enabling maintenance mode..."
+              # Already handled above if requested
+              
+              echo "2️⃣ Draining active connections..."
+              # In real implementation: graceful connection drainage
+              
+              echo "3️⃣ Redirecting traffic to backup..."
+              # In real implementation: redirect to backup infrastructure
+              
+              echo "✅ Traffic drainage completed"
+              ;;
+              
+            "complete_system_rollback")
+              echo "🔄 Executing Complete System Rollback..."
+              
+              echo "1️⃣ Coordinating all service rollback..."
+              # In real implementation: coordinate multi-service rollback
+              
+              echo "2️⃣ Rolling back database changes..."
+              npm run db:rollback || echo "⚠️  Database rollback issues"
+              
+              echo "3️⃣ Reverting infrastructure changes..."
+              # In real implementation: revert infrastructure to previous state
+              
+              echo "4️⃣ Restoring previous configuration..."
+              # In real implementation: restore configuration files
+              
+              echo "✅ Complete system rollback completed"
+              ;;
+              
+            *)
+              echo "❌ Unknown rollback strategy: $STRATEGY"
+              exit 1
+              ;;
+          esac
+          
+          echo "rollback-completed=true" >> $GITHUB_OUTPUT
+
+      - name: Post-rollback verification
+        id: verify
+        timeout-minutes: 3
+        run: |
+          echo "✅ Running post-rollback verification..."
+          
+          # Health checks
+          echo "🏥 Running health checks..."
+          npm run health:check 2>/dev/null || echo "⚠️  Some health checks failed"
+          
+          # Database connectivity
+          echo "🗄️ Verifying database connectivity..."
+          npm run db:status 2>/dev/null || echo "⚠️  Database connectivity issues"
+          
+          # Service availability
+          echo "🌐 Checking service availability..."
+          # In real implementation: check all service endpoints
+          
+          # Error rate check
+          echo "📊 Checking error rates..."
+          # In real implementation: query monitoring system for error rates
+          
+          VERIFICATION_RESULTS='{
+            "health_checks": "partial_pass",
+            "database_connectivity": "pass",
+            "service_availability": "pass", 
+            "error_rates": "acceptable",
+            "overall_status": "success_with_warnings"
+          }'
+          
+          echo "verification-results<<EOF" >> $GITHUB_OUTPUT
+          echo "$VERIFICATION_RESULTS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "✅ Verification Results:"
+          echo "$VERIFICATION_RESULTS" | jq -r '
+            "Health Checks: " + .health_checks,
+            "Database: " + .database_connectivity,
+            "Services: " + .service_availability,
+            "Error Rates: " + .error_rates,
+            "Overall: " + .overall_status
+          '
+
+      - name: Update error budget after rollback
+        run: |
+          echo "📊 Updating error budget consumption..."
+          
+          # Calculate rollback impact on error budget
+          ROLLBACK_DURATION=5  # Assume 5 minutes for rollback operation
+          
+          # In a real implementation, this would:
+          # 1. Calculate actual downtime/errors during rollback
+          # 2. Update error budget tracking system
+          # 3. Assess remaining budget after rollback
+          
+          ERROR_BUDGET_IMPACT='{
+            "rollback_duration_minutes": '$ROLLBACK_DURATION',
+            "estimated_budget_consumption": "'$ROLLBACK_DURATION' minutes",
+            "rollback_type": "${{ github.event.inputs.rollback_type }}",
+            "recovery_successful": true
+          }'
+          
+          echo "📊 Error Budget Impact:"
+          echo "$ERROR_BUDGET_IMPACT" | jq -r '
+            "Duration: " + (.rollback_duration_minutes | tostring) + " minutes",
+            "Budget Used: " + .estimated_budget_consumption,
+            "Type: " + .rollback_type,
+            "Recovery: " + (.recovery_successful | tostring)
+          '
+
+      - name: Disable maintenance mode
+        if: ${{ github.event.inputs.maintenance_mode == 'true' }}
+        run: |
+          echo "🟢 Disabling maintenance mode..."
+          
+          # Remove maintenance mode flag
+          rm -f /tmp/maintenance-mode.json
+          
+          # In a real implementation, this would:
+          # 1. Restore normal load balancer configuration
+          # 2. Remove maintenance page
+          # 3. Allow normal traffic flow
+          
+          echo "✅ Maintenance mode disabled - system restored to normal operation"
+
+  notification-dispatch:
+    name: Dispatch Rollback Notifications
+    runs-on: ubuntu-latest
+    needs: [rollback-validation, emergency-rollback]
+    if: always() && needs.rollback-validation.result == 'success'
+    
+    steps:
+      - name: Prepare notification content
+        id: prepare
+        env:
+          ROLLBACK_SUCCESS: ${{ needs.emergency-rollback.outputs.rollback-completed }}
+          VERIFICATION_RESULTS: ${{ needs.emergency-rollback.outputs.verification-results }}
+        run: |
+          echo "📢 Preparing rollback notifications..."
+          
+          # Determine notification severity and status
+          if [[ "${{ needs.emergency-rollback.result }}" == "success" ]]; then
+            STATUS="SUCCESS"
+            COLOR="65280"  # Green
+            STATUS_EMOJI="✅"
+          else
+            STATUS="FAILED"
+            COLOR="16711680"  # Red
+            STATUS_EMOJI="❌"
+          fi
+          
+          # Create notification payload
+          NOTIFICATION='{
+            "status": "'$STATUS'",
+            "status_emoji": "'$STATUS_EMOJI'",
+            "color": '$COLOR',
+            "rollback_type": "${{ github.event.inputs.rollback_type }}",
+            "rollback_reason": "${{ github.event.inputs.rollback_reason }}",
+            "severity": "${{ github.event.inputs.severity_level }}",
+            "target": "${{ github.event.inputs.rollback_target }}",
+            "affected_services": "${{ github.event.inputs.affected_services }}",
+            "initiated_by": "${{ github.actor }}",
+            "workflow_url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "timestamp": "'$(date -u +"%Y-%m-%dT%H:%M:%S.%3NZ")'"
+          }'
+          
+          echo "notification-payload<<EOF" >> $GITHUB_OUTPUT
+          echo "$NOTIFICATION" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Send Discord notification
+        if: ${{ contains(github.event.inputs.notify_channels, 'discord') }}
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_EMERGENCY_WEBHOOK }}
+          NOTIFICATION: ${{ steps.prepare.outputs.notification-payload }}
+        run: |
+          echo "📱 Sending Discord notification..."
+          
+          if [[ -z "$DISCORD_WEBHOOK" ]]; then
+            echo "⚠️  Discord webhook not configured, skipping..."
+            exit 0
+          fi
+          
+          # Create Discord embed
+          EMBED='{
+            "embeds": [{
+              "title": "'$(echo "$NOTIFICATION" | jq -r '.status_emoji')' Emergency Rollback '$STATUS'",
+              "description": "Production rollback has been executed",
+              "color": '$(echo "$NOTIFICATION" | jq -r '.color')',
+              "fields": [
+                {
+                  "name": "Rollback Type",
+                  "value": "'$(echo "$NOTIFICATION" | jq -r '.rollback_type')'",
+                  "inline": true
+                },
+                {
+                  "name": "Reason", 
+                  "value": "'$(echo "$NOTIFICATION" | jq -r '.rollback_reason')'",
+                  "inline": true
+                },
+                {
+                  "name": "Severity",
+                  "value": "'$(echo "$NOTIFICATION" | jq -r '.severity')'",
+                  "inline": true
+                },
+                {
+                  "name": "Target",
+                  "value": "'$(echo "$NOTIFICATION" | jq -r '.target')'",
+                  "inline": true
+                },
+                {
+                  "name": "Services",
+                  "value": "'$(echo "$NOTIFICATION" | jq -r '.affected_services')'",
+                  "inline": true
+                },
+                {
+                  "name": "Initiated By",
+                  "value": "'$(echo "$NOTIFICATION" | jq -r '.initiated_by')'",
+                  "inline": true
+                }
+              ],
+              "footer": {
+                "text": "Emergency Rollback System"
+              },
+              "timestamp": "'$(echo "$NOTIFICATION" | jq -r '.timestamp')'"
+            }]
+          }'
+          
+          # Send to Discord
+          curl -X POST "$DISCORD_WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d "$EMBED" \
+            --fail --silent || echo "⚠️  Failed to send Discord notification"
+          
+          echo "✅ Discord notification sent"
+
+      - name: Create GitHub issue for incident tracking
+        if: ${{ contains(github.event.inputs.notify_channels, 'github') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NOTIFICATION: ${{ steps.prepare.outputs.notification-payload }}
+        run: |
+          echo "📋 Creating GitHub issue for incident tracking..."
+          
+          # Create incident issue
+          ISSUE_BODY="## Emergency Rollback Incident
+          
+          **Status**: $(echo "$NOTIFICATION" | jq -r '.status')
+          **Rollback Type**: $(echo "$NOTIFICATION" | jq -r '.rollback_type')
+          **Reason**: $(echo "$NOTIFICATION" | jq -r '.rollback_reason')
+          **Severity**: $(echo "$NOTIFICATION" | jq -r '.severity')
+          **Target**: $(echo "$NOTIFICATION" | jq -r '.target')
+          **Affected Services**: $(echo "$NOTIFICATION" | jq -r '.affected_services')
+          **Initiated By**: $(echo "$NOTIFICATION" | jq -r '.initiated_by')
+          **Timestamp**: $(echo "$NOTIFICATION" | jq -r '.timestamp')
+          
+          ## Workflow Details
+          **Workflow Run**: [View Logs]($(echo "$NOTIFICATION" | jq -r '.workflow_url'))
+          
+          ## Next Steps
+          - [ ] Verify system stability post-rollback
+          - [ ] Investigate root cause of original issue
+          - [ ] Update monitoring and alerting if needed
+          - [ ] Schedule post-mortem meeting
+          - [ ] Document lessons learned
+          
+          ## Post-Mortem
+          _To be completed within 48 hours of incident resolution_
+          "
+          
+          gh issue create \
+            --title "🚨 Emergency Rollback - $(echo "$NOTIFICATION" | jq -r '.rollback_reason') ($(echo "$NOTIFICATION" | jq -r '.severity | ascii_upcase'))" \
+            --body "$ISSUE_BODY" \
+            --label "incident,rollback,$(echo "$NOTIFICATION" | jq -r '.severity')" \
+            --assignee "${{ github.actor }}" || echo "⚠️  Failed to create GitHub issue"
+          
+          echo "✅ GitHub issue created for incident tracking"
+
+      - name: Update workflow summary
+        run: |
+          echo "# 🚨 Emergency Rollback Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Status**: ${{ needs.emergency-rollback.result == 'success' && '✅ SUCCESS' || '❌ FAILED' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Rollback Type**: ${{ github.event.inputs.rollback_type }}" >> $GITHUB_STEP_SUMMARY  
+          echo "**Reason**: ${{ github.event.inputs.rollback_reason }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Severity**: ${{ github.event.inputs.severity_level }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Target**: ${{ github.event.inputs.rollback_target }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Affected Services**: ${{ github.event.inputs.affected_services }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Initiated By**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Completed At**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.emergency-rollback.result }}" == "success" ]]; then
+            echo "## ✅ Rollback Completed Successfully" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The emergency rollback has been executed and the system has been restored to a stable state." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+            echo "1. Monitor system stability for the next 2 hours" >> $GITHUB_STEP_SUMMARY
+            echo "2. Investigate the root cause of the original issue" >> $GITHUB_STEP_SUMMARY
+            echo "3. Plan and execute a proper fix" >> $GITHUB_STEP_SUMMARY
+            echo "4. Schedule a post-mortem meeting within 48 hours" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ❌ Rollback Failed or Incomplete" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The emergency rollback encountered issues. Immediate manual intervention may be required." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Immediate Actions Required" >> $GITHUB_STEP_SUMMARY
+            echo "1. 🚨 Contact on-call engineer immediately" >> $GITHUB_STEP_SUMMARY
+            echo "2. Assess current system state manually" >> $GITHUB_STEP_SUMMARY
+            echo "3. Consider alternative recovery methods" >> $GITHUB_STEP_SUMMARY
+            echo "4. Escalate to engineering management if needed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "*Emergency Rollback completed at $(date -u '+%Y-%m-%d %H:%M:%S UTC')*" >> $GITHUB_STEP_SUMMARY

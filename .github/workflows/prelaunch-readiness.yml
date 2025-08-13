@@ -1,0 +1,705 @@
+name: Pre-Launch Readiness Testing Suite
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: 'Test suite to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - e2e
+          - soak
+          - load
+          - chaos
+          - rehearsal
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production-dry-run
+      intensity:
+        description: 'Test intensity'
+        required: true
+        default: 'medium'
+        type: choice
+        options:
+          - low
+          - medium
+          - high
+      duration_hours:
+        description: 'Soak test duration (hours)'
+        required: false
+        default: '24'
+        type: string
+      notify_webhook:
+        description: 'Notification webhook URL'
+        required: false
+        type: string
+
+  schedule:
+    # Run comprehensive tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+  push:
+    branches:
+      - 'prelaunch-readiness/*'
+    paths:
+      - 'tests/e2e/**'
+      - 'scripts/soak/**'
+      - 'scripts/performance/**'
+      - 'scripts/chaos/**'
+      - 'scripts/rehearsal/**'
+
+env:
+  NODE_VERSION: '20'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  setup:
+    name: Setup Test Environment
+    runs-on: ubuntu-latest
+    outputs:
+      test_matrix: ${{ steps.matrix.outputs.tests }}
+      environment: ${{ steps.config.outputs.environment }}
+      docker_tag: ${{ steps.docker.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine test configuration
+        id: config
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+            echo "test_suite=${{ github.event.inputs.test_suite }}" >> $GITHUB_OUTPUT
+            echo "intensity=${{ github.event.inputs.intensity }}" >> $GITHUB_OUTPUT
+          else
+            echo "environment=staging" >> $GITHUB_OUTPUT
+            echo "test_suite=all" >> $GITHUB_OUTPUT
+            echo "intensity=medium" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate test matrix
+        id: matrix
+        run: |
+          case "${{ steps.config.outputs.test_suite }}" in
+            "all")
+              echo 'tests=["e2e", "soak", "load", "chaos", "rehearsal"]' >> $GITHUB_OUTPUT
+              ;;
+            "e2e")
+              echo 'tests=["e2e"]' >> $GITHUB_OUTPUT
+              ;;
+            "soak")
+              echo 'tests=["soak"]' >> $GITHUB_OUTPUT
+              ;;
+            "load")
+              echo 'tests=["load"]' >> $GITHUB_OUTPUT
+              ;;
+            "chaos")
+              echo 'tests=["chaos"]' >> $GITHUB_OUTPUT
+              ;;
+            "rehearsal")
+              echo 'tests=["rehearsal"]' >> $GITHUB_OUTPUT
+              ;;
+            *)
+              echo 'tests=["e2e"]' >> $GITHUB_OUTPUT
+              ;;
+          esac
+
+      - name: Generate Docker tag
+        id: docker
+        run: |
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            echo "tag=nightly-$(date +%Y%m%d)" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.sha }}" >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    name: Build Test Environment
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker images
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.setup.outputs.docker_tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Verify image build
+        run: |
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.setup.outputs.docker_tag }}
+          docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.setup.outputs.docker_tag }} node --version
+
+  e2e-tests:
+    name: E2E Testing Suite
+    runs-on: ubuntu-latest
+    needs: [setup, build]
+    if: contains(needs.setup.outputs.test_matrix, 'e2e')
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
+          - feed
+          - grading
+          - promoter
+          - alerts
+          - recaps
+          - bot
+          - frontend
+          - safemode
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: unit_talk_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup test environment
+        run: |
+          cp .env.test.example .env.test
+          npm run db:migrate:test
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Run E2E tests
+        run: npx playwright test tests/e2e/e2e-${{ matrix.suite }}.test.ts
+        env:
+          CI: true
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/unit_talk_test
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          API_URL: http://localhost:3000
+          FRONTEND_URL: http://localhost:3001
+          COMMAND_CENTER_URL: http://localhost:3002
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-results-${{ matrix.suite }}
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 30
+
+      - name: Upload test videos
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-videos-${{ matrix.suite }}
+          path: test-results/**/video.webm
+          retention-days: 7
+
+  soak-tests:
+    name: Shadow Mode Soak Testing
+    runs-on: ubuntu-latest
+    needs: [setup, build]
+    if: contains(needs.setup.outputs.test_matrix, 'soak')
+    timeout-minutes: 2880 # 48 hours max
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start test environment
+        run: |
+          docker-compose -f docker-compose.test.yml up -d
+          sleep 30 # Wait for services to start
+
+      - name: Run soak test
+        run: |
+          npx tsx scripts/soak/shadow-soak.ts
+        env:
+          SOAK_DURATION: ${{ github.event.inputs.duration_hours || '24' }}
+          CHECK_INTERVAL: 15
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          API_URL: http://localhost:3000
+          ALERT_WEBHOOK_URL: ${{ github.event.inputs.notify_webhook }}
+
+      - name: Upload soak test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: soak-test-results
+          path: soak-results/
+          retention-days: 90
+
+      - name: Cleanup test environment
+        if: always()
+        run: docker-compose -f docker-compose.test.yml down -v
+
+  load-tests:
+    name: Performance & Load Testing
+    runs-on: ubuntu-latest
+    needs: [setup, build]
+    if: contains(needs.setup.outputs.test_matrix, 'load')
+    strategy:
+      fail-fast: false
+      matrix:
+        tool: [k6, artillery]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install k6
+        if: matrix.tool == 'k6'
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+
+      - name: Install Artillery
+        if: matrix.tool == 'artillery'
+        run: npm install -g artillery@latest
+
+      - name: Start test environment
+        run: |
+          docker-compose -f docker-compose.test.yml up -d
+          sleep 30 # Wait for services to start
+
+      - name: Run k6 load test
+        if: matrix.tool == 'k6'
+        run: |
+          k6 run --out json=k6-results.json scripts/performance/k6-load-test.js
+        env:
+          API_URL: http://localhost:3000
+          AUTH_TOKEN: ${{ secrets.TEST_AUTH_TOKEN }}
+
+      - name: Run Artillery load test
+        if: matrix.tool == 'artillery'
+        run: |
+          artillery run scripts/performance/artillery-scenarios.yml --output artillery-results.json
+        env:
+          API_URL: http://localhost:3000
+
+      - name: Process test results
+        run: |
+          if [[ "${{ matrix.tool }}" == "k6" ]]; then
+            # Convert k6 results to summary
+            node -e "
+              const data = require('./k6-results.json');
+              const summary = {
+                tool: 'k6',
+                duration: data.metrics.iteration_duration.values.avg,
+                rps: data.metrics.http_reqs.values.rate,
+                p95: data.metrics.http_req_duration.values['p(95)'],
+                errors: data.metrics.http_req_failed.values.rate * 100
+              };
+              console.log(JSON.stringify(summary, null, 2));
+            " > load-test-summary.json
+          else
+            # Convert Artillery results to summary
+            node -e "
+              const data = require('./artillery-results.json');
+              const summary = {
+                tool: 'artillery',
+                duration: data.aggregate.counters['http.responses'] / data.aggregate.rates['http.request_rate'],
+                rps: data.aggregate.rates['http.request_rate'],
+                p95: data.aggregate.summaries['http.response_time'].p95,
+                errors: (data.aggregate.counters['http.codes.4xx'] || 0 + data.aggregate.counters['http.codes.5xx'] || 0) / data.aggregate.counters['http.responses'] * 100
+              };
+              console.log(JSON.stringify(summary, null, 2));
+            " > load-test-summary.json
+          fi
+
+      - name: Upload load test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: load-test-results-${{ matrix.tool }}
+          path: |
+            *-results.json
+            load-test-summary.json
+          retention-days: 30
+
+      - name: Cleanup test environment
+        if: always()
+        run: docker-compose -f docker-compose.test.yml down -v
+
+  chaos-tests:
+    name: Chaos Engineering Testing
+    runs-on: ubuntu-latest
+    needs: [setup, build]
+    if: contains(needs.setup.outputs.test_matrix, 'chaos') && needs.setup.outputs.environment != 'production'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install chaos engineering tools
+        run: |
+          # Install stress testing tools
+          sudo apt-get update
+          sudo apt-get install -y stress-ng
+
+      - name: Start test environment
+        run: |
+          docker-compose -f docker-compose.test.yml up -d
+          sleep 30 # Wait for services to start
+
+      - name: Run chaos tests
+        run: |
+          npx tsx scripts/chaos/chaos-suite.ts
+        env:
+          CHAOS_DURATION: 30
+          CHAOS_INTENSITY: ${{ github.event.inputs.intensity || 'medium' }}
+          CHAOS_SAFE_MODE: true
+          CHAOS_CONFIRM: true
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          API_URL: http://localhost:3000
+
+      - name: Upload chaos test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chaos-test-results
+          path: chaos-results/
+          retention-days: 30
+
+      - name: Cleanup test environment
+        if: always()
+        run: docker-compose -f docker-compose.test.yml down -v
+
+  rehearsal:
+    name: Go-Live Rehearsal
+    runs-on: ubuntu-latest
+    needs: [setup, build]
+    if: contains(needs.setup.outputs.test_matrix, 'rehearsal')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start staging environment
+        run: |
+          docker-compose -f docker-compose.staging.yml up -d
+          sleep 60 # Wait for full stack to start
+
+      - name: Run go-live rehearsal
+        run: |
+          npx tsx scripts/rehearsal/go-live-rehearsal.ts
+        env:
+          REHEARSAL_ENV: ${{ needs.setup.outputs.environment }}
+          DRY_RUN: ${{ needs.setup.outputs.environment != 'production-dry-run' && 'true' || 'false' }}
+          REHEARSAL_AUTO: true
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          API_URL: http://localhost:3000
+          COMMAND_CENTER_URL: http://localhost:3001
+          FRONTEND_URL: http://localhost:3002
+          NOTIFY_WEBHOOK: ${{ github.event.inputs.notify_webhook }}
+
+      - name: Upload rehearsal results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rehearsal-results
+          path: rehearsal-results/
+          retention-days: 90
+
+      - name: Cleanup staging environment
+        if: always()
+        run: docker-compose -f docker-compose.staging.yml down -v
+
+  report:
+    name: Generate Comprehensive Report
+    runs-on: ubuntu-latest
+    needs: [setup, e2e-tests, soak-tests, load-tests, chaos-tests, rehearsal]
+    if: always()
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: test-artifacts/
+
+      - name: Generate comprehensive report
+        run: |
+          node -e "
+            const fs = require('fs');
+            const path = require('path');
+            
+            const report = {
+              workflow_run: '${{ github.run_id }}',
+              branch: '${{ github.ref_name }}',
+              commit: '${{ github.sha }}',
+              environment: '${{ needs.setup.outputs.environment }}',
+              test_suite: '${{ github.event.inputs.test_suite || \"all\" }}',
+              started_at: '${{ github.event.created_at || github.event.head_commit.timestamp }}',
+              completed_at: new Date().toISOString(),
+              results: {},
+              summary: {
+                total_tests: 0,
+                passed_tests: 0,
+                failed_tests: 0,
+                go_live_ready: false
+              }
+            };
+            
+            // Process E2E results
+            const e2eDir = './test-artifacts';
+            if (fs.existsSync(e2eDir)) {
+              const e2eResults = fs.readdirSync(e2eDir)
+                .filter(dir => dir.startsWith('e2e-results-'))
+                .map(dir => {
+                  const resultsPath = path.join(e2eDir, dir, 'test-results');
+                  return { suite: dir, path: resultsPath };
+                });
+              
+              report.results.e2e = {
+                suites_run: e2eResults.length,
+                status: e2eResults.length > 0 ? 'completed' : 'not_run'
+              };
+            }
+            
+            // Process load test results
+            const loadResults = [];
+            ['k6', 'artillery'].forEach(tool => {
+              const resultPath = path.join(e2eDir, \`load-test-results-\${tool}\`, 'load-test-summary.json');
+              if (fs.existsSync(resultPath)) {
+                const data = JSON.parse(fs.readFileSync(resultPath, 'utf8'));
+                loadResults.push(data);
+              }
+            });
+            
+            if (loadResults.length > 0) {
+              report.results.load = {
+                tools_used: loadResults.map(r => r.tool),
+                avg_p95: loadResults.reduce((sum, r) => sum + r.p95, 0) / loadResults.length,
+                max_rps: Math.max(...loadResults.map(r => r.rps)),
+                avg_error_rate: loadResults.reduce((sum, r) => sum + r.errors, 0) / loadResults.length
+              };
+            }
+            
+            // Process rehearsal results
+            const rehearsalPath = path.join(e2eDir, 'rehearsal-results');
+            if (fs.existsSync(rehearsalPath)) {
+              const reportFiles = fs.readdirSync(rehearsalPath)
+                .filter(f => f.startsWith('rehearsal-report-') && f.endsWith('.json'));
+              
+              if (reportFiles.length > 0) {
+                const latestReport = reportFiles.sort().pop();
+                const rehearsalData = JSON.parse(fs.readFileSync(path.join(rehearsalPath, latestReport), 'utf8'));
+                
+                report.results.rehearsal = {
+                  go_live_ready: rehearsalData.go_live_ready,
+                  steps_passed: rehearsalData.steps_passed,
+                  steps_failed: rehearsalData.steps_failed,
+                  critical_failures: rehearsalData.critical_failures,
+                  blockers: rehearsalData.blockers
+                };
+                
+                report.summary.go_live_ready = rehearsalData.go_live_ready;
+              }
+            }
+            
+            // Overall summary
+            report.summary.total_tests = Object.keys(report.results).length;
+            report.summary.passed_tests = Object.values(report.results)
+              .filter(r => r.status !== 'failed' && !r.critical_failures).length;
+            report.summary.failed_tests = report.summary.total_tests - report.summary.passed_tests;
+            
+            fs.writeFileSync('comprehensive-test-report.json', JSON.stringify(report, null, 2));
+            
+            // Generate markdown summary
+            let markdown = \`# Pre-Launch Readiness Test Report\n\n\`;
+            markdown += \`**Environment:** \${report.environment}\n\`;
+            markdown += \`**Test Suite:** \${report.test_suite || 'all'}\n\`;
+            markdown += \`**Status:** \${report.summary.go_live_ready ? '✅ GO-LIVE READY' : '❌ BLOCKERS FOUND'}\n\n\`;
+            
+            markdown += \`## Summary\n\n\`;
+            markdown += \`- **Total Test Categories:** \${report.summary.total_tests}\n\`;
+            markdown += \`- **Passed:** \${report.summary.passed_tests}\n\`;
+            markdown += \`- **Failed:** \${report.summary.failed_tests}\n\n\`;
+            
+            if (report.results.e2e) {
+              markdown += \`## E2E Testing\n\`;
+              markdown += \`- **Suites Run:** \${report.results.e2e.suites_run}\n\`;
+              markdown += \`- **Status:** \${report.results.e2e.status}\n\n\`;
+            }
+            
+            if (report.results.load) {
+              markdown += \`## Load Testing\n\`;
+              markdown += \`- **Tools:** \${report.results.load.tools_used.join(', ')}\n\`;
+              markdown += \`- **Avg P95:** \${report.results.load.avg_p95.toFixed(2)}ms\n\`;
+              markdown += \`- **Max RPS:** \${report.results.load.max_rps.toFixed(0)}\n\`;
+              markdown += \`- **Avg Error Rate:** \${report.results.load.avg_error_rate.toFixed(2)}%\n\n\`;
+            }
+            
+            if (report.results.rehearsal) {
+              markdown += \`## Go-Live Rehearsal\n\`;
+              markdown += \`- **Ready for Go-Live:** \${report.results.rehearsal.go_live_ready ? '✅ Yes' : '❌ No'}\n\`;
+              markdown += \`- **Steps Passed:** \${report.results.rehearsal.steps_passed}\n\`;
+              markdown += \`- **Steps Failed:** \${report.results.rehearsal.steps_failed}\n\`;
+              markdown += \`- **Critical Failures:** \${report.results.rehearsal.critical_failures}\n\`;
+              
+              if (report.results.rehearsal.blockers?.length > 0) {
+                markdown += \`\n**Blockers:**\n\`;
+                report.results.rehearsal.blockers.forEach(blocker => {
+                  markdown += \`- \${blocker}\n\`;
+                });
+              }
+            }
+            
+            fs.writeFileSync('test-summary.md', markdown);
+            console.log(markdown);
+          "
+
+      - name: Upload comprehensive report
+        uses: actions/upload-artifact@v4
+        with:
+          name: comprehensive-test-report
+          path: |
+            comprehensive-test-report.json
+            test-summary.md
+          retention-days: 365
+
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('test-summary.md', 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });
+
+      - name: Set workflow status
+        run: |
+          if [[ -f comprehensive-test-report.json ]]; then
+            GO_LIVE_READY=$(node -e "console.log(require('./comprehensive-test-report.json').summary.go_live_ready)")
+            if [[ "$GO_LIVE_READY" != "true" ]]; then
+              echo "❌ Pre-launch readiness tests failed - not ready for go-live"
+              exit 1
+            else
+              echo "✅ All tests passed - ready for go-live"
+            fi
+          else
+            echo "❌ Could not generate test report"
+            exit 1
+          fi
+
+  notify:
+    name: Send Notifications
+    runs-on: ubuntu-latest
+    needs: [setup, report]
+    if: always() && github.event.inputs.notify_webhook
+    steps:
+      - name: Send completion notification
+        run: |
+          STATUS="${{ job.status }}"
+          if [[ "${{ needs.report.result }}" == "success" ]]; then
+            STATUS="success"
+          else
+            STATUS="failure"
+          fi
+          
+          curl -X POST "${{ github.event.inputs.notify_webhook }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"type\": \"prelaunch_readiness_complete\",
+              \"status\": \"$STATUS\",
+              \"workflow_run\": \"${{ github.run_id }}\",
+              \"branch\": \"${{ github.ref_name }}\",
+              \"environment\": \"${{ needs.setup.outputs.environment }}\",
+              \"test_suite\": \"${{ github.event.inputs.test_suite || 'all' }}\",
+              \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
+              \"run_url\": \"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
+            }"

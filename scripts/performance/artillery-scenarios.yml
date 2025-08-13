@@ -1,0 +1,289 @@
+# Artillery Load Testing Scenarios for Unit Talk Platform
+# 
+# Simulates real-world user behaviors and traffic patterns
+
+config:
+  target: "{{ $processEnvironment.API_URL }}"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+  environments:
+    local:
+      target: "http://localhost:3000"
+      phases:
+        - duration: 60
+          arrivalRate: 5
+          name: "Warm-up"
+        - duration: 300
+          arrivalRate: 20
+          name: "Sustained Load"
+    staging:
+      target: "https://staging.unit-talk.com"
+      phases:
+        - duration: 120
+          arrivalRate: 10
+          name: "Warm-up"
+        - duration: 600
+          arrivalRate: 50
+          name: "Normal Load"
+        - duration: 300
+          arrivalRate: 100
+          name: "Peak Load"
+    production:
+      target: "https://api.unit-talk.com"
+      phases:
+        - duration: 300
+          arrivalRate: 20
+          name: "Baseline"
+        - duration: 600
+          arrivalRate: 100
+          name: "Game Time"
+        - duration: 120
+          arrivalRate: 200
+          name: "Major Event"
+  
+  # Plugins for extended metrics
+  plugins:
+    ensure:
+      thresholds:
+        - http.response_time.p95: 500
+        - http.response_time.p99: 1000
+        - http.codes.200: 95
+    metrics-by-endpoint:
+      useOnlyRequestNames: true
+    publish-metrics:
+      - type: cloudwatch
+        region: us-east-1
+        namespace: UnitTalk/LoadTests
+
+  processor: "./artillery-processor.js"
+
+scenarios:
+  # Free Tier User Journey
+  - name: "Free User Daily Flow"
+    weight: 40
+    flow:
+      - think: 2
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "{{ $randomString(8) }}@example.com"
+            password: "password123"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+      
+      - think: 3
+      - get:
+          url: "/api/picks"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode: 200
+            - contentType: json
+      
+      - loop:
+          - post:
+              url: "/api/picks"
+              headers:
+                Authorization: "Bearer {{ authToken }}"
+              json:
+                player_name: "{{ $randomString() }}"
+                stat_type: "Points"
+                line: "{{ $randomNumber(15, 35) }}"
+                pick: "{{ $randomString(['over', 'under']) }}"
+              expect:
+                - statusCode: 201
+          - think: 5
+        count: 3
+      
+      - get:
+          url: "/api/analytics/summary"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode: 200
+
+  # VIP User Journey
+  - name: "VIP User Premium Flow"
+    weight: 30
+    flow:
+      - function: "generateVIPUser"
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "{{ vipEmail }}"
+            password: "{{ vipPassword }}"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+            - json: "$.user_id"
+              as: "userId"
+      
+      # Access premium features
+      - get:
+          url: "/api/premium/advanced-stats"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode: 200
+      
+      # Submit multiple picks rapidly
+      - loop:
+          - function: "generatePremiumPick"
+          - post:
+              url: "/api/picks/batch"
+              headers:
+                Authorization: "Bearer {{ authToken }}"
+              json:
+                picks: "{{ premiumPicks }}"
+              expect:
+                - statusCode: 201
+          - think: 2
+        count: 5
+      
+      # Check grading results
+      - get:
+          url: "/api/grading/results/{{ userId }}"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode: 200
+            - hasProperty: "grades"
+
+  # Professional Tier User
+  - name: "Professional Heavy Usage"
+    weight: 20
+    flow:
+      - function: "generateProUser"
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "{{ proEmail }}"
+            password: "{{ proPassword }}"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+      
+      # API heavy usage
+      - loop:
+          - get:
+              url: "/api/feeds/live"
+              headers:
+                Authorization: "Bearer {{ authToken }}"
+          - think: 1
+          - get:
+              url: "/api/odds/comparison"
+              headers:
+                Authorization: "Bearer {{ authToken }}"
+          - think: 1
+          - post:
+              url: "/api/analysis/run"
+              headers:
+                Authorization: "Bearer {{ authToken }}"
+              json:
+                type: "correlation"
+                timeframe: "7d"
+          - think: 2
+        count: 10
+      
+      # Export data
+      - post:
+          url: "/api/export/csv"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            start_date: "{{ $randomDate('2024-01-01', '2024-12-31') }}"
+            end_date: "{{ $randomDate('2024-01-01', '2024-12-31') }}"
+          expect:
+            - statusCode: 200
+
+  # Discord Bot Simulation
+  - name: "Discord Bot Commands"
+    weight: 10
+    flow:
+      - post:
+          url: "/api/discord/webhook"
+          json:
+            type: "INTERACTION_CREATE"
+            data:
+              name: "picks"
+              options: []
+            user:
+              id: "{{ $randomNumber(100000, 999999) }}"
+          expect:
+            - statusCode: 200
+      
+      - think: 2
+      
+      - post:
+          url: "/api/discord/webhook"
+          json:
+            type: "INTERACTION_CREATE"
+            data:
+              name: "stats"
+              options:
+                - name: "player"
+                  value: "LeBron James"
+            user:
+              id: "{{ $randomNumber(100000, 999999) }}"
+          expect:
+            - statusCode: 200
+
+  # WebSocket Connection Test
+  - name: "Real-time Subscriptions"
+    weight: 5
+    engine: "ws"
+    flow:
+      - connect:
+          url: "/ws"
+      - send:
+          json:
+            type: "subscribe"
+            channels: ["picks", "grades", "alerts"]
+      - think: 30
+      - send:
+          json:
+            type: "ping"
+      - think: 30
+      - send:
+          json:
+            type: "unsubscribe"
+            channels: ["picks"]
+
+  # Stress Test Scenario
+  - name: "Burst Traffic"
+    weight: 5
+    flow:
+      - loop:
+          - parallel:
+              - get:
+                  url: "/health"
+              - get:
+                  url: "/api/status"
+              - get:
+                  url: "/api/picks/recent"
+          - think: 0.5
+        count: 20
+
+# Custom scenarios for game time simulation
+scenarios_game_time:
+  - name: "Game Time Rush"
+    weight: 100
+    flow:
+      - loop:
+          - parallel:
+              - function: "generateRushPick"
+              - post:
+                  url: "/api/picks/quick"
+                  json: "{{ rushPick }}"
+                  expect:
+                    - statusCode: [200, 201]
+              - get:
+                  url: "/api/odds/live"
+              - get:
+                  url: "/api/injuries/latest"
+          - think: 1
+        count: 50
+
+# Processor functions are defined in artillery-processor.js

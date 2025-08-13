@@ -18,6 +18,7 @@
     "test:unit": "jest --testPathPattern=unit",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "lint:production-commit": "eslint . --ext .ts,.tsx --config .eslintrc.production-commit.js --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,json}\"",
     "type-check": "tsc --noEmit",
     "type-check:watch": "tsc --noEmit --watch",
@@ -29,8 +30,10 @@
     "odds-api:monitor": "tsx scripts/monitor-credit-usage.ts",
     "elite:test": "tsx scripts/test-elite-dual-api.ts",
     "elite:deploy": "tsx scripts/deploy-elite-system.ts",
-    "settlement:test": "tsx -e \"import('./src/agents/SettlementAgent').then(m => console.log('Settlement Agent ready'))\"",
-    "settlement:migrate": "tsx scripts/run-settlement-migration.ts",
+    "// Production Settlement System": "Self-contained settlement with MLB Stats API integration, idempotency, and monitoring",
+    "settlement:test": "tsx scripts/settlement-backfill.ts --dry-run",
+    "settlement:backfill": "tsx scripts/settlement-backfill.ts",
+    "settlement:monitor": "tsx scripts/monitor-settlement-health.ts",
     "test:real-world-e2e": "tsx scripts/test-real-world-e2e.ts",
     "test:production-pipeline": "tsx scripts/test-real-world-e2e.ts --duration=60min --validate-settlement",
     "history:import": "tsx scripts/historical-data-import.ts",
@@ -78,6 +81,9 @@
     "dev:stop": "docker compose down",
     "dev:logs": "docker compose logs -f",
     "dev:status": "docker compose ps",
+    "e2e:staging-full": "tsx ../../scripts/e2e/e2e-staging-full.ts",
+    "db:migrate": "echo 'DB migration command placeholder'",
+    "db:status": "echo 'DB status command placeholder'",
     "clean": "rimraf dist"
   },
   "dependencies": {
@@ -162,7 +168,7 @@
   },
   "lint-staged": {
     "*.{ts,tsx}": [
-      "eslint --fix",
+      "eslint --config .eslintrc.production-commit.js --fix",
       "prettier --write"
     ],
     "*.{json,md}": [

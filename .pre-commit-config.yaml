@@ -1,0 +1,141 @@
+# Pre-commit configuration for Unit Talk Platform
+repos:
+  # Gitleaks for secret detection
+  - repo: https://github.com/zricethezav/gitleaks
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks
+        stages: [commit]
+        args: ['--config=.gitleaks.toml', '--verbose', '--redact']
+  
+  # General code quality hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ['--maxkb=10000']  # 10MB limit
+      - id: detect-private-key
+      - id: check-case-conflict
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+
+  # TypeScript/JavaScript linting
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v8.57.0
+    hooks:
+      - id: eslint
+        files: \.(js|ts|tsx)$
+        args: ['--fix']
+        additional_dependencies:
+          - '@typescript-eslint/parser@^6.12.0'
+          - '@typescript-eslint/eslint-plugin@^6.12.0'
+          - 'eslint-plugin-security@^1.7.1'
+          - 'eslint-plugin-import@^2.29.0'
+          - 'eslint-plugin-node@^11.1.0'
+
+  # Prettier for code formatting
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.1.0
+    hooks:
+      - id: prettier
+        files: \.(js|ts|tsx|json|yml|yaml|md)$
+        args: ['--write']
+
+  # Docker security scanning
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.12.0
+    hooks:
+      - id: hadolint-docker
+        args: ['--ignore=DL3008', '--ignore=DL3009']  # Allow some flexibility for base images
+
+  # SQL formatting and linting
+  - repo: https://github.com/sqlfluff/sqlfluff
+    rev: 2.3.5
+    hooks:
+      - id: sqlfluff-lint
+        files: \.sql$
+        args: ['--dialect=postgres']
+      - id: sqlfluff-fix
+        files: \.sql$
+        args: ['--dialect=postgres']
+
+  # Shell script linting
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.9.0.6
+    hooks:
+      - id: shellcheck
+        args: ['--severity=warning']
+
+  # YAML linting
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        args: ['-d', 'relaxed']
+
+  # Local hooks for custom validation
+  - repo: local
+    hooks:
+      # Validate environment files don't contain secrets
+      - id: check-env-files
+        name: Check environment files for secrets
+        entry: bash -c 'if grep -r "^[A-Z_]*=.*[a-zA-Z0-9]{20,}" --include="*.env*" .; then echo "Potential secrets in env files!"; exit 1; fi'
+        language: system
+        files: '\.env.*$'
+        
+      # Ensure Docker images use specific tags or digests
+      - id: check-docker-tags
+        name: Check Docker images use specific tags
+        entry: bash -c 'if grep -r "FROM.*:latest" --include="Dockerfile*" .; then echo "Docker images should not use :latest tag!"; exit 1; fi'
+        language: system
+        files: '^Dockerfile.*$'
+        
+      # Validate package.json security
+      - id: check-package-security
+        name: Check package.json for security issues
+        entry: bash -c 'find . -name "package.json" -exec sh -c "if npm audit --audit-level=high --json {} | grep -q \"high\|critical\"; then echo \"High/critical vulnerabilities found in {}\"; exit 1; fi" \;'
+        language: system
+        files: 'package\.json$'
+        
+      # TypeScript strict mode check
+      - id: check-typescript-strict
+        name: Ensure TypeScript strict mode
+        entry: bash -c 'find . -name "tsconfig*.json" -exec sh -c "if ! grep -q \"\\\"strict\\\": true\" {}; then echo \"TypeScript config {} should have strict mode enabled\"; exit 1; fi" \;'
+        language: system
+        files: 'tsconfig.*\.json$'
+
+# Configuration
+default_stages: [commit]
+fail_fast: false  # Continue running hooks even if some fail
+exclude: |
+  (?x)^(
+      node_modules/|
+      dist/|
+      build/|
+      \.git/|
+      \.next/|
+      coverage/|
+      \.nyc_output/|
+      temp_.*|
+      .*\.lock|
+      .*\.log
+  )$
+
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit hooks
+    
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: 'main'
+  autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
+  autoupdate_schedule: weekly
+  skip: ['check-package-security']  # Skip npm audit in CI (slow)
+  submodules: false

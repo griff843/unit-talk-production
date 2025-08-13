@@ -173,19 +173,17 @@ export async function ingestUnifiedData(params: {
         response.data.forEach(prop => {
           if (prop.game_id && !gamesMap.has(prop.game_id)) {
             gamesMap.set(prop.game_id, {
-              id: crypto.randomUUID(),
-              external_game_id: prop.game_id,
               sport: params.league,
+              league: params.league,
+              external_id: prop.game_id,
               home_team: prop.home_team || prop.team,
               away_team: prop.away_team || prop.opponent,
-              game_date: prop.game_date || prop.game_time || timestamp.toISOString(),
+              game_date: prop.game_date || prop.game_time || timestamp.toISOString().split('T')[0],
+              commence_time: prop.game_time || timestamp.toISOString(),
+              start_time: prop.game_time || timestamp.toISOString(),
               status: 'scheduled',
-              created_at: timestamp.toISOString(),
-              updated_at: timestamp.toISOString(),
-              metadata: {
-                source: response.source,
-                batch_id: batchId
-              }
+              matchup: `${prop.away_team || prop.opponent} @ ${prop.home_team || prop.team}`,
+              source: response.source
             });
           }
         });
@@ -198,7 +196,7 @@ export async function ingestUnifiedData(params: {
           const { error: gamesError } = await supabaseClient
             .from('games')
             .upsert(games, { 
-              onConflict: 'external_game_id',
+              onConflict: 'external_id',
               ignoreDuplicates: true 
             });
             
@@ -209,34 +207,24 @@ export async function ingestUnifiedData(params: {
           }
         }
         
-        // Prepare props for insertion with proper structure
+        // Prepare props for insertion with proper structure matching Supabase schema
         const propsForDB = response.data.map(prop => ({
-          id: crypto.randomUUID(),
-          external_prop_id: prop.id || crypto.randomUUID(),
+          external_id: prop.id || crypto.randomUUID(),
           sport: params.league,
-          league: params.league,
           player_name: prop.player_name,
           stat_type: prop.stat_type,
+          market_type: prop.stat_type,
           line: prop.line,
           over_odds: prop.over_odds,
           under_odds: prop.under_odds,
-          game_id: prop.game_id,
           team: prop.team,
           opponent: prop.opponent,
-          game_date: prop.game_date || timestamp.toISOString(),
-          source: response.source,
+          game_date: prop.game_date ? prop.game_date.split('T')[0] : timestamp.toISOString().split('T')[0],
+          game_time: prop.game_time || timestamp.toISOString(),
           provider: response.source,
-          batch_id: batchId,
-          created_at: timestamp.toISOString(),
-          updated_at: timestamp.toISOString(),
-          processed_at: null,
-          raw_data: JSON.stringify(prop),
-          metadata: {
-            source: response.source,
-            batch_id: batchId,
-            processing_time_ms: response.metadata.processingTimeMs,
-            league: params.league
-          }
+          sport_key: params.league.toLowerCase(),
+          matchup: prop.matchup || `${prop.opponent} @ ${prop.team}`,
+          scraped_at: timestamp.toISOString()
         }));
         
         // Insert in batches to handle large datasets

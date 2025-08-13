@@ -64,10 +64,10 @@ const SPORT_ROUTING_CONFIG = {
   },
   
   'WNBA': {
-    primary: 'odds-api' as const,
-    secondary: null,
+    primary: 'optimal-api' as const,
+    secondary: 'odds-api' as const,
     oddsApiKey: 'basketball_wnba',
-    supports: ['spreads', 'totals', 'moneylines', 'settlement']
+    supports: ['player-props', 'spreads', 'totals', 'moneylines', 'settlement']
   },
   
   'EPL': {

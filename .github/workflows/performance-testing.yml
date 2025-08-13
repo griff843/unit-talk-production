@@ -1,0 +1,540 @@
+name: Performance Testing & SLA Enforcement
+
+on:
+  schedule:
+    # Run performance tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Type of performance test'
+        required: true
+        default: 'load'
+        type: choice
+        options:
+          - smoke
+          - load
+          - stress
+          - spike
+          - endurance
+          - suite
+      environment:
+        description: 'Environment to test'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      virtual_users:
+        description: 'Number of virtual users'
+        required: false
+        default: '50'
+        type: string
+      duration:
+        description: 'Test duration (e.g., 5m, 30s)'
+        required: false
+        default: '5m'
+        type: string
+      fail_on_sla_violation:
+        description: 'Fail workflow if SLA is violated'
+        required: false
+        default: true
+        type: boolean
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'apps/api/**'
+      - 'apps/dashboard/**'
+      - 'apps/discord-bot/**'
+      - 'apps/smart-form/**'
+      - '.github/workflows/performance-testing.yml'
+
+env:
+  NODE_VERSION: '20'
+  K6_VERSION: '0.47.0'
+
+jobs:
+  setup:
+    name: Setup Performance Testing
+    runs-on: ubuntu-latest
+    outputs:
+      test-config: ${{ steps.config.outputs.test-config }}
+      environments: ${{ steps.config.outputs.environments }}
+      test-matrix: ${{ steps.config.outputs.test-matrix }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure test parameters
+        id: config
+        run: |
+          # Determine test configuration based on trigger
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TEST_TYPE="${{ github.event.inputs.test_type }}"
+            ENVIRONMENT="${{ github.event.inputs.environment }}"
+            VIRTUAL_USERS="${{ github.event.inputs.virtual_users }}"
+            DURATION="${{ github.event.inputs.duration }}"
+            FAIL_ON_SLA="${{ github.event.inputs.fail_on_sla_violation }}"
+          elif [[ "${{ github.event_name }}" == "schedule" ]]; then
+            TEST_TYPE="suite"
+            ENVIRONMENT="staging"
+            VIRTUAL_USERS="50"
+            DURATION="5m"
+            FAIL_ON_SLA="true"
+          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            TEST_TYPE="smoke"
+            ENVIRONMENT="staging"
+            VIRTUAL_USERS="5"
+            DURATION="30s"
+            FAIL_ON_SLA="false"
+          fi
+
+          # Create test matrix for suite runs
+          if [[ "$TEST_TYPE" == "suite" ]]; then
+            MATRIX='[
+              {"type":"smoke","users":1,"duration":"30s","category":"critical"},
+              {"type":"load","users":50,"duration":"5m","category":"standard"},
+              {"type":"stress","users":100,"duration":"3m","category":"high"}
+            ]'
+          else
+            MATRIX='[
+              {"type":"'$TEST_TYPE'","users":'$VIRTUAL_USERS',"duration":"'$DURATION'","category":"standard"}
+            ]'
+          fi
+
+          # Output configuration
+          cat << EOF | tee -a $GITHUB_OUTPUT
+          test-config={
+            "test_type": "$TEST_TYPE",
+            "environment": "$ENVIRONMENT",
+            "virtual_users": "$VIRTUAL_USERS",
+            "duration": "$DURATION",
+            "fail_on_sla": "$FAIL_ON_SLA"
+          }
+          environments=["$ENVIRONMENT"]
+          test-matrix=$MATRIX
+          EOF
+
+  pre-flight-checks:
+    name: Pre-flight Environment Checks
+    runs-on: ubuntu-latest
+    needs: setup
+    strategy:
+      matrix:
+        environment: ${{ fromJson(needs.setup.outputs.environments) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check target environment health
+        env:
+          ENVIRONMENT: ${{ matrix.environment }}
+        run: |
+          # Set target URLs based on environment
+          if [[ "$ENVIRONMENT" == "production" ]]; then
+            API_URL="${{ secrets.PRODUCTION_API_URL }}"
+            DASHBOARD_URL="${{ secrets.PRODUCTION_DASHBOARD_URL }}"
+          else
+            API_URL="${{ secrets.STAGING_API_URL }}"
+            DASHBOARD_URL="${{ secrets.STAGING_DASHBOARD_URL }}"
+          fi
+
+          echo "🏥 Checking $ENVIRONMENT environment health..."
+
+          # API Health Check
+          echo "Checking API health at $API_URL"
+          response=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/api/health" || echo "000")
+          if [[ "$response" != "200" ]]; then
+            echo "❌ API health check failed (HTTP $response)"
+            exit 1
+          fi
+          echo "✅ API is healthy"
+
+          # Database connectivity check
+          echo "Checking database connectivity..."
+          npm run db:status
+          echo "✅ Database is accessible"
+
+          # Dashboard health check
+          if [[ -n "$DASHBOARD_URL" ]]; then
+            echo "Checking Dashboard health at $DASHBOARD_URL"
+            response=$(curl -s -o /dev/null -w "%{http_code}" "$DASHBOARD_URL/health" || echo "000")
+            if [[ "$response" != "200" ]]; then
+              echo "⚠️  Dashboard health check failed (HTTP $response), continuing..."
+            else
+              echo "✅ Dashboard is healthy"
+            fi
+          fi
+
+      - name: Validate SLA budgets
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "📊 Validating SLA budgets for ${{ matrix.environment }}..."
+          
+          # Check error budget status
+          npx tsx << 'EOF'
+          import { createClient } from '@supabase/supabase-js';
+          
+          const supabase = createClient(
+            process.env.SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!,
+            { auth: { persistSession: false } }
+          );
+          
+          async function checkBudgets() {
+            const { data: budgets, error } = await supabase
+              .from('sla_budget_status')
+              .select('*')
+              .eq('environment', '${{ matrix.environment }}')
+              .lt('error_budget_remaining_percent', 10);
+          
+            if (error) throw error;
+          
+            if (budgets.length > 0) {
+              console.log('⚠️  Services with low error budget:');
+              budgets.forEach(budget => {
+                console.log(`  - ${budget.service_name}: ${budget.error_budget_remaining_percent.toFixed(2)}% remaining`);
+              });
+              console.log('Proceeding with caution...');
+            } else {
+              console.log('✅ All services have healthy error budgets');
+            }
+          }
+          
+          checkBudgets().catch(console.error);
+          EOF
+
+  performance-testing:
+    name: Run Performance Tests
+    runs-on: ubuntu-latest
+    needs: [setup, pre-flight-checks]
+    strategy:
+      matrix:
+        test: ${{ fromJson(needs.setup.outputs.test-matrix) }}
+        service: [api, dashboard, discord-bot]
+      fail-fast: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6=${{ env.K6_VERSION }}*
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create reports directory
+        run: mkdir -p reports/performance
+
+      - name: Configure test environment
+        id: config
+        env:
+          ENVIRONMENT: ${{ fromJson(needs.setup.outputs.test-config).environment }}
+          SERVICE: ${{ matrix.service }}
+        run: |
+          # Set target URLs and configurations based on environment and service
+          if [[ "$ENVIRONMENT" == "production" ]]; then
+            case "$SERVICE" in
+              "api")
+                TARGET_URL="${{ secrets.PRODUCTION_API_URL }}"
+                ;;
+              "dashboard")
+                TARGET_URL="${{ secrets.PRODUCTION_DASHBOARD_URL }}"
+                ;;
+              "discord-bot")
+                TARGET_URL="${{ secrets.PRODUCTION_API_URL }}/webhook/discord"
+                ;;
+            esac
+          else
+            case "$SERVICE" in
+              "api")
+                TARGET_URL="${{ secrets.STAGING_API_URL }}"
+                ;;
+              "dashboard")
+                TARGET_URL="${{ secrets.STAGING_DASHBOARD_URL }}"
+                ;;
+              "discord-bot")
+                TARGET_URL="${{ secrets.STAGING_API_URL }}/webhook/discord"
+                ;;
+            esac
+          fi
+
+          echo "target-url=$TARGET_URL" >> $GITHUB_OUTPUT
+          echo "test-name=${{ matrix.test.type }}_${{ matrix.service }}_$(date +%s)" >> $GITHUB_OUTPUT
+
+      - name: Run performance test
+        id: test
+        env:
+          BASE_URL: ${{ steps.config.outputs.target-url }}
+          ENVIRONMENT: ${{ fromJson(needs.setup.outputs.test-config).environment }}
+          TEST_TYPE: ${{ matrix.test.type }}
+          TEST_SUITE: ${{ matrix.service }}
+          VIRTUAL_USERS: ${{ matrix.test.users }}
+          DURATION: ${{ matrix.test.duration }}
+          TEST_NAME: ${{ steps.config.outputs.test-name }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DB_REPORTING: 'true'
+          ENABLE_REALTIME: 'true'
+        run: |
+          echo "🚀 Starting $TEST_TYPE test for $TEST_SUITE"
+          echo "   Target: $BASE_URL"
+          echo "   Users: $VIRTUAL_USERS"
+          echo "   Duration: $DURATION"
+          echo "   Environment: $ENVIRONMENT"
+
+          # Run k6 test with comprehensive reporting
+          k6 run \
+            --summary-export "reports/performance/${TEST_NAME}_summary.json" \
+            --out "json=reports/performance/${TEST_NAME}_results.json" \
+            --out "influxdb=http://localhost:8086/k6" \
+            scripts/performance/k6-test-runner.js \
+            || TEST_EXIT_CODE=$?
+
+          # Capture exit code
+          echo "test-exit-code=${TEST_EXIT_CODE:-0}" >> $GITHUB_OUTPUT
+
+          # Parse results for summary
+          if [[ -f "reports/performance/${TEST_NAME}_summary.json" ]]; then
+            echo "📊 Test Results Summary:"
+            jq -r '
+              .metrics as $m |
+              "Total Requests: " + ($m.http_reqs.values.count // 0 | tostring) +
+              "\nFailed Requests: " + ($m.http_req_failed.values.count // 0 | tostring) +
+              "\nAvg Response Time: " + ($m.http_req_duration.values.avg // 0 | tonumber | . * 1000 | round | tostring) + "ms" +
+              "\nP95 Response Time: " + ($m.http_req_duration.values["p(95)"] // 0 | tonumber | . * 1000 | round | tostring) + "ms" +
+              "\nP99 Response Time: " + ($m.http_req_duration.values["p(99)"] // 0 | tonumber | . * 1000 | round | tostring) + "ms" +
+              "\nThroughput: " + ($m.http_reqs.values.rate // 0 | tonumber | . * 100 | round | (. / 100) | tostring) + " RPS"
+            ' "reports/performance/${TEST_NAME}_summary.json"
+
+            # Extract SLA compliance
+            SLA_PASSED=$(jq -r '.sla_results.overall // false' "reports/performance/${TEST_NAME}_summary.json")
+            echo "sla-passed=$SLA_PASSED" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️  Summary file not found"
+            echo "sla-passed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload performance reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-reports-${{ matrix.service }}-${{ matrix.test.type }}
+          path: reports/performance/
+          retention-days: 30
+
+      - name: Process test results
+        if: always()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TEST_NAME: ${{ steps.config.outputs.test-name }}
+          SERVICE: ${{ matrix.service }}
+          ENVIRONMENT: ${{ fromJson(needs.setup.outputs.test-config).environment }}
+          TEST_TYPE: ${{ matrix.test.type }}
+          SLA_PASSED: ${{ steps.test.outputs.sla-passed }}
+          TEST_EXIT_CODE: ${{ steps.test.outputs.test-exit-code }}
+        run: |
+          echo "📈 Processing performance test results..."
+
+          # Create performance test record using TypeScript service
+          npx tsx << 'EOF'
+          import { PerformanceTestService } from './src/services/PerformanceTestService';
+          import { promises as fs } from 'fs';
+          import path from 'path';
+
+          async function processResults() {
+            const service = new PerformanceTestService();
+            
+            try {
+              // Load test results if available
+              const summaryPath = `reports/performance/${process.env.TEST_NAME}_summary.json`;
+              if (await fs.access(summaryPath).then(() => true).catch(() => false)) {
+                const summaryData = await fs.readFile(summaryPath, 'utf-8');
+                const summary = JSON.parse(summaryData);
+                
+                // Log key metrics for GitHub Actions
+                console.log('::notice title=Performance Test Results::' +
+                  `Service: ${process.env.SERVICE}, ` +
+                  `SLA Passed: ${process.env.SLA_PASSED}, ` +
+                  `Exit Code: ${process.env.TEST_EXIT_CODE}`
+                );
+                
+                // Record baseline if test passed
+                if (process.env.SLA_PASSED === 'true') {
+                  console.log('✅ Performance test passed - recording baseline');
+                } else {
+                  console.log('❌ Performance test failed SLA requirements');
+                }
+              }
+            } catch (error) {
+              console.error('Error processing results:', error);
+            }
+          }
+
+          processResults();
+          EOF
+
+      - name: Check SLA compliance
+        if: ${{ fromJson(needs.setup.outputs.test-config).fail_on_sla == 'true' && steps.test.outputs.sla-passed == 'false' }}
+        run: |
+          echo "❌ SLA violation detected for ${{ matrix.service }} ${{ matrix.test.type }} test"
+          echo "::error title=SLA Violation::Performance test failed SLA requirements for ${{ matrix.service }}"
+          exit 1
+
+  performance-summary:
+    name: Performance Test Summary
+    runs-on: ubuntu-latest
+    needs: [setup, performance-testing]
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all performance reports
+        uses: actions/download-artifact@v4
+        with:
+          path: all-reports/
+          pattern: performance-reports-*
+
+      - name: Generate comprehensive summary
+        run: |
+          echo "# 📊 Performance Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Test Configuration:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Environment: ${{ fromJson(needs.setup.outputs.test-config).environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Test Type: ${{ fromJson(needs.setup.outputs.test-config).test_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Trigger: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Process all summary files
+          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | Test Type | Total Requests | Error Rate | P95 Response Time | Throughput | SLA Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-----------|----------------|------------|-------------------|------------|------------|" >> $GITHUB_STEP_SUMMARY
+
+          for summary_file in all-reports/*/performance-reports-*/*_summary.json; do
+            if [[ -f "$summary_file" ]]; then
+              # Extract service and test type from filename
+              filename=$(basename "$summary_file")
+              service=$(echo "$filename" | cut -d'_' -f2)
+              test_type=$(echo "$filename" | cut -d'_' -f1)
+
+              # Parse metrics
+              total_requests=$(jq -r '.metrics.http_reqs.values.count // 0' "$summary_file")
+              error_rate=$(jq -r '(.metrics.http_req_failed.values.count // 0) / (.metrics.http_reqs.values.count // 1) * 100' "$summary_file")
+              p95_time=$(jq -r '.metrics.http_req_duration.values["p(95)"] // 0 | . * 1000 | round' "$summary_file")
+              throughput=$(jq -r '.metrics.http_reqs.values.rate // 0 | . * 100 | round | . / 100' "$summary_file")
+              sla_passed=$(jq -r '.sla_results.overall // false' "$summary_file")
+
+              if [[ "$sla_passed" == "true" ]]; then
+                sla_icon="✅ PASS"
+              else
+                sla_icon="❌ FAIL"
+              fi
+
+              echo "| $service | $test_type | $total_requests | ${error_rate}% | ${p95_time}ms | ${throughput} RPS | $sla_icon |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📈 Recommendations" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Check for any failures
+          failed_tests=$(find all-reports -name "*_summary.json" -exec jq -r 'select(.sla_results.overall == false) | .test_config.test_name // "unknown"' {} \; | wc -l)
+          
+          if [[ $failed_tests -gt 0 ]]; then
+            echo "⚠️  **$failed_tests test(s) failed SLA requirements**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Immediate Actions:**" >> $GITHUB_STEP_SUMMARY
+            echo "1. Review failed test details in the artifacts" >> $GITHUB_STEP_SUMMARY
+            echo "2. Check error budget consumption" >> $GITHUB_STEP_SUMMARY
+            echo "3. Investigate performance regressions" >> $GITHUB_STEP_SUMMARY
+            echo "4. Consider scaling resources if needed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **All performance tests passed SLA requirements**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // Read the summary content
+            let summary = '## 🚀 Performance Test Results\n\n';
+            
+            // Find and process summary files
+            const { execSync } = require('child_process');
+            const summaryFiles = execSync('find all-reports -name "*_summary.json"').toString().split('\n').filter(f => f);
+            
+            if (summaryFiles.length === 0) {
+              summary += '⚠️ No performance test results found.\n';
+            } else {
+              summary += '| Service | P95 Response Time | Error Rate | Throughput | Status |\n';
+              summary += '|---------|-------------------|------------|------------|--------|\n';
+              
+              for (const file of summaryFiles) {
+                try {
+                  const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+                  const service = file.includes('api') ? 'API' : file.includes('dashboard') ? 'Dashboard' : 'Discord';
+                  const p95 = Math.round((data.metrics?.http_req_duration?.values?.['p(95)'] || 0) * 1000);
+                  const errorRate = ((data.metrics?.http_req_failed?.values?.count || 0) / (data.metrics?.http_reqs?.values?.count || 1) * 100).toFixed(2);
+                  const throughput = (data.metrics?.http_reqs?.values?.rate || 0).toFixed(2);
+                  const status = data.sla_results?.overall ? '✅' : '❌';
+                  
+                  summary += `| ${service} | ${p95}ms | ${errorRate}% | ${throughput} RPS | ${status} |\n`;
+                } catch (e) {
+                  console.log(`Error processing ${file}:`, e);
+                }
+              }
+            }
+            
+            summary += '\n💡 **Full performance reports are available in the workflow artifacts.**';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });
+
+      - name: Create performance report archive
+        run: |
+          # Create comprehensive archive
+          tar -czf performance-test-results.tar.gz all-reports/
+          echo "📦 Performance test archive created: performance-test-results.tar.gz"
+
+      - name: Upload consolidated report
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-test-summary
+          path: |
+            performance-test-results.tar.gz
+            all-reports/
+          retention-days: 90

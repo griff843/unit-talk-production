@@ -1,0 +1,1200 @@
+name: Correctness Monitoring & Data Validation
+
+on:
+  schedule:
+    # Run data validation every 30 minutes during active betting hours
+    - cron: '*/30 10-23 * * *'  # Every 30 minutes from 10 AM to 11 PM UTC
+    # Run comprehensive validation daily at 3 AM UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      validation_type:
+        description: 'Type of validation to run'
+        required: true
+        default: 'comprehensive'
+        type: choice
+        options:
+          - comprehensive
+          - odds_variance
+          - time_drift
+          - line_movement
+          - provider_audit
+          - data_quality
+      sport:
+        description: 'Sport to validate (optional)'
+        required: false
+        type: choice
+        options:
+          - all
+          - nfl
+          - nba
+          - mlb
+          - nhl
+      severity_threshold:
+        description: 'Alert severity threshold'
+        required: false
+        default: 'medium'
+        type: choice
+        options:
+          - low
+          - medium
+          - high
+          - critical
+      time_window_minutes:
+        description: 'Time window for validation (minutes)'
+        required: false
+        default: '30'
+        type: string
+  push:
+    branches: [main, develop]
+    paths:
+      - 'src/services/CorrectnessMonitoringService.ts'
+      - 'sql/migrations/*correctness*'
+      - '.github/workflows/correctness-monitoring.yml'
+
+env:
+  NODE_VERSION: '20'
+  VALIDATION_TIMEOUT: '300'  # 5 minutes
+  ALERT_THRESHOLD: '3'       # Alert after 3 discrepancies
+
+jobs:
+  validation-setup:
+    name: Validation Setup & Configuration
+    runs-on: ubuntu-latest
+    outputs:
+      validation-config: ${{ steps.config.outputs.validation-config }}
+      provider-matrix: ${{ steps.config.outputs.provider-matrix }}
+      sport-list: ${{ steps.config.outputs.sport-list }}
+      validation-types: ${{ steps.config.outputs.validation-types }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure validation parameters
+        id: config
+        run: |
+          # Determine validation configuration based on trigger and inputs
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VALIDATION_TYPE="${{ github.event.inputs.validation_type }}"
+            SPORT="${{ github.event.inputs.sport }}"
+            SEVERITY_THRESHOLD="${{ github.event.inputs.severity_threshold }}"
+            TIME_WINDOW="${{ github.event.inputs.time_window_minutes }}"
+          elif [[ "${{ github.event_name }}" == "schedule" ]]; then
+            # Check if it's the daily comprehensive run
+            if [[ "$(date -u +%H)" == "03" ]]; then
+              VALIDATION_TYPE="comprehensive"
+              SEVERITY_THRESHOLD="low"
+              TIME_WINDOW="1440"  # 24 hours
+            else
+              VALIDATION_TYPE="odds_variance"
+              SEVERITY_THRESHOLD="medium"
+              TIME_WINDOW="60"    # 1 hour
+            fi
+            SPORT="all"
+          else
+            VALIDATION_TYPE="data_quality"
+            SPORT="all"
+            SEVERITY_THRESHOLD="high"
+            TIME_WINDOW="30"
+          fi
+
+          # Define provider matrix
+          PROVIDERS='[
+            {"name": "optimal_api", "type": "primary", "priority": 1},
+            {"name": "odds_api", "type": "validation", "priority": 2},
+            {"name": "espn_api", "type": "reference", "priority": 3},
+            {"name": "sportsbook_direct", "type": "validation", "priority": 4}
+          ]'
+
+          # Define sports list
+          if [[ "$SPORT" == "all" ]]; then
+            SPORTS='["nfl", "nba", "mlb", "nhl"]'
+          else
+            SPORTS='["'$SPORT'"]'
+          fi
+
+          # Define validation types based on mode
+          case "$VALIDATION_TYPE" in
+            "comprehensive")
+              VALIDATION_TYPES='["odds_variance", "time_drift", "line_movement", "availability"]'
+              ;;
+            "provider_audit")
+              VALIDATION_TYPES='["odds_variance", "data_quality"]'
+              ;;
+            "data_quality")
+              VALIDATION_TYPES='["availability", "completeness"]'
+              ;;
+            *)
+              VALIDATION_TYPES='["'$VALIDATION_TYPE'"]'
+              ;;
+          esac
+
+          # Output configuration
+          cat << EOF | tee -a $GITHUB_OUTPUT
+          validation-config={
+            "type": "$VALIDATION_TYPE",
+            "sport": "$SPORT",
+            "severity_threshold": "$SEVERITY_THRESHOLD",
+            "time_window_minutes": "$TIME_WINDOW",
+            "environment": "production"
+          }
+          provider-matrix=$PROVIDERS
+          sport-list=$SPORTS
+          validation-types=$VALIDATION_TYPES
+          EOF
+
+  data-source-health:
+    name: Data Source Health Check
+    runs-on: ubuntu-latest
+    needs: validation-setup
+    strategy:
+      matrix:
+        provider: ${{ fromJson(needs.validation-setup.outputs.provider-matrix) }}
+      fail-fast: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check provider health and data freshness
+        id: health
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PROVIDER_NAME: ${{ matrix.provider.name }}
+          PROVIDER_TYPE: ${{ matrix.provider.type }}
+          TIME_WINDOW: ${{ fromJson(needs.validation-setup.outputs.validation-config).time_window_minutes }}
+        run: |
+          echo "🏥 Checking health for provider: $PROVIDER_NAME ($PROVIDER_TYPE)"
+          
+          npx tsx << 'EOF'
+          import { CorrectnessMonitoringService } from './src/services/CorrectnessMonitoringService';
+          
+          async function checkProviderHealth() {
+            const service = new CorrectnessMonitoringService();
+            
+            try {
+              console.log(`📊 Analyzing health for ${process.env.PROVIDER_NAME}...`);
+              
+              // Get provider health status
+              const health = await service.getProviderHealth();
+              const providerHealth = health.find(h => h.provider_name === process.env.PROVIDER_NAME);
+              
+              if (!providerHealth) {
+                console.log(`⚠️  Provider ${process.env.PROVIDER_NAME} not found in health data`);
+                console.log('health-status=unknown');
+                return;
+              }
+              
+              console.log(`📈 Health Metrics for ${process.env.PROVIDER_NAME}:`);
+              console.log(`  Active: ${providerHealth.is_active}`);
+              console.log(`  Reliability Score: ${providerHealth.reliability_score}`);
+              console.log(`  Quality Score: ${providerHealth.quality_score || 'N/A'}`);
+              console.log(`  Snapshots (1h): ${providerHealth.snapshots_last_hour}`);
+              console.log(`  Snapshots (24h): ${providerHealth.snapshots_last_day}`);
+              console.log(`  Validations (1h): ${providerHealth.validations_last_hour}`);
+              console.log(`  Discrepancies (1h): ${providerHealth.discrepancies_last_hour}`);
+              
+              // Determine health status
+              let healthStatus = 'healthy';
+              let issues = [];
+              
+              if (!providerHealth.is_active) {
+                healthStatus = 'critical';
+                issues.push('Provider is inactive');
+              }
+              
+              if (providerHealth.snapshots_last_hour < 1 && process.env.PROVIDER_TYPE === 'primary') {
+                healthStatus = 'warning';
+                issues.push('No recent snapshots for primary provider');
+              }
+              
+              if (providerHealth.discrepancies_last_hour > 5) {
+                healthStatus = 'warning';
+                issues.push(`High discrepancy rate: ${providerHealth.discrepancies_last_hour}`);
+              }
+              
+              if (providerHealth.quality_score && providerHealth.quality_score < 80) {
+                healthStatus = 'warning';
+                issues.push(`Low quality score: ${providerHealth.quality_score}`);
+              }
+              
+              // Output results
+              console.log(`health-status=${healthStatus}`);
+              console.log(`snapshots-count=${providerHealth.snapshots_last_hour}`);
+              console.log(`quality-score=${providerHealth.quality_score || 0}`);
+              console.log(`issues=${issues.join('; ')}`);
+              
+              if (issues.length > 0) {
+                console.log('::warning title=Provider Health Issues::' + 
+                  `${process.env.PROVIDER_NAME}: ${issues.join(', ')}`);
+              }
+              
+              // Get recent quality metrics
+              const qualityMetrics = await service.getQualityMetrics(
+                process.env.PROVIDER_NAME, 
+                undefined, 
+                parseInt(process.env.TIME_WINDOW!) / 60 || 1
+              );
+              
+              if (qualityMetrics.length > 0) {
+                console.log(`📊 Quality Metrics:`);
+                for (const metric of qualityMetrics) {
+                  console.log(`  ${metric.sport || 'overall'}:`);
+                  console.log(`    Accuracy: ${(metric.accuracy * 100).toFixed(1)}%`);
+                  console.log(`    Timeliness: ${metric.timeliness.toFixed(1)} min avg delay`);
+                  console.log(`    Completeness: ${(metric.completeness * 100).toFixed(1)}%`);
+                  console.log(`    Performance: ${metric.performanceScore.toFixed(1)}/100`);
+                }
+              }
+              
+            } catch (error) {
+              console.error('❌ Provider health check failed:', error);
+              console.log('health-status=error');
+              process.exit(1);
+            }
+          }
+          
+          checkProviderHealth();
+          EOF
+
+      - name: Upload provider health report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: provider-health-${{ matrix.provider.name }}
+          path: |
+            /tmp/provider-health-${{ matrix.provider.name }}.json
+          retention-days: 7
+
+  cross-provider-validation:
+    name: Cross-Provider Data Validation
+    runs-on: ubuntu-latest
+    needs: [validation-setup, data-source-health]
+    strategy:
+      matrix:
+        sport: ${{ fromJson(needs.validation-setup.outputs.sport-list) }}
+        validation_type: ${{ fromJson(needs.validation-setup.outputs.validation-types) }}
+      fail-fast: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run cross-provider validation
+        id: validation
+        timeout-minutes: 10
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SPORT: ${{ matrix.sport }}
+          VALIDATION_TYPE: ${{ matrix.validation_type }}
+          TIME_WINDOW: ${{ fromJson(needs.validation-setup.outputs.validation-config).time_window_minutes }}
+          SEVERITY_THRESHOLD: ${{ fromJson(needs.validation-setup.outputs.validation-config).severity_threshold }}
+        run: |
+          echo "🔍 Running $VALIDATION_TYPE validation for $SPORT (${TIME_WINDOW}m window)"
+          
+          npx tsx << 'EOF'
+          import { CorrectnessMonitoringService } from './src/services/CorrectnessMonitoringService';
+          
+          async function runValidation() {
+            const service = new CorrectnessMonitoringService();
+            
+            try {
+              console.log(`🎯 Starting ${process.env.VALIDATION_TYPE} validation for ${process.env.SPORT}...`);
+              
+              // Get active games for the sport
+              const gameStatus = await service.getGameValidationStatus(
+                undefined, 
+                process.env.SPORT === 'all' ? undefined : process.env.SPORT, 
+                parseInt(process.env.TIME_WINDOW!) / 60 || 1
+              );
+              
+              console.log(`📊 Found ${gameStatus.length} games for validation`);
+              
+              let validationsRun = 0;
+              let discrepanciesFound = 0;
+              let criticalIssues = 0;
+              let warnings = 0;
+              const issues = [];
+              
+              // Run validation on games with multiple providers
+              for (const game of gameStatus.slice(0, 20)) { // Limit for workflow efficiency
+                if (game.providerCount >= 2) {
+                  try {
+                    console.log(`🔍 Validating ${game.gameId}: ${game.homeTeam} vs ${game.awayTeam}`);
+                    
+                    const resultId = await service.validateDataConsistency(
+                      game.gameId,
+                      game.sport,
+                      process.env.VALIDATION_TYPE!,
+                      parseInt(process.env.TIME_WINDOW!)
+                    );
+                    
+                    validationsRun++;
+                    
+                    // Get validation result
+                    const result = await service.getValidationResult(resultId);
+                    
+                    if (result?.discrepancyFound) {
+                      discrepanciesFound++;
+                      
+                      const issue = {
+                        game: `${game.homeTeam} vs ${game.awayTeam}`,
+                        type: result.validationType,
+                        severity: result.discrepancySeverity,
+                        variance: result.variancePercentage
+                      };
+                      
+                      issues.push(issue);
+                      
+                      if (result.discrepancySeverity === 'critical') {
+                        criticalIssues++;
+                        console.log(`🚨 CRITICAL: ${issue.game} - ${issue.type} variance: ${issue.variance}%`);
+                      } else if (result.discrepancySeverity === 'high') {
+                        warnings++;
+                        console.log(`⚠️  HIGH: ${issue.game} - ${issue.type} variance: ${issue.variance}%`);
+                      } else if (result.discrepancySeverity === 'medium') {
+                        console.log(`📊 MEDIUM: ${issue.game} - ${issue.type} variance: ${issue.variance}%`);
+                      }
+                    } else {
+                      console.log(`✅ ${game.gameId}: No discrepancies detected`);
+                    }
+                    
+                  } catch (error) {
+                    console.error(`❌ Validation failed for ${game.gameId}:`, error.message);
+                  }
+                } else {
+                  console.log(`⏭️  Skipping ${game.gameId} (only ${game.providerCount} provider)`);
+                }
+              }
+              
+              // Output summary
+              console.log(`\n📈 Validation Summary for ${process.env.SPORT} ${process.env.VALIDATION_TYPE}:`);
+              console.log(`  Games Analyzed: ${gameStatus.length}`);
+              console.log(`  Validations Run: ${validationsRun}`);
+              console.log(`  Discrepancies Found: ${discrepanciesFound}`);
+              console.log(`  Critical Issues: ${criticalIssues}`);
+              console.log(`  Warnings: ${warnings}`);
+              
+              // Calculate discrepancy rate
+              const discrepancyRate = validationsRun > 0 ? (discrepanciesFound / validationsRun * 100) : 0;
+              console.log(`  Discrepancy Rate: ${discrepancyRate.toFixed(2)}%`);
+              
+              // Output for GitHub Actions
+              console.log(`validations-run=${validationsRun}`);
+              console.log(`discrepancies-found=${discrepanciesFound}`);
+              console.log(`critical-issues=${criticalIssues}`);
+              console.log(`discrepancy-rate=${discrepancyRate.toFixed(2)}`);
+              
+              // Create GitHub annotations based on severity
+              const severityThreshold = process.env.SEVERITY_THRESHOLD!;
+              
+              if (criticalIssues > 0) {
+                console.log('::error title=Critical Data Discrepancies::' +
+                  `Found ${criticalIssues} critical data discrepancies in ${process.env.SPORT} ${process.env.VALIDATION_TYPE}`);
+              }
+              
+              if (warnings > 0 && ['high', 'medium', 'low'].includes(severityThreshold)) {
+                console.log('::warning title=Data Quality Issues::' +
+                  `Found ${warnings} high-severity data discrepancies in ${process.env.SPORT} ${process.env.VALIDATION_TYPE}`);
+              }
+              
+              if (discrepancyRate > 20) {
+                console.log('::warning title=High Discrepancy Rate::' +
+                  `Discrepancy rate of ${discrepancyRate.toFixed(2)}% exceeds expected threshold`);
+              }
+              
+              // Save detailed results
+              const detailedResults = {
+                sport: process.env.SPORT,
+                validation_type: process.env.VALIDATION_TYPE,
+                summary: {
+                  games_analyzed: gameStatus.length,
+                  validations_run: validationsRun,
+                  discrepancies_found: discrepanciesFound,
+                  critical_issues: criticalIssues,
+                  warnings: warnings,
+                  discrepancy_rate: discrepancyRate
+                },
+                issues: issues,
+                timestamp: new Date().toISOString()
+              };
+              
+              // Save to file for artifact upload
+              const fs = require('fs/promises');
+              const fileName = `/tmp/validation-${process.env.SPORT}-${process.env.VALIDATION_TYPE}.json`;
+              await fs.writeFile(fileName, JSON.stringify(detailedResults, null, 2));
+              console.log(`validation-report=${fileName}`);
+              
+            } catch (error) {
+              console.error('❌ Validation failed:', error);
+              process.exit(1);
+            }
+          }
+          
+          runValidation();
+          EOF
+
+      - name: Upload validation results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: validation-results-${{ matrix.sport }}-${{ matrix.validation_type }}
+          path: /tmp/validation-*.json
+          retention-days: 30
+
+  alert-management:
+    name: Alert Management & Notifications
+    runs-on: ubuntu-latest
+    needs: [validation-setup, cross-provider-validation]
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all validation results
+        uses: actions/download-artifact@v4
+        with:
+          path: validation-reports/
+          pattern: validation-results-*
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Process alerts and notifications
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_CORRECTNESS_WEBHOOK }}
+          SEVERITY_THRESHOLD: ${{ fromJson(needs.validation-setup.outputs.validation-config).severity_threshold }}
+          VALIDATION_TYPE: ${{ fromJson(needs.validation-setup.outputs.validation-config).type }}
+        run: |
+          echo "🚨 Processing correctness alerts and dispatching notifications..."
+          
+          npx tsx << 'EOF'
+          import { CorrectnessMonitoringService } from './src/services/CorrectnessMonitoringService';
+          import { promises as fs } from 'fs';
+          import { join } from 'path';
+          
+          async function processAlerts() {
+            const service = new CorrectnessMonitoringService();
+            
+            try {
+              // Get active alerts
+              const alerts = await service.getActiveAlerts(
+                process.env.SEVERITY_THRESHOLD === 'low' ? undefined : process.env.SEVERITY_THRESHOLD,
+                undefined,
+                50
+              );
+              
+              const criticalAlerts = alerts.filter(a => a.severity === 'critical');
+              const highAlerts = alerts.filter(a => a.severity === 'high');
+              const mediumAlerts = alerts.filter(a => a.severity === 'medium');
+              
+              console.log(`📊 Alert Summary:`);
+              console.log(`  Critical: ${criticalAlerts.length}`);
+              console.log(`  High: ${highAlerts.length}`);
+              console.log(`  Medium: ${mediumAlerts.length}`);
+              console.log(`  Total: ${alerts.length}`);
+              
+              // Process validation reports
+              let totalValidations = 0;
+              let totalDiscrepancies = 0;
+              let totalCritical = 0;
+              const reportSummary = [];
+              
+              try {
+                const reportFiles = await fs.readdir('validation-reports');
+                
+                for (const reportDir of reportFiles) {
+                  try {
+                    const files = await fs.readdir(join('validation-reports', reportDir));
+                    for (const file of files) {
+                      if (file.endsWith('.json')) {
+                        const reportPath = join('validation-reports', reportDir, file);
+                        const report = JSON.parse(await fs.readFile(reportPath, 'utf-8'));
+                        
+                        totalValidations += report.summary.validations_run || 0;
+                        totalDiscrepancies += report.summary.discrepancies_found || 0;
+                        totalCritical += report.summary.critical_issues || 0;
+                        
+                        reportSummary.push({
+                          sport: report.sport,
+                          type: report.validation_type,
+                          validations: report.summary.validations_run,
+                          discrepancies: report.summary.discrepancies_found,
+                          rate: report.summary.discrepancy_rate
+                        });
+                      }
+                    }
+                  } catch (dirError) {
+                    console.warn(`Warning: Could not process report directory ${reportDir}`);
+                  }
+                }
+              } catch (reportsError) {
+                console.warn('Warning: Could not process validation reports');
+              }
+              
+              console.log(`📈 Validation Summary:`);
+              console.log(`  Total Validations: ${totalValidations}`);
+              console.log(`  Total Discrepancies: ${totalDiscrepancies}`);
+              console.log(`  Critical Issues: ${totalCritical}`);
+              
+              // Send Discord notification for significant issues
+              if (process.env.DISCORD_WEBHOOK_URL && (criticalAlerts.length > 0 || totalCritical > 5)) {
+                const embed = {
+                  title: '🔍 Correctness Monitoring Alert',
+                  description: `Data validation detected ${alerts.length} active alerts across providers`,
+                  color: criticalAlerts.length > 0 ? 15158332 : (highAlerts.length > 0 ? 16776960 : 3447003),
+                  fields: [
+                    {
+                      name: '📊 Alert Summary',
+                      value: `Critical: ${criticalAlerts.length}\nHigh: ${highAlerts.length}\nMedium: ${mediumAlerts.length}`,
+                      inline: true
+                    },
+                    {
+                      name: '🔍 Validation Results',
+                      value: `Validations: ${totalValidations}\nDiscrepancies: ${totalDiscrepancies}\nCritical: ${totalCritical}`,
+                      inline: true
+                    },
+                    {
+                      name: '⚙️ Validation Mode',
+                      value: `Type: ${process.env.VALIDATION_TYPE}\nThreshold: ${process.env.SEVERITY_THRESHOLD}`,
+                      inline: true
+                    }
+                  ],
+                  timestamp: new Date().toISOString()
+                };
+                
+                // Add details for critical alerts
+                if (criticalAlerts.length > 0) {
+                  const criticalDetails = criticalAlerts.slice(0, 3).map(a => 
+                    `🚨 ${a.providerId}: ${a.alertTitle.substring(0, 50)}${a.alertTitle.length > 50 ? '...' : ''}`
+                  ).join('\n');
+                  
+                  embed.fields.push({
+                    name: '🚨 Critical Issues',
+                    value: criticalDetails,
+                    inline: false
+                  });
+                }
+                
+                // Add validation report summary
+                if (reportSummary.length > 0) {
+                  const topIssues = reportSummary
+                    .filter(r => r.discrepancies > 0)
+                    .sort((a, b) => b.rate - a.rate)
+                    .slice(0, 3)
+                    .map(r => `${r.sport}/${r.type}: ${r.rate}% (${r.discrepancies}/${r.validations})`)
+                    .join('\n');
+                    
+                  if (topIssues) {
+                    embed.fields.push({
+                      name: '📈 Top Discrepancy Rates',
+                      value: topIssues,
+                      inline: false
+                    });
+                  }
+                }
+                
+                try {
+                  const response = await fetch(process.env.DISCORD_WEBHOOK_URL!, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ embeds: [embed] })
+                  });
+                  
+                  if (response.ok) {
+                    console.log('✅ Discord notification sent successfully');
+                  } else {
+                    console.error(`❌ Discord webhook failed: ${response.status}`);
+                  }
+                } catch (webhookError) {
+                  console.error('❌ Discord webhook error:', webhookError);
+                }
+              }
+              
+              // Create GitHub annotations for critical issues
+              for (const alert of criticalAlerts.slice(0, 5)) {
+                console.log('::error title=Critical Data Quality Alert::' +
+                  `${alert.providerId || 'System'}: ${alert.alertTitle}`);
+              }
+              
+              for (const alert of highAlerts.slice(0, 5)) {
+                console.log('::warning title=High Priority Data Alert::' +
+                  `${alert.providerId || 'System'}: ${alert.alertTitle}`);
+              }
+              
+              // Create summary for workflow
+              const summary = {
+                validation_type: process.env.VALIDATION_TYPE,
+                total_alerts: alerts.length,
+                critical_alerts: criticalAlerts.length,
+                high_alerts: highAlerts.length,
+                total_validations: totalValidations,
+                total_discrepancies: totalDiscrepancies,
+                critical_issues: totalCritical,
+                discrepancy_rate: totalValidations > 0 ? (totalDiscrepancies / totalValidations * 100) : 0,
+                validation_reports: reportSummary,
+                timestamp: new Date().toISOString()
+              };
+              
+              await fs.writeFile('/tmp/correctness-summary.json', JSON.stringify(summary, null, 2));
+              console.log('summary-file=/tmp/correctness-summary.json');
+              
+            } catch (error) {
+              console.error('❌ Alert processing failed:', error);
+              process.exit(1);
+            }
+          }
+          
+          processAlerts();
+          EOF
+
+      - name: Update workflow summary
+        run: |
+          echo "# 🔍 Correctness Monitoring Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Validation Type:** ${{ fromJson(needs.validation-setup.outputs.validation-config).type }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Sports:** ${{ fromJson(needs.validation-setup.outputs.validation-config).sport }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Severity Threshold:** ${{ fromJson(needs.validation-setup.outputs.validation-config).severity_threshold }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Time Window:** ${{ fromJson(needs.validation-setup.outputs.validation-config).time_window_minutes }} minutes" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ -f "/tmp/correctness-summary.json" ]]; then
+            echo "## 📊 Validation Results" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Parse JSON and create summary table
+            jq -r '
+              "| Metric | Value |",
+              "|-------|--------|",
+              ("| Total Alerts | " + (.total_alerts | tostring) + " |"),
+              ("| Critical Alerts | " + (.critical_alerts | tostring) + " |"),
+              ("| High Priority | " + (.high_alerts | tostring) + " |"),
+              ("| Total Validations | " + (.total_validations | tostring) + " |"),
+              ("| Discrepancies Found | " + (.total_discrepancies | tostring) + " |"),
+              ("| Critical Issues | " + (.critical_issues | tostring) + " |"),
+              ("| Overall Discrepancy Rate | " + (.discrepancy_rate | tostring) + "% |")
+            ' /tmp/correctness-summary.json >> $GITHUB_STEP_SUMMARY
+            
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Validation reports breakdown
+            echo "## 📈 Validation Breakdown" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Sport | Validation Type | Validations | Discrepancies | Rate |" >> $GITHUB_STEP_SUMMARY
+            echo "|-------|----------------|-------------|---------------|------|" >> $GITHUB_STEP_SUMMARY
+            
+            jq -r '
+              .validation_reports[]? | 
+              "| " + (.sport // "N/A") + " | " + (.type // "N/A") + " | " + (.validations | tostring) + " | " + (.discrepancies | tostring) + " | " + (.rate | tostring) + "% |"
+            ' /tmp/correctness-summary.json >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🔗 Actions" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Review detailed validation results in workflow artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- Check provider health reports for data source issues" >> $GITHUB_STEP_SUMMARY
+          echo "- Monitor Discord alerts for real-time notifications" >> $GITHUB_STEP_SUMMARY
+          echo "- Investigate any critical or high-priority discrepancies" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload consolidated summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: correctness-monitoring-summary
+          path: |
+            /tmp/correctness-summary.json
+            validation-reports/
+          retention-days: 90
+
+  quality-metrics-update:
+    name: Quality Metrics Update
+    runs-on: ubuntu-latest
+    needs: [validation-setup, alert-management]
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Update provider quality metrics
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TIME_WINDOW: ${{ fromJson(needs.validation-setup.outputs.validation-config).time_window_minutes }}
+        run: |
+          echo "📈 Updating provider quality metrics..."
+          
+          npx tsx << 'EOF'
+          import { CorrectnessMonitoringService } from './src/services/CorrectnessMonitoringService';
+          
+          async function updateQualityMetrics() {
+            const service = new CorrectnessMonitoringService();
+            
+            try {
+              // Get all active providers
+              const health = await service.getProviderHealth();
+              const activeProviders = health.filter(h => h.is_active);
+              
+              console.log(`🔄 Updating metrics for ${activeProviders.length} active providers...`);
+              
+              const timeWindowHours = Math.max(1, parseInt(process.env.TIME_WINDOW!) / 60);
+              
+              for (const provider of activeProviders) {
+                try {
+                  console.log(`📊 Updating metrics for ${provider.provider_name}...`);
+                  
+                  // Update overall metrics
+                  await service.updateQualityMetrics(
+                    provider.provider_name,
+                    undefined, // All sports
+                    timeWindowHours
+                  );
+                  
+                  // Update sport-specific metrics for major sports
+                  const sports = ['nfl', 'nba', 'mlb', 'nhl'];
+                  for (const sport of sports) {
+                    try {
+                      await service.updateQualityMetrics(
+                        provider.provider_name,
+                        sport,
+                        timeWindowHours
+                      );
+                      console.log(`  ✅ ${sport} metrics updated`);
+                    } catch (sportError) {
+                      console.log(`  ⏭️  ${sport} metrics skipped (no data)`);
+                    }
+                  }
+                  
+                } catch (providerError) {
+                  console.error(`❌ Failed to update metrics for ${provider.provider_name}:`, providerError.message);
+                }
+              }
+              
+              // Get updated quality metrics summary
+              const qualityMetrics = await service.getQualityMetrics(undefined, undefined, timeWindowHours);
+              
+              console.log('\n📊 Quality Metrics Summary:');
+              const metricsByProvider = new Map();
+              
+              for (const metric of qualityMetrics) {
+                if (!metricsByProvider.has(metric.providerId)) {
+                  metricsByProvider.set(metric.providerId, {
+                    provider: metric.providerId,
+                    accuracy: metric.accuracy,
+                    timeliness: metric.timeliness,
+                    completeness: metric.completeness,
+                    performance: metric.performanceScore
+                  });
+                }
+              }
+              
+              for (const [providerId, metrics] of metricsByProvider) {
+                console.log(`  ${providerId}:`);
+                console.log(`    Accuracy: ${(metrics.accuracy * 100).toFixed(1)}%`);
+                console.log(`    Timeliness: ${metrics.timeliness.toFixed(1)}min`);
+                console.log(`    Completeness: ${(metrics.completeness * 100).toFixed(1)}%`);
+                console.log(`    Performance: ${metrics.performance.toFixed(1)}/100`);
+              }
+              
+              console.log('✅ Quality metrics update completed');
+              
+            } catch (error) {
+              console.error('❌ Quality metrics update failed:', error);
+              process.exit(1);
+            }
+          }
+          
+          updateQualityMetrics();
+          EOF
+
+      - name: Generate quality metrics report
+        run: |
+          echo "📈 Generating quality metrics report..."
+          
+          # Create metrics summary file
+          cat << 'REPORT_EOF' > /tmp/quality-metrics-report.md
+          # Data Quality Metrics Report
+          
+          Generated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          
+          ## Provider Performance Summary
+          
+          | Provider | Accuracy | Timeliness | Completeness | Performance Score |
+          |----------|----------|------------|--------------|-------------------|
+          REPORT_EOF
+          
+          npx tsx << 'EOF'
+          import { CorrectnessMonitoringService } from './src/services/CorrectnessMonitoringService';
+          import { promises as fs } from 'fs';
+          
+          async function generateReport() {
+            const service = new CorrectnessMonitoringService();
+            
+            try {
+              const timeWindowHours = Math.max(1, parseInt(process.env.TIME_WINDOW!) / 60);
+              const qualityMetrics = await service.getQualityMetrics(undefined, undefined, timeWindowHours);
+              
+              // Group metrics by provider
+              const providerMetrics = new Map();
+              
+              for (const metric of qualityMetrics) {
+                if (!providerMetrics.has(metric.providerId)) {
+                  providerMetrics.set(metric.providerId, {
+                    provider: metric.providerId,
+                    accuracy: 0,
+                    timeliness: 0,
+                    completeness: 0,
+                    performance: metric.performanceScore || 0
+                  });
+                }
+                
+                const entry = providerMetrics.get(metric.providerId);
+                entry.accuracy = metric.accuracy || entry.accuracy;
+                entry.timeliness = metric.timeliness || entry.timeliness;
+                entry.completeness = metric.completeness || entry.completeness;
+              }
+              
+              // Generate markdown table rows
+              let reportContent = await fs.readFile('/tmp/quality-metrics-report.md', 'utf-8');
+              
+              for (const [providerId, metrics] of providerMetrics) {
+                const row = `| ${metrics.provider} | ${(metrics.accuracy * 100).toFixed(1)}% | ${metrics.timeliness.toFixed(1)}min | ${(metrics.completeness * 100).toFixed(1)}% | ${metrics.performance.toFixed(1)}/100 |`;
+                reportContent += row + '\n';
+              }
+              
+              // Add summary statistics
+              reportContent += '\n## Summary Statistics\n\n';
+              reportContent += `- **Providers Monitored**: ${providerMetrics.size}\n`;
+              reportContent += `- **Time Window**: ${timeWindowHours} hours\n`;
+              reportContent += `- **Report Generated**: ${new Date().toISOString()}\n`;
+              
+              // Add alerts summary
+              const alerts = await service.getActiveAlerts('critical');
+              const highAlerts = await service.getActiveAlerts('high');
+              
+              reportContent += '\n## Alert Summary\n\n';
+              reportContent += `- **Critical Alerts**: ${alerts.length}\n`;
+              reportContent += `- **High Priority Alerts**: ${highAlerts.length}\n`;
+              
+              if (alerts.length > 0) {
+                reportContent += '\n### Critical Issues\n\n';
+                for (const alert of alerts.slice(0, 5)) {
+                  reportContent += `- **${alert.providerId || 'System'}**: ${alert.alertTitle}\n`;
+                }
+              }
+              
+              await fs.writeFile('/tmp/quality-metrics-report.md', reportContent);
+              console.log('✅ Quality metrics report generated');
+              
+            } catch (error) {
+              console.error('❌ Failed to generate report:', error);
+              process.exit(1);
+            }
+          }
+          
+          generateReport();
+          EOF
+
+      - name: Upload quality metrics report
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-metrics-report-${{ github.run_number }}
+          path: /tmp/quality-metrics-report.md
+          retention-days: 30
+
+  system-health-check:
+    name: System Health & Status Check
+    runs-on: ubuntu-latest
+    needs: [validation-setup, quality-metrics-update]
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Comprehensive system health check
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          VALIDATION_TYPE: ${{ fromJson(needs.validation-setup.outputs.validation-config).type }}
+        run: |
+          echo "🏥 Performing comprehensive system health check..."
+          
+          npx tsx << 'EOF'
+          import { CorrectnessMonitoringService } from './src/services/CorrectnessMonitoringService';
+          import { promises as fs } from 'fs';
+          
+          async function systemHealthCheck() {
+            const service = new CorrectnessMonitoringService();
+            
+            try {
+              console.log('🔍 Checking system health...');
+              
+              // Get provider health
+              const providerHealth = await service.getProviderHealth();
+              const activeProviders = providerHealth.filter(h => h.is_active);
+              const inactiveProviders = providerHealth.filter(h => !h.is_active);
+              
+              console.log(`📊 Provider Status:`);
+              console.log(`  Active: ${activeProviders.length}`);
+              console.log(`  Inactive: ${inactiveProviders.length}`);
+              console.log(`  Total: ${providerHealth.length}`);
+              
+              // Check validation system
+              const validationSummary = await service.getValidationSummary(24);
+              const totalValidations = validationSummary.reduce((sum, v) => sum + (v.total_validations || 0), 0);
+              const totalDiscrepancies = validationSummary.reduce((sum, v) => sum + (v.discrepancies_found || 0), 0);
+              
+              console.log(`🔍 Validation System:`);
+              console.log(`  Total Validations (24h): ${totalValidations}`);
+              console.log(`  Total Discrepancies: ${totalDiscrepancies}`);
+              console.log(`  Discrepancy Rate: ${totalValidations > 0 ? ((totalDiscrepancies / totalValidations) * 100).toFixed(2) : 0}%`);
+              
+              // Check data quality
+              const qualityMetrics = await service.getQualityMetrics(undefined, undefined, 24);
+              const avgPerformanceScore = qualityMetrics.length > 0 
+                ? qualityMetrics.reduce((sum, m) => sum + m.performanceScore, 0) / qualityMetrics.length 
+                : 0;
+              
+              console.log(`📈 Data Quality:`);
+              console.log(`  Average Performance Score: ${avgPerformanceScore.toFixed(1)}/100`);
+              console.log(`  Metrics Available: ${qualityMetrics.length}`);
+              
+              // Check alerting system
+              const criticalAlerts = await service.getActiveAlerts('critical');
+              const highAlerts = await service.getActiveAlerts('high');
+              const mediumAlerts = await service.getActiveAlerts('medium');
+              
+              console.log(`🚨 Alert System:`);
+              console.log(`  Critical Alerts: ${criticalAlerts.length}`);
+              console.log(`  High Priority Alerts: ${highAlerts.length}`);
+              console.log(`  Medium Priority Alerts: ${mediumAlerts.length}`);
+              
+              // Overall system status
+              let systemStatus = 'HEALTHY';
+              const issues = [];
+              
+              if (inactiveProviders.length > activeProviders.length / 2) {
+                systemStatus = 'WARNING';
+                issues.push(`${inactiveProviders.length} providers inactive`);
+              }
+              
+              if (criticalAlerts.length > 0) {
+                systemStatus = 'CRITICAL';
+                issues.push(`${criticalAlerts.length} critical alerts active`);
+              }
+              
+              if (totalValidations < 10) {
+                systemStatus = 'WARNING';
+                issues.push('Low validation activity');
+              }
+              
+              if (avgPerformanceScore < 80) {
+                systemStatus = systemStatus === 'CRITICAL' ? 'CRITICAL' : 'WARNING';
+                issues.push('Low data quality score');
+              }
+              
+              console.log(`\\n🏥 Overall System Status: ${systemStatus}`);
+              if (issues.length > 0) {
+                console.log('⚠️  Issues detected:');
+                issues.forEach(issue => console.log(`   - ${issue}`));
+              } else {
+                console.log('✅ All systems operational');
+              }
+              
+              // Create system health summary
+              const healthSummary = {
+                timestamp: new Date().toISOString(),
+                validation_type: process.env.VALIDATION_TYPE,
+                system_status: systemStatus,
+                provider_health: {
+                  active: activeProviders.length,
+                  inactive: inactiveProviders.length,
+                  total: providerHealth.length
+                },
+                validation_system: {
+                  total_validations: totalValidations,
+                  total_discrepancies: totalDiscrepancies,
+                  discrepancy_rate: totalValidations > 0 ? (totalDiscrepancies / totalValidations * 100) : 0
+                },
+                data_quality: {
+                  avg_performance_score: avgPerformanceScore,
+                  metrics_count: qualityMetrics.length
+                },
+                alert_system: {
+                  critical: criticalAlerts.length,
+                  high: highAlerts.length,
+                  medium: mediumAlerts.length,
+                  total: criticalAlerts.length + highAlerts.length + mediumAlerts.length
+                },
+                issues: issues,
+                recommendations: []
+              };
+              
+              // Add recommendations based on status
+              if (systemStatus === 'CRITICAL') {
+                healthSummary.recommendations.push('Immediate investigation required');
+                healthSummary.recommendations.push('Review critical alerts and take corrective action');
+              } else if (systemStatus === 'WARNING') {
+                healthSummary.recommendations.push('Monitor system closely');
+                healthSummary.recommendations.push('Consider preventive maintenance');
+              }
+              
+              if (inactiveProviders.length > 0) {
+                healthSummary.recommendations.push(`Reactivate ${inactiveProviders.length} inactive providers`);
+              }
+              
+              if (avgPerformanceScore < 90) {
+                healthSummary.recommendations.push('Investigate data quality issues');
+                healthSummary.recommendations.push('Review provider configurations');
+              }
+              
+              await fs.writeFile('/tmp/system-health-summary.json', JSON.stringify(healthSummary, null, 2));
+              console.log('system-health-file=/tmp/system-health-summary.json');
+              
+              // Generate GitHub annotations
+              if (systemStatus === 'CRITICAL') {
+                console.log('::error title=Critical System Issues::' +
+                  `Correctness monitoring system has ${issues.length} critical issues that require immediate attention`);
+              } else if (systemStatus === 'WARNING') {
+                console.log('::warning title=System Health Warning::' +
+                  `Correctness monitoring system has ${issues.length} issues that should be addressed`);
+              } else {
+                console.log('::notice title=System Health Good::' +
+                  'Correctness monitoring system is operating normally');
+              }
+              
+            } catch (error) {
+              console.error('❌ System health check failed:', error);
+              process.exit(1);
+            }
+          }
+          
+          systemHealthCheck();
+          EOF
+
+      - name: Update workflow summary with system health
+        run: |
+          echo "## 🏥 System Health Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ -f "/tmp/system-health-summary.json" ]]; then
+            # Parse system health JSON and create summary
+            SYSTEM_STATUS=$(jq -r '.system_status' /tmp/system-health-summary.json)
+            
+            case "$SYSTEM_STATUS" in
+              "HEALTHY")
+                echo "**Status**: 🟢 HEALTHY - All systems operational" >> $GITHUB_STEP_SUMMARY
+                ;;
+              "WARNING")
+                echo "**Status**: 🟡 WARNING - Some issues detected" >> $GITHUB_STEP_SUMMARY
+                ;;
+              "CRITICAL")
+                echo "**Status**: 🔴 CRITICAL - Immediate attention required" >> $GITHUB_STEP_SUMMARY
+                ;;
+              *)
+                echo "**Status**: ⚪ UNKNOWN - Status could not be determined" >> $GITHUB_STEP_SUMMARY
+                ;;
+            esac
+            
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # System components table
+            echo "| Component | Status | Details |" >> $GITHUB_STEP_SUMMARY
+            echo "|-----------|---------|---------|" >> $GITHUB_STEP_SUMMARY
+            
+            # Provider Health
+            ACTIVE_PROVIDERS=$(jq -r '.provider_health.active' /tmp/system-health-summary.json)
+            TOTAL_PROVIDERS=$(jq -r '.provider_health.total' /tmp/system-health-summary.json)
+            echo "| Provider Health | ${ACTIVE_PROVIDERS}/${TOTAL_PROVIDERS} Active | $(jq -r '.provider_health.inactive' /tmp/system-health-summary.json) inactive |" >> $GITHUB_STEP_SUMMARY
+            
+            # Validation System
+            TOTAL_VALIDATIONS=$(jq -r '.validation_system.total_validations' /tmp/system-health-summary.json)
+            DISCREPANCY_RATE=$(jq -r '.validation_system.discrepancy_rate' /tmp/system-health-summary.json)
+            echo "| Validation System | ${TOTAL_VALIDATIONS} validations | ${DISCREPANCY_RATE}% discrepancy rate |" >> $GITHUB_STEP_SUMMARY
+            
+            # Data Quality
+            AVG_SCORE=$(jq -r '.data_quality.avg_performance_score' /tmp/system-health-summary.json)
+            echo "| Data Quality | ${AVG_SCORE}/100 avg score | $(jq -r '.data_quality.metrics_count' /tmp/system-health-summary.json) metrics |" >> $GITHUB_STEP_SUMMARY
+            
+            # Alert System
+            CRITICAL_ALERTS=$(jq -r '.alert_system.critical' /tmp/system-health-summary.json)
+            TOTAL_ALERTS=$(jq -r '.alert_system.total' /tmp/system-health-summary.json)
+            echo "| Alert System | ${CRITICAL_ALERTS} critical | ${TOTAL_ALERTS} total alerts |" >> $GITHUB_STEP_SUMMARY
+            
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Issues and recommendations
+            ISSUES_COUNT=$(jq -r '.issues | length' /tmp/system-health-summary.json)
+            if [[ "$ISSUES_COUNT" -gt "0" ]]; then
+              echo "### ⚠️ Issues Detected" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              jq -r '.issues[]' /tmp/system-health-summary.json | while read -r issue; do
+                echo "- $issue" >> $GITHUB_STEP_SUMMARY
+              done
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            RECOMMENDATIONS_COUNT=$(jq -r '.recommendations | length' /tmp/system-health-summary.json)
+            if [[ "$RECOMMENDATIONS_COUNT" -gt "0" ]]; then
+              echo "### 💡 Recommendations" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              jq -r '.recommendations[]' /tmp/system-health-summary.json | while read -r rec; do
+                echo "- $rec" >> $GITHUB_STEP_SUMMARY
+              done
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+          
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "*System health check completed at $(date -u '+%Y-%m-%d %H:%M:%S UTC')*" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload system health summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: system-health-summary-${{ github.run_number }}
+          path: /tmp/system-health-summary.json
+          retention-days: 90

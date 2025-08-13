@@ -528,6 +528,93 @@ supabase.channel('bridge_outbox')
   }, handler)
 ```
 
+## 🎯 Settlement System Architecture
+
+### Production Settlement Pipeline
+
+**Self-Contained Settlement System** - Production-ready settlement with comprehensive monitoring and safety controls:
+
+**Core Script**: `scripts/settlement-backfill.ts`
+- **Self-Contained Design**: No external utilities, includes local logger and Supabase client
+- **Production Guardrails**: Built-in safety controls and validation
+- **Idempotency**: Automatic duplicate prevention via `settled_at IS NULL` checks
+- **Monitoring Integration**: Automatic heartbeat logging for production monitoring
+
+### Settlement Commands (Docker-First)
+
+**Testing & Validation**:
+```bash
+# Test settlement system (dry-run mode, default behavior)
+docker-compose exec api npm run settlement:test
+
+# Validate settlement environment and data
+docker-compose exec api npm run settlement:validate
+```
+
+**Production Operations**:
+```bash
+# Execute production settlement backfill (shadow mode by default)
+docker-compose exec api npm run settlement:backfill
+
+# Execute with explicit production mode
+docker-compose exec api env PUBLISH_TO_DISCORD=true SHADOW_MODE=false npm run settlement:backfill
+
+# Monitor settlement system health
+docker-compose exec api npm run settlement:monitor
+```
+
+### Production Safety Features
+
+**Automatic Guardrails**:
+- **Dry Run Default**: `--dry-run` flag enabled by default for safe testing
+- **Shadow Mode**: `SHADOW_MODE=true` default prevents accidental production publishing
+- **Discord Protection**: `PUBLISH_TO_DISCORD=false` default prevents unwanted notifications
+- **Idempotency Protection**: `settled_at IS NULL` filters prevent duplicate processing
+- **Batch Limits**: `BATCH_MAX=10` default for controlled processing scope
+
+**Monitoring & Validation**:
+- **Heartbeat Logging**: Automatic logging to `settlement_heartbeat` table with metrics
+- **Success/Failure Tracking**: Real-time monitoring of processed, successful, and failed settlements
+- **Production Validation**: Pre-execution environment and data validation scripts
+- **Error Recovery**: Graceful error handling with detailed logging and recovery guidance
+
+**Environment Controls**:
+```typescript
+// Production environment variables
+SUPABASE_URL=<production-url>
+SUPABASE_SERVICE_ROLE_KEY=<production-key>
+MLB_STATSAPI_BASE=https://statsapi.mlb.com
+SCORING_FINAL_BUFFER_MIN=20
+BATCH_MAX=10
+LOOKBACK_HOURS=168
+LEAGUE=MLB
+
+// Safety controls (default values)
+DRY_RUN=true                    // Override with --dry-run=false
+SHADOW_MODE=true                // Override with SHADOW_MODE=false  
+PUBLISH_TO_DISCORD=false        // Override with PUBLISH_TO_DISCORD=true
+```
+
+### Settlement Architecture Features
+
+**Database Integration**:
+- **Source Table**: `shadow_decisions` with `decision_type='settlement_backfill'`
+- **Idempotency**: Only processes records where `settled_at IS NULL`
+- **Monitoring Table**: `settlement_heartbeat` for production health tracking
+- **Update Pattern**: Updates `settled_at`, `status`, `settlement_source`, and `settlement_details`
+
+**API Integration**:
+- **MLB Stats API**: Direct integration with `https://statsapi.mlb.com`
+- **Game Resolution**: Automatic `gamePk` resolution via schedule API
+- **Final Game Detection**: Validates `codedGameState === 'F'` before settlement
+- **Statistical Calculation**: Supports all major betting markets (hits, RBIs, runs, total bases, etc.)
+
+**Error Handling & Recovery**:
+- **Graceful Failures**: Continues processing on individual failures
+- **Detailed Logging**: Comprehensive error logging with context
+- **Recovery Guidance**: Clear error messages for operational recovery
+- **Batch Processing**: Processes in configurable batches for controlled resource usage
+
 ## <� Excellence Standards
 
 **CRITICAL MANDATE**: Always deliver best-in-class results. No shortcuts. No

@@ -8,72 +8,72 @@ import { SportSpecificWeights, TierThresholds, RiskManagementConfig, ScoringConf
 export const NBA_WEIGHTS: SportSpecificWeights = {
   sport: 'NBA',
   version: '1.0.0',
-  description: 'NBA basketball optimized for player props with pace and usage rate focus',
-  lastUpdated: '2025-01-09',
+  description: 'NBA basketball optimized for player props with pace and usage rate focus - NORMALIZED TO 1.0',
+  lastUpdated: '2025-08-12',
   
-  // Core Components (optimized for basketball)
-  expectedValue: 0.20,            // Strong EV focus for NBA
-  lineMovement: 0.12,             // Important in NBA due to news sensitivity
-  matchupRating: 0.15,            // Critical for player props vs defense
-  playerForm: 0.12,               // Recent performance very important
-  injuryImpact: 0.08,             // High impact due to pace/usage changes
-  weatherImpact: 0.0,             // Indoor sport - no weather impact
+  // Core Components (optimized for basketball) - NORMALIZED
+  expectedValue: 0.1307,            // Strong EV focus for NBA
+  lineMovement: 0.0784,             // Important in NBA due to news sensitivity
+  matchupRating: 0.0980,            // Critical for player props vs defense
+  playerForm: 0.0784,               // Recent performance very important
+  injuryImpact: 0.0523,             // High impact due to pace/usage changes
+  weatherImpact: 0.0,               // Indoor sport - no weather impact
   
   // Advanced Market Intelligence
-  marketIntelligence: 0.14,       // Sharp NBA market intelligence
-  sharpMoney: 0.09,               // Clear sharp/public splits
-  volumeProfile: 0.06,            // Volume patterns matter
-  closingLineValue: 0.11,         // Strong CLV predictive power
+  marketIntelligence: 0.0915,       // Sharp NBA market intelligence
+  sharpMoney: 0.0588,               // Clear sharp/public splits
+  volumeProfile: 0.0392,            // Volume patterns matter
+  closingLineValue: 0.0719,         // Strong CLV predictive power
   
   // Professional Capper Features
-  steamDetection: 0.02,           // Steam moves common in NBA
-  closingLinePrediction: 0.015,   // Line closure modeling
-  optimalTiming: 0.01,            // Injury news timing critical
-  lineShoppingEdge: 0.015,        // Multiple book advantage
-  publicVsSharpSplit: 0.02,       // Clear contrarian opportunities
-  marketTimingAdvantage: 0.01,    // Time decay effects
-  injuryTimingEdge: 0.015,        // Breaking news impact
-  crossMarketDiscrepancy: 0.01,   // Correlated prop opportunities
+  steamDetection: 0.0131,           // Steam moves common in NBA
+  closingLinePrediction: 0.0098,    // Line closure modeling
+  optimalTiming: 0.0065,            // Injury news timing critical
+  lineShoppingEdge: 0.0098,         // Multiple book advantage
+  publicVsSharpSplit: 0.0131,       // Clear contrarian opportunities
+  marketTimingAdvantage: 0.0065,    // Time decay effects
+  injuryTimingEdge: 0.0098,         // Breaking news impact
+  crossMarketDiscrepancy: 0.0065,   // Correlated prop opportunities
   
   // Player & Game Context (NBA-specific)
-  playerFatigue: 0.03,            // Back-to-back games matter
-  venueAdvantage: 0.02,           // Home court advantage
-  refereeImpact: 0.02,            // Referee tendencies on totals
-  paceImpact: 0.04,               // CRITICAL in NBA - pace affects all props
-  motivationalFactors: 0.02,      // Playoff push, rest games
+  playerFatigue: 0.0196,            // Back-to-back games matter
+  venueAdvantage: 0.0131,           // Home court advantage
+  refereeImpact: 0.0131,            // Referee tendencies on totals
+  paceImpact: 0.0261,               // CRITICAL in NBA - pace affects all props
+  motivationalFactors: 0.0131,      // Playoff push, rest games
   
   // Risk & Correlation
-  correlationRisk: 0.015,         // Player props can be correlated
-  volatility: 0.01,               // NBA has moderate volatility
-  portfolioImpact: 0.005,         // Portfolio balance
+  correlationRisk: 0.0098,          // Player props can be correlated
+  volatility: 0.0065,               // NBA has moderate volatility
+  portfolioImpact: 0.0033,          // Portfolio balance
   
   // ML Model Ensemble
-  neuralNetwork: 0.025,           // Neural network for complex patterns
-  gradientBoosting: 0.03,         // Strong for NBA feature interactions
-  randomForest: 0.02,             // Tree-based models work well
-  ensemble: 0.035,                // Ensemble of models
+  neuralNetwork: 0.0163,            // Neural network for complex patterns
+  gradientBoosting: 0.0196,         // Strong for NBA feature interactions
+  randomForest: 0.0131,             // Tree-based models work well
+  ensemble: 0.0229,                 // Ensemble of models
   
   // Enhanced Capper Features (NBA-optimized)
-  handednessSplits: 0.005,        // Less relevant in basketball
-  recentTrendAnalysis: 0.025,     // Hot/cold streaks matter
-  headToHeadHistory: 0.015,       // Matchup history
-  rosterStabilityScore: 0.01,     // Lineup consistency
-  bullpenQualityScore: 0.0,       // N/A for basketball
-  advancedSplitAnalysis: 0.02,    // Home/away, vs position splits
+  handednessSplits: 0.0033,         // Less relevant in basketball
+  recentTrendAnalysis: 0.0163,      // Hot/cold streaks matter
+  headToHeadHistory: 0.0098,        // Matchup history
+  rosterStabilityScore: 0.0065,     // Lineup consistency
+  bullpenQualityScore: 0.0,         // N/A for basketball
+  advancedSplitAnalysis: 0.0131,    // Home/away, vs position splits
   
   // Time-based weights
-  last3Weight: 0.4,               // Recent games heavily weighted
-  last7Weight: 0.3,               // Last week performance
-  last15Weight: 0.2,              // Two weeks context
-  last30Weight: 0.1,              // Monthly baseline
-  enhancedWeight: 0.08,           // Enhanced analysis contribution
+  last3Weight: 0.2614,              // Recent games heavily weighted
+  last7Weight: 0.1961,              // Last week performance
+  last15Weight: 0.1307,             // Two weeks context
+  last30Weight: 0.0654,             // Monthly baseline
+  enhancedWeight: 0.0523,           // Enhanced analysis contribution
   
   // NBA-specific factors
   sportSpecificFactors: {
-    usageRate: 0.03,              // Player usage rate impact
-    paceAdjustment: 0.02,         // Pace-adjusted statistics
-    restAdvantage: 0.015,         // Days rest differential
-    travelFatigue: 0.01,          // Travel schedule impact
+    usageRate: 0.0196,              // Player usage rate impact
+    paceAdjustment: 0.0131,         // Pace-adjusted statistics
+    restAdvantage: 0.0098,          // Days rest differential
+    travelFatigue: 0.0065,          // Travel schedule impact
   }
 };
 

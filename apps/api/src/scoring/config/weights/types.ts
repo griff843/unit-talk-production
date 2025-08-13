@@ -103,16 +103,33 @@ export interface ScoringConfig {
 }
 
 // Validation function to ensure weights sum correctly
-export function validateWeights(weights: CoreScoringWeights & EnhancedScoringWeights): boolean {
-  const coreTotal = Object.values(weights as CoreScoringWeights)
-    .filter(v => typeof v === 'number')
-    .reduce((sum, weight) => sum + weight, 0);
-    
-  const enhancedTotal = Object.values(weights as EnhancedScoringWeights)
-    .filter(v => typeof v === 'number')
-    .reduce((sum, weight) => sum + weight, 0);
-    
-  const total = coreTotal + enhancedTotal;
+export function validateWeights(weights: SportSpecificWeights): boolean {
+  // Define the exact fields that should be included in the validation
+  // Excluding metadata fields, time-based weights (these are multipliers), and sportSpecificFactors
+  const weightFields = [
+    // Core Components
+    'expectedValue', 'lineMovement', 'matchupRating', 'playerForm', 'injuryImpact', 'weatherImpact',
+    // Advanced Market Intelligence  
+    'marketIntelligence', 'sharpMoney', 'volumeProfile', 'closingLineValue',
+    // Professional Capper Features
+    'steamDetection', 'closingLinePrediction', 'optimalTiming', 'lineShoppingEdge',
+    'publicVsSharpSplit', 'marketTimingAdvantage', 'injuryTimingEdge', 'crossMarketDiscrepancy',
+    // Player & Game Context
+    'playerFatigue', 'venueAdvantage', 'refereeImpact', 'paceImpact', 'motivationalFactors',
+    // Risk & Correlation
+    'correlationRisk', 'volatility', 'portfolioImpact',
+    // ML Model Ensemble
+    'neuralNetwork', 'gradientBoosting', 'randomForest', 'ensemble',
+    // Enhanced Features
+    'handednessSplits', 'recentTrendAnalysis', 'headToHeadHistory', 'rosterStabilityScore',
+    'bullpenQualityScore', 'advancedSplitAnalysis'
+    // NOTE: Excluding time-based weights (last3Weight, etc.) as these are multipliers, not additive weights
+  ];
+  
+  const total = weightFields.reduce((sum, field) => {
+    const value = (weights as any)[field];
+    return sum + (typeof value === 'number' ? value : 0);
+  }, 0);
   
   // Allow some tolerance for floating point arithmetic
   return Math.abs(total - 1.0) < 0.001;

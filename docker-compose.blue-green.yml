@@ -1,0 +1,249 @@
+# Blue/Green Deployment Configuration for Unit Talk Platform
+# Supports ACTIVE_COLOR environment variable for traffic routing
+
+version: '3.8'
+
+services:
+  # ==============================================
+  # LOAD BALANCER / TRAFFIC ROUTER
+  # ==============================================
+  
+  # nginx reverse proxy for blue/green routing
+  nginx-router:
+    image: nginx:alpine
+    container_name: unit-talk-nginx-router
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/blue-green.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/templates:/etc/nginx/templates:ro
+    environment:
+      - ACTIVE_COLOR=${ACTIVE_COLOR:-blue}
+      - NGINX_ENVSUBST_TEMPLATE_SUFFIX=.template
+      - NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx/conf.d
+    depends_on:
+      - api-blue
+      - api-green
+      - command-center-blue
+      - command-center-green
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - unit-talk-network
+    profiles:
+      - blue-green
+
+  # ==============================================
+  # BLUE DEPLOYMENT (CURRENT)
+  # ==============================================
+
+  # API Blue
+  api-blue:
+    extends:
+      file: docker-compose.yml
+      service: api
+    container_name: unit-talk-api-blue
+    ports:
+      - "3010:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
+      - REDIS_URL=redis://redis:6379
+      - TEMPORAL_SERVER_URL=temporal:7233
+      - PROMETHEUS_ENABLED=true
+      - PROMETHEUS_PORT=9464
+      - LOG_LEVEL=debug
+      - HEALTH_CHECK_INTERVAL=30000
+      - DEPLOY_COLOR=blue
+      - ACTIVE_COLOR=${ACTIVE_COLOR:-blue}
+    labels:
+      - "deployment.color=blue"
+      - "deployment.type=api"
+      - "traefik.enable=true"
+      - "traefik.http.routers.api-blue.rule=Host(`api-blue.unit-talk.local`)"
+    networks:
+      - unit-talk-network
+    profiles:
+      - blue-green
+
+  # Workers Blue
+  workers-blue:
+    extends:
+      file: docker-compose.yml
+      service: workers
+    container_name: unit-talk-workers-blue
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
+      - REDIS_URL=redis://redis:6379
+      - TEMPORAL_SERVER_URL=temporal:7233
+      - WORKER_MODE=true
+      - LOG_LEVEL=debug
+      - DEPLOY_COLOR=blue
+      - ACTIVE_COLOR=${ACTIVE_COLOR:-blue}
+    labels:
+      - "deployment.color=blue"
+      - "deployment.type=workers"
+    networks:
+      - unit-talk-network
+    profiles:
+      - blue-green
+
+  # Command Center Blue
+  command-center-blue:
+    extends:
+      file: docker-compose.yml
+      service: command-center
+    container_name: unit-talk-command-center-blue
+    ports:
+      - "3014:3015"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
+      - NEXT_PUBLIC_API_URL=http://localhost:3010
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - PROMETHEUS_URL=http://prometheus:9090
+      - TEMPORAL_UI_URL=http://localhost:8088
+      - DEPLOY_COLOR=blue
+      - ACTIVE_COLOR=${ACTIVE_COLOR:-blue}
+    labels:
+      - "deployment.color=blue"
+      - "deployment.type=command-center"
+      - "traefik.enable=true"
+      - "traefik.http.routers.command-center-blue.rule=Host(`command-center-blue.unit-talk.local`)"
+    networks:
+      - unit-talk-network
+    profiles:
+      - blue-green
+
+  # ==============================================
+  # GREEN DEPLOYMENT (CANDIDATE)
+  # ==============================================
+
+  # API Green
+  api-green:
+    extends:
+      file: docker-compose.yml
+      service: api
+    container_name: unit-talk-api-green
+    ports:
+      - "3011:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
+      - REDIS_URL=redis://redis:6379
+      - TEMPORAL_SERVER_URL=temporal:7233
+      - PROMETHEUS_ENABLED=true
+      - PROMETHEUS_PORT=9465
+      - LOG_LEVEL=debug
+      - HEALTH_CHECK_INTERVAL=30000
+      - DEPLOY_COLOR=green
+      - ACTIVE_COLOR=${ACTIVE_COLOR:-blue}
+    labels:
+      - "deployment.color=green"
+      - "deployment.type=api"
+      - "traefik.enable=true"
+      - "traefik.http.routers.api-green.rule=Host(`api-green.unit-talk.local`)"
+    networks:
+      - unit-talk-network
+    profiles:
+      - blue-green
+
+  # Workers Green
+  workers-green:
+    extends:
+      file: docker-compose.yml
+      service: workers
+    container_name: unit-talk-workers-green
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
+      - REDIS_URL=redis://redis:6379
+      - TEMPORAL_SERVER_URL=temporal:7233
+      - WORKER_MODE=true
+      - LOG_LEVEL=debug
+      - DEPLOY_COLOR=green
+      - ACTIVE_COLOR=${ACTIVE_COLOR:-blue}
+    labels:
+      - "deployment.color=green"
+      - "deployment.type=workers"
+    networks:
+      - unit-talk-network
+    profiles:
+      - blue-green
+
+  # Command Center Green
+  command-center-green:
+    extends:
+      file: docker-compose.yml
+      service: command-center
+    container_name: unit-talk-command-center-green
+    ports:
+      - "3015:3015"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
+      - NEXT_PUBLIC_API_URL=http://localhost:3011
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - PROMETHEUS_URL=http://prometheus:9090
+      - TEMPORAL_UI_URL=http://localhost:8088
+      - DEPLOY_COLOR=green
+      - ACTIVE_COLOR=${ACTIVE_COLOR:-blue}
+    labels:
+      - "deployment.color=green"
+      - "deployment.type=command-center"
+      - "traefik.enable=true"
+      - "traefik.http.routers.command-center-green.rule=Host(`command-center-green.unit-talk.local`)"
+    networks:
+      - unit-talk-network
+    profiles:
+      - blue-green
+
+  # ==============================================
+  # HEALTH CHECK SERVICE
+  # ==============================================
+
+  # Health check service for blue/green monitoring
+  health-monitor:
+    image: nginx:alpine
+    container_name: unit-talk-health-monitor
+    ports:
+      - "8090:80"
+    volumes:
+      - ./nginx/health-check.conf:/etc/nginx/nginx.conf:ro
+    environment:
+      - ACTIVE_COLOR=${ACTIVE_COLOR:-blue}
+    depends_on:
+      - api-blue
+      - api-green
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - unit-talk-network
+    profiles:
+      - blue-green
+
+# ==============================================
+# VOLUMES (SHARED BETWEEN DEPLOYMENTS)
+# ==============================================
+volumes:
+  nginx_cache:
+    driver: local
+
+# ==============================================
+# NETWORKS (SHARED)
+# ==============================================
+networks:
+  unit-talk-network:
+    external: true

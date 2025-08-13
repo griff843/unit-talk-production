@@ -56,9 +56,10 @@ const operatorActivities = proxyActivities<OperatorAgentActivities>({
   startToCloseTimeout: '1 minute'
 });
 
-const notificationActivities = proxyActivities<NotificationAgentActivities>({
-  startToCloseTimeout: '30 seconds'
-});
+// Disabled notification activities temporarily
+// const notificationActivities = proxyActivities<NotificationAgentActivities>({
+//   startToCloseTimeout: '30 seconds'
+// });
 
 const gradingActivities = proxyActivities<GradingAgentActivities>({
   startToCloseTimeout: '2 minutes'
@@ -69,7 +70,7 @@ const gradingActivities = proxyActivities<GradingAgentActivities>({
  * Main data ingestion and processing workflow (1 minute intervals)
  */
 export async function syndicateSchedulerWorkflow(): Promise<void> {
-  let shouldContinue = true;
+  const shouldContinue = true;
   const MAX_ITERATIONS = 1000000; // Prevent infinite loops
   let iteration = 0;
 
@@ -136,7 +137,7 @@ export async function syndicateSchedulerWorkflow(): Promise<void> {
  * Continuously monitors for live games and adjusts system mode
  */
 export async function liveGameDetectorWorkflow(): Promise<void> {
-  let shouldContinue = true;
+  const shouldContinue = true;
   const MAX_ITERATIONS = 1000000;
   let iteration = 0;
 
@@ -188,7 +189,7 @@ export async function liveGameDetectorWorkflow(): Promise<void> {
  * Monitors API quotas and activates fallbacks
  */
 export async function quotaMonitoringWorkflow(): Promise<void> {
-  let shouldContinue = true;
+  const shouldContinue = true;
   const MAX_ITERATIONS = 1000000;
   let iteration = 0;
 
@@ -257,7 +258,7 @@ export async function quotaMonitoringWorkflow(): Promise<void> {
  * System health and performance monitoring
  */
 export async function healthMonitoringWorkflow(): Promise<void> {
-  let shouldContinue = true;
+  const shouldContinue = true;
   const MAX_ITERATIONS = 1000000;
   let iteration = 0;
 
@@ -307,7 +308,7 @@ export async function healthMonitoringWorkflow(): Promise<void> {
  */
 export async function createLeagueScheduleWorkflow(league: string) {
   return async function leagueScheduleWorkflow(): Promise<void> {
-    let shouldContinue = true;
+    const shouldContinue = true;
     const MAX_ITERATIONS = 1000000;
     let iteration = 0;
 
@@ -345,7 +346,7 @@ export async function createLeagueScheduleWorkflow(league: string) {
 // Individual league workflows - directly implement the workflow logic
 export async function nflScheduleWorkflow(): Promise<void> {
   const league = 'NFL';
-  let shouldContinue = true;
+  const shouldContinue = true;
   const MAX_ITERATIONS = 1000000;
   let iteration = 0;
 
@@ -380,7 +381,7 @@ export async function nflScheduleWorkflow(): Promise<void> {
 
 export async function nbaScheduleWorkflow(): Promise<void> {
   const league = 'NBA';
-  let shouldContinue = true;
+  const shouldContinue = true;
   const MAX_ITERATIONS = 1000000;
   let iteration = 0;
 
@@ -415,7 +416,7 @@ export async function nbaScheduleWorkflow(): Promise<void> {
 
 export async function mlbScheduleWorkflow(): Promise<void> {
   const league = 'MLB';
-  let shouldContinue = true;
+  const shouldContinue = true;
   const MAX_ITERATIONS = 1000000;
   let iteration = 0;
 
@@ -450,7 +451,7 @@ export async function mlbScheduleWorkflow(): Promise<void> {
 
 export async function nhlScheduleWorkflow(): Promise<void> {
   const league = 'NHL';
-  let shouldContinue = true;
+  const shouldContinue = true;
   const MAX_ITERATIONS = 1000000;
   let iteration = 0;
 
@@ -485,7 +486,7 @@ export async function nhlScheduleWorkflow(): Promise<void> {
 
 export async function ncaafScheduleWorkflow(): Promise<void> {
   const league = 'NCAAF';
-  let shouldContinue = true;
+  const shouldContinue = true;
   const MAX_ITERATIONS = 1000000;
   let iteration = 0;
 
@@ -520,7 +521,7 @@ export async function ncaafScheduleWorkflow(): Promise<void> {
 
 export async function ncaabScheduleWorkflow(): Promise<void> {
   const league = 'NCAAB';
-  let shouldContinue = true;
+  const shouldContinue = true;
   const MAX_ITERATIONS = 1000000;
   let iteration = 0;
 
@@ -555,7 +556,7 @@ export async function ncaabScheduleWorkflow(): Promise<void> {
 
 export async function wnbaScheduleWorkflow(): Promise<void> {
   const league = 'WNBA';
-  let shouldContinue = true;
+  const shouldContinue = true;
   const MAX_ITERATIONS = 1000000;
   let iteration = 0;
 
@@ -590,6 +591,7 @@ export async function wnbaScheduleWorkflow(): Promise<void> {
 
 /**
  * Helper function to get league-specific peak hours
+ * UPDATED: 24/7 data ingestion for all sports as requested by user
  */
 function getLeaguePeakHours(_league: string): { start: number; end: number } {
   // 🚀 PRODUCTION MODE: 24/7 continuous data ingestion

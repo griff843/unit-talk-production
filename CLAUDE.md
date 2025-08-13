@@ -335,6 +335,40 @@ implementation:
 - Database query optimization to <50ms target
 - Full agent orchestration deployment
 
+## 📜 Standardized Script Architecture
+
+### Script Execution Standards
+
+All production scripts follow standardized patterns located in `apps/api/scripts/`:
+
+**✅ CORRECT Pattern - Self-Contained with Supabase:**
+```typescript
+import { createClient } from '@supabase/supabase-js';
+
+const logger = {
+  info: (...a: any[]) => console.log('[INFO ]', ...a),
+  // ... inline logger implementation
+};
+
+const supabase = createClient(/* production config */);
+```
+
+**❌ DEPRECATED Pattern - External Utilities (Removed in Cleanup):**
+```typescript
+// DO NOT USE - These were removed in production cleanup
+import { db } from './utils/db';      // ❌ REMOVED
+import { logger } from './utils/logger'; // ❌ REMOVED
+```
+
+### Script Categories
+
+- **Database Scripts**: `settlement-backfill.ts`, `execute-database-migration.ts`
+- **Agent Scripts**: `run-agent-tests.ts`, `auditAgents.ts`  
+- **Testing Scripts**: `run-golden-tests.ts`, `test-real-world-e2e.ts`
+- **Monitoring Scripts**: `healthMonitor.ts`, `productionDashboard.ts`
+
+**Reference**: See `docs/SCRIPTS_REFERENCE.md` for complete script catalog and usage patterns.
+
 ## 🔧 Development Workflow
 
 ### Mandatory Pre/Post-Change Operations (Docker-Only)
@@ -434,6 +468,7 @@ The Unit Talk platform uses a sophisticated event-driven architecture for reliab
 - **Temporal Workflows**: Idempotent grading workflows with individual leg processing
 - **AlertAgent**: Event-driven subscriptions for injury, hedge, and middle opportunities
 - **Command Center**: Real-time event stream with replay capabilities
+- **Settlement System**: Self-contained production settlement with comprehensive monitoring
 
 **Key Features:**
 - **Idempotent Processing**: All operations keyed by `bet_slip_id` to prevent duplicates
@@ -447,6 +482,42 @@ The Unit Talk platform uses a sophisticated event-driven architecture for reliab
 - Smart Form → `bridge_outbox` → BridgeWorker → Temporal Workflows
 - Supabase Realtime → AlertAgent → Discord Notifications
 - All Events → Command Center Event Stream → Monitoring Dashboard
+- Settlement Pipeline → `settlement_heartbeat` → Production Monitoring
+
+### Settlement System Architecture
+
+**Production Settlement Pipeline**: Centralized, self-contained system with comprehensive guardrails:
+
+**Key Components:**
+- **Single Settlement Script**: `apps/api/scripts/settlement-backfill.ts` - Self-contained production script
+- **Production Guardrails**: `PUBLISH_TO_DISCORD=false`, `SHADOW_MODE=true`, idempotency checks
+- **Monitoring System**: Heartbeat logging via `settlement_heartbeat` table
+- **Validation Scripts**: Pre-execution and post-execution production validation
+
+**Architecture Features:**
+- **Self-Contained Pattern**: No external dependencies, includes local logger and DB helpers
+- **Idempotency Controls**: Only processes unsettled picks, prevents duplicate settlement
+- **Production Safety**: Shadow mode by default, explicit production deployment required
+- **Monitoring Integration**: Real-time heartbeat with success/failure tracking
+- **Docker-First Execution**: All operations via Docker containers with standardized commands
+
+**Settlement Commands (Docker-First):**
+```bash
+# Test settlement system (dry-run mode)
+docker-compose exec api npm run settlement:test
+
+# Execute production settlement backfill
+docker-compose exec api npm run settlement:backfill
+
+# Monitor settlement system health
+docker-compose exec api npm run settlement:monitor
+```
+
+**Safety Features:**
+- **Dry Run Mode**: Default `--dry-run` flag for safe testing
+- **Idempotency Protection**: `settled_at IS NULL` checks prevent duplicate processing
+- **Heartbeat Monitoring**: Automatic logging to `settlement_heartbeat` table
+- **Production Validation**: Pre-execution environment and data validation
 
 ## 🏆 Excellence Standards
 

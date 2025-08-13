@@ -137,14 +137,62 @@ Located in `scripts/legacy/`:
 3. Use `validateRedis.ts` and `validateSchema.ts` for connection issues
 4. Execute `securityAudit.ts` for security concerns
 
+## 🏗️ Standardized Script Patterns
+
+### ✅ Production Pattern (Use This)
+
+```typescript
+#!/usr/bin/env npx tsx
+
+import 'dotenv/config';
+import { createClient } from '@supabase/supabase-js';
+
+// Standard logger implementation
+const logger = {
+  info:  (...a: any[]) => console.log('[INFO ]', ...a),
+  warn:  (...a: any[]) => console.warn('[WARN ]', ...a),
+  error: (...a: any[]) => console.error('[ERROR]', ...a),
+  debug: (...a: any[]) => { if (process.env.DEBUG) console.log('[DEBUG]', ...a); },
+};
+
+// Supabase client initialization
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { persistSession: false } }
+);
+
+async function main() {
+  try {
+    // Script implementation
+    logger.info('Script completed successfully');
+  } catch (error) {
+    logger.error('Script failed:', error);
+    process.exit(1);
+  }
+}
+
+main().catch(e => { logger.error(e); process.exit(1); });
+```
+
+### ❌ Legacy Pattern (DO NOT USE)
+
+```typescript
+// DEPRECATED - Don't use this pattern
+import { db } from './utils/db';      // ❌ External utilities removed
+import { logger } from './utils/logger'; // ❌ Use inline logger instead
+```
+
 ## 🔄 Script Dependencies
 
-Most scripts require:
-
-- Node.js 18+
+**Required for all scripts:**
+- Docker environment (`docker-compose exec api npx tsx scripts/script-name.ts`)
+- Node.js 18+ (within container)
 - Valid `.env` configuration
-- Active database connection
-- Redis availability (for applicable scripts)
+- Supabase connection (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+**Optional dependencies:**
+- Redis availability (for caching scripts)
 - Temporal service (for workflow-related scripts)
 
 ## 🚀 Quick Commands

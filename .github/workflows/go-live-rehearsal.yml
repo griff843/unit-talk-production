@@ -1,0 +1,507 @@
+# Go-Live Rehearsal Suite - CI/CD Integration
+# Automated rehearsal execution for deployment readiness verification
+
+name: Go-Live Rehearsal
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment for rehearsal'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - prod
+      
+      mode:
+        description: 'Rehearsal execution mode'
+        required: true
+        default: 'dry-run'
+        type: choice
+        options:
+          - dry-run
+          - live
+      
+      canary_percent:
+        description: 'Canary traffic percentage (1-50)'
+        required: true
+        default: '10'
+        type: string
+      
+      incident_simulation:
+        description: 'Enable incident simulation drill'
+        required: true
+        default: true
+        type: boolean
+      
+      dr_testing:
+        description: 'Enable disaster recovery testing'
+        required: true
+        default: true
+        type: boolean
+      
+      rollback_drill:
+        description: 'Enable rollback procedure drill'
+        required: true
+        default: true
+        type: boolean
+      
+      notification_level:
+        description: 'Notification verbosity level'
+        required: true
+        default: 'standard'
+        type: choice
+        options:
+          - minimal
+          - standard
+          - verbose
+
+  schedule:
+    # Daily rehearsal on staging at 2 AM UTC
+    - cron: '0 2 * * *'
+  
+  pull_request:
+    branches: [ main, production ]
+    types: [ opened, synchronize, reopened ]
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'scripts/rehearsal/**'
+      - 'docker-compose*.yml'
+      - '.github/workflows/go-live-rehearsal.yml'
+
+env:
+  NODE_VERSION: '18'
+  REHEARSAL_TIMEOUT: '3600' # 1 hour
+  REPORT_RETENTION_DAYS: '30'
+
+jobs:
+  # Pre-flight validation
+  preflight:
+    name: Pre-flight Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    outputs:
+      environment: ${{ steps.config.outputs.environment }}
+      mode: ${{ steps.config.outputs.mode }}
+      config: ${{ steps.config.outputs.config }}
+      
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Configure Rehearsal Parameters
+        id: config
+        run: |
+          # Determine environment and mode
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            ENVIRONMENT="staging"
+            MODE="dry-run"
+            CANARY_PERCENT="10"
+          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            ENVIRONMENT="staging"
+            MODE="dry-run"
+            CANARY_PERCENT="5"
+          else
+            ENVIRONMENT="${{ github.event.inputs.environment || 'staging' }}"
+            MODE="${{ github.event.inputs.mode || 'dry-run' }}"
+            CANARY_PERCENT="${{ github.event.inputs.canary_percent || '10' }}"
+          fi
+          
+          # Validate canary percentage
+          if [[ $CANARY_PERCENT -lt 1 || $CANARY_PERCENT -gt 50 ]]; then
+            echo "::error::Canary percentage must be between 1-50, got: $CANARY_PERCENT"
+            exit 1
+          fi
+          
+          # Production safety checks
+          if [[ "$ENVIRONMENT" == "prod" && "$MODE" == "live" ]]; then
+            if [[ "${{ github.ref }}" != "refs/heads/main" && "${{ github.ref }}" != "refs/heads/production" ]]; then
+              echo "::error::Production live rehearsal only allowed from main/production branch"
+              exit 1
+            fi
+          fi
+          
+          # Generate configuration
+          CONFIG=$(cat <<EOF
+          {
+            "environment": "$ENVIRONMENT",
+            "mode": "$MODE",
+            "canaryPercent": $CANARY_PERCENT,
+            "incidentSimulation": ${{ github.event.inputs.incident_simulation || 'true' }},
+            "drTesting": ${{ github.event.inputs.dr_testing || 'true' }},
+            "rollbackDrill": ${{ github.event.inputs.rollback_drill || 'true' }},
+            "notificationLevel": "${{ github.event.inputs.notification_level || 'standard' }}",
+            "triggeredBy": "${{ github.event_name }}",
+            "ref": "${{ github.ref }}",
+            "sha": "${{ github.sha }}",
+            "actor": "${{ github.actor }}"
+          }
+          EOF
+          )
+          
+          echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
+          echo "mode=$MODE" >> $GITHUB_OUTPUT
+          echo "config<<EOF" >> $GITHUB_OUTPUT
+          echo "$CONFIG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "::notice::Rehearsal configured - Environment: $ENVIRONMENT, Mode: $MODE, Canary: $CANARY_PERCENT%"
+      
+      - name: Validate Environment Secrets
+        run: |
+          ENV="${{ steps.config.outputs.environment }}"
+          
+          # Check required secrets based on environment
+          if [[ "$ENV" == "prod" ]]; then
+            REQUIRED_SECRETS="PROD_DATABASE_URL PROD_SUPABASE_URL PROD_COMMAND_CENTER_URL"
+          else
+            REQUIRED_SECRETS="STAGING_DATABASE_URL STAGING_SUPABASE_URL STAGING_COMMAND_CENTER_URL"
+          fi
+          
+          for secret in $REQUIRED_SECRETS; do
+            if [[ -z "${!secret:-}" ]]; then
+              echo "::error::Missing required secret for $ENV environment: $secret"
+              exit 1
+            fi
+          done
+          
+          echo "::notice::All required secrets validated for $ENV environment"
+        env:
+          PROD_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+          PROD_SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
+          PROD_COMMAND_CENTER_URL: ${{ secrets.PROD_COMMAND_CENTER_URL }}
+          STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          STAGING_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          STAGING_COMMAND_CENTER_URL: ${{ secrets.STAGING_COMMAND_CENTER_URL }}
+
+  # Main rehearsal execution
+  rehearsal:
+    name: Execute Go-Live Rehearsal
+    runs-on: ubuntu-latest
+    needs: preflight
+    timeout-minutes: 60
+    
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - step: "complete"
+            description: "Full rehearsal execution"
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install Dependencies
+        run: |
+          npm ci
+          cd apps/api && npm ci
+          cd ../command-center && npm ci
+      
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Setup Environment Variables
+        run: |
+          # Load configuration
+          CONFIG='${{ needs.preflight.outputs.config }}'
+          ENVIRONMENT='${{ needs.preflight.outputs.environment }}'
+          MODE='${{ needs.preflight.outputs.mode }}'
+          
+          # Create .env file for rehearsal
+          cat > .env.rehearsal <<EOF
+          NODE_ENV=production
+          REHEARSAL_MODE=$MODE
+          REHEARSAL_ENVIRONMENT=$ENVIRONMENT
+          REHEARSAL_CONFIG=$CONFIG
+          
+          # Database
+          DATABASE_URL=${{ secrets[format('{0}_DATABASE_URL', needs.preflight.outputs.environment == 'prod' && 'PROD' || 'STAGING')] }}
+          
+          # Supabase
+          NEXT_PUBLIC_SUPABASE_URL=${{ secrets[format('{0}_SUPABASE_URL', needs.preflight.outputs.environment == 'prod' && 'PROD' || 'STAGING')] }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets[format('{0}_SUPABASE_ANON_KEY', needs.preflight.outputs.environment == 'prod' && 'PROD' || 'STAGING')] }}
+          SUPABASE_SERVICE_ROLE_KEY=${{ secrets[format('{0}_SUPABASE_SERVICE_ROLE_KEY', needs.preflight.outputs.environment == 'prod' && 'PROD' || 'STAGING')] }}
+          
+          # External Services
+          OPTIMAL_API_KEY=${{ secrets.OPTIMAL_API_KEY }}
+          ODDS_API_KEY=${{ secrets.ODDS_API_KEY }}
+          
+          # Monitoring
+          PROMETHEUS_URL=http://prometheus:9090
+          GRAFANA_URL=http://grafana:3000
+          
+          # Alerts
+          ALERTMANAGER_URL=${{ secrets.ALERTMANAGER_URL }}
+          SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL }}
+          DISCORD_WEBHOOK_URL=${{ secrets.DISCORD_WEBHOOK_URL }}
+          
+          # CI/CD Integration
+          GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
+          GITHUB_RUN_ID=${{ github.run_id }}
+          GITHUB_RUN_NUMBER=${{ github.run_number }}
+          EOF
+          
+          echo "::notice::Environment configured for $ENVIRONMENT rehearsal in $MODE mode"
+      
+      - name: Start Infrastructure
+        run: |
+          echo "::group::Starting Docker services"
+          
+          # Start core services
+          docker-compose up -d postgres redis temporal prometheus grafana
+          
+          # Wait for services to be healthy
+          echo "Waiting for services to be ready..."
+          timeout 300 bash -c 'until docker-compose exec postgres pg_isready -U postgres; do sleep 5; done'
+          timeout 300 bash -c 'until docker-compose exec redis redis-cli ping; do sleep 5; done'
+          
+          # Start blue-green services
+          docker-compose -f docker-compose.blue-green.yml up -d --build
+          
+          echo "::endgroup::"
+      
+      - name: Execute Rehearsal Script
+        id: rehearsal
+        run: |
+          echo "::group::Running Go-Live Rehearsal"
+          
+          # Load environment
+          set -a
+          source .env.rehearsal
+          set +a
+          
+          # Execute rehearsal with timeout
+          timeout ${{ env.REHEARSAL_TIMEOUT }} npm run rehearsal:execute || {
+            EXIT_CODE=$?
+            if [[ $EXIT_CODE -eq 124 ]]; then
+              echo "::error::Rehearsal timed out after ${{ env.REHEARSAL_TIMEOUT }} seconds"
+            else
+              echo "::error::Rehearsal failed with exit code $EXIT_CODE"
+            fi
+            exit $EXIT_CODE
+          }
+          
+          echo "::endgroup::"
+        env:
+          REHEARSAL_CONFIG: ${{ needs.preflight.outputs.config }}
+      
+      - name: Collect Rehearsal Artifacts
+        if: always()
+        run: |
+          echo "::group::Collecting rehearsal artifacts"
+          
+          # Create artifacts directory
+          mkdir -p artifacts/logs artifacts/screenshots artifacts/reports
+          
+          # Collect logs
+          docker-compose logs --no-color > artifacts/logs/docker-compose.log 2>&1 || true
+          docker-compose -f docker-compose.blue-green.yml logs --no-color > artifacts/logs/blue-green.log 2>&1 || true
+          
+          # Collect application logs
+          docker cp unit-talk-api:/app/logs artifacts/logs/api/ 2>/dev/null || true
+          docker cp unit-talk-command-center:/app/.next artifacts/logs/command-center/ 2>/dev/null || true
+          
+          # Collect rehearsal reports
+          cp -r reports/* artifacts/reports/ 2>/dev/null || true
+          
+          # Collect screenshots
+          cp -r reports/screenshots/* artifacts/screenshots/ 2>/dev/null || true
+          
+          # System information
+          docker ps > artifacts/logs/containers.log
+          docker images > artifacts/logs/images.log
+          df -h > artifacts/logs/disk-usage.log
+          free -h > artifacts/logs/memory-usage.log
+          
+          echo "::endgroup::"
+      
+      - name: Upload Rehearsal Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rehearsal-artifacts-${{ needs.preflight.outputs.environment }}-${{ github.run_number }}
+          path: artifacts/
+          retention-days: ${{ env.REPORT_RETENTION_DAYS }}
+      
+      - name: Generate Summary Report
+        if: always()
+        run: |
+          # Create job summary
+          cat >> $GITHUB_STEP_SUMMARY <<EOF
+          # Go-Live Rehearsal Report
+          
+          **Environment**: ${{ needs.preflight.outputs.environment }}
+          **Mode**: ${{ needs.preflight.outputs.mode }}
+          **Triggered by**: ${{ github.event_name }}
+          **Actor**: ${{ github.actor }}
+          
+          ## Configuration
+          \`\`\`json
+          ${{ needs.preflight.outputs.config }}
+          \`\`\`
+          
+          ## Results
+          - **Status**: ${{ job.status }}
+          - **Duration**: ${{ steps.rehearsal.conclusion }}
+          - **Artifacts**: Available for ${{ env.REPORT_RETENTION_DAYS }} days
+          
+          ## Next Steps
+          EOF
+          
+          if [[ "${{ job.status }}" == "success" ]]; then
+            cat >> $GITHUB_STEP_SUMMARY <<EOF
+          ✅ **Rehearsal PASSED** - System ready for deployment
+          
+          - All validation steps completed successfully
+          - Blue/green deployment capability verified
+          - Safety toggles and rollback procedures tested
+          - System meets go-live readiness criteria
+          EOF
+          else
+            cat >> $GITHUB_STEP_SUMMARY <<EOF
+          ❌ **Rehearsal FAILED** - Issues require attention
+          
+          - Review failed steps in the rehearsal log
+          - Check system health and configuration
+          - Resolve issues before scheduling go-live
+          - Consider re-running rehearsal after fixes
+          EOF
+          fi
+      
+      - name: Cleanup Infrastructure
+        if: always()
+        run: |
+          echo "::group::Cleaning up infrastructure"
+          
+          # Stop and remove containers
+          docker-compose -f docker-compose.blue-green.yml down --volumes --remove-orphans || true
+          docker-compose down --volumes --remove-orphans || true
+          
+          # Clean up images (keep base images)
+          docker image prune -f || true
+          
+          echo "::endgroup::"
+
+  # Notification and reporting
+  notify:
+    name: Send Notifications
+    runs-on: ubuntu-latest
+    needs: [preflight, rehearsal]
+    if: always()
+    
+    steps:
+      - name: Determine Notification Recipients
+        id: recipients
+        run: |
+          ENVIRONMENT="${{ needs.preflight.outputs.environment }}"
+          STATUS="${{ needs.rehearsal.result }}"
+          LEVEL="${{ github.event.inputs.notification_level || 'standard' }}"
+          
+          # Configure recipients based on environment and result
+          if [[ "$ENVIRONMENT" == "prod" ]]; then
+            SLACK_CHANNEL="#production-alerts"
+            TEAMS="@production-team @devops-team"
+          else
+            SLACK_CHANNEL="#staging-alerts"
+            TEAMS="@development-team"
+          fi
+          
+          if [[ "$STATUS" == "failure" ]]; then
+            TEAMS="$TEAMS @incident-response"
+            LEVEL="verbose"
+          fi
+          
+          echo "slack_channel=$SLACK_CHANNEL" >> $GITHUB_OUTPUT
+          echo "teams=$TEAMS" >> $GITHUB_OUTPUT
+          echo "level=$LEVEL" >> $GITHUB_OUTPUT
+      
+      - name: Send Slack Notification
+        if: needs.preflight.outputs.environment == 'prod' || needs.rehearsal.result == 'failure'
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ needs.rehearsal.result }}
+          channel: ${{ steps.recipients.outputs.slack_channel }}
+          text: |
+            Go-Live Rehearsal ${{ needs.rehearsal.result == 'success' && '✅ PASSED' || '❌ FAILED' }}
+            
+            Environment: ${{ needs.preflight.outputs.environment }}
+            Mode: ${{ needs.preflight.outputs.mode }}
+            Triggered by: ${{ github.actor }}
+            
+            ${{ needs.rehearsal.result == 'success' && 'System ready for deployment' || 'Manual intervention required' }}
+            
+            View details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      
+      - name: Create GitHub Issue for Failures
+        if: needs.rehearsal.result == 'failure' && needs.preflight.outputs.environment == 'prod'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `🚨 Production Go-Live Rehearsal Failed - ${new Date().toISOString().split('T')[0]}`;
+            const body = `
+            ## Production Go-Live Rehearsal Failure
+            
+            **Environment**: ${{ needs.preflight.outputs.environment }}
+            **Mode**: ${{ needs.preflight.outputs.mode }}
+            **Run ID**: ${{ github.run_id }}
+            **Triggered by**: ${{ github.actor }}
+            
+            ### Configuration
+            \`\`\`json
+            ${{ needs.preflight.outputs.config }}
+            \`\`\`
+            
+            ### Action Required
+            - [ ] Review rehearsal logs and artifacts
+            - [ ] Identify root cause of failure
+            - [ ] Implement fixes and improvements
+            - [ ] Re-run rehearsal to verify resolution
+            - [ ] Update go-live timeline if necessary
+            
+            ### Resources
+            - [Rehearsal Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            - [Operations Runbook](docs/ops/GO_LIVE_REHEARSAL.md)
+            - [Incident Response Guide](docs/ops/INCIDENT_RESPONSE.md)
+            
+            **Priority**: High - Production deployment readiness affected
+            **Assignees**: ${{ steps.recipients.outputs.teams }}
+            `;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['production', 'rehearsal-failure', 'high-priority'],
+              assignees: []
+            });
+
+# Script commands referenced in workflow
+# Add these to package.json scripts section:
+#
+# "rehearsal:execute": "npx tsx scripts/rehearsal/go-live-rehearsal.ts",
+# "rehearsal:staging": "REHEARSAL_ENVIRONMENT=staging npm run rehearsal:execute",
+# "rehearsal:prod": "REHEARSAL_ENVIRONMENT=prod npm run rehearsal:execute"

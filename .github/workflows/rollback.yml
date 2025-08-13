@@ -1,0 +1,595 @@
+name: Production Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'prod'
+        type: choice
+        options:
+          - 'prod'
+          - 'staging'
+      target_sha:
+        description: 'Target SHA to rollback to (defaults to last stable)'
+        type: string
+      reason:
+        description: 'Reason for rollback'
+        required: true
+        type: string
+      triggered_by:
+        description: 'Who or what triggered this rollback'
+        required: true
+        type: string
+      emergency:
+        description: 'Emergency rollback (skip confirmations)'
+        default: false
+        type: boolean
+
+env:
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+  ALERTMANAGER_URL: ${{ secrets.ALERTMANAGER_URL }}
+  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+  DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+jobs:
+  rollback:
+    name: 🔄 Execute Production Rollback
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 100
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate rollback ID
+        id: setup
+        run: |
+          ROLLBACK_ID="rollback-$(date +%Y%m%d-%H%M%S)"
+          echo "rollback_id=$ROLLBACK_ID" >> $GITHUB_OUTPUT
+          echo "started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
+          echo "🔄 Rollback ID: $ROLLBACK_ID"
+
+      - name: Determine target SHA
+        id: target
+        run: |
+          if [[ -n "${{ inputs.target_sha }}" ]]; then
+            TARGET_SHA="${{ inputs.target_sha }}"
+            echo "🎯 Using specified target SHA: $TARGET_SHA"
+          else
+            echo "🔍 Finding last stable deployment..."
+            
+            # Query database for last successful deployment
+            TARGET_SHA=$(node -e "
+            const { createClient } = require('@supabase/supabase-js');
+            const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+            
+            async function getLastStable() {
+              const { data, error } = await supabase
+                .from('deployments')
+                .select('target_sha')
+                .eq('status', 'completed')
+                .order('completed_at', { ascending: false })
+                .limit(1);
+              
+              if (error || !data || data.length === 0) {
+                console.error('No stable deployment found');
+                process.exit(1);
+              }
+              
+              console.log(data[0].target_sha);
+            }
+            
+            getLastStable();
+            ")
+            
+            if [[ -z "$TARGET_SHA" ]]; then
+              echo "❌ Could not determine last stable SHA"
+              exit 1
+            fi
+            
+            echo "🎯 Last stable SHA: $TARGET_SHA"
+          fi
+          
+          echo "target_sha=$TARGET_SHA" >> $GITHUB_OUTPUT
+
+      - name: Create rollback record
+        run: |
+          echo "📝 Creating rollback record..."
+          
+          node -e "
+          const { createClient } = require('@supabase/supabase-js');
+          const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+          
+          async function createRollback() {
+            const { error } = await supabase.from('rollbacks').insert({
+              rollback_id: '${{ steps.setup.outputs.rollback_id }}',
+              environment: '${{ inputs.environment }}',
+              target_sha: '${{ steps.target.outputs.target_sha }}',
+              reason: '${{ inputs.reason }}',
+              triggered_by: '${{ inputs.triggered_by }}',
+              emergency: ${{ inputs.emergency }},
+              status: 'starting',
+              started_at: '${{ steps.setup.outputs.started_at }}',
+              workflow_run_id: ${{ github.run_id }},
+              github_actor: '${{ github.actor }}'
+            });
+            
+            if (error) {
+              console.error('Failed to create rollback record:', error);
+              process.exit(1);
+            }
+            
+            console.log('✅ Rollback record created');
+          }
+          
+          createRollback();
+          "
+
+      - name: Emergency notification
+        if: inputs.emergency == true
+        run: |
+          echo "🚨 EMERGENCY ROLLBACK INITIATED"
+          
+          EMERGENCY_MESSAGE="🚨 **EMERGENCY PRODUCTION ROLLBACK**
+
+          **Rollback ID**: ${{ steps.setup.outputs.rollback_id }}
+          **Environment**: ${{ inputs.environment }}
+          **Target SHA**: ${{ steps.target.outputs.target_sha }}
+          **Reason**: ${{ inputs.reason }}
+          **Triggered By**: ${{ inputs.triggered_by }}
+          **Started**: ${{ steps.setup.outputs.started_at }}
+          
+          This is an emergency rollback - all confirmations bypassed."
+          
+          # Immediate Slack alert
+          if [[ -n "${{ env.SLACK_WEBHOOK_URL }}" ]]; then
+            curl -X POST "${{ env.SLACK_WEBHOOK_URL }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"text\": \"$EMERGENCY_MESSAGE\", \"channel\": \"#ops-critical\"}"
+          fi
+          
+          # Create critical alert in Alertmanager
+          curl -X POST "${{ env.ALERTMANAGER_URL }}/api/v1/alerts" \
+            -H "Content-Type: application/json" \
+            -d '[{
+              "labels": {
+                "alertname": "EmergencyProductionRollback",
+                "severity": "critical",
+                "environment": "${{ inputs.environment }}",
+                "rollback_id": "${{ steps.setup.outputs.rollback_id }}"
+              },
+              "annotations": {
+                "summary": "Emergency production rollback in progress",
+                "description": "Emergency rollback initiated: ${{ inputs.reason }}",
+                "runbook_url": "https://github.com/${{ github.repository }}/blob/main/docs/ops/RUNBOOK.md#emergency-rollback"
+              }
+            }]'
+
+      - name: Pre-rollback health check
+        run: |
+          echo "🔍 Checking current system health before rollback..."
+          
+          # Check current system status
+          HEALTH_RESPONSE=$(curl -s "http://api.unit-talk.com/api/ops/health/tiles" || echo "{}")
+          
+          CURRENT_HEALTH=$(echo "$HEALTH_RESPONSE" | jq -r '.overallStatus // "unknown"')
+          ERROR_RATE=$(echo "$HEALTH_RESPONSE" | jq -r '.errorRate // "0"')
+          RESPONSE_TIME=$(echo "$HEALTH_RESPONSE" | jq -r '.averageResponseTime // "0"')
+          
+          echo "Current system health:"
+          echo "  📊 Overall Status: $CURRENT_HEALTH"
+          echo "  ❌ Error Rate: $ERROR_RATE"
+          echo "  ⏱️ Response Time: ${RESPONSE_TIME}ms"
+          
+          # Store pre-rollback metrics
+          node -e "
+          const { createClient } = require('@supabase/supabase-js');
+          const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+          
+          async function storePreRollbackMetrics() {
+            const { error } = await supabase.from('rollbacks')
+              .update({
+                pre_rollback_metrics: {
+                  overall_status: '$CURRENT_HEALTH',
+                  error_rate: '$ERROR_RATE',
+                  response_time: '$RESPONSE_TIME',
+                  checked_at: new Date().toISOString()
+                },
+                status: 'pre_check_complete'
+              })
+              .eq('rollback_id', '${{ steps.setup.outputs.rollback_id }}');
+            
+            if (error) {
+              console.error('Failed to store pre-rollback metrics:', error);
+            }
+          }
+          
+          storePreRollbackMetrics();
+          "
+
+      - name: Get rollback target image tags
+        id: images
+        run: |
+          echo "🏷️ Determining target image tags for SHA ${{ steps.target.outputs.target_sha }}..."
+          
+          # Query deployments table for image tags of target SHA
+          IMAGE_INFO=$(node -e "
+          const { createClient } = require('@supabase/supabase-js');
+          const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+          
+          async function getImageTags() {
+            const { data, error } = await supabase
+              .from('deployments')
+              .select('green_image_tag, blue_image_tag, metadata')
+              .eq('target_sha', '${{ steps.target.outputs.target_sha }}')
+              .eq('status', 'completed')
+              .order('completed_at', { ascending: false })
+              .limit(1);
+            
+            if (error || !data || data.length === 0) {
+              console.error('No deployment record found for target SHA');
+              process.exit(1);
+            }
+            
+            const deployment = data[0];
+            
+            // Prefer the last stable image tag
+            const imageTag = deployment.green_image_tag || deployment.blue_image_tag || 'stable-${{ steps.target.outputs.target_sha }}'.slice(0, 15);
+            
+            console.log(imageTag);
+          }
+          
+          getImageTags();
+          ")
+          
+          echo "target_image_tag=$IMAGE_INFO" >> $GITHUB_OUTPUT
+          echo "🎯 Target image tag: $IMAGE_INFO"
+
+      - name: Execute traffic rollback
+        run: |
+          echo "🚦 Rolling back traffic routing..."
+          
+          # Update load balancer to route 100% traffic back to stable version
+          # This assumes blue/green setup where blue is always the stable environment
+          
+          if [[ "${{ inputs.environment }}" == "prod" ]]; then
+            echo "Rolling back production traffic to stable (blue) environment..."
+            
+            # Route all traffic back to blue (stable) environment
+            kubectl patch configmap nginx-config --patch '
+            data:
+              nginx.conf: |
+                upstream backend {
+                  server api-blue:3000 weight=100;
+                }
+            '
+            
+            # Restart nginx to apply new configuration
+            kubectl rollout restart deployment/nginx
+            kubectl rollout status deployment/nginx --timeout=300s
+            
+            echo "✅ Traffic routing rolled back to stable environment"
+            
+            # Update blue environment to target SHA if needed
+            if [[ "${{ steps.images.outputs.target_image_tag }}" != *"blue"* ]]; then
+              echo "Updating blue environment to target SHA..."
+              kubectl set image deployment/api-blue api=${{ env.DOCKER_REGISTRY }}/unit-talk-api:${{ steps.images.outputs.target_image_tag }}
+              kubectl set image deployment/command-center-blue command-center=${{ env.DOCKER_REGISTRY }}/unit-talk-command-center:${{ steps.images.outputs.target_image_tag }}
+              
+              kubectl rollout status deployment/api-blue --timeout=600s
+              kubectl rollout status deployment/command-center-blue --timeout=600s
+            fi
+            
+          else
+            echo "Rolling back staging environment..."
+            # Similar logic for staging
+            kubectl set image deployment/api api=${{ env.DOCKER_REGISTRY }}/unit-talk-api:${{ steps.images.outputs.target_image_tag }} -n staging
+            kubectl rollout status deployment/api --timeout=600s -n staging
+          fi
+
+      - name: Update system configuration
+        run: |
+          echo "⚙️ Updating system configuration post-rollback..."
+          
+          # Update system flags to ensure stability
+          node -e "
+          const { createClient } = require('@supabase/supabase-js');
+          const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+          
+          async function updateSystemConfig() {
+            const rollbackConfig = {
+              SAFE_MODE: true,
+              SHADOW_MODE: true,
+              PUBLISH_TO_DISCORD: false,
+              AUTO_SETTLEMENT: false,
+              ROLLBACK_ACTIVE: true,
+              LAST_ROLLBACK_SHA: '${{ steps.target.outputs.target_sha }}',
+              ROLLBACK_TIMESTAMP: new Date().toISOString(),
+              ROLLBACK_REASON: '${{ inputs.reason }}'
+            };
+            
+            for (const [key, value] of Object.entries(rollbackConfig)) {
+              const { error } = await supabase.from('app_system_config')
+                .upsert({
+                  config_key: key,
+                  config_value: value.toString(),
+                  updated_at: new Date().toISOString(),
+                  updated_by: 'rollback-automation'
+                });
+              
+              if (error) {
+                console.error(\`Failed to update config \${key}:\`, error);
+              } else {
+                console.log(\`✅ Updated \${key} = \${value}\`);
+              }
+            }
+          }
+          
+          updateSystemConfig();
+          "
+
+      - name: Verify rollback success
+        id: verify
+        run: |
+          echo "✅ Verifying rollback success..."
+          
+          # Wait for system to stabilize
+          sleep 30
+          
+          # Check system health post-rollback
+          for i in {1..10}; do
+            echo "Health check attempt $i/10..."
+            
+            HEALTH_RESPONSE=$(curl -s "http://api.unit-talk.com/api/ops/health/tiles" || echo "{}")
+            HEALTH_STATUS=$(echo "$HEALTH_RESPONSE" | jq -r '.overallStatus // "unknown"')
+            
+            if [[ "$HEALTH_STATUS" == "healthy" || "$HEALTH_STATUS" == "warning" ]]; then
+              echo "✅ System health: $HEALTH_STATUS"
+              echo "success=true" >> $GITHUB_OUTPUT
+              break
+            elif [[ $i -eq 10 ]]; then
+              echo "❌ System health check failed after 10 attempts: $HEALTH_STATUS"
+              echo "success=false" >> $GITHUB_OUTPUT
+              break
+            else
+              echo "⏳ System health: $HEALTH_STATUS (attempt $i/10)"
+              sleep 30
+            fi
+          done
+          
+          # Get post-rollback metrics
+          ERROR_RATE=$(echo "$HEALTH_RESPONSE" | jq -r '.errorRate // "unknown"')
+          RESPONSE_TIME=$(echo "$HEALTH_RESPONSE" | jq -r '.averageResponseTime // "unknown"')
+          
+          echo "Post-rollback metrics:"
+          echo "  📊 Status: $HEALTH_STATUS"
+          echo "  ❌ Error Rate: $ERROR_RATE"
+          echo "  ⏱️ Response Time: ${RESPONSE_TIME}ms"
+          
+          # Store post-rollback metrics
+          node -e "
+          const { createClient } = require('@supabase/supabase-js');
+          const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+          
+          async function storePostRollbackMetrics() {
+            const { error } = await supabase.from('rollbacks')
+              .update({
+                post_rollback_metrics: {
+                  overall_status: '$HEALTH_STATUS',
+                  error_rate: '$ERROR_RATE',
+                  response_time: '$RESPONSE_TIME',
+                  checked_at: new Date().toISOString()
+                },
+                success: ${{ steps.verify.outputs.success }},
+                status: '${{ steps.verify.outputs.success }}' === 'true' ? 'completed' : 'failed',
+                completed_at: new Date().toISOString()
+              })
+              .eq('rollback_id', '${{ steps.setup.outputs.rollback_id }}');
+            
+            if (error) {
+              console.error('Failed to store post-rollback metrics:', error);
+            }
+          }
+          
+          storePostRollbackMetrics();
+          "
+
+      - name: Create incident record
+        if: always()
+        run: |
+          echo "📋 Creating incident record..."
+          
+          INCIDENT_SEVERITY="high"
+          if [[ "${{ inputs.emergency }}" == "true" ]]; then
+            INCIDENT_SEVERITY="critical"
+          fi
+          
+          INCIDENT_STATUS="resolved"
+          if [[ "${{ steps.verify.outputs.success }}" != "true" ]]; then
+            INCIDENT_STATUS="investigating"
+          fi
+          
+          node -e "
+          const { createClient } = require('@supabase/supabase-js');
+          const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+          
+          async function createIncident() {
+            const { data, error } = await supabase.from('incidents').insert({
+              title: 'Production Rollback: ${{ inputs.reason }}',
+              description: 'Automated rollback executed from SHA to ${{ steps.target.outputs.target_sha }}. Reason: ${{ inputs.reason }}',
+              severity: '$INCIDENT_SEVERITY',
+              status: '$INCIDENT_STATUS',
+              environment: '${{ inputs.environment }}',
+              started_at: '${{ steps.setup.outputs.started_at }}',
+              resolved_at: '${{ steps.verify.outputs.success }}' === 'true' ? new Date().toISOString() : null,
+              metadata: {
+                rollback_id: '${{ steps.setup.outputs.rollback_id }}',
+                target_sha: '${{ steps.target.outputs.target_sha }}',
+                triggered_by: '${{ inputs.triggered_by }}',
+                workflow_run_id: ${{ github.run_id }},
+                emergency: ${{ inputs.emergency }}
+              }
+            }).select('id');
+            
+            if (error) {
+              console.error('Failed to create incident record:', error);
+            } else {
+              console.log('✅ Incident record created:', data[0].id);
+            }
+          }
+          
+          createIncident();
+          "
+
+      - name: Send rollback notifications
+        if: always()
+        run: |
+          echo "📢 Sending rollback notifications..."
+          
+          ROLLBACK_STATUS="✅ SUCCESS"
+          if [[ "${{ steps.verify.outputs.success }}" != "true" ]]; then
+            ROLLBACK_STATUS="❌ FAILED"
+          fi
+          
+          NOTIFICATION_MESSAGE="🔄 **Production Rollback $ROLLBACK_STATUS**
+
+          **Rollback ID**: ${{ steps.setup.outputs.rollback_id }}
+          **Environment**: ${{ inputs.environment }}
+          **Target SHA**: ${{ steps.target.outputs.target_sha }}
+          **Reason**: ${{ inputs.reason }}
+          **Triggered By**: ${{ inputs.triggered_by }}
+          **Duration**: $(( $(date +%s) - $(date -d '${{ steps.setup.outputs.started_at }}' +%s) )) seconds
+          **Emergency**: ${{ inputs.emergency }}
+          
+          **System Status**: Post-rollback health checks ${{ steps.verify.outputs.success == 'true' && 'passed' || 'failed' }}
+          
+          Workflow: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          
+          # Send to Slack
+          SLACK_CHANNEL="#ops-alerts"
+          if [[ "${{ inputs.emergency }}" == "true" ]]; then
+            SLACK_CHANNEL="#ops-critical"
+          fi
+          
+          if [[ -n "${{ env.SLACK_WEBHOOK_URL }}" ]]; then
+            curl -X POST "${{ env.SLACK_WEBHOOK_URL }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"text\": \"$NOTIFICATION_MESSAGE\", \"channel\": \"$SLACK_CHANNEL\"}"
+          fi
+          
+          # Send to Discord
+          if [[ -n "${{ env.DISCORD_WEBHOOK_URL }}" ]]; then
+            curl -X POST "${{ env.DISCORD_WEBHOOK_URL }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"content\": \"$NOTIFICATION_MESSAGE\"}"
+          fi
+          
+          # Update Alertmanager
+          curl -X POST "${{ env.ALERTMANAGER_URL }}/api/v1/alerts" \
+            -H "Content-Type: application/json" \
+            -d '[{
+              "labels": {
+                "alertname": "ProductionRollbackCompleted",
+                "severity": "warning",
+                "environment": "${{ inputs.environment }}",
+                "rollback_id": "${{ steps.setup.outputs.rollback_id }}",
+                "status": "${{ steps.verify.outputs.success == 'true' && 'success' || 'failed' }}"
+              },
+              "annotations": {
+                "summary": "Production rollback completed - ${{ steps.verify.outputs.success == 'true' && 'successful' || 'failed' }}",
+                "description": "Rollback to ${{ steps.target.outputs.target_sha }} completed. Reason: ${{ inputs.reason }}",
+                "runbook_url": "https://github.com/${{ github.repository }}/blob/main/docs/ops/RUNBOOK.md#post-rollback"
+              }
+            }]'
+
+      - name: Generate rollback report
+        if: always()
+        run: |
+          echo "📄 Generating rollback report..."
+          
+          cat > rollback-report-${{ steps.setup.outputs.rollback_id }}.md << EOF
+          # Production Rollback Report
+          
+          **Rollback ID**: ${{ steps.setup.outputs.rollback_id }}  
+          **Environment**: ${{ inputs.environment }}  
+          **Target SHA**: ${{ steps.target.outputs.target_sha }}  
+          **Started**: ${{ steps.setup.outputs.started_at }}  
+          **Completed**: $(date -u +%Y-%m-%dT%H:%M:%SZ)  
+          **Duration**: $(( $(date +%s) - $(date -d '${{ steps.setup.outputs.started_at }}' +%s) )) seconds  
+          **Status**: ${{ steps.verify.outputs.success == 'true' && 'SUCCESS' || 'FAILED' }}  
+          
+          ## Rollback Details
+          
+          - **Reason**: ${{ inputs.reason }}
+          - **Triggered By**: ${{ inputs.triggered_by }}
+          - **Emergency**: ${{ inputs.emergency }}
+          - **GitHub Actor**: ${{ github.actor }}
+          - **Workflow Run**: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          
+          ## Technical Details
+          
+          - **Target Image**: ${{ steps.images.outputs.target_image_tag }}
+          - **Traffic Routing**: 100% to stable environment
+          - **Configuration**: Safe mode activated, shadow mode enabled
+          
+          ## Health Metrics
+          
+          ### Pre-Rollback
+          - Status: $(echo '${{ steps.pre_rollback_metrics }}' | jq -r '.overall_status // "unknown"')
+          - Error Rate: $(echo '${{ steps.pre_rollback_metrics }}' | jq -r '.error_rate // "unknown"')
+          - Response Time: $(echo '${{ steps.pre_rollback_metrics }}' | jq -r '.response_time // "unknown"')ms
+          
+          ### Post-Rollback  
+          - Status: $(echo '${{ steps.post_rollback_metrics }}' | jq -r '.overall_status // "unknown"')
+          - Error Rate: $(echo '${{ steps.post_rollback_metrics }}' | jq -r '.error_rate // "unknown"')
+          - Response Time: $(echo '${{ steps.post_rollback_metrics }}' | jq -r '.response_time // "unknown"')ms
+          
+          ## Next Steps
+          
+          ${{ steps.verify.outputs.success == 'true' && '✅ Rollback successful - system stabilized' || '❌ Rollback requires investigation' }}
+          
+          1. Monitor system health for 24 hours
+          2. Investigate root cause of original issue
+          3. Plan fix and re-deployment strategy
+          4. Update runbooks based on lessons learned
+          
+          ## Timeline
+          
+          - ${{ steps.setup.outputs.started_at }}: Rollback initiated
+          - $(date -u +%H:%M:%S): Traffic routing updated
+          - $(date -u +%H:%M:%S): System configuration updated
+          - $(date -u +%H:%M:%S): Health verification completed
+          - $(date -u +%H:%M:%S): Rollback report generated
+          EOF
+
+      - name: Upload rollback artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rollback-report-${{ steps.setup.outputs.rollback_id }}
+          path: |
+            rollback-report-${{ steps.setup.outputs.rollback_id }}.md
+          retention-days: 90
+
+      - name: Fail workflow if rollback unsuccessful
+        if: steps.verify.outputs.success != 'true'
+        run: |
+          echo "❌ Rollback verification failed"
+          echo "System health checks did not pass after rollback"
+          echo "Manual intervention required"
+          exit 1

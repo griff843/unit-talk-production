@@ -23,6 +23,8 @@ import {
   Database,
   Wifi,
   Layers,
+  RotateCcw,
+  AlertCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -33,6 +35,30 @@ interface SidebarProps {
 }
 
 const navigation = [
+  {
+    name: 'Command Center',
+    href: '/command-center',
+    icon: Command,
+    description: 'Safety controls and system operations',
+  },
+  {
+    name: 'Incidents',
+    href: '/command-center/incidents',
+    icon: AlertCircle,
+    description: 'Incident management and resolution',
+  },
+  {
+    name: 'Recovery',
+    href: '/command-center/recovery',
+    icon: RotateCcw,
+    description: 'Workflow replay and rollback tools',
+  },
+  {
+    name: 'Settings',
+    href: '/command-center/settings',
+    icon: Settings,
+    description: 'Configuration and audit logs',
+  },
   {
     name: 'Overview',
     href: '/dashboard',

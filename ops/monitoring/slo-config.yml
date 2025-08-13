@@ -1,0 +1,118 @@
+# SLO Configuration for Unit Talk Platform
+# Defines Service Level Objectives and burn-rate alerts
+
+slos:
+  # API Response Time SLO
+  api_response_time:
+    name: "API Response Time"
+    description: "95% of API requests complete within 200ms"
+    objective: 0.95
+    indicator:
+      type: "latency"
+      threshold: "200ms"
+    burn_rate_alerts:
+      - name: "API Response Time - Fast Burn"
+        severity: "critical"
+        lookback: "5m"
+        burn_rate: 14.4  # 2% error budget in 1 hour
+        for: "2m"
+      - name: "API Response Time - Slow Burn" 
+        severity: "warning"
+        lookback: "1h"
+        burn_rate: 6     # 10% error budget in 10 hours
+        for: "15m"
+
+  # API Error Rate SLO
+  api_error_rate:
+    name: "API Error Rate"
+    description: "99.9% of API requests succeed"
+    objective: 0.999
+    indicator:
+      type: "availability" 
+      success_codes: ["2xx", "3xx"]
+      error_codes: ["4xx", "5xx"]
+    burn_rate_alerts:
+      - name: "API Error Rate - Fast Burn"
+        severity: "critical"
+        lookback: "5m"
+        burn_rate: 14.4
+        for: "2m"
+      - name: "API Error Rate - Slow Burn"
+        severity: "warning"
+        lookback: "1h" 
+        burn_rate: 6
+        for: "15m"
+
+  # Database Query Performance SLO
+  database_performance:
+    name: "Database Query Performance"
+    description: "95% of database queries complete within 50ms"
+    objective: 0.95
+    indicator:
+      type: "latency"
+      threshold: "50ms"
+    burn_rate_alerts:
+      - name: "Database Performance - Fast Burn"
+        severity: "critical"
+        lookback: "5m"
+        burn_rate: 14.4
+        for: "2m"
+
+  # Temporal Workflow Success Rate SLO
+  temporal_workflows:
+    name: "Temporal Workflow Success"
+    description: "99.5% of Temporal workflows complete successfully"
+    objective: 0.995
+    indicator:
+      type: "availability"
+      success_statuses: ["COMPLETED"]
+      failure_statuses: ["FAILED", "TERMINATED", "TIMED_OUT"]
+    burn_rate_alerts:
+      - name: "Temporal Workflows - Fast Burn"
+        severity: "critical"
+        lookback: "5m"
+        burn_rate: 14.4
+        for: "2m"
+
+  # Pick Processing Pipeline SLO
+  pick_processing:
+    name: "Pick Processing Pipeline"
+    description: "95% of picks processed within 10 minutes"
+    objective: 0.95
+    indicator:
+      type: "latency"
+      threshold: "10m"
+    burn_rate_alerts:
+      - name: "Pick Processing - Slow Burn"
+        severity: "warning"
+        lookback: "30m"
+        burn_rate: 3
+        for: "10m"
+
+# Error Budget Configuration
+error_budgets:
+  monthly_period: "30d"
+  burn_rate_windows:
+    fast: "5m"     # Fast burn detection
+    medium: "30m"  # Medium burn detection  
+    slow: "6h"     # Slow burn detection
+
+# Alerting Configuration
+alerting:
+  channels:
+    critical: "webhook:discord_ops_critical"
+    warning: "webhook:discord_ops_warning"
+    
+  notification_rules:
+    - match:
+        severity: "critical"
+      receiver: "critical"
+      group_wait: "10s"
+      group_interval: "5m"
+      repeat_interval: "30m"
+    - match:
+        severity: "warning" 
+      receiver: "warning"
+      group_wait: "30s"
+      group_interval: "15m"
+      repeat_interval: "1h"

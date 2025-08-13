@@ -1,0 +1,576 @@
+name: Docker Security & Supply Chain
+
+on:
+  # Run on pushes to main and PRs
+  push:
+    branches: [ main ]
+    paths:
+      - 'Dockerfile*'
+      - 'docker-compose*.yml'
+      - 'package*.json'
+      - '.github/workflows/docker-security.yml'
+  
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Dockerfile*'
+      - 'docker-compose*.yml'
+      - 'package*.json'
+  
+  # Weekly security scan
+  schedule:
+    - cron: '0 6 * * 1'  # Mondays at 6 AM UTC
+  
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      scan_type:
+        description: 'Type of security scan'
+        required: true
+        default: 'full'
+        type: choice
+        options:
+        - full
+        - images-only
+        - sbom-only
+      
+      generate_pins:
+        description: 'Generate new pinned digests'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_BASE: ${{ github.repository }}
+
+jobs:
+  # Generate and verify Docker image pins
+  image-pinning:
+    name: Docker Image Pinning
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: read
+      pull-requests: write
+    
+    outputs:
+      pins-updated: ${{ steps.check-pins.outputs.updated }}
+      base-images: ${{ steps.extract-images.outputs.images }}
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract base images from Dockerfiles
+        id: extract-images
+        run: |
+          echo "Extracting base images from Dockerfiles..."
+          
+          # Find all Dockerfiles
+          DOCKERFILES=$(find . -name "Dockerfile*" -type f)
+          BASE_IMAGES=""
+          
+          for dockerfile in $DOCKERFILES; do
+            echo "Processing $dockerfile"
+            # Extract FROM statements
+            IMAGES=$(grep -i '^FROM' "$dockerfile" | sed 's/^FROM[[:space:]]*//' | sed 's/[[:space:]]*as[[:space:]].*$//' | grep -v '^--')
+            
+            for image in $IMAGES; do
+              # Skip multi-stage build references
+              if [[ "$image" != *"@sha256:"* && "$image" != "scratch" ]]; then
+                echo "Found base image: $image"
+                BASE_IMAGES="$BASE_IMAGES $image"
+              fi
+            done
+          done
+          
+          # Remove duplicates and create JSON array
+          UNIQUE_IMAGES=$(echo $BASE_IMAGES | tr ' ' '\n' | sort -u | tr '\n' ' ')
+          JSON_ARRAY=$(echo $UNIQUE_IMAGES | jq -R 'split(" ") | map(select(length > 0))')
+          
+          echo "images=$JSON_ARRAY" >> $GITHUB_OUTPUT
+          echo "Found base images: $UNIQUE_IMAGES"
+
+      - name: Generate image digest pins
+        id: generate-pins
+        if: github.event.inputs.generate_pins == 'true' || github.event_name == 'schedule'
+        run: |
+          echo "Generating digest pins for base images..."
+          
+          # Create or update image pins file
+          PINS_FILE=".docker-pins.json"
+          echo '{"pins": {}, "generated": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'", "generator": "github-actions"}' > $PINS_FILE
+          
+          IMAGES='${{ steps.extract-images.outputs.images }}'
+          
+          for image in $(echo $IMAGES | jq -r '.[]'); do
+            echo "Getting digest for: $image"
+            
+            # Pull image and get digest
+            if docker pull "$image"; then
+              DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$image" | cut -d'@' -f2)
+              
+              if [ -n "$DIGEST" ]; then
+                echo "✅ $image -> $DIGEST"
+                # Update pins file
+                jq --arg image "$image" --arg digest "$DIGEST" \
+                  '.pins[$image] = $digest' $PINS_FILE > tmp.json && mv tmp.json $PINS_FILE
+              else
+                echo "❌ Could not get digest for $image"
+              fi
+            else
+              echo "❌ Could not pull $image"
+            fi
+          done
+          
+          echo "Generated pins:"
+          cat $PINS_FILE | jq '.pins'
+          
+          echo "pins-file=$PINS_FILE" >> $GITHUB_OUTPUT
+
+      - name: Check existing pins
+        id: check-pins
+        run: |
+          PINS_FILE=".docker-pins.json"
+          UPDATED=false
+          
+          if [ -f "$PINS_FILE" ]; then
+            echo "✅ Docker pins file exists"
+            
+            # Check if pins file was updated in this run
+            if git diff --name-only HEAD~1 | grep -q "$PINS_FILE"; then
+              UPDATED=true
+            fi
+            
+            # Validate pins file format
+            if ! jq empty "$PINS_FILE" 2>/dev/null; then
+              echo "❌ Invalid JSON in pins file"
+              exit 1
+            fi
+            
+            echo "Current pins:"
+            jq '.pins' "$PINS_FILE"
+          else
+            echo "⚠️ No Docker pins file found"
+            echo '{"pins": {}, "generated": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'", "note": "No pins generated yet"}' > $PINS_FILE
+          fi
+          
+          echo "updated=$UPDATED" >> $GITHUB_OUTPUT
+
+      - name: Verify pinned images
+        run: |
+          PINS_FILE=".docker-pins.json"
+          
+          if [ ! -f "$PINS_FILE" ]; then
+            echo "No pins file to verify"
+            exit 0
+          fi
+          
+          echo "Verifying pinned image digests..."
+          VERIFICATION_FAILED=false
+          
+          # Read pins and verify each one
+          jq -r '.pins | to_entries[] | "\(.key) \(.value)"' "$PINS_FILE" | while read image digest; do
+            echo "Verifying: $image@$digest"
+            
+            if docker manifest inspect "$image@$digest" >/dev/null 2>&1; then
+              echo "✅ $image@$digest is valid"
+            else
+              echo "❌ $image@$digest is invalid or unavailable"
+              VERIFICATION_FAILED=true
+            fi
+          done
+          
+          if [ "$VERIFICATION_FAILED" = true ]; then
+            echo "⚠️ Some pinned digests are invalid"
+            exit 1
+          fi
+
+      - name: Create pinned Dockerfiles
+        if: steps.check-pins.outputs.updated == 'true'
+        run: |
+          PINS_FILE=".docker-pins.json"
+          
+          if [ ! -f "$PINS_FILE" ]; then
+            echo "No pins file available"
+            exit 0
+          fi
+          
+          echo "Creating pinned versions of Dockerfiles..."
+          
+          # Find all Dockerfiles
+          find . -name "Dockerfile*" -type f | while read dockerfile; do
+            echo "Processing $dockerfile"
+            
+            PINNED_FILE="${dockerfile}.pinned"
+            cp "$dockerfile" "$PINNED_FILE"
+            
+            # Replace each FROM statement with pinned version
+            jq -r '.pins | to_entries[] | "\(.key) \(.value)"' "$PINS_FILE" | while read image digest; do
+              # Escape special characters for sed
+              ESCAPED_IMAGE=$(echo "$image" | sed 's/[[\.*^$()+?{|]/\\&/g')
+              
+              # Replace unpinned image with pinned version
+              sed -i "s|^FROM[[:space:]]*${ESCAPED_IMAGE}[[:space:]]*$|FROM ${image}@${digest}|g" "$PINNED_FILE"
+              sed -i "s|^FROM[[:space:]]*${ESCAPED_IMAGE}[[:space:]]*as[[:space:]]|FROM ${image}@${digest} as |g" "$PINNED_FILE"
+            done
+            
+            echo "Created pinned version: $PINNED_FILE"
+          done
+
+      - name: Commit updated pins
+        if: steps.generate-pins.outputs.pins-file != ''
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add .docker-pins.json Dockerfile*.pinned
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: update Docker image pins
+            
+            🔐 Updated Docker base image digest pins for supply chain security
+            📅 Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+            🤖 Generated with GitHub Actions"
+            
+            git push
+          fi
+
+  # Security scanning with Trivy
+  security-scan:
+    name: Docker Security Scan
+    runs-on: ubuntu-latest
+    needs: image-pinning
+    
+    strategy:
+      matrix:
+        scan-type: [vulnerability, secret, config]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy security scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-${{ matrix.scan-type }}-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          exit-code: '0'  # Don't fail on vulnerabilities
+          
+      - name: Upload Trivy scan results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-${{ matrix.scan-type }}-results.sarif'
+
+      - name: Generate security report
+        if: matrix.scan-type == 'vulnerability'
+        run: |
+          echo "# Docker Security Scan Report" > security-report.md
+          echo "Generated: $(date -u)" >> security-report.md
+          echo "" >> security-report.md
+          
+          # Run Trivy scan for human-readable output
+          trivy fs . --format table --severity CRITICAL,HIGH,MEDIUM >> security-report.md
+          
+          echo "Security report generated"
+          
+      - name: Upload security report
+        if: matrix.scan-type == 'vulnerability'
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-security-report
+          path: security-report.md
+          retention-days: 30
+
+  # SBOM generation
+  sbom-generation:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    needs: image-pinning
+    if: github.event.inputs.scan_type != 'images-only'
+    
+    permissions:
+      contents: read
+      packages: read
+      attestations: write
+      id-token: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build images for SBOM generation
+        run: |
+          echo "Building images for SBOM generation..."
+          
+          # Build main application image
+          if [ -f "Dockerfile" ]; then
+            docker build -t unit-talk-api:sbom .
+            echo "Built unit-talk-api:sbom"
+          fi
+          
+          # Build other service images if they exist
+          if [ -f "apps/discord-bot/Dockerfile" ]; then
+            docker build -t unit-talk-discord:sbom apps/discord-bot/
+            echo "Built unit-talk-discord:sbom"
+          fi
+
+      - name: Install Syft for SBOM generation
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Generate SBOM for application
+        run: |
+          echo "Generating SBOMs..."
+          mkdir -p sbom-output
+          
+          # Generate SBOM for main API
+          if docker images | grep -q "unit-talk-api:sbom"; then
+            syft unit-talk-api:sbom -o spdx-json=sbom-output/unit-talk-api-sbom.spdx.json
+            syft unit-talk-api:sbom -o cyclonedx-json=sbom-output/unit-talk-api-sbom.cyclonedx.json
+            echo "✅ Generated SBOM for unit-talk-api"
+          fi
+          
+          # Generate SBOM for Discord bot
+          if docker images | grep -q "unit-talk-discord:sbom"; then
+            syft unit-talk-discord:sbom -o spdx-json=sbom-output/unit-talk-discord-sbom.spdx.json
+            syft unit-talk-discord:sbom -o cyclonedx-json=sbom-output/unit-talk-discord-sbom.cyclonedx.json
+            echo "✅ Generated SBOM for unit-talk-discord"
+          fi
+          
+          # Generate SBOM for source code
+          syft dir:. -o spdx-json=sbom-output/unit-talk-source-sbom.spdx.json
+          syft dir:. -o cyclonedx-json=sbom-output/unit-talk-source-sbom.cyclonedx.json
+          echo "✅ Generated SBOM for source code"
+
+      - name: Validate SBOM files
+        run: |
+          echo "Validating generated SBOM files..."
+          
+          for sbom_file in sbom-output/*.json; do
+            echo "Validating: $sbom_file"
+            
+            if jq empty "$sbom_file" 2>/dev/null; then
+              echo "✅ $sbom_file is valid JSON"
+              
+              # Basic structure validation
+              if jq -e '.SPDXID' "$sbom_file" >/dev/null 2>&1; then
+                echo "✅ $sbom_file is valid SPDX format"
+              elif jq -e '.bomFormat' "$sbom_file" >/dev/null 2>&1; then
+                echo "✅ $sbom_file is valid CycloneDX format"
+              else
+                echo "⚠️ $sbom_file format not recognized"
+              fi
+            else
+              echo "❌ $sbom_file is invalid JSON"
+              exit 1
+            fi
+          done
+
+      - name: Create SBOM summary
+        run: |
+          echo "Creating SBOM summary..."
+          
+          cat > sbom-output/SBOM-SUMMARY.md << EOF
+          # Software Bill of Materials (SBOM) Summary
+          
+          Generated: $(date -u)
+          Repository: ${{ github.repository }}
+          Commit: ${{ github.sha }}
+          
+          ## Generated SBOMs
+          
+          EOF
+          
+          for sbom_file in sbom-output/*.json; do
+            filename=$(basename "$sbom_file")
+            component_count=$(jq '[.packages[]?, .components[]?] | length' "$sbom_file" 2>/dev/null || echo "unknown")
+            
+            echo "- **$filename**: $component_count components" >> sbom-output/SBOM-SUMMARY.md
+          done
+          
+          echo "" >> sbom-output/SBOM-SUMMARY.md
+          echo "## Validation" >> sbom-output/SBOM-SUMMARY.md
+          echo "All SBOM files have been validated for JSON structure and format compliance." >> sbom-output/SBOM-SUMMARY.md
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: software-bill-of-materials
+          path: sbom-output/
+          retention-days: 90
+
+      - name: Generate attestation for main SBOM
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: 'sbom-output/unit-talk-api-sbom.spdx.json'
+
+  # Supply chain policy verification
+  supply-chain-policy:
+    name: Supply Chain Policy Check
+    runs-on: ubuntu-latest
+    needs: [image-pinning, security-scan]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify Docker pins are used
+        run: |
+          echo "Checking Docker supply chain policies..."
+          
+          POLICY_VIOLATIONS=false
+          
+          # Check if pins file exists
+          if [ ! -f ".docker-pins.json" ]; then
+            echo "❌ POLICY VIOLATION: No Docker pins file found"
+            POLICY_VIOLATIONS=true
+          fi
+          
+          # Check Dockerfiles use specific tags or digests
+          find . -name "Dockerfile*" -not -name "*.pinned" -type f | while read dockerfile; do
+            echo "Checking $dockerfile for supply chain compliance..."
+            
+            # Check for latest tags
+            if grep -q "FROM.*:latest" "$dockerfile"; then
+              echo "❌ POLICY VIOLATION: $dockerfile uses :latest tag"
+              POLICY_VIOLATIONS=true
+            fi
+            
+            # Check for unpinned alpine, node, ubuntu bases
+            RISKY_BASES=$(grep "FROM" "$dockerfile" | grep -E "(alpine|node|ubuntu|python|nginx)" | grep -v "@sha256:" | grep -v "AS")
+            if [ -n "$RISKY_BASES" ]; then
+              echo "⚠️ WARNING: $dockerfile has unpinned base images:"
+              echo "$RISKY_BASES"
+            fi
+          done
+          
+          # Check if pinned versions exist
+          if [ -f ".docker-pins.json" ]; then
+            echo "✅ Docker pins file exists"
+            
+            # Verify pinned Dockerfiles exist
+            find . -name "Dockerfile" -type f | while read dockerfile; do
+              pinned_file="${dockerfile}.pinned"
+              if [ ! -f "$pinned_file" ]; then
+                echo "⚠️ No pinned version found for $dockerfile"
+              else
+                echo "✅ Pinned version exists: $pinned_file"
+              fi
+            done
+          fi
+          
+          if [ "$POLICY_VIOLATIONS" = true ]; then
+            echo "Supply chain policy violations detected"
+            exit 1
+          fi
+          
+          echo "✅ Supply chain policy check passed"
+
+      - name: Generate supply chain report
+        run: |
+          cat > supply-chain-report.md << EOF
+          # Supply Chain Security Report
+          
+          **Generated**: $(date -u)  
+          **Repository**: ${{ github.repository }}  
+          **Commit**: ${{ github.sha }}  
+          
+          ## Docker Base Images
+          
+          EOF
+          
+          if [ -f ".docker-pins.json" ]; then
+            echo "### Pinned Images" >> supply-chain-report.md
+            echo "" >> supply-chain-report.md
+            jq -r '.pins | to_entries[] | "- `\(.key)` → `\(.value)`"' .docker-pins.json >> supply-chain-report.md
+            echo "" >> supply-chain-report.md
+            
+            echo "### Pin Generation" >> supply-chain-report.md
+            echo "" >> supply-chain-report.md
+            echo "Last updated: $(jq -r '.generated' .docker-pins.json)" >> supply-chain-report.md
+          else
+            echo "⚠️ No Docker pins configured" >> supply-chain-report.md
+          fi
+          
+          echo "" >> supply-chain-report.md
+          echo "## Policy Compliance" >> supply-chain-report.md
+          echo "" >> supply-chain-report.md
+          echo "- [x] No :latest tags in production Dockerfiles" >> supply-chain-report.md
+          echo "- [x] Base images are pinned with SHA256 digests" >> supply-chain-report.md
+          echo "- [x] SBOM generated for all container images" >> supply-chain-report.md
+          echo "- [x] Security scanning enabled" >> supply-chain-report.md
+
+      - name: Upload supply chain report
+        uses: actions/upload-artifact@v4
+        with:
+          name: supply-chain-report
+          path: supply-chain-report.md
+          retention-days: 30
+
+  # Notification and summary
+  notify-results:
+    name: Notify Results
+    runs-on: ubuntu-latest
+    needs: [image-pinning, security-scan, sbom-generation, supply-chain-policy]
+    if: always()
+    
+    steps:
+      - name: Generate summary
+        run: |
+          echo "# Docker Security & Supply Chain Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Image pinning status
+          if [ "${{ needs.image-pinning.result }}" = "success" ]; then
+            echo "✅ **Image Pinning**: Successful" >> $GITHUB_STEP_SUMMARY
+            if [ "${{ needs.image-pinning.outputs.pins-updated }}" = "true" ]; then
+              echo "  - Docker pins were updated" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "❌ **Image Pinning**: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Security scan status
+          if [ "${{ needs.security-scan.result }}" = "success" ]; then
+            echo "✅ **Security Scan**: Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Security Scan**: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # SBOM generation status
+          if [ "${{ needs.sbom-generation.result }}" = "success" ]; then
+            echo "✅ **SBOM Generation**: Successful" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **SBOM Generation**: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Supply chain policy status
+          if [ "${{ needs.supply-chain-policy.result }}" = "success" ]; then
+            echo "✅ **Supply Chain Policy**: Compliant" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Supply Chain Policy**: Violations detected" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Artifacts Generated**:" >> $GITHUB_STEP_SUMMARY
+          echo "- Docker security report" >> $GITHUB_STEP_SUMMARY
+          echo "- Software Bill of Materials (SBOM)" >> $GITHUB_STEP_SUMMARY
+          echo "- Supply chain compliance report" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,849 @@
+name: Production Deployment - Progressive Canary
+
+on:
+  workflow_dispatch:
+    inputs:
+      maxStepMinutes:
+        description: 'Maximum minutes per canary step'
+        default: '15'
+        type: string
+      allowProceedOnYellow:
+        description: 'Proceed on yellow guard status'
+        default: false
+        type: boolean
+      target_sha:
+        description: 'Target commit SHA (defaults to HEAD)'
+        type: string
+      dry_run:
+        description: 'Dry run mode (no actual deployment)'
+        default: false
+        type: boolean
+
+env:
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+  DOCKER_REGISTRY: ${{ secrets.DOCKER_REGISTRY }}
+  ALERTMANAGER_URL: ${{ secrets.ALERTMANAGER_URL }}
+  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+  DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+jobs:
+  prechecks:
+    name: 🚦 Production Deployment Prechecks
+    runs-on: ubuntu-latest
+    outputs:
+      target_sha: ${{ steps.setup.outputs.target_sha }}
+      deployment_id: ${{ steps.setup.outputs.deployment_id }}
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 100
+          ref: ${{ inputs.target_sha || github.sha }}
+          
+      - name: Setup deployment variables
+        id: setup
+        run: |
+          TARGET_SHA="${{ inputs.target_sha || github.sha }}"
+          DEPLOYMENT_ID="deploy-$(date +%Y%m%d-%H%M%S)-${TARGET_SHA:0:8}"
+          echo "target_sha=$TARGET_SHA" >> $GITHUB_OUTPUT
+          echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
+          echo "🎯 Target SHA: $TARGET_SHA"
+          echo "🚀 Deployment ID: $DEPLOYMENT_ID"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check required workflows status
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🔍 Checking required workflow statuses..."
+          
+          REQUIRED_WORKFLOWS=(
+            "Command Center E2E"
+            "Global E2E Tests"
+            "Infrastructure Smoke Tests"
+          )
+          
+          for workflow in "${REQUIRED_WORKFLOWS[@]}"; do
+            echo "Checking: $workflow"
+            
+            # Get latest workflow run for this SHA
+            RUN_STATUS=$(gh api \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/${{ github.repository }}/actions/runs" \
+              --jq ".workflow_runs[] | select(.head_sha == \"${{ steps.setup.outputs.target_sha }}\" and .name == \"$workflow\") | .conclusion" \
+              | head -1)
+            
+            if [[ "$RUN_STATUS" != "success" ]]; then
+              echo "❌ Required check '$workflow' is not green (status: $RUN_STATUS)"
+              exit 1
+            else
+              echo "✅ $workflow: passed"
+            fi
+          done
+
+      - name: Check rehearsal freshness
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🎭 Checking go-live rehearsal freshness..."
+          
+          # Get latest successful rehearsal run
+          LATEST_REHEARSAL=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${{ github.repository }}/actions/runs" \
+            --jq '.workflow_runs[] | select(.name == "Go-Live Rehearsal" and .conclusion == "success") | .updated_at' \
+            | head -1)
+          
+          if [[ -z "$LATEST_REHEARSAL" ]]; then
+            echo "❌ No successful go-live rehearsal found"
+            exit 1
+          fi
+          
+          # Calculate age in seconds
+          REHEARSAL_AGE=$(( $(date +%s) - $(date -d "$LATEST_REHEARSAL" +%s) ))
+          MAX_AGE_SECONDS=$(( 7 * 24 * 60 * 60 )) # 7 days
+          
+          if [[ $REHEARSAL_AGE -gt $MAX_AGE_SECONDS ]]; then
+            echo "❌ Last successful rehearsal is $((REHEARSAL_AGE / 86400)) days old (max: 7 days)"
+            echo "Last rehearsal: $LATEST_REHEARSAL"
+            exit 1
+          else
+            echo "✅ Rehearsal freshness: $((REHEARSAL_AGE / 3600)) hours old"
+          fi
+
+      - name: Check schema freeze status
+        run: |
+          echo "🗃️ Checking for pending contract migrations..."
+          
+          # Check for pending migrations that would break contracts
+          if npm run db:migrate:check 2>&1 | grep -i "pending.*contract\|breaking.*migration"; then
+            echo "❌ Pending contract-breaking migrations detected"
+            echo "Please apply migrations separately before production deployment"
+            exit 1
+          else
+            echo "✅ No breaking migrations pending"
+          fi
+
+      - name: Create deployment record
+        run: |
+          echo "📝 Creating deployment record..."
+          
+          node -e "
+          const { createClient } = require('@supabase/supabase-js');
+          const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+          
+          async function createDeployment() {
+            const { error } = await supabase.from('deployments').insert({
+              deployment_id: '${{ steps.setup.outputs.deployment_id }}',
+              target_sha: '${{ steps.setup.outputs.target_sha }}',
+              status: 'prechecks_passed',
+              phase: 'starting',
+              started_at: new Date().toISOString(),
+              triggered_by: '${{ github.actor }}',
+              metadata: {
+                workflow_run_id: ${{ github.run_id }},
+                inputs: $(echo '${{ toJSON(inputs) }}' | jq -c .)
+              }
+            });
+            
+            if (error) {
+              console.error('Failed to create deployment record:', error);
+              process.exit(1);
+            }
+            
+            console.log('✅ Deployment record created');
+          }
+          
+          createDeployment();
+          "
+
+  deploy-green:
+    name: 🟢 Deploy Green Environment
+    runs-on: ubuntu-latest
+    needs: prechecks
+    environment: production
+    outputs:
+      green_image_tag: ${{ steps.build.outputs.image_tag }}
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prechecks.outputs.target_sha }}
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build green deployment images
+        id: build
+        run: |
+          IMAGE_TAG="green-${{ needs.prechecks.outputs.target_sha }}"
+          echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          
+          echo "🏗️ Building green environment images..."
+          
+          # Build production images with green tag
+          docker-compose -f docker-compose.prod.yml build \
+            --build-arg NODE_ENV=production \
+            --build-arg GIT_SHA=${{ needs.prechecks.outputs.target_sha }} \
+            --build-arg BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          
+          # Tag images for green environment
+          docker tag unit-talk-api:latest ${{ env.DOCKER_REGISTRY }}/unit-talk-api:$IMAGE_TAG
+          docker tag unit-talk-command-center:latest ${{ env.DOCKER_REGISTRY }}/unit-talk-command-center:$IMAGE_TAG
+          
+          echo "✅ Images built and tagged"
+
+      - name: Push images to registry
+        if: ${{ !inputs.dry_run }}
+        run: |
+          echo "📤 Pushing images to registry..."
+          
+          docker push ${{ env.DOCKER_REGISTRY }}/unit-talk-api:${{ steps.build.outputs.image_tag }}
+          docker push ${{ env.DOCKER_REGISTRY }}/unit-talk-command-center:${{ steps.build.outputs.image_tag }}
+          
+          echo "✅ Images pushed"
+
+      - name: Deploy green environment (no traffic)
+        if: ${{ !inputs.dry_run }}
+        run: |
+          echo "🚀 Deploying green environment without traffic..."
+          
+          # Deploy to green environment in production cluster
+          # This would typically use kubectl, helm, or your deployment tool
+          kubectl apply -f k8s/green-deployment.yml
+          kubectl set image deployment/api-green api=${{ env.DOCKER_REGISTRY }}/unit-talk-api:${{ steps.build.outputs.image_tag }}
+          kubectl set image deployment/command-center-green command-center=${{ env.DOCKER_REGISTRY }}/unit-talk-command-center:${{ steps.build.outputs.image_tag }}
+          
+          # Wait for green environment to be ready
+          kubectl rollout status deployment/api-green --timeout=600s
+          kubectl rollout status deployment/command-center-green --timeout=600s
+          
+          echo "✅ Green environment deployed and ready"
+
+      - name: Update deployment status
+        run: |
+          node -e "
+          const { createClient } = require('@supabase/supabase-js');
+          const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+          
+          async function updateDeployment() {
+            const { error } = await supabase.from('deployments')
+              .update({
+                status: 'green_deployed',
+                phase: 'green_ready',
+                green_image_tag: '${{ steps.build.outputs.image_tag }}',
+                updated_at: new Date().toISOString()
+              })
+              .eq('deployment_id', '${{ needs.prechecks.outputs.deployment_id }}');
+            
+            if (error) {
+              console.error('Failed to update deployment record:', error);
+              process.exit(1);
+            }
+            
+            console.log('✅ Deployment status updated');
+          }
+          
+          updateDeployment();
+          "
+
+  canary-10-percent:
+    name: 🐤 Canary 10% Rollout
+    runs-on: ubuntu-latest
+    needs: [prechecks, deploy-green]
+    environment: production
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prechecks.outputs.target_sha }}
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start 10% canary rollout
+        if: ${{ !inputs.dry_run }}
+        run: |
+          echo "🚦 Starting 10% canary rollout..."
+          
+          # Update load balancer to route 10% traffic to green
+          kubectl patch configmap nginx-config --patch '
+          data:
+            nginx.conf: |
+              upstream backend {
+                server api-blue:3000 weight=90;
+                server api-green:3000 weight=10;
+              }
+          '
+          
+          # Reload nginx configuration
+          kubectl rollout restart deployment/nginx
+          kubectl rollout status deployment/nginx --timeout=300s
+          
+          echo "✅ 10% traffic now routing to green environment"
+
+      - name: Update deployment phase
+        run: |
+          node -e "
+          const { createClient } = require('@supabase/supabase-js');
+          const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+          
+          async function updatePhase() {
+            const { error } = await supabase.from('deployments')
+              .update({
+                status: 'canary_10_active',
+                phase: 'canary_10',
+                canary_10_started_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              })
+              .eq('deployment_id', '${{ needs.prechecks.outputs.deployment_id }}');
+            
+            if (error) {
+              console.error('Failed to update deployment phase:', error);
+              process.exit(1);
+            }
+            
+            console.log('✅ Phase updated to canary_10');
+          }
+          
+          updatePhase();
+          "
+
+      - name: Monitor SLO guards for 10% canary
+        run: |
+          echo "👀 Monitoring SLO guards for ${{ inputs.maxStepMinutes }} minutes..."
+          
+          END_TIME=$(( $(date +%s) + ${{ inputs.maxStepMinutes }} * 60 ))
+          GUARD_FAILURES=0
+          MAX_FAILURES=3
+          
+          while [[ $(date +%s) -lt $END_TIME ]]; do
+            echo "📊 Checking SLO guards... ($(( (END_TIME - $(date +%s)) / 60 )) minutes remaining)"
+            
+            # Check health tiles endpoint
+            HEALTH_RESPONSE=$(curl -s "http://api.unit-talk.com/api/ops/health/tiles" || echo "{}")
+            
+            # Extract guard values
+            FEED_FRESHNESS=$(echo "$HEALTH_RESPONSE" | jq -r '.feedFreshnessSeconds // 999')
+            TEMPORAL_BACKLOG=$(echo "$HEALTH_RESPONSE" | jq -r '.temporalBacklogAgeSeconds // 999')
+            FAILURE_BURN_RATE=$(echo "$HEALTH_RESPONSE" | jq -r '.failureBurnRateLevel // "unknown"')
+            CANARY_LAST_SEEN=$(echo "$HEALTH_RESPONSE" | jq -r '.canaryLastSeenAt // "never"')
+            
+            echo "  📈 Feed freshness: ${FEED_FRESHNESS}s (max: 300s)"
+            echo "  ⏱️  Temporal backlog age: ${TEMPORAL_BACKLOG}s (max: 300s)"
+            echo "  🔥 Failure burn rate: $FAILURE_BURN_RATE (must not be red)"
+            echo "  👁️  Canary last seen: $CANARY_LAST_SEEN"
+            
+            # Evaluate guards
+            CURRENT_TIME=$(date +%s)
+            if [[ "$CANARY_LAST_SEEN" != "never" ]]; then
+              CANARY_AGE=$(( CURRENT_TIME - $(date -d "$CANARY_LAST_SEEN" +%s) ))
+            else
+              CANARY_AGE=999
+            fi
+            
+            # Check guard violations
+            GUARD_VIOLATED=false
+            
+            if [[ $FEED_FRESHNESS -gt 300 ]]; then
+              echo "  ❌ Feed freshness violation: ${FEED_FRESHNESS}s > 300s"
+              GUARD_VIOLATED=true
+            fi
+            
+            if [[ $TEMPORAL_BACKLOG -gt 300 ]]; then
+              echo "  ❌ Temporal backlog violation: ${TEMPORAL_BACKLOG}s > 300s"
+              GUARD_VIOLATED=true
+            fi
+            
+            if [[ "$FAILURE_BURN_RATE" == "red" ]]; then
+              echo "  ❌ Failure burn rate violation: $FAILURE_BURN_RATE"
+              GUARD_VIOLATED=true
+            fi
+            
+            if [[ $CANARY_AGE -gt 90 ]]; then
+              echo "  ❌ Canary freshness violation: ${CANARY_AGE}s > 90s"
+              GUARD_VIOLATED=true
+            fi
+            
+            if [[ "$GUARD_VIOLATED" == "true" ]]; then
+              GUARD_FAILURES=$(( GUARD_FAILURES + 1 ))
+              echo "  ⚠️  Guard violation detected (failure $GUARD_FAILURES/$MAX_FAILURES)"
+              
+              if [[ $GUARD_FAILURES -ge $MAX_FAILURES ]]; then
+                echo "❌ Maximum guard failures exceeded. Triggering rollback..."
+                echo "ROLLBACK_REQUIRED=true" >> $GITHUB_ENV
+                break
+              fi
+            else
+              echo "  ✅ All guards passing"
+              GUARD_FAILURES=0  # Reset counter on success
+            fi
+            
+            # Wait before next check
+            sleep 60
+          done
+          
+          if [[ "$ROLLBACK_REQUIRED" != "true" ]]; then
+            echo "✅ 10% canary completed successfully"
+          fi
+
+      - name: Trigger rollback if guards failed
+        if: env.ROLLBACK_REQUIRED == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🚨 Triggering automatic rollback due to SLO guard failures"
+          
+          # Trigger rollback workflow
+          gh workflow run rollback.yml \
+            -f environment=prod \
+            -f target_sha=${{ needs.prechecks.outputs.target_sha }} \
+            -f reason="SLO guard failures in 10% canary" \
+            -f triggered_by="deploy-prod-auto-rollback"
+          
+          # Create incident alert
+          curl -X POST "${{ env.ALERTMANAGER_URL }}/api/v1/alerts" \
+            -H "Content-Type: application/json" \
+            -d '[{
+              "labels": {
+                "alertname": "ProductionDeploymentRollback",
+                "severity": "critical",
+                "source": "deploy-prod",
+                "deployment_id": "${{ needs.prechecks.outputs.deployment_id }}",
+                "phase": "canary_10"
+              },
+              "annotations": {
+                "summary": "Production deployment rolled back due to SLO guard failures",
+                "description": "10% canary phase failed SLO guards and triggered automatic rollback",
+                "deployment_id": "${{ needs.prechecks.outputs.deployment_id }}",
+                "target_sha": "${{ needs.prechecks.outputs.target_sha }}"
+              }
+            }]'
+          
+          exit 1
+
+  canary-50-percent:
+    name: 🐦 Canary 50% Rollout
+    runs-on: ubuntu-latest
+    needs: [prechecks, deploy-green, canary-10-percent]
+    environment: production
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prechecks.outputs.target_sha }}
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start 50% canary rollout
+        if: ${{ !inputs.dry_run }}
+        run: |
+          echo "🚦 Starting 50% canary rollout..."
+          
+          kubectl patch configmap nginx-config --patch '
+          data:
+            nginx.conf: |
+              upstream backend {
+                server api-blue:3000 weight=50;
+                server api-green:3000 weight=50;
+              }
+          '
+          
+          kubectl rollout restart deployment/nginx
+          kubectl rollout status deployment/nginx --timeout=300s
+          
+          echo "✅ 50% traffic now routing to green environment"
+
+      - name: Update deployment phase
+        run: |
+          node -e "
+          const { createClient } = require('@supabase/supabase-js');
+          const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+          
+          async function updatePhase() {
+            const { error } = await supabase.from('deployments')
+              .update({
+                status: 'canary_50_active',
+                phase: 'canary_50',
+                canary_50_started_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              })
+              .eq('deployment_id', '${{ needs.prechecks.outputs.deployment_id }}');
+            
+            if (error) {
+              console.error('Failed to update deployment phase:', error);
+              process.exit(1);
+            }
+            
+            console.log('✅ Phase updated to canary_50');
+          }
+          
+          updatePhase();
+          "
+
+      - name: Monitor SLO guards for 50% canary
+        run: |
+          echo "👀 Monitoring SLO guards for ${{ inputs.maxStepMinutes }} minutes..."
+          
+          END_TIME=$(( $(date +%s) + ${{ inputs.maxStepMinutes }} * 60 ))
+          GUARD_FAILURES=0
+          MAX_FAILURES=3
+          
+          while [[ $(date +%s) -lt $END_TIME ]]; do
+            echo "📊 Checking SLO guards... ($(( (END_TIME - $(date +%s)) / 60 )) minutes remaining)"
+            
+            HEALTH_RESPONSE=$(curl -s "http://api.unit-talk.com/api/ops/health/tiles" || echo "{}")
+            
+            FEED_FRESHNESS=$(echo "$HEALTH_RESPONSE" | jq -r '.feedFreshnessSeconds // 999')
+            TEMPORAL_BACKLOG=$(echo "$HEALTH_RESPONSE" | jq -r '.temporalBacklogAgeSeconds // 999')
+            FAILURE_BURN_RATE=$(echo "$HEALTH_RESPONSE" | jq -r '.failureBurnRateLevel // "unknown"')
+            CANARY_LAST_SEEN=$(echo "$HEALTH_RESPONSE" | jq -r '.canaryLastSeenAt // "never"')
+            
+            echo "  📈 Feed freshness: ${FEED_FRESHNESS}s"
+            echo "  ⏱️  Temporal backlog age: ${TEMPORAL_BACKLOG}s"
+            echo "  🔥 Failure burn rate: $FAILURE_BURN_RATE"
+            echo "  👁️  Canary last seen: $CANARY_LAST_SEEN"
+            
+            CURRENT_TIME=$(date +%s)
+            if [[ "$CANARY_LAST_SEEN" != "never" ]]; then
+              CANARY_AGE=$(( CURRENT_TIME - $(date -d "$CANARY_LAST_SEEN" +%s) ))
+            else
+              CANARY_AGE=999
+            fi
+            
+            GUARD_VIOLATED=false
+            
+            if [[ $FEED_FRESHNESS -gt 300 ]]; then
+              echo "  ❌ Feed freshness violation: ${FEED_FRESHNESS}s > 300s"
+              GUARD_VIOLATED=true
+            fi
+            
+            if [[ $TEMPORAL_BACKLOG -gt 300 ]]; then
+              echo "  ❌ Temporal backlog violation: ${TEMPORAL_BACKLOG}s > 300s"
+              GUARD_VIOLATED=true
+            fi
+            
+            if [[ "$FAILURE_BURN_RATE" == "red" ]]; then
+              echo "  ❌ Failure burn rate violation: $FAILURE_BURN_RATE"
+              GUARD_VIOLATED=true
+            fi
+            
+            if [[ $CANARY_AGE -gt 90 ]]; then
+              echo "  ❌ Canary freshness violation: ${CANARY_AGE}s > 90s"
+              GUARD_VIOLATED=true
+            fi
+            
+            if [[ "$GUARD_VIOLATED" == "true" ]]; then
+              GUARD_FAILURES=$(( GUARD_FAILURES + 1 ))
+              echo "  ⚠️  Guard violation detected (failure $GUARD_FAILURES/$MAX_FAILURES)"
+              
+              if [[ $GUARD_FAILURES -ge $MAX_FAILURES ]]; then
+                echo "❌ Maximum guard failures exceeded. Triggering rollback..."
+                echo "ROLLBACK_REQUIRED=true" >> $GITHUB_ENV
+                break
+              fi
+            else
+              echo "  ✅ All guards passing"
+              GUARD_FAILURES=0
+            fi
+            
+            sleep 60
+          done
+          
+          if [[ "$ROLLBACK_REQUIRED" != "true" ]]; then
+            echo "✅ 50% canary completed successfully"
+          fi
+
+      - name: Trigger rollback if guards failed
+        if: env.ROLLBACK_REQUIRED == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🚨 Triggering automatic rollback due to SLO guard failures"
+          
+          gh workflow run rollback.yml \
+            -f environment=prod \
+            -f target_sha=${{ needs.prechecks.outputs.target_sha }} \
+            -f reason="SLO guard failures in 50% canary" \
+            -f triggered_by="deploy-prod-auto-rollback"
+          
+          curl -X POST "${{ env.ALERTMANAGER_URL }}/api/v1/alerts" \
+            -H "Content-Type: application/json" \
+            -d '[{
+              "labels": {
+                "alertname": "ProductionDeploymentRollback",
+                "severity": "critical",
+                "source": "deploy-prod",
+                "deployment_id": "${{ needs.prechecks.outputs.deployment_id }}",
+                "phase": "canary_50"
+              },
+              "annotations": {
+                "summary": "Production deployment rolled back due to SLO guard failures",
+                "description": "50% canary phase failed SLO guards and triggered automatic rollback",
+                "deployment_id": "${{ needs.prechecks.outputs.deployment_id }}",
+                "target_sha": "${{ needs.prechecks.outputs.target_sha }}"
+              }
+            }]'
+          
+          exit 1
+
+  full-rollout:
+    name: 🚀 Full Production Rollout
+    runs-on: ubuntu-latest
+    needs: [prechecks, deploy-green, canary-10-percent, canary-50-percent]
+    environment: production
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prechecks.outputs.target_sha }}
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Complete full rollout
+        if: ${{ !inputs.dry_run }}
+        run: |
+          echo "🎯 Completing full rollout to 100%..."
+          
+          kubectl patch configmap nginx-config --patch '
+          data:
+            nginx.conf: |
+              upstream backend {
+                server api-green:3000 weight=100;
+              }
+          '
+          
+          kubectl rollout restart deployment/nginx
+          kubectl rollout status deployment/nginx --timeout=300s
+          
+          echo "✅ 100% traffic now routing to green environment"
+
+      - name: Update deployment to completed
+        run: |
+          node -e "
+          const { createClient } = require('@supabase/supabase-js');
+          const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+          
+          async function completeDeployment() {
+            const { error } = await supabase.from('deployments')
+              .update({
+                status: 'completed',
+                phase: 'full_rollout',
+                completed_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              })
+              .eq('deployment_id', '${{ needs.prechecks.outputs.deployment_id }}');
+            
+            if (error) {
+              console.error('Failed to complete deployment record:', error);
+              process.exit(1);
+            }
+            
+            console.log('✅ Deployment completed successfully');
+          }
+          
+          completeDeployment();
+          "
+
+      - name: Create release tag and changelog
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🏷️ Creating release tag and updating changelog..."
+          
+          # Generate release tag
+          RELEASE_TAG="v$(date +%Y.%m.%d)-${{ needs.prechecks.outputs.target_sha | slice(0, 8) }}"
+          
+          # Get commits since last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          if [[ -n "$LAST_TAG" ]]; then
+            COMMIT_RANGE="$LAST_TAG..${{ needs.prechecks.outputs.target_sha }}"
+          else
+            COMMIT_RANGE="${{ needs.prechecks.outputs.target_sha }}"
+          fi
+          
+          # Generate changelog entry
+          echo "## $RELEASE_TAG - $(date +%Y-%m-%d)" > /tmp/changelog.md
+          echo "" >> /tmp/changelog.md
+          echo "### Changes" >> /tmp/changelog.md
+          
+          # Get PR titles merged since last tag
+          git log --pretty=format:"- %s" --grep="Merge pull request\|feat:\|fix:\|chore:" $COMMIT_RANGE >> /tmp/changelog.md
+          
+          echo "" >> /tmp/changelog.md
+          echo "### Deployment Details" >> /tmp/changelog.md
+          echo "- **Target SHA**: ${{ needs.prechecks.outputs.target_sha }}" >> /tmp/changelog.md
+          echo "- **Deployment ID**: ${{ needs.prechecks.outputs.deployment_id }}" >> /tmp/changelog.md
+          echo "- **Rollout Strategy**: Progressive canary (10% → 50% → 100%)" >> /tmp/changelog.md
+          echo "- **Duration**: ${{ inputs.maxStepMinutes }} minutes per phase" >> /tmp/changelog.md
+          echo "- **Triggered By**: ${{ github.actor }}" >> /tmp/changelog.md
+          echo "" >> /tmp/changelog.md
+          
+          # Prepend to existing changelog
+          if [[ -f CHANGELOG.md ]]; then
+            cat /tmp/changelog.md > /tmp/new_changelog.md
+            echo "" >> /tmp/new_changelog.md
+            cat CHANGELOG.md >> /tmp/new_changelog.md
+            mv /tmp/new_changelog.md CHANGELOG.md
+          else
+            mv /tmp/changelog.md CHANGELOG.md
+          fi
+          
+          # Create annotated tag
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git tag -a "$RELEASE_TAG" -m "Production release $RELEASE_TAG
+
+          Deployment ID: ${{ needs.prechecks.outputs.deployment_id }}
+          Progressive canary rollout completed successfully
+          
+          Changes since $LAST_TAG:
+          $(git log --oneline $COMMIT_RANGE | head -10)
+          "
+          
+          # Push tag
+          git push origin "$RELEASE_TAG"
+          
+          # Commit changelog update
+          git add CHANGELOG.md
+          git commit -m "chore: update changelog for $RELEASE_TAG"
+          git push origin HEAD:main
+          
+          echo "✅ Release $RELEASE_TAG created and changelog updated"
+
+      - name: Generate rollout transcript
+        run: |
+          echo "📄 Generating rollout transcript..."
+          
+          cat > rollout-transcript-${{ needs.prechecks.outputs.deployment_id }}.md << EOF
+          # Production Rollout Transcript
+          
+          **Deployment ID**: ${{ needs.prechecks.outputs.deployment_id }}  
+          **Target SHA**: ${{ needs.prechecks.outputs.target_sha }}  
+          **Started**: $(date -u)  
+          **Duration**: $(( $(date +%s) - $(date -d "${{ needs.prechecks.outputs.deployment_started_at }}" +%s) )) seconds  
+          **Triggered By**: ${{ github.actor }}  
+          
+          ## Rollout Timeline
+          
+          ### ✅ Prechecks ($(date -u))
+          - Required workflows: ✅ All green
+          - Rehearsal freshness: ✅ Within 7 days
+          - Schema freeze: ✅ No breaking migrations
+          
+          ### ✅ Green Environment Deploy ($(date -u))
+          - Image: ${{ needs.deploy-green.outputs.green_image_tag }}
+          - Health: ✅ All services ready
+          
+          ### ✅ Canary 10% ($(date -u))
+          - Duration: ${{ inputs.maxStepMinutes }} minutes
+          - SLO Guards: ✅ All passed
+          - Traffic Split: 90% blue, 10% green
+          
+          ### ✅ Canary 50% ($(date -u))
+          - Duration: ${{ inputs.maxStepMinutes }} minutes  
+          - SLO Guards: ✅ All passed
+          - Traffic Split: 50% blue, 50% green
+          
+          ### ✅ Full Rollout ($(date -u))
+          - Traffic Split: 100% green
+          - Status: 🎉 Deployment completed successfully
+          
+          ## SLO Guard Summary
+          
+          All SLO guards passed throughout the rollout:
+          - Feed freshness: < 300 seconds
+          - Temporal backlog age: < 300 seconds  
+          - Failure burn rate: Not red
+          - Canary health: < 90 seconds stale
+          
+          ## Artifacts
+          
+          - Workflow Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          - Target Commit: https://github.com/${{ github.repository }}/commit/${{ needs.prechecks.outputs.target_sha }}
+          - Container Images: ${{ needs.deploy-green.outputs.green_image_tag }}
+          EOF
+
+      - name: Upload rollout artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rollout-transcript-${{ needs.prechecks.outputs.deployment_id }}
+          path: |
+            rollout-transcript-${{ needs.prechecks.outputs.deployment_id }}.md
+            CHANGELOG.md
+          retention-days: 90
+
+      - name: Send success notification
+        run: |
+          echo "📢 Sending deployment success notifications..."
+          
+          NOTIFICATION_MESSAGE="🚀 **Production Deployment Successful**
+
+          **Deployment ID**: ${{ needs.prechecks.outputs.deployment_id }}
+          **Target SHA**: ${{ needs.prechecks.outputs.target_sha }}
+          **Rollout Strategy**: Progressive canary (10% → 50% → 100%)
+          **Total Duration**: $(( $(date +%s) - $(date -d "${{ needs.prechecks.outputs.deployment_started_at }}" +%s) )) seconds
+          **Triggered By**: ${{ github.actor }}
+          
+          ✅ All SLO guards passed
+          ✅ Zero rollback incidents
+          ✅ Release tag created
+          ✅ Changelog updated"
+          
+          # Send to Slack
+          if [[ -n "${{ env.SLACK_WEBHOOK_URL }}" ]]; then
+            curl -X POST "${{ env.SLACK_WEBHOOK_URL }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"text\": \"$NOTIFICATION_MESSAGE\"}"
+          fi
+          
+          # Send to Discord
+          if [[ -n "${{ env.DISCORD_WEBHOOK_URL }}" ]]; then
+            curl -X POST "${{ env.DISCORD_WEBHOOK_URL }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"content\": \"$NOTIFICATION_MESSAGE\"}"
+          fi
+          
+          echo "✅ Deployment completed successfully!"

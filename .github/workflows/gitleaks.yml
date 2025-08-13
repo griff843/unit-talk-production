@@ -1,0 +1,379 @@
+name: Gitleaks Secret Scanning
+
+on:
+  push:
+    branches: [main, develop, hardening-sprint/*]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2 AM UTC
+
+jobs:
+  gitleaks:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for comprehensive scanning
+
+      - name: Download Gitleaks
+        run: |
+          # Download latest gitleaks release
+          GITLEAKS_VERSION=$(curl -s https://api.github.com/repos/zricethezav/gitleaks/releases/latest | grep tag_name | cut -d '"' -f 4)
+          echo "Downloading Gitleaks version: $GITLEAKS_VERSION"
+          
+          wget -q https://github.com/zricethezav/gitleaks/releases/download/$GITLEAKS_VERSION/gitleaks_${GITLEAKS_VERSION:1}_linux_x64.tar.gz
+          tar -xzf gitleaks_${GITLEAKS_VERSION:1}_linux_x64.tar.gz
+          chmod +x gitleaks
+          sudo mv gitleaks /usr/local/bin/
+          
+          # Verify installation
+          gitleaks version
+
+      - name: Create Gitleaks config
+        run: |
+          cat > .gitleaks.toml << 'EOF'
+          # Gitleaks configuration for Unit Talk Platform
+          title = "Unit Talk Gitleaks Configuration"
+          
+          [extend]
+          # Use default gitleaks rules
+          useDefault = true
+          
+          # Additional custom rules
+          [[rules]]
+          description = "Supabase Service Role Key"
+          id = "supabase-service-key"
+          regex = '''supabase_service_key.*["|']([a-zA-Z0-9_-]{40,})["|']'''
+          keywords = ["supabase_service_key", "SUPABASE_SERVICE_KEY"]
+          
+          [[rules]]
+          description = "Discord Bot Token"
+          id = "discord-bot-token"
+          regex = '''discord.*token.*["|']([A-Za-z0-9_-]{50,})["|']'''
+          keywords = ["discord", "bot_token", "DISCORD_TOKEN"]
+          
+          [[rules]]
+          description = "Temporal API Key"
+          id = "temporal-api-key"
+          regex = '''temporal.*key.*["|']([A-Za-z0-9_-]{40,})["|']'''
+          keywords = ["temporal", "api_key", "TEMPORAL_KEY"]
+          
+          [[rules]]
+          description = "Sports API Key"
+          id = "sports-api-key"
+          regex = '''(optimal|odds).*api.*key.*["|']([A-Za-z0-9_-]{20,})["|']'''
+          keywords = ["optimal_api", "odds_api", "sports_api"]
+          
+          [[rules]]
+          description = "Database Connection String with Password"
+          id = "database-connection-password"
+          regex = '''postgresql://[^:]+:([^@]+)@[^/]+/[^"'\s]+'''
+          keywords = ["postgresql", "DATABASE_URL"]
+          
+          [[rules]]
+          description = "Generic High Entropy Secrets"
+          id = "high-entropy-secret"
+          regex = '''(?i)(secret|key|token|password).*[=:]\s*["|']([A-Za-z0-9+/]{32,}={0,2})["|']'''
+          entropy = 3.5
+          
+          # Allowlisted patterns (false positives)
+          [[allowlist]]
+          description = "Test fixtures and examples"
+          paths = [
+            '''tests/fixtures/.*''',
+            '''examples/.*''',
+            '''test-.*\.js''',
+            '''.*\.test\.ts''',
+            '''.*\.spec\.ts''',
+          ]
+          
+          [[allowlist]]
+          description = "Placeholder/example keys"
+          regexes = [
+            '''your-key-here''',
+            '''example-key''',
+            '''test-key''',
+            '''placeholder''',
+            '''xxx+''',
+            '''000+''',
+            '''abc+''',
+            '''sk-test-''',
+            '''pk-test-''',
+          ]
+          
+          [[allowlist]]
+          description = "Base64 encoded images or common strings"
+          regexes = [
+            '''data:image/.*base64''',
+            '''/9j/[A-Za-z0-9+/]+''',  # JPEG base64
+            '''iVBORw0KGgo[A-Za-z0-9+/]+''',  # PNG base64
+          ]
+          
+          [[allowlist]]
+          description = "Documentation examples"
+          regexes = [
+            '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9''',  # JWT header example
+            '''AKIA[A-Z0-9]{16}''',  # AWS example key format
+          ]
+          
+          # Global allowlisted files
+          [[allowlist]]
+          paths = [
+            '''.gitleaks.toml''',
+            '''package-lock.json''',
+            '''yarn.lock''',
+            '''pnpm-lock.yaml''',
+            '''*.md''',
+            '''LICENSE''',
+            '''.github/workflows/gitleaks.yml''',
+          ]
+          EOF
+
+      - name: Run Gitleaks scan on current commit
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
+        run: |
+          echo "Scanning for secrets in recent commits..."
+          
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # Scan only the PR changes
+            git log --left-right --cherry-pick --pretty=format:"%H" origin/${{ github.base_ref }}...${{ github.sha }} > commits.txt
+            if [ -s commits.txt ]; then
+              gitleaks detect --config .gitleaks.toml --log-opts="$(cat commits.txt | tr '\n' ' ')" --report-format sarif --report-path gitleaks-report.sarif --redact --verbose
+            else
+              echo "No commits to scan"
+            fi
+          else
+            # Scan the latest commit on push
+            gitleaks detect --config .gitleaks.toml --log-opts="${{ github.sha }}" --report-format sarif --report-path gitleaks-report.sarif --redact --verbose
+          fi
+
+      - name: Run full repository scan
+        if: github.event_name == 'schedule' || contains(github.event.head_commit.message, '[full-scan]')
+        run: |
+          echo "Running full repository scan..."
+          gitleaks detect --config .gitleaks.toml --report-format sarif --report-path gitleaks-full-report.sarif --redact --verbose
+
+      - name: Upload Gitleaks SARIF report
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: gitleaks-report.sarif
+        continue-on-error: true
+
+      - name: Upload full scan SARIF report
+        if: (github.event_name == 'schedule' || contains(github.event.head_commit.message, '[full-scan]')) && always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: gitleaks-full-report.sarif
+        continue-on-error: true
+
+      - name: Check for secrets
+        run: |
+          # Check if any secrets were found
+          if [ -f gitleaks-report.sarif ]; then
+            SECRETS_COUNT=$(jq '.runs[0].results | length' gitleaks-report.sarif 2>/dev/null || echo "0")
+            if [ "$SECRETS_COUNT" -gt 0 ]; then
+              echo "🚨 SECURITY ALERT: $SECRETS_COUNT potential secret(s) detected!"
+              echo ""
+              echo "Secrets found:"
+              jq -r '.runs[0].results[] | "- \(.message.text) in \(.locations[0].physicalLocation.artifactLocation.uri):\(.locations[0].physicalLocation.region.startLine)"' gitleaks-report.sarif 2>/dev/null || echo "Could not parse details"
+              echo ""
+              echo "Please review and either:"
+              echo "1. Remove the secrets and commit the fix"
+              echo "2. Add legitimate false positives to .gitleaks.toml allowlist"
+              echo "3. Use proper secret management (GitHub Secrets, environment variables)"
+              echo ""
+              echo "For sensitive secrets, consider:"
+              echo "- Rotating the exposed credentials immediately"
+              echo "- Reviewing access logs for potential unauthorized usage"
+              echo "- Updating security policies"
+              exit 1
+            else
+              echo "✅ No secrets detected in scan"
+            fi
+          else
+            echo "ℹ️ No report generated (likely no commits to scan)"
+          fi
+
+      - name: Check full scan results
+        if: github.event_name == 'schedule' || contains(github.event.head_commit.message, '[full-scan]')
+        run: |
+          if [ -f gitleaks-full-report.sarif ]; then
+            SECRETS_COUNT=$(jq '.runs[0].results | length' gitleaks-full-report.sarif 2>/dev/null || echo "0")
+            if [ "$SECRETS_COUNT" -gt 0 ]; then
+              echo "🚨 FULL SCAN ALERT: $SECRETS_COUNT potential secret(s) detected in repository!"
+              echo ""
+              echo "This requires immediate attention. Please review the Security tab for details."
+              
+              # Create issue for full scan findings
+              if [ "${{ github.event_name }}" = "schedule" ]; then
+                echo "Creating GitHub issue for tracking..."
+                cat > issue-body.md << EOF
+          # 🚨 Secret Scan Alert - $(date -u +"%Y-%m-%d")
+          
+          Our automated security scan has detected **$SECRETS_COUNT** potential secret(s) in the repository.
+          
+          ## Action Required
+          
+          1. **Review findings** in the Security tab under Code Scanning
+          2. **Verify each finding**:
+             - If legitimate: Remove and rotate credentials
+             - If false positive: Add to \`.gitleaks.toml\` allowlist
+          3. **For real secrets**:
+             - Rotate credentials immediately
+             - Review access logs
+             - Update security policies
+          
+          ## Timeline
+          
+          - **Immediate**: Review and triage findings
+          - **24 hours**: All real secrets rotated
+          - **48 hours**: Repository cleaned and scan passes
+          
+          This issue was auto-generated by the security scanning workflow.
+          EOF
+                
+                # This would create an issue in a real environment
+                echo "Issue content prepared:"
+                cat issue-body.md
+              fi
+            else
+              echo "✅ Full repository scan clean - no secrets detected"
+            fi
+          fi
+
+      - name: Store scan results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-results-${{ github.run_id }}
+          path: |
+            gitleaks*report.sarif
+            .gitleaks.toml
+          retention-days: 30
+
+      - name: Generate security summary
+        if: always()
+        run: |
+          cat > security-summary.md << EOF
+          # Security Scan Summary
+          
+          **Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          **Event**: ${{ github.event_name }}
+          **Commit**: ${{ github.sha }}
+          **Branch**: ${{ github.ref_name }}
+          
+          ## Results
+          
+          - **Scan Type**: $([ "${{ github.event_name }}" = "schedule" ] && echo "Full Repository Scan" || echo "Incremental Commit Scan")
+          - **Files Scanned**: $(find . -type f -name "*.js" -o -name "*.ts" -o -name "*.json" -o -name "*.yml" -o -name "*.yaml" -o -name "*.env*" | wc -l)
+          - **Secrets Found**: $([ -f gitleaks-report.sarif ] && jq '.runs[0].results | length' gitleaks-report.sarif 2>/dev/null || echo "0")
+          
+          ## Status
+          
+          $([ -f gitleaks-report.sarif ] && [ "$(jq '.runs[0].results | length' gitleaks-report.sarif 2>/dev/null || echo "0")" -gt 0 ] && echo "❌ **SECURITY ISSUES FOUND** - Review required" || echo "✅ **NO SECRETS DETECTED** - Scan passed")
+          
+          ## Next Steps
+          
+          - Review Security tab for detailed findings
+          - Address any legitimate secrets immediately
+          - Update allowlist for false positives
+          - Ensure proper secret management practices
+          
+          EOF
+          
+          echo "Security scan completed. Summary:"
+          cat security-summary.md
+
+  # Pre-commit hook setup job (runs only on main branch)
+  setup-pre-commit:
+    name: Setup Pre-commit Hooks
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create pre-commit configuration
+        run: |
+          cat > .pre-commit-config.yaml << 'EOF'
+          # Pre-commit configuration for Unit Talk Platform
+          repos:
+            # Gitleaks for secret detection
+            - repo: https://github.com/zricethezav/gitleaks
+              rev: v8.18.4
+              hooks:
+                - id: gitleaks
+                  stages: [commit]
+            
+            # General code quality hooks
+            - repo: https://github.com/pre-commit/pre-commit-hooks
+              rev: v4.4.0
+              hooks:
+                - id: trailing-whitespace
+                - id: end-of-file-fixer
+                - id: check-yaml
+                - id: check-json
+                - id: check-merge-conflict
+                - id: check-added-large-files
+                  args: ['--maxkb=10000']  # 10MB limit
+                - id: detect-private-key
+                - id: check-case-conflict
+            
+            # TypeScript/JavaScript hooks
+            - repo: https://github.com/pre-commit/mirrors-eslint
+              rev: v8.57.0
+              hooks:
+                - id: eslint
+                  files: \.(js|ts|tsx)$
+                  additional_dependencies:
+                    - '@typescript-eslint/parser'
+                    - '@typescript-eslint/eslint-plugin'
+                    - 'eslint-plugin-security'
+            
+            # Prettier for formatting
+            - repo: https://github.com/pre-commit/mirrors-prettier
+              rev: v3.1.0
+              hooks:
+                - id: prettier
+                  files: \.(js|ts|tsx|json|yml|yaml|md)$
+          
+          # Configuration
+          default_stages: [commit]
+          fail_fast: true
+          
+          ci:
+            autofix_commit_msg: |
+              [pre-commit.ci] auto fixes from pre-commit hooks
+              
+              for more information, see https://pre-commit.ci
+            autofix_prs: true
+            autoupdate_branch: ''
+            autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
+            autoupdate_schedule: weekly
+            skip: []
+            submodules: false
+          EOF
+
+      - name: Commit pre-commit configuration
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          if git diff --exit-code --quiet .pre-commit-config.yaml; then
+            echo "Pre-commit configuration already up to date"
+          else
+            git add .pre-commit-config.yaml
+            git commit -m "feat(security): add pre-commit hooks configuration for secret scanning"
+            git push
+          fi

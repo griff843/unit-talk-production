@@ -1,0 +1,754 @@
+name: Cost Monitoring & Budget Enforcement
+
+on:
+  schedule:
+    # Run cost monitoring every hour
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    inputs:
+      monitoring_type:
+        description: 'Type of cost monitoring to run'
+        required: true
+        default: 'full'
+        type: choice
+        options:
+          - full
+          - budget_check
+          - anomaly_detection
+          - rate_limits
+          - provider_audit
+      alert_threshold:
+        description: 'Alert threshold percentage'
+        required: false
+        default: '80'
+        type: string
+      force_budget_update:
+        description: 'Force budget calculations update'
+        required: false
+        default: false
+        type: boolean
+  push:
+    branches: [main, develop]
+    paths:
+      - 'src/services/CostMonitoringService.ts'
+      - 'sql/migrations/*cost*'
+      - '.github/workflows/cost-monitoring.yml'
+
+env:
+  NODE_VERSION: '20'
+  ALERT_WEBHOOK_TIMEOUT: '30'
+
+jobs:
+  cost-monitoring-setup:
+    name: Cost Monitoring Setup
+    runs-on: ubuntu-latest
+    outputs:
+      monitoring-config: ${{ steps.config.outputs.monitoring-config }}
+      alert-channels: ${{ steps.config.outputs.alert-channels }}
+      providers: ${{ steps.config.outputs.providers }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure monitoring parameters
+        id: config
+        run: |
+          # Determine monitoring configuration based on trigger
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            MONITORING_TYPE="${{ github.event.inputs.monitoring_type }}"
+            ALERT_THRESHOLD="${{ github.event.inputs.alert_threshold }}"
+            FORCE_UPDATE="${{ github.event.inputs.force_budget_update }}"
+          elif [[ "${{ github.event_name }}" == "schedule" ]]; then
+            MONITORING_TYPE="full"
+            ALERT_THRESHOLD="80"
+            FORCE_UPDATE="false"
+          else
+            MONITORING_TYPE="budget_check"
+            ALERT_THRESHOLD="85"
+            FORCE_UPDATE="false"
+          fi
+
+          # Define provider list for monitoring
+          PROVIDERS='["openai", "anthropic", "temporal", "supabase", "discord"]'
+          
+          # Define alert channels
+          ALERT_CHANNELS='["discord", "email", "github"]'
+
+          # Output configuration
+          cat << EOF | tee -a $GITHUB_OUTPUT
+          monitoring-config={
+            "type": "$MONITORING_TYPE",
+            "alert_threshold": $ALERT_THRESHOLD,
+            "force_update": $FORCE_UPDATE,
+            "environment": "production"
+          }
+          alert-channels=$ALERT_CHANNELS
+          providers=$PROVIDERS
+          EOF
+
+  cost-budget-analysis:
+    name: Cost Budget Analysis
+    runs-on: ubuntu-latest
+    needs: cost-monitoring-setup
+    strategy:
+      matrix:
+        provider: ${{ fromJson(needs.cost-monitoring-setup.outputs.providers) }}
+      fail-fast: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Analyze provider budget status
+        id: budget
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PROVIDER: ${{ matrix.provider }}
+          ALERT_THRESHOLD: ${{ fromJson(needs.cost-monitoring-setup.outputs.monitoring-config).alert_threshold }}
+          MONITORING_TYPE: ${{ fromJson(needs.cost-monitoring-setup.outputs.monitoring-config).type }}
+        run: |
+          echo "💰 Analyzing cost budget for $PROVIDER..."
+          
+          npx tsx << 'EOF'
+          import { CostMonitoringService } from './src/services/CostMonitoringService';
+          
+          async function analyzeBudget() {
+            const service = new CostMonitoringService();
+            
+            try {
+              // Get budget status for provider
+              const budget = await service.getBudgetStatus(process.env.PROVIDER!);
+              
+              if (!budget) {
+                console.log(`ℹ️  No budget configured for ${process.env.PROVIDER}`);
+                console.log('budget-status=no_budget');
+                return;
+              }
+              
+              console.log(`📊 Budget Status for ${process.env.PROVIDER}:`);
+              console.log(`  Budget: $${budget.monthlyBudgetUsd}`);
+              console.log(`  Current Spend: $${budget.currentSpendUsd}`);
+              console.log(`  Percentage: ${budget.spendPercentage.toFixed(2)}%`);
+              console.log(`  Health: ${budget.budgetHealth}`);
+              console.log(`  Enforcement: ${budget.enforcementMode}`);
+              
+              // Check alert threshold
+              const alertThreshold = parseFloat(process.env.ALERT_THRESHOLD!);
+              const needsAlert = budget.spendPercentage >= alertThreshold;
+              
+              if (needsAlert) {
+                console.log(`🚨 Alert threshold exceeded: ${budget.spendPercentage.toFixed(2)}% >= ${alertThreshold}%`);
+                console.log('::warning title=Budget Alert::' + 
+                  `${process.env.PROVIDER} has exceeded ${alertThreshold}% budget threshold`);
+              }
+              
+              // Output for next steps
+              console.log(`budget-status=${budget.budgetHealth.toLowerCase()}`);
+              console.log(`spend-percentage=${budget.spendPercentage}`);
+              console.log(`needs-alert=${needsAlert}`);
+              console.log(`enforcement-mode=${budget.enforcementMode}`);
+              
+              // Get recent usage history
+              const history = await service.getUsageHistory(process.env.PROVIDER!, 7);
+              if (history.length > 0) {
+                const recentSpend = history.reduce((sum, day) => sum + parseFloat(day.total_cost_usd), 0);
+                console.log(`  7-day spend: $${recentSpend.toFixed(2)}`);
+                console.log(`recent-spend=${recentSpend}`);
+              }
+              
+            } catch (error) {
+              console.error('❌ Budget analysis failed:', error);
+              process.exit(1);
+            }
+          }
+          
+          analyzeBudget();
+          EOF
+
+      - name: Check rate limits
+        if: contains(fromJson('["full", "rate_limits"]'), fromJson(needs.cost-monitoring-setup.outputs.monitoring-config).type)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PROVIDER: ${{ matrix.provider }}
+        run: |
+          echo "⚡ Checking rate limits for $PROVIDER..."
+          
+          npx tsx << 'EOF'
+          import { CostMonitoringService } from './src/services/CostMonitoringService';
+          
+          async function checkRateLimits() {
+            const service = new CostMonitoringService();
+            
+            try {
+              const rateLimits = await service.getRateLimitStatus();
+              const providerLimits = rateLimits.filter(rl => rl.provider === process.env.PROVIDER);
+              
+              if (providerLimits.length === 0) {
+                console.log(`ℹ️  No rate limits configured for ${process.env.PROVIDER}`);
+                return;
+              }
+              
+              console.log(`🚦 Rate Limit Status for ${process.env.PROVIDER}:`);
+              
+              let throttledServices = 0;
+              for (const limit of providerLimits) {
+                console.log(`  Service: ${limit.service}`);
+                console.log(`    Requests/min: ${limit.requestsPerMinute || 'unlimited'}`);
+                console.log(`    Tokens/min: ${limit.tokensPerMinute || 'unlimited'}`);
+                console.log(`    Is Throttled: ${limit.isThrottled}`);
+                
+                if (limit.isThrottled) {
+                  throttledServices++;
+                  console.log(`    Throttled Until: ${limit.throttledUntil?.toISOString()}`);
+                  console.log('::warning title=Rate Limit Active::' +
+                    `${process.env.PROVIDER}/${limit.service} is currently throttled`);
+                }
+              }
+              
+              if (throttledServices > 0) {
+                console.log(`⚠️  ${throttledServices} service(s) are currently throttled`);
+              } else {
+                console.log('✅ All services operating within rate limits');
+              }
+              
+            } catch (error) {
+              console.error('❌ Rate limit check failed:', error);
+            }
+          }
+          
+          checkRateLimits();
+          EOF
+
+      - name: Upload provider analysis
+        uses: actions/upload-artifact@v4
+        with:
+          name: cost-analysis-${{ matrix.provider }}
+          path: |
+            /tmp/cost-analysis-${{ matrix.provider }}.json
+          retention-days: 30
+
+  anomaly-detection:
+    name: Usage Anomaly Detection
+    runs-on: ubuntu-latest
+    needs: [cost-monitoring-setup, cost-budget-analysis]
+    if: contains(fromJson('["full", "anomaly_detection"]'), fromJson(needs.cost-monitoring-setup.outputs.monitoring-config).type)
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Detect usage anomalies
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CONFIDENCE_THRESHOLD: '0.8'
+        run: |
+          echo "🔍 Detecting usage anomalies across all providers..."
+          
+          npx tsx << 'EOF'
+          import { CostMonitoringService } from './src/services/CostMonitoringService';
+          
+          async function detectAnomalies() {
+            const service = new CostMonitoringService();
+            
+            try {
+              // Get recent anomalies
+              const anomalies = await service.getAnomalies(false);
+              const confidenceThreshold = parseFloat(process.env.CONFIDENCE_THRESHOLD!);
+              
+              const highConfidenceAnomalies = anomalies.filter(a => 
+                a.confidenceScore >= confidenceThreshold
+              );
+              
+              console.log(`📈 Found ${anomalies.length} total anomalies, ${highConfidenceAnomalies.length} high confidence`);
+              
+              if (highConfidenceAnomalies.length === 0) {
+                console.log('✅ No significant usage anomalies detected');
+                return;
+              }
+              
+              console.log('🚨 High confidence anomalies detected:');
+              
+              for (const anomaly of highConfidenceAnomalies) {
+                console.log(`  Provider: ${anomaly.provider}/${anomaly.service}`);
+                console.log(`  Type: ${anomaly.anomalyType}`);
+                console.log(`  Confidence: ${(anomaly.confidenceScore * 100).toFixed(1)}%`);
+                console.log(`  Deviation: ${anomaly.deviationPercent.toFixed(1)}%`);
+                console.log(`  Value: ${anomaly.anomalyValue} (baseline: ${anomaly.baselineValue})`);
+                
+                if (anomaly.estimatedCostImpact) {
+                  console.log(`  Cost Impact: $${anomaly.estimatedCostImpact.toFixed(2)}`);
+                }
+                
+                // Create GitHub issue annotations
+                if (anomaly.confidenceScore >= 0.9) {
+                  console.log('::error title=Critical Anomaly::' +
+                    `${anomaly.provider}/${anomaly.service} showing ${anomaly.anomalyType} with ${(anomaly.confidenceScore * 100).toFixed(1)}% confidence`);
+                } else {
+                  console.log('::warning title=Usage Anomaly::' +
+                    `${anomaly.provider}/${anomaly.service} showing unusual ${anomaly.anomalyType} pattern`);
+                }
+                
+                console.log('');
+              }
+              
+              // Create summary
+              const summaryPath = '/tmp/anomaly-summary.json';
+              await require('fs/promises').writeFile(summaryPath, JSON.stringify({
+                total_anomalies: anomalies.length,
+                high_confidence_anomalies: highConfidenceAnomalies.length,
+                anomalies: highConfidenceAnomalies.map(a => ({
+                  provider: a.provider,
+                  service: a.service,
+                  type: a.anomalyType,
+                  confidence: a.confidenceScore,
+                  deviation: a.deviationPercent,
+                  cost_impact: a.estimatedCostImpact
+                })),
+                detected_at: new Date().toISOString()
+              }, null, 2));
+              
+              console.log(`anomaly-summary=${summaryPath}`);
+              
+            } catch (error) {
+              console.error('❌ Anomaly detection failed:', error);
+              process.exit(1);
+            }
+          }
+          
+          detectAnomalies();
+          EOF
+
+      - name: Upload anomaly report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: anomaly-detection-report
+          path: /tmp/anomaly-summary.json
+          retention-days: 90
+
+  cost-alert-dispatch:
+    name: Cost Alert Dispatch
+    runs-on: ubuntu-latest
+    needs: [cost-monitoring-setup, cost-budget-analysis, anomaly-detection]
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download analysis reports
+        uses: actions/download-artifact@v4
+        with:
+          path: reports/
+          pattern: cost-analysis-*
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Consolidate alerts and dispatch
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_COST_ALERTS_WEBHOOK }}
+          ALERT_THRESHOLD: ${{ fromJson(needs.cost-monitoring-setup.outputs.monitoring-config).alert_threshold }}
+        run: |
+          echo "📢 Consolidating cost alerts and dispatching notifications..."
+          
+          npx tsx << 'EOF'
+          import { CostMonitoringService } from './src/services/CostMonitoringService';
+          import { promises as fs } from 'fs';
+          
+          async function dispatchAlerts() {
+            const service = new CostMonitoringService();
+            
+            try {
+              // Get active alerts
+              const alerts = await service.getAlerts('open', 20);
+              const criticalAlerts = alerts.filter(a => a.severity === 'critical');
+              const highAlerts = alerts.filter(a => a.severity === 'high');
+              
+              console.log(`📊 Alert Summary:`);
+              console.log(`  Critical: ${criticalAlerts.length}`);
+              console.log(`  High: ${highAlerts.length}`);
+              console.log(`  Total Open: ${alerts.length}`);
+              
+              if (alerts.length === 0) {
+                console.log('✅ No active cost alerts');
+                return;
+              }
+              
+              // Get cost metrics for context
+              const metrics = await service.getCostMetrics();
+              
+              // Prepare Discord notification
+              if (process.env.DISCORD_WEBHOOK_URL && (criticalAlerts.length > 0 || highAlerts.length > 0)) {
+                const embed = {
+                  title: '💰 Cost Monitoring Alert',
+                  description: `Budget monitoring detected ${alerts.length} active alerts`,
+                  color: criticalAlerts.length > 0 ? 15158332 : 16776960, // Red for critical, yellow for high
+                  fields: [
+                    {
+                      name: '📊 Current Status',
+                      value: `Total Spend: $${metrics.totalSpend.toFixed(2)}\nBurn Rate: $${metrics.dailyBurnRate.toFixed(2)}/day\nHealth: ${metrics.budgetHealth}`,
+                      inline: true
+                    },
+                    {
+                      name: '🚨 Alert Breakdown',
+                      value: `Critical: ${criticalAlerts.length}\nHigh: ${highAlerts.length}\nAnomalies: ${metrics.anomaliesDetected}`,
+                      inline: true
+                    }
+                  ],
+                  timestamp: new Date().toISOString()
+                };
+                
+                // Add top alerts as fields
+                const topAlerts = [...criticalAlerts.slice(0, 3), ...highAlerts.slice(0, 2)];
+                for (const alert of topAlerts.slice(0, 5)) {
+                  embed.fields.push({
+                    name: `${alert.severity === 'critical' ? '🔴' : '🟡'} ${alert.provider || 'System'}`,
+                    value: alert.message.substring(0, 100) + (alert.message.length > 100 ? '...' : ''),
+                    inline: false
+                  });
+                }
+                
+                // Send Discord webhook
+                try {
+                  const response = await fetch(process.env.DISCORD_WEBHOOK_URL!, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ embeds: [embed] })
+                  });
+                  
+                  if (response.ok) {
+                    console.log('✅ Discord notification sent successfully');
+                  } else {
+                    console.error('❌ Discord webhook failed:', response.status);
+                  }
+                } catch (error) {
+                  console.error('❌ Discord webhook error:', error);
+                }
+              }
+              
+              // Create GitHub annotations for critical issues
+              for (const alert of criticalAlerts) {
+                console.log('::error title=Critical Cost Alert::' + 
+                  `${alert.provider}: ${alert.message}`);
+              }
+              
+              for (const alert of highAlerts.slice(0, 5)) {
+                console.log('::warning title=High Cost Alert::' + 
+                  `${alert.provider}: ${alert.message}`);
+              }
+              
+              // Create summary for workflow
+              const summary = {
+                total_alerts: alerts.length,
+                critical_alerts: criticalAlerts.length,
+                high_alerts: highAlerts.length,
+                budget_health: metrics.budgetHealth,
+                total_spend: metrics.totalSpend,
+                daily_burn_rate: metrics.dailyBurnRate,
+                projected_monthly: metrics.projectedMonthlySpend,
+                top_cost_drivers: metrics.topCostDrivers,
+                timestamp: new Date().toISOString()
+              };
+              
+              await fs.writeFile('/tmp/cost-alert-summary.json', JSON.stringify(summary, null, 2));
+              console.log('alert-summary=/tmp/cost-alert-summary.json');
+              
+            } catch (error) {
+              console.error('❌ Alert dispatch failed:', error);
+              process.exit(1);
+            }
+          }
+          
+          dispatchAlerts();
+          EOF
+
+      - name: Update workflow summary
+        run: |
+          echo "# 💰 Cost Monitoring Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Monitoring Type:** ${{ fromJson(needs.cost-monitoring-setup.outputs.monitoring-config).type }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Alert Threshold:** ${{ fromJson(needs.cost-monitoring-setup.outputs.monitoring-config).alert_threshold }}%" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ -f "/tmp/cost-alert-summary.json" ]]; then
+            echo "## 📊 Cost Alert Summary" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Parse JSON and create markdown table
+            jq -r '
+              "| Metric | Value |",
+              "|--------|-------|",
+              ("| Total Alerts | " + (.total_alerts | tostring) + " |"),
+              ("| Critical | " + (.critical_alerts | tostring) + " |"),
+              ("| High Priority | " + (.high_alerts | tostring) + " |"),
+              ("| Budget Health | " + .budget_health + " |"),
+              ("| Total Spend | $" + (.total_spend | tostring) + " |"),
+              ("| Daily Burn Rate | $" + (.daily_burn_rate | tostring) + " |"),
+              ("| Projected Monthly | $" + (.projected_monthly | tostring) + " |")
+            ' /tmp/cost-alert-summary.json >> $GITHUB_STEP_SUMMARY
+            
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Top cost drivers
+            echo "## 💸 Top Cost Drivers" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Provider | Service | Cost | Percentage |" >> $GITHUB_STEP_SUMMARY
+            echo "|----------|---------|------|------------|" >> $GITHUB_STEP_SUMMARY
+            
+            jq -r '
+              .top_cost_drivers[] | 
+              "| " + .provider + " | " + .service + " | $" + (.cost | tostring) + " | " + (.percentage | tostring) + "% |"
+            ' /tmp/cost-alert-summary.json >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🔗 Actions" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Review detailed cost analysis in workflow artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- Check anomaly detection report for unusual patterns" >> $GITHUB_STEP_SUMMARY
+          echo "- Update budget allocations if needed" >> $GITHUB_STEP_SUMMARY
+          echo "- Monitor Discord alerts for real-time notifications" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload consolidated report
+        uses: actions/upload-artifact@v4
+        with:
+          name: cost-monitoring-summary
+          path: |
+            /tmp/cost-alert-summary.json
+            reports/
+          retention-days: 90
+
+  cost-budget-maintenance:
+    name: Cost Budget Maintenance
+    runs-on: ubuntu-latest
+    needs: [cost-monitoring-setup, cost-alert-dispatch]
+    if: always() && (fromJson(needs.cost-monitoring-setup.outputs.monitoring-config).force_update == 'true' || github.event_name == 'schedule')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Update cost projections and budgets
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "📈 Updating cost projections and budget calculations..."
+          
+          npx tsx << 'EOF'
+          import { CostMonitoringService } from './src/services/CostMonitoringService';
+          import { createClient } from '@supabase/supabase-js';
+          
+          async function updateBudgetProjections() {
+            const service = new CostMonitoringService();
+            const supabase = createClient(
+              process.env.SUPABASE_URL!,
+              process.env.SUPABASE_SERVICE_ROLE_KEY!,
+              { auth: { persistSession: false } }
+            );
+            
+            try {
+              console.log('🔄 Refreshing cost calculations...');
+              
+              // Trigger database view refreshes
+              const { error: refreshError } = await supabase.rpc('refresh_cost_calculations');
+              if (refreshError) {
+                console.warn('View refresh warning:', refreshError.message);
+              }
+              
+              // Update budget health assessments
+              const { data: budgets } = await supabase
+                .from('cost_budgets')
+                .select('id, budget_scope, monthly_budget_usd, current_spend_usd');
+              
+              if (budgets) {
+                console.log(`📊 Updating ${budgets.length} budget health assessments...`);
+                
+                for (const budget of budgets) {
+                  const spendPercent = (budget.current_spend_usd / budget.monthly_budget_usd) * 100;
+                  let budgetHealth = 'HEALTHY';
+                  
+                  if (spendPercent >= 100) budgetHealth = 'EXCEEDED';
+                  else if (spendPercent >= 90) budgetHealth = 'CRITICAL';
+                  else if (spendPercent >= 75) budgetHealth = 'WARNING';
+                  else if (spendPercent >= 60) budgetHealth = 'CAUTION';
+                  
+                  await supabase
+                    .from('cost_budgets')
+                    .update({ 
+                      budget_health: budgetHealth,
+                      updated_at: new Date().toISOString()
+                    })
+                    .eq('id', budget.id);
+                  
+                  console.log(`  ${budget.budget_scope}: ${spendPercent.toFixed(1)}% (${budgetHealth})`);
+                }
+              }
+              
+              // Clean up old anomalies (investigated ones older than 30 days)
+              const thirtyDaysAgo = new Date();
+              thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+              
+              const { data: cleanedAnomalies } = await supabase
+                .from('usage_anomalies')
+                .delete()
+                .eq('investigated', true)
+                .lt('detected_at', thirtyDaysAgo.toISOString())
+                .select('id');
+              
+              if (cleanedAnomalies) {
+                console.log(`🧹 Cleaned up ${cleanedAnomalies.length} old anomaly records`);
+              }
+              
+              console.log('✅ Budget maintenance completed successfully');
+              
+            } catch (error) {
+              console.error('❌ Budget maintenance failed:', error);
+              process.exit(1);
+            }
+          }
+          
+          updateBudgetProjections();
+          EOF
+
+      - name: Generate budget recommendations
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "💡 Generating budget optimization recommendations..."
+          
+          npx tsx << 'EOF'
+          import { CostMonitoringService } from './src/services/CostMonitoringService';
+          import { promises as fs } from 'fs';
+          
+          async function generateRecommendations() {
+            const service = new CostMonitoringService();
+            
+            try {
+              const metrics = await service.getCostMetrics();
+              const history = await service.getUsageHistory(undefined, 30);
+              
+              const recommendations = [];
+              
+              // Analyze budget health
+              if (metrics.budgetHealth === 'EXCEEDED') {
+                recommendations.push({
+                  type: 'URGENT',
+                  category: 'Budget',
+                  message: 'Budget exceeded - immediate cost reduction required',
+                  action: 'Review and reduce high-cost providers'
+                });
+              } else if (metrics.budgetHealth === 'CRITICAL') {
+                recommendations.push({
+                  type: 'HIGH',
+                  category: 'Budget',
+                  message: 'Budget critically low - implement cost controls',
+                  action: 'Enable throttling for non-critical services'
+                });
+              }
+              
+              // Analyze burn rate trends
+              if (metrics.projectedMonthlySpend > metrics.totalSpend * 2) {
+                recommendations.push({
+                  type: 'MEDIUM',
+                  category: 'Trend',
+                  message: 'Burn rate indicates potential overspend',
+                  action: 'Review usage patterns and optimize high-frequency operations'
+                });
+              }
+              
+              // Analyze cost drivers
+              const topDriver = metrics.topCostDrivers[0];
+              if (topDriver && topDriver.percentage > 60) {
+                recommendations.push({
+                  type: 'MEDIUM',
+                  category: 'Optimization',
+                  message: `${topDriver.provider}/${topDriver.service} represents ${topDriver.percentage.toFixed(1)}% of costs`,
+                  action: 'Consider optimizing usage or negotiating better rates'
+                });
+              }
+              
+              // Analyze anomalies
+              if (metrics.anomaliesDetected > 5) {
+                recommendations.push({
+                  type: 'MEDIUM',
+                  category: 'Anomaly',
+                  message: `${metrics.anomaliesDetected} usage anomalies detected`,
+                  action: 'Investigate unusual usage patterns'
+                });
+              }
+              
+              const report = {
+                generated_at: new Date().toISOString(),
+                budget_health: metrics.budgetHealth,
+                total_spend: metrics.totalSpend,
+                projected_monthly: metrics.projectedMonthlySpend,
+                recommendations: recommendations,
+                top_cost_drivers: metrics.topCostDrivers
+              };
+              
+              await fs.writeFile('/tmp/budget-recommendations.json', JSON.stringify(report, null, 2));
+              console.log(`📋 Generated ${recommendations.length} recommendations`);
+              
+              // Output recommendations
+              if (recommendations.length > 0) {
+                console.log('\n💡 Budget Recommendations:');
+                for (const rec of recommendations) {
+                  console.log(`  ${rec.type}: ${rec.message}`);
+                  console.log(`    Action: ${rec.action}`);
+                }
+              } else {
+                console.log('✅ No immediate budget optimization recommendations');
+              }
+              
+            } catch (error) {
+              console.error('❌ Failed to generate recommendations:', error);
+            }
+          }
+          
+          generateRecommendations();
+          EOF
+
+      - name: Upload maintenance report
+        uses: actions/upload-artifact@v4
+        with:
+          name: budget-maintenance-report
+          path: /tmp/budget-recommendations.json
+          retention-days: 30

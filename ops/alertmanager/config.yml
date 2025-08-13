@@ -1,0 +1,252 @@
+# Alertmanager Configuration for Unit Talk Platform
+# Handles alert routing, grouping, and notification delivery
+
+global:
+  # The smarthost and SMTP sender used for mail notifications.
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'alerts@unit-talk.com'
+  
+  # Default Discord webhook URLs (overridden by environment-specific routes)
+  discord_webhook_staging: 'DISCORD_WEBHOOK_STAGING_URL'
+  discord_webhook_prod: 'DISCORD_WEBHOOK_PROD_URL'
+
+# Template files
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Route tree for alert routing
+route:
+  group_by: ['alertname', 'severity']
+  group_wait: 10s
+  group_interval: 5m
+  repeat_interval: 12h
+  receiver: 'default'
+  
+  routes:
+    # Critical alerts - immediate notification + auto-actions
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 5s
+      group_interval: 2m
+      repeat_interval: 5m
+      continue: true
+    
+    # High priority alerts - fast notification
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 2h
+      continue: true
+    
+    # Environment-specific routing
+    - match:
+        environment: production
+      receiver: 'production-alerts'
+      group_interval: 1m
+      repeat_interval: 30m
+      continue: true
+      
+    - match:
+        environment: staging
+      receiver: 'staging-alerts'
+      group_interval: 2m
+      repeat_interval: 1h
+      continue: true
+    
+    # Service-specific routing
+    - match:
+        service: 'safemode-controller'
+      receiver: 'ops-team'
+      group_interval: 1m
+      continue: true
+      
+    - match:
+        service: 'temporal'
+      receiver: 'backend-team'
+      continue: true
+      
+    - match:
+        service: 'discord-bot'
+      receiver: 'frontend-team'
+      continue: true
+
+# Notification receivers
+receivers:
+  # Default catch-all receiver
+  - name: 'default'
+    discord_configs:
+      - webhook_url: '{{ .ExternalURL }}/webhook/discord/default'
+        title: 'Unit Talk Alert'
+        message: |
+          **Alert**: {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}
+          **Severity**: {{ .GroupLabels.severity }}
+          **Time**: {{ range .Alerts }}{{ .StartsAt.Format "2006-01-02 15:04:05" }}{{ end }}
+        
+  # Critical alerts with auto-action triggers
+  - name: 'critical-alerts'
+    webhook_configs:
+      # Safe Mode Controller webhook for auto-actions
+      - url: 'http://localhost:3011/webhook'
+        send_resolved: true
+        http_config:
+          timeout: 10s
+        title: 'Critical Alert - Auto Action Required'
+        message: |
+          {{ range .Alerts }}
+          **Alert**: {{ .Annotations.summary }}
+          **Description**: {{ .Annotations.description }}
+          **Severity**: {{ .Labels.severity }}
+          **Service**: {{ .Labels.service }}
+          **Instance**: {{ .Labels.instance }}
+          **Time**: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}
+          
+    discord_configs:
+      - webhook_url: '{{ if eq .GroupLabels.environment "production" }}DISCORD_WEBHOOK_PROD_URL{{ else }}DISCORD_WEBHOOK_STAGING_URL{{ end }}'
+        title: '🚨 CRITICAL ALERT - Unit Talk Platform'
+        message: |
+          {{ range .Alerts }}
+          **{{ .Annotations.summary }}**
+          
+          📋 **Details**: {{ .Annotations.description }}
+          🏷️ **Service**: {{ .Labels.service }}
+          🎯 **Instance**: {{ .Labels.instance }}
+          📊 **Severity**: {{ .Labels.severity }}
+          🕐 **Started**: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          
+          {{ if .Labels.runbook_url }}📖 **Runbook**: {{ .Labels.runbook_url }}{{ end }}
+          {{ end }}
+          
+          🔧 **Auto-Actions**: Safe mode/freeze may be activated automatically
+        color: 15158332  # Red color for critical alerts
+
+  # Warning alerts  
+  - name: 'warning-alerts'
+    discord_configs:
+      - webhook_url: '{{ if eq .GroupLabels.environment "production" }}DISCORD_WEBHOOK_PROD_URL{{ else }}DISCORD_WEBHOOK_STAGING_URL{{ end }}'
+        title: '⚠️ WARNING - Unit Talk Platform'
+        message: |
+          {{ range .Alerts }}
+          **{{ .Annotations.summary }}**
+          
+          📋 **Details**: {{ .Annotations.description }}
+          🏷️ **Service**: {{ .Labels.service }}
+          🎯 **Instance**: {{ .Labels.instance }}
+          🕐 **Started**: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+          {{ end }}
+        color: 16098851  # Orange color for warnings
+
+  # Production environment alerts
+  - name: 'production-alerts'
+    discord_configs:
+      - webhook_url: 'DISCORD_WEBHOOK_PROD_URL'
+        title: '🏭 PRODUCTION ALERT'
+        message: |
+          **Environment**: Production
+          {{ range .Alerts }}
+          **{{ .Annotations.summary }}**
+          📋 {{ .Annotations.description }}
+          🏷️ Service: {{ .Labels.service }}
+          📊 Severity: {{ .Labels.severity }}
+          {{ end }}
+        color: 10181046  # Purple for production
+
+  # Staging environment alerts
+  - name: 'staging-alerts'  
+    discord_configs:
+      - webhook_url: 'DISCORD_WEBHOOK_STAGING_URL'
+        title: '🧪 STAGING ALERT'
+        message: |
+          **Environment**: Staging
+          {{ range .Alerts }}
+          **{{ .Annotations.summary }}**
+          📋 {{ .Annotations.description }}
+          🏷️ Service: {{ .Labels.service }}
+          📊 Severity: {{ .Labels.severity }}
+          {{ end }}
+        color: 3447003   # Blue for staging
+
+  # Team-specific receivers
+  - name: 'ops-team'
+    discord_configs:
+      - webhook_url: 'DISCORD_WEBHOOK_OPS_CHANNEL_URL'
+        title: '⚙️ OPS TEAM ALERT'
+        message: |
+          {{ range .Alerts }}
+          **{{ .Annotations.summary }}**
+          🔧 **Ops Action Required**
+          📋 {{ .Annotations.description }}
+          🏷️ Service: {{ .Labels.service }}
+          {{ end }}
+        
+  - name: 'backend-team'
+    discord_configs:
+      - webhook_url: 'DISCORD_WEBHOOK_BACKEND_CHANNEL_URL'  
+        title: '⚡ BACKEND ALERT'
+        message: |
+          {{ range .Alerts }}
+          **{{ .Annotations.summary }}**
+          🔙 **Backend Investigation Required**
+          📋 {{ .Annotations.description }}
+          🏷️ Service: {{ .Labels.service }}
+          {{ end }}
+        
+  - name: 'frontend-team'
+    discord_configs:
+      - webhook_url: 'DISCORD_WEBHOOK_FRONTEND_CHANNEL_URL'
+        title: '💻 FRONTEND ALERT' 
+        message: |
+          {{ range .Alerts }}
+          **{{ .Annotations.summary }}**
+          🖥️ **Frontend Investigation Required**
+          📋 {{ .Annotations.description }}
+          🏷️ Service: {{ .Labels.service }}
+          {{ end }}
+
+# Inhibition rules to prevent spam
+inhibit_rules:
+  # Silence warning alerts when critical alerts are firing for same service
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['service', 'instance']
+    
+  # Silence info alerts when warning+ alerts are firing
+  - source_match:
+      severity: 'warning'
+    target_match:
+      severity: 'info'  
+    equal: ['service', 'instance']
+    
+  # Silence derived alerts when root cause alert is firing
+  - source_match:
+      alertname: 'DatabaseDown'
+    target_match_re:
+      alertname: '.*ConnectionError'
+    equal: ['service']
+
+# Grouping and timing configuration
+group_by: ['alertname', 'cluster', 'service']
+group_wait: 5s      # How long to wait for additional alerts before sending
+group_interval: 5m  # How long to wait before sending updated group
+repeat_interval: 12h # How long to wait before re-sending a resolved alert
+
+# Mute/silence configuration  
+mute_time_intervals:
+  - name: 'maintenance-window'
+    time_intervals:
+    - times:
+      - start_time: '02:00'
+        end_time: '04:00'
+      weekdays: ['sunday']
+      
+  - name: 'business-hours'
+    time_intervals:
+    - times:
+      - start_time: '09:00' 
+        end_time: '17:00'
+      weekdays: ['monday:friday']

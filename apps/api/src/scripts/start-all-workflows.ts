@@ -1,7 +1,9 @@
 import 'dotenv/config';
+
 import { Client, Connection } from '@temporalio/client';
-import { createLogger } from '../utils/logger';
+
 import { getEnv } from '../utils/getEnv';
+import { createLogger } from '../utils/logger';
 // Import workflow functions
 import { 
   syndicateSchedulerWorkflow,
@@ -16,8 +18,8 @@ import {
   ncaabScheduleWorkflow,
   wnbaScheduleWorkflow
 } from '../workflows/support-workflows';
-import { combinedRecapWorkflow } from '../workflows/recap-workflows';
 import { analyticsWorkflow } from '../workflows/analyticsWorkflow';
+import { combinedRecapWorkflow } from '../workflows/recap-workflows';
 
 const logger = createLogger('workflow-orchestrator');
 const env = getEnv();

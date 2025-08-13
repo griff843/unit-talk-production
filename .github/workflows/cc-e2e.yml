@@ -1,0 +1,153 @@
+name: Command Center E2E Tests
+
+on:
+  push:
+    branches: [cmd-center-toggles/2025-08-12, main]
+    paths:
+      - 'apps/command-center/**'
+      - 'supabase/migrations/**'
+      - '.github/workflows/cc-e2e.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/command-center/**'
+      - 'supabase/migrations/**'
+
+env:
+  NODE_VERSION: '18'
+  PLAYWRIGHT_BROWSERS_PATH: 0
+
+jobs:
+  e2e-tests:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup database
+        run: |
+          # Apply database migrations
+          npm run db:migrate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+          SUPABASE_DB_PASSWORD: postgres
+
+      - name: Build Command Center
+        run: |
+          cd apps/command-center
+          npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: test-service-role-key
+
+      - name: Install Playwright browsers
+        run: |
+          cd apps/command-center
+          npx playwright install --with-deps
+
+      - name: Start Command Center in background
+        run: |
+          cd apps/command-center
+          npm run start &
+          sleep 10
+        env:
+          PORT: 3015
+          NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: test-service-role-key
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+
+      - name: Wait for app to be ready
+        run: |
+          timeout 60 bash -c 'until curl -f http://localhost:3015/health || curl -f http://localhost:3015; do sleep 2; done'
+
+      - name: Run E2E tests
+        run: |
+          cd apps/command-center
+          npm run test:e2e
+        env:
+          CI: true
+          NEXT_PUBLIC_APP_URL: http://localhost:3015
+          NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: test-service-role-key
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/command-center/playwright-report/
+          retention-days: 30
+
+      - name: Upload test screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-screenshots
+          path: apps/command-center/test-results/
+          retention-days: 30
+
+  quality-gate:
+    runs-on: ubuntu-latest
+    needs: e2e-tests
+    if: always()
+    
+    steps:
+      - name: Check E2E test results
+        run: |
+          if [[ "${{ needs.e2e-tests.result }}" != "success" ]]; then
+            echo "❌ E2E tests failed - blocking merge"
+            exit 1
+          else
+            echo "✅ All E2E tests passed - ready for merge"
+          fi
+
+      - name: Quality gate summary
+        run: |
+          echo "## Command Center E2E Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ needs.e2e-tests.result }}" == "success" ]]; then
+            echo "✅ **All tests passed** - Command Center toggles implementation verified" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Verified Features:" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔒 Safety toggles (Safe Mode, System Freeze, Shadow Mode)" >> $GITHUB_STEP_SUMMARY
+            echo "- 🏥 Health monitoring tiles (6 SLO metrics)" >> $GITHUB_STEP_SUMMARY
+            echo "- 🚨 Incident management and resolution" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔄 Recovery operations (replay, rollback)" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔐 RBAC enforcement (Admin/Ops/Viewer roles)" >> $GITHUB_STEP_SUMMARY
+            echo "- 🛡️ System flags enforcement across all operations" >> $GITHUB_STEP_SUMMARY
+            echo "- 📊 Data trust widgets and monitoring" >> $GITHUB_STEP_SUMMARY
+            echo "- ⚡ Alertmanager webhook integration" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Tests failed** - see test results for details" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please review and fix failing tests before merging." >> $GITHUB_STEP_SUMMARY
+          fi

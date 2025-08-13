@@ -1,0 +1,265 @@
+# Prometheus Alert Rules for SLO Monitoring and Burn-Rate Alerts
+# Based on Google SRE Workbook multi-window multi-burn-rate alerts
+
+groups:
+  - name: slo_burn_rate_alerts
+    interval: 30s
+    rules:
+      # API Response Time SLO - 95% within 200ms
+      - alert: APIResponseTimeFastBurn
+        expr: |
+          (
+            sum(rate(http_request_duration_seconds_bucket{le="0.2"}[5m])) /
+            sum(rate(http_request_duration_seconds_count[5m]))
+          ) < 0.86  # 95% - (14.4 * (1-95%)) = 95% - 0.72% = 94.28% -> inverted to error rate
+        for: 2m
+        labels:
+          severity: critical
+          slo: api_response_time
+          burn_rate: fast
+        annotations:
+          summary: "API response time SLO fast burn rate detected"
+          description: "API response time SLO is burning error budget at 14.4x rate. Only {{ $value | humanizePercentage }} of requests completing within 200ms over last 5m."
+          runbook: "https://github.com/unit-talk/platform/wiki/SLO-Runbook#api-response-time"
+
+      - alert: APIResponseTimeSlowBurn  
+        expr: |
+          (
+            sum(rate(http_request_duration_seconds_bucket{le="0.2"}[1h])) /
+            sum(rate(http_request_duration_seconds_count[1h]))
+          ) < 0.97  # 95% - (6 * (1-95%)) = 95% - 0.3% = 94.7%
+        for: 15m
+        labels:
+          severity: warning
+          slo: api_response_time
+          burn_rate: slow
+        annotations:
+          summary: "API response time SLO slow burn rate detected"
+          description: "API response time SLO is burning error budget at 6x rate. Only {{ $value | humanizePercentage }} of requests completing within 200ms over last 1h."
+
+      # API Error Rate SLO - 99.9% success rate
+      - alert: APIErrorRateFastBurn
+        expr: |
+          (
+            sum(rate(http_requests_total{code!~"5.*|4.*"}[5m])) /
+            sum(rate(http_requests_total[5m]))
+          ) < 0.9856  # 99.9% - (14.4 * (1-99.9%)) = 99.9% - 0.144% = 99.756%
+        for: 2m
+        labels:
+          severity: critical
+          slo: api_error_rate
+          burn_rate: fast
+        annotations:
+          summary: "API error rate SLO fast burn rate detected"
+          description: "API error rate SLO is burning error budget at 14.4x rate. Success rate is {{ $value | humanizePercentage }} over last 5m."
+          runbook: "https://github.com/unit-talk/platform/wiki/SLO-Runbook#api-error-rate"
+
+      - alert: APIErrorRateSlowBurn
+        expr: |
+          (
+            sum(rate(http_requests_total{code!~"5.*|4.*"}[1h])) /
+            sum(rate(http_requests_total[1h]))
+          ) < 0.9934  # 99.9% - (6 * (1-99.9%)) = 99.9% - 0.06% = 99.84%
+        for: 15m
+        labels:
+          severity: warning
+          slo: api_error_rate
+          burn_rate: slow
+        annotations:
+          summary: "API error rate SLO slow burn rate detected"
+          description: "API error rate SLO is burning error budget at 6x rate. Success rate is {{ $value | humanizePercentage }} over last 1h."
+
+      # Database Performance SLO - 95% within 50ms
+      - alert: DatabasePerformanceFastBurn
+        expr: |
+          (
+            sum(rate(database_query_duration_seconds_bucket{le="0.05"}[5m])) /
+            sum(rate(database_query_duration_seconds_count[5m]))
+          ) < 0.928  # 95% - (14.4 * (1-95%)) = 95% - 0.72% = 94.28%
+        for: 2m
+        labels:
+          severity: critical
+          slo: database_performance
+          burn_rate: fast
+        annotations:
+          summary: "Database performance SLO fast burn rate detected"
+          description: "Database performance SLO is burning error budget at 14.4x rate. Only {{ $value | humanizePercentage }} of queries completing within 50ms."
+
+      # Temporal Workflow Success Rate SLO - 99.5% success rate
+      - alert: TemporalWorkflowsFastBurn
+        expr: |
+          (
+            sum(rate(temporal_workflow_execution_total{status="COMPLETED"}[5m])) /
+            sum(rate(temporal_workflow_execution_total[5m]))
+          ) < 0.928  # 99.5% - (14.4 * (1-99.5%)) = 99.5% - 0.072% = 99.428%
+        for: 2m
+        labels:
+          severity: critical
+          slo: temporal_workflows
+          burn_rate: fast
+        annotations:
+          summary: "Temporal workflow SLO fast burn rate detected"
+          description: "Temporal workflow SLO is burning error budget at 14.4x rate. Success rate is {{ $value | humanizePercentage }}."
+
+      # Pick Processing Pipeline SLO - 95% within 10 minutes
+      - alert: PickProcessingSlowBurn
+        expr: |
+          (
+            sum(rate(pick_processing_duration_seconds_bucket{le="600"}[30m])) /
+            sum(rate(pick_processing_duration_seconds_count[30m]))
+          ) < 0.985  # 95% - (3 * (1-95%)) = 95% - 0.15% = 94.85%
+        for: 10m
+        labels:
+          severity: warning
+          slo: pick_processing
+          burn_rate: slow
+        annotations:
+          summary: "Pick processing pipeline SLO slow burn rate detected"
+          description: "Pick processing SLO is burning error budget at 3x rate. Only {{ $value | humanizePercentage }} of picks processed within 10 minutes."
+
+  - name: temporal_canary_alerts
+    interval: 30s
+    rules:
+      # Temporal Canary Workflow - Health Check
+      - alert: TemporalCanaryFailed
+        expr: increase(temporal_canary_workflow_failures_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: temporal
+        annotations:
+          summary: "Temporal canary workflow failing"
+          description: "Temporal canary workflow has failed {{ $value }} times in the last 5 minutes. This indicates Temporal system issues."
+          runbook: "https://github.com/unit-talk/platform/wiki/Temporal-Runbook#canary-failure"
+
+      - alert: TemporalCanaryLatency
+        expr: temporal_canary_workflow_duration_seconds > 30
+        for: 5m
+        labels:
+          severity: warning
+          component: temporal
+        annotations:
+          summary: "Temporal canary workflow latency high"
+          description: "Temporal canary workflow taking {{ $value }}s to complete. Expected <10s."
+
+      # Temporal Task Queue Backlog
+      - alert: TemporalTaskQueueBacklog
+        expr: temporal_task_queue_backlog > 100
+        for: 5m
+        labels:
+          severity: warning
+          component: temporal
+        annotations:
+          summary: "Temporal task queue backlog high"
+          description: "Temporal task queue has {{ $value }} pending tasks. May indicate worker issues."
+
+      - alert: TemporalTaskQueueBacklogCritical
+        expr: temporal_task_queue_backlog > 1000
+        for: 2m
+        labels:
+          severity: critical
+          component: temporal
+        annotations:
+          summary: "Temporal task queue backlog critical"
+          description: "Temporal task queue has {{ $value }} pending tasks. System may be overwhelmed."
+
+  - name: system_health_alerts
+    interval: 30s
+    rules:
+      # System Resource Monitoring
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 0.90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is {{ $value | humanizePercentage }}. System may become unresponsive."
+
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is {{ $value }}%. May impact response times."
+
+      - alert: DiskSpaceLow
+        expr: (1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk space running low"
+          description: "Disk usage is {{ $value | humanizePercentage }}. Clean up required soon."
+
+      - alert: DiskSpaceCritical
+        expr: (1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) > 0.95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk space critically low"
+          description: "Disk usage is {{ $value | humanizePercentage }}. Immediate action required."
+
+  - name: application_specific_alerts
+    interval: 30s
+    rules:
+      # Pick Ingestion Rate
+      - alert: PickIngestionRateDown
+        expr: rate(picks_ingested_total[5m]) < 0.1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Pick ingestion rate abnormally low"
+          description: "Pick ingestion rate is {{ $value }} picks/sec. Expected >0.5 picks/sec during active hours."
+
+      - alert: PickIngestionStopped
+        expr: increase(picks_ingested_total[15m]) == 0
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Pick ingestion completely stopped"
+          description: "No picks ingested in the last 15 minutes. Check ingestion pipeline."
+
+      # Grading Pipeline Health
+      - alert: GradingPipelineBacklog
+        expr: grading_queue_size > 500
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Grading pipeline backlog building up"
+          description: "Grading queue has {{ $value }} pending items. May indicate processing issues."
+
+      - alert: GradingFailureRate
+        expr: rate(grading_failures_total[5m]) / rate(grading_attempts_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High grading failure rate"
+          description: "Grading failure rate is {{ $value | humanizePercentage }}. Check grading service health."
+
+      # Discord Bot Health
+      - alert: DiscordBotDown
+        expr: up{job="discord-bot"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Discord bot is down"
+          description: "Discord bot has been down for more than 2 minutes."
+
+      # External API Health
+      - alert: ExternalAPIFailureRate
+        expr: rate(external_api_requests_total{status!~"2.*"}[5m]) / rate(external_api_requests_total[5m]) > 0.10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High external API failure rate"
+          description: "External API failure rate is {{ $value | humanizePercentage }}. May impact data quality."

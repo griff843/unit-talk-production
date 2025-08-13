@@ -3,6 +3,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { RehearsalPanel } from '@/components/rehearsal/RehearsalPanel'
+import ExecutiveReadinessCard from '@/components/readiness/ExecutiveReadinessCard'
 import { 
   Activity, 
   Target, 
@@ -248,6 +250,12 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Executive Readiness Snapshot */}
+      <ExecutiveReadinessCard />
+
+      {/* Go-Live Rehearsal Panel */}
+      <RehearsalPanel />
 
       {/* Pipeline Health Metrics */}
       {pipelineHealth && (
