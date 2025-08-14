@@ -92,7 +92,7 @@ export async function setSystemFlag(
       return { success: false, error: error.message };
     }
 
-    return { success: true, audit_id: data };
+    return { success: true, audit_id: data as number };
   } catch (error) {
     console.error('Error setting system flag:', error);
     return { 
@@ -118,7 +118,7 @@ export async function getSystemFlag(key: FlagKey): Promise<boolean> {
       return false; // Safe default
     }
 
-    return data ?? false;
+    return (data as boolean) ?? false;
   } catch (error) {
     console.error(`Error getting system flag ${key}:`, error);
     return false; // Safe default
@@ -195,7 +195,7 @@ export async function writeAudit(params: {
       return { success: false, error: error.message };
     }
 
-    return { success: true, audit_id: data };
+    return { success: true, audit_id: data as number };
   } catch (error) {
     console.error('Error writing audit log:', error);
     return { 
@@ -235,7 +235,7 @@ export async function createIncidentAutoSafeMode(params: {
 
     return { 
       success: true, 
-      incident_id: data,
+      incident_id: data as number,
       safe_mode_activated: params.severity === 'critical'
     };
   } catch (error) {

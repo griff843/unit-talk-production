@@ -38,7 +38,7 @@ export async function writeAudit(params: AuditParams): Promise<AuditResult> {
       return { success: false, error: error.message };
     }
 
-    return { success: true, audit_id: data };
+    return { success: true, audit_id: data as number };
   } catch (error) {
     console.error('Error writing audit log:', error);
     return { 

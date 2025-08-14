@@ -64,7 +64,7 @@ export async function getSystemFlags(): Promise<SystemFlags> {
       SYSTEM_FREEZE: flags?.SYSTEM_FREEZE ?? false,
       SHADOW_MODE: flags?.SHADOW_MODE ?? true,
       PUBLISH_TO_DISCORD: flags?.PUBLISH_TO_DISCORD ?? false,
-      PUBLISH_TO_NOTION: flags?.PUBLISH_TO_NOTATION ?? false,
+      PUBLISH_TO_NOTION: flags?.PUBLISH_TO_NOTION ?? false,
     };
 
     // Cache the result
