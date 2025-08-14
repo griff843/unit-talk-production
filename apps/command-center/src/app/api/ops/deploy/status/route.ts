@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-)
+import { isConfigured, createNotConfiguredResponse } from '@/server/env'
+import { getCanonicalHealthTiles } from '@/server/health'
+import { getAdminClient } from '@/server/db'
 
 interface GuardStatus {
   feedFreshnessSeconds: number
@@ -29,6 +26,13 @@ interface DeploymentStatus {
 
 export async function GET(request: NextRequest) {
   try {
+    // Check if system is properly configured
+    if (!isConfigured) {
+      return createNotConfiguredResponse();
+    }
+
+    const supabase = getAdminClient();
+
     // Get active deployment from database
     const { data: activeDeployment, error: deploymentError } = await supabase
       .from('deployments')
@@ -57,7 +61,7 @@ export async function GET(request: NextRequest) {
         'rolling_back': 'rolling_back'
       }
 
-      const phase = phaseMapping[activeDeployment.status] || 'idle'
+      const phase = phaseMapping[activeDeployment.status as string] || 'idle'
       
       // Calculate duration since phase started
       let phaseSince = activeDeployment.started_at
@@ -67,7 +71,7 @@ export async function GET(request: NextRequest) {
         phaseSince = activeDeployment.canary_50_started_at
       }
 
-      const duration = Math.floor((new Date().getTime() - new Date(phaseSince).getTime()) / 1000)
+      const duration = Math.floor((new Date().getTime() - new Date(phaseSince as string).getTime()) / 1000)
 
       // Determine canary percentage
       let canaryPercent = 0
@@ -80,17 +84,17 @@ export async function GET(request: NextRequest) {
       const PHASE_DURATION_MS = 15 * 60 * 1000 // 15 minutes
       
       if (phase === 'canary10' || phase === 'canary50') {
-        const phaseStartTime = new Date(phaseSince).getTime()
+        const phaseStartTime = new Date(phaseSince as string).getTime()
         nextPhaseEta = new Date(phaseStartTime + PHASE_DURATION_MS).toISOString()
       }
 
       deploymentStatus = {
         phase,
-        since: phaseSince,
+        since: phaseSince as string,
         guards: await getCurrentGuardStatus(),
-        deploymentId: activeDeployment.deployment_id,
-        targetSha: activeDeployment.target_sha,
-        triggeredBy: activeDeployment.triggered_by,
+        deploymentId: activeDeployment.deployment_id as string,
+        targetSha: activeDeployment.target_sha as string,
+        triggeredBy: activeDeployment.triggered_by as string,
         canaryPercent,
         duration,
         nextPhase: getNextPhase(phase),
@@ -114,20 +118,8 @@ export async function GET(request: NextRequest) {
 
 async function getCurrentGuardStatus(): Promise<GuardStatus> {
   try {
-    // Fetch health tiles data
-    const healthResponse = await fetch('http://api.unit-talk.com/api/ops/health/tiles', {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json'
-      }
-    })
-
-    if (!healthResponse.ok) {
-      console.warn('Failed to fetch health tiles, using defaults')
-      return getDefaultGuardStatus()
-    }
-
-    const healthData = await healthResponse.json()
+    // Use canonical health tiles directly
+    const healthData = await getCanonicalHealthTiles()
 
     // Extract guard metrics
     const feedFreshnessSeconds = healthData.feedFreshnessSeconds || 0

@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { getAdminClient } from './db';
 
 // System flag types
 export type FlagKey = 'SAFE_MODE' | 'SYSTEM_FREEZE' | 'SHADOW_MODE' | 'PUBLISH_TO_DISCORD' | 'PUBLISH_TO_NOTION';
@@ -11,23 +11,11 @@ export interface SystemFlags {
   PUBLISH_TO_NOTION: boolean;
 }
 
-// Create Supabase client for server-side operations
-function createServerClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('Missing Supabase configuration for server operations');
-  }
-
-  return createClient(supabaseUrl, supabaseServiceKey);
-}
-
 /**
  * Get all system flags from database
  */
 export async function getSystemFlags(): Promise<SystemFlags> {
-  const supabase = createServerClient();
+  const supabase = getAdminClient();
   
   try {
     const { data, error } = await supabase
@@ -86,7 +74,7 @@ export async function setSystemFlag(
     user_agent?: string;
   }
 ): Promise<{ success: boolean; audit_id?: number; error?: string }> {
-  const supabase = createServerClient();
+  const supabase = getAdminClient();
   
   try {
     // Use the database function to set flag and write audit
@@ -118,7 +106,7 @@ export async function setSystemFlag(
  * Get a single system flag value
  */
 export async function getSystemFlag(key: FlagKey): Promise<boolean> {
-  const supabase = createServerClient();
+  const supabase = getAdminClient();
   
   try {
     const { data, error } = await supabase.rpc('get_system_flag', {
@@ -189,7 +177,7 @@ export async function writeAudit(params: {
   ip_address?: string;
   user_agent?: string;
 }): Promise<{ success: boolean; audit_id?: number; error?: string }> {
-  const supabase = createServerClient();
+  const supabase = getAdminClient();
   
   try {
     const { data, error } = await supabase.rpc('write_audit_log', {
@@ -228,7 +216,7 @@ export async function createIncidentAutoSafeMode(params: {
   actor?: string;
   meta?: Record<string, any>;
 }): Promise<{ success: boolean; incident_id?: number; safe_mode_activated?: boolean; error?: string }> {
-  const supabase = createServerClient();
+  const supabase = getAdminClient();
   
   try {
     const { data, error } = await supabase.rpc('create_incident_auto_safemode', {

@@ -29,6 +29,7 @@ import {
   StopCircle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useHealthTiles, useHealthTileStatus, useFormattedHealthTiles, getHealthStatusColor, getHealthTooltips } from '@/lib/hooks/useHealthTiles';
 
 // Types for system configuration
 interface SystemConfig {
@@ -39,15 +40,7 @@ interface SystemConfig {
   PUBLISH_TO_NOTION: boolean;
 }
 
-interface HealthTiles {
-  feedFreshnessSeconds: number;
-  temporalBacklogAgeSeconds: number;
-  canaryLastSeenAt: string | null;
-  failureBurnRateLevel: 'green' | 'yellow' | 'red';
-  providerCreditsPerMin: number;
-  percentOfDailyBudget: number;
-  dlqCount: number;
-}
+// Remove the old HealthTiles interface - now using CanonicalHealthTiles from the hook
 
 interface Incident {
   id: number;
@@ -75,10 +68,11 @@ interface ShadowDiff {
   };
 }
 
-const SafetyToggles = ({ config, onToggle, loading }: {
+const SafetyToggles = ({ config, onToggle, loading, disabled }: {
   config: SystemConfig | null;
   onToggle: (key: keyof SystemConfig, value: boolean) => void;
   loading: boolean;
+  disabled?: boolean;
 }) => {
   const toggles = [
     { 
@@ -147,7 +141,7 @@ const SafetyToggles = ({ config, onToggle, loading }: {
             <Switch
               checked={config?.[key] || false}
               onCheckedChange={(checked) => onToggle(key, checked)}
-              disabled={loading}
+              disabled={loading || disabled}
               data-testid={`toggle-${key}`}
             />
           </div>
@@ -157,61 +151,93 @@ const SafetyToggles = ({ config, onToggle, loading }: {
   );
 };
 
-const HealthTilesCard = ({ tiles }: { tiles: HealthTiles | null }) => {
-  if (!tiles) return null;
+const HealthTilesCard = () => {
+  const { data: tiles, isLoading, error } = useHealthTiles();
+  const tileStatus = useHealthTileStatus(tiles);
+  const formattedTiles = useFormattedHealthTiles(tiles);
+  const tooltips = getHealthTooltips();
 
-  const formatDuration = (seconds: number) => {
-    if (seconds < 60) return `${seconds}s`;
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
-    return `${Math.floor(seconds / 3600)}h`;
-  };
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Activity className="w-5 h-5 mr-2" />
+            SLO & Burn Rate
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-32">
+            <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground mr-2" />
+            <span className="text-muted-foreground">Loading health data...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
-  const getStatusColor = (level: string) => {
-    switch (level) {
-      case 'green': return 'text-green-600 bg-green-100';
-      case 'yellow': return 'text-yellow-600 bg-yellow-100';
-      case 'red': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Activity className="w-5 h-5 mr-2" />
+            SLO & Burn Rate
+            <Badge variant="outline" className="ml-2">Error</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-4 text-muted-foreground">
+            Failed to load health data
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const healthMetrics = [
     {
       label: 'Feed Freshness',
-      value: formatDuration(tiles.feedFreshnessSeconds),
-      status: tiles.feedFreshnessSeconds < 300 ? 'green' : tiles.feedFreshnessSeconds < 900 ? 'yellow' : 'red',
+      value: formattedTiles.feedFreshness,
+      status: tileStatus.feedStatus,
       icon: Clock,
+      tooltip: tooltips.feedFreshness,
     },
     {
       label: 'Temporal Backlog',
-      value: formatDuration(tiles.temporalBacklogAgeSeconds),
-      status: tiles.temporalBacklogAgeSeconds < 600 ? 'green' : tiles.temporalBacklogAgeSeconds < 1800 ? 'yellow' : 'red',
+      value: formattedTiles.backlogAge,
+      status: tileStatus.backlogStatus,
       icon: Activity,
+      tooltip: tooltips.backlogAge,
     },
     {
-      label: 'Canary Status',
-      value: tiles.canaryLastSeenAt ? 'Active' : 'Inactive',
-      status: tiles.canaryLastSeenAt ? 'green' : 'red',
+      label: 'Canary Status', 
+      value: tiles?.canaryLastSeenAt ? formattedTiles.canaryAge : 'Inactive',
+      status: tileStatus.canaryStatus,
       icon: Heart,
+      tooltip: tooltips.canary,
     },
     {
       label: 'Failure Rate',
-      value: tiles.failureBurnRateLevel.toUpperCase(),
-      status: tiles.failureBurnRateLevel,
+      value: formattedTiles.burnRate,
+      status: tileStatus.burnRateStatus,
       icon: TrendingUp,
+      tooltip: tooltips.burnRate,
     },
     {
       label: 'Provider Spend',
-      value: `${tiles.providerCreditsPerMin}/min`,
-      status: tiles.percentOfDailyBudget < 80 ? 'green' : tiles.percentOfDailyBudget < 95 ? 'yellow' : 'red',
+      value: `${formattedTiles.creditsPerMin}/min`,
+      status: tileStatus.providerStatus,
       icon: Zap,
-      subtitle: `${tiles.percentOfDailyBudget.toFixed(1)}% of daily budget`,
+      subtitle: formattedTiles.budgetPercent,
+      tooltip: tooltips.provider,
     },
     {
       label: 'DLQ Count',
-      value: tiles.dlqCount.toString(),
-      status: tiles.dlqCount === 0 ? 'green' : tiles.dlqCount < 10 ? 'yellow' : 'red',
+      value: formattedTiles.dlqCount,
+      status: tileStatus.dlqStatus,
       icon: AlertTriangle,
+      tooltip: tooltips.dlq,
     },
   ];
 
@@ -221,28 +247,43 @@ const HealthTilesCard = ({ tiles }: { tiles: HealthTiles | null }) => {
         <CardTitle className="flex items-center">
           <Activity className="w-5 h-5 mr-2" />
           SLO & Burn Rate
+          {tiles?.source && (
+            <Badge 
+              variant={tiles.source === 'live' ? 'default' : 'outline'} 
+              className="ml-2"
+              title={tooltips.source}
+            >
+              {tiles.source === 'live' ? 'Live Data' : 'Fallback Data'}
+            </Badge>
+          )}
         </CardTitle>
         <CardDescription>
           Real-time system health and performance indicators
+          {tiles?.timestamp && (
+            <span className="block text-xs mt-1">
+              Last updated: {new Date(tiles.timestamp).toLocaleTimeString()}
+            </span>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {healthMetrics.map(({ label, value, status, icon: Icon, subtitle }) => (
+          {healthMetrics.map(({ label, value, status, icon: Icon, subtitle, tooltip }) => (
             <div 
-              key={label} 
+              key={label}
               className="text-center p-3 rounded-lg border"
               data-testid={`health-tile-${label.toLowerCase().replace(/\s+/g, '-')}`}
+              title={tooltip}
             >
               <Icon className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
               <div 
-                className={`inline-flex px-2 py-1 rounded-full text-sm font-medium ${getStatusColor(status)}`}
+                className={`inline-flex px-2 py-1 rounded-full text-sm font-medium ${getHealthStatusColor(status as any)}`}
                 data-testid="tile-value"
               >
                 {value}
               </div>
               <div 
-                className={`w-2 h-2 rounded-full mx-auto mt-2 ${status === 'green' ? 'bg-green-500' : status === 'yellow' ? 'bg-yellow-500' : 'bg-red-500'}`}
+                className={`w-2 h-2 rounded-full mx-auto mt-2 ${getHealthStatusColor(status as any).includes('green') ? 'bg-green-500' : getHealthStatusColor(status as any).includes('yellow') ? 'bg-yellow-500' : 'bg-red-500'}`}
                 data-testid="status-indicator"
               />
               <p className="text-xs text-muted-foreground mt-1">{label}</p>
@@ -411,37 +452,39 @@ const DataTrustCard = ({ immutability, shadowDiff }: {
 
 export default function CommandCenterPage() {
   const [config, setConfig] = useState<SystemConfig | null>(null);
-  const [healthTiles, setHealthTiles] = useState<HealthTiles | null>(null);
   const [incidents, setIncidents] = useState<Incident[] | null>(null);
   const [immutability, setImmutability] = useState<FinalImmutabilityCheck | null>(null);
   const [shadowDiff, setShadowDiff] = useState<ShadowDiff | null>(null);
   const [loading, setLoading] = useState(true);
   const [toggleLoading, setToggleLoading] = useState(false);
+  const [configError, setConfigError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchData = async () => {
+    setConfigError(null);
+    
     try {
-      // Fetch all data in parallel
+      // Fetch data in parallel (excluding health tiles - now handled by useHealthTiles hook)
       const [
         configResponse,
-        healthResponse,
         incidentsResponse,
         immutabilityResponse,
         shadowDiffResponse,
       ] = await Promise.all([
         fetch('/api/ops/system-config'),
-        fetch('/api/ops/health/tiles'),
         fetch('/api/ops/incidents?limit=20'),
         fetch('/api/ops/trust/final-immutability'),
         fetch('/api/ops/trust/shadow-diff'),
       ]);
 
+      // Handle configuration response, including 501 Not Configured
       if (configResponse.ok) {
         setConfig(await configResponse.json());
-      }
-
-      if (healthResponse.ok) {
-        setHealthTiles(await healthResponse.json());
+      } else if (configResponse.status === 501) {
+        const errorData = await configResponse.json();
+        setConfigError(errorData.message || 'System not configured properly');
+      } else {
+        console.error('Config response error:', configResponse.status);
       }
 
       if (incidentsResponse.ok) {
@@ -470,6 +513,15 @@ export default function CommandCenterPage() {
   };
 
   const handleToggle = async (key: keyof SystemConfig, value: boolean) => {
+    if (configError) {
+      toast({
+        title: 'Configuration Error',
+        description: 'Cannot modify settings while system is not properly configured',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setToggleLoading(true);
     try {
       const response = await fetch('/api/ops/system-config', {
@@ -491,6 +543,14 @@ export default function CommandCenterPage() {
         if (result.audit_logged) {
           console.log('Config change logged to audit trail');
         }
+      } else if (response.status === 501) {
+        const errorData = await response.json();
+        setConfigError(errorData.message || 'System not configured properly');
+        toast({
+          title: 'Configuration Required',
+          description: 'System configuration is incomplete',
+          variant: 'destructive',
+        });
       } else {
         const error = await response.json();
         toast({
@@ -557,6 +617,16 @@ export default function CommandCenterPage() {
         </div>
       </div>
 
+      {/* Configuration Error Alert */}
+      {configError && (
+        <Alert className="border-orange-200 bg-orange-50" data-testid="config-error-banner">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            <strong>System Configuration Required</strong> - {configError}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* System Status Alert */}
       {config?.SAFE_MODE && (
         <Alert className="border-red-200 bg-red-50">
@@ -582,11 +652,12 @@ export default function CommandCenterPage() {
         <SafetyToggles 
           config={config} 
           onToggle={handleToggle} 
-          loading={toggleLoading} 
+          loading={toggleLoading}
+          disabled={!!configError}
         />
 
         {/* Health Tiles */}
-        <HealthTilesCard tiles={healthTiles} />
+        <HealthTilesCard />
 
         {/* Incidents */}
         <IncidentsCard incidents={incidents} />

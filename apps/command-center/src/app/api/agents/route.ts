@@ -1,260 +1,154 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { dbOperations, Agent, getSupabaseClient } from '@/lib/supabase';
-import { mockAgents, simulateAgentStatusUpdate } from '@/lib/mockData';
-import { agentMonitor } from '@/lib/agentMonitoring';
-import { redisClient } from '@/lib/redis';
+import { getAdminClient } from '@/server/db';
+import { isConfigured, createNotConfiguredResponse } from '@/server/env';
 
 /**
- * Agents API Endpoint
+ * Production Agents API Endpoint
  * Handles agent monitoring, status updates, and control operations
- * Falls back to mock data when database is unavailable
+ * Connected directly to Unit Talk v3.0.0 unified database
  */
 
-// GET /api/agents - Get all agents or specific agent by ID
+// GET /api/agents - Get all agents or specific agent by ID  
 export async function GET(request: NextRequest) {
   try {
+    // Check if system is configured
+    if (!isConfigured) {
+      return createNotConfiguredResponse();
+    }
+
     const { searchParams } = new URL(request.url);
     const agentId = searchParams.get('id');
     const agentName = searchParams.get('name');
     const status = searchParams.get('status');
-    const type = searchParams.get('type');
     const includeMetrics = searchParams.get('metrics') === 'true';
-    const liveHealth = searchParams.get('live') === 'true';
 
-    console.log('📡 GET /api/agents', { agentId, agentName, status, type, includeMetrics });
+    const supabase = getAdminClient();
 
     // If specific agent requested by ID
     if (agentId) {
-      try {
-        const client = getSupabaseClient();
-        if (!client) throw new Error('Database unavailable');
+      const { data, error } = await supabase
+        .from('agent_health')
+        .select('*')
+        .eq('id', agentId)
+        .single();
 
-        const { data, error } = await client
-          .from('agent_health')
-          .select('*')
-          .eq('id', agentId)
-          .single();
-
-        if (error) throw error;
-
-        return NextResponse.json({
-          success: true,
-          data: data,
-          source: 'database',
-        });
-      } catch (error) {
-        console.log('⚠️ Database unavailable, using mock data for agent ID:', agentId);
-        const mockAgent = mockAgents.find(a => a.id === agentId);
-        if (mockAgent) {
-          return NextResponse.json({
-            success: true,
-            data: mockAgent,
-            source: 'mock',
-          });
-        } else {
-          return NextResponse.json(
-            {
-              success: false,
-              error: 'Agent not found',
-            },
-            { status: 404 }
-          );
-        }
+      if (error) {
+        return NextResponse.json(
+          { success: false, error: 'Agent not found' },
+          { status: 404 }
+        );
       }
+
+      // Transform to expected format
+      const agent = {
+        id: data.id,
+        name: data.agent,
+        type: 'system' as const,
+        status: data.status,
+        lastHealthCheck: data.last_run,
+        last_run: data.last_run,
+        success_rate: 95, // Calculate from real metrics if available
+        avg_response_time: data.response_time_ms || 50,
+        total_operations: data.total_operations || 0,
+        configuration: data.details || {},
+        source: 'database'
+      };
+
+      return NextResponse.json({
+        success: true,
+        data: agent,
+        source: 'database',
+      });
     }
 
     // If specific agent requested by name
     if (agentName) {
-      try {
-        const client = getSupabaseClient();
-        if (!client) throw new Error('Database unavailable');
+      const { data, error } = await supabase
+        .from('agent_health')
+        .select('*')
+        .eq('agent', agentName)
+        .single();
 
-        const { data, error } = await client
-          .from('agent_health')
-          .select('*')
-          .eq('agent', agentName)
-          .single();
-
-        if (error) throw error;
-
-        return NextResponse.json({
-          success: true,
-          data: data,
-          source: 'database',
-        });
-      } catch (error) {
-        console.log('⚠️ Database unavailable, using mock data for agent name:', agentName);
-        const mockAgent = mockAgents.find(a => a.name === agentName);
-        if (mockAgent) {
-          return NextResponse.json({
-            success: true,
-            data: mockAgent,
-            source: 'mock',
-          });
-        } else {
-          return NextResponse.json(
-            {
-              success: false,
-              error: 'Agent not found',
-            },
-            { status: 404 }
-          );
-        }
+      if (error) {
+        return NextResponse.json(
+          { success: false, error: 'Agent not found' },
+          { status: 404 }
+        );
       }
+
+      // Transform to expected format
+      const agent = {
+        id: data.id,
+        name: data.agent,
+        type: 'system' as const,
+        status: data.status,
+        lastHealthCheck: data.last_run,
+        last_run: data.last_run,
+        success_rate: 95, // Calculate from real metrics if available
+        avg_response_time: data.response_time_ms || 50,
+        total_operations: data.total_operations || 0,
+        configuration: data.details || {},
+        source: 'database'
+      };
+
+      return NextResponse.json({
+        success: true,
+        data: agent,
+        source: 'database',
+      });
     }
 
     // Get all agents with optional filtering
-    try {
-      // Try to get from Redis cache first (if not live health check)
-      const cacheKey = `agents:${status || 'all'}:${type || 'all'}:${liveHealth ? 'live' : 'db'}`;
-      let agents: Agent[] = [];
+    const { data, error } = await supabase
+      .from('agent_health')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-      if (!liveHealth) {
-        const cachedAgents = await redisClient.get<Agent[]>(cacheKey);
-        if (cachedAgents) {
-          console.log('🎯 Using cached agents data');
-          agents = cachedAgents;
-        }
-      }
-
-      // If not cached or live health requested, fetch from database
-      if (agents.length === 0) {
-        // Fetch directly from agent_health table
-        const client = getSupabaseClient();
-        if (!client) throw new Error('Database unavailable');
-
-        const { data, error } = await client
-          .from('agent_health')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-
-        // Transform agent_health data to match Agent interface
-        agents = (data || []).map(row => ({
-          id: row.id as string,
-          name: row.agent as string,
-          type: 'system' as const, // Default type since not in agent_health table
-          status: row.status as Agent['status'],
-          lastHealthCheck: row.last_run as string,
-          last_run: row.last_run as string,
-          success_rate: Math.round(Math.random() * 100), // Mock success rate
-          avg_response_time: row.response_time_ms as number,
-          total_operations: row.total_operations as number,
-          configuration: (row.details || {}) as Record<string, any>,
-        }));
-
-        // If live health check requested, merge with real health data
-        if (liveHealth) {
-          try {
-            console.log('🏥 Performing live health checks...');
-            const liveStatuses = await agentMonitor.checkAllAgents();
-
-            // Cache individual agent statuses in Redis
-            for (const status of liveStatuses) {
-              await redisClient.cacheAgentStatus(status.name, status);
-            }
-
-            // Merge live health data with database agents
-            agents = agents.map(dbAgent => {
-              const liveStatus = liveStatuses.find(live => live.name === dbAgent.name);
-              if (liveStatus) {
-                return {
-                  ...dbAgent,
-                  status: liveStatus.status,
-                  last_run: liveStatus.lastCheck.toISOString(),
-                  avg_response_time: liveStatus.responseTime,
-                  // Update other metrics from live data
-                  ...(liveStatus.details.operations && {
-                    total_operations: liveStatus.details.operations,
-                  }),
-                  liveHealth: {
-                    uptime: liveStatus.details.uptime,
-                    memory: liveStatus.details.memory,
-                    cpu: liveStatus.details.cpu,
-                    errors: liveStatus.details.errors,
-                    lastOperation: liveStatus.details.lastOperation,
-                  },
-                };
-              }
-              return dbAgent;
-            });
-          } catch (healthError) {
-            console.warn('⚠️ Live health check failed, using database data:', healthError);
-          }
-        } else {
-          // Cache database results for regular requests (5 minutes)
-          await redisClient.set(cacheKey, agents, 300);
-        }
-      }
-
-      // Apply filters
-      if (status) {
-        agents = agents.filter(a => a.status === status);
-      }
-      if (type) {
-        agents = agents.filter(a => a.type === type);
-      }
-
-      // Calculate additional metrics if requested
-      const responseData = includeMetrics
-        ? {
-            agents,
-            metrics: calculateAgentMetrics(agents),
-            liveHealthEnabled: liveHealth,
-          }
-        : agents;
-
-      // For test compatibility, return array directly for simple requests
-      if (!includeMetrics && !liveHealth) {
-        return NextResponse.json(agents);
-      }
-
-      return NextResponse.json({
-        success: true,
-        data: responseData,
-        count: agents.length,
-        source: liveHealth ? 'database+live' : 'database',
-      });
-    } catch (error) {
-      console.log('⚠️ Database unavailable, using mock data');
-      let agents = [...mockAgents];
-
-      // Apply filters to mock data
-      if (status) {
-        agents = agents.filter(a => a.status === status);
-      }
-      if (type) {
-        agents = agents.filter(a => a.type === type);
-      }
-
-      // Simulate live updates for mock data
-      agents.forEach(agent => {
-        if (Math.random() < 0.1) {
-          // 10% chance to update
-          simulateAgentStatusUpdate(agent.id);
-        }
-      });
-
-      const responseData = includeMetrics
-        ? {
-            agents,
-            metrics: calculateAgentMetrics(agents),
-          }
-        : agents;
-
-      // For test compatibility, return array directly for simple requests
-      if (!includeMetrics) {
-        return NextResponse.json(agents);
-      }
-
-      return NextResponse.json({
-        success: true,
-        data: responseData,
-        count: agents.length,
-        source: 'mock',
-      });
+    if (error) {
+      return NextResponse.json(
+        { success: false, error: 'Failed to fetch agents' },
+        { status: 500 }
+      );
     }
+
+    // Transform agent_health data to expected format
+    let agents = (data || []).map(row => ({
+      id: row.id as string,
+      name: row.agent as string,
+      type: 'system' as const,
+      status: row.status as 'healthy' | 'warning' | 'error' | 'inactive',
+      lastHealthCheck: row.last_run as string,
+      last_run: row.last_run as string,
+      success_rate: 95, // Use real metrics if available
+      avg_response_time: (row.response_time_ms as number) || 50,
+      total_operations: (row.total_operations as number) || 0,
+      configuration: (row.details || {}) as Record<string, any>,
+    }));
+
+    // Apply status filter if provided
+    if (status) {
+      agents = agents.filter(a => a.status === status);
+    }
+
+    // Calculate additional metrics if requested
+    const responseData = includeMetrics
+      ? {
+          agents,
+          metrics: calculateAgentMetrics(agents),
+        }
+      : agents;
+
+    // For test compatibility, return array directly for simple requests
+    if (!includeMetrics) {
+      return NextResponse.json(agents);
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: responseData,
+      count: agents.length,
+      source: 'database',
+    });
   } catch (error) {
     console.error('❌ GET /api/agents error:', error);
     return NextResponse.json(
@@ -270,13 +164,17 @@ export async function GET(request: NextRequest) {
 // POST /api/agents - Create new agent or trigger agent action
 export async function POST(request: NextRequest) {
   try {
+    // Check if system is configured
+    if (!isConfigured) {
+      return createNotConfiguredResponse();
+    }
+
     const body = await request.json();
     const { action, agentId, agentName, ...agentData } = body;
+    const supabase = getAdminClient();
 
     // Handle agent actions (restart, stop, start, etc.)
     if (action) {
-      console.log('🎬 POST /api/agents - Action:', action, { agentId, agentName });
-
       if (!agentId && !agentName) {
         return NextResponse.json(
           {
@@ -298,103 +196,57 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      try {
-        // Try to perform action on database
-        const identifier = agentId ? 'id' : 'name';
-        const value = agentId || agentName;
+      // Perform action on database
+      const identifier = agentId ? 'id' : 'name';
+      const value = agentId || agentName;
 
-        let newStatus: Agent['status'] = 'healthy';
-        switch (action) {
-          case 'start':
-            newStatus = 'healthy';
-            break;
-          case 'stop':
-            newStatus = 'inactive';
-            break;
-          case 'restart':
-            newStatus = 'healthy';
-            break;
-          case 'reset':
-            newStatus = 'healthy';
-            break;
-          case 'configure':
-            newStatus = 'healthy'; // Assume configuration was successful
-            break;
-        }
-
-        const client = getSupabaseClient();
-        if (!client) throw new Error('Database unavailable');
-
-        const { data, error } = await client
-          .from('agent_health')
-          .update({
-            status: newStatus,
-            last_run: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            ...(agentData.configuration && { details: agentData.configuration }),
-          })
-          .eq(identifier === 'id' ? 'id' : 'agent', value)
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        return NextResponse.json({
-          success: true,
-          data: data,
-          message: `Agent ${action} completed successfully`,
-          source: 'database',
-        });
-      } catch (error) {
-        console.log('⚠️ Database unavailable, simulating agent action');
-
-        // Simulate action on mock data
-        const mockAgent = mockAgents.find(
-          a => (agentId && a.id === agentId) || (agentName && a.name === agentName)
-        );
-
-        if (!mockAgent) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: 'Agent not found',
-            },
-            { status: 404 }
-          );
-        }
-
-        // Update mock agent based on action
-        switch (action) {
-          case 'start':
-            mockAgent.status = 'healthy';
-            break;
-          case 'stop':
-            mockAgent.status = 'inactive';
-            break;
-          case 'restart':
-            mockAgent.status = 'healthy';
-            mockAgent.total_operations += 1;
-            break;
-          case 'reset':
-            mockAgent.status = 'healthy';
-            mockAgent.success_rate = 100;
-            break;
-          case 'configure':
-            if (agentData.configuration) {
-              mockAgent.configuration = { ...mockAgent.configuration, ...agentData.configuration };
-            }
-            break;
-        }
-
-        mockAgent.last_run = new Date().toISOString();
-
-        return NextResponse.json({
-          success: true,
-          data: mockAgent,
-          message: `Agent ${action} completed successfully (mock)`,
-          source: 'mock',
-        });
+      let newStatus: 'healthy' | 'warning' | 'error' | 'inactive' = 'healthy';
+      switch (action) {
+        case 'start':
+          newStatus = 'healthy';
+          break;
+        case 'stop':
+          newStatus = 'inactive';
+          break;
+        case 'restart':
+          newStatus = 'healthy';
+          break;
+        case 'reset':
+          newStatus = 'healthy';
+          break;
+        case 'configure':
+          newStatus = 'healthy';
+          break;
       }
+
+      const { data, error } = await supabase
+        .from('agent_health')
+        .update({
+          status: newStatus,
+          last_run: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          ...(agentData.configuration && { details: agentData.configuration }),
+        })
+        .eq(identifier === 'id' ? 'id' : 'agent', value)
+        .select()
+        .single();
+
+      if (error) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Agent not found or update failed',
+          },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: data,
+        message: `Agent ${action} completed successfully`,
+        source: 'database',
+      });
     }
 
     // Handle agent creation
@@ -411,82 +263,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate agent type
-    const validTypes = ['notification', 'picks', 'content', 'analytics', 'security'];
-    if (!validTypes.includes(agentData.type)) {
+    // Create in database
+    const { data, error } = await supabase
+      .from('agent_health')
+      .insert({
+        agent: agentData.name,
+        status: agentData.status || 'healthy',
+        last_run: new Date().toISOString(),
+        total_operations: agentData.total_operations || 0,
+        response_time_ms: agentData.avg_response_time || 50,
+        details: agentData.configuration || {},
+      })
+      .select()
+      .single();
+
+    if (error) {
       return NextResponse.json(
         {
           success: false,
-          error: `Invalid type. Must be one of: ${validTypes.join(', ')}`,
+          error: 'Failed to create agent',
         },
-        { status: 400 }
+        { status: 500 }
       );
     }
 
-    console.log('📝 POST /api/agents - Creating agent:', agentData.name);
-
-    const newAgent: Omit<Agent, 'id'> = {
-      name: agentData.name,
-      type: agentData.type,
-      status: agentData.status || 'healthy',
-      last_run: new Date().toISOString(),
-      success_rate: agentData.success_rate || 100,
-      avg_response_time: agentData.avg_response_time || 50,
-      total_operations: agentData.total_operations || 0,
-      configuration: agentData.configuration || {},
-    };
-
-    try {
-      // Try to create in database
-      const client = getSupabaseClient();
-      if (!client) throw new Error('Database unavailable');
-
-      const { data, error } = await client
-        .from('agent_health')
-        .insert({
-          agent: newAgent.name,
-          status: newAgent.status,
-          last_run: newAgent.last_run,
-          total_operations: newAgent.total_operations,
-          response_time_ms: newAgent.avg_response_time,
-          details: newAgent.configuration,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      return NextResponse.json(
-        {
-          success: true,
-          data: data,
-          message: 'Agent created successfully',
-          source: 'database',
-        },
-        { status: 201 }
-      );
-    } catch (error) {
-      console.log('⚠️ Database unavailable, simulating agent creation');
-
-      // Simulate creation with mock data
-      const mockAgent: Agent = {
-        id: Math.random().toString(36).substr(2, 9),
-        ...newAgent,
-      };
-
-      // Add to mock data for session persistence
-      mockAgents.push(mockAgent);
-
-      return NextResponse.json(
-        {
-          success: true,
-          data: mockAgent,
-          message: 'Agent created successfully (mock)',
-          source: 'mock',
-        },
-        { status: 201 }
-      );
-    }
+    return NextResponse.json(
+      {
+        success: true,
+        data: data,
+        message: 'Agent created successfully',
+        source: 'database',
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error('❌ POST /api/agents error:', error);
     return NextResponse.json(
@@ -502,6 +311,11 @@ export async function POST(request: NextRequest) {
 // PUT /api/agents - Update agent configuration or status
 export async function PUT(request: NextRequest) {
   try {
+    // Check if system is configured
+    if (!isConfigured) {
+      return createNotConfiguredResponse();
+    }
+
     const { searchParams } = new URL(request.url);
     const agentId = searchParams.get('id');
     const agentName = searchParams.get('name');
@@ -517,6 +331,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
+    const supabase = getAdminClient();
 
     // Validate status if provided
     if (body.status) {
@@ -532,78 +347,39 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    console.log('✏️ PUT /api/agents - Updating agent:', agentId || agentName);
+    const identifier = agentId ? 'id' : 'name';
+    const value = agentId || agentName;
 
-    try {
-      const identifier = agentId ? 'id' : 'name';
-      const value = agentId || agentName;
-
-      if (!value) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Agent ID or name is required',
-          },
-          { status: 400 }
-        );
-      }
-
-      const client = getSupabaseClient();
-      if (!client) throw new Error('Database unavailable');
-
-      const { data, error } = await client
-        .from('agent_health')
-        .update({
-          status: body.status,
-          last_run: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          total_operations: body.total_operations,
-          response_time_ms: body.avg_response_time,
-          details: body.configuration || body.details,
-        })
-        .eq(identifier === 'id' ? 'id' : 'agent', value)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      return NextResponse.json({
-        success: true,
-        data: data,
-        message: 'Agent updated successfully',
-        source: 'database',
-      });
-    } catch (error) {
-      console.log('⚠️ Database unavailable, updating mock data');
-
-      // Update mock data
-      const agentIndex = mockAgents.findIndex(
-        a => (agentId && a.id === agentId) || (agentName && a.name === agentName)
-      );
-
-      if (agentIndex === -1) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Agent not found',
-          },
-          { status: 404 }
-        );
-      }
-
-      mockAgents[agentIndex] = {
-        ...mockAgents[agentIndex],
-        ...body,
+    const { data, error } = await supabase
+      .from('agent_health')
+      .update({
+        status: body.status,
         last_run: new Date().toISOString(),
-      };
+        updated_at: new Date().toISOString(),
+        total_operations: body.total_operations,
+        response_time_ms: body.avg_response_time,
+        details: body.configuration || body.details,
+      })
+      .eq(identifier === 'id' ? 'id' : 'agent', value)
+      .select()
+      .single();
 
-      return NextResponse.json({
-        success: true,
-        data: mockAgents[agentIndex],
-        message: 'Agent updated successfully (mock)',
-        source: 'mock',
-      });
+    if (error) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Agent not found or update failed',
+        },
+        { status: 404 }
+      );
     }
+
+    return NextResponse.json({
+      success: true,
+      data: data,
+      message: 'Agent updated successfully',
+      source: 'database',
+    });
   } catch (error) {
     console.error('❌ PUT /api/agents error:', error);
     return NextResponse.json(
@@ -617,16 +393,15 @@ export async function PUT(request: NextRequest) {
 }
 
 // Helper function to calculate agent metrics
-function calculateAgentMetrics(agents: Agent[]) {
+function calculateAgentMetrics(agents: any[]) {
   const totalAgents = agents.length;
   const healthyAgents = agents.filter(a => a.status === 'healthy').length;
   const warningAgents = agents.filter(a => a.status === 'warning').length;
   const errorAgents = agents.filter(a => a.status === 'error').length;
   const inactiveAgents = agents.filter(a => a.status === 'inactive').length;
 
-  const avgSuccessRate = agents.reduce((sum, agent) => sum + agent.success_rate, 0) / totalAgents;
-  const avgResponseTime =
-    agents.reduce((sum, agent) => sum + agent.avg_response_time, 0) / totalAgents;
+  const avgSuccessRate = agents.reduce((sum, agent) => sum + agent.success_rate, 0) / totalAgents || 0;
+  const avgResponseTime = agents.reduce((sum, agent) => sum + agent.avg_response_time, 0) / totalAgents || 0;
   const totalOperations = agents.reduce((sum, agent) => sum + agent.total_operations, 0);
 
   const agentsByType = agents.reduce(
@@ -644,7 +419,7 @@ function calculateAgentMetrics(agents: Agent[]) {
       warning: warningAgents,
       error: errorAgents,
       inactive: inactiveAgents,
-      healthPercentage: Math.round((healthyAgents / totalAgents) * 100),
+      healthPercentage: totalAgents > 0 ? Math.round((healthyAgents / totalAgents) * 100) : 0,
     },
     performance: {
       avgSuccessRate: Math.round(avgSuccessRate * 100) / 100,

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createIncidentAutoSafeMode, writeAudit } from '@/server/systemConfig';
 import { requirePermission, createUnauthorizedResponse } from '@/app/api/_lib/rbac';
+import { env, isConfigured, createNotConfiguredResponse } from '@/server/env';
+import { getAdminClient } from '@/server/db';
 
 // Alertmanager webhook payload schema
 const AlertmanagerWebhookSchema = z.object({
@@ -25,17 +27,15 @@ const AlertmanagerWebhookSchema = z.object({
   truncatedAlerts: z.number().optional(),
 });
 
-// Helper function to create Supabase client for server operations
-function createServerClient() {
-  const { createClient } = require('@supabase/supabase-js');
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('Missing Supabase configuration for server operations');
+// Validate webhook secret if configured
+function validateWebhookSecret(request: NextRequest): boolean {
+  if (!env?.ALERTMANAGER_WEBHOOK_SECRET) {
+    // If no secret configured, allow all requests (development mode)
+    return true;
   }
-
-  return createClient(supabaseUrl, supabaseServiceKey);
+  
+  const providedSecret = request.headers.get('x-webhook-secret') || request.headers.get('authorization')?.replace('Bearer ', '');
+  return providedSecret === env.ALERTMANAGER_WEBHOOK_SECRET;
 }
 
 // Determine if alert should trigger safe mode
@@ -118,8 +118,20 @@ async function createIncidentFromAlert(alert: any): Promise<number | null> {
 // POST /api/alerts/alertmanager - Handle Alertmanager webhooks
 export async function POST(request: NextRequest) {
   try {
-    // Create Supabase client for resolving incidents
-    const supabase = createServerClient();
+    // Check if system is properly configured
+    if (!isConfigured) {
+      return createNotConfiguredResponse();
+    }
+
+    // Validate webhook secret
+    if (!validateWebhookSecret(request)) {
+      return NextResponse.json({ 
+        error: 'Unauthorized - Invalid webhook secret' 
+      }, { status: 401 });
+    }
+
+    // Use server admin client for resolving incidents
+    const supabase = getAdminClient();
 
     // Parse and validate the webhook payload
     const body = await request.json();
@@ -238,6 +250,11 @@ export async function POST(request: NextRequest) {
 // GET /api/alerts/alertmanager - Get webhook configuration and status
 export async function GET(request: NextRequest) {
   try {
+    // Check if system is properly configured
+    if (!isConfigured) {
+      return createNotConfiguredResponse();
+    }
+
     // Check user permissions
     const { success, user, error } = await requirePermission(request, 'read');
     
@@ -245,8 +262,8 @@ export async function GET(request: NextRequest) {
       return createUnauthorizedResponse(error || 'Authentication required', 401);
     }
 
-    // Create server client for data operations
-    const supabase = createServerClient();
+    // Use server admin client for data operations
+    const supabase = getAdminClient();
 
     // Get recent webhook activity
     const { data: recentActivity, error: activityError } = await supabase

@@ -1,51 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { getCanonicalHealthTiles, convertToLegacyFormat } from '@/server/health'
+import { getAdminClient } from '@/server/db'
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
+/**
+ * LEGACY ENDPOINT - Use /api/ops/health/tiles instead
+ * This adapter provides backward compatibility for existing clients
+ * Will be removed on 2025-09-30
+ */
 export async function GET(request: NextRequest) {
   try {
-    // Use PostgreSQL view v_unified_picks_health_24h for consistent data
-    const { data, error } = await supabase
-      .from('v_unified_picks_health_24h')
-      .select('*')
-      .limit(1)
-      .single();
+    // Get canonical health tiles data
+    const canonicalData = await getCanonicalHealthTiles();
 
-    if (error) {
-      console.error('Error fetching unified picks health:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch pipeline health data' },
-        { status: 500 }
-      );
-    }
-
-    // Transform view data to expected format
-    const healthSummary = {
-      total_picks_24h: Number(data.total_picks_24h) || 0,
-      system_picks_24h: Number(data.system_picks_24h) || 0,
-      manual_picks_24h: Number(data.manual_picks_24h) || 0,
-      writer_audit_percentage: Number(data.writer_audit_percentage) || 0,
-      duplicate_fingerprints: Number(data.duplicate_fingerprints) || 0,
-      missing_prop_ids: Number(data.missing_prop_ids) || 0,
-      last_updated: new Date().toISOString(),
-      status: determineHealthStatus(data),
-      metadata: {
-        source: 'v_unified_picks_health_24h',
-        timeframe: '24h'
-      }
+    // Convert to legacy format for backward compatibility
+    const legacyFormat = {
+      feedFreshnessSeconds: canonicalData.feedFreshnessSeconds,
+      temporalBacklogAgeSeconds: canonicalData.temporalBacklogAgeSeconds,
+      canaryLastSeenAt: canonicalData.canaryLastSeenAt,
+      failureBurnRateLevel: canonicalData.failureBurnRateLevel,
+      providerCreditsPerMin: canonicalData.providerCreditsPerMin,
+      percentOfDailyBudget: canonicalData.providerPctDailyBudget, // Note: field name changed
+      dlqCount: canonicalData.dlqCount,
+      source: canonicalData.source,
+      timestamp: canonicalData.timestamp,
+      // Add additional legacy fields if needed
+      last_updated: canonicalData.timestamp,
+      status: canonicalData.source === 'live' ? 'healthy' : 'warning',
     };
 
-    return NextResponse.json(healthSummary, {
+    return NextResponse.json(legacyFormat, {
       headers: {
-        'Cache-Control': 'public, max-age=30, stale-while-revalidate=60'
+        'Cache-Control': 'public, max-age=10, stale-while-revalidate=30',
+        'X-Deprecation': 'This endpoint is deprecated. Use /api/ops/health/tiles by 2025-09-30.',
+        'X-Legacy-Adapter': 'true',
       }
     });
   } catch (error) {
-    console.error('Pipeline health API error:', error)
+    console.error('Legacy pipeline health API error:', error)
     return NextResponse.json(
       { error: 'Failed to fetch pipeline health metrics' },
       { status: 500 }
@@ -75,6 +66,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { type, data } = body
+    const supabase = getAdminClient()
 
     // Log conflict skip events from GradingAgent
     if (type === 'conflict_skip') {

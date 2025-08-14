@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Windows build optimization
-  swcMinify: false, // Disable SWC minifier for Windows compatibility
+  // Next.js 15 compatible configuration
   reactStrictMode: false, // Disable for debugging
   poweredByHeader: false,
 
@@ -12,14 +11,13 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
 
-  // Windows-specific optimizations
+  // Next.js 15 experimental features
   experimental: {
-    // Disable trace generation on Windows to prevent EPERM errors
-    instrumentationHook: false,
+    // instrumentationHook is no longer needed in Next.js 15
   },
 
   // Disable webpack cache and minification for Windows builds
-  webpack: (config, { dev, isServer }) => {
+  webpack: (config, { dev }) => {
     if (!dev && process.platform === 'win32') {
       // Disable filesystem cache on Windows production builds
       config.cache = false;

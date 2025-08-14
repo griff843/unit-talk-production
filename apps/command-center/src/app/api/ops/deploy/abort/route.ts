@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-)
+import { isConfigured, createNotConfiguredResponse, env } from '@/server/env'
+import { getAdminClient } from '@/server/db'
+import { writeAudit } from '@/server/audit'
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if system is properly configured
+    if (!isConfigured) {
+      return createNotConfiguredResponse();
+    }
+
     const body = await request.json()
     const { reason, deploymentId } = body
 
@@ -17,6 +19,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const supabase = getAdminClient();
 
     // Find active deployment
     let activeDeploymentId = deploymentId
@@ -76,9 +80,9 @@ export async function POST(request: NextRequest) {
 
     // Trigger GitHub Actions rollback workflow
     try {
-      const githubToken = process.env.GITHUB_TOKEN
+      const githubToken = env?.GITHUB_WORKFLOW_TOKEN
       if (!githubToken) {
-        console.error('GitHub token not configured')
+        console.error('GitHub workflow token not configured')
         return NextResponse.json(
           { error: 'GitHub integration not configured' },
           { status: 500 }

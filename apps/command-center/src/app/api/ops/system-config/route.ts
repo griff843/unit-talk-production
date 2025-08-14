@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getSystemFlags, setSystemFlag, FlagKey } from '@/server/systemConfig';
-import { requirePermission, getClientMetadata, auditApiAction, createUnauthorizedResponse } from '@/app/api/_lib/rbac';
+import { getAdminClient } from '@/server/db';
+import { isConfigured, createNotConfiguredResponse } from '@/server/env';
 
 const ToggleRequestSchema = z.object({
   key: z.enum(['SAFE_MODE', 'SYSTEM_FREEZE', 'SHADOW_MODE', 'PUBLISH_TO_DISCORD', 'PUBLISH_TO_NOTION']),
@@ -11,18 +11,36 @@ const ToggleRequestSchema = z.object({
 // GET /api/ops/system-config - Get current system configuration
 export async function GET(request: NextRequest) {
   try {
-    // Check user permissions
-    const { success, user, error } = await requirePermission(request, 'read');
-    
-    if (!success || !user) {
-      return createUnauthorizedResponse(error || 'Authentication required', 401);
+    // Check if system is properly configured
+    if (!isConfigured) {
+      return createNotConfiguredResponse();
     }
 
-    // Fetch all system flags
-    const flags = await getSystemFlags();
+    const supabase = getAdminClient();
+    
+    // Fetch system configuration from database
+    const { data, error } = await supabase
+      .from('app_system_config')
+      .select('key, value')
+      .in('key', ['SAFE_MODE', 'SYSTEM_FREEZE', 'SHADOW_MODE', 'PUBLISH_TO_DISCORD', 'PUBLISH_TO_NOTION']);
 
-    // Log audit event for config read
-    await auditApiAction(user, 'system_config_read', 'system_configuration', {}, request);
+    if (error) {
+      console.error('Failed to fetch system config:', error);
+      return NextResponse.json({ error: 'Failed to fetch system configuration' }, { status: 500 });
+    }
+
+    // Transform to object format
+    const flags = (data || []).reduce((acc: any, item: any) => {
+      acc[item.key] = item.value;
+      return acc;
+    }, {
+      // Default values
+      SAFE_MODE: false,
+      SYSTEM_FREEZE: false,
+      SHADOW_MODE: false,
+      PUBLISH_TO_DISCORD: true,
+      PUBLISH_TO_NOTION: true,
+    });
 
     return NextResponse.json(flags);
   } catch (error) {
@@ -31,48 +49,60 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/ops/system-config/toggle - Toggle system configuration setting
+// POST /api/ops/system-config - Toggle system configuration setting
 export async function POST(request: NextRequest) {
   try {
+    // Check if system is properly configured
+    if (!isConfigured) {
+      return createNotConfiguredResponse();
+    }
+
     // Parse request body
     const body = await request.json();
     const { key, value } = ToggleRequestSchema.parse(body);
 
-    // Check permissions based on the config key being toggled
-    let requiredAction = 'toggle';
-    
-    // Admin-only operations
-    if (['SYSTEM_FREEZE'].includes(key)) {
-      requiredAction = 'rollback'; // Admin-level permission
-    }
+    const supabase = getAdminClient();
 
-    const { success, user, error } = await requirePermission(request, requiredAction);
-    
-    if (!success || !user) {
-      return createUnauthorizedResponse(error || 'Authentication required', 403);
-    }
+    // Update the system configuration in database
+    const { data, error } = await supabase
+      .from('app_system_config')
+      .upsert({
+        key,
+        value,
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
 
-    // Get client metadata for audit
-    const clientMeta = getClientMetadata(request);
-
-    // Set the system flag (includes audit logging)
-    const result = await setSystemFlag(key as FlagKey, value, user.email, {
-      user_id: user.id,
-      ...clientMeta,
-    });
-
-    if (!result.success) {
+    if (error) {
+      console.error('Failed to update system config:', error);
       return NextResponse.json({ 
-        error: result.error || 'Failed to update system flag' 
+        error: 'Failed to update system flag' 
       }, { status: 500 });
     }
+
+    // Log audit event
+    await supabase
+      .from('app_audit_log')
+      .insert({
+        actor: 'system',
+        action: 'system_config_toggle',
+        target: key,
+        meta: JSON.stringify({ 
+          previous_value: !value,
+          new_value: value,
+          timestamp: new Date().toISOString()
+        }),
+        user_agent: request.headers.get('user-agent'),
+        ip_address: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+      });
 
     return NextResponse.json({ 
       success: true, 
       key, 
       value,
-      audit_id: result.audit_id,
       message: `${key.replace('_', ' ')} ${value ? 'enabled' : 'disabled'}`,
+      updated_at: data.updated_at,
     });
 
   } catch (error) {

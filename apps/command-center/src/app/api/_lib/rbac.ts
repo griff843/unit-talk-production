@@ -16,6 +16,16 @@ export interface AuthenticatedUser {
  */
 export async function getUserRole(request?: NextRequest): Promise<{ user: AuthenticatedUser | null; error?: string }> {
   try {
+    // DEV ONLY override
+    if (process.env.NODE_ENV !== 'production' && process.env.DEV_ASSUME_ROLE) {
+      return { 
+        user: { 
+          id: 'dev', 
+          email: 'dev@local', 
+          role: process.env.DEV_ASSUME_ROLE as UserRole 
+        } 
+      };
+    }
     const supabase = createRouteHandlerClient({ cookies });
     
     const { data: { user }, error: authError } = await supabase.auth.getUser();

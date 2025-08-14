@@ -1,7 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { isConfigured, createNotConfiguredResponse, env } from '@/server/env'
 
 export async function GET(request: NextRequest) {
   try {
+    // Check if system is properly configured
+    if (!isConfigured) {
+      return createNotConfiguredResponse();
+    }
+
+    // Check if GitHub workflow token is available for rehearsal functionality
+    if (!env?.GITHUB_WORKFLOW_TOKEN) {
+      return NextResponse.json(
+        {
+          error: 'Rehearsal Service Not Available',
+          message: 'GitHub workflow token not configured. Cannot fetch rehearsal reports without GitHub Actions integration.',
+          code: 'GITHUB_TOKEN_MISSING',
+          guidance: 'Configure GITHUB_WORKFLOW_TOKEN environment variable to enable rehearsal operations.',
+        },
+        { status: 501 }
+      );
+    }
+
     // In a real implementation, this would:
     // 1. Query database for rehearsal execution history
     // 2. Include report metadata and file locations

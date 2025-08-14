@@ -1,8 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { isConfigured, createNotConfiguredResponse, env } from '@/server/env'
 import { execSync } from 'child_process'
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if system is properly configured
+    if (!isConfigured) {
+      return createNotConfiguredResponse();
+    }
+
+    // Check if GitHub workflow token is available for rehearsal functionality
+    if (!env?.GITHUB_WORKFLOW_TOKEN) {
+      return NextResponse.json(
+        {
+          error: 'Rehearsal Service Not Available',
+          message: 'GitHub workflow token not configured. Cannot start rehearsals without GitHub Actions integration.',
+          code: 'GITHUB_TOKEN_MISSING',
+          guidance: 'Configure GITHUB_WORKFLOW_TOKEN environment variable to enable rehearsal operations.',
+        },
+        { status: 501 }
+      );
+    }
+
     const body = await request.json()
     const { environment, config } = body
 

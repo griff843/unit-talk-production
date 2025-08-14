@@ -53,7 +53,7 @@ export async function GET() {
     // Calculate success rate from heartbeat data
     let successRate = 0;
     if (heartbeat?.run_details) {
-      const details = heartbeat.run_details;
+      const details = heartbeat.run_details as any;
       const total = (details.totalSuccessful || 0) + (details.totalFailed || 0);
       if (total > 0) {
         successRate = (details.totalSuccessful || 0) / total;

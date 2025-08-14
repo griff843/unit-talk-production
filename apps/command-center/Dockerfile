@@ -24,10 +24,19 @@ FROM base AS development
 # Copy package files
 COPY package*.json ./
 COPY tsconfig*.json ./
-RUN npm install --legacy-peer-deps && npm cache clean --force
 
-# Copy centralized configuration (CRITICAL for v3.0.0)
-COPY ../../config/ ./config/
+# Configure npm for better reliability
+RUN npm config set registry https://registry.npmjs.org/ && \
+    npm config set fetch-timeout 600000 && \
+    npm config set fetch-retry-mintimeout 10000 && \
+    npm config set fetch-retry-maxtimeout 60000 && \
+    npm config set fetch-retries 5
+
+# Install dependencies with optimized settings
+RUN npm install --legacy-peer-deps --no-audit --progress=false && \
+    npm cache clean --force
+
+# Configuration is handled through environment variables
 
 # Copy source code
 COPY . .
@@ -53,10 +62,18 @@ FROM base AS builder
 # Copy package files
 COPY package*.json ./
 COPY tsconfig*.json ./
-RUN npm install --legacy-peer-deps
 
-# Copy centralized configuration (CRITICAL for v3.0.0)
-COPY ../../config/ ./config/
+# Configure npm for better reliability
+RUN npm config set registry https://registry.npmjs.org/ && \
+    npm config set fetch-timeout 600000 && \
+    npm config set fetch-retry-mintimeout 10000 && \
+    npm config set fetch-retry-maxtimeout 60000 && \
+    npm config set fetch-retries 5
+
+# Install dependencies with optimized settings
+RUN npm install --legacy-peer-deps --no-audit --progress=false
+
+# Configuration is handled through environment variables
 
 # Copy source code
 COPY . .
