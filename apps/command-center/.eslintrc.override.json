@@ -1,0 +1,29 @@
+{
+  "extends": ["../../.eslintrc.json"],
+  "rules": {
+    "no-console": "off",
+    "max-lines": ["error", 500],
+    "max-lines-per-function": ["error", 100],
+    "complexity": ["error", 15],
+    "max-params": ["error", 6],
+    "security/detect-object-injection": "warn",
+    "security/detect-non-literal-fs-filename": "warn",
+    "@typescript-eslint/no-unused-vars": ["error", {
+      "argsIgnorePattern": "^_",
+      "varsIgnorePattern": "^_"
+    }],
+    "no-unused-vars": ["error", {
+      "argsIgnorePattern": "^_",
+      "varsIgnorePattern": "^_"
+    }]
+  },
+  "env": {
+    "node": true,
+    "browser": true,
+    "es2022": true
+  },
+  "globals": {
+    "React": "readonly",
+    "RequestInit": "readonly"
+  }
+}

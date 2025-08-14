@@ -1,12 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   Shield, 
   AlertTriangle, 
@@ -26,8 +19,19 @@ import {
   AlertCircle,
   Pause,
   Play,
-  StopCircle
+  StopCircle,
+  Inbox,
+  Send
 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+
+import { OutboxPanel } from '@/components/outbox/OutboxPanel';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useHealthTiles, useHealthTileStatus, useFormattedHealthTiles, getHealthStatusColor, getHealthTooltips } from '@/lib/hooks/useHealthTiles';
 
@@ -239,6 +243,22 @@ const HealthTilesCard = () => {
       icon: AlertTriangle,
       tooltip: tooltips.dlq,
     },
+    {
+      label: 'Outbox Pending',
+      value: tiles?.outboxPendingCount?.toString() || '0',
+      status: (tiles?.outboxPendingCount || 0) > 100 ? 'critical' : 
+              (tiles?.outboxPendingCount || 0) > 10 ? 'warning' : 'healthy',
+      icon: Inbox,
+      tooltip: 'Number of events waiting to be delivered to external systems',
+    },
+    {
+      label: 'Outbox Failed',
+      value: tiles?.outboxFailedCount?.toString() || '0',
+      status: (tiles?.outboxFailedCount || 0) > 50 ? 'critical' : 
+              (tiles?.outboxFailedCount || 0) > 5 ? 'warning' : 'healthy',
+      icon: Send,
+      tooltip: 'Number of events that failed delivery and need retry or investigation',
+    },
   ];
 
   return (
@@ -388,7 +408,7 @@ const DataTrustCard = ({ immutability, shadowDiff }: {
                 <span>Health Score</span>
                 <span className="font-medium">{immutability.health_score}/100</span>
               </div>
-              <Progress value={immutability.health_score} className="h-2" />
+              <Progress value={immutability.health_score} />
               <p className="text-xs text-muted-foreground">
                 {immutability.violations.last_24_hours} violations in last 24h (should be 0)
               </p>
@@ -594,7 +614,7 @@ export default function CommandCenterPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div data-testid="command-center-dashboard" className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -604,11 +624,11 @@ export default function CommandCenterPage() {
           </p>
         </div>
         <div className="flex items-center space-x-2">
-          <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
+          <Button data-testid="refresh-dashboard-button" variant="outline" size="sm" onClick={fetchData} disabled={loading}>
             <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button variant="outline" size="sm" asChild>
+          <Button data-testid="settings-button" variant="outline" size="sm" asChild>
             <a href="/command-center/incidents">
               <Users className="w-4 h-4 mr-2" />
               View All Incidents
@@ -647,7 +667,7 @@ export default function CommandCenterPage() {
       )}
 
       {/* Main Grid Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {/* Safety Toggles */}
         <SafetyToggles 
           config={config} 
@@ -658,6 +678,11 @@ export default function CommandCenterPage() {
 
         {/* Health Tiles */}
         <HealthTilesCard />
+
+        {/* Outbox Panel */}
+        <div className="lg:col-span-1">
+          <OutboxPanel />
+        </div>
 
         {/* Incidents */}
         <IncidentsCard incidents={incidents} />
