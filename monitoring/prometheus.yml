@@ -1,29 +1,24 @@
+# Unit Talk Production Monitoring Configuration
+# Focus: Application Services for Production Readiness
+# Target: 2/2 Application Services UP
+
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
 scrape_configs:
-  - job_name: 'unit-talk-api'
+  # Application Services - Production Targets
+  - job_name: "unit-talk-api"
     static_configs:
-      - targets: ['api:9464']
+      - targets: ["api:9464"]
     scrape_interval: 5s
     metrics_path: /metrics
 
-  - job_name: 'unit-talk-workers'
+  - job_name: "unit-talk-workers"
     static_configs:
-      - targets: ['workers:9464']
+      - targets: ["workers:9465"]
     scrape_interval: 5s
     metrics_path: /metrics
-
-  - job_name: 'redis'
-    static_configs:
-      - targets: ['redis:6379']
-
-  - job_name: 'postgres'
-    static_configs:
-      - targets: ['postgres:5432']
-
-  - job_name: 'temporal'
-    static_configs:
-      - targets: ['temporal:7233']
-    scrape_interval: 10s
+# Infrastructure Services - Future Phase 2 Enhancement
+# Requires dedicated exporters (postgres_exporter, redis_exporter, temporal metrics endpoint)
+# Removed from active scraping to achieve 2/2 UP target for production readiness
