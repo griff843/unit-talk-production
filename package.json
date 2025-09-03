@@ -1,0 +1,93 @@
+{
+  "name": "@unit-talk/platform",
+  "version": "1.0.0",
+  "description": "Unit Talk - Fortune 100-grade sports betting intelligence platform",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run -ws build",
+    "build:packages": "npm run -ws --if-present build",
+    "build:api": "npm run -w @unit-talk/shared-utils build && npm run -w @unit-talk/database build && npm run -w @unit-talk/api build",
+    "dev": "npm run dev --workspaces",
+    "test": "npm run test --workspaces",
+    "lint": "npm run lint --workspaces",
+    "type-check": "npm run type-check --workspaces",
+    "clean": "npm run clean --workspaces && rm -rf node_modules",
+    "start:api": "npm run -w @unit-talk/api start",
+    "start:discord-bot": "npm run start --workspace=apps/discord-bot",
+    "start:dashboard": "npm run dev --workspace=apps/dashboard",
+    "start:smart-form": "npm run dev --workspace=apps/smart-form",
+    "start:command-center": "npm run dev --workspace=apps/command-center",
+    "docs:validate": "node scripts/validate-documentation.js",
+    "docs:generate": "node scripts/generate-docs.js",
+    "setup": "npm install && npm run build",
+    "dev:all": "bash dev.sh start",
+    "dev:stop": "bash dev.sh stop",
+    "dev:restart": "bash dev.sh restart",
+    "dev:logs": "bash dev.sh logs",
+    "dev:status": "bash dev.sh status",
+    "dev:clean": "bash dev.sh clean",
+    "dev:reset": "bash dev.sh reset",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:ps": "docker-compose ps",
+    "health:check": "bash scripts/health-check.sh",
+    "alerts:test": "bash scripts/test-alerts.sh",
+    "db:reset": "bash scripts/reset-database.sh",
+    "ops:green": "node scripts/ops/ops-green.js",
+    "ops:env": "node scripts/ops/validate-env.js",
+    "ops:mocks": "node scripts/ops/assert-no-mocks.js",
+    "ops:e2e": "node scripts/e2e/prod-e2e.js",
+    "prepare": "husky"
+  },
+  "keywords": [
+    "sports-betting",
+    "analytics",
+    "discord-bot",
+    "temporal",
+    "typescript",
+    "fortune-100"
+  ],
+  "author": "Unit Talk Team",
+  "license": "PROPRIETARY",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^20.19.9",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "concurrently": "^8.0.0",
+    "eslint": "^8.0.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-security": "^3.0.1",
+    "lint-staged": "^16.1.4",
+    "prettier": "^3.0.0",
+    "typescript": "^5.0.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{js,jsx}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "dependencies": {
+    "dotenv": "^17.2.1",
+    "zod": "^4.0.15"
+  }
+}

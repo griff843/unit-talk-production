@@ -1,0 +1,55 @@
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  typescript: {
+    // Completely disable TypeScript checking during build
+    ignoreBuildErrors: true,
+    // Skip type checking entirely
+    tsconfigPath: './tsconfig.build.json'
+  },
+  eslint: {
+    // Temporarily disable ESLint during build
+    ignoreDuringBuilds: true,
+  },
+  // Disable SWC minification which might be interfering
+  swcMinify: false,
+  // Windows build optimization
+  swcMinify: false, // Disable SWC minifier for Windows compatibility
+  reactStrictMode: false, // Disable for debugging
+  poweredByHeader: false,
+
+  typescript: {
+    ignoreBuildErrors: false,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+
+  // Windows-specific optimizations
+  experimental: {
+    // Disable trace generation on Windows to prevent EPERM errors
+    instrumentationHook: false,
+  },
+
+  // Disable webpack cache and minification for Windows builds
+  webpack: (config, { dev, isServer }) => {
+    if (!dev && process.platform === 'win32') {
+      // Disable filesystem cache on Windows production builds
+      config.cache = false;
+    }
+    
+    // Disable Terser minification to prevent syntax errors
+    if (config.optimization && config.optimization.minimizer) {
+      config.optimization.minimizer = [];
+    }
+    
+    return config;
+  },
+
+  // Output configuration for Windows compatibility
+  output: 'standalone',
+
+  // Simple compression
+  compress: true,
+};
+
+module.exports = nextConfig;

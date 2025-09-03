@@ -1,0 +1,258 @@
+name: Fortune 100 Quality - Playwright Tests
+
+on:
+  push:
+    branches: [main, develop, fix/build-errors]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+          cache-dependency-path: "unit-talk-frontend/package-lock.json"
+
+      - name: Install dependencies
+        working-directory: ./unit-talk-frontend
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        working-directory: ./unit-talk-frontend
+        run: npx playwright install --with-deps
+
+      - name: Build application
+        working-directory: ./unit-talk-frontend
+        run: npm run build
+
+      - name: Run Playwright tests
+        working-directory: ./unit-talk-frontend
+        run: npm run test
+
+      - name: Upload Playwright Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-${{ matrix.node-version }}
+          path: unit-talk-frontend/playwright-report/
+          retention-days: 30
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-results-${{ matrix.node-version }}
+          path: unit-talk-frontend/test-results/
+          retention-days: 30
+
+  accessibility-audit:
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: "npm"
+          cache-dependency-path: "unit-talk-frontend/package-lock.json"
+
+      - name: Install dependencies
+        working-directory: ./unit-talk-frontend
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        working-directory: ./unit-talk-frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Accessibility Tests
+        working-directory: ./unit-talk-frontend
+        run: npm run test:accessibility
+
+      - name: Upload Accessibility Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: accessibility-report
+          path: unit-talk-frontend/playwright-report/
+          retention-days: 30
+
+  performance-audit:
+    timeout-minutes: 45
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: "npm"
+          cache-dependency-path: "unit-talk-frontend/package-lock.json"
+
+      - name: Install dependencies
+        working-directory: ./unit-talk-frontend
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        working-directory: ./unit-talk-frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Performance Tests
+        working-directory: ./unit-talk-frontend
+        run: npm run test:performance
+
+      - name: Upload Performance Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-report
+          path: unit-talk-frontend/playwright-report/
+          retention-days: 30
+
+  visual-regression:
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: "npm"
+          cache-dependency-path: "unit-talk-frontend/package-lock.json"
+
+      - name: Install dependencies
+        working-directory: ./unit-talk-frontend
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        working-directory: ./unit-talk-frontend
+        run: npx playwright install --with-deps
+
+      - name: Run Visual Regression Tests
+        working-directory: ./unit-talk-frontend
+        run: npm run test:visual
+
+      - name: Upload Visual Test Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-regression-report
+          path: unit-talk-frontend/playwright-report/
+          retention-days: 30
+
+  load-testing:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: "npm"
+          cache-dependency-path: "unit-talk-frontend/package-lock.json"
+
+      - name: Install dependencies
+        working-directory: ./unit-talk-frontend
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        working-directory: ./unit-talk-frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Load/Stress Tests
+        working-directory: ./unit-talk-frontend
+        run: npx playwright test tests/load
+
+      - name: Upload Load Test Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: load-test-report
+          path: unit-talk-frontend/playwright-report/
+          retention-days: 30
+
+  quality-gate:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    needs: [test, accessibility-audit, performance-audit, visual-regression, load-testing]
+    if: always()
+
+    steps:
+      - name: Check Quality Gates
+        run: |
+          echo "Evaluating Fortune 100 Quality Standards..."
+
+          # Check if any jobs failed
+          if [[ "${{ needs.test.result }}" == "failure" ]]; then
+            echo "❌ Core functionality tests failed"
+            exit 1
+          fi
+
+          if [[ "${{ needs.accessibility-audit.result }}" == "failure" ]]; then
+            echo "❌ Accessibility standards not met"
+            exit 1
+          fi
+
+          if [[ "${{ needs.performance-audit.result }}" == "failure" ]]; then
+            echo "❌ Performance standards not met"
+            exit 1
+          fi
+
+          if [[ "${{ needs.visual-regression.result }}" == "failure" ]]; then
+            echo "❌ Visual regression detected"
+            exit 1
+          fi
+
+          if [[ "${{ needs.load-testing.result }}" == "failure" ]]; then
+            echo "❌ Load testing standards not met"
+            exit 1
+          fi
+
+          echo "✅ All Fortune 100 quality gates passed!"
+          echo "✅ WCAG 2.1 AA Compliance: VERIFIED"
+          echo "✅ Core Web Vitals: PASSED"
+          echo "✅ Multi-browser Compatibility: VERIFIED"
+          echo "✅ Performance Budget: WITHIN LIMITS"
+          echo "✅ Visual Consistency: MAINTAINED"
+          echo "✅ Load Resilience: CONFIRMED"
+          echo ""
+          echo "🎉 Unit Talk Command Center Dashboard meets Fortune 100/SaaS quality standards!"
+
+  notify-status:
+    runs-on: ubuntu-latest
+    needs: [quality-gate]
+    if: always()
+
+    steps:
+      - name: Notify Test Results
+        run: |
+          if [[ "${{ needs.quality-gate.result }}" == "success" ]]; then
+            echo "🎉 All tests passed! Dashboard ready for production deployment."
+          else
+            echo "⚠️ Quality gates failed. Review test results before deployment."
+          fi

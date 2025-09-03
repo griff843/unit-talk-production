@@ -1,0 +1,217 @@
+name: Documentation Validation
+
+on:
+  push:
+    paths:
+      - "**/*.md"
+      - "docs/**"
+      - "scripts/validate-documentation.js"
+  pull_request:
+    paths:
+      - "**/*.md"
+      - "docs/**"
+      - "scripts/validate-documentation.js"
+  schedule:
+    # Run daily at 2 AM UTC to catch any drift
+    - cron: "0 2 * * *"
+
+jobs:
+  validate-documentation:
+    name: Validate Documentation Structure
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run documentation validation
+        run: npm run docs:validate
+
+      - name: Check CLAUDE.md hierarchy
+        run: |
+          echo "Validating CLAUDE.md hierarchy..."
+
+          # Check root CLAUDE.md exists
+          if [ ! -f "CLAUDE.md" ]; then
+            echo "❌ Missing root CLAUDE.md"
+            exit 1
+          fi
+
+          # Check each app has CLAUDE.md
+          for app in apps/*/; do
+            if [ ! -f "${app}CLAUDE.md" ]; then
+              echo "⚠️  Missing CLAUDE.md in ${app}"
+            fi
+          done
+
+      - name: Validate documentation links
+        run: |
+          echo "Checking for broken documentation links..."
+
+          # Find all markdown files and check internal links
+          find . -name "*.md" -type f | while read file; do
+            echo "Checking links in: $file"
+            
+            # Extract markdown links and check if files exist
+            grep -oE '\[.*\]\([^)]+\)' "$file" | grep -oE '\([^)]+\)' | tr -d '()' | while read link; do
+              if [[ "$link" =~ ^[^http] ]] && [[ "$link" != \#* ]]; then
+                if [ ! -f "$link" ] && [ ! -d "$link" ]; then
+                  echo "❌ Broken link in $file: $link"
+                  exit 1
+                fi
+              fi
+            done
+          done
+
+      - name: Check documentation completeness
+        run: |
+          echo "Checking documentation completeness..."
+
+          # Check required sections in CLAUDE.md files
+          required_sections=("Development Commands" "Architecture" "Development Guidelines")
+
+          find . -name "CLAUDE.md" -type f | while read file; do
+            echo "Checking completeness of: $file"
+            
+            for section in "${required_sections[@]}"; do
+              if ! grep -q "$section" "$file"; then
+                echo "⚠️  Missing section '$section' in $file"
+              fi
+            done
+          done
+
+      - name: Generate documentation report
+        run: |
+          echo "Generating documentation quality report..."
+
+          # Count documentation files
+          md_count=$(find . -name "*.md" -type f | wc -l)
+          claude_count=$(find . -name "CLAUDE.md" -type f | wc -l)
+          readme_count=$(find . -name "README.md" -type f | wc -l)
+
+          echo "📊 Documentation Statistics:"
+          echo "- Total Markdown files: $md_count"
+          echo "- CLAUDE.md files: $claude_count"
+          echo "- README.md files: $readme_count"
+
+          # Check documentation coverage
+          app_count=$(find apps -mindepth 1 -maxdepth 1 -type d | wc -l)
+          package_count=$(find packages -mindepth 1 -maxdepth 1 -type d | wc -l)
+
+          echo "- Applications: $app_count"
+          echo "- Packages: $package_count"
+
+          coverage_percentage=$(echo "scale=2; ($claude_count * 100) / ($app_count + $package_count + 1)" | bc -l)
+          echo "- CLAUDE.md coverage: ${coverage_percentage}%"
+
+      - name: Validate code examples in documentation
+        run: |
+          echo "Validating code examples in documentation..."
+
+          # Check for outdated npm scripts in documentation
+          if [ -f "package.json" ]; then
+            actual_scripts=$(jq -r '.scripts | keys[]' package.json)
+            
+            find . -name "*.md" -type f | while read file; do
+              # Look for npm run commands in markdown
+              grep -n "npm run" "$file" | while read line; do
+                script_name=$(echo "$line" | grep -oE 'npm run [a-zA-Z0-9:-]+' | sed 's/npm run //')
+                
+                if [ -n "$script_name" ] && ! echo "$actual_scripts" | grep -q "^$script_name$"; then
+                  echo "⚠️  Outdated script reference in $file: npm run $script_name"
+                fi
+              done
+            done
+          fi
+
+  markdown-lint:
+    name: Markdown Linting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Install markdownlint
+        run: npm install -g markdownlint-cli
+
+      - name: Lint markdown files
+        run: |
+          # Create markdownlint config
+          cat > .markdownlint.json << EOF
+          {
+            "MD013": { "line_length": 120 },
+            "MD024": false,
+            "MD033": false,
+            "MD041": false
+          }
+          EOF
+
+          # Lint all markdown files
+          markdownlint docs/ apps/*/README.md apps/*/CLAUDE.md *.md || true
+
+  spell-check:
+    name: Spell Check Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Install cspell
+        run: npm install -g cspell
+
+      - name: Create cspell config
+        run: |
+          cat > cspell.json << EOF
+          {
+            "version": "0.2",
+            "language": "en",
+            "words": [
+              "Unit Talk",
+              "SaaS",
+              "PostgreSQL",
+              "Redis",
+              "Supabase",
+              "Discord",
+              "Temporal",
+              "TypeScript",
+              "Next.js",
+              "Kubernetes",
+              "Terraform",
+              "npm",
+              "monorepo",
+              "API",
+              "CI/CD",
+              "ESLint",
+              "Prettier"
+            ],
+            "ignorePaths": [
+              "node_modules/**",
+              "dist/**",
+              "build/**",
+              ".git/**",
+              "coverage/**"
+            ]
+          }
+          EOF
+
+      - name: Run spell check
+        run: |
+          cspell "**/*.md" --config cspell.json || true

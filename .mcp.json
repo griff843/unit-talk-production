@@ -1,0 +1,146 @@
+{
+  "mcpServers": {
+    "byterover-mcp": {
+      "type": "http",
+      "url": "https://mcp.byterover.dev/mcp?machineId=1f05f302-824e-61a0-9c44-f35a49009ccc"
+    },
+    "supabase": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "@supabase/mcp-server-supabase"
+      ],
+      "env": {
+        "SUPABASE_URL": "${SUPABASE_URL}",
+        "SUPABASE_ANON_KEY": "${SUPABASE_ANON_KEY}"
+      }
+    },
+    "playwright": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "@playwright/mcp",
+        "--headless"
+      ]
+    },
+    "magic": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "@21st-dev/magic"
+      ]
+    },
+    "sequential-thinking": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    },
+    "notion": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "notion-mcp-server"
+      ],
+      "env": {
+        "NOTION_TOKEN": "${NOTION_TOKEN}"
+      }
+    },
+    "git": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "@modelcontextprotocol/server-git"
+      ],
+      "env": {
+        "GIT_REPOSITORY_PATH": "C:\\Users\\griff\\OneDrive\\Desktop\\unit-talk-production-main"
+      }
+    },
+    "postgres": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "@modelcontextprotocol/server-postgres"
+      ],
+      "env": {
+        "POSTGRES_CONNECTION_STRING": "${DATABASE_URL}"
+      }
+    },
+    "filesystem": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "@modelcontextprotocol/server-filesystem",
+        "C:\\Users\\griff\\OneDrive\\Desktop\\unit-talk-production-main"
+      ]
+    },
+    "memory": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "@modelcontextprotocol/server-memory"
+      ]
+    },
+    "sqlite": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "@modelcontextprotocol/server-sqlite",
+        "C:\\Users\\griff\\OneDrive\\Desktop\\unit-talk-production-main\\data\\development.db"
+      ]
+    },
+    "everything": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "@modelcontextprotocol/server-everything"
+      ],
+      "env": {
+        "EVERYTHING_SEARCH_PATH": "C:\\Users\\griff\\OneDrive\\Desktop\\unit-talk-production-main"
+      }
+    },
+    "brave-search": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "@modelcontextprotocol/server-brave-search"
+      ],
+      "env": {
+        "BRAVE_API_KEY": "${BRAVE_API_KEY}"
+      }
+    },
+    "time": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "@modelcontextprotocol/server-time"
+      ]
+    },
+    "prometheus": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "@modelcontextprotocol/server-prometheus"
+      ],
+      "env": {
+        "PROMETHEUS_URL": "http://localhost:9090"
+      }
+    }
+  }
+}

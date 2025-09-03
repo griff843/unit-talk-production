@@ -1,0 +1,25 @@
+{
+  "app": {
+    "name": "Unit Talk Platform",
+    "version": "3.0.0",
+    "environment": "development"
+  },
+  "database": {
+    "host": "postgres",
+    "port": 5432,
+    "name": "unit_talk_dev",
+    "ssl": false
+  },
+  "redis": {
+    "host": "redis",
+    "port": 6379
+  },
+  "temporal": {
+    "address": "temporal:7233",
+    "namespace": "default"
+  },
+  "logging": {
+    "level": "info",
+    "format": "json"
+  }
+}

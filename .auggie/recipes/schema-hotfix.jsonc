@@ -1,0 +1,7 @@
+{
+  "name": "schema-hotfix",
+  "promptFile": "prompts/augment/super-prompt.md",
+  "vars": { "task": "SCHEMA_HOTFIX" },
+  "mcp": ["fs", "git"],
+  "outputs": [{ "path": "out/ops/schema-hotfix.report.json" }]
+}

@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "sourceMap": false,
+    "declaration": false,
+    "declarationMap": false,
+    "outDir": "./dist"
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "test/**/*",
+    "src/test/**/*",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "qa/**/*",
+    "src/runner/**/*",
+    "src/scripts/**/*",
+    "src/temporal/**/*",
+    "src/workflows/**/*"
+  ]
+}

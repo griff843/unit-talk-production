@@ -1,0 +1,17 @@
+{
+  "allow": [
+    "apps/**",
+    "scripts/**",
+    "docs/**",
+    "SECURITY.md",
+    "SCHEMA.md",
+    ".github/workflows/**",
+    "out/ops/**"
+  ],
+  "deny": [
+    "**/.env*",
+    "**/node_modules/**",
+    ".git/**",
+    "docker/**"
+  ]
+}

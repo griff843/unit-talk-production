@@ -1,0 +1,1 @@
+export { ContestAgent } from './ContestAgent';

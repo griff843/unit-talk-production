@@ -1,0 +1,7 @@
+{
+  "name": "repo-enforce",
+  "promptFile": "prompts/augment/super-prompt.md",
+  "vars": { "task": "REPO_ENFORCEMENT" },
+  "mcp": ["fs", "git"],
+  "outputs": [{ "path": "out/ops/repo-enforce.report.json" }]
+}

@@ -1,0 +1,245 @@
+# ==============================================================================
+# Fortune 100-Grade .gitignore for Unit Talk Production Platform
+# ==============================================================================
+
+# Node modules and package manager files
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+lerna-debug.log*
+.yarn/
+.pnp.*
+.npm/
+
+# Environment and configuration files
+.env
+.env.*
+!.env.example
+!.env.template
+config/local.json
+config/secrets.json
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+.secrets/
+
+# Build outputs and artifacts
+dist/
+build/
+out/
+.next/
+.nuxt/
+.output/
+.vite/
+.turbo/
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Development and testing
+coverage/
+.coverage/
+.nyc_output/
+test-results/
+playwright-report/
+playwright/.cache/
+.cache/
+tmp/
+temp/
+.tmp/
+.temp/
+
+# Logs and monitoring
+logs/
+*.log
+log-*.txt
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+combined.log
+error.log
+exceptions.log
+access.log
+audit.log
+
+# IDE and editor files
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Database files
+*.sqlite
+*.sqlite3
+*.db
+*.sql.backup
+migrations/backup/
+
+# Docker and containerization
+.dockerignore
+docker-compose.override.yml
+.docker/
+
+# Kubernetes secrets and configs
+k8s/secrets/
+k8s/config/local/
+*.kubeconfig
+
+# Terraform state and variables
+terraform.tfstate
+terraform.tfstate.backup
+terraform.tfvars
+terraform.tfvars.json
+.terraform/
+.terraform.lock.hcl
+
+# Security and audit files
+.audit/
+security-scan-results/
+.snyk
+.sonar/
+
+# Temporary files and backups
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+*.orig
+*.swp
+*.swo
+*~
+
+# Performance and profiling
+.clinic/
+*.cpuprofile
+*.heapprofile
+*.heapsnapshot
+
+# CI/CD artifacts
+.github/secrets/
+.circleci/config.local.yml
+.travis.local.yml
+jenkins/secrets/
+
+# Application-specific ignores
+# =============================
+
+# Discord Bot specific
+unit-talk-custom-bot/logs/
+unit-talk-custom-bot/.env
+unit-talk-custom-bot/config/local.json
+
+# Smart Form specific
+"unit-talk-smart form"/.env.local
+"unit-talk-smart form"/.vercel
+"unit-talk-smart form"/build/
+
+# Frontend specific
+unit-talk-frontend/.env.local
+unit-talk-frontend/.vercel
+unit-talk-frontend/build/
+
+# Command Center specific
+apps/command-center/.env.local
+apps/command-center/.vercel
+apps/command-center/build/
+
+# Backend specific
+src/config/local.json
+src/keys/
+worker/logs/
+
+# Package-specific ignores
+# ========================
+
+# Shared packages build outputs
+packages/*/dist/
+packages/*/build/
+packages/*/lib/
+packages/*/.turbo/
+
+# Documentation build outputs
+docs/build/
+docs/.docusaurus/
+docs/node_modules/
+
+# Infrastructure generated files
+infrastructure/generated/
+infrastructure/secrets/
+infrastructure/*.tfstate*
+
+# Scripts generated files
+scripts/logs/
+scripts/output/
+scripts/temp/
+
+# Tools generated files
+tools/build/
+tools/dist/
+tools/.cache/
+
+# Monitoring and observability
+prometheus/data/
+grafana/data/
+elasticsearch/data/
+kibana/data/
+
+# Development utilities
+.history/
+.vscode-test/
+.pytest_cache/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Package lock files (keep main one, ignore workspace specific)
+# package-lock.json  # Keep main workspace lock
+apps/*/package-lock.json
+packages/*/package-lock.json
+
+# Local development overrides
+docker-compose.local.yml
+k8s/local/
+.local/
+
+# Miscellaneous
+*.pid
+*.seed
+*.pid.lock
+.grunt
+bower_components/
+.lock-wscript
+.eslintcache
+.stylelintcache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+.wireit/

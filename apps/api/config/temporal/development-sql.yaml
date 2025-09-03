@@ -1,0 +1,62 @@
+# Temporal Development Configuration
+# Dynamic configuration for development environment
+
+# Frontend service configuration
+frontend.enableUpdateWorkflowExecution:
+  - value: true
+
+frontend.enableUpdateWorkflowExecutionAsyncAccepted:
+  - value: true
+
+# History service configuration
+history.enableActivityEagerExecution:
+  - value: true
+
+history.enableWorkflowExecutionTimeoutTimer:
+  - value: true
+
+# Matching service configuration
+matching.enableTaskQueuePartition:
+  - value: true
+
+# Worker service configuration
+worker.enableReplicateLocalActivity:
+  - value: true
+
+# System configuration
+system.enableActivityLocalDispatchByDomain:
+  - value: true
+
+system.enableCrossNamespaceCommands:
+  - value: true
+
+# Development specific settings
+system.enableDebugMode:
+  - value: true
+
+system.enableVerboseLogging:
+  - value: false
+
+# Limits for development
+limit.maxIDLength:
+  - value: 1000
+
+limit.maxWorkflowTimeout:
+  - value: "24h"
+
+limit.maxActivityTimeout:
+  - value: "1h"
+
+# Persistence configuration
+persistence.defaultStore:
+  - value: "default"
+
+persistence.visibilityStore:
+  - value: "visibility"
+
+# Archival configuration (disabled for dev)
+archival.history.state:
+  - value: "disabled"
+
+archival.visibility.state:
+  - value: "disabled"

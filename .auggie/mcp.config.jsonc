@@ -1,0 +1,26 @@
+{
+  // JSONC: comments allowed
+  "servers": [
+    // ---- CORE, GENERAL PURPOSE ----
+    { "name": "fs",        "command": "npx", "args": ["fs-mcp"],                "env": {} },
+    { "name": "git",       "command": "npx", "args": ["git-mcp"],               "env": {} },
+    { "name": "ripgrep",   "command": "npx", "args": ["ripgrep-mcp"],           "env": {} }, // fast code search
+    { "name": "context7",  "command": "npx", "args": ["context7-mcp", "--project", "."], "env": {} },
+    { "name": "playwright","command": "npx", "args": ["@playwright-mcp/cli", "--headed"], "env": {} },
+
+    // ---- DATA / DB ----
+    { "name": "supabase",  "command": "npx", "args": ["supabase-mcp", "--url", "${SUPABASE_URL}"],
+      "env": { "SUPABASE_SERVICE_ROLE_KEY": "${SUPABASE_SERVICE_ROLE_KEY}" } },
+
+    // ---- OPTIONAL INTEGRATIONS (set tokens only when you need them) ----
+    // { "name": "github", "command": "npx", "args": ["github-mcp"],
+    //   "env": { "GITHUB_TOKEN": "${GITHUB_TOKEN}" } },
+
+    // If you use Docker in ops scripts, uncomment below:
+    // { "name": "docker", "command": "npx", "args": ["docker-mcp"], "env": {} }
+
+    // If you keep an OpenAPI spec to generate clients, uncomment and point to it:
+    // { "name": "openapi", "command": "npx", "args": ["openapi-mcp", "--spec", "./openapi.yaml"], "env": {} }
+  ],
+  "timeouts": { "perCallMs": 180000 }
+}

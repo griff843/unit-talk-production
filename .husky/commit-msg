@@ -1,0 +1,35 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Validate commit message format
+echo "📝 Validating commit message format..."
+
+# Read the commit message
+commit_message=$(cat "$1")
+
+# Check for conventional commit format
+conventional_regex="^(feat|fix|docs|style|refactor|perf|test|chore|ci|build)(\(.+\))?: .+"
+
+if ! echo "$commit_message" | grep -qE "$conventional_regex"; then
+  echo "❌ Invalid commit message format!"
+  echo ""
+  echo "Commit messages must follow conventional commit format:"
+  echo "  type(scope): description"
+  echo ""
+  echo "Types: feat, fix, docs, style, refactor, perf, test, chore, ci, build"
+  echo ""
+  echo "Examples:"
+  echo "  feat(api): add user authentication endpoint"
+  echo "  fix(discord-bot): resolve command parsing issue"
+  echo "  docs(readme): update installation instructions"
+  echo "  chore: update dependencies"
+  echo ""
+  exit 1
+fi
+
+# Check for best-in-class commitment in relevant commits
+if echo "$commit_message" | grep -qiE "(feat|refactor|build|ci)"; then
+  echo "🏆 Reminder: Ensure this change maintains best-in-class standards"
+fi
+
+echo "✅ Commit message format is valid!"

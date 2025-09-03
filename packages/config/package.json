@@ -1,0 +1,42 @@
+{
+  "name": "@unit-talk/config",
+  "version": "1.0.0",
+  "description": "Shared configuration management for Unit Talk Platform",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "test": "jest",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "configuration",
+    "environment",
+    "shared"
+  ],
+  "author": "Unit Talk Team",
+  "license": "PROPRIETARY",
+  "dependencies": {
+    "@unit-talk/shared-types": "^1.0.0",
+    "@unit-talk/shared-utils": "^1.0.0",
+    "zod": "^3.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "jest": "^29.0.0",
+    "@types/jest": "^29.0.0"
+  }
+}

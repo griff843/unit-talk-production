@@ -1,0 +1,255 @@
+name: E2E Business Flow - Staging
+
+on:
+  schedule:
+    # Run nightly at 10:10 PM ET (2:10 AM UTC during EST, 3:10 AM UTC during EDT)
+    - cron: '10 2 * * *'  # Adjust for timezone as needed
+  workflow_dispatch: # Allow manual trigger
+    inputs:
+      sport:
+        description: 'Sport to test (MLB, NBA, NFL, NHL)'
+        required: false
+        default: 'MLB'
+      window:
+        description: 'Time window (next-1h, next-3h, next-6h)'
+        required: false
+        default: 'next-3h'
+
+env:
+  NODE_ENV: staging
+  API_BASE_URL: ${{ secrets.STAGING_API_BASE_URL || 'http://localhost:3010' }}
+  COMMAND_CENTER_URL: ${{ secrets.STAGING_COMMAND_CENTER_URL || 'http://localhost:3004' }}
+  DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_E2E_WEBHOOK_URL }}
+  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_E2E_WEBHOOK_URL }}
+
+jobs:
+  e2e-business-flow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: unit_talk_staging
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'apps/api/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: apps/api
+        run: npm ci
+
+      - name: Setup environment variables
+        run: |
+          echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/unit_talk_staging" >> $GITHUB_ENV
+          echo "SUPABASE_URL=${{ secrets.STAGING_SUPABASE_URL }}" >> $GITHUB_ENV
+          echo "SUPABASE_ANON_KEY=${{ secrets.STAGING_SUPABASE_ANON_KEY }}" >> $GITHUB_ENV
+          echo "TEMPORAL_SERVER_URL=${{ secrets.STAGING_TEMPORAL_URL || 'localhost:7233' }}" >> $GITHUB_ENV
+
+      - name: Run database migrations
+        working-directory: apps/api
+        run: |
+          npm run db:migrate
+          npm run db:seed # If you have seed data
+
+      - name: Start services in background
+        working-directory: apps/api
+        run: |
+          # Start API server
+          npm run start:staging &
+          API_PID=$!
+          echo "API_PID=$API_PID" >> $GITHUB_ENV
+          
+          # Wait for API to be ready
+          timeout 60 bash -c 'until curl -f http://localhost:3010/api/health; do sleep 2; done'
+
+      - name: Install Playwright browsers
+        working-directory: apps/api
+        run: npx playwright install chromium
+
+      - name: Run E2E Business Flow Test
+        id: e2e_test
+        working-directory: apps/api
+        run: |
+          sport="${{ github.event.inputs.sport || 'MLB' }}"
+          window="${{ github.event.inputs.window || 'next-3h' }}"
+          
+          echo "Running E2E test for $sport with $window window"
+          npx tsx scripts/e2e-business-flow.ts --sport="$sport" --window="$window"
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots-${{ github.run_number }}
+          path: docs/screenshots/
+          retention-days: 7
+
+      - name: Upload E2E report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report-${{ github.run_number }}
+          path: docs/e2e-business-flow.md
+          retention-days: 30
+
+      - name: Read E2E report for notifications
+        if: always()
+        id: report_content
+        run: |
+          if [ -f docs/e2e-business-flow.md ]; then
+            # Get first 1500 characters for notification
+            report_content=$(head -c 1500 docs/e2e-business-flow.md)
+            # Escape for JSON
+            report_content=$(echo "$report_content" | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')
+            echo "report_content=$report_content" >> $GITHUB_OUTPUT
+          else
+            echo "report_content=No report generated" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Parse test results
+        if: always()
+        id: test_results
+        run: |
+          if [ -f docs/e2e-business-flow.md ]; then
+            if grep -q "✅ PASSED" docs/e2e-business-flow.md; then
+              echo "test_status=PASSED" >> $GITHUB_OUTPUT
+              echo "status_emoji=✅" >> $GITHUB_OUTPUT
+            else
+              echo "test_status=FAILED" >> $GITHUB_OUTPUT
+              echo "status_emoji=❌" >> $GITHUB_OUTPUT
+            fi
+            
+            duration=$(grep "Duration:" docs/e2e-business-flow.md | head -1 | sed 's/.*Duration: //' | sed 's/s.*/s/')
+            assertions=$(grep "Assertions:" docs/e2e-business-flow.md | head -1 | sed 's/.*Assertions: //')
+            
+            echo "duration=${duration:-Unknown}" >> $GITHUB_OUTPUT
+            echo "assertions=${assertions:-Unknown}" >> $GITHUB_OUTPUT
+          else
+            echo "test_status=ERROR" >> $GITHUB_OUTPUT
+            echo "status_emoji=⚠️" >> $GITHUB_OUTPUT
+            echo "duration=Unknown" >> $GITHUB_OUTPUT
+            echo "assertions=Unknown" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Notify Discord
+        if: always() && env.DISCORD_WEBHOOK_URL
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_E2E_WEBHOOK_URL }}
+          title: "E2E Business Flow Test"
+          description: |
+            **Status:** ${{ steps.test_results.outputs.status_emoji }} ${{ steps.test_results.outputs.test_status }}
+            **Sport:** ${{ github.event.inputs.sport || 'MLB' }}
+            **Duration:** ${{ steps.test_results.outputs.duration }}
+            **Assertions:** ${{ steps.test_results.outputs.assertions }}
+            **Run:** [${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          color: ${{ steps.test_results.outputs.test_status == 'PASSED' && 0x00ff00 || 0xff0000 }}
+
+      - name: Notify Slack
+        if: always() && env.SLACK_WEBHOOK_URL
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          webhook_url: ${{ secrets.SLACK_E2E_WEBHOOK_URL }}
+          custom_payload: |
+            {
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "${{ steps.test_results.outputs.status_emoji }} *E2E Business Flow Test Results*"
+                  }
+                },
+                {
+                  "type": "fields",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Status:* ${{ steps.test_results.outputs.test_status }}"
+                    },
+                    {
+                      "type": "mrkdwn", 
+                      "text": "*Sport:* ${{ github.event.inputs.sport || 'MLB' }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Duration:* ${{ steps.test_results.outputs.duration }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Assertions:* ${{ steps.test_results.outputs.assertions }}"
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Full Report>"
+                  }
+                }
+              ]
+            }
+
+      - name: Comment on PR (if applicable)
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ steps.test_results.outputs.test_status }}';
+            const emoji = '${{ steps.test_results.outputs.status_emoji }}';
+            const duration = '${{ steps.test_results.outputs.duration }}';
+            const assertions = '${{ steps.test_results.outputs.assertions }}';
+            
+            const comment = `## ${emoji} E2E Business Flow Test Results
+            
+            - **Status:** ${status}
+            - **Duration:** ${duration}
+            - **Assertions:** ${assertions}
+            - **Sport:** ${{ github.event.inputs.sport || 'MLB' }}
+            
+            <details>
+            <summary>View Report Summary</summary>
+            
+            \`\`\`
+            ${{ steps.report_content.outputs.report_content }}
+            \`\`\`
+            </details>
+            
+            [View Full Report](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Cleanup
+        if: always()
+        run: |
+          # Kill background processes
+          if [ ! -z "$API_PID" ]; then
+            kill $API_PID || true
+          fi

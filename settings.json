@@ -1,0 +1,252 @@
+{
+  "hooks": {
+    "post-file-edit": [
+      {
+        "name": "format-typescript-files",
+        "description": "Auto-format TypeScript files with Prettier after edit",
+        "files": "**/*.{ts,tsx}",
+        "command": "prettier --write ${file}",
+        "cwd": "${workspaceRoot}",
+        "continueOnError": false
+      },
+      {
+        "name": "format-json-files",
+        "description": "Auto-format JSON files with Prettier after edit",
+        "files": "**/*.json",
+        "command": "prettier --write ${file}",
+        "cwd": "${workspaceRoot}",
+        "continueOnError": false
+      },
+      {
+        "name": "format-markdown-files",
+        "description": "Auto-format Markdown files with Prettier after edit",
+        "files": "**/*.md",
+        "command": "prettier --write ${file}",
+        "cwd": "${workspaceRoot}",
+        "continueOnError": false
+      },
+      {
+        "name": "format-yaml-files",
+        "description": "Auto-format YAML files with Prettier after edit",
+        "files": "**/*.{yml,yaml}",
+        "command": "prettier --write ${file}",
+        "cwd": "${workspaceRoot}",
+        "continueOnError": false
+      },
+      {
+        "name": "lint-and-fix-typescript",
+        "description": "Run ESLint with auto-fix on TypeScript files",
+        "files": "**/*.{ts,tsx}",
+        "command": "eslint --fix ${file}",
+        "cwd": "${workspaceRoot}",
+        "continueOnError": true
+      },
+      {
+        "name": "lint-javascript-files",
+        "description": "Run ESLint with auto-fix on JavaScript files",
+        "files": "**/*.{js,jsx}",
+        "command": "eslint --fix ${file}",
+        "cwd": "${workspaceRoot}",
+        "continueOnError": true
+      },
+      {
+        "name": "type-check-workspace",
+        "description": "Run TypeScript type checking after any TS file edit",
+        "files": "**/*.{ts,tsx}",
+        "command": "tsc --noEmit",
+        "cwd": "${workspaceRoot}",
+        "continueOnError": true,
+        "timeout": 30000
+      }
+    ],
+    "post-file-create": [
+      {
+        "name": "format-new-typescript-files",
+        "description": "Auto-format newly created TypeScript files",
+        "files": "**/*.{ts,tsx}",
+        "command": "prettier --write ${file}",
+        "cwd": "${workspaceRoot}",
+        "continueOnError": false
+      },
+      {
+        "name": "lint-new-typescript-files",
+        "description": "Lint newly created TypeScript files",
+        "files": "**/*.{ts,tsx}",
+        "command": "eslint --fix ${file}",
+        "cwd": "${workspaceRoot}",
+        "continueOnError": true
+      },
+      {
+        "name": "validate-new-json-files",
+        "description": "Validate and format newly created JSON files",
+        "files": "**/*.json",
+        "command": "prettier --write ${file}",
+        "cwd": "${workspaceRoot}",
+        "continueOnError": false
+      }
+    ],
+    "post-file-write": [
+      {
+        "name": "comprehensive-validation",
+        "description": "Run comprehensive validation after file writes",
+        "files": "**/*.{ts,tsx}",
+        "commands": [
+          {
+            "name": "format-check",
+            "command": "prettier --check ${file}",
+            "continueOnError": true
+          },
+          {
+            "name": "lint-check",
+            "command": "eslint ${file}",
+            "continueOnError": true
+          },
+          {
+            "name": "type-check",
+            "command": "tsc --noEmit",
+            "continueOnError": true
+          }
+        ],
+        "cwd": "${workspaceRoot}",
+        "timeout": 45000
+      }
+    ],
+    "tool-error": [
+      {
+        "name": "typescript-error-recovery",
+        "description": "Attempt to recover from TypeScript compilation errors",
+        "condition": "${tool} == 'tsc' && ${exitCode} != 0",
+        "commands": [
+          {
+            "name": "fix-imports",
+            "command": "eslint --fix --rule 'import/order: error' **/*.{ts,tsx}",
+            "continueOnError": true
+          },
+          {
+            "name": "format-all",
+            "command": "prettier --write **/*.{ts,tsx}",
+            "continueOnError": true
+          },
+          {
+            "name": "retry-type-check",
+            "command": "tsc --noEmit",
+            "continueOnError": true
+          }
+        ],
+        "cwd": "${workspaceRoot}"
+      },
+      {
+        "name": "eslint-error-recovery",
+        "description": "Attempt to recover from ESLint errors",
+        "condition": "${tool} == 'eslint' && ${exitCode} != 0",
+        "commands": [
+          {
+            "name": "format-first",
+            "command": "prettier --write ${file}",
+            "continueOnError": true
+          },
+          {
+            "name": "retry-lint-fix",
+            "command": "eslint --fix ${file}",
+            "continueOnError": true
+          }
+        ],
+        "cwd": "${workspaceRoot}"
+      }
+    ],
+    "session-start": [
+      {
+        "name": "workspace-health-check",
+        "description": "Validate workspace health on startup",
+        "commands": [
+          {
+            "name": "check-dependencies",
+            "command": "npm ls --depth=0",
+            "continueOnError": true
+          },
+          {
+            "name": "validate-typescript-config",
+            "command": "tsc --showConfig",
+            "continueOnError": true
+          },
+          {
+            "name": "validate-eslint-config",
+            "command": "eslint --print-config .",
+            "continueOnError": true
+          }
+        ],
+        "cwd": "${workspaceRoot}",
+        "timeout": 60000
+      }
+    ]
+  },
+  "settings": {
+    "autoSave": true,
+    "formatOnSave": true,
+    "lintOnSave": true,
+    "typeCheckOnSave": true,
+    "maxConcurrentHooks": 3,
+    "hookTimeout": 30000,
+    "logLevel": "info",
+    "excludePatterns": [
+      "node_modules/**",
+      "dist/**",
+      "build/**",
+      ".next/**",
+      "coverage/**",
+      "*.min.js",
+      "public/**",
+      "**/*.d.ts"
+    ],
+    "errorRecovery": {
+      "enabled": true,
+      "maxRetries": 2,
+      "retryDelay": 1000
+    },
+    "notifications": {
+      "showProgress": true,
+      "showErrors": true,
+      "showSuccess": false
+    },
+    "workspace": {
+      "respectGitignore": true,
+      "followSymlinks": false,
+      "maxFileSize": "1MB"
+    }
+  },
+  "tools": {
+    "prettier": {
+      "command": "prettier",
+      "configFile": ".prettierrc",
+      "extensions": [".ts", ".tsx", ".js", ".jsx", ".json", ".md", ".yml", ".yaml"]
+    },
+    "eslint": {
+      "command": "eslint",
+      "configFile": ".eslintrc.js",
+      "extensions": [".ts", ".tsx", ".js", ".jsx"]
+    },
+    "typescript": {
+      "command": "tsc",
+      "configFile": "tsconfig.json",
+      "extensions": [".ts", ".tsx"]
+    }
+  },
+  "quality": {
+    "enforceComplexity": true,
+    "maxComplexity": 10,
+    "maxFunctionLength": 50,
+    "maxFileLength": 300,
+    "enforceImportOrder": true,
+    "enforceSecurityRules": true,
+    "preventDangerousPatterns": true,
+    "requireTypeAnnotations": false,
+    "strictNullChecks": true
+  },
+  "security": {
+    "scanForSecrets": true,
+    "preventEvalUsage": true,
+    "validateEnvironmentVariables": true,
+    "checkForVulnerabilities": true,
+    "enforceSecurePatterns": true
+  }
+}

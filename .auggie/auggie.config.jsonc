@@ -1,0 +1,14 @@
+{
+  "$schema": "https://augment.dev/schemas/auggie.config.schema.json",
+  "model": "augment-latest",
+  "temperature": 0.1,
+  "maxTokens": 8000,
+  "cwd": ".",
+  "write": true,
+  "allowMultiFile": true,
+  "artifactsDir": "out/ops",
+  "defaultOutputFormat": "json",
+  "guards": {
+    "writeAllowlist": "./.auggie/guards/write-allowlist.jsonc"
+  }
+}

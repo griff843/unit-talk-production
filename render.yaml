@@ -1,0 +1,160 @@
+# Render.com Production Deployment Configuration
+# Unit Talk Sports Capping Platform - Fortune 100 Architecture
+
+services:
+  # =============================================================================
+  # API SERVER - Core Backend with Agent System
+  # =============================================================================
+  - type: web
+    name: unit-talk-api
+    runtime: node
+    plan: standard
+    buildCommand: cd apps/api && npm ci && npm run build
+    startCommand: cd apps/api && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: LOG_LEVEL
+        value: info
+      - key: TEMPORAL_ADDRESS
+        value: unit-talk-temporal:7233
+      - key: TEMPORAL_TASK_QUEUE
+        value: unit-talk-prod
+      # Secrets from Render dashboard:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: OPTIMAL_API_KEY
+        sync: false
+      - key: ODDS_API_KEY
+        sync: false
+      - key: DISCORD_BOT_TOKEN
+        sync: false
+      - key: DISCORD_ALERT_WEBHOOK
+        sync: false
+    autoDeploy: false
+    healthCheckPath: /health
+
+  # =============================================================================
+  # TEMPORAL WORKER - Agent Orchestration Engine
+  # =============================================================================
+  - type: worker
+    name: unit-talk-agents
+    runtime: node
+    plan: standard
+    buildCommand: cd apps/api && npm ci && npm run build
+    startCommand: cd apps/api && npm run worker
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: TEMPORAL_ADDRESS
+        value: unit-talk-temporal:7233
+      - key: TEMPORAL_TASK_QUEUE
+        value: unit-talk-prod
+      # Same secrets as API
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: OPTIMAL_API_KEY
+        sync: false
+      - key: ODDS_API_KEY
+        sync: false
+      - key: DISCORD_BOT_TOKEN
+        sync: false
+    autoDeploy: false
+
+  # =============================================================================
+  # TEMPORAL SERVER - Workflow Orchestration
+  # =============================================================================
+  - type: private-service
+    name: unit-talk-temporal
+    runtime: docker
+    plan: standard
+    dockerfilePath: ./infrastructure/temporal/Dockerfile
+    envVars:
+      - key: POSTGRES_USER
+        value: temporal
+      - key: POSTGRES_PASSWORD
+        sync: false
+      - key: POSTGRES_SEEDS
+        value: unit-talk-temporal-db:5432
+      - key: DYNAMIC_CONFIG_FILE_PATH
+        value: config/dynamicconfig/production.yaml
+    healthCheckPath: /api/v1/health
+
+  # =============================================================================
+  # FRONTEND APPLICATIONS
+  # =============================================================================
+  - type: web
+    name: unit-talk-smart-form
+    runtime: node
+    plan: starter
+    buildCommand: cd apps/smart-form && npm ci && npm run build
+    startCommand: cd apps/smart-form && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+    autoDeploy: false
+
+  - type: web
+    name: unit-talk-command-center
+    runtime: node
+    plan: starter
+    buildCommand: cd apps/command-center && npm ci && npm run build
+    startCommand: cd apps/command-center && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        value: https://unit-talk-api.onrender.com
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+    autoDeploy: false
+
+  - type: web
+    name: unit-talk-discord-bot
+    runtime: node
+    plan: starter
+    buildCommand: cd apps/discord-bot && npm ci && npm run build
+    startCommand: cd apps/discord-bot && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DISCORD_TOKEN
+        sync: false
+      - key: DISCORD_CLIENT_ID
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+    autoDeploy: false
+
+# =============================================================================
+# DATABASE CONFIGURATION
+# =============================================================================
+databases:
+  - name: temporal-postgres
+    plan: starter
+    databaseName: temporal
+    user: temporal
+# =============================================================================
+# ENVIRONMENT NOTES
+# =============================================================================
+# 1. Set all sync: false environment variables in Render dashboard
+# 2. Use your existing Supabase for main database
+# 3. Redis managed by Render (auto-configured)
+# 4. Domain: Connect your custom domain in Render dashboard
+# 5. Monitoring: Built-in Render metrics + custom health checks

@@ -1,0 +1,605 @@
+# Unit Talk Platform - SaaS-Grade Production Configuration
+# Enterprise-ready orchestration with full observability
+
+version: '3.9'
+
+x-common-variables: &common-variables
+  NODE_ENV: production
+  LOG_LEVEL: info
+  METRICS_ENABLED: "true"
+  TRACING_ENABLED: "true"
+
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: 30s
+  timeout: 10s
+  retries: 5
+  start_period: 60s
+
+x-restart-policy: &restart-policy
+  restart: unless-stopped
+  
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "50m"
+    max-file: "10"
+    labels: "service,environment,version"
+    
+x-resource-limits: &resource-limits
+  deploy:
+    resources:
+      limits:
+        memory: 1G
+        cpus: '1.0'
+      reservations:
+        memory: 512M
+        cpus: '0.5'
+
+services:
+  # ==============================================
+  # LOAD BALANCER / REVERSE PROXY
+  # ==============================================
+  
+  traefik:
+    image: traefik:v3.0
+    container_name: unit-talk-traefik
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--metrics.prometheus=true"
+      - "--metrics.prometheus.entryPoint=metrics"
+      - "--entryPoints.metrics.address=:8082"
+      - "--accesslog=true"
+      - "--log.level=INFO"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"  # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./certs:/certs:ro
+    networks:
+      - unit-talk-network
+    <<: *restart-policy
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck"]
+      <<: *healthcheck-defaults
+
+  # ==============================================
+  # DATABASE LAYER WITH HA
+  # ==============================================
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: unit-talk-postgres
+    environment:
+      <<: *common-variables
+      POSTGRES_DB: ${POSTGRES_DB:-unit_talk}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+      # Performance tuning
+      POSTGRES_MAX_CONNECTIONS: 200
+      POSTGRES_SHARED_BUFFERS: 256MB
+      POSTGRES_EFFECTIVE_CACHE_SIZE: 1GB
+      POSTGRES_MAINTENANCE_WORK_MEM: 64MB
+      POSTGRES_CHECKPOINT_COMPLETION_TARGET: 0.9
+      POSTGRES_WAL_BUFFERS: 16MB
+      POSTGRES_DEFAULT_STATISTICS_TARGET: 100
+      POSTGRES_RANDOM_PAGE_COST: 1.1
+      POSTGRES_EFFECTIVE_IO_CONCURRENCY: 200
+      POSTGRES_WORK_MEM: 4MB
+      POSTGRES_MIN_WAL_SIZE: 1GB
+      POSTGRES_MAX_WAL_SIZE: 4GB
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups/postgres:/backups
+    ports:
+      - "5432:5432"
+    networks:
+      - unit-talk-network
+    <<: *restart-policy
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-unit_talk}"]
+      <<: *healthcheck-defaults
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2.0'
+        reservations:
+          memory: 1G
+          cpus: '1.0'
+
+  # PostgreSQL Exporter for Prometheus
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:latest
+    container_name: unit-talk-postgres-exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-unit_talk}?sslmode=disable"
+    ports:
+      - "9187:9187"
+    networks:
+      - unit-talk-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    <<: *restart-policy
+    logging: *default-logging
+
+  # Redis with persistence and clustering support
+  redis:
+    image: redis:7-alpine
+    container_name: unit-talk-redis
+    command: >
+      redis-server 
+      --appendonly yes 
+      --appendfsync everysec
+      --maxmemory 1gb
+      --maxmemory-policy allkeys-lru
+      --tcp-backlog 511
+      --tcp-keepalive 300
+      --timeout 0
+      --databases 16
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --rdbcompression yes
+      --rdbchecksum yes
+    volumes:
+      - redis_data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    ports:
+      - "6379:6379"
+    networks:
+      - unit-talk-network
+    <<: *restart-policy
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      <<: *healthcheck-defaults
+    <<: *resource-limits
+
+  # Redis Exporter for Prometheus
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: unit-talk-redis-exporter
+    environment:
+      REDIS_ADDR: "redis://redis:6379"
+    ports:
+      - "9121:9121"
+    networks:
+      - unit-talk-network
+    depends_on:
+      - redis
+    <<: *restart-policy
+    logging: *default-logging
+
+  # ==============================================
+  # MONITORING & OBSERVABILITY STACK
+  # ==============================================
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: unit-talk-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--storage.tsdb.retention.time=30d'
+      - '--storage.tsdb.retention.size=10GB'
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - unit-talk-network
+    <<: *restart-policy
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      <<: *healthcheck-defaults
+    <<: *resource-limits
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: unit-talk-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource,grafana-piechart-panel
+      GF_SERVER_ROOT_URL: http://localhost:3000
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_LOG_MODE: console
+      GF_LOG_LEVEL: info
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    ports:
+      - "3000:3000"
+    networks:
+      - unit-talk-network
+    depends_on:
+      - prometheus
+    <<: *restart-policy
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      <<: *healthcheck-defaults
+    <<: *resource-limits
+
+  # Loki for log aggregation
+  loki:
+    image: grafana/loki:latest
+    container_name: unit-talk-loki
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./monitoring/loki:/etc/loki
+      - loki_data:/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - unit-talk-network
+    <<: *restart-policy
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:3100/ready || exit 1"]
+      <<: *healthcheck-defaults
+
+  # Promtail for log collection
+  promtail:
+    image: grafana/promtail:latest
+    container_name: unit-talk-promtail
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ./monitoring/promtail:/etc/promtail
+    networks:
+      - unit-talk-network
+    depends_on:
+      - loki
+    <<: *restart-policy
+    logging: *default-logging
+
+  # AlertManager for alert routing
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: unit-talk-alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+    volumes:
+      - ./monitoring/alertmanager:/etc/alertmanager
+      - alertmanager_data:/alertmanager
+    ports:
+      - "9093:9093"
+    networks:
+      - unit-talk-network
+    <<: *restart-policy
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9093/-/healthy"]
+      <<: *healthcheck-defaults
+
+  # Node Exporter for host metrics
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: unit-talk-node-exporter
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    ports:
+      - "9100:9100"
+    networks:
+      - unit-talk-network
+    <<: *restart-policy
+    logging: *default-logging
+
+  # cAdvisor for container metrics
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: unit-talk-cadvisor
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    ports:
+      - "8080:8080"
+    networks:
+      - unit-talk-network
+    privileged: true
+    devices:
+      - /dev/kmsg
+    <<: *restart-policy
+    logging: *default-logging
+
+  # ==============================================
+  # APPLICATION SERVICES
+  # ==============================================
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+      target: production
+    container_name: unit-talk-api
+    environment:
+      <<: *common-variables
+      PORT: 3001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-unit_talk}
+      REDIS_URL: redis://redis:6379
+      TEMPORAL_ADDRESS: temporal:7233
+    volumes:
+      - ./apps/api:/app
+      - /app/node_modules
+    ports:
+      - "3001:3001"
+      - "9464:9464"  # Metrics port
+    networks:
+      - unit-talk-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    <<: *restart-policy
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      <<: *healthcheck-defaults
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`api.unittalk.local`)"
+      - "traefik.http.services.api.loadbalancer.server.port=3001"
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=9464"
+      - "prometheus.io/path=/metrics"
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        monitor: 60s
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+
+  # Worker service with auto-scaling
+  workers:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile.worker
+      target: production
+    container_name: unit-talk-workers
+    environment:
+      <<: *common-variables
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-unit_talk}
+      REDIS_URL: redis://redis:6379
+      TEMPORAL_ADDRESS: temporal:7233
+      WORKER_CONCURRENCY: 10
+    volumes:
+      - ./apps/api:/app
+      - /app/node_modules
+    networks:
+      - unit-talk-network
+    depends_on:
+      - api
+      - temporal
+    <<: *restart-policy
+    logging: *default-logging
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+      <<: *resource-limits
+
+  # Command Center with optimizations
+  command-center:
+    build:
+      context: ./apps/command-center
+      dockerfile: Dockerfile
+      target: production
+    container_name: unit-talk-command-center
+    environment:
+      <<: *common-variables
+      PORT: 3004
+      NEXT_PUBLIC_API_URL: http://api:3001
+      NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+    volumes:
+      - ./apps/command-center:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3004:3004"
+    networks:
+      - unit-talk-network
+    depends_on:
+      - api
+    <<: *restart-policy
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3004"]
+      <<: *healthcheck-defaults
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.command-center.rule=Host(`command.unittalk.local`)"
+      - "traefik.http.services.command-center.loadbalancer.server.port=3004"
+    <<: *resource-limits
+
+  # Smart Form with optimizations
+  smart-form:
+    build:
+      context: ./apps/smart-form
+      dockerfile: Dockerfile
+      target: production
+    container_name: unit-talk-smart-form
+    environment:
+      <<: *common-variables
+      PORT: 3002
+      VITE_API_URL: http://api:3001
+      VITE_SUPABASE_URL: ${SUPABASE_URL}
+      VITE_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+    volumes:
+      - ./apps/smart-form:/app
+      - /app/node_modules
+      - /app/dist
+    ports:
+      - "3002:3002"
+    networks:
+      - unit-talk-network
+    depends_on:
+      - api
+    <<: *restart-policy
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002"]
+      <<: *healthcheck-defaults
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.smart-form.rule=Host(`form.unittalk.local`)"
+      - "traefik.http.services.smart-form.loadbalancer.server.port=3002"
+    <<: *resource-limits
+
+  # Discord Bot with resilience
+  discord-bot:
+    build:
+      context: ./apps/discord-bot
+      dockerfile: Dockerfile
+      target: production
+    container_name: unit-talk-discord-bot
+    environment:
+      <<: *common-variables
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-unit_talk}
+      REDIS_URL: redis://redis:6379
+      DISCORD_TOKEN: ${DISCORD_TOKEN}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
+    volumes:
+      - ./apps/discord-bot:/app
+      - /app/node_modules
+    networks:
+      - unit-talk-network
+    depends_on:
+      - api
+      - redis
+    <<: *restart-policy
+    logging: *default-logging
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      <<: *resource-limits
+
+  # ==============================================
+  # WORKFLOW ENGINE
+  # ==============================================
+
+  temporal:
+    image: temporalio/auto-setup:latest
+    container_name: unit-talk-temporal
+    environment:
+      DB: postgresql
+      DB_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PWD: ${POSTGRES_PASSWORD}
+      POSTGRES_SEEDS: postgres
+      DYNAMIC_CONFIG_FILE_PATH: /etc/temporal/dynamicconfig.yaml
+      ENABLE_ES: "false"
+    volumes:
+      - ./temporal/dynamicconfig.yaml:/etc/temporal/dynamicconfig.yaml
+    ports:
+      - "7233:7233"
+    networks:
+      - unit-talk-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    <<: *restart-policy
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "temporal", "workflow", "list", "--namespace", "default"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+
+  temporal-ui:
+    image: temporalio/ui:latest
+    container_name: unit-talk-temporal-ui
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_CORS_ORIGINS: http://localhost:3000
+    ports:
+      - "8088:8080"
+    networks:
+      - unit-talk-network
+    depends_on:
+      - temporal
+    <<: *restart-policy
+    logging: *default-logging
+
+networks:
+  unit-talk-network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
+    driver_opts:
+      com.docker.network.bridge.name: unit-talk-br
+      com.docker.network.bridge.enable_ip_masquerade: "true"
+      com.docker.network.bridge.enable_icc: "true"
+
+volumes:
+  postgres_data:
+    driver: local
+  postgres_replica_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  loki_data:
+    driver: local
+  alertmanager_data:
+    driver: local
+  temporal_data:
+    driver: local

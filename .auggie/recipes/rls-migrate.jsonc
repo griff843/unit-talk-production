@@ -1,0 +1,7 @@
+{
+  "name": "rls-migrate",
+  "promptFile": "prompts/augment/super-prompt.md",
+  "vars": { "task": "RLS_SECURITY" },
+  "mcp": ["fs", "supabase", "git"],
+  "outputs": [{ "path": "out/ops/rls-migrate.report.json" }]
+}

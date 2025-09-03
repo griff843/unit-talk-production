@@ -1,0 +1,16 @@
+{
+  "name": "business-logic-test",
+  "version": "1.0.0",
+  "description": "Test script for business logic updates",
+  "main": "test-business-logic-updates.js",
+  "scripts": {
+    "test": "node test-business-logic-updates.js",
+    "test-optimized": "node test-optimized-queries.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.38.0",
+    "dotenv": "^16.3.1",
+    "node-fetch": "^3.3.2"
+  },
+  "type": "commonjs"
+}

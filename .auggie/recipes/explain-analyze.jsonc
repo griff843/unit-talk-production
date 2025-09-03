@@ -1,0 +1,7 @@
+{
+  "name": "explain-analyze",
+  "promptFile": "prompts/augment/super-prompt.md",
+  "vars": { "task": "PERF_EXPLAIN" },
+  "mcp": ["supabase"],
+  "outputs": [{ "path": "out/ops/explain-core-queries.json" }]
+}

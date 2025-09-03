@@ -1,0 +1,226 @@
+groups:
+  - name: discord-bot-alerts
+    rules:
+      # Application Health Alerts
+      - alert: DiscordBotDown
+        expr: up{job="discord-bot"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: discord-bot
+        annotations:
+          summary: "Discord Bot is down"
+          description: "The Discord Bot has been down for more than 1 minute."
+
+      - alert: DiscordBotHighErrorRate
+        expr: rate(http_requests_total{job="discord-bot",status=~"5.."}[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          service: discord-bot
+        annotations:
+          summary: "High error rate detected"
+          description: "Discord Bot error rate is {{ $value }} errors per second."
+
+      # Performance Alerts
+      - alert: DiscordBotHighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="discord-bot"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: discord-bot
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is {{ $value }}s."
+
+      - alert: DiscordBotHighMemoryUsage
+        expr: process_resident_memory_bytes{job="discord-bot"} / 1024 / 1024 > 1000
+        for: 5m
+        labels:
+          severity: warning
+          service: discord-bot
+        annotations:
+          summary: "High memory usage"
+          description: "Discord Bot memory usage is {{ $value }}MB."
+
+      - alert: DiscordBotHighCPUUsage
+        expr: rate(process_cpu_seconds_total{job="discord-bot"}[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: discord-bot
+        annotations:
+          summary: "High CPU usage"
+          description: "Discord Bot CPU usage is {{ $value }}%."
+
+  - name: infrastructure-alerts
+    rules:
+      # Redis Alerts
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: redis
+        annotations:
+          summary: "Redis is down"
+          description: "Redis has been down for more than 1 minute."
+
+      - alert: RedisHighMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+        annotations:
+          summary: "Redis high memory usage"
+          description: "Redis memory usage is {{ $value }}%."
+
+      - alert: RedisHighConnections
+        expr: redis_connected_clients > 100
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+        annotations:
+          summary: "Redis high connection count"
+          description: "Redis has {{ $value }} connected clients."
+
+      # System Alerts
+      - alert: HighDiskUsage
+        expr: (node_filesystem_size_bytes - node_filesystem_avail_bytes) / node_filesystem_size_bytes * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High disk usage"
+          description: "Disk usage is {{ $value }}% on {{ $labels.device }}."
+
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High memory usage"
+          description: "System memory usage is {{ $value }}%."
+
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High CPU usage"
+          description: "System CPU usage is {{ $value }}%."
+
+      - alert: HighLoadAverage
+        expr: node_load15 > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High load average"
+          description: "System load average is {{ $value }}."
+
+  - name: business-logic-alerts
+    rules:
+      # Discord API Alerts
+      - alert: DiscordAPIErrors
+        expr: rate(discord_api_errors_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+          service: discord-api
+        annotations:
+          summary: "Discord API errors detected"
+          description: "Discord API error rate is {{ $value }} errors per second."
+
+      - alert: DiscordRateLimitHit
+        expr: rate(discord_rate_limit_hits_total[5m]) > 0.1
+        for: 1m
+        labels:
+          severity: warning
+          service: discord-api
+        annotations:
+          summary: "Discord rate limit hit"
+          description: "Discord rate limit hit {{ $value }} times per second."
+
+      # Database Alerts
+      - alert: DatabaseConnectionErrors
+        expr: rate(database_connection_errors_total[5m]) > 0.01
+        for: 2m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "Database connection errors"
+          description: "Database connection error rate is {{ $value }} errors per second."
+
+      - alert: SlowDatabaseQueries
+        expr: histogram_quantile(0.95, rate(database_query_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "Slow database queries"
+          description: "95th percentile database query time is {{ $value }}s."
+
+      # Cache Alerts
+      - alert: LowCacheHitRate
+        expr: cache_hit_rate < 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: cache
+        annotations:
+          summary: "Low cache hit rate"
+          description: "Cache hit rate is {{ $value }}."
+
+      - alert: CacheErrors
+        expr: rate(cache_errors_total[5m]) > 0.01
+        for: 2m
+        labels:
+          severity: warning
+          service: cache
+        annotations:
+          summary: "Cache errors detected"
+          description: "Cache error rate is {{ $value }} errors per second."
+
+  - name: security-alerts
+    rules:
+      # Security Alerts
+      - alert: UnauthorizedAccess
+        expr: rate(http_requests_total{status="401"}[5m]) > 0.1
+        for: 1m
+        labels:
+          severity: warning
+          service: security
+        annotations:
+          summary: "Unauthorized access attempts"
+          description: "{{ $value }} unauthorized access attempts per second."
+
+      - alert: SuspiciousActivity
+        expr: rate(http_requests_total{status="403"}[5m]) > 0.05
+        for: 1m
+        labels:
+          severity: warning
+          service: security
+        annotations:
+          summary: "Suspicious activity detected"
+          description: "{{ $value }} forbidden requests per second."
+
+      - alert: TooManyRequests
+        expr: rate(http_requests_total{status="429"}[5m]) > 0.2
+        for: 1m
+        labels:
+          severity: info
+          service: security
+        annotations:
+          summary: "Rate limiting active"
+          description: "{{ $value }} rate limited requests per second."

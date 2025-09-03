@@ -1,0 +1,7 @@
+{
+  "name": "legacy-clean",
+  "promptFile": "prompts/augment/super-prompt.md",
+  "vars": { "task": "LEGACY_CLEANUP" },
+  "mcp": ["fs", "git"],
+  "outputs": [{ "path": "out/ops/legacy-clean.report.json" }]
+}
