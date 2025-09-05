@@ -105,7 +105,7 @@ router.get('/recent', picksAuth, async (req, res) => {
       sport: sport || 'all'
     });
 
-    res.json(response);
+    return res.json(response);
 
   } catch (error) {
     logger.error('Failed to fetch recent picks', {
@@ -114,7 +114,7 @@ router.get('/recent', picksAuth, async (req, res) => {
       stack: error instanceof Error ? error.stack : undefined
     });
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to fetch recent picks',
       details: error instanceof Error ? error.message : 'Unknown error',

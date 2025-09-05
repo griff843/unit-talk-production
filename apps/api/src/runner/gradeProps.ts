@@ -1,64 +1,94 @@
-import { calculateEdgeScore } from '../agents/GradingAgent/scoring/edgeScoreEngine';
+/**
+ * PROFESSIONAL PROP GRADING - Upgraded from Basic System
+ * 
+ * This runner now processes ALL daily picks through the professional grading system:
+ * - Devigging FIRST (removes hidden vig)
+ * - CLV tracking (monitors line movement)
+ * - Professional grading (45+ factors)
+ * - Risk assessment (Kelly sizing)
+ * - Full compliance with NON_NEGOTIABLE_SHARP_GRADING_RULES.md
+ */
+
+import { ProfessionalPropProcessor } from '../services/ProfessionalPropProcessor';
 import { supabase } from '../services/supabaseClient';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('gradeProps');
 
 async function main() {
   try {
-    // Get picks that need grading
-    const { data: picks, error } = await supabase
-      .from('daily_picks')
+    logger.info('Starting professional prop grading process');
+    
+    // Initialize professional processor
+    const professionalProcessor = ProfessionalPropProcessor.getInstance();
+    
+    // Get ungraded raw props (the source of all picks)
+    const { data: rawProps, error } = await supabase
+      .from('raw_props')
       .select('*')
-      .is('edge_score', null)
-      .eq('play_status', 'pending')
+      .is('processed_at', null)
+      .eq('is_valid', true)  // Use is_valid instead of status
       .limit(100);
 
     if (error) {
-      console.error('Error fetching picks:', error);
+      logger.error('Error fetching raw props:', error);
       return;
     }
 
-    if (!picks || picks.length === 0) {
-      console.log('No picks to grade');
+    if (!rawProps || rawProps.length === 0) {
+      logger.info('No unprocessed raw props found');
       return;
     }
 
-    console.log(`Found ${picks.length} picks to grade`);
+    logger.info(`Found ${rawProps.length} raw props for professional grading`);
 
-    for (const pick of picks) {
-      try {
-        // Calculate edge professional_score
-        const edgeScore = calculateEdgeScore(pick);
+    // Process through professional system
+    const results = await professionalProcessor.processRawProps({
+      max_batch_size: rawProps.length,
+      timeout_ms: 60000 // 60 second timeout for batch
+    });
 
-        // Determine tier based on edge professional_score
-        let tier = 'D';
-        if (edgeScore >= 4) {tier = 'S';}
-        else if (edgeScore >= 3) {tier = 'A';}
-        else if (edgeScore >= 2) {tier = 'B';}
-        else if (edgeScore >= 1) {tier = 'C';}
+    logger.info(`Professional grading completed: ${results.length} props processed`, {
+      tierDistribution: results.reduce((acc, result) => {
+        acc[result.tier] = (acc[result.tier] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
+      avgProfessionalScore: results.reduce((sum, r) => sum + r.professionalScore, 0) / results.length,
+      avgConfidence: results.reduce((sum, r) => sum + r.confidence, 0) / results.length
+    });
 
-        // Update the pick with grading results
-        const { error: updateError } = await supabase
-          .from('daily_picks')
-          .update({
-            edge_score: edgeScore,
-            tier
-          })
-          .eq('id', pick.id);
+    // Log compliance with sharp grading rules
+    const compliantPicks = results.filter(r => 
+      r.devigged_edge > 0 && 
+      r.clv_tracking_id && 
+      r.kelly_fraction > 0
+    );
+    
+    const complianceRate = compliantPicks.length / results.length * 100;
+    logger.info(`Sharp grading rule compliance: ${complianceRate.toFixed(1)}%`, {
+      deviggingApplied: results.filter(r => r.devigged_edge > 0).length,
+      clvTrackingActive: results.filter(r => r.clv_tracking_id).length,
+      kellySized: results.filter(r => r.kelly_fraction > 0).length
+    });
 
-        if (updateError) {
-          console.error(`Failed to update pick ${pick.id}:`, updateError);
-          continue;
-        }
-
-        console.log(`Successfully grading_status pick ${pick.id} with tier ${tier}`);
-
-      } catch (error) {
-        console.error(`Failed to grade pick ${pick.id}:`, error);
-      }
+    if (complianceRate < 100) {
+      logger.error('🚨 NON-NEGOTIABLE SHARP GRADING RULES VIOLATED', {
+        violations: results.filter(r => 
+          !r.devigged_edge || !r.clv_tracking_id || !r.kelly_fraction
+        ).length,
+        reference: 'See NON_NEGOTIABLE_SHARP_GRADING_RULES.md'
+      });
+    } else {
+      logger.info('✅ 100% compliance with sharp grading rules achieved');
     }
 
   } catch (error) {
-    console.error('Error:', error);
+    logger.error('Professional grading process failed:', error);
+    throw error;
   }
 }
 
-main().catch(console.error); 
+main().catch(error => {
+  logger.error('Fatal error in professional grading process:', error);
+  process.exit(1);
+}); 

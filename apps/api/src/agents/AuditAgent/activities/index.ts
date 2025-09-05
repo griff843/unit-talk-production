@@ -13,13 +13,19 @@ export interface AuditParams {
   severity?: 'low' | 'medium' | 'high' | 'critical';
 }
 
-import { createAgentConfig } from '@unit-talk/shared-utils';
-
 /**
  * Temporal activity for performing audits
  */
 export async function performAudit(_params: AuditParams): Promise<void> {
-  const config = createAgentConfig('AuditAgent', 'batch');
+  const config: BaseAgentConfig = {
+    name: 'AuditAgent',
+    version: '1.0.0',
+    enabled: true,
+    logLevel: 'info',
+    metrics: { enabled: true, interval: 300000 },
+    health: { enabled: true, interval: 60000, timeout: 5000, checkDb: true, checkExternal: true },
+    retry: { enabled: true, maxRetries: 5, maxAttempts: 5, backoffMs: 200, backoff: 200, maxBackoffMs: 30000, exponential: true, jitter: true }
+  };
 
   const deps: BaseAgentDependencies = {
     logger: makeLogger('AuditAgent'),
@@ -83,9 +89,15 @@ export async function checkCompliance(_params: AuditParams): Promise<void> {
  * Temporal activity for security audits
  */
 export async function performSecurityAudit(_params: AuditParams): Promise<void> {
-  const config = createAgentConfig('SecurityAuditAgent', 'batch', {
-    customHealth: { checkExternal: true } // Security audits should check external services
-  });
+  const config: BaseAgentConfig = {
+    name: 'SecurityAuditAgent',
+    version: '1.0.0',
+    enabled: true,
+    logLevel: 'info',
+    metrics: { enabled: true, interval: 300000 },
+    health: { enabled: true, interval: 60000, timeout: 5000, checkDb: true, checkExternal: true },
+    retry: { enabled: true, maxRetries: 5, maxAttempts: 5, backoffMs: 200, backoff: 200, maxBackoffMs: 30000, exponential: true, jitter: true }
+  };
 
   const deps: BaseAgentDependencies = {
     logger: makeLogger('AuditAgent'),

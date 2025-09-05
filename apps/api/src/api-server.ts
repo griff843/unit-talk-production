@@ -140,9 +140,9 @@ app.post('/admin/reload-secrets', async (req, res) => {
     const { SecretDriftGuard } = await import('./agents/FeedAgent/secretDriftGuard');
     const secretGuard = new (SecretDriftGuard as any)();
     const result = await secretGuard.reloadSecrets(req.body);
-    res.json(result);
+    return res.json(result);
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Failed to reload secrets',
       message: error instanceof Error ? error.message : 'Unknown error'
     });
@@ -156,7 +156,7 @@ app.post('/admin/invalidate-cache', async (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  res.json({
+  return res.json({
     success: true,
     message: 'Cache invalidation is not implemented yet',
     clearedNamespaces: ['raw_props', 'unified_picks'],

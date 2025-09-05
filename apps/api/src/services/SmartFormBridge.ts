@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 import { GradingAgent } from '../agents/GradingAgent';
+import { ProfessionalPropProcessor } from './ProfessionalPropProcessor';
 import { env } from '../config/env';
 import { logger } from '../shared/logger';
 // import { Pick } from '../types/pick';
@@ -20,6 +21,7 @@ import { SmartTicket } from '../types/smartForm';
 export class SmartFormBridge {
   private supabase;
   private gradingAgent: GradingAgent;
+  private bridgeLogger = logger.child({ service: 'SmartFormBridge' });
   
   constructor() {
     this.supabase = createClient(env.supabase.url, env.supabase.serviceRoleKey);
@@ -60,8 +62,8 @@ export class SmartFormBridge {
       // 6. Store insights for system tracking
       await this.storeInsights(pickId, insights);
       
-      // 7. AUTO-PROMOTE ALL SMART FORM PICKS TO FINAL_PICKS (User-submitted, always promote)
-      await this.promoteToUnifiedPicks(pickId, dailyPick, insights);
+      // 7. ROUTE THROUGH PROFESSIONAL GRADING SYSTEM (No bypasses per Sharp Grading Rules)
+      await this.processThroughProfessionalGrading(pickId, dailyPick, insights);
       bridgeLogger.info('Smart form pick auto-promoted to unified_picks', {
         pickId,
         systemGrade: insights.systemGrade,
@@ -552,6 +554,220 @@ export class SmartFormBridge {
         ticketId, 
         status, 
         error: error.message 
+      });
+    }
+  }
+
+  /**
+   * Process smart form picks through professional grading system (per Sharp Grading Rules)
+   * Replaces auto-promotion bypass with complete professional analysis
+   */
+  private async processThroughProfessionalGrading(pickId: string, dailyPick: any, insights: any): Promise<void> {
+    try {
+      this.bridgeLogger.info('Processing smart form pick through professional grading', {
+        pickId,
+        player_name: dailyPick.player_name,
+        stat_type: dailyPick.stat_type
+      });
+
+      // Get professional processor singleton
+      const professionalProcessor = ProfessionalPropProcessor.getInstance();
+
+      // Convert daily_pick to raw_prop format for professional processing
+      const rawProp = {
+        id: `raw-${pickId}`,
+        player_name: dailyPick.player_name,
+        sport: dailyPick.sport,
+        team: dailyPick.team,
+        stat_type: dailyPick.stat_type,
+        line: dailyPick.line,
+        over_odds: dailyPick.outcome === 'over' ? dailyPick.odds : -110,
+        under_odds: dailyPick.outcome === 'under' ? dailyPick.odds : -110,
+        game_date: dailyPick.game_date,
+        matchup: dailyPick.matchup,
+        status: 'active',
+        source: 'smart_form',
+        processed_at: null,
+        created_at: new Date().toISOString()
+      };
+
+      // Process through complete professional pipeline  
+      const professionalResult = await professionalProcessor.processSmartFormSubmission(pickId);
+
+      if (!professionalResult) {
+        throw new Error('Professional processing failed - no result returned');
+      }
+
+      // Validate compliance with Sharp Grading Rules
+      this.validateSharpGradingCompliance(professionalResult);
+
+      // Now promote using professional results instead of basic insights
+      await this.promoteWithProfessionalResults(pickId, dailyPick, professionalResult);
+
+      this.bridgeLogger.info('Smart form pick successfully processed through professional grading', {
+        pickId,
+        tier: professionalResult.tier,
+        professionalScore: professionalResult.professionalScore,
+        devigged_edge: professionalResult.devigged_edge,
+        clv_tracking_id: professionalResult.clv_tracking_id,
+        kelly_fraction: professionalResult.kelly_fraction
+      });
+
+    } catch (error) {
+      this.bridgeLogger.error('Professional grading failed for smart form pick', {
+        pickId,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
+
+      // Don't fall back to auto-promotion - this violates Sharp Grading Rules
+      // Instead, mark for manual review
+      await this.markForManualReview(pickId, dailyPick, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Validate compliance with Sharp Grading Rules (NON_NEGOTIABLE_SHARP_GRADING_RULES.md)
+   */
+  private validateSharpGradingCompliance(professionalResult: any): void {
+    const violations: string[] = [];
+
+    // Rule #1: Universal Devigging
+    if (!professionalResult.devigged_edge || professionalResult.devigged_edge <= 0) {
+      violations.push('Missing or invalid devigged_edge');
+    }
+
+    // Rule #2: Universal CLV Tracking
+    if (!professionalResult.clv_tracking_id) {
+      violations.push('Missing clv_tracking_id');
+    }
+
+    // Rule #3: Professional Grading
+    if (!professionalResult.professionalScore || professionalResult.professionalScore <= 0) {
+      violations.push('Missing or invalid professional_score');
+    }
+
+    // Rule #4: Kelly Criterion Sizing
+    if (!professionalResult.kelly_fraction || professionalResult.kelly_fraction <= 0) {
+      violations.push('Missing or invalid kelly_fraction');
+    }
+
+    if (violations.length > 0) {
+      throw new Error(`Sharp Grading Rules violations: ${violations.join(', ')}`);
+    }
+  }
+
+  /**
+   * Promote pick using professional results instead of basic insights
+   */
+  private async promoteWithProfessionalResults(pickId: string, dailyPick: any, professionalResult: any): Promise<void> {
+    const finalPick = {
+      id: `final-${pickId}`,
+      daily_pick_id: pickId,
+      
+      // Core pick data from daily_picks
+      player_name: dailyPick.player_name,
+      sport: dailyPick.sport,
+      team: dailyPick.team,
+      stat_type: dailyPick.stat_type,
+      outcome: dailyPick.outcome,
+      line: dailyPick.line,
+      odds: dailyPick.odds,
+      direction: dailyPick.direction,
+      
+      // Game context
+      game_date: dailyPick.game_date,
+      matchup: dailyPick.matchup,
+      capper: dailyPick.capper,
+      unit_size: dailyPick.unit_size,
+      bet_type: dailyPick.bet_type,
+      
+      // Professional grading results (Sharp Grading Rules compliance)
+      tier: professionalResult.tier,
+      confidence_score: professionalResult.confidence,
+      expected_value_score: professionalResult.expectedValue,
+      professional_score: professionalResult.professionalScore,
+      devigged_edge: professionalResult.devigged_edge,
+      kelly_fraction: professionalResult.kelly_fraction,
+      clv_tracking_id: professionalResult.clv_tracking_id,
+      
+      // Advanced professional features
+      feature_contributions: JSON.stringify(professionalResult.featureContributions || {}),
+      steam_detection: professionalResult.steamDetection || null,
+      closing_line_prediction: professionalResult.closingLinePrediction || null,
+      market_timing_advantage: professionalResult.marketTimingAdvantage || null,
+      
+      // Status and routing
+      play_status: 'pending',
+      auto_approved: professionalResult.tier === 'S' || professionalResult.tier === 'A',
+      
+      // Smart form specific tracking
+      parlay_id: dailyPick.parlay_id,
+      is_primary_leg: dailyPick.is_primary_leg,
+      
+      // Results (to be filled later)
+      result: null,
+      actual_stat: null,
+      final_result: null,
+      
+      // Discord integration
+      posted_to_discord: false,
+      thread_id: null,
+      discord_post_id: null,
+      
+      // Timestamps
+      created_at: new Date().toISOString()
+    };
+
+    // Insert into unified_picks table
+    const { error } = await this.supabase
+      .from('unified_picks')
+      .insert(finalPick);
+      
+    if (error) {
+      throw new Error(`Failed to promote to unified_picks: ${error.message}`);
+    }
+
+    // Update daily_picks to mark as promoted
+    await this.supabase
+      .from('daily_picks')
+      .update({ 
+        promoted_to_final: true,
+        final_pick_id: finalPick.id,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', pickId);
+  }
+
+  /**
+   * Mark pick for manual review when professional grading fails
+   */
+  private async markForManualReview(pickId: string, dailyPick: any, error: any): Promise<void> {
+    try {
+      await this.supabase
+        .from('daily_picks')
+        .update({
+          manual_review_required: true,
+          manual_review_reason: `Professional grading failed: ${error instanceof Error ? error.message : String(error)}`,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', pickId);
+
+      // Send alert for manual review
+      await this.sendSystemAlert('Smart Form Pick Requires Manual Review', {
+        pickId,
+        player_name: dailyPick.player_name,
+        stat_type: dailyPick.stat_type,
+        error: error instanceof Error ? error.message : String(error),
+        reason: 'Professional grading system failed - Sharp Grading Rules compliance cannot be verified'
+      });
+
+    } catch (reviewError) {
+      this.bridgeLogger.error('Failed to mark pick for manual review', {
+        pickId,
+        originalError: error instanceof Error ? error.message : String(error),
+        reviewError: reviewError instanceof Error ? reviewError.message : String(reviewError)
       });
     }
   }
