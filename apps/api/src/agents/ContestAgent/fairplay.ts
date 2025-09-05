@@ -14,7 +14,7 @@ const fairPlayViolationSchema = z.object({
   participantId: z.string().uuid(),
   timestamp: z.date(),
   severity: z.enum(['low', 'medium', 'high', 'critical']),
-  evidence: z.record(z.any()),
+  evidence: z.record(z.string(), z.any()),
   action: z.string(),
   status: z.enum(['pending', 'resolved', 'appealed'])
 });

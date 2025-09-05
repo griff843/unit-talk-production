@@ -32,7 +32,7 @@ export type HealthCheckType = z.infer<typeof HealthCheckType>;
 export const MetricValueSchema = z.object({
   value: z.number(),
   timestamp: z.string(),
-  labels: z.record(z.string()).optional()
+  labels: z.record(z.string(), z.string()).optional()
 });
 
 export type MetricValue = z.infer<typeof MetricValueSchema>;
@@ -59,7 +59,7 @@ export const HealthCheckSchema = z.object({
   status: HealthStatus,
   message: z.string().optional(),
   timestamp: z.string(),
-  details: z.record(z.unknown()).optional(),
+  details: z.record(z.string(), z.unknown()).optional(),
   metrics: z.array(MetricSchema).optional()
 });
 
@@ -69,7 +69,7 @@ export const HealthReportSchema = z.object({
   status: HealthStatus,
   timestamp: z.string(),
   checks: z.array(HealthCheckSchema),
-  metrics: z.record(z.unknown()).optional()
+  metrics: z.record(z.string(), z.unknown()).optional()
 });
 
 export type HealthReport = z.infer<typeof HealthReportSchema>;
@@ -105,7 +105,7 @@ export const BaseMetricsSchema = z.object({
     count: z.number(),
     rate: z.number()
   }),
-  customMetrics: z.record(z.unknown()).optional()
+  customMetrics: z.record(z.string(), z.unknown()).optional()
 });
 
 export type BaseMetrics = z.infer<typeof BaseMetricsSchema>;

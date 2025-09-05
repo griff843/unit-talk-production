@@ -26,8 +26,8 @@ export async function invalidateCacheEndpoint(req: Request, res: Response) {
     
     console.log('[Admin] Cache invalidation requested');
     
-    const clearedNamespaces = [];
-    const errors = [];
+    const clearedNamespaces: Array<string> = [];
+    const errors: Array<string> = [];
     
     // Mock Redis cache clearing - replace with actual Redis implementation
     try {

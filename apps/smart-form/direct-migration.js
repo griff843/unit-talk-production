@@ -1,3 +1,9 @@
+/**
+ * DEPRECATION NOTICE
+ * This script is legacy and will be removed or consolidated.
+ * Prefer using scripts in scripts/ops or documented npm scripts in the repo root package.json.
+ */
+
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config({ path: '.env.local' });
 
@@ -134,9 +140,9 @@ async function runDirectMigration() {
       .from('games')
       .select(
         `
-        id, 
-        home_team, 
-        away_team, 
+        id,
+        home_team,
+        away_team,
         league,
         raw_props!inner(id)
       `

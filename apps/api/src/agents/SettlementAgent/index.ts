@@ -104,7 +104,11 @@ export class SettlementAgent extends BaseAgent {
   }
 
   public async checkHealth(): Promise<HealthStatus> {
-    const checks = [];
+    const checks: Array<{
+      service: string;
+      status: 'healthy' | 'unhealthy';
+      error?: string;
+    }> = [];
 
     // Check Supabase connectivity
     try {
@@ -126,7 +130,7 @@ export class SettlementAgent extends BaseAgent {
     } catch (error) {
       checks.push({ 
         service: 'odds-api', 
-        status: 'degraded', 
+        status: 'unhealthy', 
         error: 'Settlement data source unavailable' 
       });
     }

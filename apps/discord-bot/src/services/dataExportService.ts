@@ -1,6 +1,6 @@
 import { SupabaseService } from './supabase';
 import { logger } from '../utils/logger';
-import * as XLSX from 'xlsx';
+import * as ExcelJS from 'exceljs';
 
 export class DataExportService {
   private supabaseService: SupabaseService;
@@ -59,57 +59,78 @@ export class DataExportService {
       const analytics = await this.supabaseService.getPickAnalytics(userId);
       const trends = await this.supabaseService.getEdgeTrackerTrends(userId);
 
-      // Create workbook with multiple sheets
-      const workbook = XLSX.utils.book_new();
+      // Create workbook with multiple sheets using ExcelJS
+      const workbook = new ExcelJS.Workbook();
 
       // Picks sheet
-      const picksData = picks.map((pick: any) => ({
-        Date: new Date(pick.created_at).toLocaleDateString(),
-        Sport: pick.sport,
-        'Pick Type': pick.pick_type,
-        Team: pick.team_name,
-        Odds: pick.odds,
-        Units: pick.units,
-        Confidence: pick.confidence,
-        Status: pick.status,
-        'Profit/Loss': pick.profit_loss || 0,
-        Notes: pick.notes || '',
-      }));
-      const picksSheet = XLSX.utils.json_to_sheet(picksData);
-      XLSX.utils.book_append_sheet(workbook, picksSheet, 'Picks');
+      const picksSheet = workbook.addWorksheet('Picks');
+      picksSheet.columns = [
+        { header: 'Date', key: 'date', width: 12 },
+        { header: 'Sport', key: 'sport', width: 10 },
+        { header: 'Pick Type', key: 'pickType', width: 15 },
+        { header: 'Team', key: 'team', width: 20 },
+        { header: 'Odds', key: 'odds', width: 8 },
+        { header: 'Units', key: 'units', width: 8 },
+        { header: 'Confidence', key: 'confidence', width: 12 },
+        { header: 'Status', key: 'status', width: 10 },
+        { header: 'Profit/Loss', key: 'profitLoss', width: 12 },
+        { header: 'Notes', key: 'notes', width: 30 }
+      ];
+
+      picks.forEach((pick: any) => {
+        picksSheet.addRow({
+          date: new Date(pick.created_at).toLocaleDateString(),
+          sport: pick.sport,
+          pickType: pick.pick_type,
+          team: pick.team_name,
+          odds: pick.odds,
+          units: pick.units,
+          confidence: pick.confidence,
+          status: pick.status,
+          profitLoss: pick.profit_loss || 0,
+          notes: pick.notes || ''
+        });
+      });
 
       // Analytics sheet
-      const analyticsData = [
-        {
-          'Total Picks': analytics?.total_picks || 0,
-          'Win Rate': `${(analytics?.win_rate || 0).toFixed(1)}%`,
-          ROI: `${(analytics?.roi || 0).toFixed(1)}%`,
-          'Total Units Risked': analytics?.total_units_risked || 0,
-          'Total Units Won': analytics?.total_units_won || 0,
-          'Total Units Lost': analytics?.total_units_lost || 0,
-          'Average Odds': analytics?.average_odds || 0,
-        },
+      const analyticsSheet = workbook.addWorksheet('Analytics');
+      analyticsSheet.columns = [
+        { header: 'Metric', key: 'metric', width: 20 },
+        { header: 'Value', key: 'value', width: 15 }
       ];
-      const analyticsSheet = XLSX.utils.json_to_sheet(analyticsData);
-      XLSX.utils.book_append_sheet(workbook, analyticsSheet, 'Analytics');
+
+      const analyticsMetrics = [
+        { metric: 'Total Picks', value: analytics?.total_picks || 0 },
+        { metric: 'Win Rate', value: `${(analytics?.win_rate || 0).toFixed(1)}%` },
+        { metric: 'ROI', value: `${(analytics?.roi || 0).toFixed(1)}%` },
+        { metric: 'Total Units Risked', value: analytics?.total_units_risked || 0 },
+        { metric: 'Total Units Won', value: analytics?.total_units_won || 0 },
+        { metric: 'Total Units Lost', value: analytics?.total_units_lost || 0 },
+        { metric: 'Average Odds', value: analytics?.average_odds || 0 }
+      ];
+
+      analyticsMetrics.forEach(item => analyticsSheet.addRow(item));
 
       // Trends sheet
-      const trendsData = [
-        {
-          'Best Sport': trends?.bestSport || 'N/A',
-          'Worst Sport': trends?.worstSport || 'N/A',
-          'Favorite Pick Type': trends?.favoritePickType || 'N/A',
-          'Units per Play': trends?.unitsPerPlay || 0,
-          'Win Rate': `${(trends?.winRate || 0).toFixed(1)}%`,
-          ROI: `${(trends?.roi || 0).toFixed(1)}%`,
-        },
+      const trendsSheet = workbook.addWorksheet('Trends');
+      trendsSheet.columns = [
+        { header: 'Metric', key: 'metric', width: 20 },
+        { header: 'Value', key: 'value', width: 15 }
       ];
-      const trendsSheet = XLSX.utils.json_to_sheet(trendsData);
-      XLSX.utils.book_append_sheet(workbook, trendsSheet, 'Trends');
+
+      const trendsMetrics = [
+        { metric: 'Best Sport', value: trends?.bestSport || 'N/A' },
+        { metric: 'Worst Sport', value: trends?.worstSport || 'N/A' },
+        { metric: 'Favorite Pick Type', value: trends?.favoritePickType || 'N/A' },
+        { metric: 'Units per Play', value: trends?.unitsPerPlay || 0 },
+        { metric: 'Win Rate', value: `${(trends?.winRate || 0).toFixed(1)}%` },
+        { metric: 'ROI', value: `${(trends?.roi || 0).toFixed(1)}%` }
+      ];
+
+      trendsMetrics.forEach(item => trendsSheet.addRow(item));
 
       // Convert to buffer
-      const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-      return excelBuffer;
+      return await workbook.xlsx.writeBuffer() as Buffer;
     } catch (error) {
       logger.error('Error exporting picks to Excel:', error);
       throw error;
@@ -140,28 +161,31 @@ export class DataExportService {
         const csv = csvData.map(row => row.join(',')).join('\n');
         return Buffer.from(csv);
       } else {
-        const workbook = XLSX.utils.book_new();
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet('Analytics');
 
-        const data = [
-          {
-            'Total Picks': analytics?.total_picks || 0,
-            'Win Rate': `${(analytics?.win_rate || 0).toFixed(1)}%`,
-            ROI: `${(analytics?.roi || 0).toFixed(1)}%`,
-            'Total Units Risked': analytics?.total_units_risked || 0,
-            'Total Units Won': analytics?.total_units_won || 0,
-            'Total Units Lost': analytics?.total_units_lost || 0,
-            'Average Odds': analytics?.average_odds || 0,
-            'Best Sport': trends?.bestSport || 'N/A',
-            'Worst Sport': trends?.worstSport || 'N/A',
-            'Favorite Pick Type': trends?.favoritePickType || 'N/A',
-            'Units per Play': trends?.unitsPerPlay || 0,
-          },
+        sheet.columns = [
+          { header: 'Metric', key: 'metric', width: 20 },
+          { header: 'Value', key: 'value', width: 15 }
         ];
 
-        const sheet = XLSX.utils.json_to_sheet(data);
-        XLSX.utils.book_append_sheet(workbook, sheet, 'Analytics');
+        const data = [
+          { metric: 'Total Picks', value: analytics?.total_picks || 0 },
+          { metric: 'Win Rate', value: `${(analytics?.win_rate || 0).toFixed(1)}%` },
+          { metric: 'ROI', value: `${(analytics?.roi || 0).toFixed(1)}%` },
+          { metric: 'Total Units Risked', value: analytics?.total_units_risked || 0 },
+          { metric: 'Total Units Won', value: analytics?.total_units_won || 0 },
+          { metric: 'Total Units Lost', value: analytics?.total_units_lost || 0 },
+          { metric: 'Average Odds', value: analytics?.average_odds || 0 },
+          { metric: 'Best Sport', value: trends?.bestSport || 'N/A' },
+          { metric: 'Worst Sport', value: trends?.worstSport || 'N/A' },
+          { metric: 'Favorite Pick Type', value: trends?.favoritePickType || 'N/A' },
+          { metric: 'Units per Play', value: trends?.unitsPerPlay || 0 }
+        ];
 
-        return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+        data.forEach(item => sheet.addRow(item));
+
+        return await workbook.xlsx.writeBuffer() as Buffer;
       }
     } catch (error) {
       logger.error('Error exporting analytics:', error);

@@ -1,6 +1,6 @@
 # Unit Talk Platform
 
-> **Fortune 100-grade sports betting intelligence platform**  
+> **Fortune 100-grade sports betting intelligence platform**
 > _Enterprise SaaS architecture • Multi-application workspace • Discord-native_
 
 ## 🏗️ Architecture Overview
@@ -99,6 +99,9 @@ npm run start:command-center # Command center
 - **Processing gate**: `processed` (boolean) → `processed_at` (timestamp)
 - **Professional columns**: `professional_score`, `devigged_edge`, `kelly_fraction`, `clv_pct`
 - **Performance gain**: 42% table reduction (77→45 tables)
+
+- **[docs/ROADMAP_STATUS.md](docs/ROADMAP_STATUS.md)** - Production readiness roadmap and real-time status
+- **[docs/monitoring.md](docs/monitoring.md)** - Monitoring (Prometheus, Alertmanager, OTEL)
 
 ## 📚 Documentation
 

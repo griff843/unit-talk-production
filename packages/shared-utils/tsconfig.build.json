@@ -6,8 +6,8 @@
     "declarationMap": false,
     "sourceMap": false,
     "rootDir": "src",
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
     "target": "ES2020",
     "noEmit": false
   },

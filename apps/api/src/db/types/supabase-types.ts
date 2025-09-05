@@ -54,7 +54,7 @@ export const UnifiedPickSchema = z.object({
   league: z.string(),
   confidence: z.number(),
   analysis: z.string().nullable(),
-  metadata: z.record(z.unknown()).nullable()
+  metadata: z.record(z.string(), z.unknown()).nullable()
 });
 
 export const DailyPickSchema = z.object({
@@ -73,8 +73,8 @@ export const DailyPickSchema = z.object({
   analysis: z.string().nullable(),
   thread_id: z.string().nullable(),
   message_id: z.string().nullable(),
-  legs: z.array(z.record(z.unknown())),
-  metadata: z.record(z.unknown()).nullable()
+  legs: z.array(z.record(z.string(), z.unknown())),
+  metadata: z.record(z.string(), z.unknown()).nullable()
 });
 
 export const UserProfileSchema = z.object({
@@ -88,7 +88,7 @@ export const UserProfileSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
   last_active: z.string(),
-  metadata: z.record(z.unknown())
+  metadata: z.record(z.string(), z.unknown())
 });
 
 export const CapperProfileSchema = z.object({
@@ -110,7 +110,7 @@ export const CapperProfileSchema = z.object({
   current_streak: z.number(),
   best_streak: z.number(),
   worst_streak: z.number(),
-  metadata: z.record(z.unknown()).nullable()
+  metadata: z.record(z.string(), z.unknown()).nullable()
 });
 
 export const TrendAnalysisSchema = z.object({
@@ -124,7 +124,7 @@ export const TrendAnalysisSchema = z.object({
   avg_performance: z.number(),
   edge_volatility: z.number(),
   confidence: z.number(),
-  metadata: z.record(z.unknown()).nullable()
+  metadata: z.record(z.string(), z.unknown()).nullable()
 });
 
 // --- Type Definitions ---

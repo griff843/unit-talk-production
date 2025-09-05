@@ -1,3 +1,9 @@
+/**
+ * DEPRECATION NOTICE
+ * This script is legacy and will be removed or consolidated.
+ * Prefer using scripts in scripts/ops or documented npm scripts in the repo root package.json.
+ */
+
 // Final test - bypass everything
 const http = require('http');
 

@@ -886,7 +886,7 @@ class RollingMetricsService {
         .select('sport')
         .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
 
-      return [...new Set(data?.map(p => p.sport) || [])];
+      return [...new Set<string>((data || []).map((p: any) => String(p.sport)) )];
     } catch (error) {
       this.logger.error('Failed to get active sports', { error });
       return [];

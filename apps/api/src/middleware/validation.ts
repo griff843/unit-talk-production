@@ -64,8 +64,8 @@ export const userProfileSchema = z.object({
   body: z.object({
     username: z.string().min(1).max(50),
     tier: commonSchemas.tier.optional(),
-    settings: z.record(z.any()).optional(),
-    metadata: z.record(z.any()).optional(),
+    settings: z.record(z.string(), z.any()).optional(),
+    metadata: z.record(z.string(), z.any()).optional(),
   }),
   params: z.object({
     discordId: commonSchemas.discordId,
@@ -136,7 +136,7 @@ export const validateRequest = (schema: z.ZodSchema) => {
       if (!result.success) {
         res.status(400).json({
           error: 'Validation failed',
-          details: result.error.errors.map(err => ({
+          details: result.error.issues.map((err: any) => ({
             field: err.path.join('.'),
             message: err.message,
             code: err.code,

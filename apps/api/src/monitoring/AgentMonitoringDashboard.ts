@@ -128,7 +128,7 @@ export class AgentMonitoringDashboard extends EventEmitter {
   async getAlertSummary(): Promise<AlertSummary> {
     try {
       const alertKeys = await redisCache.getPattern('agent_alert:*');
-      const alerts = [];
+      const alerts: Array<any> = [];
       
       for (const [key, data] of alertKeys) {
         try {

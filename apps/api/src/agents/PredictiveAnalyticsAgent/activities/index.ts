@@ -34,7 +34,12 @@ export async function generateMarketForecast(data: {
     
     // Mock prediction generation
     const daysToPredict = timeframe === '1d' ? 1 : timeframe === '7d' ? 7 : 30;
-    const predictions = [];
+    const predictions: Array<{
+      date: string;
+      prediction: number;
+      confidence: number;
+      factors: Array<string>;
+    }> = [];
     
     for (let i = 0; i < daysToPredict; i++) {
       const date = new Date();
@@ -163,7 +168,13 @@ export async function detectAnomalies(data: {
   
   try {
     const { timeSeriesData, sensitivity } = data;
-    const anomalies = [];
+    const anomalies: Array<{
+      timestamp: string;
+      value: number;
+      anomalyScore: number;
+      type: 'spike' | 'drop' | 'trend_change' | 'seasonal_deviation';
+      explanation: string;
+    }> = [];
     
     // Simple anomaly detection algorithm
     const values = timeSeriesData.map(d => d.value);

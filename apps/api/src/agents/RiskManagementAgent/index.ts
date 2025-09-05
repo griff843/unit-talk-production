@@ -915,7 +915,10 @@ export class RiskManagementAgent extends BaseAgent {
   }
 
   public async checkHealth(): Promise<any> {
-    const checks = [];
+    const checks: Array<{
+      component: string;
+      status: 'healthy' | 'unhealthy';
+    }> = [];
 
     // Check subsystem health
     checks.push({

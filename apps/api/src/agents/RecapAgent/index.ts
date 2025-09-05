@@ -540,7 +540,7 @@ export class RecapAgent extends BaseAgent implements RecapAgentType {
 
       if (lowTierPicks && lowTierPicks.length > 0) {
         this.logger.warn(`Found ${lowTierPicks.length} picks flagged for review`, {
-          picks: lowTierPicks.map(p => ({
+          picks: lowTierPicks.map((p: any) => ({
             id: p.id,
             tier: p.tier,
             capper: p.capper_username
@@ -593,12 +593,12 @@ export class RecapAgent extends BaseAgent implements RecapAgentType {
   /**
    * Post to Discord thread via Discord bot integration
    */
-  private async postToDiscordThread(threadId: string, embed: any, pickData: any): Promise<string> {
+  private async _postToDiscordThread(_threadId: string, _embed: any, _pickData: any): Promise<string> {
     try {
       // Import Discord client and ThreadService
       const { Client, GatewayIntentBits } = await import('discord.js');
-      const { supabaseClient } = await import('../../services/supabaseClient');
-      const { DiscordBotService } = await import('../../services/DiscordBotService');
+      const { supabaseClient: _supabaseClient } = await import('../../services/supabaseClient');
+      const { DiscordBotService: _DiscordBotService } = await import('../../services/DiscordBotService');
       
       // Initialize Discord client
       const client = new Client({
@@ -625,22 +625,22 @@ export class RecapAgent extends BaseAgent implements RecapAgentType {
       });
 
       // Get the thread channel
-      const thread = await client.channels.fetch(threadId);
+      const thread = await client.channels.fetch(_threadId);
       if (!thread || !thread.isThread()) {
-        throw new Error(`Thread not found or invalid: ${threadId}`);
+        throw new Error(`Thread not found or invalid: ${_threadId}`);
       }
 
       // Post the embed to the thread
       const message = await thread.send({
         content: '🚨 **NEW PICK ALERT** 🚨',
-        embeds: [embed]
+        embeds: [_embed]
       });
 
       this.logger.info('Successfully posted to Discord thread', {
-        threadId,
-        pickId: pickData.id,
+        threadId: _threadId,
+        pickId: _pickData.id,
         messageId: message.id,
-        embedTitle: embed.title
+        embedTitle: _embed.title
       });
 
       // Clean up Discord client
@@ -650,8 +650,8 @@ export class RecapAgent extends BaseAgent implements RecapAgentType {
 
     } catch (error) {
       this.logger.error('Error posting to Discord thread', {
-        threadId,
-        pickId: pickData.id,
+        threadId: _threadId,
+        pickId: _pickData.id,
         error: error instanceof Error ? error.message : String(error)
       });
       throw error;
@@ -661,42 +661,42 @@ export class RecapAgent extends BaseAgent implements RecapAgentType {
   /**
    * Update pick with Discord posting information
    */
-  private async updatePickWithDiscordInfo(pickId: string, threadId: string | null, status: string, messageId?: string): Promise<void> {
+  private async _updatePickWithDiscordInfo(_pickId: string, _threadId: string | null, _status: string, _messageId?: string): Promise<void> {
     try {
       const supabase = this.deps.supabase;
       
       const updateData: any = {
         updated_at: toISOString(new Date()),
-        discord_post_status: status
+        discord_post_status: _status
       };
 
-      if (threadId) {
-        updateData.thread_id = threadId;
-        updateData.message_id = messageId || `fallback_${Date.now()}`;
+      if (_threadId) {
+        updateData.thread_id = _threadId;
+        updateData.message_id = _messageId || `fallback_${Date.now()}`;
       }
 
       const { error } = await supabase
         .from('unified_picks')
         .update(updateData)
-        .eq('id', pickId);
+        .eq('id', _pickId);
 
       if (error) {
         throw error;
       }
 
       this.logger.info('Updated pick with Discord info', {
-        pickId,
-        threadId,
-        messageId,
-        status
+        pickId: _pickId,
+        threadId: _threadId,
+        messageId: _messageId,
+        status: _status
       });
 
     } catch (error) {
       this.logger.error('Error updating pick with Discord info', {
-        pickId,
-        threadId,
-        status,
-        messageId,
+        pickId: _pickId,
+        threadId: _threadId,
+        status: _status,
+        messageId: _messageId,
         error: error instanceof Error ? error.message : String(error)
       });
     }

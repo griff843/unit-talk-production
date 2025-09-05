@@ -477,7 +477,7 @@ export class BehaviorTracker {
   }
 
   private analyzeResponsePatterns(events: BehaviorEvent[]): any {
-    const messagePairs = [];
+    const messagePairs: number[] = [];
     for (let i = 1; i < events.length; i++) {
       if (events[i].eventType === 'message' && events[i-1].eventType === 'message') {
         const timeDiff = events[i].timestamp.getTime() - events[i-1].timestamp.getTime();

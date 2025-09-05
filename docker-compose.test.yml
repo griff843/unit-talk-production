@@ -1,0 +1,259 @@
+# Unit Talk Platform - CI/CD Testing Overlay
+# This file extends docker-compose.yml for automated testing environments
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.test.yml up
+
+services:
+  # ==============================================
+  # TEST DATABASE - ISOLATED INSTANCE
+  # ==============================================
+  
+  # Test PostgreSQL - Separate from main database
+  postgres-test:
+    image: postgres:15-alpine
+    container_name: unit-talk-postgres-test
+    ports:
+      - "5433:5432"  # Different port to avoid conflicts
+    environment:
+      POSTGRES_DB: unit_talk_test
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+      - ./apps/api/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d unit_talk_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - unit-talk-test-network
+    tmpfs:
+      - /var/lib/postgresql/data:noexec,nosuid,size=100m  # In-memory for speed
+
+  # Test Redis - Minimal configuration
+  redis-test:
+    image: redis:7-alpine
+    container_name: unit-talk-redis-test
+    ports:
+      - "6380:6379"  # Different port to avoid conflicts
+    command: redis-server --save "" --appendonly no  # No persistence for tests
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    networks:
+      - unit-talk-test-network
+    tmpfs:
+      - /data:noexec,nosuid,size=50m  # In-memory for speed
+
+  # ==============================================
+  # APPLICATION SERVICES - TEST CONFIGURATION
+  # ==============================================
+
+  # API Service - Test Configuration
+  api:
+    environment:
+      - NODE_ENV=test
+      - PORT=3000
+      - DATABASE_URL=postgresql://test_user:test_password@postgres-test:5432/unit_talk_test
+      - REDIS_URL=redis://redis-test:6379
+      - LOG_LEVEL=error  # Reduce log noise in tests
+      - PROMETHEUS_ENABLED=true
+      - PROMETHEUS_PORT=9464
+      - START_TEMPORAL_WORKER=false
+      - HEALTH_CHECK_INTERVAL=10000
+      # Test-specific overrides
+      - JWT_SECRET=test-secret-key-for-ci-only-not-secure
+      - ENCRYPTION_KEY=test-key-exactly-32-chars-long
+      - RATE_LIMIT_ENABLED=false
+      - AUTO_BACKUP_ENABLED=false
+      - ANALYTICS_ENABLED=false
+    ports:
+      - "9464:9464"  # Metrics port for CI
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - unit-talk-test-network
+
+  # Override other services for test environment
+  smart-form:
+    environment:
+      - NODE_ENV=test
+      - PORT=3000
+      - NEXT_PUBLIC_API_URL=http://api:3000
+      - DATABASE_URL=postgresql://test_user:test_password@postgres-test:5432/unit_talk_test
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - unit-talk-test-network
+
+  dashboard:
+    environment:
+      - NODE_ENV=test
+      - PORT=3000
+      - NEXT_PUBLIC_API_URL=http://api:3000
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - unit-talk-test-network
+
+  command-center:
+    environment:
+      - NODE_ENV=test
+      - PORT=3000
+      - DATABASE_URL=postgresql://test_user:test_password@postgres-test:5432/unit_talk_test
+      - NEXT_PUBLIC_API_URL=http://api:3000
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - unit-talk-test-network
+
+  # Prometheus for metrics testing
+  prometheus:
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - unit-talk-test-network
+
+  # ==============================================
+  # TEST RUNNERS
+  # ==============================================
+
+  # Unit Tests Runner
+  unit-tests:
+    build:
+      context: .
+      dockerfile: ./apps/api/Dockerfile
+      target: development
+    container_name: unit-talk-unit-tests
+    environment:
+      - NODE_ENV=test
+      - DATABASE_URL=postgresql://test_user:test_password@postgres-test:5432/unit_talk_test
+      - REDIS_URL=redis://redis-test:6379
+      - LOG_LEVEL=error
+      - CI=true
+    volumes:
+      - ./apps/api/src:/app/apps/api/src:ro
+      - ./packages:/app/packages:ro
+      - ./apps/api/tests:/app/apps/api/tests:ro
+      - test_coverage:/app/coverage
+    command: npm run test:unit
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    networks:
+      - unit-talk-test-network
+    profiles:
+      - unit-tests
+
+  # E2E Tests Runner with Playwright
+  e2e-tests:
+    build:
+      context: .
+      dockerfile: ./apps/api/Dockerfile
+      target: development
+    container_name: unit-talk-e2e-tests
+    environment:
+      - NODE_ENV=test
+      - DATABASE_URL=postgresql://test_user:test_password@postgres-test:5432/unit_talk_test
+      - API_URL=http://api:3000
+      - COMMAND_CENTER_URL=http://command-center:3000
+      - SMART_FORM_URL=http://smart-form:3000
+      - DASHBOARD_URL=http://dashboard:3000
+      - LOG_LEVEL=error
+      - CI=true
+    volumes:
+      - ./apps/api/tests:/app/tests:ro
+      - test_results:/app/test-results
+      - test_coverage:/app/coverage
+    command: npm run test:e2e
+    depends_on:
+      api:
+        condition: service_healthy
+      command-center:
+        condition: service_healthy
+      smart-form:
+        condition: service_healthy
+      dashboard:
+        condition: service_healthy
+    networks:
+      - unit-talk-test-network
+    profiles:
+      - e2e-tests
+
+  # Disable services not needed for testing
+  temporal:
+    profiles:
+      - never  # Disable in CI unless specifically needed
+
+  temporal-ui:
+    profiles:
+      - never  # Disable in CI
+
+  grafana:
+    profiles:
+      - never  # Disable in CI
+
+  pgadmin:
+    profiles:
+      - never  # Disable in CI
+
+  redis-commander:
+    profiles:
+      - never  # Disable in CI
+
+  mailhog:
+    profiles:
+      - never  # Disable in CI
+
+  workers:
+    profiles:
+      - never  # Disable workers in CI unless integration tests
+
+  discord-bot:
+    profiles:
+      - never  # Disable Discord bot in CI
+
+# ==============================================
+# TEST VOLUMES
+# ==============================================
+volumes:
+  postgres_test_data:
+    driver: local
+  test_coverage:
+    driver: local
+  test_results:
+    driver: local
+
+# ==============================================
+# TEST NETWORK
+# ==============================================
+networks:
+  unit-talk-test-network:
+    driver: bridge
+    name: unit-talk-test
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+

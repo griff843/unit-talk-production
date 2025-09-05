@@ -7,6 +7,11 @@
  * Usage: npx tsx src/runner/testTodaysProps.ts
  */
 
+// Load environment variables from root directory
+import dotenv from 'dotenv';
+import path from 'path';
+dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
+
 import { createClient } from '@supabase/supabase-js';
 
 import { deviggingService } from '../services/devigging/DeviggingService';

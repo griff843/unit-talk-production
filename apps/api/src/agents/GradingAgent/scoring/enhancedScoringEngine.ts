@@ -43,8 +43,8 @@ export class EnhancedScoringEngine {
   async calculateEnhancedScore(
     sport: string,
     playerData: any,
-    gameContext: any,
-    marketData: any
+    _gameContext: any,
+    _marketData: any
   ): Promise<EnhancedScoringResult> {
     const weights = this.sportWeights[sport as keyof SportSpecificWeights];
     if (!weights) {
@@ -52,15 +52,15 @@ export class EnhancedScoringEngine {
     }
 
     // Calculate new enhanced components
-    const handednessSplitsScore = await this.calculateHandednessSplitsScore(playerData, gameContext);
+    const handednessSplitsScore = await this.calculateHandednessSplitsScore(playerData, _gameContext);
     const recentTrendsScore = await this.calculateRecentTrendsScore(playerData);
-    const headToHeadScore = await this.calculateHeadToHeadScore(playerData, gameContext);
-    const rosterStabilityScore = await this.calculateRosterStabilityScore(gameContext);
-    const bullpenQualityScore = await this.calculateBullpenQualityScore(gameContext);
-    const advancedSplitsScore = await this.calculateAdvancedSplitsScore(playerData, gameContext);
+    const headToHeadScore = await this.calculateHeadToHeadScore(playerData, _gameContext);
+    const rosterStabilityScore = await this.calculateRosterStabilityScore(_gameContext);
+    const bullpenQualityScore = await this.calculateBullpenQualityScore(_gameContext);
+    const advancedSplitsScore = await this.calculateAdvancedSplitsScore(playerData, _gameContext);
 
     // Apply contextual multipliers
-    const contextMultiplier = this.getContextualMultiplier(gameContext);
+    const contextMultiplier = this.getContextualMultiplier(_gameContext);
 
     // Calculate weighted professional_score
     const enhancedScore = (
@@ -120,7 +120,7 @@ export class EnhancedScoringEngine {
    */
   private async calculateHandednessSplitsScore(
     playerData: any,
-    gameContext: any
+    _gameContext: any
   ): Promise<number> {
     // Gracefully handle missing pitcher data
     const { player, opposingPitcher } = playerData || {};
@@ -218,7 +218,7 @@ export class EnhancedScoringEngine {
    */
   private async calculateHeadToHeadScore(
     playerData: any,
-    gameContext: any
+    _gameContext: any
   ): Promise<number> {
     const h2h = await this.getHeadToHeadHistory(
       playerData.player.id,
@@ -530,42 +530,42 @@ export class EnhancedScoringEngine {
   }
 
   // Data retrieval methods (to be implemented)
-  private async getBatterHandednessSplits(playerId: string): Promise<HandednessSplits | null> {
+  private async getBatterHandednessSplits(_playerId: string): Promise<HandednessSplits | null> {
     // TODO: Implement database query for batter splits
     return null;
   }
 
-  private async getPitcherHandednessSplits(pitcherId: string): Promise<HandednessSplits | null> {
+  private async getPitcherHandednessSplits(_pitcherId: string): Promise<HandednessSplits | null> {
     // TODO: Implement database query for pitcher splits
     return null;
   }
 
-  private async getRecentTrends(playerId: string): Promise<RecentTrends | null> {
+  private async getRecentTrends(_playerId: string): Promise<RecentTrends | null> {
     // TODO: Implement recent performance trends
     return null;
   }
 
-  private async getHeadToHeadHistory(playerId: string, pitcherId: string): Promise<HeadToHeadHistory | null> {
+  private async getHeadToHeadHistory(_playerId: string, _pitcherId: string): Promise<HeadToHeadHistory | null> {
     // TODO: Implement head-to-head historical data
     return null;
   }
 
-  private async getRosterStabilityData(team: string): Promise<RosterStabilityData | null> {
+  private async getRosterStabilityData(_team: string): Promise<RosterStabilityData | null> {
     // TODO: Implement roster stability analysis
     return null;
   }
 
-  private async getBullpenQualityData(team: string): Promise<BullpenQualityData | null> {
+  private async getBullpenQualityData(_team: string): Promise<BullpenQualityData | null> {
     // TODO: Implement bullpen quality assessment
     return null;
   }
 
-  private async getAdvancedSplits(playerId: string): Promise<AdvancedSplits | null> {
+  private async getAdvancedSplits(_playerId: string): Promise<AdvancedSplits | null> {
     // TODO: Implement advanced splits analysis
     return null;
   }
 
-  private normalizePerformance(metrics: PerformanceMetrics): number {
+  private normalizePerformance(_metrics: PerformanceMetrics): number {
     // TODO: Implement performance normalization
     return 0;
   }

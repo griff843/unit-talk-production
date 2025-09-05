@@ -131,7 +131,7 @@ class DiscordAlertService {
     }
 
     // Discord allows up to 10 embeds per message
-    const batches = [];
+    const batches: Array<EmbedBuilder[]> = [];
     for (let i = 0; i < embeds.length; i += 10) {
       batches.push(embeds.slice(i, i + 10));
     }

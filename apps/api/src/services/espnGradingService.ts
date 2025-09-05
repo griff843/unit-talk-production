@@ -368,7 +368,7 @@ export class ESPNGradingService {
         throw error;
       }
 
-      const uniqueGameIds = [...new Set(gameIds.map(g => g.external_game_id))];
+      const uniqueGameIds = [...new Set(gameIds.map((g: any) => g.external_game_id))];
       logger.info(`Found ${uniqueGameIds.length} games to process`);
 
       let totalProcessed = 0;

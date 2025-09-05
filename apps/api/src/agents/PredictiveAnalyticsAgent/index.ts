@@ -660,7 +660,7 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
     try {
       const cachedPredictions = await redisCache.getPattern('prediction:*');
       
-      for (const [key, data] of cachedPredictions) {
+      for (const [_key, data] of cachedPredictions) {
         const prediction = JSON.parse(data);
         prediction.createdAt = new Date(prediction.createdAt);
         prediction.expiresAt = new Date(prediction.expiresAt);
@@ -765,7 +765,10 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
   }
 
   public async checkHealth(): Promise<any> {
-    const checks = [];
+    const checks: Array<{
+      component: string;
+      status: 'healthy' | 'unhealthy';
+    }> = [];
 
     // Check subsystem health
     checks.push({

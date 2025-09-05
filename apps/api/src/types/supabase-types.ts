@@ -250,7 +250,7 @@ export const AgentLogSchema = z.object({
   agent: z.string(),
   level: z.string(),
   message: z.string(),
-  context: z.record(z.unknown()).optional(),
+  context: z.record(z.string(), z.unknown()).optional(),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime()
 });
@@ -259,7 +259,7 @@ export const AgentHealthSchema = z.object({
   id: z.string().uuid(),
   agent: z.string(),
   status: z.enum(['healthy', 'degraded', 'unhealthy']),
-  details: z.record(z.unknown()),
+  details: z.record(z.string(), z.unknown()),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime()
 });
@@ -267,7 +267,7 @@ export const AgentHealthSchema = z.object({
 export const AgentMetricsSchema = z.object({
   id: z.string().uuid(),
   agent: z.string(),
-  metrics: z.record(z.number()),
+  metrics: z.record(z.string(), z.number()),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime()
 });

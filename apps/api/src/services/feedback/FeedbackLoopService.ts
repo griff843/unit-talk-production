@@ -281,12 +281,12 @@ export class FeedbackLoopService {
       .select('*');
 
     const weightMap = new Map(
-      currentWeights?.map(w => [w.book, w.weight]) || []
+      currentWeights?.map((w: any) => [w.book, w.weight]) || []
     );
 
     // Analyze each book
     for (const [book, metrics] of stats.byBook) {
-      const currentWeight = weightMap.get(book) || 1.0;
+      const currentWeight = Number(weightMap.get(book) ?? 1.0);
       
       // Calculate reliability professional_score based on CLV consistency
       const reliability = this.calculateReliability(metrics);
@@ -308,8 +308,8 @@ export class FeedbackLoopService {
         betCount: metrics.count,
         roi: metrics.roi,
         reliability,
-        weight: currentWeight,
-        suggestedWeight
+        weight: Number(currentWeight),
+        suggestedWeight: Number(suggestedWeight)
       });
     }
 
@@ -348,7 +348,7 @@ export class FeedbackLoopService {
 
     // Group by sport+market
     const marketGroups = new Map<string, any[]>();
-    recentPicks?.forEach(pick => {
+    recentPicks?.forEach((pick: any) => {
       const key = `${pick.sport}:${pick.market}`;
       if (!marketGroups.has(key)) {
         marketGroups.set(key, []);

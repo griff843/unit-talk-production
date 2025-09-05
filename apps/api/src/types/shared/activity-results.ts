@@ -157,7 +157,7 @@ export const GradingResultSchema = z.object({
     propId: z.string(),
     grade: z.string(),
     confidence: z.number(),
-    features: z.record(z.number()),
+    features: z.record(z.string(), z.number()),
     timestamp: z.string()
   }),
   error: z.instanceof(Error).optional(),

@@ -2,13 +2,12 @@
   "name": "@unit-talk/shared-utils",
   "version": "1.0.0",
   "description": "Shared utility functions for Unit Talk Platform",
-  "type": "module",
+  "type": "commonjs",
   "main": "dist/index.js",
-  "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
+      "require": "./dist/index.js",
       "types": "./dist/index.d.ts"
     }
   },

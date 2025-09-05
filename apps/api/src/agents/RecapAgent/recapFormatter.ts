@@ -317,7 +317,7 @@ export class RecapFormatter {
     const soloWins = summary.capperBreakdown.reduce((sum, capper) => sum + capper.wins, 0);
     const soloLosses = summary.capperBreakdown.reduce((sum, capper) => sum + capper.losses, 0);
 
-    const picks = [];
+    const picks: string[] = [];
 
     // Add sample picks (in production, you'd get actual pick details)
     if (summary.bestPick) {
@@ -388,7 +388,7 @@ export class RecapFormatter {
   }
 
   private buildWeeklyHighlights(summary: RecapSummary): string {
-    const highlights = [];
+    const highlights: string[] = [];
 
     if (summary.bestPick) {
       const profitLoss = typeof summary.bestPick['profit_loss'] === 'number' ?
@@ -411,7 +411,7 @@ export class RecapFormatter {
   }
 
   private buildMonthlyHighlights(summary: RecapSummary): string {
-    const highlights = [];
+    const highlights: string[] = [];
     
     if (summary.biggestWin) {
       const profitLoss = typeof summary.biggestWin['profit_loss'] === 'number' ?

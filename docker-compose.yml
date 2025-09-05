@@ -141,8 +141,8 @@ services:
       - TEMPORAL_ADDRESS=temporal:7233
       - DB=postgresql
       - DB_PORT=5432
-      - POSTGRES_USER=${TEMPORAL_POSTGRES_USER}
-      - POSTGRES_PWD=${TEMPORAL_POSTGRES_PASSWORD}
+      - POSTGRES_USER=${TEMPORAL_POSTGRES_USER:-temporal}
+      - POSTGRES_PWD=${TEMPORAL_POSTGRES_PASSWORD:-temporal_password_2024}
       - POSTGRES_SEEDS=temporal-postgres
       - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
     volumes:
@@ -176,8 +176,8 @@ services:
     environment:
       - DB=postgresql
       - DB_PORT=5432
-      - POSTGRES_USER=${TEMPORAL_POSTGRES_USER}
-      - POSTGRES_PWD=${TEMPORAL_POSTGRES_PASSWORD}
+      - POSTGRES_USER=${TEMPORAL_POSTGRES_USER:-temporal}
+      - POSTGRES_PWD=${TEMPORAL_POSTGRES_PASSWORD:-temporal_password_2024}
       - POSTGRES_SEEDS=temporal-postgres
       - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
     volumes:
@@ -230,6 +230,7 @@ services:
       - "9090:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml
       - prometheus_data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
@@ -248,12 +249,30 @@ services:
       - unit-talk-network
     restart: unless-stopped
 
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: unit-talk-alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    environment:
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - unit-talk-network
+    restart: unless-stopped
+
   # Grafana Dashboards
   grafana:
     image: grafana/grafana:latest
     container_name: unit-talk-grafana
     ports:
-      - "3001:3000"
+      - "3005:3000"  # Fixed port conflict - moved from 3001 to 3005
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false
@@ -285,24 +304,26 @@ services:
       target: development
     container_name: unit-talk-api
     ports:
-      - "3010:3000"
+      - "3000:3000"  # Fixed port mapping consistency
+      - "9464:9464"  # Metrics port
     env_file:
       - .env
     environment:
       - NODE_ENV=development
       - PORT=3000
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-unit_talk_dev}
       - REDIS_URL=redis://redis:6379
       - TEMPORAL_SERVER_URL=temporal:7233
       - PROMETHEUS_ENABLED=true
       - PROMETHEUS_PORT=9464
+      - START_TEMPORAL_WORKER=false
       - LOG_LEVEL=debug
       - HEALTH_CHECK_INTERVAL=30000
     volumes:
-      - ./apps/api/src:/app/src
-      - ./apps/api/logs:/app/logs
+      - ./apps/api/src:/app/apps/api/src
+      - ./apps/api/logs:/app/apps/api/logs
       - ./packages:/app/packages
-      - ./apps/api/scripts:/app/scripts
+      - ./apps/api/scripts:/app/apps/api/scripts
     depends_on:
       postgres:
         condition: service_healthy
@@ -311,7 +332,7 @@ services:
       temporal:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -340,7 +361,7 @@ services:
       - .env
     environment:
       - NODE_ENV=development
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-unit_talk_dev}
       - REDIS_URL=redis://redis:6379
       - TEMPORAL_SERVER_URL=temporal:7233
       - WORKER_MODE=true
@@ -382,10 +403,13 @@ services:
     container_name: unit-talk-discord-bot
     environment:
       - NODE_ENV=development
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-unit_talk_dev}
       - REDIS_URL=redis://redis:6379
       - API_URL=http://api:3000
       - LOG_LEVEL=debug
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
+      - DISCORD_GUILD_ID=${DISCORD_GUILD_ID}
     volumes:
       - ./apps/discord-bot/src:/app/src
       - ./apps/discord-bot/logs:/app/logs
@@ -410,11 +434,12 @@ services:
       target: development
     container_name: unit-talk-smart-form
     ports:
-      - "3002:3021"
+      - "3002:3000"  # Fixed port mapping for Next.js
     environment:
       - NODE_ENV=development
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
-      - NEXT_PUBLIC_API_URL=http://localhost:3001
+      - PORT=3000
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-unit_talk_dev}
+      - NEXT_PUBLIC_API_URL=http://localhost:3000
       - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
@@ -426,7 +451,7 @@ services:
       api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3021"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -445,7 +470,8 @@ services:
       - "3003:3000"
     environment:
       - NODE_ENV=development
-      - NEXT_PUBLIC_API_URL=http://localhost:3001
+      - PORT=3000
+      - NEXT_PUBLIC_API_URL=http://localhost:3000
       - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
     volumes:
@@ -472,13 +498,17 @@ services:
       target: development
     container_name: unit-talk-command-center
     ports:
-      - "3004:3015"
+      - "3015:3000"  # Fixed port mapping for Command Center (should be 3015)
+    env_file:
+      - .env
     environment:
       - NODE_ENV=development
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
-      - NEXT_PUBLIC_API_URL=http://localhost:3001
+      - PORT=3000
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-development_password_2024}@postgres:5432/${POSTGRES_DB:-unit_talk_dev}
+      - NEXT_PUBLIC_API_URL=http://localhost:3000
       - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - PROMETHEUS_URL=http://prometheus:9090
       - TEMPORAL_UI_URL=http://localhost:8088
     volumes:
@@ -491,7 +521,7 @@ services:
       prometheus:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3015/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3

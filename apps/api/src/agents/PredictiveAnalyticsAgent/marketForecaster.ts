@@ -631,7 +631,11 @@ export class MarketForecaster {
   }
 
   private generateSampleMarketData(points: number): any[] {
-    const data = [];
+    const data: Array<{
+      timestamp: Date;
+      price: number;
+      volume: number;
+    }> = [];
     let price = 1.85 + Math.random() * 0.3; // Starting price between 1.85-2.15
     
     for (let i = 0; i < points; i++) {
@@ -649,7 +653,7 @@ export class MarketForecaster {
   }
 
   private calculateSMA(prices: number[], period: number): number[] {
-    const sma = [];
+    const sma: Array<number> = [];
     
     for (let i = period - 1; i < prices.length; i++) {
       const sum = prices.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0);
@@ -682,7 +686,7 @@ export class MarketForecaster {
     const sumY = y.reduce((a, b) => a + b, 0);
     const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
     const sumXX = x.reduce((sum, xi) => sum + xi * xi, 0);
-    const sumYY = y.reduce((sum, yi) => sum + yi * yi, 0);
+    const _sumYY = y.reduce((sum, yi) => sum + yi * yi, 0);
     
     const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
     const intercept = (sumY - slope * sumX) / n;
@@ -713,7 +717,7 @@ export class MarketForecaster {
   private calculateVolatility(prices: number[]): number {
     if (prices.length < 2) return 0;
     
-    const returns = [];
+    const returns: Array<number> = [];
     for (let i = 1; i < prices.length; i++) {
       returns.push(Math.log(prices[i] / prices[i - 1]));
     }
@@ -763,7 +767,7 @@ export class MarketForecaster {
   }
 
   private generateTrendRecommendations(trend: MarketTrend): string[] {
-    const recommendations = [];
+    const recommendations: Array<string> = [];
     
     if (trend.direction === 'bullish' && trend.strength > 0.6) {
       recommendations.push('Consider long positions near support level');
@@ -784,7 +788,7 @@ export class MarketForecaster {
   }
 
   private generateAnomalyRecommendations(anomaly: MarketAnomaly): string[] {
-    const recommendations = [];
+    const recommendations: Array<string> = [];
     
     switch (anomaly.type) {
       case 'price_spike':
@@ -805,9 +809,9 @@ export class MarketForecaster {
     return recommendations;
   }
 
-  private async identifyTrendDrivers(marketId: string, direction: string, strength: number): Promise<string[]> {
+  private async identifyTrendDrivers(_marketId: string, direction: string, strength: number): Promise<string[]> {
     // This would analyze news, events, and other factors driving the trend
-    const drivers = [];
+    const drivers: Array<string> = [];
     
     if (strength > 0.7) {
       drivers.push('Strong momentum');
@@ -823,7 +827,7 @@ export class MarketForecaster {
   }
 
   private async identifyAnomalyCauses(type: string, deviation: number): Promise<string[]> {
-    const causes = [];
+    const causes: Array<string> = [];
     
     if (type === 'price_spike') {
       causes.push('Breaking news or announcement');
@@ -837,7 +841,7 @@ export class MarketForecaster {
     return causes;
   }
 
-  private assessAnomalyImpact(type: string, deviation: number): string {
+  private assessAnomalyImpact(_type: string, deviation: number): string {
     if (deviation > 4) return 'Significant market disruption expected';
     if (deviation > 3) return 'Moderate impact on market dynamics';
     if (deviation > 2) return 'Minor impact, monitor for developments';
@@ -858,12 +862,12 @@ export class MarketForecaster {
     return `${Math.round(duration / 1440)} days`;
   }
 
-  private async getMarketHistory(marketId: string): Promise<any[]> {
+  private async getMarketHistory(_marketId: string): Promise<any[]> {
     // This would fetch historical market data
     return this.generateSampleMarketData(100); // 100 historical points
   }
 
-  private async selectBestModel(marketId: string, timeHorizon: number): Promise<ForecastingModel> {
+  private async selectBestModel(_marketId: string, timeHorizon: number): Promise<ForecastingModel> {
     // Select the best performing model for this market and time horizon
     const models = Array.from(this.forecastingModels.values());
     

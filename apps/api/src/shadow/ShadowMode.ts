@@ -246,7 +246,7 @@ export class ShadowModeService {
    * Format shadow metrics for display
    */
   private formatShadowMetrics(embed: any): string {
-    const metrics = [];
+    const metrics: string[] = [];
     
     if (embed.devigged_edge !== undefined) {
       metrics.push(`**EV**: ${(embed.devigged_edge * 100).toFixed(2)}%`);
@@ -542,7 +542,7 @@ export class ShadowModeService {
       const byTier: Record<string, number> = {};
       const rejectionReasons: Record<string, number> = {};
 
-      picks.forEach(pick => {
+      picks.forEach((pick: any) => {
         // By action
         byAction[pick.decided_action] = (byAction[pick.decided_action] || 0) + 1;
         

@@ -672,11 +672,12 @@ export class PerformanceOptimizationAgent extends BaseAgent {
   private async generateSummaryInsights(): Promise<string[]> {
     const insights: string[] = [];
     
-    if (this.systemHealth.professional_score >= 90) {
+    const score = this.systemHealth.professional_score ?? this.systemHealth.score;
+    if (score >= 90) {
       insights.push('System performance is excellent with no major issues detected');
-    } else if (this.systemHealth.professional_score >= 70) {
+    } else if (score >= 70) {
       insights.push('System performance is good with minor optimization opportunities');
-    } else if (this.systemHealth.professional_score >= 50) {
+    } else if (score >= 50) {
       insights.push('System performance is degraded - active monitoring and optimization needed');
     } else {
       insights.push('System performance is critical - immediate attention required');
@@ -788,7 +789,10 @@ export class PerformanceOptimizationAgent extends BaseAgent {
   }
 
   public async checkHealth(): Promise<any> {
-    const checks = [];
+    const checks: Array<{
+      component: string;
+      status: 'healthy' | 'unhealthy';
+    }> = [];
 
     // Check subsystem health
     checks.push({

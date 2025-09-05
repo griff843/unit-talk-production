@@ -557,7 +557,7 @@ export class DashboardAPI {
 
   // Chart data generators
   private generateProfitChartData(): Array<{ date: string; profit: number; cumulative: number }> {
-    const data = [];
+    const data: Array<{ date: string; profit: number; cumulative: number }> = [];
     let cumulative = 0;
 
     for (let i = 30; i >= 0; i--) {
@@ -577,7 +577,7 @@ export class DashboardAPI {
   }
 
   private generateWinRateChartData(): Array<{ date: string; winRate: number; picks: number }> {
-    const data = [];
+    const data: Array<{ date: string; winRate: number; picks: number }> = [];
 
     for (let i = 30; i >= 0; i--) {
       const date = new Date();

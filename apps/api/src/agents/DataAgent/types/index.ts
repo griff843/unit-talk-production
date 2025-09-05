@@ -11,7 +11,7 @@ export const DataAgentConfigSchema = z.object({
   }),
   qualityConfig: z.object({
     enabledChecks: z.array(z.string()),
-    thresholds: z.record(z.number())
+    thresholds: z.record(z.string(), z.number())
   }),
   enrichmentConfig: z.object({
     enabledPipelines: z.array(z.string()),

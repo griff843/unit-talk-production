@@ -4,9 +4,10 @@
  */
 
 import axios from 'axios';
-import * as dotenv from 'dotenv';
-
-dotenv.config();
+// Load environment variables from root directory
+import dotenv from 'dotenv';
+import path from 'path';
+dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 async function diagnoseOptimalAPI() {
   console.log('🔍 DIAGNOSING OPTIMAL API CONNECTION');

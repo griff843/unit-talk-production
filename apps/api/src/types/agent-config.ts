@@ -42,7 +42,7 @@ export const AgentConfigSchema = z.object({
     interval: z.number().positive(),
     checks: z.array(z.object({
       name: z.string(),
-      check: z.function().returns(z.promise(z.boolean())),
+      check: z.any(),
       timeout: z.number().positive().optional()
     })).optional()
   }).optional()

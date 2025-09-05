@@ -1,7 +1,7 @@
 import { clvTrackingService } from '../../../services/clv/CLVTrackingService';
 import { deviggingService } from '../../../services/devigging/DeviggingService';
 import { GradingFeatureSet } from '../../../types/GradingFeatureSet';
-import { getScoringConfig, getSportWeights } from '../../../scoring/config/weights';
+import { getScoringConfig } from '../../../scoring/config/weights';
 
 import { enhancedScoringEngine, EnhancedScoringResult } from './enhancedScoringEngine';
 import { FeatureEngineer } from './featureEngineer';
@@ -578,21 +578,21 @@ export class SyndicateGradingEngine {
     const ensemble = await this.mlModelManager.scoreWithEnsemble(features);
     
     // Calculate model agreement (how much models agree)
-    const scores = [nn.professional_score, gb.professional_score, rf.score];
-    const mean = scores.reduce((a, b) => a + b) / scores.length;
-    const variance = scores.reduce((acc, professional_score) => acc + Math.pow(professional_score - mean, 2), 0) / scores.length;
+    const scores = [nn?.professional_score ?? 0, gb?.professional_score ?? 0, rf?.score ?? 0];
+    const mean = scores.reduce((a, b) => (a ?? 0) + (b ?? 0), 0) / scores.length;
+    const variance = scores.reduce((acc, professional_score) => (acc ?? 0) + Math.pow((professional_score ?? 0) - mean, 2), 0) / scores.length;
     const agreement = Math.max(0, 1 - (variance / 100)); // Normalize to 0-1
 
     return {
-      neuralNetwork: nn.professional_score,
-      gradientBoosting: gb.professional_score,
-      randomForest: rf.professional_score,
-      ensemble: ensemble.professional_score,
+      neuralNetwork: nn.professional_score ?? 0,
+      gradientBoosting: gb.professional_score ?? 0,
+      randomForest: rf.professional_score ?? 0,
+      ensemble: ensemble.professional_score ?? 0,
       contributions: {
-        'Neural Network': nn.professional_score * 0.2,
-        'Gradient Boosting': gb.professional_score * 0.25,
-        'Random Forest': rf.professional_score * 0.15,
-        'Ensemble': ensemble.professional_score * 0.3
+        'Neural Network': (nn.professional_score ?? 0) * 0.2,
+        'Gradient Boosting': (gb.professional_score ?? 0) * 0.25,
+        'Random Forest': (rf.professional_score ?? 0) * 0.15,
+        'Ensemble': (ensemble.professional_score ?? 0) * 0.3
       },
       agreement
     };
@@ -1488,23 +1488,7 @@ export class SyndicateGradingEngine {
     return { public: publicPercentage, sharp: sharpPercentage };
   }
 
-  /**
-   * 6. Market Timing Advantage (already calculated in optimal timing)
-   */
-  private calculateMarketTimingAdvantage(features: GradingFeatureSet): number {
-    const hoursToGame = this.calculateHoursToGame(features);
-    
-    // Professional timing: early for value, late only for breaking news
-    if (hoursToGame > 24) {
-      return 0.9; // Best time for value
-    } else if (hoursToGame > 8) {
-      return 0.6; // Good timing
-    } else if (hoursToGame > 2) {
-      return 0.3; // Okay timing
-    } else {
-      return 0.1; // Poor timing unless breaking news
-    }
-  }
+  // Removed unused _calculateMarketTimingAdvantage method
 
   /**
    * 7. Injury Timing Edge
@@ -1667,33 +1651,7 @@ export class SyndicateGradingEngine {
     }
   }
 
-  /**
-   * Check if weather has significant impact on game
-   */
-  private hasSignificantWeather(weather: any): boolean {
-    if (!weather) return false;
-    
-    // Significant weather conditions that affect props
-    const hasStrongWind = weather.windSpeed && weather.windSpeed > 15; // mph
-    const hasExtremeTemp = weather.temperature && (weather.temperature < 50 || weather.temperature > 90);
-    const hasPrecipitation = weather.precipitation && weather.precipitation > 0.1;
-    
-    return hasStrongWind || hasExtremeTemp || hasPrecipitation;
-  }
-
-  /**
-   * Check if this is a revenge game or rivalry matchup
-   */
-  private isRevengeGame(features: GradingFeatureSet): boolean {
-    // This would need historical data to determine revenge games
-    // For now, return false - this should be enhanced with actual rivalry data
-    // Future enhancement: Access team data from game context or database
-    
-    // Known rivalries could be hardcoded or fetched from database
-    // This is a placeholder for future enhancement when team data is available
-    
-    return false; // Will be enhanced when team/opponent data is accessible
-  }
+  // Removed unused _hasSignificantWeather and _isRevengeGame methods
 
   // ========================================
   // 🆕 NEW: PROFESSIONAL DEVIGGING & CLV INTEGRATION
@@ -1778,7 +1736,7 @@ export class SyndicateGradingEngine {
   /**
    * Calculate opposite odds for devigging
    */
-  private calculateOppositeOdds(primaryOdds: number, modelProb: number): number {
+  private calculateOppositeOdds(_primaryOdds: number, modelProb: number): number {
     const oppositeProb = 1 - modelProb;
     return this.probToAmericanOdds(oppositeProb);
   }
@@ -1807,59 +1765,7 @@ export class SyndicateGradingEngine {
     return vig * 100; // Return as percentage
   }
 
-  /**
-   * Apply dynamic sportsbook weights based on performance
-   */
-  private async applyBookWeights(features: GradingFeatureSet, baseEdge: number): Promise<number> {
-    const book = features.book || 'DraftKings';
-    
-    // This would fetch from database in production
-    // For now, use some example adjustments
-    const bookMultipliers: Record<string, number> = {
-      'DraftKings': 1.0,
-      'FanDuel': 1.05, // Slightly better lines historically
-      'BetMGM': 0.95,  // Slightly worse lines
-      'Caesars': 0.90,
-      'PointsBet': 1.10 // Often has better player props
-    };
-    
-    const multiplier = bookMultipliers[book] || 1.0;
-    return baseEdge * multiplier;
-  }
-
-  /**
-   * Apply market-specific confidence adjustments
-   */
-  private async applyMarketConfidence(features: GradingFeatureSet, baseConfidence: number): Promise<number> {
-    const sport = features.sport;
-    const market = features.market?.type || 'player_props';
-    
-    // This would fetch from database in production
-    // For now, use some example adjustments
-    const marketMultipliers: Record<string, Record<string, number>> = {
-      'MLB': {
-        'player_props': 1.1,
-        'totals': 1.05,
-        'spreads': 1.0,
-        'moneyline': 0.95
-      },
-      'NBA': {
-        'player_props': 1.15,
-        'totals': 1.1,
-        'spreads': 1.0,
-        'moneyline': 0.9
-      },
-      'NFL': {
-        'player_props': 1.2,
-        'totals': 1.1,
-        'spreads': 1.05,
-        'moneyline': 1.0
-      }
-    };
-    
-    const multiplier = marketMultipliers[sport]?.[market] || 1.0;
-    return Math.min(1.0, baseConfidence * multiplier);
-  }
+  // Removed unused _applyBookWeights and _applyMarketConfidence methods
 
   /**
    * Trigger feedback loop (should be called periodically)

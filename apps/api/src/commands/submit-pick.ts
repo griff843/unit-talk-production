@@ -482,10 +482,10 @@ export async function handlePickConfirmation(interaction: ButtonInteraction) {
         .setTitle('✅ Pick Submitted Successfully!')
         .setColor(0x00ff00)
         .setDescription(`Your pick has been submitted and will be published at the scheduled time.`)
-        .addFields(
+        .addFields([
           { name: 'Pick ID', value: pick.id, inline: true },
-          { name: 'Status', value: pick.status.toUpperCase(), inline: true }
-        )
+          { name: 'Status', value: (pick.status || 'pending').toUpperCase(), inline: true }
+        ] as any)
         .setTimestamp();
 
       await interaction.update({

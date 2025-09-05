@@ -2,7 +2,7 @@ import { proxyActivities } from '@temporalio/workflow';
 
 import { RawProp } from '../../../types/rawProps';
 import { fetchRawProps } from '../../IngestionAgent/fetchRawProps';
-import { fetchUnifiedData, fetchUnifiedSettlement } from '../dataSourceRouter';
+import { fetchUnifiedData } from '../dataSourceRouter';
 import { supabaseClient } from '../../../services/supabaseClient';
 // Note: Using console.log instead of Logger to avoid import issues
 
@@ -396,7 +396,7 @@ export async function checkQuotaStatus(params: { provider: string }): Promise<{ 
   }
 }
 
-export async function getLiveGames(params?: any): Promise<{ success: boolean; games: any[]; error?: string }> {
+export async function getLiveGames(): Promise<{ success: boolean; games: any[]; error?: string }> {
   try {
     console.log(`[FeedAgent] Fetching live games`);
     

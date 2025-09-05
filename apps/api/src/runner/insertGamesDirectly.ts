@@ -6,11 +6,10 @@
 import { randomUUID } from 'crypto';
 
 import { createClient } from '@supabase/supabase-js';
-import * as dotenv from 'dotenv';
-
-import { fetchEvents } from '../agents/FeedAgent/optimal';
-
-dotenv.config();
+// Load environment variables from root directory
+import dotenv from 'dotenv';
+import path from 'path';
+dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,

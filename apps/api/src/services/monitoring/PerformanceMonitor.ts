@@ -112,7 +112,7 @@ export class PerformanceMonitor {
       
     if (!latestMetrics) return;
     
-    const alerts = [];
+    const alerts: Array<any> = [];
     
     // Define thresholds
     const thresholds = {

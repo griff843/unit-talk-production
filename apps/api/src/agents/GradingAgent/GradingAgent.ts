@@ -6,8 +6,9 @@ import { BaseAgentConfig, BaseAgentDependencies, HealthCheckResult, BaseMetrics 
 import { ProfessionalPropProcessor, ProfessionalPropResult } from '../../services/ProfessionalPropProcessor';
 import { ParallelGradingEngine } from './scoring/ParallelGradingEngine';
 import { QueryOptimizer } from '@unit-talk/database';
-import { IntelligentCache, GradingCache } from '@unit-talk/shared-utils';
-import { createAgentConfig } from '@unit-talk/shared-utils';
+// TODO: Implement intelligent caching and config creation
+// import { IntelligentCache, GradingCache } from '@unit-talk/shared-utils';
+// import { createAgentConfig } from '@unit-talk/shared-utils';
 
 import { SyndicateGradingEngine, GradingResult, ScoringConfig } from './scoring/gradingEngine';
 import { DataValidationGates } from '../../validation/dataValidationGates';
@@ -32,7 +33,7 @@ export class GradingAgent extends BaseAgent {
   private professionalProcessor: ProfessionalPropProcessor;
   private parallelEngine: ParallelGradingEngine;
   private queryOptimizer: QueryOptimizer;
-  private gradingCache: GradingCache;
+  // private gradingCache: GradingCache; // TODO: Implement grading cache
   // private performanceAnalyzer: PerformanceAnalyzer;
   // private riskManager: RiskManager;
   private gradingMetrics: GradingMetrics;
@@ -60,7 +61,7 @@ export class GradingAgent extends BaseAgent {
     // Initialize optimization components
     this.parallelEngine = new ParallelGradingEngine(this.logger);
     this.queryOptimizer = new QueryOptimizer(this.requireSupabase());
-    this.gradingCache = new GradingCache();
+    // this.gradingCache = new GradingCache(); // TODO: Implement grading cache
     // this.performanceAnalyzer = new PerformanceAnalyzer();
     // this.riskManager = new RiskManager({
     //   maxPositionSize: 0.05,
@@ -180,7 +181,7 @@ export class GradingAgent extends BaseAgent {
   }
 
   async checkHealth(): Promise<HealthCheckResult> {
-    const checks = [];
+    const checks: Array<{ service: string; status: string; error?: string; details?: any }> = [];
     
     // Database connectivity
     if (this.hasSupabase()) {
@@ -244,13 +245,13 @@ export class GradingAgent extends BaseAgent {
   async gradeProp(features: GradingFeatureSet): Promise<GradingResult> {
     const startTime = Date.now();
 
-    // Check cache first for recent grading results
-    const cacheKey = `grading:${features.propId}`;
-    const cachedResult = this.gradingCache.get(cacheKey);
-    if (cachedResult) {
-      this.logger.debug('🎯 Cache hit for grading result', { propId: features.propId });
-      return cachedResult;
-    }
+    // TODO: Check cache first for recent grading results when cache is implemented
+    // const cacheKey = `grading:${features.propId}`;
+    // const cachedResult = this.gradingCache.get(cacheKey);
+    // if (cachedResult) {
+    //   this.logger.debug('🎯 Cache hit for grading result', { propId: features.propId });
+    //   return cachedResult;
+    // }
 
     try {
       let result: GradingResult;
@@ -291,8 +292,8 @@ export class GradingAgent extends BaseAgent {
         result = await this.gradingEngine.gradeProp(features);
       }
       
-      // Cache the result for future requests
-      this.gradingCache.cacheGradingResult(features.propId, result);
+      // TODO: Cache the result for future requests when cache is implemented
+      // this.gradingCache.cacheGradingResult(features.propId, result);
 
       // Update metrics
       this.gradingMetrics.picksGraded++;
@@ -352,7 +353,7 @@ export class GradingAgent extends BaseAgent {
   /**
    * Convert ProfessionalPropResult to GradingResult format
    */
-  private convertProfessionalResult(proResult: ProfessionalPropResult, features: GradingFeatureSet): GradingResult {
+  private convertProfessionalResult(proResult: ProfessionalPropResult, _features: GradingFeatureSet): GradingResult {
     // Create a standardized GradingResult from ProfessionalPropProcessor output
     const result: GradingResult = {
       propId: proResult.pickId,
@@ -579,57 +580,7 @@ export class GradingAgent extends BaseAgent {
     }
   }
 
-  private convertUnifiedPickToFeatureSet(unifiedPick: any): GradingFeatureSet {
-    // Convert unified pick (with raw_props relation) to GradingFeatureSet format for v3.0.0
-    const rawProp = unifiedPick.raw_props;
-    
-    return {
-      propId: rawProp.id, // Use raw_prop ID for grading identification
-      unifiedPickId: unifiedPick.id, // Track the unified pick ID for updates
-      date: rawProp.game_date || new Date().toISOString().split('T')[0],
-      sport: rawProp.sport || unifiedPick.sport || 'unknown',
-      league: rawProp.league || 'unknown',
-      player: rawProp.player_name,
-      market: {
-        type: rawProp.stat_type || 'unknown', // v3.0.0 uses stat_type instead of market_type
-        line: rawProp.line || 0,
-        odds: unifiedPick.prediction === 'over' ? rawProp.over_odds : rawProp.under_odds || 100
-      },
-      // Use existing pick confidence or default to 50
-      expectedValue: unifiedPick.confidence * 0.01 || 0, // Convert confidence to EV approximation
-      sharpMoney: 50, // Default - could be enhanced with market data
-      lineMovement: 0, // Default - could be enhanced with line tracking
-      matchupRating: 50, // Default - could be enhanced with matchup analysis
-      playerForm: 50, // Default - could be enhanced with player performance data
-      marketType: rawProp.stat_type,
-      odds: unifiedPick.prediction === 'over' ? rawProp.over_odds : rawProp.under_odds,
-      // Add other required fields with defaults
-      injuryImpact: 0,
-      weatherImpact: 0,
-      marketIntelligence: 50,
-      volumeProfile: 50,
-      closingLineValue: 0,
-      playerFatigue: 0,
-      venueAdvantage: 0,
-      refereeImpact: 0,
-      paceImpact: 0,
-      motivationalFactors: 0,
-      correlationRisk: 0,
-      volatility: 5,
-      portfolioImpact: 0,
-      bidAskSpread: 0.02,
-      timestamp: unifiedPick.created_at || new Date().toISOString(),
-      version: '1.0',
-      source: 'unified_picks',
-      confidence: unifiedPick.confidence || 50,
-      dataQuality: {
-        completeness: 0.95,
-        outlierScore: 0.95,
-        consistencyScore: 0.95,
-        dataValidationScore: 0.95
-      }
-    };
-  }
+
 
   private convertToFeatureSet(rawProp: any): GradingFeatureSet {
     // Legacy method - Convert raw database prop to GradingFeatureSet format

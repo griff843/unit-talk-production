@@ -323,7 +323,7 @@ class AutoRecheckService {
   /**
    * Perform comprehensive validation
    */
-  private async performValidation(pick: any, checkType: 'pre_game' | 'post_game'): Promise<ValidationSnapshot> {
+  private async performValidation(pick: any, _checkType: 'pre_game' | 'post_game'): Promise<ValidationSnapshot> {
     const timestamp = new Date();
 
     // Promotion gate validation
@@ -497,7 +497,7 @@ class AutoRecheckService {
     pick: any,
     validation: ValidationSnapshot,
     oddsMovement: OddsMovementData,
-    checkPoint: RecheckPoint
+    _checkPoint: RecheckPoint
   ): Promise<RecheckAction> {
     // Critical failures require immediate action
     if (validation.pickStatus === 'invalid') {
@@ -700,7 +700,7 @@ class AutoRecheckService {
         .in('status', ['scheduled', 'active']);
 
       if (schedules) {
-        schedules.forEach(schedule => {
+        schedules.forEach((schedule: any) => {
           this.activeSchedules.set(schedule.pick_id, {
             pickId: schedule.pick_id,
             gameTime: new Date(schedule.game_time),
@@ -762,7 +762,7 @@ class AutoRecheckService {
   /**
    * Get recheck statistics
    */
-  public async getRecheckStats(timeframe: 'day' | 'week' | 'month' = 'day'): Promise<{
+  public async getRecheckStats(_timeframe: 'day' | 'week' | 'month' = 'day'): Promise<{
     totalSchedules: number;
     activeSchedules: number;
     completedChecks: number;

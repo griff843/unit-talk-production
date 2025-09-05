@@ -8,7 +8,7 @@ export default defineConfig({
   testDir: './tests',
   testMatch: ['**/command-center-production-verification.spec.ts', '**/command-center-simple-verification.spec.ts'],
   fullyParallel: false, // Run tests sequentially for better debugging
-  forbidOnly: !!process.env.CI,
+  forbidOnly: !!process.env['CI'],
   retries: 1,
   workers: 1,
   reporter: [

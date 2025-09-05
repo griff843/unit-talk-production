@@ -348,7 +348,7 @@ export async function fetchPlayerProps(sport: string, eventId: string): Promise<
           }
           
           // Convert to legacy format with smart defaults for missing sides
-          for (const [key, groupedOffer] of offersByPropAndLine) {
+          for (const [_key, groupedOffer] of offersByPropAndLine) {
             let over_odds = groupedOffer.over_odds;
             let under_odds = groupedOffer.under_odds;
             
@@ -675,10 +675,11 @@ export async function fetchOptimalProps(sport: string, date?: string): Promise<R
  * OptimalClient class for compatibility with existing code
  */
 export class OptimalClient {
-  private apiKey: string;
+  // private _apiKey: string; // Unused - commented out
 
-  constructor(apiKey?: string) {
-    this.apiKey = apiKey || process.env['OPTIMAL_API_KEY'] || '';
+  constructor(_apiKey?: string) {
+    // this._apiKey = apiKey || process.env['OPTIMAL_API_KEY'] || '';
+    // API key handling removed as unused
   }
 
   async fetchPlayerPropTypes(): Promise<OptimalPlayerPropType[]> {

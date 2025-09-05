@@ -1,8 +1,10 @@
 import dotenv from 'dotenv';
+import path from 'path';
 
 // Only load .env file if not in test mode
 if (process.env.NODE_ENV !== 'test') {
-  dotenv.config();
+  // Load .env from project root (two levels up from apps/api/src/config)
+  dotenv.config({ path: path.join(__dirname, '../../../../.env') });
 }
 
 // Required variables for production
@@ -26,17 +28,25 @@ function validateEnv() {
     return;
   }
 
+  const isDevMode = !isTestMode && (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV);
   const requiredVars = isTestMode ? REQUIRED_TEST_VARS : REQUIRED_PROD_VARS;
   const missingVars = requiredVars.filter(key => !process.env[key]);
 
   if (missingVars.length > 0) {
-    console.error('❌ Invalid environment variables:');
-    missingVars.forEach(key => console.error(`  - ${key}: Required`));
-    throw new Error('Missing required environment variables');
+    if (isDevMode || process.env.ALLOW_DEV_UNCONFIGURED === 'true') {
+      console.warn('⚠️ Missing environment variables (allowed in development):');
+      missingVars.forEach(key => console.warn(`  - ${key}: missing`));
+    } else {
+      console.error('❌ Invalid environment variables:');
+      missingVars.forEach(key => console.error(`  - ${key}: Required`));
+      throw new Error('Missing required environment variables');
+    }
   }
 
   if (isTestMode) {
     console.info('✅ Test environment variables validated');
+  } else if (isDevMode) {
+    console.info('✅ Development environment variables validated (relaxed)');
   } else {
     console.info('✅ Production environment variables validated');
   }

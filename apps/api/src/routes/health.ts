@@ -6,20 +6,15 @@ import { getEnv } from '../utils/getEnv';
 import { createLogger } from '../utils/logger';
 import { getGracefulShutdown } from '../utils/gracefulShutdown';
 
-const env = getEnv();
+const _env = getEnv();
 const logger = createLogger('Health');
 
-// Initialize real Supabase client for health checks
-const supabaseClient = createClient(
-  process.env.SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-  {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false
-    }
-  }
-);
+// Initialize Supabase client only if configured to avoid runtime errors in dev
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseClient = (supabaseUrl && supabaseKey)
+  ? createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false, autoRefreshToken: false } })
+  : null as any;
 
 const router = Router();
 const redis = new Redis({
@@ -62,7 +57,7 @@ interface ServiceStatus {
 
 // Detailed health check endpoint
 router.get('/', async (
-  req: Request,
+  _req: Request,
   res: Response
 ) => {
   const startTime = Date.now();
@@ -106,33 +101,47 @@ router.get('/', async (
     // Check database with comprehensive validation
     const dbStartTime = Date.now();
     try {
-      // Test basic connectivity
-      const { data: basicTest, error: basicError } = await supabaseClient
-        .from('users')
-        .select('count')
-        .limit(1);
+      // If Supabase is not configured (local dev), mark as degraded instead of down
+      if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        const dbResponseTime = Date.now() - dbStartTime;
+        healthStatus.services.database = {
+          status: 'degraded',
+          responseTime: dbResponseTime,
+          lastCheck: new Date().toISOString(),
+          details: {
+            configured: false,
+            reason: 'SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set'
+          }
+        };
+      } else {
+        // Test basic connectivity
+        const { data: _basicTest, error: basicError } = await supabaseClient
+          .from('users')
+          .select('count')
+          .limit(1);
 
-      if (basicError) throw basicError;
+        if (basicError) throw basicError;
 
-      // Test write capability (if not in read-only mode)
-      const { error: writeTest } = await supabaseClient
-        .from('agent_health')
-        .select('agent_name')
-        .limit(1);
+        // Test write capability (if not in read-only mode)
+        const { error: writeTest } = await supabaseClient
+          .from('agent_health')
+          .select('agent_name')
+          .limit(1);
 
-      if (writeTest) throw writeTest;
+        if (writeTest) throw writeTest;
 
-      const dbResponseTime = Date.now() - dbStartTime;
-      healthStatus.services.database = {
-        status: 'up',
-        responseTime: dbResponseTime,
-        lastCheck: new Date().toISOString(),
-        details: {
-          readTest: 'passed',
-          writeTest: 'passed',
-          connectionPool: 'healthy'
-        }
-      };
+        const dbResponseTime = Date.now() - dbStartTime;
+        healthStatus.services.database = {
+          status: 'up',
+          responseTime: dbResponseTime,
+          lastCheck: new Date().toISOString(),
+          details: {
+            readTest: 'passed',
+            writeTest: 'passed',
+            connectionPool: 'healthy'
+          }
+        };
+      }
     } catch (error) {
       const dbResponseTime = Date.now() - dbStartTime;
       healthStatus.services.database = {
@@ -364,7 +373,7 @@ async function checkExternalAPIs(): Promise<{
     }
 
     // Determine overall health
-    const upServices = Object.values(results).filter(r => r.status === 'up').length;
+    const _upServices = Object.values(results).filter(r => r.status === 'up').length;
     const downServices = Object.values(results).filter(r => r.status === 'down').length;
     const allHealthy = downServices === 0;
 

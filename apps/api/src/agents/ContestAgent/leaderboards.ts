@@ -34,7 +34,7 @@ const leaderboardSchema = z.object({
     averageScore: z.number(),
     highestScore: z.number(),
     lowestScore: z.number(),
-    scoreDistribution: z.record(z.number())
+    scoreDistribution: z.record(z.string(), z.number())
   })
 });
 
@@ -209,7 +209,9 @@ export class LeaderboardManager {
     leaderboard: Leaderboard
   ): Promise<LeaderboardEntry[]> {
     // Sort participants by primary professional_score
-    let sortedParticipants = [...participants].sort((a, b) => b.professional_score - a.professional_score);
+    let sortedParticipants = [...participants].sort((a, b) => 
+      (b.professional_score ?? 0) - (a.professional_score ?? 0)
+    );
 
     // Apply tiebreakers for equal scores
     sortedParticipants = await this.applyTiebreakers(sortedParticipants, leaderboard);
@@ -227,11 +229,11 @@ export class LeaderboardManager {
       return {
         rank: currentRank,
         userId: participant.id, // Changed from participantId to userId
-        score: participant.professional_score,
+        score: participant.professional_score ?? 0,
         achievements: [], // Removed achievements access since it doesn't exist on Participant
         metadata: {
           trend: this.calculateTrend(currentRank, previousRank),
-          fairPlayScore: participant.fairPlayScore
+          fairPlayScore: participant.fairPlayScore ?? 0
         }
       };
     });
@@ -244,9 +246,9 @@ export class LeaderboardManager {
     // Group participants by professional_score
     const scoreGroups = new Map<number, Participant[]>();
     participants.forEach(p => {
-      const group = scoreGroups.get(p.professional_score) || [];
+      const group = scoreGroups.get(p.professional_score ?? 0) || [];
       group.push(p);
-      scoreGroups.set(p.professional_score, group);
+      scoreGroups.set(p.professional_score ?? 0, group);
     });
 
     // Apply tiebreakers for each group with multiple participants
@@ -306,15 +308,15 @@ export class LeaderboardManager {
   }
 
   private calculateStats(participants: Participant[]): LeaderboardStats {
-    const scores = participants.map(p => p.professional_score);
+    const scores = participants.map(p => p.professional_score ?? 0).filter((score): score is number => score !== undefined);
     const totalParticipants = participants.length;
 
     // Calculate basic statistics
     const stats: LeaderboardStats = {
       totalParticipants,
-      averageScore: scores.reduce((a, b) => a + b, 0) / totalParticipants,
-      highestScore: Math.max(...scores),
-      lowestScore: Math.min(...scores),
+      averageScore: scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0,
+      highestScore: scores.length > 0 ? Math.max(...scores) : 0,
+      lowestScore: scores.length > 0 ? Math.min(...scores) : 0,
       scoreDistribution: {}
     };
 

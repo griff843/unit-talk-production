@@ -7,7 +7,7 @@
 
 import { logger } from '../../../shared/logger';
 
-const riskLogger = logger.child({ component: 'RiskManagementAgent:Activities' });
+const _riskLogger = logger.child({ component: 'RiskManagementAgent:Activities' });
 
 export async function calculatePortfolioRisk(data: {
   portfolioId: string;
@@ -50,7 +50,7 @@ export async function calculatePortfolioRisk(data: {
                      totalRisk > 0.2 ? 'high' :
                      totalRisk > 0.1 ? 'medium' : 'low';
     
-    const recommendations = [];
+    const recommendations: Array<string> = [];
     if (diversificationScore < 0.6) {
       recommendations.push('Increase portfolio diversification');
     }
@@ -238,7 +238,7 @@ export async function assessDrawdownRisk(data: {
                      currentDrawdown < -0.2 ? 'high' :
                      currentDrawdown < -0.1 ? 'medium' : 'low';
     
-    const recommendations = [];
+    const recommendations: Array<string> = [];
     if (riskLevel === 'critical' || riskLevel === 'high') {
       recommendations.push('Reduce position sizes by 50%');
       recommendations.push('Focus on higher confidence picks only');

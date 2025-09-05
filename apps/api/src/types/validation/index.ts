@@ -23,7 +23,7 @@ export async function validateOrThrow<T>(
     return schema.parse(data);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errorDetails = error.errors.map(e => ({
+      const errorDetails = error.issues.map(e => ({
         path: e.path.join('.'),
         message: e.message,
       }));
@@ -48,7 +48,7 @@ export function validateModel<T>(schema: z.ZodSchema<T>, data: unknown): T {
   } catch (error) {
     if (error instanceof z.ZodError) {
       throw new ValidationError(
-        'Model validation failed: ' + error.errors.map(e => e.message).join(', ')
+        'Model validation failed: ' + error.issues.map(e => e.message).join(', ')
       );
     }
     throw error;
@@ -61,7 +61,7 @@ export function validateDatabaseModel<T>(schema: z.ZodSchema<T>, data: unknown):
   } catch (error) {
     if (error instanceof z.ZodError) {
       throw new DatabaseError(
-        'Database model validation failed: ' + error.errors.map(e => e.message).join(', ')
+        'Database model validation failed: ' + error.issues.map(e => e.message).join(', ')
       );
     }
     throw error;
@@ -82,7 +82,7 @@ export function validateConfig<T>(schema: z.ZodSchema<T>, config: unknown): T {
   } catch (error) {
     if (error instanceof z.ZodError) {
       throw new ValidationError(
-        'Configuration validation failed: ' + error.errors.map(e => e.message).join(', ')
+        'Configuration validation failed: ' + error.issues.map(e => e.message).join(', ')
       );
     }
     throw error;
@@ -98,7 +98,7 @@ export const PaginationSchema = z.object({
 export const ApiErrorSchema = z.object({
   code: z.string(),
   message: z.string(),
-  details: z.record(z.unknown()).optional(),
+  details: z.record(z.string(), z.unknown()).optional(),
 });
 
 // --- Event Validation ---
@@ -107,15 +107,15 @@ export const BaseEventSchema = z.object({
   type: z.string(),
   source: z.string(),
   timestamp: z.string().datetime(),
-  data: z.record(z.unknown()),
-  metadata: z.record(z.unknown()).optional(),
+  data: z.record(z.string(), z.unknown()),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 // --- Metric Validation ---
 export const MetricSchema = z.object({
   name: z.string(),
   value: z.number(),
-  labels: z.record(z.string()).optional(),
+  labels: z.record(z.string(), z.string()).optional(),
   timestamp: z.string().datetime(),
 });
 
@@ -125,6 +125,6 @@ export const AlertSchema = z.object({
   message: z.string(),
   source: z.string(),
   timestamp: z.string().datetime(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
   channels: z.array(z.enum(['email', 'slack', 'discord', 'pagerduty'])),
 }); 

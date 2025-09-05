@@ -158,7 +158,8 @@ export class SystemMonitor {
 
   async checkStorageHealth(): Promise<HealthCheck> {
     try {
-      const _stats = fs.statSync(process.cwd());
+      // Check storage availability
+      fs.statSync(process.cwd()); // Verify filesystem access
       const diskUsage = await this.getDiskUsage();
       
       const status = diskUsage < 0.8 ? 'healthy' : diskUsage < 0.9 ? 'warning' : 'critical';
@@ -218,7 +219,7 @@ export class SystemMonitor {
   private async getDiskUsage(): Promise<number> {
     try {
       // Simplified disk usage calculation
-      const _stats = fs.statSync(process.cwd());
+      fs.statSync(process.cwd()); // Verify filesystem access
       return 0.3; // Mock 30% usage
     } catch {
       return 0.5; // Default fallback

@@ -154,7 +154,7 @@ export const EnhancedRawPropSchema = z.object({
   game_date: z.string().optional(),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
-  metadata: z.record(z.unknown()).optional()
+  metadata: z.record(z.string(), z.unknown()).optional()
 });
 
 // =============================================================================
@@ -201,11 +201,11 @@ export const GradingResultSchema = z.object({
   kelly_fraction: z.number().optional(),
   position_size: z.number().optional(),
   risk_score: z.number().optional(),
-  feature_contributions: z.record(z.unknown()).optional(),
-  model_contributions: z.record(z.unknown()).optional(),
-  scenario_analysis: z.record(z.unknown()).optional(),
-  professional_insights: z.record(z.unknown()).optional(),
-  enhanced_capper_analysis: z.record(z.unknown()).optional(),
+  feature_contributions: z.record(z.string(), z.unknown()).optional(),
+  model_contributions: z.record(z.string(), z.unknown()).optional(),
+  scenario_analysis: z.record(z.string(), z.unknown()).optional(),
+  professional_insights: z.record(z.string(), z.unknown()).optional(),
+  enhanced_capper_analysis: z.record(z.string(), z.unknown()).optional(),
   data_quality: z.number().default(0.95),
   model_agreement: z.number().optional(),
   historical_accuracy: z.number().optional(),
@@ -350,9 +350,9 @@ export const MLFeaturesSchema = z.object({
   random_forest_score: z.number().optional(),
   ensemble_score: z.number().optional(),
   model_agreement: z.number().optional(),
-  feature_weights: z.record(z.unknown()).optional(),
-  similar_props_performance: z.record(z.unknown()).optional(),
-  player_historical_performance: z.record(z.unknown()).optional(),
+  feature_weights: z.record(z.string(), z.unknown()).optional(),
+  similar_props_performance: z.record(z.string(), z.unknown()).optional(),
+  player_historical_performance: z.record(z.string(), z.unknown()).optional(),
   model_version: z.string().optional(),
   created_at: z.string().datetime()
 });
@@ -396,7 +396,7 @@ export const SettlementTrackingSchema = z.object({
   game_completed_at: z.string().datetime().optional(),
   settlement_attempted_at: z.string().datetime().optional(),
   settled_at: z.string().datetime().optional(),
-  settlement_errors: z.record(z.unknown()).optional(),
+  settlement_errors: z.record(z.string(), z.unknown()).optional(),
   retry_count: z.number().default(0),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime()

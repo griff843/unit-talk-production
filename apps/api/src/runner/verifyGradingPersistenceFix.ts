@@ -3,10 +3,12 @@
  * Following claude.md rules - test that database updates now work with correct data types
  */
 
-import { createClient } from '@supabase/supabase-js';
-import * as dotenv from 'dotenv';
+// Load environment variables from root directory
+import dotenv from 'dotenv';
+import path from 'path';
+dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
-dotenv.config();
+import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,

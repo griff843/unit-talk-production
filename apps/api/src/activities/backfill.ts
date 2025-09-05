@@ -121,7 +121,7 @@ export async function checkIdempotency(request: any): Promise<IdempotencyResult>
  * Backfill props for a specific hour
  */
 export async function backfillPropsForHour(request: BackfillHourRequest): Promise<BackfillHourResult> {
-  const { date, sport, dryRun, batchSize } = request;
+  const { date, sport, dryRun } = request;
   console.log(`[Backfill] Processing hour: ${date}, sport: ${sport || 'all'}, dryRun: ${dryRun}`);
 
   try {
@@ -181,7 +181,7 @@ export async function backfillPropsForHour(request: BackfillHourRequest): Promis
         .select('external_prop_id')
         .in('external_prop_id', propsForDB.map(p => p.external_prop_id));
 
-      const existingSet = new Set(existingIds.data?.map(p => p.external_prop_id) || []);
+      const existingSet = new Set(existingIds.data?.map((p: { external_prop_id: string }) => p.external_prop_id) || []);
       
       // Filter out duplicates
       const newProps = propsForDB.filter(prop => !existingSet.has(prop.external_prop_id));
@@ -233,7 +233,7 @@ export async function recordBackfillProgress(params: {
   progress: any;
 }): Promise<void> {
   try {
-    const { workflowId, hourChunk, result, progress } = params;
+    const { workflowId, hourChunk, progress } = params;
     
     // Insert or update backfill progress record
     const { error } = await supabaseClient

@@ -2,8 +2,7 @@ import 'dotenv/config';
 import { BaseAgent } from '../agents/BaseAgent';
 import { BaseAgentConfig, BaseAgentDependencies, BaseMetrics, HealthStatus } from '../agents/BaseAgent/types';
 import { withCircuitBreaker, circuitBreaker } from '../services/enhanced-circuit-breaker';
-import { SupabaseClient } from '@supabase/supabase-js';
-import { Logger } from '../shared/logger/types';
+// Removed unused imports: SupabaseClient, Logger
 
 interface BridgeWorkerConfig extends BaseAgentConfig {
   eventBatchSize: number;
@@ -723,7 +722,7 @@ export class BridgeWorker extends BaseAgent {
       .gt('cooldown_until', new Date().toISOString())
       .limit(1);
 
-    return data && data.length > 0;
+    return Boolean(data && data.length > 0);
   }
 
   private async isSubscriberInCooldown(eventType: string): Promise<boolean> {
@@ -737,7 +736,7 @@ export class BridgeWorker extends BaseAgent {
       .gt('cooldown_until', new Date().toISOString())
       .limit(1);
 
-    return data && data.length > 0;
+    return Boolean(data && data.length > 0);
   }
 
   private async setCooldown(alertType: string, entityKey: string, seconds: number): Promise<void> {
@@ -986,7 +985,12 @@ export class BridgeWorker extends BaseAgent {
   }
 
   public async checkHealth(): Promise<HealthStatus> {
-    const checks = [];
+    const checks: Array<{
+      service: string;
+      status: 'healthy' | 'unhealthy' | 'disabled';
+      error?: string;
+      note?: string;
+    }> = [];
 
     // Check Supabase connectivity for events table
     try {

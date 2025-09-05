@@ -609,7 +609,7 @@ export class EventSubscriptionManager {
   }
 
   private getAlertPriority(alertType: string): string {
-    const priorities = {
+    const priorities: Record<string, string> = {
       injury: 'high',
       steam: 'high',
       line_movement: 'medium',
@@ -629,7 +629,7 @@ export class EventSubscriptionManager {
       .gt('cooldown_until', new Date().toISOString())
       .limit(1);
 
-    return data && data.length > 0;
+    return Boolean(data && data.length > 0);
   }
 
   private async setCooldown(alertType: string, entityKey: string, seconds: number): Promise<void> {

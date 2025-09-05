@@ -16,13 +16,13 @@ interface RuntimeConfig {
  */
 export async function getRuntimeMode(): Promise<RuntimeConfig | null> {
   try {
-    const opsKey = process.env.OPS_API_KEY;
+    const opsKey = process.env['OPS_API_KEY'];
     if (!opsKey) {
       console.error('[RuntimeMode] OPS_API_KEY not configured');
       return null;
     }
 
-    const apiUrl = process.env.API_URL || 'http://localhost:3001';
+    const apiUrl = process.env['API_URL'] || 'http://localhost:3001';
     const response = await fetch(`${apiUrl}/api/ops/runtime-mode`, {
       method: 'GET',
       headers: {
@@ -49,12 +49,12 @@ export async function getRuntimeMode(): Promise<RuntimeConfig | null> {
  */
 export async function updateRuntimeMode(config: RuntimeConfig): Promise<{ success: boolean; error?: string }> {
   try {
-    const opsKey = process.env.OPS_API_KEY;
+    const opsKey = process.env['OPS_API_KEY'];
     if (!opsKey) {
       return { success: false, error: 'OPS_API_KEY not configured' };
     }
 
-    const apiUrl = process.env.API_URL || 'http://localhost:3001';
+    const apiUrl = process.env['API_URL'] || 'http://localhost:3001';
     const response = await fetch(`${apiUrl}/api/ops/runtime-mode`, {
       method: 'PATCH',
       headers: {

@@ -3,12 +3,14 @@
  * Ensures all combination bet types follow Non-Negotiable Sharp Grading Rules
  */
 
+// Load environment variables from root directory
+import dotenv from 'dotenv';
+import path from 'path';
+dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
+
 import { createClient } from '@supabase/supabase-js';
-import * as dotenv from 'dotenv';
 
 import { createLogger } from '../utils/logger';
-
-dotenv.config();
 
 const logger = createLogger('ParlayRoundRobinCompliance');
 const supabase = createClient(

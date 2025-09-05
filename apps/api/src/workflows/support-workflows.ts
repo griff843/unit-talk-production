@@ -102,7 +102,7 @@ export async function syndicateSchedulerWorkflow(): Promise<void> {
 
       // 3. PROMOTE TOP TIER PICKS - Promote S/A tier picks to unified_picks
       try {
-        const scoringResults = []; // Will be populated by individual league grading
+        const scoringResults: any[] = []; // Will be populated by individual league grading
         await gradingActivities.updateUnifiedPicks({
           scoringResults,
           cycleCount: iteration,

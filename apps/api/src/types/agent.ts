@@ -103,7 +103,7 @@ export const healthCheckResultSchema = z.object({
   details: z.object({
     errors: z.array(z.string()),
     warnings: z.array(z.string()),
-    info: z.record(z.any())
+    info: z.record(z.string(), z.any())
   }).optional()
 });
 

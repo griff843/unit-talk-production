@@ -1,29 +1,117 @@
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
+  external_labels:
+    cluster: 'unit-talk-production'
+    environment: 'production'
+
+rule_files:
+  - '/etc/prometheus/alert_rules.yml'
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+      timeout: 10s
+      path_prefix: /
 
 scrape_configs:
+  # Main API Service
   - job_name: 'unit-talk-api'
     static_configs:
-      - targets: ['api:9464']
+      - targets: ['api:9464', 'host.docker.internal:9464']
     scrape_interval: 5s
     metrics_path: /metrics
+    timeout: 10s
 
+  # API Health Endpoints
+  - job_name: 'unit-talk-api-health'
+    static_configs:
+      - targets: ['api:3001', 'host.docker.internal:3001']
+    scrape_interval: 30s
+    metrics_path: /health
+    timeout: 15s
+    scheme: http
+
+  # Dashboard Health
+  - job_name: 'unit-talk-dashboard-health'
+    static_configs:
+      - targets: ['dashboard:3000', 'host.docker.internal:3000']
+    scrape_interval: 30s
+    metrics_path: /api/system/health
+    timeout: 15s
+    scheme: http
+
+  # Smart Form Health
+  - job_name: 'unit-talk-smart-form-health'
+    static_configs:
+      - targets: ['smart-form:3002', 'host.docker.internal:3002']
+    scrape_interval: 30s
+    metrics_path: /api/health
+    timeout: 15s
+    scheme: http
+
+  # Command Center Health
+  - job_name: 'unit-talk-command-center-health'
+    static_configs:
+      - targets: ['command-center:3003', 'host.docker.internal:3003']
+    scrape_interval: 30s
+    metrics_path: /api/health
+    timeout: 15s
+    scheme: http
+
+  # Discord Bot Health
+  - job_name: 'unit-talk-discord-bot-health'
+    static_configs:
+      - targets: ['discord-bot:3004', 'host.docker.internal:3004']
+    scrape_interval: 30s
+    metrics_path: /health
+    timeout: 15s
+    scheme: http
+
+  # Worker Services
   - job_name: 'unit-talk-workers'
     static_configs:
       - targets: ['workers:9464']
     scrape_interval: 5s
     metrics_path: /metrics
+    timeout: 10s
 
+  # Infrastructure Services
   - job_name: 'redis'
     static_configs:
       - targets: ['redis:6379']
+    scrape_interval: 15s
+    timeout: 10s
 
   - job_name: 'postgres'
     static_configs:
       - targets: ['postgres:5432']
+    scrape_interval: 15s
+    timeout: 10s
 
   - job_name: 'temporal'
     static_configs:
       - targets: ['temporal:7233']
     scrape_interval: 10s
+    timeout: 15s
+
+  # Grafana monitoring
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana:3005']
+    scrape_interval: 30s
+    timeout: 10s
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 30s
+
+  # Alertmanager monitoring
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets: ['alertmanager:9093']
+    scrape_interval: 30s

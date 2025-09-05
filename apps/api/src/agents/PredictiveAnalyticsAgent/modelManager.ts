@@ -508,12 +508,12 @@ export class ModelManager {
     }
   }
 
-  private async getTrainingData(modelId: string, features?: string[]): Promise<any[]> {
+  private async getTrainingData(_modelId: string, features?: string[]): Promise<any[]> {
     // This would fetch actual training data from database
     // For now, return mock training data
     
     const dataSize = 1000 + Math.floor(Math.random() * 4000); // 1000-5000 samples
-    const mockData = [];
+    const mockData: Array<any> = [];
     
     for (let i = 0; i < dataSize; i++) {
       const sample: any = {
@@ -535,7 +535,7 @@ export class ModelManager {
 
   private async optimizeHyperparameters(
     model: MLModel, 
-    trainingData: any[]
+    _trainingData: any[]
   ): Promise<Record<string, any>> {
     
     // Simplified hyperparameter optimization
@@ -639,7 +639,7 @@ export class ModelManager {
   }
 
   private generateLearningCurve(epochs: number): number[] {
-    const curve = [];
+    const curve: Array<number> = [];
     let loss = 1.0;
     
     for (let i = 0; i < epochs; i++) {
@@ -650,7 +650,7 @@ export class ModelManager {
     return curve;
   }
 
-  private generateFeatureImportance(hyperparameters: Record<string, any>): Record<string, number> {
+  private generateFeatureImportance(_hyperparameters: Record<string, any>): Record<string, number> {
     const features = ['price', 'volume', 'momentum', 'volatility', 'trend'];
     const importance: Record<string, number> = {};
     
@@ -731,8 +731,8 @@ export class ModelManager {
   }
 
   private async runHyperparameterOptimization(
-    trainingData: any[],
-    problemType: string
+    _trainingData: any[],
+    _problemType: string
   ): Promise<Record<string, any>> {
     
     this.logger.info('🔍 Running hyperparameter optimization');
@@ -803,7 +803,7 @@ export class ModelManager {
     try {
       const cachedJobs = await redisCache.getPattern('training_job:*');
       
-      for (const [key, data] of cachedJobs) {
+      for (const [_key, data] of cachedJobs) {
         const job = JSON.parse(data);
         job.startTime = new Date(job.startTime);
         if (job.endTime) job.endTime = new Date(job.endTime);
@@ -820,7 +820,7 @@ export class ModelManager {
     try {
       const cachedEvaluations = await redisCache.getPattern('model_evaluation:*');
       
-      for (const [key, data] of cachedEvaluations) {
+      for (const [_key, data] of cachedEvaluations) {
         const evaluation = JSON.parse(data);
         evaluation.evaluationDate = new Date(evaluation.evaluationDate);
         evaluation.nextEvaluation = new Date(evaluation.nextEvaluation);

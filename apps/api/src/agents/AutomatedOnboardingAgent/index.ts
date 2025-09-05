@@ -101,13 +101,13 @@ export class AutomatedOnboardingAgent extends BaseAgent {
   private adaptiveLearningEngine: AdaptiveLearningEngine;
   private discordInteractionHandler: DiscordInteractionHandler;
   
-  // 🎯 PERFORMANCE TRACKING
-  private readonly PERFORMANCE_THRESHOLDS = {
-    engagementScore: 0.7,
-    completionRate: 0.8,
-    responseTime: 2000, // 2 seconds
-    adaptationAccuracy: 0.85
-  };
+  // 🎯 PERFORMANCE TRACKING (unused - keeping for future implementation)
+  // private readonly _PERFORMANCE_THRESHOLDS = {
+  //   engagementScore: 0.7,
+  //   completionRate: 0.8,
+  //   responseTime: 2000, // 2 seconds
+  //   adaptationAccuracy: 0.85
+  // };
 
   constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
     super(config, deps);
@@ -301,35 +301,7 @@ export class AutomatedOnboardingAgent extends BaseAgent {
     }
   }
 
-  private async handleInteraction(interaction: any): Promise<void> {
-    // 🚨 DISABLED: Interaction handling moved to Discord bot layer to prevent conflicts
-    // This API agent now focuses on backend analytics only
-    
-    this.logger.info('🚨 handleInteraction DISABLED - handled by Discord bot AutomatedOnboardingIntegration');
-    return;
-    
-    const userId = interaction.user?.id;
-    if (!userId) return;
-
-    try {
-      // Track interaction behavior
-      const interactionData = await this.behaviorTracker.analyzeInteraction(interaction);
-      
-      // Update user profile
-      await this.userProfileManager.updateInteraction(userId, interactionData);
-      
-      // Handle specific onboarding interactions
-      if (interaction.customId?.startsWith('onboarding_')) {
-        await this.handleOnboardingInteraction(userId, interaction);
-      }
-
-    } catch (error) {
-      this.logger.error('❌ Failed to handle interaction', {
-        userId,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  }
+  // Removed unused _handleInteraction method - functionality moved to Discord bot layer
 
   private async handleReaction(reaction: any, user: any): Promise<void> {
     if (user.bot) return;
@@ -520,7 +492,7 @@ export class AutomatedOnboardingAgent extends BaseAgent {
     await this.interventionSystem.markCompleted(intervention.id);
   }
 
-  private async handleOnboardingInteraction(userId: string, interaction: any): Promise<void> {
+  private async _handleOnboardingInteraction(userId: string, interaction: any): Promise<void> {
     const response = await this.conversationEngine.handleOnboardingFlow(userId, interaction);
     
     if (response) {
@@ -570,7 +542,7 @@ export class AutomatedOnboardingAgent extends BaseAgent {
   }
 
   public async checkHealth(): Promise<any> {
-    const checks = [];
+    const checks: Array<{ component: string; status: string; details?: any }> = [];
 
     // Check core systems
     checks.push({
@@ -844,7 +816,7 @@ export class AutomatedOnboardingAgent extends BaseAgent {
         .eq('platform', 'discord');
 
       if (error) {
-        this.logger.error('❌ Failed to load user profiles:', { error: error.message });
+        this.logger.error('❌ Failed to load user profiles:', { error: error instanceof Error ? error.message : String(error) });
         return;
       }
 

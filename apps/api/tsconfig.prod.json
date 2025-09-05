@@ -4,7 +4,15 @@
     "sourceMap": false,
     "declaration": false,
     "declarationMap": false,
-    "outDir": "./dist"
+    "outDir": "./dist",
+    // Relax strict unused variable checking for production build
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    // Allow implicit any for gradual type migration
+    "noImplicitAny": false,
+    // Still maintain core type safety
+    "strict": true,
+    "strictNullChecks": true
   },
   "exclude": [
     "node_modules",

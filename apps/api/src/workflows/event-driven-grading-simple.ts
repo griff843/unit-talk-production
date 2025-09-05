@@ -170,7 +170,7 @@ export async function eventDrivenGradingWorkflow(
     stepsCompleted++;
 
     // Step 4: Process each leg with idempotent processing
-    const legsProcessed = [];
+    const legsProcessed: Array<any> = [];
     let professionalFeaturesUsed = 0;
 
     for (const [index, selection] of selections.entries()) {
@@ -242,7 +242,7 @@ export async function eventDrivenGradingWorkflow(
     stepsCompleted++;
 
     // Step 6: Generate alerts based on grading results
-    const alertsGenerated = [];
+    const alertsGenerated: Array<any> = [];
     if (processingOptions?.generateAlerts !== false) {
       const generatedAlerts = await generateGradingAlerts(
         combinedGradingResult,
@@ -349,7 +349,15 @@ export async function replayGradingWorkflow(
     try {
       const result = await eventDrivenGradingWorkflow({
         ticketId,
-        eventData: { isReplay: true },
+        betSlipId: ticketId, // Use ticketId as betSlipId for replay
+        eventData: {
+          bet_slip_id: ticketId,
+          capper_id: 'replay-system',
+          selection_count: 1,
+          sport: 'unknown',
+          ticket_type: 'replay',
+          is_live: false
+        },
         idempotencyKey: `replay-${ticketId}-${Date.now()}`,
         replayContext: {
           isReplay: true,
@@ -380,7 +388,7 @@ export async function replayGradingWorkflow(
  */
 export async function reemitAlertsWorkflow(
   alertIds: string[],
-  reemissionOptions: {
+  _reemissionOptions: {
     channels?: string[];
     priority?: 'low' | 'normal' | 'high' | 'critical';
     reason: string;
@@ -476,7 +484,7 @@ export async function cancelWorkflows(workflowIds: string[]): Promise<WorkflowCo
 /**
  * Check if a workflow has already been processed for the given bet_slip_id and idempotency key
  */
-async function checkExistingWorkflow(betSlipId: string, idempotencyKey: string): Promise<GradingWorkflowResult | null> {
+async function checkExistingWorkflow(_betSlipId: string, _idempotencyKey: string): Promise<GradingWorkflowResult | null> {
   // Simulate database lookup - would query workflow_executions table
   // SELECT * FROM workflow_executions WHERE bet_slip_id = ? AND idempotency_key = ? AND status = 'completed'
   
@@ -491,8 +499,8 @@ async function checkExistingWorkflow(betSlipId: string, idempotencyKey: string):
 async function recordWorkflowExecution(
   workflowId: string, 
   betSlipId: string, 
-  idempotencyKey: string, 
-  params: EventDrivenGradingWorkflowParams
+  _idempotencyKey: string, 
+  _params: EventDrivenGradingWorkflowParams
 ): Promise<void> {
   // Simulate database insert - would insert into workflow_executions table
   // INSERT INTO workflow_executions (workflow_id, bet_slip_id, idempotency_key, status, input_data, started_at)
@@ -502,7 +510,7 @@ async function recordWorkflowExecution(
 /**
  * Check if a specific leg has already been graded (idempotency for individual legs)
  */
-async function checkExistingLegGrading(legId: string): Promise<{ gradingResult: any } | null> {
+async function checkExistingLegGrading(_legId: string): Promise<{ gradingResult: any } | null> {
   // Simulate database lookup for leg grading results
   // SELECT * FROM leg_grading_results WHERE leg_id = ? AND status = 'completed'
   return null;
@@ -512,7 +520,7 @@ async function checkExistingLegGrading(legId: string): Promise<{ gradingResult: 
  * Process individual leg with circuit breaker protection and professional grading
  */
 async function processLegWithCircuitBreaker(
-  selection: any,
+  _selection: any,
   legId: string,
   enableProfessionalFeatures: boolean
 ): Promise<{
@@ -555,7 +563,7 @@ async function processLegWithCircuitBreaker(
 /**
  * Store individual leg grading result with idempotency key
  */
-async function storeLegGradingResult(legId: string, gradingResult: any, betSlipId: string): Promise<void> {
+async function storeLegGradingResult(legId: string, _gradingResult: any, betSlipId: string): Promise<void> {
   // Simulate database insert for leg results
   // INSERT INTO leg_grading_results (leg_id, bet_slip_id, grading_result, status, processed_at)
   console.log(`Storing leg grading result for ${legId} (bet_slip_id: ${betSlipId})`);
@@ -564,7 +572,7 @@ async function storeLegGradingResult(legId: string, gradingResult: any, betSlipI
 /**
  * Calculate combined grading result from all processed legs
  */
-async function calculateCombinedGrading(legsProcessed: any[], eventData: any): Promise<{
+async function calculateCombinedGrading(legsProcessed: any[], _eventData: any): Promise<{
   tier: 'S-tier' | 'A-tier' | 'B-tier' | 'C-tier' | 'D-tier';
   confidence: number;
   edgeScore: number;
@@ -629,15 +637,15 @@ async function generateGradingAlerts(
   metadata: any;
   generated_at: string;
 }>> {
-  const alerts = [];
+  const alerts: Array<any> = [];
   const now = new Date().toISOString();
 
   // High-tier alert for S-tier and A-tier picks
   if (['S-tier', 'A-tier'].includes(gradingResult.tier)) {
     alerts.push({
       type: 'high_tier' as const,
-      confidence: gradingResult.confidence,
-      priority: gradingResult.tier === 'S-tier' ? 'critical' : 'high' as const,
+      confidence: Number(gradingResult.confidence) || 0.85,
+      priority: (gradingResult.tier === 'S-tier' ? 'critical' : 'high') as 'critical' | 'high',
       metadata: {
         tier: gradingResult.tier,
         edgeScore: gradingResult.edgeScore,

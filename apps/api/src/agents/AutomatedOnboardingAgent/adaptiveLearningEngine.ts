@@ -240,7 +240,7 @@ export class AdaptiveLearningEngine {
   }
 
   private generateAdaptationRecommendation(
-    pattern: BehaviorPattern, 
+    _pattern: BehaviorPattern, 
     adaptations: string[]
   ): AdaptationRecommendation {
     if (adaptations.length === 0) {

@@ -5,13 +5,15 @@
  * and all of today's props have been properly processed.
  */
 
+// Load environment variables from root directory
+import dotenv from 'dotenv';
+import path from 'path';
+dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
+
 import { createClient } from '@supabase/supabase-js';
-import * as dotenv from 'dotenv';
 
 import { professionalPropProcessor } from '../services/ProfessionalPropProcessor';
 import { createLogger } from '../utils/logger';
-
-dotenv.config();
 
 const logger = createLogger('VerifyTodaysGrading');
 const supabase = createClient(

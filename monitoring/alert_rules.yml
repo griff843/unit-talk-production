@@ -1,0 +1,289 @@
+groups:
+  # Core API Monitoring
+  - name: unit-talk-api.rules
+    rules:
+      - alert: ApiDown
+        expr: up{job="unit-talk-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: api
+          tier: core
+        annotations:
+          summary: "Unit Talk API is down"
+          description: "Main API service has been down for more than 2 minutes"
+          runbook: "Check API container status and logs"
+
+      - alert: ApiHighErrorRate
+        expr: rate(http_requests_total{job="unit-talk-api",status=~"5.."}[5m]) / rate(http_requests_total{job="unit-talk-api"}[5m]) > 0.01
+        for: 10m
+        labels:
+          severity: high
+          component: api
+          tier: core
+        annotations:
+          summary: "API error rate is elevated"
+          description: "API error rate is {{ $value | humanizePercentage }} (>1%)"
+          runbook: "Check API logs for error patterns"
+
+      - alert: ApiLatencyP95High
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job="unit-talk-api"}[5m])) by (le)) > 0.2
+        for: 10m
+        labels:
+          severity: high
+          component: api
+          tier: core
+        annotations:
+          summary: "API latency is elevated"
+          description: "95th percentile latency is {{ $value }}s (>200ms)"
+          runbook: "Check database performance and API resource usage"
+
+  # Health Check Monitoring
+  - name: unit-talk-health.rules
+    rules:
+      - alert: ServiceHealthUnhealthy
+        expr: up{job=~".*-health"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          component: health
+          tier: monitoring
+        annotations:
+          summary: "Service health check failing"
+          description: "Health endpoint for {{ $labels.job }} has been unreachable for 3+ minutes"
+          runbook: "Check service container and health endpoint implementation"
+
+      - alert: ServiceHealthDegraded
+        expr: probe_success{job=~".*-health"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          component: health
+          tier: monitoring
+        annotations:
+          summary: "Service health degraded"
+          description: "Service {{ $labels.job }} is reporting degraded health status"
+          runbook: "Check service dependencies and resource utilization"
+
+  # Application-Specific Health
+  - name: unit-talk-applications.rules
+    rules:
+      - alert: DashboardDown
+        expr: up{job="unit-talk-dashboard-health"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          component: dashboard
+          tier: frontend
+        annotations:
+          summary: "Dashboard service is down"
+          description: "Dashboard has been unreachable for 3+ minutes"
+          runbook: "Check dashboard container and Next.js process"
+
+      - alert: SmartFormDown
+        expr: up{job="unit-talk-smart-form-health"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          component: smart-form
+          tier: frontend
+        annotations:
+          summary: "Smart Form service is down"
+          description: "Smart Form has been unreachable for 3+ minutes"
+          runbook: "Check smart-form container and form submission pipeline"
+
+      - alert: CommandCenterDown
+        expr: up{job="unit-talk-command-center-health"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          component: command-center
+          tier: monitoring
+        annotations:
+          summary: "Command Center is down"
+          description: "Command Center has been unreachable for 3+ minutes"
+          runbook: "Check command-center container and monitoring dashboard"
+
+      - alert: DiscordBotDown
+        expr: up{job="unit-talk-discord-bot-health"} == 0
+        for: 5m
+        labels:
+          severity: high
+          component: discord-bot
+          tier: integration
+        annotations:
+          summary: "Discord Bot is down"
+          description: "Discord Bot has been unreachable for 5+ minutes"
+          runbook: "Check discord-bot container and Discord API connectivity"
+
+  # Infrastructure Monitoring
+  - name: unit-talk-infrastructure.rules
+    rules:
+      - alert: DatabaseDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+          tier: infrastructure
+        annotations:
+          summary: "Database is down"
+          description: "PostgreSQL database has been down for 1+ minutes"
+          runbook: "Immediate database recovery required - check container and data integrity"
+
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 2m
+        labels:
+          severity: high
+          component: cache
+          tier: infrastructure
+        annotations:
+          summary: "Redis is down"
+          description: "Redis cache has been down for 2+ minutes"
+          runbook: "Check Redis container and memory usage"
+
+      - alert: TemporalDown
+        expr: up{job="temporal"} == 0
+        for: 2m
+        labels:
+          severity: high
+          component: temporal
+          tier: workflow
+        annotations:
+          summary: "Temporal is down"
+          description: "Temporal workflow engine has been down for 2+ minutes"
+          runbook: "Check Temporal container and workflow processing"
+
+  # System Resource Monitoring
+  - name: unit-talk-resources.rules
+    rules:
+      - alert: HighMemoryUsage
+        expr: (container_memory_usage_bytes / container_spec_memory_limit_bytes) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          component: resources
+          tier: system
+        annotations:
+          summary: "High memory usage"
+          description: "Container {{ $labels.name }} memory usage is {{ $value }}% (>85%)"
+          runbook: "Check for memory leaks and consider resource scaling"
+
+      - alert: HighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total[5m]) * 100 > 80
+        for: 15m
+        labels:
+          severity: warning
+          component: resources
+          tier: system
+        annotations:
+          summary: "High CPU usage"
+          description: "Container {{ $labels.name }} CPU usage is {{ $value }}% (>80%)"
+          runbook: "Check for CPU bottlenecks and consider scaling"
+
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) * 100 < 15
+        for: 5m
+        labels:
+          severity: critical
+          component: storage
+          tier: infrastructure
+        annotations:
+          summary: "Low disk space"
+          description: "Disk usage is {{ $value }}% full (<15% free)"
+          runbook: "Clean up disk space immediately or expand storage"
+
+  # Business Logic Monitoring
+  - name: unit-talk-business.rules
+    rules:
+      - alert: AgentSystemDown
+        expr: count(up{job="unit-talk-api"}) == 0
+        for: 5m
+        labels:
+          severity: critical
+          component: agents
+          tier: business
+        annotations:
+          summary: "Agent system is down"
+          description: "No agents are reporting healthy status"
+          runbook: "Check GradingAgent, AlertAgent, and other critical agents"
+
+      - alert: PickProcessingStalled
+        expr: rate(picks_processed_total[10m]) == 0
+        for: 15m
+        labels:
+          severity: high
+          component: picks
+          tier: business
+        annotations:
+          summary: "Pick processing has stalled"
+          description: "No picks have been processed in the last 15 minutes"
+          runbook: "Check unified_picks pipeline and grading workflows"
+
+      - alert: EventStreamStalled
+        expr: rate(events_processed_total[5m]) == 0
+        for: 10m
+        labels:
+          severity: warning
+          component: events
+          tier: business
+        annotations:
+          summary: "Event stream has stalled"
+          description: "No events have been processed in the last 10 minutes"
+          runbook: "Check event pipeline and Supabase realtime connectivity"
+
+  # Security Monitoring
+  - name: unit-talk-security.rules
+    rules:
+      - alert: UnauthorizedAccess
+        expr: rate(http_requests_total{status="401"}[5m]) > 10
+        for: 2m
+        labels:
+          severity: high
+          component: security
+          tier: security
+        annotations:
+          summary: "High rate of unauthorized access attempts"
+          description: "{{ $value }} unauthorized requests per second"
+          runbook: "Check for potential security threats and review access logs"
+
+      - alert: TooManyRequests
+        expr: rate(http_requests_total{status="429"}[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: security
+          tier: security
+        annotations:
+          summary: "High rate limiting activation"
+          description: "{{ $value }} rate-limited requests per second"
+          runbook: "Check for potential DDoS or review rate limiting thresholds"
+
+  # SLA Monitoring
+  - name: unit-talk-sla.rules
+    rules:
+      - alert: SLAViolationAvailability
+        expr: (up == 0) or (probe_success == 0)
+        for: 1m
+        labels:
+          severity: critical
+          component: sla
+          tier: business
+        annotations:
+          summary: "SLA availability violation"
+          description: "Service {{ $labels.job }} violating 99.9% availability SLA"
+          runbook: "Immediate attention required for SLA compliance"
+
+      - alert: SLAViolationLatency
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 1.0
+        for: 5m
+        labels:
+          severity: high
+          component: sla
+          tier: business
+        annotations:
+          summary: "SLA latency violation"
+          description: "95th percentile response time {{ $value }}s violating <1s SLA"
+          runbook: "Performance optimization required for SLA compliance"
+

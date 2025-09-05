@@ -6,11 +6,10 @@
 import { randomUUID } from 'crypto';
 
 import { createClient } from '@supabase/supabase-js';
-import * as dotenv from 'dotenv';
-
-import { createLogger } from '../utils/logger';
-
-dotenv.config();
+// Load environment variables from root directory
+import dotenv from 'dotenv';
+import path from 'path';
+dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const logger = createLogger('E2EProof');
 const supabase = createClient(

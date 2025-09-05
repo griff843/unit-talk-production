@@ -566,10 +566,11 @@ export async function testOddsApiConnection(): Promise<{
  * OddsApiClient class for compatibility with existing code
  */
 export class OddsApiClient {
-  private apiKey: string;
+  // private _apiKey: string; // Unused - commented out
   
-  constructor(apiKey?: string) {
-    this.apiKey = apiKey || process.env['ODDS_API_KEY'] || '8014c48eb8a05f289de049c0961ac4cf';
+  constructor(_apiKey?: string) {
+    // this._apiKey = apiKey || process.env['ODDS_API_KEY'] || '8014c48eb8a05f289de049c0961ac4cf';
+    // API key handling removed as unused
   }
 
   async fetchAvailableSports(): Promise<OddsApiSport[]> {

@@ -31,7 +31,7 @@ export const PickLegSchema = z.object({
   odds: z.number(),
   score: z.number().optional(),
   confidence: z.number().optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type PickLeg = z.infer<typeof PickLegSchema>;
@@ -55,8 +55,8 @@ export type Pick = z.infer<typeof PickSchema>;
 export const ScoreComponentSchema = z.object({
   value: z.number(),
   confidence: z.number(),
-  factors: z.record(z.number()),
-  metadata: z.record(z.unknown()),
+  factors: z.record(z.string(), z.number()),
+  metadata: z.record(z.string(), z.unknown()),
 });
 
 export const GradeResultSchema = z.object({
@@ -68,8 +68,8 @@ export const GradeResultSchema = z.object({
   matchup_score: z.number(),
   trend_score: z.number(),
   expected_value: z.number(),
-  components: z.record(ScoreComponentSchema),
-  metadata: z.record(z.unknown()),
+  components: z.record(z.string(), ScoreComponentSchema),
+  metadata: z.record(z.string(), z.unknown()),
 });
 
 export type GradeResult = z.infer<typeof GradeResultSchema>;
@@ -110,7 +110,7 @@ export const GradingAgentConfigSchema = z.object({
   matchupWeight: z.number(),
   trendWeight: z.number(),
   expectedValueWeight: z.number(),
-  rules: z.record(z.object({
+  rules: z.record(z.string(), z.object({
     enabled: z.boolean(),
     weight: z.number(),
     threshold: z.number(),

@@ -30,7 +30,7 @@ export const BaseEventSchema = z.object({
   timestamp: z.string().datetime(),
   source: z.string(),
   metadata: MetadataSchema,
-  data: z.record(z.unknown()),
+  data: z.record(z.string(), z.unknown()),
 });
 
 export type BaseEvent = z.infer<typeof BaseEventSchema>;
@@ -48,7 +48,7 @@ export const AgentConfigSchema = z.object({
   }),
   alertConfig: z.object({
     enabled: z.boolean(),
-    thresholds: z.record(z.number()),
+    thresholds: z.record(z.string(), z.number()),
     channels: z.array(z.string()),
   }),
   metricsConfig: z.object({
@@ -63,11 +63,11 @@ export type AgentConfig = z.infer<typeof AgentConfigSchema>;
 // --- Health Check Types ---
 export const HealthStatusSchema = z.object({
   status: z.enum(['healthy', 'degraded', 'unhealthy']),
-  components: z.record(z.object({
+  components: z.record(z.string(), z.object({
     status: z.enum(['healthy', 'degraded', 'unhealthy']),
     message: z.string().optional(),
     lastCheck: z.string().datetime(),
-    metrics: z.record(z.unknown()).optional(),
+    metrics: z.record(z.string(), z.unknown()).optional(),
   })),
   timestamp: z.string().datetime(),
   version: z.string(),

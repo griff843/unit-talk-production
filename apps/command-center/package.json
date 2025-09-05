@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3015",
-    "build": "cross-env NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production SKIP_TYPE_CHECK=true next build",
+    "build": "cross-env NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production next build && npm run type-check",
     "build:windows": "set NEXT_TELEMETRY_DISABLED=1 && set NODE_ENV=production && next build",
     "build:clean": "rimraf .next && rimraf build && npm run build",
     "start": "next start -p 3010",
@@ -54,7 +54,7 @@
     "date-fns": "^3.0.6",
     "framer-motion": "^10.16.16",
     "lucide-react": "^0.303.0",
-    "next": "14.0.4",
+    "next": "15.5.2",
     "next-themes": "^0.2.1",
     "prom-client": "^15.1.3",
     "react": "^18.2.0",

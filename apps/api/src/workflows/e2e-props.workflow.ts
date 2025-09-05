@@ -385,7 +385,7 @@ export async function apiQuotaMonitoringWorkflow(params: {
     cycleCount: params.cycleCount
   });
 
-  const quotaStatus = [];
+  const quotaStatus: Array<any> = [];
 
   try {
     for (const provider of params.providers) {

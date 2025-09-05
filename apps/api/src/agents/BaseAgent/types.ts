@@ -105,7 +105,7 @@ export const BaseAgentConfigSchema = z.object({
     interval: z.number().min(5).optional().default(60), // seconds
     port: z.number().optional(),
     endpoint: z.string().optional()
-  }).optional().default({}),
+  }).optional(),
   health: z.object({
     enabled: z.boolean().optional().default(true),
     interval: z.number().min(5).optional().default(30), // seconds
@@ -113,7 +113,7 @@ export const BaseAgentConfigSchema = z.object({
     checkDb: z.boolean().optional().default(true),
     checkExternal: z.boolean().optional().default(false),
     endpoint: z.string().optional()
-  }).optional().default({}),
+  }).optional(),
   retry: z.object({
     enabled: z.boolean().optional().default(true),
     maxRetries: z.number().min(0).optional().default(3),
@@ -121,7 +121,7 @@ export const BaseAgentConfigSchema = z.object({
     maxBackoffMs: z.number().min(500).optional().default(5000),
     exponential: z.boolean().optional().default(true),
     jitter: z.boolean().optional().default(true)
-  }).optional().default({}),
+  }).optional(),
   schedule: z.enum(['disabled', 'enabled', 'manual']).optional().default('enabled')
 });
 

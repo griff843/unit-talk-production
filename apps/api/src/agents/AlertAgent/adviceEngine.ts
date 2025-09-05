@@ -1,7 +1,7 @@
 import { getOpenAICircuitStatus, getOpenAIUsageMetrics } from '../../services/openaiClient';
 import { logger } from '../../utils/logger';
 
-import { AIOrchestrator } from './aiOrchestrator';
+// import { AIOrchestrator } from './aiOrchestrator'; // Unused
 import { aiModelRouter, AIRequest, AIResponse } from '../../ai/routing';
 import { aiResponseCache } from '../../ai/cache';
 
@@ -76,11 +76,10 @@ class MarketContextAnalyzer {
 
 // Enhanced advice engine with caching, fallback, and circuit-breaker awareness
 export class AdviceEngine {
-  private aiOrchestrator: AIOrchestrator;
   private cache: Map<string, { advice: any; timestamp: number }> = new Map();
-  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-  private readonly MAX_RETRIES = 3;
-  private readonly RETRY_DELAY_BASE = 1000; // 1 second base delay
+  // private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes - unused
+  // private readonly _MAX_RETRIES = 3; // Used in retryWithBackoff method - unused
+  // private readonly _RETRY_DELAY_BASE = 1000; // Used in retryWithBackoff method - unused
   private readonly CACHE_HIT_METRICS: { hits: number; misses: number; total: number } = { 
     hits: 0, 
     misses: 0, 
@@ -88,7 +87,7 @@ export class AdviceEngine {
   };
 
   constructor() {
-    this.aiOrchestrator = new AIOrchestrator();
+    // Removed AI orchestrator initialization - unused
   }
 
   async getAdviceForPick(pick: PickPayload): Promise<string> {
@@ -145,7 +144,7 @@ export class AdviceEngine {
           propId: pick.id,
           odds: pick.odds,
           line: pick.line,
-          isMVP: pick.tier === 'S' || pick.edge_score && pick.edge_score > 80 // MVP picks get premium model
+          isMVP: pick.tier === 'S' || (pick.edge_score ? pick.edge_score > 80 : false) // MVP picks get premium model
         }
       };
 
@@ -196,43 +195,6 @@ export class AdviceEngine {
     }
   }
 
-  private async retryWithBackoff<T>(
-    operation: () => Promise<T>,
-    maxRetries: number,
-    baseDelay: number
-  ): Promise<T> {
-    let lastError: Error | null = null;
-    
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        return await operation();
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error('Unknown error');
-        
-        // Check if this is a quota-related error - don't retry these
-        const isQuotaError = lastError.message.includes('quota') || 
-                            lastError.message.includes('rate limit') ||
-                            lastError.message.includes('capacity');
-        
-        if (isQuotaError || attempt === maxRetries) {
-          throw lastError;
-        }
-        
-        // Calculate delay with exponential backoff and jitter
-        const delay = baseDelay * Math.pow(2, attempt) * (0.8 + Math.random() * 0.4);
-        logger.info(`Retry attempt ${attempt + 1}/${maxRetries} after ${delay.toFixed(0)}ms delay`);
-        
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-    
-    throw lastError || new Error('Maximum retries exceeded');
-  }
-
-  private generateCacheKey(pick: PickPayload): string {
-    // Create a unique key based on pick characteristics
-    return `${pick.id}-${pick.player_name}-${pick.market_type}-${pick.line}-${pick.odds}`;
-  }
 
   private buildAdvicePrompt(pick: PickPayload, context: any): string {
     return `Provide betting advice for this player prop:
@@ -321,24 +283,6 @@ Keep response concise and actionable.`;
     return advice;
   }
 
-  private getCircuitBreakerFallbackAdvice(pick: PickPayload, status: any): string {
-    // Enhanced fallback when circuit breaker is open
-    let advice = this.getFallbackAdvice(pick);
-    
-    // Add circuit breaker information
-    advice += `\n\n*Note: AI analysis unavailable due to circuit breaker (${status.reason || 'quota exceeded'}). Service will resume automatically.*`;
-    
-    return advice;
-  }
-
-  private cleanupCache(): void {
-    const now = Date.now();
-    for (const [key, value] of Array.from(this.cache.entries())) {
-      if (now - value.timestamp > this.CACHE_TTL) {
-        this.cache.delete(key);
-      }
-    }
-  }
 
   // Public methods for monitoring and management
   public getCacheStats(): { size: number; hitRate: number; hits: number; misses: number; total: number } {

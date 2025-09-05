@@ -63,7 +63,7 @@ router.post('/health', requireOpsKey, async (req, res) => {
     { name: 'Database', script: 'scripts/ops/db-preflight.ts' }
   ];
 
-  const results = [];
+  const results: Array<any> = [];
   
   for (const probe of probes) {
     console.log(`[Probes] Running ${probe.name} probe...`);

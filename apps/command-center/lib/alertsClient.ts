@@ -37,8 +37,8 @@ export class AlertsClient {
 
   constructor(options: AlertsClientOptions = {}) {
     this.tenantId = options.tenantId || 'default';
-    this.opsKey = options.opsKey || process.env.OPS_API_KEY;
-    this.apiUrl = options.apiUrl || process.env.API_URL || 'http://localhost:3001';
+    this.opsKey = options.opsKey || process.env['OPS_API_KEY'];
+    this.apiUrl = options.apiUrl || process.env['API_URL'] || 'http://localhost:3001';
     
     // Windows-safe path for local stub
     const repoRoot = path.resolve(process.cwd(), '../..');

@@ -71,7 +71,7 @@ export class CapperService {
    */
   async testConnection(): Promise<boolean> {
     try {
-      const { data, error } = await supabase
+      const { data: _data, error } = await supabase
         .from('users')
         .select('id')
         .limit(1);

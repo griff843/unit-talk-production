@@ -4,12 +4,13 @@
  * Fetches today's props from APIs and stores them in the database
  */
 
-import { createLogger } from '../utils/logger';
+// Load environment variables from root directory
+import dotenv from 'dotenv';
+import path from 'path';
+dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 import { createClient } from '@supabase/supabase-js';
-import * as dotenv from 'dotenv';
-
-dotenv.config();
+import { createLogger } from '../utils/logger';
 
 const logger = createLogger('RunFeedAgentNow');
 const supabase = createClient(

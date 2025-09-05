@@ -5,3 +5,6 @@ export { dateUtils } from './date-utils';
 export * from './IntelligentCache';
 export * from './AgentConfigFactory';
 export * from './case-mapping';
+export * from './circuit-breaker';
+export * from './retry';
+export * from './dead-letter-queue';

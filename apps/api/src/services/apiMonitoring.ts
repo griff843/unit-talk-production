@@ -16,7 +16,7 @@ class SimpleLogger {
   }
 }
 
-const Logger = SimpleLogger;
+const _Logger = SimpleLogger;
 
 export interface ApiHealthStatus {
   provider: string;
@@ -474,7 +474,7 @@ class ApiMonitoringService {
   async monitorAllApis(): Promise<Record<string, ApiHealthStatus>> {
     const results: Record<string, ApiHealthStatus> = {};
 
-    for (const [provider, config] of Object.entries(this.providerConfigs)) {
+    for (const [provider, _config] of Object.entries(this.providerConfigs)) {
       try {
         // Get API key from environment
         const apiKey = provider === 'optimal_api' 

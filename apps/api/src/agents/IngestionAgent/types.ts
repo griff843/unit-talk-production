@@ -103,7 +103,7 @@ export const DataProviderSchema = z.object({
   enabled: z.boolean().default(true),
   url: z.string().url(),
   apiKey: z.string().optional(),
-  headers: z.record(z.string()).optional(),
+  headers: z.record(z.string(), z.string()).optional(),
   timeout: z.number().default(30000),
   retryAttempts: z.number().default(3),
   retryDelay: z.number().default(1000),

@@ -603,7 +603,7 @@ export class PredictionEngine {
     // Convert predictions to binary votes and then average
     const threshold = 0.5;
     const votes = contributions.map(c => c.prediction > threshold ? 1 : 0);
-    const avgVote = votes.reduce((sum, vote) => sum + vote, 0) / votes.length;
+    const avgVote = votes.reduce((sum: number, vote) => sum + vote, 0) / votes.length;
     
     // Convert back to probability with some smoothing
     return 0.1 + avgVote * 0.8;
@@ -774,26 +774,26 @@ export class PredictionEngine {
   }
 
   // Placeholder helper methods
-  private async getBidAskSpread(marketId: string): Promise<number> { return 0.02; }
-  private async getMarketDepth(marketId: string): Promise<number> { return 0.5; }
-  private async getOrderFlow(marketId: string): Promise<number> { return 0.3; }
-  private async getPriceMomentum(marketId: string, period: number): Promise<number> { return 0.1; }
-  private async getVolatility(marketId: string, period: number): Promise<number> { return 0.2; }
-  private async getTrendStrength(marketId: string): Promise<number> { return 0.6; }
+  private async getBidAskSpread(_marketId: string): Promise<number> { return 0.02; }
+  private async getMarketDepth(_marketId: string): Promise<number> { return 0.5; }
+  private async getOrderFlow(_marketId: string): Promise<number> { return 0.3; }
+  private async getPriceMomentum(_marketId: string, _period: number): Promise<number> { return 0.1; }
+  private async getVolatility(_marketId: string, _period: number): Promise<number> { return 0.2; }
+  private async getTrendStrength(_marketId: string): Promise<number> { return 0.6; }
   private encodeMarketType(betType: string): number { return betType.length % 10; }
-  private async getCorrelationRisk(marketId: string): Promise<number> { return 0.3; }
-  private async getConcentrationRisk(betType: string): Promise<number> { return 0.2; }
-  private async getLiquidityRisk(marketId: string): Promise<number> { return 0.1; }
+  private async getCorrelationRisk(_marketId: string): Promise<number> { return 0.3; }
+  private async getConcentrationRisk(_betType: string): Promise<number> { return 0.2; }
+  private async getLiquidityRisk(_marketId: string): Promise<number> { return 0.1; }
   private getRecencyScore(lastUpdated: Date): number { 
     const hours = (Date.now() - lastUpdated.getTime()) / (1000 * 60 * 60);
     return Math.max(0, 1 - hours / 168); // Decay over 1 week
   }
-  private async getModelConfidence(model: EnsembleModel, request: PredictionRequest): Promise<number> { 
+  private async getModelConfidence(_model: EnsembleModel, _request: PredictionRequest): Promise<number> { 
     return 0.7 + Math.random() * 0.2; 
   }
-  private async calculateSupport(marketId: string): Promise<number> { return 95; }
-  private async calculateResistance(marketId: string): Promise<number> { return 105; }
-  private async calculateMomentum(marketId: string): Promise<number> { return 0.3; }
+  private async calculateSupport(_marketId: string): Promise<number> { return 95; }
+  private async calculateResistance(_marketId: string): Promise<number> { return 105; }
+  private async calculateMomentum(_marketId: string): Promise<number> { return 0.3; }
 
   private calculateAccuracy(prediction: PredictionResult, actualOutcome: any): number {
     // Simplified accuracy calculation
@@ -890,7 +890,7 @@ export class PredictionEngine {
 
   private async updateModelPerformance(
     prediction: PredictionResult,
-    actualOutcome: any,
+    _actualOutcome: any,
     accuracy: number
   ): Promise<void> {
     

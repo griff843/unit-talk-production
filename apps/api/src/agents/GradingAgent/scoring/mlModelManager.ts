@@ -10,20 +10,7 @@ function safeNumber(value: any, defaultValue: number = 0): number {
   return isNaN(num) || !isFinite(num) ? defaultValue : num;
 }
 
-function safeMultiply(a: any, b: any, defaultA: number = 0, defaultB: number = 1): number {
-  const numA = safeNumber(a, defaultA);
-  const numB = safeNumber(b, defaultB);
-  const result = numA * numB;
-  return isNaN(result) || !isFinite(result) ? 0 : result;
-}
-
-function safeDivide(numerator: any, denominator: any, defaultValue: number = 0): number {
-  const num = safeNumber(numerator, 0);
-  const den = safeNumber(denominator, 1);
-  if (den === 0) return defaultValue;
-  const result = num / den;
-  return isNaN(result) || !isFinite(result) ? defaultValue : result;
-}
+// Removed unused _safeMultiply and _safeDivide functions
 
 export interface MLModelResult {
   score: number;
@@ -172,9 +159,9 @@ export class MLModelManager {
       confidence: (nn.confidence + gb.confidence + rf.confidence) / 3,
       featureImportance: this.combineFeatureImportance([nn, gb, rf]),
       modelContributions: {
-        'Neural Network': nn.professional_score * weights.nn,
-        'Gradient Boosting': gb.professional_score * weights.gb,
-        'Random Forest': rf.professional_score * weights.rf
+        'Neural Network': (nn.professional_score ?? 0) * weights.nn,
+        'Gradient Boosting': (gb.professional_score ?? 0) * weights.gb,
+        'Random Forest': (rf.professional_score ?? 0) * weights.rf
       },
       agreement
     };

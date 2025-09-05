@@ -87,7 +87,14 @@ export async function detectBottlenecks(data: {
   logger.info('🔍 Detecting performance bottlenecks');
   
   try {
-    const bottlenecks = [];
+    const bottlenecks: Array<{
+      component: string;
+      type: 'cpu' | 'memory' | 'database' | 'network';
+      severity: 'critical' | 'high' | 'medium' | 'low';
+      impact: string;
+      recommendation: string;
+      estimatedImprovement: string;
+    }> = [];
     const { systemMetrics, performanceThresholds } = data;
     
     for (const [component, metrics] of Object.entries(systemMetrics as any)) {
@@ -131,9 +138,9 @@ export async function detectBottlenecks(data: {
                         m.responseTime > 800 ? 'high' : 
                         m.responseTime > 500 ? 'medium' : 'low';
         
-        let type: 'network' | 'database' | 'disk_io' = 'network';
+        let type: 'network' | 'database' | 'memory' = 'network';
         if (component.includes('database')) type = 'database';
-        else if (component.includes('disk') || component.includes('file')) type = 'disk_io';
+        else if (component.includes('disk') || component.includes('file')) type = 'memory';
         
         bottlenecks.push({
           component,
@@ -141,7 +148,7 @@ export async function detectBottlenecks(data: {
           severity,
           impact: `${m.responseTime.toFixed(0)}ms average response time`,
           recommendation: type === 'database' ? 'Optimize queries and add caching' : 
-                          type === 'disk_io' ? 'Use SSD storage or optimize I/O patterns' : 
+                          type === 'memory' ? 'Use SSD storage or optimize I/O patterns' : 
                           'Optimize network calls and add connection pooling',
           estimatedImprovement: '20-50% response time improvement'
         });
@@ -368,7 +375,7 @@ export async function generatePerformanceReport(data: {
     const performanceTrend = overallHealth > 85 ? 'improving' as const : 
                             overallHealth > 70 ? 'stable' as const : 'declining' as const;
     
-    const nextActions = [];
+    const nextActions: Array<string> = [];
     if (criticalIssues > 0) {
       nextActions.push(`Address ${criticalIssues} critical performance issues`);
     }

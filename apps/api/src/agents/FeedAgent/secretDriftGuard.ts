@@ -118,7 +118,7 @@ export class SecretDriftGuard {
       
       // Test each new secret
       for (const [key, newValue] of Object.entries(newSecretConfig)) {
-        if (newValue !== this.currentSecrets[key]) {
+        if (typeof newValue === 'string' && newValue !== this.currentSecrets[key]) {
           const testResult = await this.testSecret(key, newValue);
           
           if (testResult.success) {

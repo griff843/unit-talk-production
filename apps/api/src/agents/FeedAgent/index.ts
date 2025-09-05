@@ -98,8 +98,8 @@ export class FeedAgent extends BaseAgent {
     try {
       // Process each configured provider
       for (const [_providerName, provider] of Object.entries(this.fullConfig.providers)) {
-        if (provider.enabled) {
-          await this.startProviderIngestion(provider);
+        if ((provider as any).enabled) {
+          await this.startProviderIngestion(provider as any);
         }
       }
     } catch (error) {
@@ -197,7 +197,7 @@ export class FeedAgent extends BaseAgent {
     }
   }
 
-  private async fetchFromProvider(provider: any): Promise<any[]> {
+  private async fetchFromProvider(_provider: any): Promise<any[]> {
     const startTime = Date.now();
     
     try {
@@ -211,7 +211,7 @@ export class FeedAgent extends BaseAgent {
       
       // Fetch props for all supported sports using smart routing
       const sports = ['NBA', 'NFL', 'MLB', 'NHL', 'NCAAF'];
-      const allProps = [];
+      const allProps: Array<any> = [];
       
       for (const sport of sports) {
         try {

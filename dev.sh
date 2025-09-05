@@ -95,13 +95,13 @@ show_service_urls() {
     echo "📊 Command Center:    http://localhost:3004"
     echo "📱 Smart Form:        http://localhost:3002"
     echo "📈 Dashboard:         http://localhost:3003"
-    echo "🔧 API:               http://localhost:3001"
+    echo "🔧 API:               http://localhost:3000"
     echo ""
     echo "🛠️  Development Tools:"
     echo "=================================================="
     echo "⏱️  Temporal UI:       http://localhost:8088"
     echo "📊 Prometheus:        http://localhost:9090"
-    echo "📈 Grafana:           http://localhost:3001 (admin/admin)"
+    echo "📈 Grafana:           http://localhost:3005 (admin/admin)"
     echo "🗄️  pgAdmin:           http://localhost:5050 (admin@unittalk.com/admin)"
     echo "📮 Redis Commander:   http://localhost:8081"
     echo "📧 Mailhog:           http://localhost:8025"
@@ -235,7 +235,7 @@ start_applications() {
     docker-compose up -d api
     
     # Wait for API to be healthy before starting dependent services
-    if wait_for_service "API" "http://localhost:3001/health" 60; then
+    if wait_for_service "API" "http://localhost:3000/health" 60; then
         # Start worker processes
         docker-compose up -d workers
         
@@ -271,12 +271,12 @@ perform_health_checks() {
         "PostgreSQL:http://localhost:5432"
         "Redis:http://localhost:6379" 
         "Temporal:http://localhost:8088"
-        "API:http://localhost:3001/health"
+        "API:http://localhost:3000/health"
         "Command Center:http://localhost:3004"
         "Smart Form:http://localhost:3002"
         "Dashboard:http://localhost:3003"
         "Prometheus:http://localhost:9090/-/healthy"
-        "Grafana:http://localhost:3001/api/health"
+        "Grafana:http://localhost:3005/api/health"
     )
     
     local failed_services=()

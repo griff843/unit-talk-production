@@ -1,0 +1,2 @@
+time="2025-09-05T07:15:51-04:00" level=warning msg="The \"DISCORD_WEBHOOK_URL\" variable is not set. Defaulting to a blank string."
+error during connect: Get "http://%2F%2F.%2Fpipe%2FdockerDesktopLinuxEngine/v1.51/containers/json?filters=%7B%22label%22%3A%7B%22com.docker.compose.config-hash%22%3Atrue%2C%22com.docker.compose.project%3Dunit-talk-production-main%22%3Atrue%2C%22com.docker.compose.service%3Dapi%22%3Atrue%7D%7D": open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.

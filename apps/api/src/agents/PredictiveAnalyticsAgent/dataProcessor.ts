@@ -79,7 +79,7 @@ interface DataQualityIssue {
   recommendation: string;
 }
 
-interface FeatureEngineeringConfig {
+interface _FeatureEngineeringConfig {
   rawFeatures: string[];
   engineeredFeatures: string[];
   transformations: FeatureTransformation[];
@@ -208,8 +208,9 @@ export class DataProcessor {
 
     try {
       const qualityIssues: DataQualityIssue[] = [];
-      const _totalScore = 0;
-      const _scoreCount = 0;
+      // TODO: Implement quality scoring logic
+      // const totalScore = 0;
+      // const scoreCount = 0;
 
       // Check for missing data
       const missingDataIssues = await this.detectMissingData(data);
@@ -454,7 +455,7 @@ export class DataProcessor {
     // Simplified ATR calculation using price volatility
     if (prices.length < 2) return 0;
     
-    const ranges = [];
+    const ranges: Array<number> = [];
     for (let i = 1; i < Math.min(prices.length, period + 1); i++) {
       ranges.push(Math.abs(prices[i] - prices[i - 1]));
     }
@@ -611,41 +612,41 @@ export class DataProcessor {
   // Placeholder methods for missing functionality
   private async getVolumeMA(_marketId: string, _period: number): Promise<number> { return 1000; }
   private async getVolatilityRank(_marketId: string, _volatility: number): Promise<number> { return 0.5; }
-  private async getSourceReliability(source: string): Promise<number> { return 0.8; }
-  private async getMinutesToGame(gameId: string): Promise<number> { return 120; }
-  private async getMarketDepth(marketId: string): Promise<number> { return 0.5; }
-  private async getOrderFlow(marketId: string): Promise<number> { return 0.3; }
-  private async getTradeIntensity(marketId: string): Promise<number> { return 0.7; }
-  private async getHistoricalPrices(marketId: string, count: number): Promise<number[]> {
+  private async getSourceReliability(_source: string): Promise<number> { return 0.8; }
+  private async getMinutesToGame(_gameId: string): Promise<number> { return 120; }
+  private async getMarketDepth(_marketId: string): Promise<number> { return 0.5; }
+  private async getOrderFlow(_marketId: string): Promise<number> { return 0.3; }
+  private async getTradeIntensity(_marketId: string): Promise<number> { return 0.7; }
+  private async getHistoricalPrices(_marketId: string, count: number): Promise<number[]> {
     // Mock historical prices
-    return Array.from({ length: count }, (_, i) => 100 + Math.random() * 20 - 10);
+    return Array.from({ length: count }, (_, _i) => 100 + Math.random() * 20 - 10);
   }
-  private async calculateSupport(marketId: string): Promise<number> { return 95; }
-  private async calculateResistance(marketId: string): Promise<number> { return 105; }
-  private async calculateEfficiencyRatio(marketId: string): Promise<number> { return 0.6; }
-  private async calculateAnomalyScore(dataPoint: MarketDataPoint): Promise<number> { return 0.1; }
-  private async calculateMarketSentiment(marketId: string): Promise<number> { return 0.6; }
-  private async calculatePressureIndex(marketId: string): Promise<number> { return 0.4; }
-  private async calculateDataPointQuality(dataPoint: MarketDataPoint): Promise<number> { return 0.8; }
+  private async calculateSupport(_marketId: string): Promise<number> { return 95; }
+  private async calculateResistance(_marketId: string): Promise<number> { return 105; }
+  private async calculateEfficiencyRatio(_marketId: string): Promise<number> { return 0.6; }
+  private async calculateAnomalyScore(_dataPoint: MarketDataPoint): Promise<number> { return 0.1; }
+  private async calculateMarketSentiment(_marketId: string): Promise<number> { return 0.6; }
+  private async calculatePressureIndex(_marketId: string): Promise<number> { return 0.4; }
+  private async calculateDataPointQuality(_dataPoint: MarketDataPoint): Promise<number> { return 0.8; }
 
   // More placeholder methods
-  private async applyTransformation(data: MarketDataPoint[], transformation: FeatureTransformation): Promise<void> {}
-  private async calculateDerivedFeatures(data: MarketDataPoint[]): Promise<void> {}
-  private async generateInteractionFeatures(data: MarketDataPoint[]): Promise<void> {}
-  private async createLagFeatures(data: MarketDataPoint[]): Promise<void> {}
-  private async calculateRatioFeatures(data: MarketDataPoint[]): Promise<void> {}
-  private async detectMissingData(data: ProcessedData[]): Promise<DataQualityIssue[]> { return []; }
-  private async detectOutliers(data: ProcessedData[]): Promise<DataQualityIssue[]> { return []; }
-  private async detectStaleData(data: ProcessedData[]): Promise<DataQualityIssue[]> { return []; }
-  private async detectInconsistencies(data: ProcessedData[]): Promise<DataQualityIssue[]> { return []; }
-  private calculateMissingDataPercentage(data: ProcessedData[]): number { return 0; }
-  private calculateOutlierPercentage(data: ProcessedData[]): number { return 0; }
-  private calculateCompletenessScore(data: ProcessedData[]): number { return 0.9; }
-  private calculateTimelinessScore(data: ProcessedData[]): number { return 0.8; }
-  private calculateAccuracyScore(data: ProcessedData[]): number { return 0.85; }
-  private calculateConsistencyScore(data: ProcessedData[]): number { return 0.9; }
-  private async handleOutliers(data: MarketDataPoint[]): Promise<MarketDataPoint[]> { return data; }
-  private async fillMissingValues(data: MarketDataPoint[]): Promise<MarketDataPoint[]> { return data; }
+  private async applyTransformation(_data: MarketDataPoint[], _transformation: FeatureTransformation): Promise<void> {}
+  private async calculateDerivedFeatures(_data: MarketDataPoint[]): Promise<void> {}
+  private async generateInteractionFeatures(_data: MarketDataPoint[]): Promise<void> {}
+  private async createLagFeatures(_data: MarketDataPoint[]): Promise<void> {}
+  private async calculateRatioFeatures(_data: MarketDataPoint[]): Promise<void> {}
+  private async detectMissingData(_data: ProcessedData[]): Promise<DataQualityIssue[]> { return []; }
+  private async detectOutliers(_data: ProcessedData[]): Promise<DataQualityIssue[]> { return []; }
+  private async detectStaleData(_data: ProcessedData[]): Promise<DataQualityIssue[]> { return []; }
+  private async detectInconsistencies(_data: ProcessedData[]): Promise<DataQualityIssue[]> { return []; }
+  private calculateMissingDataPercentage(_data: ProcessedData[]): number { return 0; }
+  private calculateOutlierPercentage(_data: ProcessedData[]): number { return 0; }
+  private calculateCompletenessScore(_data: ProcessedData[]): number { return 0.9; }
+  private calculateTimelinessScore(_data: ProcessedData[]): number { return 0.8; }
+  private calculateAccuracyScore(_data: ProcessedData[]): number { return 0.85; }
+  private calculateConsistencyScore(_data: ProcessedData[]): number { return 0.9; }
+  private async handleOutliers(_data: MarketDataPoint[]): Promise<MarketDataPoint[]> { return _data; }
+  private async fillMissingValues(_data: MarketDataPoint[]): Promise<MarketDataPoint[]> { return _data; }
 
   private async storeProcessedData(data: ProcessedData[]): Promise<void> {
     for (const processed of data) {
@@ -668,7 +669,7 @@ export class DataProcessor {
   private async loadProcessingHistory(): Promise<void> {
     try {
       const cached = await redisCache.getPattern('processed_data:*');
-      for (const [key, data] of cached) {
+      for (const [_key, data] of cached) {
         const processed = JSON.parse(data);
         const marketId = processed.marketId;
         const history = this.processingHistory.get(marketId) || [];

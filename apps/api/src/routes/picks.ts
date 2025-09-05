@@ -3,7 +3,7 @@
  */
 
 import express from 'express';
-import { supabaseClient } from '../services/supabaseClient';
+import { supabaseClient, isSupabaseConfigured } from '../services/supabaseClient';
 import { createLogger } from '../utils/logger';
 import { authenticateToken } from '../security/index';
 
@@ -40,10 +40,14 @@ router.get('/recent', picksAuth, async (req, res) => {
   const correlationId = `picks-recent-${Date.now()}`;
   
   try {
-    const { 
-      sport, 
+    if (!isSupabaseConfigured) {
+      return res.status(200).json({ success: true, data: [], metadata: { reason: 'supabase not configured' }});
+    }
+
+    const {
+      sport,
       limit = 10,
-      hours = 24 
+      hours = 24
     } = req.query;
 
     logger.info('Fetching recent picks', {
@@ -159,7 +163,7 @@ router.get('/stats', picksAuth, async (req, res) => {
 
     // Calculate statistics
     const total = picks?.length || 0;
-    const byStage = picks?.reduce((acc, pick) => {
+    const byStage = picks?.reduce((acc: Record<string, number>, pick: any) => {
       acc[pick.workflow_stage] = (acc[pick.workflow_stage] || 0) + 1;
       return acc;
     }, {} as Record<string, number>) || {};
@@ -190,7 +194,7 @@ router.get('/stats', picksAuth, async (req, res) => {
       sport: sport || 'all'
     });
 
-    res.json(response);
+    return res.json(response);
 
   } catch (error) {
     logger.error('Failed to fetch pick statistics', {
@@ -199,7 +203,7 @@ router.get('/stats', picksAuth, async (req, res) => {
       stack: error instanceof Error ? error.stack : undefined
     });
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to fetch pick statistics',
       details: error instanceof Error ? error.message : 'Unknown error',

@@ -378,7 +378,7 @@ export class DiscordInteractionHandler {
   }
 
   private createStepComponents(stepData: any): any[] {
-    const components = [];
+    const components: any[] = [];
     
     if (stepData.interactive_elements?.buttons) {
       components.push({
@@ -490,7 +490,7 @@ export class DiscordInteractionHandler {
     return 0.5;
   }
 
-  private checkCompletionCriteria(activeInteraction: ActiveInteraction, responseType: string): boolean {
+  private checkCompletionCriteria(activeInteraction: ActiveInteraction, _responseType: string): boolean {
     const interaction = activeInteraction.interaction;
     
     // Check if minimum responses received
@@ -531,7 +531,7 @@ export class DiscordInteractionHandler {
     return 'continue_current';
   }
 
-  private createRetryInteraction(activeInteraction: ActiveInteraction): any {
+  private createRetryInteraction(_activeInteraction: ActiveInteraction): any {
     return {
       type: 'clarification',
       message: 'Let me explain that differently...',
@@ -539,7 +539,7 @@ export class DiscordInteractionHandler {
     };
   }
 
-  private createAdaptiveEmbed(behaviorData: any, adaptationRecommendation: any): any {
+  private createAdaptiveEmbed(_behaviorData: any, _adaptationRecommendation: any): any {
     return {
       title: '🎯 Personalized Learning Adjustment',
       description: `Based on your learning style, I'd like to adjust your experience`,
@@ -547,12 +547,12 @@ export class DiscordInteractionHandler {
       fields: [
         {
           name: '📊 What I Noticed',
-          value: adaptationRecommendation.reasoning,
+          value: _adaptationRecommendation.reasoning,
           inline: false
         },
         {
           name: '🎯 Suggested Improvement',
-          value: adaptationRecommendation.actions.map((action: any) => `• ${action.action}`).join('\n'),
+          value: _adaptationRecommendation.actions.map((action: any) => `• ${action.action}`).join('\n'),
           inline: false
         },
         {
@@ -562,13 +562,13 @@ export class DiscordInteractionHandler {
         }
       ],
       footer: {
-        text: `Confidence: ${Math.round(adaptationRecommendation.confidence * 100)}%`
+        text: `Confidence: ${Math.round(_adaptationRecommendation.confidence * 100)}%`
       },
       timestamp: new Date().toISOString()
     };
   }
 
-  private createAdaptiveComponents(adaptationRecommendation: any): any[] {
+  private createAdaptiveComponents(_adaptationRecommendation: any): any[] {
     return [
       {
         type: 1, // Action Row

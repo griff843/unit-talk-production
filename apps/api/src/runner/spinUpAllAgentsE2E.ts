@@ -7,8 +7,12 @@
  * Provides comprehensive proof that everything is working and grading_status for today.
  */
 
+// Load environment variables from root directory
+import dotenv from 'dotenv';
+import path from 'path';
+dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
+
 import { createClient } from '@supabase/supabase-js';
-import * as dotenv from 'dotenv';
 
 import { AlertAgent } from '../agents/AlertAgent';
 import { BaseAgentConfig, BaseAgentDependencies } from '../agents/BaseAgent/types';
@@ -18,8 +22,6 @@ import { GradingAgent } from '../agents/GradingAgent';
 import { IngestionAgent } from '../agents/IngestionAgent';
 import { professionalPropProcessor } from '../services/ProfessionalPropProcessor';
 import { createLogger } from '../utils/logger';
-
-dotenv.config();
 
 const logger = createLogger('AllAgentsE2E');
 const supabase = createClient(

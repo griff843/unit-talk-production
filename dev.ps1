@@ -285,12 +285,12 @@ function Test-ServiceHealth {
     $services = @(
         @{Name="PostgreSQL"; Port=5432; Type="tcp"},
         @{Name="Redis"; Port=6379; Type="tcp"},
-        @{Name="API"; Endpoint="http://localhost:3001/health"; Type="http"},
+        @{Name="API"; Endpoint="http://localhost:3000/health"; Type="http"},
         @{Name="Command Center"; Endpoint="http://localhost:3004"; Type="http"},
         @{Name="Smart Form"; Endpoint="http://localhost:3002"; Type="http"},
         @{Name="Temporal"; Endpoint="http://localhost:8088"; Type="http"},
         @{Name="Prometheus"; Endpoint="http://localhost:9090/-/healthy"; Type="http"},
-        @{Name="Grafana"; Endpoint="http://localhost:3000/api/health"; Type="http"}
+        @{Name="Grafana"; Endpoint="http://localhost:3005/api/health"; Type="http"}
     )
     
     $healthStatus = @{}
@@ -357,7 +357,7 @@ function Start-Services {
     & $global:ComposeCommand up -d api 2>&1 | Out-Null
     
     # Wait for API to be healthy
-    if (Wait-ForService -ServiceName "API" -HealthEndpoint "http://localhost:3001/health" -Timeout 60) {
+    if (Wait-ForService -ServiceName "API" -HealthEndpoint "http://localhost:3000/health" -Timeout 60) {
         # Phase 5: Workers and background services
         Write-Status "Phase 5: Starting workers and background services..."
         & $global:ComposeCommand up -d workers discord-bot 2>&1 | Out-Null
@@ -383,13 +383,13 @@ function Show-ServiceUrls {
     Write-Host "📊 Command Center:    http://localhost:3004" -ForegroundColor Green
     Write-Host "📱 Smart Form:        http://localhost:3002" -ForegroundColor Green
     Write-Host "📈 Dashboard:         http://localhost:3003" -ForegroundColor Green
-    Write-Host "🔧 API:               http://localhost:3001" -ForegroundColor Green
+    Write-Host "🔧 API:               http://localhost:3000" -ForegroundColor Green
     Write-Host ""
     Write-Host "🛠️  DevOps Tools:" -ForegroundColor Cyan
     Write-Host "==================================================" -ForegroundColor Cyan
     Write-Host "⏱️  Temporal UI:       http://localhost:8088" -ForegroundColor Yellow
     Write-Host "📊 Prometheus:        http://localhost:9090" -ForegroundColor Yellow
-    Write-Host "📈 Grafana:           http://localhost:3000 (admin/admin)" -ForegroundColor Yellow
+    Write-Host "📈 Grafana:           http://localhost:3005 (admin/admin)" -ForegroundColor Yellow
     Write-Host "🗄️  pgAdmin:           http://localhost:5050" -ForegroundColor Yellow
     Write-Host "📮 Redis Commander:   http://localhost:8081" -ForegroundColor Yellow
     Write-Host ""
@@ -517,7 +517,7 @@ function Main {
                     if ($openBrowser -ne 'n') {
                         Start-Process "http://localhost:3004"  # Command Center
                         Start-Process "http://localhost:9090"  # Prometheus
-                        Start-Process "http://localhost:3000"  # Grafana
+                        Start-Process "http://localhost:3005"  # Grafana
                     }
                 }
                 else {

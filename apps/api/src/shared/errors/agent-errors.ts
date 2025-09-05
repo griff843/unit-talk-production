@@ -48,7 +48,7 @@ export class AgentValidationError extends AgentError {
     if (data.zodError) {
       this.details = {
         ...this.details,
-        zodErrors: data.zodError.errors
+        zodErrors: data.zodError.issues
       };
     }
   }

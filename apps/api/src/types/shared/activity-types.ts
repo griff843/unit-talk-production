@@ -121,7 +121,7 @@ export const GameSchema = z.object({
     home: z.number(),
     away: z.number()
   }).optional(),
-  metadata: z.record(z.unknown()).optional()
+  metadata: z.record(z.string(), z.unknown()).optional()
 });
 
 export const PlayerSchema = z.object({
@@ -131,7 +131,7 @@ export const PlayerSchema = z.object({
   position: z.string(),
   league: z.string(),
   status: z.enum(['active', 'injured', 'suspended', 'inactive']),
-  metadata: z.record(z.unknown()).optional()
+  metadata: z.record(z.string(), z.unknown()).optional()
 });
 
 export const PropSchema = z.object({
@@ -147,7 +147,7 @@ export const PropSchema = z.object({
   marketType: z.string(),
   gameTime: z.string(),
   league: z.string(),
-  metadata: z.record(z.unknown()).optional()
+  metadata: z.record(z.string(), z.unknown()).optional()
 });
 
 export const AlertSchema = z.object({
@@ -155,14 +155,14 @@ export const AlertSchema = z.object({
   type: z.string(),
   priority: z.enum(['critical', 'high', 'medium', 'low']),
   message: z.string(),
-  data: z.record(z.unknown()),
+  data: z.record(z.string(), z.unknown()),
   timestamp: z.string()
 });
 
 export const MetricDataSchema = z.object({
   name: z.string(),
   value: z.number(),
-  tags: z.record(z.string()).optional(),
+  tags: z.record(z.string(), z.string()).optional(),
   timestamp: z.string()
 });
 
@@ -170,7 +170,7 @@ export const HealthCheckSchema = z.object({
   name: z.string(),
   status: z.enum(['pass', 'fail']),
   message: z.string().optional(),
-  details: z.record(z.unknown()).optional(),
+  details: z.record(z.string(), z.unknown()).optional(),
   timestamp: z.string()
 });
 
@@ -231,7 +231,7 @@ export const DiscordEmbedSchema = z.object({
 export const ReportSchema = z.object({
   id: z.string(),
   type: z.string(),
-  data: z.record(z.unknown()),
+  data: z.record(z.string(), z.unknown()),
   startDate: z.string(),
   endDate: z.string(),
   metrics: z.array(z.string()),

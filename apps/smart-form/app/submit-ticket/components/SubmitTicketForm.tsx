@@ -542,7 +542,7 @@ export function SubmitTicketForm() {
                     <Switch
                       id="auto_parlay"
                       checked={form.watch('auto_parlay')}
-                      onCheckedChange={checked => form.setValue('auto_parlay', checked)}
+                      onCheckedChange={(checked: boolean) => form.setValue('auto_parlay', checked)}
                     />
                     <label htmlFor="auto_parlay" className="text-sm font-medium text-gray-700">
                       Auto Parlay

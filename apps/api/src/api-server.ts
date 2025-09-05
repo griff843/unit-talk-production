@@ -1,3 +1,7 @@
+// Initialize OpenTelemetry FIRST (before any other imports)
+import { initializeTelemetry, shutdownTelemetry } from './tracing/telemetry';
+const telemetrySDK = initializeTelemetry();
+
 import 'dotenv/config';
 import cors from 'cors';
 import express from 'express';
@@ -6,6 +10,7 @@ import healthRouter from './routes/health';
 import { smartFormRouter } from './routes/smart-form';
 import opsRouter from './routes/ops';
 import picksRouter from './routes/picks';
+import featuresRouter from './routes/features';
 import { ErrorHandler } from './utils/errorHandling';
 import { getEnv } from './utils/getEnv';
 import { createLogger } from './utils/logger';
@@ -13,6 +18,11 @@ import { EnhancedSecurityMiddleware } from './security/EnhancedSecurityMiddlewar
 import { rateLimitMiddleware, generalLimiter, authLimiter } from './security/index';
 import { errorSanitizer } from './security/errorSanitizer';
 import { initializeGracefulShutdown } from './utils/gracefulShutdown';
+
+// Observability imports
+import { startMetricsServer } from './services/metricsServer';
+import { metricsMiddleware, errorMetricsMiddleware } from './middleware/metricsMiddleware';
+import { loggingMiddleware, securityLoggingMiddleware } from './middleware/loggingMiddleware';
 
 const logger = createLogger('API-Server');
 
@@ -39,7 +49,12 @@ const securityMiddleware = new EnhancedSecurityMiddleware({
   }
 }, logger);
 
-// Security Middleware (MUST BE FIRST)
+// Observability Middleware (MUST BE EARLY)
+app.use(metricsMiddleware());
+app.use(loggingMiddleware());
+app.use(securityLoggingMiddleware());
+
+// Security Middleware (MUST BE FIRST AFTER OBSERVABILITY)
 app.use(securityMiddleware.middleware());
 
 // CORS Middleware
@@ -57,44 +72,12 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Request logging middleware
-app.use((req, res, next) => {
-  const startTime = Date.now();
-  const correlationId = `api-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  
-  // Add correlation ID to request
-  (req as any).correlationId = correlationId;
-  
-  logger.info('API Request received', {
-    correlationId,
-    method: req.method,
-    path: req.path,
-    userAgent: req.headers['user-agent'],
-    contentType: req.headers['content-type'],
-    contentLength: req.headers['content-length'],
-    origin: req.headers.origin
-  });
-
-  // Response logging
-  const originalSend = res.send;
-  res.send = function(data) {
-    const processingTime = Date.now() - startTime;
-    logger.info('API Response sent', {
-      correlationId,
-      statusCode: res.statusCode,
-      processingTimeMs: processingTime,
-      responseSize: typeof data === 'string' ? data.length : JSON.stringify(data).length
-    });
-    return originalSend.call(this, data);
-  };
-
-  next();
-});
 
 // Routes with specific rate limiting
 app.use('/api/smart-form', rateLimitMiddleware(authLimiter), smartFormRouter); // Stricter limits for form submissions
 app.use('/api/health', healthRouter); // No rate limiting for health checks
 app.use('/api/picks', rateLimitMiddleware(generalLimiter), picksRouter);
+app.use('/api/features', rateLimitMiddleware(generalLimiter), featuresRouter);
 app.use('/ops', rateLimitMiddleware(authLimiter), opsRouter); // Stricter limits for operations
 
 // Provider health endpoint
@@ -102,7 +85,7 @@ app.get('/health/provider', async (req, res) => {
   try {
     const { getProviderHealth } = await import('./agents/FeedAgent/activities');
     const providerHealth = getProviderHealth();
-    
+
     // Get data freshness from database
     const { supabaseClient } = await import('./services/supabaseClient');
     const { data: latestProp } = await supabaseClient
@@ -110,12 +93,12 @@ app.get('/health/provider', async (req, res) => {
       .select('created_at')
       .order('created_at', { ascending: false })
       .limit(1);
-    
+
     const lastIngestion = latestProp?.[0]?.created_at || null;
-    const minutesSinceLastIngestion = lastIngestion 
+    const minutesSinceLastIngestion = lastIngestion
       ? Math.floor((Date.now() - new Date(lastIngestion).getTime()) / 60000)
       : null;
-    
+
     const dataFreshness = {
       status: minutesSinceLastIngestion === null ? 'critical' :
               minutesSinceLastIngestion < 15 ? 'fresh' :
@@ -127,7 +110,7 @@ app.get('/health/provider', async (req, res) => {
                   minutesSinceLastIngestion < 60 ? `Stale data (${minutesSinceLastIngestion}m ago)` :
                   `Critical - No data for ${minutesSinceLastIngestion}m`
     };
-    
+
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.json({
       success: true,
@@ -152,7 +135,7 @@ app.post('/admin/reload-secrets', async (req, res) => {
   if (!authHeader || !authHeader.startsWith('Bearer admin-')) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
-  
+
   try {
     const { SecretDriftGuard } = await import('./agents/FeedAgent/secretDriftGuard');
     const secretGuard = new (SecretDriftGuard as any)();
@@ -172,7 +155,7 @@ app.post('/admin/invalidate-cache', async (req, res) => {
   if (!authHeader || !authHeader.startsWith('Bearer admin-')) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
-  
+
   res.json({
     success: true,
     message: 'Cache invalidation is not implemented yet',
@@ -194,6 +177,7 @@ app.get('/', (_req, res) => {
       'GET /api/smart-form/health',
       'GET /api/picks/recent',
       'GET /api/picks/stats',
+      'GET /api/features/query',
       'GET /health/provider',
       'POST /admin/reload-secrets',
       'POST /admin/invalidate-cache',
@@ -204,13 +188,16 @@ app.get('/', (_req, res) => {
   });
 });
 
+// Error metrics middleware (BEFORE error handler)
+app.use(errorMetricsMiddleware());
+
 // Global error handler with security sanitization
 app.use(errorSanitizer.middleware());
 
 // 404 handler
 app.use('*', (req, res) => {
   const correlationId = (req as any).correlationId || 'unknown';
-  
+
   logger.warn('API 404 - Route not found', {
     correlationId,
     method: req.method,
@@ -236,6 +223,17 @@ app.use('*', (req, res) => {
 async function startServer() {
   try {
     // Validate environment variables
+    // Optionally start Prometheus metrics server
+    if (process.env.PROMETHEUS_ENABLED === 'true') {
+      const metricsPort = Number(process.env.PROMETHEUS_PORT || 9464);
+      try {
+        startMetricsServer(metricsPort);
+        logger.info('📈 Prometheus metrics server started', { port: metricsPort, path: '/metrics' });
+      } catch (e) {
+        logger.warn('⚠️ Failed to start metrics server', { error: e instanceof Error ? e.message : String(e) });
+      }
+    }
+
     getEnv();
     logger.info('Environment variables validated successfully');
 
@@ -289,6 +287,15 @@ async function startServer() {
         handler: async () => {
           logger.info('🧹 Cleaning up security middleware...');
           // Cleanup security middleware resources if needed
+        }
+      },
+      {
+        name: 'telemetry-shutdown',
+        priority: 9,
+        timeout: 5000,
+        handler: async () => {
+          logger.info('🔍 Shutting down telemetry...');
+          await shutdownTelemetry(telemetrySDK);
         }
       },
       {

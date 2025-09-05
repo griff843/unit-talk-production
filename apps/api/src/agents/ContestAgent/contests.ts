@@ -1,7 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 
-import { toISOString, toDate, addDays } from '../../utils/dateUtils';
+import { toISOString, addDays } from '../../utils/dateUtils';
 import { ErrorHandler } from '../../utils/errorHandling';
 import { Logger } from '../../utils/logger';
 import { BaseAgentConfig } from '../BaseAgent/types/index';
@@ -18,10 +18,10 @@ import {
 const contestRuleSchema = z.object({
   id: z.string().uuid(),
   type: z.string(),
-  conditions: z.record(z.any()),
+  conditions: z.record(z.string(), z.any()),
   points: z.number(),
-  bonuses: z.record(z.number()).optional(),
-  penalties: z.record(z.number()).optional()
+  bonuses: z.record(z.string(), z.number()).optional(),
+  penalties: z.record(z.string(), z.number()).optional()
 });
 
 const prizePoolSchema = z.object({
@@ -32,7 +32,7 @@ const prizePoolSchema = z.object({
     rank: z.union([z.number(), z.string()]),
     value: z.number().positive(),
     type: z.enum(['cash', 'credit', 'item', 'custom']),
-    conditions: z.record(z.any()).optional()
+    conditions: z.record(z.string(), z.any()).optional()
   })),
   winners: z.array(z.string()).default([]),
   specialPrizes: z.array(z.object({
@@ -40,16 +40,16 @@ const prizePoolSchema = z.object({
     name: z.string(),
     value: z.number().positive(),
     type: z.enum(['bonus', 'achievement', 'milestone']).default('bonus'),
-    criteria: z.record(z.any()).default({})
+    criteria: z.record(z.string(), z.any()).default({})
   })).optional(),
   sponsorships: z.array(z.object({
     id: z.string().default(''),
     sponsor: z.string(),
     value: z.number().positive(),
     type: z.string().default('cash'),
-    terms: z.record(z.any()).default({}),
-    requirements: z.record(z.any()),
-    benefits: z.record(z.any())
+    terms: z.record(z.string(), z.any()).default({}),
+    requirements: z.record(z.string(), z.any()),
+    benefits: z.record(z.string(), z.any())
   })).optional()
 });
 
@@ -87,7 +87,7 @@ const contestSchema = z.object({
       revenueGenerated: z.number().optional()
     })
   }).optional(),
-  metadata: z.record(z.any()).optional()
+  metadata: z.record(z.string(), z.any()).optional()
 });
 
 export class ContestManager {

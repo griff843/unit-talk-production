@@ -680,7 +680,7 @@ export class DataLifecycleAgent extends BaseAgent {
   }
 
   public async checkHealth(): Promise<any> {
-    const checks = [];
+    const checks: Array<{ component: string; status: string; details?: any }> = [];
 
     // Check if retention policy is being followed
     checks.push({

@@ -27,7 +27,7 @@ export const FeedAgentConfigSchema = z.object({
     backoffMs: z.number().min(100),
     maxBackoffMs: z.number().min(1000),
   }),
-  providers: z.record(z.object({
+  providers: z.record(z.string(), z.object({
     enabled: z.boolean(),
     baseUrl: z.string().url(),
     apiKey: z.string(),

@@ -1,9 +1,7 @@
-import { resolve } from 'path';
-
-import { config } from 'dotenv';
-
-// Load environment variables
-config({ path: resolve(__dirname, '../../unit-talk-custom-bot/.env') });
+// Load environment variables from root directory
+import dotenv from 'dotenv';
+import path from 'path';
+dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 import { SmartFormBridge } from '../services/SmartFormBridge';
 import { logger } from '../shared/logger';

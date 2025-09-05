@@ -7,23 +7,28 @@ import crypto from 'crypto';
 
 import jwt from 'jsonwebtoken';
 
-import { logger } from '../services/logging.js';
-import { supabase } from '../services/supabaseClient.js';
+import { logger } from '../services/logging';
+import { supabase } from '../services/supabaseClient';
 
 // Environment variables with proper validation and type safety
-const JWT_SECRET = process.env['JWT_SECRET'];
-const SUPABASE_URL = process.env['SUPABASE_URL'];
-const ENCRYPTION_KEY = process.env['ENCRYPTION_KEY'];
+const ALLOW_DEV = process.env['ALLOW_DEV_UNCONFIGURED'] === 'true' || process.env['NODE_ENV'] === 'development';
 
-if (!JWT_SECRET) {
+const DEV_JWT_FALLBACK = 'dev-insecure-jwt-secret';
+const DEV_ENCRYPTION_KEY_FALLBACK = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'; // 64 hex
+
+const JWT_SECRET = process.env['JWT_SECRET'] || (ALLOW_DEV ? DEV_JWT_FALLBACK : undefined);
+const SUPABASE_URL = process.env['SUPABASE_URL'] || (ALLOW_DEV ? '' : undefined);
+const ENCRYPTION_KEY = process.env['ENCRYPTION_KEY'] || (ALLOW_DEV ? DEV_ENCRYPTION_KEY_FALLBACK : undefined);
+
+if (!JWT_SECRET && !ALLOW_DEV) {
   throw new Error('JWT_SECRET environment variable is required');
 }
 
-if (!SUPABASE_URL) {
+if (!SUPABASE_URL && !ALLOW_DEV) {
   throw new Error('SUPABASE_URL environment variable is required');
 }
 
-if (!ENCRYPTION_KEY) {
+if (!ENCRYPTION_KEY && !ALLOW_DEV) {
   throw new Error('ENCRYPTION_KEY environment variable is required');
 }
 

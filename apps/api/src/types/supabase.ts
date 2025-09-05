@@ -38,7 +38,7 @@ export const RawPropSchema = z.object({
   source: z.string(),
   created_at: z.string(),
   updated_at: z.string(),
-  metadata: z.record(z.unknown()).optional()
+  metadata: z.record(z.string(), z.unknown()).optional()
 });
 
 // Games Table
@@ -69,7 +69,7 @@ export const GameSchema = z.object({
   score_away: z.number().optional(),
   created_at: z.string(),
   updated_at: z.string(),
-  metadata: z.record(z.unknown()).optional()
+  metadata: z.record(z.string(), z.unknown()).optional()
 });
 
 // Teams Table
@@ -92,7 +92,7 @@ export const TeamSchema = z.object({
   abbreviation: z.string(),
   created_at: z.string(),
   updated_at: z.string(),
-  metadata: z.record(z.unknown()).optional()
+  metadata: z.record(z.string(), z.unknown()).optional()
 });
 
 // Players Table
@@ -117,7 +117,7 @@ export const PlayerSchema = z.object({
   status: z.enum(['active', 'injured', 'suspended', 'inactive']),
   created_at: z.string(),
   updated_at: z.string(),
-  metadata: z.record(z.unknown()).optional()
+  metadata: z.record(z.string(), z.unknown()).optional()
 });
 
 // Daily Picks Table
@@ -152,7 +152,7 @@ export const DailyPickSchema = z.object({
   status: z.enum(['pending', 'approved', 'rejected']),
   created_at: z.string(),
   updated_at: z.string(),
-  metadata: z.record(z.unknown()).optional()
+  metadata: z.record(z.string(), z.unknown()).optional()
 });
 
 // Final Picks Table
@@ -189,7 +189,7 @@ export const UnifiedPickSchema = z.object({
   score: z.number(),
   created_at: z.string(),
   updated_at: z.string(),
-  metadata: z.record(z.unknown()).optional()
+  metadata: z.record(z.string(), z.unknown()).optional()
 });
 
 // Capper Threads Table
@@ -212,7 +212,7 @@ export const CapperThreadSchema = z.object({
   status: z.enum(['active', 'archived', 'deleted']),
   created_at: z.string(),
   updated_at: z.string(),
-  metadata: z.record(z.unknown()).optional()
+  metadata: z.record(z.string(), z.unknown()).optional()
 });
 
 // Agent Logs Table
@@ -230,7 +230,7 @@ export const AgentLogSchema = z.object({
   agent: z.string(),
   level: z.enum(['info', 'warn', 'error']),
   message: z.string(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
   timestamp: z.string()
 });
 
@@ -249,7 +249,7 @@ export const AgentHealthSchema = z.object({
   agent: z.string(),
   status: z.enum(['healthy', 'degraded', 'unhealthy']),
   health_score: z.number(),
-  details: z.record(z.unknown()),
+  details: z.record(z.string(), z.unknown()),
   timestamp: z.string()
 });
 
@@ -264,7 +264,7 @@ export interface AgentMetrics {
 export const AgentMetricsSchema = z.object({
   id: z.string().uuid(),
   agent: z.string(),
-  metrics: z.record(z.number()),
+  metrics: z.record(z.string(), z.number()),
   timestamp: z.string()
 });
 

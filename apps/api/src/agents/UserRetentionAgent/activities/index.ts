@@ -33,7 +33,7 @@ export async function predictChurnRisk(data: {
     
     // Churn risk calculation algorithm
     let probability = 0;
-    const factors = [];
+    const factors: Array<string> = [];
     
     // Days since last login factor
     if (daysSinceLastLogin > 14) {
@@ -66,7 +66,7 @@ export async function predictChurnRisk(data: {
                      probability > 0.5 ? 'high' :
                      probability > 0.3 ? 'medium' : 'low';
     
-    const recommendations = [];
+    const recommendations: Array<string> = [];
     if (riskLevel === 'critical' || riskLevel === 'high') {
       recommendations.push('Send personalized retention message');
       recommendations.push('Offer special promotion');
@@ -175,7 +175,12 @@ export async function generateRetentionStrategy(data: {
   });
   
   try {
-    const interventions = [];
+    const interventions: Array<{
+      type: string;
+      priority: number;
+      timing: string;
+      content: string;
+    }> = [];
     
     // High churn risk interventions
     if (data.churnRisk > 0.7) {

@@ -38,7 +38,7 @@ export async function sendSlackNotification(
 }
 
 function formatSlackMessage(payload: NotificationPayload): any {
-  const blocks = [];
+  const blocks: any[] = [];
 
   // Header
   if (payload.title) {

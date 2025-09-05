@@ -181,7 +181,7 @@ export class AlertAgent extends BaseAgent {
   }
 
   public async checkHealth(): Promise<HealthStatus> {
-    const checks = [];
+    const checks: Array<{ service: string; status: string; error?: string }> = [];
 
     // Check Supabase connectivity with circuit breaker
     try {

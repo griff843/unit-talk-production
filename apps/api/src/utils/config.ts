@@ -78,7 +78,8 @@ export class ConfigLoader {
     try {
       // First check if config is already loaded
       if (this.agentConfigs.has(agentName)) {
-        return this.agentConfigs.get(agentName);
+        const cachedConfig = this.agentConfigs.get(agentName);
+        return schema.parse(cachedConfig);
       }
 
       // Load agent config from file
@@ -138,7 +139,7 @@ export function validateBaseConfig(config: unknown): AgentConfig {
   } catch (error) {
     if (error instanceof z.ZodError) {
       throw new ValidationError(
-        'Invalid base configuration: ' + error.errors.map(e => e.message).join(', ')
+        'Invalid base configuration: ' + error.issues.map(e => e.message).join(', ')
       );
     }
     throw error;

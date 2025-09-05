@@ -3,16 +3,17 @@
  * Tests individual components and demonstrates E2E flow with real data
  */
 
+// Load environment variables from root directory
+import dotenv from 'dotenv';
+import path from 'path';
+dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
+
 import { createClient } from '@supabase/supabase-js';
-import * as dotenv from 'dotenv';
 
 import { SyndicateGradingEngine } from '../agents/GradingAgent/scoring/gradingEngine';
 import { CLVTrackingService } from '../services/clv/CLVTrackingService';
 import { DeviggingService } from '../services/devigging/DeviggingService';
 import { createLogger } from '../utils/logger';
-
-
-dotenv.config();
 
 const logger = createLogger('DirectProfessionalTest');
 const supabase = createClient(

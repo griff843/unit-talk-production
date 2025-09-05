@@ -164,7 +164,7 @@ class STierEnforcer {
     await this.storeValidation(validation);
     
     // Take enforcement action if needed
-    if (enforcement.enforced && enforcement.adjustedTier !== pick.tier) {
+    if (enforcement.enforced && enforcement.adjustedTier && enforcement.adjustedTier !== pick.tier) {
       await this.applyTierAdjustment(pick, enforcement.adjustedTier, enforcement.reasoning);
     }
 
