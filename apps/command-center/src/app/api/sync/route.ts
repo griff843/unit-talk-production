@@ -8,7 +8,7 @@ import { getTypedSupabaseClient } from '@/lib/supabase';
  * Or can be called manually to pull data
  */
 
-const UNIT_TALK_PRODUCTION_URL = process.env.UNIT_TALK_PRODUCTION_URL || 'http://localhost:3000';
+const UNIT_TALK_PRODUCTION_URL = process.env.UNIT_TALK_PRODUCTION_URL || 'http://localhost:3030';
 const SYNC_API_KEY = process.env.SYNC_API_KEY || 'dev-sync-key';
 
 export async function POST(request: NextRequest) {
@@ -76,10 +76,10 @@ export async function GET(request: NextRequest) {
           // Check if we have real agent data in production
           const { data: agentData, error: agentError } = await supabase
             .from('raw_props')
-            .select('count')
+            .select('id')
             .limit(1);
 
-          if (!agentError && agentData) {
+          if (!agentError && agentData && agentData.length > 0) {
             // We have production data - return success
             success = true;
             data = [
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
             .select('id')
             .limit(1);
 
-          if (!userError && userData) {
+          if (!userError && userData && userData.length > 0) {
             success = true;
             data = userData;
           }

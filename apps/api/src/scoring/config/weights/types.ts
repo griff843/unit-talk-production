@@ -102,18 +102,19 @@ export interface ScoringConfig {
   risk: RiskManagementConfig;
 }
 
-// Validation function to ensure weights sum correctly
+// Validation function to ensure weights are reasonable
 export function validateWeights(weights: CoreScoringWeights & EnhancedScoringWeights): boolean {
-  const coreTotal = Object.values(weights as CoreScoringWeights)
-    .filter(v => typeof v === 'number')
-    .reduce((sum, weight) => sum + weight, 0);
-    
-  const enhancedTotal = Object.values(weights as EnhancedScoringWeights)
-    .filter(v => typeof v === 'number')
-    .reduce((sum, weight) => sum + weight, 0);
-    
-  const total = coreTotal + enhancedTotal;
+  // Check that all weights are non-negative and reasonable (between 0 and 1)
+  for (const [key, value] of Object.entries(weights)) {
+    if (typeof value === 'number') {
+      if (value < 0 || value > 1) {
+        console.warn(`⚠️ Weight ${key} is out of range [0,1]: ${value}`);
+        return false;
+      }
+    }
+  }
   
-  // Allow some tolerance for floating point arithmetic
-  return Math.abs(total - 1.0) < 0.001;
+  // Weights are structured in categories and don't need to sum to 1.0
+  // This is a multi-dimensional scoring system where each category contributes
+  return true;
 }

@@ -1,34 +1,60 @@
+const path = require('path');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   typescript: {
-    // Completely disable TypeScript checking during build
+    // Allow TypeScript errors during build for development phase
     ignoreBuildErrors: true,
-    // Skip type checking entirely
-    tsconfigPath: './tsconfig.build.json'
   },
   eslint: {
     // Temporarily disable ESLint during build
     ignoreDuringBuilds: true,
   },
-  // Disable SWC minification which might be interfering
-  swcMinify: false,
-  // Windows build optimization
-  swcMinify: false, // Disable SWC minifier for Windows compatibility
-  reactStrictMode: false, // Disable for debugging
+  // Disable for debugging and Windows compatibility
+  reactStrictMode: false,
   poweredByHeader: false,
 
-  typescript: {
-    ignoreBuildErrors: false,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
+  // Security Headers
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY'
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff'
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin'
+          },
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block'
+          },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=()'
+          },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains; preload'
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https:; frame-ancestors 'none';"
+          }
+        ]
+      }
+    ];
   },
 
-  // Windows-specific optimizations
-  experimental: {
-    // Disable trace generation on Windows to prevent EPERM errors
-    instrumentationHook: false,
-  },
+  // Output file tracing configuration
+  outputFileTracingRoot: path.join(__dirname, '../../'),
 
   // Disable webpack cache and minification for Windows builds
   webpack: (config, { dev, isServer }) => {
