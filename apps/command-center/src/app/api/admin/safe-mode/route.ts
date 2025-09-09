@@ -72,12 +72,18 @@ class SafeModeService {
     actor: string
   ): Promise<SafeModeConfig> {
     const currentConfig = await this.getStatus();
-    const newConfig = {
+    const newConfig: SafeModeConfig = {
       ...currentConfig,
       ...config,
-      activated_by: config.enabled ? actor : undefined,
-      activated_at: config.enabled ? new Date() : undefined,
     };
+
+    if (config.enabled) {
+      newConfig.activated_by = actor;
+      newConfig.activated_at = new Date();
+    } else {
+      delete newConfig.activated_by;
+      delete newConfig.activated_at;
+    }
 
     // Update in database
     const { error } = await supabase

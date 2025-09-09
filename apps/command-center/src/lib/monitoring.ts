@@ -133,8 +133,8 @@ export const ALERT_THRESHOLDS = {
 // Real-time Monitoring System
 class ProductionMonitoringSystem {
   private supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env['NEXT_PUBLIC_SUPABASE_URL']!,
+    process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY']!
   );
 
   private alerts: Alert[] = [];
@@ -388,8 +388,8 @@ class ProductionMonitoringSystem {
     const recent = this.metrics.slice(-3);
     const values = recent.map(m => m[metric] as number);
 
-    const trend = values[2] - values[0];
-    const threshold = values[0] * 0.1;
+    const trend = (values[2] ?? 0) - (values[0] ?? 0);
+    const threshold = (values[0] ?? 0) * 0.1;
 
     if (trend > threshold) return 'up';
     if (trend < -threshold) return 'down';

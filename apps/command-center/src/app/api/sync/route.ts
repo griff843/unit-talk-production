@@ -8,8 +8,8 @@ import { getTypedSupabaseClient } from '@/lib/supabase';
  * Or can be called manually to pull data
  */
 
-const UNIT_TALK_PRODUCTION_URL = process.env.UNIT_TALK_PRODUCTION_URL || 'http://localhost:3030';
-const SYNC_API_KEY = process.env.SYNC_API_KEY || 'dev-sync-key';
+const UNIT_TALK_PRODUCTION_URL = process.env['UNIT_TALK_PRODUCTION_URL'] || 'http://localhost:3030';
+const SYNC_API_KEY = process.env['SYNC_API_KEY'] || 'dev-sync-key';
 
 export async function POST(request: NextRequest) {
   try {

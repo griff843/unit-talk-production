@@ -7,7 +7,7 @@ import { User, Agent, SecurityEvent } from './supabase'
 
 // Generate realistic timestamps
 const now = new Date()
-const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
+const _oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
 const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
 const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
 
@@ -172,9 +172,7 @@ export const mockSecurityEvents: SecurityEvent[] = [
     severity: 'high',
     description: 'Multiple failed login attempts detected from IP 192.168.1.100 (5 attempts in 2 minutes)',
     ip_address: '192.168.1.100',
-    user_id: undefined,
     created_at: new Date(now.getTime() - 5 * 60 * 1000).toISOString(), // 5 minutes ago
-    resolved_at: undefined,
     metadata: {
       attempt_count: 5,
       user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -206,7 +204,6 @@ export const mockSecurityEvents: SecurityEvent[] = [
     ip_address: '41.203.72.15',
     user_id: '2',
     created_at: new Date(now.getTime() - 30 * 60 * 1000).toISOString(), // 30 minutes ago
-    resolved_at: undefined,
     metadata: {
       previous_location: 'United States',
       new_location: 'Nigeria',
@@ -237,7 +234,6 @@ export const mockSecurityEvents: SecurityEvent[] = [
     severity: 'critical',
     description: 'Potential credential stuffing attack detected - 127 failed attempts across 15 accounts',
     ip_address: '185.220.101.47',
-    user_id: undefined,
     created_at: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
     resolved_at: new Date(now.getTime() - 90 * 60 * 1000).toISOString(), // 90 minutes ago
     metadata: {
@@ -352,7 +348,10 @@ export function simulateAgentStatusUpdate(agentId: string) {
     // Occasionally change status
     if (Math.random() < 0.1) { // 10% chance
       const statuses: Agent['status'][] = ['healthy', 'warning', 'healthy', 'healthy'] // Bias toward healthy
-      agent.status = statuses[Math.floor(Math.random() * statuses.length)]
+      const statusIndex = Math.floor(Math.random() * statuses.length);
+      if (statuses[statusIndex]) {
+        agent.status = statuses[statusIndex];
+      }
     }
   }
 }
@@ -363,20 +362,32 @@ export function simulateNewSecurityEvent(): SecurityEvent {
   const severities: SecurityEvent['severity'][] = ['low', 'medium', 'high']
   const ips = ['192.168.1.100', '10.0.0.45', '203.0.113.15', '185.220.101.47']
   
-  return {
+  const eventTypeIndex = Math.floor(Math.random() * eventTypes.length);
+  const severityIndex = Math.floor(Math.random() * severities.length);
+  const ipIndex = Math.floor(Math.random() * ips.length);
+  
+  const event: SecurityEvent = {
     id: Math.random().toString(36).substr(2, 9),
-    type: eventTypes[Math.floor(Math.random() * eventTypes.length)] as any,
-    severity: severities[Math.floor(Math.random() * severities.length)],
-    description: `Simulated security event: ${eventTypes[Math.floor(Math.random() * eventTypes.length)]} detected`,
-    ip_address: ips[Math.floor(Math.random() * ips.length)],
-    user_id: Math.random() > 0.5 ? mockUsers[Math.floor(Math.random() * mockUsers.length)].id : undefined,
+    type: eventTypes[eventTypeIndex] as any,
+    severity: severities[severityIndex] ?? 'low',
+    description: `Simulated security event: ${eventTypes[eventTypeIndex] ?? 'unknown'} detected`,
+    ip_address: ips[ipIndex] ?? '127.0.0.1',
     created_at: new Date().toISOString(),
-    resolved_at: undefined,
     metadata: {
       simulated: true,
       confidence: Math.random()
     }
+  };
+
+  // Conditionally add optional fields
+  if (Math.random() > 0.5) {
+    const userIndex = Math.floor(Math.random() * mockUsers.length);
+    if (mockUsers[userIndex]) {
+      event.user_id = mockUsers[userIndex].id;
+    }
   }
+
+  return event;
 }
 
 // Live data simulation intervals (can be used in components)

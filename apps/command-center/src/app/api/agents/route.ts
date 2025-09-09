@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { dbOperations, Agent, getTypedSupabaseClient } from '@/lib/supabase';
+import { Agent, getTypedSupabaseClient } from '@/lib/supabase';
 import { mockAgents, simulateAgentStatusUpdate } from '@/lib/mockData';
 import { agentMonitor } from '@/lib/agentMonitoring';
 import { redisClient } from '@/lib/redis';

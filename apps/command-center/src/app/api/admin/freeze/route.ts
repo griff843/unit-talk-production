@@ -71,12 +71,18 @@ class FreezeService {
     actor: string
   ): Promise<FreezeConfig> {
     const currentConfig = await this.getStatus();
-    const newConfig = {
+    const newConfig: FreezeConfig = {
       ...currentConfig,
       ...config,
-      activated_by: config.enabled ? actor : undefined,
-      activated_at: config.enabled ? new Date() : undefined,
     };
+
+    if (config.enabled) {
+      newConfig.activated_by = actor;
+      newConfig.activated_at = new Date();
+    } else {
+      delete newConfig.activated_by;
+      delete newConfig.activated_at;
+    }
 
     // Update in database
     const { error } = await supabase
@@ -377,8 +383,8 @@ export async function POST(request: NextRequest) {
       {
         enabled: enable,
         reason: reason || (enable ? 'Manual freeze activation' : 'Manual freeze deactivation'),
-        estimated_duration,
-        scheduled_end: scheduled_end ? new Date(scheduled_end) : undefined,
+        ...(estimated_duration && { estimated_duration }),
+        ...(scheduled_end && { scheduled_end: new Date(scheduled_end) }),
         emergency_override: emergency_override || false,
       },
       userId

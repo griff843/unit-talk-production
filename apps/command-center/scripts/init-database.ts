@@ -12,8 +12,8 @@ import * as path from 'path'
 // Load environment variables
 dotenv.config({ path: path.join(__dirname, '..', '.env.local') })
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabaseUrl = process.env['NEXT_PUBLIC_SUPABASE_URL']!
+const supabaseAnonKey = process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY']!
 
 console.log('🚀 Initializing Unit Talk Command Center database...')
 console.log('URL:', supabaseUrl ? '✅ Found' : '❌ Missing')
@@ -32,7 +32,7 @@ async function initializeDatabase() {
 
   try {
     // Test connection by trying to select from a system table
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('information_schema.tables')
       .select('table_name')
       .limit(1)
@@ -94,7 +94,7 @@ async function initializeDatabase() {
     ]
 
     console.log('⏳ Inserting sample agents...')
-    const { data: agentsData, error: agentsError } = await supabase
+    const { error: agentsError } = await supabase
       .from('agents')
       .upsert(sampleAgents, { onConflict: 'name', ignoreDuplicates: false })
 
@@ -150,7 +150,7 @@ async function initializeDatabase() {
     ]
 
     console.log('⏳ Inserting sample users...')
-    const { data: usersData, error: usersError } = await supabase
+    const { error: usersError } = await supabase
       .from('users')
       .upsert(sampleUsers, { onConflict: 'discord_id', ignoreDuplicates: false })
 
@@ -187,7 +187,7 @@ async function initializeDatabase() {
     ]
 
     console.log('⏳ Inserting sample security events...')
-    const { data: eventsData, error: eventsError } = await supabase
+    const { error: eventsError } = await supabase
       .from('security_events')
       .insert(sampleEvents)
 

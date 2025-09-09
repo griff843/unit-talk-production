@@ -10,10 +10,8 @@ if (typeof window !== 'undefined') {
 }
 
 const os = require('os')
-const fs = require('fs')
-const { promisify } = require('util')
-const stat = promisify(fs.stat)
-const readdir = promisify(fs.readdir)
+const _fs = require('fs')
+const { promisify: _promisify } = require('util')
 
 interface SystemMetrics {
   timestamp: number
@@ -55,14 +53,12 @@ interface SystemMetrics {
   }
 }
 
-interface ProcessUsage {
+interface _ProcessUsage {
   user: number
   system: number
 }
 
 class SystemMetricsCollector {
-  private previousCpuUsage: ProcessUsage | null = null
-  private previousTimestamp: number = 0
   private networkCounters: { bytesIn: number; bytesOut: number; packetsIn: number; packetsOut: number } = {
     bytesIn: 0,
     bytesOut: 0,
@@ -276,7 +272,7 @@ class SystemMetricsCollector {
       const execAsync = promisify(exec)
 
       const { stdout } = await execAsync("df -k / | tail -1 | awk '{print $2,$3,$4}'")
-      const [total, used, available] = stdout.trim().split(' ').map(Number)
+      const [total, used] = stdout.trim().split(' ').map(Number)
 
       // Convert from KB to bytes
       const totalBytes = total * 1024

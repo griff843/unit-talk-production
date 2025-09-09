@@ -94,7 +94,7 @@ export class WebSocketManager {
         this.handleMessage(event);
       };
 
-      this.ws.onerror = error => {
+      this.ws.onerror = _error => {
         clearTimeout(connectTimeout);
         this.handleConnectionError(new Error('WebSocket error'));
       };
@@ -398,7 +398,7 @@ export class WebSocketManager {
 
 // Export singleton instance for application use
 export const websocketManager = new WebSocketManager({
-  url: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080',
+  url: process.env['NEXT_PUBLIC_WS_URL'] || 'ws://localhost:8080',
   reconnectInterval: 3000,
   maxReconnectAttempts: 15,
   heartbeatInterval: 30000,

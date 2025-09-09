@@ -62,17 +62,25 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const query: EventQuery = {
-      eventTypes: searchParams.get('eventTypes')?.split(','),
       timeRange: searchParams.get('timeRange') as any || '1h',
-      customStart: searchParams.get('customStart') || undefined,
-      customEnd: searchParams.get('customEnd') || undefined,
-      aggregateTypes: searchParams.get('aggregateTypes')?.split(','),
       status: searchParams.get('status') as any,
       limit: parseInt(searchParams.get('limit') || '50'),
       offset: parseInt(searchParams.get('offset') || '0'),
       includeMetadata: searchParams.get('includeMetadata') === 'true',
       source: searchParams.get('source') as any || 'all',
     };
+    
+    const eventTypes = searchParams.get('eventTypes')?.split(',');
+    if (eventTypes) query.eventTypes = eventTypes;
+    
+    const customStart = searchParams.get('customStart');
+    if (customStart) query.customStart = customStart;
+    
+    const customEnd = searchParams.get('customEnd');
+    if (customEnd) query.customEnd = customEnd;
+    
+    const aggregateTypes = searchParams.get('aggregateTypes')?.split(',');
+    if (aggregateTypes) query.aggregateTypes = aggregateTypes;
 
     const events = await fetchPipelineEvents(query);
     const eventStats = await getEventStatistics(query);
@@ -252,7 +260,7 @@ async function fetchFromEventsTable(query: EventQuery): Promise<PipelineEvent[]>
     throw new Error(`Failed to fetch events: ${error.message}`);
   }
 
-  return (data || []).map(event => ({
+  return (data || []).map((event: any) => ({
     id: String(event.id || ''),
     eventType: String(event.event_type || ''),
     aggregateId: String(event.aggregate_id || ''),
@@ -293,7 +301,7 @@ async function fetchFromBridgeOutboxTable(query: EventQuery): Promise<PipelineEv
     throw new Error(`Failed to fetch bridge outbox events: ${error.message}`);
   }
 
-  return (data || []).map(outboxRecord => ({
+  return (data || []).map((outboxRecord: any) => ({
     id: String(outboxRecord.id || ''),
     eventType: String(outboxRecord.event_type || ''),
     aggregateId: String(outboxRecord.unique_key || ''), // Use unique_key as aggregate_id
@@ -341,7 +349,7 @@ async function fetchFromWorkflowExecutionsTable(query: EventQuery): Promise<Pipe
     throw new Error(`Failed to fetch workflow executions: ${error.message}`);
   }
 
-  return (data || []).map(workflow => ({
+  return (data || []).map((workflow: any) => ({
     id: String(workflow.workflow_id || ''),
     eventType: `workflow.${String(workflow.execution_status || 'unknown')}.v1`,
     aggregateId: String(workflow.bet_slip_id || workflow.workflow_id || ''),
@@ -383,27 +391,27 @@ async function getEventStatistics(query: EventQuery) {
     const eventsStats = await getEventsTableStatistics(query);
     stats.totalCount += eventsStats.count;
     Object.assign(stats.byType, eventsStats.byType);
-    stats.bySource.events = eventsStats.count;
+    stats.bySource['events'] = eventsStats.count;
     Object.assign(stats.byStatus, eventsStats.byStatus);
   }
 
   if (query.source === 'bridge_outbox' || query.source === 'all') {
     const bridgeStats = await getBridgeOutboxStatistics(query);
     stats.totalCount += bridgeStats.count;
-    stats.bySource.bridge_outbox = bridgeStats.count;
+    stats.bySource['bridge_outbox'] = bridgeStats.count;
     // Merge status counts
     Object.keys(bridgeStats.byStatus).forEach(status => {
-      stats.byStatus[status] = (stats.byStatus[status] || 0) + bridgeStats.byStatus[status];
+      stats.byStatus[status] = (stats.byStatus[status] || 0) + (bridgeStats.byStatus[status] ?? 0);
     });
   }
 
   if (query.source === 'workflow_executions' || query.source === 'all') {
     const workflowStats = await getWorkflowExecutionsStatistics(query);
     stats.totalCount += workflowStats.count;
-    stats.bySource.workflow_executions = workflowStats.count;
+    stats.bySource['workflow_executions'] = workflowStats.count;
     // Merge status counts
     Object.keys(workflowStats.byStatus).forEach(status => {
-      stats.byStatus[status] = (stats.byStatus[status] || 0) + workflowStats.byStatus[status];
+      stats.byStatus[status] = (stats.byStatus[status] || 0) + (workflowStats.byStatus[status] ?? 0);
     });
   }
 
@@ -425,7 +433,7 @@ function setupEventSubscriptions(controller: ReadableStreamDefaultController, ev
             table: 'events',
             filter: eventTypes ? `event_type=in.(${eventTypes.join(',')})` : undefined,
           },
-          (payload) => {
+          (payload: any) => {
             const event = mapDatabaseEventToPipelineEvent(payload.new, 'events');
             const message = `data: ${JSON.stringify({
               type: 'event_update',
@@ -456,7 +464,7 @@ function setupEventSubscriptions(controller: ReadableStreamDefaultController, ev
             schema: 'public',
             table: 'bridge_outbox',
           },
-          (payload) => {
+          (payload: any) => {
             const event = mapDatabaseEventToPipelineEvent(payload.new, 'bridge_outbox');
             const message = `data: ${JSON.stringify({
               type: 'bridge_outbox_update',
@@ -487,7 +495,7 @@ function setupEventSubscriptions(controller: ReadableStreamDefaultController, ev
             schema: 'public',
             table: 'workflow_executions',
           },
-          (payload) => {
+          (payload: any) => {
             const event = mapDatabaseEventToPipelineEvent(payload.new, 'workflow_executions');
             const message = `data: ${JSON.stringify({
               type: 'workflow_update',
@@ -644,7 +652,7 @@ function getTimeRangeFilter(timeRange: string, customStart?: string, customEnd?:
 }
 
 // Statistics helper functions (simplified implementations)
-async function getEventsTableStatistics(query: EventQuery) {
+async function getEventsTableStatistics(_query: EventQuery) {
   const { count } = await supabase
     .from('events')
     .select('*', { count: 'exact', head: true });
@@ -656,7 +664,7 @@ async function getEventsTableStatistics(query: EventQuery) {
   };
 }
 
-async function getBridgeOutboxStatistics(query: EventQuery) {
+async function getBridgeOutboxStatistics(_query: EventQuery) {
   const { count } = await supabase
     .from('bridge_outbox')
     .select('*', { count: 'exact', head: true });
@@ -667,7 +675,7 @@ async function getBridgeOutboxStatistics(query: EventQuery) {
   };
 }
 
-async function getWorkflowExecutionsStatistics(query: EventQuery) {
+async function getWorkflowExecutionsStatistics(_query: EventQuery) {
   const { count } = await supabase
     .from('workflow_executions')
     .select('*', { count: 'exact', head: true });

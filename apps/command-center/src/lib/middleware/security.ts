@@ -54,11 +54,11 @@ export async function rateLimit(
     // Get rate limit configuration
     const config = customConfig || 
                   RATE_LIMITS[pathname] || 
-                  RATE_LIMITS.default
+                  RATE_LIMITS['default']
 
     const key = `rate_limit:${clientIP}:${pathname}`
     const now = Date.now()
-    const windowMs = config.window * 1000
+    const windowMs = (config?.window ?? 60) * 1000
 
     // Get current rate limit data
     const current = rateLimitStore.get(key)
@@ -73,7 +73,7 @@ export async function rateLimit(
       return null // Allow request
     }
 
-    if (current.count >= config.requests) {
+    if (current.count >= (config?.requests ?? 100)) {
       // Rate limit exceeded
       console.log(`🚫 Rate limit exceeded for ${clientIP} on ${pathname}`)
       
@@ -85,8 +85,8 @@ export async function rateLimit(
         endpoint: pathname,
         details: {
           requests: current.count,
-          limit: config.requests,
-          window: config.window
+          limit: config?.requests ?? 100,
+          window: config?.window ?? 60
         }
       })
 
@@ -98,7 +98,7 @@ export async function rateLimit(
       }, { 
         status: 429,
         headers: {
-          'X-RateLimit-Limit': config.requests.toString(),
+          'X-RateLimit-Limit': (config?.requests ?? 100).toString(),
           'X-RateLimit-Remaining': '0',
           'X-RateLimit-Reset': Math.ceil(current.resetTime / 1000).toString(),
           'Retry-After': Math.ceil((current.resetTime - now) / 1000).toString()
@@ -200,7 +200,7 @@ export function addSecurityHeaders(response: NextResponse): NextResponse {
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
   
   // HSTS (only in production with HTTPS)
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env['NODE_ENV'] === 'production') {
     response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
   }
   

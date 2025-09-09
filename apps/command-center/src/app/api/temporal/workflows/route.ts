@@ -36,7 +36,7 @@ class ServerTemporalService {
     try {
       this.client = new Client({
         connection: Connection.lazy({
-          address: process.env.TEMPORAL_SERVER_URL || 'localhost:7233',
+          address: process.env['TEMPORAL_SERVER_URL'] || 'localhost:7233',
         }),
       });
       

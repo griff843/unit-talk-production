@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     const supabase = createRouteHandlerClient(
       { cookies },
       {
-        supabaseKey: process.env.SUPABASE_SERVICE_ROLE_KEY
+        supabaseKey: process.env['SUPABASE_SERVICE_ROLE_KEY']
       }
     );
 

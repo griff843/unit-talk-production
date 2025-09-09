@@ -1,7 +1,5 @@
 'use server';
 
-import { headers } from 'next/headers';
-
 interface RuntimeConfig {
   mode: 'production' | 'shadow' | 'maintenance';
   bot_publish: boolean;

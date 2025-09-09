@@ -24,7 +24,7 @@ export interface SyntheticResult {
 }
 
 export class UnitTalkTracing {
-  static startAgentSpan(agent: string, operation: string): Span {
+  static startAgentSpan(_agent: string, _operation: string): Span {
     // Mock implementation for build
     return {
       end: () => {},
@@ -33,7 +33,7 @@ export class UnitTalkTracing {
     };
   }
 
-  static startTemporalSpan(workflow: string, operation: string): Span {
+  static startTemporalSpan(_workflow: string, _operation: string): Span {
     // Mock implementation for temporal workflows
     return {
       end: () => {},

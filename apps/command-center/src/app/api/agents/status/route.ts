@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { dbOperations, Agent, getSupabaseClient } from '@/lib/supabase';
+import { getSupabaseClient } from '@/lib/supabase';
 import { mockAgents, simulateAgentStatusUpdate } from '@/lib/mockData';
 import { agentMonitor } from '@/lib/agentMonitoring';
 import { redisClient } from '@/lib/redis';
@@ -148,7 +148,7 @@ export async function GET(request: NextRequest) {
 
         if (error) throw error;
 
-        agentsStatus = agents.map(agent => ({
+        agentsStatus = agents.map((agent: any) => ({
           id: agent.id,
           name: agent.name,
           type: agent.type,
@@ -166,7 +166,7 @@ export async function GET(request: NextRequest) {
             const liveStatuses = await agentMonitor.checkAllAgents();
 
             // Merge live health data
-            agentsStatus = agentsStatus.map(agent => {
+            agentsStatus = agentsStatus.map((agent: any) => {
               const liveStatus = liveStatuses.find(live => live.name === agent.name);
               if (liveStatus) {
                 return {
@@ -199,14 +199,14 @@ export async function GET(request: NextRequest) {
       // Calculate summary metrics
       const summary = {
         total: agentsStatus.length,
-        healthy: agentsStatus.filter(a => a.status === 'healthy').length,
-        warning: agentsStatus.filter(a => a.status === 'warning').length,
-        error: agentsStatus.filter(a => a.status === 'error').length,
-        inactive: agentsStatus.filter(a => a.status === 'inactive').length,
+        healthy: agentsStatus.filter((a: any) => a.status === 'healthy').length,
+        warning: agentsStatus.filter((a: any) => a.status === 'warning').length,
+        error: agentsStatus.filter((a: any) => a.status === 'error').length,
+        inactive: agentsStatus.filter((a: any) => a.status === 'inactive').length,
         avgSuccessRate:
-          agentsStatus.reduce((sum, a) => sum + a.success_rate, 0) / agentsStatus.length,
+          agentsStatus.reduce((sum: number, a: any) => sum + a.success_rate, 0) / agentsStatus.length,
         avgResponseTime:
-          agentsStatus.reduce((sum, a) => sum + a.avg_response_time, 0) / agentsStatus.length,
+          agentsStatus.reduce((sum: number, a: any) => sum + a.avg_response_time, 0) / agentsStatus.length,
       };
 
       const response = includeMetrics
@@ -237,14 +237,14 @@ export async function GET(request: NextRequest) {
 
       const summary = {
         total: agentsStatus.length,
-        healthy: agentsStatus.filter(a => a.status === 'healthy').length,
-        warning: agentsStatus.filter(a => a.status === 'warning').length,
-        error: agentsStatus.filter(a => a.status === 'error').length,
-        inactive: agentsStatus.filter(a => a.status === 'inactive').length,
+        healthy: agentsStatus.filter((a: any) => a.status === 'healthy').length,
+        warning: agentsStatus.filter((a: any) => a.status === 'warning').length,
+        error: agentsStatus.filter((a: any) => a.status === 'error').length,
+        inactive: agentsStatus.filter((a: any) => a.status === 'inactive').length,
         avgSuccessRate:
-          agentsStatus.reduce((sum, a) => sum + a.success_rate, 0) / agentsStatus.length,
+          agentsStatus.reduce((sum: number, a: any) => sum + a.success_rate, 0) / agentsStatus.length,
         avgResponseTime:
-          agentsStatus.reduce((sum, a) => sum + a.avg_response_time, 0) / agentsStatus.length,
+          agentsStatus.reduce((sum: number, a: any) => sum + a.avg_response_time, 0) / agentsStatus.length,
       };
 
       const response = includeMetrics

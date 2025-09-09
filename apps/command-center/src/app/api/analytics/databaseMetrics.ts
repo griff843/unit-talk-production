@@ -53,7 +53,7 @@ export async function getUserMetrics(startDate: string, detailed: boolean): Prom
   return metrics;
 }
 
-export async function getAgentMetrics(startDate: string, detailed: boolean): Promise<AgentMetrics> {
+export async function getAgentMetrics(_startDate: string, detailed: boolean): Promise<AgentMetrics> {
   const agents = await dbOperations.getAgents();
 
   const metrics: AgentMetrics = {
@@ -176,7 +176,7 @@ export async function getPickMetrics(startDate: string, detailed: boolean): Prom
 }
 
 export async function getRevenueMetrics(
-  startDate: string,
+  _startDate: string,
   detailed: boolean
 ): Promise<RevenueMetrics> {
   const analytics = await dbOperations.getAnalytics();

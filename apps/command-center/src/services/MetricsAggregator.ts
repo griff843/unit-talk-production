@@ -288,17 +288,27 @@ export class MetricsAggregatorService {
       return this.getDefaultExposureMetrics();
     }
 
-    const totalExposure = exposureData.reduce((sum, item) => sum + ((item as any).exposure_amount as number || 0), 0);
-    const kellyAtRisk = exposureData.reduce((sum, item) => sum + Math.abs((item as any).kelly_fraction as number || 0), 0);
-    const highRiskPicks = exposureData.filter(item => 
+    interface ExposureRow {
+      exposure_amount?: number;
+      kelly_fraction?: number;
+      risk_tier?: string;
+      correlation_cluster?: string;
+    }
+
+    const typedData = exposureData as ExposureRow[];
+    const totalExposure = typedData.reduce((sum, item) => sum + (item.exposure_amount || 0), 0);
+    const kellyAtRisk = typedData.reduce((sum, item) => sum + Math.abs(item.kelly_fraction || 0), 0);
+    const highRiskPicks = typedData.filter(item => 
       item.risk_tier === 'high' || item.risk_tier === 'critical'
     ).length;
 
     // Count correlation violations (more than 3 picks in same cluster)
     const clusterCounts = new Map<string, number>();
-    exposureData.forEach(item => {
-      const cluster = (item as any).correlation_cluster as string;
-      clusterCounts.set(cluster, (clusterCounts.get(cluster) || 0) + 1);
+    typedData.forEach(item => {
+      const cluster = item.correlation_cluster;
+      if (cluster) {
+        clusterCounts.set(cluster, (clusterCounts.get(cluster) || 0) + 1);
+      }
     });
     const correlationViolations = Array.from(clusterCounts.values()).filter(count => count > 3).length;
 
@@ -322,15 +332,15 @@ export class MetricsAggregatorService {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
     // Get recent workflow stats
-    const { data: workflows, error: workflowError } = await supabase
+    const { data: workflows, error: _workflowError } = await supabase
       .from('temporal_workflow_health')
       .select('status')
       .gte('created_at', oneHourAgo.toISOString());
 
     const workflowStats = workflows || [];
     const totalWorkflows = workflowStats.length;
-    const successfulWorkflows = workflowStats.filter(w => w.status === 'completed').length;
-    const failedWorkflows = workflowStats.filter(w => w.status === 'failed').length;
+    const successfulWorkflows = workflowStats.filter((w: { status: string }) => w.status === 'completed').length;
+    const failedWorkflows = workflowStats.filter((w: { status: string }) => w.status === 'failed').length;
 
     const successRate = totalWorkflows > 0 ? successfulWorkflows / totalWorkflows : 1;
 
@@ -516,7 +526,15 @@ export class MetricsAggregatorService {
   /**
    * Calculate burn rate for specific SLO
    */
-  private async calculateSLOBurnRate(slo: any): Promise<SLOBurnRate> {
+  private async calculateSLOBurnRate(slo: {
+    id: string;
+    name: string;
+    error_budget: number;
+    fast_burn_window?: string;
+    slow_burn_window?: string;
+    fast_burn_rate?: number;
+    slow_burn_rate?: number;
+  }): Promise<SLOBurnRate> {
     const supabase = getSupabaseClient();
     if (!supabase) {
       throw new Error('Supabase client not initialized');
@@ -549,8 +567,9 @@ export class MetricsAggregatorService {
     const slowThreshold = slo.slow_burn_rate || 1.0;
 
     const shouldAlert = burnRate > fastThreshold || burnRate > slowThreshold;
-    const severity = burnRate > fastThreshold ? 'critical' : 
-                    burnRate > slowThreshold ? 'high' : 'medium';
+    const severity: 'low' | 'medium' | 'high' | 'critical' = 
+      burnRate > fastThreshold ? 'critical' : 
+      burnRate > slowThreshold ? 'high' : 'medium';
 
     return {
       slo_id: slo.id,
@@ -562,7 +581,7 @@ export class MetricsAggregatorService {
       fast_window: slo.fast_burn_window || '1h',
       slow_window: slo.slow_burn_window || '6h',
       should_alert: shouldAlert,
-      severity: severity as any,
+      severity,
     };
   }
 

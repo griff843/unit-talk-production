@@ -49,35 +49,35 @@ class AgentMonitoringService {
     this.agents = [
       {
         agentName: 'AlertAgent',
-        endpoint: `${process.env.NEXT_PUBLIC_PLATFORM_API_URL}/api/agents/alert/health`,
+        endpoint: `${process.env['NEXT_PUBLIC_PLATFORM_API_URL']}/api/agents/alert/health`,
         timeout: 1000, // Reduced timeout for development
         expectedStatus: [200, 404], // Accept 404s in development
         healthIndicators: ['uptime', 'lastAlert', 'alertsSent'],
       },
       {
         agentName: 'GradingAgent',
-        endpoint: `${process.env.NEXT_PUBLIC_PLATFORM_API_URL}/api/agents/grading/health`,
+        endpoint: `${process.env['NEXT_PUBLIC_PLATFORM_API_URL']}/api/agents/grading/health`,
         timeout: 1000, // Reduced timeout for development
         expectedStatus: [200, 404], // Accept 404s in development
         healthIndicators: ['picksProcessed', 'accuracy', 'uptime'],
       },
       {
         agentName: 'RecapAgent',
-        endpoint: `${process.env.NEXT_PUBLIC_PLATFORM_API_URL}/api/agents/recap/health`,
+        endpoint: `${process.env['NEXT_PUBLIC_PLATFORM_API_URL']}/api/agents/recap/health`,
         timeout: 1000, // Reduced timeout for development
         expectedStatus: [200, 404], // Accept 404s in development
         healthIndicators: ['recapsGenerated', 'uptime', 'lastRecap'],
       },
       {
         agentName: 'FeedAgent',
-        endpoint: `${process.env.NEXT_PUBLIC_PLATFORM_API_URL}/api/agents/feed/health`,
+        endpoint: `${process.env['NEXT_PUBLIC_PLATFORM_API_URL']}/api/agents/feed/health`,
         timeout: 1000, // Reduced timeout for development
         expectedStatus: [200, 404], // Accept 404s in development
         healthIndicators: ['feedsProcessed', 'uptime', 'sources'],
       },
       {
         agentName: 'NotificationAgent',
-        endpoint: `${process.env.NEXT_PUBLIC_PLATFORM_API_URL}/api/agents/notification/health`,
+        endpoint: `${process.env['NEXT_PUBLIC_PLATFORM_API_URL']}/api/agents/notification/health`,
         timeout: 1000, // Reduced timeout for development
         expectedStatus: [200, 404], // Accept 404s in development
         healthIndicators: ['notificationsSent', 'uptime', 'channels'],

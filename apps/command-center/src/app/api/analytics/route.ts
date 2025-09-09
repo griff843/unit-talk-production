@@ -151,7 +151,7 @@ function getPeriodMs(period: string): number {
     '30d': 30 * 24 * 60 * 60 * 1000,
     '90d': 90 * 24 * 60 * 60 * 1000,
   };
-  return periodMap[period] || periodMap['30d'];
+  return periodMap[period] ?? (30 * 24 * 60 * 60 * 1000);
 }
 
 // Get specific metric from database

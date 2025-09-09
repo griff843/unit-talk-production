@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
         value,
         type: typeof value === 'object' ? 'json' : (typeof value as any),
         category: category || 'general',
-        environment: process.env.NODE_ENV || 'development',
+        environment: process.env['NODE_ENV'] || 'development',
         updated_at: new Date().toISOString(),
       };
 
@@ -200,7 +200,7 @@ export async function POST(request: NextRequest) {
         value: configValue,
         type: typeof configValue === 'object' ? 'json' : (typeof configValue as any),
         category: category || 'general',
-        environment: process.env.NODE_ENV || 'development',
+        environment: process.env['NODE_ENV'] || 'development',
         updated_at: new Date().toISOString(),
       }));
 
@@ -373,8 +373,8 @@ async function handleBackupConfig(): Promise<NextResponse> {
     // In production, this would save to S3, backup storage, etc.
     const backup = {
       timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV,
-      version: process.env.APP_VERSION || '1.0.0',
+      environment: process.env['NODE_ENV'],
+      version: process.env['APP_VERSION'] || '1.0.0',
       configurations: configs,
     };
 
@@ -412,7 +412,7 @@ function getDefaultConfig(key: string): SystemConfig {
     type: defaults[key]?.type || 'string',
     category: defaults[key]?.category || 'general',
     description: `Default configuration for ${key}`,
-    environment: process.env.NODE_ENV || 'development',
+    environment: process.env['NODE_ENV'] || 'development',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };

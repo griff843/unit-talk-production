@@ -14,14 +14,14 @@ export default async function AlertsPage() {
   const client = new AlertsClient({ tenantId: (tenant as any)?.id || tenant || 'default' });
   
   // Fetch initial policies
-  let policies = [];
+  let policies: any[] = [];
   let isUsingStub = false;
   
   try {
     policies = await client.list();
     
     // Check if we're using the stub (if OPS_API_KEY is not set, we're definitely using stub)
-    if (!process.env.OPS_API_KEY) {
+    if (!process.env['OPS_API_KEY']) {
       isUsingStub = true;
     }
   } catch (error) {

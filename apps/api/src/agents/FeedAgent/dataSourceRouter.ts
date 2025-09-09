@@ -170,11 +170,11 @@ function determineDataSource(request: DataRequest): {
     }
   }
   
-  // NCAAF always goes to Odds API (Optimal doesn't support)
+  // NCAAF should use Odds API (Optimal doesn't support it properly)
   if (request.sport.toUpperCase() === 'NCAAF') {
     return {
       source: 'odds-api',
-      reason: 'NCAAF only available via Odds API'
+      reason: 'NCAAF only available via Odds API (Optimal unsupported)'
     };
   }
   

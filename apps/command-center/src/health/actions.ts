@@ -21,7 +21,7 @@ interface ProbeResult {
  */
 export async function runHealthProbes(): Promise<ProbeResult> {
   try {
-    const opsKey = process.env.OPS_API_KEY;
+    const opsKey = process.env['OPS_API_KEY'];
     if (!opsKey) {
       return {
         ok: false,
@@ -30,7 +30,7 @@ export async function runHealthProbes(): Promise<ProbeResult> {
       };
     }
 
-    const apiUrl = process.env.API_URL || 'http://localhost:3001';
+    const apiUrl = process.env['API_URL'] || 'http://localhost:3001';
     const response = await fetch(`${apiUrl}/api/ops/probes/health`, {
       method: 'POST',
       headers: {

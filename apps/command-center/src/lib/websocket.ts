@@ -61,7 +61,7 @@ class CommandCenterWebSocket {
   private getWebSocketUrl(): string {
     // In development, use localhost. In production, use the domain
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = process.env.NODE_ENV === 'development' ? 'localhost:3010' : window.location.host;
+    const host = process.env['NODE_ENV'] === 'development' ? 'localhost:3010' : window.location.host;
     return `${protocol}//${host}/api/websocket`;
   }
 

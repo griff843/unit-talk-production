@@ -303,7 +303,7 @@ export async function emergencyBypass(
   emergencyCode: string,
   justification: string
 ): Promise<AuthContext> {
-  const validEmergencyCode = process.env.EMERGENCY_BYPASS_CODE;
+  const validEmergencyCode = process.env['EMERGENCY_BYPASS_CODE'];
 
   if (!validEmergencyCode || emergencyCode !== validEmergencyCode) {
     throw new AuthorizationError('Invalid emergency code');
@@ -337,9 +337,9 @@ function createAuthenticatedContext(user: User): AuthContext {
     isAuthenticated: true,
     hasPermission: (permission: Permission) => user.permissions.includes(permission),
     hasRole: (role: Role) => user.role === role || user.role === Role.SUPER_ADMIN,
-    requiresPermission: (permission: Permission) => {
-      if (!user.permissions.includes(permission)) {
-        throw new AuthorizationError(`Missing permission: ${permission}`);
+    requiresPermission: (_permission: Permission) => {
+      if (!user.permissions.includes(_permission)) {
+        throw new AuthorizationError(`Missing permission: ${_permission}`);
       }
     },
   };
@@ -351,7 +351,7 @@ function createUnauthenticatedContext(): AuthContext {
     isAuthenticated: false,
     hasPermission: () => false,
     hasRole: () => false,
-    requiresPermission: (permission: Permission) => {
+    requiresPermission: (_permission: Permission) => {
       throw new AuthenticationError('Authentication required');
     },
   };

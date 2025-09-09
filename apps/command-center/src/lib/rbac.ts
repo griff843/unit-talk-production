@@ -187,16 +187,21 @@ export class RBACService {
 
       if (error || !data) return null;
 
-      return {
+      const userRole: UserRole = {
         user_id: data.user_id as string,
         role: data.role as Role,
         permissions: (data.permissions as Permission[]) || [],
         granted_by: data.granted_by as string,
         granted_at: new Date(data.granted_at as string),
-        expires_at: data.expires_at ? new Date(data.expires_at as string) : undefined,
         team: data.team as string,
         region: data.region as string,
       };
+      
+      if (data.expires_at) {
+        userRole.expires_at = new Date(data.expires_at as string);
+      }
+      
+      return userRole;
     } catch (error) {
       console.error('Error fetching user role:', error);
       return null;
@@ -296,7 +301,7 @@ export class RBACService {
       throw new Error(`Failed to fetch users: ${error.message}`);
     }
 
-    return (data || []).map(row => ({
+    return (data || []).map((row: any) => ({
       user_id: row.user_id as string,
       role: row.role as Role,
       permissions: (row.permissions as Permission[]) || [],
@@ -421,7 +426,7 @@ export class RBACService {
       throw new Error(`Failed to fetch audit trail: ${error.message}`);
     }
 
-    return (data || []).map(row => ({
+    return (data || []).map((row: any) => ({
       ...(row as any),
       created_at: new Date((row as any).created_at),
     })) as AuditEvent[];
@@ -464,7 +469,7 @@ export function rbacMiddleware(requiredPermission: Permission) {
       
     } catch (error) {
       return res.status(403).json({
-        error: error.message,
+        error: error instanceof Error ? error.message : 'Unknown error',
         code: 'INSUFFICIENT_PERMISSIONS',
         required_permission: requiredPermission,
       });
@@ -479,11 +484,11 @@ export function usePermissions() {
   // This would be implemented in the React components
   // For now, just export the structure
   return {
-    hasPermission: (permission: Permission) => {
+    hasPermission: (_permission: Permission) => {
       // Implementation would check current user permissions
       return false;
     },
-    requirePermission: (permission: Permission) => {
+    requirePermission: (_permission: Permission) => {
       // Implementation would throw or redirect if no permission
     },
     userRole: null as UserRole | null,

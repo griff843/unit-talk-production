@@ -13,9 +13,9 @@ dotenv.config({ path: path.join(process.cwd(), '.env.local') })
 
 // Debug environment variables
 console.log('Environment check:')
-console.log('- NEXT_PUBLIC_SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Found' : 'Missing')
-console.log('- NEXT_PUBLIC_SUPABASE_ANON_KEY:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Found' : 'Missing')
-console.log('- SUPABASE_SERVICE_ROLE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'Found' : 'Missing')
+console.log('- NEXT_PUBLIC_SUPABASE_URL:', process.env['NEXT_PUBLIC_SUPABASE_URL'] ? 'Found' : 'Missing')
+console.log('- NEXT_PUBLIC_SUPABASE_ANON_KEY:', process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY'] ? 'Found' : 'Missing')
+console.log('- SUPABASE_SERVICE_ROLE_KEY:', process.env['SUPABASE_SERVICE_ROLE_KEY'] ? 'Found' : 'Missing')
 console.log('')
 
 import { testDatabaseConnection, checkRequiredTables, dbOperations } from '../lib/supabase'
@@ -44,7 +44,8 @@ async function main() {
   
   console.log('Table Status:')
   Object.entries(tableStatus).forEach(([table, exists]) => {
-    console.log(`  ${exists ? '✅' : '❌'} ${table}`)
+    const status = exists ? '✅' : '❌';
+    console.log(`  ${status} ${table}`)
   })
   
   const allTablesExist = Object.values(tableStatus).every(Boolean)

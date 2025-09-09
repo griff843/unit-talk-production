@@ -2,19 +2,21 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src",
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
     "noEmit": false,
     "moduleResolution": "node",
+    "composite": true,
     "baseUrl": "../../",
     "paths": {
-      "@unit-talk/shared-types": [
-        "../shared-types"
-      ]
+      "@unit-talk/shared-types": ["./packages/shared-types/src"],
+      "@unit-talk/shared-types/*": ["./packages/shared-types/src/*"]
     }
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"],
+  "references": [
+    { "path": "../shared-types" }
+  ]
 }

@@ -4,7 +4,7 @@
  * Provides standardized, type-safe agent configurations
  */
 
-import type { BaseAgentConfig, MetricsConfig, RetryConfig, HealthConfig } from '../../shared-types/src/index';
+import type { BaseAgentConfig, MetricsConfig, RetryConfig, HealthConfig } from '@unit-talk/shared-types';
 
 export interface AgentConfigOptions {
   name: string;

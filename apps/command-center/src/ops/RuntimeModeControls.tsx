@@ -131,7 +131,7 @@ export function RuntimeModeControls({ currentConfig }: RuntimeModeControlsProps)
                 <Switch
                   id="bot-publish"
                   checked={config.bot_publish}
-                  onCheckedChange={(checked) => 
+                  onCheckedChange={(checked: boolean) => 
                     setConfig(prev => ({ ...prev, bot_publish: checked }))
                   }
                 />
@@ -144,7 +144,7 @@ export function RuntimeModeControls({ currentConfig }: RuntimeModeControlsProps)
                 <Switch
                   id="smartform"
                   checked={config.smartform_writes}
-                  onCheckedChange={(checked) => 
+                  onCheckedChange={(checked: boolean) => 
                     setConfig(prev => ({ ...prev, smartform_writes: checked }))
                   }
                 />
@@ -157,7 +157,7 @@ export function RuntimeModeControls({ currentConfig }: RuntimeModeControlsProps)
                 <Switch
                   id="ingestion"
                   checked={config.ingestion_enabled}
-                  onCheckedChange={(checked) => 
+                  onCheckedChange={(checked: boolean) => 
                     setConfig(prev => ({ ...prev, ingestion_enabled: checked }))
                   }
                 />
@@ -170,7 +170,7 @@ export function RuntimeModeControls({ currentConfig }: RuntimeModeControlsProps)
                 <Switch
                   id="promoter"
                   checked={config.promoter_enabled}
-                  onCheckedChange={(checked) => 
+                  onCheckedChange={(checked: boolean) => 
                     setConfig(prev => ({ ...prev, promoter_enabled: checked }))
                   }
                 />
@@ -183,7 +183,7 @@ export function RuntimeModeControls({ currentConfig }: RuntimeModeControlsProps)
                 <Switch
                   id="alerts"
                   checked={config.alerts_enabled}
-                  onCheckedChange={(checked) => 
+                  onCheckedChange={(checked: boolean) => 
                     setConfig(prev => ({ ...prev, alerts_enabled: checked }))
                   }
                 />

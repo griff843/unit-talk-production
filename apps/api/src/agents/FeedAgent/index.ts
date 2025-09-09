@@ -217,12 +217,21 @@ export class FeedAgent extends BaseAgent {
         try {
           this.logger.info(`🏀 Fetching ${sport} props using smart routing`);
           
-          // Use unified data router to automatically select best API
-          const result = await fetchUnifiedData({
+          // Force NCAAF to use Odds API since Optimal doesn't support it
+          const requestConfig: any = {
             sport,
             marketType: 'player-props',
             date: today
-          });
+          };
+          
+          // Override routing for NCAAF
+          if (sport === 'NCAAF') {
+            requestConfig.forceSource = 'odds-api';
+            this.logger.info('🏈 Forcing NCAAF to use Odds API (Optimal unsupported)');
+          }
+          
+          // Use unified data router with potential override
+          const result = await fetchUnifiedData(requestConfig);
           
           this.logger.info(`📊 ${sport}: ${result.data.length} props from ${result.source} (${result.metadata.processingTimeMs}ms)`);
           
@@ -278,55 +287,248 @@ export class FeedAgent extends BaseAgent {
       throw new Error('Supabase client is required for FeedAgent');
     }
 
-    for (const prop of props) {
-      try {
-        // Insert into database
-        const { error } = await this.supabase
-          .from('raw_props')
-          .insert(prop);
+    if (props.length === 0) {
+      this.logger.info('No props to process');
+      return;
+    }
 
-        if (error) {
-          if (error.code === '23505') { // Duplicate key error
-            this.feedMetrics.duplicates++;
-          } else {
-            throw error;
+    this.logger.info(`🔄 Processing ${props.length} props with parallel batch insertion...`);
+    const startTime = Date.now();
+
+    // Batch size for parallel processing (optimal for Supabase)
+    const BATCH_SIZE = 500;
+    const MAX_PARALLEL_BATCHES = 5;
+    
+    // Split props into batches
+    const batches: RawProp[][] = [];
+    for (let i = 0; i < props.length; i += BATCH_SIZE) {
+      batches.push(props.slice(i, i + BATCH_SIZE));
+    }
+
+    this.logger.info(`📦 Split ${props.length} props into ${batches.length} batches of up to ${BATCH_SIZE} props each`);
+
+    let totalInserted = 0;
+    let totalDuplicates = 0;
+    let totalErrors = 0;
+
+    // Process batches in parallel chunks
+    for (let i = 0; i < batches.length; i += MAX_PARALLEL_BATCHES) {
+      const parallelBatches = batches.slice(i, i + MAX_PARALLEL_BATCHES);
+      
+      this.logger.info(`🚀 Processing parallel chunk ${Math.floor(i / MAX_PARALLEL_BATCHES) + 1}/${Math.ceil(batches.length / MAX_PARALLEL_BATCHES)} (${parallelBatches.length} batches)`);
+
+      const batchPromises = parallelBatches.map(async (batch, batchIndex) => {
+        try {
+          // Use upsert with onConflict to handle duplicates gracefully
+          const { data, error } = await this.supabase!
+            .from('raw_props')
+            .upsert(batch, {
+              onConflict: 'id',
+              ignoreDuplicates: true
+            })
+            .select('id');
+
+          if (error) {
+            // Handle specific error types
+            if (error.code === '23505' || error?.message?.includes('duplicate')) {
+              this.logger.debug(`Batch ${i + batchIndex}: ${batch.length} props contained duplicates`);
+              return { inserted: 0, duplicates: batch.length, errors: 0 };
+            } else {
+              this.logger.error(`Batch ${i + batchIndex} failed:`, {
+                error: error.message,
+                code: error.code,
+                batchSize: batch.length
+              });
+              return { inserted: 0, duplicates: 0, errors: batch.length };
+            }
           }
-        } else {
-          this.feedMetrics.uniqueProps++;
+
+          const insertedCount = data?.length || 0;
+          const duplicateCount = batch.length - insertedCount;
+          
+          this.logger.debug(`Batch ${i + batchIndex}: Inserted ${insertedCount}, Duplicates ${duplicateCount}`);
+          
+          return { 
+            inserted: insertedCount, 
+            duplicates: duplicateCount,
+            errors: 0 
+          };
+
+        } catch (error) {
+          this.logger.error(`Batch ${i + batchIndex} exception:`, {
+            err: error instanceof Error ? error.message : String(error),
+            batchSize: batch.length
+          });
+          return { inserted: 0, duplicates: 0, errors: batch.length };
         }
+      });
 
-        this.feedMetrics.totalProps++;
+      // Wait for parallel batch to complete
+      const results = await Promise.all(batchPromises);
+      
+      // Aggregate results
+      results.forEach(result => {
+        totalInserted += result.inserted;
+        totalDuplicates += result.duplicates;
+        totalErrors += result.errors;
+      });
 
-      } catch (error) {
-        this.logger.error('Failed to process prop', {
-          err: error instanceof Error ? error.message : String(error),
-          prop: prop
-        });
-        this.feedMetrics.errors++;
-      }
+      // Log progress
+      const progress = Math.min(i + MAX_PARALLEL_BATCHES, batches.length);
+      const percentage = ((progress / batches.length) * 100).toFixed(1);
+      this.logger.info(`📊 Progress: ${percentage}% - Inserted: ${totalInserted}, Duplicates: ${totalDuplicates}, Errors: ${totalErrors}`);
+    }
+
+    // Update metrics
+    this.feedMetrics.uniqueProps += totalInserted;
+    this.feedMetrics.duplicates += totalDuplicates;
+    this.feedMetrics.errors += totalErrors;
+    this.feedMetrics.totalProps += props.length;
+
+    const duration = Date.now() - startTime;
+    const propsPerSecond = Math.round((props.length / duration) * 1000);
+
+    // Final summary
+    this.logger.info(`✅ Batch processing complete in ${duration}ms (${propsPerSecond} props/sec)`);
+    this.logger.info(`📈 Results: ${totalInserted} inserted, ${totalDuplicates} duplicates, ${totalErrors} errors`);
+    
+    if (totalInserted === 0 && props.length > 0) {
+      this.logger.warn('⚠️ WARNING: No props were inserted - all were duplicates or errors');
+    } else if (totalInserted > 0) {
+      this.logger.info(`🎉 SUCCESS: ${totalInserted} new props added to database!`);
     }
   }
 
   private transformProps(data: any[], provider: any): RawProp[] {
     return data.map(item => ({
+      // Required fields
       id: crypto.randomUUID(),
       player_name: item.player_name || '',
+      sport: item.sport || '',
       team: item.team || '',
       opponent: item.opponent || '',
-      market: item.market || item.stat_type || '',
+      stat_type: item.stat_type || item.market || '',
       line: parseFloat(item.line) || 0,
+      game_date: item.game_date || new Date().toISOString().split('T')[0],
+      matchup: item.matchup || `${item.team} vs ${item.opponent}`,
+      
+      // Market and odds fields
+      market: item.market || item.stat_type || '',
+      market_type: item.market_type || 'player_prop',
       over: parseFloat(item.over_odds) || 0,
       under: parseFloat(item.under_odds) || 0,
-      market_type: item.market_type || 'player_prop',
+      over_odds: parseFloat(item.over_odds) || null,
+      under_odds: parseFloat(item.under_odds) || null,
+      
+      // Game timing
       game_time: item.game_time || new Date().toISOString(),
-      // Additional properties for flexibility
-      external_id: item.external_id,
-      external_game_id: item.external_game_id,
-      provider: provider.name,
+      start_time: item.start_time || item.game_time || null,
+      
+      // Provider and metadata
+      provider: provider?.name || 'unified-router',
+      external_id: item.external_id || crypto.randomUUID(),
+      external_game_id: item.external_game_id || null,
+      game_id: null,  // Set to null to avoid foreign key constraint
+      sport_key: item.sport_key || item.sport?.toLowerCase(),
+      
+      // Data quality and validation
+      is_valid: true,
+      is_primary: true,
+      is_alt_line: false,
+      auto_approved: false,
+      context_flag: false,
+      promoted: false,
+      is_promoted: false,
+      promoted_to_picks: false,
+      steam_detected: false,
+      contrarian_opportunity: false,
+      is_canary: false,
+      needs_review: false,
+      
+      // Default numerical fields
+      unit_size: 1,
+      confidence: 0,
+      volatility: 5,
+      bid_ask_spread: 0.02,
+      data_completeness: 0.95,
+      outlier_score: 0.95,
+      consistency_score: 0.95,
+      data_validation_score: 0.95,
+      data_quality_score: 0,
+      pro_attempts: 0,
+      
+      // Timestamps
+      created_at: new Date().toISOString(),
+      inserted_at: new Date().toISOString(),
       scraped_at: new Date().toISOString(),
-      sport: item.sport,
-      sport_key: item.sport_key,
-      matchup: item.matchup
+      
+      // Nullable fields that may be populated later
+      outcome: null,
+      odds: null,
+      trend_confidence: null,
+      matchup_quality: null,
+      line_value_score: null,
+      role_stability: null,
+      confidence_score: null,
+      edge_score: null,
+      tier_tag: null,
+      source: null,
+      bet_type: null,
+      outcomes: null,
+      player_id: null,
+      player_slug: null,
+      fair_odds: null,
+      league: null,
+      promoted_at: null,
+      tier: null,
+      ev_percent: null,
+      trend_score: null,
+      matchup_score: null,
+      line_score: null,
+      role_score: null,
+      direction: null,
+      unique_key: null,
+      event_id: null,
+      book: null,
+      updated_at: null,
+      home_team: null,
+      home_team_id: null,
+      away_team: null,
+      away_team_id: null,
+      expected_value: null,
+      sharp_money: null,
+      line_movement: null,
+      player_form: null,
+      injury_impact: null,
+      best_available_line: null,
+      best_book: null,
+      public_betting_percentage: null,
+      sharp_betting_percentage: null,
+      correlation_risk: null,
+      weather_impact: null,
+      market_intelligence: null,
+      volume_profile: null,
+      closing_line_value: null,
+      predicted_closing_line: null,
+      optimal_betting_time: null,
+      injury_timing_advantage: null,
+      cross_market_arbitrage: null,
+      player_fatigue: null,
+      venue_advantage: null,
+      referee_impact: null,
+      pace_impact: null,
+      motivational_factors: null,
+      portfolio_impact: null,
+      metadata: null,
+      prop_category: null,
+      team_name: null,
+      standardized_sport: null,
+      standardized_stat: null,
+      processed_at: null,
+      processing_error: null,
+      professional_score: null,
+      kelly_fraction: null,
+      clv_tracking_id: null
     }));
   }
 }

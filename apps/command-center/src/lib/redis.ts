@@ -24,9 +24,9 @@ class RedisManager {
   private connecting = false;
   private connectionRetries = 0;
   private maxRetries = 5;
-  private connectionPool: RedisClientType[] = [];
-  private poolSize = 5;
-  private activeConnections = 0;
+  private _connectionPool: RedisClientType[] = [];
+  private _poolSize = 5;
+  private _activeConnections = 0;
 
   constructor() {
     if (typeof window === 'undefined') {
@@ -41,7 +41,7 @@ class RedisManager {
     this.connecting = true;
 
     try {
-      const redisUrl = process.env.REDIS_URL || 'redis://unit-talk-redis:6379';
+      const redisUrl = process.env['REDIS_URL'] || 'redis://unit-talk-redis:6379';
       console.log('🔗 Connecting to Redis:', redisUrl.replace(/\/\/[^@]*@/, '//****@'));
 
       this.client = createClient({
@@ -108,45 +108,45 @@ class RedisManager {
   }
 
   /**
-   * Connection Pool Management
+   * Connection Pool Management - Currently unused, reserved for future implementation
    */
-  private async getPooledConnection(): Promise<RedisClientType | null> {
-    // If we have available connections in pool, use them
-    if (this.connectionPool.length > 0) {
-      const connection = this.connectionPool.pop()!;
-      this.activeConnections++;
-      return connection;
-    }
+  // private async _getPooledConnection(): Promise<RedisClientType | null> {
+  //   // If we have available connections in pool, use them
+  //   if (this.connectionPool.length > 0) {
+  //     const connection = this.connectionPool.pop()!;
+  //     this.activeConnections++;
+  //     return connection;
+  //   }
 
-    // If we're at pool capacity, wait for an available connection
-    if (this.activeConnections >= this.poolSize) {
-      return new Promise(resolve => {
-        const checkForConnection = () => {
-          if (this.connectionPool.length > 0) {
-            const connection = this.connectionPool.pop()!;
-            this.activeConnections++;
-            resolve(connection);
-          } else {
-            setTimeout(checkForConnection, 10);
-          }
-        };
-        checkForConnection();
-      });
-    }
+  //   // If we're at pool capacity, wait for an available connection
+  //   if (this.activeConnections >= this.poolSize) {
+  //     return new Promise(resolve => {
+  //       const checkForConnection = () => {
+  //         if (this.connectionPool.length > 0) {
+  //           const connection = this.connectionPool.pop()!;
+  //           this.activeConnections++;
+  //           resolve(connection);
+  //         } else {
+  //           setTimeout(checkForConnection, 10);
+  //         }
+  //       };
+  //       checkForConnection();
+  //     });
+  //   }
 
-    // Create new connection if under pool limit
-    if (!(await this.ensureConnection())) {
-      return null;
-    }
+  //   // Create new connection if under pool limit
+  //   if (!(await this.ensureConnection())) {
+  //     return null;
+  //   }
 
-    this.activeConnections++;
-    return this.client;
-  }
+  //   this.activeConnections++;
+  //   return this.client;
+  // }
 
-  private releaseConnection(connection: RedisClientType) {
-    this.connectionPool.push(connection);
-    this.activeConnections--;
-  }
+  // private _releaseConnection(connection: RedisClientType) {
+  //   this.connectionPool.push(connection);
+  //   this.activeConnections--;
+  // }
 
   /**
    * Cache Management
@@ -317,7 +317,7 @@ class RedisManager {
 
       return result.map(entry => ({
         id: entry.id,
-        timestamp: parseInt(entry.id.split('-')[0]),
+        timestamp: parseInt(entry.id.split('-')[0] || '0'),
         data: entry.message,
       }));
     } catch (error) {

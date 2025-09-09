@@ -130,7 +130,7 @@ export class DataExportService {
       trendsMetrics.forEach(item => trendsSheet.addRow(item));
 
       // Convert to buffer
-      return await workbook.xlsx.writeBuffer() as Buffer;
+      return Buffer.from(await workbook.xlsx.writeBuffer());
     } catch (error) {
       logger.error('Error exporting picks to Excel:', error);
       throw error;
@@ -185,7 +185,7 @@ export class DataExportService {
 
         data.forEach(item => sheet.addRow(item));
 
-        return await workbook.xlsx.writeBuffer() as Buffer;
+        return Buffer.from(await workbook.xlsx.writeBuffer());
       }
     } catch (error) {
       logger.error('Error exporting analytics:', error);

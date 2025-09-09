@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const supabaseKey =
+const supabaseKey = (
   process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+) as string;
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -258,7 +259,7 @@ export async function GET(_request: NextRequest) {
     const totalSubmissions = recentTickets?.length || 0;
     const uniqueUsers = new Set(recentTickets?.map(ticket => ticket.user_id)).size;
     const errorRate = Math.random() * 2; // Mock error rate 0-2%
-    const avgResponseTime = (dbHealth.responseTime || 0 + formHealth.responseTime || 0 + bridgeHealth.responseTime || 0 + apiHealth.responseTime || 0) / 4;
+    const avgResponseTime = ((dbHealth.responseTime || 0) + (formHealth.responseTime || 0) + (bridgeHealth.responseTime || 0) + (apiHealth.responseTime || 0)) / 4;
 
     // Determine overall status
     const services = {

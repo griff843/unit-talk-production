@@ -1,20 +1,14 @@
 #!/usr/bin/env tsx
 
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.SUPABASE_URL as string
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY as string
+const supabaseUrl = process.env['SUPABASE_URL'] as string
+const supabaseKey = process.env['SUPABASE_SERVICE_ROLE_KEY'] as string
 
 if (!supabaseUrl || !supabaseKey) {
   console.error('Missing env: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY')
   process.exit(1)
 }
 
-const supabase = createClient(supabaseUrl, supabaseKey, {
-  db: {
-    schema: 'public',
-  },
-});
+// Supabase client would be initialized here if needed
 
 async function createTablesAndData() {
   console.log('🚀 Creating tables via REST API...');

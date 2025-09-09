@@ -6,9 +6,9 @@ export default function TestPage() {
       <div className="mt-4">
         <p>Environment variables:</p>
         <ul className="list-disc list-inside">
-          <li>Supabase URL: {process.env.NEXT_PUBLIC_SUPABASE_URL ? '✅ Set' : '❌ Missing'}</li>
+          <li>Supabase URL: {process.env['NEXT_PUBLIC_SUPABASE_URL'] ? '✅ Set' : '❌ Missing'}</li>
           <li>
-            Supabase Key: {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✅ Set' : '❌ Missing'}
+            Supabase Key: {process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY'] ? '✅ Set' : '❌ Missing'}
           </li>
         </ul>
       </div>

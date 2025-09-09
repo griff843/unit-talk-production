@@ -1,5 +1,4 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
-import type { Database, Tables } from '@/types/database'
 
 // Lazy initialization of Supabase client (loose by default; typed accessor provided below)
 let client: any | null = null
@@ -7,8 +6,8 @@ let client: any | null = null
 function getSupabaseClient(): any {
   if (client) return client
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const supabaseUrl = process.env['NEXT_PUBLIC_SUPABASE_URL']
+  const supabaseAnonKey = process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY']
 
   if (!supabaseUrl || !supabaseAnonKey) {
     console.warn('⚠️ DEVELOPMENT MODE: Supabase environment variables not found!')
@@ -26,8 +25,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 let typedClient: SupabaseClient | null = null
 export function getTypedSupabaseClient(): SupabaseClient | null {
   if (typedClient) return typedClient
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const supabaseUrl = process.env['NEXT_PUBLIC_SUPABASE_URL']
+  const supabaseAnonKey = process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY']
   if (!supabaseUrl || !supabaseAnonKey) {
     return null
   }
@@ -116,7 +115,7 @@ export async function testDatabaseConnection() {
   }
 
   try {
-    const { data, error } = await client
+    const { error } = await client
       .from('users')
       .select('count')
       .limit(1)
@@ -299,7 +298,7 @@ export const dbOperations = {
         status: this.mapUnifiedPickStatus(pick.status, pick.result),
         created_at: pick.created_at,
         settled_at: pick.approved_at || pick.denied_at || undefined,
-        profit: this.calculateUnifiedProfit(pick, rawProp),
+        profit: this.calculateUnifiedProfit(pick, rawProp) ?? 0,
         // Additional context from v3.0.0 unified structure
         capper: user?.username || 'Unknown',
         tier: user?.tier || 'Free',
@@ -580,7 +579,7 @@ export const dbOperations = {
     }
   },
 
-  async updatePickResult(pickId: string, result: 'win' | 'loss' | 'push', actualValue?: number) {
+  async updatePickResult(pickId: string, result: 'win' | 'loss' | 'push', _actualValue?: number) {
     const client = getSupabaseClient()
     if (!client) throw new Error('Supabase client not available')
 
@@ -906,7 +905,7 @@ export const dbOperations = {
     }
 
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('users')
         .select('count')
         .limit(1)

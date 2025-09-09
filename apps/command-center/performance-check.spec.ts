@@ -60,7 +60,8 @@ test('Command Center Loading Performance', async ({ page }) => {
     console.log('✅ All performance checks passed!');
   } catch (error) {
     const errorTime = Date.now() - startTime;
-    console.error(`❌ Test failed after ${errorTime}ms:`, error.message);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`❌ Test failed after ${errorTime}ms:`, errorMessage);
 
     // Take screenshot on error
     try {
@@ -70,7 +71,8 @@ test('Command Center Loading Performance', async ({ page }) => {
       });
       console.log('📸 Error screenshot saved');
     } catch (screenshotError) {
-      console.error('❌ Could not take error screenshot:', screenshotError.message);
+      const screenshotErrorMessage = screenshotError instanceof Error ? screenshotError.message : String(screenshotError);
+      console.error('❌ Could not take error screenshot:', screenshotErrorMessage);
     }
 
     throw error;

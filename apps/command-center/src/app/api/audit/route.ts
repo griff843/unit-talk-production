@@ -39,16 +39,30 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
 
     const query: AuditQuery = {
-      user_id: searchParams.get('user_id') || undefined,
-      action: searchParams.get('action') || undefined,
-      resource: searchParams.get('resource') || undefined,
-      start_date: searchParams.get('start_date') || undefined,
-      end_date: searchParams.get('end_date') || undefined,
-      status: searchParams.get('status') || undefined,
-      risk_level: searchParams.get('risk_level') || undefined,
       limit: parseInt(searchParams.get('limit') || '100'),
       offset: parseInt(searchParams.get('offset') || '0'),
     };
+    
+    const user_id = searchParams.get('user_id');
+    if (user_id) query.user_id = user_id;
+    
+    const action = searchParams.get('action');
+    if (action) query.action = action;
+    
+    const resource = searchParams.get('resource');
+    if (resource) query.resource = resource;
+    
+    const start_date = searchParams.get('start_date');
+    if (start_date) query.start_date = start_date;
+    
+    const end_date = searchParams.get('end_date');
+    if (end_date) query.end_date = end_date;
+    
+    const status = searchParams.get('status');
+    if (status) query.status = status;
+    
+    const risk_level = searchParams.get('risk_level');
+    if (risk_level) query.risk_level = risk_level;
 
     console.log('📋 GET /api/audit', query);
 
@@ -298,7 +312,7 @@ export async function POST(request: NextRequest) {
 function calculateRiskLevel(
   action: string,
   resource: string,
-  details?: any
+  _details?: any
 ): 'low' | 'medium' | 'high' | 'critical' {
   // High-risk actions
   if (['delete', 'emergency_stop', 'maintenance_mode'].includes(action)) {
@@ -349,7 +363,7 @@ async function triggerSecurityAlert(auditEvent: AuditEvent) {
   }
 }
 
-function generateMockAuditLogs(query: AuditQuery): AuditEvent[] {
+function generateMockAuditLogs(_query: AuditQuery): AuditEvent[] {
   const actions = ['login', 'logout', 'create', 'update', 'delete', 'execute'];
   const resources = ['users', 'agents', 'system', 'analytics', 'security'];
   const statuses: ('success' | 'failure' | 'warning')[] = [
@@ -376,16 +390,16 @@ function generateMockAuditLogs(query: AuditQuery): AuditEvent[] {
 
     logs.push({
       id: `mock-${i}`,
-      user_id: users[Math.floor(Math.random() * users.length)],
-      action: actions[Math.floor(Math.random() * actions.length)],
-      resource: resources[Math.floor(Math.random() * resources.length)],
+      user_id: users[Math.floor(Math.random() * users.length)] ?? 'unknown-user',
+      action: actions[Math.floor(Math.random() * actions.length)] ?? 'unknown',
+      resource: resources[Math.floor(Math.random() * resources.length)] ?? 'system',
       resource_id: `resource-${Math.floor(Math.random() * 1000)}`,
       details: { mock: true, index: i },
       ip_address: `192.168.1.${Math.floor(Math.random() * 255)}`,
       user_agent: 'Unit Talk Command Center/1.0',
       timestamp,
-      status: statuses[Math.floor(Math.random() * statuses.length)],
-      risk_level: riskLevels[Math.floor(Math.random() * riskLevels.length)],
+      status: statuses[Math.floor(Math.random() * statuses.length)] ?? 'success',
+      risk_level: riskLevels[Math.floor(Math.random() * riskLevels.length)] ?? 'low',
     });
   }
 

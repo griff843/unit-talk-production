@@ -7,9 +7,10 @@ const supabase = createClient(
 );
 
 // Enhanced user analytics API with sport-specific performance
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const startTime = Date.now();
-  const userId = params.id;
+  const resolvedParams = await params;
+  const userId = resolvedParams.id;
   const { searchParams } = new URL(request.url);
   const days = parseInt(searchParams.get('days') || '30');
 
@@ -87,7 +88,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
         acc[sport].total_picks++;
         acc[sport].total_confidence += pick.confidence || 0;
-        acc[sport].total_expected_value += (pick.raw_props as any)?.expected_value || 0;
+        const rawProps = pick.raw_props as { expected_value?: number } | null;
+        acc[sport].total_expected_value += rawProps?.expected_value || 0;
 
         if (pick.status === 'won') {
           acc[sport].wins++;
@@ -96,7 +98,13 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
         return acc;
       },
-      {} as Record<string, any>
+      {} as Record<string, {
+        total_picks: number;
+        wins: number;
+        total_payout: number;
+        total_confidence: number;
+        total_expected_value: number;
+      }>
     );
 
     // Calculate sport-specific performance metrics
@@ -122,8 +130,10 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         .filter(p => p.status === 'won')
         .reduce((sum, p) => sum + (p.potential_payout || 0), 0),
       avg_expected_value:
-        picks.reduce((sum, p) => sum + ((p.raw_props as any)?.expected_value || 0), 0) /
-        picks.length,
+        picks.reduce((sum, p) => {
+          const rawProps = p.raw_props as { expected_value?: number } | null;
+          return sum + (rawProps?.expected_value || 0);
+        }, 0) / picks.length,
     };
 
     // Performance insights
@@ -177,8 +187,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // NEW: POST endpoint for updating user analytics preferences
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
-  const userId = params.id;
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
+  const userId = resolvedParams.id;
 
   try {
     const body = await request.json();

@@ -2,8 +2,8 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
+const supabaseUrl = process.env['NEXT_PUBLIC_SUPABASE_URL'] as string
+const supabaseKey = process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY'] as string
 
 if (!supabaseUrl || !supabaseKey) {
   console.error('Missing Supabase env vars for script. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY')
@@ -49,7 +49,7 @@ async function checkDatabase() {
 
     // Try to get schema information
     console.log('\n🏗️ Checking schema information...');
-    const { data: schemaData, error: schemaError } = await supabase.rpc('get_schema_info').select();
+    const { error: schemaError } = await supabase.rpc('get_schema_info').select();
 
     if (schemaError) {
       console.log('ℹ️ Could not get schema info via RPC');

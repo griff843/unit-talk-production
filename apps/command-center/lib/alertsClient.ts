@@ -176,10 +176,10 @@ export class AlertsClient {
       ...policies[index],
       ...updates,
       updated_at: new Date().toISOString()
-    };
+    } as AlertPolicy;
 
     await this.writeLocalStub(policies);
-    return policies[index];
+    return policies[index] as AlertPolicy;
   }
 
   /**

@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
         ]
       },
       endpoints: {
-        production: process.env.WEBSOCKET_URL || 'wss://api.unittalk.com/ws',
+        production: process.env['WEBSOCKET_URL'] || 'wss://api.unittalk.com/ws',
         development: 'ws://localhost:3011/ws'
       }
     })

@@ -6,7 +6,7 @@
 
 import { execSync } from 'child_process'
 import * as fs from 'fs'
-import * as path from 'path'
+import * as _path from 'path'
 
 interface SetupConfig {
   supabaseUrl: string
@@ -273,10 +273,10 @@ function generateRandomSecret(): string {
 // CLI Interface
 if (require.main === module) {
   const config: SetupConfig = {
-    supabaseUrl: process.env.SUPABASE_URL || 'your_supabase_project_url',
-    supabaseAnonKey: process.env.SUPABASE_ANON_KEY || 'your_supabase_anon_key',
-    platformApiUrl: process.env.PLATFORM_API_URL || 'http://localhost:3004',
-    analyticsApiUrl: process.env.ANALYTICS_API_URL || 'http://localhost:3005',
+    supabaseUrl: process.env['SUPABASE_URL'] || 'your_supabase_project_url',
+    supabaseAnonKey: process.env['SUPABASE_ANON_KEY'] || 'your_supabase_anon_key',
+    platformApiUrl: process.env['PLATFORM_API_URL'] || 'http://localhost:3004',
+    analyticsApiUrl: process.env['ANALYTICS_API_URL'] || 'http://localhost:3005',
     environment: (process.env.NODE_ENV as 'development' | 'staging' | 'production') || 'development'
   }
 

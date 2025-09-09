@@ -19,7 +19,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     // Verify internal authentication token
     const authToken = request.headers.get('x-internal-token');
-    const expectedToken = process.env.INTERNAL_REFRESH_TOKEN;
+    const expectedToken = process.env['INTERNAL_REFRESH_TOKEN'];
     
     if (!authToken || !expectedToken || authToken !== expectedToken) {
       console.warn('❌ Unauthorized materialized view refresh attempt');

@@ -241,20 +241,20 @@ class DockerServiceMonitor {
         throw new Error('No stats data returned');
       }
 
-      const [cpuPerc, memUsage, netIO] = lines[1].split('\t').map(s => s.trim());
+      const [cpuPerc, memUsage, netIO] = (lines[1] ?? '').split('\t').map(s => s.trim());
 
       // Parse CPU percentage
-      const cpu_percent = parseFloat(cpuPerc.replace('%', '')) || 0;
+      const cpu_percent = parseFloat((cpuPerc ?? '').replace('%', '')) || 0;
 
       // Parse memory usage (format: "used / limit")
-      const memParts = memUsage.split(' / ');
-      const memory_usage = this.parseBytes(memParts[0]) || 0;
-      const memory_limit = this.parseBytes(memParts[1]) || 0;
+      const memParts = (memUsage ?? '').split(' / ');
+      const memory_usage = this.parseBytes(memParts[0] ?? '') || 0;
+      const memory_limit = this.parseBytes(memParts[1] ?? '') || 0;
 
       // Parse network I/O (format: "rx / tx")
-      const netParts = netIO.split(' / ');
-      const network_rx = this.parseBytes(netParts[0]) || 0;
-      const network_tx = this.parseBytes(netParts[1]) || 0;
+      const netParts = (netIO ?? '').split(' / ');
+      const network_rx = this.parseBytes(netParts[0] ?? '') || 0;
+      const network_tx = this.parseBytes(netParts[1] ?? '') || 0;
 
       return {
         cpu_percent,
@@ -330,10 +330,10 @@ class DockerServiceMonitor {
         const [type, total, active, size] = line.split('\t').map(s => s.trim());
 
         if (type === 'Containers') {
-          total_containers = parseInt(total) || 0;
-          running_containers = parseInt(active) || 0;
+          total_containers = parseInt(total ?? '') || 0;
+          running_containers = parseInt(active ?? '') || 0;
         } else if (type === 'Images') {
-          total_images = parseInt(total) || 0;
+          total_images = parseInt(total ?? '') || 0;
         } else if (type === 'Local Volumes') {
           disk_usage = size || '0B';
         }
@@ -449,8 +449,8 @@ class DockerServiceMonitor {
     const match = bytesStr.match(/^([\d.]+)\s*([KMGT]?i?B)$/i);
     if (!match) return 0;
 
-    const value = parseFloat(match[1]);
-    const unit = match[2].toUpperCase();
+    const value = parseFloat(match[1] ?? '');
+    const unit = (match[2] ?? '').toUpperCase();
 
     const multipliers: { [key: string]: number } = {
       B: 1,
@@ -491,7 +491,7 @@ class DockerServiceMonitor {
           throw new Error(`Unknown action: ${action}`);
       }
 
-      const result = await this.execDockerCommand(command);
+      const _result = await this.execDockerCommand(command);
 
       return {
         success: true,
@@ -500,7 +500,7 @@ class DockerServiceMonitor {
     } catch (error) {
       return {
         success: false,
-        message: `Failed to ${action} service ${serviceName}: ${error.message}`,
+        message: `Failed to ${action} service ${serviceName}: ${error instanceof Error ? error.message : 'Unknown error'}`,
       };
     }
   }
