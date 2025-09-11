@@ -1,0 +1,36 @@
+{
+  "description": "Promotion scenario: 1 S-tier eligible, 1 low-edge ineligible",
+  "raw_props": [
+    {
+      "player_name": "Elite Shooter",
+      "sport": "NBA",
+      "stat_type": "points_over",
+      "line": 25.5,
+      "over_odds": -110,
+      "under_odds": -110,
+      "game_date": "2099-12-31T00:00:00.000Z",
+      "created_at": "2099-01-01T00:00:00.000Z",
+      "professional_score": 0.92,
+      "devigged_edge": 0.14,
+      "kelly_fraction": 0.04,
+      "confidence": 0.9,
+      "grade": "S"
+    },
+    {
+      "player_name": "Borderline Player",
+      "sport": "NBA",
+      "stat_type": "points_over",
+      "line": 19.5,
+      "over_odds": -110,
+      "under_odds": -110,
+      "game_date": "2099-12-31T00:00:00.000Z",
+      "created_at": "2099-01-01T00:00:00.000Z",
+      "professional_score": 0.60,
+      "devigged_edge": 0.01,
+      "kelly_fraction": 0.005,
+      "confidence": 0.55,
+      "grade": "C"
+    }
+  ]
+}
+
