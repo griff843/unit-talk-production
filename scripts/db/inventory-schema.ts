@@ -4,6 +4,7 @@
  * - Queries Postgres system catalogs (public schema only)
  * - Outputs JSON and Markdown summaries
  */
+/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
 
 import fs from 'fs';
 import path from 'path';
@@ -24,7 +25,10 @@ async function getPgPool(): Promise<PgPool | null> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { Pool } = require('pg');
-    const pool = new Pool({ connectionString: DB_URL, ssl: DB_URL.includes('supabase') ? { rejectUnauthorized: false } : undefined });
+    const pool = new Pool({
+      connectionString: DB_URL,
+      ssl: DB_URL.includes('supabase') ? { rejectUnauthorized: false } : undefined,
+    });
     return pool as PgPool;
   } catch (err) {
     warn('pg module not available; will fall back to Supabase/REST.');
@@ -88,7 +92,10 @@ async function safeQuery<T = any>(
 }
 
 async function execSql<T = any>(sql: string, purpose: string): Promise<T[] | null> {
-  const data = await safeQuery<any>(() => (supabase as any).rpc('exec_sql', { sql }), `exec_sql: ${purpose}`);
+  const data = await safeQuery<any>(
+    () => (supabase as any).rpc('exec_sql', { sql }),
+    `exec_sql: ${purpose}`
+  );
   if (!data) return null;
   if (Array.isArray(data)) return data as T[];
   if (data && Array.isArray((data as any).rows)) return (data as any).rows as T[];
@@ -113,7 +120,7 @@ async function fetchTableNames(): Promise<string[]> {
     "SELECT c.relname AS table_name FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'r' ORDER BY c.relname",
     'list tables via pg_catalog'
   );
-  return viaSql ? viaSql.map((r) => r.table_name) : [];
+  return viaSql ? viaSql.map(r => r.table_name) : [];
 }
 
 async function fetchViewNames(): Promise<string[]> {
@@ -131,7 +138,7 @@ async function fetchViewNames(): Promise<string[]> {
     "SELECT table_name FROM information_schema.views WHERE table_schema = 'public' ORDER BY table_name",
     'list views via exec_sql'
   );
-  return viaSql ? viaSql.map((r) => r.table_name) : [];
+  return viaSql ? viaSql.map(r => r.table_name) : [];
 }
 
 async function fetchColumnsByTable(): Promise<Record<string, string[]>> {
@@ -166,7 +173,10 @@ async function fetchColumnsByTable(): Promise<Record<string, string[]>> {
   return result;
 }
 
-async function fetchIndexesByTable(): Promise<{ byTable: Record<string, string[]>; all: string[] }> {
+async function fetchIndexesByTable(): Promise<{
+  byTable: Record<string, string[]>;
+  all: string[];
+}> {
   // pg_indexes is a system view commonly exposed read-only
   const data = await safeQuery<any[]>(
     () =>
@@ -216,7 +226,8 @@ async function fetchApproxRowCounts(): Promise<Record<string, number>> {
   const result: Record<string, number> = {};
   if (data) {
     for (const row of data) {
-      result[row.relname] = typeof row.n_live_tup === 'number' ? Math.max(0, Math.floor(row.n_live_tup)) : 0;
+      result[row.relname] =
+        typeof row.n_live_tup === 'number' ? Math.max(0, Math.floor(row.n_live_tup)) : 0;
     }
     return result;
   }
@@ -254,11 +265,11 @@ function toMarkdown(inv: Inventory): string {
   lines.push('');
   lines.push('## Views');
   if (inv.views.length === 0) lines.push('- (none found)');
-  else lines.push(...inv.views.map((v) => `- ${v}`));
+  else lines.push(...inv.views.map(v => `- ${v}`));
   lines.push('');
   lines.push('## Indexes (all)');
   if (inv.indexes.length === 0) lines.push('- (none found)');
-  else lines.push(...inv.indexes.map((i) => `- ${i}`));
+  else lines.push(...inv.indexes.map(i => `- ${i}`));
   lines.push('');
   lines.push('Note: Row counts are approximate (stats-based).');
   return lines.join('\n');
@@ -270,21 +281,29 @@ async function inventoryViaPg(): Promise<Inventory | null> {
 
   const client = await pool.connect();
   try {
-    const tablesRows = (await client.query(
-      "SELECT c.relname AS table_name, COALESCE(c.reltuples, 0)::bigint AS rows_est FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'r' ORDER BY c.relname"
-    )).rows as { table_name: string; rows_est: number }[];
+    const tablesRows = (
+      await client.query(
+        "SELECT c.relname AS table_name, COALESCE(c.reltuples, 0)::bigint AS rows_est FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'r' ORDER BY c.relname"
+      )
+    ).rows as { table_name: string; rows_est: number }[];
 
-    const colsRows = (await client.query(
-      "SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public' ORDER BY table_name, ordinal_position"
-    )).rows as { table_name: string; column_name: string }[];
+    const colsRows = (
+      await client.query(
+        "SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public' ORDER BY table_name, ordinal_position"
+      )
+    ).rows as { table_name: string; column_name: string }[];
 
-    const idxRows = (await client.query(
-      "SELECT t.relname AS table_name, i.relname AS index_name FROM pg_class t JOIN pg_index ix ON t.oid = ix.indrelid JOIN pg_class i ON i.oid = ix.indexrelid JOIN pg_namespace n ON n.oid = t.relnamespace WHERE n.nspname = 'public' ORDER BY t.relname, i.relname"
-    )).rows as { table_name: string; index_name: string }[];
+    const idxRows = (
+      await client.query(
+        "SELECT t.relname AS table_name, i.relname AS index_name FROM pg_class t JOIN pg_index ix ON t.oid = ix.indrelid JOIN pg_class i ON i.oid = ix.indexrelid JOIN pg_namespace n ON n.oid = t.relnamespace WHERE n.nspname = 'public' ORDER BY t.relname, i.relname"
+      )
+    ).rows as { table_name: string; index_name: string }[];
 
-    const viewRows = (await client.query(
-      "SELECT table_name FROM information_schema.views WHERE table_schema = 'public' ORDER BY table_name"
-    )).rows as { table_name: string }[];
+    const viewRows = (
+      await client.query(
+        "SELECT table_name FROM information_schema.views WHERE table_schema = 'public' ORDER BY table_name"
+      )
+    ).rows as { table_name: string }[];
 
     const columnsByTable: Record<string, string[]> = {};
     for (const r of colsRows) {
@@ -300,7 +319,7 @@ async function inventoryViaPg(): Promise<Inventory | null> {
       allIndexes.push(r.index_name);
     }
 
-    const tables: TableEntry[] = tablesRows.map((t) => ({
+    const tables: TableEntry[] = tablesRows.map(t => ({
       name: t.table_name,
       rows: typeof t.rows_est === 'number' ? t.rows_est : 0,
       columns: columnsByTable[t.table_name] || [],
@@ -311,7 +330,7 @@ async function inventoryViaPg(): Promise<Inventory | null> {
       generatedAt: nowIso(),
       ok: true,
       tables: tables.sort((a, b) => a.name.localeCompare(b.name)),
-      views: viewRows.map((v) => v.table_name).sort((a, b) => a.localeCompare(b)),
+      views: viewRows.map(v => v.table_name).sort((a, b) => a.localeCompare(b)),
       indexes: Array.from(new Set(allIndexes)).sort((a, b) => a.localeCompare(b)),
     };
 
@@ -328,7 +347,8 @@ async function main() {
   }
 
   if (!DB_URL && (!isSupabaseConfigured || !supabase)) {
-    const warning = 'No DB connection available (SUPABASE_DB_URL/DATABASE_URL missing and Supabase client not configured); writing placeholder.';
+    const warning =
+      'No DB connection available (SUPABASE_DB_URL/DATABASE_URL missing and Supabase client not configured); writing placeholder.';
     warn(warning);
     const placeholder: Inventory = {
       generatedAt: nowIso(),
@@ -385,7 +405,7 @@ async function main() {
   console.log(`   Markdown: ${MD_OUT}`);
 }
 
-main().catch((err) => {
+main().catch(err => {
   console.error('❌ Inventory failed:', err?.message || err);
   // Still try to write a minimal artifact for CI visibility
   try {
@@ -403,4 +423,3 @@ main().catch((err) => {
   } catch {}
   process.exit(1);
 });
-

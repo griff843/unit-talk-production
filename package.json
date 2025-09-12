@@ -41,7 +41,7 @@
     "alerts:test": "bash scripts/test-alerts.sh",
     "db:reset": "bash scripts/reset-database.sh",
     "db:reset:test": "ts-node scripts/db/reset-test.ts",
-      "db:inventory": "ts-node scripts/db/inventory-schema.ts",
+    "db:inventory": "ts-node scripts/db/inventory-schema.ts",
     "ops:green": "node scripts/ops/ops-green.js",
     "ops:env": "node scripts/ops/validate-env.js",
     "ops:mocks": "node scripts/ops/assert-no-mocks.js",
@@ -80,9 +80,16 @@
     "typescript": "^5.0.0"
   },
   "lint-staged": {
-    "*.{ts,tsx}": [
+    "apps/**/*.{ts,tsx}": [
       "prettier --write",
       "eslint --fix"
+    ],
+    "packages/**/*.{ts,tsx}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "scripts/**/*.{ts,tsx}": [
+      "prettier --write"
     ],
     "*.{js,jsx}": [
       "prettier --write",
