@@ -1,0 +1,50 @@
+﻿name: prod-acceptance
+
+on:
+  workflow_dispatch:
+
+jobs:
+  secrets-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Secrets Guard
+        run: |
+          node -e "
+          const req=['SUPABASE_URL','SUPABASE_ANON_KEY','SUPABASE_SERVICE_ROLE_KEY','API_READINESS_URL','SUPABASE_DB_URL','TEMPORAL_ADDRESS','TEMPORAL_NAMESPACE','CANARY_CHANNEL_ID'];
+          const miss=req.filter(k=>!process.env[k]||String(process.env[k]).trim()==='');
+          if(miss.length){console.error('❌ Missing required secrets:',miss.join(', '));process.exit(1)}
+          console.log('✅ All required secrets present');"
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          API_READINESS_URL: ${{ secrets.API_READINESS_URL }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_ADDRESS }}
+          TEMPORAL_NAMESPACE: ${{ secrets.TEMPORAL_NAMESPACE }}
+          CANARY_CHANNEL_ID: ${{ secrets.CANARY_CHANNEL_ID }}
+
+  prod-acceptance:
+    runs-on: ubuntu-latest
+    needs: secrets-guard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Preflight (health + audits)
+        run: |
+          npm run ops:health
+          npm run ops:audits
+          npm run ops:tier
+      - name: Shadow alerts twice (dedupe expected)
+        run: |
+          node scripts/ops/run-alerts.ts --shadow || true
+          node scripts/ops/run-alerts.ts --shadow || true
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-acceptance-artifacts
+          path: |
+            out/**
