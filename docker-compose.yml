@@ -327,6 +327,9 @@ services:
       - HEALTH_CHECK_INTERVAL=30000
       - ALLOW_SUPABASE_DEGRADED=true
       - NODE_OPTIONS=--max-old-space-size=8192
+      - SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - ODDS_API_KEY=${ODDS_API_KEY}
 
     volumes:
       - ./apps/api/src:/app/apps/api/src
@@ -334,11 +337,19 @@ services:
       - ./apps/api/tsconfig.json:/app/apps/api/tsconfig.json
       - ./apps/api/tsconfig.prod.json:/app/apps/api/tsconfig.prod.json
       - ./apps/api/tsconfig.test.json:/app/apps/api/tsconfig.test.json
+      - ./apps/api/tsconfig.runner.json:/app/apps/api/tsconfig.runner.json
       - ./packages:/app/packages
       - ./apps/api/scripts:/app/apps/api/scripts
       - ./apps/api/package.json:/app/apps/api/package.json
+      - ./tsconfig.base.json:/app/tsconfig.base.json
+
+      - ./apps/api/test:/app/apps/api/test
+      - ./apps/api/jest.config.js:/app/apps/api/jest.config.js
+
 
       - ./scripts:/app/scripts
+      - ./out:/app/out
+
 
       - ./apps/api/run-performance-benchmark.ts:/app/apps/api/run-performance-benchmark.ts
       - ./migrations:/app/migrations

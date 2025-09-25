@@ -1,5 +1,6 @@
 /** @type {import('jest').Config} */
 module.exports = {
+  rootDir: __dirname,
   preset: 'ts-jest',
   testEnvironment: 'node',
   extensionsToTreatAsEsm: ['.ts'],
@@ -7,8 +8,8 @@ module.exports = {
 
   roots: ['<rootDir>/test'],
   testMatch: [
-    '<rootDir>/test/**/*.test.ts',
-    '<rootDir>/test/**/*.spec.ts'
+    '<rootDir>/test/contracts/**/*.test.ts',
+    '<rootDir>/test/smartform/**/*.test.ts'
   ],
   setupFilesAfterEnv: ['<rootDir>/test/setup.ts'],
   moduleNameMapper: {

@@ -96,6 +96,9 @@
     "dev:stop": "docker compose down",
     "dev:logs": "docker compose logs -f",
     "dev:status": "docker compose ps",
+    "runner:build": "tsc -p tsconfig.runner.json",
+    "runner:start": "TS_NODE_COMPILER_OPTIONS=\"{\\\"noResolve\\\":false,\\\"types\\\":[\\\"node\\\"]}\" ts-node --project tsconfig.runner.json src/runner/runFeedAgentNow.ts",
+    "test:ci": "node /app/node_modules/jest/bin/jest.js --config '{\"preset\":\"ts-jest\",\"testEnvironment\":\"node\",\"rootDir\":\"/app/apps/api\",\"transform\":{\"^.+\\\\.(t|j)sx?$\":\"ts-jest\"}}' test/contracts/database-schema.test.ts test/smartform/view-performance.test.ts --runInBand --silent",
     "clean": "rimraf dist"
   },
   "dependencies": {

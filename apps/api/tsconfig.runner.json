@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "noResolve": true,
+    "outDir": "./dist-runner",
+    "declaration": false,
+    "sourceMap": false,
+    "types": ["node"]
+  },
+  "include": ["src/runner/runFeedAgentNow.ts", "src/types/runner.d.ts"],
+  "exclude": ["**/*.test.ts", "**/__mocks__/**", "node_modules"]
+}
+
