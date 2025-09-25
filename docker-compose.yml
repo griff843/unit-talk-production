@@ -21,12 +21,14 @@ services:
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./apps/api/migrations:/docker-entrypoint-initdb.d
-      - ./apps/discord-bot/database:/docker-entrypoint-initdb.d/discord
-      - ./apps/smart-form/migrations:/docker-entrypoint-initdb.d/smart-form
-      - ./apps/command-center/database:/docker-entrypoint-initdb.d/command-center
+      # DISABLED: These migrations should NOT run on every container restart
+      # - ./apps/api/migrations:/docker-entrypoint-initdb.d
+      # - ./apps/discord-bot/database:/docker-entrypoint-initdb.d/discord
+      # - ./apps/smart-form/migrations:/docker-entrypoint-initdb.d/smart-form
+      # - ./apps/command-center/database:/docker-entrypoint-initdb.d/command-center
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-unit_talk_dev}"]
+      test:
+        ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-unit_talk_dev}"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -38,11 +40,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2G        # 2GB memory limit for database
-          cpus: '1.5'       # 1.5 CPU cores limit
+          memory: 2G # 2GB memory limit for database
+          cpus: "1.5" # 1.5 CPU cores limit
         reservations:
-          memory: 1G        # 1GB memory reservation
-          cpus: '0.5'       # 0.5 CPU core reservation
+          memory: 1G # 1GB memory reservation
+          cpus: "0.5" # 0.5 CPU core reservation
 
   # PostgreSQL Read Replica for High Availability
   postgres-replica:
@@ -69,7 +71,8 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-unit_talk_dev}"]
+      test:
+        ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-unit_talk_dev}"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -78,7 +81,7 @@ services:
       - unit-talk-network
     restart: unless-stopped
     profiles:
-      - ha  # High Availability profile
+      - ha # High Availability profile
 
   # Redis Cache & Session Store
   redis:
@@ -272,7 +275,7 @@ services:
     image: grafana/grafana:latest
     container_name: unit-talk-grafana
     ports:
-      - "3005:3000"  # Fixed port conflict - moved from 3001 to 3005
+      - "3005:3000" # Fixed port conflict - moved from 3001 to 3005
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false
@@ -304,26 +307,42 @@ services:
       target: development
     container_name: unit-talk-api
     ports:
-      - "3000:3000"  # Fixed port mapping consistency
-      - "9464:9464"  # Metrics port
+      - "3000:3000" # Fixed port mapping consistency
+      - "9464:9464" # Metrics port
     env_file:
       - .env
     environment:
       - NODE_ENV=development
+      - API_PORT=3000
       - PORT=3000
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-unit_talk_dev}
       - REDIS_URL=redis://redis:6379
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - TEMPORAL_SERVER_URL=temporal:7233
       - PROMETHEUS_ENABLED=true
       - PROMETHEUS_PORT=9464
-      - START_TEMPORAL_WORKER=false
+      - START_TEMPORAL_WORKER=true
       - LOG_LEVEL=debug
       - HEALTH_CHECK_INTERVAL=30000
+      - ALLOW_SUPABASE_DEGRADED=true
+      - NODE_OPTIONS=--max-old-space-size=8192
+
     volumes:
       - ./apps/api/src:/app/apps/api/src
       - ./apps/api/logs:/app/apps/api/logs
+      - ./apps/api/tsconfig.json:/app/apps/api/tsconfig.json
+      - ./apps/api/tsconfig.prod.json:/app/apps/api/tsconfig.prod.json
+      - ./apps/api/tsconfig.test.json:/app/apps/api/tsconfig.test.json
       - ./packages:/app/packages
       - ./apps/api/scripts:/app/apps/api/scripts
+      - ./apps/api/package.json:/app/apps/api/package.json
+
+      - ./scripts:/app/scripts
+
+      - ./apps/api/run-performance-benchmark.ts:/app/apps/api/run-performance-benchmark.ts
+      - ./migrations:/app/migrations
+      - ./apps/api/.eslintrc.json:/app/apps/api/.eslintrc.json
     depends_on:
       postgres:
         condition: service_healthy
@@ -332,7 +351,7 @@ services:
       temporal:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -344,11 +363,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1G        # 1GB memory limit
-          cpus: '1.0'       # 1 CPU core limit
+          memory: 1G # 1GB memory limit
+          cpus: "1.0" # 1 CPU core limit
         reservations:
-          memory: 512M      # 512MB memory reservation
-          cpus: '0.5'       # 0.5 CPU core reservation
+          memory: 512M # 512MB memory reservation
+          cpus: "0.5" # 0.5 CPU core reservation
 
   # Temporal Workers
   workers:
@@ -369,8 +388,8 @@ services:
       - OPTIMAL_API_KEY=${OPTIMAL_API_KEY}
       - ODDS_API_KEY=${ODDS_API_KEY}
     volumes:
-      - ./apps/api/src:/app/src
-      - ./apps/api/logs:/app/logs
+      - ./apps/api/src:/app/apps/api/src
+      - ./apps/api/logs:/app/apps/api/logs
       - ./packages:/app/packages
     command: npm run worker:dev
     depends_on:
@@ -388,11 +407,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M      # 512MB memory limit for workers
-          cpus: '0.5'       # 0.5 CPU core limit
+          memory: 512M # 512MB memory limit for workers
+          cpus: "0.5" # 0.5 CPU core limit
         reservations:
-          memory: 256M      # 256MB memory reservation
-          cpus: '0.25'      # 0.25 CPU core reservation
+          memory: 256M # 256MB memory reservation
+          cpus: "0.25" # 0.25 CPU core reservation
 
   # Discord Bot
   discord-bot:
@@ -401,15 +420,19 @@ services:
       dockerfile: ./apps/discord-bot/Dockerfile
       target: development
     container_name: unit-talk-discord-bot
+    env_file:
+      - .env
+
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=test
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-unit_talk_dev}
       - REDIS_URL=redis://redis:6379
       - API_URL=http://api:3000
       - LOG_LEVEL=debug
-      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - DISCORD_BOT_TOKEN=${DISCORD_TOKEN}
       - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
       - DISCORD_GUILD_ID=${DISCORD_GUILD_ID}
+      - ONBOARDING_TEST_MODE=true
     volumes:
       - ./apps/discord-bot/src:/app/src
       - ./apps/discord-bot/logs:/app/logs
@@ -434,10 +457,10 @@ services:
       target: development
     container_name: unit-talk-smart-form
     ports:
-      - "3002:3000"  # Fixed port mapping for Next.js
+      - "3002:3021" # Fixed port mapping for Next.js (smart-form runs on 3021)
     environment:
       - NODE_ENV=development
-      - PORT=3000
+      - PORT=3021
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-unit_talk_dev}
       - NEXT_PUBLIC_API_URL=http://localhost:3000
       - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
@@ -451,7 +474,7 @@ services:
       api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3021/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -498,7 +521,7 @@ services:
       target: development
     container_name: unit-talk-command-center
     ports:
-      - "3015:3000"  # Fixed port mapping for Command Center (should be 3015)
+      - "3004:3015" # Fixed: Next.js dev runs on 3015 inside container
     env_file:
       - .env
     environment:
@@ -521,10 +544,11 @@ services:
       prometheus:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3015/"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
+      start_period: 60s
     networks:
       - unit-talk-network
     restart: unless-stopped
@@ -579,6 +603,49 @@ services:
     profiles:
       - tools
 
+  # ==============================================
+  # ML TRAINING ENVIRONMENT
+  # ==============================================
+
+  # ML Training Service
+  ml-training:
+    build:
+      context: ./apps/ml-training
+      dockerfile: Dockerfile
+    container_name: unit-talk-ml-training
+    ports:
+      - "8888:8888" # Jupyter Lab
+      - "5000:5000" # ML API (future)
+    env_file:
+      - .env
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - JUPYTER_TOKEN=
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-unit_talk_dev}
+      - PYTHONPATH=/app
+    volumes:
+      - ./apps/ml-training:/app
+      - ./apps/api/ml-training-data:/app/data # Training data from API
+      - ml_models:/app/models # Persistent model storage
+      - ml_experiments:/app/experiments # MLflow experiments
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    networks:
+      - unit-talk-network
+    restart: unless-stopped
+    # GPU support for ML training (if available)
+    deploy:
+      resources:
+        limits:
+          memory: 4G # 4GB for ML training
+          cpus: "2.0" # 2 CPU cores for training
+        reservations:
+          memory: 2G # 2GB memory reservation
+          cpus: "1.0" # 1 CPU core reservation
+
 # ==============================================
 # VOLUMES
 # ==============================================
@@ -596,6 +663,10 @@ volumes:
   grafana_data:
     driver: local
   pgadmin_data:
+    driver: local
+  ml_models:
+    driver: local
+  ml_experiments:
     driver: local
 
 # ==============================================
