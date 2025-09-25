@@ -27,16 +27,21 @@ const DEFAULT_OPTIONS = {
 };
 
 // Create base logger instance
+const isTest = process.env.NODE_ENV === 'test';
 const baseLogger = pino({
   ...DEFAULT_OPTIONS,
-  transport: {
-    target: 'pino-pretty',
-    options: {
-      colorize: true,
-      translateTime: 'SYS:standard',
-      ignore: 'pid,hostname',
-    },
-  },
+  ...(isTest
+    ? {}
+    : {
+        transport: {
+          target: 'pino-pretty',
+          options: {
+            colorize: true,
+            translateTime: 'SYS:standard',
+            ignore: 'pid,hostname',
+          },
+        },
+      }),
 });
 
 export class Logger {

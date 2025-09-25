@@ -1,8 +1,9 @@
 import pino from 'pino';
 
-const isDev = process.env['NODE_ENV'] !== 'production';
+const env = process.env['NODE_ENV'];
+const usePretty = env === 'development';
 
-export const logger = isDev
+export const logger = usePretty
   ? pino({
       transport: {
         target: 'pino-pretty',

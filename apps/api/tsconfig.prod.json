@@ -1,10 +1,12 @@
 {
-  "extends": "./tsconfig.json",
   "compilerOptions": {
     "sourceMap": false,
     "declaration": false,
     "declarationMap": false,
     "outDir": "./dist",
+    // Force CJS/Node resolution for production build to avoid NodeNext extension churn
+    "module": "CommonJS",
+    "moduleResolution": "node",
     // Relax strict unused variable checking for production build
     "noUnusedLocals": false,
     "noUnusedParameters": false,
@@ -12,19 +14,18 @@
     "noImplicitAny": false,
     // Still maintain core type safety
     "strict": true,
-    "strictNullChecks": true
+    "strictNullChecks": true,
+    // Ensure module interop for external packages
+    "esModuleInterop": true,
+    "downlevelIteration": true,
+    // Speed up CI by skipping library type checks
+    "skipLibCheck": true
   },
+  "files": [
+    "src/build-only.d.ts"
+  ],
   "exclude": [
     "node_modules",
-    "dist",
-    "test/**/*",
-    "src/test/**/*",
-    "**/*.test.ts",
-    "**/*.spec.ts",
-    "qa/**/*",
-    "src/runner/**/*",
-    "src/scripts/**/*",
-    "src/temporal/**/*",
-    "src/workflows/**/*"
+    "dist"
   ]
 }

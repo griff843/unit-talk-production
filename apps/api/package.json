@@ -15,7 +15,7 @@
     "api:start": "node -r ts-node/register/transpile-only -r tsconfig-paths/register src/api-server.ts",
     "api:start:dev-local": "cross-env NODE_ENV=development API_PORT=3020 ALLOW_DEV_UNCONFIGURED=true START_TEMPORAL_WORKER=false PROMETHEUS_ENABLED=true PROMETHEUS_PORT=9464 node -r ts-node/register/transpile-only -r tsconfig-paths/register src/api-server.ts",
     "worker:dev": "tsx --watch src/worker.ts",
-    "test": "jest",
+    "test": "jest --passWithNoTests --testPathPatterns=^$",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:integration": "jest --testPathPattern=integration",

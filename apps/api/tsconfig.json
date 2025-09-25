@@ -1,7 +1,8 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "target": "es2020",
-    "module": "commonjs",
+    "module": "NodeNext",
     "lib": ["es2020", "dom"],
     "declaration": true,
     "declarationMap": true,
@@ -20,7 +21,7 @@
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "moduleResolution": "node",
+    "moduleResolution": "NodeNext",
     "baseUrl": "./",
     "paths": {
       "@/*": ["src/*"],
@@ -43,6 +44,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
+    "downlevelIteration": true,
     "types": ["node", "jest"]
   },
   "include": ["src/**/*"],
@@ -53,6 +55,10 @@
     "src/shadow/**/*",
     "src/test/**/*",
     "src/scripts/**/*",
-    "src/temporal/**/*"
+    "src/temporal/**/*",
+    "**/__tests__/**/*",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "src/tests/**/*"
   ]
 }

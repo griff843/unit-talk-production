@@ -2,6 +2,9 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
+  extensionsToTreatAsEsm: ['.ts'],
+  detectOpenHandles: false,
+
   roots: ['<rootDir>/test'],
   testMatch: [
     '<rootDir>/test/**/*.test.ts',
@@ -15,7 +18,10 @@ module.exports = {
   moduleDirectories: ['node_modules', 'src'],
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {
-      tsconfig: 'tsconfig.test.json'
+      tsconfig: 'tsconfig.test.json',
+      useESM: true,
+      diagnostics: false,
+      isolatedModules: true
     }]
   },
   coverageThreshold: {
@@ -32,4 +38,4 @@ module.exports = {
     '!src/**/index.ts',
     '!src/types/**/*'
   ]
-}; 
+};

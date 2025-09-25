@@ -3,7 +3,7 @@
  * Professional Betting Scheduler
  * Manages automated execution of CLV monitoring, feedback loops, and system optimization
  * This is what keeps the system sharp and adaptive to changing markets
- * 
+ *
  * @module ProfessionalBettingScheduler
  */
 
@@ -35,6 +35,12 @@ export class ProfessionalBettingScheduler {
   public start(): void {
     if (this.isRunning) {
       this.logger.warn('Professional betting scheduler already running');
+      return;
+    }
+
+    // Skip starting timers during test runs to avoid open handles
+    if (process.env.NODE_ENV === 'test') {
+      this.logger.info('Skipping ProfessionalBettingScheduler timers in test environment');
       return;
     }
 
@@ -76,15 +82,15 @@ export class ProfessionalBettingScheduler {
     if (!this.isRunning) return;
 
     this.logger.info('Stopping professional betting automation...');
-    
+
     for (const [name, interval] of this.intervals) {
       clearInterval(interval);
       this.logger.info(`Stopped ${name} scheduler`);
     }
-    
+
     this.intervals.clear();
     this.isRunning = false;
-    
+
     this.logger.info('Professional betting automation stopped');
   }
 
@@ -94,7 +100,7 @@ export class ProfessionalBettingScheduler {
   private scheduleTask(name: string, task: () => void, intervalMs: number): void {
     // Run immediately, then on interval
     task();
-    
+
     const interval = setInterval(() => {
       try {
         task();
@@ -115,21 +121,21 @@ export class ProfessionalBettingScheduler {
       const now = new Date();
       const next = new Date();
       next.setHours(hour, 0, 0, 0);
-      
+
       // If hour has passed today, schedule for tomorrow
       if (next <= now) {
         next.setDate(next.getDate() + 1);
       }
-      
+
       const delay = next.getTime() - now.getTime();
-      
+
       setTimeout(() => {
         try {
           task();
         } catch (error) {
           this.logger.error(`Daily task ${name} failed`, error);
         }
-        
+
         // Schedule next day
         runTask();
       }, delay);
@@ -146,26 +152,26 @@ export class ProfessionalBettingScheduler {
     const runTask = () => {
       const now = new Date();
       const next = new Date();
-      
+
       // Set to desired day and hour
       const daysUntilTarget = (dayOfWeek - now.getDay() + 7) % 7;
       next.setDate(now.getDate() + daysUntilTarget);
       next.setHours(hour, 0, 0, 0);
-      
+
       // If time has passed this week, schedule for next week
       if (next <= now) {
         next.setDate(next.getDate() + 7);
       }
-      
+
       const delay = next.getTime() - now.getTime();
-      
+
       setTimeout(() => {
         try {
           task();
         } catch (error) {
           this.logger.error(`Weekly task ${name} failed`, error);
         }
-        
+
         // Schedule next week
         runTask();
       }, delay);
@@ -195,7 +201,7 @@ export class ProfessionalBettingScheduler {
     try {
       this.logger.info('Running feedback loop...');
       const results = await feedbackLoopService.runFeedbackLoop();
-      
+
       // Log summary
       this.logger.info('Feedback loop completed', {
         weightAdjustments: results.weightAdjustments.length,
@@ -203,10 +209,10 @@ export class ProfessionalBettingScheduler {
         marketAdjustments: results.marketAdjustments.length,
         prunedFeatures: results.prunedFeatures.length
       });
-      
+
       // Alert if significant changes
       if (results.weightAdjustments.length > 5 || results.prunedFeatures.length > 0) {
-        await clvAlertService.sendAlert('investigate', 
+        await clvAlertService.sendAlert('investigate',
           `Feedback loop made ${results.weightAdjustments.length} adjustments, pruned ${results.prunedFeatures.length} features`,
           { results }
         );
@@ -222,22 +228,22 @@ export class ProfessionalBettingScheduler {
   private async runDeepOptimization(): Promise<void> {
     try {
       this.logger.info('Running deep optimization...');
-      
+
       // 1. Run extended feedback loop
       await this.runFeedbackLoop();
-      
+
       // 2. Analyze feature importance over longer period
       const longTermStats = await clvTrackingService.getCLVStats({
         startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // 30 days
       });
-      
+
       // 3. Generate optimization report
       this.logger.info('Deep optimization completed', {
         avgCLV: longTermStats.avgCLVPercentage,
         totalBets: longTermStats.totalBets,
         positiveRate: (longTermStats.clvPositive / longTermStats.totalBets * 100).toFixed(1) + '%'
       });
-      
+
     } catch (error) {
       this.logger.error('Deep optimization failed', error);
     }
@@ -249,11 +255,11 @@ export class ProfessionalBettingScheduler {
   private async generatePerformanceReport(): Promise<void> {
     try {
       this.logger.info('Generating weekly performance report...');
-      
+
       const weeklyStats = await clvTrackingService.getCLVStats({
         startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
       });
-      
+
       const report = {
         period: 'Weekly',
         avgCLV: weeklyStats.avgCLVPercentage,
@@ -266,17 +272,17 @@ export class ProfessionalBettingScheduler {
           .sort(([,a], [,b]) => b.avgCLV - a.avgCLV)
           .slice(0, 5)
       };
-      
+
       this.logger.info('Weekly performance report generated', report);
-      
+
       // Send to admin if performance is concerning
       if (report.avgCLV < 1) {
-        await clvAlertService.sendAlert('warning', 
+        await clvAlertService.sendAlert('warning',
           `Weekly CLV below target: ${report.avgCLV.toFixed(2)}%`,
           report
         );
       }
-      
+
     } catch (error) {
       this.logger.error('Performance report generation failed', error);
     }
@@ -289,19 +295,19 @@ export class ProfessionalBettingScheduler {
     try {
       // Check recent performance
       const performance = await clvTrackingService.getRecentPerformance(2); // Last 2 hours
-      
+
       // Basic health metrics
       const isHealthy = performance.avgCLV > -3; // Not catastrophically bad
-      
+
       if (!isHealthy) {
         this.logger.warn('System health check failed', performance);
-        
+
         await clvAlertService.sendAlert('critical',
           'System health check failed - emergency review needed',
           performance
         );
       }
-      
+
     } catch (error) {
       this.logger.error('Health check failed', error);
     }

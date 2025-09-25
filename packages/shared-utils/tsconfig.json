@@ -6,7 +6,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "noEmit": false,
-    "moduleResolution": "node",
+    "moduleResolution": "NodeNext",
     "composite": true,
     "baseUrl": "../../",
     "paths": {
