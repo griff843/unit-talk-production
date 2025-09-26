@@ -18,6 +18,8 @@ import { randomUUID } from 'crypto';
 import axios, { AxiosResponse } from 'axios';
 
 import { RawProp } from '../../types/rawProps';
+import { creditLogger } from '../../services/creditLogger.js';
+import { cacheClient } from '../../services/cacheClient.js';
 
 // API Configuration
 const API_CONFIG = {
@@ -137,25 +139,117 @@ interface OddsApiScore {
   last_update: string | null;
 }
 
+interface OddsApiEvent {
+  id: string;
+  sport_key: string;
+  sport_title: string;
+  commence_time: string;
+  home_team: string;
+  away_team: string;
+}
+
 /**
- * Credit usage tracking and monitoring
+ * Resolve Odds API configuration from environment and CLI args
+ *
+ * Priority: CLI args > ENV vars > defaults
+ * Logs the final resolved configuration
+ *
+ * @param cliOverrides - Optional CLI overrides
+ * @returns Resolved configuration object
  */
-function trackCreditUsage(creditsUsed: number): void {
+export function resolveOddsConfig(cliOverrides?: {
+  markets?: string[];
+  regions?: string;
+  bookmakers?: string[];
+  oddsFormat?: 'decimal' | 'american';
+  dateFormat?: 'iso' | 'unix';
+  eventBatchSize?: number;
+  eventLookaheadHours?: number;
+  minRemainingCredits?: number;
+}) {
+  const config = {
+    markets: cliOverrides?.markets ||
+             (process.env.FEED_MARKETS?.split(',').map(m => m.trim()) ?? ['h2h', 'spreads', 'totals']),
+    regions: cliOverrides?.regions || process.env.FEED_REGIONS || 'us',
+    bookmakers: cliOverrides?.bookmakers ||
+                (process.env.FEED_BOOKMAKERS?.split(',').map(b => b.trim()) ?? ['draftkings', 'fanduel', 'betmgm', 'caesars']),
+    oddsFormat: (cliOverrides?.oddsFormat || process.env.ODDS_API_ODDS_FORMAT || 'american') as 'decimal' | 'american',
+    dateFormat: (cliOverrides?.dateFormat || process.env.ODDS_API_DATE_FORMAT || 'iso') as 'iso' | 'unix',
+    eventBatchSize: cliOverrides?.eventBatchSize || parseInt(process.env.FEED_EVENT_BATCH_SIZE || '20', 10),
+    eventLookaheadHours: cliOverrides?.eventLookaheadHours || parseInt(process.env.FEED_EVENT_LOOKAHEAD_HOURS || '48', 10),
+    minRemainingCredits: cliOverrides?.minRemainingCredits || parseInt(process.env.ODDS_API_MIN_REMAINING || '25', 10)
+  };
+
+  console.log('[OddsAPI] Resolved config =>', JSON.stringify(config, null, 2));
+  return config;
+}
+
+/**
+ * Expand market alias tokens to valid Odds API market names
+ *
+ * CRITICAL: "player-props" is NOT a valid Odds API market token.
+ * This function routes to props flow (should be handled separately).
+ *
+ * @param sport - Sport key (e.g., 'americanfootball_nfl', 'basketball_nba')
+ * @param tokens - Array of market tokens (may include 'player-props' alias)
+ * @returns Array of valid Odds API market names (player-props filtered out)
+ */
+export function expandMarketAliases(sport: string, tokens: string[]): string[] {
+  const expanded: string[] = [];
+
+  for (const token of tokens) {
+    const lowerToken = token.toLowerCase().trim();
+
+    if (lowerToken === 'player-props') {
+      // SKIP player-props - route to separate props flow instead
+      console.log(`[OddsAPI] Detected 'player-props' alias - routing to props flow (not core markets)`);
+      continue;
+    } else {
+      // Pass through unchanged (h2h, spreads, totals)
+      expanded.push(token.trim());
+    }
+  }
+
+  return expanded;
+}
+
+/**
+ * Credit usage tracking and monitoring with guard logic
+ */
+let lastRemainingCredits: number | null = null;
+
+function trackCreditUsage(creditsUsed: number, remainingCredits?: string): void {
   CREDIT_MONITOR.currentUsage += creditsUsed;
-  
+
   // Reset monthly usage if needed
   const now = new Date();
   if (now.getMonth() !== CREDIT_MONITOR.resetDate.getMonth()) {
     CREDIT_MONITOR.currentUsage = creditsUsed;
     CREDIT_MONITOR.resetDate = now;
   }
-  
-  console.log(`[OddsAPI] Credits used: ${creditsUsed} | Monthly total: ${CREDIT_MONITOR.currentUsage}/${CREDIT_MONITOR.monthlyLimit}`);
-  
+
+  // Update last remaining credits from header
+  if (remainingCredits) {
+    lastRemainingCredits = parseInt(remainingCredits, 10);
+  }
+
+  console.log(`[OddsAPI] Credits used: ${creditsUsed} | Monthly total: ${CREDIT_MONITOR.currentUsage}/${CREDIT_MONITOR.monthlyLimit} | Remaining: ${lastRemainingCredits ?? 'unknown'}`);
+
   // Warn if approaching limits
   if (CREDIT_MONITOR.currentUsage >= CREDIT_MONITOR.monthlyLimit * 0.8) {
     console.warn(`[OddsAPI] ⚠️ Approaching monthly credit limit: ${CREDIT_MONITOR.currentUsage}/${CREDIT_MONITOR.monthlyLimit}`);
   }
+}
+
+/**
+ * Check if we should skip props based on remaining credits
+ */
+export function shouldSkipProps(threshold: number = 25): boolean {
+  if (lastRemainingCredits !== null && lastRemainingCredits < threshold) {
+    console.warn(`[OddsAPI] ⚠️ Remaining credits (${lastRemainingCredits}) below threshold (${threshold}) - skipping props`);
+    return true;
+  }
+  return false;
 }
 
 function canMakeRequest(): { allowed: boolean; reason?: string } {
@@ -212,8 +306,19 @@ async function makeOddsApiRequest<T>(endpoint: string, params?: Record<string, a
   }
 
   const url = `${API_CONFIG.baseUrl}${endpoint}`;
-  
+
+  // Check cache first if enabled
+  const cacheKey = `oddsapi:${endpoint}:${JSON.stringify(params || {})}`;
+  const cachedData = await cacheClient.get(cacheKey);
+  if (cachedData && cacheClient.isCacheFirst()) {
+    return cachedData;
+  }
+
   try {
+    // Log the API call with deduplication
+    const dedupKey = `oddsapi-${endpoint}-${Date.now()}`;
+    creditLogger.addCall('oddsapi', 1, 1, dedupKey);
+
     const response: AxiosResponse<T> = await axios.get(url, {
       params: {
         apiKey,
@@ -223,13 +328,16 @@ async function makeOddsApiRequest<T>(endpoint: string, params?: Record<string, a
     });
 
     // Track credit usage (1 credit per request)
-    trackCreditUsage(1);
-    
-    // Log remaining credits from response headers
     const remainingCredits = response.headers['x-requests-remaining'];
+    trackCreditUsage(1, remainingCredits);
+
+    // Log remaining credits from response headers
     if (remainingCredits) {
       console.log(`[OddsAPI] Remaining credits: ${remainingCredits}`);
     }
+
+    // Cache the response
+    await cacheClient.set(cacheKey, response.data);
 
     return response.data;
   } catch (error) {
@@ -323,17 +431,107 @@ export async function fetchScores(
   daysFrom: number = 1
 ): Promise<OddsApiScore[]> {
   console.log(`[OddsAPI] Fetching scores for ${sportKey} (${daysFrom} days)`);
-  
+
   try {
     const scores = await makeOddsApiRequest<OddsApiScore[]>('/sports/' + sportKey + '/scores', {
       daysFrom,
       dateFormat: 'iso'
     });
-    
+
     console.log(`[OddsAPI] Fetched scores for ${scores.length} games in ${sportKey}`);
     return scores;
   } catch (error) {
     console.error(`[OddsAPI] Failed to fetch scores for ${sportKey}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch events (schedule) for a sport - Event-First Flow Step 1
+ *
+ * This is the first step in the event-first architecture.
+ * Get the list of upcoming events, then fetch odds per event.
+ *
+ * @param sportKey - Sport key (e.g., 'americanfootball_nfl')
+ * @param daysFrom - Number of days from now (default 1 = next 24 hours)
+ * @returns List of events with IDs
+ */
+export async function fetchEvents(
+  sportKey: SupportedSportKey,
+  daysFrom: number = 1
+): Promise<OddsApiEvent[]> {
+  console.log(`[OddsAPI] Fetching events for ${sportKey} (daysFrom=${daysFrom})`);
+
+  try {
+    const events = await makeOddsApiRequest<OddsApiEvent[]>(
+      `/sports/${sportKey}/events`,
+      {
+        daysFrom,
+        dateFormat: 'iso'
+      }
+    );
+
+    console.log(`[OddsAPI] Found ${events.length} events for ${sportKey}`);
+    return events;
+  } catch (error) {
+    console.error(`[OddsAPI] Failed to fetch events for ${sportKey}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch odds for specific event IDs - Event-First Flow Step 2
+ *
+ * This is the second step in the event-first architecture.
+ * Given a list of event IDs, fetch odds for those specific events.
+ *
+ * IMPORTANT: Batch event IDs to avoid URL length limits (recommend 20 per request)
+ *
+ * @param params - Configuration object
+ * @returns Odds data for the specified events
+ */
+export async function fetchOddsByEventIds(params: {
+  sportKey: SupportedSportKey;
+  eventIds: string[];
+  markets: string[];
+  regions: string;
+  bookmakers?: string[];
+  oddsFormat: 'decimal' | 'american';
+  dateFormat: 'iso' | 'unix';
+}): Promise<OddsApiGame[]> {
+  const { sportKey, eventIds, markets, regions, bookmakers, oddsFormat, dateFormat } = params;
+
+  if (eventIds.length === 0) {
+    console.warn(`[OddsAPI] No event IDs provided for ${sportKey}`);
+    return [];
+  }
+
+  console.log(`[OddsAPI] Fetching odds for ${eventIds.length} events in ${sportKey}`);
+  console.log(`[OddsAPI] Resolved config => { sport: ${sportKey}, regions: ${regions}, markets: ${markets.join(',')}, bookmakers: ${bookmakers?.join(',') || 'all'}, oddsFormat: ${oddsFormat}, dateFormat: ${dateFormat} }`);
+
+  try {
+    const requestParams: Record<string, any> = {
+      eventIds: eventIds.join(','),
+      regions,
+      markets: markets.join(','),
+      oddsFormat,
+      dateFormat
+    };
+
+    // Add bookmakers filter if specified
+    if (bookmakers && bookmakers.length > 0) {
+      requestParams.bookmakers = bookmakers.join(',');
+    }
+
+    const games = await makeOddsApiRequest<OddsApiGame[]>(
+      `/sports/${sportKey}/odds`,
+      requestParams
+    );
+
+    console.log(`[OddsAPI] Fetched odds for ${games.length} games (requested ${eventIds.length} events)`);
+    return games;
+  } catch (error) {
+    console.error(`[OddsAPI] Failed to fetch odds for event IDs:`, error);
     throw error;
   }
 }
@@ -465,21 +663,86 @@ function convertOddsApiToRawProp(
 
 /**
  * Main function to fetch comprehensive odds data and convert to RawProp format
+ *
+ * NOW USES EVENT-FIRST ARCHITECTURE:
+ * 1. Fetch events (schedule)
+ * 2. Batch event IDs (20 per request)
+ * 3. Fetch odds per batch
+ * 4. Aggregate and convert to RawProp[]
+ *
+ * @param sportKey - Sport key (e.g., 'americanfootball_nfl')
+ * @param markets - Markets to fetch (supports market aliases like 'player-props')
+ * @param regions - Bookmaker regions (default 'us')
+ * @param oddsFormat - Odds format (default 'american')
+ * @param dateFormat - Date format (default 'iso')
+ * @param daysFrom - Days from now to fetch events (default 1)
+ * @returns Array of RawProp objects
  */
 export async function fetchOddsApiProps(
   sportKey: SupportedSportKey = 'americanfootball_ncaaf',
-  markets: BettingMarket[] = ['h2h', 'spreads', 'totals']
+  markets: string[] = ['h2h', 'spreads', 'totals'],
+  regions: string = 'us',
+  oddsFormat: 'decimal' | 'american' = 'american',
+  dateFormat: 'iso' | 'unix' = 'iso',
+  daysFrom: number = 1
 ): Promise<RawProp[]> {
   try {
-    console.log(`[OddsAPI] Fetching comprehensive data for ${sportKey}`);
-    
-    const games = await fetchOdds(sportKey, markets);
+    console.log(`[OddsAPI] Fetching comprehensive data for ${sportKey} using event-first flow`);
+
+    // Expand market aliases (e.g., 'player-props' → valid per-sport markets)
+    const expandedMarkets = expandMarketAliases(sportKey, markets);
+    console.log(`[OddsAPI] Markets after alias expansion: ${expandedMarkets.join(', ')}`);
+
+    // Step 1: Fetch events (schedule)
+    const events = await fetchEvents(sportKey, daysFrom);
+
+    if (events.length === 0) {
+      console.log(`[OddsAPI] No events found for ${sportKey}`);
+      return [];
+    }
+
+    // Resolve config for batching
+    const config = resolveOddsConfig({ oddsFormat, dateFormat });
+
+    // Step 2: Batch event IDs (use config batchSize)
+    const batchSize = config.eventBatchSize;
+    const eventIdBatches: string[][] = [];
+
+    for (let i = 0; i < events.length; i += batchSize) {
+      const batch = events.slice(i, i + batchSize).map(e => e.id);
+      eventIdBatches.push(batch);
+    }
+
+    console.log(`[OddsAPI] Processing ${events.length} events in ${eventIdBatches.length} batches (batchSize=${batchSize})`);
+
+    // Step 3: Fetch odds per batch
+    const allGames: OddsApiGame[] = [];
+
+    for (let i = 0; i < eventIdBatches.length; i++) {
+      const batch = eventIdBatches[i];
+      console.log(`[OddsAPI] Fetching batch ${i + 1}/${eventIdBatches.length} (${batch.length} events)`);
+
+      const games = await fetchOddsByEventIds({
+        sportKey,
+        eventIds: batch,
+        markets: expandedMarkets,
+        regions,
+        bookmakers: config.bookmakers,
+        oddsFormat,
+        dateFormat
+      });
+
+      allGames.push(...games);
+    }
+
+    // Step 4: Convert to RawProp format
     const rawProps: RawProp[] = [];
-    
-    for (const game of games) {
+
+    for (const game of allGames) {
       for (const bookmaker of game.bookmakers) {
         for (const market of bookmaker.markets) {
-          if (markets.includes(market.key as BettingMarket)) {
+          // Check if this market was requested (use expanded markets list)
+          if (expandedMarkets.includes(market.key)) {
             for (const outcome of market.outcomes) {
               const rawProp = convertOddsApiToRawProp(game, market, outcome, bookmaker);
               rawProps.push(rawProp);
@@ -488,10 +751,10 @@ export async function fetchOddsApiProps(
         }
       }
     }
-    
-    console.log(`[OddsAPI] Converted ${rawProps.length} odds to RawProp format for ${sportKey}`);
+
+    console.log(`[OddsAPI] Event-first flow complete: ${allGames.length} games processed, ${rawProps.length} odds converted`);
     return rawProps;
-    
+
   } catch (error) {
     console.error(`[OddsAPI] Error fetching props for ${sportKey}:`, error);
     return [];
@@ -522,6 +785,93 @@ export async function fetchSettlementData(
     console.error(`[OddsAPI] Error fetching settlement data for ${sportKey}:`, error);
     return [];
   }
+}
+
+/**
+ * Fetch props for specific events (feature-flagged)
+ *
+ * Only runs when FEED_ENABLE_PROPS=1
+ * Uses per-event calls with explicit prop market keys
+ * Respects credit guard and batching
+ *
+ * @param sportKey - Sport key
+ * @param eventIds - Event IDs to fetch props for
+ * @returns Array of RawProp objects
+ */
+export async function fetchPropsByEventIds(
+  sportKey: SupportedSportKey,
+  eventIds: string[]
+): Promise<RawProp[]> {
+  // Check if props are enabled
+  const propsEnabled = process.env.FEED_ENABLE_PROPS === '1';
+  if (!propsEnabled) {
+    console.log('[OddsAPI] Props disabled (FEED_ENABLE_PROPS!=1)');
+    return [];
+  }
+
+  // Check credit guard
+  const minRemaining = parseInt(process.env.ODDS_API_MIN_REMAINING || '25', 10);
+  if (shouldSkipProps(minRemaining)) {
+    console.warn('[OddsAPI] Skipping props due to low credits');
+    return [];
+  }
+
+  // Get sport-specific prop markets
+  const sportUpper = sportKey.toUpperCase().replace('AMERICANFOOTBALL_', '').replace('BASKETBALL_', '').replace('BASEBALL_', '').replace('ICEHOCKEY_', '');
+  const propMarketsEnv = process.env[`FEED_PROP_MARKETS_${sportUpper}`];
+
+  if (!propMarketsEnv) {
+    console.log(`[OddsAPI] No prop markets configured for ${sportUpper}`);
+    return [];
+  }
+
+  const propMarkets = propMarketsEnv.split(',').map(m => m.trim());
+  const propBookmakers = process.env.FEED_PROP_BOOKMAKERS?.split(',').map(b => b.trim()) ?? ['draftkings', 'fanduel'];
+  const config = resolveOddsConfig();
+
+  console.log(`[OddsAPI] Fetching props for ${sportKey}: ${propMarkets.join(', ')}`);
+
+  // Batch eventIds (20 per request)
+  const batchSize = config.eventBatchSize;
+  const allGames: OddsApiGame[] = [];
+
+  for (let i = 0; i < eventIds.length; i += batchSize) {
+    const batch = eventIds.slice(i, i + batchSize);
+    console.log(`[OddsAPI] Fetching prop batch ${Math.floor(i / batchSize) + 1} (${batch.length} events)`);
+
+    try {
+      const games = await fetchOddsByEventIds({
+        sportKey,
+        eventIds: batch,
+        markets: propMarkets,
+        regions: config.regions,
+        bookmakers: propBookmakers,
+        oddsFormat: config.oddsFormat,
+        dateFormat: config.dateFormat
+      });
+
+      allGames.push(...games);
+    } catch (error) {
+      console.error(`[OddsAPI] Error fetching prop batch:`, error);
+      // Continue with next batch
+    }
+  }
+
+  // Convert to RawProp format
+  const rawProps: RawProp[] = [];
+  for (const game of allGames) {
+    for (const bookmaker of game.bookmakers) {
+      for (const market of bookmaker.markets) {
+        for (const outcome of market.outcomes) {
+          const rawProp = convertOddsApiToRawProp(game, market, outcome, bookmaker);
+          rawProps.push(rawProp);
+        }
+      }
+    }
+  }
+
+  console.log(`[OddsAPI] Fetched ${rawProps.length} props for ${sportKey}`);
+  return rawProps;
 }
 
 /**
