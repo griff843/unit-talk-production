@@ -2,6 +2,7 @@ import { ErrorHandler } from '../../utils/errorHandling';
 import { BaseAgent } from '../BaseAgent/index';
 import { BaseAgentConfig, BaseAgentDependencies, BaseMetrics, HealthStatus } from '../BaseAgent/types';
 import { fetchSettlementData } from '../FeedAgent/oddsApi';
+import { requireSupabase } from '../../utils/supabaseUtils';
 
 interface SettlementMetrics extends BaseMetrics {
   gamesProcessed: number;
@@ -353,7 +354,7 @@ export class SettlementAgent extends BaseAgent {
     try {
       // Get all raw props for this game that need settlement
       const { data: rawProps, error } = await this.requireSupabase()
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*')
         .eq('external_game_id', game.external_game_id)
         .eq('settlement_status', 'pending');
@@ -420,7 +421,7 @@ export class SettlementAgent extends BaseAgent {
 
       // Update raw prop status
       const { error: propUpdateError } = await this.requireSupabase()
-        .from('raw_props')
+        .from('sports_game_odds')
         .update({
           settlement_status: 'settled',
           settlement_result: settlement.settlement_result,

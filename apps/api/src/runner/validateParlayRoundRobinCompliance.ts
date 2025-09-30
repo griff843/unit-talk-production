@@ -11,6 +11,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 import { createClient } from '@supabase/supabase-js';
 
 import { createLogger } from '../utils/logger';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 const logger = createLogger('ParlayRoundRobinCompliance');
 const supabase = createClient(
@@ -52,7 +53,8 @@ async function validateParlayRoundRobinCompliance() {
     
     for (const table of tables) {
       try {
-        const { error } = await supabase.from(table).select('*').limit(1);
+        const supabaseClient = requireSupabase();
+      const { error } = await supabase.from(table).select('*').limit(1);
         if (error) {
           tableStatus.push(`❌ ${table}: ${error.message}`);
         } else {
@@ -71,7 +73,8 @@ async function validateParlayRoundRobinCompliance() {
     console.log('─'.repeat(50));
     
     // Get some real unified picks to simulate combinations
-    const { data: availablePicks } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: availablePicks } = await supabase
       .from('unified_picks')
       .select('*')
       .not('player_name', 'is', null)

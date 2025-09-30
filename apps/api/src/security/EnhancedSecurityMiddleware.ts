@@ -90,11 +90,17 @@ export class EnhancedSecurityMiddleware {
   middleware() {
     return async (req: Request, res: Response, next: NextFunction) => {
       this.metrics.totalRequests++;
-      
+
+      // Allowlist critical health/metrics endpoints (no security gating)
+      const allowlist = new Set<string>(['/api/health', '/api/health/ready', '/api/health/live', '/health', '/metrics']);
+      if (allowlist.has(req.path)) {
+        return next();
+      }
+
       try {
         // 1. Generate request fingerprint
         const fingerprint = this.generateFingerprint(req);
-        
+
         // 2. Check for suspicious activity
         if (await this.isSuspiciousActivity(fingerprint, req)) {
           this.metrics.suspiciousRequests++;

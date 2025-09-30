@@ -8,7 +8,8 @@
 
 import { config } from 'dotenv';
 
-import { supabaseClient } from '../services/supabaseClient';
+import { supabaseClient } from '../utils/supabaseUtils';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 config();
 
@@ -21,8 +22,9 @@ async function analyzeDetailedIssues() {
     console.log('\n🏈 CRITICAL: NCAAF games mislabeled as NFL/NBA/MLB');
     console.log('================================================');
     
-    const { data: sportMismatches } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: sportMismatches } = await supabaseClient
+      .from('sports_game_odds')
       .select('sport, league, player_name, stat_type, matchup')
       .neq('sport', 'NCAAF')
       .eq('league', 'NCAAF')
@@ -41,8 +43,9 @@ async function analyzeDetailedIssues() {
     console.log('👤 ISSUE: Team/Game props using player_name field');
     console.log('=================================================');
     
-    const { data: teamInPlayer } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: teamInPlayer } = await supabaseClient
+      .from('sports_game_odds')
       .select('player_name, stat_type, sport, matchup, line')
       .in('player_name', ['Over', 'Under'])
       .limit(8);
@@ -60,8 +63,9 @@ async function analyzeDetailedIssues() {
     console.log('📊 SPORT/LEAGUE DISTRIBUTION ANALYSIS');
     console.log('=====================================');
     
-    const { data: sportLeague } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: sportLeague } = await supabaseClient
+      .from('sports_game_odds')
       .select('sport, league')
       .limit(200);
       
@@ -86,8 +90,9 @@ async function analyzeDetailedIssues() {
     console.log('\n📋 STAT_TYPE VARIATIONS');
     console.log('=======================');
     
-    const { data: statTypes } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: statTypes } = await supabaseClient
+      .from('sports_game_odds')
       .select('stat_type')
       .limit(200);
       
@@ -112,8 +117,9 @@ async function analyzeDetailedIssues() {
     console.log('\n🏫 COLLEGE TEAMS MISLABELED');
     console.log('===========================');
     
-    const { data: collegeTeams } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: collegeTeams } = await supabaseClient
+      .from('sports_game_odds')
       .select('sport, league, player_name, stat_type')
       .or('player_name.ilike.%Wildcats%,player_name.ilike.%Tigers%,player_name.ilike.%Eagles%')
       .limit(6);

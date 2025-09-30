@@ -9,7 +9,8 @@
 
 import { config } from 'dotenv';
 
-import { supabaseClient } from '../services/supabaseClient';
+import { supabaseClient } from '../utils/supabaseUtils';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 config();
 
@@ -20,8 +21,9 @@ async function analyzePropDataQuality() {
   try {
     // 1. Overall data availability
     console.log('\n1. OVERALL DATA AVAILABILITY:');
-    const { data: allProps, count } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: allProps, count } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact' })
       .limit(1);
     
@@ -41,8 +43,9 @@ async function analyzePropDataQuality() {
     ];
     
     for (const field of keyFields) {
+      const supabaseClient = requireSupabase();
       const { count: nonNullCount } = await supabaseClient
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*', { count: 'exact' })
         .not(field, 'is', null)
         .limit(0);
@@ -53,8 +56,9 @@ async function analyzePropDataQuality() {
     
     // 3. Props with minimum required data
     console.log('\n3. MINIMUM GRADING REQUIREMENTS:');
-    const { data: minRequiredProps, count: minRequiredCount } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: minRequiredProps, count: minRequiredCount } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact' })
       .not('line', 'is', null)
       .not('player_name', 'is', null)
@@ -65,8 +69,9 @@ async function analyzePropDataQuality() {
     
     // 4. Props with enhanced data for sophisticated scoring
     console.log('\n4. SOPHISTICATED SCORING CANDIDATES:');
-    const { data: enhancedProps, count: enhancedCount } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: enhancedProps, count: enhancedCount } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact' })
       .not('line', 'is', null)
       .not('expected_value', 'is', null)
@@ -87,8 +92,9 @@ async function analyzePropDataQuality() {
     
     // 5. Data quality by sport
     console.log('\n5. DATA QUALITY BY SPORT:');
-    const { data: sportData } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: sportData } = await supabaseClient
+      .from('sports_game_odds')
       .select('sport, expected_value, sharp_money');
     
     if (sportData) {
@@ -117,8 +123,9 @@ async function analyzePropDataQuality() {
     
     // 6. Recent data analysis
     console.log('\n6. RECENT DATA ANALYSIS:');
-    const { data: recentProps } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: recentProps } = await supabaseClient
+      .from('sports_game_odds')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(10);

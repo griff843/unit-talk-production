@@ -13,6 +13,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 import { createClient } from '@supabase/supabase-js';
 
 import { FeedAgent } from '../agents/FeedAgent';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -28,16 +29,18 @@ async function runProductionFeedAgent() {
   try {
     // Step 1: Clear old broken props data
     console.log('🧹 CLEARING OLD BROKEN PROPS DATA...');
-    const { count: oldPropsCount } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: oldPropsCount } = await supabase
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .eq('game_date', today);
       
     console.log(`Found ${oldPropsCount || 0} existing props for today`);
     
     // Delete props with NULL odds (the broken ones)
-    const { count: deletedCount } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: deletedCount } = await supabase
+      .from('sports_game_odds')
       .delete({ count: 'exact' })
       .eq('game_date', today)
       .or('over_odds.is.null,under_odds.is.null,over_odds.eq.0,under_odds.eq.0');
@@ -187,8 +190,9 @@ async function runProductionFeedAgent() {
           is_promoted: false
         }));
         
-        const { data: insertedBatch, error } = await supabase
-          .from('raw_props')
+        const supabaseClient = requireSupabase();
+      const { data: insertedBatch, error } = await supabase
+          .from('sports_game_odds')
           .insert(propsToInsert)
           .select('id');
           
@@ -209,8 +213,9 @@ async function runProductionFeedAgent() {
     // Step 4: Final verification
     console.log('\n🔍 FINAL VERIFICATION...');
     
-    const { count: finalPropsWithOdds } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: finalPropsWithOdds } = await supabase
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .eq('game_date', today)
       .not('over_odds', 'is', null)
@@ -218,12 +223,14 @@ async function runProductionFeedAgent() {
       .neq('over_odds', 0)
       .neq('under_odds', 0);
       
-    const { count: finalTotalProps } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: finalTotalProps } = await supabase
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .eq('game_date', today);
       
-    const { count: gamesCount } = await supabase
+    const supabaseClient = requireSupabase();
+      const { count: gamesCount } = await supabase
       .from('games')
       .select('*', { count: 'exact', head: true })
       .eq('game_date', today);

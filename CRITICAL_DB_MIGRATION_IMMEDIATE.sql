@@ -65,7 +65,7 @@ WHERE placed_at > NOW() - INTERVAL '7 days';
 -- Insert missing agent configurations (currently empty table)
 INSERT INTO agents (name, type, version, status, config) VALUES
 ('FeedAgent', 'ingestion', '1.0.0', 'active', '{"schedule": "*/60 * * * * *", "sources": ["optimal-api", "odds-api"]}'),
-('GradingAgent', 'processing', '1.0.0', 'active', '{"batchSize": 100, "timeout": 30000, "features": 45}'),
+('ScoringAgent', 'processing', '1.0.0', 'active', '{"batchSize": 100, "timeout": 30000, "features": 45}'),
 ('AlertAgent', 'notification', '1.0.0', 'active', '{"channels": ["discord"], "realtime": true}'),
 ('RecapAgent', 'analytics', '1.0.0', 'active', '{"schedule": "0 0 * * *", "includeStats": true}'),
 ('NotificationAgent', 'communication', '1.0.0', 'active', '{"multiChannel": true, "batchSize": 50}')

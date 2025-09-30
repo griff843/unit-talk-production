@@ -1,0 +1,34 @@
+✅ Valid configuration for NBA
+✅ Valid configuration for MLB
+✅ Valid configuration for NFL
+✅ Valid configuration for NHL
+✅ Valid configuration for NCAAF
+✅ Valid configuration for NCAAB
+✅ Valid configuration for WNBA
+[dotenv@17.2.1] injecting env (0) from .env -- tip: 📡 version env with Radar: https://dotenvx.com/radar
+🧪 COMPREHENSIVE GRADING SYSTEM TEST
+=====================================
+
+📊 TESTING DIFFERENT SPORTS:
+Found 0 test props to analyze
+
+🤖 ML MODEL MANAGER DETAILED TEST:
+  Initializing ML Model Manager...
+  Testing with controlled features...
+🎯 Dynamic ML Ensemble for NBA: NN=40% | GB=35% | RF=25%
+  ML Test Result: {
+  "neuralNetwork": 89.03988058780064,
+  "gradientBoosting": 85.57142857142856,
+  "randomForest": 86.66666666666666,
+  "ensemble": 87.2326189017869,
+  "baseScore": 79.66666666666666
+}
+  ML Models Valid: true
+
+📋 TEST SUMMARY:
+================
+✅ Comprehensive grading test completed
+🔍 Check the results above to identify sport-specific issues
+🎯 Look for patterns in which sports produce NaN vs valid scores
+
+✅ Comprehensive grading test completed

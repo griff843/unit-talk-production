@@ -2,7 +2,7 @@
  * Spin Up All Agents - Complete E2E Verification
  * 
  * This script spins up all agents and verifies the complete flow:
- * FeedAgent → IngestionAgent → GradingAgent → ProfessionalProcessor → Promotion
+ * FeedAgent → IngestionAgent → ScoringAgent → ProfessionalProcessor → Promotion
  * 
  * Provides comprehensive proof that everything is working and grading_status for today.
  */
@@ -18,10 +18,11 @@ import { AlertAgent } from '../agents/AlertAgent';
 import { BaseAgentConfig, BaseAgentDependencies } from '../agents/BaseAgent/types';
 import { EligibilityAgent } from '../agents/EligibilityAgent';
 import { FeedAgent } from '../agents/FeedAgent';
-import { GradingAgent } from '../agents/GradingAgent';
+import { ScoringAgent } from '../agents/ScoringAgent';
 import { IngestionAgent } from '../agents/IngestionAgent';
 import { professionalPropProcessor } from '../services/ProfessionalPropProcessor';
 import { createLogger } from '../utils/logger';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 const logger = createLogger('AllAgentsE2E');
 const supabase = createClient(
@@ -41,7 +42,7 @@ interface E2EReport {
     duplicatesRemoved: number;
     propsStored: number;
   };
-  gradingAgent: {
+  scoringAgent: {
     propsGraded: number;
     tierDistribution: Record<string, number>;
     avgScore: number;
@@ -68,7 +69,7 @@ interface E2EReport {
 class AllAgentsE2ETester {
   private feedAgent: FeedAgent;
   private ingestionAgent: IngestionAgent;
-  private gradingAgent: GradingAgent;
+  private scoringAgent: ScoringAgent;
   private eligibilityAgent: EligibilityAgent;
   private alertAgent: AlertAgent;
   private report: E2EReport;
@@ -92,7 +93,7 @@ class AllAgentsE2ETester {
     
     this.feedAgent = new FeedAgent(config, deps);
     this.ingestionAgent = new IngestionAgent(config, deps);
-    this.gradingAgent = new GradingAgent(config, deps);
+    this.scoringAgent = new ScoringAgent(config, deps);
     this.eligibilityAgent = new EligibilityAgent(config, deps);
     this.alertAgent = new AlertAgent(config, deps);
     
@@ -100,7 +101,7 @@ class AllAgentsE2ETester {
       timestamp: new Date().toISOString(),
       feedAgent: { propsIngested: 0, sampleProps: [], apiStatus: 'pending' },
       ingestionAgent: { propsValidated: 0, duplicatesRemoved: 0, propsStored: 0 },
-      gradingAgent: { propsGraded: 0, tierDistribution: {}, avgScore: 0, sampleGrades: [] },
+      scoringAgent: { propsGraded: 0, tierDistribution: {}, avgScore: 0, sampleGrades: [] },
       professionalProcessor: { propsProcessed: 0, clvTracked: 0, deviggingApplied: 0, autoApproved: 0, avgProcessingTime: 0 },
       promotionAgent: { dailyPicksPromoted: 0, finalPicksCreated: 0 },
       systemHealth: { totalFlow: 'pending', ruleCompliance: 0, readyForProduction: false }
@@ -128,7 +129,7 @@ class AllAgentsE2ETester {
       // Step 3: Grading Agent - Professional Grading
       console.log('\n🎯 STEP 3: GRADING AGENT - PROFESSIONAL SCORING');
       console.log('─'.repeat(60));
-      await this.runGradingAgent();
+      await this.runScoringAgent();
 
       // Step 4: Professional Processor - Complete Treatment
       console.log('\n💎 STEP 4: PROFESSIONAL PROCESSOR - FULL TREATMENT');
@@ -162,8 +163,9 @@ class AllAgentsE2ETester {
     try {
       // Check for today's props first
       const today = new Date().toISOString().split('T')[0];
+      const supabaseClient = requireSupabase();
       const { data: existingProps } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*')
         .gte('created_at', today + 'T00:00:00Z')
         .limit(100);
@@ -176,8 +178,9 @@ class AllAgentsE2ETester {
       const feedResult = { success: true };
       
       // Get updated count
+      const supabaseClient = requireSupabase();
       const { data: allTodaysProps } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*')
         .gte('created_at', today + 'T00:00:00Z');
 
@@ -202,8 +205,9 @@ class AllAgentsE2ETester {
   private async runIngestionAgent() {
     try {
       // Get unprocessed props
+      const supabaseClient = requireSupabase();
       const { data: unprocessedProps } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*')
         .is('processed_at', null)
         .limit(50);
@@ -243,11 +247,12 @@ class AllAgentsE2ETester {
     }
   }
 
-  private async runGradingAgent() {
+  private async runScoringAgent() {
     try {
       // Get props that need grading
+      const supabaseClient = requireSupabase();
       const { data: propsToGrade } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*')
         .is('graded_at', null)
         .limit(25);
@@ -267,8 +272,9 @@ class AllAgentsE2ETester {
             tierCounts[grade.tier] = (tierCounts[grade.tier] || 0) + 1;
             
             // Mark as grading_status
-            await supabase
-              .from('raw_props')
+            const supabaseClient = requireSupabase();
+    await supabase
+              .from('sports_game_odds')
               .update({ graded_at: new Date().toISOString() })
               .eq('id', prop.id);
           }
@@ -281,7 +287,7 @@ class AllAgentsE2ETester {
         ? grades.reduce((sum, g) => sum + g.final_score, 0) / grades.length 
         : 0;
 
-      this.report.gradingAgent = {
+      this.report.scoringAgent = {
         propsGraded: grades.length,
         tierDistribution: tierCounts,
         avgScore: avgScore,
@@ -335,6 +341,7 @@ class AllAgentsE2ETester {
       console.log('🚀 Running Promotion Agent...');
 
       // Get approved picks for promotion
+      const supabaseClient = requireSupabase();
       const { data: approvedPicks } = await supabase
         .from('unified_picks')
         .select('*')
@@ -368,14 +375,14 @@ class AllAgentsE2ETester {
 
   private async generateCompleteReport() {
     // Calculate system health
-    const totalProcessed = this.report.gradingAgent.propsGraded;
+    const totalProcessed = this.report.scoringAgent.propsGraded;
     const professionallyProcessed = this.report.professionalProcessor.propsProcessed;
     const ruleCompliance = totalProcessed > 0 
       ? (professionallyProcessed / totalProcessed) * 100 
       : 0;
 
     this.report.systemHealth = {
-      totalFlow: `${this.report.feedAgent.propsIngested} → ${this.report.ingestionAgent.propsValidated} → ${this.report.gradingAgent.propsGraded} → ${this.report.professionalProcessor.propsProcessed} → ${this.report.promotionAgent.dailyPicksPromoted}`,
+      totalFlow: `${this.report.feedAgent.propsIngested} → ${this.report.ingestionAgent.propsValidated} → ${this.report.scoringAgent.propsGraded} → ${this.report.professionalProcessor.propsProcessed} → ${this.report.promotionAgent.dailyPicksPromoted}`,
       ruleCompliance: ruleCompliance,
       readyForProduction: ruleCompliance >= 95 && this.report.feedAgent.apiStatus === 'operational'
     };
@@ -396,7 +403,7 @@ class AllAgentsE2ETester {
       {
         name: 'Raw Props (Ingested)',
         query: supabase
-          .from('raw_props')
+          .from('sports_game_odds')
           .select('id, player_name, stat_type, line, sport, created_at, processed_at, graded_at')
           .gte('created_at', today + 'T00:00:00Z')
           .order('created_at', { ascending: false })
@@ -405,7 +412,7 @@ class AllAgentsE2ETester {
       {
         name: 'Graded Props',
         query: supabase
-          .from('raw_props')
+          .from('sports_game_odds')
           .select('*')
           .gte('created_at', today + 'T00:00:00Z')
           .not('graded_at', 'is', null)
@@ -452,18 +459,21 @@ class AllAgentsE2ETester {
     console.log('🏆 E2E VERIFICATION COMPLETE');
     console.log('='.repeat(80));
     
-    const { data: totalProps, count: totalPropsCount } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: totalProps, count: totalPropsCount } = await supabase
+      .from('sports_game_odds')
       .select('id', { count: 'exact', head: true })
       .gte('created_at', today + 'T00:00:00Z');
     
-    const { data: gradedProps, count: gradedPropsCount } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: gradedProps, count: gradedPropsCount } = await supabase
+      .from('sports_game_odds')
       .select('id', { count: 'exact', head: true })
       .gte('created_at', today + 'T00:00:00Z')
       .not('graded_at', 'is', null);
     
-    const { data: professionalPicks, count: professionalPicksCount } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: professionalPicks, count: professionalPicksCount } = await supabase
       .from('unified_picks')
       .select('id', { count: 'exact', head: true })
       .gte('created_at', today + 'T00:00:00Z');
@@ -484,6 +494,7 @@ async function main() {
     const report = await tester.runCompleteE2E();
     
     // Save report
+    const supabaseClient = requireSupabase();
     await supabase
       .from('processing_logs')
       .insert({

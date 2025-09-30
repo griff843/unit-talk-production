@@ -144,6 +144,10 @@ export const COMMAND_CONFIG: {
     enabled: true,
     allowedTiers: ['admin', 'owner'], // Admin only for testing, can be expanded later
   },
+  'simulate-tier': {
+    enabled: true,
+    allowedTiers: ['admin', 'owner'],
+  },
 };
 
 export const VIP_PLUS_MARKETING_CONFIG = {

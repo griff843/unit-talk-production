@@ -15,10 +15,14 @@ export interface BotConfig {
     vipGeneral: string;
     vipPlusPicks: string;
     vipPlusGeneral: string;
+    vipPlusExclusiveInsights?: string;
+    vipPlusTraderInsights?: string;
+    cappersSpace?: string;
     threads: string;
   };
   roles: {
     member: string;
+    trial: string;
     vip: string;
     vipPlus: string;
     staff: string;

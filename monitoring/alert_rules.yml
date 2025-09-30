@@ -207,7 +207,7 @@ groups:
         annotations:
           summary: "Agent system is down"
           description: "No agents are reporting healthy status"
-          runbook: "Check GradingAgent, AlertAgent, and other critical agents"
+          runbook: "Check ScoringAgent, AlertAgent, and other critical agents"
 
       - alert: PickProcessingStalled
         expr: rate(picks_processed_total[10m]) == 0

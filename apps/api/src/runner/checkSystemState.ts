@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -19,7 +20,7 @@ async function checkSystemState() {
   
   // Check raw_props processing status
   const { data: rawPropsStatus } = await supabase
-    .from('raw_props')
+    .from('sports_game_odds')
     .select('processed_at, error_message, created_at')
     .order('created_at', { ascending: false })
     .limit(10);
@@ -40,7 +41,7 @@ async function checkSystemState() {
     
   console.log(`\n🎯 UNIFIED PICKS: ${unifiedPicksCount}`);
   
-  // Check CLV tracking count  
+  // Check CLV tracking count
   const { count: clvCount } = await supabase
     .from('clv_tracking')
     .select('*', { count: 'exact', head: true });
@@ -66,13 +67,13 @@ async function checkSystemState() {
     recentPicks?.forEach((pick, i) => {
       const professional_score = pick.professional_score?.toFixed(2) || 'N/A';
       const edge = pick.devigged_edge ? (pick.devigged_edge * 100).toFixed(2) + '%' : 'N/A';
-      console.log(`${i+1}. ${pick.player_name} ${pick.stat_type} | ${pick.tier || 'N/A'}-Tier | Score: ${score} | Edge: ${edge}`);
+      console.log(`${i+1}. ${pick.player_name} ${pick.stat_type} | ${pick.tier || 'N/A'}-Tier | Score: ${professional_score} | Edge: ${edge}`);
     });
   }
   
   // Check for unprocessed props specifically
   const { count: unprocessedCount } = await supabase
-    .from('raw_props')
+    .from('sports_game_odds')
     .select('*', { count: 'exact', head: true })
     .is('processed_at', null)
     .is('error_message', null);

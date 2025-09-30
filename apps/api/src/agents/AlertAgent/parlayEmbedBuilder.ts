@@ -7,10 +7,72 @@ interface ParlayLeg extends UnifiedPick {
 }
 
 /**
+ * Player name to ID mappings for headshots
+ */
+const PLAYER_ID_MAPPINGS: { [sport: string]: { [playerName: string]: string } } = {
+  NFL: {
+    'Josh Allen': '3918298',
+    'Lamar Jackson': '3916387',
+    'Patrick Mahomes': '3139477',
+    'Aaron Rodgers': '8439',
+    'Tom Brady': '2330',
+    'Justin Herbert': '4361259',
+    'Joe Burrow': '4426564'
+  },
+  NBA: {
+    'LeBron James': '1966',
+    'Giannis Antetokounmpo': '203507',
+    'Stephen Curry': '201939',
+    'Kevin Durant': '201142',
+    'Luka Doncic': '1629029',
+    'Jayson Tatum': '1628369'
+  },
+  MLB: {
+    'Mike Trout': '545361',
+    'Mookie Betts': '605141',
+    'Aaron Judge': '592450',
+    'Vladimir Guerrero Jr.': '665489'
+  },
+  NHL: {
+    'Connor McDavid': '8478402',
+    'Nathan MacKinnon': '8477492',
+    'Leon Draisaitl': '8477934'
+  }
+};
+
+/**
+ * Get player ID from name mapping
+ */
+function getPlayerIdFromName(sport: string, playerName: string): string | null {
+  const sportMappings = PLAYER_ID_MAPPINGS[sport?.toUpperCase()];
+  if (!sportMappings) return null;
+
+  // Try exact match first
+  if (sportMappings[playerName]) {
+    return sportMappings[playerName];
+  }
+
+  // Try case-insensitive match
+  const normalizedName = playerName.toLowerCase();
+  for (const [mappedName, id] of Object.entries(sportMappings)) {
+    if (mappedName.toLowerCase() === normalizedName) {
+      return id;
+    }
+  }
+
+  return null;
+}
+
+/**
  * Get player headshot URL based on sport and player ID/name
  */
 export function getPlayerHeadshotUrl(sport: string, playerId?: string, playerName?: string): string | null {
   if (!playerId && !playerName) return null;
+
+  // If no playerId provided, try to get it from name mapping
+  if (!playerId && playerName) {
+    playerId = getPlayerIdFromName(sport, playerName) || undefined;
+  }
   
   // Enhanced URLs for better headshot coverage across all sports
   switch (sport?.toUpperCase()) {
@@ -38,6 +100,12 @@ export function getPlayerHeadshotUrl(sport: string, playerId?: string, playerNam
       // CRITICAL: Ensure correct player IDs (e.g., Josh Allen: 3916387, not 3139477 which is Mahomes)
       if (playerId) {
         return `https://a.espncdn.com/i/headshots/nfl/players/full/${playerId}.png`;
+      }
+      // Fallback for player names - construct URL with player name
+      if (playerName) {
+        // ESPN also supports name-based URLs for some players
+        const sanitizedName = playerName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+        return `https://a.espncdn.com/i/headshots/nfl/players/full/${sanitizedName}.png`;
       }
       return null;
       

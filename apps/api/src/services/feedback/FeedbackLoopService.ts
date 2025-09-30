@@ -6,12 +6,13 @@
  * @module FeedbackLoopService
  */
 
-import { SyndicateGradingEngine } from '../../agents/GradingAgent/scoring/gradingEngine';
+import { SyndicateGradingEngine } from '../../agents/ScoringAgent/scoring/gradingEngine';
 import { createLogger } from '../../utils/logger';
 import { clvTrackingService } from '../clv/CLVTrackingService';
 import { supabaseClient } from '../supabaseClient';
 
-import type { ScoringWeights } from '../../agents/GradingAgent/scoring/gradingEngine';
+import type { ScoringWeights } from '../../agents/ScoringAgent/scoring/gradingEngine';
+import { requireSupabase } from '../../utils/supabaseUtils';
 
 export interface WeightAdjustment {
   feature: keyof ScoringWeights;
@@ -128,8 +129,13 @@ export class FeedbackLoopService {
    * Analyze recent CLV performance by feature
    */
   private async analyzeRecentCLV(): Promise<Map<string, FeatureImportance>> {
+    if (!supabaseClient) {
+      throw new Error('Supabase client not initialized');
+    }
+
     // Get recent picks with CLV data
-    const { data: recentPicks, error } = await supabaseClient
+    const supabaseClient = requireSupabase();
+      const { data: recentPicks, error } = await supabaseClient
       .from('graded_props')
       .select(`
         *,
@@ -274,9 +280,14 @@ export class FeedbackLoopService {
     });
 
     const bookPerformance: BookPerformance[] = [];
-    
+
+    if (!supabaseClient) {
+      throw new Error('Supabase client not initialized');
+    }
+
     // Get current book weights from database
-    const { data: currentWeights } = await supabaseClient
+    const supabaseClient = requireSupabase();
+      const { data: currentWeights } = await supabaseClient
       .from('sportsbook_weights')
       .select('*');
 
@@ -333,14 +344,15 @@ export class FeedbackLoopService {
    * Adjust market-specific confidence multipliers
    */
   private async adjustMarketConfidence(): Promise<MarketPerformance[]> {
-    const stats = await clvTrackingService.getCLVStats({
-      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-    });
-
     const marketPerformance: MarketPerformance[] = [];
-    
+
+    if (!supabaseClient) {
+      throw new Error('Supabase client not initialized');
+    }
+
     // Analyze sport+market combinations
-    const { data: recentPicks } = await supabaseClient
+    const supabaseClient = requireSupabase();
+      const { data: recentPicks } = await supabaseClient
       .from('graded_props')
       .select('sport, market, clv_tracking(clvPercentage)')
       .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
@@ -435,9 +447,14 @@ export class FeedbackLoopService {
     }
 
     // 2. Update sportsbook weights in database
+    if (!supabaseClient) {
+      throw new Error('Supabase client not initialized');
+    }
+
     for (const bookAdj of bookAdjustments) {
       if (Math.abs(bookAdj.weight - bookAdj.suggestedWeight) > 0.01) {
-        await supabaseClient
+        const supabaseClient = requireSupabase();
+    await supabaseClient
           .from('sportsbook_weights')
           .upsert({
             book: bookAdj.book,
@@ -450,7 +467,12 @@ export class FeedbackLoopService {
 
     // 3. Update market confidence in database
     for (const marketAdj of marketAdjustments) {
-      await supabaseClient
+      if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+      }
+
+      const supabaseClient = requireSupabase();
+    await supabaseClient
         .from('market_confidence')
         .upsert({
           sport: marketAdj.sport,
@@ -466,6 +488,11 @@ export class FeedbackLoopService {
    * Log feedback loop results for monitoring
    */
   private async logFeedbackResults(results: any): Promise<void> {
+    if (!supabaseClient) {
+      throw new Error('Supabase client not initialized');
+    }
+
+    const supabaseClient = requireSupabase();
     await supabaseClient
       .from('feedback_loop_history')
       .insert({
@@ -488,7 +515,12 @@ export class FeedbackLoopService {
    * Get optimization history
    */
   async getOptimizationHistory(days: number = 30): Promise<any[]> {
-    const { data, error } = await supabaseClient
+    if (!supabaseClient) {
+      throw new Error('Supabase client not initialized');
+    }
+
+    const supabaseClient = requireSupabase();
+      const { data, error } = await supabaseClient
       .from('feedback_loop_history')
       .select('*')
       .gte('timestamp', new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString())

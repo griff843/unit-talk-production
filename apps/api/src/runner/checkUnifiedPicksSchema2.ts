@@ -8,6 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -28,7 +29,8 @@ async function checkUnifiedPicksSchemaProper() {
   
   console.log('\n1️⃣ Testing with UUID and minimal fields...');
   try {
-    const { data, error } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data, error } = await supabase
       .from('unified_picks')
       .insert(testRecord)
       .select();
@@ -42,7 +44,8 @@ async function checkUnifiedPicksSchemaProper() {
       console.log('Schema discovered from successful insert:', Object.keys(data[0]));
       
       // Clean up
-      await supabase
+      const supabaseClient = requireSupabase();
+    await supabase
         .from('unified_picks')
         .delete()
         .eq('id', testRecord.id);
@@ -71,7 +74,8 @@ async function checkUnifiedPicksSchemaProper() {
   };
   
   try {
-    const { data, error } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data, error } = await supabase
       .from('unified_picks')
       .insert(expectedRecord)
       .select();
@@ -92,7 +96,8 @@ async function checkUnifiedPicksSchemaProper() {
       console.log('Full schema:', Object.keys(data[0]));
       
       // Clean up
-      await supabase
+      const supabaseClient = requireSupabase();
+    await supabase
         .from('unified_picks')
         .delete()
         .eq('id', expectedRecord.id);

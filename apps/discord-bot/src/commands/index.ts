@@ -20,6 +20,7 @@ import * as askAi from './ask-ai';
 import * as heatSignal from './heat-signal';
 import * as edgeTracker from './edge-tracker';
 import * as startTrialOnboarding from './start-trial-onboarding';
+import * as simulateTier from './simulate-tier';
 
 // Create an object with the command names as they appear in config
 const commands = {
@@ -35,6 +36,7 @@ const commands = {
   'heat-signal': heatSignal,
   'edge-tracker': edgeTracker,
   'start-trial-onboarding': startTrialOnboarding,
+  'simulate-tier': simulateTier,
 };
 
 // Export individual commands with hyphenated names

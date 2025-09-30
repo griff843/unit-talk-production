@@ -7,6 +7,7 @@ import { ChurnPredictor } from './churnPredictor';
 import { EngagementAnalyzer } from './engagementAnalyzer';
 import { RetentionStrategy } from './retentionStrategy';
 import { UserSegmentation } from './userSegmentation';
+import { requireSupabase } from '../../utils/supabaseUtils';
 
 interface UserRetentionMetrics extends BaseMetrics {
   usersAnalyzed: number;

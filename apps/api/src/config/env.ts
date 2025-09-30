@@ -71,6 +71,10 @@ export const env = {
   REDIS_URL: process.env.REDIS_URL || 'redis://unit-talk-redis:6379',
   OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || '',
+  // API Keys for data providers
+  OPTIMAL_API_KEY: process.env.OPTIMAL_API_KEY || '',
+  ODDS_API_KEY: process.env.ODDS_API_KEY || '',
+  SGO_API_KEY: process.env.SGO_API_KEY || process.env.SPORTSGAMEODDS_KEY || '',
   TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID || '',
   TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN || '',
   TWILIO_FROM_NUMBER: process.env.TWILIO_FROM_NUMBER || '',
@@ -107,7 +111,8 @@ export const env = {
     'Ziplock': process.env.CAPPER_THREAD_ZIPLOCK || '',
     'Squirrel': process.env.CAPPER_THREAD_SQUIRREL || '',
     'Polo': process.env.CAPPER_THREAD_POLO || '',
-    'MoneyReef': process.env.CAPPER_THREAD_MONEYREEF || ''
+    'MoneyReef': process.env.CAPPER_THREAD_MONEYREEF || '',
+    'Talk2Me': process.env.CAPPER_THREAD_TALK2ME || ''
   },
   // System alerts thread for error notifications
   systemAlertsThreadId: process.env.SYSTEM_ALERTS_THREAD_ID || '',

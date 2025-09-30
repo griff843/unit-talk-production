@@ -4,6 +4,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { RawProp } from '../../../types/rawProps';
 import { logCoverage } from '../logCoverage';
 import { Provider } from '../types';
+import { requireSupabase } from '../../../utils/supabaseUtils';
 
 const CHUNK_SIZE = 999; // Supabase .in() limit; keep <1000 for safety
 
@@ -29,8 +30,9 @@ export async function dedupePublicProps(
 
     for (let i = 0; i < uniqueKeys.length; i += CHUNK_SIZE) {
       const chunk = uniqueKeys.slice(i, i + CHUNK_SIZE);
+      const supabaseClient = requireSupabase();
       const { data, error } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('external_id')
         .in('external_id', chunk);
 

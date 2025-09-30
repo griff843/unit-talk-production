@@ -4,7 +4,7 @@ import FormData from 'form-data';
 
 // import { createCanvas, loadImage } from 'canvas'; // Commented out - canvas module not available
 import { logger } from '../../services/logging';
-import { supabase } from '../../services/supabaseClient';
+import { requireSupabase } from '../../utils/supabaseUtils';
 
 // ---- CONFIG ----
 const DISCORD_WEBHOOK_URL = process.env['DISCORD_WEBHOOK_URL'] || '';
@@ -77,7 +77,9 @@ async function postEliteCardToDiscord(pick: any) {
 
 // ---- AGENT ----
 export async function promoteToDiscord() {
-  const { data: picks, error } = await supabase
+  
+  const supabaseClient = requireSupabase();
+      const { data: picks, error } = await supabase
     .from('unified_picks')
     .select('*')
     .eq('posted_to_discord', false)
@@ -98,7 +100,8 @@ export async function promoteToDiscord() {
   for (const pick of picks) {
     await postEliteCardToDiscord(pick);
     try {
-      await supabase.from('unified_picks').update({ posted_to_discord: true }).eq('id', pick.id);
+      const supabaseClient = requireSupabase();
+    await supabaseClient.from('unified_picks').update({ posted_to_discord: true }).eq('id', pick.id);
       logger.info({ id: pick.id }, 'Posted pick to Discord with image-card');
     } catch (err: any) {
       logger.error({ id: pick.id, error: err?.message || err }, 'Failed to update posted_to_discord flag');

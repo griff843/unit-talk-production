@@ -10,7 +10,7 @@
   "scripts": {
     "build": "npm run -ws build",
     "build:packages": "npm run -ws --if-present build",
-    "build:api": "npm run -w @unit-talk/shared-utils build && npm run -w @unit-talk/database build && npm run -w @unit-talk/api build",
+    "build:api": "npm run build --workspace=@unit-talk/api",
     "dev": "npm run dev --workspaces",
     "test": "jest",
     "test:seeds": "jest --runInBand --detectOpenHandles",
@@ -42,10 +42,29 @@
     "db:reset": "bash scripts/reset-database.sh",
     "db:reset:test": "ts-node scripts/db/reset-test.ts",
     "db:inventory": "ts-node scripts/db/inventory-schema.ts",
+    "db:contracts": "psql -v ON_ERROR_STOP=1 -f scripts/db/verify-contracts.sql",
+    "db:migrate:rawprops": "ts-node scripts/db/migrate-raw-props-to-unified.ts",
+    "db:migrate:sgo": "supabase migration up",
+    "db:ingest:sgo:live": "ts-node apps/worker/src/workflows/liveSportsGameOdds.ts --sports=all",
     "ops:green": "node scripts/ops/ops-green.js",
     "ops:env": "node scripts/ops/validate-env.js",
     "ops:mocks": "node scripts/ops/assert-no-mocks.js",
     "ops:e2e": "node scripts/e2e/prod-e2e.js",
+    "ops:health": "ts-node scripts/ops/health-probe.ts",
+    "ops:audits": "ts-node scripts/ops/run-audits.ts",
+    "ops:probe": "ts-node scripts/ops/health-probe.ts",
+    "ops:tier": "ts-node scripts/ops/db-tiering.ts",
+    "ops:emit-dashboard": "ts-node scripts/ops/emit-dashboard.ts",
+    "ops:current-state": "ts-node scripts/db/current-state.ts",
+    "e2e:shadow": "ts-node scripts/e2e/shadow.ts",
+    "e2e:canary": "ts-node scripts/e2e/canary.ts",
+    "ops:rpc-check": "tsx -r dotenv/config apps/api/src/scripts/ops/rpc-check.ts",
+    "ops:dump:unified_picks": "tsx -r dotenv/config apps/api/src/scripts/ops/dump-unified-picks.ts",
+    "ops:dump:unified_picks:local": "tsx -r dotenv/config apps/api/src/scripts/ops/dump-unified-picks-local.ts",
+    "e2e:smoke": "tsx -r dotenv/config apps/api/src/scripts/e2e/smoke.ts",
+    "prep:ops": "npm run build:api && powershell -NoProfile -Command \"New-Item -ItemType Directory -Force out\\ops\\run-logs, out\\e2e-smoke | Out-Null\"",
+    "ts:check": "npm run type-check --workspaces",
+    "lint:fix": "npm run lint:fix --workspaces",
     "prepare": "husky"
   },
   "keywords": [
@@ -63,20 +82,27 @@
     "npm": ">=8.0.0"
   },
   "devDependencies": {
+    "@supabase/supabase-js": "^2.57.4",
+    "@types/cypress": "^0.1.6",
     "@types/jest": "^30.0.0",
     "@types/node": "^20.19.9",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
     "concurrently": "^8.0.0",
+    "cypress": "^15.3.0",
+    "discord.js": "^14.22.1",
+    "dotenv": "^17.2.2",
     "eslint": "^8.0.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-security": "^3.0.1",
     "jest": "^30.1.3",
     "lint-staged": "^16.1.4",
+    "playwright": "^1.55.0",
     "prettier": "^3.0.0",
     "ts-jest": "^29.4.1",
     "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
     "typescript": "^5.0.0"
   },
   "lint-staged": {
@@ -100,7 +126,8 @@
     ]
   },
   "dependencies": {
-    "dotenv": "^17.2.1",
+    "axios": "^1.12.2",
+    "rss-parser": "^3.13.0",
     "zod": "^4.0.15"
   }
 }

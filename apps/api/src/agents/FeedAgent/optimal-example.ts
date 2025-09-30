@@ -11,6 +11,7 @@ import { createClient } from '@supabase/supabase-js';
 
 import { fetchOptimalProps, getRateLimitStatus } from './optimal';
 import { dedupePublicProps } from './utils/dedupePublicProps';
+import { requireSupabase } from '../../utils/supabaseUtils';
 
 async function exampleUsage() {
   try {
@@ -127,8 +128,9 @@ async function integrationExample() {
     for (let i = 0; i < dedupedProps.length; i += CHUNK_SIZE) {
       const chunk = dedupedProps.slice(i, i + CHUNK_SIZE);
       try {
-        const { error } = await supabase
-          .from('raw_props')
+        const supabaseClient = requireSupabase();
+      const { error } = await supabase
+          .from('sports_game_odds')
           .insert(chunk);
 
         if (error) {

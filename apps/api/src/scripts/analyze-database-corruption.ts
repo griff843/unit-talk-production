@@ -13,8 +13,9 @@
 import { config } from 'dotenv';
 
 import { getCreditUsageStatus } from '../agents/FeedAgent/oddsApi';
-import { supabaseClient } from '../services/supabaseClient';
+import { supabaseClient } from '../utils/supabaseUtils';
 import { Logger } from '../shared/logger';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 config();
 
@@ -40,8 +41,9 @@ async function analyzeDatabaseCorruption() {
     console.log('=========================================');
 
     // Get total props count
-    const { count: totalProps, error: totalError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: totalProps, error: totalError } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true });
     
     if (totalError) {
@@ -55,8 +57,9 @@ async function analyzeDatabaseCorruption() {
     console.log('=================================');
 
     // Check NCAAF props with wrong sport classification
-    const { data: ncaafCorrupted, error: ncaafError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: ncaafCorrupted, error: ncaafError } = await supabaseClient
+      .from('sports_game_odds')
       .select('sport, league, sport_key, player_name, created_at, provider, source')
       .eq('sport_key', 'americanfootball_ncaaf')
       .neq('sport', 'NCAAF')
@@ -80,8 +83,9 @@ async function analyzeDatabaseCorruption() {
     }
 
     // Get count of all corrupted NCAAF props
-    const { count: ncaafCorruptedCount, error: ncaafCountError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: ncaafCorruptedCount, error: ncaafCountError } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .eq('sport_key', 'americanfootball_ncaaf')
       .neq('sport', 'NCAAF');
@@ -91,8 +95,9 @@ async function analyzeDatabaseCorruption() {
     }
 
     // Check what sports are being incorrectly used for NCAAF
-    const { data: sportMismatches, error: mismatchError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: sportMismatches, error: mismatchError } = await supabaseClient
+      .from('sports_game_odds')
       .select('sport, count(*)')
       .eq('sport_key', 'americanfootball_ncaaf')
       .neq('sport', 'NCAAF')
@@ -109,13 +114,15 @@ async function analyzeDatabaseCorruption() {
     console.log('=================================');
 
     // Analyze by data source
-    const { data: sourceAnalysis, error: sourceError } = await supabaseClient
+    const supabaseClient = requireSupabase();
+      const { data: sourceAnalysis, error: sourceError } = await supabaseClient
       .rpc('analyze_props_by_source');
 
     if (sourceError) {
       // Manual analysis if RPC doesn't exist
+      const supabaseClient = requireSupabase();
       const { data: providers, error: providerError } = await supabaseClient
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('provider, source, sport, count(*)')
         .limit(100);
 
@@ -139,8 +146,9 @@ async function analyzeDatabaseCorruption() {
     console.log('=====================================');
 
     // Check what sports we're getting from which APIs
-    const { data: sportsBySource, error: sportsError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: sportsBySource, error: sportsError } = await supabaseClient
+      .from('sports_game_odds')
       .select('sport, source, count(*)')
       .in('sport', ['NFL', 'NBA', 'MLB', 'NHL', 'NCAAF'])
       .order('sport')

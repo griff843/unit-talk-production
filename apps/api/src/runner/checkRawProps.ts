@@ -1,9 +1,10 @@
-import { supabase } from '../services/supabaseClient';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 async function main() {
   // Get props with edge scores
-  const { data: props, error } = await supabase
-    .from('raw_props')
+  const supabaseClient = requireSupabase();
+      const { data: props, error } = await supabase
+    .from('sports_game_odds')
     .select('*')
     .order('edge_score', { ascending: false })
     .limit(10);

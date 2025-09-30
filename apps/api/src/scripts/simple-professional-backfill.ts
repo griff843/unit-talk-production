@@ -14,8 +14,9 @@
  */
 
 import 'dotenv/config';
-import { supabase as supabaseClient } from '../services/supabaseClient';
+import { supabase as supabaseClient } from '../utils/supabaseUtils';
 import { createLogger } from '../utils/logger';
+import { supabaseClient } from '../utils/supabaseUtils';
 
 const logger = createLogger('simple-professional-backfill');
 
@@ -66,7 +67,7 @@ class SimpleBackfillProcessor {
    */
   async getUnprocessedCount(league?: string): Promise<number> {
     let query = this.supabase
-      .from('raw_props')
+      .from('sports_game_odds')
       .select('id', { count: 'exact', head: true })
       .is('processed_at', null);
       
@@ -94,7 +95,7 @@ class SimpleBackfillProcessor {
   async processBatch(offset: number): Promise<{ processed: number; errors: number }> {
     try {
       let query = this.supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('id, player_name, stat_type, sport')
         .is('processed_at', null)
         .order('created_at', { ascending: true })
@@ -136,7 +137,7 @@ class SimpleBackfillProcessor {
       const now = new Date().toISOString();
       
       const { error: updateError } = await this.supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .update({
           processed_at: now,
           pro_attempts: 1,

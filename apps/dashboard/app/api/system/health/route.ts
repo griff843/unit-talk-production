@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+// Force dynamic rendering for this API route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
 const supabaseKey =
   process.env.SUPABASE_SERVICE_ROLE_KEY ||
@@ -186,13 +190,13 @@ export async function GET(_request: NextRequest) {
     ];
 
     // Determine overall health
-    const criticalServices = services.filter(s => s.status === 'down').length;
+    const downServices = services.filter(s => s.status !== 'up' && s.status !== 'degraded').length;
     const degradedServices = services.filter(s => s.status === 'degraded').length;
     const downAPIs = apiChecks.filter(api => api.status === 'down').length;
 
     let overallStatus: 'healthy' | 'warning' | 'critical' = 'healthy';
 
-    if (criticalServices > 0 || dbHealth.status === 'disconnected' || downAPIs > 1) {
+    if (downServices > 0 || dbHealth.status === 'disconnected' || downAPIs > 1) {
       overallStatus = 'critical';
     } else if (degradedServices > 0 || dbHealth.status === 'slow' || downAPIs > 0) {
       overallStatus = 'warning';

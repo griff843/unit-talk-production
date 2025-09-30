@@ -88,6 +88,10 @@ export interface Pick {
   tier?: string;
   confidence?: number;
   ev_score?: number;
+  professional_score?: number;
+  kelly_fraction?: number;
+  devigged_edge?: number;
+  feature_contributions?: any;
   roi?: number;
   submitted_at: string;
   created_at?: string;
@@ -128,7 +132,7 @@ export function usePicks() {
 
       console.log('🔍 Fetching picks from unified_picks table...');
 
-      // Fetch picks from unified_picks with proper v3.0.0 relationships
+      // Fetch picks from unified_picks that have been scored by Enhanced45Factor system
       const { data: picksData, error: picksError } = await supabase
         .from('unified_picks')
         .select(
@@ -141,9 +145,19 @@ export function usePicks() {
           status,
           workflow_stage,
           tier_when_placed,
+          tier,
           sport,
           created_at,
           placed_at,
+          professional_score,
+          kelly_fraction,
+          devigged_edge,
+          feature_contributions,
+          approved_at,
+          approved_by,
+          rejected_at,
+          rejected_by,
+          rejected_reason,
           users!unified_picks_user_id_fkey (
             username,
             discord_id,
@@ -152,6 +166,7 @@ export function usePicks() {
           )
         `
         )
+        .not('professional_score', 'is', null)
         .order('created_at', { ascending: false })
         .limit(100);
 
@@ -182,9 +197,13 @@ export function usePicks() {
           odds: odds,
           status: mapWorkflowStageToStatus(workflowStage, String(pick.status || '')),
           workflow_stage: workflowStage,
-          tier: pick.tier_when_placed || user?.capper_tier || user?.tier || 'C',
+          tier: pick.tier || pick.tier_when_placed || user?.capper_tier || user?.tier || 'C',
           confidence: confidence,
           ev_score: calculateEvScore(confidence, odds),
+          professional_score: Number(pick.professional_score || 0),
+          kelly_fraction: Number(pick.kelly_fraction || 0),
+          devigged_edge: Number(pick.devigged_edge || 0),
+          feature_contributions: pick.feature_contributions,
           roi: calculateRoi(String(pick.status || 'pending'), odds),
           submitted_at: String(pick.placed_at || pick.created_at || new Date().toISOString()),
           created_at: String(pick.created_at || new Date().toISOString()),
@@ -230,32 +249,32 @@ export function usePicks() {
 
   const approvePick = async (pickId: string) => {
     try {
-      const supabase = getSupabaseClient();
-      if (!supabase) {
-        throw new Error('Supabase client not initialized');
+      console.log(`🔄 Approving pick ${pickId}...`);
+
+      const response = await fetch('/api/approval?action=approve', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          pickId: pickId,
+          actorId: 'command-center-operator',
+          reason: 'Manual approval via Command Center'
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}`);
       }
 
-      // For approved picks, update both status and workflow_stage to maintain consistency
-      const { error } = await supabase
-        .from('unified_picks')
-        .update({
-          status: 'pending', // status for betting outcome (pending until game settles)
-          workflow_stage: 'approved', // workflow progression for approval process
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', pickId);
-
-      if (error) {
-        console.error('❌ Database error approving pick:', error);
-        throw new Error(`Failed to approve pick: ${error.message}`);
-      }
-
-      console.log('✅ Pick approved successfully in database');
+      const result = await response.json();
+      console.log('✅ Pick approved successfully:', result);
 
       // Update local state
       setPicks(prevPicks =>
         prevPicks.map(pick =>
-          pick.id === pickId ? { ...pick, status: 'approved' as const } : pick
+          pick.id === pickId ? { ...pick, status: 'approved' as const, workflow_stage: 'approved' } : pick
         )
       );
 
@@ -275,33 +294,32 @@ export function usePicks() {
 
   const rejectPick = async (pickId: string) => {
     try {
-      const supabase = getSupabaseClient();
-      if (!supabase) {
-        throw new Error('Supabase client not initialized');
+      console.log(`🔄 Rejecting pick ${pickId}...`);
+
+      const response = await fetch('/api/approval?action=reject', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          pickId: pickId,
+          actorId: 'command-center-operator',
+          reason: 'Manual rejection via Command Center'
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}`);
       }
 
-      // For rejected picks, update status to cancelled but keep workflow_stage as draft
-      // since rejected picks shouldn't progress through the workflow
-      const { error } = await supabase
-        .from('unified_picks')
-        .update({
-          status: 'cancelled', // matches schema constraint for rejected picks
-          workflow_stage: 'draft', // rejected picks revert to draft status
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', pickId);
-
-      if (error) {
-        console.error('❌ Database error rejecting pick:', error);
-        throw new Error(`Failed to reject pick: ${error.message}`);
-      }
-
-      console.log('✅ Pick rejected successfully in database');
+      const result = await response.json();
+      console.log('✅ Pick rejected successfully:', result);
 
       // Update local state
       setPicks(prevPicks =>
         prevPicks.map(pick =>
-          pick.id === pickId ? { ...pick, status: 'rejected' as const } : pick
+          pick.id === pickId ? { ...pick, status: 'rejected' as const, workflow_stage: 'rejected' } : pick
         )
       );
 
@@ -325,6 +343,83 @@ export function usePicks() {
 
   useEffect(() => {
     fetchPicks();
+
+    // Set up real-time subscription for newly scored props
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      console.log('🔔 Setting up real-time subscription for scored props...');
+
+      const subscription = supabase
+        .channel('scored-props-updates')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'unified_picks',
+            filter: 'professional_score=not.null'
+          },
+          (payload) => {
+            console.log('🔥 Real-time update received:', payload);
+
+            if (payload.eventType === 'UPDATE' && payload.new.professional_score) {
+              // A prop was just scored by the ScoringAgent
+              const updatedPick = payload.new;
+              const user = Array.isArray(updatedPick.users) ? updatedPick.users[0] : updatedPick.users;
+
+              const transformedPick: Pick = {
+                id: String(updatedPick.id),
+                capper_discord_id: user?.discord_id || updatedPick.user_id,
+                capper: user?.username || 'Unknown Capper',
+                sport: updatedPick.sport || 'Unknown',
+                selection: String(updatedPick.selection || ''),
+                odds: Number(updatedPick.odds || 0),
+                status: mapWorkflowStageToStatus(updatedPick.workflow_stage, updatedPick.status),
+                workflow_stage: updatedPick.workflow_stage,
+                tier: updatedPick.tier || user?.capper_tier || 'C',
+                confidence: Number(updatedPick.confidence || 50),
+                ev_score: calculateEvScore(updatedPick.confidence, updatedPick.odds),
+                professional_score: Number(updatedPick.professional_score),
+                kelly_fraction: Number(updatedPick.kelly_fraction || 0),
+                devigged_edge: Number(updatedPick.devigged_edge || 0),
+                feature_contributions: updatedPick.feature_contributions,
+                roi: calculateRoi(updatedPick.status, updatedPick.odds),
+                submitted_at: String(updatedPick.placed_at || updatedPick.created_at),
+                created_at: String(updatedPick.created_at),
+                player_name: extractPlayerFromSelection(updatedPick.selection),
+                line: String(updatedPick.selection),
+                market_type: 'player_prop',
+              };
+
+              // Update picks in real-time
+              setPicks(prevPicks => {
+                const existingIndex = prevPicks.findIndex(p => p.id === transformedPick.id);
+                if (existingIndex >= 0) {
+                  // Update existing pick
+                  const newPicks = [...prevPicks];
+                  newPicks[existingIndex] = transformedPick;
+                  return newPicks;
+                } else {
+                  // Add new pick to the beginning
+                  return [transformedPick, ...prevPicks];
+                }
+              });
+
+              // Show notification for newly scored props
+              if (updatedPick.workflow_stage === 'pending_review') {
+                console.log(`🎯 New scored prop available for review: ${updatedPick.selection} (Score: ${updatedPick.professional_score})`);
+              }
+            }
+          }
+        )
+        .subscribe();
+
+      // Cleanup subscription on unmount
+      return () => {
+        console.log('🔕 Cleaning up real-time subscription...');
+        subscription.unsubscribe();
+      };
+    }
   }, []);
 
   return {

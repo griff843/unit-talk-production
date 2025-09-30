@@ -9,6 +9,7 @@ import { getMlbHeadshot, getMlbPhysicals } from "./enrichment/mlbEnrichment";
 import { getNbaHeadshot, getNbaPhysicals } from "./enrichment/nbaEnrichment";
 import { getNflHeadshot, getNflPhysicals } from "./enrichment/nflEnrichment";
 import { getNhlHeadshot, getNhlPhysicals } from "./enrichment/nhlEnrichment";
+import { requireSupabase } from '../utils/supabaseUtils';
 
 /**
  * Supported leagues for player enrichment
@@ -306,7 +307,8 @@ async function enrichSinglePlayer(
       }
 
       if (Object.keys(updateData).length > 0) {
-        const { error: updateError } = await supabase
+        const supabaseClient = requireSupabase();
+      const { error: updateError } = await supabase
           .from('players')
           .update(updateData)
           .eq('id', player.id);
@@ -415,7 +417,8 @@ export async function enrichPlayerById(playerId: string): Promise<boolean> {
   try {
     logger.info(`Enriching player by ID: ${playerId}${forceUpdate ? ' (FORCE_UPDATE=true)' : ''}`);
 
-    const { data: playerData, error } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: playerData, error } = await supabase
       .from('players')
       .select('id, player_name, sport, photo_url, height_cm, weight_kg, birthday')
       .eq('id', playerId)

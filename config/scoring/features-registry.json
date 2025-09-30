@@ -1,0 +1,111 @@
+{
+  "engine": "Enhanced175FactorEngine",
+  "version": "2025.09.23",
+  "total_features": 175,
+  "feature_groups": {
+    "player_performance": {
+      "count": 40,
+      "features": [
+        "rolling_avg_7d", "rolling_avg_14d", "rolling_avg_30d", "rolling_avg_season",
+        "home_vs_away_splits", "vs_team_history", "vs_pitcher_history", "recent_form_trend",
+        "hot_streak_indicator", "cold_streak_indicator", "bounce_back_probability",
+        "usage_rate_trend", "target_share_trend", "red_zone_efficiency", "goal_line_tendency",
+        "clutch_performance", "pressure_situations", "game_script_dependency", "pace_adjusted_stats",
+        "opponent_adjusted_stats", "park_adjusted_stats", "weather_adjusted_stats",
+        "rest_adjusted_performance", "travel_fatigue_impact", "altitude_adjustment",
+        "surface_performance", "indoor_outdoor_splits", "day_night_splits", "month_splits",
+        "temperature_impact", "wind_impact", "humidity_impact", "pressure_impact",
+        "injury_return_performance", "load_management_indicator", "minutes_restriction",
+        "role_stability_score", "lineup_position_impact", "batting_order_impact", "defensive_impact",
+        "special_teams_involvement", "coaching_change_impact"
+      ]
+    },
+    "opponent_defense": {
+      "count": 25,
+      "features": [
+        "dvp_overall", "dvp_positional", "dvp_last_5_games", "dvp_home_away",
+        "defensive_efficiency", "pressure_rate", "coverage_strength", "run_defense_rank",
+        "pass_defense_rank", "red_zone_defense", "third_down_defense", "turnover_creation",
+        "sack_rate_allowed", "qb_pressure_rate", "defensive_scheme_matchup", "personnel_usage",
+        "defensive_coordinator_tendencies", "injury_impact_defense", "rest_advantage_defense",
+        "revenge_game_intensity", "division_rival_intensity", "playoff_implications_defense",
+        "weather_defense_impact", "home_field_defensive_advantage", "crowd_noise_impact"
+      ]
+    },
+    "game_context": {
+      "count": 30,
+      "features": [
+        "game_total_implied", "spread_context", "public_betting_side", "sharp_money_side",
+        "line_movement_direction", "line_movement_velocity", "opening_closing_gap",
+        "steam_move_indicator", "reverse_line_movement", "line_shopping_edge",
+        "market_maker_position", "syndicate_activity", "public_fade_opportunity",
+        "contrarian_value", "market_inefficiency_score", "arbitrage_opportunity",
+        "middle_opportunity", "scalping_potential", "closing_line_value_prediction",
+        "handle_distribution", "ticket_count_distribution", "average_bet_size",
+        "professional_money_percentage", "recreational_money_percentage", "timing_advantage",
+        "late_money_movement", "injury_news_impact", "weather_news_impact", "lineup_news_impact",
+        "suspension_news_impact"
+      ]
+    },
+    "situational_factors": {
+      "count": 25,
+      "features": [
+        "rest_days_differential", "travel_distance", "time_zone_changes", "altitude_change",
+        "schedule_strength_upcoming", "schedule_strength_recent", "back_to_back_games",
+        "three_in_four_nights", "road_trip_length", "home_stand_length", "playoff_race_position",
+        "elimination_game", "must_win_situation", "meaningless_game_indicator", "motivation_score",
+        "coaching_hot_seat", "player_contract_year", "milestone_chasing", "record_chasing",
+        "rivalry_intensity", "primetime_game", "national_tv_game", "playoff_atmosphere",
+        "weather_delay_potential", "venue_capacity_impact"
+      ]
+    },
+    "advanced_analytics": {
+      "count": 25,
+      "features": [
+        "xg_model_prediction", "neural_network_output", "ensemble_model_consensus",
+        "bayesian_update_factor", "monte_carlo_simulation", "regression_to_mean",
+        "autocorrelation_factor", "variance_stabilization", "outlier_detection_score",
+        "data_quality_score", "sample_size_adjustment", "survivor_bias_correction",
+        "selection_bias_adjustment", "confounding_variable_control", "interaction_effects",
+        "non_linear_relationships", "threshold_effects", "ceiling_floor_effects",
+        "momentum_persistence", "mean_reversion_tendency", "volatility_clustering",
+        "fat_tail_adjustment", "skewness_correction", "kurtosis_adjustment", "distribution_fitting"
+      ]
+    },
+    "risk_management": {
+      "count": 20,
+      "features": [
+        "kelly_fraction_optimal", "portfolio_correlation", "variance_estimation",
+        "downside_protection", "maximum_drawdown_risk", "sharpe_ratio_impact",
+        "sortino_ratio_impact", "calmar_ratio_impact", "tail_risk_measure",
+        "value_at_risk", "conditional_var", "expected_shortfall", "risk_parity_weight",
+        "diversification_ratio", "concentration_risk", "liquidity_risk", "model_risk",
+        "parameter_uncertainty", "regime_change_risk", "black_swan_protection"
+      ]
+    },
+    "market_intelligence": {
+      "count": 10,
+      "features": [
+        "bookmaker_edge_estimate", "market_maker_confidence", "consensus_deviation",
+        "implied_probability_accuracy", "historical_market_bias", "closing_line_beat_rate",
+        "market_maker_win_rate", "syndicate_follow_rate", "sharp_money_tracking",
+        "recreational_fade_success"
+      ]
+    }
+  },
+  "feature_weights": {
+    "player_performance": 0.25,
+    "opponent_defense": 0.20,
+    "game_context": 0.18,
+    "situational_factors": 0.15,
+    "advanced_analytics": 0.10,
+    "risk_management": 0.08,
+    "market_intelligence": 0.04
+  },
+  "validation": {
+    "total_counted": 175,
+    "groups_validated": 7,
+    "weights_sum": 1.0,
+    "last_updated": "2025-09-23T23:30:00Z"
+  }
+}

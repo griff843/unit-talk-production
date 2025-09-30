@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "es5",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -17,7 +21,15 @@
     "downlevelIteration": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": [
+        "./*"
+      ],
+      "@unit-talk/shared-forms": [
+        "../../packages/shared-forms/src/index.ts"
+      ],
+      "@unit-talk/shared-forms/*": [
+        "../../packages/shared-forms/src/*"
+      ]
     },
     "plugins": [
       {
@@ -25,6 +37,21 @@
       }
     ]
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "next-env.d.ts",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next",
+    "tests",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "cypress",
+    "cypress/**/*",
+    "cypress.config.ts",
+    "src/config/index.ts"
+  ]
 }

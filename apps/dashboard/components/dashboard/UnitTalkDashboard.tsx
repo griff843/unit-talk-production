@@ -13,7 +13,6 @@ import {
   Trophy,
   Flame,
   Brain,
-  ChartBar,
   Wallet,
   Eye,
   EyeOff,
@@ -24,9 +23,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Progress } from '../ui/progress';
-import { Label } from '../ui/label';
 import { Switch } from '../ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 
@@ -149,16 +146,16 @@ interface DashboardData {
   };
 }
 
-const COLORS = {
-  primary: '#6366f1',
-  secondary: '#8b5cf6',
-  success: '#10b981',
-  warning: '#f59e0b',
-  error: '#ef4444',
-  info: '#3b82f6',
-  dark: '#1f2937',
-  light: '#f9fafb',
-};
+const COLORS = [
+  '#6366f1',
+  '#8b5cf6',
+  '#10b981',
+  '#f59e0b',
+  '#ef4444',
+  '#3b82f6',
+  '#1f2937',
+  '#f9fafb',
+];
 
 const TIER_COLORS = {
   MEMBER: '#6b7280',
@@ -427,9 +424,9 @@ export function UnitTalkDashboard() {
   const RefreshControl = () => (
     <div className="flex items-center space-x-4">
       <Switch id="auto-refresh" checked={autoRefresh} onCheckedChange={setAutoRefresh} />
-      <Label htmlFor="auto-refresh" className="text-sm text-gray-400">
+      <label htmlFor="auto-refresh" className="text-sm text-gray-400">
         Auto-refresh (5m)
-      </Label>
+      </label>
       <Button
         variant="outline"
         size="sm"
@@ -517,50 +514,69 @@ export function UnitTalkDashboard() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-8 glass-morphism stagger-children">
-            <TabsTrigger value="overview" className="flex items-center space-x-2 interactive-hover">
+        <div className="space-y-6">
+          <div className="grid w-full grid-cols-8 glass-morphism stagger-children">
+            <button
+              onClick={() => setActiveTab("overview")}
+              className={`flex items-center space-x-2 interactive-hover p-2 rounded ${activeTab === "overview" ? "bg-blue-500/20 text-blue-400" : "text-gray-400"}`}
+            >
               <BarChart3 className="h-4 w-4" />
               <span>Overview</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="performance"
-              className="flex items-center space-x-2 interactive-hover"
+            </button>
+            <button
+              onClick={() => setActiveTab("performance")}
+              className={`flex items-center space-x-2 interactive-hover p-2 rounded ${activeTab === "performance" ? "bg-blue-500/20 text-blue-400" : "text-gray-400"}`}
             >
               <TrendingUp className="h-4 w-4" />
               <span>Performance</span>
-            </TabsTrigger>
-            <TabsTrigger value="picks" className="flex items-center space-x-2 interactive-hover">
+            </button>
+            <button
+              onClick={() => setActiveTab("picks")}
+              className={`flex items-center space-x-2 interactive-hover p-2 rounded ${activeTab === "picks" ? "bg-blue-500/20 text-blue-400" : "text-gray-400"}`}
+            >
               <Target className="h-4 w-4" />
               <span>Picks</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="portfolio"
-              className="flex items-center space-x-2 interactive-hover"
+            </button>
+            <button
+              onClick={() => setActiveTab("portfolio")}
+              className={`flex items-center space-x-2 interactive-hover p-2 rounded ${activeTab === "portfolio" ? "bg-blue-500/20 text-blue-400" : "text-gray-400"}`}
             >
               <Wallet className="h-4 w-4" />
               <span>Portfolio</span>
-            </TabsTrigger>
-            <TabsTrigger value="ai" className="flex items-center space-x-2 interactive-hover">
+            </button>
+            <button
+              onClick={() => setActiveTab("ai")}
+              className={`flex items-center space-x-2 interactive-hover p-2 rounded ${activeTab === "ai" ? "bg-blue-500/20 text-blue-400" : "text-gray-400"}`}
+            >
               <Brain className="h-4 w-4" />
               <span>AI Insights</span>
-            </TabsTrigger>
-            <TabsTrigger value="market" className="flex items-center space-x-2 interactive-hover">
+            </button>
+            <button
+              onClick={() => setActiveTab("market")}
+              className={`flex items-center space-x-2 interactive-hover p-2 rounded ${activeTab === "market" ? "bg-blue-500/20 text-blue-400" : "text-gray-400"}`}
+            >
               <Flame className="h-4 w-4" />
               <span>Market</span>
-            </TabsTrigger>
-            <TabsTrigger value="cappers" className="flex items-center space-x-2 interactive-hover">
+            </button>
+            <button
+              onClick={() => setActiveTab("cappers")}
+              className={`flex items-center space-x-2 interactive-hover p-2 rounded ${activeTab === "cappers" ? "bg-blue-500/20 text-blue-400" : "text-gray-400"}`}
+            >
               <Trophy className="h-4 w-4" />
               <span>Cappers</span>
-            </TabsTrigger>
-            <TabsTrigger value="system" className="flex items-center space-x-2 interactive-hover">
+            </button>
+            <button
+              onClick={() => setActiveTab("system")}
+              className={`flex items-center space-x-2 interactive-hover p-2 rounded ${activeTab === "system" ? "bg-blue-500/20 text-blue-400" : "text-gray-400"}`}
+            >
               <Activity className="h-4 w-4" />
               <span>System</span>
-            </TabsTrigger>
-          </TabsList>
+            </button>
+          </div>
 
           {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6 stagger-children">
+          {activeTab === "overview" && (
+            <div className="space-y-6 stagger-children">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <Card className="glass-morphism gradient-border card-hover">
                 <CardHeader>
@@ -575,7 +591,7 @@ export function UnitTalkDashboard() {
                       <span className="text-gray-400">Win Rate</span>
                       <span className="text-2xl font-bold text-white">{data.stats.winRate}%</span>
                     </div>
-                    <Progress value={data.stats.winRate} className="h-2" />
+                    <Progress value={data.stats.winRate} />
                     <div className="grid grid-cols-2 gap-4 mt-4">
                       <div className="text-center">
                         <span className="text-gray-400 text-sm">Wins</span>
@@ -687,16 +703,18 @@ export function UnitTalkDashboard() {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
+            </div>
+          )}
 
           {/* Performance Tab */}
-          <TabsContent value="performance" className="space-y-6 animate-fade-in-scale">
+          {activeTab === "performance" && (
+            <div className="space-y-6 animate-fade-in-scale">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card className="glass-morphism gradient-border card-hover">
                 <CardHeader>
                   <CardTitle className="text-white flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                      <ChartBar className="h-5 w-5 text-purple-500" />
+                      <BarChart3 className="h-5 w-5 text-purple-500" />
                       <span>Daily Performance</span>
                     </div>
                     <Tooltip>
@@ -754,38 +772,51 @@ export function UnitTalkDashboard() {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
+            </div>
+          )}
 
           {/* Picks Tab */}
-          <TabsContent value="picks" className="space-y-6">
+          {activeTab === "picks" && (
+            <div className="space-y-6">
             <PickManagement user={data.user} />
-          </TabsContent>
+            </div>
+          )}
 
           {/* Portfolio Tab */}
-          <TabsContent value="portfolio" className="space-y-6">
+          {activeTab === "portfolio" && (
+            <div className="space-y-6">
             <PortfolioManager portfolio={data.portfolio} />
-          </TabsContent>
+            </div>
+          )}
 
           {/* AI Tab */}
-          <TabsContent value="ai" className="space-y-6">
+          {activeTab === "ai" && (
+            <div className="space-y-6">
             <AIInsights ai={data.ai} />
-          </TabsContent>
+            </div>
+          )}
 
           {/* Market Tab */}
-          <TabsContent value="market" className="space-y-6">
+          {activeTab === "market" && (
+            <div className="space-y-6">
             <MarketIntelligence market={data.market} />
-          </TabsContent>
+            </div>
+          )}
 
           {/* Cappers Tab */}
-          <TabsContent value="cappers" className="space-y-6">
+          {activeTab === "cappers" && (
+            <div className="space-y-6">
             <CapperProgram user={data.user} />
-          </TabsContent>
+            </div>
+          )}
 
           {/* System Tab */}
-          <TabsContent value="system" className="space-y-6">
+          {activeTab === "system" && (
+            <div className="space-y-6">
             <SystemHealth system={data.system} />
-          </TabsContent>
-        </Tabs>
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );

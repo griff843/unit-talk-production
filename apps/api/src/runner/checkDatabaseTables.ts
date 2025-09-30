@@ -8,6 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -20,7 +21,8 @@ async function checkTables() {
   
   try {
     // Check for clv_tracking table
-    const { data: clvData, error: clvError } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: clvData, error: clvError } = await supabase
       .from('clv_tracking')
       .select('*')
       .limit(1);
@@ -29,7 +31,8 @@ async function checkTables() {
     if (clvError) console.log('CLV Error:', clvError.message);
     
     // Check for processing_logs table
-    const { data: logsData, error: logsError } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: logsData, error: logsError } = await supabase
       .from('processing_logs')
       .select('*')
       .limit(1);
@@ -49,7 +52,8 @@ async function checkTables() {
     console.log('\n📊 Core Tables Status:');
     for (const table of tablesToCheck) {
       try {
-        const { error } = await supabase
+        const supabaseClient = requireSupabase();
+      const { error } = await supabase
           .from(table)
           .select('*')
           .limit(1);

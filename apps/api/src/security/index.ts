@@ -8,7 +8,7 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 
 import { logger } from '../services/logging';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 // Environment variables with proper validation and type safety
 const ALLOW_DEV = process.env['ALLOW_DEV_UNCONFIGURED'] === 'true' || process.env['NODE_ENV'] === 'development';
@@ -179,7 +179,8 @@ export const authenticateToken = async (req: any, res: any, next: any): Promise<
     }
 
     // Verify user still exists and is active
-    const { data: user, error } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: user, error } = await supabase
       .from('users')
       .select('*')
       .eq('id', decoded.userId)
@@ -234,6 +235,7 @@ export class SecurityEventLogger {
       logger.warn('Security event', event);
 
       // Store in database for audit trail
+      const supabaseClient = requireSupabase();
       const { error } = await supabase
         .from('security_events')
         .insert([{
@@ -245,9 +247,9 @@ export class SecurityEventLogger {
           created_at: event.timestamp
         }]);
 
-      if (error) {
-        logger.error('Failed to store security event', error);
-      }
+        if (error) {
+          logger.error('Failed to store security event', error);
+        }
     } catch (error) {
       logger.error('Security event logging failed', error);
     }
@@ -255,6 +257,8 @@ export class SecurityEventLogger {
 
   static async getRecentEvents(limit: number = 100): Promise<SecurityEvent[]> {
     try {
+
+      const supabaseClient = requireSupabase();
       const { data, error } = await supabase
         .from('security_events')
         .select('*')

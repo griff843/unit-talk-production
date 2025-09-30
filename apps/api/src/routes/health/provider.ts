@@ -4,8 +4,9 @@
  */
 
 import { Request, Response } from 'express';
-import { supabaseClient } from '../../services/supabaseClient';
+import { supabaseClient } from '../../utils/supabaseUtils';
 import { getProviderHealth } from '../../agents/FeedAgent/activities';
+import { requireSupabase } from '../../utils/supabaseUtils';
 
 export async function getProviderHealthEndpoint(req: Request, res: Response) {
   try {
@@ -13,8 +14,9 @@ export async function getProviderHealthEndpoint(req: Request, res: Response) {
     const providerData = await getProviderHealth();
     
     // Get last raw props created time from database
-    const { data: lastProp } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: lastProp } = await supabaseClient
+      .from('sports_game_odds')
       .select('created_at')
       .order('created_at', { ascending: false })
       .limit(1);

@@ -8,8 +8,9 @@
 
 import { config } from 'dotenv';
 
-import { supabaseClient } from '../services/supabaseClient';
+import { supabaseClient } from '../utils/supabaseUtils';
 import { Logger } from '../shared/logger';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 // Load environment variables
 config();
@@ -23,12 +24,14 @@ async function runLifecycleSetup() {
   try {
     // 1. Check current state
     console.log('\n📊 Step 1: Current state analysis...');
-    const { count: currentTotal } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: currentTotal } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true }) || { count: 0 };
 
-    const { count: oldProps } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: oldProps } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .lt('game_date', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]) || { count: 0 };
 
@@ -45,14 +48,16 @@ async function runLifecycleSetup() {
     
     // Test if historical table exists by trying to select from it
     try {
-      await supabaseClient.from('raw_props_historical').select('id').limit(1);
+      const supabaseClient = requireSupabase();
+    await supabaseClient.from('raw_props_historical').select('id').limit(1);
       console.log('✅ raw_props_historical already exists');
     } catch (error) {
       console.log('📋 raw_props_historical does not exist - needs manual creation');
     }
 
     try {
-      await supabaseClient.from('raw_props_recent').select('id').limit(1);
+      const supabaseClient = requireSupabase();
+    await supabaseClient.from('raw_props_recent').select('id').limit(1);
       console.log('✅ raw_props_recent already exists');
     } catch (error) {
       console.log('📋 raw_props_recent does not exist - needs manual creation');
@@ -74,8 +79,9 @@ async function runLifecycleSetup() {
 
       try {
         // Get old records to migrate
-        const { data: recordsToMigrate, error: selectError } = await supabaseClient
-          .from('raw_props')
+        const supabaseClient = requireSupabase();
+      const { data: recordsToMigrate, error: selectError } = await supabaseClient
+          .from('sports_game_odds')
           .select('*')
           .lt('game_date', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0])
           .limit(currentBatchSize);
@@ -90,7 +96,8 @@ async function runLifecycleSetup() {
         }
 
         // Try to insert into historical table
-        const { error: insertError } = await supabaseClient
+        const supabaseClient = requireSupabase();
+      const { error: insertError } = await supabaseClient
           .from('raw_props_historical')
           .insert(recordsToMigrate);
 
@@ -104,8 +111,9 @@ async function runLifecycleSetup() {
 
         // Delete from main table
         const recordIds = recordsToMigrate.map(record => record.id);
-        const { error: deleteError } = await supabaseClient
-          .from('raw_props')
+        const supabaseClient = requireSupabase();
+      const { error: deleteError } = await supabaseClient
+          .from('sports_game_odds')
           .delete()
           .in('id', recordIds);
 
@@ -127,12 +135,14 @@ async function runLifecycleSetup() {
 
     // 4. Final state check
     console.log('\n📈 Step 4: Final state analysis...');
-    const { count: finalTotal } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: finalTotal } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true }) || { count: 0 };
 
-    const { count: finalOld } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: finalOld } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .lt('game_date', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]) || { count: 0 };
 

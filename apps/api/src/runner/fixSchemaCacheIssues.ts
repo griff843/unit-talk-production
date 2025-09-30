@@ -23,7 +23,8 @@ async function fixSchemaCacheIssues() {
     console.log('📊 STEP 1: VERIFYING CURRENT SCHEMA STATE');
     
     // Check unified_picks columns
-    const { data: unifiedPicksData, error: upError } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: unifiedPicksData, error: upError } = await supabase
       .from('unified_picks')
       .select('*')
       .limit(1)
@@ -53,8 +54,9 @@ async function fixSchemaCacheIssues() {
     }
     
     // Check raw_props columns
-    const { data: rawPropsData, error: rpError } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: rawPropsData, error: rpError } = await supabase
+      .from('sports_game_odds')
       .select('*')
       .limit(1)
       .single();
@@ -79,7 +81,8 @@ async function fixSchemaCacheIssues() {
     }
     
     // Check clv_tracking table
-    const { data: clvData, error: clvError } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: clvData, error: clvError } = await supabase
       .from('clv_tracking')
       .select('*')
       .limit(1)
@@ -105,7 +108,8 @@ async function fixSchemaCacheIssues() {
     };
     
     // Try basic insertion first
-    const { data: basicInsert, error: basicError } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: basicInsert, error: basicError } = await supabase
       .from('unified_picks')
       .insert([testUnifiedPick])
       .select('id')
@@ -124,6 +128,7 @@ async function fixSchemaCacheIssues() {
         processing_time: 100
       };
       
+      const supabaseClient = requireSupabase();
       const { error: updateError } = await supabase
         .from('unified_picks')
         .update(professionalUpdate)
@@ -136,7 +141,8 @@ async function fixSchemaCacheIssues() {
       }
       
       // Clean up test record
-      await supabase.from('unified_picks').delete().eq('id', basicInsert.id);
+      const supabaseClient = requireSupabase();
+    await supabase.from('unified_picks').delete().eq('id', basicInsert.id);
     }
     
     // Test clv_tracking insertion
@@ -151,7 +157,8 @@ async function fixSchemaCacheIssues() {
       created_at: new Date().toISOString()
     };
     
-    const { data: clvInsert, error: clvInsertError } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: clvInsert, error: clvInsertError } = await supabase
       .from('clv_tracking')
       .insert([testCLVEntry])
       .select('id')
@@ -162,7 +169,8 @@ async function fixSchemaCacheIssues() {
     } else {
       console.log('   ✅ CLV tracking insertion works');
       // Clean up
-      await supabase.from('clv_tracking').delete().eq('id', clvInsert.id);
+      const supabaseClient = requireSupabase();
+    await supabase.from('clv_tracking').delete().eq('id', clvInsert.id);
     }
     
     // 3. Generate optimized insertion functions
@@ -185,7 +193,8 @@ export async function insertProfessionalPick(supabase: any, pick: any) {
   };
   
   // Insert base record first
-  const { data: inserted, error: insertError } = await supabase
+  const supabaseClient = requireSupabase();
+      const { data: inserted, error: insertError } = await supabase
     .from('unified_picks')
     .insert([baseData])
     .select('id')
@@ -207,7 +216,8 @@ export async function insertProfessionalPick(supabase: any, pick: any) {
     if (pick.published !== undefined) professionalData.published = pick.auto_approved;
     if (pick.feature_contributions !== undefined) professionalData.feature_contributions = pick.feature_contributions;
     
-    const { error: updateError } = await supabase
+    const supabaseClient = requireSupabase();
+      const { error: updateError } = await supabase
       .from('unified_picks')
       .update(professionalData)
       .eq('id', inserted.id);
@@ -233,7 +243,8 @@ export async function insertCLVTracking(supabase: any, clvData: any) {
     created_at: clvData.created_at || new Date().toISOString()
   };
   
-  const { data, error } = await supabase
+  const supabaseClient = requireSupabase();
+      const { data, error } = await supabase
     .from('clv_tracking')
     .insert([baseData])
     .select('id')
@@ -257,6 +268,7 @@ export async function insertCLVTracking(supabase: any, clvData: any) {
  */
 
 import { randomUUID } from 'crypto';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 ${optimizedInsertCode}
 `);

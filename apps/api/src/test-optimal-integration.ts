@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { config } from 'dotenv';
 
 import { fetchOptimalProps } from './agents/FeedAgent/optimal';
+import { requireSupabase } from './utils/supabaseUtils';
 
 // Load environment variables
 config();
@@ -33,8 +34,9 @@ async function testOptimalIntegration() {
     const testProps = props.slice(0, 5);
     
     // Insert props directly into database
-    const { data, error } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data, error } = await supabase
+      .from('sports_game_odds')
       .insert(testProps)
       .select();
 
@@ -50,8 +52,9 @@ async function testOptimalIntegration() {
     // Clean up test data
     if (data && data.length > 0) {
       const ids = data.map(p => p.id);
-      await supabase
-        .from('raw_props')
+      const supabaseClient = requireSupabase();
+    await supabase
+        .from('sports_game_odds')
         .delete()
         .in('id', ids);
       console.log('🧹 Cleaned up test data');

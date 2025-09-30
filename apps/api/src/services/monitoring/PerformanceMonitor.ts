@@ -5,6 +5,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { requireSupabase } from '../../utils/supabaseUtils';
 
 const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
 
@@ -53,20 +54,24 @@ export class PerformanceMonitor {
     
     try {
       // System metrics
+      const supabaseClient = requireSupabase();
       const { count: totalPicks } = await supabase
         .from('unified_picks')
         .select('*', { count: 'exact', head: true });
         
+      const supabaseClient = requireSupabase();
       const { count: professionalPicks } = await supabase
         .from('unified_picks')
         .select('*', { count: 'exact', head: true })
         .not('professional_score', 'is', null);
         
+      const supabaseClient = requireSupabase();
       const { count: clvEntries } = await supabase
         .from('clv_tracking')
         .select('*', { count: 'exact', head: true });
         
       // Professional system metrics
+      const supabaseClient = requireSupabase();
       const { data: scoringData } = await supabase
         .from('unified_picks')
         .select('professional_score, devigged_edge, tier, published, kelly_fraction')
@@ -92,7 +97,8 @@ export class PerformanceMonitor {
       };
       
       // Store metrics
-      await supabase.from('performance_metrics').insert([metrics]);
+      const supabaseClient = requireSupabase();
+    await supabase.from('performance_metrics').insert([metrics]);
       
       console.log(`📊 Metrics collected: ${JSON.stringify(metrics, null, 2)}`);
       
@@ -103,7 +109,8 @@ export class PerformanceMonitor {
   
   // Check alert thresholds
   private async checkAlertThresholds() {
-    const { data: latestMetrics } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: latestMetrics } = await supabase
       .from('performance_metrics')
       .select('*')
       .order('created_at', { ascending: false })
@@ -145,20 +152,23 @@ export class PerformanceMonitor {
     
     // Store alerts
     if (alerts.length > 0) {
-      await supabase.from('performance_alerts').insert(alerts);
+      const supabaseClient = requireSupabase();
+    await supabase.from('performance_alerts').insert(alerts);
       console.log(`🚨 ${alerts.length} alerts triggered`);
     }
   }
   
   // Get dashboard data
   public async getDashboardData(hours: number = 24) {
-    const { data: metrics } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: metrics } = await supabase
       .from('performance_metrics')
       .select('*')
       .gte('created_at', new Date(Date.now() - hours * 60 * 60 * 1000).toISOString())
       .order('created_at', { ascending: true });
       
-    const { data: alerts } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: alerts } = await supabase
       .from('performance_alerts')
       .select('*')
       .is('resolved_at', null)

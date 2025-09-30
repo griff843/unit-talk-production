@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const logger = createLogger('ProfessionalProcessing');
@@ -21,11 +22,13 @@ async function processThroughProfessionalSystem() {
   
   try {
     // Check current state
-    const { count: totalRawProps } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: totalRawProps } = await supabase
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true });
       
-    const { count: currentUnifiedPicks } = await supabase
+    const supabaseClient = requireSupabase();
+      const { count: currentUnifiedPicks } = await supabase
       .from('unified_picks')
       .select('*', { count: 'exact', head: true });
       
@@ -34,8 +37,9 @@ async function processThroughProfessionalSystem() {
     console.log(`   Unified Picks: ${currentUnifiedPicks}`);
     
     // Get some unprocessed raw props
-    const { data: rawProps } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: rawProps } = await supabase
+      .from('sports_game_odds')
       .select('*')
       .is('processed_at', null)
       .limit(50); // Process 50 props to demonstrate
@@ -46,8 +50,9 @@ async function processThroughProfessionalSystem() {
       console.log('Let me process some props through the professional pipeline anyway...');
       
       // Get some already "processed" props to re-process professionally
+      const supabaseClient = requireSupabase();
       const { data: existingProps } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*')
         .limit(25);
         
@@ -55,8 +60,9 @@ async function processThroughProfessionalSystem() {
         console.log(`\n🔄 RE-PROCESSING ${existingProps.length} PROPS THROUGH PROFESSIONAL SYSTEM`);
         
         // Clear their processed_at timestamp so they can be re-processed professionally
-        await supabase
-          .from('raw_props')
+        const supabaseClient = requireSupabase();
+    await supabase
+          .from('sports_game_odds')
           .update({ processed_at: null, error_message: null })
           .in('id', existingProps.map(p => p.id));
           
@@ -120,15 +126,18 @@ async function processThroughProfessionalSystem() {
     console.log('\n🔍 FINAL E2E VERIFICATION:');
     console.log('─'.repeat(50));
     
-    const { count: finalUnifiedPicks } = await supabase
+    const supabaseClient = requireSupabase();
+      const { count: finalUnifiedPicks } = await supabase
       .from('unified_picks')
       .select('*', { count: 'exact', head: true });
       
-    const { count: finalClvEntries } = await supabase
+    const supabaseClient = requireSupabase();
+      const { count: finalClvEntries } = await supabase
       .from('clv_tracking')
       .select('*', { count: 'exact', head: true });
       
-    const { count: processingLogs } = await supabase
+    const supabaseClient = requireSupabase();
+      const { count: processingLogs } = await supabase
       .from('processing_logs')
       .select('*', { count: 'exact', head: true });
     
@@ -137,7 +146,8 @@ async function processThroughProfessionalSystem() {
     console.log(`✅ Processing Log Entries: ${processingLogs}`);
     
     // Check compliance
-    const { data: professionalPicks } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: professionalPicks } = await supabase
       .from('unified_picks')
       .select('professional_score, devigged_edge, clv_tracking_id, kelly_fraction')
       .not('professional_score', 'is', null);

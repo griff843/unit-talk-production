@@ -10,25 +10,26 @@ provides premium betting insights through advanced analytics, machine learning,
 and real-time market analysis. The platform operates primarily through Discord
 integration with a sophisticated agent-based automation system.
 
-### 🚀 **Professional Grading System v2025.07.31**
+### 🚀 **ScoringAgent - 53-Factor Professional Scoring System**
 
-**NEW: 8 Professional Capper Features** - Industry-leading betting intelligence with institutional-grade analytics:
+**OPERATIONAL**: Professional betting intelligence with comprehensive multi-factor analysis:
 
-1. **Steam Detection** 🔥 - Real-time steam move detection with volume correlation
-2. **Closing Line Prediction** 📈 - ML-powered line closure forecasting  
-3. **Optimal Timing** ⏰ - Hour-to-game edge calculation for maximum value
-4. **Line Shopping Edge** 🛒 - Multi-book best line identification across 15+ sportsbooks
-5. **Public vs Sharp Split** 👥 - Contrarian opportunity detection through betting analysis
-6. **Market Timing Advantage** 📊 - Time-decay edge modeling for optimal entry
-7. **Injury Timing Edge** 🏥 - News break vs line adjustment timing analysis
-8. **Cross Market Discrepancy** 🔄 - Related prop arbitrage detection
+**✅ Enhanced45Factor Engine (45 factors)**:
+1. **Market Factors (10)** 🔥 - Devigged EV, line velocity, CLV prediction, market efficiency, sharp/public split, volume profile, cross-market arb, steam detection, market resistance, optimal timing
+2. **Player Factors (10)** 📊 - Player form, role stability, matchup history, injury impact, fatigue level, usage rate, performance trends, clutch factor, prop tendencies, situational performance
+3. **Matchup Factors (10)** 🏀 - Team vs team, defense vs position, pace impact, game script, home/away splits, referee tendencies, weather impact, venue factors, rest advantage, motivational factors
+4. **Price Factors (10)** 💰 - Line shopping edge, Kelly fraction, risk-adjusted return, correlation risk, portfolio impact, volatility, liquidity premium, market timing, bid-ask spread, option value
+5. **Meta Factors (5)** 🤖 - Data quality, model agreement, historical accuracy, confidence interval, recency bias adjustment
 
-**Validation Status**: ✅ **27/27 tests passed (100%)** - Production ready with peak performance of 1,500+ props/hour processing.
+**✅ Professional Features (8 features)**:
+6. **Professional Intelligence** ⚡ - Steam detection, closing line prediction, optimal timing, line shopping, public/sharp split analysis, market timing, injury timing, cross-market discrepancy
+
+**System Architecture**: Real-time scoring with automatic triggers on pick ingestion. Sub-200ms feature retrieval, parallel processing for 1000+ props.
 
 ### Key Components
 
-- **Elite Dual-API System**: Optimal API + Odds API for industry-leading
-  1-minute real-time alerts
+- **Optimal-First API System**: Optimal API as primary provider with Odds API
+  fallback for comprehensive sports coverage
 - **Agent System**: Event-driven agents inheriting from BaseAgent with lifecycle
   management
 - **Temporal Workflows**: Fault-tolerant task orchestration with 1-minute update
@@ -99,71 +100,59 @@ npm run qa:performance     # Load and stress testing
 npm run qa:full            # Complete QA suite
 ```
 
-### Professional Betting System Testing
+### Enhanced45FactorEngine Testing & Operations
 
 ```bash
-# Test professional system against historical props
+# Run ScoringAgent to process props through 53-factor system
+npx tsx src/runner/runScoringAgent.ts
+
+# Generate professional picks with Enhanced45Factor + Professional Features
+npx tsx scripts/final-3-todays-picks.ts
+
+# Validate scoring system operational status
+npx tsx scripts/validate-enhanced45factor-success.ts
+
+# Check real player props processed through scoring system
+npx tsx scripts/check-real-players.ts
+
+# Legacy professional system testing (deprecated - use Enhanced45FactorEngine)
 npx tsx src/runner/testHistoricalProps.ts
-
-# Test professional system on today's live props
 npx tsx src/runner/testTodaysProps.ts
-
-# Process props through professional system
-npx tsx src/runner/processProfessionalProps.ts
-
-# Show professional processing statistics
-npx tsx src/runner/processProfessionalProps.ts --stats
-
-# Professional system health check
-npx tsx src/runner/processProfessionalProps.ts --health
-
-# 🆕 NEW: Test all 8 professional capper features
 npx tsx src/scripts/test-professional-features.ts
-
-# 🆕 NEW: Peak performance monitoring
-npx tsx scripts/monitor-peak-performance.ts --duration=30
-
-# Monitor rule compliance
-npm run professional:compliance-monitor
-
-# CLV performance tracking
-npm run professional:clv-monitor
-
-# Automated feedback loops
-npm run professional:feedback-loop
 ```
 
 ## <� Architecture
 
-### Elite Dual-API System Architecture
+### Optimal-First API Architecture
 
-The platform features an industry-leading dual-API system for 1-minute real-time
-updates:
+The platform prioritizes Optimal API as the primary data source with intelligent
+fallback to Odds API and SGO API for comprehensive coverage:
 
-#### **API Strategy**
+#### **API Strategy (UPDATED Sept 29, 2025)**
 
 ```typescript
-const ELITE_ROUTING = {
-  // Optimal API ($69/month): Best player props
-  NFL: { primary: 'optimal', secondary: 'odds-api' },
-  NBA: { primary: 'optimal', secondary: 'odds-api' },
-  MLB: { primary: 'optimal', secondary: 'odds-api' },
-  NHL: { primary: 'optimal', secondary: 'odds-api' },
+const OPTIMAL_FIRST_ROUTING = {
+  // Optimal API: PRIMARY for all major sports (best player props coverage)
+  NFL: { primary: 'optimal-api', secondary: 'odds-api', tertiary: 'sgo-api' },
+  NBA: { primary: 'optimal-api', secondary: 'odds-api', tertiary: 'sgo-api' },
+  MLB: { primary: 'optimal-api', secondary: 'odds-api', tertiary: 'sgo-api' },
+  NHL: { primary: 'optimal-api', secondary: 'odds-api', tertiary: 'sgo-api' },
 
-  // Odds API ($49/month): Exclusive coverage
-  NCAAF: { primary: 'odds-api', exclusive: true },
-  WNBA: { primary: 'odds-api' },
+  // Odds API: PRIMARY for specialized sports and settlement
+  NCAAF: { primary: 'odds-api', secondary: 'sgo-api' },
+  WNBA: { primary: 'odds-api', secondary: 'sgo-api' },
   Settlement: { primary: 'odds-api', exclusive: true },
 };
 ```
 
 #### **Performance Specifications**
 
-- **Update Frequency**: 1-minute intervals during live games
+- **Primary Provider**: Optimal API for all major sports player props
+- **Update Frequency**: Real-time intervals during live games
 - **Processing Target**: <50 seconds per cycle
-- **Sports Coverage**: 100% major sports + NCAAF exclusive
-- **Settlement**: Automated within 30 minutes post-game
-- **Redundancy**: Dual-API with intelligent fallback
+- **Sports Coverage**: 100% major sports via Optimal + NCAAF exclusive via Odds API
+- **Settlement**: Automated via Odds API within 30 minutes post-game
+- **Redundancy**: Triple-tier fallback (Optimal → Odds → SGO)
 
 ### Agent System Architecture
 
@@ -180,7 +169,7 @@ All agents inherit from `BaseAgent` (`src/agents/BaseAgent/`) providing:
 
 **Core Business Agents**:
 
-- `GradingAgent`: Multi-model ensemble pick grading and scoring
+- `ScoringAgent`: Multi-model ensemble pick scoring and market intelligence
 - `AnalyticsAgent`: Data analysis and performance insights
 - `AlertAgent`: Real-time alerting and notification management
 - `FeedAgent`: Content feed generation and optimal data ingestion
@@ -234,7 +223,7 @@ Each agent must have clearly defined, non-overlapping responsibilities:
 - **AlertAgent**: Real-time notifications, live alerts, Discord posting
 - **RecapAgent**: Post-game results, daily/weekly summaries, performance
   analytics
-- **GradingAgent**: Pick analysis, scoring, tier assignment, quality assessment
+- **ScoringAgent**: Pick analysis, scoring, tier assignment, quality assessment
 - **FeedAgent**: Data ingestion, content aggregation, optimal pipeline
   management
 - **NotificationAgent**: Scheduled notifications, batch communications

@@ -5,8 +5,8 @@
  */
 
 import { performance } from 'perf_hooks';
-import { createSupabaseClient } from '../../services/supabaseClient';
-import { GradingAgent } from '../../agents/GradingAgent/GradingAgent';
+import { createSupabaseClient } from '../../utils/supabaseUtils';
+import { ScoringAgent } from '../../agents/ScoringAgent/ScoringAgent';
 import { QueryOptimizer } from '@unit-talk/database';
 import { IntelligentCache, GradingCache } from '@unit-talk/shared-utils';
 import { createAgentConfig } from '@unit-talk/shared-utils';
@@ -56,8 +56,8 @@ export class PerformanceBenchmark {
       // 1. Database Query Performance Tests
       results.push(await this.benchmarkDatabaseQueries());
       
-      // 2. Grading Agent Performance Tests
-      results.push(await this.benchmarkGradingPerformance());
+      // 2. Scoring Agent Performance Tests
+      results.push(await this.benchmarkScoringPerformance());
       
       // 3. Parallel Processing Tests
       results.push(await this.benchmarkParallelProcessing());
@@ -120,7 +120,7 @@ export class PerformanceBenchmark {
         const start = performance.now();
         
         const { data } = await this.supabase
-          .from('raw_props')
+          .from('sports_game_odds')
           .select('*')
           .is('processed_at', null)
           .order('created_at', { ascending: true })
@@ -189,15 +189,15 @@ export class PerformanceBenchmark {
   }
 
   /**
-   * Benchmark grading agent performance with real props
+   * Benchmark scoring agent performance with real props
    */
-  async benchmarkGradingPerformance(): Promise<BenchmarkResult> {
-    this.logger.info('🎯 Testing grading agent performance...');
+  async benchmarkScoringPerformance(): Promise<BenchmarkResult> {
+    this.logger.info('🎯 Testing scoring agent performance...');
     
     try {
       // Get real props for testing
       const { data: testProps } = await this.supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*')
         .is('processed_at', null)
         .limit(10);
@@ -211,21 +211,21 @@ export class PerformanceBenchmark {
       let afterTotal = 0;
 
       // Create agents with different configurations
-      const legacyConfig = createAgentConfig('GradingAgent', 'base', {
+      const legacyConfig = createAgentConfig('ScoringAgent', 'base', {
         customMetrics: { interval: 60000 }
       });
-      
-      const optimizedConfig = createAgentConfig('GradingAgent', 'high-frequency', {
+
+      const optimizedConfig = createAgentConfig('ScoringAgent', 'high-frequency', {
         customMetrics: { interval: 30000 }
       });
 
-      const legacyAgent = new GradingAgent(legacyConfig, {
+      const legacyAgent = new ScoringAgent(legacyConfig, {
         supabase: this.supabase,
         logger: this.logger,
         errorHandler: null
       });
 
-      const optimizedAgent = new GradingAgent(optimizedConfig, {
+      const optimizedAgent = new ScoringAgent(optimizedConfig, {
         supabase: this.supabase,
         logger: this.logger,
         errorHandler: null
@@ -235,26 +235,24 @@ export class PerformanceBenchmark {
       await legacyAgent.initialize();
       await optimizedAgent.initialize();
 
-      // BEFORE: Legacy grading (sequential processing)
+      // BEFORE: Legacy scoring (sequential processing)
       for (let i = 0; i < iterations; i++) {
         const start = performance.now();
         
         for (const prop of testProps.slice(0, 3)) { // Test with 3 props
-          const featureSet = this.convertToFeatureSet(prop);
-          await legacyAgent.gradeProp(featureSet);
+          await legacyAgent.scoreSinglePick(prop.id);
         }
         
         const end = performance.now();
         beforeTotal += (end - start);
       }
 
-      // AFTER: Optimized grading (parallel processing + caching)
+      // AFTER: Optimized scoring (parallel processing + caching)
       for (let i = 0; i < iterations; i++) {
         const start = performance.now();
         
         for (const prop of testProps.slice(0, 3)) { // Test with 3 props
-          const featureSet = this.convertToFeatureSet(prop);
-          await optimizedAgent.gradeProp(featureSet);
+          await optimizedAgent.scoreSinglePick(prop.id);
         }
         
         const end = performance.now();
@@ -266,7 +264,7 @@ export class PerformanceBenchmark {
       const improvementPercent = ((beforeMs - afterMs) / beforeMs) * 100;
 
       return {
-        testName: 'Grading Agent Performance',
+        testName: 'Scoring Agent Performance',
         beforeMs,
         afterMs,
         improvementPercent,
@@ -284,7 +282,7 @@ export class PerformanceBenchmark {
 
     } catch (error) {
       return {
-        testName: 'Grading Agent Performance',
+        testName: 'Scoring Agent Performance',
         beforeMs: 0,
         afterMs: 0,
         improvementPercent: 0,

@@ -1,0 +1,467 @@
+# Production Alert Rules - Phase 8 Real-Time Scoring Pipeline
+# Comprehensive alerting for syndicate-level ML betting system
+
+groups:
+  # ==============================================
+  # CRITICAL PERFORMANCE ALERTS
+  # ==============================================
+
+  - name: scoring_pipeline_critical
+    interval: 15s
+    rules:
+      - alert: ScoringLatencyTooHigh
+        expr: unit_talk:scoring_latency_p95 > 2000
+        for: 1m
+        labels:
+          severity: critical
+          component: scoring-pipeline
+          team: platform
+        annotations:
+          summary: "Scoring latency exceeds 2-second target"
+          description: "95th percentile scoring latency is {{ $value }}ms, exceeding the 2000ms target. This impacts real-time processing capability."
+          runbook_url: "https://docs.unittalk.com/runbooks/scoring-latency"
+
+      - alert: ScoringThroughputTooLow
+        expr: unit_talk:scoring_throughput_5m < 16.67
+        for: 3m
+        labels:
+          severity: critical
+          component: scoring-pipeline
+          team: platform
+        annotations:
+          summary: "Scoring throughput below 1000 props/hour target"
+          description: "Current throughput is {{ $value | humanize }} props/minute ({{ $value * 60 | humanize }} props/hour), below the 1000/hour target."
+          runbook_url: "https://docs.unittalk.com/runbooks/scoring-throughput"
+
+      - alert: ScoringErrorRateHigh
+        expr: unit_talk:scoring_error_rate_5m > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          component: scoring-pipeline
+          team: platform
+        annotations:
+          summary: "Scoring error rate exceeds 5% threshold"
+          description: "Scoring error rate is {{ $value | humanizePercentage }}, exceeding the 5% threshold. This indicates system instability."
+          runbook_url: "https://docs.unittalk.com/runbooks/scoring-errors"
+
+  # ==============================================
+  # AGENT HEALTH ALERTS
+  # ==============================================
+
+  - name: agent_health_critical
+    interval: 30s
+    rules:
+      - alert: AgentUnhealthy
+        expr: agent_health_status{status!="healthy"} == 1
+        for: 1m
+        labels:
+          severity: warning
+          component: agents
+          team: platform
+          agent_id: "{{ $labels.agent_id }}"
+          agent_type: "{{ $labels.agent_type }}"
+        annotations:
+          summary: "Agent {{ $labels.agent_id }} is unhealthy"
+          description: "Agent {{ $labels.agent_id }} of type {{ $labels.agent_type }} has status {{ $labels.status }}."
+          runbook_url: "https://docs.unittalk.com/runbooks/agent-health"
+
+      - alert: MultipleAgentsDown
+        expr: unit_talk:agents_healthy_ratio < 0.7
+        for: 2m
+        labels:
+          severity: critical
+          component: agents
+          team: platform
+        annotations:
+          summary: "Less than 70% of agents are healthy"
+          description: "Only {{ $value | humanizePercentage }} of agents are healthy. This severely impacts system capacity."
+          runbook_url: "https://docs.unittalk.com/runbooks/agent-mass-failure"
+
+      - alert: ScoringAgentDown
+        expr: up{job="agent-orchestration",agent_type="ScoringAgent"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: scoring-agents
+          team: platform
+        annotations:
+          summary: "ScoringAgent instance is down"
+          description: "ScoringAgent {{ $labels.instance }} is not responding to health checks."
+          runbook_url: "https://docs.unittalk.com/runbooks/scoring-agent-down"
+
+  # ==============================================
+  # ENHANCED 45-FACTOR SYSTEM ALERTS
+  # ==============================================
+
+  - name: enhanced_45_factor_alerts
+    interval: 30s
+    rules:
+      - alert: Enhanced45FactorSystemDown
+        expr: enhanced_45_factor_system_enabled == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: enhanced-scoring
+          team: platform
+        annotations:
+          summary: "Enhanced 45-Factor scoring system is disabled"
+          description: "The Enhanced 45-Factor scoring system is not operational. System has fallen back to standard scoring."
+          runbook_url: "https://docs.unittalk.com/runbooks/enhanced-45-factor"
+
+      - alert: FeatureStoreLatencyHigh
+        expr: feature_store_retrieval_latency_p95 > 50
+        for: 2m
+        labels:
+          severity: warning
+          component: feature-store
+          team: platform
+        annotations:
+          summary: "Feature store retrieval latency too high"
+          description: "Feature store 95th percentile latency is {{ $value }}ms, exceeding 50ms target for sub-second scoring."
+          runbook_url: "https://docs.unittalk.com/runbooks/feature-store-latency"
+
+      - alert: MaterialChangeDetectorFailure
+        expr: increase(material_change_detector_errors_total[5m]) > 5
+        for: 1m
+        labels:
+          severity: warning
+          component: material-change-detector
+          team: platform
+        annotations:
+          summary: "Material change detector experiencing errors"
+          description: "{{ $value }} material change detector errors in the last 5 minutes."
+          runbook_url: "https://docs.unittalk.com/runbooks/material-change-detector"
+
+  # ==============================================
+  # DATABASE ALERTS
+  # ==============================================
+
+  - name: database_alerts
+    interval: 60s
+    rules:
+      - alert: DatabaseConnectionsHigh
+        expr: unit_talk:db_connections_utilization > 0.8
+        for: 3m
+        labels:
+          severity: warning
+          component: database
+          team: platform
+        annotations:
+          summary: "Database connection utilization high"
+          description: "Database connections at {{ $value | humanizePercentage }} of maximum. Consider scaling or connection pooling."
+          runbook_url: "https://docs.unittalk.com/runbooks/database-connections"
+
+      - alert: DatabaseQueryLatencyHigh
+        expr: unit_talk:db_query_latency_p95 > 1000
+        for: 2m
+        labels:
+          severity: warning
+          component: database
+          team: platform
+        annotations:
+          summary: "Database query latency too high"
+          description: "95th percentile database query latency is {{ $value }}ms, exceeding 1000ms threshold."
+          runbook_url: "https://docs.unittalk.com/runbooks/database-latency"
+
+      - alert: DatabaseReplicationLag
+        expr: postgres_replication_lag_seconds > 30
+        for: 1m
+        labels:
+          severity: warning
+          component: database-replica
+          team: platform
+        annotations:
+          summary: "Database replication lag high"
+          description: "Database replication lag is {{ $value }}s, exceeding 30s threshold."
+          runbook_url: "https://docs.unittalk.com/runbooks/database-replication"
+
+      - alert: DatabaseDown
+        expr: up{job=~"postgres-.*"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+          team: platform
+        annotations:
+          summary: "Database instance is down"
+          description: "Database {{ $labels.instance }} is not responding."
+          runbook_url: "https://docs.unittalk.com/runbooks/database-down"
+
+  # ==============================================
+  # REDIS CACHE ALERTS
+  # ==============================================
+
+  - name: redis_alerts
+    interval: 60s
+    rules:
+      - alert: RedisMemoryUsageHigh
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 2m
+        labels:
+          severity: warning
+          component: redis
+          team: platform
+        annotations:
+          summary: "Redis memory usage high"
+          description: "Redis memory usage at {{ $value | humanizePercentage }}. Consider increasing memory or implementing eviction policies."
+          runbook_url: "https://docs.unittalk.com/runbooks/redis-memory"
+
+      - alert: RedisCacheHitRateLow
+        expr: rate(redis_keyspace_hits_total[5m]) / (rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m])) < 0.7
+        for: 5m
+        labels:
+          severity: warning
+          component: redis
+          team: platform
+        annotations:
+          summary: "Redis cache hit rate low"
+          description: "Redis cache hit rate is {{ $value | humanizePercentage }}, below 70% threshold."
+          runbook_url: "https://docs.unittalk.com/runbooks/redis-cache-hits"
+
+      - alert: RedisDown
+        expr: up{job="redis-primary"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: redis
+          team: platform
+        annotations:
+          summary: "Redis is down"
+          description: "Redis primary instance is not responding."
+          runbook_url: "https://docs.unittalk.com/runbooks/redis-down"
+
+  # ==============================================
+  # TEMPORAL ORCHESTRATION ALERTS
+  # ==============================================
+
+  - name: temporal_alerts
+    interval: 60s
+    rules:
+      - alert: TemporalWorkflowErrors
+        expr: increase(temporal_workflow_failed_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+          component: temporal
+          team: platform
+        annotations:
+          summary: "High Temporal workflow failure rate"
+          description: "{{ $value }} workflows failed in the last 5 minutes."
+          runbook_url: "https://docs.unittalk.com/runbooks/temporal-workflows"
+
+      - alert: TemporalQueueBacklog
+        expr: temporal_pending_activities > 100
+        for: 3m
+        labels:
+          severity: warning
+          component: temporal
+          team: platform
+        annotations:
+          summary: "Temporal queue backlog high"
+          description: "{{ $value }} activities pending in Temporal queue."
+          runbook_url: "https://docs.unittalk.com/runbooks/temporal-backlog"
+
+      - alert: TemporalDown
+        expr: up{job="temporal-server"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: temporal
+          team: platform
+        annotations:
+          summary: "Temporal server is down"
+          description: "Temporal orchestration server is not responding."
+          runbook_url: "https://docs.unittalk.com/runbooks/temporal-down"
+
+  # ==============================================
+  # EXTERNAL API ALERTS
+  # ==============================================
+
+  - name: external_api_alerts
+    interval: 120s
+    rules:
+      - alert: OptimalAPIDown
+        expr: up{job="optimal-api-health"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          component: external-apis
+          team: platform
+          api: optimal
+        annotations:
+          summary: "Optimal API is unreachable"
+          description: "Unable to reach Optimal API for data ingestion."
+          runbook_url: "https://docs.unittalk.com/runbooks/optimal-api-down"
+
+      - alert: OddsAPIDown
+        expr: up{job="odds-api-health"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          component: external-apis
+          team: platform
+          api: odds-api
+        annotations:
+          summary: "Odds API is unreachable"
+          description: "Unable to reach Odds API for data ingestion."
+          runbook_url: "https://docs.unittalk.com/runbooks/odds-api-down"
+
+      - alert: APIRateLimitApproaching
+        expr: api_rate_limit_remaining < 100
+        for: 1m
+        labels:
+          severity: warning
+          component: external-apis
+          team: platform
+        annotations:
+          summary: "API rate limit approaching"
+          description: "{{ $labels.api }} has {{ $value }} requests remaining before rate limit."
+          runbook_url: "https://docs.unittalk.com/runbooks/api-rate-limits"
+
+  # ==============================================
+  # SYSTEM RESOURCE ALERTS
+  # ==============================================
+
+  - name: system_resources
+    interval: 60s
+    rules:
+      - alert: HighMemoryUsage
+        expr: unit_talk:memory_utilization > 85
+        for: 3m
+        labels:
+          severity: warning
+          component: system
+          team: platform
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is {{ $value }}% on {{ $labels.instance }}."
+          runbook_url: "https://docs.unittalk.com/runbooks/memory-usage"
+
+      - alert: HighCPUUsage
+        expr: unit_talk:cpu_utilization > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+          team: platform
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is {{ $value }}% on {{ $labels.instance }}."
+          runbook_url: "https://docs.unittalk.com/runbooks/cpu-usage"
+
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) * 100 < 15
+        for: 2m
+        labels:
+          severity: warning
+          component: system
+          team: platform
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Disk space is {{ $value }}% available on {{ $labels.instance }}:{{ $labels.mountpoint }}."
+          runbook_url: "https://docs.unittalk.com/runbooks/disk-space"
+
+  # ==============================================
+  # BUSINESS LOGIC ALERTS
+  # ==============================================
+
+  - name: business_logic_alerts
+    interval: 300s
+    rules:
+      - alert: NoPropsProcessedRecently
+        expr: increase(scoring_requests_total[10m]) == 0
+        for: 5m
+        labels:
+          severity: warning
+          component: business-logic
+          team: platform
+        annotations:
+          summary: "No props processed in last 10 minutes"
+          description: "The scoring system hasn't processed any props in the last 10 minutes during expected active hours."
+          runbook_url: "https://docs.unittalk.com/runbooks/no-props-processed"
+
+      - alert: UnusuallyHighPropVolume
+        expr: rate(scoring_requests_total[5m]) > 100
+        for: 3m
+        labels:
+          severity: info
+          component: business-logic
+          team: platform
+        annotations:
+          summary: "Unusually high prop processing volume"
+          description: "Processing {{ $value }} props/minute, which is unusually high. Monitor for system strain."
+          runbook_url: "https://docs.unittalk.com/runbooks/high-prop-volume"
+
+      - alert: ProfessionalGradingComplianceFailure
+        expr: professional_grading_compliance_rate < 0.95
+        for: 2m
+        labels:
+          severity: critical
+          component: professional-grading
+          team: platform
+        annotations:
+          summary: "Professional grading compliance below 95%"
+          description: "Professional grading compliance is {{ $value | humanizePercentage }}, below mandatory 95% threshold."
+          runbook_url: "https://docs.unittalk.com/runbooks/professional-compliance"
+
+  # ==============================================
+  # SECURITY ALERTS
+  # ==============================================
+
+  - name: security_alerts
+    interval: 60s
+    rules:
+      - alert: UnauthorizedAPIAccess
+        expr: increase(http_requests_total{code=~"401|403"}[5m]) > 20
+        for: 1m
+        labels:
+          severity: warning
+          component: security
+          team: security
+        annotations:
+          summary: "High number of unauthorized API requests"
+          description: "{{ $value }} unauthorized requests in the last 5 minutes."
+          runbook_url: "https://docs.unittalk.com/runbooks/unauthorized-access"
+
+      - alert: SuspiciousAPIActivity
+        expr: rate(http_requests_total[1m]) > 1000
+        for: 2m
+        labels:
+          severity: warning
+          component: security
+          team: security
+        annotations:
+          summary: "Unusually high API request rate"
+          description: "API receiving {{ $value }} requests/second, which may indicate a DDoS attempt."
+          runbook_url: "https://docs.unittalk.com/runbooks/suspicious-activity"
+
+# ==============================================
+# ALERT INHIBITION RULES
+# ==============================================
+
+# Prevent alert spam by inhibiting lower-priority alerts when higher-priority ones are firing
+
+inhibit_rules:
+  # Don't alert on agent health if the entire system is down
+  - source_match:
+      severity: critical
+      component: database
+    target_match:
+      component: agents
+    equal: ['instance']
+
+  # Don't alert on individual scoring latency if throughput is critically low
+  - source_match:
+      alertname: ScoringThroughputTooLow
+      severity: critical
+    target_match:
+      alertname: ScoringLatencyTooHigh
+
+  # Don't alert on cache performance if Redis is down
+  - source_match:
+      alertname: RedisDown
+      severity: critical
+    target_match:
+      component: redis
+    equal: ['instance']

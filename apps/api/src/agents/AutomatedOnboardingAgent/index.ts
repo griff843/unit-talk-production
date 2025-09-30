@@ -9,6 +9,7 @@ import { ConversationEngine } from './conversationEngine';
 import { DiscordInteractionHandler } from './discordInteractionHandler';
 import { InterventionSystem } from './interventionSystem';
 import { UserProfileManager } from './userProfileManager';
+import { requireSupabase } from '../../utils/supabaseUtils';
 // import { OnboardingMetrics } from './types'; // Unused import
 
 interface AutomatedOnboardingMetrics extends BaseMetrics {
@@ -492,7 +493,7 @@ export class AutomatedOnboardingAgent extends BaseAgent {
     await this.interventionSystem.markCompleted(intervention.id);
   }
 
-  private async _handleOnboardingInteraction(userId: string, interaction: any): Promise<void> {
+  private async __handleOnboardingInteraction(userId: string, interaction: any): Promise<void> {
     const response = await this.conversationEngine.handleOnboardingFlow(userId, interaction);
     
     if (response) {

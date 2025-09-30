@@ -83,13 +83,13 @@ export async function updateLiveGameStatus(params: { liveGames: any[]; totalCoun
 
 export async function logUSPError(params: { uspType: string; error: string; cycleCount?: number; timestamp?: string; agentId?: string }): Promise<{ success: boolean; message: string }> {
   const agent = OperatorAgent.getInstance(getDependencies());
-  
+
   try {
     console.log(`[OperatorAgent] Logging USP error (${params.uspType}): ${params.error} - Cycle: ${params.cycleCount || 'unknown'}`);
-    
+
     // Log USP (United Syndicate Protocol) error for monitoring
     await agent.handleCommand(`USP error logged: type=${params.uspType}, error=${params.error}, cycle=${params.cycleCount}`);
-    
+
     return {
       success: true,
       message: `USP error logged successfully (type: ${params.uspType})`
@@ -97,10 +97,62 @@ export async function logUSPError(params: { uspType: string; error: string; cycl
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(`[OperatorAgent] Failed to log USP error:`, errorMessage);
-    
+
     return {
       success: false,
       message: `Failed to log USP error: ${errorMessage}`
+    };
+  }
+}
+
+// Add missing activities for Temporal workflows
+export async function checkApiQuota(params: { provider: string }): Promise<{ provider: string; hourlyUsed: number; hourlyLimit: number; resetTime: Date }> {
+  try {
+    console.log(`[OperatorAgent] Checking API quota for provider: ${params.provider}`);
+
+    // Mock quota data - in production this would check actual API quotas
+    const quotaData = {
+      provider: params.provider,
+      hourlyUsed: Math.floor(Math.random() * 100),
+      hourlyLimit: 500,
+      resetTime: new Date(Date.now() + 3600000) // 1 hour from now
+    };
+
+    console.log(`[OperatorAgent] Quota check result: ${quotaData.hourlyUsed}/${quotaData.hourlyLimit} for ${params.provider}`);
+
+    return quotaData;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`[OperatorAgent] Failed to check API quota:`, errorMessage);
+
+    // Return safe defaults on error
+    return {
+      provider: params.provider,
+      hourlyUsed: 0,
+      hourlyLimit: 500,
+      resetTime: new Date(Date.now() + 3600000)
+    };
+  }
+}
+
+export async function logError(params: { error: string; workflow?: string; timestamp?: Date; agentId?: string }): Promise<{ success: boolean; message: string }> {
+  try {
+    const timestamp = params.timestamp || new Date();
+    const workflow = params.workflow || 'unknown';
+
+    console.log(`[OperatorAgent] ${timestamp.toISOString()} - Workflow: ${workflow} - Error: ${params.error}`);
+
+    return {
+      success: true,
+      message: `Error logged successfully for workflow: ${workflow}`
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`[OperatorAgent] Failed to log error:`, errorMessage);
+
+    return {
+      success: false,
+      message: `Failed to log error: ${errorMessage}`
     };
   }
 } 

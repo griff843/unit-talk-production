@@ -1,6 +1,6 @@
 // import { Pick } from '../types';
-// import { GradingResult } from '../agents/GradingAgent/scoring/gradingEngine';
-import { AdvancedPerformanceMetrics } from '../agents/GradingAgent/scoring/advancedBacktesting';
+// import { GradingResult } from '../agents/ScoringAgent/scoring/gradingEngine';
+import { AdvancedPerformanceMetrics } from '../agents/ScoringAgent/scoring/advancedBacktesting';
 
 export interface DashboardData {
   // Real-time Performance

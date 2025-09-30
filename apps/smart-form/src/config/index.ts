@@ -7,7 +7,32 @@
  * application-specific interfaces.
  */
 
-import { env } from '../../../../config/environment';
+// import { env } from '../../../../config/environment';
+// Temporarily disabled due to build path issues
+
+// Mock env for TypeScript compilation
+const env = {
+  ports: { smartForm: 3002 },
+  environment: process.env.NODE_ENV || 'development',
+  logLevel: 'info',
+  debugMode: process.env.NODE_ENV === 'development',
+  urls: { app: process.env.NEXT_PUBLIC_SUPABASE_URL || '' },
+  database: {
+    publicSupabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+    publicSupabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+  },
+  apiKeys: { optimal: process.env.OPTIMAL_API_KEY || '' },
+  pickManagement: {
+    limits: { maxPicksPerDay: 10, maxUnitsPerPick: 5, minUnitsPerPick: 0.5 },
+    categories: ['NFL', 'NBA', 'MLB', 'NHL'],
+    grading: { gradeConfirmationRequired: false, manualGradeOverride: true },
+  },
+  features: { analyticsEnabled: true },
+  performance: { cacheEnabled: true },
+  isProduction: process.env.NODE_ENV === 'production',
+  isDevelopment: process.env.NODE_ENV === 'development',
+  isStaging: process.env.NODE_ENV === 'staging',
+};
 
 // =============================================================================
 // SMART FORM-SPECIFIC CONFIGURATION INTERFACE

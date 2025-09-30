@@ -1,0 +1,41 @@
+# Core ML Libraries
+pandas>=2.0.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
+xgboost>=1.7.0
+lightgbm>=4.0.0
+
+# Feature Engineering
+feature-engine>=1.6.0
+category-encoders>=2.6.0
+
+# Hyperparameter Optimization
+optuna>=3.3.0
+
+# Model Tracking & Experiment Management
+mlflow>=2.6.0
+
+# Data Processing
+polars>=0.18.0
+pyarrow>=12.0.0
+joblib>=1.3.0
+
+# Database Connectivity
+psycopg2-binary>=2.9.0
+sqlalchemy>=2.0.0
+
+# Visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0
+plotly>=5.15.0
+
+# Development & Jupyter
+jupyter>=1.0.0
+jupyterlab>=4.0.0
+ipywidgets>=8.1.0
+notebook>=7.0.0
+
+# Utilities
+python-dotenv>=1.0.0
+tqdm>=4.66.0
+requests>=2.31.0

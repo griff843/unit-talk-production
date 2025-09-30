@@ -9,8 +9,9 @@
 
 import { config } from 'dotenv';
 
-import { supabaseClient } from '../services/supabaseClient';
+import { supabaseClient } from '../utils/supabaseUtils';
 import { Logger } from '../shared/logger';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 config();
 
@@ -25,8 +26,9 @@ async function analyzeOverUnderIssue() {
     console.log('===============================================');
     
     // Check for Over/Under in player names
-    const { data: overUnders, error } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: overUnders, error } = await supabaseClient
+      .from('sports_game_odds')
       .select('player_name, team, stat_type, market_type, line, sport, provider, created_at')
       .or('player_name.ilike.%over%,player_name.ilike.%under%')
       .order('created_at', { ascending: false })
@@ -52,8 +54,9 @@ async function analyzeOverUnderIssue() {
     }
 
     // Get total count
-    const { count: totalOverUnders, error: countError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: totalOverUnders, error: countError } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .or('player_name.ilike.%over%,player_name.ilike.%under%');
 
@@ -90,8 +93,9 @@ async function analyzeOverUnderIssue() {
     console.log('=====================================');
     
     // Check for team totals vs player props
-    const { data: teamTotals, error: teamError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: teamTotals, error: teamError } = await supabaseClient
+      .from('sports_game_odds')
       .select('player_name, stat_type, market_type, line, sport')
       .in('stat_type', ['total', 'totals'])
       .or('player_name.ilike.%over%,player_name.ilike.%under%')

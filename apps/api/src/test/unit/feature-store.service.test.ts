@@ -1,4 +1,5 @@
 import { FeatureStoreService } from '../../services/FeatureStoreService';
+import { supabaseClient } from '../../utils/supabaseUtils';
 
 // Mock supabase client
 jest.mock('../../services/supabaseClient', () => ({

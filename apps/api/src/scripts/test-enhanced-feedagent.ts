@@ -10,8 +10,9 @@
 import { config } from 'dotenv';
 
 import { fetchOddsApiProps } from '../agents/FeedAgent/oddsApi';
-import { supabaseClient } from '../services/supabaseClient';
+import { supabaseClient } from '../utils/supabaseUtils';
 import { Logger } from '../shared/logger';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 config();
 
@@ -26,8 +27,9 @@ async function testEnhancedFeedAgent() {
     console.log('========================================');
     
     // Test database connection
-    const { data: dbTest, error: dbError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: dbTest, error: dbError } = await supabaseClient
+      .from('sports_game_odds')
       .select('id')
       .limit(1);
     
@@ -130,8 +132,9 @@ async function testEnhancedFeedAgent() {
           game_date: prop.game_time?.split('T')[0] || new Date().toISOString().split('T')[0]
         };
         
-        const { error } = await supabaseClient
-          .from('raw_props')
+        const supabaseClient = requireSupabase();
+      const { error } = await supabaseClient
+          .from('sports_game_odds')
           .insert(dbProp);
         
         if (error) {
@@ -159,8 +162,9 @@ async function testEnhancedFeedAgent() {
     console.log('============================');
     
     // Query database to verify inserted props have correct sport classification
-    const { data: dbProps, error: queryError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: dbProps, error: queryError } = await supabaseClient
+      .from('sports_game_odds')
       .select('player_name, sport, league, sport_key, matchup')
       .eq('source', 'odds-api')
       .eq('sport_key', 'americanfootball_ncaaf')

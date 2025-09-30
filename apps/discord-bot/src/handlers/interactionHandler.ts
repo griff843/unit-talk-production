@@ -81,6 +81,30 @@ export class InteractionHandler {
     // Add debug logging
     logger.info(`🔘 Button interaction received: ${customId} from user ${interaction.user.tag}`);
 
+
+      // Route specific onboarding feature buttons (VIP/VIP+) before prefix checks
+      if (
+        customId === 'view_vip_features' ||
+        customId === 'view_vip_plus_features' ||
+        customId === 'setup_vip_alerts' ||
+        customId === 'setup_vip_plus_alerts'
+      ) {
+        const { WelcomeButtonHandler } = await import('./welcomeButtonHandler');
+        const welcomeHandler = new WelcomeButtonHandler();
+        if (customId === 'view_vip_features') {
+          await welcomeHandler.handleVIPPerksUpgradeButton(interaction as any);
+        } else if (customId === 'view_vip_plus_features') {
+          await welcomeHandler.handleVIPPlusPerksButton(interaction as any);
+        } else if (customId === 'setup_vip_alerts') {
+          // VIP-tier alerts (new handler)
+          // @ts-ignore
+          await (welcomeHandler as any).handleVIPAlertsButton(interaction);
+        } else if (customId === 'setup_vip_plus_alerts') {
+          await welcomeHandler.handleVIPPlusAlertsButton(interaction as any);
+        }
+        return;
+      }
+
     try {
       // Import the onboarding button handler
       const OnboardingButtonHandlerModule = await import('./onboardingButtonHandler');
@@ -99,7 +123,7 @@ export class InteractionHandler {
         'prefs_', // Preference buttons
         'comm_', // Communication preference buttons
       ];
-      
+
       if (personalizedOnboardingPrefixes.some(prefix => customId.startsWith(prefix))) {
         logger.info(`🎩 Routing to personalized onboarding handler: ${customId}`);
         const onboardingHandler = new OnboardingButtonHandler(this.client);

@@ -8,7 +8,7 @@ import { Worker } from '@temporalio/worker';
 
 import { ErrorHandler } from '../utils/errorHandling';
 import { StandardLogger } from '../utils/logger';
-// import { supabase } from '../clients/supabase'; // Not available
+// import { requireSupabase } from '../clients/supabase'; // Not available
 // import { BaseAgentConfig } from '../agents/BaseAgent/types'; // Not used
 
 const logger = new StandardLogger({ level: 'info' });

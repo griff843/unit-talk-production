@@ -2,6 +2,7 @@ import { EmbedBuilder } from 'discord.js';
 
 import { env } from '../config/env';
 import { logger } from '../shared/logger';
+import { normalizeCapperName } from '../utils/capperNormalization';
 
 import { discordBotService } from './DiscordBotService';
 import { EnhancedDiscordFormatter } from './EnhancedDiscordFormatter';
@@ -71,8 +72,10 @@ export class DiscordAlertRouter {
         return env.alertsChannelId;
 
       // Individual pick posts go to capper threads
-      case 'pick_post':
-        return (env.capperThreads as any)[alertData.capper] || null;
+      case 'pick_post': {
+        const canonical = normalizeCapperName(alertData.capper);
+        return canonical ? (env.capperThreads as any)[canonical] || null : null;
+      }
 
       // System issues go to system alerts
       case 'system_error':

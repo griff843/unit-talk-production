@@ -29,6 +29,8 @@ import { enhancedHelp, handleHelpButton } from './commands/enhanced-help';
 import { DMService } from './services/dmService';
 import { RoleChangeService } from './services/roleChangeService';
 
+import { RoleAssignmentConsumer } from './services/roleAssignmentConsumer';
+
 // Add startup logging
 console.log('🚀 Unit Talk Discord Bot starting...');
 console.log('📋 Loading environment configuration...');
@@ -59,18 +61,17 @@ export class UnitTalkBot {
   private eventHandler!: EventHandler;
   private interactionHandler!: InteractionHandler;
   private capperSystem: any;
+  private roleAssignmentConsumer!: RoleAssignmentConsumer;
+
 
   constructor() {
     // Initialize Discord client with required intents
     this.client = new Client({
       intents: [
         GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.GuildMessageReactions,
         GatewayIntentBits.DirectMessages,
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildPresences,
       ],
       partials: [
         Partials.Message,
@@ -86,6 +87,8 @@ export class UnitTalkBot {
     this.permissionsService = new PermissionsService();
     this.dmService = new DMService(this.client, this.supabaseService);
     this.onboardingService = new OnboardingService(this.client, this.dmService);
+    this.roleAssignmentConsumer = new RoleAssignmentConsumer(this.client, this.onboardingService);
+
     this.vipNotificationService = new VIPNotificationService(
       this.client,
       this.supabaseService,
@@ -96,7 +99,7 @@ export class UnitTalkBot {
       this.vipNotificationService,
       this.onboardingService
     );
-    
+
     // REMOVED: AI onboarding integration - nuked as part of clean slate rebuild
 
     // Initialize handlers with the core services
@@ -437,6 +440,10 @@ export class UnitTalkBot {
       await this.advancedAnalyticsService.getRealTimeStats();
 
       logger.info('Post-ready initialization completed');
+
+      // Start Whop role assignment consumer
+      await this.roleAssignmentConsumer.start();
+
     } catch (error) {
       logger.error('Post-ready initialization failed:', error);
       throw error;

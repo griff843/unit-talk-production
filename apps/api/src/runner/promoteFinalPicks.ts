@@ -1,9 +1,10 @@
-import { supabase } from '../services/supabaseClient';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 async function main() {
   try {
     // Get high-scoring picks that haven't been finalized
-    const { data: picks, error } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: picks, error } = await supabase
       .from('unified_picks')
       .select('*')
       .in('tier', ['S', 'A'])
@@ -26,7 +27,8 @@ async function main() {
     for (const pick of picks) {
       try {
         // Update unified_picks to mark as finalized
-        const { error: updateError } = await supabase
+        const supabaseClient = requireSupabase();
+      const { error: updateError } = await supabase
           .from('unified_picks')
           .update({
             finalized: true,

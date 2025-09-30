@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -119,7 +120,8 @@ async function monitorOptimalOddsQuality() {
   
   // Store metrics in database for historical tracking
   try {
-    const { error } = await supabase
+    const supabaseClient = requireSupabase();
+      const { error } = await supabase
       .from('optimal_quality_metrics')
       .insert(allMetrics);
       

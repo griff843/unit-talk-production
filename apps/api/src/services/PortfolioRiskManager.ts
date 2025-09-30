@@ -6,6 +6,7 @@
 import type { Logger } from '../utils/logger';
 import { createLogger } from '../utils/logger';
 import { supabaseClient } from './supabaseClient';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 export interface PortfolioLimits {
   // Position Size Limits
@@ -248,6 +249,11 @@ class PortfolioRiskManager {
   private async calculateStatisticalCorrelation(pick1: any, pick2: any): Promise<number> {
     try {
       // Query historical correlation data
+      if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+      }
+      
+      const supabaseClient = requireSupabase();
       const { data } = await supabaseClient
         .from('correlation_matrix')
         .select('correlation')
@@ -395,6 +401,11 @@ class PortfolioRiskManager {
    */
   private async getCurrentPortfolio(): Promise<any[]> {
     try {
+      if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+      }
+      
+      const supabaseClient = requireSupabase();
       const { data } = await supabaseClient
         .from('unified_picks')
         .select('*')
@@ -512,7 +523,7 @@ class PortfolioRiskManager {
   private generateSizingReasoning(
     limitingFactor: string,
     correlationAnalysis: CorrelationAnalysis,
-    riskImpact: PortfolioRisk
+    _riskImpact: PortfolioRisk
   ): string {
     switch (limitingFactor) {
       case 'single_position_limit':
@@ -537,7 +548,12 @@ class PortfolioRiskManager {
     risk: PortfolioRisk
   ): Promise<void> {
     try {
-      await supabaseClient
+      if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+      }
+      
+      const supabaseClient = requireSupabase();
+    await supabaseClient
         .from('portfolio_risk_assessments')
         .insert({
           pick_id: pick.id,

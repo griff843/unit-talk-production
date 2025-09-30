@@ -10,8 +10,9 @@
 
 import { config } from 'dotenv';
 
-import { supabaseClient } from '../services/supabaseClient';
+import { supabaseClient } from '../utils/supabaseUtils';
 import { Logger } from '../shared/logger';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 config();
 
@@ -26,8 +27,9 @@ async function fixTeamTotalsClassification() {
     console.log('====================================');
     
     // Count team total props with Over/Under in player_name
-    const { count: teamTotalCount, error: countError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: teamTotalCount, error: countError } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .eq('stat_type', 'total')
       .or('player_name.ilike.%over%,player_name.ilike.%under%');
@@ -39,8 +41,9 @@ async function fixTeamTotalsClassification() {
     console.log(`❌ Team total props with Over/Under in player_name: ${teamTotalCount?.toLocaleString()}`);
 
     // Show examples
-    const { data: examples, error: exampleError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: examples, error: exampleError } = await supabaseClient
+      .from('sports_game_odds')
       .select('id, player_name, team, stat_type, market_type, line, sport')
       .eq('stat_type', 'total')
       .or('player_name.ilike.%over%,player_name.ilike.%under%')
@@ -58,8 +61,9 @@ async function fixTeamTotalsClassification() {
     
     // Fix Over props (team totals)
     console.log('Fixing "Over" team total props...');
-    const { data: overResults, error: overError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: overResults, error: overError } = await supabaseClient
+      .from('sports_game_odds')
       .update({
         player_name: null,
         market_type: 'team_total',
@@ -80,8 +84,9 @@ async function fixTeamTotalsClassification() {
 
     // Fix Under props (team totals)  
     console.log('Fixing "Under" team total props...');
-    const { data: underResults, error: underError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: underResults, error: underError } = await supabaseClient
+      .from('sports_game_odds')
       .update({
         player_name: null,
         market_type: 'team_total',
@@ -103,8 +108,9 @@ async function fixTeamTotalsClassification() {
     console.log('======================');
     
     // Verify the fix
-    const { count: remainingCount, error: validateError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: remainingCount, error: validateError } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .eq('stat_type', 'team_total_points')
       .or('player_name.ilike.%over%,player_name.ilike.%under%');
@@ -122,8 +128,9 @@ async function fixTeamTotalsClassification() {
     }
 
     // Check current classification
-    const { data: currentStats, error: statsError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: currentStats, error: statsError } = await supabaseClient
+      .from('sports_game_odds')
       .select('stat_type, market_type, count(*)')
       .in('stat_type', ['total', 'team_total_points', 'team_total'])
       .limit(20);

@@ -3,7 +3,8 @@ import { proxyActivities } from '@temporalio/workflow';
 import { RawProp } from '../../../types/rawProps';
 import { fetchRawProps } from '../../IngestionAgent/fetchRawProps';
 import { fetchUnifiedData } from '../dataSourceRouter';
-import { supabaseClient } from '../../../services/supabaseClient';
+import { supabaseClient } from '../../../utils/supabaseUtils';
+import { requireSupabase } from '../../../utils/supabaseUtils';
 // Note: Using console.log instead of Logger to avoid import issues
 
 // Enhanced error handling with circuit breaker
@@ -195,6 +196,17 @@ export async function ingestUnifiedData(params: {
           const games = Array.from(gamesMap.values());
           console.log(`[FeedAgent] Inserting ${games.length} unique games`);
           
+          const supabaseClient = requireSupabase();
+          if (!supabaseClient) {
+            console.warn('[FeedAgent] Supabase client not initialized, skipping games insert');
+            return {
+              success: false,
+              count: 0,
+              source: 'database-error',
+              error: 'Supabase client not initialized'
+            };
+          }
+
           const { error: gamesError } = await supabaseClient
             .from('games')
             .upsert(games, { 
@@ -243,11 +255,22 @@ export async function ingestUnifiedData(params: {
         const batchSize = params.batchSize || 100;
         let insertedCount = 0;
         
+        if (!supabaseClient) {
+          console.warn('[FeedAgent] Supabase client not initialized, skipping props insert');
+          return {
+            success: false,
+            count: 0,
+            source: 'database-error',
+            error: 'Supabase client not initialized'
+          };
+        }
+        
         for (let i = 0; i < propsForDB.length; i += batchSize) {
           const batch = propsForDB.slice(i, i + batchSize);
           
-          const { error: insertError } = await supabaseClient
-            .from('raw_props')
+          const supabaseClient = requireSupabase();
+      const { error: insertError } = await supabaseClient
+            .from('sports_game_odds')
             .insert(batch);
             
           if (insertError) {

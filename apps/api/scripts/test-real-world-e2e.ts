@@ -20,7 +20,7 @@ import { Client as DiscordClient } from 'discord.js';
 
 // Import our agents and services
 import { AlertAgent } from '../src/agents/AlertAgent';
-import { GradingAgent } from '../src/agents/GradingAgent/GradingAgent';
+import { ScoringAgent } from '../src/agents/ScoringAgent/ScoringAgent';
 import { IngestionAgent } from '../src/agents/IngestionAgent';
 import { RecapAgent } from '../src/agents/RecapAgent/recapService';
 import { SettlementAgent } from '../src/agents/SettlementAgent';
@@ -80,7 +80,7 @@ class RealWorldE2ETestRunner {
   
   // Agents
   private ingestionAgent: IngestionAgent;
-  private gradingAgent: GradingAgent;
+  private scoringAgent: ScoringAgent;
   private alertAgent: AlertAgent;
   private recapAgent: RecapAgent;
   private settlementAgent?: SettlementAgent;
@@ -160,7 +160,7 @@ class RealWorldE2ETestRunner {
       };
 
       this.ingestionAgent = new IngestionAgent(agentConfig, agentDeps);
-      this.gradingAgent = new GradingAgent(agentConfig, agentDeps);
+      this.scoringAgent = new ScoringAgent(agentConfig, agentDeps);
       this.alertAgent = new AlertAgent(agentConfig, agentDeps);
       this.recapAgent = new RecapAgent(agentConfig, agentDeps);
 

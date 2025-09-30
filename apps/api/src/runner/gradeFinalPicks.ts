@@ -1,9 +1,10 @@
-import { supabase } from '../services/supabaseClient';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 async function main() {
   try {
     // Get ungraded picks from unified_picks
-    const { data: picks, error } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: picks, error } = await supabase
       .from('unified_picks')
       .select('*')
       .eq('result', 'pending')
@@ -25,8 +26,9 @@ async function main() {
     for (const pick of picks) {
       try {
         // Get the raw prop data for grading context
-        const { data: rawProp, error: rawPropError } = await supabase
-          .from('raw_props')
+        const supabaseClient = requireSupabase();
+      const { data: rawProp, error: rawPropError } = await supabase
+          .from('sports_game_odds')
           .select('*')
           .eq('id', pick.raw_prop_id)
           .single();
@@ -45,7 +47,8 @@ async function main() {
         const result = Math.random() > 0.5 ? 'win' : 'loss';
 
         // Update the pick with the result
-        const { error: updateError } = await supabase
+        const supabaseClient = requireSupabase();
+      const { error: updateError } = await supabase
           .from('unified_picks')
           .update({
             result,

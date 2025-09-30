@@ -184,7 +184,7 @@ export class E2ETestRunner {
       }
       
       // Test database connection
-      const { error } = await this.supabase.from('raw_props').select('count').limit(1);
+      const { error } = await this.supabase.from('sports_game_odds').select('count').limit(1);
       if (error) {
         throw new Error(`Database connection failed: ${error.message}`);
       }
@@ -349,7 +349,7 @@ export class E2ETestRunner {
       
       // Query database for ingested props
       const { data: props, error } = await this.supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*')
         .eq('league', league)
         .gte('created_at', new Date(Date.now() - 300000).toISOString()); // Last 5 minutes
@@ -384,7 +384,7 @@ export class E2ETestRunner {
     try {
       // Query raw props for filtering
       const { data: rawProps, error } = await this.supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*')
         .eq('league', league)
         .gte('created_at', new Date(Date.now() - 300000).toISOString());
@@ -788,7 +788,7 @@ export class E2ETestRunner {
 
   private async checkDatabaseHealth(): Promise<{ healthy: boolean; details: any }> {
     try {
-      const { error } = await this.supabase.from('raw_props').select('count').limit(1);
+      const { error } = await this.supabase.from('sports_game_odds').select('count').limit(1);
       return {
         healthy: !error,
         details: { connected: !error, error: error?.message }

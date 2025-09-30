@@ -1,0 +1,140 @@
+{
+  "timestamp": "2025-09-29T17:04:02.460Z",
+  "score": "47.4",
+  "results": [
+    {
+      "category": "TypeScript",
+      "status": "FAIL",
+      "message": "TypeScript validation failed",
+      "details": "Command failed: npm run type-check 2>&1"
+    },
+    {
+      "category": "Architecture",
+      "status": "WARNING",
+      "message": "Service unreachable: http://localhost:3000/health"
+    },
+    {
+      "category": "Architecture",
+      "status": "WARNING",
+      "message": "Service unreachable: http://localhost:3002"
+    },
+    {
+      "category": "Architecture",
+      "status": "WARNING",
+      "message": "Service unreachable: http://localhost:3004"
+    },
+    {
+      "category": "Architecture",
+      "status": "WARNING",
+      "message": "Service unreachable: http://localhost:8088"
+    },
+    {
+      "category": "Database",
+      "status": "PASS",
+      "message": "Table unified_picks exists and accessible"
+    },
+    {
+      "category": "Database",
+      "status": "PASS",
+      "message": "Table users exists and accessible"
+    },
+    {
+      "category": "Database",
+      "status": "PASS",
+      "message": "Table raw_props exists and accessible"
+    },
+    {
+      "category": "Database",
+      "status": "PASS",
+      "message": "Table agent_health exists and accessible"
+    },
+    {
+      "category": "Database",
+      "status": "PASS",
+      "message": "v3.0.0 schema validated successfully"
+    },
+    {
+      "category": "Performance",
+      "status": "WARNING",
+      "message": "/health performance check failed"
+    },
+    {
+      "category": "Performance",
+      "status": "WARNING",
+      "message": "/api/agents/health performance check failed"
+    },
+    {
+      "category": "Performance",
+      "status": "WARNING",
+      "message": "/api/analytics performance check failed"
+    },
+    {
+      "category": "Security",
+      "status": "PASS",
+      "message": "Environment variables properly configured"
+    },
+    {
+      "category": "Security",
+      "status": "WARNING",
+      "message": "Security validation incomplete"
+    },
+    {
+      "category": "Documentation",
+      "status": "PASS",
+      "message": "README.md exists and appears complete"
+    },
+    {
+      "category": "Documentation",
+      "status": "PASS",
+      "message": "CLAUDE.md exists and appears complete"
+    },
+    {
+      "category": "Documentation",
+      "status": "PASS",
+      "message": "docs/AGENTS.md exists and appears complete"
+    },
+    {
+      "category": "Documentation",
+      "status": "WARNING",
+      "message": "docs/architecture/system-design.md missing"
+    }
+  ],
+  "criteria": {
+    "TYPESCRIPT": {
+      "maxErrors": 0,
+      "strictMode": true,
+      "coverage": 95
+    },
+    "SYSTEM_HEALTH": {
+      "minUptime": 99.9,
+      "maxLatency": 2000,
+      "maxErrorRate": 0.01
+    },
+    "DATABASE": {
+      "schemaVersion": "v3.0.0",
+      "requiredTables": [
+        "unified_picks",
+        "users",
+        "raw_props",
+        "agent_health"
+      ],
+      "indexCoverage": 90
+    },
+    "AGENTS": {
+      "required": [
+        "FeedAgent",
+        "ScoringAgent",
+        "AlertAgent",
+        "OperatorAgent"
+      ],
+      "healthCheckInterval": 60000,
+      "maxRestarts": 3
+    },
+    "SCORING": {
+      "enhanced45Factor": true,
+      "factorCount": 195,
+      "minWinRate": 0.55,
+      "minCLV": 0.6
+    }
+  }
+}

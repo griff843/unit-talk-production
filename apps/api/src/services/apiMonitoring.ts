@@ -1,4 +1,5 @@
 import { supabaseClient } from './supabaseClient';
+import { requireSupabase } from '../utils/supabaseUtils';
 // Simple logger for API monitoring
 class SimpleLogger {
   constructor(private context: string) {}
@@ -16,7 +17,7 @@ class SimpleLogger {
   }
 }
 
-const _Logger = SimpleLogger;
+// const _Logger = SimpleLogger;
 
 export interface ApiHealthStatus {
   provider: string;
@@ -227,6 +228,16 @@ class ApiMonitoringService {
     
     try {
       // Check when we last successfully ingested data from this provider
+      if (!supabaseClient) {
+        this.logger.warn('Supabase not initialized, assuming fresh data for ' + provider);
+        return {
+          lastUpdate: new Date(),
+          expectedUpdateInterval: config?.expectedUpdateInterval || 5,
+          isStale: false,
+        };
+      }
+
+      const supabaseClient = requireSupabase();
       const { data: lastIngestion, error } = await supabaseClient
         .from('data_ingestion_log')
         .select('created_at, records_processed')
@@ -297,6 +308,22 @@ class ApiMonitoringService {
 
     try {
       // Store alert in database
+      if (!supabaseClient) {
+        this.logger.warn('Supabase not initialized, logging alert only', {
+          provider,
+          alertType,
+          message,
+          severity
+        });
+        console.error(`🚨 ALERT [${severity.toUpperCase()}]: ${message}`, {
+          provider,
+          alertType,
+          details,
+        });
+        return;
+      }
+
+      const supabaseClient = requireSupabase();
       const { data, error } = await supabaseClient
         .from('data_ingestion_alerts')
         .insert([alert])
@@ -354,6 +381,12 @@ class ApiMonitoringService {
   private async sendCommandCenterNotification(alert: DataIngestionAlert) {
     try {
       // Send to Command Center real-time channel
+      if (!supabaseClient) {
+        this.logger.warn('Supabase not initialized, skipping Command Center notification');
+        return;
+      }
+
+      const supabaseClient = requireSupabase();
       const { error } = await supabaseClient
         .from('realtime_notifications')
         .insert([{
@@ -374,6 +407,10 @@ class ApiMonitoringService {
       if (error) throw error;
 
       // Also trigger Supabase realtime broadcast
+      if (!supabaseClient) {
+        return;
+      }
+
       const channel = supabaseClient.channel('command_center_alerts');
       await channel.send({
         type: 'broadcast',
@@ -398,6 +435,12 @@ class ApiMonitoringService {
    */
   private async updateHealthMetrics(provider: string, healthStatus: ApiHealthStatus) {
     try {
+      if (!supabaseClient) {
+        this.logger.warn('Supabase not initialized, health status not persisted', { provider, status: healthStatus.status });
+        return;
+      }
+
+      const supabaseClient = requireSupabase();
       const { error } = await supabaseClient
         .from('api_health_status')
         .upsert({
@@ -434,6 +477,12 @@ class ApiMonitoringService {
    */
   private async getLatestHealthStatus(provider: string): Promise<ApiHealthStatus | null> {
     try {
+      if (!supabaseClient) {
+        this.logger.warn('Supabase not initialized, no previous status available', { provider });
+        return null;
+      }
+
+      const supabaseClient = requireSupabase();
       const { data, error } = await supabaseClient
         .from('api_health_status')
         .select('*')
@@ -505,6 +554,12 @@ class ApiMonitoringService {
    */
   async getActiveAlerts(): Promise<DataIngestionAlert[]> {
     try {
+      if (!supabaseClient) {
+        this.logger.warn('Supabase not initialized, no alerts available');
+        return [];
+      }
+
+      const supabaseClient = requireSupabase();
       const { data, error } = await supabaseClient
         .from('data_ingestion_alerts')
         .select('*')
@@ -534,6 +589,11 @@ class ApiMonitoringService {
    */
   async acknowledgeAlert(alertId: string, acknowledgedBy: string): Promise<void> {
     try {
+      if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+      }
+
+      const supabaseClient = requireSupabase();
       const { error } = await supabaseClient
         .from('data_ingestion_alerts')
         .update({
@@ -555,6 +615,11 @@ class ApiMonitoringService {
    */
   async resolveAlert(alertId: string, resolvedBy: string): Promise<void> {
     try {
+      if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+      }
+
+      const supabaseClient = requireSupabase();
       const { error } = await supabaseClient
         .from('data_ingestion_alerts')
         .update({

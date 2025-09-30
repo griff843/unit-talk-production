@@ -5,6 +5,7 @@ import { BaseAgentConfig, BaseAgentDependencies } from '../BaseAgent/types';
 import { RecapFormatter } from './recapFormatter';
 import { RecapService } from './recapService';
 import { RecapState } from './recapStateManager';
+import { requireSupabase, supabaseClient } from '../../utils/supabaseUtils';
 
 // Define missing types
 interface MicroRecapData {
@@ -237,6 +238,7 @@ export class RecapAgent extends BaseAgent implements RecapAgentType {
       const supabase = this.deps.supabase;
       
       // Get picks ready for live posting
+      const supabaseClient = requireSupabase();
       const { data: livePicks, error: liveError } = await supabase
         .from('unified_picks')
         .select('*')
@@ -416,6 +418,7 @@ export class RecapAgent extends BaseAgent implements RecapAgentType {
 
       // Get VIP+ users from database
       const supabase = this.deps.supabase;
+      const supabaseClient = requireSupabase();
       const { data: vipUsers, error } = await supabase
         .from('user_profiles')
         .select('discord_id, tier')
@@ -528,6 +531,7 @@ export class RecapAgent extends BaseAgent implements RecapAgentType {
     try {
       const supabase = this.deps.supabase;
       
+      const supabaseClient = requireSupabase();
       const { data: lowTierPicks, error } = await supabase
         .from('unified_picks')
         .select('id, tier, capper_username, created_at')
@@ -675,6 +679,7 @@ export class RecapAgent extends BaseAgent implements RecapAgentType {
         updateData.message_id = _messageId || `fallback_${Date.now()}`;
       }
 
+      const supabaseClient = requireSupabase();
       const { error } = await supabase
         .from('unified_picks')
         .update(updateData)

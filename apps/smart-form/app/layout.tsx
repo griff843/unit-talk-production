@@ -11,6 +11,11 @@ export const metadata: Metadata = {
   description: 'Professional sports betting ticket submission form',
 };
 
+// Force dynamic rendering to prevent Html import issues
+export const dynamic = 'force-dynamic';
+export const dynamicParams = true;
+export const revalidate = 0;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>

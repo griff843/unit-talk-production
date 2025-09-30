@@ -4,7 +4,8 @@ import type {
   IngestionActivities,
   ProcessingActivities,
   AlertActivities,
-  OperatorActivities
+  OperatorActivities,
+  SettlementActivities
 } from '../activities';
 import type { SupportedLeague } from '../agents/PlayerEnrichmentAgent';
 import type {
@@ -13,7 +14,7 @@ import type {
   NotificationAgentActivities,
   FeedAgentActivities,
   AuditAgentActivities,
-  GradingAgentActivities,
+  ScoringAgentActivities,
   AlertAgentActivities,
   CampaignAgentActivities,
   ContestAgentActivities,
@@ -43,7 +44,7 @@ const auditActivities = proxyActivities<AuditAgentActivities>({
   startToCloseTimeout: '10 minutes'
 });
 
-const gradingActivities = proxyActivities<GradingAgentActivities>({
+const gradingActivities = proxyActivities<ScoringAgentActivities>({
   startToCloseTimeout: '60 seconds' // Fast grading for syndicate speed
 });
 
@@ -84,6 +85,16 @@ const e2eOperatorActivities = proxyActivities<OperatorActivities>({
   startToCloseTimeout: '30 seconds' // System monitoring must be fast
 });
 
+const settlementActivities = proxyActivities<SettlementActivities>({
+  startToCloseTimeout: '2 minutes', // Settlement processing timeout
+  retry: {
+    initialInterval: '5 seconds',
+    maximumInterval: '1 minute',
+    backoffCoefficient: 2,
+    maximumAttempts: 3
+  }
+});
+
 // Export all activities
 export {
   baseActivities,
@@ -97,6 +108,7 @@ export {
   contestActivities,
   operatorActivities,
   playerEnrichmentActivities,
+  settlementActivities,
   // E2E Testing Activities
   e2eIngestionActivities,
   e2eProcessingActivities,
@@ -252,3 +264,24 @@ export { FeedAgentBackfillWorkflow } from './FeedAgentBackfillWorkflow';
 
 // Alias for backward compatibility
 export { FeedAgentBackfillWorkflow as feedAgentWorkflow } from './FeedAgentBackfillWorkflow';
+
+// SGO Backfill Workflows
+export {
+  backfillSportsGameOdds,
+  continuousSGOBackfill,
+  backfillSportSpecific
+} from './backfillSportsGameOdds';
+
+// MASSIVE PARALLEL SGO BACKFILL WORKFLOWS
+export {
+  massiveParallelSGOBackfill,
+  parallelSportBackfill,
+  processDateRangeBatch,
+  concurrentSettlementProcessor
+} from './massiveParallelSGOBackfill';
+
+// Settlement Workflows
+export {
+  settlementBackfillWorkflow,
+  settlementIdsWorkflow
+} from './agents/SettlementAgent';

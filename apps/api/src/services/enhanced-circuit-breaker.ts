@@ -410,7 +410,7 @@ export class EnhancedCircuitBreaker extends EventEmitter {
   private cleanupOldErrors(): void {
     const oneHourAgo = Date.now() - 3600000;
     
-    for (const service of this.services.values()) {
+    for (const service of Array.from(this.services.values())) {
       service.metrics.recentErrors = service.metrics.recentErrors.filter(
         error => error.timestamp > oneHourAgo
       );

@@ -140,7 +140,7 @@ async function main() {
     console.log('✅ Schema transformation successful');
     
     console.log('\n🚀 NEXT CRITICAL STEPS:');
-    console.log('1. ⚡ URGENT: Trigger GradingAgent to process the new props');
+    console.log('1. ⚡ URGENT: Trigger ScoringAgent to process the new props');
     console.log('2. 🏈 Fix NCAAF routing to use Odds API for complete coverage');
     console.log('3. ✅ Validate end-to-end pipeline through Command Center');
     

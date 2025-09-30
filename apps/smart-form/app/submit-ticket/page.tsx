@@ -1,3 +1,7 @@
+// Force dynamic rendering to avoid prerendering issues
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import { SmartTicketForm } from './components/SmartTicketForm';
 
 export default function SubmitTicketPage() {

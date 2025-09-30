@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
+import { requireSupabase } from './utils/supabaseUtils';
 
 // Load environment variables
 dotenv.config();
@@ -14,8 +15,9 @@ async function checkDatabaseSchema() {
   
   try {
     // Get table schema information
-    const { data, error } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data, error } = await supabase
+      .from('sports_game_odds')
       .select('*')
       .limit(1);
     
@@ -39,8 +41,9 @@ async function checkDatabaseSchema() {
       scraped_at: new Date().toISOString()
     };
     
-    const { data: insertData, error: insertError } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: insertData, error: insertError } = await supabase
+      .from('sports_game_odds')
       .insert(testProp)
       .select();
     
@@ -57,8 +60,9 @@ async function checkDatabaseSchema() {
       
       // Clean up test record
       if (insertData && insertData[0]) {
-        await supabase
-          .from('raw_props')
+        const supabaseClient = requireSupabase();
+    await supabase
+          .from('sports_game_odds')
           .delete()
           .eq('id', insertData[0].id);
         console.log('🧹 Cleaned up test record');

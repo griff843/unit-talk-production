@@ -13,6 +13,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 import { createLogger } from '../utils/logger';
 
 import { createClient } from '@supabase/supabase-js';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 const logger = createLogger('TestMinimalSystem');
 
@@ -44,12 +45,14 @@ async function testBasicConnectivity() {
     );
     
     // Simple ping test instead of complex query
-    const { data, error } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data, error } = await supabase
       .rpc('get_schema_version') // This is a simple built-in function
       .limit(1);
       
     // If get_schema_version doesn't exist, try a simple select from information_schema
     if (error && error.message.includes('function')) {
+      const supabaseClient = requireSupabase();
       const { data: schemaData, error: schemaError } = await supabase
         .from('information_schema.tables')
         .select('table_name')
@@ -58,7 +61,8 @@ async function testBasicConnectivity() {
       if (schemaError) {
         // Final fallback - just test the connection with a simple query
         console.log('⚠️ Testing basic connection...');
-        const { error: basicError } = await supabase.auth.getSession();
+        const supabaseClient = requireSupabase();
+      const { error: basicError } = await supabase.auth.getSession();
         if (basicError && !basicError.message.includes('session')) {
           throw new Error(`Database connection failed: ${basicError.message}`);
         }
@@ -74,6 +78,7 @@ async function testBasicConnectivity() {
     const requiredTables = ['raw_props', 'unified_picks', 'users'];
     
     for (const table of requiredTables) {
+      const supabaseClient = requireSupabase();
       const { error: tableError } = await supabase
         .from(table)
         .select('*')
@@ -91,6 +96,7 @@ async function testBasicConnectivity() {
     const professionalTables = ['clv_tracking', 'sportsbook_weights', 'processing_logs'];
     
     for (const table of professionalTables) {
+      const supabaseClient = requireSupabase();
       const { error: tableError } = await supabase
         .from(table)
         .select('*')
@@ -107,8 +113,9 @@ async function testBasicConnectivity() {
     console.log('✅ Checking for sample data...');
     
     // Check raw_props
-    const { data: rawPropsData, error: rawPropsError } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: rawPropsData, error: rawPropsError } = await supabase
+      .from('sports_game_odds')
       .select('*')
       .limit(5);
       
@@ -119,7 +126,8 @@ async function testBasicConnectivity() {
     }
     
     // Check for historical data
-    const { data: historicalData, error: historicalError } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: historicalData, error: historicalError } = await supabase
       .from('raw_props_historical')
       .select('*')
       .limit(5);

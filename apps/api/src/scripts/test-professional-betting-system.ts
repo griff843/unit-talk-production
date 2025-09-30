@@ -13,14 +13,15 @@
 
 import { performance } from 'perf_hooks';
 
-import { Logger } from '@shared/logger';
+import { Logger } from '../shared/logger';
 
 import { CLVAlertService } from '../services/alerts/CLVAlertService';
 import { CLVTrackingService } from '../services/clv/CLVTrackingService';
 import { DeviggingService } from '../services/devigging/DeviggingService';
 import { FeedbackLoopService } from '../services/feedback/FeedbackLoopService';
 import { ProfessionalBettingScheduler } from '../services/schedulers/ProfessionalBettingScheduler';
-import { supabaseClient } from '../services/supabaseClient';
+import { supabaseClient } from '../utils/supabaseUtils';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 const logger = new Logger('ProfessionalBettingSystemTest');
 
@@ -227,6 +228,7 @@ class ProfessionalBettingSystemTester {
       await this.clvTrackingService.trackPick(pickData);
       
       // Verify tracking worked
+      const supabaseClient = requireSupabase();
       const { data } = await supabaseClient
         .from('clv_tracking')
         .select('*')
@@ -523,7 +525,8 @@ class ProfessionalBettingSystemTester {
       ];
 
       for (const table of tables) {
-        const { data, error } = await supabaseClient
+        const supabaseClient = requireSupabase();
+      const { data, error } = await supabaseClient
           .from(table)
           .select('*')
           .limit(1);
@@ -679,6 +682,7 @@ class ProfessionalBettingSystemTester {
     logger.info('Setting up test environment...');
     
     // Create test user
+    const supabaseClient = requireSupabase();
     await supabaseClient
       .from('users')
       .upsert({
@@ -695,7 +699,8 @@ class ProfessionalBettingSystemTester {
     const tables = ['clv_tracking', 'clv_alerts', 'feedback_loop_history'];
     
     for (const table of tables) {
-      await supabaseClient
+      const supabaseClient = requireSupabase();
+    await supabaseClient
         .from(table)
         .delete()
         .or(`prop_id.like.test-%,prop_id.like.e2e-%,prop_id.like.perf-%`);

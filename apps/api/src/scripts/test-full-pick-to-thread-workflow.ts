@@ -7,6 +7,7 @@ import { SmartFormBridge } from '../services/SmartFormBridge';
 import { logger } from '../shared/logger';
 
 import { createClient } from '@supabase/supabase-js';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 /**
  * FULL WORKFLOW TEST: Pick Submission → Thread Creation → Content Routing
@@ -66,7 +67,8 @@ async function testFullPickToThreadWorkflow() {
       process.env.SUPABASE_SERVICE_ROLE_KEY || ''
     );
 
-    const { data: insertedTicket, error: insertError } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: insertedTicket, error: insertError } = await supabase
       .from('smart_tickets')
       .insert(mockSmartTicket)
       .select()
@@ -103,7 +105,8 @@ async function testFullPickToThreadWorkflow() {
     // Step 4: Verify thread was created in Game Day Live
     console.log('\\n🧵 STEP 4: Checking Game Day Live for New Thread...');
     
-    const { data: gameThreads, error: threadsError } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: gameThreads, error: threadsError } = await supabase
       .from('game_threads')
       .select('*')
       .ilike('name', '%Rams%49ers%')
@@ -194,7 +197,8 @@ async function testFullPickToThreadWorkflow() {
 
     // Cleanup: Remove test ticket if inserted
     if (!insertError && insertedTicket) {
-      await supabase
+      const supabaseClient = requireSupabase();
+    await supabase
         .from('smart_tickets')
         .delete()
         .eq('id', insertedTicket.id);

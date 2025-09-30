@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { BridgeWorker } from '../workers/BridgeWorker';
-import { supabaseClient } from '../services/supabaseClient';
+import { supabaseClient } from '../utils/supabaseUtils';
 import { createLogger } from '../utils/logger';
 import { getEnv } from '../utils/getEnv';
 

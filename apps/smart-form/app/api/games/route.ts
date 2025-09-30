@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseServer } from '@/lib/supabase';
-import { 
-  createRouteLogger, 
-  logDatabaseOperation, 
-  logApiPerformance, 
+import type { Database } from '@/types/supabase';
+import {
+  createRouteLogger,
+  logDatabaseOperation,
+  logApiPerformance,
   logExternalApiCall,
-  logValidationError 
+  logValidationError
 } from '@/lib/logger';
+
+// Force dynamic rendering to prevent static generation errors
+export const dynamic = 'force-dynamic';
 
 const log = createRouteLogger('GET /api/games', 'GET');
 
@@ -257,7 +261,7 @@ export async function GET(request: NextRequest) {
 
           const { data: insertedGames, error: insertError } = await supabase
             .from('games')
-            .insert(optimalGames)
+            .insert(optimalGames as any)
             .select();
 
           logDatabaseOperation(log, 'INSERT', 'games', insertedGames, insertError);
@@ -290,7 +294,7 @@ export async function GET(request: NextRequest) {
     
     query = query.order('commence_time');
 
-    const { data: games, error } = await query;
+    const { data: games, error } = await query as { data: any[] | null, error: any };
 
     logDatabaseOperation(log, 'SELECT', 'games', games, error);
 
@@ -317,9 +321,9 @@ export async function GET(request: NextRequest) {
     }, `Returning ${games?.length || 0} games for ${sport} on ${today}`);
 
     // Transform games for frontend consumption with proper time and odds handling
-    let transformedGames =
+    const transformedGames =
       games
-        ?.map(game => {
+        ?.map((game: any) => {
           let gameTime, display_time, formatted_time;
           let isLive = false;
 

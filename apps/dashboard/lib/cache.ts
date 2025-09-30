@@ -191,14 +191,14 @@ class DashboardCache {
   invalidateChartCache(chartType?: string): void {
     if (chartType) {
       // Invalidate specific chart type
-      for (const [key, item] of this.cache.entries()) {
+      for (const [key, item] of Array.from(this.cache.entries())) {
         if (key.startsWith('chart:') && item.chartType === chartType) {
           this.cache.delete(key);
         }
       }
     } else {
       // Invalidate all chart cache
-      for (const key of this.cache.keys()) {
+      for (const key of Array.from(this.cache.keys())) {
         if (key.startsWith('chart:')) {
           this.cache.delete(key);
         }
@@ -208,7 +208,7 @@ class DashboardCache {
 
   // User-specific cache management
   invalidateUserCache(userId: string): void {
-    for (const [key, item] of this.cache.entries()) {
+    for (const [key, item] of Array.from(this.cache.entries())) {
       if (item.userId === userId) {
         this.cache.delete(key);
       }
@@ -253,7 +253,7 @@ class DashboardCache {
     const now = Date.now();
 
     // Cleanup memory cache
-    for (const [key, item] of this.cache.entries()) {
+    for (const [key, item] of Array.from(this.cache.entries())) {
       if (now > item.timestamp + item.ttl) {
         this.cache.delete(key);
       }

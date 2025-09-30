@@ -163,7 +163,7 @@ class ProductionPipelineTest {
         throw new Error('Daily pick not available for final promotion test');
       }
 
-      // Auto-promote A-tier picks to final_picks (would normally be done by SmartFormBridge or GradingAgent)
+      // Auto-promote A-tier picks to final_picks (would normally be done by SmartFormBridge or ScoringAgent)
       if (this.testData.dailyPick.tier === 'A') {
         const finalPick = {
           id: `final-${Date.now()}`,

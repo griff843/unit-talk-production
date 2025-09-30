@@ -1,5 +1,6 @@
 import { BaseAgent } from '../BaseAgent/index';
 import { BaseAgentConfig, BaseAgentDependencies, HealthStatus, BaseMetrics } from '../BaseAgent/types';
+import { requireSupabase } from '../../utils/supabaseUtils';
 
 interface AnalyticsMetrics extends BaseMetrics {
   totalAnalyzed: number;

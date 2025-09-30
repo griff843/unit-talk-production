@@ -10,10 +10,11 @@ dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 import { createClient } from '@supabase/supabase-js';
 
-import { SyndicateGradingEngine } from '../agents/GradingAgent/scoring/gradingEngine';
+import { SyndicateGradingEngine } from '../agents/ScoringAgent/scoring/gradingEngine';
 import { CLVTrackingService } from '../services/clv/CLVTrackingService';
 import { DeviggingService } from '../services/devigging/DeviggingService';
 import { createLogger } from '../utils/logger';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 const logger = createLogger('DirectProfessionalTest');
 const supabase = createClient(
@@ -27,8 +28,9 @@ async function runDirectProfessionalTest() {
   
   try {
     // Get some real raw props
-    const { data: rawProps, error } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: rawProps, error } = await supabase
+      .from('sports_game_odds')
       .select('*')
       .not('player_name', 'is', null)
       .not('stat_type', 'is', null)
@@ -184,7 +186,8 @@ async function runDirectProfessionalTest() {
         };
         
         // Insert into unified_picks
-        const { error: insertError } = await supabase
+        const supabaseClient = requireSupabase();
+      const { error: insertError } = await supabase
           .from('unified_picks')
           .insert([professionalPick]);
           
@@ -251,15 +254,18 @@ async function runDirectProfessionalTest() {
       // Final database verification
       console.log('\n🔍 FINAL DATABASE VERIFICATION:');
       
+      const supabaseClient = requireSupabase();
       const { count: totalUnifiedPicks } = await supabase
         .from('unified_picks')
         .select('*', { count: 'exact', head: true });
         
+      const supabaseClient = requireSupabase();
       const { count: professionalPicks } = await supabase
         .from('unified_picks')
         .select('*', { count: 'exact', head: true })
         .not('professional_score', 'is', null);
         
+      const supabaseClient = requireSupabase();
       const { count: clvEntries } = await supabase
         .from('clv_tracking')
         .select('*', { count: 'exact', head: true });

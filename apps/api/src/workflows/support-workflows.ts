@@ -5,7 +5,7 @@ import type {
   AlertAgentActivities,
   OperatorAgentActivities,
   NotificationAgentActivities,
-  GradingAgentActivities
+  ScoringAgentActivities
 } from '../types/activities';
 
 // Export types that are imported elsewhere
@@ -60,7 +60,7 @@ const notificationActivities = proxyActivities<NotificationAgentActivities>({
   startToCloseTimeout: '30 seconds'
 });
 
-const gradingActivities = proxyActivities<GradingAgentActivities>({
+const gradingActivities = proxyActivities<ScoringAgentActivities>({
   startToCloseTimeout: '2 minutes'
 });
 

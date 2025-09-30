@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -29,7 +30,8 @@ async function findUnifiedPicksColumns() {
   
   console.log('\n1️⃣ Testing minimal columns...');
   try {
-    const { data, error } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data, error } = await supabase
       .from('unified_picks')
       .insert(basicColumns)
       .select();
@@ -41,7 +43,8 @@ async function findUnifiedPicksColumns() {
       console.log('Basic columns that work:', Object.keys(basicColumns));
       
       // Clean up
-      await supabase
+      const supabaseClient = requireSupabase();
+    await supabase
         .from('unified_picks')
         .delete()
         .eq('user_id', 'test-basic');
@@ -83,6 +86,7 @@ async function findUnifiedPicksColumns() {
     };
     
     try {
+      const supabaseClient = requireSupabase();
       const { error } = await supabase
         .from('unified_picks')
         .insert(testData)
@@ -94,7 +98,8 @@ async function findUnifiedPicksColumns() {
         console.log(`✅ ${column}: Exists`);
         
         // Clean up
-        await supabase
+        const supabaseClient = requireSupabase();
+    await supabase
           .from('unified_picks')
           .delete()
           .eq('user_id', `test-${column}`);

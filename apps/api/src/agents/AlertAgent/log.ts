@@ -1,6 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 
 import { UnifiedPick } from '../../db/types/unified_picks';
+import { requireSupabase } from '../../utils/supabaseUtils';
 
 interface AlertLogEntry {
   bet_id: string;
@@ -60,7 +61,8 @@ export async function logAlertRecord(
       created_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase
+    const supabaseClient = requireSupabase();
+      const { error } = await supabase
       .from('unit_talk_alerts_log')
       .insert([logEntry]);
 
@@ -101,7 +103,8 @@ export async function logAlertOutcome(
       }
     }
 
-    const { error } = await supabase
+    const supabaseClient = requireSupabase();
+      const { error } = await supabase
       .from('unit_talk_alert_outcomes')
       .insert([outcomeEntry]);
 
@@ -123,7 +126,8 @@ export async function getAlertPerformanceMetrics(
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - timeframeDays);
 
-    const { data: alerts, error } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: alerts, error } = await supabase
       .from('unit_talk_alerts_log')
       .select(`
         *,
@@ -159,7 +163,8 @@ export async function getTopPerformingAdvicePatterns(
   confidence: number;
 }>> {
   try {
-    const { data: alerts, error } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: alerts, error } = await supabase
       .from('unit_talk_alerts_log')
       .select(`
         advice_given,

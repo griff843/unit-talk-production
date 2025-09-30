@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -19,8 +20,9 @@ async function testFieldRanges() {
   console.log('='.repeat(30));
   
   try {
-    const { data: testProp } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: testProp } = await supabase
+      .from('sports_game_odds')
       .select('id')
       .limit(1)
       .single();
@@ -37,8 +39,9 @@ async function testFieldRanges() {
     const confidenceValues = [0, 1, 10, 50, 79, 99, 100];
     
     for (const value of confidenceValues) {
+      const supabaseClient = requireSupabase();
       const { error } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .update({ confidence: value })
         .eq('id', testProp.id);
       
@@ -50,8 +53,9 @@ async function testFieldRanges() {
     const edgeScoreValues = [0, 1, 5, 10, 50, 100, 500, 1000];
     
     for (const value of edgeScoreValues) {
+      const supabaseClient = requireSupabase();
       const { error } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .update({ edge_score: value })
         .eq('id', testProp.id);
       
@@ -60,8 +64,9 @@ async function testFieldRanges() {
     
     // Test a minimal update with only tier
     console.log('\n🎯 TESTING MINIMAL UPDATE:');
-    const { error: minimalError } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { error: minimalError } = await supabase
+      .from('sports_game_odds')
       .update({
         tier: 'B',
         updated_at: new Date().toISOString()

@@ -1,4 +1,5 @@
 import { Provider } from '../types';
+import { apiQuotaCoordinator } from '../../../services/APIQuotaCoordinator';
 
 export interface FetchProviderInput {
   provider: Provider;
@@ -20,6 +21,24 @@ export interface FetchResult {
 export async function fetchFromProviderActivity(input: FetchProviderInput): Promise<FetchResult> {
   const { provider, baseUrl, apiKey, timestamp } = input;
   const startTime = Date.now();
+
+  // Check API quota before making the request
+  const quotaCheck = await apiQuotaCoordinator.requestAPIAccess(
+    provider.name,
+    'feed-agent',
+    7, // Normal priority for feed operations
+    { baseUrl, timestamp }
+  );
+
+  if (!quotaCheck.allowed) {
+    return {
+      success: false,
+      error: `Quota check failed: ${quotaCheck.reason}`,
+      latencyMs: Date.now() - startTime,
+      timestamp,
+      statusCode: 429 // Too Many Requests
+    };
+  }
 
   const url = `${baseUrl}/api/v1/odds`;
 

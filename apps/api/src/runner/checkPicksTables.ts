@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -19,7 +20,8 @@ async function checkPicksTables() {
   
   // Check if unified_picks table exists
   try {
-    const { error: finalPicksError } = await supabase
+    const supabaseClient = requireSupabase();
+      const { error: finalPicksError } = await supabase
       .from('unified_picks')
       .select('count')
       .limit(1);
@@ -35,14 +37,16 @@ async function checkPicksTables() {
   
   // Check if unified_picks table exists
   try {
-    const { count: unifiedCount } = await supabase
+    const supabaseClient = requireSupabase();
+      const { count: unifiedCount } = await supabase
       .from('unified_picks')
       .select('*', { count: 'exact', head: true });
       
     console.log(`unified_picks table: ✅ Exists (${unifiedCount || 0} records)`);
     
     // Show unified_picks schema
-    const { data: samplePick } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: samplePick } = await supabase
       .from('unified_picks')
       .select('*')
       .limit(1);

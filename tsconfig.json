@@ -1,0 +1,29 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@unit-talk/shared-types": ["./packages/shared-types"],
+      "@unit-talk/shared-utils": ["./packages/shared-utils"],
+      "@unit-talk/database": ["./packages/database"],
+      "@unit-talk/config": ["./packages/config"]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.js",
+    "**/*.jsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    ".next",
+    "coverage",
+    "**/*.min.js",
+    "apps/*/node_modules",
+    "packages/*/node_modules"
+  ]
+}

@@ -112,7 +112,7 @@ export const AlertAgentConfigSchema = AgentConfigSchema.extend({
   }).optional()
 });
 
-export interface GradingAgentConfig extends AgentConfig {
+export interface ScoringAgentConfig extends AgentConfig {
   models: {
     name: string;
     version: string;
@@ -129,7 +129,7 @@ export interface GradingAgentConfig extends AgentConfig {
   };
 }
 
-export const GradingAgentConfigSchema = AgentConfigSchema.extend({
+export const ScoringAgentConfigSchema = AgentConfigSchema.extend({
   models: z.array(z.object({
     name: z.string(),
     version: z.string(),

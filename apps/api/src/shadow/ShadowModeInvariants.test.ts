@@ -13,7 +13,7 @@
 import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { ShadowModeService } from './ShadowMode';
 import { PublishGuardService } from '../promotion/PublishGuard';
-import { supabaseClient } from '../services/supabaseClient';
+import { supabaseClient } from '../utils/supabaseUtils';
 import type { ShadowPick, ShadowAction } from './ShadowMode';
 import type { PromotionDecision, PublishOptions } from '../promotion/PublishGuard';
 

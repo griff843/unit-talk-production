@@ -13,7 +13,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
-import { GradingAgent } from '../agents/GradingAgent';
+import { ScoringAgent } from '../agents/ScoringAgent';
 import { clvTrackingService } from '../services/clv/CLVTrackingService';
 import { deviggingService } from '../services/devigging/DeviggingService';
 import { professionalPropProcessor } from '../services/ProfessionalPropProcessor';
@@ -57,7 +57,7 @@ interface TestSummary {
 
 class HistoricalPropsTester {
   private supabase: any;
-  private gradingAgent: GradingAgent;
+  private scoringAgent: ScoringAgent;
   private testResults: HistoricalTestResult[] = [];
 
   constructor() {
@@ -71,12 +71,12 @@ class HistoricalPropsTester {
     logger.info('🧪 Initializing Historical Props Testing Framework');
     
     // Initialize grading agent for testing
-    this.gradingAgent = new GradingAgent(
-      { name: 'TestGradingAgent', enabled: true },
+    this.scoringAgent = new ScoringAgent(
+      { name: 'TestScoringAgent', enabled: true },
       { supabase: this.supabase, logger }
     );
     
-    await this.gradingAgent.initialize();
+    await this.scoringAgent.initialize();
     logger.info('✅ Testing framework initialized');
   }
 

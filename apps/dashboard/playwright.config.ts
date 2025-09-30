@@ -104,8 +104,6 @@ export default defineConfig({
       name: 'Accessibility',
       use: {
         ...devices['Desktop Chrome'],
-        // Force reduced motion for accessibility testing
-        reducedMotion: 'reduce',
         // High contrast mode simulation
         colorScheme: 'dark',
       },
@@ -127,8 +125,7 @@ export default defineConfig({
   timeout: 60000,
   expect: {
     // Visual regression testing
-    threshold: 0.1,
-    toHaveScreenshot: { threshold: 0.2, mode: 'css' },
+    toHaveScreenshot: { threshold: 0.2 },
     toMatchSnapshot: { threshold: 0.2 },
   },
 });

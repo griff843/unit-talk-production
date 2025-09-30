@@ -6,7 +6,8 @@
 
 import { createLogger } from '../utils/logger';
 import { shadowMode, shadowWritePick, shadowPublishPreview, type ShadowPick, type ShadowAction } from '../shadow/ShadowMode';
-import { supabase as supabaseClient } from '../services/supabaseClient';
+import { supabase as supabaseClient } from '../utils/supabaseUtils';
+import { requireSupabase, supabaseClient } from '../utils/supabaseUtils';
 
 export interface PromotionDecision {
   approved: boolean;
@@ -133,7 +134,8 @@ class PublishGuardService {
     if (decision.approved && (decision.lane === 'instant' || decision.lane === 'scheduled')) {
       // Mark as published in unified_picks
       if (decision.pick.id) {
-        await supabaseClient
+        const supabaseClient = requireSupabase();
+    await supabaseClient
           .from('unified_picks')
           .update({
             published: true,
@@ -217,7 +219,8 @@ class PublishGuardService {
    */
   private async ensureShadowPickNotPublished(pickId: string): Promise<void> {
     try {
-      await supabaseClient
+      const supabaseClient = requireSupabase();
+    await supabaseClient
         .from('unified_picks')
         .update({
           published: false,
@@ -259,6 +262,7 @@ class PublishGuardService {
   ): Promise<void> {
     if (shadowMode.isShadowMode()) {
       // Find corresponding shadow pick
+      const supabaseClient = requireSupabase();
       const { data: shadowPick } = await supabaseClient
         .from('shadow_decisions')
         .select('id')
@@ -280,7 +284,8 @@ class PublishGuardService {
 
       // If recheck fails, write new rejection row
       if (validationStatus === 'invalid' || validationStatus === 'cancelled') {
-        const { data: originalPick } = await supabaseClient
+        const supabaseClient = requireSupabase();
+      const { data: originalPick } = await supabaseClient
           .from('unified_picks')
           .select('*')
           .eq('id', pickId)
@@ -318,6 +323,7 @@ class PublishGuardService {
   ): Promise<void> {
     if (shadowMode.isShadowMode()) {
       // Find corresponding shadow pick
+      const supabaseClient = requireSupabase();
       const { data: shadowPick } = await supabaseClient
         .from('shadow_decisions')
         .select('id')

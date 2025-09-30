@@ -7,6 +7,7 @@ import { BottleneckDetector } from './bottleneckDetector';
 import { PerformanceOptimizer } from './performanceOptimizer';
 import { ResourceManager } from './resourceManager';
 import { SystemMonitor } from './systemMonitor';
+import { requireSupabase } from '../../utils/supabaseUtils';
 
 interface PerformanceMetrics extends BaseMetrics {
   systemCpuUsage: number;

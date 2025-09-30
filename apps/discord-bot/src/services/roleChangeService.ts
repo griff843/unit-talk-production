@@ -5,6 +5,7 @@ import { getUserTier, handleRoleUpgradeWithDelay, setOptimisticTier } from '../u
 import { Client } from 'discord.js';
 import { VIPNotificationService } from './vipNotificationService';
 import { OnboardingService } from './onboardingService';
+import { Suppression } from './suppression';
 
 export class RoleChangeService {
   private client: Client;
@@ -37,6 +38,17 @@ export class RoleChangeService {
     });
 
     if (this.isUpgrade(oldTier, newTier)) {
+      // Suppress duplicate onboarding if role change was just handled by RoleAssignmentConsumer
+      if (Suppression.isActive(newMember.id)) {
+        logger.info('[ROLE_CHANGE] Suppressed onboarding due to active suppression window', {
+          userId: newMember.id,
+          username: newMember.user.username,
+          oldTier,
+          newTier,
+        });
+        return;
+      }
+
       const lastUpgrade = this.recentUpgrades.get(newMember.id);
       const now = Date.now();
       logger.info('[ROLE_CHANGE] Upgrade detected', {
@@ -95,7 +107,7 @@ export class RoleChangeService {
    * Check if tier change is an upgrade
    */
   private isUpgrade(oldTier: string, newTier: string): boolean {
-    const tierOrder = ['member', 'vip', 'vip_plus'];
+    const tierOrder = ['member', 'trial', 'vip', 'vip_plus'];
     return tierOrder.indexOf(newTier) > tierOrder.indexOf(oldTier);
   }
 
@@ -103,7 +115,7 @@ export class RoleChangeService {
    * Check if tier change is a downgrade
    */
   private isDowngrade(oldTier: string, newTier: string): boolean {
-    const tierOrder = ['member', 'vip', 'vip_plus'];
+    const tierOrder = ['member', 'trial', 'vip', 'vip_plus'];
     return tierOrder.indexOf(newTier) < tierOrder.indexOf(oldTier);
   }
 
@@ -316,6 +328,10 @@ export class RoleChangeService {
 
       if (roles.has(config.vip)) {
         return 'vip';
+      }
+
+      if ((config as any).trial && roles.has((config as any).trial)) {
+        return 'trial';
       }
 
       // Default to member

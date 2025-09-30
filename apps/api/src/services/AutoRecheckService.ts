@@ -10,6 +10,7 @@ import { promotionGatekeeper } from './PromotionGatekeeper';
 import { sTierEnforcer } from './STierEnforcer';
 import { portfolioRiskManager } from './PortfolioRiskManager';
 import { publishGuard } from '../promotion/PublishGuard';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 export interface RecheckSchedule {
   pickId: string;
@@ -399,8 +400,13 @@ class AutoRecheckService {
     sharpMoneyFlow: number;
   }> {
     try {
+      if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+      }
+
       // Get current market data
-      const { data: marketData } = await supabaseClient
+      const supabaseClient = requireSupabase();
+      const { data: marketData } = await supabaseClient!
         .from('market_data')
         .select('*')
         .eq('prop_id', pick.prop_id)
@@ -409,7 +415,8 @@ class AutoRecheckService {
         .single();
 
       // Get steam data
-      const { data: steamData } = await supabaseClient
+      const supabaseClient = requireSupabase();
+      const { data: steamData } = await supabaseClient!
         .from('steam_tracking')
         .select('*')
         .eq('prop_id', pick.prop_id)
@@ -438,7 +445,8 @@ class AutoRecheckService {
   private async getOddsMovementData(pick: any): Promise<OddsMovementData> {
     try {
       // Get initial and current odds
-      const { data: oddsHistory } = await supabaseClient
+      const supabaseClient = requireSupabase();
+      const { data: oddsHistory } = await supabaseClient!!
         .from('odds_tracking')
         .select('*')
         .eq('prop_id', pick.prop_id)
@@ -590,7 +598,8 @@ class AutoRecheckService {
     try {
       switch (action.type) {
         case 'cancel':
-          await supabaseClient
+          const supabaseClient = requireSupabase();
+    await supabaseClient!
             .from('unified_picks')
             .update({
               status: 'cancelled',
@@ -602,7 +611,8 @@ class AutoRecheckService {
           break;
 
         case 'tier_change':
-          await supabaseClient
+          const supabaseClient = requireSupabase();
+    await supabaseClient!
             .from('unified_picks')
             .update({
               tier: action.changes.newTier,
@@ -614,7 +624,8 @@ class AutoRecheckService {
           break;
 
         case 'adjust_size':
-          await supabaseClient
+          const supabaseClient = requireSupabase();
+    await supabaseClient!
             .from('unified_picks')
             .update({
               position_size: action.changes.newSize,
@@ -680,7 +691,8 @@ class AutoRecheckService {
 
   private async getCurrentPickData(pickId: string): Promise<any> {
     try {
-      const { data } = await supabaseClient
+      const supabaseClient = requireSupabase();
+      const { data } = await supabaseClient!
         .from('unified_picks')
         .select('*')
         .eq('id', pickId)
@@ -694,7 +706,8 @@ class AutoRecheckService {
 
   private async loadActiveSchedules(): Promise<void> {
     try {
-      const { data: schedules } = await supabaseClient
+      const supabaseClient = requireSupabase();
+      const { data: schedules } = await supabaseClient!
         .from('recheck_schedules')
         .select('*')
         .in('status', ['scheduled', 'active']);
@@ -719,7 +732,8 @@ class AutoRecheckService {
 
   private async storeRecheckSchedule(schedule: RecheckSchedule): Promise<void> {
     try {
-      await supabaseClient
+      const supabaseClient = requireSupabase();
+    await supabaseClient!
         .from('recheck_schedules')
         .insert({
           pick_id: schedule.pickId,
@@ -738,7 +752,8 @@ class AutoRecheckService {
 
   private async updateRecheckSchedule(schedule: RecheckSchedule): Promise<void> {
     try {
-      await supabaseClient
+      const supabaseClient = requireSupabase();
+    await supabaseClient!
         .from('recheck_schedules')
         .update({
           pre_game_checks: schedule.preGameChecks,

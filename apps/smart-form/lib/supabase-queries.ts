@@ -1,10 +1,28 @@
 import { supabase } from './supabase';
 import { formatTimeInEST } from './betting-utils';
+import {
+  type PropForForm,
+  type PlayerOption,
+  type MarketOption,
+  type GameOption,
+  type AutocompleteResponse,
+  formatPlayerName,
+  formatMarketDisplay,
+  formatGameDisplay
+} from '@unit-talk/shared-forms';
 
 export interface Capper {
   id: string;
   name: string;
   active: boolean;
+  tier?: string;
+  discord_id?: string;
+  stats?: {
+    winRate: number;
+    roi: number;
+    lastPick: string;
+    isLive: boolean;
+  };
 }
 
 export interface Team {
@@ -56,26 +74,20 @@ export const fetchCappers = async () => {
       .from('users')
       .select('id, username, tier, discord_id')
       .neq('username', 'System') // Exclude system user
-      .order('username');
+      .order('username') as { data: any[] | null, error: any };
 
     if (error) {
       console.error('🔍 fetchCappers: Supabase error:', error);
 
-      // If the main query fails, provide fallback mock data for development
-      console.warn('🔍 fetchCappers: Using fallback mock data due to database connection issue');
-      return [
-        { id: 'griff843', name: 'Griff843', active: true },
-        { id: 'vicgo', name: 'Vicgo', active: true },
-        { id: 'sauced', name: 'Sauced', active: true },
-        { id: 'moneyreef', name: 'MoneyReef', active: true },
-        { id: 'squirrel', name: 'Squirrel', active: true },
-      ];
+      // If the main query fails, return empty array - no more hardcoded fallbacks
+      console.error('🔍 fetchCappers: Database connection failed, returning empty array');
+      return [];
     }
 
     console.log('🔍 fetchCappers: Found', data?.length || 0, 'users');
 
     // Transform to match expected Capper interface with v3.0.0 fields
-    const transformedData = (data || []).map(user => ({
+    const transformedData = (data || []).map((user: any) => ({
       id: user.id,
       name: user.username,
       active: true, // All users from database are considered active cappers
@@ -93,39 +105,340 @@ export const fetchCappers = async () => {
   } catch (error) {
     console.error('🔍 fetchCappers: Connection failed:', error);
 
-    // Provide production-ready fallback data
-    return [
-      {
-        id: 'griff843',
-        name: 'Griff843',
-        active: true,
-        stats: { winRate: 72, roi: 15.3, lastPick: '1 hour ago', isLive: true },
+    // Return empty array - no more hardcoded fallbacks
+    console.error('🔍 fetchCappers: Connection failed, returning empty array');
+    return [];
+  }
+};
+
+// NEW: Fetch props from optimized view_props_for_form
+export const fetchPropsFromView = async (filters: {
+  sport?: string;
+  player_name?: string;
+  market?: string;
+  tier?: string[];
+  min_confidence?: number;
+  limit?: number;
+} = {}): Promise<PropForForm[]> => {
+  console.log('🔍 fetchPropsFromView: Querying view_props_for_form...', filters);
+
+  try {
+    let query = supabase
+      .from('view_props_for_form')
+      .select('*');
+
+    // Apply filters
+    if (filters.sport) {
+      query = query.eq('sport', filters.sport);
+    }
+
+    if (filters.player_name) {
+      query = query.ilike('player_name', `%${filters.player_name}%`);
+    }
+
+    if (filters.market) {
+      query = query.eq('market', filters.market);
+    }
+
+    if (filters.tier?.length) {
+      query = query.in('tier', filters.tier);
+    }
+
+    if (filters.min_confidence !== undefined) {
+      query = query.gte('confidence', filters.min_confidence);
+    }
+
+    // Order by relevance and apply limit
+    query = query
+      .order('professional_score', { ascending: false, nullsFirst: false })
+      .order('confidence', { ascending: false, nullsFirst: false })
+      .order('posted_at', { ascending: false })
+      .limit(filters.limit || 100);
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw new Error(`View query failed: ${error.message}`);
+    }
+
+    console.log('🔍 fetchPropsFromView: Found', data?.length || 0, 'props');
+    return data || [];
+  } catch (error) {
+    console.error('🔍 fetchPropsFromView: Query failed:', error);
+    throw error;
+  }
+};
+
+// NEW: Player autocomplete using view_props_for_form
+export const searchPlayersFromView = async (query: string, filters: {
+  sport?: string;
+  market?: string;
+  tier?: string[];
+  limit?: number;
+} = {}): Promise<PlayerOption[]> => {
+  if (!query || query.length < 2) {
+    return [];
+  }
+
+  const props = await fetchPropsFromView({
+    ...filters,
+    player_name: query,
+    limit: (filters.limit || 20) * 3, // Get more to dedupe by player
+  });
+
+  // Group by player and aggregate metadata
+  const playerMap = new Map<string, {
+    player_name: string;
+    team_name: string;
+    sport: string;
+    markets: Set<string>;
+    tiers: Set<string>;
+    confidence_scores: number[];
+    professional_scores: number[];
+  }>();
+
+  for (const prop of props) {
+    if (!prop.player_name || !prop.team_name) continue;
+
+    const key = `${prop.player_name}-${prop.team_name}`;
+
+    if (!playerMap.has(key)) {
+      playerMap.set(key, {
+        player_name: prop.player_name,
+        team_name: prop.team_name,
+        sport: prop.sport,
+        markets: new Set(),
+        tiers: new Set(),
+        confidence_scores: [],
+        professional_scores: [],
+      });
+    }
+
+    const player = playerMap.get(key)!;
+    if (prop.market) player.markets.add(prop.market);
+    if (prop.tier) player.tiers.add(prop.tier);
+    if (prop.confidence) player.confidence_scores.push(prop.confidence);
+    if (prop.professional_score) player.professional_scores.push(prop.professional_score);
+  }
+
+  // Transform to PlayerOption format
+  return Array.from(playerMap.values())
+    .map(player => ({
+      value: player.player_name,
+      label: formatPlayerName(player.player_name, player.team_name),
+      metadata: {
+        team_name: player.team_name,
+        sport: player.sport,
+        recent_props: player.markets.size,
+        tier: Array.from(player.tiers)[0], // Primary tier
+        avg_confidence: player.confidence_scores.length > 0
+          ? player.confidence_scores.reduce((a, b) => a + b, 0) / player.confidence_scores.length
+          : undefined,
+        avg_professional_score: player.professional_scores.length > 0
+          ? player.professional_scores.reduce((a, b) => a + b, 0) / player.professional_scores.length
+          : undefined,
       },
-      {
-        id: 'vicgo',
-        name: 'Vicgo',
-        active: true,
-        stats: { winRate: 68, roi: 11.2, lastPick: '3 hours ago', isLive: false },
-      },
-      {
-        id: 'sauced',
-        name: 'Sauced',
-        active: true,
-        stats: { winRate: 70, roi: 13.8, lastPick: '30 minutes ago', isLive: true },
-      },
-      {
-        id: 'moneyreef',
-        name: 'MoneyReef',
-        active: true,
-        stats: { winRate: 65, roi: 9.7, lastPick: '4 hours ago', isLive: false },
-      },
-      {
-        id: 'squirrel',
-        name: 'Squirrel',
-        active: true,
-        stats: { winRate: 69, roi: 12.1, lastPick: '2 hours ago', isLive: false },
-      },
-    ];
+    }))
+    .slice(0, filters.limit || 20);
+};
+
+// NEW: Market autocomplete using view_props_for_form
+export const searchMarketsFromView = async (query: string, filters: {
+  sport?: string;
+  player_name?: string;
+  limit?: number;
+} = {}): Promise<MarketOption[]> => {
+  if (!query || query.length < 2) {
+    return [];
+  }
+
+  try {
+    let dbQuery = supabase
+      .from('view_props_for_form')
+      .select('market, submarket, sport')
+      .not('market', 'is', null);
+
+    // Apply text search on market names
+    dbQuery = dbQuery.or(`market.ilike.%${query}%,submarket.ilike.%${query}%`);
+
+    if (filters.sport) {
+      dbQuery = dbQuery.eq('sport', filters.sport);
+    }
+
+    if (filters.player_name) {
+      dbQuery = dbQuery.ilike('player_name', `%${filters.player_name}%`);
+    }
+
+    const { data, error } = await dbQuery
+      .order('market')
+      .limit((filters.limit || 20) * 2); // Get more to dedupe
+
+    if (error) {
+      throw new Error(`Market search failed: ${error.message}`);
+    }
+
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    // Group markets and count props
+    const marketMap = new Map<string, {
+      market: string;
+      submarket?: string;
+      sport: string;
+      prop_count: number;
+    }>();
+
+    for (const result of data) {
+      const key = result.submarket
+        ? `${result.market}-${result.submarket}`
+        : result.market;
+
+      if (!marketMap.has(key)) {
+        marketMap.set(key, {
+          market: result.market,
+          submarket: result.submarket,
+          sport: result.sport,
+          prop_count: 0,
+        });
+      }
+
+      marketMap.get(key)!.prop_count++;
+    }
+
+    return Array.from(marketMap.values())
+      .map(market => ({
+        value: market.market,
+        label: formatMarketDisplay(market.market, market.submarket),
+        metadata: {
+          submarket: market.submarket,
+          sport: market.sport,
+          prop_count: market.prop_count,
+        },
+      }))
+      .slice(0, filters.limit || 20);
+
+  } catch (error) {
+    console.error('🔍 searchMarketsFromView: Query failed:', error);
+    throw error;
+  }
+};
+
+// NEW: Game autocomplete using view_props_for_form
+export const searchGamesFromView = async (query: string, filters: {
+  sport?: string;
+  date_range?: string;
+  limit?: number;
+} = {}): Promise<GameOption[]> => {
+  if (!query || query.length < 2) {
+    return [];
+  }
+
+  try {
+    let dbQuery = supabase
+      .from('view_props_for_form')
+      .select('external_game_id, matchup, game_date, sport, league')
+      .not('matchup', 'is', null)
+      .not('external_game_id', 'is', null);
+
+    // Apply text search on matchup
+    dbQuery = dbQuery.ilike('matchup', `%${query}%`);
+
+    if (filters.sport) {
+      dbQuery = dbQuery.eq('sport', filters.sport);
+    }
+
+    // Apply date range filter
+    if (filters.date_range && filters.date_range !== 'all') {
+      const now = new Date();
+      let startDate: Date;
+      let endDate: Date;
+
+      switch (filters.date_range) {
+        case 'today':
+          startDate = new Date(now);
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(now);
+          endDate.setHours(23, 59, 59, 999);
+          break;
+        case 'tomorrow':
+          startDate = new Date(now);
+          startDate.setDate(startDate.getDate() + 1);
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(startDate);
+          endDate.setHours(23, 59, 59, 999);
+          break;
+        case 'week':
+        default:
+          startDate = new Date(now);
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(now);
+          endDate.setDate(endDate.getDate() + 7);
+          endDate.setHours(23, 59, 59, 999);
+          break;
+      }
+
+      dbQuery = dbQuery
+        .gte('game_date', startDate.toISOString())
+        .lte('game_date', endDate.toISOString());
+    }
+
+    const { data, error } = await dbQuery
+      .order('game_date', { ascending: true })
+      .limit((filters.limit || 20) * 2);
+
+    if (error) {
+      throw new Error(`Game search failed: ${error.message}`);
+    }
+
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    // Group by game and count props
+    const gameMap = new Map<string, {
+      external_game_id: string;
+      matchup: string;
+      game_date: string;
+      sport: string;
+      league: string;
+      prop_count: number;
+    }>();
+
+    for (const result of data) {
+      const key = result.external_game_id;
+
+      if (!gameMap.has(key)) {
+        gameMap.set(key, {
+          external_game_id: result.external_game_id,
+          matchup: result.matchup,
+          game_date: result.game_date,
+          sport: result.sport,
+          league: result.league,
+          prop_count: 0,
+        });
+      }
+
+      gameMap.get(key)!.prop_count++;
+    }
+
+    return Array.from(gameMap.values())
+      .map(game => ({
+        value: game.external_game_id,
+        label: formatGameDisplay(game.matchup, game.game_date),
+        metadata: {
+          game_date: game.game_date,
+          sport: game.sport,
+          league: game.league,
+          matchup: game.matchup,
+          prop_count: game.prop_count,
+        },
+      }))
+      .slice(0, filters.limit || 20);
+
+  } catch (error) {
+    console.error('🔍 searchGamesFromView: Query failed:', error);
+    throw error;
   }
 };
 
@@ -136,7 +449,7 @@ export const fetchTeams = async (sport: string) => {
     .select('id, name, sport, abbreviation')
     .eq('sport', sport)
     .eq('active', true)
-    .order('name');
+    .order('name') as { data: Team[] | null, error: any };
 
   if (error) throw error;
   return data as Team[];
@@ -151,7 +464,7 @@ export const searchTeams = async (query: string, sport: string) => {
     .eq('active', true)
     .ilike('name', `%${query}%`)
     .order('name')
-    .limit(10);
+    .limit(10) as { data: Team[] | null, error: any };
 
   if (error) throw error;
   return data as Team[];
@@ -263,55 +576,16 @@ export const fetchGames = async (sport: string, startDate: string, endDate: stri
     if (error && !data) {
       console.error('🔍 fetchGames: All queries failed, using fallback data:', error);
 
-      // Provide realistic fallback data for development
-      const mockGames = [
-        {
-          id: 'game-1',
-          sport: league,
-          league: league,
-          home_team: 'Home Team 1',
-          away_team: 'Away Team 1',
-          game_date: startDate,
-          start_time: '19:05:00',
-          commence_time: new Date().toISOString(),
-          status: 'scheduled',
-          moneyline_home: -110,
-          moneyline_away: -110,
-          spread: -1.5,
-          spread_odds: -110,
-          total: 8.5,
-          total_over_odds: -110,
-          total_under_odds: -110,
-        },
-        {
-          id: 'game-2',
-          sport: league,
-          league: league,
-          home_team: 'Home Team 2',
-          away_team: 'Away Team 2',
-          game_date: startDate,
-          start_time: '19:10:00',
-          commence_time: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
-          status: 'scheduled',
-          moneyline_home: -120,
-          moneyline_away: 100,
-          spread: -2.5,
-          spread_odds: -110,
-          total: 9.0,
-          total_over_odds: -105,
-          total_under_odds: -115,
-        },
-      ];
-
-      console.log('🔍 fetchGames: Using', mockGames.length, 'mock games for development');
-      data = mockGames;
+      // Return empty array - no more hardcoded fallbacks
+      console.error('🔍 fetchGames: All queries failed, returning empty array');
+      data = [];
     } else {
       console.log('🔍 fetchGames: Found', data?.length || 0, 'games for', sport, 'on', startDate);
     }
 
     // Transform the data to standardize team names, times, odds, and live status
     const transformedData = data
-      ?.map(game => {
+      ?.map((game: any) => {
         // Standardize team names - use consistent format with proper team name mapping
         const getTeamName = (teamCode: string) => {
           const teamMap: { [key: string]: string } = {

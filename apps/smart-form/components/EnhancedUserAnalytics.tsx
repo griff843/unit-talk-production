@@ -96,7 +96,7 @@ export default function EnhancedUserAnalytics({ userId, className }: EnhancedUse
               variant="outline"
               size="sm"
               className="mt-3"
-              onClick={() => window.location.reload()}
+              onClick={() => typeof window !== 'undefined' && window.location.reload()}
             >
               Retry
             </Button>

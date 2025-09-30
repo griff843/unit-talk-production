@@ -12,8 +12,9 @@ dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 import { createClient } from '@supabase/supabase-js';
 
-import { SyndicateGradingEngine } from '../agents/GradingAgent/scoring/gradingEngine';
+import { SyndicateGradingEngine } from '../agents/ScoringAgent/scoring/gradingEngine';
 import { createLogger } from '../utils/logger';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 const logger = createLogger('ActualPickProcessing');
 const supabase = createClient(
@@ -27,8 +28,9 @@ async function processRealPicksThroughGrading() {
   
   try {
     // Get real raw props from the database
-    const { data: realRawProps, count: totalCount } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: realRawProps, count: totalCount } = await supabase
+      .from('sports_game_odds')
       .select('*', { count: 'exact' })
       .eq('provider', 'Optimal')
       .not('player_name', 'is', null)
@@ -199,7 +201,8 @@ async function processRealPicksThroughGrading() {
         };
         
         // Insert the ACTUAL professional pick
-        const { data: insertedPick, error: insertError } = await supabase
+        const supabaseClient = requireSupabase();
+      const { data: insertedPick, error: insertError } = await supabase
           .from('unified_picks')
           .insert([professionalPick])
           .select('id')
@@ -239,7 +242,8 @@ async function processRealPicksThroughGrading() {
           created_at: new Date().toISOString()
         };
         
-        const { error: clvError } = await supabase
+        const supabaseClient = requireSupabase();
+      const { error: clvError } = await supabase
           .from('clv_tracking')
           .insert([clvEntry]);
           
@@ -250,8 +254,9 @@ async function processRealPicksThroughGrading() {
         }
         
         // Mark raw prop as processed
-        await supabase
-          .from('raw_props')
+        const supabaseClient = requireSupabase();
+    await supabase
+          .from('sports_game_odds')
           .update({ 
             processed_at: new Date().toISOString(),
             processing_batch_id: randomUUID(),
@@ -314,16 +319,19 @@ async function processRealPicksThroughGrading() {
       });
       
       // Final database verification
+      const supabaseClient = requireSupabase();
       const { count: newUnifiedPicks } = await supabase
         .from('unified_picks')
         .select('*', { count: 'exact', head: true });
         
+      const supabaseClient = requireSupabase();
       const { count: newCLVEntries } = await supabase
         .from('clv_tracking')
         .select('*', { count: 'exact', head: true });
         
+      const supabaseClient = requireSupabase();
       const { count: processedRawProps } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*', { count: 'exact', head: true })
         .not('processed_at', 'is', null);
       

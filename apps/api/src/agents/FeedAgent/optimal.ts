@@ -22,6 +22,8 @@ import { randomUUID } from 'crypto';
 import axios, { AxiosResponse } from 'axios';
 
 import { RawProp } from '../../types/rawProps';
+import { creditLogger } from '../../services/creditLogger.js';
+import { cacheClient } from '../../services/cacheClient.js';
 
 // Rate limiting configuration
 const RATE_LIMIT = {
@@ -200,9 +202,20 @@ async function makeOptimalRequest<T>(endpoint: string, params?: Record<string, a
 
   const url = `${API_CONFIG.baseUrl}${endpoint}`;
   
+  // Check cache first if enabled
+  const cacheKey = `optimal:${endpoint}:${JSON.stringify(params || {})}`;
+  const cachedData = await cacheClient.get(cacheKey);
+  if (cachedData && cacheClient.isCacheFirst()) {
+    return cachedData;
+  }
+
   try {
     recordRequest();
-    
+
+    // Log the API call with deduplication
+    const dedupKey = `optimal-${endpoint}-${Date.now()}`;
+    creditLogger.addCall('optimal', 1, 1, dedupKey);
+
     const response: AxiosResponse<T> = await axios.get(url, {
       headers: {
         'accept': 'application/json',
@@ -213,6 +226,9 @@ async function makeOptimalRequest<T>(endpoint: string, params?: Record<string, a
       params,
       timeout: API_CONFIG.timeout
     });
+
+    // Cache the response
+    await cacheClient.set(cacheKey, response.data);
 
     return response.data;
   } catch (error) {

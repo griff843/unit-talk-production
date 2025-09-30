@@ -6,7 +6,7 @@
  */
 
 import 'dotenv/config';
-import { GradingAgent } from './src/agents/GradingAgent/GradingAgent';
+import { ScoringAgent } from './src/agents/ScoringAgent/ScoringAgent';
 import { BaseAgentConfig, BaseAgentDependencies } from './src/agents/BaseAgent/types';
 import { createSupabaseClient } from './src/services/supabaseClient';
 import { createLogger } from './src/utils/logger';
@@ -31,10 +31,10 @@ async function testProfessionalGrading() {
     };
     
     // Initialize grading agent
-    const gradingAgent = new GradingAgent(config, deps);
+    const scoringAgent = new ScoringAgent(config, deps);
     await gradingAgent.initialize();
     
-    logger.info('✅ GradingAgent initialized successfully');
+    logger.info('✅ ScoringAgent initialized successfully');
     
     // Test health check
     const health = await gradingAgent.checkHealth();

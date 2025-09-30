@@ -1,9 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 
-import { GradingAgent } from '../agents/GradingAgent';
+import { ScoringAgent } from '../agents/ScoringAgent';
 import { ProfessionalPropProcessor } from './ProfessionalPropProcessor';
 import { env } from '../config/env';
 import { logger } from '../shared/logger';
+import { ErrorHandler } from '../utils/errorHandling';
 // import { Pick } from '../types/pick';
 import { SmartTicket } from '../types/smartForm';
 // import { DiscordAlertRouter, AlertType, AlertData } from './DiscordAlertRouter'; // Unused
@@ -20,12 +21,32 @@ import { SmartTicket } from '../types/smartForm';
  */
 export class SmartFormBridge {
   private supabase;
-  private gradingAgent: GradingAgent;
+  private scoringAgent: ScoringAgent | null = null;
   private bridgeLogger = logger.child({ service: 'SmartFormBridge' });
-  
+
   constructor() {
     this.supabase = createClient(env.supabase.url, env.supabase.serviceRoleKey);
-    this.gradingAgent = new GradingAgent({} as any, {} as any);
+
+    // Initialize ScoringAgent with proper dependencies
+    try {
+      const config = {
+        name: 'ScoringAgent',
+        enabled: true,
+        version: '1.0.0'
+      };
+
+      const dependencies = {
+        logger: this.bridgeLogger.child({ agent: 'ScoringAgent' }),
+        supabase: this.supabase,
+        errorHandler: new ErrorHandler('SmartFormBridge-ScoringAgent')
+      };
+
+      this.scoringAgent = new ScoringAgent(config, dependencies);
+    } catch (error) {
+      this.bridgeLogger.warn('Failed to initialize ScoringAgent, will skip scoring', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
   }
 
   /**
@@ -395,7 +416,7 @@ export class SmartFormBridge {
       };
       
       // Use existing grading agent to analyze the pick
-      const gradingResult = await (this.gradingAgent as any).gradePick?.(pickForGrading) || { 
+      const gradingResult = await (this.scoringAgent as any).gradePick?.(pickForGrading) || { 
         tier: 'B', 
         score: 50, 
         expectedValue: 0, 

@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -17,7 +18,8 @@ async function checkProfessionalCompliance() {
   console.log('🔍 CHECKING PROFESSIONAL SYSTEM COMPLIANCE');
   console.log('='.repeat(60));
   
-  const { data: picks } = await supabase
+  const supabaseClient = requireSupabase();
+      const { data: picks } = await supabase
     .from('unified_picks')
     .select('*')
     .order('created_at', { ascending: false });

@@ -78,7 +78,7 @@ class SimpleHistoricalTester {
     // Check current raw_props with simplified query to avoid timeout
     try {
       const { data: rawProps, error: rawError } = await this.supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('id, player_name, sport, stat_type, line, over_odds, under_odds')
         .limit(5);
         

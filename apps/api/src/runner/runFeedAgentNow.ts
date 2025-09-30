@@ -17,7 +17,6 @@ import 'dotenv/config';
 import { agentRunner } from '../services/agentRunner.js';
 import { creditLogger } from '../services/creditLogger.js';
 import { cacheClient } from '../services/cacheClient.js';
-import { FeedAgent } from '../agents/FeedAgent/index.js';
 import { createClient } from '@supabase/supabase-js';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -215,30 +214,28 @@ async function main() {
 
       console.log(`✅ Shadow processing completed: ${processed} items simulated`);
     } else {
-      // Real processing: instantiate and run FeedAgent
-      console.log('🔄 Real mode processing: instantiating FeedAgent...');
+      // Real processing: use event-first core markets flow
+      console.log('🔄 Real mode processing: event-first core markets...');
 
-      // Create Supabase client using service role key
-      const supabase = createClient(
-        process.env.SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
-        {
-          auth: { persistSession: false }
-        }
-      );
+      // Import core markets function
+      const { fetchAndWriteCoreMarkets } = await import('../agents/FeedAgent/oddsApi.js');
 
-      // Configure FeedAgent
-      const feedConfig = {
-        name: 'FeedAgent',
-        enabled: true,
-        version: '2.0.0',
-        logLevel: 'info',
-        sports: [args.sport.toUpperCase()],
-        maxEvents: args.maxEvents,
-        cacheFirst: args.cacheFirst,
-        dryRun: args.dryRun,
-        enableWrites: writeEnabled,
-        batchSize: 50,
+      // Map sport to sport_key
+      const sportKeyMap: Record<string, string> = {
+        'nfl': 'americanfootball_nfl',
+        'ncaaf': 'americanfootball_ncaaf',
+        'nba': 'basketball_nba',
+        'ncaab': 'basketball_ncaab',
+        'wnba': 'basketball_wnba',
+        'mlb': 'baseball_mlb',
+        'nhl': 'icehockey_nhl',
+      };
+
+      const sportKey = sportKeyMap[args.sport.toLowerCase()] || args.sport;
+
+      console.log(`🔧 Core Markets Configuration:`, {
+        sport: args.sport,
+        sportKey,
         providers: args.providers,
         markets: args.markets,
         regions: args.regions,
@@ -246,103 +243,42 @@ async function main() {
         oddsFormat: args.oddsFormat,
         dateFormat: args.dateFormat,
         eventBatchSize: args.eventBatchSize,
-        eventLookaheadHours: args.eventLookaheadHours
-      };
-
-      const feedAgent = new FeedAgent(feedConfig, {
-        supabase,
-        logger: console,
-        metrics: null
+        eventLookaheadHours: args.eventLookaheadHours,
+        writeEnabled
       });
-
-      console.log(`🔧 FeedAgent Configuration:`, {
-        name: feedConfig.name,
-        version: feedConfig.version,
-        sports: feedConfig.sports,
-        providers: feedConfig.providers,
-        markets: feedConfig.markets,
-        regions: feedConfig.regions,
-        bookmakers: feedConfig.bookmakers,
-        oddsFormat: feedConfig.oddsFormat,
-        dateFormat: feedConfig.dateFormat,
-        eventBatchSize: feedConfig.eventBatchSize,
-        eventLookaheadHours: feedConfig.eventLookaheadHours,
-        maxEvents: feedConfig.maxEvents,
-        cacheFirst: feedConfig.cacheFirst,
-        enableWrites: feedConfig.enableWrites,
-        dryRun: feedConfig.dryRun
-      });
-
-      // Track write operations
-      const originalLog = console.log;
-      const originalWarn = console.warn;
-      const originalError = console.error;
-
-      // Intercept logs to capture write metrics
-      console.log = (...args: any[]) => {
-        const message = args.join(' ');
-
-        // Track successful inserts
-        if (message.includes('created') || message.includes('inserted')) {
-          const match = message.match(/(\d+)\s+(created|inserted)/);
-          if (match) {
-            const count = parseInt(match[1]);
-            writeMetrics.inserted += count;
-            writeMetrics.attemptedWrites += count;
-          }
-        }
-
-        // Track deduplication (attempted but skipped)
-        if (message.includes('duplicates') || message.includes('skipped') || message.includes('dedup')) {
-          const match = message.match(/(\d+)\s+(duplicates|skipped|dedup)/);
-          if (match) {
-            const count = parseInt(match[1]);
-            writeMetrics.skippedDedup += count;
-            writeMetrics.attemptedWrites += count; // Count as attempted writes
-          }
-        }
-
-        // Track processing attempts more broadly
-        if (message.includes('processing') || message.includes('evaluating')) {
-          const match = message.match(/(\d+)\s+(processing|evaluating)/);
-          if (match) {
-            const count = parseInt(match[1]);
-            writeMetrics.attemptedWrites += count;
-          }
-        }
-
-        return originalLog(...args);
-      };
-
-      console.error = (...args: any[]) => {
-        writeMetrics.errors++;
-        return originalError(...args);
-      };
 
       try {
-        // Initialize and run FeedAgent
-        await feedAgent.start();
+        // Fetch and write core markets
+        const result = await fetchAndWriteCoreMarkets(sportKey as any, {
+          markets: args.markets,
+          regions: args.regions,
+          bookmakers: args.bookmakers.split(',').map(b => b.trim()),
+          oddsFormat: args.oddsFormat as 'decimal' | 'american',
+          dateFormat: args.dateFormat as 'iso' | 'unix',
+          daysFrom: args.eventLookaheadHours / 24,
+        });
 
-        // Get metrics from agent
-        const agentMetrics = await feedAgent.collectMetrics();
-        processed = agentMetrics.successCount;
+        // Update metrics from result
+        processed = result.eventsFetched;
+        writeMetrics = result.coreMarketWrites;
 
-        // Ensure attemptedWrites accounts for all processing attempts
-        if (writeMetrics.attemptedWrites === 0 && processed > 0) {
-          // If we haven't captured attempted writes via logs, use processed count
-          writeMetrics.attemptedWrites = processed;
-        }
+        console.log(`✅ Core markets processing completed`);
+        console.log(`📊 Events fetched: ${result.eventsFetched}`);
+        console.log(`📊 Markets processed:`, result.marketsProcessed);
+        console.log(`📊 Core market writes:`, result.coreMarketWrites);
 
-        console.log(`✅ FeedAgent processing completed: ${processed} processed`);
+        // Store additional metrics for report
+        (writeMetrics as any).eventsFetched = result.eventsFetched;
+        (writeMetrics as any).marketsProcessed = result.marketsProcessed;
 
-        // Stop agent
-        await feedAgent.stop();
+        // Import and use summarize helper
+        const { summarizeWriteMetrics } = await import('../services/unifiedPicksWriter.js');
+        console.log(`📊 Summary: ${summarizeWriteMetrics(writeMetrics, result.eventsFetched, processed)}`);
 
-      } finally {
-        // Restore original logging
-        console.log = originalLog;
-        console.warn = originalWarn;
-        console.error = originalError;
+      } catch (error: any) {
+        console.error('❌ Core markets error:', error.message);
+        writeMetrics.errors++;
+        throw error;
       }
     }
 
@@ -376,8 +312,34 @@ async function main() {
           writeMetrics,
           resolvedConfig
         };
+        // Include first write error for smoke test reporting
+        if (writeMetrics.firstError) {
+          reportData.firstWriteError = writeMetrics.firstError;
+        }
+
+        // Add pass reason for observability
+        const hasInserts = writeMetrics.inserted > 0;
+        const hasDedup = (writeMetrics.skippedDedup ?? 0) > 0;
+        const hasErrors = (writeMetrics.errors ?? 0) > 0;
+
+        let passReason = 'Unknown';
+        if (hasInserts && !hasErrors) {
+          passReason = `Success: ${writeMetrics.inserted} picks inserted`;
+        } else if (hasDedup && !hasErrors && !hasInserts) {
+          passReason = `Success: ${writeMetrics.skippedDedup} picks deduplicated (repeat run)`;
+        } else if (hasInserts && hasDedup && !hasErrors) {
+          passReason = `Success: ${writeMetrics.inserted} inserted, ${writeMetrics.skippedDedup} deduplicated`;
+        } else if (hasErrors) {
+          passReason = `Failure: ${writeMetrics.errors} errors occurred`;
+        } else if (processed === 0) {
+          passReason = 'No data processed';
+        }
+
+        reportData.passReason = passReason;
+
         fs.writeFileSync(reportPath, JSON.stringify(reportData, null, 2));
         console.log(`📊 Write metrics: ${JSON.stringify(writeMetrics)}`);
+        console.log(`✅ Pass reason: ${passReason}`);
       } catch (e) {
         console.warn('Failed to enhance report with write metrics:', e);
       }

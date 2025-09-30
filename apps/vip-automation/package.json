@@ -1,0 +1,26 @@
+{
+  "name": "vip-automation",
+  "version": "1.0.0",
+  "description": "Unit Talk VIP/VIP+ Discord automation systems",
+  "main": "index.js",
+  "scripts": {
+    "build": "echo \"VIP Automation: JavaScript project - no build step required\"",
+    "type-check": "echo \"VIP Automation: JavaScript project - no TypeScript checking required\"",
+    "start": "node index.js",
+    "start:aggregator": "node curated-alert-aggregator.js",
+    "start:mirror": "node vipplus-mirror-bot.js",
+    "start:all": "concurrently \"npm run start:aggregator\" \"npm run start:mirror\"",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "echo \"Linting not configured\" && exit 0"
+  },
+  "dependencies": {
+    "discord.js": "^14.0.0",
+    "dotenv": "^16.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.0.0"
+  },
+  "keywords": ["discord", "vip", "automation", "unit-talk"],
+  "author": "Unit Talk Team",
+  "license": "MIT"
+}

@@ -43,9 +43,27 @@
       "mcp__magic__logo_search",
       "Bash(start \"\" \"C:\\Users\\griff\\Desktop\\Unit Talk Production v3\\unit-talk-production\\unit-talk-smart form\\test-logos.html\")",
       "Bash(start \"C:\\Users\\griff\\Desktop\\Unit Talk Production v3\\unit-talk-production\\unit-talk-smart form\\test-logos.html\")",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "mcp__byterover-mcp__byterover-retrieve-knowledge",
+      "Bash(timeout 30 npm run build)"
     ]
   },
   "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": ["byterover-mcp", "playwright", "magic", "sequential-thinking"]
+  "enabledMcpjsonServers": [
+    "byterover-mcp",
+    "supabase",
+    "playwright",
+    "magic",
+    "sequential-thinking",
+    "notion",
+    "git",
+    "postgres",
+    "filesystem",
+    "memory",
+    "sqlite",
+    "everything",
+    "brave-search",
+    "time",
+    "prometheus"
+  ]
 }

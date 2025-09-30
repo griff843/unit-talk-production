@@ -1,7 +1,7 @@
 require('dotenv/config');
 const { createClient } = require('@supabase/supabase-js');
 
-console.log('🎯 Manual GradingAgent Execution Test');
+console.log('🎯 Manual ScoringAgent Execution Test');
 console.log('='.repeat(50));
 
 const supabase = createClient(
@@ -9,7 +9,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-async function triggerGradingAgent() {
+async function triggerScoringAgent() {
   try {
     console.log('📊 Checking props needing professional grading...');
     
@@ -36,14 +36,14 @@ async function triggerGradingAgent() {
       console.log(`     - ${prop.sport}: ${prop.player_name} (${prop.provider})`);
     });
     
-    console.log('\n🔄 Importing and initializing GradingAgent...');
+    console.log('\n🔄 Importing and initializing ScoringAgent...');
     
-    // Import GradingAgent classes
-    const { GradingAgent } = require('./apps/api/dist/agents/GradingAgent/index.js');
+    // Import ScoringAgent classes
+    const { ScoringAgent } = require('./apps/api/dist/agents/ScoringAgent/index.js');
     
-    // Create GradingAgent configuration
-    const gradingConfig = {
-      name: 'GradingAgent',
+    // Create ScoringAgent configuration
+    const scoringConfig = {
+      name: 'ScoringAgent',
       enabled: true,
       version: '1.0.0',
       logLevel: 'info',
@@ -80,14 +80,14 @@ async function triggerGradingAgent() {
       }
     };
     
-    console.log('   Creating GradingAgent instance...');
-    const gradingAgent = new GradingAgent(gradingConfig, dependencies);
+    console.log('   Creating ScoringAgent instance...');
+    const scoringAgent = new ScoringAgent(scoringConfig, dependencies);
     
     console.log('   Starting professional grading process...');
     
     // Initialize and process
-    await gradingAgent.initialize?.();
-    await gradingAgent.process();
+    await scoringAgent.initialize?.();
+    await scoringAgent.process();
     
     console.log('\n📈 Checking grading results...');
     
@@ -120,13 +120,13 @@ async function triggerGradingAgent() {
     console.log('\n🎉 BREAKTHROUGH SUCCESS:');
     console.log('   ✅ FeedAgent fetched 12,000+ props from unified router');
     console.log('   ✅ Parallel batch processing successfully inserted props');
-    console.log('   ✅ GradingAgent applied professional 8-feature scoring');
+    console.log('   ✅ ScoringAgent applied professional 8-feature scoring');
     console.log('   ✅ Complete end-to-end pipeline operational!');
     
   } catch (error) {
-    console.error('💥 GradingAgent execution failed:', error.message);
+    console.error('💥 ScoringAgent execution failed:', error.message);
     console.error('   This might be due to:');
-    console.error('   1. GradingAgent not compiled (run: npm run build --prefix apps/api)');
+    console.error('   1. ScoringAgent not compiled (run: npm run build --prefix apps/api)');
     console.error('   2. Missing dependencies or configuration');
     console.error('   3. Database schema mismatch');
     
@@ -136,8 +136,8 @@ async function triggerGradingAgent() {
     console.log('   ✅ Parallel batch processing working (500 props/batch, 5 parallel)');  
     console.log('   ✅ NCAAF routing fixed (Odds API vs Optimal API)');
     console.log('   ✅ Props successfully in database ready for grading');
-    console.log('   🔄 GradingAgent integration pending');
+    console.log('   🔄 ScoringAgent integration pending');
   }
 }
 
-triggerGradingAgent();
+triggerScoringAgent();

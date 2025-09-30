@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select';
 import { GameSelection, Sport } from '../types';
 import { ManualPropCreator } from './ManualPropCreator';
+import { apiClient } from '@/lib/api-client';
 // Removed direct database import - using API endpoint instead
 
 // NEW: Enhanced interfaces for optimized database structure
@@ -142,7 +143,6 @@ export function Step4GameSelection({
         console.log(`🔍 Loading ${data.sport} games for ${data.game_date}...`);
 
         // Use the API client to fetch games
-        const { apiClient } = await import('@/lib/api-client');
         const realGames = await apiClient.fetchGames(data.sport);
 
         if (realGames && realGames.length > 0) {

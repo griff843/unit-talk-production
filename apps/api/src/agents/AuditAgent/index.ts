@@ -4,6 +4,7 @@ import { BaseAgent } from '../BaseAgent/index';
 import { BaseAgentConfig, BaseAgentDependencies, HealthStatus, BaseMetrics } from '../BaseAgent/types';
 
 import { AuditIncident, AuditIncidentSchema } from './types';
+import { requireSupabase } from '../../utils/supabaseUtils';
 
 
 /**

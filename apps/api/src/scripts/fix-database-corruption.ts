@@ -11,8 +11,9 @@
 
 import { config } from 'dotenv';
 
-import { supabaseClient } from '../services/supabaseClient';
+import { supabaseClient } from '../utils/supabaseUtils';
 import { Logger } from '../shared/logger';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 config();
 
@@ -27,8 +28,9 @@ async function fixDatabaseCorruption() {
     console.log('=============================');
     
     // Count corrupted NCAAF props
-    const { count: corruptedCount, error: countError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: corruptedCount, error: countError } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .eq('sport_key', 'americanfootball_ncaaf')
       .neq('sport', 'NCAAF');
@@ -40,8 +42,9 @@ async function fixDatabaseCorruption() {
     console.log(`❌ Corrupted NCAAF props: ${corruptedCount?.toLocaleString()}`);
 
     // Show examples of corruption
-    const { data: examples, error: exampleError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: examples, error: exampleError } = await supabaseClient
+      .from('sports_game_odds')
       .select('id, player_name, sport, league, sport_key, created_at')
       .eq('sport_key', 'americanfootball_ncaaf')
       .neq('sport', 'NCAAF')
@@ -60,8 +63,9 @@ async function fixDatabaseCorruption() {
     // Fix corrupted NCAAF props
     console.log('Fixing NCAAF props with wrong sport classification...');
     
-    const { data: fixResult, error: fixError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: fixResult, error: fixError } = await supabaseClient
+      .from('sports_game_odds')
       .update({ 
         sport: 'NCAAF',
         league: 'NCAAF',
@@ -83,8 +87,9 @@ async function fixDatabaseCorruption() {
     console.log('===============================');
     
     // Verify the fix
-    const { count: remainingCorrupted, error: validateError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: remainingCorrupted, error: validateError } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .eq('sport_key', 'americanfootball_ncaaf')
       .neq('sport', 'NCAAF');
@@ -102,8 +107,9 @@ async function fixDatabaseCorruption() {
     }
 
     // Get current sport distribution
-    const { data: sportDistribution, error: distError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: sportDistribution, error: distError } = await supabaseClient
+      .from('sports_game_odds')
       .select('sport, count(*)')
       .in('sport', ['NCAAF', 'NFL', 'NBA', 'MLB', 'NHL'])
       .limit(10);
@@ -144,8 +150,9 @@ async function fixDatabaseCorruption() {
     console.log('===================================');
     
     // Check for other potential issues
-    const { data: nullSports, error: nullError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: nullSports, error: nullError } = await supabaseClient
+      .from('sports_game_odds')
       .select('count(*)')
       .or('sport.is.null,sport.eq.')
       .single();
@@ -160,7 +167,8 @@ async function fixDatabaseCorruption() {
     }
 
     // Check for duplicate keys
-    const { data: duplicates, error: dupError } = await supabaseClient
+    const supabaseClient = requireSupabase();
+      const { data: duplicates, error: dupError } = await supabaseClient
       .rpc('find_duplicate_props');
     
     if (dupError) {

@@ -2,6 +2,7 @@ import { redisCache } from '../../cache/enhanced-cache';
 import { withCircuitBreaker } from '../../services/enhanced-circuit-breaker';
 import { BaseAgent } from '../BaseAgent';
 import { BaseAgentConfig, BaseAgentDependencies, BaseMetrics } from '../BaseAgent/types';
+import { requireSupabase } from '../../utils/supabaseUtils';
 
 interface DataLifecycleMetrics extends BaseMetrics {
   propsArchived: number;
@@ -25,7 +26,7 @@ interface RetentionPolicy {
   batchSize: number;
 }
 
-interface ArchiveOperation {
+interface _ArchiveOperation {
   sourceTable: string;
   targetTable: string;
   recordsToMove: number;
@@ -40,9 +41,9 @@ interface ArchiveOperation {
  * Implements hot-warm-cold storage tiers following SaaS best practices.
  * 
  * Architecture:
- * - Hot Tier (raw_props): Current day props for live betting
- * - Warm Tier (raw_props_recent): Last 30 days for analytics  
- * - Cold Tier (raw_props_historical): 30+ days for backtesting
+ * - Hot Tier (prop_ticks_hot): Real-time tick data for 7-14 days
+ * - Warm Tier (features_daily_agg): Feature store for 30 days
+ * - Cold Tier (prop_ticks_archive): Parquet exports for long-term storage
  * 
  * Similar to data management used by:
  * - Stripe (transaction archiving)
@@ -72,12 +73,12 @@ export class DataLifecycleAgent extends BaseAgent {
 
     // Enterprise retention policy (configurable via environment)
     this.retentionPolicy = {
-      hotTierDays: parseInt(process.env.HOT_TIER_RETENTION_DAYS || '1'),      // 1 day in hot
-      warmTierDays: parseInt(process.env.WARM_TIER_RETENTION_DAYS || '30'),   // 30 days in warm
-      coldTierDays: parseInt(process.env.COLD_TIER_RETENTION_DAYS || '365'),  // 1 year in cold
+      hotTierDays: parseInt(process.env.HOT_TIER_RETENTION_DAYS || '7'),      // 7 days in hot (prop_ticks_hot)
+      warmTierDays: parseInt(process.env.WARM_TIER_RETENTION_DAYS || '30'),   // 30 days in warm (features_daily_agg)
+      coldTierDays: parseInt(process.env.COLD_TIER_RETENTION_DAYS || '365'),  // 1 year in cold (prop_ticks_archive)
       compressionEnabled: process.env.COMPRESSION_ENABLED === 'true',
       autoDeleteEnabled: process.env.AUTO_DELETE_ENABLED === 'true',
-      batchSize: parseInt(process.env.ARCHIVE_BATCH_SIZE || '10000')
+      batchSize: parseInt(process.env.ARCHIVE_BATCH_SIZE || '1000')
     };
   }
 
@@ -112,10 +113,10 @@ export class DataLifecycleAgent extends BaseAgent {
       // 1. Analyze current data distribution
       await this.analyzeDataDistribution();
       
-      // 2. Archive hot tier to warm tier (raw_props -> raw_props_recent)
+      // 2. Archive hot tier to warm tier (prop_ticks_hot -> features_daily_agg)
       await this.archiveHotToWarm();
       
-      // 3. Archive warm tier to cold tier (raw_props_recent -> raw_props_historical)
+      // 3. Archive warm tier to cold tier (features_daily_agg -> prop_ticks_archive)
       await this.archiveWarmToCold();
       
       // 4. Compress cold tier data (if enabled)
@@ -169,9 +170,9 @@ export class DataLifecycleAgent extends BaseAgent {
     try {
       // Get current tier sizes
       const [hotCount, warmCount, coldCount] = await Promise.all([
-        this.getTableCount('raw_props'),
-        this.getTableCount('raw_props_recent'),
-        this.getTableCount('raw_props_historical')
+        this.getTableCount('prop_ticks_hot'),
+        this.getTableCount('features_daily_agg'),
+        this.getTableCount('prop_ticks_archive')
       ]);
 
       this.lifecycleMetrics.hotTierSize = hotCount;
@@ -198,106 +199,127 @@ export class DataLifecycleAgent extends BaseAgent {
   }
 
   private async archiveHotToWarm(): Promise<void> {
-    this.logger.info('🔥➡️💧 Archiving hot tier to warm tier...');
+    this.logger.info('🔥➡️💧 Archiving HOT tier to WARM tier...');
 
-    const cutoffDate = this.calculateCutoffDate(this.retentionPolicy.hotTierDays);
-    
-    const operation: ArchiveOperation = {
-      sourceTable: 'raw_props',
-      targetTable: 'raw_props_recent',
-      recordsToMove: 0,
-      cutoffDate
-    };
+    if (!this.hasSupabase()) {
+      this.logger.warn('⚠️ Cannot archive without Supabase');
+      return;
+    }
 
     try {
-      // Count records to archive
-      operation.recordsToMove = await this.countRecordsToArchive('raw_props', cutoffDate);
+      const cutoffDate = this.calculateCutoffDate(this.retentionPolicy.hotTierDays);
       
-      if (operation.recordsToMove === 0) {
-        this.logger.info('ℹ️ No hot tier records to archive');
-        return;
-      }
+      this.logger.info(`📦 Archiving prop_ticks_hot data older than ${cutoffDate}`);
 
-      this.logger.info(`📦 Archiving ${operation.recordsToMove} records from hot to warm tier`);
+      // Use our SQL function to archive HOT -> WARM
+      const { data, error } = await withCircuitBreaker.supabase(
+        async () => await this.requireSupabase().rpc('archive_hot_to_warm', {
+          p_cutoff_date: cutoffDate
+        }),
+        async (): Promise<{data: number; error: null; count: null; status: number; statusText: string}> => {
+          this.logger.warn('⚠️ Failed to archive HOT to WARM, circuit breaker open');
+          return {
+            data: 0,
+            error: null,
+            count: null,
+            status: 200,
+            statusText: 'OK'
+          };
+        }
+      );
 
-      // Move records in batches to avoid blocking
-      let movedRecords = 0;
-      while (movedRecords < operation.recordsToMove) {
-        const batchSize = Math.min(this.retentionPolicy.batchSize, operation.recordsToMove - movedRecords);
-        
-        await this.moveRecordsBatched(
-          operation.sourceTable,
-          operation.targetTable,
-          cutoffDate,
-          batchSize
-        );
-        
-        movedRecords += batchSize;
-        
-        // Small delay between batches to avoid overwhelming database
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
+      if (error) throw error;
 
-      this.lifecycleMetrics.propsArchived += operation.recordsToMove;
+      const recordsProcessed = data || 0;
+      this.lifecycleMetrics.propsArchived += recordsProcessed;
       
-      this.logger.info(`✅ Hot to warm archiving complete: ${operation.recordsToMove} records moved`);
+      this.logger.info(`✅ HOT to WARM archiving complete: ${recordsProcessed} props processed`);
 
     } catch (error) {
-      this.logger.error('❌ Failed to archive hot to warm tier', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        operation
+      this.logger.error('❌ Failed to archive HOT to WARM tier', {
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
       throw error;
     }
   }
 
   private async archiveWarmToCold(): Promise<void> {
-    this.logger.info('💧➡️🧊 Archiving warm tier to cold tier...');
+    this.logger.info('💧➡️🧊 Archiving WARM tier to COLD tier...');
 
-    const cutoffDate = this.calculateCutoffDate(this.retentionPolicy.warmTierDays);
-    
-    const operation: ArchiveOperation = {
-      sourceTable: 'raw_props_recent',
-      targetTable: 'raw_props_historical',
-      recordsToMove: 0,
-      cutoffDate
-    };
+    if (!this.hasSupabase()) {
+      this.logger.warn('⚠️ Cannot archive without Supabase');
+      return;
+    }
 
     try {
-      operation.recordsToMove = await this.countRecordsToArchive('raw_props_recent', cutoffDate);
+      const cutoffDate = this.calculateCutoffDate(this.retentionPolicy.warmTierDays);
       
-      if (operation.recordsToMove === 0) {
-        this.logger.info('ℹ️ No warm tier records to archive');
-        return;
-      }
+      this.logger.info(`📦 Archiving features_daily_agg data older than ${cutoffDate}`);
 
-      this.logger.info(`📦 Archiving ${operation.recordsToMove} records from warm to cold tier`);
+      // Use our SQL function to archive WARM -> COLD
+      const { data, error } = await withCircuitBreaker.supabase(
+        async () => await this.requireSupabase().rpc('archive_warm_to_cold', {
+          p_cutoff_date: cutoffDate
+        }),
+        async (): Promise<{data: null; error: null; count: null; status: number; statusText: string}> => {
+          this.logger.warn('⚠️ Failed to archive WARM to COLD, circuit breaker open');
+          return {
+            data: null,
+            error: null,
+            count: null,
+            status: 200,
+            statusText: 'OK'
+          };
+        }
+      );
 
-      let movedRecords = 0;
-      while (movedRecords < operation.recordsToMove) {
-        const batchSize = Math.min(this.retentionPolicy.batchSize, operation.recordsToMove - movedRecords);
+      if (error) throw error;
+
+      const archiveId = data;
+      if (archiveId) {
+        this.logger.info(`✅ WARM to COLD archiving complete: archive ID ${archiveId}`);
         
-        await this.moveRecordsBatched(
-          operation.sourceTable,
-          operation.targetTable,
-          cutoffDate,
-          batchSize
-        );
-        
-        movedRecords += batchSize;
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // TODO: Trigger Parquet export job here
+        await this.triggerParquetExport(archiveId);
+      } else {
+        this.logger.info('ℹ️ No WARM tier records to archive');
       }
-
-      this.lifecycleMetrics.propsArchived += operation.recordsToMove;
-      
-      this.logger.info(`✅ Warm to cold archiving complete: ${operation.recordsToMove} records moved`);
 
     } catch (error) {
-      this.logger.error('❌ Failed to archive warm to cold tier', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        operation
+      this.logger.error('❌ Failed to archive WARM to COLD tier', {
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
       throw error;
+    }
+  }
+
+  private async triggerParquetExport(archiveId: string): Promise<void> {
+    this.logger.info(`📊 Triggering Parquet export for archive ${archiveId}`);
+    
+    try {
+      // In production, this would trigger a background job to:
+      // 1. Export features_daily_agg data to Parquet format
+      // 2. Compress using Snappy or GZIP
+      // 3. Upload to S3/Cloud Storage
+      // 4. Update archive record with file path and compression ratio
+      
+      // For now, just log the export request
+      await redisCache.set(
+        `parquet_export:${archiveId}`,
+        JSON.stringify({
+          archiveId,
+          status: 'pending',
+          requestedAt: new Date().toISOString()
+        }),
+        3600 * 24 // 24 hour TTL
+      );
+
+      this.logger.info(`✅ Parquet export queued for archive ${archiveId}`);
+      
+    } catch (error) {
+      this.logger.error(`❌ Failed to trigger Parquet export for ${archiveId}`, {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   }
 
@@ -500,7 +522,7 @@ export class DataLifecycleAgent extends BaseAgent {
     }
   }
 
-  private async moveRecordsBatched(
+  private async _moveRecordsBatched(
     sourceTable: string,
     targetTable: string,
     cutoffDate: string,

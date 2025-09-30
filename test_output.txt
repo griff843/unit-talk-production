@@ -1,0 +1,20 @@
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+Error: Transform failed with 1 error:
+C:\Users\griff\OneDrive\Desktop\unit-talk-production-main\apps\api\src\agents\GradingAgent\scoring\gradingEngine.ts:708:10: ERROR: The symbol "edgeScore" has already been declared
+    at failureErrorWithLog (C:\Users\griff\OneDrive\Desktop\unit-talk-production-main\node_modules\esbuild\lib\main.js:1467:15)
+    at C:\Users\griff\OneDrive\Desktop\unit-talk-production-main\node_modules\esbuild\lib\main.js:736:50
+    at responseCallbacks.<computed> (C:\Users\griff\OneDrive\Desktop\unit-talk-production-main\node_modules\esbuild\lib\main.js:603:9)
+    at handleIncomingPacket (C:\Users\griff\OneDrive\Desktop\unit-talk-production-main\node_modules\esbuild\lib\main.js:658:12)
+    at Socket.readFromStdout (C:\Users\griff\OneDrive\Desktop\unit-talk-production-main\node_modules\esbuild\lib\main.js:581:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23) {
+  name: 'TransformError'
+}
+
+Node.js v22.19.0

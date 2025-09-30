@@ -48,27 +48,63 @@ wait_for_service() {
     local health_endpoint=$2
     local timeout=$3
     local elapsed=0
-    
+
     print_status "Waiting for $service_name to become healthy..."
-    
+
     while [ $elapsed -lt $timeout ]; do
         if curl -f -s $health_endpoint > /dev/null 2>&1; then
             print_success "$service_name is healthy!"
             return 0
         fi
-        
+
         sleep $HEALTH_CHECK_INTERVAL
         elapsed=$((elapsed + HEALTH_CHECK_INTERVAL))
-        
+
         # Show progress every 30 seconds
         if [ $((elapsed % 30)) -eq 0 ]; then
             print_status "Still waiting for $service_name... (${elapsed}s elapsed)"
         fi
     done
-    
+
     print_error "$service_name failed to become healthy within ${timeout}s"
     return 1
 }
+
+# Function to wait for a TCP port to be reachable (Postgres/Redis)
+wait_for_tcp() {
+    local host=$1
+    local port=$2
+    local timeout=$3
+    local elapsed=0
+
+    print_status "Waiting for TCP $host:$port..."
+
+    while [ $elapsed -lt $timeout ]; do
+        if command -v nc >/dev/null 2>&1; then
+            if nc -z "$host" "$port" >/dev/null 2>&1; then
+                print_success "TCP $host:$port is reachable"
+                return 0
+            fi
+        else
+            # Bash built-in (works in bash)
+            if (echo > /dev/tcp/$host/$port) >/dev/null 2>&1; then
+                print_success "TCP $host:$port is reachable"
+                return 0
+            fi
+        fi
+
+        sleep $HEALTH_CHECK_INTERVAL
+        elapsed=$((elapsed + HEALTH_CHECK_INTERVAL))
+
+        if [ $((elapsed % 30)) -eq 0 ]; then
+            print_status "Still waiting for TCP $host:$port... (${elapsed}s elapsed)"
+        fi
+    done
+
+    print_error "TCP $host:$port failed to become reachable within ${timeout}s"
+    return 1
+}
+
 
 # Function to check service status
 check_service_status() {
@@ -111,25 +147,25 @@ show_service_urls() {
 # Function to check prerequisites
 check_prerequisites() {
     print_status "Checking prerequisites..."
-    
+
     # Check if Docker is running
     if ! docker info > /dev/null 2>&1; then
         print_error "Docker is not running. Please start Docker Desktop."
         exit 1
     fi
-    
+
     # Check if docker-compose is available
     if ! command -v docker-compose > /dev/null 2>&1; then
         print_error "docker-compose is not installed or not in PATH."
         exit 1
     fi
-    
+
     # Check if required files exist
     if [ ! -f "$COMPOSE_FILE" ]; then
         print_error "Docker Compose file not found: $COMPOSE_FILE"
         exit 1
     fi
-    
+
     # Check if .env file exists
     if [ ! -f ".env" ]; then
         print_warning ".env file not found. Creating from .env.example..."
@@ -142,32 +178,32 @@ check_prerequisites() {
             exit 1
         fi
     fi
-    
+
     print_success "Prerequisites check passed!"
 }
 
 # Function to setup workspace
 setup_workspace() {
     print_status "Setting up workspace..."
-    
+
     # Create required directories
     mkdir -p logs monitoring/grafana/dashboards monitoring/grafana/provisioning
-    
+
     # Install dependencies if needed
     if [ ! -d "node_modules" ]; then
         print_status "Installing workspace dependencies..."
         npm install
     fi
-    
+
     print_success "Workspace setup complete!"
 }
 
 # Function to create monitoring configuration
 create_monitoring_config() {
     print_status "Creating monitoring configuration..."
-    
+
     mkdir -p monitoring
-    
+
     # Create Prometheus configuration
     cat > monitoring/prometheus.yml << 'EOF'
 global:
@@ -207,44 +243,44 @@ EOF
 # Function to start infrastructure services
 start_infrastructure() {
     print_status "Starting infrastructure services..."
-    
+
     # Start database services first
     docker-compose up -d postgres redis temporal-postgres
-    
+
     # Wait for databases to be ready
     print_status "Waiting for databases to initialize..."
     sleep 10
-    
+
     # Start Temporal services
     docker-compose up -d temporal-admin-tools
     sleep 5
-    
+
     docker-compose up -d temporal temporal-ui
-    
+
     # Start monitoring services
     docker-compose up -d prometheus grafana
-    
+
     print_success "Infrastructure services started!"
 }
 
 # Function to start application services
 start_applications() {
     print_status "Starting application services..."
-    
+
     # Start main API first
     docker-compose up -d api
-    
+
     # Wait for API to be healthy before starting dependent services
     if wait_for_service "API" "http://localhost:3000/health" 60; then
         # Start worker processes
         docker-compose up -d workers
-        
+
         # Start Discord bot
         docker-compose up -d discord-bot
-        
+
         # Start frontend applications
         docker-compose up -d smart-form dashboard command-center
-        
+
         print_success "Application services started!"
     else
         print_error "Failed to start application services - API not healthy"
@@ -255,21 +291,21 @@ start_applications() {
 # Function to start development tools
 start_dev_tools() {
     print_status "Starting development tools..."
-    
+
     # Start optional development tools
     docker-compose --profile tools up -d pgadmin redis-commander mailhog
-    
+
     print_success "Development tools started!"
 }
 
 # Function to perform health checks
 perform_health_checks() {
     print_status "Performing comprehensive health checks..."
-    
+
     # Critical services health checks
     local services=(
-        "PostgreSQL:http://localhost:5432"
-        "Redis:http://localhost:6379" 
+        "PostgreSQL:tcp://localhost:5432"
+        "Redis:tcp://localhost:6379"
         "Temporal:http://localhost:8088"
         "API:http://localhost:3000/health"
         "Command Center:http://localhost:3004"
@@ -278,16 +314,25 @@ perform_health_checks() {
         "Prometheus:http://localhost:9090/-/healthy"
         "Grafana:http://localhost:3005/api/health"
     )
-    
+
     local failed_services=()
-    
+
     for service_info in "${services[@]}"; do
         IFS=':' read -r service_name service_url <<< "$service_info"
-        if ! wait_for_service "$service_name" "$service_url" 30; then
-            failed_services+=("$service_name")
+        if [[ "$service_url" == tcp://* ]]; then
+            local host_port="${service_url#tcp://}"
+            local host="${host_port%%:*}"
+            local port="${host_port##*:}"
+            if ! wait_for_tcp "$host" "$port" 30; then
+                failed_services+=("$service_name")
+            fi
+        else
+            if ! wait_for_service "$service_name" "$service_url" 30; then
+                failed_services+=("$service_name")
+            fi
         fi
     done
-    
+
     if [ ${#failed_services[@]} -eq 0 ]; then
         print_success "All services are healthy!"
         return 0
@@ -317,7 +362,7 @@ show_status() {
     echo "=================================================="
     docker-compose ps --format table
     echo ""
-    
+
     print_info "Resource usage:"
     echo "=================================================="
     docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}"
@@ -348,30 +393,30 @@ open_browser_tabs() {
 # Main execution function
 main() {
     local command=${1:-"start"}
-    
+
     case $command in
         "start")
             show_banner
             check_prerequisites
             setup_workspace
             create_monitoring_config
-            
+
             print_status "Starting Unit Talk development environment..."
-            
+
             start_infrastructure
             start_applications
             start_dev_tools
-            
+
             print_status "Waiting for all services to stabilize..."
             sleep 15
-            
+
             if perform_health_checks; then
                 show_service_urls
                 print_success "🚀 Unit Talk development environment is ready!"
                 print_info "Run './dev.sh logs' to view service logs"
                 print_info "Run './dev.sh status' to check service status"
                 print_info "Run './dev.sh stop' to stop all services"
-                
+
                 # Optionally open browser tabs
                 read -p "Open browser tabs for key services? (y/N): " -n 1 -r
                 echo
@@ -382,38 +427,38 @@ main() {
                 print_warning "Some services may not be fully ready. Check logs with './dev.sh logs'"
             fi
             ;;
-            
+
         "stop")
             print_status "Stopping Unit Talk development environment..."
             docker-compose down
             print_success "Environment stopped!"
             ;;
-            
+
         "restart")
             print_status "Restarting Unit Talk development environment..."
             docker-compose restart
             print_success "Environment restarted!"
             ;;
-            
+
         "logs")
             show_logs
             ;;
-            
+
         "status")
             show_status
             ;;
-            
+
         "clean")
             cleanup
             ;;
-            
+
         "reset")
             print_status "Resetting development environment..."
             docker-compose down --volumes --remove-orphans
             docker system prune -f
             print_success "Environment reset complete! Run './dev.sh start' to rebuild."
             ;;
-            
+
         "help"|"-h"|"--help")
             echo "Unit Talk Development Environment Control Script"
             echo ""
@@ -429,7 +474,7 @@ main() {
             echo "  reset     Full reset - removes volumes and containers"
             echo "  help      Show this help message"
             ;;
-            
+
         *)
             print_error "Unknown command: $command"
             echo "Run '$0 help' for usage information."

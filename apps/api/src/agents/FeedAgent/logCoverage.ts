@@ -1,6 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 
 import { Provider } from './types';
+import { requireSupabase } from '../../utils/supabaseUtils';
 
 interface CoverageLog {
   provider: Provider;
@@ -27,7 +28,8 @@ const REQUIRED_MARKETS = [
 export async function logCoverage(log: CoverageLog, supabase: SupabaseClient): Promise<CoverageResult> {
   try {
     // Log to database
-    const { error } = await supabase
+    const supabaseClient = requireSupabase();
+      const { error } = await supabase
       .from('coverage_logs')
       .insert({
         provider: log.provider,

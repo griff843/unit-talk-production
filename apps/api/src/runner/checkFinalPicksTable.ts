@@ -8,6 +8,7 @@ import path from 'path';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 import { createClient } from '@supabase/supabase-js';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -18,14 +19,16 @@ async function checkUnifiedPicks() {
   console.log('📊 CHECKING FINAL PICKS TABLE');
   console.log('='.repeat(35));
   
-  const { count } = await supabase
+  const supabaseClient = requireSupabase();
+      const { count } = await supabase
     .from('unified_picks')
     .select('*', { count: 'exact', head: true });
     
   console.log(`Records in unified_picks: ${count || 0}`);
   
   if (count && count > 0) {
-    const { data: samplePicks } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: samplePicks } = await supabase
       .from('unified_picks')
       .select('player_name, tier, confidence, score, created_at')
       .order('created_at', { ascending: false })

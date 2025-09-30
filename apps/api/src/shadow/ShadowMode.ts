@@ -5,7 +5,7 @@
  */
 
 import { createLogger } from '../utils/logger';
-import { supabase as supabaseClient } from '../services/supabaseClient';
+import { requireSupabase } from '../utils/supabaseUtils';
 import { Client as DiscordClient, EmbedBuilder, TextChannel } from 'discord.js';
 
 export interface ShadowPick {
@@ -126,6 +126,7 @@ export class ShadowModeService {
     }
 
     try {
+
       const shadowRow = {
         raw_prop_id: pick.rawPropId,
         unified_pick_id: pick.unifiedPickId,
@@ -154,6 +155,7 @@ export class ShadowModeService {
         reasons: reasons.length > 0 ? reasons : null
       };
 
+      const supabaseClient = requireSupabase();
       const { error } = await supabaseClient
         .from('shadow_decisions')
         .insert(shadowRow);
@@ -276,6 +278,7 @@ export class ShadowModeService {
     }
 
     try {
+
       const metricsRow = {
         window: snapshot.window,
         sport: snapshot.sport || null,
@@ -294,6 +297,7 @@ export class ShadowModeService {
         profit_factor: snapshot.profitFactor
       };
 
+      const supabaseClient = requireSupabase();
       const { error } = await supabaseClient
         .from('shadow_decisions')
         .insert({
@@ -350,6 +354,8 @@ export class ShadowModeService {
         action_reason: `${validationStatus} at ${recheckType}`
       };
 
+
+      const supabaseClient = requireSupabase();
       const { error } = await supabaseClient
         .from('shadow_decisions')
         .insert({
@@ -401,6 +407,8 @@ export class ShadowModeService {
         would_notify: severity === 'high' || severity === 'critical'
       };
 
+
+      const supabaseClient = requireSupabase();
       const { error } = await supabaseClient
         .from('shadow_decisions')
         .insert({
@@ -432,8 +440,10 @@ export class ShadowModeService {
    */
   public async cleanupOldShadow(maxDays?: number): Promise<void> {
     const days = maxDays || this.getMaxDays();
-    
+
     try {
+
+      const supabaseClient = requireSupabase();
       const { data, error } = await supabaseClient
         .rpc('cleanup_old_shadow_data', { max_days: days });
 
@@ -516,10 +526,12 @@ export class ShadowModeService {
     rejectionReasons: Record<string, number>;
   }> {
     try {
+
       const cutoff = new Date();
       const days = window === '1d' ? 1 : window === '7d' ? 7 : 30;
       cutoff.setDate(cutoff.getDate() - days);
 
+      const supabaseClient = requireSupabase();
       const { data: picks } = await supabaseClient
         .from('shadow_decisions')
         .select('*')

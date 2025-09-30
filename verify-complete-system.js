@@ -51,7 +51,7 @@ async function verifyCompleteSystem() {
     const unprocessed = allRecentProps.filter(p => p.processed_at === null && p.professional_score === null);
     if (unprocessed.length > 0) {
       console.log(`\n⚠️ Props not yet processed: ${unprocessed.length}`);
-      console.log('   These may need GradingAgent retry or have specific issues');
+      console.log('   These may need ScoringAgent retry or have specific issues');
     }
     
     // Success rate calculation

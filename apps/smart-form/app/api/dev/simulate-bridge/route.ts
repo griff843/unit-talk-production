@@ -3,6 +3,9 @@ import { z } from 'zod';
 import { simulateBridgeProcessing } from '@/bridge/publish';
 import { createRouteLogger, logValidationError } from '@/lib/logger';
 
+// Force dynamic rendering to prevent static generation errors
+export const dynamic = 'force-dynamic';
+
 const log = createRouteLogger('POST /api/dev/simulate-bridge', 'POST');
 
 // Only allow in development

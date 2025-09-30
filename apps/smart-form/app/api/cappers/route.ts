@@ -3,6 +3,9 @@ import { z } from 'zod';
 import { supabaseServer } from '@/lib/supabase';
 import { createRouteLogger, logDatabaseOperation, logApiPerformance } from '@/lib/logger';
 
+// Force dynamic rendering to prevent static generation errors
+export const dynamic = 'force-dynamic';
+
 const log = createRouteLogger('GET /api/cappers', 'GET');
 
 // Validation schema for query parameters
@@ -46,17 +49,14 @@ export async function GET(request: Request) {
     // Query v3 users table for all non-System users (all are cappers)
     let query = sb
       .from('users')
-      .select('id, username, discord_id, tier, capper_tier, active')
+      .select('id, username, discord_id, tier, capper_tier')
       .neq('username', 'System');
-    
-    if (active !== undefined) {
-      // Filter by active status if column exists, otherwise assume all are active
-      query = query.eq('active', active);
-    }
+
+    // Note: 'active' column doesn't exist in current schema, so assume all users are active
     
     query = query.order('username', { ascending: true });
 
-    const { data, error } = await query;
+    const { data, error } = await query as { data: any[] | null, error: any };
 
     logDatabaseOperation(log, 'SELECT', 'users', data, error);
 
@@ -78,7 +78,7 @@ export async function GET(request: Request) {
     const cappers = (data || []).map(user => ({
       id: user.id,
       name: user.username,
-      active: user.active ?? true, // Default to true if column doesn't exist
+      active: true, // Assume all users are active since column doesn't exist
       tier: user.tier || user.capper_tier || 'VIP',
       discordId: user.discord_id,
     }));

@@ -10,8 +10,6 @@ global:
   # PagerDuty global settings
   pagerduty_url: 'https://events.pagerduty.com/v2/enqueue'
 
-templates:
-  - '/etc/alertmanager/templates/*.tmpl'
 
 route:
   receiver: 'default'
@@ -89,13 +87,6 @@ receivers:
   - name: 'default'
     email_configs:
       - to: 'ops@unittalk.com'
-        subject: '[UnitTalk] Alert: {{ .GroupLabels.alertname }}'
-        body: |
-          {{ range .Alerts }}
-          Alert: {{ .Annotations.summary }}
-          Description: {{ .Annotations.description }}
-          Labels: {{ range .Labels.SortedPairs }}{{ .Name }}={{ .Value }} {{ end }}
-          {{ end }}
           
   # Critical alerts - PagerDuty + Slack + Email
   - name: 'critical-alerts'
@@ -129,21 +120,6 @@ receivers:
             
     email_configs:
       - to: 'oncall@unittalk.com,engineering@unittalk.com'
-        subject: '[CRITICAL] {{ .GroupLabels.alertname }} - UnitTalk Production'
-        body: |
-          CRITICAL ALERT FIRING
-          
-          {{ range .Alerts }}
-          Alert: {{ .Annotations.summary }}
-          Description: {{ .Annotations.description }}
-          Runbook: {{ .Annotations.runbook }}
-          
-          Labels:
-          {{ range .Labels.SortedPairs }}  {{ .Name }}: {{ .Value }}
-          {{ end }}
-          
-          Started: {{ .StartsAt }}
-          {{ end }}
           
   # High severity alerts - Slack + Email
   - name: 'high-severity-alerts'
@@ -158,13 +134,6 @@ receivers:
           
     email_configs:
       - to: 'ops@unittalk.com'
-        subject: '[HIGH] {{ .GroupLabels.alertname }} - UnitTalk'
-        body: |
-          {{ range .Alerts }}
-          Alert: {{ .Annotations.summary }}
-          Description: {{ .Annotations.description }}
-          Runbook: {{ .Annotations.runbook }}
-          {{ end }}
           
   # SLA violation alerts - Executive + Engineering notification
   - name: 'sla-violations'
@@ -182,18 +151,6 @@ receivers:
           
     email_configs:
       - to: 'executives@unittalk.com,engineering@unittalk.com,ops@unittalk.com'
-        subject: '[SLA VIOLATION] {{ .GroupLabels.alertname }} - UnitTalk Production'
-        body: |
-          SLA VIOLATION DETECTED
-          
-          This alert indicates a breach of our service level agreement.
-          Immediate attention and resolution is required.
-          
-          {{ range .Alerts }}
-          Alert: {{ .Annotations.summary }}
-          Description: {{ .Annotations.description }}
-          Runbook: {{ .Annotations.runbook }}
-          {{ end }}
           
   # Security alerts - Security team notification
   - name: 'security-alerts'
@@ -209,15 +166,6 @@ receivers:
           
     email_configs:
       - to: 'security@unittalk.com,ops@unittalk.com'
-        subject: '[SECURITY] {{ .GroupLabels.alertname }} - UnitTalk'
-        body: |
-          SECURITY ALERT
-          
-          {{ range .Alerts }}
-          Alert: {{ .Annotations.summary }}
-          Description: {{ .Annotations.description }}
-          Runbook: {{ .Annotations.runbook }}
-          {{ end }}
           
   # Infrastructure alerts - Operations team
   - name: 'infrastructure-alerts'
@@ -233,7 +181,6 @@ receivers:
           
     email_configs:
       - to: 'infrastructure@unittalk.com'
-        subject: '[INFRA] {{ .GroupLabels.alertname }} - UnitTalk'
         
   # Business logic alerts - Development team
   - name: 'business-alerts'
@@ -249,5 +196,4 @@ receivers:
           
     email_configs:
       - to: 'engineering@unittalk.com'
-        subject: '[BUSINESS] {{ .GroupLabels.alertname }} - UnitTalk'
 

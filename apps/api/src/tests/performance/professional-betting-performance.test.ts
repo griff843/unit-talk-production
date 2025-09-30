@@ -19,7 +19,8 @@ import { CLVAlertService } from '../../services/alerts/CLVAlertService';
 import { CLVTrackingService } from '../../services/clv/CLVTrackingService';
 import { DeviggingService } from '../../services/devigging/DeviggingService';
 import { FeedbackLoopService } from '../../services/feedback/FeedbackLoopService';
-import { supabaseClient } from '../../services/supabaseClient';
+import { supabaseClient } from '../../utils/supabaseUtils';
+import { requireSupabase } from '../../utils/supabaseUtils';
 
 describe('Professional Betting Performance Tests', () => {
   let deviggingService: DeviggingService;
@@ -295,6 +296,7 @@ describe('Professional Betting Performance Tests', () => {
       // Test complex aggregation query performance
       const start = performance.now();
       
+      const supabaseClient = requireSupabase();
       const { data, error } = await supabaseClient
         .from('clv_tracking')
         .select(`
@@ -316,6 +318,7 @@ describe('Professional Betting Performance Tests', () => {
     test('sportsbook weights lookup should be fast', async () => {
       const start = performance.now();
       
+      const supabaseClient = requireSupabase();
       const { data, error } = await supabaseClient
         .from('sportsbook_weights')
         .select('*')
@@ -416,6 +419,7 @@ describe('Professional Betting Performance Tests', () => {
   // Helper functions
   async function setupPerformanceTestData() {
     // Insert test user
+    const supabaseClient = requireSupabase();
     await supabaseClient
       .from('users')
       .upsert({
@@ -439,6 +443,7 @@ describe('Professional Betting Performance Tests', () => {
       beats_closing: Math.random() > 0.5
     }));
 
+    const supabaseClient = requireSupabase();
     await supabaseClient.from('clv_tracking').insert(baselineData);
   }
 
@@ -446,7 +451,8 @@ describe('Professional Betting Performance Tests', () => {
     const tables = ['clv_tracking', 'clv_alerts', 'feedback_loop_history'];
     
     for (const table of tables) {
-      await supabaseClient
+      const supabaseClient = requireSupabase();
+    await supabaseClient
         .from(table)
         .delete()
         .or(`prop_id.like.perf-%,prop_id.like.batch-%,prop_id.like.e2e-%,prop_id.like.volume-%,prop_id.like.baseline-%`);

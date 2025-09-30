@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -20,15 +21,17 @@ async function findPropsWithOdds() {
   
   try {
     // Count total props
-    const { count: totalCount } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: totalCount } = await supabase
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true });
       
     console.log(`📊 Total raw props: ${totalCount}`);
     
     // Look for any props with over odds
-    const { data: propsWithOverOdds, count: overOddsCount } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: propsWithOverOdds, count: overOddsCount } = await supabase
+      .from('sports_game_odds')
       .select('*', { count: 'exact' })
       .not('over_odds', 'is', null)
       .limit(5);
@@ -36,8 +39,9 @@ async function findPropsWithOdds() {
     console.log(`📊 Props with over_odds: ${overOddsCount || 0}`);
     
     // Look for any props with under odds  
-    const { data: propsWithUnderOdds, count: underOddsCount } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: propsWithUnderOdds, count: underOddsCount } = await supabase
+      .from('sports_game_odds')
       .select('*', { count: 'exact' })
       .not('under_odds', 'is', null)
       .limit(5);
@@ -45,8 +49,9 @@ async function findPropsWithOdds() {
     console.log(`📊 Props with under_odds: ${underOddsCount || 0}`);
     
     // Look for props with 'over' field populated
-    const { data: propsWithOver, count: overCount } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: propsWithOver, count: overCount } = await supabase
+      .from('sports_game_odds')
       .select('*', { count: 'exact' })
       .not('over', 'is', null)
       .limit(5);
@@ -54,8 +59,9 @@ async function findPropsWithOdds() {
     console.log(`📊 Props with over field: ${overCount || 0}`);
     
     // Look for props with 'under' field populated
-    const { data: propsWithUnder, count: underCount } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: propsWithUnder, count: underCount } = await supabase
+      .from('sports_game_odds')
       .select('*', { count: 'exact' })
       .not('under', 'is', null)
       .limit(5);
@@ -63,8 +69,9 @@ async function findPropsWithOdds() {
     console.log(`📊 Props with under field: ${underCount || 0}`);
     
     // Look for props with outcome field
-    const { data: propsWithOutcome, count: outcomeCount } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: propsWithOutcome, count: outcomeCount } = await supabase
+      .from('sports_game_odds')
       .select('*', { count: 'exact' })
       .not('outcome', 'is', null)
       .limit(5);
@@ -72,8 +79,9 @@ async function findPropsWithOdds() {
     console.log(`📊 Props with outcome field: ${outcomeCount || 0}`);
     
     // Sample different providers
-    const { data: providersData } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: providersData } = await supabase
+      .from('sports_game_odds')
       .select('provider, source')
       .not('provider', 'is', null)
       .limit(20);
@@ -106,8 +114,9 @@ async function findPropsWithOdds() {
     }
     
     // Check if we have non-Optimal data
-    const { data: nonOptimalProps, count: nonOptimalCount } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: nonOptimalProps, count: nonOptimalCount } = await supabase
+      .from('sports_game_odds')
       .select('*', { count: 'exact' })
       .neq('provider', 'Optimal')
       .limit(5);

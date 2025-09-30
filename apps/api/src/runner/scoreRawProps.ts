@@ -1,5 +1,5 @@
 // src/runner/scoreRawProps.ts
-import { supabase } from '../services/supabaseClient';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 function calcEdgeScore(prop: any): number {
   // Base professional_score starts at 15
@@ -50,8 +50,9 @@ function calcEdgeScore(prop: any): number {
 
 async function main() {
   // First reset all scores where edge_score is not null
-  const { error: resetError } = await supabase
-    .from('raw_props')
+  const supabaseClient = requireSupabase();
+      const { error: resetError } = await supabase
+    .from('sports_game_odds')
     .update({
       edge_score: null,
       tier: null,
@@ -64,8 +65,9 @@ async function main() {
     return;
   }
 
-  const { data: props, error } = await supabase
-    .from('raw_props')
+  const supabaseClient = requireSupabase();
+      const { data: props, error } = await supabase
+    .from('sports_game_odds')
     .select('*')
     .is('edge_score', null);
 
@@ -87,8 +89,9 @@ async function main() {
                 : 'D';
       const published = edge_score >= 20;
 
+      const supabaseClient = requireSupabase();
       const { error: upErr } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .update({ edge_score, tier, published })
         .eq('id', prop.id);
 

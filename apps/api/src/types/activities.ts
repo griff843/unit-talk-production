@@ -202,7 +202,7 @@ export interface AlertAgentActivities {
 }
 
 // Grading Agent Activities
-export interface GradingAgentActivities {
+export interface ScoringAgentActivities {
   // Grading operations
   gradeNewProps(params: {
     league: string;

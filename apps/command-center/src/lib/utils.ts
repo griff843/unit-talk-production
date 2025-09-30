@@ -81,3 +81,28 @@ export function timeAgo(date: Date): string {
   const diffInDays = Math.floor(diffInHours / 24);
   return `${diffInDays}d ago`;
 }
+
+// Logger utility for Fortune 100-grade logging
+export interface Logger {
+  info: (message: string, meta?: Record<string, any>) => void;
+  warn: (message: string, meta?: Record<string, any>) => void;
+  error: (message: string, meta?: Record<string, any>) => void;
+  debug: (message: string, meta?: Record<string, any>) => void;
+}
+
+export const logger: Logger = {
+  info: (message: string, meta?: Record<string, any>) => {
+    console.log(`[INFO] ${message}`, meta ? JSON.stringify(meta) : '');
+  },
+  warn: (message: string, meta?: Record<string, any>) => {
+    console.warn(`[WARN] ${message}`, meta ? JSON.stringify(meta) : '');
+  },
+  error: (message: string, meta?: Record<string, any>) => {
+    console.error(`[ERROR] ${message}`, meta ? JSON.stringify(meta) : '');
+  },
+  debug: (message: string, meta?: Record<string, any>) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.debug(`[DEBUG] ${message}`, meta ? JSON.stringify(meta) : '');
+    }
+  },
+};

@@ -86,7 +86,7 @@ export class AgentConfigFactory {
   }
 
   /**
-   * Create configuration for high-frequency agents (like GradingAgent)
+   * Create configuration for high-frequency agents (like ScoringAgent)
    */
   static createHighFrequencyConfig(options: AgentConfigOptions): BaseAgentConfig {
     return this.createBaseConfig({

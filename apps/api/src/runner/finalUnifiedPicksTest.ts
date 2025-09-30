@@ -8,6 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -20,7 +21,8 @@ async function finalUnifiedPicksTest() {
   console.log('='.repeat(35));
   
   // Get a real user_id from the users table
-  const { data: users } = await supabase
+  const supabaseClient = requireSupabase();
+      const { data: users } = await supabase
     .from('users')
     .select('id')
     .limit(1);
@@ -46,7 +48,8 @@ async function finalUnifiedPicksTest() {
   
   console.log('\n1️⃣ Testing with ALL required fields...');
   try {
-    const { data, error } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data, error } = await supabase
       .from('unified_picks')
       .insert(allRequiredFields)
       .select();
@@ -152,7 +155,8 @@ async function finalUnifiedPicksTest() {
       }
       
       // Clean up test record
-      await supabase
+      const supabaseClient = requireSupabase();
+    await supabase
         .from('unified_picks')
         .delete()
         .eq('id', allRequiredFields.id);
@@ -164,7 +168,7 @@ async function finalUnifiedPicksTest() {
   }
   
   console.log('\n🚀 UNIFIED_PICKS SCHEMA FULLY UNDERSTOOD!');
-  console.log('🎯 Ready to update GradingAgent for v3.0.0 compatibility!');
+  console.log('🎯 Ready to update ScoringAgent for v3.0.0 compatibility!');
 }
 
 finalUnifiedPicksTest().then(() => process.exit(0)).catch(console.error);

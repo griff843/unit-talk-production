@@ -1,9 +1,10 @@
-import { supabase } from '../services/supabaseClient';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 async function main() {
   try {
     // Add confidence column
-    const { error } = await supabase.rpc('exec', {
+    const supabaseClient = requireSupabase();
+      const { error } = await supabaseClient.rpc('exec', {
       query: 'ALTER TABLE daily_picks ADD COLUMN IF NOT EXISTS confidence DECIMAL DEFAULT 0;'
     });
 

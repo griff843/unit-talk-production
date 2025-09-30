@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -21,8 +22,9 @@ async function checkPropsData() {
   
   // Check props by source
   console.log('📋 PROPS BY SOURCE:');
-  const { data: allProps } = await supabase
-    .from('raw_props')
+  const supabaseClient = requireSupabase();
+      const { data: allProps } = await supabase
+    .from('sports_game_odds')
     .select('source, game_date, over_odds, under_odds')
     .eq('game_date', today);
     
@@ -46,13 +48,15 @@ async function checkPropsData() {
   }
   
   // Total counts
-  const { count: totalToday } = await supabase
-    .from('raw_props')
+  const supabaseClient = requireSupabase();
+      const { count: totalToday } = await supabase
+    .from('sports_game_odds')
     .select('*', { count: 'exact', head: true })
     .eq('game_date', today);
     
-  const { count: totalWithOdds } = await supabase
-    .from('raw_props')
+  const supabaseClient = requireSupabase();
+      const { count: totalWithOdds } = await supabase
+    .from('sports_game_odds')
     .select('*', { count: 'exact', head: true })
     .eq('game_date', today)
     .not('over_odds', 'is', null)
@@ -67,8 +71,9 @@ async function checkPropsData() {
   }
   
   // Sample recent good props
-  const { data: goodProps } = await supabase
-    .from('raw_props')
+  const supabaseClient = requireSupabase();
+      const { data: goodProps } = await supabase
+    .from('sports_game_odds')
     .select('player_name, stat_type, over_odds, under_odds, source, created_at')
     .eq('game_date', today)
     .not('over_odds', 'is', null)

@@ -8,6 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -20,7 +21,8 @@ async function testUnifiedPicksWorking() {
   console.log('='.repeat(50));
   
   // Get a real user_id from the users table
-  const { data: users } = await supabase
+  const supabaseClient = requireSupabase();
+      const { data: users } = await supabase
     .from('users')
     .select('id')
     .limit(1);
@@ -56,7 +58,8 @@ async function testUnifiedPicksWorking() {
   
   console.log('\n1️⃣ Testing complete unified_picks insert...');
   try {
-    const { data, error } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data, error } = await supabase
       .from('unified_picks')
       .insert(testPick)
       .select();
@@ -73,7 +76,8 @@ async function testUnifiedPicksWorking() {
       columns.forEach(col => console.log(`  - ${col}: ${typeof data[0][col]} = ${data[0][col]}`));
       
       // Clean up test record
-      await supabase
+      const supabaseClient = requireSupabase();
+    await supabase
         .from('unified_picks')
         .delete()
         .eq('id', testPick.id);

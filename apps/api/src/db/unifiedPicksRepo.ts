@@ -1,5 +1,6 @@
-import { supabaseClient as supabase } from '../services/supabaseClient';
+import { supabaseClient as supabase } from '../utils/supabaseUtils';
 import { toCamelKeys, toSnakeKeys } from '@unit-talk/shared-utils';
+import { requireSupabase, supabaseClient } from '../utils/supabaseUtils';
 
 export type UnifiedPick = {
   id?: string;
@@ -23,29 +24,46 @@ export type UnifiedPick = {
   isInstant?: boolean;
   placedAt?: string;
   updatedAt?: string;
+  // 195-Factor Scoring System fields
+  professionalScore?: number | null;
+  impliedProb?: number | null;
+  scoredAt?: string | null;
+  kellyFraction?: number | null;
+  featureContributions?: Record<string, any> | null;
+  playerName?: string | null;
+  statType?: string | null;
+  sport?: string | null;
+  gameDate?: string | null;
 };
 
 export async function createUnifiedPick(pick: UnifiedPick) {
+
   const snake = toSnakeKeys(pick);
-  const { data, error } = await supabase.from('unified_picks').insert(snake).select().single();
+  const supabaseClient = requireSupabase();
+      const { data, error } = await supabase.from('unified_picks').insert(snake).select().single();
   if (error) throw error;
   return toCamelKeys<UnifiedPick>(data);
 }
 
 export async function patchUnifiedPick(id: string, patch: Partial<UnifiedPick>) {
+
   const snake = toSnakeKeys(patch);
-  const { data, error } = await supabase.from('unified_picks').update(snake).eq('id', id).select().single();
+  const supabaseClient = requireSupabase();
+      const { data, error } = await supabase.from('unified_picks').update(snake).eq('id', id).select().single();
   if (error) throw error;
   return toCamelKeys<UnifiedPick>(data);
 }
 
 export async function findUnifiedPick(id: string) {
-  const { data, error } = await supabase.from('unified_picks').select('*').eq('id', id).single();
+
+  const supabaseClient = requireSupabase();
+      const { data, error } = await supabase.from('unified_picks').select('*').eq('id', id).single();
   if (error) throw error;
   return toCamelKeys<UnifiedPick>(data);
 }
 
 export async function listUnifiedPicks(params: { status?: string; published?: boolean; limit?: number } = {}) {
+
   const { status, published, limit = 100 } = params;
   let q = supabase.from('unified_picks').select('*');
   if (status) q = q.eq('status', status);

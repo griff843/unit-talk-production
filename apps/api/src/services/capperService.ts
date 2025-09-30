@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 import { logger } from '../shared/logger';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 const supabaseUrl = process.env.SUPABASE_URL as string;
 const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY) as string;
@@ -70,7 +71,9 @@ export class CapperService {
    * Test database connection
    */
   async testConnection(): Promise<boolean> {
+
     try {
+      const supabaseClient = requireSupabase();
       const { data: _data, error } = await supabase
         .from('users')
         .select('id')
@@ -90,9 +93,11 @@ export class CapperService {
    * Get capper by Discord ID
    */
   async getCapperByDiscordId(discordId: string): Promise<CapperData | null> {
+
     try {
       this.performanceMetrics.queryCount++;
 
+      const supabaseClient = requireSupabase();
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -124,6 +129,7 @@ export class CapperService {
     displayName: string;
     tier?: 'rookie' | 'pro' | 'elite' | 'legend';
   }): Promise<CapperData | null> {
+
     try {
       this.performanceMetrics.queryCount++;
 
@@ -145,6 +151,7 @@ export class CapperService {
         worst_streak: 0
       };
 
+      const supabaseClient = requireSupabase();
       const { data, error } = await supabase
         .from('users')
         .insert(insertData)
@@ -169,6 +176,7 @@ export class CapperService {
    * Get capper picks
    */
   async getCapperPicks(capperId: string, date?: string, status?: string): Promise<PickData[]> {
+
     try {
       this.performanceMetrics.queryCount++;
 
@@ -204,6 +212,7 @@ export class CapperService {
    * Submit a pick
    */
   async submitPick(pickData: PickData): Promise<PickData | null> {
+
     try {
       this.performanceMetrics.queryCount++;
 
@@ -216,6 +225,7 @@ export class CapperService {
         units: pickData.units || 1
       };
 
+      const supabaseClient = requireSupabase();
       const { data, error } = await supabase
         .from('unified_picks')
         .insert(enhancedPickData)
@@ -237,9 +247,11 @@ export class CapperService {
    * Update a pick
    */
   async updatePick(pickId: string, updates: Partial<PickData>): Promise<PickData | null> {
+
     try {
       this.performanceMetrics.queryCount++;
 
+      const supabaseClient = requireSupabase();
       const { data, error } = await supabase
         .from('unified_picks')
         .update({
@@ -264,9 +276,11 @@ export class CapperService {
    * Delete a pick
    */
   async deletePick(pickId: string): Promise<boolean> {
+
     try {
       this.performanceMetrics.queryCount++;
 
+      const supabaseClient = requireSupabase();
       const { error } = await supabase
         .from('unified_picks')
         .delete()
@@ -308,9 +322,11 @@ export class CapperService {
    * Finalize picks
    */
   async finalizePicks(pickIds: string[]): Promise<boolean> {
+
     try {
       this.performanceMetrics.queryCount++;
 
+      const supabaseClient = requireSupabase();
       const { error } = await supabase
         .from('unified_picks')
         .update({
@@ -334,9 +350,11 @@ export class CapperService {
    * Get capper by ID
    */
   async getCapperById(capperId: string): Promise<CapperData | null> {
+
     try {
       this.performanceMetrics.queryCount++;
 
+      const supabaseClient = requireSupabase();
       const { data, error } = await supabase
         .from('users')
         .select('*')

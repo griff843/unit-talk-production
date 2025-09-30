@@ -1,0 +1,531 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Feature Flag Rollout Monitoring - Syndicate Grade",
+    "tags": ["feature-flags", "rollout", "syndicate-grade"],
+    "style": "dark",
+    "timezone": "browser",
+    "editable": true,
+    "graphTooltip": 1,
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Feature Flag Rollout Overview",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "feature_flag_rollout_percentage",
+            "legendFormat": "{{flag_name}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": 0
+                },
+                {
+                  "color": "yellow", 
+                  "value": 25
+                },
+                {
+                  "color": "green",
+                  "value": 75
+                }
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "options": {
+          "orientation": "horizontal",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "id": 2,
+        "title": "Active Deployments",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "feature_flag_deployment_status",
+            "legendFormat": "{{flag_name}} - {{status}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "value"
+            },
+            "custom": {
+              "align": "left",
+              "displayMode": "table"
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 0
+        }
+      },
+      {
+        "id": 3,
+        "title": "Rollout Error Rate",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(feature_flag_errors_total[5m])",
+            "legendFormat": "{{flag_name}} - Error Rate",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 10,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "never",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "unit": "percentunit",
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 0.01
+                },
+                {
+                  "color": "red", 
+                  "value": 0.05
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "visible",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "multi",
+            "sort": "none"
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        }
+      },
+      {
+        "id": 4,
+        "title": "Feature Flag Performance Metrics",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.99, rate(feature_flag_evaluation_duration_seconds_bucket[5m]))",
+            "legendFormat": "P99 Evaluation Latency",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(feature_flag_evaluations_total[5m])",
+            "legendFormat": "Evaluations/sec",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 10,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "never",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "unit": "ms"
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        }
+      },
+      {
+        "id": 5,
+        "title": "Validation Gates Status",
+        "type": "heatmap",
+        "targets": [
+          {
+            "expr": "feature_flag_validation_gates_passed_total",
+            "legendFormat": "{{flag_name}} - {{gate_name}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "continuous-GrYlRd"
+            },
+            "custom": {
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              }
+            }
+          }
+        },
+        "options": {
+          "calculate": false,
+          "calculation": {},
+          "cellGap": 2,
+          "color": {
+            "exponent": 0.5,
+            "fill": "dark-orange",
+            "scale": "exponential",
+            "scheme": "Spectral"
+          },
+          "exemplars": {
+            "color": "rgba(255,0,255,0.7)"
+          },
+          "filterValues": {
+            "le": 1e-9
+          },
+          "legend": {
+            "show": false
+          },
+          "rowsFrame": {
+            "layout": "auto"
+          },
+          "tooltip": {
+            "show": true,
+            "yHistogram": false
+          },
+          "yAxis": {
+            "axisPlacement": "left",
+            "reverse": false
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 16
+        }
+      },
+      {
+        "id": 6,
+        "title": "A/B Test Performance Comparison",
+        "type": "barchart",
+        "targets": [
+          {
+            "expr": "ab_test_conversion_rate{variant=\"control\"}",
+            "legendFormat": "Control - {{flag_name}}",
+            "refId": "A"
+          },
+          {
+            "expr": "ab_test_conversion_rate{variant=\"treatment\"}",
+            "legendFormat": "Treatment - {{flag_name}}",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "displayMode": "list",
+              "orientation": "horizontal"
+            },
+            "unit": "percentunit"
+          }
+        },
+        "options": {
+          "orientation": "horizontal",
+          "groupWidth": 0.7,
+          "barWidth": 0.97,
+          "showValue": "auto",
+          "stacking": "none",
+          "legend": {
+            "displayMode": "visible",
+            "placement": "right"
+          },
+          "tooltip": {
+            "mode": "multi",
+            "sort": "none"
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 24
+        }
+      },
+      {
+        "id": 7,
+        "title": "Emergency Rollback Events",
+        "type": "logs",
+        "targets": [
+          {
+            "expr": "{job=\"api\"} |= \"emergency rollback\"",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showTime": true,
+          "showLabels": false,
+          "showCommonLabels": false,
+          "wrapLogMessage": false,
+          "prettifyLogMessage": false,
+          "enableLogDetails": true,
+          "dedupStrategy": "none",
+          "sortOrder": "Descending"
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 24
+        }
+      },
+      {
+        "id": 8,
+        "title": "Feature Flag Health Score",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "feature_flag_health_score",
+            "legendFormat": "{{flag_name}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": 0
+                },
+                {
+                  "color": "yellow",
+                  "value": 70
+                },
+                {
+                  "color": "green",
+                  "value": 90
+                }
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "options": {
+          "orientation": "auto",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 32
+        }
+      },
+      {
+        "id": 9,
+        "title": "Deployment Timeline",
+        "type": "timeline",
+        "targets": [
+          {
+            "expr": "feature_flag_deployment_events",
+            "legendFormat": "{{flag_name}} - {{event_type}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "continuous-BlPu"
+            },
+            "custom": {
+              "fillOpacity": 80,
+              "lineWidth": 0,
+              "spanNulls": false
+            }
+          }
+        },
+        "options": {
+          "mergeValues": true,
+          "showValue": "auto",
+          "alignValue": "left",
+          "rowHeight": 0.9,
+          "legend": {
+            "displayMode": "hidden",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 32
+        }
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "environment",
+          "type": "query",
+          "query": "label_values(feature_flag_rollout_percentage, environment)",
+          "current": {
+            "selected": false,
+            "text": "production",
+            "value": "production"
+          },
+          "options": [],
+          "refresh": 1,
+          "includeAll": false,
+          "multi": false
+        },
+        {
+          "name": "flag_name",
+          "type": "query", 
+          "query": "label_values(feature_flag_rollout_percentage{environment=\"$environment\"}, flag_name)",
+          "current": {
+            "selected": true,
+            "text": "All",
+            "value": "$__all"
+          },
+          "options": [],
+          "refresh": 1,
+          "includeAll": true,
+          "multi": true
+        }
+      ]
+    },
+    "annotations": {
+      "list": [
+        {
+          "name": "Deployment Events",
+          "datasource": "Prometheus",
+          "enable": true,
+          "expr": "ALERTS{alertname=\"FeatureFlagDeploymentStarted\"}",
+          "iconColor": "blue",
+          "titleFormat": "Deployment: {{flag_name}}",
+          "textFormat": "Started rollout to {{target_percentage}}%"
+        },
+        {
+          "name": "Rollback Events",
+          "datasource": "Prometheus", 
+          "enable": true,
+          "expr": "ALERTS{alertname=\"FeatureFlagEmergencyRollback\"}",
+          "iconColor": "red",
+          "titleFormat": "Emergency Rollback: {{flag_name}}",
+          "textFormat": "Reason: {{reason}}"
+        }
+      ]
+    }
+  }
+}

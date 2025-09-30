@@ -8,6 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -20,7 +21,8 @@ async function testCompleteUnifiedPicksSchema() {
   console.log('='.repeat(45));
   
   // Get a real user_id from the users table
-  const { data: users } = await supabase
+  const supabaseClient = requireSupabase();
+      const { data: users } = await supabase
     .from('users')
     .select('id')
     .limit(1);
@@ -45,7 +47,8 @@ async function testCompleteUnifiedPicksSchema() {
   
   console.log('\n1️⃣ Testing with all required fields...');
   try {
-    const { data, error } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data, error } = await supabase
       .from('unified_picks')
       .insert(completePick)
       .select();
@@ -103,7 +106,8 @@ async function testCompleteUnifiedPicksSchema() {
       });
       
       // Clean up test record
-      await supabase
+      const supabaseClient = requireSupabase();
+    await supabase
         .from('unified_picks')
         .delete()
         .eq('id', completePick.id);
@@ -131,6 +135,7 @@ async function testCompleteUnifiedPicksSchema() {
         created_at: new Date().toISOString()
       };
       
+      const supabaseClient = requireSupabase();
       const { data: gradingData, error: gradingError } = await supabase
         .from('unified_picks')
         .insert(perfectGradingPick)
@@ -142,7 +147,8 @@ async function testCompleteUnifiedPicksSchema() {
         console.log(`✅ PERFECT! Complete grading data inserted successfully!`);
         
         // Clean up
-        await supabase
+        const supabaseClient = requireSupabase();
+    await supabase
           .from('unified_picks')
           .delete()
           .eq('id', perfectGradingPick.id);

@@ -36,7 +36,7 @@ async function testSmartFormBridge() {
     console.log('🔍 Troubleshooting steps:');
     console.log('  1. Check if SmartFormBridge dependencies are available');
     console.log('  2. Verify database connection and schema');
-    console.log('  3. Check if GradingAgent is properly initialized');
+    console.log('  3. Check if ScoringAgent is properly initialized');
     console.log('  4. Verify environment variables are set');
   }
 }

@@ -19,7 +19,7 @@ async function fixFinalNaNIssues() {
   console.log('==============================================');
   
   try {
-    const gradingEnginePath = join(process.cwd(), 'src/agents/GradingAgent/scoring/gradingEngine.ts');
+    const gradingEnginePath = join(process.cwd(), 'src/agents/ScoringAgent/scoring/gradingEngine.ts');
     
     console.log('📖 Reading gradingEngine.ts...');
     let content = readFileSync(gradingEnginePath, 'utf8');

@@ -4,7 +4,7 @@ import {
   Alert,
   Report
 } from '../agents/BaseAgent/types/index';
-import { ScoringResult } from '../agents/GradingAgent/scoring/applyScoringLogic';
+import { ScoringResult } from '../agents/ScoringAgent/scoring/applyScoringLogic';
 import { NotificationResult } from '../agents/NotificationAgent/types';
 import {
   ActivityResult,
@@ -50,12 +50,25 @@ export {
 // Operator Activities
 export {
   logUSPError,
+  logGradingError,
   monitorAPIQuota,
   checkSystemHealth,
   detectLiveGames,
   logWorkflowMetrics,
   logError
 } from './operator';
+
+// SGO Backfill Activities
+export { backfillSGOActivities } from './backfillSGOActivities';
+
+// Missing ScoringAgent Activities
+export {
+  getNewUnifiedPicks,
+  scoreTopTierPicks
+} from '../agents/ScoringAgent/activities';
+
+// Missing AlertAgent Activities
+export { detectStaleLines } from '../agents/AlertAgent/activities';
 
 // Activity type definitions for Temporal
 export interface IngestionActivities {

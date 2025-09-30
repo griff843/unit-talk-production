@@ -1,6 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 
 import { RawProp } from './types';
+import { requireSupabase } from '../../utils/supabaseUtils';
 
 /**
  * Check if a raw prop is a duplicate based on multiple criteria
@@ -11,8 +12,9 @@ import { RawProp } from './types';
 export async function isDuplicateRawProp(prop: RawProp, supabase: SupabaseClient): Promise<boolean> {
   try {
     // Primary duplicate check: external_game_id + player_name + stat_type + line
-    const { data: primaryCheck } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: primaryCheck } = await supabase
+      .from('sports_game_odds')
       .select('id')
       .eq('external_game_id', prop.external_game_id)
       .eq('player_name', prop.player_name)
@@ -26,8 +28,9 @@ export async function isDuplicateRawProp(prop: RawProp, supabase: SupabaseClient
 
     // Secondary check: game_id + player_name + stat_type (if game_id exists)
     if (prop.game_id) {
+      const supabaseClient = requireSupabase();
       const { data: secondaryCheck } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('id')
         .eq('game_id', prop.game_id)
         .eq('player_name', prop.player_name)
@@ -47,8 +50,9 @@ export async function isDuplicateRawProp(prop: RawProp, supabase: SupabaseClient
       const startTime = new Date(gameTime.getTime() - timeWindow);
       const endTime = new Date(gameTime.getTime() + timeWindow);
 
+      const supabaseClient = requireSupabase();
       const { data: timeCheck } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('id')
         .eq('player_name', prop.player_name)
         .eq('stat_type', prop.stat_type)
@@ -91,8 +95,9 @@ export async function isDuplicateRawPropLegacy(_prop: RawProp): Promise<boolean>
  */
 export async function findDuplicateProps(prop: RawProp, supabase: SupabaseClient): Promise<RawProp[]> {
   try {
-    const { data, error } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data, error } = await supabase
+      .from('sports_game_odds')
       .select('*')
       .eq('player_name', prop.player_name)
       .eq('stat_type', prop.stat_type)

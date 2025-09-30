@@ -1,0 +1,417 @@
+
+> @unit-talk/api@1.0.0 type-check
+> tsc --noEmit -p tsconfig.prod.json
+
+src/agents/AlertAgent/FeatureFlaggedAlertAgent.ts(901,21): error TS2683: 'this' implicitly has type 'any' because it does not have a type annotation.
+src/agents/AlertAgent/index.ts(1088,7): error TS2345: Argument of type '"parlay" | "single" | "round_robin"' is not assignable to parameter of type 'TicketType'.
+  Type '"parlay"' is not assignable to type 'TicketType'.
+src/agents/DataLifecycleAgent/index.ts(218,9): error TS2345: Argument of type '() => Promise<{ data: number; error: null; }>' is not assignable to parameter of type '() => Promise<PostgrestSingleResponse<any>>'.
+  Type 'Promise<{ data: number; error: null; }>' is not assignable to type 'Promise<PostgrestSingleResponse<any>>'.
+    Type '{ data: number; error: null; }' is not assignable to type 'PostgrestSingleResponse<any>'.
+      Type '{ data: number; error: null; }' is missing the following properties from type 'PostgrestResponseSuccess<any>': count, status, statusText
+src/agents/DataLifecycleAgent/index.ts(257,9): error TS2345: Argument of type '() => Promise<{ data: null; error: null; }>' is not assignable to parameter of type '() => Promise<PostgrestSingleResponse<any>>'.
+  Type 'Promise<{ data: null; error: null; }>' is not assignable to type 'Promise<PostgrestSingleResponse<any>>'.
+    Type '{ data: null; error: null; }' is not assignable to type 'PostgrestSingleResponse<any>'.
+      Type '{ data: null; error: null; }' is missing the following properties from type 'PostgrestResponseSuccess<any>': count, status, statusText
+src/agents/FeatureBuilderAgent/index.ts(860,17): error TS2345: Argument of type '{ component: string; status: string; }' is not assignable to parameter of type 'never'.
+src/agents/FeatureBuilderAgent/index.ts(866,17): error TS2345: Argument of type '{ component: string; status: string; }' is not assignable to parameter of type 'never'.
+src/agents/FeatureBuilderAgent/index.ts(872,17): error TS2345: Argument of type '{ component: string; status: string; }' is not assignable to parameter of type 'never'.
+src/agents/FeatureBuilderAgent/index.ts(877,52): error TS2339: Property 'status' does not exist on type 'never'.
+src/agents/FeedAgent/dataSourceRouter.ts(236,11): error TS2322: Type '{ id: `${string}-${string}-${string}-${string}-${string}`; player_name: string; sport: string; team: string; opponent: string; stat_type: string; line: number; game_date: string; matchup: string; market: string; ... 45 more ...; direction: null; }[]' is not assignable to type 'RawProp[]'.
+  Type '{ id: `${string}-${string}-${string}-${string}-${string}`; player_name: string; sport: string; team: string; opponent: string; stat_type: string; line: number; game_date: string; matchup: string; market: string; ... 45 more ...; direction: null; }' is not assignable to type 'RawProp'.
+    Types of property 'over_odds' are incompatible.
+      Type 'number | null' is not assignable to type 'number | undefined'.
+        Type 'null' is not assignable to type 'number | undefined'.
+src/agents/FeedAgent/dataSourceRouter.ts(496,7): error TS2739: Type '{ monthlyUsed: number; monthlyLimit: number; dailyBudget: number; dailyEstimate: number; percentUsed: number; daysRemaining: number; resetDate: string; }' is missing the following properties from type '{ used: number; remaining: number; }': used, remaining
+src/agents/FeedAgent/dataSourceRouter.ts(527,23): error TS2322: Type '"unhealthy"' is not assignable to type '"healthy"'.
+src/agents/FeedAgent/dataSourceRouter.ts(538,21): error TS2322: Type '"unhealthy"' is not assignable to type '"healthy"'.
+src/agents/FeedAgent/dataSourceRouter.ts(545,25): error TS2322: Type '"unhealthy"' is not assignable to type '"healthy"'.
+src/agents/OperatorAgent/activities/healthActivities.ts(382,7): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(input: string | URL | Request, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Object literal may only specify known properties, and 'timeout' does not exist in type 'RequestInit'.
+  Overload 2 of 2, '(input: URL | RequestInfo, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Object literal may only specify known properties, and 'timeout' does not exist in type 'RequestInit'.
+src/agents/OperatorAgent/activities/healthActivities.ts(441,24): error TS2683: 'this' implicitly has type 'any' because it does not have a type annotation.
+src/agents/OperatorAgent/activities/healthActivities.ts(442,19): error TS2683: 'this' implicitly has type 'any' because it does not have a type annotation.
+src/agents/PromotionAgent/index.ts(845,17): error TS2345: Argument of type '{ component: string; status: string; }' is not assignable to parameter of type 'never'.
+src/agents/PromotionAgent/index.ts(854,17): error TS2345: Argument of type '{ component: string; status: string; }' is not assignable to parameter of type 'never'.
+src/agents/PromotionAgent/index.ts(860,17): error TS2345: Argument of type '{ component: string; status: string; }' is not assignable to parameter of type 'never'.
+src/agents/PromotionAgent/index.ts(865,52): error TS2339: Property 'status' does not exist on type 'never'.
+src/agents/ScoringAgent/activities/activities.ts(1,40): error TS2307: Cannot find module '../../../types/agent-activities/scoring' or its corresponding type declarations.
+src/agents/ScoringAgent/FeatureFlaggedScoringAgent.ts(9,35): error TS2307: Cannot find module '../../types/ScoringFeatureSet' or its corresponding type declarations.
+src/agents/ScoringAgent/FeatureFlaggedScoringAgent.ts(58,14): error TS2415: Class 'FeatureFlaggedScoringAgent' incorrectly extends base class 'BaseAgent'.
+  Property 'logger' is private in type 'FeatureFlaggedScoringAgent' but not in type 'BaseAgent'.
+src/agents/ScoringAgent/FeatureFlaggedScoringAgent.ts(58,14): error TS2654: Non-abstract class 'FeatureFlaggedScoringAgent' is missing implementations for the following members of 'BaseAgent': 'initialize', 'process', 'cleanup', 'checkHealth', 'collectMetrics'.
+src/agents/ScoringAgent/FeatureFlaggedScoringAgent.ts(76,21): error TS2345: Argument of type 'string' is not assignable to parameter of type 'BaseAgentDependencies'.
+src/agents/ScoringAgent/FeatureFlaggedScoringAgent.ts(436,17): error TS2532: Object is possibly 'undefined'.
+src/agents/ScoringAgent/FeatureFlaggedScoringAgent.ts(481,73): error TS2554: Expected 1 arguments, but got 2.
+src/agents/ScoringAgent/FeatureFlaggedScoringAgent.ts(482,74): error TS2554: Expected 1 arguments, but got 2.
+src/agents/ScoringAgent/FeatureFlaggedScoringAgent.ts(525,13): error TS2532: Object is possibly 'undefined'.
+src/agents/ScoringAgent/FeatureFlaggedScoringAgent.ts(640,21): error TS2683: 'this' implicitly has type 'any' because it does not have a type annotation.
+src/agents/ScoringAgent/health/healthCheck.ts(4,36): error TS2307: Cannot find module '../tracking/performanceTracker' or its corresponding type declarations.
+src/agents/ScoringAgent/monitoring/metrics.ts(3,19): error TS2305: Module '"../types"' has no exported member 'GradeTier'.
+src/agents/ScoringAgent/professional/ProfessionalFeaturesIntegration.ts(10,40): error TS2307: Cannot find module '../../../types/ScoringFeatureSet' or its corresponding type declarations.
+src/agents/ScoringAgent/professional/ProfessionalFeaturesIntegration.ts(24,3): error TS2724: '"../../../professional/types/steam-detection"' has no exported member named 'SteamDetectionResult'. Did you mean 'SteamDetectionInput'?
+src/agents/ScoringAgent/professional/ProfessionalFeaturesIntegration.ts(109,11): error TS2564: Property 'steamEngine' has no initializer and is not definitely assigned in the constructor.
+src/agents/ScoringAgent/professional/ProfessionalFeaturesIntegration.ts(110,11): error TS2564: Property 'closingLineEngine' has no initializer and is not definitely assigned in the constructor.
+src/agents/ScoringAgent/professional/ProfessionalFeaturesIntegration.ts(236,9): error TS2322: Type 'string' is not assignable to type '"BET_IMMEDIATELY" | "WAIT_FOR_OPTIMAL" | "AVOID" | "MONITOR_FOR_ENTRY"'.
+src/agents/ScoringAgent/professional/ProfessionalFeaturesIntegration.ts(238,9): error TS2322: Type 'string' is not assignable to type '"LOW" | "MEDIUM" | "HIGH" | "IMMEDIATE"'.
+src/agents/ScoringAgent/professional/ProfessionalFeaturesIntegration.ts(306,27): error TS2345: Argument of type 'Promise<any>' is not assignable to parameter of type 'never'.
+src/agents/ScoringAgent/professional/ProfessionalFeaturesIntegration.ts(314,27): error TS2345: Argument of type 'Promise<ClosingLinePredictionResult | null>' is not assignable to parameter of type 'never'.
+src/agents/ScoringAgent/professional/ProfessionalFeaturesIntegration.ts(669,20): error TS2345: Argument of type '{ timestamp: string; line: any; odds: any; bookmaker: string; hoursUntilGame: number; }' is not assignable to parameter of type 'never'.
+src/agents/ScoringAgent/professional/ProfessionalFeaturesIntegration.ts(687,20): error TS2345: Argument of type '{ timestamp: string; volume: number; side: string; bookmaker: string; isSharpMoney: boolean; }' is not assignable to parameter of type 'never'.
+src/agents/ScoringAgent/professional/ProfessionalFeaturesIntegration.ts(716,9): error TS2416: Property 'detectSteam' in type 'ProfessionalFeaturesIntegration' is not assignable to the same property in base type 'ProfessionalFeatureEngine'.
+  Type '(prop: ScoringFeatureSet) => Promise<SteamAnalysisResult>' is not assignable to type '(prop: ScoringFeatureSet) => Promise<SteamDetectionResult>'.
+    Type 'Promise<SteamAnalysisResult>' is not assignable to type 'Promise<SteamDetectionResult>'.
+      Type 'SteamAnalysisResult' is missing the following properties from type 'SteamDetectionResult': timeToMove, sharpMoneyIndicators, steamHistory, recommendedAction
+src/agents/ScoringAgent/professional/ProfessionalFeaturesIntegration.ts(720,9): error TS2416: Property 'predictClosingLine' in type 'ProfessionalFeaturesIntegration' is not assignable to the same property in base type 'ProfessionalFeatureEngine'.
+  Type '(prop: ScoringFeatureSet) => Promise<import("C:/Users/griff/OneDrive/Desktop/unit-talk-production-main/apps/api/src/professional/types/closing-line-prediction").ClosingLinePredictionResult>' is not assignable to type '(prop: ScoringFeatureSet) => Promise<import("C:/Users/griff/OneDrive/Desktop/unit-talk-production-main/apps/api/src/professional/types/index").ClosingLinePredictionResult>'.
+    Type 'Promise<import("C:/Users/griff/OneDrive/Desktop/unit-talk-production-main/apps/api/src/professional/types/closing-line-prediction").ClosingLinePredictionResult>' is not assignable to type 'Promise<import("C:/Users/griff/OneDrive/Desktop/unit-talk-production-main/apps/api/src/professional/types/index").ClosingLinePredictionResult>'.
+      Type 'ClosingLinePredictionResult' is missing the following properties from type 'ClosingLinePredictionResult': currentLine, historicalAccuracy, optimalEntryWindow
+src/agents/ScoringAgent/professional/ProfessionalFeaturesIntegration.ts(725,9): error TS2416: Property 'calculateOptimalTiming' in type 'ProfessionalFeaturesIntegration' is not assignable to the same property in base type 'ProfessionalFeatureEngine'.
+  Type '(prop: ScoringFeatureSet) => Promise<null>' is not assignable to type '(prop: ScoringFeatureSet) => Promise<OptimalTimingResult>'.
+    Type 'Promise<null>' is not assignable to type 'Promise<OptimalTimingResult>'.
+      Type 'null' is not assignable to type 'OptimalTimingResult'.
+src/agents/ScoringAgent/professional/ProfessionalFeaturesIntegration.ts(726,9): error TS2416: Property 'findLineShoppingEdge' in type 'ProfessionalFeaturesIntegration' is not assignable to the same property in base type 'ProfessionalFeatureEngine'.
+  Type '(prop: ScoringFeatureSet) => Promise<null>' is not assignable to type '(prop: ScoringFeatureSet) => Promise<LineShoppingResult>'.
+    Type 'Promise<null>' is not assignable to type 'Promise<LineShoppingResult>'.
+      Type 'null' is not assignable to type 'LineShoppingResult'.
+src/agents/ScoringAgent/professional/ProfessionalFeaturesIntegration.ts(727,9): error TS2416: Property 'analyzePublicSharpSplit' in type 'ProfessionalFeaturesIntegration' is not assignable to the same property in base type 'ProfessionalFeatureEngine'.
+  Type '(prop: ScoringFeatureSet) => Promise<null>' is not assignable to type '(prop: ScoringFeatureSet) => Promise<PublicSharpSplitResult>'.
+    Type 'Promise<null>' is not assignable to type 'Promise<PublicSharpSplitResult>'.
+      Type 'null' is not assignable to type 'PublicSharpSplitResult'.
+src/agents/ScoringAgent/professional/ProfessionalFeaturesIntegration.ts(728,9): error TS2416: Property 'calculateMarketTiming' in type 'ProfessionalFeaturesIntegration' is not assignable to the same property in base type 'ProfessionalFeatureEngine'.
+  Type '(prop: ScoringFeatureSet) => Promise<null>' is not assignable to type '(prop: ScoringFeatureSet) => Promise<MarketTimingResult>'.
+    Type 'Promise<null>' is not assignable to type 'Promise<MarketTimingResult>'.
+      Type 'null' is not assignable to type 'MarketTimingResult'.
+src/agents/ScoringAgent/professional/ProfessionalFeaturesIntegration.ts(729,9): error TS2416: Property 'detectInjuryTiming' in type 'ProfessionalFeaturesIntegration' is not assignable to the same property in base type 'ProfessionalFeatureEngine'.
+  Type '(prop: ScoringFeatureSet) => Promise<null>' is not assignable to type '(prop: ScoringFeatureSet) => Promise<InjuryTimingResult>'.
+    Type 'Promise<null>' is not assignable to type 'Promise<InjuryTimingResult>'.
+      Type 'null' is not assignable to type 'InjuryTimingResult'.
+src/agents/ScoringAgent/professional/ProfessionalFeaturesIntegration.ts(730,9): error TS2416: Property 'findCrossMarketDiscrepancy' in type 'ProfessionalFeaturesIntegration' is not assignable to the same property in base type 'ProfessionalFeatureEngine'.
+  Type '(prop: ScoringFeatureSet) => Promise<null>' is not assignable to type '(prop: ScoringFeatureSet) => Promise<CrossMarketDiscrepancyResult>'.
+    Type 'Promise<null>' is not assignable to type 'Promise<CrossMarketDiscrepancyResult>'.
+      Type 'null' is not assignable to type 'CrossMarketDiscrepancyResult'.
+src/agents/ScoringAgent/scoring/advancedBacktesting.ts(4,10): error TS2305: Module '"./gradingEngine"' has no exported member 'GradingResult'.
+src/agents/ScoringAgent/scoring/gradingEngine.ts(3,35): error TS2307: Cannot find module '../../../types/ScoringFeatureSet' or its corresponding type declarations.
+src/agents/ScoringAgent/scoring/ParallelGradingEngine.ts(7,35): error TS2307: Cannot find module '../../../types/ScoringFeatureSet' or its corresponding type declarations.
+src/agents/ScoringAgent/scoring/ParallelScoringEngine.ts(7,35): error TS2307: Cannot find module '../../../types/ScoringFeatureSet' or its corresponding type declarations.
+src/agents/ScoringAgent/scoring/performanceAnalyzer.ts(1,10): error TS2305: Module '"./gradingEngine"' has no exported member 'GradingResult'.
+src/agents/ScoringAgent/scoring/scoringEngine.ts(3,35): error TS2307: Cannot find module '../../../types/ScoringFeatureSet' or its corresponding type declarations.
+src/agents/ScoringAgent/ScoringAgent.ts(3,35): error TS2307: Cannot find module '../../types/ScoringFeatureSet' or its corresponding type declarations.
+src/agents/ScoringAgent/ScoringAgent.ts(256,72): error TS2551: Property 'avgGradingTimeMs' does not exist on type 'ScoringMetrics'. Did you mean 'avgScoringTimeMs'?
+src/agents/ScoringAgent/ScoringAgent.ts(263,45): error TS2551: Property 'avgGradingTimeMs' does not exist on type 'ScoringMetrics'. Did you mean 'avgScoringTimeMs'?
+src/agents/ScoringAgent/ScoringAgent.ts(277,35): error TS2304: Cannot find name 'GradingMetrics'.
+src/agents/ScoringAgent/ScoringAgent.ts(345,62): error TS2551: Property 'processScoringFeatureSet' does not exist on type 'ProfessionalPropProcessor'. Did you mean 'processGradingFeatureSet'?
+src/agents/ScoringAgent/ScoringAgent.ts(358,62): error TS2551: Property 'processScoringFeatureSet' does not exist on type 'ProfessionalPropProcessor'. Did you mean 'processGradingFeatureSet'?
+src/agents/ScoringAgent/ScoringAgent.ts(375,27): error TS2339: Property 'picksGraded' does not exist on type 'ScoringMetrics'.
+src/agents/ScoringAgent/ScoringAgent.ts(377,27): error TS2551: Property 'avgGradingTimeMs' does not exist on type 'ScoringMetrics'. Did you mean 'avgScoringTimeMs'?
+src/agents/ScoringAgent/ScoringAgent.ts(378,30): error TS2551: Property 'avgGradingTimeMs' does not exist on type 'ScoringMetrics'. Did you mean 'avgScoringTimeMs'?
+src/agents/ScoringAgent/ScoringAgent.ts(1189,48): error TS2551: Property 'avgGradingTimeMs' does not exist on type 'ScoringMetrics'. Did you mean 'avgScoringTimeMs'?
+src/agents/ScoringAgent/utils/retryOperations.ts(4,10): error TS2305: Module '"../types"' has no exported member 'GradingError'.
+src/backtesting/BacktestingEngine.ts(20,35): error TS2307: Cannot find module '../types/ScoringFeatureSet' or its corresponding type declarations.
+src/backtesting/BacktestingEngine.ts(246,9): error TS2353: Object literal may only specify known properties, and 'interval' does not exist in type 'BaseAgentConfig'.
+src/backtesting/ProfessionalFeatureValidator.ts(605,7): error TS2741: Property 'max_drawdown' is missing in type '{ win_rate: number; roi: number; sharpe_ratio: number; sample_size: number; }' but required in type '{ sample_size: number; win_rate: number; roi: number; sharpe_ratio: number; max_drawdown: number; }'.
+src/live-testing/betting/BettingAPIIntegration.ts(9,24): error TS2307: Cannot find module '@shared/logger' or its corresponding type declarations.
+src/live-testing/betting/BettingAPIIntegration.ts(16,3): error TS2305: Module '"../types"' has no exported member 'BetRecommendation'.
+src/live-testing/betting/BettingAPIIntegration.ts(64,18): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/betting/BettingAPIIntegration.ts(163,30): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/betting/BettingAPIIntegration.ts(167,16): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/betting/BettingAPIIntegration.ts(357,37): error TS2345: Argument of type '"WIN" | "LOSS" | "PUSH" | undefined' is not assignable to parameter of type '"WIN" | "LOSS" | "PUSH"'.
+  Type 'undefined' is not assignable to type '"WIN" | "LOSS" | "PUSH"'.
+src/live-testing/betting/BettingAPIIntegration.ts(362,18): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/betting/BettingAPIIntegration.ts(417,18): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/dashboard/LiveTestingDashboard.ts(9,24): error TS2307: Cannot find module '@shared/logger' or its corresponding type declarations.
+src/live-testing/dashboard/LiveTestingDashboard.ts(18,3): error TS2305: Module '"../types"' has no exported member 'DashboardData'.
+src/live-testing/dashboard/LiveTestingDashboard.ts(19,3): error TS2305: Module '"../types"' has no exported member 'AlertData'.
+src/live-testing/dashboard/LiveTestingDashboard.ts(20,3): error TS2305: Module '"../types"' has no exported member 'ChartData'.
+src/live-testing/dashboard/LiveTestingDashboard.ts(21,3): error TS2305: Module '"../types"' has no exported member 'SystemStatus'.
+src/live-testing/dashboard/LiveTestingDashboard.ts(36,11): error TS2564: Property 'dashboardData' has no initializer and is not definitely assigned in the constructor.
+src/live-testing/dashboard/LiveTestingDashboard.ts(37,11): error TS2564: Property 'updateInterval' has no initializer and is not definitely assigned in the constructor.
+src/live-testing/dashboard/LiveTestingDashboard.ts(224,16): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/dashboard/LiveTestingDashboard.ts(340,16): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/dashboard/LiveTestingDashboard.ts(545,19): error TS2345: Argument of type '"SYSTEM STATUS"' is not assignable to parameter of type 'never'.
+src/live-testing/dashboard/LiveTestingDashboard.ts(546,19): error TS2345: Argument of type '"Metric,Value"' is not assignable to parameter of type 'never'.
+src/live-testing/dashboard/LiveTestingDashboard.ts(547,19): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+src/live-testing/dashboard/LiveTestingDashboard.ts(548,19): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+src/live-testing/dashboard/LiveTestingDashboard.ts(549,19): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+src/live-testing/dashboard/LiveTestingDashboard.ts(550,19): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+src/live-testing/dashboard/LiveTestingDashboard.ts(553,19): error TS2345: Argument of type '"\n\nPERFORMANCE METRICS"' is not assignable to parameter of type 'never'.
+src/live-testing/dashboard/LiveTestingDashboard.ts(554,19): error TS2345: Argument of type '"Metric,Value"' is not assignable to parameter of type 'never'.
+src/live-testing/dashboard/LiveTestingDashboard.ts(555,19): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+src/live-testing/dashboard/LiveTestingDashboard.ts(556,19): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+src/live-testing/dashboard/LiveTestingDashboard.ts(557,19): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+src/live-testing/dashboard/LiveTestingDashboard.ts(558,19): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+src/live-testing/dashboard/LiveTestingDashboard.ts(559,19): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+src/live-testing/dashboard/LiveTestingDashboard.ts(562,19): error TS2345: Argument of type '"\n\nFINANCIAL METRICS"' is not assignable to parameter of type 'never'.
+src/live-testing/dashboard/LiveTestingDashboard.ts(563,19): error TS2345: Argument of type '"Metric,Value"' is not assignable to parameter of type 'never'.
+src/live-testing/dashboard/LiveTestingDashboard.ts(564,19): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+src/live-testing/dashboard/LiveTestingDashboard.ts(565,19): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+src/live-testing/dashboard/LiveTestingDashboard.ts(566,19): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+src/live-testing/dashboard/LiveTestingDashboard.ts(567,19): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+src/live-testing/emergency/EmergencySystem.ts(9,24): error TS2307: Cannot find module '@shared/logger' or its corresponding type declarations.
+src/live-testing/emergency/EmergencySystem.ts(25,10): error TS2564: Property 'stopLossTriggers' has no initializer and is not definitely assigned in the constructor.
+src/live-testing/emergency/EmergencySystem.ts(26,10): error TS2564: Property 'circuitBreakers' has no initializer and is not definitely assigned in the constructor.
+src/live-testing/emergency/EmergencySystem.ts(27,10): error TS2564: Property 'emergencyProcedures' has no initializer and is not definitely assigned in the constructor.
+src/live-testing/emergency/EmergencySystem.ts(28,10): error TS2564: Property 'contactProtocols' has no initializer and is not definitely assigned in the constructor.
+src/live-testing/emergency/EmergencySystem.ts(31,11): error TS2564: Property 'systemState' has no initializer and is not definitely assigned in the constructor.
+src/live-testing/emergency/EmergencySystem.ts(33,11): error TS2564: Property 'monitoringInterval' has no initializer and is not definitely assigned in the constructor.
+src/live-testing/emergency/EmergencySystem.ts(589,16): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/emergency/EmergencySystem.ts(702,18): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/emergency/EmergencySystem.ts(827,18): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/emergency/EmergencySystem.ts(837,18): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/emergency/EmergencySystem.ts(894,18): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/financial/FinancialReportsSystem.ts(9,24): error TS2307: Cannot find module '@shared/logger' or its corresponding type declarations.
+src/live-testing/financial/FinancialReportsSystem.ts(25,10): error TS2564: Property 'realTimePnL' has no initializer and is not definitely assigned in the constructor.
+src/live-testing/financial/FinancialReportsSystem.ts(26,10): error TS2564: Property 'transactionCosts' has no initializer and is not definitely assigned in the constructor.
+src/live-testing/financial/FinancialReportsSystem.ts(27,10): error TS2564: Property 'attribution' has no initializer and is not definitely assigned in the constructor.
+src/live-testing/financial/FinancialReportsSystem.ts(28,10): error TS2564: Property 'riskReports' has no initializer and is not definitely assigned in the constructor.
+src/live-testing/financial/FinancialReportsSystem.ts(33,11): error TS2564: Property 'benchmarkData' has no initializer and is not definitely assigned in the constructor.
+src/live-testing/financial/FinancialReportsSystem.ts(34,11): error TS2564: Property 'reportingInterval' has no initializer and is not definitely assigned in the constructor.
+src/live-testing/performance/LivePerformanceTracker.ts(9,24): error TS2307: Cannot find module '@shared/logger' or its corresponding type declarations.
+src/live-testing/performance/LivePerformanceTracker.ts(32,10): error TS2564: Property 'realTimeMetrics' has no initializer and is not definitely assigned in the constructor.
+src/live-testing/performance/LivePerformanceTracker.ts(33,10): error TS2564: Property 'historicalPerformance' has no initializer and is not definitely assigned in the constructor.
+src/live-testing/performance/LivePerformanceTracker.ts(34,10): error TS2564: Property 'clvTracking' has no initializer and is not definitely assigned in the constructor.
+src/live-testing/performance/LivePerformanceTracker.ts(35,10): error TS2564: Property 'statisticalSignificance' has no initializer and is not definitely assigned in the constructor.
+src/live-testing/performance/LivePerformanceTracker.ts(40,11): error TS2564: Property 'updateInterval' has no initializer and is not definitely assigned in the constructor.
+src/live-testing/risk/LiveRiskMonitor.ts(9,24): error TS2307: Cannot find module '@shared/logger' or its corresponding type declarations.
+src/live-testing/risk/LiveRiskMonitor.ts(27,10): error TS2564: Property 'realTimeRisk' has no initializer and is not definitely assigned in the constructor.
+src/live-testing/risk/LiveRiskMonitor.ts(28,10): error TS2564: Property 'portfolioRisk' has no initializer and is not definitely assigned in the constructor.
+src/live-testing/risk/LiveRiskMonitor.ts(29,10): error TS2564: Property 'kellyMonitoring' has no initializer and is not definitely assigned in the constructor.
+src/live-testing/risk/LiveRiskMonitor.ts(30,10): error TS2564: Property 'emergencyTriggers' has no initializer and is not definitely assigned in the constructor.
+src/live-testing/risk/LiveRiskMonitor.ts(35,11): error TS2564: Property 'monitoringInterval' has no initializer and is not definitely assigned in the constructor.
+src/live-testing/risk/LiveRiskMonitor.ts(195,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+  Type 'string' is not assignable to type 'number'.
+src/live-testing/risk/LiveRiskMonitor.ts(686,7): error TS2322: Type '"STOP_LOSS" | "MAX_DRAWDOWN" | "SYSTEM_ERROR" | "MANUAL_STOP"' is not assignable to type '"DRAWDOWN" | "EXPOSURE_LIMIT" | "CORRELATION_RISK" | "KELLY_VIOLATION"'.
+  Type '"STOP_LOSS"' is not assignable to type '"DRAWDOWN" | "EXPOSURE_LIMIT" | "CORRELATION_RISK" | "KELLY_VIOLATION"'.
+src/live-testing/storage/LiveResultsStorage.ts(8,24): error TS2307: Cannot find module '@shared/logger' or its corresponding type declarations.
+src/live-testing/storage/LiveResultsStorage.ts(87,16): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/storage/LiveResultsStorage.ts(132,16): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/storage/LiveResultsStorage.ts(189,16): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/storage/LiveResultsStorage.ts(232,16): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/storage/LiveResultsStorage.ts(271,16): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/storage/LiveResultsStorage.ts(316,16): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/storage/LiveResultsStorage.ts(353,16): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/storage/LiveResultsStorage.ts(397,16): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/storage/LiveResultsStorage.ts(435,16): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/storage/LiveResultsStorage.ts(456,16): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/storage/LiveResultsStorage.ts(494,16): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/storage/LiveResultsStorage.ts(544,16): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/storage/LiveResultsStorage.ts(586,16): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/storage/LiveResultsStorage.ts(636,16): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/storage/LiveResultsStorage.ts(663,21): error TS2345: Argument of type '"LIVE BETS"' is not assignable to parameter of type 'never'.
+src/live-testing/storage/LiveResultsStorage.ts(664,21): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+src/live-testing/storage/LiveResultsStorage.ts(680,21): error TS2345: Argument of type '"\n\nDAILY REPORTS"' is not assignable to parameter of type 'never'.
+src/live-testing/storage/LiveResultsStorage.ts(681,21): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+src/live-testing/storage/LiveResultsStorage.ts(835,20): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/storage/LiveResultsStorage.ts(844,16): error TS18046: 'error' is of type 'unknown'.
+src/live-testing/types/index.ts(720,15): error TS2307: Cannot find module './betting-api' or its corresponding type declarations.
+src/live-testing/types/index.ts(721,15): error TS2307: Cannot find module './performance-tracking' or its corresponding type declarations.
+src/live-testing/types/index.ts(722,15): error TS2307: Cannot find module './risk-monitoring' or its corresponding type declarations.
+src/live-testing/types/index.ts(723,15): error TS2307: Cannot find module './financial-reporting' or its corresponding type declarations.
+src/live-testing/types/index.ts(724,15): error TS2307: Cannot find module './emergency-system' or its corresponding type declarations.
+src/middleware/auth.ts(103,10): error TS7030: Not all code paths return a value.
+src/middleware/validation.ts(20,7): error TS2717: Subsequent property declarations must have the same type.  Property 'user' must be of type '{ id: string; username: string; role: string; } | undefined', but here has type '{ id: string; tier: string; permissions: string[]; } | undefined'.
+src/production/agent-orchestration.ts(19,28): error TS2307: Cannot find module '../agents/AlertAgent/AlertAgent' or its corresponding type declarations.
+src/production/agent-orchestration.ts(20,27): error TS2307: Cannot find module '../agents/FeedAgent/FeedAgent' or its corresponding type declarations.
+src/production/agent-orchestration.ts(21,28): error TS2307: Cannot find module '../agents/RecapAgent/RecapAgent' or its corresponding type declarations.
+src/production/agent-orchestration.ts(22,31): error TS2307: Cannot find module '../agents/OperatorAgent/OperatorAgent' or its corresponding type declarations.
+src/production/agent-orchestration.ts(115,11): error TS2564: Property 'redis' has no initializer and is not definitely assigned in the constructor.
+src/production/agent-orchestration.ts(116,11): error TS2564: Property 'temporalConnection' has no initializer and is not definitely assigned in the constructor.
+src/production/agent-orchestration.ts(117,11): error TS2564: Property 'temporalClient' has no initializer and is not definitely assigned in the constructor.
+src/production/agent-orchestration.ts(121,11): error TS2564: Property 'orchestrationMetrics' has no initializer and is not definitely assigned in the constructor.
+src/production/agent-orchestration.ts(224,11): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'BaseAgentConfig'.
+src/production/agent-orchestration.ts(244,11): error TS2353: Object literal may only specify known properties, and 'redis' does not exist in type 'BaseAgentDependencies'.
+src/production/agent-orchestration.ts(285,11): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'BaseAgentConfig'.
+src/production/agent-orchestration.ts(303,11): error TS2353: Object literal may only specify known properties, and 'redis' does not exist in type 'BaseAgentDependencies'.
+src/production/agent-orchestration.ts(339,11): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'BaseAgentConfig'.
+src/production/agent-orchestration.ts(357,11): error TS2353: Object literal may only specify known properties, and 'redis' does not exist in type 'BaseAgentDependencies'.
+src/production/agent-orchestration.ts(393,11): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'BaseAgentConfig'.
+src/production/agent-orchestration.ts(411,11): error TS2353: Object literal may only specify known properties, and 'redis' does not exist in type 'BaseAgentDependencies'.
+src/production/agent-orchestration.ts(447,11): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'BaseAgentConfig'.
+src/production/agent-orchestration.ts(465,11): error TS2353: Object literal may only specify known properties, and 'redis' does not exist in type 'BaseAgentDependencies'.
+src/production/agent-orchestration.ts(495,7): error TS2740: Type 'Connection' is missing the following properties from type 'NativeConnection': runtime, nativeClient, enableTestService, referenceHolders, and 2 more.
+src/production/agent-orchestration.ts(677,56): error TS2445: Property 'checkHealth' is protected and only accessible within class 'BaseAgent' and its subclasses.
+src/production/agent-orchestration.ts(788,22): error TS2769: No overload matches this call.
+  Overload 1 of 8, '(options: RedisOptions): Redis', gave the following error.
+    Object literal may only specify known properties, and 'retryDelayOnFailover' does not exist in type 'RedisOptions'.
+  Overload 2 of 8, '(port: number): Redis', gave the following error.
+    Argument of type '{ host: string; port: number; retryDelayOnFailover: number; enableReadyCheck: boolean; maxRetriesPerRequest: number; lazyConnect: boolean; }' is not assignable to parameter of type 'number'.
+  Overload 3 of 8, '(path: string): Redis', gave the following error.
+    Argument of type '{ host: string; port: number; retryDelayOnFailover: number; enableReadyCheck: boolean; maxRetriesPerRequest: number; lazyConnect: boolean; }' is not assignable to parameter of type 'string'.
+src/production/agent-orchestration.ts(893,35): error TS2445: Property 'cleanup' is protected and only accessible within class 'BaseAgent' and its subclasses.
+src/production/real-time-scoring-pipeline.ts(12,23): error TS2307: Cannot find module 'bullmq' or its corresponding type declarations.
+src/production/real-time-scoring-pipeline.ts(19,35): error TS2307: Cannot find module '../types/ScoringFeatureSet' or its corresponding type declarations.
+src/production/real-time-scoring-pipeline.ts(95,11): error TS2564: Property 'redis' has no initializer and is not definitely assigned in the constructor.
+src/production/real-time-scoring-pipeline.ts(98,11): error TS2564: Property 'enhanced45FactorEngine' has no initializer and is not definitely assigned in the constructor.
+src/production/real-time-scoring-pipeline.ts(99,11): error TS2564: Property 'materialChangeDetector' has no initializer and is not definitely assigned in the constructor.
+src/production/real-time-scoring-pipeline.ts(100,11): error TS2564: Property 'featureStoreIntegration' has no initializer and is not definitely assigned in the constructor.
+src/production/real-time-scoring-pipeline.ts(102,11): error TS2564: Property 'metrics' has no initializer and is not definitely assigned in the constructor.
+src/production/real-time-scoring-pipeline.ts(419,22): error TS2769: No overload matches this call.
+  Overload 1 of 8, '(options: RedisOptions): Redis', gave the following error.
+    Object literal may only specify known properties, and 'retryDelayOnFailover' does not exist in type 'RedisOptions'.
+  Overload 2 of 8, '(port: number): Redis', gave the following error.
+    Argument of type '{ host: string; port: number; retryDelayOnFailover: number; enableReadyCheck: boolean; maxRetriesPerRequest: number; lazyConnect: boolean; keepAlive: number; commandTimeout: number; connectTimeout: number; family: number; }' is not assignable to parameter of type 'number'.
+  Overload 3 of 8, '(path: string): Redis', gave the following error.
+    Argument of type '{ host: string; port: number; retryDelayOnFailover: number; enableReadyCheck: boolean; maxRetriesPerRequest: number; lazyConnect: boolean; keepAlive: number; commandTimeout: number; connectTimeout: number; family: number; }' is not assignable to parameter of type 'string'.
+src/production/real-time-scoring-pipeline.ts(682,7): error TS2740: Type '{}' is missing the following properties from type '{ steamMoveDetected: boolean; predictedClosingLine: number; optimalBettingTime: string; bestAvailableLine: number; bestBook: string; publicBettingPercentage: number; sharpBettingPercentage: number; contrarianOpportunity: boolean; injuryTimingAdvantage: number; crossMarketArbitrage: number; }': steamMoveDetected, predictedClosingLine, optimalBettingTime, bestAvailableLine, and 6 more.
+src/professional/engines/ClosingLinePredictionEngine.ts(32,11): error TS2564: Property 'metrics' has no initializer and is not definitely assigned in the constructor.
+src/professional/engines/ClosingLinePredictionEngine.ts(33,11): error TS2564: Property 'modelInfo' has no initializer and is not definitely assigned in the constructor.
+src/professional/engines/ClosingLinePredictionEngine.ts(244,9): error TS2322: Type '{ volatilityRisk: number; dataQualityRisk: number; timingRisk: number; overallRisk: string; }' is not assignable to type '{ volatilityRisk: number; dataQualityRisk: number; timingRisk: number; overallRisk: "LOW" | "MEDIUM" | "HIGH"; }'.
+  Types of property 'overallRisk' are incompatible.
+    Type 'string' is not assignable to type '"LOW" | "MEDIUM" | "HIGH"'.
+src/professional/engines/SteamDetectionEngine.ts(33,11): error TS2564: Property 'monitoringState' has no initializer and is not definitely assigned in the constructor.
+src/professional/monitoring/ProfessionalFeaturesDashboard.ts(119,11): error TS2564: Property 'metrics' has no initializer and is not definitely assigned in the constructor.
+src/professional/types/index.ts(9,40): error TS2307: Cannot find module '../../types/ScoringFeatureSet' or its corresponding type declarations.
+src/professional/types/index.ts(432,15): error TS2307: Cannot find module './optimal-timing' or its corresponding type declarations.
+src/professional/types/index.ts(433,15): error TS2307: Cannot find module './line-shopping' or its corresponding type declarations.
+src/professional/types/index.ts(434,15): error TS2307: Cannot find module './public-sharp-split' or its corresponding type declarations.
+src/professional/types/index.ts(435,15): error TS2307: Cannot find module './market-timing' or its corresponding type declarations.
+src/professional/types/index.ts(436,15): error TS2307: Cannot find module './injury-timing' or its corresponding type declarations.
+src/professional/types/index.ts(437,15): error TS2307: Cannot find module './cross-market-discrepancy' or its corresponding type declarations.
+src/risk-management/controls/AutomatedRiskControls.ts(251,17): error TS2339: Property 'critical' does not exist on type 'Logger'.
+src/risk-management/controls/AutomatedRiskControls.ts(682,17): error TS2339: Property 'critical' does not exist on type 'Logger'.
+src/risk-management/core/RiskManagementEngine.ts(236,30): error TS2554: Expected 2 arguments, but got 1.
+src/risk-management/core/RiskManagementEngine.ts(250,33): error TS2339: Property 'var95' does not exist on type 'VaRResult'.
+src/risk-management/core/RiskManagementEngine.ts(251,33): error TS2339: Property 'var99' does not exist on type 'VaRResult'.
+src/risk-management/core/RiskManagementEngine.ts(252,37): error TS2339: Property 'expectedShortfall95' does not exist on type 'VaRResult'.
+src/risk-management/core/RiskManagementEngine.ts(764,33): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'number'.
+src/risk-management/core/RiskManagementEngine.ts(765,35): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'number'.
+src/risk-management/core/RiskManagementEngine.ts(766,34): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'number'.
+src/risk-management/correlation/CorrelationManager.ts(363,37): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'number'.
+src/risk-management/correlation/CorrelationManager.ts(371,23): error TS18046: 'corr' is of type 'unknown'.
+src/risk-management/correlation/CorrelationManager.ts(390,37): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'number'.
+src/risk-management/integration/ScoringAgentIntegration.ts(94,25): error TS2554: Expected 1 arguments, but got 0.
+src/risk-management/integration/ScoringAgentIntegration.ts(95,27): error TS2554: Expected 1 arguments, but got 0.
+src/risk-management/portfolio/PortfolioOptimizer.ts(788,7): error TS2322: Type 'string' is not assignable to type '"RISK" | "KELLY" | "SHARPE" | "RETURN"'.
+src/routes/operator-dashboard.ts(238,51): error TS7030: Not all code paths return a value.
+src/routes/operator-dashboard.ts(427,106): error TS7030: Not all code paths return a value.
+src/routes/operator-dashboard.ts(460,114): error TS7030: Not all code paths return a value.
+src/routes/operator-dashboard.ts(501,126): error TS7030: Not all code paths return a value.
+src/routes/operator-dashboard.ts(535,103): error TS7030: Not all code paths return a value.
+src/routes/settlement.ts(36,39): error TS7030: Not all code paths return a value.
+src/routes/settlement.ts(120,34): error TS7030: Not all code paths return a value.
+src/routes/settlement.ts(177,36): error TS7030: Not all code paths return a value.
+src/routes/settlement.ts(286,35): error TS7030: Not all code paths return a value.
+src/routes/settlement.ts(422,36): error TS7030: Not all code paths return a value.
+src/routes/settlement.ts(500,37): error TS7030: Not all code paths return a value.
+src/services/archiver/ParquetExporter.ts(244,37): error TS2339: Property 'toColumnarFormat' does not exist on type 'Transform'.
+src/services/archiver/ParquetExporter.ts(252,20): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'Error | null | undefined'.
+src/services/archiver/ParquetExporter.ts(268,27): error TS2551: Property 'transform' does not exist on type 'Transform'. Did you mean '_transform'?
+src/services/archiver/SupabaseStorageUploader.ts(225,20): error TS2345: Argument of type '{ partNumber: number; path: any; size: number; }' is not assignable to parameter of type 'never'.
+src/services/archiver/SupabaseStorageUploader.ts(251,26): error TS2339: Property 'path' does not exist on type 'never'.
+src/services/archiver/SupabaseStorageUploader.ts(259,24): error TS2339: Property 'size' does not exist on type 'never'.
+src/services/archiver/SupabaseStorageUploader.ts(282,76): error TS2339: Property 'path' does not exist on type 'never'.
+src/services/archiver/SupabaseStorageUploader.ts(310,78): error TS2339: Property 'path' does not exist on type 'never'.
+src/services/data-lifecycle/FeatureFlaggedDataPipeline.ts(855,21): error TS2683: 'this' implicitly has type 'any' because it does not have a type annotation.
+src/services/deployment/ABTestingInfrastructure.ts(711,13): error TS2353: Object literal may only specify known properties, and 'isGenericPrimary' does not exist in type 'SuccessMetric'.
+src/services/deployment/ABTestingInfrastructure.ts(721,13): error TS2353: Object literal may only specify known properties, and 'isGenericPrimary' does not exist in type 'SuccessMetric'.
+src/services/deployment/ABTestingInfrastructure.ts(792,64): error TS2339: Property 'isGenericPrimary' does not exist on type 'SuccessMetric'.
+src/services/deployment/ABTestingInfrastructure.ts(805,61): error TS2339: Property 'isGenericPrimary' does not exist on type 'SuccessMetric'.
+src/services/deployment/ABTestingInfrastructure.ts(835,21): error TS2683: 'this' implicitly has type 'any' because it does not have a type annotation.
+src/services/deployment/ABTestingInfrastructure.ts(876,71): error TS2355: A function whose declared type is neither 'undefined', 'void', nor 'any' must return a value.
+src/services/deployment/ABTestingInfrastructure.ts(877,90): error TS2355: A function whose declared type is neither 'undefined', 'void', nor 'any' must return a value.
+src/services/deployment/ABTestingInfrastructure.ts(878,91): error TS2355: A function whose declared type is neither 'undefined', 'void', nor 'any' must return a value.
+src/services/deployment/ABTestingInfrastructure.ts(879,83): error TS2355: A function whose declared type is neither 'undefined', 'void', nor 'any' must return a value.
+src/services/deployment/ABTestingInfrastructure.ts(880,57): error TS2355: A function whose declared type is neither 'undefined', 'void', nor 'any' must return a value.
+src/services/deployment/AutomatedValidationGates.ts(435,5): error TS2322: Type '{ metricName: string; value: number | null; timestamp: any; sampleSize: any; source: string; tags: { flag_name: string; environment: any; }; }[]' is not assignable to type 'MetricSnapshot[]'.
+  Type '{ metricName: string; value: number | null; timestamp: any; sampleSize: any; source: string; tags: { flag_name: string; environment: any; }; }' is not assignable to type 'MetricSnapshot'.
+    Types of property 'value' are incompatible.
+      Type 'number | null' is not assignable to type 'number'.
+        Type 'null' is not assignable to type 'number'.
+src/services/deployment/FeatureFlagDeploymentOrchestrator.ts(427,31): error TS2339: Property 'latency_p95_ms' does not exist on type 'RolloutMetrics'.
+src/services/deployment/FeatureFlagDeploymentOrchestrator.ts(428,31): error TS2551: Property 'latency_p99_ms' does not exist on type 'RolloutMetrics'. Did you mean 'latencyP99'?
+src/services/monitoring/DataLifecycleMonitoring.ts(476,13): error TS18046: 'data' is of type 'unknown'.
+src/services/monitoring/DataLifecycleMonitoring.ts(479,65): error TS18046: 'data' is of type 'unknown'.
+src/services/monitoring/DataLifecycleMonitoring.ts(479,88): error TS18046: 'data' is of type 'unknown'.
+src/services/monitoring/DataLifecycleMonitoring.ts(480,23): error TS18046: 'data' is of type 'unknown'.
+src/services/monitoring/DataLifecycleMonitoring.ts(540,5): error TS2322: Type 'Promise<string>' is not assignable to type 'string'.
+src/services/monitoring/IncidentManagementService.ts(287,21): error TS2339: Property 'acknowledgment_delay_minutes' does not exist on type 'Partial<SystemIncident>'.
+src/services/monitoring/IncidentManagementService.ts(295,21): error TS2339: Property 'resolution_time_minutes' does not exist on type 'Partial<SystemIncident>'.
+src/services/monitoring/IncidentManagementService.ts(330,67): error TS2339: Property 'resolution_time_minutes' does not exist on type 'Partial<SystemIncident>'.
+src/services/monitoring/IncidentManagementService.ts(614,9): error TS2353: Object literal may only specify known properties, and 'updated_at' does not exist in type 'Partial<SystemIncident>'.
+src/services/monitoring/SLOMonitoringService.ts(519,52): error TS2345: Argument of type '"detected"' is not assignable to parameter of type '"success" | "failure"'.
+src/syndicate/SyndicateAnalyticsDashboard.ts(15,25): error TS2307: Cannot find module 'pdfkit' or its corresponding type declarations.
+src/syndicate/SyndicateAnalyticsDashboard.ts(93,11): error TS2564: Property 'redis' has no initializer and is not definitely assigned in the constructor.
+src/syndicate/SyndicateAnalyticsDashboard.ts(94,11): error TS2564: Property 'dbPool' has no initializer and is not definitely assigned in the constructor.
+src/syndicate/SyndicateAnalyticsDashboard.ts(96,11): error TS2564: Property 'reportingInterval' has no initializer and is not definitely assigned in the constructor.
+src/syndicate/SyndicateAnalyticsDashboard.ts(506,12): error TS2352: Conversion of type 'Buffer' to type 'Buffer<ArrayBufferLike>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'Buffer' is missing the following properties from type 'Buffer<ArrayBufferLike>': subarray, write, toJSON, equals, and 94 more.
+src/syndicate/SyndicateAnalyticsDashboard.ts(519,68): error TS18046: 'error' is of type 'unknown'.
+src/syndicate/SyndicateController.ts(64,11): error TS2564: Property 'scalingEngine' has no initializer and is not definitely assigned in the constructor.
+src/syndicate/SyndicateController.ts(65,11): error TS2564: Property 'monitoringSystem' has no initializer and is not definitely assigned in the constructor.
+src/syndicate/SyndicateController.ts(66,11): error TS2564: Property 'analyticsDashboard' has no initializer and is not definitely assigned in the constructor.
+src/syndicate/SyndicateController.ts(67,11): error TS2564: Property 'operationsCenter' has no initializer and is not definitely assigned in the constructor.
+src/syndicate/SyndicateController.ts(68,11): error TS2564: Property 'redis' has no initializer and is not definitely assigned in the constructor.
+src/syndicate/SyndicateController.ts(69,11): error TS2564: Property 'dbPool' has no initializer and is not definitely assigned in the constructor.
+src/syndicate/SyndicateController.ts(71,11): error TS2564: Property 'systemStatus' has no initializer and is not definitely assigned in the constructor.
+src/syndicate/SyndicateController.ts(72,11): error TS2564: Property 'statusUpdateInterval' has no initializer and is not definitely assigned in the constructor.
+src/syndicate/SyndicateController.ts(74,31): error TS2749: 'SyndicateConfig' refers to a value, but is being used as a type here. Did you mean 'typeof SyndicateConfig'?
+src/syndicate/SyndicateController.ts(113,71): error TS18046: 'error' is of type 'unknown'.
+src/syndicate/SyndicateController.ts(124,5): error TS2740: Type 'Cluster' is missing the following properties from type 'Redis': stream, condition, commandQueue, connector, and 14 more.
+src/syndicate/SyndicateController.ts(127,7): error TS2353: Object literal may only specify known properties, and 'maxRetriesPerRequest' does not exist in type 'ClusterOptions'.
+src/syndicate/SyndicateController.ts(311,16): error TS18046: 'error' is of type 'unknown'.
+src/syndicate/SyndicateController.ts(315,51): error TS18046: 'error' is of type 'unknown'.
+src/syndicate/SyndicateController.ts(392,60): error TS18046: 'error' is of type 'unknown'.
+src/syndicate/SyndicateController.ts(409,7): error TS2322: Type '"FAILED"' is not assignable to type '"HEALTHY"'.
+src/syndicate/SyndicateController.ts(454,59): error TS18046: 'error' is of type 'unknown'.
+src/syndicate/SyndicateController.ts(617,71): error TS18046: 'error' is of type 'unknown'.
+src/syndicate/SyndicateController.ts(624,41): error TS2749: 'SyndicateConfig' refers to a value, but is being used as a type here. Did you mean 'typeof SyndicateConfig'?
+src/syndicate/SyndicateMonitoringSystem.ts(11,10): error TS2305: Module '"prom-client"' has no exported member 'createPrometheusMetrics'.
+src/syndicate/SyndicateMonitoringSystem.ts(51,11): error TS2564: Property 'redis' has no initializer and is not definitely assigned in the constructor.
+src/syndicate/SyndicateMonitoringSystem.ts(52,11): error TS2564: Property 'dbPool' has no initializer and is not definitely assigned in the constructor.
+src/syndicate/SyndicateMonitoringSystem.ts(56,11): error TS2564: Property 'sloTargets' has no initializer and is not definitely assigned in the constructor.
+src/syndicate/SyndicateMonitoringSystem.ts(57,11): error TS2564: Property 'emailClient' has no initializer and is not definitely assigned in the constructor.
+src/syndicate/SyndicateMonitoringSystem.ts(58,11): error TS2564: Property 'monitoringInterval' has no initializer and is not definitely assigned in the constructor.
+src/syndicate/SyndicateMonitoringSystem.ts(200,35): error TS2551: Property 'createTransporter' does not exist on type 'typeof import("C:/Users/griff/OneDrive/Desktop/unit-talk-production-main/node_modules/@types/nodemailer/index")'. Did you mean 'createTransport'?
+src/syndicate/SyndicateMonitoringSystem.ts(257,57): error TS18046: 'error' is of type 'unknown'.
+src/syndicate/SyndicateMonitoringSystem.ts(259,38): error TS18046: 'error' is of type 'unknown'.
+src/syndicate/SyndicateMonitoringSystem.ts(504,52): error TS18046: 'compliance' is of type 'unknown'.
+src/syndicate/SyndicateMonitoringSystem.ts(509,11): error TS18046: 'status' is of type 'unknown'.
+src/syndicate/SyndicateMonitoringSystem.ts(511,38): error TS18046: 'status' is of type 'unknown'.
+src/syndicate/SyndicateMonitoringSystem.ts(512,19): error TS18046: 'status' is of type 'unknown'.
+src/syndicate/SyndicateOperationsCenter.ts(63,11): error TS2564: Property 'redis' has no initializer and is not definitely assigned in the constructor.
+src/syndicate/SyndicateOperationsCenter.ts(64,11): error TS2564: Property 'dbPool' has no initializer and is not definitely assigned in the constructor.
+src/syndicate/SyndicateOperationsCenter.ts(69,11): error TS2564: Property 'automationEngine' has no initializer and is not definitely assigned in the constructor.
+src/syndicate/SyndicateOperationsCenter.ts(510,20): error TS18046: 'error' is of type 'unknown'.
+src/syndicate/SyndicateOperationsCenter.ts(516,20): error TS18046: 'error' is of type 'unknown'.
+src/syndicate/SyndicateOperationsCenter.ts(553,16): error TS18046: 'error' is of type 'unknown'.
+src/syndicate/SyndicateOperationsCenter.ts(597,67): error TS18046: 'error' is of type 'unknown'.
+src/syndicate/SyndicateOperationsCenter.ts(626,58): error TS18046: 'error' is of type 'unknown'.
+src/syndicate/SyndicateOperationsCenter.ts(682,61): error TS18046: 'error' is of type 'unknown'.
+src/syndicate/SyndicateScalingEngine.ts(47,11): error TS2564: Property 'redis' has no initializer and is not definitely assigned in the constructor.
+src/syndicate/SyndicateScalingEngine.ts(48,11): error TS2564: Property 'dbPool' has no initializer and is not definitely assigned in the constructor.
+src/syndicate/SyndicateScalingEngine.ts(63,5): error TS2740: Type 'Cluster' is missing the following properties from type 'Redis': stream, condition, commandQueue, connector, and 14 more.
+src/syndicate/SyndicateScalingEngine.ts(66,7): error TS2353: Object literal may only specify known properties, and 'maxRetriesPerRequest' does not exist in type 'ClusterOptions'.
+src/syndicate/SyndicateScalingEngine.ts(242,51): error TS18046: 'error' is of type 'unknown'.
+src/syndicate/SyndicateScalingEngine.ts(365,75): error TS18046: 'error' is of type 'unknown'.
+src/tests/syndicate-grade/run-syndicate-tests.ts(367,7): error TS2322: Type '{ duration: number; suite: "performance" | "integration" | "quick-validation" | "chaos"; passed?: boolean | undefined; tests?: { total: number; passed: number; failed: number; skipped: number; } | undefined; coverage?: { statements: number; branches: number; functions: number; lines: number; } | undefined; performan...' is not assignable to type 'TestResult'.
+  Types of property 'passed' are incompatible.
+    Type 'boolean | undefined' is not assignable to type 'boolean'.
+      Type 'undefined' is not assignable to type 'boolean'.
+src/tests/syndicate-grade/run-syndicate-tests.ts(381,18): error TS18046: 'error' is of type 'unknown'.
+src/tests/syndicate-grade/run-syndicate-tests.ts(394,14): error TS2448: Block-scoped variable 'process' used before its declaration.
+src/tests/syndicate-grade/run-syndicate-tests.ts(396,14): error TS2448: Block-scoped variable 'process' used before its declaration.
+src/tests/syndicate-grade/run-syndicate-tests.ts(667,44): error TS18046: 'error' is of type 'unknown'.
+src/tests/syndicate-grade/utils/chaos-inducer.ts(599,52): error TS18046: 'error' is of type 'unknown'.
+src/tests/syndicate-grade/utils/fault-injector.ts(638,52): error TS18046: 'error' is of type 'unknown'.
+src/tests/syndicate-grade/utils/performance-monitor.ts(323,15): error TS2339: Property 'comparison' does not exist on type '{ duration: number; dataPoints: number; cpu: { avg: number; max: number; min: number; }; memory: { avg: number; max: number; min: number; }; eventLoop: { avg: number; max: number; min: number; }; network: { avgResponseTime: number; totalRequests: number; avgErrorRate: number; }; database: { ...; }; gc: { ...; }; }'.
+src/tests/syndicate-grade/utils/test-data-generator.ts(146,14): error TS2339: Property 'professional_metadata' does not exist on type '{ id: string; sport: string; market: string; book: string; stat_type: string; player_name: string; team: string; opponent: string; game_time: Date; line: number; over_odds: number; under_odds: number; ... 8 more ...; competition_level: string; }'.
+src/tests/syndicate-grade/utils/test-data-generator.ts(149,18): error TS2345: Argument of type '{ id: string; sport: string; market: string; book: string; stat_type: string; player_name: string; team: string; opponent: string; game_time: Date; line: number; over_odds: number; under_odds: number; ... 8 more ...; competition_level: string; }' is not assignable to parameter of type 'never'.
+src/tests/syndicate-grade/utils/test-data-generator.ts(365,18): error TS2345: Argument of type 'any' is not assignable to parameter of type 'never'.
+src/tests/syndicate-grade/utils/test-data-generator.ts(610,20): error TS2345: Argument of type '{ prop_id: string; sport: string; correlation_strength: number; correlation_type: string; }' is not assignable to parameter of type 'never'.
+src/tests/syndicate-grade/utils/test-data-generator.ts(719,20): error TS2345: Argument of type '{ timestamp: number; line: number; volume: number; direction: string; }' is not assignable to parameter of type 'never'.
+src/tests/syndicate-grade/utils/test-data-generator.ts(777,22): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+src/workflows/agents/SettlementAgent.ts(13,3): error TS2353: Object literal may only specify known properties, and 'retryPolicy' does not exist in type 'ActivityOptions'.
+src/workflows/settlement/adapters/mlbAdapter.ts(65,5): error TS2322: Type 'PlayerStatMap | Map<string, PlayerStats>' is not assignable to type 'PlayerStatMap'.
+  Type 'Map<string, PlayerStats>' is not assignable to type 'PlayerStatMap'.
+    Index signature for type 'string' is missing in type 'Map<string, PlayerStats>'.
+src/workflows/settlement/adapters/mlbAdapter.ts(83,98): error TS18046: 'error' is of type 'unknown'.
+src/workflows/settlement/adapters/mlbAdapter.ts(85,32): error TS2552: Cannot find name 'PlayerStats'. Did you mean 'MLBPlayerStats'?
+npm error Lifecycle script `type-check` failed with error:
+npm error code 2
+npm error path C:\Users\griff\OneDrive\Desktop\unit-talk-production-main\apps\api
+npm error workspace @unit-talk/api@1.0.0
+npm error location C:\Users\griff\OneDrive\Desktop\unit-talk-production-main\apps\api
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c tsc --noEmit -p tsconfig.prod.json

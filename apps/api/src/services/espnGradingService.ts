@@ -212,7 +212,7 @@ export class ESPNGradingService {
     try {
       // Get props for this game from database
       const { data: props, error: propsError } = await this.supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*')
         .eq('external_game_id', gameExternalId)
         .is('outcome', null); // Only ungraded props
@@ -331,7 +331,7 @@ export class ESPNGradingService {
 
   private async updatePropResult(propId: string, updates: any): Promise<void> {
     const { error } = await this.supabase
-      .from('raw_props')
+      .from('sports_game_odds')
       .update(updates)
       .eq('id', propId);
 
@@ -358,7 +358,7 @@ export class ESPNGradingService {
     try {
       // Get all unique external_game_ids that need grading
       const { data: gameIds, error } = await this.supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('external_game_id')
         .is('outcome', null)
         .not('external_game_id', 'is', null);

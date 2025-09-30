@@ -1,8 +1,13 @@
 import { logger } from '../services/logging.js';
 import { supabaseClient } from '../services/supabaseClient.js';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 export async function createSOP(title: string, content: string): Promise<string> {
   try {
+    if (!supabaseClient) {
+      throw new Error('Supabase client not initialized');
+    }
+    
     logger.info(`Creating SOP: ${title}`);
     
     // For now, we'll create a structured SOP document
@@ -17,7 +22,8 @@ export async function createSOP(title: string, content: string): Promise<string>
     };
 
     // Store in database
-    const { data, error } = await supabaseClient
+    const supabaseClient = requireSupabase();
+      const { data, error } = await supabaseClient
       .from('sops')
       .insert(sop)
       .select()
@@ -37,6 +43,10 @@ export async function createSOP(title: string, content: string): Promise<string>
 
 export async function createKPI(name: string, target: number, current: number, unit: string): Promise<string> {
   try {
+    if (!supabaseClient) {
+      throw new Error('Supabase client not initialized');
+    }
+    
     logger.info(`Creating KPI: ${name}`);
     
     const kpi = {
@@ -51,7 +61,8 @@ export async function createKPI(name: string, target: number, current: number, u
     };
 
     // Store in database
-    const { data, error } = await supabaseClient
+    const supabaseClient = requireSupabase();
+      const { data, error } = await supabaseClient
       .from('kpis')
       .insert(kpi)
       .select()
@@ -76,6 +87,10 @@ export const createNotionKPI = createKPI;
 // Discord alert function
 export async function sendDiscordAlert(message: string, channel?: string): Promise<void> {
   try {
+    if (!supabaseClient) {
+      throw new Error('Supabase client not initialized');
+    }
+    
     logger.info(`Sending Discord alert: ${message}`);
 
     // Store alert in database for now
@@ -89,7 +104,8 @@ export async function sendDiscordAlert(message: string, channel?: string): Promi
       status: 'sent'
     };
 
-    const { error } = await supabaseClient
+    const supabaseClient = requireSupabase();
+      const { error } = await supabaseClient
       .from('alerts')
       .insert(alert);
 
@@ -107,6 +123,10 @@ export async function sendDiscordAlert(message: string, channel?: string): Promi
 // Notion log function
 export async function sendNotionLog(title: string, content: string, type: string = 'info'): Promise<void> {
   try {
+    if (!supabaseClient) {
+      throw new Error('Supabase client not initialized');
+    }
+    
     logger.info(`Sending Notion log: ${title}`);
 
     // Store log in database for now
@@ -120,7 +140,8 @@ export async function sendNotionLog(title: string, content: string, type: string
       source: 'operator_agent'
     };
 
-    const { error } = await supabaseClient
+    const supabaseClient = requireSupabase();
+      const { error } = await supabaseClient
       .from('logs')
       .insert(log);
 

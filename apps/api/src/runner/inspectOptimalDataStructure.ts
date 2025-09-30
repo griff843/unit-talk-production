@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -20,8 +21,9 @@ async function inspectOptimalDataStructure() {
   
   try {
     // Get a sample of raw props to see all available columns
-    const { data: sampleProps, error } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: sampleProps, error } = await supabase
+      .from('sports_game_odds')
       .select('*')
       .eq('provider', 'Optimal')
       .not('player_name', 'is', null)

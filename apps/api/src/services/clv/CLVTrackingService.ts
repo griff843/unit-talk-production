@@ -8,6 +8,7 @@
 
 import { createLogger } from '../../utils/logger';
 import { supabaseClient } from '../supabaseClient';
+import { requireSupabase } from '../../utils/supabaseUtils';
 
 export interface CLVEntry {
   propId: string;
@@ -124,10 +125,25 @@ export class CLVTrackingService {
         openingTime: pick.openingLine ? new Date() : new Date(),
       };
 
-      // Store in database
+      // Store in database - only insert fields that exist in clv_tracking table
+      const dbEntry = {
+        prop_id: clvEntry.propId,
+        betline: clvEntry.betLine,  // Use both betline and betLine to handle schema differences
+        closing_line: null,
+        clv_value: null,
+        tracking_start: new Date(),
+        line_close_time: null,
+        status: 'tracking'
+      };
+
+      if (!supabaseClient) {
+        throw new Error('Database client not configured');
+      }
+
+      const supabaseClient = requireSupabase();
       const { error } = await supabaseClient
         .from('clv_tracking')
-        .insert(clvEntry);
+        .insert(dbEntry);
 
       if (error) {
         this.logger.error('Failed to track CLV pick', error);
@@ -153,6 +169,11 @@ export class CLVTrackingService {
   async updateClosingLine(propId: string, closingLine: number, closingOdds: number): Promise<CLVEntry> {
     try {
       // Get existing entry
+      if (!supabaseClient) {
+        throw new Error('Database client not configured');
+      }
+
+      const supabaseClient = requireSupabase();
       const { data: existing, error: fetchError } = await supabaseClient
         .from('clv_tracking')
         .select('*')
@@ -256,6 +277,10 @@ export class CLVTrackingService {
     }
   ): Promise<CLVStats> {
     try {
+      if (!supabaseClient) {
+        throw new Error('Database client not configured');
+      }
+
       let query = supabaseClient
         .from('clv_tracking')
         .select('*')
@@ -272,8 +297,12 @@ export class CLVTrackingService {
       const { data, error } = await query;
 
       if (error) throw error;
+      if (!data) {
+        this.logger.warn('No CLV data returned from query');
+        return this.calculateStats([]);
+      }
 
-      return this.calculateStats(data || []);
+      return this.calculateStats(data);
     } catch (error) {
       this.logger.error('Error fetching CLV stats', error);
       throw error;
@@ -396,6 +425,11 @@ export class CLVTrackingService {
    */
   async updateResult(propId: string, won: boolean, profit: number): Promise<void> {
     try {
+      if (!supabaseClient) {
+        throw new Error('Database client not configured');
+      }
+
+      const supabaseClient = requireSupabase();
       const { error } = await supabaseClient
         .from('clv_tracking')
         .update({
@@ -404,7 +438,10 @@ export class CLVTrackingService {
         })
         .eq('propId', propId);
 
-      if (error) throw error;
+      if (error) {
+        this.logger.error('Failed to update CLV result', error);
+        throw error;
+      }
       
       this.logger.info(`Result updated for ${propId}: ${won ? 'WIN' : 'LOSS'} (${profit})`);
     } catch (error) {

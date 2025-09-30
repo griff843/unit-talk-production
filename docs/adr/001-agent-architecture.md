@@ -35,7 +35,7 @@ We will implement an agent-based architecture where each major system capability
    - Provide specialized metrics
 
 4. Core agents will include:
-   - GradingAgent: Pick evaluation and classification
+   - ScoringAgent: Pick evaluation and classification
    - DataAgent: ETL and data quality
    - ContestAgent: Contest lifecycle and rules
 
@@ -143,7 +143,7 @@ interface AgentConfig {
 3. Create core event system
 
 ### Phase 2: Core Agents
-1. Migrate GradingAgent
+1. Migrate ScoringAgent
 2. Implement DataAgent
 3. Add ContestAgent
 

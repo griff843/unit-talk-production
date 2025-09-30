@@ -256,6 +256,38 @@ async function mockLiveGameDetection(league: string): Promise<any[]> {
 }
 
 /**
+ * Grading error logging activity for scoring workflow error handling
+ */
+export async function logGradingError(params: {
+  error: string;
+  leagues: string[];
+  cycleCount: number;
+}): Promise<void> {
+  try {
+    logger.error('Grading Error:', {
+      error: params.error,
+      leagues: params.leagues,
+      cycleCount: params.cycleCount,
+      timestamp: new Date().toISOString()
+    });
+
+    // Send operator alert for critical grading errors
+    const { sendOperatorAlert } = await import('./alerts');
+    await sendOperatorAlert({
+      type: 'system_error',
+      message: `Grading System Error (Cycle ${params.cycleCount}): ${params.error}`,
+      severity: 'high',
+      metadata: {
+        leagues: params.leagues,
+        cycleCount: params.cycleCount
+      }
+    });
+  } catch (logErr) {
+    logger.error('Failed to log grading error:', logErr);
+  }
+}
+
+/**
  * General error logging activity for workflow error handling
  */
 export async function logError(params: {

@@ -8,6 +8,7 @@ import { createLogger } from '../utils/logger';
 import { supabaseClient } from './supabaseClient';
 import { autoRecheckService } from './AutoRecheckService';
 import { publishGuard } from '../promotion/PublishGuard';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 export interface MonitoredPick {
   id: string;
@@ -472,10 +473,15 @@ class PickMonitoringService {
     const pick = this.monitoredPicks.get(pickId);
     if (!pick) return;
 
+    if (!supabaseClient) {
+      throw new Error('Supabase client not initialized');
+    }
+
     pick.status = 'suspended';
 
     try {
-      await supabaseClient
+      const supabaseClient = requireSupabase();
+    await supabaseClient
         .from('unified_picks')
         .update({
           status: 'suspended',
@@ -496,6 +502,11 @@ class PickMonitoringService {
    */
   private async fetchLatestOddsData(propId: string): Promise<any> {
     try {
+      if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+      }
+      
+      const supabaseClient = requireSupabase();
       const { data } = await supabaseClient
         .from('odds_tracking')
         .select('*')
@@ -525,6 +536,11 @@ class PickMonitoringService {
 
   private async loadActivePicks(): Promise<void> {
     try {
+      if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+      }
+      
+      const supabaseClient = requireSupabase();
       const { data: picks } = await supabaseClient
         .from('unified_picks')
         .select('*')
@@ -543,7 +559,12 @@ class PickMonitoringService {
 
   private async storePickUpdate(pick: MonitoredPick, oddsData: any): Promise<void> {
     try {
-      await supabaseClient
+      if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+      }
+      
+      const supabaseClient = requireSupabase();
+    await supabaseClient
         .from('pick_monitoring_updates')
         .insert({
           pick_id: pick.id,
@@ -559,7 +580,12 @@ class PickMonitoringService {
 
   private async storeAlert(alert: Alert): Promise<void> {
     try {
-      await supabaseClient
+      if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+      }
+      
+      const supabaseClient = requireSupabase();
+    await supabaseClient
         .from('pick_alerts')
         .insert({
           id: alert.id,

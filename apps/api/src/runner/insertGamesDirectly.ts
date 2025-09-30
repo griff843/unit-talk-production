@@ -9,6 +9,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -50,7 +51,8 @@ async function insertGamesDirectly() {
       external_id: gamesToInsert[0].external_game_id
     });
     
-    const { data: insertedGames, error } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: insertedGames, error } = await supabase
       .from('games')
       .insert(gamesToInsert)
       .select('id, sport, home_team, away_team, external_game_id');
@@ -71,7 +73,8 @@ async function insertGamesDirectly() {
     }
     
     // Verify final count
-    const { count: finalCount } = await supabase
+    const supabaseClient = requireSupabase();
+      const { count: finalCount } = await supabase
       .from('games')
       .select('*', { count: 'exact', head: true })
       .eq('game_date', today);
@@ -79,8 +82,9 @@ async function insertGamesDirectly() {
     console.log(`\n🎯 FINAL RESULT: ${finalCount || 0} games for ${today}`);
     
     // Test if props can now link to games
-    const { data: sampleProps } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: sampleProps } = await supabase
+      .from('sports_game_odds')
       .select('external_game_id')
       .eq('game_date', today)
       .limit(3);

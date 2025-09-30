@@ -1,5 +1,5 @@
-import { SyndicateGradingEngine } from '../src/agents/GradingAgent/scoring/gradingEngine';
-import { PerformanceAnalyzer, BetResult } from '../src/agents/GradingAgent/scoring/performanceAnalyzer';
+import { SyndicateGradingEngine } from '../src/agents/ScoringAgent/scoring/gradingEngine';
+import { PerformanceAnalyzer, BetResult } from '../src/agents/ScoringAgent/scoring/performanceAnalyzer';
 import { GradingFeatureSet } from '../src/types/GradingFeatureSet';
 
 interface BacktestConfig {

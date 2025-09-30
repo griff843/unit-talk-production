@@ -270,7 +270,7 @@ function Wait-ForService {
         $elapsed += $global:HealthCheckInterval
         
         if ($elapsed % 15 -eq 0) {
-            Write-Status "Still waiting for $ServiceName... ($elapsed`s elapsed)"
+            Write-Status ("Still waiting for " + $ServiceName)
         }
     }
     
@@ -350,7 +350,7 @@ function Start-Services {
     
     # Phase 3: Monitoring stack
     Write-Status "Phase 3: Starting monitoring stack..."
-    & $global:ComposeCommand up -d prometheus grafana loki node-exporter cadvisor 2>&1 | Out-Null
+    & $global:ComposeCommand up -d prometheus grafana 2>&1 | Out-Null
     
     # Phase 4: Core API
     Write-Status "Phase 4: Starting core API..."

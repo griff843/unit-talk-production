@@ -126,4 +126,4 @@ export const BaseAgentConfigSchema = z.object({
 });
 
 // Export the Logger type
-export { Logger };
+export type { Logger };

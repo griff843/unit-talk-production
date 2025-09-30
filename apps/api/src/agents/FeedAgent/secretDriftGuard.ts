@@ -3,7 +3,7 @@
  * Prevents API key rotation downtime and provides fallback mechanisms
  */
 
-import crypto from 'crypto';
+import * as crypto from 'crypto';
 // Note: Using console.log instead of Logger to avoid import issues
 
 export interface SecretConfig {

@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Database } from '../types/database';
+import { Database } from '../types/supabase';
 import { createComponentLogger } from './logger';
 
 const log = createComponentLogger('supabase');

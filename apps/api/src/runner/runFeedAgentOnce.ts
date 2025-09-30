@@ -11,6 +11,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 import { createClient } from '@supabase/supabase-js';
 
 import { FeedAgent } from '../agents/FeedAgent';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -25,7 +26,7 @@ async function runFeedAgentOnce() {
     // Clear any existing test props to get fresh data
     console.log('🧹 Clearing old test props...');
     await supabase
-      .from('raw_props')
+      .from('sports_game_odds')
       .delete()
       .in('source', ['e2e-test-optimal', 'production-test', 'test']);
     
@@ -158,7 +159,7 @@ async function runFeedAgentOnce() {
     }));
     
     const { data: insertedProps, error: insertError } = await supabase
-      .from('raw_props')
+      .from('sports_game_odds')
       .insert(propsToInsert)
       .select('id, player_name, stat_type, over_odds, under_odds');
       
@@ -187,7 +188,7 @@ async function runFeedAgentOnce() {
       .eq('game_date', today);
       
     const { count: propCount } = await supabase
-      .from('raw_props')
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .eq('game_date', today)
       .not('over_odds', 'is', null)

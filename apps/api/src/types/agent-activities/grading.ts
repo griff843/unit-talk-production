@@ -1,6 +1,6 @@
 import { ActivityResult, GradingResult } from '../shared/activity-results';
 
-export interface GradingAgentActivities {
+export interface ScoringAgentActivities {
   gradeProp(params: {
     propId: string;
     models: string[];

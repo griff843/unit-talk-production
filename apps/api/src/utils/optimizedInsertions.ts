@@ -4,6 +4,7 @@
  */
 
 import { randomUUID } from 'crypto';
+import { requireSupabase } from './supabaseUtils';
 
 
 // Optimized Professional Pick Insertion
@@ -21,7 +22,8 @@ export async function insertProfessionalPick(supabase: any, pick: any) {
   };
   
   // Insert base record first
-  const { data: inserted, error: insertError } = await supabase
+  const supabaseClient = requireSupabase();
+      const { data: inserted, error: insertError } = await supabase
     .from('unified_picks')
     .insert([baseData])
     .select('id')
@@ -43,7 +45,8 @@ export async function insertProfessionalPick(supabase: any, pick: any) {
     if (pick.published !== undefined) professionalData.published = pick.auto_approved;
     if (pick.feature_contributions !== undefined) professionalData.feature_contributions = pick.feature_contributions;
     
-    const { error: updateError } = await supabase
+    const supabaseClient = requireSupabase();
+      const { error: updateError } = await supabase
       .from('unified_picks')
       .update(professionalData)
       .eq('id', inserted.id);
@@ -69,7 +72,8 @@ export async function insertCLVTracking(supabase: any, clvData: any) {
     created_at: clvData.created_at || new Date().toISOString()
   };
   
-  const { data, error } = await supabase
+  const supabaseClient = requireSupabase();
+      const { data, error } = await supabase
     .from('clv_tracking')
     .insert([baseData])
     .select('id')

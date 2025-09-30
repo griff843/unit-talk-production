@@ -1,0 +1,341 @@
+# Prometheus Production Configuration - Phase 8 Production Deployment
+# Optimized for real-time scoring pipeline monitoring
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'unit-talk-production'
+    environment: 'production'
+
+rule_files:
+  - "alert_rules.production.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+      scheme: http
+      timeout: 10s
+      api_version: v2
+
+scrape_configs:
+  # ==============================================
+  # CORE APPLICATION METRICS
+  # ==============================================
+
+  # Main API Platform
+  - job_name: 'unit-talk-api'
+    static_configs:
+      - targets: ['api:9464']
+    scrape_interval: 5s
+    metrics_path: /metrics
+    scheme: http
+    honor_labels: true
+
+  # Real-Time Scoring Pipeline Metrics
+  - job_name: 'scoring-pipeline'
+    static_configs:
+      - targets: ['api:9464']
+    scrape_interval: 5s
+    metrics_path: /metrics/scoring
+    scheme: http
+    honor_labels: true
+
+  # Agent Orchestration Metrics
+  - job_name: 'agent-orchestration'
+    static_configs:
+      - targets: ['api:9464']
+    scrape_interval: 10s
+    metrics_path: /metrics/agents
+    scheme: http
+    honor_labels: true
+
+  # ==============================================
+  # INFRASTRUCTURE METRICS
+  # ==============================================
+
+  # PostgreSQL Primary Database
+  - job_name: 'postgres-primary'
+    static_configs:
+      - targets: ['postgres-primary:5432']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    params:
+      'collect[]':
+        - postgres_stat_database
+        - postgres_stat_user_tables
+        - postgres_statio_user_tables
+        - postgres_stat_activity
+        - postgres_locks
+
+  # PostgreSQL Read Replica
+  - job_name: 'postgres-replica'
+    static_configs:
+      - targets: ['postgres-replica:5432']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    params:
+      'collect[]':
+        - postgres_stat_database
+        - postgres_replication
+
+  # Redis Cache Metrics
+  - job_name: 'redis-primary'
+    static_configs:
+      - targets: ['redis-primary:6379']
+    scrape_interval: 15s
+    metrics_path: /metrics
+
+  # Temporal Orchestration
+  - job_name: 'temporal-server'
+    static_configs:
+      - targets: ['temporal:7233']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # ==============================================
+  # PERFORMANCE & BUSINESS METRICS
+  # ==============================================
+
+  # Enhanced 45-Factor Scoring System
+  - job_name: 'enhanced-45-factor'
+    static_configs:
+      - targets: ['api:9464']
+    scrape_interval: 5s
+    metrics_path: /metrics/enhanced-scoring
+    scheme: http
+
+  # Professional Grading Compliance
+  - job_name: 'professional-grading'
+    static_configs:
+      - targets: ['api:9464']
+    scrape_interval: 10s
+    metrics_path: /metrics/professional
+    scheme: http
+
+  # ML Model Performance
+  - job_name: 'ml-models'
+    static_configs:
+      - targets: ['api:9464']
+    scrape_interval: 30s
+    metrics_path: /metrics/models
+    scheme: http
+
+  # ==============================================
+  # EXTERNAL API MONITORING
+  # ==============================================
+
+  # Optimal API Health
+  - job_name: 'optimal-api-health'
+    static_configs:
+      - targets: ['api.optimal.com']
+    scrape_interval: 60s
+    metrics_path: /health
+    scheme: https
+    timeout: 10s
+
+  # Odds API Health
+  - job_name: 'odds-api-health'
+    static_configs:
+      - targets: ['api.the-odds-api.com']
+    scrape_interval: 60s
+    metrics_path: /health
+    scheme: https
+    timeout: 10s
+
+  # ==============================================
+  # SYSTEM & CONTAINER METRICS
+  # ==============================================
+
+  # Node Exporter (if running)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 30s
+
+  # cAdvisor (Container metrics)
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    scrape_interval: 30s
+
+  # Docker Engine Metrics
+  - job_name: 'docker-engine'
+    static_configs:
+      - targets: ['localhost:9323']
+    scrape_interval: 30s
+
+  # ==============================================
+  # APPLICATION-SPECIFIC ENDPOINTS
+  # ==============================================
+
+  # Command Center Metrics
+  - job_name: 'command-center'
+    static_configs:
+      - targets: ['command-center:3000']
+    scrape_interval: 30s
+    metrics_path: /api/metrics
+    scheme: http
+
+  # Discord Bot Metrics
+  - job_name: 'discord-bot'
+    static_configs:
+      - targets: ['discord-bot:9465']
+    scrape_interval: 60s
+    metrics_path: /metrics
+    scheme: http
+
+  # ==============================================
+  # BLACKBOX MONITORING
+  # ==============================================
+
+  # API Endpoint Health Checks
+  - job_name: 'blackbox-api-health'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - http://api:3000/health
+        - http://command-center:3000/api/health
+        - http://grafana:3000/api/health
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # Database Connection Checks
+  - job_name: 'blackbox-database'
+    metrics_path: /probe
+    params:
+      module: [tcp_connect]
+    static_configs:
+      - targets:
+        - postgres-primary:5432
+        - postgres-replica:5432
+        - redis-primary:6379
+        - temporal:7233
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # ==============================================
+  # REAL-TIME PERFORMANCE METRICS
+  # ==============================================
+
+  # Scoring Latency Tracking
+  - job_name: 'scoring-latency'
+    static_configs:
+      - targets: ['api:9464']
+    scrape_interval: 1s
+    metrics_path: /metrics/latency
+    scheme: http
+
+  # Throughput Monitoring
+  - job_name: 'throughput-monitoring'
+    static_configs:
+      - targets: ['api:9464']
+    scrape_interval: 5s
+    metrics_path: /metrics/throughput
+    scheme: http
+
+  # Error Rate Tracking
+  - job_name: 'error-rates'
+    static_configs:
+      - targets: ['api:9464']
+    scrape_interval: 5s
+    metrics_path: /metrics/errors
+    scheme: http
+
+# ==============================================
+# RECORDING RULES
+# ==============================================
+
+# Define recording rules for performance aggregations
+# These pre-calculate expensive queries for dashboards
+
+recording_rules:
+  # Scoring Pipeline Performance
+  - name: scoring_pipeline.rules
+    interval: 30s
+    rules:
+      - record: unit_talk:scoring_latency_p95
+        expr: histogram_quantile(0.95, rate(scoring_duration_seconds_bucket[5m]))
+        labels:
+          quantile: "0.95"
+
+      - record: unit_talk:scoring_throughput_5m
+        expr: rate(scoring_requests_total[5m])
+
+      - record: unit_talk:scoring_error_rate_5m
+        expr: rate(scoring_errors_total[5m]) / rate(scoring_requests_total[5m])
+
+  # Agent Health Metrics
+  - name: agent_health.rules
+    interval: 60s
+    rules:
+      - record: unit_talk:agents_healthy_ratio
+        expr: sum(agent_health_status{status="healthy"}) / sum(agent_health_status)
+
+      - record: unit_talk:agents_total_throughput
+        expr: sum(rate(agent_processed_total[5m]))
+
+  # Database Performance
+  - name: database.rules
+    interval: 60s
+    rules:
+      - record: unit_talk:db_connections_utilization
+        expr: postgres_stat_database_numbackends / postgres_settings_max_connections
+
+      - record: unit_talk:db_query_latency_p95
+        expr: histogram_quantile(0.95, rate(postgres_stat_activity_duration_seconds_bucket[5m]))
+
+  # System Resource Usage
+  - name: system_resources.rules
+    interval: 30s
+    rules:
+      - record: unit_talk:memory_utilization
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100
+
+      - record: unit_talk:cpu_utilization
+        expr: 100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+
+# ==============================================
+# STORAGE CONFIGURATION
+# ==============================================
+
+# Production storage settings
+storage:
+  tsdb:
+    retention.time: 30d
+    retention.size: 10GB
+    wal-compression: true
+    allow-overlapping-blocks: false
+
+# ==============================================
+# QUERY PERFORMANCE OPTIMIZATION
+# ==============================================
+
+# Query performance settings
+query:
+  timeout: 2m
+  max-concurrency: 20
+  max-samples: 50000000
+
+# Web interface settings
+web:
+  enable-lifecycle: true
+  enable-admin-api: true
+  max-connections: 512
+  read-timeout: 30s
+  console.libraries: /etc/prometheus/console_libraries
+  console.templates: /etc/prometheus/consoles

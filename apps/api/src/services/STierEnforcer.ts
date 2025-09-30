@@ -6,6 +6,7 @@
 import type { Logger } from '../utils/logger';
 import { createLogger } from '../utils/logger';
 import { supabaseClient } from './supabaseClient';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 export interface STierRequirements {
   // Core S-tier Requirements
@@ -454,7 +455,12 @@ class STierEnforcer {
    */
   private async applyTierAdjustment(pick: any, newTier: string, reasoning: string): Promise<void> {
     try {
-      await supabaseClient
+      if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+      }
+
+      const supabaseClient = requireSupabase();
+    await supabaseClient
         .from('unified_picks')
         .update({
           tier: newTier,
@@ -480,7 +486,12 @@ class STierEnforcer {
    */
   private async storeValidation(validation: STierValidation): Promise<void> {
     try {
-      await supabaseClient
+      if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+      }
+
+      const supabaseClient = requireSupabase();
+    await supabaseClient
         .from('stier_validations')
         .insert({
           pick_id: validation.pickId,
@@ -522,17 +533,17 @@ class STierEnforcer {
     return volatility * kellyFraction * 2.5;
   }
 
-  private calculatePortfolioImpact(pick: any): number {
+  private calculatePortfolioImpact(_pick: any): number {
     // Placeholder - would calculate based on portfolio size and bet size
     return 0.1;
   }
 
-  private calculateCorrelationRisk(pick: any): number {
+  private calculateCorrelationRisk(_pick: any): number {
     // Placeholder - would analyze correlations with other positions
     return 0.05;
   }
 
-  private calculateLiquidityRisk(pick: any): number {
+  private calculateLiquidityRisk(_pick: any): number {
     // Placeholder - would assess liquidity conditions
     return 0.02;
   }
@@ -546,6 +557,11 @@ class STierEnforcer {
 
   private async getSteamData(propId: string): Promise<SteamAnalysis | null> {
     try {
+      if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+      }
+
+      const supabaseClient = requireSupabase();
       const { data } = await supabaseClient
         .from('steam_tracking')
         .select('*')
@@ -572,6 +588,11 @@ class STierEnforcer {
 
   private async getMarketData(propId: string): Promise<MarketValidation> {
     try {
+      if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+      }
+
+      const supabaseClient = requireSupabase();
       const { data } = await supabaseClient
         .from('market_data')
         .select('*')
@@ -606,7 +627,7 @@ class STierEnforcer {
   /**
    * Get S-tier enforcement statistics
    */
-  public async getEnforcementStats(timeframe: 'day' | 'week' | 'month' = 'day'): Promise<{
+  public async getEnforcementStats(_timeframe: 'day' | 'week' | 'month' = 'day'): Promise<{
     totalValidations: number;
     stierPicks: number;
     downgrades: number;

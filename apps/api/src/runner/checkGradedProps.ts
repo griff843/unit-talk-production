@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -18,40 +19,45 @@ async function checkGradedProps() {
   console.log('='.repeat(40));
   
   // Check raw_props for graded/promoted props
-  const { count: promotedProps } = await supabase
-    .from('raw_props')
+  const supabaseClient = requireSupabase();
+      const { count: promotedProps } = await supabase
+    .from('sports_game_odds')
     .select('*', { count: 'exact', head: true })
     .eq('promoted', true);
     
   console.log(`Promoted props in raw_props: ${promotedProps || 0}`);
   
   // Check for CLV tracking in raw_props
-  const { count: clvProps } = await supabase
-    .from('raw_props')
+  const supabaseClient = requireSupabase();
+      const { count: clvProps } = await supabase
+    .from('sports_game_odds')
     .select('*', { count: 'exact', head: true })
     .not('clv_tracking_id', 'is', null);
     
   console.log(`Props with CLV tracking in raw_props: ${clvProps || 0}`);
   
   // Check tier assignments
-  const { count: tieredProps } = await supabase
-    .from('raw_props')
+  const supabaseClient = requireSupabase();
+      const { count: tieredProps } = await supabase
+    .from('sports_game_odds')
     .select('*', { count: 'exact', head: true })
     .not('tier_tag', 'is', null);
     
   console.log(`Props with tier tags in raw_props: ${tieredProps || 0}`);
   
   // Check scoring
-  const { count: scoredProps } = await supabase
-    .from('raw_props')
+  const supabaseClient = requireSupabase();
+      const { count: scoredProps } = await supabase
+    .from('sports_game_odds')
     .select('*', { count: 'exact', head: true })
     .gt('confidence_score', 0);
     
   console.log(`Props with confidence scores in raw_props: ${scoredProps || 0}`);
   
   // Sample some grading_status props
-  const { data: gradedSample } = await supabase
-    .from('raw_props')
+  const supabaseClient = requireSupabase();
+      const { data: gradedSample } = await supabase
+    .from('sports_game_odds')
     .select('player_name, stat_type, tier_tag, confidence_score, edge_score, promoted, clv_tracking_id')
     .gt('confidence_score', 0)
     .limit(5);
@@ -67,7 +73,8 @@ async function checkGradedProps() {
   }
   
   // Check unified_picks table
-  const { count: unifiedCount } = await supabase
+  const supabaseClient = requireSupabase();
+      const { count: unifiedCount } = await supabase
     .from('unified_picks')
     .select('*', { count: 'exact', head: true });
     

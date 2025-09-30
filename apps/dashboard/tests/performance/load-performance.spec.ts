@@ -41,8 +41,9 @@ test.describe('Load Performance & Resource Management', () => {
 
         // First Input Delay (FID) - simulate user interaction
         new PerformanceObserver(list => {
-          const entries = list.getEntries();
-          vitals.fid = entries[0]?.processingStart - entries[0]?.startTime || 0;
+          const entries = list.getEntries() as PerformanceEventTiming[];
+          const entry = entries[0] as PerformanceEventTiming;
+          vitals.fid = entry ? (entry.processingStart - entry.startTime) : 0;
 
           if (vitals.lcp && vitals.fid !== undefined && vitals.cls !== undefined) {
             resolve(vitals);
@@ -78,9 +79,9 @@ test.describe('Load Performance & Resource Management', () => {
     console.log('Core Web Vitals:', webVitals);
 
     // Fortune 100 Standards
-    expect(webVitals.lcp).toBeLessThan(2500); // LCP < 2.5s
-    expect(webVitals.fid).toBeLessThan(100); // FID < 100ms
-    expect(webVitals.cls).toBeLessThan(0.1); // CLS < 0.1
+    expect((webVitals as any).lcp).toBeLessThan(2500); // LCP < 2.5s
+    expect((webVitals as any).fid).toBeLessThan(100); // FID < 100ms
+    expect((webVitals as any).cls).toBeLessThan(0.1); // CLS < 0.1
   });
 
   test('should load within performance budget', async ({ page }) => {
@@ -276,7 +277,7 @@ test.describe('Load Performance & Resource Management', () => {
     await expect(page.getByTestId('dashboard-container')).toBeVisible();
 
     // No JavaScript errors should occur
-    const consoleMessages = [];
+    const consoleMessages: string[] = [];
     page.on('console', msg => {
       if (msg.type() === 'error') {
         consoleMessages.push(msg.text());

@@ -10,7 +10,7 @@
 
 import 'dotenv/config';
 import { createLogger } from '../utils/logger';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 const logger = createLogger('critical-migrations');
 
@@ -50,6 +50,7 @@ class CriticalMigrationApplicator {
     try {
       // Supabase doesn't support ALTER TABLE directly via client
       // We need to check if column exists first
+      const supabaseClient = requireSupabase();
       const { data: columns, error: schemaError } = await supabase
         .from('information_schema.columns')
         .select('column_name')
@@ -61,6 +62,7 @@ class CriticalMigrationApplicator {
       }
 
       // Test if column exists by trying to select it
+      const supabaseClient = requireSupabase();
       const { error: testError } = await supabase
         .from('unified_picks')
         .select('published')
@@ -130,8 +132,9 @@ class CriticalMigrationApplicator {
       
       for (const column of columns) {
         try {
-          const { error: testError } = await supabase
-            .from('raw_props')
+          const supabaseClient = requireSupabase();
+      const { error: testError } = await supabase
+            .from('sports_game_odds')
             .select(column)
             .limit(1);
 

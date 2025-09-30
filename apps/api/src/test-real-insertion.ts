@@ -1,7 +1,7 @@
-import { createClient } from '@supabase/supabase-js';
 import { config } from 'dotenv';
 
 import { fetchOptimalProps } from './agents/FeedAgent/optimal';
+import { requireSupabase } from './utils/supabaseUtils';
 
 // Load environment variables
 config();
@@ -11,10 +11,7 @@ async function testOptimalInsertion() {
 
   try {
     // Initialize Supabase client
-    const supabase = createClient(
-      process.env['SUPABASE_URL']!,
-      process.env['SUPABASE_KEY']!
-    );
+    const supabaseClient = requireSupabase();
 
     console.log('1️⃣ Fetching props from Optimal API...');
     const props = await fetchOptimalProps('MLB');
@@ -31,9 +28,9 @@ async function testOptimalInsertion() {
 
     console.log('3️⃣ Inserting first 10 props into database (PERMANENT)...');
     const testProps = props.slice(0, 10);
-    
+
     // Insert props directly into database - NO CLEANUP THIS TIME
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('raw_props')
       .insert(testProps)
       .select();
@@ -49,8 +46,8 @@ async function testOptimalInsertion() {
     console.log('📋 Inserted prop IDs:', data?.map(p => p.id));
 
     // Verify the data is actually in the database
-    const { data: verifyData, error: verifyError } = await supabase
-      .from('raw_props')
+    const { data: verifyData, error: verifyError } = await supabaseClient
+      .from('sports_game_odds')
       .select('*')
       .eq('provider', 'Optimal')
       .order('created_at', { ascending: false })

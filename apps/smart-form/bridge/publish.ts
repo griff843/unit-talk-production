@@ -1,5 +1,6 @@
 import { supabaseServer } from '@/lib/supabase';
 import { createComponentLogger } from '@/lib/logger';
+import type { Database } from '@/types/supabase';
 
 const log = createComponentLogger('smart-form-bridge');
 
@@ -22,17 +23,19 @@ export async function publishTicketSubmitted(eventData: TicketSubmissionEvent): 
   try {
     const supabase = supabaseServer();
     
+    const outboxEntry = {
+      event_type: 'ticket_submitted',
+      payload: eventData as any, // Type assertion for Supabase JSON field
+      unique_key: eventData.bet_slip_id, // Idempotency key
+      status: 'pending',
+      attempts: 0,
+      max_attempts: 3,
+      next_attempt_at: new Date(Date.now() + 5000).toISOString(), // Try in 5 seconds
+    };
+
     const { error } = await supabase
       .from('bridge_outbox')
-      .insert({
-        event_type: 'ticket_submitted',
-        payload: eventData,
-        unique_key: eventData.bet_slip_id, // Idempotency key
-        status: 'pending',
-        attempts: 0,
-        max_attempts: 3,
-        next_attempt_at: new Date(Date.now() + 5000), // Try in 5 seconds
-      });
+      .insert(outboxEntry as any);
 
     if (error) {
       // Check if it's a duplicate key error (already exists)
@@ -86,17 +89,19 @@ export async function publishTicketStatusUpdate(
       ...metadata,
     };
     
+    const statusUpdateEntry = {
+      event_type: 'ticket_status_updated',
+      payload: eventData as any, // Type assertion for Supabase JSON field
+      unique_key: `${betSlipId}_status_${status}_${Date.now()}`, // Allow multiple status updates
+      status: 'pending',
+      attempts: 0,
+      max_attempts: 3,
+      next_attempt_at: new Date(Date.now() + 1000).toISOString(), // Try in 1 second
+    };
+
     const { error } = await supabase
       .from('bridge_outbox')
-      .insert({
-        event_type: 'ticket_status_updated',
-        payload: eventData,
-        unique_key: `${betSlipId}_status_${status}_${Date.now()}`, // Allow multiple status updates
-        status: 'pending',
-        attempts: 0,
-        max_attempts: 3,
-        next_attempt_at: new Date(Date.now() + 1000), // Try in 1 second
-      });
+      .insert(statusUpdateEntry as any);
 
     if (error) {
       log.error({
@@ -141,13 +146,15 @@ export async function simulateBridgeProcessing(betSlipId: string): Promise<{ suc
     const supabase = supabaseServer();
     
     // Mark outbox events as processed
-    const { error } = await supabase
-      .from('bridge_outbox')
-      .update({
-        status: 'completed',
-        processed_at: new Date().toISOString(),
-        attempts: 1,
-      })
+    const updateData = {
+      status: 'completed',
+      processed_at: new Date().toISOString(),
+      attempts: 1,
+    };
+
+    const { error } = await (supabase
+      .from('bridge_outbox') as any)
+      .update(updateData)
       .eq('unique_key', betSlipId)
       .eq('status', 'pending');
 

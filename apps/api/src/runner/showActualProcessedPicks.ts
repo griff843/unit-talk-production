@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -20,7 +21,8 @@ async function showActualProcessedPicks() {
   
   try {
     // Check unified_picks table for ANY picks
-    const { data: allPicks, count: totalCount } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: allPicks, count: totalCount } = await supabase
       .from('unified_picks')
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false });
@@ -61,13 +63,15 @@ async function showActualProcessedPicks() {
     }
     
     // Check CLV tracking
-    const { count: clvCount } = await supabase
+    const supabaseClient = requireSupabase();
+      const { count: clvCount } = await supabase
       .from('clv_tracking')
       .select('*', { count: 'exact', head: true });
       
     console.log(`\n📈 CLV TRACKING ENTRIES: ${clvCount}`);
     
     if (clvCount && clvCount > 0) {
+      const supabaseClient = requireSupabase();
       const { data: clvEntries } = await supabase
         .from('clv_tracking')
         .select('*')
@@ -88,8 +92,9 @@ async function showActualProcessedPicks() {
     }
     
     // Check recent raw props to see what data we have
-    const { data: recentRawProps, count: rawPropsCount } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: recentRawProps, count: rawPropsCount } = await supabase
+      .from('sports_game_odds')
       .select('id, player_name, stat_type, line, sport, created_at, processed_at, provider', { count: 'exact' })
       .order('created_at', { ascending: false })
       .limit(10);
@@ -108,8 +113,9 @@ async function showActualProcessedPicks() {
     });
     
     // Count processed raw props
-    const { count: processedRawProps } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: processedRawProps } = await supabase
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .not('processed_at', 'is', null);
       

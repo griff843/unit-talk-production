@@ -8,8 +8,9 @@
 
 import { config } from 'dotenv';
 
-import { supabaseClient } from '../services/supabaseClient';
+import { supabaseClient } from '../utils/supabaseUtils';
 import { Logger } from '../shared/logger';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 // Load environment variables
 config();
@@ -22,8 +23,9 @@ async function directMigration() {
 
   try {
     // 1. Get current state
-    const { count: totalProps } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: totalProps } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true }) || { count: 0 };
 
     console.log(`Current total props: ${totalProps}`);
@@ -32,8 +34,9 @@ async function directMigration() {
     const cutoffDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     console.log(`Cutoff date: ${cutoffDate}`);
 
-    const { count: oldPropsCount } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: oldPropsCount } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .lt('game_date', cutoffDate) || { count: 0 };
 
@@ -53,8 +56,9 @@ async function directMigration() {
     while (totalMigrated < (oldPropsCount || 0)) {
       try {
         // Get a batch of old records
-        const { data: oldRecords, error: fetchError } = await supabaseClient
-          .from('raw_props')
+        const supabaseClient = requireSupabase();
+      const { data: oldRecords, error: fetchError } = await supabaseClient
+          .from('sports_game_odds')
           .select('*')
           .lt('game_date', cutoffDate)
           .limit(BATCH_SIZE);
@@ -72,7 +76,8 @@ async function directMigration() {
         console.log(`📋 Processing batch of ${oldRecords.length} records...`);
 
         // Insert into historical table
-        const { error: insertError } = await supabaseClient
+        const supabaseClient = requireSupabase();
+      const { error: insertError } = await supabaseClient
           .from('raw_props_historical')
           .insert(oldRecords);
 
@@ -87,8 +92,9 @@ async function directMigration() {
 
         // Delete from main table
         const recordIds = oldRecords.map(record => record.id);
-        const { error: deleteError } = await supabaseClient
-          .from('raw_props')
+        const supabaseClient = requireSupabase();
+      const { error: deleteError } = await supabaseClient
+          .from('sports_game_odds')
           .delete()
           .in('id', recordIds);
 
@@ -112,16 +118,19 @@ async function directMigration() {
     // 4. Final verification
     console.log('\n📊 Final verification...');
     
-    const { count: finalTotal } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: finalTotal } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true }) || { count: 0 };
 
-    const { count: remainingOld } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: remainingOld } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .lt('game_date', cutoffDate) || { count: 0 };
 
-    const { count: historicalCount } = await supabaseClient
+    const supabaseClient = requireSupabase();
+      const { count: historicalCount } = await supabaseClient
       .from('raw_props_historical')
       .select('*', { count: 'exact', head: true }) || { count: 0 };
 

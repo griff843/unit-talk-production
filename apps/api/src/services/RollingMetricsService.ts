@@ -8,6 +8,7 @@ import type { Logger } from '../utils/logger';
 import { createLogger } from '../utils/logger';
 import { supabaseClient } from './supabaseClient';
 import { shadowWriteMetrics, isShadowMode } from '../shadow/ShadowMode';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 export interface MetricsWindow {
   window: '7d' | '30d' | 'lifetime';
@@ -98,7 +99,7 @@ class RollingMetricsService {
   private static instance: RollingMetricsService;
   private logger: Logger;
   private metricsCache: Map<string, MetricsWindow[]> = new Map();
-  private updateInterval: NodeJS.Timeout | null = null;
+  // TODO: Add cleanup method to clear interval when service is stopped
   
   // Learning parameters
   private readonly LEARNING_CONFIG = {
@@ -156,7 +157,7 @@ class RollingMetricsService {
    */
   private startMetricsMonitoring(): void {
     // Update metrics every hour
-    this.updateInterval = setInterval(async () => {
+    setInterval(async () => {
       await this.updateAllMetrics();
       await this.runLearningCycle();
       await this.checkPerformanceAlerts();
@@ -474,14 +475,12 @@ class RollingMetricsService {
 
     // Calculate optimal Kelly fractions
     const optimalKellys = picks.map(p => {
-      const devigged_edge = p.expected_value || 0;
       const odds = p.odds || -110;
       const prob = p.confidence || 0.5;
-      
+
       // Kelly formula: f = (p * b - q) / b
       // where p = probability of win, q = probability of loss, b = odds
       const b = odds > 0 ? odds / 100 : 100 / Math.abs(odds);
-      const q = 1 - prob;
       const kelly = Math.max(0, Math.min(0.25, (prob * (1 + b) - 1) / b));
       
       return kelly;
@@ -714,8 +713,13 @@ class RollingMetricsService {
    */
   private async applyAdjustment(adjustment: LearningAdjustment): Promise<void> {
     try {
+      if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+      }
+      
       // Store adjustment in database
-      await supabaseClient
+      const supabaseClient = requireSupabase();
+    await supabaseClient
         .from('learning_adjustments')
         .insert({
           timestamp: adjustment.timestamp.toISOString(),
@@ -820,7 +824,12 @@ class RollingMetricsService {
     };
 
     try {
-      await supabaseClient
+      if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+      }
+
+      const supabaseClient = requireSupabase();
+    await supabaseClient
         .from('performance_alerts')
         .insert({
           id: fullAlert.id,
@@ -861,6 +870,10 @@ class RollingMetricsService {
 
   private async getPicksForWindow(startDate: Date, endDate: Date, sport?: string): Promise<any[]> {
     try {
+      if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+      }
+
       let query = supabaseClient
         .from('unified_picks')
         .select('*')
@@ -881,6 +894,11 @@ class RollingMetricsService {
 
   private async getActiveSports(): Promise<string[]> {
     try {
+      if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+      }
+
+      const supabaseClient = requireSupabase();
       const { data } = await supabaseClient
         .from('unified_picks')
         .select('sport')
@@ -896,6 +914,11 @@ class RollingMetricsService {
   private async loadHistoricalMetrics(): Promise<void> {
     // Load cached metrics from database
     try {
+      if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+      }
+
+      const supabaseClient = requireSupabase();
       const { data } = await supabaseClient
         .from('metrics_cache')
         .select('*')
@@ -930,8 +953,13 @@ class RollingMetricsService {
 
   private async storeMetrics(metrics: MetricsWindow): Promise<void> {
     try {
+      if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+      }
+
       // Store in normal metrics table
-      await supabaseClient
+      const supabaseClient = requireSupabase();
+    await supabaseClient
         .from('metrics_snapshots')
         .insert({
           window: metrics.window,
@@ -1019,7 +1047,12 @@ class RollingMetricsService {
     const trend = this.analyzeTrend(windows[0], windows[1]);
     
     // Get recent adjustments for this sport
-    const { data: adjustments } = await supabaseClient
+    if (!supabaseClient) {
+      throw new Error('Supabase client not initialized');
+    }
+
+    const supabaseClient = requireSupabase();
+      const { data: adjustments } = await supabaseClient
       .from('learning_adjustments')
       .select('*')
       .eq('sport', sport)
@@ -1045,7 +1078,12 @@ class RollingMetricsService {
     const trends = this.analyzeTrend(current, historical);
     
     // Get recent alerts
-    const { data: alerts } = await supabaseClient
+    if (!supabaseClient) {
+      throw new Error('Supabase client not initialized');
+    }
+
+    const supabaseClient = requireSupabase();
+      const { data: alerts } = await supabaseClient
       .from('performance_alerts')
       .select('*')
       .order('timestamp', { ascending: false })

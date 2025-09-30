@@ -15,8 +15,9 @@
 import { config } from 'dotenv';
 
 import { DataLifecycleAgent } from '../agents/DataLifecycleAgent';
-import { supabaseClient } from '../services/supabaseClient';
+import { supabaseClient } from '../utils/supabaseUtils';
 import { Logger } from '../shared/logger';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 // Load environment variables
 config();
@@ -129,7 +130,8 @@ async function createHistoricalTables(): Promise<void> {
 
   try {
     // Execute table creation
-    const { error: recentError } = await supabaseClient.rpc('exec_sql', {
+    const supabaseClient = requireSupabase();
+      const { error: recentError } = await supabaseClient.rpc('exec_sql', {
       sql: createRecentTableSQL
     });
 
@@ -137,7 +139,8 @@ async function createHistoricalTables(): Promise<void> {
       throw new Error(`Failed to create raw_props_recent: ${recentError.message}`);
     }
 
-    const { error: historicalError } = await supabaseClient.rpc('exec_sql', {
+    const supabaseClient = requireSupabase();
+      const { error: historicalError } = await supabaseClient.rpc('exec_sql', {
       sql: createHistoricalTableSQL
     });
 
@@ -154,14 +157,16 @@ async function createHistoricalTables(): Promise<void> {
     
     try {
       // Try creating via direct query (limited functionality)
-      await supabaseClient.from('raw_props_recent').select('id').limit(1);
+      const supabaseClient = requireSupabase();
+    await supabaseClient.from('raw_props_recent').select('id').limit(1);
       console.log('  ✅ raw_props_recent exists or was created');
     } catch {
       console.log('  ⚠️ raw_props_recent needs manual creation');
     }
 
     try {
-      await supabaseClient.from('raw_props_historical').select('id').limit(1);
+      const supabaseClient = requireSupabase();
+    await supabaseClient.from('raw_props_historical').select('id').limit(1);
       console.log('  ✅ raw_props_historical exists or was created');
     } catch {
       console.log('  ⚠️ raw_props_historical needs manual creation');
@@ -199,7 +204,8 @@ async function createPerformanceIndexes(): Promise<void> {
   `;
 
   try {
-    const { error } = await supabaseClient.rpc('exec_sql', { sql: indexSQL });
+    const supabaseClient = requireSupabase();
+      const { error } = await supabaseClient.rpc('exec_sql', { sql: indexSQL });
     
     if (error && !error.message.includes('already exists')) {
       throw new Error(`Failed to create indexes: ${error.message}`);
@@ -291,17 +297,20 @@ async function analyzeCurrentData(): Promise<void> {
   
   try {
     // Get current data stats
-    const { count: totalProps } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: totalProps } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true }) || { count: 0 };
 
-    const { count: todayProps } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: todayProps } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .gte('game_date', new Date().toISOString().split('T')[0]) || { count: 0 };
 
-    const { count: oldProps } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: oldProps } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .lt('game_date', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]) || { count: 0 };
 

@@ -9,6 +9,31 @@ and this project adheres to
 
 ## [Unreleased]
 
+### 🏷️ **Agent Naming Clarification - GradingAgent → ScoringAgent** (2025-09-11)
+
+#### 🎯 **Agent Responsibility Refinement**
+
+- **Agent Rename**: `GradingAgent` → `ScoringAgent` to better reflect its primary responsibility of calculating prop scores rather than final grading/settlement
+- **Clarified Purpose**: Agent focuses on market intelligence scoring, feature calculation, and prop analysis rather than bet settlement or final grading
+- **No Breaking Changes**: All functionality remains identical - this is purely a naming clarification to improve operational clarity
+- **Documentation Updated**: Comprehensive documentation update across all SOPs, handbooks, and training materials
+
+#### ✅ **Migration Details**
+
+- **Code Changes**: Agent class name, file references, and imports updated throughout codebase
+- **Configuration**: Environment variables and service configurations updated
+- **Monitoring**: Metrics, dashboards, and alerting updated to use new agent name
+- **Documentation**: All technical documentation, operator handbooks, and training materials updated
+- **Database**: Agent health monitoring and metrics tables updated to track ScoringAgent
+
+#### 📚 **Impact Assessment**
+
+- **Zero Downtime**: Pure naming change with no functional modifications
+- **Operator Training**: Updated all operator procedures and troubleshooting guides
+- **API Documentation**: Dashboard APIs and endpoints reflect new agent name
+- **System Monitoring**: Prometheus metrics and Grafana dashboards updated
+- **Emergency Procedures**: All incident response procedures updated with new agent name
+
 ## [2025-09-05] - Infrastructure Stabilization & Production Readiness
 
 ### 🛠️ **CRITICAL INFRASTRUCTURE FIXES**

@@ -382,7 +382,7 @@ export class DistributedTracer {
    */
   public getTraceContext(traceId: string): TraceContext | undefined {
     // Find active span for this trace
-    for (const span of this.activeSpans.values()) {
+    for (const span of Array.from(this.activeSpans.values())) {
       if (span.traceId === traceId) {
         return {
           traceId: span.traceId,
@@ -530,7 +530,7 @@ export class DistributedTracer {
     const cutoff = Date.now() - this.spanRetentionMs;
     let removedTraces = 0;
 
-    for (const [traceId, spans] of this.completedSpans.entries()) {
+    for (const [traceId, spans] of Array.from(this.completedSpans.entries())) {
       const oldestSpan = spans.reduce((oldest, span) => 
         span.startTime < oldest.startTime ? span : oldest
       );

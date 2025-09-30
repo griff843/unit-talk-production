@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { Database } from './supabase-types';
+import type { Database } from '../db/types/supabase';
 
 // Raw Props Table
 export interface RawProp {

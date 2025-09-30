@@ -64,7 +64,7 @@ export class QueryOptimizer {
   }
 
   /**
-   * Optimized query for unprocessed raw props (GradingAgent)
+   * Optimized query for unprocessed raw props (ScoringAgent)
    * BEFORE: SELECT * FROM raw_props WHERE processed_at IS NULL
    * AFTER: Selective columns + proper indexing
    */

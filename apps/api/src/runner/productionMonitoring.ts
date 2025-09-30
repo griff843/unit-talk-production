@@ -7,7 +7,7 @@
  * Usage: npx tsx src/runner/productionMonitoring.ts
  */
 
-import { supabase } from '../services/supabaseClient';
+import { requireSupabase } from '../utils/supabaseUtils';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('ProductionMonitoring');
@@ -246,13 +246,15 @@ class ProductionMonitoringDashboard {
   private async collectDatabaseMetrics(): Promise<DatabaseMetrics> {
     try {
       // Get total props count
+      const supabaseClient = requireSupabase();
       const { count: totalCount } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*', { count: 'exact', head: true });
 
       // Get grading_status props count
+      const supabaseClient = requireSupabase();
       const { count: gradedCount } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*', { count: 'exact', head: true })
         .not('edge_score', 'is', null);
 
@@ -426,7 +428,8 @@ class ProductionMonitoringDashboard {
   private async performHealthChecks(): Promise<void> {
     // Check database connectivity
     try {
-      const { error } = await supabase.from('raw_props').select('id').limit(1);
+      const supabaseClient = requireSupabase();
+      const { error } = await supabaseClient.from('sports_game_odds').select('id').limit(1);
       if (error) {
         this.addAlert('CRITICAL: Database connectivity issue detected');
       }

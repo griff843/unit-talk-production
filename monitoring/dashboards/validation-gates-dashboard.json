@@ -1,0 +1,664 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Validation Gates - Syndicate Grade Rollout",
+    "tags": ["validation", "gates", "rollout", "quality"],
+    "style": "dark",
+    "timezone": "browser",
+    "editable": true,
+    "graphTooltip": 1,
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "refresh": "15s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Validation Gates Overview",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(feature_flag_validation_gates_passed_total) / sum(feature_flag_validation_gates_total) * 100",
+            "legendFormat": "Overall Pass Rate",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": 0
+                },
+                {
+                  "color": "yellow",
+                  "value": 80
+                },
+                {
+                  "color": "green",
+                  "value": 95
+                }
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "options": {
+          "orientation": "auto",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "textMode": "auto",
+          "colorMode": "background"
+        },
+        "gridPos": {
+          "h": 6,
+          "w": 8,
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "id": 2,
+        "title": "Critical Gates Status",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "feature_flag_validation_gates_critical_passed_total",
+            "legendFormat": "{{flag_name}} - {{gate_name}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "value"
+            },
+            "custom": {
+              "displayMode": "lcd",
+              "orientation": "horizontal"
+            },
+            "mappings": [
+              {
+                "options": {
+                  "0": {
+                    "color": "red",
+                    "text": "FAILED"
+                  },
+                  "1": {
+                    "color": "green", 
+                    "text": "PASSED"
+                  }
+                },
+                "type": "value"
+              }
+            ]
+          }
+        },
+        "gridPos": {
+          "h": 6,
+          "w": 8,
+          "x": 8,
+          "y": 0
+        }
+      },
+      {
+        "id": 3,
+        "title": "Gate Failures Alert",
+        "type": "alertlist",
+        "targets": [],
+        "options": {
+          "alertInstanceLabelFilter": "",
+          "dashboardAlerts": false,
+          "groupBy": [],
+          "groupMode": "default",
+          "maxItems": 20,
+          "sortOrder": 1,
+          "stateFilter": {
+            "error": true,
+            "firing": true,
+            "inactive": false,
+            "pending": true
+          },
+          "folderId": null,
+          "tags": ["validation-gates"]
+        },
+        "gridPos": {
+          "h": 6,
+          "w": 8,
+          "x": 16,
+          "y": 0
+        }
+      },
+      {
+        "id": 4,
+        "title": "Enhanced 45-Factor Grading Gates",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "feature_flag_gate_metric{flag_name=\"enhanced_45_factor_grading\", metric_name=\"processing_latency_p99\"}",
+            "legendFormat": "Processing Latency P99 ({{threshold}}ms threshold)",
+            "refId": "A"
+          },
+          {
+            "expr": "feature_flag_gate_metric{flag_name=\"enhanced_45_factor_grading\", metric_name=\"accuracy_rate\"} * 100",
+            "legendFormat": "Accuracy Rate ({{threshold}}% threshold)",
+            "refId": "B"
+          },
+          {
+            "expr": "feature_flag_gate_metric{flag_name=\"enhanced_45_factor_grading\", metric_name=\"error_rate\"} * 100",
+            "legendFormat": "Error Rate ({{threshold}}% threshold)",
+            "refId": "C"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 10,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 2,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "never",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "line"
+              }
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 50
+                }
+              ]
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Accuracy Rate"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "percent"
+                },
+                {
+                  "id": "thresholds",
+                  "value": {
+                    "steps": [
+                      {
+                        "color": "red",
+                        "value": null
+                      },
+                      {
+                        "color": "green",
+                        "value": 95
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Error Rate"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "percent"
+                },
+                {
+                  "id": "thresholds",
+                  "value": {
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "red",
+                        "value": 1
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "table",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "multi",
+            "sort": "none"
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 6
+        }
+      },
+      {
+        "id": 5,
+        "title": "Event-Driven Alert Agent Gates",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "feature_flag_gate_metric{flag_name=\"event_driven_alert_agent\", metric_name=\"alert_latency_p99\"}",
+            "legendFormat": "Alert Latency P99 ({{threshold}}ms threshold)",
+            "refId": "A"
+          },
+          {
+            "expr": "feature_flag_gate_metric{flag_name=\"event_driven_alert_agent\", metric_name=\"alert_accuracy\"} * 100",
+            "legendFormat": "Alert Accuracy ({{threshold}}% threshold)",
+            "refId": "B"
+          },
+          {
+            "expr": "feature_flag_gate_metric{flag_name=\"event_driven_alert_agent\", metric_name=\"false_positive_rate\"} * 100",
+            "legendFormat": "False Positive Rate ({{threshold}}% threshold)",
+            "refId": "C"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 10,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 2,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "never",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "line"
+              }
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "Alert Latency P99"
+              },
+              "properties": [
+                {
+                  "id": "unit",
+                  "value": "ms"
+                },
+                {
+                  "id": "thresholds",
+                  "value": {
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": null
+                      },
+                      {
+                        "color": "red",
+                        "value": 1000
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 6
+        }
+      },
+      {
+        "id": 6,
+        "title": "HOT/WARM/COLD Pipeline Gates",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "feature_flag_gate_metric{flag_name=\"hot_warm_cold_pipeline\", metric_name=\"data_ingestion_latency\"}",
+            "legendFormat": "Data Ingestion Latency ({{threshold}}ms threshold)",
+            "refId": "A"
+          },
+          {
+            "expr": "feature_flag_gate_metric{flag_name=\"hot_warm_cold_pipeline\", metric_name=\"data_consistency_rate\"} * 100",
+            "legendFormat": "Data Consistency Rate ({{threshold}}% threshold)",
+            "refId": "B"
+          },
+          {
+            "expr": "feature_flag_gate_metric{flag_name=\"hot_warm_cold_pipeline\", metric_name=\"storage_efficiency\"} * 100",
+            "legendFormat": "Storage Efficiency ({{threshold}}% threshold)",
+            "refId": "C"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 10,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 2,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "never",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "line"
+              }
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 14
+        }
+      },
+      {
+        "id": 7,
+        "title": "SLO Monitoring System Gates",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "feature_flag_gate_metric{flag_name=\"slo_monitoring_system\", metric_name=\"monitoring_latency\"}",
+            "legendFormat": "Monitoring Latency ({{threshold}}ms threshold)",
+            "refId": "A"
+          },
+          {
+            "expr": "feature_flag_gate_metric{flag_name=\"slo_monitoring_system\", metric_name=\"alert_delivery_rate\"} * 100",
+            "legendFormat": "Alert Delivery Rate ({{threshold}}% threshold)",
+            "refId": "B"
+          },
+          {
+            "expr": "feature_flag_gate_metric{flag_name=\"slo_monitoring_system\", metric_name=\"false_alert_rate\"} * 100",
+            "legendFormat": "False Alert Rate ({{threshold}}% threshold)",
+            "refId": "C"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 10,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 2,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "never",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "line"
+              }
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 14
+        }
+      },
+      {
+        "id": 8,
+        "title": "Validation Gate Pass/Fail Rate",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (result) (feature_flag_validation_results_total)",
+            "legendFormat": "{{result}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              }
+            },
+            "mappings": []
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "pieType": "pie",
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          },
+          "legend": {
+            "displayMode": "visible",
+            "placement": "right"
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 0,
+          "y": 22
+        }
+      },
+      {
+        "id": 9,
+        "title": "Gate Evaluation Latency",
+        "type": "histogram",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(feature_flag_gate_evaluation_duration_seconds_bucket[5m]))",
+            "legendFormat": "P50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(feature_flag_gate_evaluation_duration_seconds_bucket[5m]))",
+            "legendFormat": "P95",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(feature_flag_gate_evaluation_duration_seconds_bucket[5m]))",
+            "legendFormat": "P99",
+            "refId": "C"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "vis": false
+              }
+            },
+            "unit": "s"
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 8,
+          "y": 22
+        }
+      },
+      {
+        "id": 10,
+        "title": "Gate Configuration Changes",
+        "type": "logs",
+        "targets": [
+          {
+            "expr": "{job=\"api\"} |= \"validation gate\" |= \"updated\"",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showTime": true,
+          "showLabels": false,
+          "showCommonLabels": false,
+          "wrapLogMessage": false,
+          "prettifyLogMessage": false,
+          "enableLogDetails": true,
+          "dedupStrategy": "none",
+          "sortOrder": "Descending"
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 16,
+          "y": 22
+        }
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "environment",
+          "type": "query",
+          "query": "label_values(feature_flag_validation_gates_total, environment)",
+          "current": {
+            "selected": false,
+            "text": "production",
+            "value": "production"
+          },
+          "options": [],
+          "refresh": 1,
+          "includeAll": false,
+          "multi": false
+        },
+        {
+          "name": "flag_name",
+          "type": "query",
+          "query": "label_values(feature_flag_validation_gates_total{environment=\"$environment\"}, flag_name)",
+          "current": {
+            "selected": true,
+            "text": "All",
+            "value": "$__all"
+          },
+          "options": [],
+          "refresh": 1,
+          "includeAll": true,
+          "multi": true
+        }
+      ]
+    },
+    "annotations": {
+      "list": [
+        {
+          "name": "Gate Failures",
+          "datasource": "Prometheus",
+          "enable": true,
+          "expr": "ALERTS{alertname=\"ValidationGateFailed\"}",
+          "iconColor": "red",
+          "titleFormat": "Gate Failed: {{gate_name}}",
+          "textFormat": "Flag: {{flag_name}}, Metric: {{metric_name}}"
+        }
+      ]
+    }
+  }
+}

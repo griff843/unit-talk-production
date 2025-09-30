@@ -15,7 +15,7 @@ capabilities.
 
 #### Business Intelligence Agents (5)
 
-- **GradingAgent**: Professional pick scoring with ML ensemble
+- **ScoringAgent**: Professional pick scoring with ML ensemble
 - **AnalyticsAgent**: Performance insights and data analysis
 - **AlertAgent**: Real-time notifications and Discord alerts
 - **FeedAgent**: Optimal dual-API data ingestion (Optimal + Odds API)

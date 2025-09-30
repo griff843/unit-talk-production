@@ -1,10 +1,8 @@
-import path from 'node:path';
-import fs from 'node:fs';
 import { supabase as supabaseClient, isSupabaseConfigured } from '../../apps/api/src/services/supabaseClient';
 
 /**
- * Global Jest setup: truncate relevant tables and seed baseline runtime config
- * Windows-safe, uses Supabase client from the repo.
+ * Global Jest setup: clear real tables and seed baseline runtime_config
+ * Windows-safe, uses the repo's Supabase client.
  */
 module.exports = async () => {
   if (!isSupabaseConfigured) {
@@ -14,40 +12,37 @@ module.exports = async () => {
 
   const supabase = supabaseClient;
 
-  const deleteAll = async (table: string) => {
-    // Delete all rows in a portable way
-    const { error } = await supabase.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
-    if (error) {
-      console.warn(`[globalSetup] Failed to clear ${table}:`, error.message);
+  const tables = ['raw_props', 'unified_picks', 'runtime_config'];
+
+  for (const table of tables) {
+    try {
+      const { error } = await supabase.from(table).delete().neq('id', '');
+      if (error) {
+        console.warn(`[globalSetup] Failed to clear ${table}: ${error.message}`);
+      }
+    } catch (e: any) {
+      console.warn(`[globalSetup] Skipped ${table}: ${e?.message || e}`);
     }
-  };
-
-  const tables = [
-    'unified_picks',
-    'raw_props',
-    'slo_incidents',
-    'system_metrics',
-    'audit_log',
-    'shadow_decisions'
-  ];
-
-  for (const t of tables) {
-    await deleteAll(t);
   }
 
-  // Baseline runtime/system config if such a table exists
-  const tryUpsert = async (table: string, row: any) => {
-    try {
-      const { error } = await supabase.from(table).upsert(row, { onConflict: 'key' });
-      if (error) console.warn(`[globalSetup] Upsert into ${table} failed: ${error.message}`);
-    } catch (e: any) {
-      // Silently ignore if table doesn't exist
+  // Seed baseline runtime configuration if table exists
+  try {
+    const { error } = await supabase.from('runtime_config').upsert({
+      id: 'test-config',
+      shadow_mode: false,
+      freeze_mode: false,
+      safe_mode: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+    if (error) {
+      console.warn(`[globalSetup] Failed to seed runtime_config: ${error.message}`);
+    } else {
+      console.log('[globalSetup] Seeded baseline runtime_config');
     }
-  };
-
-  await tryUpsert('system_config', { key: 'FREEZE_MODE', value: false, updated_at: new Date().toISOString() });
-  await tryUpsert('runtime_config', { key: 'FREEZE_MODE', value: false, updated_at: new Date().toISOString() });
+  } catch (e: any) {
+    console.warn('[globalSetup] runtime_config not present, skipped');
+  }
 
   console.log('[globalSetup] Database reset complete.');
 };
-

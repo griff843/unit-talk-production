@@ -343,7 +343,7 @@ npm run feed:performance
 
 ### Content Sources
 
-- GradingAgent: Graded picks and analysis
+- ScoringAgent: Scored picks and analysis
 - AnalyticsAgent: Market insights and trends
 - AlertAgent: Real-time notifications
 - External APIs: News, statistics, market data

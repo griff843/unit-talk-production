@@ -7,7 +7,7 @@
  */
 
 import { createLogger } from '../utils/logger';
-import { supabase as supabaseClient } from '../services/supabaseClient';
+import { requireSupabase } from '../utils/supabaseUtils';
 import { shadowMode } from './ShadowMode';
 
 export interface ShadowModeValidationResult {
@@ -102,6 +102,12 @@ export class ShadowModeValidator {
    */
   private async validateDatabaseSetup(result: ShadowModeValidationResult): Promise<void> {
     try {
+      const supabaseClient = requireSupabase();
+      if (!supabaseClient) {
+        result.errors.push('Supabase client is not configured');
+        return;
+      }
+
       // Check if shadow_decisions table exists
       const { data: shadowTable, error: shadowError } = await supabaseClient
         .from('shadow_decisions')
@@ -136,7 +142,7 @@ export class ShadowModeValidator {
 
       // Check if professional grading migration was applied
       const { data: migrationCheck, error: migrationError } = await supabaseClient
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('processed_at, pro_attempts, processing_error')
         .limit(1);
 

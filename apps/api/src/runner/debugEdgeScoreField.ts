@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -20,8 +21,9 @@ async function debugEdgeScoreField() {
   
   try {
     // Get a test prop
-    const { data: testProp } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: testProp } = await supabase
+      .from('sports_game_odds')
       .select('id, edge_score')
       .limit(1)
       .single();
@@ -50,8 +52,9 @@ async function debugEdgeScoreField() {
     for (const testValue of testValues) {
       console.log(`\nTesting edge_score = ${testValue} (${typeof testValue})`);
       
+      const supabaseClient = requireSupabase();
       const { error } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .update({
           edge_score: testValue
         })
@@ -63,8 +66,9 @@ async function debugEdgeScoreField() {
         console.log(`✅ Success!`);
         
         // Check what was actually stored
-        const { data: updated } = await supabase
-          .from('raw_props')
+        const supabaseClient = requireSupabase();
+      const { data: updated } = await supabase
+          .from('sports_game_odds')
           .select('edge_score')
           .eq('id', testProp.id)
           .single();
@@ -76,8 +80,9 @@ async function debugEdgeScoreField() {
     
     // Test minimal update without edge_score
     console.log('\nTesting update WITHOUT edge_score:');
-    const { error: minimalError } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { error: minimalError } = await supabase
+      .from('sports_game_odds')
       .update({
         confidence: 75,
         tier: 'B',

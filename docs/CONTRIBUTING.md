@@ -75,7 +75,7 @@ export class NewAgent extends BaseAgent {
 npm test
 
 # Test specific agent
-npm run agents:test -- --agent=GradingAgent
+npm run agents:test -- --agent=ScoringAgent
 
 # Coverage report
 npm run test:coverage

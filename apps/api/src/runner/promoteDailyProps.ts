@@ -1,10 +1,11 @@
-import { supabase } from '../services/supabaseClient';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 async function main() {
   try {
     // Get high-scoring props that are auto-approved
-    const { data: propsToPromote, error: selectError } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: propsToPromote, error: selectError } = await supabase
+      .from('sports_game_odds')
       .select('*')
       .gte('edge_score', 20)
       .eq('auto_approved', true);
@@ -35,7 +36,8 @@ async function main() {
     }));
 
     // Insert into unified_picks
-    const { error: insertError } = await supabase
+    const supabaseClient = requireSupabase();
+      const { error: insertError } = await supabase
       .from('unified_picks')
       .insert(unifiedPicks);
 
@@ -48,8 +50,9 @@ async function main() {
 
     // Update raw_props to mark them as promoted
     for (const prop of propsToPromote) {
+      const supabaseClient = requireSupabase();
       const { error: updateError } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .update({ promoted: true, promoted_at: new Date().toISOString() })
         .eq('id', prop.id);
 

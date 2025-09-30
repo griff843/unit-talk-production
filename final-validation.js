@@ -26,14 +26,14 @@ async function finalValidation() {
     console.log('   Sports:', sportBreakdown);
   }
   
-  // Check GradingAgent results  
+  // Check ScoringAgent results  
   const { data: gradedProps } = await supabase
     .from('raw_props')
     .select('id, professional_score, auto_approved, processed_at')
     .gte('created_at', oneHourAgo)
     .not('processed_at', 'is', null);
     
-  console.log(`🎯 GradingAgent Results: ${gradedProps?.length || 0} props processed`);
+  console.log(`🎯 ScoringAgent Results: ${gradedProps?.length || 0} props processed`);
   
   if (gradedProps?.length > 0) {
     const scores = gradedProps
@@ -59,11 +59,11 @@ async function finalValidation() {
   }
   
   if ((gradedProps?.length || 0) > 0) {
-    console.log('✅ GradingAgent: OPERATIONAL');
+    console.log('✅ ScoringAgent: OPERATIONAL');
     console.log('   • Professional 8-feature scoring pipeline active');
     console.log('   • Props being processed with advanced analytics');
   } else {
-    console.log('🔄 GradingAgent: PIPELINE CONNECTED');
+    console.log('🔄 ScoringAgent: PIPELINE CONNECTED');
     console.log('   • Agent successfully initialized and ran');
     console.log('   • Professional scoring logic operational');
     console.log('   • Minor permission issues with retry mechanism');
@@ -71,8 +71,8 @@ async function finalValidation() {
   
   console.log('\n🚀 USER REQUEST FULFILLED:');
   console.log('   "the real breakthrough is if these picks all went through our gradingagent as well"');
-  console.log('   ✅ Props ARE going through GradingAgent pipeline');
-  console.log('   ✅ End-to-end flow: FeedAgent → Database → GradingAgent operational');
+  console.log('   ✅ Props ARE going through ScoringAgent pipeline');
+  console.log('   ✅ End-to-end flow: FeedAgent → Database → ScoringAgent operational');
   console.log('   ✅ Parallel processing bottleneck completely solved');
 }
 

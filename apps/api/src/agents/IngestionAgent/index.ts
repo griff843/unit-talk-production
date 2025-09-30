@@ -290,7 +290,7 @@ export class IngestionAgent extends BaseAgent {
         throw new Error('Supabase client is required for IngestionAgent');
       }
       const { error } = await this.supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .insert(normalizationResult.normalizedProp);
 
       if (error) {
@@ -354,7 +354,7 @@ export class IngestionAgent extends BaseAgent {
         throw new Error('Supabase client is required for IngestionAgent');
       }
       const { error } = await this.supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('id')
         .limit(1);
 

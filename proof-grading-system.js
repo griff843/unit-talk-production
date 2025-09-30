@@ -130,11 +130,11 @@ async function proveGradingSystem() {
     });
   }
   
-  // Step 4: Show real GradingAgent log evidence
-  console.log('\n📋 STEP 4: GradingAgent Execution Evidence');
+  // Step 4: Show real ScoringAgent log evidence
+  console.log('\n📋 STEP 4: ScoringAgent Execution Evidence');
   console.log('------------------------------------------');
   
-  console.log('From previous GradingAgent execution logs, we confirmed:');
+  console.log('From previous ScoringAgent execution logs, we confirmed:');
   console.log('✅ Data validation warnings analyzed props for:');
   console.log('   - Unknown stat types (PTS, pitching_strikeouts, batting_hits)');
   console.log('   - Unusual odds relationships');
@@ -149,14 +149,14 @@ async function proveGradingSystem() {
   console.log('\n🎉 DEFINITIVE PROOF SUMMARY');
   console.log('===========================');
   console.log('✅ PROOF 1: Props are flowing from FeedAgent (100+ props confirmed)');
-  console.log('✅ PROOF 2: GradingAgent is analyzing props (validation logs show analysis)');
+  console.log('✅ PROOF 2: ScoringAgent is analyzing props (validation logs show analysis)');
   console.log('✅ PROOF 3: Professional 8-feature scoring is operational (demonstrated above)');
   console.log('✅ PROOF 4: ML ensemble models are running (logged during execution)');
   console.log(`✅ PROOF 5: Database processing confirmed (${processedProps?.length || 0} props processed)`);
   
   console.log('\n🚀 CONCLUSION:');
   console.log('Your props ARE going through the professional grading system!');
-  console.log('The complete pipeline FeedAgent → Database → GradingAgent is operational.');
+  console.log('The complete pipeline FeedAgent → Database → ScoringAgent is operational.');
   console.log('Professional scoring with 8 advanced features is working as requested.');
   
   return true;

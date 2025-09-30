@@ -1,6 +1,7 @@
 import { ButtonInteraction, EmbedBuilder, Colors } from 'discord.js';
 import { WelcomeService } from '../services/welcomeService';
 import { logger } from '../utils/logger';
+import { botConfig } from '../config';
 
 export class WelcomeButtonHandler {
   private welcomeService: WelcomeService;
@@ -295,6 +296,26 @@ export class WelcomeButtonHandler {
     await interaction.editReply({ embeds: [embed] });
   }
 
+
+  async handleVIPAlertsButton(interaction: ButtonInteraction): Promise<void> {
+    const embed = new EmbedBuilder()
+      .setTitle('🚨 Configure VIP Alerts - Stay In The Loop')
+      .setDescription(
+        `Set up your VIP notifications so you never miss key updates!\n\n` +
+          `**VIP Alert Options:**\n` +
+          `• Pick notifications from verified cappers\n` +
+          `• Market movement highlights\n` +
+          `• Strategy session reminders\n` +
+          `• Important announcements\n\n` +
+          `**For Custom Setup:** Contact VIP support in <#1390413374260514977> and we will configure your preferences.`
+      )
+      .setColor(Colors.Red)
+      .setTimestamp();
+
+    await interaction.editReply({ embeds: [embed] });
+  }
+
+
   private async handleVIPTestimonialsButton(interaction: ButtonInteraction): Promise<void> {
     const embed = new EmbedBuilder()
       .setTitle('🏆 Share Your Wins - VIP Testimonials')
@@ -314,7 +335,7 @@ export class WelcomeButtonHandler {
     await interaction.editReply({ embeds: [embed] });
   }
 
-  private async handleVIPPerksUpgradeButton(interaction: ButtonInteraction): Promise<void> {
+  async handleVIPPerksUpgradeButton(interaction: ButtonInteraction): Promise<void> {
     const embed = new EmbedBuilder()
       .setTitle('⭐ VIP Perks & Elite Upgrades')
       .setDescription(
@@ -336,7 +357,7 @@ export class WelcomeButtonHandler {
 
   // VIP+ TIER BUTTON HANDLERS
 
-  private async handleVIPPlusAlertsButton(interaction: ButtonInteraction): Promise<void> {
+  async handleVIPPlusAlertsButton(interaction: ButtonInteraction): Promise<void> {
     const embed = new EmbedBuilder()
       .setTitle('🚨 Configure Elite Alerts - Never Miss a Play')
       .setDescription(
@@ -377,18 +398,21 @@ export class WelcomeButtonHandler {
   }
 
   private async handleVIPPlusLoungeButton(interaction: ButtonInteraction): Promise<void> {
+    const vipPlusResearchId = (botConfig.channels as any).vipPlusExclusiveInsights || '';
     const embed = new EmbedBuilder()
-      .setTitle('💎 VIP+ Lounge - Elite Inner Circle')
+      .setTitle('💎 VIP+ Research Section - Elite Inner Circle')
       .setDescription(
-        `Welcome to the most exclusive community in sports betting!\n\n` +
-          `**VIP+ Lounge Features:**\n` +
+        `Welcome to the most exclusive research area in sports betting!\n\n` +
+          `**VIP+ Research Features:**\n` +
           `• Direct access to Unit Talk leadership\n` +
           `• Elite member networking and collaboration\n` +
           `• Exclusive events and masterclasses\n` +
           `• Advanced strategy discussions\n` +
           `• White-glove support and consultation\n\n` +
-          `**Access:** Your VIP+ Lounge channel will be available shortly. Check <#1387184046680834140> for updates!\n\n` +
-          `**For Now:** Connect with other elite members in the main VIP areas.`
+          (vipPlusResearchId
+            ? `**Access:** Go to **<#${vipPlusResearchId}>** to get started right now.\n\n`
+            : `**Access:** Your VIP+ Research Section channel will be available shortly.\n\n`)
+          + `**For Now:** Connect with other elite members in the main VIP areas.`
       )
       .setColor('#9932CC')
       .setTimestamp();
@@ -396,7 +420,7 @@ export class WelcomeButtonHandler {
     await interaction.editReply({ embeds: [embed] });
   }
 
-  private async handleVIPPlusPerksButton(interaction: ButtonInteraction): Promise<void> {
+  async handleVIPPlusPerksButton(interaction: ButtonInteraction): Promise<void> {
     const embed = new EmbedBuilder()
       .setTitle('⭐ All Elite Perks & Features - VIP+ Complete Guide')
       .setDescription(

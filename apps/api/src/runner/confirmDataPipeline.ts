@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -21,8 +22,9 @@ async function confirmDataPipeline() {
   try {
     // Step 1: Check data ingestion (raw_props)
     console.log('\n1️⃣ RAW DATA INGESTION CHECK:');
-    const { data: rawProps, count: totalProps } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: rawProps, count: totalProps } = await supabase
+      .from('sports_game_odds')
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
       .limit(5);
@@ -39,8 +41,9 @@ async function confirmDataPipeline() {
     
     // Step 2: Check grading pipeline (processed props)
     console.log('\n2️⃣ GRADING PIPELINE CHECK:');
-    const { data: gradedProps, count: gradedCount } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: gradedProps, count: gradedCount } = await supabase
+      .from('sports_game_odds')
       .select('*', { count: 'exact' })
       .not('tier', 'is', null)
       .order('updated_at', { ascending: false })
@@ -60,7 +63,8 @@ async function confirmDataPipeline() {
     
     // Step 3: Check promotion pipeline (unified_picks)
     console.log('\n3️⃣ PROMOTION PIPELINE CHECK:');
-    const { data: promotedPicks, count: promotedCount } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: promotedPicks, count: promotedCount } = await supabase
       .from('unified_picks')
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
@@ -77,7 +81,8 @@ async function confirmDataPipeline() {
     
     // Step 4: Check agent health monitoring
     console.log('\n4️⃣ AGENT MONITORING CHECK:');
-    const { data: agentHealth, count: healthCount } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: agentHealth, count: healthCount } = await supabase
       .from('agent_health')
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
@@ -96,8 +101,9 @@ async function confirmDataPipeline() {
     console.log('\n5️⃣ GRADING AGENT FUNCTIONALITY TEST:');
     
     // Get an ungraded prop to test with
-    const { data: testProp } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: testProp } = await supabase
+      .from('sports_game_odds')
       .select('*')
       .is('tier', null)
       .limit(1)
@@ -114,8 +120,9 @@ async function confirmDataPipeline() {
         edgeScore: 0.156 // 15.6% edge -> 156 per-mille
       };
       
+      const supabaseClient = requireSupabase();
       const { error: gradingError } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .update({
           confidence: mockGradingResult.confidence > 65 ? 1 : 0,
           tier: mockGradingResult.tier,
@@ -132,8 +139,9 @@ async function confirmDataPipeline() {
         console.log(`✅ Grading test successful: ${mockGradingResult.tier} tier, ${mockGradingResult.confidence}% confidence`);
         
         // Verify the grading persisted
-        const { data: gradedProp } = await supabase
-          .from('raw_props')
+        const supabaseClient = requireSupabase();
+      const { data: gradedProp } = await supabase
+          .from('sports_game_odds')
           .select('tier, confidence, edge_score, auto_approved')
           .eq('id', testProp.id)
           .single();

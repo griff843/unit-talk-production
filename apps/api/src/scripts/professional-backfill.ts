@@ -14,9 +14,9 @@
  */
 
 import 'dotenv/config';
-import { GradingAgent } from '../agents/GradingAgent/GradingAgent';
+import { ScoringAgent } from '../agents/ScoringAgent/ScoringAgent';
 import { BaseAgentConfig, BaseAgentDependencies } from '../agents/BaseAgent/types';
-import { createSupabaseClient } from '../services/supabaseClient';
+import { createSupabaseClient } from '../utils/supabaseUtils';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('professional-backfill');
@@ -45,7 +45,7 @@ interface BackfillMetrics {
 
 class ProfessionalBackfillProcessor {
   private supabase = createSupabaseClient();
-  private gradingAgent: GradingAgent;
+  private scoringAgent: ScoringAgent;
   private metrics: BackfillMetrics;
   
   constructor(private options: BackfillOptions = {}) {
@@ -85,8 +85,8 @@ class ProfessionalBackfillProcessor {
       version: '1.0.0'
     };
     
-    this.gradingAgent = new GradingAgent(config, deps);
-    await this.gradingAgent.initialize();
+    this.scoringAgent = new ScoringAgent(config, deps);
+    await this.scoringAgent.initialize();
   }
   
   /**
@@ -94,7 +94,7 @@ class ProfessionalBackfillProcessor {
    */
   async getUnprocessedCount(league?: string): Promise<number> {
     let query = this.supabase
-      .from('raw_props')
+      .from('sports_game_odds')
       .select('id', { count: 'exact', head: true })
       .is('processed_at', null);
       
@@ -121,7 +121,7 @@ class ProfessionalBackfillProcessor {
    */
   async fetchUnprocessedBatch(offset: number = 0): Promise<any[]> {
     let query = this.supabase
-      .from('raw_props')
+      .from('sports_game_odds')
       .select('*')
       .is('processed_at', null)
       .order('created_at', { ascending: true })
@@ -163,7 +163,7 @@ class ProfessionalBackfillProcessor {
       
       // Increment attempt counter
       await this.supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .update({ pro_attempts: (rawProp.pro_attempts || 0) + 1 })
         .eq('id', rawProp.id);
       
@@ -181,8 +181,8 @@ class ProfessionalBackfillProcessor {
         timestamp: rawProp.created_at
       };
       
-      // Process through GradingAgent which routes to professional system
-      const result = await this.gradingAgent.gradeProp(features);
+      // Process through ScoringAgent which routes to professional system
+      const result = await this.scoringAgent.gradeProp(features);
       
       if (!result || !result.propId) {
         logger.warn(`Failed to process prop ${rawProp.id}: No result returned`);
@@ -191,7 +191,7 @@ class ProfessionalBackfillProcessor {
       
       // Mark as professionally processed
       await this.supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .update({ 
           processed_at: new Date().toISOString(),
           processing_error: null
@@ -210,7 +210,7 @@ class ProfessionalBackfillProcessor {
       
       // Log error to database
       await this.supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .update({ processing_error: errorMessage })
         .eq('id', rawProp.id);
       

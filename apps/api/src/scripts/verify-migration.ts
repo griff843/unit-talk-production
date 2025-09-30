@@ -10,8 +10,9 @@
 
 import { config } from 'dotenv';
 
-import { supabaseClient } from '../services/supabaseClient';
+import { supabaseClient } from '../utils/supabaseUtils';
 import { Logger } from '../shared/logger';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 // Load environment variables
 config();
@@ -31,7 +32,8 @@ async function verifyMigration() {
 
     for (const table of tables) {
       try {
-        const { count, error } = await supabaseClient
+        const supabaseClient = requireSupabase();
+      const { count, error } = await supabaseClient
           .from(table)
           .select('*', { count: 'exact', head: true });
         
@@ -59,20 +61,24 @@ async function verifyMigration() {
     
     const cutoffDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     
-    const { count: hotTierCount } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: hotTierCount } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true }) || { count: 0 };
 
-    const { count: oldPropsRemaining } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: oldPropsRemaining } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .lt('game_date', cutoffDate) || { count: 0 };
 
-    const { count: coldTierCount } = await supabaseClient
+    const supabaseClient = requireSupabase();
+      const { count: coldTierCount } = await supabaseClient
       .from('raw_props_historical')
       .select('*', { count: 'exact', head: true }) || { count: 0 };
 
-    const { count: warmTierCount } = await supabaseClient
+    const supabaseClient = requireSupabase();
+      const { count: warmTierCount } = await supabaseClient
       .from('raw_props_recent')
       .select('*', { count: 'exact', head: true }) || { count: 0 };
 

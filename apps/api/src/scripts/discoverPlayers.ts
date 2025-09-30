@@ -35,6 +35,7 @@ import {
   convertNhlRosterPlayer 
 } from '../agents/enrichment/nhlEnrichment';
 import { logger } from '../utils/logger';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 // Initialize Supabase client
 const supabaseUrl = process.env['SUPABASE_URL'];
@@ -104,7 +105,8 @@ async function fetchLeagueRoster(league: SupportedLeague): Promise<StandardizedP
  * Check which players already exist in the database
  */
 async function getExistingPlayers(league: string): Promise<Set<string>> {
-  const { data, error } = await supabase
+  const supabaseClient = requireSupabase();
+      const { data, error } = await supabase
     .from('players')
     .select('player_name')
     .eq('sport', league);
@@ -136,7 +138,8 @@ async function addNewPlayers(players: StandardizedPlayer[], dryRun: boolean = fa
   for (let i = 0; i < players.length; i += batchSize) {
     const batch = players.slice(i, i + batchSize);
     
-    const { error } = await supabase
+    const supabaseClient = requireSupabase();
+      const { error } = await supabase
       .from('players')
       .insert(batch);
       

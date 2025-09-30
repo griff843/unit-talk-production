@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { config } from 'dotenv';
+import { requireSupabase } from './utils/supabaseUtils';
 
 // Load environment variables
 config();
@@ -15,8 +16,9 @@ async function checkDatabase() {
     );
 
     // Check total count
-    const { count, error: countError } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count, error: countError } = await supabase
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true });
 
     if (countError) {
@@ -27,8 +29,9 @@ async function checkDatabase() {
     console.log(`📊 Total props in database: ${count}`);
 
     // Check for Optimal props specifically
-    const { data: optimalProps, error: optimalError } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: optimalProps, error: optimalError } = await supabase
+      .from('sports_game_odds')
       .select('*')
       .eq('provider', 'Optimal')
       .order('created_at', { ascending: false })
@@ -52,8 +55,9 @@ async function checkDatabase() {
 
     // Check for any props from today
     const today = new Date().toISOString().split('T')[0];
-    const { data: todayProps, error: todayError } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: todayProps, error: todayError } = await supabase
+      .from('sports_game_odds')
       .select('*')
       .gte('created_at', `${today}T00:00:00`)
       .order('created_at', { ascending: false })

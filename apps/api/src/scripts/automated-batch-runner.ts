@@ -9,8 +9,9 @@
 
 import { config } from 'dotenv';
 
-import { supabaseClient } from '../services/supabaseClient';
+import { supabaseClient } from '../utils/supabaseUtils';
 import { Logger } from '../shared/logger';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 // Load environment variables
 config();
@@ -152,16 +153,19 @@ async function automatedBatchRunner() {
 async function getProgress(): Promise<MigrationProgress> {
   const cutoffDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
   
-  const { count: totalProps } = await supabaseClient
-    .from('raw_props')
+  const supabaseClient = requireSupabase();
+      const { count: totalProps } = await supabaseClient
+    .from('sports_game_odds')
     .select('*', { count: 'exact', head: true }) || { count: 0 };
 
-  const { count: oldProps } = await supabaseClient
-    .from('raw_props')
+  const supabaseClient = requireSupabase();
+      const { count: oldProps } = await supabaseClient
+    .from('sports_game_odds')
     .select('*', { count: 'exact', head: true })
     .lt('game_date', cutoffDate) || { count: 0 };
 
-  const { count: historicalProps } = await supabaseClient
+  const supabaseClient = requireSupabase();
+      const { count: historicalProps } = await supabaseClient
     .from('raw_props_historical')
     .select('*', { count: 'exact', head: true }) || { count: 0 };
 
@@ -182,8 +186,9 @@ async function executeBatch(batchSize: number): Promise<{ recordsMigrated: numbe
   const cutoffDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
   
   // Get batch of old records to migrate
-  const { data: recordsToMigrate, error: selectError } = await supabaseClient
-    .from('raw_props')
+  const supabaseClient = requireSupabase();
+      const { data: recordsToMigrate, error: selectError } = await supabaseClient
+    .from('sports_game_odds')
     .select('*')
     .lt('game_date', cutoffDate)
     .order('game_date', { ascending: true })
@@ -198,7 +203,8 @@ async function executeBatch(batchSize: number): Promise<{ recordsMigrated: numbe
   }
 
   // Insert into historical table
-  const { error: insertError } = await supabaseClient
+  const supabaseClient = requireSupabase();
+      const { error: insertError } = await supabaseClient
     .from('raw_props_historical')
     .insert(recordsToMigrate);
 
@@ -210,8 +216,9 @@ async function executeBatch(batchSize: number): Promise<{ recordsMigrated: numbe
 
   // Delete from main table
   const recordIds = recordsToMigrate.map(record => record.id);
-  const { error: deleteError } = await supabaseClient
-    .from('raw_props')
+  const supabaseClient = requireSupabase();
+      const { error: deleteError } = await supabaseClient
+    .from('sports_game_odds')
     .delete()
     .in('id', recordIds);
 

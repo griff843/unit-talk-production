@@ -2,7 +2,7 @@
 // Test Professional Capper Features
 // Quick validation of 8 new professional features
 
-import { SyndicateGradingEngine } from '../agents/GradingAgent/scoring/gradingEngine';
+import { SyndicateGradingEngine } from '../agents/ScoringAgent/scoring/gradingEngine';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('ProfessionalTest');

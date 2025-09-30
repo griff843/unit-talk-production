@@ -172,7 +172,7 @@ export class ProductionRedisService {
   async cleanup(): Promise<void> {
     // Clean expired entries from memory cache
     const now = Date.now();
-    for (const [key, cached] of this.memoryCache.entries()) {
+    for (const [key, cached] of Array.from(this.memoryCache.entries())) {
       if (cached.expires && now > cached.expires) {
         this.memoryCache.delete(key);
       }

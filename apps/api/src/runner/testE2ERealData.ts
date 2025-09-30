@@ -219,7 +219,7 @@ class E2ERealDataTester {
     try {
       // Simulate Optimal API call (we'll check for recent data instead of making actual API calls)
       const { data: recentOptimalData, error } = await this.supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*')
         .eq('source', 'optimal')
         .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
@@ -247,7 +247,7 @@ class E2ERealDataTester {
     try {
       // Check for recent Odds API data
       const { data: recentOddsData, error } = await this.supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*')
         .eq('source', 'odds-api')
         .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
@@ -272,7 +272,7 @@ class E2ERealDataTester {
     try {
       // Get games from raw_props data (grouped by game)
       const { data: propsData, error } = await this.supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*')
         .gte('created_at', startOfDay.toISOString())
         .lt('created_at', endOfDay.toISOString())
@@ -288,7 +288,7 @@ class E2ERealDataTester {
         
         // Check for any recent data
         const { data: recentData } = await this.supabase
-          .from('raw_props')
+          .from('sports_game_odds')
           .select('*')
           .order('created_at', { ascending: false })
           .limit(20);
@@ -348,7 +348,7 @@ class E2ERealDataTester {
     try {
       // Get sample props for testing
       const { data: sampleProps, error } = await this.supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(10);
@@ -457,7 +457,7 @@ class E2ERealDataTester {
     try {
       // Get props for grading test
       const { data: testProps, error } = await this.supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(5);

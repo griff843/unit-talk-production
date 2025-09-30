@@ -6,7 +6,8 @@
 
 import { config } from 'dotenv';
 
-import { supabaseClient } from '../services/supabaseClient';
+import { supabaseClient } from '../utils/supabaseUtils';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 config();
 
@@ -16,8 +17,9 @@ async function checkTableStructure() {
   
   try {
     // Get a sample of raw_props to see the actual columns
-    const { data: sampleProps, error } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: sampleProps, error } = await supabaseClient
+      .from('sports_game_odds')
       .select('*')
       .limit(2);
       
@@ -34,14 +36,16 @@ async function checkTableStructure() {
       console.log(Object.keys(sampleProps[0]).join(', '));
       
       console.log('\n📈 Total props count:');
+      const supabaseClient = requireSupabase();
       const { count } = await supabaseClient
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*', { count: 'exact', head: true });
       console.log(`Total: ${count} props`);
       
       // Check for props with grading data
+      const supabaseClient = requireSupabase();
       const { data: gradeableProps } = await supabaseClient
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('id, sport, player_name, stat_type, line, over_odds, under_odds')
         .not('line', 'is', null)
         .not('over_odds', 'is', null)
@@ -59,8 +63,9 @@ async function checkTableStructure() {
       }
       
       // Check if any props have edge scores
+      const supabaseClient = requireSupabase();
       const { data: gradedProps } = await supabaseClient
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('id, sport, player_name, edge_score, tier')
         .not('edge_score', 'is', null)
         .limit(5);
@@ -83,7 +88,8 @@ async function checkTableStructure() {
     console.log('\n🎯 CHECKING UNIFIED_PICKS TABLE');
     console.log('===============================');
     
-    const { data: unifiedPicks, error: unifiedError } = await supabaseClient
+    const supabaseClient = requireSupabase();
+      const { data: unifiedPicks, error: unifiedError } = await supabaseClient
       .from('unified_picks')
       .select('*')
       .limit(5);
@@ -94,6 +100,7 @@ async function checkTableStructure() {
       console.log('📊 Sample unified pick:');
       console.log(JSON.stringify(unifiedPicks[0], null, 2));
       
+      const supabaseClient = requireSupabase();
       const { count: unifiedCount } = await supabaseClient
         .from('unified_picks')
         .select('*', { count: 'exact', head: true });

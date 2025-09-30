@@ -9,8 +9,9 @@
 
 import { config } from 'dotenv';
 
-import { supabaseClient } from '../services/supabaseClient';
+import { supabaseClient } from '../utils/supabaseUtils';
 import { Logger } from '../shared/logger';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 // Load environment variables
 config();
@@ -25,8 +26,9 @@ async function analyzeDataQuality() {
     // 1. Sample data analysis
     console.log('\n📊 Step 1: Sample Data Analysis...');
     
-    const { data: sampleData, error: sampleError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: sampleData, error: sampleError } = await supabaseClient
+      .from('sports_game_odds')
       .select('*')
       .limit(20);
 
@@ -47,8 +49,9 @@ async function analyzeDataQuality() {
     // 2. Sport classification analysis
     console.log('\n🏈 Step 2: Sport Classification Issues...');
     
-    const { data: sportData, error: sportError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: sportData, error: sportError } = await supabaseClient
+      .from('sports_game_odds')
       .select('sport, player_name, stat_type, league, game_date')
       .limit(200);
 
@@ -74,8 +77,9 @@ async function analyzeDataQuality() {
     // 3. Player vs Team prop analysis
     console.log('\n👤 Step 3: Player vs Team Prop Classification...');
     
-    const { data: propData, error: propError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: propData, error: propError } = await supabaseClient
+      .from('sports_game_odds')
       .select('player_name, stat_type, sport')
       .limit(300);
 
@@ -104,8 +108,9 @@ async function analyzeDataQuality() {
     // 4. Data consistency check
     console.log('\n🔍 Step 4: Data Consistency Issues...');
     
-    const { data: consistencyData, error: consistencyError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: consistencyData, error: consistencyError } = await supabaseClient
+      .from('sports_game_odds')
       .select('sport, player_name, stat_type, over_odds, under_odds, line')
       .not('player_name', 'is', null)
       .limit(100);

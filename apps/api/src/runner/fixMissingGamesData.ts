@@ -10,6 +10,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -26,7 +27,8 @@ async function fixMissingGamesData() {
     const today = new Date().toISOString().split('T')[0];
     console.log('Date:', today);
     
-    const { data: existingGames, count: gameCount } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: existingGames, count: gameCount } = await supabase
       .from('games')
       .select('*', { count: 'exact' })
       .eq('game_date', today);
@@ -97,7 +99,8 @@ async function fixMissingGamesData() {
     console.log(`\n💾 Inserting ${gamesToInsert.length} games...`);
     
     // Insert games
-    const { data: insertedGames, error: insertError } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: insertedGames, error: insertError } = await supabase
       .from('games')
       .insert(gamesToInsert)
       .select('id, external_game_id, sport, home_team, away_team');
@@ -120,7 +123,8 @@ async function fixMissingGamesData() {
     
     // Verify final state
     console.log('\n🔍 Verifying final state...');
-    const { count: finalCount } = await supabase
+    const supabaseClient = requireSupabase();
+      const { count: finalCount } = await supabase
       .from('games')
       .select('*', { count: 'exact', head: true })
       .eq('game_date', today);
@@ -128,8 +132,9 @@ async function fixMissingGamesData() {
     console.log(`Final games count for today: ${finalCount || 0}`);
     
     // Check props can now link to games
-    const { data: sampleProps } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: sampleProps } = await supabase
+      .from('sports_game_odds')
       .select('external_game_id, sport')
       .eq('game_date', today)
       .limit(5);
@@ -138,11 +143,13 @@ async function fixMissingGamesData() {
       console.log('\nSample prop external_game_ids:', sampleProps.map(p => p.external_game_id));
       
       // Use a simpler approach to count linked props
+      const supabaseClient = requireSupabase();
       const { data: allTodayProps } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('external_game_id')
         .eq('game_date', today);
         
+      const supabaseClient = requireSupabase();
       const { data: todayGames } = await supabase
         .from('games')
         .select('external_game_id')

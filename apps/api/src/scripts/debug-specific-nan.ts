@@ -9,9 +9,10 @@
 
 import { config } from 'dotenv';
 
-import { SyndicateGradingEngine } from '../agents/GradingAgent/scoring/gradingEngine';
-import { supabaseClient } from '../services/supabaseClient';
+import { SyndicateGradingEngine } from '../agents/ScoringAgent/scoring/gradingEngine';
+import { supabaseClient } from '../utils/supabaseUtils';
 import { GradingFeatureSet } from '../types/GradingFeatureSet';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 config();
 
@@ -21,8 +22,9 @@ async function debugSpecificNaN() {
   
   try {
     // Get the specific LeBron James prop that's causing NaN
-    const { data: prop } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: prop } = await supabaseClient
+      .from('sports_game_odds')
       .select('*')
       .eq('id', '20d4f927-e069-4865-96b0-59e06d5629b8')
       .single();

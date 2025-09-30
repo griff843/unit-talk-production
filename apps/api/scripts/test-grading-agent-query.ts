@@ -11,9 +11,9 @@ import * as dotenv from 'dotenv';
 // Load environment variables
 dotenv.config();
 
-async function testGradingAgentQuery() {
+async function testScoringAgentQuery() {
   try {
-    console.log('🧪 Testing Grading Agent Database Query');
+    console.log('🧪 Testing Scoring Agent Database Query');
     console.log('=====================================');
 
     if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -27,7 +27,7 @@ async function testGradingAgentQuery() {
 
     console.log('🔍 Testing the exact grading agent query...');
 
-    // Test the exact query that was failing in GradingAgent.ts:293-294
+    // Test the exact query that was failing in ScoringAgent.ts:293-294
     const { data, error } = await supabase
       .from('raw_props')
       .select('*')
@@ -164,7 +164,7 @@ async function testGradingAgentQuery() {
 }
 
 // Execute the test
-testGradingAgentQuery().then(success => {
+testScoringAgentQuery().then(success => {
   if (success) {
     console.log('\n🚀 Ready to restart grading agent!');
     process.exit(0);

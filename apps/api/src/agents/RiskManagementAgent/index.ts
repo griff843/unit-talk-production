@@ -8,6 +8,7 @@ import { ParlayHedgeCalculator } from './parlayHedgeCalculator';
 import { PortfolioOptimizer } from './portfolioOptimizer';
 import { PositionSizer } from './positionSizer';
 import { RiskAnalyzer } from './riskAnalyzer';
+import { requireSupabase } from '../../utils/supabaseUtils';
 
 interface RiskManagementMetrics extends BaseMetrics {
   portfoliosAnalyzed: number;

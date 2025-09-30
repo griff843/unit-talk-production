@@ -1,6 +1,9 @@
 'use client';
 
 import React, { Suspense } from 'react';
+
+// Force dynamic rendering to prevent static generation issues
+export const dynamic = 'force-dynamic';
 import { CustomizableLayout } from '@/components/dashboard/CustomizableLayout';
 import { GuidedTour } from '@/components/onboarding/GuidedTour';
 import { ErrorBoundary } from '@/components/ErrorBoundary';

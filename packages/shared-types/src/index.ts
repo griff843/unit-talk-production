@@ -86,6 +86,6 @@ export interface WorkspaceApp {
   status: 'running' | 'stopped' | 'error';
 }
 
-export * from './agent';
-export * from './api';
-export * from './database';
+export * from './agent.js';
+export * from './api.js';
+export * from './database.js';

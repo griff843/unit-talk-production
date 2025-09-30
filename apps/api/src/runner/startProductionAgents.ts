@@ -2,7 +2,7 @@
  * Production Agent Orchestration Starter
  * 
  * Starts the core 5 agents for real-time production market processing:
- * - GradingAgent: Real-time prop grading and scoring
+ * - ScoringAgent: Real-time prop grading and scoring
  * - FeedAgent: Live market data ingestion 
  * - AlertAgent: Real-time Discord notifications
  * - RecapAgent: Daily/weekly performance summaries
@@ -13,10 +13,10 @@
 
 import { AlertAgent } from '../agents/AlertAgent';
 import { FeedAgent } from '../agents/FeedAgent';
-import { GradingAgent } from '../agents/GradingAgent';
+import { ScoringAgent } from '../agents/ScoringAgent';
 import { NotificationAgent } from '../agents/NotificationAgent';
 import { RecapAgent } from '../agents/RecapAgent';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabase } from '../utils/supabaseUtils';
 import { createLogger } from '../utils/logger';
 
 import type { BaseAgentConfig, BaseAgentDependencies } from '../agents/BaseAgent/types';
@@ -129,7 +129,7 @@ class ProductionAgentOrchestrator {
     console.log('🎯 Starting 5 core agents for real-time market processing...\n');
 
     const agentConfigs = [
-      { name: 'GradingAgent', class: GradingAgent, description: 'Real-time prop grading and scoring' },
+      { name: 'ScoringAgent', class: ScoringAgent, description: 'Real-time prop grading and scoring' },
       { name: 'FeedAgent', class: FeedAgent, description: 'Live market data ingestion' },
       { name: 'AlertAgent', class: AlertAgent, description: 'Real-time Discord notifications' },
       { name: 'RecapAgent', class: RecapAgent, description: 'Daily/weekly performance summaries' },
@@ -292,7 +292,7 @@ Production Agent Orchestration Starter
 Usage: npx tsx src/runner/startProductionAgents.ts [options]
 
 This starts the 5 core agents for real-time production operation:
-• GradingAgent: Real-time prop grading and scoring
+• ScoringAgent: Real-time prop grading and scoring
 • FeedAgent: Live market data ingestion
 • AlertAgent: Real-time Discord notifications  
 • RecapAgent: Daily/weekly performance summaries

@@ -13,7 +13,8 @@
 import 'dotenv/config';
 import { createLogger } from '../utils/logger';
 import { ShadowModeService } from '../shadow/ShadowMode';
-import { supabase as supabaseClient } from '../services/supabaseClient';
+import { supabase as supabaseClient } from '../utils/supabaseUtils';
+import { requireSupabase, supabaseClient } from '../utils/supabaseUtils';
 
 const logger = createLogger('shadow-invariants-validator');
 
@@ -102,6 +103,7 @@ class ShadowInvariantsValidator {
       });
 
       // INVARIANT 4: Verify shadow_decisions table receives data
+      const supabaseClient = requireSupabase();
       const { data: shadowData, error: shadowError } = await supabaseClient
         .from('shadow_decisions')
         .select('id, player, decided_action')
@@ -195,6 +197,7 @@ class ShadowInvariantsValidator {
 
     // INVARIANT 8: shadow_decisions table exists and is accessible
     try {
+      const supabaseClient = requireSupabase();
       const { data, error } = await supabaseClient
         .from('shadow_decisions')
         .select('id')
@@ -217,6 +220,7 @@ class ShadowInvariantsValidator {
 
     // INVARIANT 9: unified_picks table exists with required columns
     try {
+      const supabaseClient = requireSupabase();
       const { data, error } = await supabaseClient
         .from('unified_picks')
         .select('id, published, workflow_stage, user_id')
@@ -239,8 +243,9 @@ class ShadowInvariantsValidator {
 
     // INVARIANT 10: Professional grading columns exist
     try {
+      const supabaseClient = requireSupabase();
       const { data, error } = await supabaseClient
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('processed_at, pro_attempts, processing_error')
         .limit(1);
 
@@ -264,6 +269,7 @@ class ShadowInvariantsValidator {
       const cutoff = new Date();
       cutoff.setMinutes(cutoff.getMinutes() - 5); // Last 5 minutes
 
+      const supabaseClient = requireSupabase();
       const { data, error } = await supabaseClient
         .from('shadow_decisions')
         .select('id, player, decided_action, created_at')

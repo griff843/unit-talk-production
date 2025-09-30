@@ -130,10 +130,10 @@ export default function PicksHQPage() {
 
   const handleExportData = () => {
     const csvContent = [
-      'Capper,Sport,Player,Line,Odds,Tier,EV Score,Confidence,Status,ROI,Submitted',
+      'Capper,Sport,Player,Line,Odds,Tier,Professional Score,Kelly %,Devigged Edge %,Confidence,Status,ROI,Submitted',
       ...filteredPicks.map(
         pick =>
-          `${pick.capper},${pick.sport},${pick.player_name || pick.line},${pick.line},${pick.odds},${pick.tier},${pick.ev_score},${pick.confidence}%,${pick.status},${pick.roi || ''},${new Date(pick.submitted_at).toLocaleDateString()}`
+          `${pick.capper},${pick.sport},${pick.player_name || pick.line},${pick.line},${pick.odds},${pick.tier},${pick.professional_score?.toFixed(1) || '0'},${((pick.kelly_fraction || 0) * 100).toFixed(1)},${((pick.devigged_edge || 0) * 100).toFixed(1)},${pick.confidence}%,${pick.status},${pick.roi || ''},${new Date(pick.submitted_at).toLocaleDateString()}`
       ),
     ].join('\n');
 
@@ -160,7 +160,7 @@ export default function PicksHQPage() {
       icon: Clock,
     },
     {
-      title: 'Avg EV Score',
+      title: 'Avg Professional Score',
       value: loading ? '...' : stats.avgEvScore.toFixed(1),
       change: '+1.1',
       icon: TrendingUp,
@@ -358,7 +358,9 @@ export default function PicksHQPage() {
                         <TableHead>Sport</TableHead>
                         <TableHead>Pick Details</TableHead>
                         <TableHead>Tier</TableHead>
-                        <TableHead>EV Score</TableHead>
+                        <TableHead>Professional Score</TableHead>
+                        <TableHead>Kelly %</TableHead>
+                        <TableHead>Devigged Edge</TableHead>
                         <TableHead>Confidence</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>ROI</TableHead>
@@ -387,7 +389,24 @@ export default function PicksHQPage() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <span className="font-mono">{pick.ev_score?.toFixed(1) || '0.0'}</span>
+                            <div className="flex flex-col">
+                              <span className="font-mono font-bold text-lg">
+                                {pick.professional_score?.toFixed(1) || '0.0'}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                45-Factor
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-mono text-green-600">
+                              {((pick.kelly_fraction || 0) * 100).toFixed(1)}%
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-mono text-blue-600">
+                              {((pick.devigged_edge || 0) * 100).toFixed(1)}%
+                            </span>
                           </TableCell>
                           <TableCell>
                             <span className="font-mono">{pick.confidence || 50}%</span>

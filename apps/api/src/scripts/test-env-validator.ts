@@ -4,6 +4,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 
 import { env } from '../config/env';
 import { createLogger } from '../utils/logger';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 // import { Logger } from '../utils/logger'; // Unused
 
@@ -82,7 +83,8 @@ function validateEnvVar(varName: string, required: unknown): ValidationResult {
 async function validateSupabaseConnection(): Promise<ValidationResult> {
   try {
     const supabase = new SupabaseClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
-    const { data, error } = await supabase.from('agent_logs').select('count').limit(1);
+    const supabaseClient = requireSupabase();
+      const { data, error } = await supabase.from('agent_logs').select('count').limit(1);
 
     if (error) {
       return {

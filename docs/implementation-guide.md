@@ -238,13 +238,13 @@ const ReferralDashboard = () => {
 
 ## 🤖 **WEEK 3-4: AI/ML ENHANCEMENTS**
 
-### **Day 15-21: Enhanced GradingAgent**
+### **Day 15-21: Enhanced ScoringAgent**
 
 #### **8. Sport-Specific ML Models**
 
 ```python
 # File: /ml/sport_specific_models.py
-class SportSpecificGradingAgent:
+class SportSpecificScoringAgent:
     def __init__(self, sport):
         self.sport = sport
         self.model = self.load_sport_model(sport)
@@ -463,7 +463,7 @@ const cache = {
 - [ ] Deploy sport-specific ML models
 - [ ] Implement RBI backfill automation
 - [ ] Add real-time analytics
-- [ ] Enhance GradingAgent performance
+- [ ] Enhance ScoringAgent performance
 
 ### **Ongoing: Infrastructure**
 

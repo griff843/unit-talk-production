@@ -14,7 +14,7 @@
 
 import 'dotenv/config';
 import { createLogger } from '../utils/logger';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabase } from '../utils/supabaseUtils';
 import fs from 'fs/promises';
 import path from 'path';
 

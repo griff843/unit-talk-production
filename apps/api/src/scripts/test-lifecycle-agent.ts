@@ -10,8 +10,9 @@
 import { config } from 'dotenv';
 
 import { DataLifecycleAgent } from '../agents/DataLifecycleAgent';
-import { supabaseClient } from '../services/supabaseClient';
+import { supabaseClient } from '../utils/supabaseUtils';
 import { Logger } from '../shared/logger';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 // Load environment variables
 config();
@@ -62,8 +63,9 @@ async function testLifecycleAgent() {
     console.log('\n🔄 Step 5: Running test lifecycle cycle...');
     
     // Check if there are old props to archive
-    const { count: oldProps } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: oldProps } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .lt('game_date', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]) || { count: 0 };
 
@@ -115,19 +117,22 @@ async function analyzeCurrentState(): Promise<void> {
     console.log(`  🧊 Cold Tier (raw_props_historical): ${historicalCount} records`);
 
     // Analyze age distribution of hot tier
-    const { count: todayProps } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: todayProps } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .gte('game_date', new Date().toISOString().split('T')[0]) || { count: 0 };
 
-    const { count: yesterdayProps } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: yesterdayProps } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .gte('game_date', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0])
       .lt('game_date', new Date().toISOString().split('T')[0]) || { count: 0 };
 
-    const { count: olderProps } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: olderProps } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .lt('game_date', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]) || { count: 0 };
 
@@ -161,8 +166,9 @@ async function analyzePostProcessState(): Promise<void> {
     console.log(`  🧊 Cold Tier (raw_props_historical): ${historicalCount} records`);
 
     // Check for remaining old props
-    const { count: remainingOldProps } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: remainingOldProps } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .lt('game_date', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]) || { count: 0 };
 
@@ -179,7 +185,8 @@ async function analyzePostProcessState(): Promise<void> {
 
 async function getTableCount(tableName: string): Promise<number> {
   try {
-    const { count, error } = await supabaseClient
+    const supabaseClient = requireSupabase();
+      const { count, error } = await supabaseClient
       .from(tableName)
       .select('*', { count: 'exact', head: true });
 

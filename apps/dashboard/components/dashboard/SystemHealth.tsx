@@ -228,7 +228,7 @@ export function SystemHealth({ system }: SystemHealthProps) {
             </div>
             <span className="text-xs text-green-400">+2.3%</span>
           </div>
-          <Progress value={85} className="h-2" />
+          <Progress value={85} />
           <div className="text-xs text-gray-500 mt-1">System efficiency over last 24 hours</div>
         </div>
 

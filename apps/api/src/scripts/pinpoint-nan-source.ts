@@ -9,9 +9,10 @@
 
 import { config } from 'dotenv';
 
-import { SyndicateGradingEngine } from '../agents/GradingAgent/scoring/gradingEngine';
-import { supabaseClient } from '../services/supabaseClient';
+import { SyndicateGradingEngine } from '../agents/ScoringAgent/scoring/gradingEngine';
+import { supabaseClient } from '../utils/supabaseUtils';
 import { GradingFeatureSet } from '../types/GradingFeatureSet';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 config();
 
@@ -21,8 +22,9 @@ async function pinpointNaNSource() {
   
   try {
     // Get NBA prop that produces NaN
-    const { data: nbaProps } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: nbaProps } = await supabaseClient
+      .from('sports_game_odds')
       .select('*')
       .eq('sport', 'NBA')
       .limit(1);

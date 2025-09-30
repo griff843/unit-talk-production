@@ -5,7 +5,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { createLogger } from '../src/utils/logger';
 import { getEnv } from '../src/utils/getEnv';
-import { SyndicateGradingEngine } from '../src/agents/GradingAgent/scoring/gradingEngine';
+import { SyndicateGradingEngine } from '../src/agents/ScoringAgent/scoring/gradingEngine';
 
 const env = getEnv();
 const logger = createLogger('ProfessionalFeatureValidator');

@@ -14,7 +14,7 @@ import * as baseActivities from '../agents/BaseAgent/activities';
 import * as campaignActivities from '../agents/CampaignAgent/activities';
 import * as contestActivities from '../agents/ContestAgent/activities';
 import * as feedActivities from '../agents/FeedAgent/activities';
-import * as gradingActivities from '../agents/GradingAgent/activities';
+import * as scoringActivities from '../agents/ScoringAgent/activities';
 import * as notificationActivities from '../agents/NotificationAgent/activities';
 import * as operatorActivities from '../agents/OperatorAgent/activities';
 import * as performanceOptimizationActivities from '../agents/PerformanceOptimizationAgent/activities';
@@ -49,7 +49,7 @@ export default async function startAllAgents() {
       totalAgents: 13,
       reductionPercentage: '52%',
       businessAgents: [
-        'GradingAgent',      // Professional pick scoring with ML ensemble
+        'ScoringAgent',      // Professional pick scoring with ML ensemble
         'AnalyticsAgent',    // Performance insights and data analysis
         'AlertAgent',        // Real-time notifications and Discord alerts
         'FeedAgent',         // Optimal dual-API data ingestion
@@ -85,7 +85,7 @@ export default async function startAllAgents() {
         ...auditActivities,
         ...contestActivities,
         ...feedActivities,
-        ...gradingActivities,
+        ...scoringActivities,
         ...notificationActivities,
         ...operatorActivities,
         ...playerEnrichmentActivities,

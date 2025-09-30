@@ -10,7 +10,7 @@
  */
 
 import { ProfessionalPropProcessor } from '../services/ProfessionalPropProcessor';
-import { supabase } from '../services/supabaseClient';
+import { requireSupabase } from '../utils/supabaseUtils';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('gradeProps');
@@ -23,8 +23,9 @@ async function main() {
     const professionalProcessor = ProfessionalPropProcessor.getInstance();
     
     // Get ungraded raw props (the source of all picks)
-    const { data: rawProps, error } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: rawProps, error } = await supabase
+      .from('sports_game_odds')
       .select('*')
       .is('processed_at', null)
       .eq('is_valid', true)  // Use is_valid instead of status
@@ -43,6 +44,16 @@ async function main() {
     logger.info(`Found ${rawProps.length} raw props for professional grading`);
 
     // Process through professional system
+    logger.info('About to call processRawProps with config:', {
+      max_batch_size: rawProps.length,
+      timeout_ms: 60000,
+      sample_prop: rawProps[0] ? {
+        id: rawProps[0].id,
+        sport: rawProps[0].sport,
+        player: rawProps[0].player_name
+      } : 'No props found'
+    });
+    
     const results = await professionalProcessor.processRawProps({
       max_batch_size: rawProps.length,
       timeout_ms: 60000 // 60 second timeout for batch

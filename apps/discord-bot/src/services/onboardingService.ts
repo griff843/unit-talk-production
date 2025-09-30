@@ -35,11 +35,15 @@ export class OnboardingService {
    * Handle user onboarding with user type detection and personalization
    */
   async handleUserOnboarding(user: User, tier: string, testMode: boolean = false): Promise<void> {
+    // Allow global override via env for test runs
+    const forcedTestMode = String(process.env.ONBOARDING_TEST_MODE || '').toLowerCase() === 'true';
+    const effectiveTestMode = testMode || forcedTestMode;
+
     logger.info('[ONBOARDING] handleUserOnboarding called', {
       userId: user.id,
       username: user.username,
       tier,
-      testMode,
+      testMode: effectiveTestMode,
     });
     try {
       logger.info(`Starting onboarding for ${user.username} (${tier})`);
@@ -70,23 +74,22 @@ export class OnboardingService {
       logger.info('[ONBOARDING] Tracking onboarding start', { userId: user.id, tier });
       await this.trackOnboardingStart(user.id, tier);
 
-      if (testMode) {
+      if (effectiveTestMode) {
         logger.info('[ONBOARDING] Test mode enabled, sending all messages immediately', {
           userId: user.id,
         });
         // In test mode, send all messages immediately with 2-second intervals
         await this.sendTestSequence(user, sequence);
+        // In test mode we complete immediately after sending
+        logger.info('[ONBOARDING] Tracking onboarding completion (test mode)', { userId: user.id, tier });
+        await this.trackOnboardingComplete(user.id, tier);
+        logger.info('[ONBOARDING] Onboarding completed successfully (test mode)', { userId: user.id, tier });
       } else {
-        logger.info('[ONBOARDING] Normal mode, sending sequence with delays', { userId: user.id });
-        // Normal mode with proper delays
+        logger.info('[ONBOARDING] Normal mode, scheduling sequence with delays', { userId: user.id });
+        // Normal mode: schedule messages (cancellable) and return immediately
         await this.sendSequenceWithDelays(user, sequence);
+        // Completion is tracked when the final scheduled message is sent
       }
-
-      // Track onboarding completion
-      logger.info('[ONBOARDING] Tracking onboarding completion', { userId: user.id, tier });
-      await this.trackOnboardingComplete(user.id, tier);
-
-      logger.info('[ONBOARDING] Onboarding completed successfully', { userId: user.id, tier });
     } catch (error) {
       logger.error('[ONBOARDING] Error in handleUserOnboarding', {
         error: error instanceof Error ? error.message : String(error),
@@ -931,97 +934,107 @@ export class OnboardingService {
   }
 
   /**
-   * Send sequence with proper delays
+   * Schedule sequence with proper delays (cancellable)
+   * Each message's delay is treated as the time offset (in seconds) from sequence start
    */
   private async sendSequenceWithDelays(user: User, sequence: OnboardingSequence): Promise<void> {
-    logger.info('[ONBOARDING] sendSequenceWithDelays called', {
+    logger.info('[ONBOARDING] sendSequenceWithDelays (scheduler) called', {
       userId: user.id,
       tier: sequence.tier,
       messageCount: sequence.messages.length,
     });
-    try {
-      for (const [i, message] of sequence.messages.entries()) {
-        logger.info('[ONBOARDING] Preparing to send onboarding message', {
+
+    // Initialize/replace active timeouts for this user
+    this.activeSequences.set(user.id, []);
+
+    const addTimeout = (t: NodeJS.Timeout) => {
+      const arr = this.activeSequences.get(user.id) || [];
+      arr.push(t);
+      this.activeSequences.set(user.id, arr);
+    };
+
+    const sendOne = async (i: number) => {
+      const message = sequence.messages[i];
+      logger.info('[ONBOARDING] Preparing to send onboarding message', {
+        userId: user.id,
+        tier: sequence.tier,
+        messageIndex: i,
+        embedTitle: message.embed.data.title,
+        hasComponents: !!message.components,
+        delay: message.delay,
+      });
+
+      const content = { embeds: [message.embed], components: message.components || undefined };
+      try {
+        logger.info('[ONBOARDING] Attempting direct DM', {
           userId: user.id,
           tier: sequence.tier,
           messageIndex: i,
-          embedTitle: message.embed.data.title,
-          hasComponents: !!message.components,
-          delay: message.delay,
         });
-        try {
-          const content = { embeds: [message.embed], components: message.components || undefined };
-          try {
-            logger.info('[ONBOARDING] Attempting direct DM', {
-              userId: user.id,
-              tier: sequence.tier,
-              messageIndex: i,
-            });
-            const dmChannel = await user.createDM();
-            await dmChannel.send(content);
-            logger.info('[ONBOARDING] Successfully sent onboarding DM directly', {
-              userId: user.id,
-              tier: sequence.tier,
-              messageIndex: i,
-            });
-          } catch (dmError) {
-            logger.warn('[ONBOARDING] Direct DM failed, trying through DMService', {
-              userId: user.id,
-              tier: sequence.tier,
-              messageIndex: i,
-              error: dmError instanceof Error ? dmError.message : String(dmError),
-            });
-            const sent = await this.dmService.sendTierBasedDM(
-              user.id,
-              sequence.tier as UserTier,
-              'onboarding',
-              content,
-              { delay: 0, priority: 'high', bypassTierCheck: true }
-            );
-            if (sent) {
-              logger.info('[ONBOARDING] Successfully sent onboarding DM via DMService', {
-                userId: user.id,
-                tier: sequence.tier,
-                messageIndex: i,
-              });
-            } else {
-              logger.error('[ONBOARDING] Failed to send onboarding DM via DMService', {
-                userId: user.id,
-                tier: sequence.tier,
-                messageIndex: i,
-              });
-            }
-          }
-          const delay = message.delay || 2;
-          logger.info('[ONBOARDING] Waiting before next onboarding message', {
+        const dmChannel = await user.createDM();
+        await dmChannel.send(content);
+        logger.info('[ONBOARDING] Successfully sent onboarding DM directly', {
+          userId: user.id,
+          tier: sequence.tier,
+          messageIndex: i,
+        });
+      } catch (dmError) {
+        logger.warn('[ONBOARDING] Direct DM failed, trying through DMService', {
+          userId: user.id,
+          tier: sequence.tier,
+          messageIndex: i,
+          error: dmError instanceof Error ? dmError.message : String(dmError),
+        });
+        const sent = await this.dmService.sendTierBasedDM(
+          user.id,
+          sequence.tier as UserTier,
+          'onboarding',
+          content,
+          { delay: 0, priority: 'high', bypassTierCheck: true }
+        );
+        if (sent) {
+          logger.info('[ONBOARDING] Successfully sent onboarding DM via DMService', {
             userId: user.id,
             tier: sequence.tier,
             messageIndex: i,
-            delay,
           });
-          await new Promise(resolve => setTimeout(resolve, delay * 1000));
-        } catch (error) {
-          logger.error('[ONBOARDING] Failed to send onboarding message', {
-            error: error instanceof Error ? error.message : String(error),
-            stack: error instanceof Error ? error.stack : undefined,
+        } else {
+          logger.error('[ONBOARDING] Failed to send onboarding DM via DMService', {
             userId: user.id,
             tier: sequence.tier,
             messageIndex: i,
           });
         }
       }
-      logger.info('[ONBOARDING] Completed sending onboarding sequence', {
-        userId: user.id,
-        tier: sequence.tier,
-      });
-    } catch (error) {
-      logger.error('[ONBOARDING] Failed to send sequence', {
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        userId: user.id,
-        tier: sequence.tier,
-      });
-    }
+
+      // If this is the last message, track completion and clean up
+      if (i === sequence.messages.length - 1) {
+        try {
+          logger.info('[ONBOARDING] Tracking onboarding completion (scheduled)', { userId: user.id, tier: sequence.tier });
+          await this.trackOnboardingComplete(user.id, sequence.tier);
+        } catch (e) {
+          logger.warn('[ONBOARDING] Failed to track completion (scheduled)', { error: (e as Error).message });
+        }
+        // Clean up stored timeouts for this user
+        this.activeSequences.delete(user.id);
+        logger.info('[ONBOARDING] Completed sending onboarding sequence', {
+          userId: user.id,
+          tier: sequence.tier,
+        });
+      }
+    };
+
+    // Schedule each message at its absolute delay from now
+    sequence.messages.forEach((message, i) => {
+      const delaySec = Math.max(0, message.delay ?? 0);
+      const t = setTimeout(() => {
+        // If the user was cancelled and timeouts cleared, skip execution
+        const stillActive = this.activeSequences.has(user.id);
+        if (!stillActive) return;
+        void sendOne(i);
+      }, delaySec * 1000);
+      addTimeout(t);
+    });
   }
 
   /**

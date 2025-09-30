@@ -1,0 +1,125 @@
+{
+  "routing_version": "2025.09.23",
+  "last_updated": "2025-09-23T23:35:00Z",
+  "routing_strategy": "dual_api_elite",
+  "providers": {
+    "optimal_api": {
+      "name": "Optimal API",
+      "cost_per_month": 69,
+      "primary_sports": ["nfl", "nba", "mlb", "nhl"],
+      "capabilities": {
+        "player_props": true,
+        "live_updates": true,
+        "settlement": false,
+        "update_frequency_seconds": 60,
+        "rate_limit_per_minute": 100
+      },
+      "endpoints": {
+        "base_url": "https://api.optimal-api.com/v1",
+        "props": "/props/{sport}",
+        "live": "/live/{sport}",
+        "health": "/health"
+      },
+      "auth_method": "api_key",
+      "priority": 1
+    },
+    "odds_api": {
+      "name": "The Odds API",
+      "cost_per_month": 49,
+      "primary_sports": ["ncaaf", "wnba"],
+      "secondary_sports": ["nfl", "nba", "mlb", "nhl"],
+      "capabilities": {
+        "player_props": true,
+        "live_updates": true,
+        "settlement": true,
+        "update_frequency_seconds": 60,
+        "rate_limit_per_minute": 500
+      },
+      "endpoints": {
+        "base_url": "https://api.theoddsapi.com/v4",
+        "props": "/sports/{sport}/odds",
+        "live": "/sports/{sport}/scores",
+        "settlement": "/sports/{sport}/scores",
+        "health": "/sports"
+      },
+      "auth_method": "api_key",
+      "priority": 2
+    }
+  },
+  "routing_rules": {
+    "nfl": {
+      "primary": "optimal_api",
+      "fallback": "odds_api",
+      "settlement": "odds_api",
+      "reason": "Optimal API best for NFL props, Odds API for settlement"
+    },
+    "nba": {
+      "primary": "optimal_api",
+      "fallback": "odds_api",
+      "settlement": "odds_api",
+      "reason": "Optimal API best for NBA props, Odds API for settlement"
+    },
+    "mlb": {
+      "primary": "optimal_api",
+      "fallback": "odds_api",
+      "settlement": "odds_api",
+      "reason": "Optimal API best for MLB props, Odds API for settlement"
+    },
+    "nhl": {
+      "primary": "optimal_api",
+      "fallback": "odds_api",
+      "settlement": "odds_api",
+      "reason": "Optimal API best for NHL props, Odds API for settlement"
+    },
+    "ncaaf": {
+      "primary": "odds_api",
+      "fallback": null,
+      "settlement": "odds_api",
+      "reason": "Exclusive NCAAF coverage via Odds API"
+    },
+    "wnba": {
+      "primary": "odds_api",
+      "fallback": null,
+      "settlement": "odds_api",
+      "reason": "WNBA coverage via Odds API"
+    }
+  },
+  "failover_strategy": {
+    "max_retries": 3,
+    "retry_delay_ms": 1000,
+    "circuit_breaker": {
+      "failure_threshold": 5,
+      "reset_timeout_ms": 60000,
+      "half_open_max_calls": 3
+    },
+    "fallback_behavior": "use_secondary_provider"
+  },
+  "monitoring": {
+    "health_check_interval_seconds": 30,
+    "sla_targets": {
+      "uptime_percent": 99.5,
+      "response_time_ms": 2000,
+      "error_rate_percent": 1.0
+    },
+    "alerts": {
+      "provider_down": true,
+      "high_latency": true,
+      "rate_limit_hit": true,
+      "settlement_delay": true
+    }
+  },
+  "cost_tracking": {
+    "monthly_budget": 150,
+    "optimal_api_allocation": 69,
+    "odds_api_allocation": 49,
+    "buffer_allocation": 32
+  },
+  "validation": {
+    "total_providers": 2,
+    "total_sports_covered": 6,
+    "exclusive_sports": ["ncaaf", "wnba"],
+    "dual_coverage_sports": ["nfl", "nba", "mlb", "nhl"],
+    "settlement_coverage": "odds_api_exclusive",
+    "routing_completeness": "100%"
+  }
+}

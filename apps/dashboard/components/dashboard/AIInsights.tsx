@@ -26,7 +26,7 @@ interface AIInsightsProps {
   ai: AI;
 }
 
-export function AIInsights({ _ai }: { ai: AI }) {
+export function AIInsights({ ai }: { ai: AI }) {
   return (
     <div className="space-y-6">
       <Card className="bg-black/20 backdrop-blur-sm border-gray-800">

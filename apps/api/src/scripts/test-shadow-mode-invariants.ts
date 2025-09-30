@@ -17,10 +17,11 @@ import { createLogger } from '../utils/logger';
 import { ShadowModeValidator } from '../shadow/ShadowModeValidator';
 import { ShadowModeService } from '../shadow/ShadowMode';
 import { PublishGuardService } from '../promotion/PublishGuard';
-import { supabase as supabaseClient } from '../services/supabaseClient';
+import { supabase as supabaseClient } from '../utils/supabaseUtils';
 
 import type { ShadowPick, ShadowAction } from '../shadow/ShadowMode';
 import type { PromotionDecision, PublishOptions } from '../promotion/PublishGuard';
+import { requireSupabase, supabaseClient } from '../utils/supabaseUtils';
 
 const logger = createLogger('shadow-mode-test');
 
@@ -133,6 +134,7 @@ class ShadowModeInvariantsTester {
 
     try {
       // Test shadow_decisions table
+      const supabaseClient = requireSupabase();
       const { data: shadowData, error: shadowError } = await supabaseClient
         .from('shadow_decisions')
         .select('id, sport, player, decided_action, created_at')
@@ -146,6 +148,7 @@ class ShadowModeInvariantsTester {
       });
 
       // Test unified_picks table with required columns
+      const supabaseClient = requireSupabase();
       const { data: unifiedData, error: unifiedError } = await supabaseClient
         .from('unified_picks')
         .select('id, published, stage, grading_status, promoted_at')
@@ -159,8 +162,9 @@ class ShadowModeInvariantsTester {
       });
 
       // Test professional grading columns
+      const supabaseClient = requireSupabase();
       const { data: rawPropsData, error: rawPropsError } = await supabaseClient
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('id, processed_at, pro_attempts, processing_error')
         .limit(1);
 
@@ -454,8 +458,9 @@ class ShadowModeInvariantsTester {
   private async testDatabaseHealth(): Promise<void> {
     try {
       // Simple connection test
+      const supabaseClient = requireSupabase();
       const { data, error } = await supabaseClient
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('id')
         .limit(1);
 

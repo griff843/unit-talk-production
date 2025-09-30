@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -71,8 +72,9 @@ async function testFixedOptimalIntegration() {
       const testProp = propsWithOdds[0];
       console.log(`   Testing insert of: ${testProp.player_name} ${testProp.stat_type} ${testProp.line}`);
       
+      const supabaseClient = requireSupabase();
       const { data: insertedProp, error: insertError } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .insert([{
           ...testProp,
           id: `test-${Date.now()}`, // Unique test ID
@@ -88,7 +90,8 @@ async function testFixedOptimalIntegration() {
         console.log(`   ✅ Successfully inserted test prop: ${insertedProp.id}`);
         
         // Clean up test prop
-        await supabase.from('raw_props').delete().eq('id', insertedProp.id);
+        const supabaseClient = requireSupabase();
+    await supabase.from('sports_game_odds').delete().eq('id', insertedProp.id);
         console.log(`   🧹 Cleaned up test prop`);
       }
     }

@@ -2,21 +2,31 @@
 const nextConfig = {
   reactStrictMode: true,
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   eslint: {
     ignoreDuringBuilds: true,
   },
-
-  // Performance optimizations
+  
+  // Disable static generation completely to fix export issues
+  output: 'standalone',
+  
+  // Disable experimental features that cause prerendering issues
   experimental: {
-    optimizePackageImports: [
-      '@radix-ui/react-icons',
-      'lucide-react',
-      '@hello-pangea/dnd',
-      'recharts',
-    ],
+    // missingSuspenseWithCSRBailout: false,
   },
+
+  // Performance optimizations - Temporarily disabled to fix Html import issue
+  // experimental: {
+  //   optimizePackageImports: [
+  //     '@radix-ui/react-icons',
+  //     'lucide-react',
+  //     '@hello-pangea/dnd',
+  //     'recharts',
+  //     '@tanstack/react-query',
+  //     'zustand',
+  //   ],
+  // },
 
   // Bundle optimization
   webpack: (config, { isServer }) => {

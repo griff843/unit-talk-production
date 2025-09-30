@@ -12,8 +12,9 @@ import { config } from 'dotenv';
 
 import { createBaseAgentConfig } from '../agents/BaseAgent/config';
 import { FeedAgent } from '../agents/FeedAgent';
-import { supabaseClient } from '../services/supabaseClient';
+import { supabaseClient } from '../utils/supabaseUtils';
 import { Logger } from '../shared/logger';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 config();
 
@@ -110,8 +111,9 @@ async function testUpdatedFeedAgent() {
     console.log('====================================');
     
     // Test database connectivity
-    const { error: dbError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { error: dbError } = await supabaseClient
+      .from('sports_game_odds')
       .select('id')
       .limit(1);
     
@@ -122,8 +124,9 @@ async function testUpdatedFeedAgent() {
     }
 
     // Check recent props to see if unified routing is working
-    const { data: recentProps, error: propsError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: recentProps, error: propsError } = await supabaseClient
+      .from('sports_game_odds')
       .select('source, fetched_via, sport, player_name, created_at')
       .order('created_at', { ascending: false })
       .limit(5);

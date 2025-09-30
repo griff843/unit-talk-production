@@ -54,7 +54,7 @@ async function validatePipeline() {
       console.log(`     Kelly: ${samplePick.kelly_fraction}`);
       console.log(`     Edge: ${samplePick.devigged_edge}%`);
     } else {
-      console.log('❌ NO PROFESSIONALLY GRADED PICKS - GradingAgent not processing new data');
+      console.log('❌ NO PROFESSIONALLY GRADED PICKS - ScoringAgent not processing new data');
     }
     
     // Check bridge_outbox for workflow events
@@ -101,8 +101,8 @@ async function validatePipeline() {
     
     if (newRawProps.length > 0 && newGradedPicks.length === 0) {
       console.log('\n🚨 CRITICAL ISSUE: Props ingested but not professionally graded');
-      console.log('   ➡️ GradingAgent needs to be triggered or scheduled');
-      console.log('   ➡️ Check GradingAgent configuration and execution');
+      console.log('   ➡️ ScoringAgent needs to be triggered or scheduled');
+      console.log('   ➡️ Check ScoringAgent configuration and execution');
       return false;
     }
     
@@ -135,9 +135,9 @@ validatePipeline().then(result => {
   if (result) {
     console.log('\n🎯 NEXT ACTIONS NEEDED:');
     if (result.rawProps > 0 && result.gradedPicks === 0) {
-      console.log('1. ⚡ URGENT: Trigger GradingAgent to process the 9,557 new props');
+      console.log('1. ⚡ URGENT: Trigger ScoringAgent to process the 9,557 new props');
       console.log('2. 🔧 Fix NCAAF routing to use Odds API instead of Optimal API');
-      console.log('3. ✅ Validate complete pipeline: FeedAgent → GradingAgent → Command Center');
+      console.log('3. ✅ Validate complete pipeline: FeedAgent → ScoringAgent → Command Center');
     } else if (result.pipelineHealthy) {
       console.log('1. ✅ Pipeline working! Now optimize and schedule automatic execution');
       console.log('2. 🔧 Fix NCAAF routing for complete sports coverage');

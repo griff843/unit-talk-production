@@ -92,7 +92,7 @@ Execute health checks on-demand via the API:
 
 **Executes sequentially:**
 1. `scripts/ops/health-temporal.ts`
-2. `scripts/ops/health-api.ts`  
+2. `scripts/ops/health-api.ts`
 3. `scripts/ops/health-worker.ts`
 4. `scripts/ops/db-preflight.ts`
 
@@ -244,7 +244,7 @@ All components are Windows-safe:
 
 **Problem**: "No data yet — run ops checks" message
 
-**Solution**: 
+**Solution**:
 ```bash
 npm run ops:health
 ```
@@ -253,7 +253,7 @@ npm run ops:health
 
 **Problem**: Yellow "Using Local Stub" warning
 
-**Solution**: 
+**Solution**:
 - Verify OPS_API_KEY is set
 - Check API service is running
 - Confirm `/api/ops/alerts` endpoints exist
@@ -286,3 +286,33 @@ Potential improvements for future iterations:
 4. **Batch Operations**: Bulk alert policy management
 5. **Export/Import**: Configuration backup/restore
 6. **Dashboard Customization**: User-defined layouts
+
+## Settlement Panel
+
+A dedicated panel for monitoring and controlling the settlement system.
+
+Features:
+- Real-time unsettled counts (global and per-league: MLB, NFL, NBA, NCAAF, NCAAB, WNBA)
+- Per-league progress bars and global total indicator
+- Current job progress bar (via /api/settlement/status)
+- Job history table (last 5 runs: league, date range, settled %, errors)
+- Controls to trigger backfill (league/date range), toggle dryRun/force, set batch/rate, and cancel running jobs
+
+Endpoints used (via Command Center API proxies):
+- GET /api/settlement/summary
+- GET /api/settlement/jobs
+- POST /api/settlement/start
+- GET /api/settlement/status?jobId=...
+- POST /api/settlement/cancel
+
+Screenshots: see docs/screenshots (to be updated)
+
+Usage (in a page or panel):
+
+```tsx
+import SettlementPanel from '@/components/SettlementPanel'
+
+export default function Page() {
+  return <SettlementPanel />
+}
+```

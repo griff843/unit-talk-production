@@ -3,10 +3,11 @@
  * Manages pick promotion through Instant vs 10am lanes with comprehensive validation
  */
 
-import { createHash } from 'crypto';
+// import { createHash } from 'crypto'; // Unused import
 import { Logger } from '../shared/logger';
 import { supabaseClient } from './supabaseClient';
 import { publishGuard } from '../promotion/PublishGuard';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 export interface PromotionGate {
   gateId: string;
@@ -550,7 +551,12 @@ class PromotionGatekeeper {
    */
   private async storePromotionDecision(pick: PickForPromotion, decision: PromotionDecision): Promise<void> {
     try {
-      await supabaseClient
+      if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+      }
+      
+      const supabaseClient = requireSupabase();
+    await supabaseClient
         .from('promotion_decisions')
         .insert({
           pick_id: pick.id,
@@ -601,7 +607,7 @@ class PromotionGatekeeper {
   /**
    * Get promotion statistics
    */
-  public async getPromotionStats(timeframe: 'day' | 'week' | 'month' = 'day'): Promise<{
+  public async getPromotionStats(_timeframe: 'day' | 'week' | 'month' = 'day'): Promise<{
     totalEvaluated: number;
     approved: number;
     rejected: number;

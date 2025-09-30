@@ -1,0 +1,618 @@
+# Unit Talk Platform - Phase 8 Production Deployment
+# Real-Time Scoring Pipeline for Syndicate-Level ML Betting System
+# Target: 1000+ props/hour with <2s latency
+
+version: '3.8'
+
+services:
+  # ==============================================
+  # PRODUCTION DATABASE LAYER
+  # ==============================================
+
+  # Primary PostgreSQL Database with Production Optimizations
+  postgres-primary:
+    image: postgres:15-alpine
+    container_name: unit-talk-postgres-primary
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-unit_talk_prod}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+      # Production PostgreSQL optimizations
+      POSTGRES_SHARED_BUFFERS: 256MB
+      POSTGRES_EFFECTIVE_CACHE_SIZE: 1GB
+      POSTGRES_MAINTENANCE_WORK_MEM: 64MB
+      POSTGRES_CHECKPOINT_COMPLETION_TARGET: 0.7
+      POSTGRES_WAL_BUFFERS: 16MB
+      POSTGRES_DEFAULT_STATISTICS_TARGET: 100
+    volumes:
+      - postgres_production_data:/var/lib/postgresql/data
+      - ./config/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ./config/postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+    command: >
+      postgres
+      -c config_file=/etc/postgresql/postgresql.conf
+      -c shared_preload_libraries=pg_stat_statements
+      -c log_statement=all
+      -c log_min_duration_statement=1000
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-unit_talk_prod}"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - production-network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2.0'
+        reservations:
+          memory: 1G
+          cpus: '1.0'
+
+  # PostgreSQL Read Replica for Load Distribution
+  postgres-replica:
+    image: postgres:15-alpine
+    container_name: unit-talk-postgres-replica
+    restart: always
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-unit_talk_prod}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_REPLICA_USER: ${POSTGRES_REPLICA_USER:-replicator}
+      POSTGRES_REPLICA_PASSWORD: ${POSTGRES_REPLICA_PASSWORD}
+      POSTGRES_MASTER_SERVICE: postgres-primary
+      POSTGRES_MASTER_PORT: 5432
+    volumes:
+      - postgres_replica_production_data:/var/lib/postgresql/data
+      - ./scripts/postgres-replica-setup.sh:/docker-entrypoint-initdb.d/setup-replica.sh:ro
+    depends_on:
+      postgres-primary:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-unit_talk_prod}"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks:
+      - production-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+
+  # Production Redis Cluster for High-Performance Caching
+  redis-primary:
+    image: redis:7-alpine
+    container_name: unit-talk-redis-primary
+    restart: always
+    ports:
+      - "6379:6379"
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 1gb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --tcp-keepalive 300
+      --timeout 0
+      --databases 16
+      --maxclients 10000
+    volumes:
+      - redis_production_data:/data
+      - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - production-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+
+  # ==============================================
+  # PRODUCTION TEMPORAL ORCHESTRATION
+  # ==============================================
+
+  # Temporal Production Database
+  temporal-postgres:
+    image: postgres:13
+    container_name: unit-talk-temporal-prod-db
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: ${TEMPORAL_POSTGRES_PASSWORD:-temporal_prod}
+      POSTGRES_USER: ${TEMPORAL_POSTGRES_USER:-temporal}
+      POSTGRES_DB: ${TEMPORAL_POSTGRES_DB:-temporal}
+    volumes:
+      - temporal_postgres_production_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${TEMPORAL_POSTGRES_USER:-temporal}"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - production-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+
+  # Production Temporal Server with Auto-Setup
+  temporal:
+    image: temporalio/auto-setup:1.20.0
+    container_name: unit-talk-temporal-prod
+    restart: always
+    depends_on:
+      temporal-postgres:
+        condition: service_healthy
+    ports:
+      - "7233:7233"
+    environment:
+      - DB=postgresql
+      - DB_PORT=5432
+      - POSTGRES_USER=${TEMPORAL_POSTGRES_USER:-temporal}
+      - POSTGRES_PWD=${TEMPORAL_POSTGRES_PASSWORD:-temporal_prod}
+      - POSTGRES_SEEDS=temporal-postgres
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/production-sql.yaml
+      - NUM_HISTORY_SHARDS=512
+      - TEMPORAL_BROADCAST_ADDRESS=0.0.0.0
+    volumes:
+      - ./config/temporal/production:/etc/temporal/config/dynamicconfig
+    networks:
+      - production-network
+    healthcheck:
+      test: ["CMD", "sh", "-c", "temporal operator cluster health --address temporal:7233 2>/dev/null | grep -q SERVING"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2.0'
+        reservations:
+          memory: 1G
+          cpus: '1.0'
+
+  # ==============================================
+  # PRODUCTION API & SCORING PIPELINE
+  # ==============================================
+
+  # Main API Platform - Production Optimized
+  api:
+    build:
+      context: .
+      dockerfile: ./apps/api/Dockerfile
+      target: production
+    container_name: unit-talk-api-prod
+    restart: always
+    ports:
+      - "3000:3000"
+      - "9464:9464"  # Metrics port
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres-primary:5432/${POSTGRES_DB:-unit_talk_prod}
+      - DATABASE_READ_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres-replica:5432/${POSTGRES_DB:-unit_talk_prod}
+      - REDIS_URL=redis://redis-primary:6379
+      - TEMPORAL_SERVER_URL=temporal:7233
+      - PROMETHEUS_ENABLED=true
+      - PROMETHEUS_PORT=9464
+      - START_TEMPORAL_WORKER=true
+      - LOG_LEVEL=info
+      - HEALTH_CHECK_INTERVAL=15000
+      # Enhanced 45-Factor Scoring System
+      - USE_ENHANCED_45_FACTOR=true
+      - USE_PRO_SCORER=true
+      - USE_PARALLEL_PROCESSING=true
+      - SCORING_DEBUG=false
+      # Production API Keys
+      - OPTIMAL_API_KEY=${OPTIMAL_API_KEY}
+      - ODDS_API_KEY=${ODDS_API_KEY}
+      # Performance optimizations
+      - NODE_OPTIONS=--max-old-space-size=2048
+      - UV_THREADPOOL_SIZE=128
+    volumes:
+      - ./apps/api/logs:/app/logs
+      - api_production_data:/app/data
+    depends_on:
+      postgres-primary:
+        condition: service_healthy
+      redis-primary:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - production-network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2.0'
+        reservations:
+          memory: 1G
+          cpus: '1.0'
+
+  # Production Temporal Workers - Scaled for High Throughput
+  workers-scoring:
+    build:
+      context: .
+      dockerfile: ./apps/api/Dockerfile
+      target: production
+    container_name: unit-talk-workers-scoring
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres-primary:5432/${POSTGRES_DB:-unit_talk_prod}
+      - DATABASE_READ_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres-replica:5432/${POSTGRES_DB:-unit_talk_prod}
+      - REDIS_URL=redis://redis-primary:6379
+      - TEMPORAL_SERVER_URL=temporal:7233
+      - WORKER_MODE=true
+      - WORKER_TYPE=scoring
+      - LOG_LEVEL=info
+      - NODE_OPTIONS=--max-old-space-size=1024
+      # Enhanced Scoring Configuration
+      - USE_ENHANCED_45_FACTOR=true
+      - USE_PRO_SCORER=true
+      - USE_PARALLEL_PROCESSING=true
+      - BATCH_SIZE=50
+      - CONCURRENT_WORKERS=4
+      # API Keys
+      - OPTIMAL_API_KEY=${OPTIMAL_API_KEY}
+      - ODDS_API_KEY=${ODDS_API_KEY}
+    volumes:
+      - ./apps/api/logs:/app/logs
+    command: npm run worker:scoring
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.exit(0)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+    networks:
+      - production-network
+    deploy:
+      replicas: 2  # Scale to 2 instances for high throughput
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+
+  # Production Alert Workers
+  workers-alerts:
+    build:
+      context: .
+      dockerfile: ./apps/api/Dockerfile
+      target: production
+    container_name: unit-talk-workers-alerts
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres-primary:5432/${POSTGRES_DB:-unit_talk_prod}
+      - REDIS_URL=redis://redis-primary:6379
+      - TEMPORAL_SERVER_URL=temporal:7233
+      - WORKER_MODE=true
+      - WORKER_TYPE=alerts
+      - LOG_LEVEL=info
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
+      - DISCORD_GUILD_ID=${DISCORD_GUILD_ID}
+    volumes:
+      - ./apps/api/logs:/app/logs
+    command: npm run worker:alerts
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.exit(0)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+    networks:
+      - production-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+  # ==============================================
+  # PRODUCTION MONITORING STACK
+  # ==============================================
+
+  # Production Prometheus with Enhanced Configuration
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: unit-talk-prometheus-prod
+    restart: always
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.production.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/alert_rules.production.yml:/etc/prometheus/alert_rules.yml
+      - prometheus_production_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+      - "--storage.tsdb.retention.time=30d"
+      - "--storage.tsdb.retention.size=10GB"
+      - "--web.enable-lifecycle"
+      - "--web.enable-admin-api"
+      - "--web.external-url=https://prometheus.unittalk.com"
+      - "--query.max-concurrency=20"
+      - "--query.timeout=120s"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - production-network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+
+  # Production Alertmanager with Discord Integration
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: unit-talk-alertmanager-prod
+    restart: always
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager.production.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager_production_data:/alertmanager
+    environment:
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
+      - PAGERDUTY_INTEGRATION_KEY=${PAGERDUTY_INTEGRATION_KEY}
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+      - "--web.external-url=https://alertmanager.unittalk.com"
+      - "--cluster.advertise-address=0.0.0.0:9093"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - production-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  # Production Grafana with Pre-configured Dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: unit-talk-grafana-prod
+    restart: always
+    ports:
+      - "3005:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin_prod_2025}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=redis-datasource,grafana-worldmap-panel,grafana-piechart-panel
+      - GF_SERVER_DOMAIN=grafana.unittalk.com
+      - GF_SERVER_ROOT_URL=https://grafana.unittalk.com
+      - GF_DATABASE_TYPE=postgres
+      - GF_DATABASE_HOST=postgres-primary:5432
+      - GF_DATABASE_NAME=${POSTGRES_DB:-unit_talk_prod}
+      - GF_DATABASE_USER=${POSTGRES_USER:-postgres}
+      - GF_DATABASE_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - grafana_production_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+      - postgres-primary
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - production-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+
+  # ==============================================
+  # PRODUCTION APPLICATIONS
+  # ==============================================
+
+  # Production Discord Bot
+  discord-bot:
+    build:
+      context: .
+      dockerfile: ./apps/discord-bot/Dockerfile
+      target: production
+    container_name: unit-talk-discord-bot-prod
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres-primary:5432/${POSTGRES_DB:-unit_talk_prod}
+      - REDIS_URL=redis://redis-primary:6379
+      - API_URL=http://api:3000
+      - LOG_LEVEL=info
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
+      - DISCORD_GUILD_ID=${DISCORD_GUILD_ID}
+    volumes:
+      - ./apps/discord-bot/logs:/app/logs
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "process.exit(0)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+    networks:
+      - production-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  # Production Command Center
+  command-center:
+    build:
+      context: .
+      dockerfile: ./apps/command-center/Dockerfile
+      target: production
+    container_name: unit-talk-command-center-prod
+    restart: always
+    ports:
+      - "3004:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres-primary:5432/${POSTGRES_DB:-unit_talk_prod}
+      - NEXT_PUBLIC_API_URL=https://api.unittalk.com
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - PROMETHEUS_URL=http://prometheus:9090
+      - TEMPORAL_UI_URL=https://temporal.unittalk.com
+    volumes:
+      - command_center_production_data:/app/.next
+    depends_on:
+      api:
+        condition: service_healthy
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - production-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+
+  # ==============================================
+  # PRODUCTION LOAD BALANCER & REVERSE PROXY
+  # ==============================================
+
+  # NGINX Load Balancer with SSL Termination
+  nginx:
+    image: nginx:alpine
+    container_name: unit-talk-nginx-prod
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./config/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - api
+      - command-center
+      - grafana
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - production-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+
+# ==============================================
+# PRODUCTION VOLUMES
+# ==============================================
+volumes:
+  postgres_production_data:
+    driver: local
+  postgres_replica_production_data:
+    driver: local
+  temporal_postgres_production_data:
+    driver: local
+  redis_production_data:
+    driver: local
+  prometheus_production_data:
+    driver: local
+  grafana_production_data:
+    driver: local
+  alertmanager_production_data:
+    driver: local
+  api_production_data:
+    driver: local
+  command_center_production_data:
+    driver: local
+  nginx_logs:
+    driver: local
+
+# ==============================================
+# PRODUCTION NETWORKS
+# ==============================================
+networks:
+  production-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16

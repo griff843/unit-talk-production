@@ -1,0 +1,444 @@
+# =============================================================================
+# SLO MONITORING RULES - Fortune 100 Grade Implementation
+# =============================================================================
+# 
+# Comprehensive SLO monitoring rules for:
+# - Alert Latency P99 (tick_received → discord_posted < 1s)
+# - Rescore Freshness (features_last_updated < 5min)
+# - Missed Tick Rate (expected_ticks vs actual_ticks < 0.1%)
+# - Archiver Lag (oldest_unarchived_tick < 24h)
+# - Feature Store Freshness (feature_computation_lag < 1h)
+# - Grading Throughput (props_processed_per_minute ≥ 1000)
+# - System Availability (overall_uptime ≥ 99.9%)
+# - Data Pipeline Health (ingestion_success_rate ≥ 99.8%)
+
+groups:
+  - name: slo_monitoring
+    interval: 30s
+    rules:
+      # =================================================================
+      # ALERT LATENCY SLO RULES
+      # =================================================================
+      
+      - record: slo:alert_latency_p99:5m
+        expr: histogram_quantile(0.99, rate(alert_latency_seconds_bucket[5m]))
+        labels:
+          slo_name: "Alert Latency P99"
+          service: "alerting"
+
+      - record: slo:alert_latency_p99:1h
+        expr: histogram_quantile(0.99, rate(alert_latency_seconds_bucket[1h]))
+        labels:
+          slo_name: "Alert Latency P99"
+          service: "alerting"
+
+      - alert: AlertLatencyP99Critical
+        expr: slo:alert_latency_p99:5m > 1.0
+        for: 1m
+        labels:
+          severity: critical
+          slo_name: "Alert Latency P99"
+          service: "alerting"
+        annotations:
+          summary: "Alert latency P99 exceeds 1000ms"
+          description: "Alert latency P99 is {{ $value }}ms, above critical threshold of 1000ms"
+
+      - alert: AlertLatencyP99Warning
+        expr: slo:alert_latency_p99:5m > 0.8
+        for: 2m
+        labels:
+          severity: warning
+          slo_name: "Alert Latency P99"
+          service: "alerting"
+        annotations:
+          summary: "Alert latency P99 approaching threshold"
+          description: "Alert latency P99 is {{ $value }}ms, approaching warning threshold of 800ms"
+
+      # =================================================================
+      # RESCORE FRESHNESS SLO RULES
+      # =================================================================
+      
+      - record: slo:rescore_freshness:5m
+        expr: (time() - max(features_last_updated_timestamp)) / 60
+        labels:
+          slo_name: "Rescore Freshness"
+          service: "grading"
+
+      - alert: RescoreFreshnessCritical
+        expr: slo:rescore_freshness:5m > 5
+        for: 1m
+        labels:
+          severity: critical
+          slo_name: "Rescore Freshness"
+          service: "grading"
+        annotations:
+          summary: "Rescore data is stale beyond critical threshold"
+          description: "Rescore freshness is {{ $value }} minutes, above critical threshold of 5 minutes"
+
+      - alert: RescoreFreshnessWarning
+        expr: slo:rescore_freshness:5m > 3
+        for: 2m
+        labels:
+          severity: warning
+          slo_name: "Rescore Freshness"
+          service: "grading"
+        annotations:
+          summary: "Rescore data approaching staleness"
+          description: "Rescore freshness is {{ $value }} minutes, approaching warning threshold of 3 minutes"
+
+      # =================================================================
+      # MISSED TICK RATE SLO RULES
+      # =================================================================
+      
+      - record: slo:missed_tick_rate:1h
+        expr: (1 - (rate(feed_ticks_success_total[1h]) / rate(feed_ticks_total[1h]))) * 100
+        labels:
+          slo_name: "Missed Tick Rate"
+          service: "feed"
+
+      - record: slo:missed_tick_rate:24h
+        expr: (1 - (rate(feed_ticks_success_total[24h]) / rate(feed_ticks_total[24h]))) * 100
+        labels:
+          slo_name: "Missed Tick Rate"
+          service: "feed"
+
+      - alert: MissedTickRateCritical
+        expr: slo:missed_tick_rate:1h > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          slo_name: "Missed Tick Rate"
+          service: "feed"
+        annotations:
+          summary: "Missed tick rate exceeds critical threshold"
+          description: "Missed tick rate is {{ $value }}%, above critical threshold of 0.1%"
+
+      - alert: MissedTickRateWarning
+        expr: slo:missed_tick_rate:1h > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          slo_name: "Missed Tick Rate"
+          service: "feed"
+        annotations:
+          summary: "Missed tick rate approaching threshold"
+          description: "Missed tick rate is {{ $value }}%, approaching warning threshold of 0.05%"
+
+      # =================================================================
+      # ARCHIVER LAG SLO RULES
+      # =================================================================
+      
+      - record: slo:archiver_lag_hours:10m
+        expr: (time() - min(oldest_unarchived_tick_timestamp)) / 3600
+        labels:
+          slo_name: "Archiver Lag"
+          service: "archiver"
+
+      - alert: ArchiverLagCritical
+        expr: slo:archiver_lag_hours:10m > 24
+        for: 10m
+        labels:
+          severity: critical
+          slo_name: "Archiver Lag"
+          service: "archiver"
+        annotations:
+          summary: "Archiver lag exceeds 24 hours"
+          description: "Archiver lag is {{ $value }} hours, above critical threshold of 24 hours"
+
+      - alert: ArchiverLagWarning
+        expr: slo:archiver_lag_hours:10m > 12
+        for: 20m
+        labels:
+          severity: warning
+          slo_name: "Archiver Lag"
+          service: "archiver"
+        annotations:
+          summary: "Archiver lag approaching threshold"
+          description: "Archiver lag is {{ $value }} hours, approaching warning threshold of 12 hours"
+
+      # =================================================================
+      # FEATURE STORE FRESHNESS SLO RULES
+      # =================================================================
+      
+      - record: slo:feature_store_lag_minutes:5m
+        expr: (time() - max(feature_computation_completed_timestamp)) / 60
+        labels:
+          slo_name: "Feature Store Freshness"
+          service: "ml"
+
+      - alert: FeatureStoreLagCritical
+        expr: slo:feature_store_lag_minutes:5m > 60
+        for: 5m
+        labels:
+          severity: critical
+          slo_name: "Feature Store Freshness"
+          service: "ml"
+        annotations:
+          summary: "Feature store lag exceeds 1 hour"
+          description: "Feature store lag is {{ $value }} minutes, above critical threshold of 60 minutes"
+
+      - alert: FeatureStoreLagWarning
+        expr: slo:feature_store_lag_minutes:5m > 30
+        for: 10m
+        labels:
+          severity: warning
+          slo_name: "Feature Store Freshness"
+          service: "ml"
+        annotations:
+          summary: "Feature store lag approaching threshold"
+          description: "Feature store lag is {{ $value }} minutes, approaching warning threshold of 30 minutes"
+
+      # =================================================================
+      # GRADING THROUGHPUT SLO RULES
+      # =================================================================
+      
+      - record: slo:grading_throughput_per_minute:1m
+        expr: rate(grading_props_processed_total[1m]) * 60
+        labels:
+          slo_name: "Grading Throughput"
+          service: "grading"
+
+      - record: slo:grading_throughput_per_minute:10m
+        expr: rate(grading_props_processed_total[10m]) * 60
+        labels:
+          slo_name: "Grading Throughput"
+          service: "grading"
+
+      - alert: GradingThroughputCritical
+        expr: slo:grading_throughput_per_minute:1m < 1000 and hour() >= 17 and hour() <= 23
+        for: 1m
+        labels:
+          severity: critical
+          slo_name: "Grading Throughput"
+          service: "grading"
+        annotations:
+          summary: "Grading throughput below critical threshold during peak hours"
+          description: "Grading throughput is {{ $value }} props/min, below critical threshold of 1000 props/min"
+
+      - alert: GradingThroughputWarning
+        expr: slo:grading_throughput_per_minute:10m < 500
+        for: 5m
+        labels:
+          severity: warning
+          slo_name: "Grading Throughput"
+          service: "grading"
+        annotations:
+          summary: "Grading throughput approaching threshold"
+          description: "Grading throughput is {{ $value }} props/min, approaching warning threshold of 500 props/min"
+
+      # =================================================================
+      # SYSTEM AVAILABILITY SLO RULES
+      # =================================================================
+      
+      - record: slo:system_availability_5m
+        expr: (rate(http_requests_success_total[5m]) / rate(http_requests_total[5m])) * 100
+        labels:
+          slo_name: "System Availability"
+          service: "api"
+
+      - record: slo:system_availability_1h
+        expr: (rate(http_requests_success_total[1h]) / rate(http_requests_total[1h])) * 100
+        labels:
+          slo_name: "System Availability"
+          service: "api"
+
+      - alert: SystemAvailabilityCritical
+        expr: slo:system_availability_5m < 99.9
+        for: 5m
+        labels:
+          severity: critical
+          slo_name: "System Availability"
+          service: "api"
+        annotations:
+          summary: "System availability below critical threshold"
+          description: "System availability is {{ $value }}%, below critical threshold of 99.9%"
+
+      - alert: SystemAvailabilityWarning
+        expr: slo:system_availability_5m < 99.5
+        for: 10m
+        labels:
+          severity: warning
+          slo_name: "System Availability"
+          service: "api"
+        annotations:
+          summary: "System availability approaching threshold"
+          description: "System availability is {{ $value }}%, approaching warning threshold of 99.5%"
+
+      # =================================================================
+      # DATA PIPELINE SUCCESS SLO RULES
+      # =================================================================
+      
+      - record: slo:data_pipeline_success_rate_1h
+        expr: (rate(pipeline_executions_success_total[1h]) / rate(pipeline_executions_total[1h])) * 100
+        labels:
+          slo_name: "Data Pipeline Success Rate"
+          service: "pipeline"
+
+      - record: slo:data_pipeline_success_rate_24h
+        expr: (rate(pipeline_executions_success_total[24h]) / rate(pipeline_executions_total[24h])) * 100
+        labels:
+          slo_name: "Data Pipeline Success Rate"
+          service: "pipeline"
+
+      - alert: DataPipelineSuccessRateCritical
+        expr: slo:data_pipeline_success_rate_1h < 99.8
+        for: 5m
+        labels:
+          severity: critical
+          slo_name: "Data Pipeline Success Rate"
+          service: "pipeline"
+        annotations:
+          summary: "Data pipeline success rate below critical threshold"
+          description: "Data pipeline success rate is {{ $value }}%, below critical threshold of 99.8%"
+
+      - alert: DataPipelineSuccessRateWarning
+        expr: slo:data_pipeline_success_rate_1h < 99.0
+        for: 10m
+        labels:
+          severity: warning
+          slo_name: "Data Pipeline Success Rate"
+          service: "pipeline"
+        annotations:
+          summary: "Data pipeline success rate approaching threshold"
+          description: "Data pipeline success rate is {{ $value }}%, approaching warning threshold of 99.0%"
+
+  # =================================================================
+  # ERROR BUDGET ALERTING RULES
+  # =================================================================
+  
+  - name: error_budget_alerts
+    interval: 1m
+    rules:
+      - alert: ErrorBudgetBurnRateHigh
+        expr: |
+          (
+            (slo:alert_latency_p99:5m > 1.0) or
+            (slo:rescore_freshness:5m > 5) or
+            (slo:missed_tick_rate:1h > 0.1) or
+            (slo:archiver_lag_hours:10m > 24) or
+            (slo:feature_store_lag_minutes:5m > 60) or
+            (slo:grading_throughput_per_minute:1m < 1000 and hour() >= 17 and hour() <= 23) or
+            (slo:system_availability_5m < 99.9) or
+            (slo:data_pipeline_success_rate_1h < 99.8)
+          )
+        for: 1m
+        labels:
+          severity: critical
+          alert_type: "error_budget_burn"
+        annotations:
+          summary: "High error budget burn rate detected"
+          description: "Multiple SLOs are consuming error budget at a high rate"
+
+      - alert: ErrorBudgetExhaustionWarning
+        expr: |
+          (
+            (slo:alert_latency_p99:1h > 0.9) or
+            (avg_over_time(slo:rescore_freshness:5m[1h]) > 4) or
+            (slo:missed_tick_rate:24h > 0.08) or
+            (slo:archiver_lag_hours:10m > 20) or
+            (avg_over_time(slo:feature_store_lag_minutes:5m[1h]) > 50) or
+            (avg_over_time(slo:grading_throughput_per_minute:10m[1h]) < 600) or
+            (slo:system_availability_1h < 99.95) or
+            (slo:data_pipeline_success_rate_24h < 99.9)
+          )
+        for: 10m
+        labels:
+          severity: warning
+          alert_type: "error_budget_warning"
+        annotations:
+          summary: "Error budget approaching exhaustion"
+          description: "SLOs are trending toward error budget exhaustion"
+
+  # =================================================================
+  # INCIDENT MANAGEMENT RULES
+  # =================================================================
+  
+  - name: incident_management
+    interval: 30s
+    rules:
+      - record: incident:active_count
+        expr: sum(incidents_active_total)
+        labels:
+          metric_type: "incident_count"
+
+      - record: incident:critical_count
+        expr: sum(incidents_critical_active_total)
+        labels:
+          metric_type: "critical_incident_count"
+
+      - record: incident:resolution_time_avg
+        expr: avg(incident_resolution_time_minutes)
+        labels:
+          metric_type: "resolution_time"
+
+      - alert: TooManyActiveIncidents
+        expr: incident:active_count > 10
+        for: 5m
+        labels:
+          severity: warning
+          alert_type: "operational"
+        annotations:
+          summary: "High number of active incidents"
+          description: "{{ $value }} incidents are currently active, indicating potential systemic issues"
+
+      - alert: CriticalIncidentOpen
+        expr: incident:critical_count > 0
+        for: 0s
+        labels:
+          severity: critical
+          alert_type: "incident"
+        annotations:
+          summary: "Critical incident requires immediate attention"
+          description: "{{ $value }} critical incidents are currently open and require immediate attention"
+
+  # =================================================================
+  # OPERATOR DASHBOARD METRICS
+  # =================================================================
+  
+  - name: operator_dashboard
+    interval: 30s
+    rules:
+      - record: dashboard:system_health_score
+        expr: |
+          (
+            (slo:system_availability_5m / 100) * 0.3 +
+            (clamp_max(1000 - slo:alert_latency_p99:5m, 1000) / 1000) * 0.2 +
+            (clamp_max(60 - slo:rescore_freshness:5m, 60) / 60) * 0.2 +
+            (clamp_max(0.1 - slo:missed_tick_rate:1h, 0.1) / 0.1) * 0.15 +
+            (slo:grading_throughput_per_minute:1m / 1000) * 0.15
+          ) * 100
+        labels:
+          metric_type: "health_score"
+
+      - record: dashboard:slo_violations_active
+        expr: |
+          (slo:alert_latency_p99:5m > 1.0) +
+          (slo:rescore_freshness:5m > 5) +
+          (slo:missed_tick_rate:1h > 0.1) +
+          (slo:archiver_lag_hours:10m > 24) +
+          (slo:feature_store_lag_minutes:5m > 60) +
+          (slo:grading_throughput_per_minute:1m < 1000 and hour() >= 17 and hour() <= 23) +
+          (slo:system_availability_5m < 99.9) +
+          (slo:data_pipeline_success_rate_1h < 99.8)
+        labels:
+          metric_type: "slo_violations"
+
+      - alert: SystemHealthDegraded
+        expr: dashboard:system_health_score < 80
+        for: 5m
+        labels:
+          severity: warning
+          alert_type: "system_health"
+        annotations:
+          summary: "Overall system health is degraded"
+          description: "System health score is {{ $value }}%, below acceptable threshold of 80%"
+
+      - alert: SystemHealthCritical
+        expr: dashboard:system_health_score < 60
+        for: 2m
+        labels:
+          severity: critical
+          alert_type: "system_health"
+        annotations:
+          summary: "Overall system health is critical"
+          description: "System health score is {{ $value }}%, in critical state below 60%"

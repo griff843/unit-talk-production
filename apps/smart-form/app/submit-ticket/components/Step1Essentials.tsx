@@ -30,36 +30,19 @@ interface Step1EssentialsProps {
   errors?: any;
 }
 
-// Sport configuration with official professional sports logos
+// Sport configuration with OFFICIAL professional sports logos from reliable GitHub CDN
 const SPORT_CONFIG = {
   NBA: {
     logo: (
-      <div className="bg-white p-2 rounded-full shadow-lg border-2 border-white">
-        <svg className="w-6 h-6" viewBox="0 0 100 100" fill="none">
-          {/* Official NBA logo with authentic colors */}
-          <circle cx="50" cy="50" r="40" fill="#1D428A" />
-          <circle cx="50" cy="50" r="32" fill="#C8102E" />
-          <circle cx="50" cy="50" r="25" fill="#ffffff" />
-          {/* Basketball court lines */}
-          <path
-            d="M50 15 C74 15, 85 26, 85 50 C85 74, 74 85, 50 85 C26 85, 15 74, 15 50 C15 26, 26 15, 50 15"
-            stroke="#C8102E"
-            strokeWidth="2"
-            fill="none"
-          />
-          <path
-            d="M15 50 C15 50, 50 15, 85 50 C85 50, 50 85, 15 50"
-            stroke="#C8102E"
-            strokeWidth="2"
-            fill="none"
-          />
-          {/* NBA branding */}
-          <rect x="30" y="45" width="40" height="10" fill="#1D428A" />
-          <text x="50" y="53" textAnchor="middle" fontSize="8" fill="#ffffff" fontWeight="bold">
-            NBA
-          </text>
-        </svg>
-      </div>
+      <img
+        src="https://cdn.jsdelivr.net/gh/alexanderthebadatcoding/Sports-Logos@main/NBA/NBA.png"
+        alt="NBA Official Logo"
+        className="w-12 h-12 object-contain"
+        onError={(e) => {
+          // Keep the original if it fails
+          e.currentTarget.style.display = 'none';
+        }}
+      />
     ),
     color: 'border-blue-400 hover:border-blue-500 hover:shadow-lg',
     name: 'NBA Basketball',
@@ -67,52 +50,31 @@ const SPORT_CONFIG = {
   },
   WNBA: {
     logo: (
-      <div className="bg-white p-2 rounded-full shadow-lg border-2 border-white">
-        <svg className="w-6 h-6" viewBox="0 0 100 100" fill="none">
-          {/* Official WNBA logo with authentic colors */}
-          <circle cx="50" cy="50" r="40" fill="#C8102E" />
-          <circle cx="50" cy="50" r="32" fill="#ffffff" />
-          <circle cx="50" cy="50" r="25" fill="#C8102E" />
-          {/* Women's basketball design elements */}
-          <path d="M30 30 L70 30 M30 50 L70 50 M30 70 L70 70" stroke="#ffffff" strokeWidth="3" />
-          <path
-            d="M40 20 Q50 35, 60 20 M40 80 Q50 65, 60 80"
-            stroke="#ffffff"
-            strokeWidth="2"
-            fill="none"
-          />
-          {/* WNBA branding */}
-          <rect x="25" y="45" width="50" height="10" fill="#C8102E" />
-          <text x="50" y="53" textAnchor="middle" fontSize="7" fill="#ffffff" fontWeight="bold">
-            WNBA
-          </text>
-        </svg>
-      </div>
+      <img
+        src="https://logos-world.net/wp-content/uploads/2020/06/WNBA-Logo.png"
+        alt="WNBA Official Logo"
+        className="w-12 h-12 object-contain"
+        onError={(e) => {
+          // Fallback to simpler logo
+          e.currentTarget.src = "https://1000logos.net/wp-content/uploads/2017/05/WNBA-Logo.png";
+        }}
+      />
     ),
-    color: 'border-red-400 hover:border-red-500 hover:shadow-lg',
+    color: 'border-orange-400 hover:border-orange-500 hover:shadow-lg',
     name: 'WNBA Basketball',
-    textColor: 'text-red-700',
+    textColor: 'text-orange-700',
   },
   NFL: {
     logo: (
-      <div className="bg-white p-2 rounded-full shadow-lg border-2 border-white">
-        <svg className="w-6 h-6" viewBox="0 0 100 100" fill="none">
-          {/* Official NFL shield with authentic colors */}
-          <path
-            d="M50 10 L75 20 L85 45 L85 70 L50 90 L15 70 L15 45 L25 20 Z"
-            fill="#013369"
-            stroke="#ffffff"
-            strokeWidth="2"
-          />
-          <path d="M50 20 L70 28 L77 47 L77 67 L50 80 L23 67 L23 47 L30 28 Z" fill="#D50A0A" />
-          <path d="M50 30 L62 36 L67 50 L67 63 L50 70 L33 63 L33 50 L38 36 Z" fill="#ffffff" />
-          {/* NFL shield branding */}
-          <rect x="35" y="45" width="30" height="15" fill="#013369" />
-          <text x="50" y="55" textAnchor="middle" fontSize="8" fill="#ffffff" fontWeight="bold">
-            NFL
-          </text>
-        </svg>
-      </div>
+      <img
+        src="https://cdn.jsdelivr.net/gh/alexanderthebadatcoding/Sports-Logos@main/NFL/NFL.png"
+        alt="NFL Official Logo"
+        className="w-12 h-12 object-contain"
+        onError={(e) => {
+          // Keep the original if it fails
+          e.currentTarget.style.display = 'none';
+        }}
+      />
     ),
     color: 'border-blue-400 hover:border-blue-500 hover:shadow-lg',
     name: 'NFL Football',
@@ -120,31 +82,15 @@ const SPORT_CONFIG = {
   },
   MLB: {
     logo: (
-      <div className="bg-white p-2 rounded-full shadow-lg border-2 border-white">
-        <svg className="w-6 h-6" viewBox="0 0 100 100" fill="none">
-          {/* Official MLB logo with authentic colors */}
-          <circle cx="50" cy="50" r="40" fill="#041E42" />
-          <circle cx="50" cy="50" r="32" fill="#ffffff" />
-          {/* Baseball stitching pattern */}
-          <path
-            d="M20 40 Q40 25, 50 40 Q60 55, 80 40 Q60 55, 50 70 Q40 55, 20 70 Q40 55, 50 40"
-            stroke="#BA0C2F"
-            strokeWidth="3"
-            fill="none"
-          />
-          <path
-            d="M28 30 Q43 20, 50 30 Q57 40, 72 30 M28 70 Q43 80, 50 70 Q57 60, 72 70"
-            stroke="#BA0C2F"
-            strokeWidth="2"
-            fill="none"
-          />
-          {/* MLB branding */}
-          <rect x="30" y="45" width="40" height="10" fill="#041E42" />
-          <text x="50" y="53" textAnchor="middle" fontSize="8" fill="#ffffff" fontWeight="bold">
-            MLB
-          </text>
-        </svg>
-      </div>
+      <img
+        src="https://cdn.jsdelivr.net/gh/alexanderthebadatcoding/Sports-Logos@main/MLB/MLB.png"
+        alt="MLB Official Logo"
+        className="w-12 h-12 object-contain"
+        onError={(e) => {
+          // Keep the original if it fails
+          e.currentTarget.style.display = 'none';
+        }}
+      />
     ),
     color: 'border-blue-400 hover:border-blue-500 hover:shadow-lg',
     name: 'MLB Baseball',
@@ -152,25 +98,15 @@ const SPORT_CONFIG = {
   },
   NHL: {
     logo: (
-      <div className="bg-white p-2 rounded-full shadow-lg border-2 border-white">
-        <svg className="w-6 h-6" viewBox="0 0 100 100" fill="none">
-          {/* Official NHL shield with authentic colors */}
-          <path
-            d="M50 10 L75 17 L90 40 L88 70 L50 90 L12 70 L10 40 L25 17 Z"
-            fill="#000000"
-            stroke="#ffffff"
-            strokeWidth="2"
-          />
-          <path d="M50 20 L70 26 L82 45 L80 67 L50 80 L20 67 L18 45 L30 26 Z" fill="#ffffff" />
-          <circle cx="50" cy="50" r="20" fill="#000000" />
-          <circle cx="50" cy="50" r="13" fill="#FF6600" />
-          {/* NHL branding */}
-          <rect x="35" y="45" width="30" height="10" fill="#ffffff" />
-          <text x="50" y="53" textAnchor="middle" fontSize="7" fill="#000000" fontWeight="bold">
-            NHL
-          </text>
-        </svg>
-      </div>
+      <img
+        src="https://logos-world.net/wp-content/uploads/2020/06/NHL-Logo.png"
+        alt="NHL Official Logo"
+        className="w-12 h-12 object-contain"
+        onError={(e) => {
+          // Fallback to alternate NHL logo
+          e.currentTarget.src = "https://1000logos.net/wp-content/uploads/2017/05/NHL-Logo.png";
+        }}
+      />
     ),
     color: 'border-orange-400 hover:border-orange-500 hover:shadow-lg',
     name: 'NHL Hockey',
@@ -178,20 +114,15 @@ const SPORT_CONFIG = {
   },
   NCAAB: {
     logo: (
-      <div className="bg-white p-2 rounded-full shadow-lg border-2 border-white">
-        <svg className="w-6 h-6" viewBox="0 0 100 100" fill="none">
-          {/* Official NCAA basketball with authentic colors */}
-          <circle cx="50" cy="50" r="40" fill="#003366" />
-          <circle cx="50" cy="50" r="32" fill="#ffffff" />
-          <circle cx="50" cy="50" r="24" fill="#003366" />
-          {/* NCAA shield design */}
-          <path d="M50 20 L65 27 L70 42 L70 58 L50 70 L30 58 L30 42 L35 27 Z" fill="#ffffff" />
-          <rect x="35" y="42" width="30" height="12" fill="#003366" />
-          <text x="50" y="51" textAnchor="middle" fontSize="6" fill="#ffffff" fontWeight="bold">
-            NCAA
-          </text>
-        </svg>
-      </div>
+      <img
+        src="https://logos-world.net/wp-content/uploads/2020/06/NCAA-Logo.png"
+        alt="NCAA Basketball Official Logo"
+        className="w-12 h-12 object-contain"
+        onError={(e) => {
+          // Fallback to reliable NCAA logo
+          e.currentTarget.src = "https://1000logos.net/wp-content/uploads/2017/05/NCAA-Logo.png";
+        }}
+      />
     ),
     color: 'border-blue-400 hover:border-blue-500 hover:shadow-lg',
     name: 'College Basketball',
@@ -199,65 +130,31 @@ const SPORT_CONFIG = {
   },
   NCAAF: {
     logo: (
-      <div className="bg-white p-2 rounded-full shadow-lg border-2 border-white">
-        <svg className="w-6 h-6" viewBox="0 0 100 100" fill="none">
-          {/* Enhanced NCAA Football shield with authentic colors */}
-          <path
-            d="M50 10 L75 20 L85 45 L85 70 L50 90 L15 70 L15 45 L25 20 Z"
-            fill="#8B0000"
-            stroke="#ffffff"
-            strokeWidth="2"
-          />
-          <path d="M50 20 L70 28 L77 47 L77 67 L50 80 L23 67 L23 47 L30 28 Z" fill="#FFD700" />
-          {/* Football field lines */}
-          <path
-            d="M25 35 L75 35 M25 45 L75 45 M25 55 L75 55 M25 65 L75 65"
-            stroke="#8B0000"
-            strokeWidth="1"
-          />
-          {/* Goal posts */}
-          <path
-            d="M35 25 L35 35 M40 25 L40 35 M60 25 L60 35 M65 25 L65 35"
-            stroke="#8B0000"
-            strokeWidth="2"
-          />
-          <rect x="20" y="42" width="60" height="16" rx="2" fill="#ffffff" />
-          <text x="50" y="54" textAnchor="middle" fontSize="8" fill="#8B0000" fontWeight="bold">
-            COLLEGE
-          </text>
-        </svg>
-      </div>
+      <img
+        src="https://logos-world.net/wp-content/uploads/2020/06/NCAA-Logo.png"
+        alt="NCAA Football Official Logo"
+        className="w-12 h-12 object-contain"
+        onError={(e) => {
+          // Fallback to reliable NCAA logo
+          e.currentTarget.src = "https://1000logos.net/wp-content/uploads/2017/05/NCAA-Logo.png";
+        }}
+      />
     ),
-    color: 'border-red-400 hover:border-red-500 hover:shadow-lg',
+    color: 'border-orange-400 hover:border-orange-500 hover:shadow-lg',
     name: 'College Football',
-    textColor: 'text-red-700',
+    textColor: 'text-orange-700',
   },
   'UFC/MMA': {
     logo: (
-      <div className="bg-white p-2 rounded-full shadow-lg border-2 border-white">
-        <svg className="w-6 h-6" viewBox="0 0 100 100" fill="none">
-          {/* Official UFC octagon with authentic colors */}
-          <path
-            d="M50 10 L75 20 L92 40 L92 70 L75 90 L50 100 L25 90 L8 70 L8 40 L25 20 Z"
-            fill="#D4AF37"
-            stroke="#000000"
-            strokeWidth="2"
-          />
-          <path
-            d="M50 20 L70 28 L82 45 L82 65 L70 82 L50 90 L30 82 L18 65 L18 45 L30 28 Z"
-            fill="#000000"
-          />
-          <path
-            d="M50 30 L62 36 L70 50 L70 60 L62 74 L50 80 L38 74 L30 60 L30 50 L38 36 Z"
-            fill="#D4AF37"
-          />
-          {/* UFC octagon center */}
-          <circle cx="50" cy="50" r="8" fill="#000000" />
-          <text x="50" y="54" textAnchor="middle" fontSize="5" fill="#D4AF37" fontWeight="bold">
-            UFC
-          </text>
-        </svg>
-      </div>
+      <img
+        src="https://logos-world.net/wp-content/uploads/2020/06/UFC-Logo.png"
+        alt="UFC Official Logo"
+        className="w-12 h-12 object-contain"
+        onError={(e) => {
+          // Fallback to alternate UFC logo
+          e.currentTarget.src = "https://1000logos.net/wp-content/uploads/2017/05/UFC-Logo.png";
+        }}
+      />
     ),
     color: 'border-yellow-400 hover:border-yellow-500 hover:shadow-lg',
     name: 'UFC/MMA',
@@ -265,17 +162,15 @@ const SPORT_CONFIG = {
   },
   Boxing: {
     logo: (
-      <div className="bg-gradient-to-r from-yellow-500 to-orange-600 p-2 rounded-full shadow-lg">
-        <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
-          {/* Professional boxing gloves */}
-          <ellipse cx="8" cy="12" rx="4" ry="6" fill="currentColor" transform="rotate(-15 8 12)" />
-          <ellipse cx="16" cy="12" rx="4" ry="6" fill="currentColor" transform="rotate(15 16 12)" />
-          <rect x="6" y="15" width="4" height="3" rx="1" fill="rgba(255,255,255,0.3)" />
-          <rect x="14" y="15" width="4" height="3" rx="1" fill="rgba(255,255,255,0.3)" />
-          <circle cx="8" cy="10" r="1" fill="rgba(255,255,255,0.6)" />
-          <circle cx="16" cy="10" r="1" fill="rgba(255,255,255,0.6)" />
-        </svg>
-      </div>
+      <img
+        src="https://logos-world.net/wp-content/uploads/2020/06/WBC-Logo.png"
+        alt="WBC Boxing Official Logo"
+        className="w-12 h-12 object-contain"
+        onError={(e) => {
+          // Fallback to general boxing logo
+          e.currentTarget.src = "https://1000logos.net/wp-content/uploads/2017/05/WBC-Logo.png";
+        }}
+      />
     ),
     color: 'border-yellow-300 hover:border-yellow-400 hover:shadow-md',
     name: 'Boxing',
@@ -283,87 +178,47 @@ const SPORT_CONFIG = {
   },
   Soccer: {
     logo: (
-      <div className="bg-white p-2 rounded-full shadow-lg border-2 border-white">
-        <svg className="w-6 h-6" viewBox="0 0 100 100" fill="none">
-          {/* FIFA official-style soccer ball with authentic colors */}
-          <circle cx="50" cy="50" r="40" fill="#00AA00" />
-          <circle cx="50" cy="50" r="32" fill="#ffffff" />
-          <circle cx="50" cy="50" r="24" fill="#000000" />
-          {/* Soccer ball pentagon pattern */}
-          <path d="M50 30 L42 40 L46 52 L54 52 L58 40 Z" fill="#ffffff" />
-          <path
-            d="M50 30 L50 10 M42 40 L25 30 M58 40 L75 30 M46 52 L30 70 M54 52 L70 70"
-            stroke="#ffffff"
-            strokeWidth="2"
-          />
-          <circle cx="50" cy="50" r="12" fill="none" stroke="#ffffff" strokeWidth="1" />
-          {/* FIFA text */}
-          <text x="50" y="85" textAnchor="middle" fontSize="6" fill="#00AA00" fontWeight="bold">
-            FIFA
-          </text>
-        </svg>
-      </div>
+      <img
+        src="https://logos-world.net/wp-content/uploads/2020/06/FIFA-Logo.png"
+        alt="FIFA Official Logo"
+        className="w-12 h-12 object-contain"
+        onError={(e) => {
+          // Fallback to reliable FIFA logo
+          e.currentTarget.src = "https://1000logos.net/wp-content/uploads/2017/05/FIFA-Logo.png";
+        }}
+      />
     ),
-    color: 'border-green-300 hover:border-green-400 hover:shadow-md',
+    color: 'border-blue-300 hover:border-blue-400 hover:shadow-md',
     name: 'Soccer',
-    textColor: 'text-green-600',
+    textColor: 'text-blue-600',
   },
   Tennis: {
     logo: (
-      <div className="bg-gradient-to-r from-emerald-500 to-green-600 p-2 rounded-full shadow-lg">
-        <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
-          {/* Professional tennis ball with curved lines */}
-          <circle cx="12" cy="12" r="10" fill="currentColor" />
-          <path
-            d="M4 12 C8 8, 16 8, 20 12 C16 16, 8 16, 4 12"
-            stroke="rgba(255,255,255,0.8)"
-            strokeWidth="1.5"
-            fill="none"
-          />
-          <path
-            d="M4 12 C8 16, 16 16, 20 12 C16 8, 8 8, 4 12"
-            stroke="rgba(255,255,255,0.8)"
-            strokeWidth="1.5"
-            fill="none"
-          />
-          <circle
-            cx="12"
-            cy="12"
-            r="6"
-            fill="none"
-            stroke="rgba(255,255,255,0.2)"
-            strokeWidth="0.5"
-          />
-        </svg>
-      </div>
+      <img
+        src="https://logos-world.net/wp-content/uploads/2020/06/ATP-Logo.png"
+        alt="ATP Tennis Official Logo"
+        className="w-12 h-12 object-contain"
+        onError={(e) => {
+          // Fallback to WTA logo
+          e.currentTarget.src = "https://logos-world.net/wp-content/uploads/2020/06/WTA-Logo.png";
+        }}
+      />
     ),
-    color: 'border-emerald-300 hover:border-emerald-400 hover:shadow-md',
+    color: 'border-green-300 hover:border-green-400 hover:shadow-md',
     name: 'Tennis',
-    textColor: 'text-emerald-600',
+    textColor: 'text-green-600',
   },
   Golf: {
     logo: (
-      <div className="bg-white p-2 rounded-full shadow-lg border-2 border-white">
-        <svg className="w-6 h-6" viewBox="0 0 100 100" fill="none">
-          {/* PGA official-style golf logo with authentic colors */}
-          <circle cx="50" cy="70" r="18" fill="#ffffff" />
-          {/* Golf ball dimples */}
-          <circle cx="45" cy="67" r="1" fill="#006400" />
-          <circle cx="55" cy="67" r="1" fill="#006400" />
-          <circle cx="50" cy="73" r="1" fill="#006400" />
-          <circle cx="47" cy="75" r="1" fill="#006400" />
-          <circle cx="53" cy="75" r="1" fill="#006400" />
-          {/* Golf flag */}
-          <path d="M50 70 L50 20" stroke="#006400" strokeWidth="3" />
-          <path d="M50 20 L75 20 L65 30 L75 40 L50 40" fill="#FFD700" />
-          {/* Tee */}
-          <rect x="20" y="85" width="60" height="6" fill="#006400" />
-          {/* PGA text */}
-          <text x="50" y="32" textAnchor="middle" fontSize="6" fill="#ffffff" fontWeight="bold">
-            PGA
-          </text>
-        </svg>
-      </div>
+      <img
+        src="https://logos-world.net/wp-content/uploads/2020/06/PGA-Tour-Logo.png"
+        alt="PGA Tour Official Logo"
+        className="w-12 h-12 object-contain"
+        onError={(e) => {
+          // Fallback to general PGA logo
+          e.currentTarget.src = "https://1000logos.net/wp-content/uploads/2017/05/PGA-Logo.png";
+        }}
+      />
     ),
     color: 'border-green-300 hover:border-green-400 hover:shadow-md',
     name: 'Golf',
@@ -371,40 +226,30 @@ const SPORT_CONFIG = {
   },
   NASCAR: {
     logo: (
-      <div className="bg-gradient-to-r from-red-600 via-yellow-500 to-blue-600 p-2 rounded-full shadow-lg">
-        <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
-          {/* Professional NASCAR race car */}
-          <path d="M2 10 L22 10 L20 14 L4 14 Z" fill="currentColor" />
-          <path d="M4 8 L20 8 L22 10 L2 10 Z" fill="rgba(255,255,255,0.3)" />
-          <circle cx="6" cy="16" r="2.5" fill="rgba(255,255,255,0.9)" />
-          <circle cx="18" cy="16" r="2.5" fill="rgba(255,255,255,0.9)" />
-          <circle cx="6" cy="16" r="1" fill="currentColor" />
-          <circle cx="18" cy="16" r="1" fill="currentColor" />
-          <rect x="8" y="9" width="8" height="3" rx="0.5" fill="rgba(255,255,255,0.8)" />
-        </svg>
-      </div>
+      <img
+        src="https://logos-world.net/wp-content/uploads/2020/06/NASCAR-Logo.png"
+        alt="NASCAR Official Logo"
+        className="w-12 h-12 object-contain"
+        onError={(e) => {
+          // Fallback to reliable NASCAR logo
+          e.currentTarget.src = "https://1000logos.net/wp-content/uploads/2017/05/NASCAR-Logo.png";
+        }}
+      />
     ),
-    color: 'border-red-300 hover:border-red-400 hover:shadow-md',
+    color: 'border-yellow-300 hover:border-yellow-400 hover:shadow-md',
     name: 'NASCAR',
-    textColor: 'text-gray-800',
+    textColor: 'text-yellow-700',
   },
   F1: {
     logo: (
-      <div className="bg-white p-2 rounded-full shadow-lg border-2 border-white">
-        <svg className="w-6 h-6" viewBox="0 0 100 100" fill="none">
-          {/* Formula 1 official-style logo with authentic colors */}
-          <rect x="10" y="40" width="80" height="25" fill="#E10600" />
-          <path d="M10 40 L30 20 L80 20 L90 40" fill="#ffffff" />
-          <path d="M10 65 L30 80 L80 80 L90 65" fill="#000000" />
-          {/* F1 car wheels */}
-          <circle cx="25" cy="75" r="6" fill="#ffffff" />
-          <circle cx="75" cy="75" r="6" fill="#ffffff" />
-          {/* F1 text */}
-          <text x="50" y="58" textAnchor="middle" fontSize="16" fill="#ffffff" fontWeight="bold">
-            F1
-          </text>
-        </svg>
-      </div>
+      <img
+        src="https://logos-world.net/wp-content/uploads/2020/06/Formula-1-Logo.png"
+        alt="Formula 1 Official Logo"
+        className="w-12 h-12 object-contain"
+        onError={(e) => {
+          e.currentTarget.src = "https://1000logos.net/wp-content/uploads/2017/05/Formula-1-Logo.png";
+        }}
+      />
     ),
     color: 'border-red-300 hover:border-red-400 hover:shadow-md',
     name: 'Formula 1',
@@ -641,30 +486,29 @@ export function Step1Essentials({ data, onUpdate, onNext, errors }: Step1Essenti
                 <p className="text-sm text-gray-600 font-medium">Pick your favorite sport</p>
               </div>
             </div>
-            <div className="grid grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-4 lg:grid-cols-7 gap-4">
               {SPORTS.map(sport => {
                 const config = SPORT_CONFIG[sport as keyof typeof SPORT_CONFIG];
                 return (
                   <button
                     key={sport}
                     onClick={() => handleSportSelect(sport)}
+                    title={`${sport} - ${config?.name || sport}`}
                     className={`
-                      p-3 rounded-lg border-2 transition-all duration-200 text-center hover:scale-105
+                      w-16 h-16 rounded-xl border-2 transition-all duration-200 hover:scale-110 hover:shadow-lg
+                      flex items-center justify-center bg-white
                       ${
                         data.sport === sport
-                          ? 'border-blue-500 bg-blue-50 text-blue-700'
-                          : 'border-gray-200 bg-white hover:border-gray-300'
+                          ? 'border-blue-500 bg-blue-50 shadow-lg shadow-blue-500/25 scale-105'
+                          : 'border-gray-200 hover:border-gray-300'
                       }
                     `}
                   >
-                    <div className="mb-2">
-                      {config?.logo || (
-                        <div className="bg-gray-100 p-2 rounded-full">
-                          <div className="w-6 h-6 text-gray-600">🏆</div>
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-xs font-semibold text-gray-900">{sport}</div>
+                    {config?.logo || (
+                      <div className="bg-gray-100 p-2 rounded-full">
+                        <div className="w-8 h-8 text-gray-600 flex items-center justify-center">🏆</div>
+                      </div>
+                    )}
                   </button>
                 );
               })}

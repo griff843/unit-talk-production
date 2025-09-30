@@ -1,6 +1,7 @@
 import { WebhookClient, EmbedBuilder } from 'discord.js';
 import { isShadowMode, shadowPublishPreview } from '../../../shadow/ShadowMode';
-// import { env } from '../../../config/env';
+import { discordBotIntegration } from '../../../services/DiscordBotIntegration';
+import { env } from '../../../config/env';
 
 interface DiscordConfig {
   webhookUrl: string;
@@ -93,13 +94,36 @@ class DiscordAlertService {
     this.isProcessingQueue = false;
   }
 
-  public async sendAlert(embed: EmbedBuilder): Promise<void> {
+  public async sendAlert(embed: EmbedBuilder, capperName?: string): Promise<void> {
     // In shadow mode, route to shadow preview instead of public channels
     if (isShadowMode()) {
       await shadowPublishPreview(embed.data);
       return;
     }
 
+    // Use bot token approach for direct channel posting with capper thread routing
+    if (discordBotIntegration) {
+      try {
+        // Post the rich embed directly to preserve formatting
+        const result = await discordBotIntegration.postRichEmbed(embed, capperName);
+
+        if (!result.success) {
+          throw new Error(result.error || 'Discord bot posting failed');
+        }
+
+        console.log('✅ Rich embed posted via bot token', {
+          messageId: result.messageId,
+          capper: capperName,
+          embedTitle: embed.data.title
+        });
+        return;
+      } catch (error) {
+        console.warn('Bot token approach failed, falling back to webhook:', error);
+        // Fall through to webhook approach as backup
+      }
+    }
+
+    // Fallback to webhook approach
     return new Promise((resolve, reject) => {
       const request = async () => {
         try {
@@ -167,6 +191,77 @@ class DiscordAlertService {
     };
   }
 
+  /**
+   * Convert Discord embed to pick data format for bot integration
+   * This preserves the rich embed content while using bot token posting
+   */
+  private convertEmbedToPickData(embed: EmbedBuilder, capperName?: string): any {
+    const embedData = embed.data;
+    const title = embedData.title || 'Alert';
+    const description = embedData.description || '';
+
+    // Extract player name and sport from embed if available
+    let playerName = 'Unknown Player';
+    let sport = 'Unknown';
+    let statType = 'Unknown Stat';
+
+    // Try to parse from description or fields
+    if (description) {
+      const playerMatch = description.match(/\*\*(.*?)\*\*/);
+      if (playerMatch) {
+        playerName = playerMatch[1];
+      }
+    }
+
+    // Extract sport from title or description
+    const sportsMap: { [key: string]: string } = {
+      '🏈': 'NFL',
+      '🏀': 'NBA',
+      '⚾': 'MLB',
+      '🏒': 'NHL'
+    };
+
+    for (const [emoji, sportName] of Object.entries(sportsMap)) {
+      if (title.includes(emoji) || description.includes(emoji)) {
+        sport = sportName;
+        break;
+      }
+    }
+
+    // Extract from fields if available
+    if (embedData.fields) {
+      for (const field of embedData.fields) {
+        if (field.name?.includes('Selection') && field.value) {
+          const lines = field.value.split('\n');
+          if (lines[0]) {
+            playerName = lines[0].replace(/\*\*/g, '');
+          }
+          if (lines[1]) {
+            statType = lines[1];
+          }
+        }
+      }
+    }
+
+    return {
+      capper_name: capperName || 'AlertAgent',
+      sport: sport,
+      bet_slip_id: `alert-${Date.now()}`,
+      selections: [{
+        player_name: playerName,
+        stat_type: statType,
+        line: 'Alert',
+        selection: 'Alert'
+      }],
+      selection_count: 1,
+      total_units: 1,
+      notes: `Rich Alert: ${title}`,
+      source: 'alert_agent',
+      // Preserve the original rich embed for enhanced formatting
+      _richEmbed: embedData
+    };
+  }
+
   public async testConnection(): Promise<boolean> {
     try {
       // Send a minimal test embed
@@ -195,14 +290,14 @@ class DiscordAlertService {
 const discordService = new DiscordAlertService();
 
 // Export the main function for backward compatibility
-export async function sendDiscordAlert(embed: EmbedBuilder): Promise<void> {
+export async function sendDiscordAlert(embed: EmbedBuilder, capperName?: string): Promise<void> {
   // In shadow mode, route to shadow preview instead of public channels
   if (isShadowMode()) {
     await shadowPublishPreview(embed.data);
     return;
   }
-  
-  return discordService.sendAlert(embed);
+
+  return discordService.sendAlert(embed, capperName);
 }
 
 // Export additional functions for enhanced functionality

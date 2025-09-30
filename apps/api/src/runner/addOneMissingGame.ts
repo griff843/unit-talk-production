@@ -8,6 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -22,7 +23,8 @@ async function addOneMissingGame() {
   const today = '2025-08-05';
   
   // Get current games
-  const { data: existingGames } = await supabase
+  const supabaseClient = requireSupabase();
+      const { data: existingGames } = await supabase
     .from('games')
     .select('external_game_id')
     .eq('game_date', today);
@@ -62,7 +64,8 @@ async function addOneMissingGame() {
   
   console.log(`💾 Adding: ${newGame.away_team} @ ${newGame.home_team}`);
   
-  const { data: insertedGame, error } = await supabase
+  const supabaseClient = requireSupabase();
+      const { data: insertedGame, error } = await supabase
     .from('games')
     .insert([newGame])
     .select('sport, home_team, away_team');
@@ -75,7 +78,8 @@ async function addOneMissingGame() {
   console.log(`✅ Successfully added: ${insertedGame?.[0]?.away_team} @ ${insertedGame?.[0]?.home_team}`);
   
   // Final count
-  const { count: finalCount } = await supabase
+  const supabaseClient = requireSupabase();
+      const { count: finalCount } = await supabase
     .from('games')
     .select('*', { count: 'exact', head: true })
     .eq('game_date', today);

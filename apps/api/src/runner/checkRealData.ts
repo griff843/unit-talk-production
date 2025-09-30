@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const logger = createLogger('CheckRealData');
@@ -19,15 +20,17 @@ async function checkAndProcessRealData() {
   console.log('='.repeat(60));
   
   // Check total raw_props
-  const { count: totalProps } = await supabase
-    .from('raw_props')
+  const supabaseClient = requireSupabase();
+      const { count: totalProps } = await supabase
+    .from('sports_game_odds')
     .select('*', { count: 'exact', head: true });
     
   console.log(`📊 TOTAL RAW PROPS: ${totalProps}`);
   
   // Get recent props
-  const { data: recentProps } = await supabase
-    .from('raw_props')
+  const supabaseClient = requireSupabase();
+      const { data: recentProps } = await supabase
+    .from('sports_game_odds')
     .select('*')
     .order('created_at', { ascending: false })
     .limit(10);
@@ -39,8 +42,9 @@ async function checkAndProcessRealData() {
   });
   
   // Check unprocessed props
-  const { count: unprocessedCount } = await supabase
-    .from('raw_props')
+  const supabaseClient = requireSupabase();
+      const { count: unprocessedCount } = await supabase
+    .from('sports_game_odds')
     .select('*', { count: 'exact', head: true })
     .is('processed_at', null)
     .is('error_message', null);
@@ -87,15 +91,18 @@ async function checkAndProcessRealData() {
       // Final verification
       console.log('\n🔍 FINAL VERIFICATION:');
       
+      const supabaseClient = requireSupabase();
       const { count: processedCount } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*', { count: 'exact', head: true })
         .not('processed_at', 'is', null);
       
+      const supabaseClient = requireSupabase();
       const { count: unifiedPicksCount } = await supabase
         .from('unified_picks')
         .select('*', { count: 'exact', head: true });
         
+      const supabaseClient = requireSupabase();
       const { count: clvCount } = await supabase
         .from('clv_tracking')
         .select('*', { count: 'exact', head: true });

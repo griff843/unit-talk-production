@@ -11,8 +11,9 @@
  */
 
 import 'dotenv/config';
-import { supabase as supabaseClient } from '../services/supabaseClient';
+import { supabase as supabaseClient } from '../utils/supabaseUtils';
 import { createLogger } from '../utils/logger';
+import { supabaseClient } from '../utils/supabaseUtils';
 
 const logger = createLogger('mark-props-processed');
 
@@ -37,7 +38,7 @@ class PropProcessor {
   
   async countUnprocessedProps(): Promise<number> {
     let query = this.supabase
-      .from('raw_props')
+      .from('sports_game_odds')
       .select('id', { count: 'exact', head: true })
       .is('promoted_to_picks', null) // Using existing column as proxy
       .is('promoted', null);
@@ -59,7 +60,7 @@ class PropProcessor {
   async processBatch(offset: number): Promise<{ processed: number; errors: number }> {
     try {
       let query = this.supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('id, player_name, stat_type, sport, tier')
         .is('promoted_to_picks', null)
         .is('promoted', null)
@@ -94,7 +95,7 @@ class PropProcessor {
       const now = new Date().toISOString();
       
       const { error: updateError } = await this.supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .update({
           promoted_to_picks: true, // Mark as professionally processed
           promoted: true, // Mark as processed

@@ -8,6 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -20,7 +21,8 @@ async function testMinimalUnifiedPicks() {
   console.log('='.repeat(40));
   
   // Get a real user_id from the users table
-  const { data: users } = await supabase
+  const supabaseClient = requireSupabase();
+      const { data: users } = await supabase
     .from('users')
     .select('id')
     .limit(1);
@@ -43,7 +45,8 @@ async function testMinimalUnifiedPicks() {
   
   console.log('\n1️⃣ Testing minimal required fields...');
   try {
-    const { data, error } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data, error } = await supabase
       .from('unified_picks')
       .insert(minimalPick)
       .select();
@@ -62,7 +65,8 @@ async function testMinimalUnifiedPicks() {
       });
       
       // Clean up test record
-      await supabase
+      const supabaseClient = requireSupabase();
+    await supabase
         .from('unified_picks')
         .delete()
         .eq('id', minimalPick.id);
@@ -86,6 +90,7 @@ async function testMinimalUnifiedPicks() {
         position_size: 0.02
       };
       
+      const supabaseClient = requireSupabase();
       const { data: profData, error: profError } = await supabase
         .from('unified_picks')
         .insert(professionalPick)
@@ -105,7 +110,8 @@ async function testMinimalUnifiedPicks() {
                    0.05
           };
           
-          const { error: colError } = await supabase
+          const supabaseClient = requireSupabase();
+      const { error: colError } = await supabase
             .from('unified_picks')
             .insert(testRec)
             .select();
@@ -116,7 +122,8 @@ async function testMinimalUnifiedPicks() {
             console.log(`   ✅ ${col}: Exists`);
             
             // Clean up
-            await supabase
+            const supabaseClient = requireSupabase();
+    await supabase
               .from('unified_picks')
               .delete()
               .eq('id', testRec.id);
@@ -127,7 +134,8 @@ async function testMinimalUnifiedPicks() {
         console.log('Professional grading columns confirmed working');
         
         // Clean up
-        await supabase
+        const supabaseClient = requireSupabase();
+    await supabase
           .from('unified_picks')
           .delete()
           .eq('id', professionalPick.id);

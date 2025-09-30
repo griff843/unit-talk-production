@@ -142,7 +142,7 @@ class DatabaseMigrationExecutor {
   /**
    * Test that the grading agent can now query the database correctly
    */
-  async testGradingAgentQuery(): Promise<MigrationResult> {
+  async testScoringAgentQuery(): Promise<MigrationResult> {
     try {
       console.log('🧪 Testing grading agent database queries...');
 
@@ -284,7 +284,7 @@ async function main() {
     }
 
     // Step 3: Test grading agent queries
-    const testResult = await migrator.testGradingAgentQuery();
+    const testResult = await migrator.testScoringAgentQuery();
     if (!testResult.success) {
       console.error('❌ Grading agent query test failed, manual review required...');
       console.error('Error:', testResult.error);

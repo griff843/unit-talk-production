@@ -1,6 +1,7 @@
 import { redisCache } from '../cache/enhanced-cache';
 import { circuitBreaker } from '../services/enhanced-circuit-breaker';
 import { logger } from '../shared/logger';
+import { requireSupabase } from '../utils/supabaseUtils';
 // import { redis } from '../services/redis'; // Unused import
 
 export interface HealthCheck {
@@ -92,7 +93,8 @@ export class EnhancedHealthChecker {
               );
               
               // Simple connectivity test
-              const { error } = await supabase
+
+      const { error } = await supabase
                 .from('unified_picks')
                 .select('count')
                 .limit(1);
@@ -261,9 +263,398 @@ export class EnhancedHealthChecker {
       }
     });
 
+    // Register advanced features health checks
+    this.registerAdvancedFeaturesDependencies();
+
     logger.info('🏥 Enhanced health checker initialized with dependencies', {
       dependencies: Array.from(this.dependencies.keys()),
       critical: Array.from(this.dependencies.values()).filter(d => d.critical).map(d => d.name)
+    });
+  }
+
+  /**
+   * Register health checks for advanced features
+   */
+  private registerAdvancedFeaturesDependencies(): void {
+    // Steam Detection Engine health check
+    this.registerDependency({
+      name: 'steam_detection_engine',
+      critical: false, // Non-critical - system can work without steam detection
+      timeout: 5000,
+      checkInterval: 45000, // 45 seconds
+      healthCheckFn: async () => {
+        const startTime = Date.now();
+
+        try {
+          // Check if steam_moves table is accessible and recent data exists
+          const { createClient } = await import('@supabase/supabase-js');
+          const supabase = createClient(
+            process.env.SUPABASE_URL!,
+            process.env.SUPABASE_ANON_KEY!
+          );
+
+
+      const { data, error } = await supabase
+            .from('steam_moves')
+            .select('id, created_at')
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+          if (error) {
+            throw new Error(`Steam moves table query failed: ${error.message}`);
+          }
+
+          const recentData = data && data.length > 0 &&
+            new Date(data[0].created_at).getTime() > Date.now() - 24 * 60 * 60 * 1000; // Within 24 hours
+
+          return {
+            healthy: true,
+            responseTime: Date.now() - startTime,
+            metadata: {
+              table_accessible: true,
+              recent_steam_moves: data?.length || 0,
+              has_recent_data: recentData,
+              latest_detection: data?.[0]?.created_at
+            }
+          };
+        } catch (error) {
+          return {
+            healthy: false,
+            responseTime: Date.now() - startTime,
+            error: error instanceof Error ? error.message : 'Steam detection engine check failed'
+          };
+        }
+      }
+    });
+
+    // Line Shopping Engine health check
+    this.registerDependency({
+      name: 'line_shopping_engine',
+      critical: false, // Non-critical - system can work without line shopping
+      timeout: 8000,
+      checkInterval: 60000, // 1 minute
+      healthCheckFn: async () => {
+        const startTime = Date.now();
+
+        try {
+          // Check if best_odds table is accessible and recent data exists
+          const { createClient } = await import('@supabase/supabase-js');
+          const supabase = createClient(
+            process.env.SUPABASE_URL!,
+            process.env.SUPABASE_ANON_KEY!
+          );
+
+
+      const { data, error } = await supabase
+            .from('best_odds')
+            .select('id, created_at, provider')
+            .order('created_at', { ascending: false })
+            .limit(5);
+
+          if (error) {
+            throw new Error(`Best odds table query failed: ${error.message}`);
+          }
+
+          const recentData = data && data.length > 0 &&
+            new Date(data[0].created_at).getTime() > Date.now() - 2 * 60 * 60 * 1000; // Within 2 hours
+
+          const uniqueProviders = new Set(data?.map(d => d.provider) || []);
+
+          return {
+            healthy: true,
+            responseTime: Date.now() - startTime,
+            metadata: {
+              table_accessible: true,
+              recent_odds_comparisons: data?.length || 0,
+              has_recent_data: recentData,
+              unique_providers: uniqueProviders.size,
+              providers: Array.from(uniqueProviders),
+              latest_comparison: data?.[0]?.created_at
+            }
+          };
+        } catch (error) {
+          return {
+            healthy: false,
+            responseTime: Date.now() - startTime,
+            error: error instanceof Error ? error.message : 'Line shopping engine check failed'
+          };
+        }
+      }
+    });
+
+    // Enhanced Injury Analysis health check
+    this.registerDependency({
+      name: 'injury_analysis_engine',
+      critical: false, // Non-critical - system can work without injury analysis
+      timeout: 5000,
+      checkInterval: 30000, // 30 seconds
+      healthCheckFn: async () => {
+        const startTime = Date.now();
+
+        try {
+          // Check if injury_impacts table is accessible
+          const { createClient } = await import('@supabase/supabase-js');
+          const supabase = createClient(
+            process.env.SUPABASE_URL!,
+            process.env.SUPABASE_ANON_KEY!
+          );
+
+
+      const { data, error } = await supabase
+            .from('injury_impacts')
+            .select('id, created_at, impact_score, injury_type')
+            .order('created_at', { ascending: false })
+            .limit(3);
+
+          if (error) {
+            throw new Error(`Injury impacts table query failed: ${error.message}`);
+          }
+
+          const recentData = data && data.length > 0 &&
+            new Date(data[0].created_at).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000; // Within 7 days
+
+          const avgImpactScore = data && data.length > 0 ?
+            data.reduce((sum, d) => sum + (d.impact_score || 0), 0) / data.length : 0;
+
+          return {
+            healthy: true,
+            responseTime: Date.now() - startTime,
+            metadata: {
+              table_accessible: true,
+              recent_injury_analyses: data?.length || 0,
+              has_recent_data: recentData,
+              average_impact_score: Math.round(avgImpactScore * 100) / 100,
+              latest_analysis: data?.[0]?.created_at
+            }
+          };
+        } catch (error) {
+          return {
+            healthy: false,
+            responseTime: Date.now() - startTime,
+            error: error instanceof Error ? error.message : 'Injury analysis engine check failed'
+          };
+        }
+      }
+    });
+
+    // API Quota Coordinator health check
+    this.registerDependency({
+      name: 'api_quota_coordinator',
+      critical: true, // Critical - prevents API quota exhaustion
+      timeout: 5000,
+      checkInterval: 30000, // 30 seconds
+      healthCheckFn: async () => {
+        const startTime = Date.now();
+
+        try {
+          // Check if API quota management tables are accessible
+          const { createClient } = await import('@supabase/supabase-js');
+          const supabase = createClient(
+            process.env.SUPABASE_URL!,
+            process.env.SUPABASE_ANON_KEY!
+          );
+
+          // Check quota configs table (tolerant to missing enabled column)
+          let configs: any[] = [];
+          let configError: any = null;
+
+          try {
+            // Try with enabled column first
+            const result = await supabase
+              .from('api_quota_configs')
+              .select('provider, enabled, daily_limit, used_today')
+              .eq('enabled', true);
+
+            configs = result.data || [];
+            configError = result.error;
+          } catch (enabledError) {
+            // Fallback: query without enabled filter (feature-flag style graceful degradation)
+            console.warn('api_quota_configs.enabled column missing, using fallback query');
+
+            const result = await supabase
+              .from('api_quota_configs')
+              .select('provider, daily_limit, used_today');
+
+            configs = result.data || [];
+            configError = result.error;
+          }
+
+          if (configError) {
+            throw new Error(`API quota configs query failed: ${configError.message}`);
+          }
+
+          // Check recent usage (optional table)
+          let usage: any[] = [];
+          let usageError: any = null;
+
+          try {
+            const result = await supabase
+              .from('api_quota_usage')
+              .select('provider, timestamp')
+              .gte('timestamp', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+              .order('timestamp', { ascending: false })
+              .limit(10);
+
+            usage = result.data || [];
+            usageError = result.error;
+          } catch (tableError) {
+            // api_quota_usage table might not exist - this is non-critical
+            console.warn('api_quota_usage table not found, skipping usage check');
+            usage = [];
+            usageError = null;
+          }
+
+          // Don't fail if usage table doesn't exist - it's optional for health check
+          if (usageError && !usageError.message.includes('does not exist')) {
+            throw new Error(`API quota usage query failed: ${usageError.message}`);
+          }
+
+          const enabledProviders = configs?.length || 0;
+          const recentUsage = usage?.length || 0;
+          const uniqueProvidersUsed = new Set(usage?.map(u => u.provider) || []).size;
+
+          return {
+            healthy: true,
+            responseTime: Date.now() - startTime,
+            metadata: {
+              quota_system_accessible: true,
+              enabled_providers: enabledProviders,
+              recent_api_calls_24h: recentUsage,
+              unique_providers_used: uniqueProvidersUsed,
+              providers: configs?.map(c => c.provider) || []
+            }
+          };
+        } catch (error) {
+          return {
+            healthy: false,
+            responseTime: Date.now() - startTime,
+            error: error instanceof Error ? error.message : 'API quota coordinator check failed'
+          };
+        }
+      }
+    });
+
+    // Settlement Automation health check
+    this.registerDependency({
+      name: 'settlement_automation',
+      critical: false, // Non-critical - can fallback to manual settlement
+      timeout: 10000,
+      checkInterval: 120000, // 2 minutes
+      healthCheckFn: async () => {
+        const startTime = Date.now();
+
+        try {
+          // Check Temporal workflow status and settlement activity
+          const { createClient } = await import('@supabase/supabase-js');
+          const supabase = createClient(
+            process.env.SUPABASE_URL!,
+            process.env.SUPABASE_ANON_KEY!
+          );
+
+          // Check recent settlement activity
+
+      const { data: settlements, error: settlementsError } = await supabase
+            .from('unified_picks')
+            .select('id, created_at, result, settlement_status, settlement_method')
+            .not('result', 'is', null)
+            .not('settlement_status', 'is', null)
+            .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+            .order('created_at', { ascending: false })
+            .limit(20);
+
+          if (settlementsError) {
+            throw new Error(`Settlements query failed: ${settlementsError.message}`);
+          }
+
+          const totalSettlements = settlements?.length || 0;
+          const autoSettlements = settlements?.filter(s => s.settlement_method === 'auto').length || 0;
+          const autoSettlementRate = totalSettlements > 0 ? (autoSettlements / totalSettlements) * 100 : 0;
+          const recentActivity = settlements && settlements.length > 0 &&
+            new Date(settlements[0].created_at).getTime() > Date.now() - 24 * 60 * 60 * 1000;
+
+          return {
+            healthy: true,
+            responseTime: Date.now() - startTime,
+            metadata: {
+              settlement_system_accessible: true,
+              total_settlements_7d: totalSettlements,
+              auto_settlements_7d: autoSettlements,
+              auto_settlement_rate_pct: Math.round(autoSettlementRate * 100) / 100,
+              has_recent_activity: recentActivity,
+              latest_settlement: settlements?.[0]?.created_at
+            }
+          };
+        } catch (error) {
+          return {
+            healthy: false,
+            responseTime: Date.now() - startTime,
+            error: error instanceof Error ? error.message : 'Settlement automation check failed'
+          };
+        }
+      }
+    });
+
+    // Arbitrage Detection health check
+    this.registerDependency({
+      name: 'arbitrage_detection',
+      critical: false, // Non-critical - bonus feature
+      timeout: 5000,
+      checkInterval: 60000, // 1 minute
+      healthCheckFn: async () => {
+        const startTime = Date.now();
+
+        try {
+          // Check if arbitrage_opportunities table is accessible
+          const { createClient } = await import('@supabase/supabase-js');
+          const supabase = createClient(
+            process.env.SUPABASE_URL!,
+            process.env.SUPABASE_ANON_KEY!
+          );
+
+
+      const { data, error } = await supabase
+            .from('arbitrage_opportunities')
+            .select('id, created_at, profit_margin, status')
+            .order('created_at', { ascending: false })
+            .limit(5);
+
+          if (error) {
+            throw new Error(`Arbitrage opportunities table query failed: ${error.message}`);
+          }
+
+          const recentOpportunities = data && data.length > 0 &&
+            new Date(data[0].created_at).getTime() > Date.now() - 6 * 60 * 60 * 1000; // Within 6 hours
+
+          const avgProfitMargin = data && data.length > 0 ?
+            data.reduce((sum, d) => sum + (d.profit_margin || 0), 0) / data.length : 0;
+
+          const activeOpportunities = data?.filter(d => d.status === 'active').length || 0;
+
+          return {
+            healthy: true,
+            responseTime: Date.now() - startTime,
+            metadata: {
+              table_accessible: true,
+              recent_opportunities: data?.length || 0,
+              has_recent_opportunities: recentOpportunities,
+              active_opportunities: activeOpportunities,
+              average_profit_margin_pct: Math.round(avgProfitMargin * 100) / 100,
+              latest_opportunity: data?.[0]?.created_at
+            }
+          };
+        } catch (error) {
+          return {
+            healthy: false,
+            responseTime: Date.now() - startTime,
+            error: error instanceof Error ? error.message : 'Arbitrage detection check failed'
+          };
+        }
+      }
+    });
+
+    logger.info('🚀 Advanced features health checks registered', {
+      newFeatures: ['steam_detection_engine', 'line_shopping_engine', 'injury_analysis_engine',
+                   'api_quota_coordinator', 'settlement_automation', 'arbitrage_detection']
     });
   }
 
@@ -420,7 +811,7 @@ export class EnhancedHealthChecker {
   private startPeriodicChecks(): void {
     // Initial check for all dependencies
     setTimeout(async () => {
-      for (const name of this.dependencies.keys()) {
+      for (const name of Array.from(this.dependencies.keys())) {
         await this.checkDependency(name);
       }
     }, 1000); // Wait 1 second after initialization
@@ -432,7 +823,7 @@ export class EnhancedHealthChecker {
    * Stop all periodic health checks
    */
   public stopPeriodicChecks(): void {
-    for (const interval of this.checkIntervals.values()) {
+    for (const interval of Array.from(this.checkIntervals.values())) {
       clearInterval(interval);
     }
     this.checkIntervals.clear();
@@ -468,6 +859,75 @@ export class EnhancedHealthChecker {
   public resetDependency(name: string): void {
     this.lastResults.delete(name);
     logger.info('🔄 Dependency health status reset', { dependency: name });
+  }
+
+  /**
+   * Get health status specifically for advanced features
+   */
+  public async getAdvancedFeaturesHealth(): Promise<{
+    status: 'healthy' | 'degraded' | 'unhealthy';
+    features: {
+      steam_detection: HealthCheck | null;
+      line_shopping: HealthCheck | null;
+      injury_analysis: HealthCheck | null;
+      api_quota_coordinator: HealthCheck | null;
+      settlement_automation: HealthCheck | null;
+      arbitrage_detection: HealthCheck | null;
+    };
+    summary: {
+      total_features: number;
+      healthy_features: number;
+      critical_failures: number;
+    };
+  }> {
+    const advancedFeatureNames = [
+      'steam_detection_engine',
+      'line_shopping_engine',
+      'injury_analysis_engine',
+      'api_quota_coordinator',
+      'settlement_automation',
+      'arbitrage_detection'
+    ];
+
+    // Check all advanced features in parallel
+    const checkPromises = advancedFeatureNames.map(name => this.checkDependency(name));
+    const results = await Promise.all(checkPromises);
+    const checks = results.filter((check): check is HealthCheck => check !== null);
+
+    // Map results to feature-specific names
+    const features = {
+      steam_detection: checks.find(c => c.name === 'steam_detection_engine') || null,
+      line_shopping: checks.find(c => c.name === 'line_shopping_engine') || null,
+      injury_analysis: checks.find(c => c.name === 'injury_analysis_engine') || null,
+      api_quota_coordinator: checks.find(c => c.name === 'api_quota_coordinator') || null,
+      settlement_automation: checks.find(c => c.name === 'settlement_automation') || null,
+      arbitrage_detection: checks.find(c => c.name === 'arbitrage_detection') || null
+    };
+
+    // Calculate summary
+    const totalFeatures = checks.length;
+    const healthyFeatures = checks.filter(c => c.status === 'healthy').length;
+    const criticalFailures = checks.filter(c => c.status === 'unhealthy' && c.critical).length;
+
+    // Determine overall advanced features status
+    let status: 'healthy' | 'degraded' | 'unhealthy';
+    if (criticalFailures > 0) {
+      status = 'unhealthy';
+    } else if (healthyFeatures < totalFeatures) {
+      status = 'degraded';
+    } else {
+      status = 'healthy';
+    }
+
+    return {
+      status,
+      features,
+      summary: {
+        total_features: totalFeatures,
+        healthy_features: healthyFeatures,
+        critical_failures: criticalFailures
+      }
+    };
   }
 
   /**

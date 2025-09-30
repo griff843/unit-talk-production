@@ -5,6 +5,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { createLogger } from '../utils/logger';
 import { getEnv } from '../utils/getEnv';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 const env = getEnv();
 const logger = createLogger('SystemHealthValidator');
@@ -65,8 +66,9 @@ class SystemHealthValidator {
     
     try {
       // Test basic connectivity
+      const supabaseClient = requireSupabase();
       const { data, error } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('count')
         .limit(1)
         .single();
@@ -118,6 +120,7 @@ class SystemHealthValidator {
   private async checkTemporalWorkers(): Promise<void> {
     try {
       // Check recent workflow activities
+      const supabaseClient = requireSupabase();
       const { data: recentActivities, error } = await supabase
         .from('agent_health')
         .select('agent_name, status, last_activity')
@@ -171,6 +174,7 @@ class SystemHealthValidator {
   // Agent Health Check
   private async checkAgentHealth(): Promise<void> {
     try {
+      const supabaseClient = requireSupabase();
       const { data: agents, error } = await supabase
         .from('agent_health')
         .select('*')
@@ -276,8 +280,9 @@ class SystemHealthValidator {
   private async checkDataIngestion(): Promise<void> {
     try {
       // Check recent data ingestion (last 5 minutes)
+      const supabaseClient = requireSupabase();
       const { data: recentProps, error } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('id, created_at')
         .gte('created_at', new Date(Date.now() - 5 * 60 * 1000).toISOString())
         .order('created_at', { ascending: false });
@@ -335,6 +340,7 @@ class SystemHealthValidator {
   private async checkProfessionalFeatures(): Promise<void> {
     try {
       // Check recent professional grading activity
+      const supabaseClient = requireSupabase();
       const { data: recentGrades, error } = await supabase
         .from('unified_picks')
         .select('id, professional_score, feature_contributions, created_at')

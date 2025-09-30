@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -20,8 +21,9 @@ async function testCorrectDataTypes() {
   
   try {
     // Get a test prop
-    const { data: testProp } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: testProp } = await supabase
+      .from('sports_game_odds')
       .select('id, confidence, tier, edge_score, auto_approved')
       .limit(1)
       .single();
@@ -47,8 +49,9 @@ async function testCorrectDataTypes() {
     };
     
     console.log('\n🧪 TESTING FINAL CORRECT FORMAT:');
-    const { error } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { error } = await supabase
+      .from('sports_game_odds')
       .update({
         confidence: mockGradingResult.confidence > 65 ? 1 : 0, // Boolean: 1 for high confidence
         tier: mockGradingResult.tier,
@@ -67,8 +70,9 @@ async function testCorrectDataTypes() {
     console.log('✅ Update succeeded!');
     
     // Verify the update
-    const { data: updatedProp } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: updatedProp } = await supabase
+      .from('sports_game_odds')
       .select('id, confidence, tier, edge_score, published, updated_at, promoted_to_picks')
       .eq('id', testProp.id)
       .single();
@@ -97,8 +101,9 @@ async function testCorrectDataTypes() {
         { confidence: 72.8, tier: 'B', edgeScore: 0.0987 }, // High confidence -> 1
       ];
       
+      const supabaseClient = requireSupabase();
       const { data: batchProps } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('id')
         .is('tier', null)
         .limit(3);
@@ -110,8 +115,9 @@ async function testCorrectDataTypes() {
           const result = testResults[i];
           const propId = batchProps[i].id;
           
-          const { error: batchError } = await supabase
-            .from('raw_props')
+          const supabaseClient = requireSupabase();
+      const { error: batchError } = await supabase
+            .from('sports_game_odds')
             .update({
               confidence: result.confidence > 65 ? 1 : 0,
               tier: result.tier,
@@ -133,8 +139,9 @@ async function testCorrectDataTypes() {
         console.log(`\\n📊 Batch results: ${successCount}/${testResults.length} successful`);
         
         // Final verification
-        const { count: gradedCount } = await supabase
-          .from('raw_props')
+        const supabaseClient = requireSupabase();
+      const { count: gradedCount } = await supabase
+          .from('sports_game_odds')
           .select('*', { count: 'exact' })
           .not('tier', 'is', null);
           

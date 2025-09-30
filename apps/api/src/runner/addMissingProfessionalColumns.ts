@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -31,6 +32,7 @@ async function addMissingColumns() {
     try {
       console.log(`Adding column: ${columnName}...`);
       
+      const supabaseClient = requireSupabase();
       const { error } = await supabase.rpc('exec_sql', {
         query: `ALTER TABLE raw_props ADD COLUMN IF NOT EXISTS ${columnDef};`
       });
@@ -67,6 +69,7 @@ async function addMissingColumns() {
     try {
       console.log(`Adding unified_picks column: ${columnName}...`);
       
+      const supabaseClient = requireSupabase();
       const { error } = await supabase.rpc('exec_sql', {
         query: `ALTER TABLE unified_picks ADD COLUMN IF NOT EXISTS ${columnDef};`
       });

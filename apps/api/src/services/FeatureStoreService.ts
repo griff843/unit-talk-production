@@ -28,6 +28,10 @@ export class FeatureStoreService {
 
     this.logger.info('Upserting feature', { entityType, entityId, featureName, asOf });
 
+    if (!supabaseClient) {
+      throw new Error('Supabase client not initialized');
+    }
+
     // Idempotent upsert by unique constraint (entity_type, entity_id, feature_name, as_of)
     const endTimer = featureMetrics.upsertDuration.labels(featureName).startTimer();
     const { error } = await supabaseClient
@@ -44,7 +48,7 @@ export class FeatureStoreService {
 
     if (error) {
       featureMetrics.upsertsTotal.labels(featureName, 'failure').inc();
-      this.logger.error('Upsert failed', { error: error.message });
+      this.logger.error('Upsert failed', { error: error?.message || 'Unknown error' });
       throw error;
     } else {
       featureMetrics.upsertsTotal.labels(featureName, 'success').inc();
@@ -62,7 +66,7 @@ export class FeatureStoreService {
 
     if (freshErr) {
       featureMetrics.dqEventsTotal.labels('feature_freshness', 'error').inc();
-      this.logger.error('Freshness upsert failed', { error: freshErr.message });
+      this.logger.error('Freshness upsert failed', { error: freshErr?.message || 'Unknown error' });
       // Do not throw; non-critical
     }
 
@@ -74,6 +78,10 @@ export class FeatureStoreService {
 
   async queryFeatures(params: FeatureQuery): Promise<Record<string, any>> {
     if (!isSupabaseConfigured) return {};
+
+    if (!supabaseClient) {
+      throw new Error('Supabase client not initialized');
+    }
 
     const { entityType, entityId, featureNames, asOf } = params;
 

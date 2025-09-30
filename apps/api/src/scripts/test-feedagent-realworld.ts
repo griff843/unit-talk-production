@@ -18,8 +18,9 @@ import { AlertAgent } from '../agents/AlertAgent';
 import { FeedAgent } from '../agents/FeedAgent';
 import { getRateLimitStatus } from '../agents/FeedAgent/optimal';
 import { RiskManagementAgent } from '../agents/RiskManagementAgent';
-import { supabaseClient } from '../services/supabaseClient';
+import { supabaseClient } from '../utils/supabaseUtils';
 import { Logger } from '../shared/logger';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 // Load environment variables
 config();
@@ -75,8 +76,9 @@ async function main() {
 
     // 2. Test database connectivity
     console.log('\n💾 Testing database connectivity...');
-    const { data: dbTest, error: dbError } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: dbTest, error: dbError } = await supabase
+      .from('sports_game_odds')
       .select('count')
       .limit(1);
     
@@ -109,8 +111,9 @@ async function main() {
     await feedAgent.initialize();
     
     // Get baseline prop count
-    const { count: initialCount } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: initialCount } = await supabase
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true }) || { count: 0 };
 
     console.log(`Initial database props count: ${initialCount}`);
@@ -119,8 +122,9 @@ async function main() {
     await feedAgent.process();
     
     // Check results
-    const { count: finalCount } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: finalCount } = await supabase
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true }) || { count: 0 };
 
     const newProps = (finalCount || 0) - (initialCount || 0);
@@ -138,8 +142,9 @@ async function main() {
 
     // 4. Test recent props data quality
     console.log('\n🔍 Analyzing ingested data quality...');
-    const { data: recentProps, error: propsError } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: recentProps, error: propsError } = await supabase
+      .from('sports_game_odds')
       .select('*')
       .gte('scraped_at', new Date(Date.now() - 60000).toISOString()) // Last minute
       .limit(10);
@@ -196,12 +201,14 @@ async function main() {
     console.log('\n📈 Final database analysis...');
     const today = new Date().toISOString().split('T')[0];
     
-    const { count: totalProps } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: totalProps } = await supabase
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true }) || { count: 0 };
 
-    const { count: todaysProps } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: todaysProps } = await supabase
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .gte('game_date', today) || { count: 0 };
 

@@ -7,11 +7,13 @@ interface ErrorBoundaryProps {
   children: React.ReactNode;
 }
 
-export function ErrorBoundary({ children }: ErrorBoundaryProps) {
+export function FunctionalErrorBoundary({ children }: ErrorBoundaryProps) {
   const [hasError, setHasError] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     const errorHandler = (error: ErrorEvent) => {
       console.error('Caught error:', error);
       setError(error.error);

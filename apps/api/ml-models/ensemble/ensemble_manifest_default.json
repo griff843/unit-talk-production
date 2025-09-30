@@ -1,0 +1,16 @@
+{
+  "ensemble_name": "Unit Talk Syndicate Ensemble",
+  "version": "v1.0.0",
+  "description": "Meta-model ensemble combining 7 sport-specific models for syndicate-level betting intelligence",
+  "sports_supported": ["NBA", "NFL", "MLB", "NHL", "NCAAF", "NCAAB", "WNBA"],
+  "target_accuracy": 0.55,
+  "achieved_accuracy": 0.567,
+  "confidence_threshold": 0.6,
+  "deployment_ready": true,
+  "files": {
+    "meta_model": "meta_model.pkl",
+    "meta_scaler": "meta_scaler.pkl",
+    "config": "ensemble_config_default.json"
+  },
+  "timestamp": "2025-09-17T21:56:31.000Z"
+}

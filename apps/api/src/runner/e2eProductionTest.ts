@@ -7,7 +7,7 @@
  * Usage: npx tsx src/runner/e2eProductionTest.ts
  */
 
-import { supabase } from '../services/supabaseClient';
+import { requireSupabase } from '../utils/supabaseUtils';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('E2EProductionTest');
@@ -101,13 +101,15 @@ class E2EProductionTester {
 
     // Test 1: Database Connectivity
     tests.push(await this.runTest('Database Connectivity', async () => {
-      const { error } = await supabase.from('raw_props').select('id').limit(1);
+      const supabaseClient = requireSupabase();
+      const { error } = await supabaseClient.from('sports_game_odds').select('id').limit(1);
       if (error) throw new Error(`Database connection failed: ${error.message}`);
       return { connected: true };
     }));
 
     // Test 2: v3.0.0 Schema Validation
     tests.push(await this.runTest('v3.0.0 Schema Validation', async () => {
+      const supabaseClient = requireSupabase();
       const { data, error } = await supabase
         .from('unified_picks')
         .select('id, user_id, created_at')
@@ -118,12 +120,14 @@ class E2EProductionTester {
 
     // Test 3: Data Integrity Check
     tests.push(await this.runTest('Data Integrity Check', async () => {
+      const supabaseClient = requireSupabase();
       const { count: totalProps } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*', { count: 'exact', head: true });
       
+      const supabaseClient = requireSupabase();
       const { count: gradedProps } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*', { count: 'exact', head: true })
         .not('edge_score', 'is', null);
 
@@ -141,8 +145,9 @@ class E2EProductionTester {
     // Test 4: Performance Query Test
     tests.push(await this.runTest('Database Performance', async () => {
       const startTime = Date.now();
+      const supabaseClient = requireSupabase();
       const { data, error } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('player_name, stat_type, edge_score, tier')
         .not('edge_score', 'is', null)
         .order('edge_score', { ascending: false })
@@ -174,7 +179,8 @@ class E2EProductionTester {
     // Test 2: Agent Communication
     tests.push(await this.runTest('Agent Communication', async () => {
       // Test agent-to-database communication
-      const { error } = await supabase.from('agent_health').select('*').limit(1);
+      const supabaseClient = requireSupabase();
+      const { error } = await supabaseClient.from('agent_health').select('*').limit(1);
       if (error && !error.message.includes('does not exist')) {
         throw new Error(`Agent communication test failed: ${error.message}`);
       }
@@ -183,12 +189,14 @@ class E2EProductionTester {
 
     // Test 3: Grading Pipeline Status
     tests.push(await this.runTest('Grading Pipeline Status', async () => {
+      const supabaseClient = requireSupabase();
       const { count: totalProps } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*', { count: 'exact', head: true });
       
+      const supabaseClient = requireSupabase();
       const { count: gradedProps } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*', { count: 'exact', head: true })
         .not('edge_score', 'is', null);
 
@@ -227,7 +235,8 @@ class E2EProductionTester {
     // Test 4: Cross-Application Communication
     tests.push(await this.runTest('Cross-Application Communication', async () => {
       // Test database accessibility from all apps
-      const { error } = await supabase.from('raw_props').select('id').limit(1);
+      const supabaseClient = requireSupabase();
+      const { error } = await supabaseClient.from('sports_game_odds').select('id').limit(1);
       if (error) throw new Error(`Cross-app communication failed: ${error.message}`);
       return { communicationActive: true };
     }));
@@ -240,8 +249,9 @@ class E2EProductionTester {
 
     // Test 1: Data Ingestion Pipeline
     tests.push(await this.runTest('Data Ingestion Pipeline', async () => {
+      const supabaseClient = requireSupabase();
       const { count } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*', { count: 'exact', head: true })
         .gte('created_at', new Date(Date.now() - 86400000).toISOString()); // Last 24 hours
       
@@ -250,8 +260,9 @@ class E2EProductionTester {
 
     // Test 2: Grading Processing
     tests.push(await this.runTest('Grading Processing', async () => {
+      const supabaseClient = requireSupabase();
       const { data: gradedProps } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('edge_score, tier, auto_approved')
         .not('edge_score', 'is', null)
         .limit(10);
@@ -273,6 +284,7 @@ class E2EProductionTester {
 
     // Test 3: Data Promotion Pipeline
     tests.push(await this.runTest('Data Promotion Pipeline', async () => {
+      const supabaseClient = requireSupabase();
       const { count: unifiedPicksCount } = await supabase
         .from('unified_picks')
         .select('*', { count: 'exact', head: true });
@@ -288,6 +300,7 @@ class E2EProductionTester {
 
     // Test 1: User Data Access
     tests.push(await this.runTest('User Data Access', async () => {
+      const supabaseClient = requireSupabase();
       const { data: users } = await supabase
         .from('users')
         .select('id, username, tier')
@@ -302,6 +315,7 @@ class E2EProductionTester {
 
     // Test 2: Capper Integration
     tests.push(await this.runTest('Capper Integration', async () => {
+      const supabaseClient = requireSupabase();
       const { data: cappers } = await supabase
         .from('users')
         .select('username, tier')
@@ -316,6 +330,7 @@ class E2EProductionTester {
     // Test 3: Pick Submission Workflow
     tests.push(await this.runTest('Pick Submission Workflow', async () => {
       // Test the complete pick submission path
+      const supabaseClient = requireSupabase();
       const { count: totalPicks } = await supabase
         .from('unified_picks')
         .select('*', { count: 'exact', head: true });
@@ -332,7 +347,7 @@ class E2EProductionTester {
     // Test 1: Database Query Performance
     tests.push(await this.runTest('Database Query Performance', async () => {
       const queries = [
-        () => supabase.from('raw_props').select('*').limit(100),
+        () => supabase.from('sports_game_odds').select('*').limit(100),
         () => supabase.from('unified_picks').select('*').limit(50),
         () => supabase.from('users').select('*').limit(20),
       ];
@@ -359,7 +374,7 @@ class E2EProductionTester {
       const start = Date.now();
       
       await Promise.all([
-        supabase.from('raw_props').select('id').limit(10),
+        supabase.from('sports_game_odds').select('id').limit(10),
         supabase.from('unified_picks').select('id').limit(10),
         supabase.from('users').select('id').limit(10),
       ]);
@@ -372,8 +387,9 @@ class E2EProductionTester {
     // Test 3: Grading Pipeline Throughput
     tests.push(await this.runTest('Grading Pipeline Throughput', async () => {
       // Estimate current throughput based on recent progress
+      const supabaseClient = requireSupabase();
       const { count: gradedProps } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*', { count: 'exact', head: true })
         .not('edge_score', 'is', null);
 
@@ -409,12 +425,14 @@ class E2EProductionTester {
 
     // Test 2: Data Completeness
     tests.push(await this.runTest('Data Completeness', async () => {
+      const supabaseClient = requireSupabase();
       const { count: totalProps } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*', { count: 'exact', head: true });
       
+      const supabaseClient = requireSupabase();
       const { count: validProps } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*', { count: 'exact', head: true })
         .not('player_name', 'is', null)
         .not('stat_type', 'is', null);

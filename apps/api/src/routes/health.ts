@@ -1,406 +1,108 @@
-import { Router, Request, Response } from 'express';
-import Redis from 'ioredis';
+import { Router } from 'express';
 import { createClient } from '@supabase/supabase-js';
+import { requireSupabase } from '../utils/supabaseUtils';
 
-import { getEnv } from '../utils/getEnv';
-import { createLogger } from '../utils/logger';
-import { getGracefulShutdown } from '../utils/gracefulShutdown';
+// Temporal is optional at build-time; guard the import
+let temporalConn: any = null;
+async function checkTemporal(): Promise<{ ok: boolean; detail?: string }> {
+  try {
+    // Prefer env already used in your workers
+    const address = process.env.TEMPORAL_ADDRESS || '';
+    const namespace = process.env.TEMPORAL_NAMESPACE || '';
+    if (!address || !namespace) return { ok: false, detail: 'TEMPORAL env missing' };
 
-const _env = getEnv();
-const logger = createLogger('Health');
+    // Lazy import to avoid bundler complaints if not installed in API
+    const { Connection, Client } = await import('@temporalio/client');
+    const connection = await Connection.connect({ address });
+    temporalConn = connection;
+    const client = new Client({ connection, namespace });
+    // A lightweight call: list workflows (limit 1) or just ensure the client constructed
+    await client.workflowService.listNamespaces({}); // succeeds if reachable
+    return { ok: true };
+  } catch (err: any) {
+    return { ok: false, detail: err?.message || String(err) };
+  }
+}
 
-// Initialize Supabase client only if configured to avoid runtime errors in dev
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabaseClient = (supabaseUrl && supabaseKey)
-  ? createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false, autoRefreshToken: false } })
-  : null as any;
+async function checkSupabase(): Promise<{ ok: boolean; detail?: string }> {
+  try {
+    const url = process.env.SUPABASE_URL!;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY!;
+    if (!url || !key) return { ok: false, detail: 'SUPABASE env missing' };
+
+    const sb = createClient(url, key, { auth: { persistSession: false } });
+    // Use a cheap built-in table; information_schema is not accessible via Supabase RPC, so ping a known table.
+    // Fall back to an RPC if you have one, or a trivial select on a tiny table like runtime_config.
+    const { data, error } = await sb.from('runtime_config').select('key').limit(1);
+    if (error) return { ok: false, detail: error.message };
+    return { ok: true };
+  } catch (err: any) {
+    return { ok: false, detail: err?.message || String(err) };
+  }
+}
 
 const router = Router();
-const redis = new Redis({
-  host: process.env.REDIS_HOST || 'unit-talk-redis',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  enableReadyCheck: false,
-  lazyConnect: true,
-  maxRetriesPerRequest: 3
+
+// Liveness: process is up
+router.get('/', (_req, res) => {
+  res.status(200).json({ ok: true, ts: new Date().toISOString() });
 });
 
-interface HealthStatus {
-  status: 'healthy' | 'unhealthy' | 'degraded';
-  timestamp: string;
-  services: {
-    database: ServiceStatus;
-    redis: ServiceStatus;
-    agents: ServiceStatus;
-    external_apis: ServiceStatus;
-  };
-  version: string;
-  uptime: number;
-  memory: {
-    used: number;
-    total: number;
-    percentage: number;
-  };
-  system: {
-    loadAverage: number[];
-    cpuUsage: number;
-  };
-}
+// Readiness: require DB + Temporal to be reachable
+router.get('/ready', async (_req, res) => {
+  const [db, temporal] = await Promise.all([checkSupabase(), checkTemporal()]);
+  const ok = db.ok && temporal.ok;
+  const detail = { db, temporal };
+  if (ok) return res.status(200).json({ ok: true, detail });
+  return res.status(503).json({ ok: false, detail });
+});
 
-interface ServiceStatus {
-  status: 'up' | 'down' | 'degraded';
-  responseTime?: number;
-  lastCheck: string;
-  error?: string;
-  details?: Record<string, any>;
-}
-
-// Detailed health check endpoint
-router.get('/', async (
-  _req: Request,
-  res: Response
-) => {
-  const startTime = Date.now();
-  
-  const healthStatus: HealthStatus = {
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    services: {
-      database: { status: 'down', lastCheck: new Date().toISOString() },
-      redis: { status: 'down', lastCheck: new Date().toISOString() },
-      agents: { status: 'down', lastCheck: new Date().toISOString() },
-      external_apis: { status: 'down', lastCheck: new Date().toISOString() },
-    },
-    version: process.env['npm_package_version'] || 'unknown',
-    uptime: process.uptime(),
-    memory: {
-      used: 0,
-      total: 0,
-      percentage: 0,
-    },
-    system: {
-      loadAverage: [],
-      cpuUsage: 0,
-    },
-  };
-
+// Provider health endpoint (moved from api-server.ts to avoid conflicts)
+router.get('/provider', async (_req, res) => {
   try {
-    // Get system metrics
-    const memUsage = process.memoryUsage();
-    healthStatus.memory = {
-      used: memUsage.heapUsed,
-      total: memUsage.heapTotal,
-      percentage: (memUsage.heapUsed / memUsage.heapTotal) * 100,
+    const { getProviderHealth } = await import('../agents/FeedAgent/activities');
+    const providerHealth = getProviderHealth();
+
+    // Get data freshness from database
+    const supabaseClient = requireSupabase();
+      const { data: latestProp } = await supabaseClient
+      .from('sports_game_odds')
+      .select('created_at')
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    const lastIngestion = latestProp?.[0]?.created_at || null;
+    const minutesSinceLastIngestion = lastIngestion
+      ? Math.floor((Date.now() - new Date(lastIngestion).getTime()) / 60000)
+      : null;
+
+    const dataFreshness = {
+      status: minutesSinceLastIngestion === null ? 'critical' :
+              minutesSinceLastIngestion < 15 ? 'fresh' :
+              minutesSinceLastIngestion < 60 ? 'stale' : 'critical',
+      lastIngestion,
+      minutesSinceLastIngestion,
+      statusText: minutesSinceLastIngestion === null ? 'No data ingested' :
+                  minutesSinceLastIngestion < 15 ? `Fresh data (${minutesSinceLastIngestion}m ago)` :
+                  minutesSinceLastIngestion < 60 ? `Stale data (${minutesSinceLastIngestion}m ago)` :
+                  `Critical - No data for ${minutesSinceLastIngestion}m`
     };
 
-    healthStatus.system = {
-      loadAverage: require('os').loadavg(),
-      cpuUsage: process.cpuUsage().user / 1000000, // Convert to seconds
-    };
-
-    // Check database with comprehensive validation
-    const dbStartTime = Date.now();
-    try {
-      // If Supabase is not configured (local dev), mark as degraded instead of down
-      if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-        const dbResponseTime = Date.now() - dbStartTime;
-        healthStatus.services.database = {
-          status: 'degraded',
-          responseTime: dbResponseTime,
-          lastCheck: new Date().toISOString(),
-          details: {
-            configured: false,
-            reason: 'SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set'
-          }
-        };
-      } else {
-        // Test basic connectivity
-        const { data: _basicTest, error: basicError } = await supabaseClient
-          .from('users')
-          .select('count')
-          .limit(1);
-
-        if (basicError) throw basicError;
-
-        // Test write capability (if not in read-only mode)
-        const { error: writeTest } = await supabaseClient
-          .from('agent_health')
-          .select('agent_name')
-          .limit(1);
-
-        if (writeTest) throw writeTest;
-
-        const dbResponseTime = Date.now() - dbStartTime;
-        healthStatus.services.database = {
-          status: 'up',
-          responseTime: dbResponseTime,
-          lastCheck: new Date().toISOString(),
-          details: {
-            readTest: 'passed',
-            writeTest: 'passed',
-            connectionPool: 'healthy'
-          }
-        };
-      }
-    } catch (error) {
-      const dbResponseTime = Date.now() - dbStartTime;
-      healthStatus.services.database = {
-        status: 'down',
-        responseTime: dbResponseTime,
-        lastCheck: new Date().toISOString(),
-        error: error instanceof Error ? error.message : 'Unknown database error',
-        details: {
-          readTest: 'failed',
-          writeTest: 'failed',
-          connectionPool: 'unhealthy'
-        }
-      };
-    }
-
-    // Check Redis
-    const redisStartTime = Date.now();
-    try {
-      const redisResult = await redis.ping();
-      const redisResponseTime = Date.now() - redisStartTime;
-      
-      healthStatus.services.redis = {
-        status: redisResult === 'PONG' ? 'up' : 'down',
-        responseTime: redisResponseTime,
-        lastCheck: new Date().toISOString(),
-      };
-    } catch (error) {
-      healthStatus.services.redis = {
-        status: 'down',
-        lastCheck: new Date().toISOString(),
-        error: error instanceof Error ? error.message : 'Unknown Redis error',
-      };
-    }
-
-    // Check agents health (simplified - would check actual agent status)
-    try {
-      // This would typically check agent heartbeats or status endpoints
-      const agentHealthy = await checkAgentsHealth();
-      healthStatus.services.agents = {
-        status: agentHealthy ? 'up' : 'degraded',
-        lastCheck: new Date().toISOString(),
-      };
-    } catch (error) {
-      healthStatus.services.agents = {
-        status: 'down',
-        lastCheck: new Date().toISOString(),
-        error: error instanceof Error ? error.message : 'Unknown agent error',
-      };
-    }
-
-    // Check external APIs with detailed validation
-    const externalApiStartTime = Date.now();
-    try {
-      const externalApiResults = await checkExternalAPIs();
-      const externalApiResponseTime = Date.now() - externalApiStartTime;
-
-      healthStatus.services.external_apis = {
-        status: externalApiResults.allHealthy ? 'up' : 'degraded',
-        responseTime: externalApiResponseTime,
-        lastCheck: new Date().toISOString(),
-        details: externalApiResults.details
-      };
-    } catch (error) {
-      const externalApiResponseTime = Date.now() - externalApiStartTime;
-      healthStatus.services.external_apis = {
-        status: 'down',
-        responseTime: externalApiResponseTime,
-        lastCheck: new Date().toISOString(),
-        error: error instanceof Error ? error.message : 'Unknown external API error',
-        details: { error: 'Failed to check external APIs' }
-      };
-    }
-
-    // Check graceful shutdown status
-    const shutdownManager = getGracefulShutdown();
-    if (shutdownManager) {
-      const shutdownStatus = shutdownManager.getHealthStatus();
-      (healthStatus.services as any).shutdown_manager = {
-        status: shutdownStatus.status === 'healthy' ? 'up' : 'degraded',
-        lastCheck: new Date().toISOString(),
-        details: shutdownStatus.shutdownProgress
-      };
-    }
-
-    // Determine overall status
-    const serviceStatuses = Object.values(healthStatus.services).map(s => s.status);
-    const downServices = serviceStatuses.filter(s => s === 'down').length;
-    const degradedServices = serviceStatuses.filter(s => s === 'degraded').length;
-
-    if (downServices > 0) {
-      healthStatus.status = 'unhealthy';
-    } else if (degradedServices > 0) {
-      healthStatus.status = 'degraded';
-    } else {
-      healthStatus.status = 'healthy';
-    }
-
-    // Log health check
-    logger.info('Health check completed', {
-      status: healthStatus.status,
-      responseTime: Date.now() - startTime,
-      services: healthStatus.services,
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.json({
+      success: true,
+      dataFreshness,
+      ...providerHealth,
+      timestamp: new Date().toISOString()
     });
-
-    const statusCode = healthStatus.status === 'healthy' ? 200 : 
-                      healthStatus.status === 'degraded' ? 200 : 503;
-    
-    res.status(statusCode).json(healthStatus);
-
   } catch (error) {
-    logger.error('Health check failed', { err: error instanceof Error ? error.message : String(error) });
-    
-    healthStatus.status = 'unhealthy';
-    res.status(503).json({
-      ...healthStatus,
+    console.error('Provider health check failed:', error);
+    res.status(500).json({
+      success: false,
       error: 'Health check failed',
+      message: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
-
-// Simple liveness probe
-router.get('/health/live', (req: Request, res: Response) => {
-  console.log(`Health live request from ${req.ip || 'unknown IP'}`);
-  res.status(200).json({ status: 'live' });
-});
-
-// Readiness probe
-router.get('/health/ready', async (req: Request, res: Response) => {
-  console.log(`Health ready request from ${req.ip || 'unknown IP'}`);
-  res.status(200).json({ status: 'ready' });
-});
-
-/*
-// Metrics endpoint for Prometheus
-router.get('/metrics', async (req: Request, res: Response) => {
-  console.log(`Metrics request from ${req.ip || 'unknown IP'}`);
-  res.status(200).json({ metrics: 'available' });
-});
-*/
-
-// Helper functions
-async function checkAgentsHealth(): Promise<boolean> {
-  try {
-    // This would check actual agent status
-    // For now, return true as a placeholder
-    return true;
-  } catch (error) {
-    logger.error('Agent health check failed', { err: error instanceof Error ? error.message : String(error) });
-    return false;
-  }
-}
-
-async function checkExternalAPIs(): Promise<{
-  allHealthy: boolean;
-  details: Record<string, { status: string; responseTime?: number; error?: string }>;
-}> {
-  const results: Record<string, { status: string; responseTime?: number; error?: string }> = {};
-
-  try {
-    // Check Supabase API connectivity
-    const supabaseStartTime = Date.now();
-    try {
-      const { error } = await supabaseClient.from('users').select('count').limit(1);
-      const supabaseResponseTime = Date.now() - supabaseStartTime;
-
-      results.supabase = {
-        status: error ? 'down' : 'up',
-        responseTime: supabaseResponseTime,
-        error: error?.message
-      };
-    } catch (error) {
-      results.supabase = {
-        status: 'down',
-        responseTime: Date.now() - supabaseStartTime,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      };
-    }
-
-    // Check OpenAI API (if configured)
-    if (process.env.OPENAI_API_KEY) {
-      const openaiStartTime = Date.now();
-      try {
-        // Simple API check - just verify the key format
-        const keyValid = process.env.OPENAI_API_KEY.startsWith('sk-');
-        const openaiResponseTime = Date.now() - openaiStartTime;
-
-        results.openai = {
-          status: keyValid ? 'up' : 'down',
-          responseTime: openaiResponseTime,
-          error: keyValid ? undefined : 'Invalid API key format'
-        };
-      } catch (error) {
-        results.openai = {
-          status: 'down',
-          responseTime: Date.now() - openaiStartTime,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        };
-      }
-    } else {
-      results.openai = {
-        status: 'not_configured'
-      };
-    }
-
-    // Check Discord API (if configured)
-    if (process.env.DISCORD_BOT_TOKEN) {
-      const discordStartTime = Date.now();
-      try {
-        // Simple token format check
-        const tokenValid = process.env.DISCORD_BOT_TOKEN.length > 50;
-        const discordResponseTime = Date.now() - discordStartTime;
-
-        results.discord = {
-          status: tokenValid ? 'up' : 'down',
-          responseTime: discordResponseTime,
-          error: tokenValid ? undefined : 'Invalid token format'
-        };
-      } catch (error) {
-        results.discord = {
-          status: 'down',
-          responseTime: Date.now() - discordStartTime,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        };
-      }
-    } else {
-      results.discord = {
-        status: 'not_configured'
-      };
-    }
-
-    // Determine overall health
-    const _upServices = Object.values(results).filter(r => r.status === 'up').length;
-    const downServices = Object.values(results).filter(r => r.status === 'down').length;
-    const allHealthy = downServices === 0;
-
-    return {
-      allHealthy,
-      details: results
-    };
-
-  } catch (error) {
-    logger.error('External API health check failed', {
-      error: error instanceof Error ? error.message : String(error)
-    });
-
-    return {
-      allHealthy: false,
-      details: {
-        supabase: { status: 'down', error: error instanceof Error ? error.message : 'Unknown error' }
-      }
-    };
-  }
-}
-
-/*
-async function collectMetrics(): Promise<string> {
-  console.log('Collecting metrics');
-  return 'metrics collected';
-}
-*/
 
 export default router;

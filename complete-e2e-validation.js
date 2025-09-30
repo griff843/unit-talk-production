@@ -38,8 +38,8 @@ async function completeE2EValidation() {
   console.log(`     - Over/Under: ${sampleProp.over_odds}/${sampleProp.under_odds}`);
   console.log(`     - Provider: ${sampleProp.provider}`);
   
-  // Step 2: Force GradingAgent processing with direct database update
-  console.log('\n🎯 STEP 2: GradingAgent Processing Pipeline');
+  // Step 2: Force ScoringAgent processing with direct database update
+  console.log('\n🎯 STEP 2: ScoringAgent Processing Pipeline');
   console.log('-------------------------------------------');
   
   // Take a small sample for e2e testing
@@ -75,7 +75,7 @@ async function completeE2EValidation() {
     }
   }
   
-  console.log(`\n📈 GradingAgent Results: ${processedCount}/${testProps.length} props processed`);
+  console.log(`\n📈 ScoringAgent Results: ${processedCount}/${testProps.length} props processed`);
   
   // Step 3: Verify professional scoring worked
   console.log('\n🏆 STEP 3: Professional Scoring Verification');
@@ -106,7 +106,7 @@ async function completeE2EValidation() {
   const dataQualityGood = sampleProp && sampleProp.player_name && sampleProp.line > 0;
   
   console.log(`✅ FeedAgent Pipeline: ${feedAgentWorking ? 'OPERATIONAL' : 'NEEDS WORK'} (${feedAgentProps?.length || 0} props)`);
-  console.log(`✅ GradingAgent Pipeline: ${gradingAgentWorking ? 'OPERATIONAL' : 'NEEDS WORK'} (${gradedProps?.length || 0} scored)`);
+  console.log(`✅ ScoringAgent Pipeline: ${gradingAgentWorking ? 'OPERATIONAL' : 'NEEDS WORK'} (${gradedProps?.length || 0} scored`);
   console.log(`✅ Data Quality: ${dataQualityGood ? 'EXCELLENT' : 'NEEDS WORK'}`);
   console.log(`✅ Insertion Bottleneck: SOLVED`);
   console.log(`✅ NCAAF Coverage: FIXED`);
@@ -119,7 +119,7 @@ async function completeE2EValidation() {
   
   if (e2eReady) {
     console.log('🎉 SYSTEM IS E2E READY FOR PRODUCTION!');
-    console.log('   ✅ Complete data pipeline: FeedAgent → Database → GradingAgent');
+    console.log('   ✅ Complete data pipeline: FeedAgent → Database → ScoringAgent');
     console.log('   ✅ All 40+ props requirement exceeded');
     console.log('   ✅ Professional scoring with 8 advanced features');
     console.log('   ✅ Auto-approval workflow operational');

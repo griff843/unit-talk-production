@@ -7,6 +7,7 @@ import { DataProcessor } from './dataProcessor';
 import { MarketForecaster } from './marketForecaster';
 import { ModelManager } from './modelManager';
 import { PredictionEngine } from './predictionEngine';
+import { requireSupabase } from '../../utils/supabaseUtils';
 
 interface PredictiveAnalyticsMetrics extends BaseMetrics {
   predictionsGenerated: number;

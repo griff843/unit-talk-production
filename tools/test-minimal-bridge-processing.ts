@@ -101,7 +101,7 @@ class MinimalSmartFormBridge {
 
     console.log('✅ Daily pick stored:', insertedPick.id);
 
-    // 4. Generate basic insights (without GradingAgent complexity)
+    // 4. Generate basic insights (without ScoringAgent complexity)
     const insights = {
       systemGrade: 'A-tier', // Default grade for smart form
       systemConfidence: Math.min(90, smartTicket.confidence_level * 10),

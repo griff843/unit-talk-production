@@ -3,6 +3,7 @@ import axios from 'axios';
 import { fetchEvents } from '../agents/FeedAgent/optimal';
 import { makeLogger } from '../utils/logger';
 import { createSupabaseClient } from '../utils/supabase';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 const logger = makeLogger('IngestionActivities');
 const supabase = createSupabaseClient();
@@ -41,8 +42,9 @@ export async function ingestOptimalProps(params: {
     // Insert props into raw_props table
     for (const prop of props) {
       try {
-        const { error } = await supabase
-          .from('raw_props')
+        const supabaseClient = requireSupabase();
+      const { error } = await supabaseClient
+          .from('sports_game_odds')
           .insert({
             id: `optimal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             external_game_id: prop.game_id || `game-${Date.now()}`,
@@ -138,8 +140,9 @@ export async function validateIngestionData(params: {
   expectedMinProps: number;
 }): Promise<{ isValid: boolean; actualCount: number; issues: string[] }> {
   try {
-    const { data, error } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data, error } = await supabaseClient
+      .from('sports_game_odds')
       .select('count')
       .eq('league', params.league)
       .gte('created_at', new Date(Date.now() - 5 * 60 * 1000).toISOString()); // Last 5 minutes
@@ -238,7 +241,8 @@ export async function ingestOptimalGames(params: {
         };
 
         // Check if game already exists
-        const { data: existingGame } = await supabase
+        const supabaseClient = requireSupabase();
+      const { data: existingGame } = await supabaseClient
           .from('games')
           .select('id')
           .eq('external_game_id', event.id)
@@ -246,7 +250,8 @@ export async function ingestOptimalGames(params: {
 
         if (existingGame) {
           // Update existing game
-          const { error: updateError } = await supabase
+          const supabaseClient = requireSupabase();
+      const { error: updateError } = await supabaseClient
             .from('games')
             .update({
               ...gameRecord,
@@ -261,7 +266,8 @@ export async function ingestOptimalGames(params: {
           }
         } else {
           // Insert new game
-          const { error: insertError } = await supabase
+          const supabaseClient = requireSupabase();
+      const { error: insertError } = await supabaseClient
             .from('games')
             .insert(gameRecord);
 
@@ -304,7 +310,8 @@ async function ensureTeamExists(teamCode: string, teamDisplayName: string, sport
 
   try {
     // Check if team exists
-    const { data: existingTeam } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: existingTeam } = await supabaseClient
       .from('teams')
       .select('id')
       .eq('abbreviation', teamCode)
@@ -321,7 +328,8 @@ async function ensureTeamExists(teamCode: string, teamDisplayName: string, sport
         created_at: new Date().toISOString()
       };
 
-      const { error: teamError } = await supabase
+      const supabaseClient = requireSupabase();
+      const { error: teamError } = await supabaseClient
         .from('teams')
         .insert(teamRecord);
 

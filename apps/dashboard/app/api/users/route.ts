@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+// Force dynamic rendering for this API route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
 const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) as string;
 if (!supabaseUrl || !supabaseKey) { throw new Error('Missing Supabase env vars for dashboard users route'); }
@@ -114,10 +118,18 @@ async function handleUserStats(): Promise<NextResponse> {
 
         const allPicks = [...dailyPicks, ...smartTickets];
         const completedPicks = allPicks.filter(
-          pick => pick.result || (pick.status && ['won', 'lost', 'settled'].includes(pick.status))
+          pick => {
+            if ('result' in pick && pick.result) return true;
+            if ('status' in pick && pick.status && ['won', 'lost', 'settled'].includes(pick.status)) return true;
+            return false;
+          }
         );
         const wonPicks = completedPicks.filter(
-          pick => pick.result === 'win' || pick.status === 'won'
+          pick => {
+            if ('result' in pick) return pick.result === 'win';
+            if ('status' in pick) return pick.status === 'won';
+            return false;
+          }
         );
 
         return {

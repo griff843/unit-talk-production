@@ -9,6 +9,7 @@ import {
 import { logger } from '../utils/logger';
 import { OnboardingService } from '../services/onboardingService';
 import { DMService } from '../services/dmService';
+import { botConfig } from '../config';
 
 /**
  * Elite Trial Onboarding Button Handler
@@ -185,6 +186,11 @@ export class OnboardingButtonHandler {
    * Handle "Elite Server Tour" button
    */
   private async handleServerTour(interaction: ButtonInteraction): Promise<void> {
+    const cappersSpaceId = (botConfig.channels as any).cappersSpace || botConfig.channels.vipGeneral;
+    const vipGeneralId = botConfig.channels.vipGeneral;
+    const vipPlusExclusiveId = (botConfig.channels as any).vipPlusExclusiveInsights || '';
+    const vipPlusTraderId = (botConfig.channels as any).vipPlusTraderInsights || '';
+
     const embed = new EmbedBuilder()
       .setColor('#4169E1')
       .setTitle('🗺️ Your Elite Server Navigation Guide')
@@ -197,18 +203,17 @@ export class OnboardingButtonHandler {
         {
           name: '🏆 VIP Arena - Your Main Hub',
           value: [
-            '• **<#1288610443723538584>** - Your VIP general chat',
-            '• **<#1356624814831304744>** - Strategy discussions with experts',
+            `• **<#${cappersSpaceId}>** - Cappers Space (start here)`,
+            vipGeneralId ? `• **<#${vipGeneralId}>** - VIP Lounge and Insights` : undefined,
             '• **Live picks posted here first** - refresh often!',
-          ].join('\n'),
+          ].filter(Boolean).join('\n'),
           inline: false,
         },
         {
           name: '💎 What You\'re Missing (VIP+ Preview)',
           value: [
-            '• **<#1288612794584924171>** - VIP+ Arena (ultimate tier)',
-            '• **<#1288613114815840466>** - Exclusive insights and analysis',
-            '• **<#1356613995175481405>** - Trader insights (whale movements)',
+            vipPlusExclusiveId ? `• **<#${vipPlusExclusiveId}>** - VIP+ Research Section (exclusive insights)` : '• VIP+ Research Section (exclusive insights)',
+            vipPlusTraderId ? `• **<#${vipPlusTraderId}>** - Trader insights (whale movements)` : '• Trader insights (whale movements)',
           ].join('\n'),
           inline: false,
         },
@@ -810,7 +815,7 @@ export class OnboardingButtonHandler {
       'losing_money': '**Try `/ask-unit-talk`** and ask: "What\'s the biggest mistake losing bettors make?" - Learn what to avoid immediately.',
       'need_analysis': '**Use `/ask-unit-talk`** and ask: "How does your edge scoring system work?" - Understand our analytical advantage.',
       'learn_strategy': '**Ask `/ask-unit-talk`**: "What\'s the first strategy every successful bettor learns?" - Start your education.',
-      'community': '**Head to <#1288610443723538584>** and introduce yourself - Tell us your betting background and goals.',
+      'community': `**Head to <#${(botConfig.channels as any).cappersSpace || botConfig.channels.vipGeneral}>** and introduce yourself - Tell us your betting background and goals.`,
       'profit_system': '**Try `/ask-unit-talk`** and ask: "How do I start building a systematic betting approach?" - Learn the framework.',
       'expert_picks': '**Use `/capper-stats`** to see our top performers - Identify which experts match your style.',
     };

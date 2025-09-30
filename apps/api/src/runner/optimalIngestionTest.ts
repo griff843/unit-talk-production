@@ -5,6 +5,7 @@ import { BaseAgentConfig } from '../agents/BaseAgent/types';
 import { IngestionAgent } from '../agents/IngestionAgent';
 import { ErrorHandler } from '../utils/errorHandler';
 import { logger } from '../utils/logger';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 /**
  * Test script to run the IngestionAgent with Optimal API integration
@@ -82,8 +83,9 @@ const deps = {
  */
 async function checkRawPropsTable(label: string) {
   try {
-    const { error, count } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { error, count } = await supabase
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true });
 
     if (error) {
@@ -105,8 +107,9 @@ async function checkRawPropsTable(label: string) {
  */
 async function showRecentProps(limit: number = 5) {
   try {
-    const { data, error } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data, error } = await supabase
+      .from('sports_game_odds')
       .select('player_name, stat_type, line, provider, scraped_at, sport')
       .order('scraped_at', { ascending: false })
       .limit(limit);

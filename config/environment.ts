@@ -90,6 +90,7 @@ const EnvironmentSchema = z.object({
   VIP_PLUS_STRATEGY_ROOM_CHANNEL_ID: z.string().default(''),
   VIP_PLUS_EXCLUSIVE_INSIGHTS_CHANNEL_ID: z.string().default(''),
   VIP_PLUS_TRADER_INSIGHTS_CHANNEL_ID: z.string().default(''),
+  CAPPERS_SPACE_CHANNEL_ID: z.string().default(''),
   SUPPORT_CHANNEL_ID: z.string().default(''),
   THREADS_CHANNEL_ID: z.string().default(''),
   SPORTS_TALK_CHANNEL_ID: z.string().default(''),
@@ -105,6 +106,7 @@ const EnvironmentSchema = z.object({
   // Redis & Caching
   REDIS_URL: z.string().default('redis://localhost:6379'),
   CACHE_ENABLED: z.string().default('true').transform(val => val === 'true'),
+  CACHE_TTL_SNAPSHOTS: z.string().default('90').transform(Number),
 
   // Security & Encryption
   JWT_SECRET: z.string().min(32, 'JWT secret must be at least 32 characters'),
@@ -288,6 +290,7 @@ class EnvironmentConfig {
       VIP_PLUS_STRATEGY_ROOM_CHANNEL_ID: '',
       VIP_PLUS_EXCLUSIVE_INSIGHTS_CHANNEL_ID: '',
       VIP_PLUS_TRADER_INSIGHTS_CHANNEL_ID: '',
+      CAPPERS_SPACE_CHANNEL_ID: '',
       SUPPORT_CHANNEL_ID: '',
       THREADS_CHANNEL_ID: '',
       SPORTS_TALK_CHANNEL_ID: '',
@@ -451,6 +454,7 @@ class EnvironmentConfig {
         vipPlusStrategyRoom: this.config.VIP_PLUS_STRATEGY_ROOM_CHANNEL_ID,
         vipPlusExclusiveInsights: this.config.VIP_PLUS_EXCLUSIVE_INSIGHTS_CHANNEL_ID,
         vipPlusTraderInsights: this.config.VIP_PLUS_TRADER_INSIGHTS_CHANNEL_ID,
+        cappersSpace: this.config.CAPPERS_SPACE_CHANNEL_ID,
         support: this.config.SUPPORT_CHANNEL_ID,
         threads: this.config.THREADS_CHANNEL_ID,
         sportsTalk: this.config.SPORTS_TALK_CHANNEL_ID,
@@ -577,6 +581,7 @@ class EnvironmentConfig {
       cacheEnabled: this.config.CACHE_ENABLED,
       redis: {
         url: this.config.REDIS_URL,
+        snapshotsTtl: this.config.CACHE_TTL_SNAPSHOTS,
       },
       limits: {
         threadAutoArchiveMinutes: this.config.THREAD_AUTO_ARCHIVE_MINUTES,

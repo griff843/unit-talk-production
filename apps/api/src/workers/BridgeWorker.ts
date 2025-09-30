@@ -2,6 +2,8 @@ import 'dotenv/config';
 import { BaseAgent } from '../agents/BaseAgent';
 import { BaseAgentConfig, BaseAgentDependencies, BaseMetrics, HealthStatus } from '../agents/BaseAgent/types';
 import { withCircuitBreaker, circuitBreaker } from '../services/enhanced-circuit-breaker';
+import { discordBotIntegration } from '../services/DiscordBotIntegration';
+import { requireSupabase } from '../utils/supabaseUtils';
 // Removed unused imports: SupabaseClient, Logger
 
 interface BridgeWorkerConfig extends BaseAgentConfig {
@@ -42,13 +44,14 @@ interface EventRecord {
 interface BridgeOutboxRecord {
   id: string;
   event_type: string;
-  payload: any;
-  unique_key: string;
+  event_data: any;
+  bet_slip_id: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
   attempts: number;
   max_attempts: number;
-  next_attempt_at: string;
+  retry_count?: number;
   created_at: string;
+  updated_at?: string;
   processed_at?: string;
   error_message?: string;
 }
@@ -307,7 +310,6 @@ export class BridgeWorker extends BaseAgent {
           .from('bridge_outbox')
           .select('*')
           .eq('status', 'pending')
-          .lte('next_attempt_at', new Date().toISOString())
           .filter('attempts', 'lt', 'max_attempts')
           .order('created_at', { ascending: true })
           .limit(this.bridgeOutboxBatchSize);
@@ -333,10 +335,10 @@ export class BridgeWorker extends BaseAgent {
       await this.markBridgeOutboxEventAsProcessing(event);
       
       // Log processing start
-      this.logger.info('🎫 Processing bridge outbox event', { 
-        eventId: event.id, 
+      this.logger.info('🎫 Processing bridge outbox event', {
+        eventId: event.id,
         eventType: event.event_type,
-        uniqueKey: event.unique_key,
+        betSlipId: event.bet_slip_id,
         attempts: event.attempts
       });
       
@@ -352,15 +354,15 @@ export class BridgeWorker extends BaseAgent {
       const standardizedEvent = {
         id: event.id,
         event_type: event.event_type,
-        aggregate_id: event.payload.bet_slip_id || event.unique_key,
+        aggregate_id: event.bet_slip_id,
         aggregate_type: 'ticket',
-        event_data: event.payload,
+        event_data: event.event_data,
         metadata: {
           source: 'bridge_outbox',
-          unique_key: event.unique_key,
+          bet_slip_id: event.bet_slip_id,
           attempts: event.attempts,
         },
-        idempotency_key: event.unique_key,
+        idempotency_key: event.bet_slip_id,
         created_at: event.created_at,
       };
 
@@ -381,7 +383,7 @@ export class BridgeWorker extends BaseAgent {
       this.logger.info(`✅ Bridge outbox event processed successfully`, {
         eventId: event.id,
         eventType: event.event_type,
-        uniqueKey: event.unique_key,
+        betSlipId: event.bet_slip_id,
         processingTimeMs: processingTime
       });
 
@@ -633,28 +635,99 @@ export class BridgeWorker extends BaseAgent {
     await this.publishEvent('alert.reemitted.v1', gradingId, 'grading', alertData);
   }
 
+  private async postTicketToDiscord(ticketData: any): Promise<void> {
+    try {
+      this.logger.info('Posting ticket to Discord via bot integration', {
+        betSlipId: ticketData.bet_slip_id,
+        capperId: ticketData.capper_id,
+        source: ticketData.source
+      });
+
+      // Get capper name from database
+      let capperName = 'Unknown Capper';
+      if (this.hasSupabase() && ticketData.capper_id) {
+        try {
+          const { data: capperData } = await this.requireSupabase()
+            .from('users')
+            .select('username')
+            .eq('id', ticketData.capper_id)
+            .single();
+
+          if (capperData?.username) {
+            capperName = capperData.username;
+          }
+        } catch (error) {
+          this.logger.warn('Failed to fetch capper name', {
+            capperId: ticketData.capper_id,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+      }
+
+      // Prepare pick data for Discord bot integration
+      const pickData = {
+        capper_name: capperName,
+        sport: ticketData.sport || 'Unknown',
+        bet_slip_id: ticketData.bet_slip_id || 'Unknown',
+        selections: ticketData.selections || [],
+        selection_count: ticketData.selection_count || 0,
+        total_units: ticketData.total_units || 0,
+        notes: ticketData.notes,
+        source: ticketData.source || 'smart_form'
+      };
+
+      // Post to Discord using bot integration with headshots
+      const result = await discordBotIntegration.postPick(pickData);
+
+      if (result.success) {
+        this.logger.info('Successfully posted ticket to Discord via bot', {
+          betSlipId: ticketData.bet_slip_id,
+          capperName,
+          messageId: result.messageId,
+          headshotIncluded: result.headshotIncluded
+        });
+      } else {
+        this.logger.error('Failed to post ticket to Discord via bot', {
+          betSlipId: ticketData.bet_slip_id,
+          error: result.error
+        });
+      }
+
+    } catch (error) {
+      this.logger.error('Failed to post ticket to Discord', {
+        betSlipId: ticketData.bet_slip_id,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      // Don't throw error - Discord posting failure shouldn't break event processing
+    }
+  }
+
   // Bridge outbox specific event handlers
   private async handleBridgeOutboxTicketSubmitted(event: any): Promise<void> {
-    this.logger.info('Processing bridge outbox ticket submission event', { 
-      eventId: event.id, 
+    this.logger.info('Processing bridge outbox ticket submission event', {
+      eventId: event.id,
       betSlipId: event.aggregate_id,
-      uniqueKey: event.metadata?.unique_key
+      betSlipIdFromMeta: event.metadata?.bet_slip_id
     });
 
     // Extract ticket data from payload
     const ticketData = event.event_data;
-    
+
     // Add bridge outbox metadata for tracking
     const enrichedTicketData = {
       ...ticketData,
       source: 'bridge_outbox',
       processed_from_outbox: true,
-      original_unique_key: event.metadata?.unique_key,
+      original_bet_slip_id: event.metadata?.bet_slip_id,
     };
-    
+
+    // Post to Discord with formatted embed
+    await this.postTicketToDiscord(enrichedTicketData);
+
     // Trigger Temporal grading workflow with bridge outbox context
     await this.triggerGradingWorkflow(event.aggregate_id, enrichedTicketData, event.idempotency_key);
-    
+
     // Publish immediate alert opportunities (injuries, line movements)
     await this.checkForImmediateAlerts(event.aggregate_id, enrichedTicketData);
   }
@@ -790,10 +863,10 @@ export class BridgeWorker extends BaseAgent {
     
     await this.requireSupabase()
       .from('bridge_outbox')
-      .update({ 
+      .update({
         status: 'processing',
         attempts: event.attempts + 1,
-        next_attempt_at: new Date(Date.now() + 60000).toISOString(), // 1 minute retry
+        updated_at: new Date().toISOString(),
       })
       .eq('id', event.id);
   }
@@ -827,10 +900,10 @@ export class BridgeWorker extends BaseAgent {
       if (this.hasSupabase()) {
         await this.requireSupabase()
           .from('bridge_outbox')
-          .update({ 
+          .update({
             status: 'pending',
             attempts: event.attempts + 1,
-            next_attempt_at: nextAttempt.toISOString(),
+            updated_at: new Date().toISOString(),
             error_message: errorMessage,
           })
           .eq('id', event.id);
@@ -839,7 +912,7 @@ export class BridgeWorker extends BaseAgent {
       this.logger.warn(`Bridge outbox event processing failed, will retry`, {
         eventId: event.id,
         eventType: event.event_type,
-        uniqueKey: event.unique_key,
+        betSlipId: event.bet_slip_id,
         attempts: event.attempts + 1,
         maxAttempts: event.max_attempts,
         nextAttempt: nextAttempt.toISOString(),
@@ -862,7 +935,7 @@ export class BridgeWorker extends BaseAgent {
       this.logger.error(`Bridge outbox event processing permanently failed`, {
         eventId: event.id,
         eventType: event.event_type,
-        uniqueKey: event.unique_key,
+        betSlipId: event.bet_slip_id,
         attempts: event.attempts + 1,
         error: errorMessage,
       });

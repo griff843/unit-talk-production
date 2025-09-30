@@ -9,7 +9,8 @@
 
 import { config } from 'dotenv';
 
-import { supabaseClient } from '../services/supabaseClient';
+import { supabaseClient } from '../utils/supabaseUtils';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 config();
 
@@ -20,8 +21,9 @@ async function clearAndRegradeProps() {
   try {
     // 1. Check current state
     console.log('\n1. CURRENT STATE CHECK:');
-    const { data: currentStats } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: currentStats } = await supabaseClient
+      .from('sports_game_odds')
       .select('edge_score, tier')
       .not('edge_score', 'is', null);
     
@@ -31,8 +33,9 @@ async function clearAndRegradeProps() {
     console.log('\n2. CLEARING EXISTING SCORES:');
     console.log('This will reset edge_score and tier to null to force fresh calculation...');
     
-    const { data: clearResult, error: clearError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: clearResult, error: clearError } = await supabaseClient
+      .from('sports_game_odds')
       .update({ 
         edge_score: null, 
         tier: null,
@@ -50,8 +53,9 @@ async function clearAndRegradeProps() {
     
     // 3. Verify clearing worked
     console.log('\n3. VERIFICATION:');
-    const { data: verifyStats } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: verifyStats } = await supabaseClient
+      .from('sports_game_odds')
       .select('edge_score, tier')
       .not('edge_score', 'is', null);
     
@@ -59,8 +63,9 @@ async function clearAndRegradeProps() {
     
     // 4. Check props with valid data for grading
     console.log('\n4. GRADABLE PROPS ANALYSIS:');
-    const { data: gradableProps } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: gradableProps } = await supabaseClient
+      .from('sports_game_odds')
       .select('sport, expected_value, sharp_money, line_movement, matchup_rating')
       .not('expected_value', 'is', null)
       .not('line', 'is', null)
@@ -83,8 +88,9 @@ async function clearAndRegradeProps() {
     
     // 5. Count props by sport for re-grading
     console.log('\n5. PROPS BY SPORT FOR RE-GRADING:');
-    const { data: sportCounts } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: sportCounts } = await supabaseClient
+      .from('sports_game_odds')
       .select('sport')
       .not('line', 'is', null);
     
@@ -102,7 +108,7 @@ async function clearAndRegradeProps() {
     
     console.log('\n✅ Props cleared and ready for re-grading');
     console.log('\n🔧 NEXT STEPS:');
-    console.log('  1. Run the GradingAgent: npx tsx src/runner/runGradingAgent.ts');
+    console.log('  1. Run the ScoringAgent: npx tsx src/runner/runScoringAgent.ts');
     console.log('  2. Check for new sophisticated scores in the database');
     console.log('  3. Verify scores show variety (not all edge_score=30)');
     console.log('  4. Test individual props with our debug scripts');

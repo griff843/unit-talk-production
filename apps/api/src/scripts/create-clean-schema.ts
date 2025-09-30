@@ -9,8 +9,9 @@
 
 import { config } from 'dotenv';
 
-import { supabaseClient } from '../services/supabaseClient';
+import { supabaseClient } from '../utils/supabaseUtils';
 import { Logger } from '../shared/logger';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 config();
 
@@ -24,18 +25,21 @@ async function createCleanSchema() {
     // 1. Analyze current data issues
     console.log('\n📊 Step 1: Current data analysis...');
     
-    const { count: totalProps } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: totalProps } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true }) || { count: 0 };
 
-    const { count: ncaafAsOther } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: ncaafAsOther } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .eq('league', 'NCAAF')
       .neq('sport', 'NCAAF') || { count: 0 };
 
-    const { count: overUnderInPlayer } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: overUnderInPlayer } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .in('player_name', ['Over', 'Under']) || { count: 0 };
 
@@ -64,8 +68,9 @@ async function createCleanSchema() {
 
     // Since we can't use RPC, let's do this programmatically
     // First check if columns exist
-    const { data: sampleRow } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: sampleRow } = await supabaseClient
+      .from('sports_game_odds')
       .select('*')
       .limit(1);
 
@@ -88,8 +93,9 @@ async function createCleanSchema() {
     console.log('This will be done in batches to avoid timeouts');
 
     // First, let's sample some data to see what we're working with
-    const { data: sampleData } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: sampleData } = await supabaseClient
+      .from('sports_game_odds')
       .select('id, sport, league, player_name, stat_type, matchup')
       .limit(10);
 
@@ -109,8 +115,9 @@ async function createCleanSchema() {
     // Batch 1: Fix NCAAF sport classification
     console.log('\n📝 Batch 1: Fixing NCAAF sport classification...');
     
-    const { data: ncaafRecords, error: ncaafError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: ncaafRecords, error: ncaafError } = await supabaseClient
+      .from('sports_game_odds')
       .select('id')
       .eq('league', 'NCAAF')
       .neq('sport', 'NCAAF')
@@ -119,8 +126,9 @@ async function createCleanSchema() {
     if (ncaafError) {
       console.warn('Could not fetch NCAAF records:', ncaafError.message);
     } else if (ncaafRecords && ncaafRecords.length > 0) {
+      const supabaseClient = requireSupabase();
       const { error: updateError } = await supabaseClient
-        .from('raw_props')
+        .from('sports_game_odds')
         .update({
           standardized_sport: 'NCAAF',
           data_quality_score: 0.9,
@@ -139,8 +147,9 @@ async function createCleanSchema() {
     // Batch 2: Categorize team props (Over/Under)
     console.log('\n📝 Batch 2: Categorizing team props...');
     
-    const { data: teamPropRecords, error: teamError } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: teamPropRecords, error: teamError } = await supabaseClient
+      .from('sports_game_odds')
       .select('id, player_name, matchup, stat_type')
       .in('player_name', ['Over', 'Under'])
       .limit(BATCH_SIZE);
@@ -152,8 +161,9 @@ async function createCleanSchema() {
       for (const record of teamPropRecords) {
         const teamName = extractTeamName(record.matchup, record.player_name);
         
-        const { error: updateError } = await supabaseClient
-          .from('raw_props')
+        const supabaseClient = requireSupabase();
+      const { error: updateError } = await supabaseClient
+          .from('sports_game_odds')
           .update({
             prop_category: 'team',
             team_name: teamName,
@@ -173,13 +183,15 @@ async function createCleanSchema() {
     // 4. Final verification
     console.log('\n📊 Step 4: Migration verification...');
     
-    const { count: fixedNcaaf } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: fixedNcaaf } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .eq('standardized_sport', 'NCAAF') || { count: 0 };
 
-    const { count: categorizedTeam } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: categorizedTeam } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .eq('prop_category', 'team') || { count: 0 };
 

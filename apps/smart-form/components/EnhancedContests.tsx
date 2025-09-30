@@ -142,7 +142,7 @@ export default function EnhancedContests() {
               variant="outline"
               size="sm"
               className="mt-3"
-              onClick={() => window.location.reload()}
+              onClick={() => typeof window !== 'undefined' && window.location.reload()}
             >
               Retry
             </Button>

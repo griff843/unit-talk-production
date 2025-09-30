@@ -116,9 +116,9 @@ export function UserAnalytics({ user }: UserAnalyticsProps) {
       <CardContent className="space-y-6">
         {/* User Profile */}
         <div className="flex items-center space-x-4">
-          <Avatar className="h-16 w-16">
-            <AvatarImage src={user.avatar} />
-            <AvatarFallback className="text-lg font-bold">
+          <Avatar className="h-16 w-16" {...({} as any)}>
+            <AvatarImage src={user.avatar} {...({} as any)} />
+            <AvatarFallback className="text-lg font-bold" {...({} as any)}>
               {user.username.charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>

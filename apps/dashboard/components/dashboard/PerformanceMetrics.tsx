@@ -76,7 +76,7 @@ export function PerformanceMetrics({ stats }: PerformanceMetricsProps) {
             <div className={`text-2xl font-bold ${getWinRateColor(stats.winRate)}`}>
               {formatPercentage(stats.winRate)}
             </div>
-            <Progress value={stats.winRate} className="mt-2" />
+            <Progress value={stats.winRate} />
           </div>
 
           {/* ROI */}
@@ -164,7 +164,7 @@ export function PerformanceMetrics({ stats }: PerformanceMetricsProps) {
             </div>
             <span className="text-white font-semibold">{stats.avgConfidence}/10</span>
           </div>
-          <Progress value={stats.avgConfidence * 10} className="h-2" />
+          <Progress value={stats.avgConfidence * 10} />
           <div className="text-xs text-gray-500 mt-1">Based on {stats.totalPicks} picks</div>
         </div>
 

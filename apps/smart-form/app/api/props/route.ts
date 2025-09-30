@@ -1,281 +1,496 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseServer } from '@/lib/supabase';
-import { 
-  createRouteLogger, 
-  logDatabaseOperation, 
+import {
+  createRouteLogger,
+  logDatabaseOperation,
   logApiPerformance,
-  logValidationError 
+  logValidationError
 } from '@/lib/logger';
+import {
+  AutocompleteQuerySchema,
+  PlayerAutocompleteSchema,
+  MarketAutocompleteSchema,
+  GameAutocompleteSchema,
+  validatePlayerAutocomplete,
+  validateMarketAutocomplete,
+  validateGameAutocomplete,
+  type PlayerOption,
+  type MarketOption,
+  type GameOption,
+  type AutocompleteResponse,
+  formatPlayerName,
+  formatMarketDisplay,
+  formatGameDisplay
+} from '@unit-talk/shared-forms';
+
+// Force dynamic rendering to prevent static generation errors
+export const dynamic = 'force-dynamic';
 
 const log = createRouteLogger('GET /api/props', 'GET');
 
-// Validation schema for query parameters
-const QuerySchema = z.object({
-  sport: z.enum(['NFL', 'NBA', 'MLB', 'NHL', 'NCAAF']),
-  team_id: z.string().uuid().nullish(),
-  player_id: z.string().uuid().nullish(),
-  game_id: z.string().uuid().nullish(),
+// Enhanced validation schema for autocomplete endpoints
+const PropsQuerySchema = z.object({
+  // Autocomplete type
+  type: z.enum(['player', 'market', 'game']).default('player'),
+
+  // Base query
+  query: z.string().min(2, 'Query must be at least 2 characters').max(100),
+
+  // Filters
+  sport: z.enum(['NFL', 'NBA', 'MLB', 'NHL', 'NCAAF', 'WNBA']).optional(),
+  league: z.string().optional(),
+  market: z.string().optional(),
+  tier: z.array(z.enum(['S', 'A', 'B', 'C', 'D'])).optional(),
+  min_confidence: z.number().min(0).max(1).optional(),
+
+  // Pagination
+  limit: z.number().int().min(1).max(50).default(20),
+
+  // Performance options
+  include_metadata: z.boolean().default(true),
+  cache_enabled: z.boolean().default(true),
 });
 
 
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
-  
+
   try {
     const { searchParams } = new URL(request.url);
+
+    // Parse query parameters
     const rawQuery = {
-      sport: searchParams.get('sport') || 'NFL',
-      team_id: searchParams.get('team_id'),
-      player_id: searchParams.get('player_id'),
-      game_id: searchParams.get('game_id'),
+      type: searchParams.get('type') || 'player',
+      query: searchParams.get('query') || '',
+      sport: searchParams.get('sport') || undefined,
+      league: searchParams.get('league') || undefined,
+      market: searchParams.get('market') || undefined,
+      tier: searchParams.get('tier')?.split(',') || undefined,
+      min_confidence: searchParams.get('min_confidence') ? parseFloat(searchParams.get('min_confidence')!) : undefined,
+      limit: searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 20,
+      include_metadata: searchParams.get('include_metadata') !== 'false',
+      cache_enabled: searchParams.get('cache_enabled') !== 'false',
     };
 
     // Validate query parameters
-    const queryValidation = QuerySchema.safeParse(rawQuery);
+    const queryValidation = PropsQuerySchema.safeParse(rawQuery);
     if (!queryValidation.success) {
       logValidationError(log, queryValidation.error.errors, rawQuery);
-      
+
       return NextResponse.json({
         error: 'Invalid query parameters',
         details: queryValidation.error.errors,
       }, { status: 400 });
     }
 
-    const { sport, team_id, player_id, game_id } = queryValidation.data;
+    const validatedQuery = queryValidation.data;
+    const { type, query: searchQuery } = validatedQuery;
 
     log.info({
-      query: { sport, team_id, player_id, game_id },
-    }, `Fetching ${sport} props`);
+      autocompleteType: type,
+      query: searchQuery,
+      filters: validatedQuery,
+    }, `Fetching autocomplete data for ${type}`);
 
-    const supabase = supabaseServer();
+    // Route to specific autocomplete handler
+    let response: AutocompleteResponse<any>;
 
-    try {
-      // Build query with sport-scoped filtering
-      let query = supabase
-        .from('raw_props')
-        .select(`
-          id,
-          game_id,
-          external_game_id,
-          player_name,
-          team_id,
-          player_id,
-          team,
-          opponent,
-          stat_type,
-          market_type,
-          line,
-          over_odds,
-          under_odds,
-          odds,
-          confidence,
-          expected_value,
-          provider,
-          sport,
-          game_time
-        `)
-        .eq('sport', sport)
-        .not('odds', 'is', null)
-        .not('line', 'is', null);
-
-      // Add filters based on parameters
-      if (team_id) {
-        query = query.eq('team_id', team_id);
-      }
-      
-      if (player_id) {
-        query = query.eq('player_id', player_id);
-      }
-      
-      if (game_id) {
-        query = query.or(`game_id.eq.${game_id},external_game_id.eq.${game_id}`);
-      }
-
-      query = query
-        .order('confidence', { ascending: false })
-        .order('player_name')
-        .order('stat_type')
-        .limit(100); // Prevent excessive results
-
-      const { data: dbProps, error } = await query;
-
-      logDatabaseOperation(log, 'SELECT', 'raw_props', dbProps, error);
-
-      if (error && error.code !== '42P01') {
-        // Real error, not just missing table
-        log.error({
-          error: error.message,
-          code: error.code,
-          sport,
-          filters: { team_id, player_id, game_id },
-        }, 'Database error fetching props');
-        
-        return NextResponse.json({
-          error: 'Failed to fetch props',
-          message: error.message,
-        }, { status: 500 });
-      }
-
-      if (dbProps && dbProps.length > 0) {
-        log.info({
-          props_found: dbProps.length,
-          sport,
-          filters: { team_id, player_id, game_id },
-        }, `Found ${dbProps.length} props in database`);
-
-        // Transform props with enhanced analytics data
-        const transformedProps = dbProps.map(prop => {
-          const propType = prop.stat_type || 'Unknown Prop';
-          const playerName = prop.player_name || 'Unknown Player';
-          const team = prop.team || 'UNK';
-          const line = prop.line || 0;
-
-          // Handle different odds field structures
-          const overOdds = prop.over_odds || prop.odds || -110;
-          const underOdds =
-            prop.under_odds ||
-            (overOdds > 0 ? -(Math.abs(overOdds) + 20) : Math.abs(overOdds) - 20);
-
-          return {
-            id: prop.id,
-            game_id: prop.game_id || prop.external_game_id,
-            player_id: prop.player_id,
-            team_id: prop.team_id,
-            player_name: playerName,
-            team: team,
-            opponent: prop.opponent,
-            prop_type: propType,
-            stat_type: propType,
-            market_type: prop.market_type || 'player_props',
-            line: line,
-            over_odds: overOdds,
-            under_odds: underOdds,
-            confidence: prop.confidence || 0,
-            expected_value: prop.expected_value || 0,
-            provider: prop.provider,
-            sport: prop.sport,
-            game_time: prop.game_time,
-            display_name: `${playerName} ${propType}${line ? ` ${line}` : ''}`,
-            selection_options: line
-              ? [
-                  {
-                    value: 'over',
-                    label: `Over ${line}`,
-                    odds: overOdds,
-                    confidence: prop.confidence || 0,
-                    expected_value: prop.expected_value || 0,
-                  },
-                  {
-                    value: 'under',
-                    label: `Under ${line}`,
-                    odds: underOdds,
-                    confidence: prop.confidence || 0,
-                    expected_value: prop.expected_value || 0,
-                  },
-                ]
-              : [
-                  {
-                    value: 'yes',
-                    label: 'Yes',
-                    odds: overOdds,
-                    confidence: prop.confidence || 0,
-                    expected_value: prop.expected_value || 0,
-                  },
-                  {
-                    value: 'no',
-                    label: 'No',
-                    odds: underOdds,
-                    confidence: prop.confidence || 0,
-                    expected_value: prop.expected_value || 0,
-                  },
-                ],
-          };
-        });
-
-        // Calculate analytics metadata
-        const analytics = {
-          total_props: transformedProps.length,
-          high_confidence_props: transformedProps.filter(p => p.confidence >= 0.7).length,
-          avg_confidence:
-            transformedProps.reduce((sum, p) => sum + p.confidence, 0) / transformedProps.length ||
-            0,
-          avg_expected_value:
-            transformedProps.reduce((sum, p) => sum + p.expected_value, 0) /
-              transformedProps.length || 0,
-          providers: [...new Set(transformedProps.map(p => p.provider).filter(Boolean))],
-          prop_types: [...new Set(transformedProps.map(p => p.prop_type))],
-        };
-
-        logApiPerformance(log, 'fetch-props', startTime, {
-          props_count: transformedProps.length,
-          sport,
-          filters_applied: [team_id, player_id, game_id].filter(Boolean).length,
-        });
-
-        return NextResponse.json({
-          props: transformedProps,
-          meta: {
-            count: transformedProps.length,
-            sport,
-            filters: { team_id, player_id, game_id },
-            source: 'database',
-            timestamp: new Date().toISOString(),
-          },
-          analytics,
-        }, {
-          status: 200,
-          headers: {
-            'Cache-Control': 'public, s-maxage=180, stale-while-revalidate=300', // 3min cache
-          },
-        });
-      }
-    } catch (dbError) {
-      log.error({
-        error: dbError instanceof Error ? dbError.message : 'Unknown error',
-        sport,
-      }, 'Database error fetching props');
-      
-      return NextResponse.json({
-        error: 'Database unavailable',
-        message: 'Unable to fetch props at this time',
-      }, { status: 503 });
+    switch (type) {
+      case 'player':
+        response = await handlePlayerAutocomplete(validatedQuery, startTime);
+        break;
+      case 'market':
+        response = await handleMarketAutocomplete(validatedQuery, startTime);
+        break;
+      case 'game':
+        response = await handleGameAutocomplete(validatedQuery, startTime);
+        break;
+      default:
+        throw new Error(`Unknown autocomplete type: ${type}`);
     }
 
-    // No props found - return empty result
-    log.info({
-      sport,
-      filters: { team_id, player_id, game_id },
-    }, 'No props found for query');
-
-    logApiPerformance(log, 'fetch-props', startTime, {
-      props_count: 0,
-      sport,
-      no_results: true,
+    logApiPerformance(log, `autocomplete-${type}`, startTime, {
+      results_count: response.options.length,
+      execution_time: response.meta.execution_time_ms,
+      cache_hit: response.meta.cache_hit,
     });
 
-    return NextResponse.json({
-      props: [],
-      meta: {
-        count: 0,
-        sport,
-        filters: { team_id, player_id, game_id },
-        source: 'database',
-        message: 'No props available for the specified criteria',
-        timestamp: new Date().toISOString(),
+    return NextResponse.json(response, {
+      status: 200,
+      headers: {
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120', // 1min cache
       },
-    }, { status: 200 });
+    });
 
   } catch (error) {
     log.error({
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
-    }, 'Unexpected error in props endpoint');
-    
+    }, 'Unexpected error in props autocomplete endpoint');
+
     return NextResponse.json({
       error: 'Internal server error',
-      message: 'An unexpected error occurred while fetching props',
+      message: 'An unexpected error occurred while fetching autocomplete data',
     }, { status: 500 });
+  }
+}
+
+/**
+ * Handle player name autocomplete
+ */
+async function handlePlayerAutocomplete(
+  query: z.infer<typeof PropsQuerySchema>,
+  startTime: number
+): Promise<AutocompleteResponse<PlayerOption>> {
+  const supabase = supabaseServer();
+  const executionStart = Date.now();
+
+  try {
+    // Build optimized query using view_props_for_form
+    let dbQuery = supabase
+      .from('view_props_for_form')
+      .select(`
+        player_name,
+        team_name,
+        sport,
+        tier,
+        market,
+        confidence,
+        professional_score
+      `)
+      .ilike('player_name', `%${query.query}%`)
+      .not('player_name', 'is', null);
+
+    // Apply filters
+    if (query.sport) {
+      dbQuery = dbQuery.eq('sport', query.sport);
+    }
+
+    if (query.market) {
+      dbQuery = dbQuery.eq('market', query.market);
+    }
+
+    if (query.tier?.length) {
+      dbQuery = dbQuery.in('tier', query.tier);
+    }
+
+    if (query.min_confidence) {
+      dbQuery = dbQuery.gte('confidence', query.min_confidence);
+    }
+
+    // Order by relevance and limit results
+    dbQuery = dbQuery
+      .order('professional_score', { ascending: false, nullsFirst: false })
+      .order('confidence', { ascending: false, nullsFirst: false })
+      .order('player_name')
+      .limit(query.limit);
+
+    const { data: dbResults, error } = await dbQuery;
+
+    if (error) {
+      throw new Error(`Database query failed: ${error.message}`);
+    }
+
+    if (!dbResults || dbResults.length === 0) {
+      return {
+        options: [],
+        meta: {
+          total: 0,
+          filtered: 0,
+          query: query.query,
+          filters: query,
+          execution_time_ms: Date.now() - executionStart,
+          cache_hit: false,
+        },
+      };
+    }
+
+    // Group by player and aggregate metadata
+    const playerMap = new Map<string, {
+      player_name: string;
+      team_name: string;
+      sport: string;
+      markets: Set<string>;
+      tiers: Set<string>;
+      confidence_scores: number[];
+      professional_scores: number[];
+    }>();
+
+    for (const result of dbResults) {
+      const key = `${result.player_name}-${result.team_name}`;
+
+      if (!playerMap.has(key)) {
+        playerMap.set(key, {
+          player_name: result.player_name,
+          team_name: result.team_name,
+          sport: result.sport,
+          markets: new Set(),
+          tiers: new Set(),
+          confidence_scores: [],
+          professional_scores: [],
+        });
+      }
+
+      const player = playerMap.get(key)!;
+      if (result.market) player.markets.add(result.market);
+      if (result.tier) player.tiers.add(result.tier);
+      if (result.confidence) player.confidence_scores.push(result.confidence);
+      if (result.professional_score) player.professional_scores.push(result.professional_score);
+    }
+
+    // Transform to PlayerOption format
+    const options: PlayerOption[] = Array.from(playerMap.values())
+      .map(player => ({
+        value: player.player_name,
+        label: formatPlayerName(player.player_name, player.team_name),
+        metadata: {
+          team_name: player.team_name,
+          sport: player.sport,
+          recent_props: player.markets.size,
+          tier: Array.from(player.tiers)[0], // Primary tier
+          avg_confidence: player.confidence_scores.length > 0
+            ? player.confidence_scores.reduce((a, b) => a + b, 0) / player.confidence_scores.length
+            : undefined,
+          avg_professional_score: player.professional_scores.length > 0
+            ? player.professional_scores.reduce((a, b) => a + b, 0) / player.professional_scores.length
+            : undefined,
+        },
+      }))
+      .slice(0, query.limit);
+
+    return {
+      options,
+      meta: {
+        total: playerMap.size,
+        filtered: options.length,
+        query: query.query,
+        filters: query,
+        execution_time_ms: Date.now() - executionStart,
+        cache_hit: false,
+      },
+    };
+
+  } catch (error) {
+    throw new Error(`Player autocomplete failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Handle market autocomplete
+ */
+async function handleMarketAutocomplete(
+  query: z.infer<typeof PropsQuerySchema>,
+  startTime: number
+): Promise<AutocompleteResponse<MarketOption>> {
+  const supabase = supabaseServer();
+  const executionStart = Date.now();
+
+  try {
+    let dbQuery = supabase
+      .from('view_props_for_form')
+      .select(`
+        market,
+        submarket,
+        sport,
+        player_name
+      `)
+      .not('market', 'is', null);
+
+    // Apply text search on market names
+    if (query.query.length >= 2) {
+      dbQuery = dbQuery.or(`market.ilike.%${query.query}%,submarket.ilike.%${query.query}%`);
+    }
+
+    if (query.sport) {
+      dbQuery = dbQuery.eq('sport', query.sport);
+    }
+
+    const { data: dbResults, error } = await dbQuery
+      .order('market')
+      .limit(query.limit * 2); // Get more to dedupe
+
+    if (error) {
+      throw new Error(`Database query failed: ${error.message}`);
+    }
+
+    if (!dbResults || dbResults.length === 0) {
+      return {
+        options: [],
+        meta: {
+          total: 0,
+          filtered: 0,
+          query: query.query,
+          filters: query,
+          execution_time_ms: Date.now() - executionStart,
+          cache_hit: false,
+        },
+      };
+    }
+
+    // Group markets and count props
+    const marketMap = new Map<string, {
+      market: string;
+      submarket?: string;
+      sport: string;
+      prop_count: number;
+    }>();
+
+    for (const result of dbResults) {
+      const key = result.submarket
+        ? `${result.market}-${result.submarket}`
+        : result.market;
+
+      if (!marketMap.has(key)) {
+        marketMap.set(key, {
+          market: result.market,
+          submarket: result.submarket,
+          sport: result.sport,
+          prop_count: 0,
+        });
+      }
+
+      marketMap.get(key)!.prop_count++;
+    }
+
+    const options: MarketOption[] = Array.from(marketMap.values())
+      .map(market => ({
+        value: market.market,
+        label: formatMarketDisplay(market.market, market.submarket),
+        metadata: {
+          submarket: market.submarket,
+          sport: market.sport,
+          prop_count: market.prop_count,
+        },
+      }))
+      .slice(0, query.limit);
+
+    return {
+      options,
+      meta: {
+        total: marketMap.size,
+        filtered: options.length,
+        query: query.query,
+        filters: query,
+        execution_time_ms: Date.now() - executionStart,
+        cache_hit: false,
+      },
+    };
+
+  } catch (error) {
+    throw new Error(`Market autocomplete failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Handle game autocomplete
+ */
+async function handleGameAutocomplete(
+  query: z.infer<typeof PropsQuerySchema>,
+  startTime: number
+): Promise<AutocompleteResponse<GameOption>> {
+  const supabase = supabaseServer();
+  const executionStart = Date.now();
+
+  try {
+    let dbQuery = supabase
+      .from('view_props_for_form')
+      .select(`
+        external_game_id,
+        matchup,
+        game_date,
+        sport,
+        league
+      `)
+      .not('matchup', 'is', null)
+      .not('external_game_id', 'is', null);
+
+    // Apply text search on matchup
+    if (query.query.length >= 2) {
+      dbQuery = dbQuery.ilike('matchup', `%${query.query}%`);
+    }
+
+    if (query.sport) {
+      dbQuery = dbQuery.eq('sport', query.sport);
+    }
+
+    const { data: dbResults, error } = await dbQuery
+      .order('game_date', { ascending: true })
+      .limit(query.limit * 2);
+
+    if (error) {
+      throw new Error(`Database query failed: ${error.message}`);
+    }
+
+    if (!dbResults || dbResults.length === 0) {
+      return {
+        options: [],
+        meta: {
+          total: 0,
+          filtered: 0,
+          query: query.query,
+          filters: query,
+          execution_time_ms: Date.now() - executionStart,
+          cache_hit: false,
+        },
+      };
+    }
+
+    // Group by game and count props
+    const gameMap = new Map<string, {
+      external_game_id: string;
+      matchup: string;
+      game_date: string;
+      sport: string;
+      league: string;
+      prop_count: number;
+    }>();
+
+    for (const result of dbResults) {
+      const key = result.external_game_id;
+
+      if (!gameMap.has(key)) {
+        gameMap.set(key, {
+          external_game_id: result.external_game_id,
+          matchup: result.matchup,
+          game_date: result.game_date,
+          sport: result.sport,
+          league: result.league,
+          prop_count: 0,
+        });
+      }
+
+      gameMap.get(key)!.prop_count++;
+    }
+
+    const options: GameOption[] = Array.from(gameMap.values())
+      .map(game => ({
+        value: game.external_game_id,
+        label: formatGameDisplay(game.matchup, game.game_date),
+        metadata: {
+          game_date: game.game_date,
+          sport: game.sport,
+          league: game.league,
+          matchup: game.matchup,
+          prop_count: game.prop_count,
+        },
+      }))
+      .slice(0, query.limit);
+
+    return {
+      options,
+      meta: {
+        total: gameMap.size,
+        filtered: options.length,
+        query: query.query,
+        filters: query,
+        execution_time_ms: Date.now() - executionStart,
+        cache_hit: false,
+      },
+    };
+
+  } catch (error) {
+    throw new Error(`Game autocomplete failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 

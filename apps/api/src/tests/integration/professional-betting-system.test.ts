@@ -18,7 +18,8 @@ import { CLVTrackingService } from '../../services/clv/CLVTrackingService';
 import { DeviggingService } from '../../services/devigging/DeviggingService';
 import { FeedbackLoopService } from '../../services/feedback/FeedbackLoopService';
 import { ProfessionalBettingScheduler } from '../../services/schedulers/ProfessionalBettingScheduler';
-import { supabaseClient } from '../../services/supabaseClient';
+import { supabaseClient } from '../../utils/supabaseUtils';
+import { requireSupabase } from '../../utils/supabaseUtils';
 
 describe('Professional Betting System Integration', () => {
   let deviggingService: DeviggingService;
@@ -149,7 +150,8 @@ describe('Professional Betting System Integration', () => {
 
       // Insert test picks
       for (const pick of picks) {
-        await supabaseClient.from('clv_tracking').insert({
+        const supabaseClient = requireSupabase();
+    await supabaseClient.from('clv_tracking').insert({
           prop_id: pick.propId,
           user_id: testUserId,
           sport: pick.sport,
@@ -201,7 +203,8 @@ describe('Professional Betting System Integration', () => {
 
     test('should update sportsbook weights based on performance', async () => {
       // Insert test CLV data showing DraftKings > FanDuel performance
-      await supabaseClient.from('clv_tracking').insert([
+      const supabaseClient = requireSupabase();
+    await supabaseClient.from('clv_tracking').insert([
         {
           prop_id: 'dk-1',
           user_id: testUserId,
@@ -257,7 +260,8 @@ describe('Professional Betting System Integration', () => {
         beats_closing: false
       }));
 
-      await supabaseClient.from('clv_tracking').insert(poorPicks);
+      const supabaseClient = requireSupabase();
+    await supabaseClient.from('clv_tracking').insert(poorPicks);
 
       // Run CLV monitoring
       await clvAlertService.monitorCLV();
@@ -368,7 +372,8 @@ describe('Professional Betting System Integration', () => {
     ];
 
     for (const table of tables) {
-      await supabaseClient
+      const supabaseClient = requireSupabase();
+    await supabaseClient
         .from(table)
         .delete()
         .like('prop_id', 'test-%')
@@ -378,6 +383,7 @@ describe('Professional Betting System Integration', () => {
 
   async function setupTestData() {
     // Insert test user if needed (most tests need this)
+    const supabaseClient = requireSupabase();
     await supabaseClient
       .from('users')
       .upsert({
@@ -407,6 +413,7 @@ describe('Professional Betting System Integration', () => {
       }
     ];
 
+    const supabaseClient = requireSupabase();
     await supabaseClient.from('graded_props').insert(testProps);
 
     // Add corresponding CLV data
@@ -425,6 +432,7 @@ describe('Professional Betting System Integration', () => {
       }
     ];
 
+    const supabaseClient = requireSupabase();
     await supabaseClient.from('clv_tracking').insert(clvData);
   }
 });

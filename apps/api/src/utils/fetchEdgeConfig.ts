@@ -1,11 +1,17 @@
-import { supabase } from '../services/supabaseClient';
+import { requireSupabase } from './supabaseUtils';
 
 export async function fetchEdgeConfig(): Promise<unknown> {
-  const { data, error } = await supabase
+  const supabaseClient = requireSupabase();
+
+  const { data, error } = await supabaseClient
     .from('edge_config')
     .select('config')
     .eq('key', 'default')
     .single();
-  if (error || !data) {throw new Error('Failed to fetch edge config');}
+
+  if (error || !data) {
+    throw new Error('Failed to fetch edge config');
+  }
+
   return data.config;
 }

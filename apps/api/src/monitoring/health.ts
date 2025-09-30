@@ -4,7 +4,8 @@
  */
 
 import { logger } from '../services/logging.js';
-import { supabase } from '../services/supabaseClient.js';
+import { requireSupabase } from '../services/supabaseClient.js';
+import { supabaseClient } from '../utils/supabaseUtils';
 
 interface HealthStatus {
   status: 'healthy' | 'degraded' | 'unhealthy';
@@ -44,7 +45,8 @@ export class HealthMonitor {
     this.checks.set('database', async (): Promise<HealthCheck> => {
       const start = Date.now();
       try {
-        const { error } = await supabase
+        const supabaseClient = requireSupabase();
+      const { error } = await supabase
           .from('users')
           .select('count')
           .limit(1);

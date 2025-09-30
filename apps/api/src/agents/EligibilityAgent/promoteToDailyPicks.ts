@@ -1,14 +1,17 @@
 import { logger } from '../../services/logging';
-import { supabase } from '../../services/supabaseClient';
-import { applyScoringLogic } from '../GradingAgent/scoring/applyScoringLogic';
+import { requireSupabase } from '../../utils/supabaseUtils';
+import { applyScoringLogic } from '../ScoringAgent/scoring/applyScoringLogic';
 
 export async function promoteToDailyPicks() {
+
   // 1. Fetch eligible raw_props
-  const { data: rawProps, error } = await supabase
+  const supabaseClient = requireSupabase();
+  const { data: rawProps, error } = await supabaseClient
     .from('raw_props')
     .select('*')
-    .eq('promoted', false)
-    .eq('is_valid', true);
+    .eq('promoted_to_picks', false)
+    .eq('is_valid', true)
+    .limit(100); // Start with small batch
 
   if (error) {
     logger.error(error, 'Error fetching raw_props');
@@ -29,7 +32,7 @@ export async function promoteToDailyPicks() {
     // 3. Decide if it qualifies (e.g. S, A, B only; skip C)
     if (['S', 'A', 'B'].includes(scored.tier)) {
       // 4. Insert into unified_picks (replaces daily_picks)
-      const { error: insertErr } = await supabase
+      const { error: insertErr } = await supabaseClient
         .from('unified_picks')
         .insert([scored]);
       if (insertErr) {
@@ -39,9 +42,9 @@ export async function promoteToDailyPicks() {
       promotedCount++;
 
       // 5. Mark as promoted in raw_props
-      await supabase
+      await supabaseClient
         .from('raw_props')
-        .update({ promoted: true, promoted_at: new Date().toISOString() })
+        .update({ promoted_to_picks: true, promoted_at: new Date().toISOString() })
         .eq('id', prop.id);
       logger.info({ id: prop.id, player: prop.player_name, tier: scored.tier }, 'Promoted to unified_picks');
     } else {

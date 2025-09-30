@@ -9,8 +9,9 @@
 
 import { config } from 'dotenv';
 
-import { supabaseClient } from '../services/supabaseClient';
+import { supabaseClient } from '../utils/supabaseUtils';
 import { Logger } from '../shared/logger';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 // Load environment variables
 config();
@@ -26,16 +27,19 @@ async function migrateDataOnly() {
     console.log('\n📊 Step 1: Current state analysis...');
     
     const cutoffDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const { count: totalProps } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: totalProps } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true }) || { count: 0 };
 
-    const { count: oldProps } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: oldProps } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .lt('game_date', cutoffDate) || { count: 0 };
 
-    const { count: existingHistorical } = await supabaseClient
+    const supabaseClient = requireSupabase();
+      const { count: existingHistorical } = await supabaseClient
       .from('raw_props_historical')
       .select('*', { count: 'exact', head: true }) || { count: 0 };
 
@@ -71,8 +75,9 @@ async function migrateDataOnly() {
 
       try {
         // Get old records to migrate
-        const { data: recordsToMigrate, error: selectError } = await supabaseClient
-          .from('raw_props')
+        const supabaseClient = requireSupabase();
+      const { data: recordsToMigrate, error: selectError } = await supabaseClient
+          .from('sports_game_odds')
           .select('*')
           .lt('game_date', cutoffDate)
           .limit(currentBatchSize);
@@ -89,7 +94,8 @@ async function migrateDataOnly() {
         console.log(`  📋 Selected ${recordsToMigrate.length} records for migration`);
 
         // Insert into historical table
-        const { error: insertError } = await supabaseClient
+        const supabaseClient = requireSupabase();
+      const { error: insertError } = await supabaseClient
           .from('raw_props_historical')
           .insert(recordsToMigrate);
 
@@ -105,8 +111,9 @@ async function migrateDataOnly() {
 
         // Delete from main table
         const recordIds = recordsToMigrate.map(record => record.id);
-        const { error: deleteError } = await supabaseClient
-          .from('raw_props')
+        const supabaseClient = requireSupabase();
+      const { error: deleteError } = await supabaseClient
+          .from('sports_game_odds')
           .delete()
           .in('id', recordIds);
 
@@ -132,16 +139,19 @@ async function migrateDataOnly() {
     // 4. Final verification
     console.log('\n📊 Step 3: Final verification...');
     
-    const { count: finalTotal } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: finalTotal } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true }) || { count: 0 };
 
-    const { count: finalOld } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: finalOld } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .lt('game_date', cutoffDate) || { count: 0 };
 
-    const { count: finalHistorical } = await supabaseClient
+    const supabaseClient = requireSupabase();
+      const { count: finalHistorical } = await supabaseClient
       .from('raw_props_historical')
       .select('*', { count: 'exact', head: true }) || { count: 0 };
 

@@ -51,6 +51,9 @@ import {
   getTimezoneOffset,
 } from '@/lib/betting-utils';
 
+// Component Props interface
+interface SubmitTicketFormProps {}
+
 // Use imported types from queries
 type Capper = DBCapper;
 
@@ -320,7 +323,7 @@ export function SubmitTicketForm() {
           <h2 className="text-red-500 text-lg font-semibold mb-2">Error</h2>
           <p className="text-red-200">{error}</p>
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => typeof window !== 'undefined' && window.location.reload()}
             className="mt-4 px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
           >
             Try Again

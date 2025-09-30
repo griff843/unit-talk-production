@@ -9,7 +9,7 @@ import {
 import type {
   FeedAgentActivities,
   AlertAgentActivities,
-  GradingAgentActivities,
+  ScoringAgentActivities,
   NotificationAgentActivities,
   OperatorAgentActivities
 } from '../types/activities';
@@ -33,7 +33,7 @@ const alertActivities = proxyActivities<AlertAgentActivities>({
   }
 });
 
-const gradingActivities = proxyActivities<GradingAgentActivities>({
+const gradingActivities = proxyActivities<ScoringAgentActivities>({
   startToCloseTimeout: '60 seconds',
   retry: {
     maximumAttempts: 3,

@@ -67,11 +67,11 @@ class AgentTestRunner {
     };
   }
 
-  async testGradingAgent(): Promise<any> {
-    // Mock grading agent test
+  async testScoringAgent(): Promise<any> {
+    // Mock scoring agent test
     return {
-      picksGraded: 50,
-      accuracyCalculated: true,
+      picksScored: 50,
+      professionalScore: true,
       scoresUpdated: true
     };
   }
@@ -196,7 +196,7 @@ class AgentTestRunner {
     
     const tests = [
       // Business Intelligence Agents (5)
-      { name: 'GradingAgent', testFn: () => this.testGradingAgent() },
+      { name: 'ScoringAgent', testFn: () => this.testScoringAgent() },
       { name: 'AnalyticsAgent', testFn: () => this.testAnalyticsAgent() },
       { name: 'AlertAgent', testFn: () => this.testAlertAgent() },
       { name: 'FeedAgent', testFn: () => this.testFeedAgent() },

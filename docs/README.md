@@ -53,7 +53,7 @@ graph TD
 
 #### Business Intelligence Agents (5)
 
-- **[GradingAgent](src/agents/GradingAgent/README.md)** - Professional pick
+- **[ScoringAgent](src/agents/ScoringAgent/README.md)** - Professional pick
   scoring with ML ensemble
 - **[AnalyticsAgent](src/agents/AnalyticsAgent/README.md)** - Performance
   insights and data analysis
@@ -636,7 +636,7 @@ npm run recovery:full-system     # Complete system recovery
 
 - **[BaseAgent Framework](src/agents/BaseAgent/README.md)** - Core agent
   architecture and patterns
-- **[GradingAgent](src/agents/GradingAgent/README.md)** - Professional pick
+- **[ScoringAgent](src/agents/ScoringAgent/README.md)** - Professional pick
   scoring with ML ensemble
 - **[FeedAgent](src/agents/FeedAgent/README.md)** - Optimal dual-API data
   ingestion

@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -25,7 +26,8 @@ async function validateCompleteSystem() {
   try {
     // 1. Games Data Validation
     console.log('\n1️⃣ GAMES DATA VALIDATION');
-    const { data: games, count: gameCount } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: games, count: gameCount } = await supabase
       .from('games')
       .select('*', { count: 'exact' })
       .eq('game_date', today);
@@ -53,8 +55,9 @@ async function validateCompleteSystem() {
     
     // 2. Props Data with Complete Odds
     console.log('\n2️⃣ PROPS DATA WITH COMPLETE ODDS');
-    const { data: props, count: propCount } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: props, count: propCount } = await supabase
+      .from('sports_game_odds')
       .select('*', { count: 'exact' })
       .eq('game_date', today)
       .not('over_odds', 'is', null)
@@ -71,13 +74,15 @@ async function validateCompleteSystem() {
     
     // 3. Odds Quality Assessment
     console.log('\n3️⃣ ODDS QUALITY ASSESSMENT');
-    const { count: totalProps } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: totalProps } = await supabase
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .eq('game_date', today);
       
-    const { count: propsWithOdds } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: propsWithOdds } = await supabase
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .eq('game_date', today)
       .not('over_odds', 'is', null)
@@ -98,8 +103,9 @@ async function validateCompleteSystem() {
     
     // 4. Game-Props Linkage
     console.log('\n4️⃣ GAME-PROPS LINKAGE');
-    const { data: linkedProps } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: linkedProps } = await supabase
+      .from('sports_game_odds')
       .select('external_game_id')
       .eq('game_date', today)
       .limit(10);
@@ -135,7 +141,8 @@ async function validateCompleteSystem() {
     
     // 6. Agent Health Check
     console.log('\n6️⃣ AGENT HEALTH CHECK');
-    const { data: agentHealth } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: agentHealth } = await supabase
       .from('agent_health')
       .select('agent, status')
       .order('created_at', { ascending: false })
@@ -157,7 +164,8 @@ async function validateCompleteSystem() {
     
     // 7. User Data
     console.log('\n7️⃣ USER DATA VALIDATION');
-    const { data: users, count: userCount } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: users, count: userCount } = await supabase
       .from('users')
       .select('username, tier', { count: 'exact' })
       .limit(10);

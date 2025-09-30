@@ -3,9 +3,10 @@
  */
 
 import express from 'express';
-import { supabaseClient, isSupabaseConfigured } from '../services/supabaseClient';
+import { supabaseClient, isSupabaseConfigured } from '../utils/supabaseUtils';
 import { createLogger } from '../utils/logger';
 import { authenticateToken } from '../security/index';
+import { supabaseClient } from '../utils/supabaseUtils';
 
 const logger = createLogger('PicksRouter');
 const router = express.Router();
@@ -58,6 +59,13 @@ router.get('/recent', picksAuth, async (req, res) => {
     });
 
     const hoursAgo = new Date(Date.now() - Number(hours) * 60 * 60 * 1000).toISOString();
+
+    if (!supabaseClient) {
+      return res.status(500).json({
+        success: false,
+        error: 'Database connection not available'
+      });
+    }
 
     let query = supabaseClient
       .from('unified_picks')
@@ -144,6 +152,13 @@ router.get('/stats', picksAuth, async (req, res) => {
     });
 
     const hoursAgo = new Date(Date.now() - Number(hours) * 60 * 60 * 1000).toISOString();
+
+    if (!supabaseClient) {
+      return res.status(500).json({
+        success: false,
+        error: 'Database connection not available'
+      });
+    }
 
     // Get pick counts by status
     let query = supabaseClient

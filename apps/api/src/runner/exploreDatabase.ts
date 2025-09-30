@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -30,6 +31,7 @@ async function exploreDatabase() {
   
   for (const table of tablesToCheck) {
     try {
+      const supabaseClient = requireSupabase();
       const { count, error } = await supabase
         .from(table)
         .select('*', { count: 'exact', head: true });
@@ -40,7 +42,8 @@ async function exploreDatabase() {
         console.log(`✅ ${table}: Exists (${count} records)`);
         
         // Get sample to see schema
-        const { data } = await supabase
+        const supabaseClient = requireSupabase();
+      const { data } = await supabase
           .from(table)
           .select('*')
           .limit(1);
@@ -50,7 +53,8 @@ async function exploreDatabase() {
         } else {
           // Try empty select to see column names
           try {
-            const { error: selectError } = await supabase
+            const supabaseClient = requireSupabase();
+      const { error: selectError } = await supabase
               .from(table)
               .select('*')
               .limit(0);
@@ -72,7 +76,8 @@ async function exploreDatabase() {
   console.log('\n🔬 DEEP DIVE: unified_picks table');
   try {
     // Try inserting with just ID to see what's required
-    const { error } = await supabase
+    const supabaseClient = requireSupabase();
+      const { error } = await supabase
       .from('unified_picks')
       .insert({ id: 'test-schema-check' })
       .select();

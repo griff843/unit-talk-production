@@ -67,10 +67,96 @@ type SupportedSportKey = keyof typeof SUPPORTED_SPORTS;
 
 // Betting markets available
 const BETTING_MARKETS = {
+  // Core markets
   h2h: 'Head to Head (Moneyline)',
-  spreads: 'Point Spreads', 
+  spreads: 'Point Spreads',
   totals: 'Over/Under Totals',
-  outrights: 'Tournament/Season Futures'
+  outrights: 'Tournament/Season Futures',
+
+  // NFL Player Props - Passing
+  player_pass_attempts: 'Player Passing Attempts',
+  player_pass_completions: 'Player Passing Completions',
+  player_pass_interceptions: 'Player Passing Interceptions',
+  player_pass_longest_completion: 'Player Longest Pass',
+  player_pass_tds: 'Player Passing Touchdowns',
+  player_pass_yds: 'Player Passing Yards',
+  player_pass_yds_q1: 'Player Q1 Passing Yards',
+
+  // NFL Player Props - Rushing
+  player_rush_attempts: 'Player Rushing Attempts',
+  player_rush_longest: 'Player Longest Rush',
+  player_rush_tds: 'Player Rushing Touchdowns',
+  player_rush_yds: 'Player Rushing Yards',
+
+  // NFL Player Props - Receiving
+  player_receptions: 'Player Receptions',
+  player_reception_longest: 'Player Longest Reception',
+  player_reception_tds: 'Player Receiving Touchdowns',
+  player_reception_yds: 'Player Receiving Yards',
+
+  // NFL Player Props - Combined
+  player_pass_rush_yds: 'Player Pass + Rush Yards',
+  player_pass_rush_reception_tds: 'Player Pass + Rush + Rec TDs',
+  player_pass_rush_reception_yds: 'Player Pass + Rush + Rec Yards',
+  player_rush_reception_tds: 'Player Rush + Rec TDs',
+  player_rush_reception_yds: 'Player Rush + Rec Yards',
+
+  // NFL Player Props - Other
+  player_assists: 'Player Assists',
+  player_defensive_interceptions: 'Player Defensive Interceptions',
+  player_field_goals: 'Player Field Goals',
+  player_kicking_points: 'Player Kicking Points',
+  player_pats: 'Player Extra Points',
+  player_sacks: 'Player Sacks',
+  player_solo_tackles: 'Player Solo Tackles',
+  player_tackles_assists: 'Player Tackles + Assists',
+  player_tds_over: 'Player Touchdowns Over',
+  player_1st_td: 'Player First Touchdown',
+  player_anytime_td: 'Player Anytime Touchdown',
+  player_last_td: 'Player Last Touchdown',
+
+  // MLB Player Props - Batting
+  batter_home_runs: 'Batter Home Runs',
+  batter_hits: 'Batter Hits',
+  batter_total_bases: 'Batter Total Bases',
+  batter_rbis: 'Batter RBIs',
+  batter_runs_scored: 'Batter Runs Scored',
+  batter_singles: 'Batter Singles',
+  batter_doubles: 'Batter Doubles',
+  batter_triples: 'Batter Triples',
+  batter_walks: 'Batter Walks',
+  batter_strikeouts: 'Batter Strikeouts',
+  batter_stolen_bases: 'Batter Stolen Bases',
+
+  // MLB Player Props - Pitching
+  pitcher_strikeouts: 'Pitcher Strikeouts',
+  pitcher_hits_allowed: 'Pitcher Hits Allowed',
+  pitcher_walks: 'Pitcher Walks',
+  pitcher_earned_runs: 'Pitcher Earned Runs',
+  pitcher_outs: 'Pitcher Outs',
+  pitcher_innings_pitched: 'Pitcher Innings Pitched',
+
+  // NBA/WNBA Player Props
+  player_points: 'Player Points',
+  player_rebounds: 'Player Rebounds',
+  player_assists: 'Player Assists (Basketball)',
+  player_threes: 'Player 3-Point Field Goals',
+  player_blocks: 'Player Blocks',
+  player_steals: 'Player Steals',
+  player_turnovers: 'Player Turnovers',
+  player_points_rebounds_assists: 'Player Points + Rebounds + Assists',
+  player_points_rebounds: 'Player Points + Rebounds',
+  player_points_assists: 'Player Points + Assists',
+  player_rebounds_assists: 'Player Rebounds + Assists',
+  player_double_double: 'Player Double-Double',
+  player_triple_double: 'Player Triple-Double',
+
+  // NHL Player Props
+  player_shots_on_goal: 'Player Shots on Goal',
+  player_blocked_shots: 'Player Blocked Shots',
+  player_power_play_points: 'Player Power Play Points',
+  player_goals: 'Player Goals',
+  player_assists_hockey: 'Player Assists (Hockey)'
 } as const;
 
 type BettingMarket = keyof typeof BETTING_MARKETS;
@@ -187,25 +273,66 @@ export function resolveOddsConfig(cliOverrides?: {
 /**
  * Expand market alias tokens to valid Odds API market names
  *
- * CRITICAL: "player-props" is NOT a valid Odds API market token.
- * This function routes to props flow (should be handled separately).
+ * Expands "player-props" alias to sport-specific player prop markets.
+ * For NFL: expands to all passing, rushing, receiving, and touchdown markets.
  *
  * @param sport - Sport key (e.g., 'americanfootball_nfl', 'basketball_nba')
  * @param tokens - Array of market tokens (may include 'player-props' alias)
- * @returns Array of valid Odds API market names (player-props filtered out)
+ * @returns Array of valid Odds API market names with player-props expanded
  */
 export function expandMarketAliases(sport: string, tokens: string[]): string[] {
   const expanded: string[] = [];
+
+  // Define sport-specific player prop expansions
+  const NFL_PLAYER_PROPS = [
+    'player_pass_yds', 'player_pass_tds', 'player_pass_attempts', 'player_pass_completions',
+    'player_rush_yds', 'player_rush_tds', 'player_rush_attempts',
+    'player_reception_yds', 'player_reception_tds', 'player_receptions',
+    'player_anytime_td', 'player_1st_td', 'player_last_td',
+    'player_pass_rush_yds', 'player_rush_reception_yds'
+  ];
+
+  const NBA_PLAYER_PROPS = [
+    'player_points', 'player_rebounds', 'player_assists',
+    'player_threes', 'player_blocks', 'player_steals',
+    'player_points_rebounds_assists', 'player_points_rebounds', 'player_points_assists'
+  ];
+
+  const MLB_PLAYER_PROPS = [
+    'batter_home_runs', 'batter_hits', 'batter_total_bases', 'batter_rbis', 'batter_runs_scored',
+    'batter_singles', 'batter_doubles', 'batter_triples', 'batter_walks', 'batter_strikeouts', 'batter_stolen_bases',
+    'pitcher_strikeouts', 'pitcher_hits_allowed', 'pitcher_walks', 'pitcher_earned_runs', 'pitcher_outs'
+  ];
+
+  const WNBA_PLAYER_PROPS = [
+    'player_points', 'player_rebounds', 'player_assists',
+    'player_threes', 'player_blocks', 'player_steals',
+    'player_turnovers', 'player_points_rebounds_assists',
+    'player_points_rebounds', 'player_points_assists', 'player_rebounds_assists'
+  ];
 
   for (const token of tokens) {
     const lowerToken = token.toLowerCase().trim();
 
     if (lowerToken === 'player-props') {
-      // SKIP player-props - route to separate props flow instead
-      console.log(`[OddsAPI] Detected 'player-props' alias - routing to props flow (not core markets)`);
-      continue;
+      // Expand to sport-specific player props
+      if (sport.includes('nfl') || sport.includes('americanfootball')) {
+        console.log(`[OddsAPI] Expanding 'player-props' to ${NFL_PLAYER_PROPS.length} NFL player markets`);
+        expanded.push(...NFL_PLAYER_PROPS);
+      } else if (sport.includes('nba') || sport.includes('basketball_nba')) {
+        console.log(`[OddsAPI] Expanding 'player-props' to ${NBA_PLAYER_PROPS.length} NBA player markets`);
+        expanded.push(...NBA_PLAYER_PROPS);
+      } else if (sport.includes('wnba') || sport.includes('basketball_wnba')) {
+        console.log(`[OddsAPI] Expanding 'player-props' to ${WNBA_PLAYER_PROPS.length} WNBA player markets`);
+        expanded.push(...WNBA_PLAYER_PROPS);
+      } else if (sport.includes('mlb') || sport.includes('baseball')) {
+        console.log(`[OddsAPI] Expanding 'player-props' to ${MLB_PLAYER_PROPS.length} MLB player markets`);
+        expanded.push(...MLB_PLAYER_PROPS);
+      } else {
+        console.log(`[OddsAPI] No player prop expansion defined for sport: ${sport}`);
+      }
     } else {
-      // Pass through unchanged (h2h, spreads, totals)
+      // Pass through unchanged (h2h, spreads, totals, or specific player prop markets)
       expanded.push(token.trim());
     }
   }
@@ -506,34 +633,110 @@ export async function fetchOddsByEventIds(params: {
     return [];
   }
 
+  // Separate core markets from player props
+  const coreMarkets = ['h2h', 'spreads', 'totals', 'outrights'];
+  const core = markets.filter(m => coreMarkets.includes(m.toLowerCase()));
+  const playerProps = markets.filter(m => {
+    const lower = m.toLowerCase();
+    return lower.startsWith('player_') || lower.startsWith('batter_') || lower.startsWith('pitcher_');
+  });
+
   console.log(`[OddsAPI] Fetching odds for ${eventIds.length} events in ${sportKey}`);
-  console.log(`[OddsAPI] Resolved config => { sport: ${sportKey}, regions: ${regions}, markets: ${markets.join(',')}, bookmakers: ${bookmakers?.join(',') || 'all'}, oddsFormat: ${oddsFormat}, dateFormat: ${dateFormat} }`);
+  console.log(`[OddsAPI] Core markets: ${core.length}, Player props: ${playerProps.length}`);
 
-  try {
-    const requestParams: Record<string, any> = {
-      eventIds: eventIds.join(','),
-      regions,
-      markets: markets.join(','),
-      oddsFormat,
-      dateFormat
-    };
+  const allGames: OddsApiGame[] = [];
 
-    // Add bookmakers filter if specified
-    if (bookmakers && bookmakers.length > 0) {
-      requestParams.bookmakers = bookmakers.join(',');
+  // Fetch core markets (batch endpoint)
+  if (core.length > 0) {
+    console.log(`[OddsAPI] Fetching core markets via batch endpoint: ${core.join(',')}`);
+    try {
+      const requestParams: Record<string, any> = {
+        eventIds: eventIds.join(','),
+        regions,
+        markets: core.join(','),
+        oddsFormat,
+        dateFormat
+      };
+
+      if (bookmakers && bookmakers.length > 0) {
+        requestParams.bookmakers = bookmakers.join(',');
+      }
+
+      const games = await makeOddsApiRequest<OddsApiGame[]>(
+        `/sports/${sportKey}/odds`,
+        requestParams
+      );
+
+      console.log(`[OddsAPI] Fetched ${games.length} games with core markets`);
+      allGames.push(...games);
+    } catch (error) {
+      console.error(`[OddsAPI] Failed to fetch core markets:`, error);
+      throw error;
     }
-
-    const games = await makeOddsApiRequest<OddsApiGame[]>(
-      `/sports/${sportKey}/odds`,
-      requestParams
-    );
-
-    console.log(`[OddsAPI] Fetched odds for ${games.length} games (requested ${eventIds.length} events)`);
-    return games;
-  } catch (error) {
-    console.error(`[OddsAPI] Failed to fetch odds for event IDs:`, error);
-    throw error;
   }
+
+  // Fetch player props (per-event endpoint)
+  if (playerProps.length > 0) {
+    console.log(`[OddsAPI] Fetching player props via per-event endpoint for ${eventIds.length} events`);
+
+    for (const eventId of eventIds) {
+      try {
+        const requestParams: Record<string, any> = {
+          regions,
+          markets: playerProps.join(','),
+          oddsFormat,
+          dateFormat
+        };
+
+        if (bookmakers && bookmakers.length > 0) {
+          requestParams.bookmakers = bookmakers.join(',');
+        }
+
+        const game = await makeOddsApiRequest<OddsApiGame>(
+          `/sports/${sportKey}/events/${eventId}/odds`,
+          requestParams
+        );
+
+        // Merge with existing game data if core markets were already fetched
+        const existingGame = allGames.find(g => g.id === game.id);
+        if (existingGame) {
+          // Merge bookmakers and markets
+          for (const bookmaker of game.bookmakers) {
+            const existingBookmaker = existingGame.bookmakers.find(b => b.key === bookmaker.key);
+            if (existingBookmaker) {
+              existingBookmaker.markets.push(...bookmaker.markets);
+            } else {
+              existingGame.bookmakers.push(bookmaker);
+            }
+          }
+        } else {
+          allGames.push(game);
+        }
+
+        console.log(`[OddsAPI] Fetched player props for event ${eventId}`);
+      } catch (error) {
+        console.warn(`[OddsAPI] Failed to fetch player props for event ${eventId}:`, error);
+        // Continue with other events
+      }
+    }
+  }
+
+  console.log(`[OddsAPI] Total games fetched: ${allGames.length}`);
+
+  // Sync game metadata to games table
+  try {
+    const { syncGameMetadata } = await import('../../services/GameMetadataSync');
+    const syncResult = await syncGameMetadata(allGames);
+    console.log(`[OddsAPI] Game metadata sync: ${syncResult.synced} games synced, ${syncResult.errors.length} errors`);
+    if (syncResult.errors.length > 0) {
+      console.warn(`[OddsAPI] Game metadata sync errors:`, syncResult.errors);
+    }
+  } catch (syncError) {
+    console.error(`[OddsAPI] Failed to sync game metadata:`, syncError);
+    // Don't fail the whole request if game sync fails
+  }
+
+  return allGames;
 }
 
 /**
@@ -658,6 +861,148 @@ function convertOddsApiToRawProp(
     is_alt_line: null,
     is_primary: null,
     is_valid: undefined
+  };
+}
+
+/**
+ * Fetch core markets using event-first architecture and write to unified_picks
+ *
+ * EVENT-FIRST FLOW:
+ * 1. Fetch events (schedule)
+ * 2. Batch event IDs (20 per request)
+ * 3. Fetch odds per batch for core markets (h2h, spreads, totals)
+ * 4. Transform to UnifiedPickCoreMarket[]
+ * 5. Write to unified_picks table
+ *
+ * @param sportKey - Sport key (e.g., 'americanfootball_nfl')
+ * @param config - Optional config override
+ * @returns Metrics { eventsFetched, marketsProcessed, coreMarketWrites }
+ */
+export async function fetchAndWriteCoreMarkets(
+  sportKey: SupportedSportKey,
+  config?: {
+    markets?: string[];
+    regions?: string;
+    bookmakers?: string[];
+    oddsFormat?: 'decimal' | 'american';
+    dateFormat?: 'iso' | 'unix';
+    daysFrom?: number;
+  }
+): Promise<{
+  eventsFetched: number;
+  marketsProcessed: { h2h: number; spreads: number; totals: number };
+  coreMarketWrites: {
+    attemptedWrites: number;
+    inserted: number;
+    skippedDedup: number;
+    errors: number;
+  };
+  games: OddsApiGame[];
+}> {
+  const resolvedConfig = resolveOddsConfig(config);
+  const { transformGamesToUnifiedPicks } = await import('./transform.js');
+  const { upsertUnifiedPicksCore } = await import('../../services/unifiedPicksWriter.js');
+
+  console.log('[OddsAPI] Fetching core markets using event-first flow');
+  console.log('[OddsAPI] Sport:', sportKey, 'Markets:', resolvedConfig.markets);
+
+  // Expand market aliases and filter out player-props
+  const expandedMarkets = expandMarketAliases(sportKey, resolvedConfig.markets);
+  console.log('[OddsAPI] Expanded markets:', expandedMarkets);
+
+  // Step 1: Fetch events (schedule)
+  const daysFrom = config?.daysFrom || (resolvedConfig.eventLookaheadHours / 24);
+  const events = await fetchEvents(sportKey, daysFrom);
+
+  if (!events || events.length === 0) {
+    console.log('[OddsAPI] No events found for', sportKey);
+    return {
+      eventsFetched: 0,
+      marketsProcessed: { h2h: 0, spreads: 0, totals: 0 },
+      coreMarketWrites: { attemptedWrites: 0, inserted: 0, skippedDedup: 0, errors: 0 },
+      games: [],
+    };
+  }
+
+  console.log(`[OddsAPI] Found ${events.length} events for ${sportKey}`);
+
+  // Step 2: Batch event IDs
+  const batchSize = resolvedConfig.eventBatchSize;
+  const eventIdBatches: string[][] = [];
+
+  for (let i = 0; i < events.length; i += batchSize) {
+    const batch = events.slice(i, i + batchSize).map(e => e.id);
+    eventIdBatches.push(batch);
+  }
+
+  console.log(`[OddsAPI] Processing ${events.length} events in ${eventIdBatches.length} batches (batchSize=${batchSize})`);
+
+  // Step 3: Fetch odds per batch
+  const allGames: OddsApiGame[] = [];
+
+  for (let i = 0; i < eventIdBatches.length; i++) {
+    const batch = eventIdBatches[i];
+    console.log(`[OddsAPI] Fetching batch ${i + 1}/${eventIdBatches.length} (${batch.length} events)`);
+
+    const games = await fetchOddsByEventIds({
+      sportKey,
+      eventIds: batch,
+      markets: expandedMarkets,
+      regions: resolvedConfig.regions,
+      bookmakers: resolvedConfig.bookmakers,
+      oddsFormat: config?.oddsFormat || resolvedConfig.oddsFormat,
+      dateFormat: config?.dateFormat || resolvedConfig.dateFormat,
+    });
+
+    allGames.push(...games);
+  }
+
+  console.log(`[OddsAPI] Fetched odds for ${allGames.length} games`);
+
+  // Count markets processed
+  const marketsProcessed = { h2h: 0, spreads: 0, totals: 0 };
+  for (const game of allGames) {
+    for (const bookmaker of game.bookmakers) {
+      for (const market of bookmaker.markets) {
+        const key = market.key.toLowerCase();
+        if (key === 'h2h') marketsProcessed.h2h++;
+        else if (key === 'spreads') marketsProcessed.spreads++;
+        else if (key === 'totals') marketsProcessed.totals++;
+      }
+    }
+  }
+
+  console.log('[OddsAPI] Markets processed:', marketsProcessed);
+
+  // Step 4: Transform to UnifiedPickCoreMarket[]
+  const picks = transformGamesToUnifiedPicks(allGames, resolvedConfig.bookmakers);
+  console.log(`[OddsAPI] Transformed ${picks.length} picks from ${allGames.length} games`);
+
+  // Log first 2 picks per market for debugging
+  const samplesByMarket: Record<string, typeof picks> = { h2h: [], spreads: [], totals: [] };
+  for (const pick of picks) {
+    if (!samplesByMarket[pick.market]) {
+      samplesByMarket[pick.market] = [];
+    }
+    if (samplesByMarket[pick.market].length < 2) {
+      samplesByMarket[pick.market].push(pick);
+    }
+  }
+
+  for (const [market, samples] of Object.entries(samplesByMarket)) {
+    if (samples.length > 0) {
+      console.log(`[OddsAPI] Sample ${market} picks:`, JSON.stringify(samples, null, 2));
+    }
+  }
+
+  // Step 5: Write to unified_picks
+  const writeMetrics = await upsertUnifiedPicksCore(picks);
+
+  return {
+    eventsFetched: events.length,
+    marketsProcessed,
+    coreMarketWrites: writeMetrics,
+    games: allGames,
   };
 }
 

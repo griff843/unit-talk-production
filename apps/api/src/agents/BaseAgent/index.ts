@@ -7,6 +7,7 @@ import { healthChecker, HealthCheck } from '../../monitoring/enhanced-health-che
 import { circuitBreaker } from '../../services/enhanced-circuit-breaker';
 
 import { validateBaseAgentConfig, createBaseAgentConfig } from './config';
+import { requireSupabase } from '../../utils/supabaseUtils';
 import {
   BaseAgentConfig,
   BaseMetrics,

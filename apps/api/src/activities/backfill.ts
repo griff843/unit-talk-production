@@ -5,10 +5,10 @@
  * idempotency checks, and downstream workflow triggering.
  */
 
-import { supabaseClient } from '../services/supabaseClient';
+import { requireSupabase } from '../utils/supabaseUtils';
 import { fetchUnifiedData } from '../agents/FeedAgent/dataSourceRouter';
 // Note: Using console.log instead of Logger to avoid import issues
-import crypto from 'crypto';
+import { randomUUID } from 'crypto';
 
 export interface BackfillHourRequest {
   date: string; // ISO date string for the hour
@@ -87,15 +87,14 @@ export async function validateBackfillRequest(request: any): Promise<ValidationR
 export async function checkIdempotency(request: any): Promise<IdempotencyResult> {
   try {
     const { startDate, endDate, sport } = request;
-    
-    // Check if backfill record exists
+
+    // Check if backfill record exists using analytics_events table
+    const supabaseClient = requireSupabase();
     const { data, error } = await supabaseClient
-      .from('backfill_history')
-      .select('id, completed_at, status')
-      .eq('start_date', startDate)
-      .eq('end_date', endDate)
-      .eq('sport', sport || 'all')
-      .eq('status', 'completed')
+      .from('analytics_events')
+      .select('id, created_at, event_data')
+      .eq('event_type', 'backfill_completed')
+      .contains('event_data', { start_date: startDate, end_date: endDate, sport: sport || 'all' })
       .limit(1);
 
     if (error) {
@@ -104,9 +103,9 @@ export async function checkIdempotency(request: any): Promise<IdempotencyResult>
     }
 
     if (data && data.length > 0) {
-      return { 
-        exists: true, 
-        completedAt: data[0].completed_at 
+      return {
+        exists: true,
+        completedAt: (data[0] as any).created_at
       };
     }
 
@@ -148,7 +147,7 @@ export async function backfillPropsForHour(request: BackfillHourRequest): Promis
     let duplicateCount = 0;
 
     // Process props in batches
-    const batchId = crypto.randomUUID();
+    const batchId = randomUUID();
     const timestamp = new Date();
 
     for (let i = 0; i < props.length; i += 50) {
@@ -156,8 +155,8 @@ export async function backfillPropsForHour(request: BackfillHourRequest): Promis
       
       // Prepare props for insertion
       const propsForDB = batch.map(prop => ({
-        id: crypto.randomUUID(),
-        external_prop_id: prop.id || crypto.randomUUID(),
+        prop_id: prop.id || randomUUID(),
+        external_prop_id: prop.id || randomUUID(),
         sport: sport || prop.sport,
         stat_type: prop.stat_type || prop.prop_type,
         player_name: prop.player_name || prop.name,
@@ -166,23 +165,26 @@ export async function backfillPropsForHour(request: BackfillHourRequest): Promis
         line: prop.line,
         over_odds: prop.over_odds,
         under_odds: prop.under_odds,
-        book: prop.book || response.source,
-        game_time: prop.game_time || timestamp,
+        source: prop.book || response.source || 'backfill',
+        game_start: prop.game_time || timestamp,
         created_at: timestamp,
         updated_at: timestamp,
-        batch_id: batchId,
-        source: 'backfill',
-        backfill_date: date
+        quality_flags: {
+          batch_id: batchId,
+          backfill_date: date,
+          book: prop.book || response.source
+        }
       }));
 
       // Check for duplicates using external_prop_id
+      const supabaseClient = requireSupabase();
       const existingIds = await supabaseClient
         .from('raw_props')
         .select('external_prop_id')
         .in('external_prop_id', propsForDB.map(p => p.external_prop_id));
 
       const existingSet = new Set(existingIds.data?.map((p: { external_prop_id: string }) => p.external_prop_id) || []);
-      
+
       // Filter out duplicates
       const newProps = propsForDB.filter(prop => !existingSet.has(prop.external_prop_id));
       duplicateCount += (propsForDB.length - newProps.length);
@@ -191,7 +193,7 @@ export async function backfillPropsForHour(request: BackfillHourRequest): Promis
       if (newProps.length > 0) {
         const { error: insertError } = await supabaseClient
           .from('raw_props')
-          .insert(newProps);
+          .insert(newProps as any);
 
         if (insertError) {
           console.error(`[Backfill] Insert error for batch starting at ${i}:`, insertError);
@@ -235,24 +237,25 @@ export async function recordBackfillProgress(params: {
   try {
     const { workflowId, hourChunk, progress } = params;
     
-    // Insert or update backfill progress record
+    // Record backfill progress using analytics_events table
+    const supabaseClient = requireSupabase();
     const { error } = await supabaseClient
-      .from('backfill_progress')
-      .upsert({
-        workflow_id: workflowId,
-        hour_chunk: hourChunk,
-        completed_hours: progress.completedHours,
-        failed_hours: progress.failedHours,
-        total_props: progress.totalProps,
-        processed_props: progress.processedProps,
-        duplicate_props: progress.duplicateProps,
-        api_call_count: progress.apiCallCount,
-        status: progress.status,
-        error: progress.error,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'workflow_id'
-      });
+      .from('analytics_events')
+      .insert({
+        event_type: 'backfill_progress',
+        event_data: {
+          workflow_id: workflowId,
+          hour_chunk: hourChunk,
+          completed_hours: progress.completedHours,
+          failed_hours: progress.failedHours,
+          total_props: progress.totalProps,
+          processed_props: progress.processedProps,
+          duplicate_props: progress.duplicateProps,
+          api_call_count: progress.apiCallCount,
+          status: progress.status,
+          error: progress.error
+        }
+      } as any);
 
     if (error) {
       console.error('[Backfill] Error recording progress:', error);

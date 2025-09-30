@@ -3,9 +3,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { 
-  Activity, 
-  Target, 
+import {
+  Activity,
+  Target,
   Bot,
   CheckCircle,
   Clock,
@@ -16,6 +16,7 @@ import {
   Eye
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
+import { CreditsCard } from '@/components/CreditsCard'
 
 type PipelineHealthData = {
   total_picks_24h: number;
@@ -24,6 +25,13 @@ type PipelineHealthData = {
   writer_audit_percentage: number;
   status: string;
   last_updated: string;
+}
+
+type ApprovalStats = {
+  pending: number;
+  approved: number;
+  rejected: number;
+  total: number;
 }
 
 type DataFreshness = {
@@ -36,6 +44,7 @@ type DataFreshness = {
 export default function DashboardPage() {
   const [pipelineHealth, setPipelineHealth] = useState<PipelineHealthData | null>(null)
   const [providerHealth, setProviderHealth] = useState<{ dataFreshness: DataFreshness } | null>(null)
+  const [approvalStats, setApprovalStats] = useState<ApprovalStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -64,6 +73,15 @@ export default function DashboardPage() {
           setProviderHealth(providerData)
         } else {
           console.warn('Provider health endpoint not available')
+        }
+
+        // Fetch approval stats for scored props
+        const approvalResponse = await fetch('/api/approval?action=health')
+        if (approvalResponse.ok) {
+          const approvalData = await approvalResponse.json()
+          setApprovalStats(approvalData.stats)
+        } else {
+          console.warn('Approval health endpoint not available')
         }
         
         setError(null)
@@ -168,6 +186,10 @@ export default function DashboardPage() {
             <Settings className="w-4 h-4 mr-2" />
             Invalidate Cache
           </Button>
+          <Button variant="default" size="sm" onClick={() => window.location.href = '/dashboard/picks'}>
+            <Target className="w-4 h-4 mr-2" />
+            Picks HQ
+          </Button>
         </div>
       </div>
 
@@ -218,6 +240,35 @@ export default function DashboardPage() {
                   {providerHealth.dataFreshness.minutesSinceLastIngestion ?? 'Unknown'}
                 </p>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Approval Queue Alert */}
+      {approvalStats && approvalStats.pending > 0 && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-orange-800">
+              🎯 Enhanced45Factor Picks Pending Approval
+            </CardTitle>
+            <Clock className="h-4 w-4 text-orange-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-2xl font-bold text-orange-800">{approvalStats.pending}</div>
+                <p className="text-xs text-orange-600">
+                  Professional scored props awaiting operator approval
+                </p>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => window.location.href = '/dashboard/picks'}
+                className="bg-orange-600 hover:bg-orange-700"
+              >
+                Review Now
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -285,6 +336,9 @@ export default function DashboardPage() {
           </Card>
         </div>
       )}
+
+      {/* Credits Usage Monitoring */}
+      <CreditsCard />
 
       {/* API Endpoints Status */}
       <Card>

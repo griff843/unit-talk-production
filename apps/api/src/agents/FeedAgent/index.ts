@@ -4,6 +4,15 @@ import { BaseAgentConfig, BaseAgentDependencies, HealthStatus, BaseMetrics } fro
 
 import { FeedAgentConfigSchema, FeedAgentConfig, FeedMetrics, RawProp } from './types';
 import { normalizePublicProps, dedupePublicProps } from './utils';
+import { lineShoppingIntegration, PropWithLineAnalysis } from './LineShoppingIntegration';
+
+// NEW: Cache-first unified picks integration
+import { CacheFirstUnifiedPicksService } from '../../services/CacheFirstUnifiedPicksService';
+import { cachedOddsApiClient } from '../../services/cachedOddsApiClient';
+import { UnifiedPick } from '../../db/unifiedPicksRepo';
+import { parseCliArgs, validateCliArgs, createFeedAgentConfigFromCli, displayHelp } from '../../utils/cliArgs';
+import { logger } from '../../shared/logger';
+import { featureFlags, FeatureFlags } from '../../services/featureFlags';
 
 /**
  * Create a proper FeedAgent configuration that extends BaseAgentConfig
@@ -41,17 +50,58 @@ function createFeedAgentConfig(config: any): BaseAgentConfig & { feedConfig?: Fe
 }
 
 /**
- * FeedAgent handles fetching, normalizing, and processing raw sports betting props
- * from various data providers.
+ * FeedAgent handles fetching, normalizing, and processing sports betting props
+ * directly to unified_picks table using cache-first architecture.
+ *
+ * NEW FEATURES:
+ * - Direct unified_picks writes (skips raw_props)
+ * - Cache-first provider calls with Redis coordination
+ * - CLI flags support (--rate, --batch, --sports, --books)
+ * - Credit usage tracking and monitoring
+ * - Workflow integration with processing stages
+ * - Feature flag support for rollout phases
  */
 export class FeedAgent extends BaseAgent {
   private feedMetrics: FeedMetrics;
   private fullConfig: FeedAgentConfig;
 
+  // NEW: Cache-first services
+  private unifiedPicksService: CacheFirstUnifiedPicksService;
+  private cachedClient = cachedOddsApiClient;
+
+  // NEW: CLI configuration support
+  private cliConfig?: any;
+
+  // NEW: Batch and workflow tracking
+  private currentBatchId?: string;
+  private processingPriority: number = 1;
+
+  // NEW: Feature flags
+  private flags: FeatureFlags;
+
   constructor(config: BaseAgentConfig | any, deps: BaseAgentDependencies) {
+    // Handle CLI args if provided
+    if (config.cliArgs) {
+      const parsed = parseCliArgs(config.cliArgs);
+      validateCliArgs(parsed.args);
+
+      if (parsed.args.help) {
+        displayHelp();
+        process.exit(0);
+      }
+
+      config = { ...config, ...createFeedAgentConfigFromCli(parsed.args) };
+    }
+
     // Create a proper configuration that works with BaseAgent
     const enhancedConfig = createFeedAgentConfig(config);
     super(enhancedConfig, deps);
+
+    // Initialize cache-first services
+    this.unifiedPicksService = CacheFirstUnifiedPicksService.getInstance();
+
+    // Load feature flags
+    this.flags = featureFlags.getFlags();
 
     // Use the feed-specific config if available, otherwise create defaults
     this.fullConfig = enhancedConfig.feedConfig || {
@@ -88,30 +138,96 @@ export class FeedAgent extends BaseAgent {
   }
 
   protected async initialize(): Promise<void> {
-    this.logger.info('🚀 Initializing FeedAgent...');
+    this.logger.info('🚀 Initializing FeedAgent with cache-first unified_picks integration...');
+
+    // Validate dependencies
     await this.validateDependencies();
+
+    // Warm up caches if enabled
+    if (this.fullConfig.cacheFirst !== false) {
+      try {
+        await this.cachedClient.warmupCache(this.fullConfig.sports, this.fullConfig.providers);
+        await this.unifiedPicksService.warmupCache();
+        this.logger.info('✅ Cache warmup completed');
+      } catch (error) {
+        this.logger.warn('⚠️ Cache warmup failed', { error: (error as Error).message });
+      }
+    }
+
+    // Generate batch ID for this processing session
+    this.currentBatchId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    this.logger.info('✅ FeedAgent initialization complete', {
+      batchId: this.currentBatchId,
+      cacheEnabled: this.fullConfig.cacheFirst !== false,
+      sports: this.fullConfig.sports || ['ALL'],
+      batchSize: this.fullConfig.batchSize || 100,
+      featureFlags: featureFlags.getRolloutConfig(),
+      shadowMode: featureFlags.isShadowModeEnabled()
+    });
   }
 
   protected async process(): Promise<void> {
-    this.logger.info('🔄 Processing feed data...');
+    this.logger.info('🔄 Processing feed data with cache-first unified_picks writes...');
 
     try {
-      // Process each configured provider
-      for (const [_providerName, provider] of Object.entries(this.fullConfig.providers)) {
-        if ((provider as any).enabled) {
-          await this.startProviderIngestion(provider as any);
+      // NEW: Process sports-based configuration instead of providers
+      const sports = this.fullConfig.sports || ['NFL', 'NBA', 'MLB', 'NHL'];
+
+      for (const sport of sports) {
+        // Check feature flags
+        if (!featureFlags.isSportEnabled(sport)) {
+          this.logger.info(`⚠️ FEATURE FLAG: Sport ${sport} disabled, skipping`);
+          continue;
+        }
+
+        if (this.fullConfig.dryRun) {
+          this.logger.info(`🏃‍♂️ DRY RUN: Would process ${sport}`);
+          continue;
+        }
+
+        // Check if we should use new unified picks approach
+        if (featureFlags.shouldUseUnifiedPicksDirectWrite()) {
+          await this.processSport(sport);
+        } else {
+          this.logger.info(`📛 FEATURE FLAG: Unified picks direct write disabled for ${sport}, using legacy processing`);
+          // Could add fallback to legacy raw_props processing here
         }
       }
+
+      // Record credit usage for monitoring
+      await this.recordCreditUsage();
+
     } catch (error) {
       this.logger.error('Failed to process feed data', {
-        err: error instanceof Error ? error.message : String(error)
+        err: error instanceof Error ? error.message : String(error),
+        batchId: this.currentBatchId
       });
       throw error;
     }
   }
 
   protected async cleanup(): Promise<void> {
-    this.logger.info('🧹 FeedAgent cleanup completed');
+    this.logger.info('🧹 FeedAgent cleanup starting...');
+
+    try {
+      // Log final metrics
+      this.logger.info('📈 Final processing metrics', {
+        batchId: this.currentBatchId,
+        metrics: this.feedMetrics,
+        cacheMetrics: this.unifiedPicksService.getMetrics()
+      });
+
+      // Clear any temporary cache entries
+      // (Production cache entries will expire naturally)
+
+    } catch (error) {
+      this.logger.warn('Cleanup warning', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+
+    this.logger.info('✅ FeedAgent cleanup completed');
   }
 
   public async checkHealth(): Promise<HealthStatus> {
@@ -155,7 +271,7 @@ export class FeedAgent extends BaseAgent {
       throw new Error('Supabase client is required for FeedAgent');
     }
     const { error } = await this.supabase
-      .from('raw_props')
+      .from('sports_game_odds')
       .select('id')
       .limit(1);
 
@@ -164,372 +280,602 @@ export class FeedAgent extends BaseAgent {
     }
   }
 
-  private async startProviderIngestion(provider: any): Promise<void> {
+  /**
+   * NEW: Process a single sport using cache-first provider calls
+   */
+  private async processSport(sport: string): Promise<void> {
+    const startTime = Date.now();
+
     try {
-      this.logger.info(`Starting ingestion for provider: ${provider.name}`);
+      this.logger.info(`🏀 Starting cache-first processing for ${sport}`);
 
-      // Fetch data from provider
-      const rawData = await this.fetchFromProvider(provider);
+      // Determine optimal provider for this sport
+      const primarySource = this.getPrimarySource(sport);
 
-      // Ensure supabase is available
-      if (!this.supabase) {
-        throw new Error('Supabase client is required for FeedAgent');
+      // Check if we should use cache-first approach
+      const shouldUseCache = featureFlags.shouldUseCacheFirst();
+
+      let result: any;
+
+      if (shouldUseCache) {
+        // NEW: Cache-first approach
+        result = await this.cachedClient.getCachedData({
+          source: primarySource,
+          sport,
+          market: 'player-props',
+          params: {
+            limit: this.fullConfig.batchSize || 100
+          }
+        });
+      } else {
+        // FALLBACK: Direct API call (legacy mode)
+        this.logger.info(`📛 FEATURE FLAG: Cache-first disabled, using direct API calls`);
+
+        // Import the legacy data source router
+        const { fetchUnifiedData } = await import('./dataSourceRouter');
+
+        result = await fetchUnifiedData({
+          sport,
+          marketType: 'player-props' as any,
+          date: new Date().toISOString().split('T')[0]
+        });
       }
 
-      // Normalize the data
-      const normalizedData = await normalizePublicProps(rawData, provider, true, this.supabase);
+      // Shadow mode: Compare both approaches if enabled
+      if (featureFlags.isShadowModeEnabled() && shouldUseCache) {
+        try {
+          this.logger.info(`🕵️ SHADOW MODE: Running parallel legacy comparison for ${sport}`);
 
-      // Deduplicate the data
-      const deduplicatedData = await dedupePublicProps(normalizedData, provider, this.supabase);
+          // Run legacy approach in parallel
+          const { fetchUnifiedData } = await import('./dataSourceRouter');
+          const legacyResult = await fetchUnifiedData({
+            sport,
+            marketType: 'player-props' as any,
+            date: new Date().toISOString().split('T')[0]
+          });
 
-      // Transform to RawProp objects
-      const rawProps = this.transformProps(deduplicatedData, provider);
+          // Compare results
+          this.compareShadowModeResults(result, legacyResult, sport);
 
-      // Process the props
-      await this.processProps(rawProps);
+        } catch (shadowError) {
+          this.logger.warn(`⚠️ SHADOW MODE: Legacy comparison failed for ${sport}`, {
+            error: shadowError instanceof Error ? shadowError.message : String(shadowError)
+          });
+        }
+      }
+
+      this.logger.info(`📊 ${sport}: Fetched ${Array.isArray(result.data) ? result.data.length : 1} props from ${result.source}`, {
+        fromCache: result.fromCache,
+        creditUsed: result.creditUsed,
+        cacheKey: result.cacheKey.substring(0, 50) + '...'
+      });
+
+      if (Array.isArray(result.data) && result.data.length > 0) {
+        // Transform to unified picks and process
+        const unifiedPicks = await this.transformToUnifiedPicks(result.data, sport, result.source);
+
+        // Process with deduplication and validation
+        await this.processUnifiedPicks(unifiedPicks);
+      }
+
+      // Update provider stats
+      this.updateProviderStats(result.source, Date.now() - startTime, result.creditUsed, !result.fromCache);
 
     } catch (error) {
-      this.logger.error(`Provider ingestion failed: ${provider.name}`, {
-        error: error instanceof Error ? error.message : String(error)
+      this.logger.error(`Sport processing failed: ${sport}`, {
+        error: error instanceof Error ? error.message : String(error),
+        batchId: this.currentBatchId
       });
       this.feedMetrics.errors++;
       throw error;
     }
   }
 
-  private async fetchFromProvider(_provider: any): Promise<any[]> {
-    const startTime = Date.now();
-    
-    try {
-      this.logger.info(`🌐 Fetching real data using unified data source router`);
-      
-      // Import the unified data source router
-      const { fetchUnifiedData } = await import('./dataSourceRouter');
-      
-      // Get today's date for filtering
-      const today = new Date().toISOString().split('T')[0];
-      
-      // Fetch props for all supported sports using smart routing
-      const sports = ['NBA', 'NFL', 'MLB', 'NHL', 'NCAAF'];
-      const allProps: Array<any> = [];
-      
-      for (const sport of sports) {
-        try {
-          this.logger.info(`🏀 Fetching ${sport} props using smart routing`);
-          
-          // Force NCAAF to use Odds API since Optimal doesn't support it
-          const requestConfig: any = {
+  /**
+   * NEW: Transform raw props to UnifiedPick objects
+   */
+  private async transformToUnifiedPicks(rawData: any[], sport: string, source: string): Promise<UnifiedPick[]> {
+    const picks: UnifiedPick[] = [];
+
+    for (const rawProp of rawData) {
+      try {
+        // Create unified pick object
+        const pick: UnifiedPick = {
+          userId: 'system', // System-generated picks
+          pickSource: 'promoted', // Coming from FeedAgent promotion
+          pickType: 'single',
+          outcome: this.determineOutcome(rawProp),
+          line: parseFloat(String(rawProp.line)) || undefined,
+          odds: parseFloat(String(rawProp.over_odds || rawProp.odds)) || undefined,
+          confidence: this.calculateInitialConfidence(rawProp),
+
+          // NEW: Workflow integration
+          workflowStage: 'ingested',
+          status: 'pending',
+          published: false,
+
+          // Metadata
+          analysis: JSON.stringify({
             sport,
-            marketType: 'player-props',
-            date: today
-          };
-          
-          // Override routing for NCAAF
-          if (sport === 'NCAAF') {
-            requestConfig.forceSource = 'odds-api';
-            this.logger.info('🏈 Forcing NCAAF to use Odds API (Optimal unsupported)');
-          }
-          
-          // Use unified data router with potential override
-          const result = await fetchUnifiedData(requestConfig);
-          
-          this.logger.info(`📊 ${sport}: ${result.data.length} props from ${result.source} (${result.metadata.processingTimeMs}ms)`);
-          
-          // Add source metadata to props
-          const sourceProps = result.data.map(prop => ({
-            ...prop,
-            source: result.source,
-            fetched_via: 'unified-router'
-          }));
-          
-          allProps.push(...sourceProps);
-          
-          // Update provider stats based on source used
-          if (result.source === 'optimal-api') {
-            this.feedMetrics.providerStats.Optimal.success++;
-            this.feedMetrics.providerStats.Optimal.avgLatencyMs = result.metadata.processingTimeMs;
-          } else if (result.source === 'odds-api') {
-            this.feedMetrics.providerStats.OddsAPI.success++;
-            this.feedMetrics.providerStats.OddsAPI.avgLatencyMs = result.metadata.processingTimeMs;
-          }
-          
-          // Log any errors from the unified system
-          if (result.metadata.errors.length > 0) {
-            this.logger.warn(`⚠️ ${sport} fetch had errors:`, result.metadata.errors);
-          }
-          
-          // Small delay between sports
-          await new Promise(resolve => setTimeout(resolve, 200));
-          
-        } catch (error) {
-          this.logger.error(`❌ Failed to fetch ${sport} props`, {
-            error: error instanceof Error ? error.message : 'Unknown error'
-          });
-          this.feedMetrics.errors++;
-        }
+            source,
+            playerName: rawProp.player_name,
+            statType: rawProp.stat_type || rawProp.market,
+            team: rawProp.team,
+            opponent: rawProp.opponent,
+            gameDate: rawProp.game_date,
+            fetchedAt: new Date().toISOString(),
+            batchId: this.currentBatchId
+          }),
+
+          groupKey: `${sport}_${rawProp.player_name}_${rawProp.stat_type || rawProp.market}_${this.currentBatchId}`,
+          isInstant: true,
+          placedAt: new Date().toISOString()
+        };
+
+        picks.push(pick);
+
+      } catch (error) {
+        this.logger.warn('Failed to transform raw prop to unified pick', {
+          error: error instanceof Error ? error.message : String(error),
+          rawProp: rawProp.id || 'unknown'
+        });
       }
-      
-      const duration = Date.now() - startTime;
-      
-      this.logger.info(`✅ Fetched ${allProps.length} total props using unified routing in ${duration}ms`);
-      return allProps;
-      
-    } catch (error) {
-      this.logger.error(`❌ Unified data fetch failed`, {
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      return [];
     }
+
+    this.logger.info(`✅ Transformed ${picks.length}/${rawData.length} props to unified picks`);
+    return picks;
   }
 
-  private async processProps(props: RawProp[]): Promise<void> {
-    if (!this.supabase) {
-      throw new Error('Supabase client is required for FeedAgent');
+  /**
+   * Determine outcome/direction for a prop
+   */
+  private determineOutcome(rawProp: any): string {
+    // Default to 'over' unless we have specific logic
+    if (rawProp.direction) {
+      return rawProp.direction;
     }
 
-    if (props.length === 0) {
-      this.logger.info('No props to process');
+    // Use better odds to determine direction
+    const overOdds = parseFloat(String(rawProp.over_odds || rawProp.over)) || 0;
+    const underOdds = parseFloat(String(rawProp.under_odds || rawProp.under)) || 0;
+
+    if (overOdds > 0 && underOdds > 0) {
+      return overOdds > underOdds ? 'under' : 'over';
+    }
+
+    if (overOdds < 0 && underOdds < 0) {
+      return Math.abs(overOdds) < Math.abs(underOdds) ? 'over' : 'under';
+    }
+
+    return 'over'; // Default fallback
+  }
+
+  /**
+   * Calculate initial confidence based on available data
+   */
+  private calculateInitialConfidence(rawProp: any): number {
+    // Start with base confidence
+    let confidence = 0.5;
+
+    // Boost confidence for major sports
+    const majorSports = ['NFL', 'NBA', 'MLB', 'NHL'];
+    if (majorSports.includes(rawProp.sport?.toUpperCase())) {
+      confidence += 0.1;
+    }
+
+    // Boost confidence if we have both sides of the bet
+    if (rawProp.over_odds && rawProp.under_odds) {
+      confidence += 0.1;
+    }
+
+    // Boost confidence for reasonable odds
+    const odds = parseFloat(String(rawProp.over_odds || rawProp.odds)) || 0;
+    if (odds >= -200 && odds <= 200) {
+      confidence += 0.1;
+    }
+
+    return Math.min(0.95, Math.max(0.1, confidence));
+  }
+
+  /**
+   * NEW: Process unified picks with cache coordination and deduplication
+   */
+  private async processUnifiedPicks(picks: UnifiedPick[]): Promise<void> {
+    if (picks.length === 0) {
+      this.logger.info('No unified picks to process');
       return;
     }
 
-    this.logger.info(`🔄 Processing ${props.length} props with parallel batch insertion...`);
+    this.logger.info(`🔄 Processing ${picks.length} unified picks with cache-first writes...`);
     const startTime = Date.now();
 
-    // Batch size for parallel processing (optimal for Supabase)
-    const BATCH_SIZE = 500;
-    const MAX_PARALLEL_BATCHES = 5;
-    
-    // Split props into batches
-    const batches: RawProp[][] = [];
-    for (let i = 0; i < props.length; i += BATCH_SIZE) {
-      batches.push(props.slice(i, i + BATCH_SIZE));
-    }
+    try {
+      // NEW: Deduplicate against existing unified picks
+      const deduplicatedPicks = await this.deduplicateUnifiedPicks(picks);
 
-    this.logger.info(`📦 Split ${props.length} props into ${batches.length} batches of up to ${BATCH_SIZE} props each`);
+      if (deduplicatedPicks.length === 0) {
+        this.logger.info('✅ All picks were duplicates - no new data to process');
+        return;
+      }
 
-    let totalInserted = 0;
-    let totalDuplicates = 0;
-    let totalErrors = 0;
+      this.logger.info(`📋 After deduplication: ${deduplicatedPicks.length}/${picks.length} picks are new`);
 
-    // Process batches in parallel chunks
-    for (let i = 0; i < batches.length; i += MAX_PARALLEL_BATCHES) {
-      const parallelBatches = batches.slice(i, i + MAX_PARALLEL_BATCHES);
-      
-      this.logger.info(`🚀 Processing parallel chunk ${Math.floor(i / MAX_PARALLEL_BATCHES) + 1}/${Math.ceil(batches.length / MAX_PARALLEL_BATCHES)} (${parallelBatches.length} batches)`);
+      // Process in batches using cache-first service
+      const batchSize = this.fullConfig.batchSize || 100;
+      let totalProcessed = 0;
+      let totalErrors = 0;
 
-      const batchPromises = parallelBatches.map(async (batch, batchIndex) => {
+      for (let i = 0; i < deduplicatedPicks.length; i += batchSize) {
+        const batch = deduplicatedPicks.slice(i, i + batchSize);
+
         try {
-          // Use upsert with onConflict to handle duplicates gracefully
-          const { data, error } = await this.supabase!
-            .from('raw_props')
-            .upsert(batch, {
-              onConflict: 'id',
-              ignoreDuplicates: true
-            })
-            .select('id');
+          // Process batch through cache-first service
+          const results = await Promise.allSettled(
+            batch.map(pick => this.unifiedPicksService.createPick({
+              ...pick,
+              // Add processing metadata
+              analysis: JSON.stringify({
+                ...(pick.analysis ? JSON.parse(pick.analysis) : {}),
+                processingPriority: this.processingPriority,
+                batchId: this.currentBatchId,
+                processedAt: new Date().toISOString()
+              })
+            }))
+          );
 
-          if (error) {
-            // Handle specific error types
-            if (error.code === '23505' || error?.message?.includes('duplicate')) {
-              this.logger.debug(`Batch ${i + batchIndex}: ${batch.length} props contained duplicates`);
-              return { inserted: 0, duplicates: batch.length, errors: 0 };
-            } else {
-              this.logger.error(`Batch ${i + batchIndex} failed:`, {
-                error: error.message,
-                code: error.code,
-                batchSize: batch.length
+          // Count successes and failures
+          const successful = results.filter(r => r.status === 'fulfilled').length;
+          const failed = results.filter(r => r.status === 'rejected').length;
+
+          totalProcessed += successful;
+          totalErrors += failed;
+
+          this.logger.info(`📦 Batch ${Math.floor(i / batchSize) + 1}: ${successful} created, ${failed} errors`);
+
+          // Log errors for debugging
+          results.forEach((result, index) => {
+            if (result.status === 'rejected') {
+              this.logger.warn('Pick creation failed', {
+                batchIndex: index,
+                error: result.reason instanceof Error ? result.reason.message : String(result.reason),
+                pickId: batch[index]?.groupKey
               });
-              return { inserted: 0, duplicates: 0, errors: batch.length };
             }
+          });
+
+          // Small delay between batches to avoid overwhelming the system
+          if (i + batchSize < deduplicatedPicks.length) {
+            await new Promise(resolve => setTimeout(resolve, 100));
           }
 
-          const insertedCount = data?.length || 0;
-          const duplicateCount = batch.length - insertedCount;
-          
-          this.logger.debug(`Batch ${i + batchIndex}: Inserted ${insertedCount}, Duplicates ${duplicateCount}`);
-          
-          return { 
-            inserted: insertedCount, 
-            duplicates: duplicateCount,
-            errors: 0 
-          };
-
         } catch (error) {
-          this.logger.error(`Batch ${i + batchIndex} exception:`, {
-            err: error instanceof Error ? error.message : String(error),
-            batchSize: batch.length
+          this.logger.error('Batch processing failed', {
+            batchStart: i,
+            batchSize: batch.length,
+            error: error instanceof Error ? error.message : String(error)
           });
-          return { inserted: 0, duplicates: 0, errors: batch.length };
+          totalErrors += batch.length;
         }
+      }
+
+      // Update metrics
+      this.feedMetrics.uniqueProps += totalProcessed;
+      this.feedMetrics.duplicates += picks.length - deduplicatedPicks.length;
+      this.feedMetrics.errors += totalErrors;
+      this.feedMetrics.totalProps += picks.length;
+
+      const duration = Date.now() - startTime;
+      const picksPerSecond = Math.round((picks.length / duration) * 1000);
+
+      this.logger.info(`✅ Unified picks processing complete in ${duration}ms (${picksPerSecond} picks/sec)`, {
+        totalProcessed,
+        totalErrors,
+        duplicatesSkipped: picks.length - deduplicatedPicks.length,
+        batchId: this.currentBatchId
       });
 
-      // Wait for parallel batch to complete
-      const results = await Promise.all(batchPromises);
-      
-      // Aggregate results
-      results.forEach(result => {
-        totalInserted += result.inserted;
-        totalDuplicates += result.duplicates;
-        totalErrors += result.errors;
+    } catch (error) {
+      this.logger.error('❌ Unified picks processing failed', {
+        error: error instanceof Error ? error.message : String(error),
+        batchId: this.currentBatchId
       });
-
-      // Log progress
-      const progress = Math.min(i + MAX_PARALLEL_BATCHES, batches.length);
-      const percentage = ((progress / batches.length) * 100).toFixed(1);
-      this.logger.info(`📊 Progress: ${percentage}% - Inserted: ${totalInserted}, Duplicates: ${totalDuplicates}, Errors: ${totalErrors}`);
-    }
-
-    // Update metrics
-    this.feedMetrics.uniqueProps += totalInserted;
-    this.feedMetrics.duplicates += totalDuplicates;
-    this.feedMetrics.errors += totalErrors;
-    this.feedMetrics.totalProps += props.length;
-
-    const duration = Date.now() - startTime;
-    const propsPerSecond = Math.round((props.length / duration) * 1000);
-
-    // Final summary
-    this.logger.info(`✅ Batch processing complete in ${duration}ms (${propsPerSecond} props/sec)`);
-    this.logger.info(`📈 Results: ${totalInserted} inserted, ${totalDuplicates} duplicates, ${totalErrors} errors`);
-    
-    if (totalInserted === 0 && props.length > 0) {
-      this.logger.warn('⚠️ WARNING: No props were inserted - all were duplicates or errors');
-    } else if (totalInserted > 0) {
-      this.logger.info(`🎉 SUCCESS: ${totalInserted} new props added to database!`);
+      throw error;
     }
   }
 
-  private transformProps(data: any[], provider: any): RawProp[] {
-    return data.map(item => ({
-      // Required fields
-      id: crypto.randomUUID(),
-      player_name: item.player_name || '',
-      sport: item.sport || '',
-      team: item.team || '',
-      opponent: item.opponent || '',
-      stat_type: item.stat_type || item.market || '',
-      line: parseFloat(item.line) || 0,
-      game_date: item.game_date || new Date().toISOString().split('T')[0],
-      matchup: item.matchup || `${item.team} vs ${item.opponent}`,
-      
-      // Market and odds fields
-      market: item.market || item.stat_type || '',
-      market_type: item.market_type || 'player_prop',
-      over: parseFloat(item.over_odds) || 0,
-      under: parseFloat(item.under_odds) || 0,
-      over_odds: parseFloat(item.over_odds) || null,
-      under_odds: parseFloat(item.under_odds) || null,
-      
-      // Game timing
-      game_time: item.game_time || new Date().toISOString(),
-      start_time: item.start_time || item.game_time || null,
-      
-      // Provider and metadata
-      provider: provider?.name || 'unified-router',
-      external_id: item.external_id || crypto.randomUUID(),
-      external_game_id: item.external_game_id || null,
-      game_id: null,  // Set to null to avoid foreign key constraint
-      sport_key: item.sport_key || item.sport?.toLowerCase(),
-      
-      // Data quality and validation
-      is_valid: true,
-      is_primary: true,
-      is_alt_line: false,
-      auto_approved: false,
-      context_flag: false,
-      promoted: false,
-      is_promoted: false,
-      promoted_to_picks: false,
-      steam_detected: false,
-      contrarian_opportunity: false,
-      is_canary: false,
-      needs_review: false,
-      
-      // Default numerical fields
-      unit_size: 1,
-      confidence: 0,
-      volatility: 5,
-      bid_ask_spread: 0.02,
-      data_completeness: 0.95,
-      outlier_score: 0.95,
-      consistency_score: 0.95,
-      data_validation_score: 0.95,
-      data_quality_score: 0,
-      pro_attempts: 0,
-      
-      // Timestamps
-      created_at: new Date().toISOString(),
-      inserted_at: new Date().toISOString(),
-      scraped_at: new Date().toISOString(),
-      
-      // Nullable fields that may be populated later
-      outcome: null,
-      odds: null,
-      trend_confidence: null,
-      matchup_quality: null,
-      line_value_score: null,
-      role_stability: null,
-      confidence_score: null,
-      edge_score: null,
-      tier_tag: null,
-      source: null,
-      bet_type: null,
-      outcomes: null,
-      player_id: null,
-      player_slug: null,
-      fair_odds: null,
-      league: null,
-      promoted_at: null,
-      tier: null,
-      ev_percent: null,
-      trend_score: null,
-      matchup_score: null,
-      line_score: null,
-      role_score: null,
-      direction: null,
-      unique_key: null,
-      event_id: null,
-      book: null,
-      updated_at: null,
-      home_team: null,
-      home_team_id: null,
-      away_team: null,
-      away_team_id: null,
-      expected_value: null,
-      sharp_money: null,
-      line_movement: null,
-      player_form: null,
-      injury_impact: null,
-      best_available_line: null,
-      best_book: null,
-      public_betting_percentage: null,
-      sharp_betting_percentage: null,
-      correlation_risk: null,
-      weather_impact: null,
-      market_intelligence: null,
-      volume_profile: null,
-      closing_line_value: null,
-      predicted_closing_line: null,
-      optimal_betting_time: null,
-      injury_timing_advantage: null,
-      cross_market_arbitrage: null,
-      player_fatigue: null,
-      venue_advantage: null,
-      referee_impact: null,
-      pace_impact: null,
-      motivational_factors: null,
-      portfolio_impact: null,
-      metadata: null,
-      prop_category: null,
-      team_name: null,
-      standardized_sport: null,
-      standardized_stat: null,
-      processed_at: null,
-      processing_error: null,
-      professional_score: null,
-      kelly_fraction: null,
-      clv_tracking_id: null
-    }));
+  /**
+   * Process props with HOT storage architecture
+   */
+  private async processWithHotStorage(props: RawProp[]): Promise<any> {
+    // Import and initialize HOT data integration
+    const { HotDataIntegration } = await import('./HotDataIntegration');
+    const hotDataIntegration = new HotDataIntegration(this.supabase!, this.logger, {
+      batchSize: 500,
+      maxParallelBatches: 5,
+      hotTableEnabled: true,
+      enableSteamDetection: true,
+      enableMarketIntelligence: true
+    });
+
+    // Process props with dual write to raw_props and prop_ticks_hot
+    return await hotDataIntegration.processPropsWithHotStorage(props);
+  }
+
+  /**
+   * Process props with line shopping analysis
+   */
+  private async processWithLineShoppingAnalysis(props: PropWithLineAnalysis[]): Promise<any> {
+    try {
+      // Determine sport from props for optimization
+      const sports = [...new Set(props.map(p => p.sport))];
+      const primarySport = sports.length === 1 ? sports[0] : undefined;
+
+      // Run line shopping analysis
+      const result = await lineShoppingIntegration.processPropsWithLineAnalysis(props, primarySport);
+
+      // Update processed props in database with line shopping results
+      await this.updatePropsWithLineShoppingResults(result.processedProps);
+
+      return result;
+
+    } catch (error) {
+      this.logger.error('❌ Line shopping analysis failed', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Update props in database with line shopping results
+   */
+  private async updatePropsWithLineShoppingResults(processedProps: PropWithLineAnalysis[]): Promise<void> {
+    if (!this.supabase) {
+      return;
+    }
+
+    try {
+      const updates = processedProps
+        .filter(prop => prop.analysisCompleted && prop.lineAnalysis)
+        .map(prop => ({
+          id: prop.id,
+          best_available_line: prop.bestOdds,
+          best_book: prop.bestSource,
+          ev_percent: prop.edgeValue,
+          clv_tracking_id: prop.clvTrackingId,
+          line_shopping_completed: true,
+          line_shopping_timestamp: new Date().toISOString()
+        }));
+
+      if (updates.length === 0) {
+        return;
+      }
+
+      // Batch update props with line shopping results
+      const BATCH_SIZE = 100;
+      for (let i = 0; i < updates.length; i += BATCH_SIZE) {
+        const batch = updates.slice(i, i + BATCH_SIZE);
+
+        const { error } = await this.supabase
+          .from('sports_game_odds')
+          .upsert(batch, {
+            onConflict: 'id',
+            ignoreDuplicates: false
+          });
+
+        if (error) {
+          this.logger.error('❌ Failed to update props with line shopping results', {
+            batch: i / BATCH_SIZE + 1,
+            error: error.message
+          });
+        }
+      }
+
+      this.logger.info(`📊 Updated ${updates.length} props with line shopping results`);
+
+    } catch (error) {
+      this.logger.error('❌ Failed to update props with line shopping results', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * NEW: Deduplicate unified picks against existing data
+   */
+  private async deduplicateUnifiedPicks(picks: UnifiedPick[]): Promise<UnifiedPick[]> {
+    const deduplicatedPicks: UnifiedPick[] = [];
+    const duplicateKeys = new Set<string>();
+
+    for (const pick of picks) {
+      // Create a deduplication key
+      const dedupeKey = `${pick.userId}_${pick.outcome}_${pick.line}_${pick.groupKey}`;
+
+      if (duplicateKeys.has(dedupeKey)) {
+        // Skip duplicate within current batch
+        continue;
+      }
+
+      // Check against existing picks in database (cache-first)
+      try {
+        const existingPicks = await this.unifiedPicksService.listPicks({
+          // This is a simple check - in production you'd want more sophisticated deduplication
+          limit: 10
+        });
+
+        const existsInDb = existingPicks.some(existing =>
+          existing.groupKey === pick.groupKey &&
+          existing.outcome === pick.outcome &&
+          existing.line === pick.line
+        );
+
+        if (!existsInDb) {
+          duplicateKeys.add(dedupeKey);
+          deduplicatedPicks.push(pick);
+        }
+
+      } catch (error) {
+        // If deduplication check fails, include the pick to be safe
+        this.logger.warn('Deduplication check failed, including pick', {
+          error: error instanceof Error ? error.message : String(error),
+          groupKey: pick.groupKey
+        });
+
+        duplicateKeys.add(dedupeKey);
+        deduplicatedPicks.push(pick);
+      }
+    }
+
+    return deduplicatedPicks;
+  }
+
+  /**
+   * Get primary source for a sport based on routing logic
+   */
+  private getPrimarySource(sport: string): 'odds-api' | 'sgo-api' | 'optimal-api' {
+    switch (sport.toUpperCase()) {
+      case 'NCAAF':
+      case 'NCAAB':
+      case 'WNBA':
+      case 'EPL':
+      case 'ATP':
+        return 'odds-api';
+
+      default:
+        return 'optimal-api'; // Optimal API is primary for major sports (NFL, NBA, MLB, NHL)
+    }
+  }
+
+  /**
+   * Update provider statistics
+   */
+  private updateProviderStats(source: string, latencyMs: number, creditsUsed: number, wasApiCall: boolean): void {
+    const providerKey = source === 'sgo-api' ? 'SportsGameOdds' :
+                       source === 'odds-api' ? 'OddsAPI' :
+                       source === 'optimal-api' ? 'Optimal' : 'Unknown';
+
+    if (this.feedMetrics.providerStats[providerKey]) {
+      if (wasApiCall) {
+        this.feedMetrics.providerStats[providerKey].success++;
+      }
+      this.feedMetrics.providerStats[providerKey].avgLatencyMs = latencyMs;
+    }
+  }
+
+  /**
+   * NEW: Record credit usage for monitoring
+   */
+  private async recordCreditUsage(): Promise<void> {
+    try {
+      const creditUsage = await this.cachedClient.getCreditUsage();
+
+      this.logger.info('📊 Credit usage summary', {
+        oddsApi: creditUsage.oddsApi,
+        sgo: creditUsage.sgo.status,
+        optimal: creditUsage.optimal.status,
+        batchId: this.currentBatchId
+      });
+
+      // Store credit usage in database for monitoring
+      if (this.supabase) {
+        await this.supabase.from('ops_credit_usage').insert({
+          batch_id: this.currentBatchId,
+          odds_api_used: creditUsage.oddsApi.used,
+          odds_api_remaining: creditUsage.oddsApi.remaining,
+          sgo_status: creditUsage.sgo.status,
+          optimal_status: creditUsage.optimal.status,
+          recorded_at: new Date().toISOString()
+        });
+      }
+
+    } catch (error) {
+      this.logger.warn('Failed to record credit usage', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+
+  /**
+   * Compare shadow mode results between new and legacy approaches
+   */
+  private compareShadowModeResults(newResult: any, legacyResult: any, sport: string): void {
+    const shadowConfig = featureFlags.getShadowModeConfig();
+
+    if (!shadowConfig.enabled) return;
+
+    try {
+      const newCount = Array.isArray(newResult.data) ? newResult.data.length : 0;
+      const legacyCount = Array.isArray(legacyResult.data) ? legacyResult.data.length : 0;
+
+      const difference = Math.abs(newCount - legacyCount);
+      const percentDiff = legacyCount > 0 ? (difference / legacyCount) * 100 : 0;
+
+      const comparisonResult = {
+        sport,
+        newApproach: {
+          count: newCount,
+          source: newResult.source,
+          fromCache: newResult.fromCache,
+          creditUsed: newResult.creditUsed || 0
+        },
+        legacyApproach: {
+          count: legacyCount,
+          source: legacyResult.source,
+          creditUsed: 1 // Legacy always uses API credits
+        },
+        difference: {
+          absolute: difference,
+          percentage: percentDiff
+        },
+        timestamp: new Date().toISOString(),
+        batchId: this.currentBatchId
+      };
+
+      if (shadowConfig.logDifferences) {
+        this.logger.info(`🔍 SHADOW MODE COMPARISON: ${sport}`, comparisonResult);
+      }
+
+      // Check if difference exceeds threshold
+      if (percentDiff > (shadowConfig.maxDifferenceThreshold * 100)) {
+        this.logger.warn(`⚠️ SHADOW MODE: Significant difference detected for ${sport}`, {
+          percentDiff,
+          threshold: shadowConfig.maxDifferenceThreshold * 100,
+          ...comparisonResult
+        });
+
+        if (shadowConfig.failOnDifferences) {
+          throw new Error(`Shadow mode validation failed: ${percentDiff}% difference exceeds threshold`);
+        }
+      } else {
+        this.logger.debug(`✅ SHADOW MODE: Results within acceptable range for ${sport}`);
+      }
+
+      // Store comparison results for analysis
+      if (this.supabase) {
+        this.supabase.from('shadow_mode_comparisons').insert({
+          sport,
+          batch_id: this.currentBatchId,
+          new_count: newCount,
+          legacy_count: legacyCount,
+          difference_percent: percentDiff,
+          new_source: newResult.source,
+          legacy_source: legacyResult.source,
+          new_from_cache: newResult.fromCache || false,
+          comparison_data: JSON.stringify(comparisonResult),
+          created_at: new Date().toISOString()
+        }).then(({ error }) => {
+          if (error) {
+            this.logger.warn('Failed to store shadow mode comparison', { error: error.message });
+          }
+        });
+      }
+
+    } catch (error) {
+      this.logger.error('Shadow mode comparison failed', {
+        sport,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
   }
 }
 

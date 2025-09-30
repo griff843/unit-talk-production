@@ -11,6 +11,14 @@ import {
 } from '../BaseAgent/types';
 
 import { AgentTask, SystemEvent } from './types';
+import { 
+  executeHealthSnapshot,
+  logJobRun,
+  completeJobRun,
+  createIncidents,
+  pushToCommandCenter,
+  sendHealthAlert
+} from './activities/healthActivities';
 
 
 let instance: OperatorAgent | null = null;
@@ -55,14 +63,20 @@ export class OperatorAgent extends BaseAgent {
       // Monitor agent health and tasks
       await this.monitorAgents();
       
-      // Generate daily summary
+      // Run HealthWorkflow every 15 minutes
       const now = new Date();
-      if (now.getHours() === 0) { // Once per day at midnight
+      const minutes = now.getMinutes();
+      if (minutes % 15 === 0) { // Every 15 minutes
+        await this.runHealthWorkflow();
+      }
+      
+      // Generate daily summary
+      if (now.getHours() === 0 && minutes === 0) { // Once per day at midnight
         await this.generateSummary('daily');
       }
       
       // Run learning cycle weekly
-      if (now.getDay() === 0 && now.getHours() === 2) { // Sunday at 2am
+      if (now.getDay() === 0 && now.getHours() === 2 && minutes === 0) { // Sunday at 2am
         await this.learnAndEvolve();
       }
     } catch (error) {
@@ -374,6 +388,271 @@ export class OperatorAgent extends BaseAgent {
     });
     
     return response;
+  }
+
+  /**
+   * Run HealthWorkflow - System health monitoring with incident detection
+   * 
+   * Executes comprehensive health checks including:
+   * - system_health_snapshot query across 8 sections
+   * - Threshold-based incident creation
+   * - Command Center integration
+   * - Job run logging and tracking
+   */
+  public async runHealthWorkflow(): Promise<{
+    success: boolean;
+    healthSummary: {
+      totalSections: number;
+      healthySections: number;
+      degradedSections: number;
+      criticalSections: number;
+      sectionsWithAlerts: string[];
+    };
+    incidents: number;
+    executionTime: number;
+  }> {
+    const startTime = Date.now();
+    const executionId = `health_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`;
+    
+    let jobId: string | null = null;
+    let healthData: any[] = [];
+    let incidentsCreated = 0;
+
+    try {
+      this.deps.logger.info('🏥 Starting HealthWorkflow execution', { executionId });
+
+      // 1. Start job logging
+      const jobResult = await logJobRun({
+        agent: 'OperatorAgent',
+        workflow: 'HealthWorkflow',
+        jobName: 'system_health_check',
+        status: 'running',
+        metadata: {
+          executionId,
+          startTime: new Date().toISOString()
+        }
+      });
+
+      jobId = jobResult.jobId;
+
+      // 2. Execute health snapshot query
+      const snapshotResult = await executeHealthSnapshot();
+      
+      if (!snapshotResult.success) {
+        throw new Error('Health snapshot query failed');
+      }
+
+      healthData = snapshotResult.healthData;
+      
+      // 3. Analyze health data and create incidents
+      const healthSummary = {
+        totalSections: healthData.length,
+        healthySections: 0,
+        degradedSections: 0,
+        criticalSections: 0,
+        sectionsWithAlerts: [] as string[]
+      };
+
+      const incidentsToCreate: Array<{
+        kind: string;
+        severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
+        details: Record<string, any>;
+        section: string;
+      }> = [];
+
+      // Analyze each section
+      for (const section of healthData) {
+        // Count section status
+        switch (section.status) {
+          case 'healthy':
+            healthSummary.healthySections++;
+            break;
+          case 'warning':
+          case 'degraded':
+            healthSummary.degradedSections++;
+            break;
+          case 'critical':
+            healthSummary.criticalSections++;
+            break;
+        }
+
+        // Process alerts for incident creation
+        if (section.alerts && section.alerts.length > 0) {
+          healthSummary.sectionsWithAlerts.push(section.section);
+
+          for (const alertType of section.alerts) {
+            const severity = this.getSeverityForAlert(alertType);
+            
+            incidentsToCreate.push({
+              kind: alertType,
+              severity,
+              details: {
+                section: section.section,
+                status: section.status,
+                count_recent: section.count_recent,
+                count_total: section.count_total,
+                details: section.details,
+                thresholds: section.thresholds,
+                timestamp: new Date().toISOString(),
+                executionId
+              },
+              section: section.section
+            });
+          }
+        }
+      }
+
+      // 4. Create incidents if any
+      if (incidentsToCreate.length > 0) {
+        const incidentResult = await createIncidents({
+          incidents: incidentsToCreate
+        });
+        incidentsCreated = incidentResult.incidentsCreated.length;
+
+        this.deps.logger.info('🚨 Health incidents processed', {
+          created: incidentResult.incidentsCreated.length,
+          skipped: incidentResult.duplicatesSkipped.length
+        });
+      }
+
+      // 5. Push to Command Center
+      try {
+        const commandCenterResult = await pushToCommandCenter({
+          healthData,
+          timestamp: new Date().toISOString(),
+          executionMetrics: {
+            totalSections: healthSummary.totalSections,
+            healthySections: healthSummary.healthySections,
+            degradedSections: healthSummary.degradedSections,
+            criticalSections: healthSummary.criticalSections,
+            totalIncidents: incidentsCreated
+          }
+        });
+
+        this.deps.logger.info('📡 Command Center push result', {
+          pushed: commandCenterResult.pushed,
+          responseTime: commandCenterResult.responseTime
+        });
+      } catch (ccError) {
+        this.deps.logger.warn('⚠️ Command Center push failed', { 
+          error: ccError instanceof Error ? ccError.message : String(ccError)
+        });
+      }
+
+      // 6. Complete job logging
+      const executionTime = Date.now() - startTime;
+      
+      if (jobId) {
+        await completeJobRun({
+          jobId,
+          status: 'success',
+          metadata: {
+            healthSummary,
+            incidentsCreated,
+            executionTime,
+            sectionsAnalyzed: healthData.map(s => s.section),
+            completedAt: new Date().toISOString()
+          }
+        });
+      }
+
+      // 7. Send completion alert
+      await sendHealthAlert({
+        alertType: 'health_check_complete',
+        message: `Health check completed: ${healthSummary.healthySections}/${healthSummary.totalSections} sections healthy`,
+        details: {
+          healthSummary,
+          incidentsCreated,
+          executionTime
+        },
+        priority: incidentsCreated > 0 ? 'medium' : 'low'
+      });
+
+      this.deps.logger.info('✅ HealthWorkflow completed successfully', {
+        executionId,
+        healthSummary,
+        incidentsCreated,
+        executionTime
+      });
+
+      return {
+        success: true,
+        healthSummary,
+        incidents: incidentsCreated,
+        executionTime
+      };
+
+    } catch (error) {
+      const executionTime = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      this.deps.logger.error('❌ HealthWorkflow failed', {
+        executionId,
+        error: errorMessage,
+        executionTime
+      });
+
+      // Complete job with failure status
+      if (jobId) {
+        try {
+          await completeJobRun({
+            jobId,
+            status: 'failed',
+            metadata: {
+              error: errorMessage,
+              executionTime,
+              failedAt: new Date().toISOString()
+            },
+            errorMessage
+          });
+        } catch (completeError) {
+          this.deps.logger.error('Failed to complete job logging', { completeError });
+        }
+      }
+
+      // Send failure alert
+      await sendHealthAlert({
+        alertType: 'health_check_failed',
+        message: 'System health check failed',
+        details: {
+          executionId,
+          error: errorMessage,
+          executionTime
+        },
+        priority: 'critical'
+      });
+
+      return {
+        success: false,
+        healthSummary: {
+          totalSections: 0,
+          healthySections: 0,
+          degradedSections: 0,
+          criticalSections: 0,
+          sectionsWithAlerts: []
+        },
+        incidents: 0,
+        executionTime
+      };
+    }
+  }
+
+  /**
+   * Get severity level for alert types based on business impact
+   */
+  private getSeverityForAlert(alertType: string): 'critical' | 'high' | 'medium' | 'low' | 'info' {
+    switch (alertType) {
+      case 'IngestionHalted':
+      case 'AgentFailure':
+        return 'critical';
+      case 'FeaturePipelineStalled':
+      case 'AlertLatency':
+        return 'high';
+      case 'RecapError':
+        return 'medium';
+      default:
+        return 'medium';
+    }
   }
 
   // Public API

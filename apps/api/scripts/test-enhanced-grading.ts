@@ -14,7 +14,7 @@
  * 8. Cross Market Discrepancy
  */
 
-import { SyndicateGradingEngine } from '../src/agents/GradingAgent/scoring/gradingEngine';
+import { SyndicateGradingEngine } from '../src/agents/ScoringAgent/scoring/gradingEngine';
 import { GradingFeatureSet } from '../src/types/GradingFeatureSet';
 
 async function testEnhancedGradingEngine() {

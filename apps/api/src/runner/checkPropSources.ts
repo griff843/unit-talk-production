@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -18,24 +19,27 @@ async function checkPropSources() {
   console.log('='.repeat(40));
   
   // Check props from production-feedagent source (our fixed data)
-  const { count: productionProps } = await supabase
-    .from('raw_props')
+  const supabaseClient = requireSupabase();
+      const { count: productionProps } = await supabase
+    .from('sports_game_odds')
     .select('*', { count: 'exact', head: true })
     .eq('source', 'production-feedagent');
     
   console.log(`Props from production-feedagent: ${productionProps || 0}`);
   
   // Check props from feedagent-pipeline-test (what grading agent looks for)
-  const { count: testProps } = await supabase
-    .from('raw_props')
+  const supabaseClient = requireSupabase();
+      const { count: testProps } = await supabase
+    .from('sports_game_odds')
     .select('*', { count: 'exact', head: true })
     .eq('source', 'feedagent-pipeline-test');
     
   console.log(`Props from feedagent-pipeline-test: ${testProps || 0}`);
   
   // Check what sources we have
-  const { data: allSources } = await supabase
-    .from('raw_props')
+  const supabaseClient = requireSupabase();
+      const { data: allSources } = await supabase
+    .from('sports_game_odds')
     .select('source')
     .not('source', 'is', null);
     
@@ -52,8 +56,9 @@ async function checkPropSources() {
   }
   
   // Sample props from production-feedagent to see their structure
-  const { data: sampleProps } = await supabase
-    .from('raw_props')
+  const supabaseClient = requireSupabase();
+      const { data: sampleProps } = await supabase
+    .from('sports_game_odds')
     .select('id, player_name, stat_type, over_odds, under_odds, source, confidence_score, tier_tag, promoted')
     .eq('source', 'production-feedagent')
     .limit(3);

@@ -186,7 +186,7 @@ function assert(cond: boolean, msg: string) {
 
   console.log(`[SMOKE] Delta calculation: ${beforeCount} -> ${afterCount} = ${newRows} new rows`);
 
-  // Extract processed count from feed report
+  // Extract processed count and core market metrics from feed report
   const processed = feedReport?.summary?.processed ?? 0;
   const writeMetrics = feedReport?.writeMetrics ?? {
     attemptedWrites: 0,
@@ -195,7 +195,13 @@ function assert(cond: boolean, msg: string) {
     errors: 0
   };
 
-  console.log(`[SMOKE] Feed report: processed=${processed}, writeMetrics=${JSON.stringify(writeMetrics)}`);
+  const eventsFetched = (feedReport?.writeMetrics as any)?.eventsFetched ?? 0;
+  const marketsProcessed = (feedReport?.writeMetrics as any)?.marketsProcessed ?? { h2h: 0, spreads: 0, totals: 0 };
+  const coreMarketWrites = feedReport?.writeMetrics ?? writeMetrics;
+
+  console.log(`[SMOKE] Feed report: processed=${processed}, eventsFetched=${eventsFetched}`);
+  console.log(`[SMOKE] Markets processed:`, marketsProcessed);
+  console.log(`[SMOKE] Core market writes:`, coreMarketWrites);
 
   // Dynamic score column detection for scoring validation
   console.log(`[SMOKE] Step 8a: Detecting score column`);
@@ -232,30 +238,44 @@ function assert(cond: boolean, msg: string) {
   const scored = newRows; // Assume all new rows will be scored
   const settled = 0; // Settlement happens later
 
-  // Enhanced PASS logic: pass if newRows > 0 OR processed > 0
-  const passNew = (newRows > 0) || (processed > 0);
+  // Enhanced PASS logic with dedup support:
+  // - PASS if newRows > 0 (delta detected)
+  // - PASS if processed > 0 AND (inserted > 0 OR skippedDedup > 0) (feed processed data)
+  // - FAIL if processed > 0 AND attemptedWrites > 0 AND inserted == 0 AND errors > 0 (non-duplicate errors)
+  const hasDedup = (coreMarketWrites.skippedDedup ?? 0) > 0;
+  const hasInserts = (coreMarketWrites.inserted ?? 0) > 0;
+  const hasErrors = (coreMarketWrites.errors ?? 0) > 0;
+  const hasAttempts = (coreMarketWrites.attemptedWrites ?? 0) > 0;
+
+  const passNew = (newRows > 0) || (processed > 0 && (hasInserts || hasDedup));
   const passScored = scoreCol ? true : true; // Pass if we have score column or set warning
 
   // Generate note for special case
   let note: string | undefined = undefined;
-  if (newRows === 0 && processed > 0) {
-    note = "Passed via processed>0 (likely dedup path)";
+  if (hasInserts) {
+    note = `Passed: ${coreMarketWrites.inserted} inserted (events=${eventsFetched})`;
+  } else if (hasDedup && !hasErrors) {
+    note = `Passed: ${coreMarketWrites.skippedDedup} deduplicated, 0 errors (events=${eventsFetched})`;
+  } else if (newRows === 0 && processed > 0 && hasDedup) {
+    note = "Passed: processed>0 with deduplication (likely repeat run)";
   } else if (newRows > 0) {
     note = `Delta validation: ${newRows} new rows inserted`;
   }
 
-  // Smoke guard: warn if processed > 0 but delta == 0 AND no inserts
-  if (processed > 0 && newRows === 0) {
-    console.warn(`[SMOKE] SMOKE GUARD: processed=${processed} but newRows=0 (delta)`);
-    console.warn(`[SMOKE] Write metrics: ${JSON.stringify(writeMetrics)}`);
+  // RED WARNING: Only if attemptedWrites > 0 but inserted == 0 AND errors > 0 (non-duplicate errors)
+  let writeError: any = undefined;
+  if (hasAttempts && !hasInserts && hasErrors && !hasDedup) {
+    console.error(`\x1b[31m[SMOKE] 🔴 RED WARNING: ${coreMarketWrites.attemptedWrites} writes attempted, 0 inserted, ${coreMarketWrites.errors} errors!\x1b[0m`);
+    console.error(`[SMOKE] Write metrics:`, JSON.stringify(coreMarketWrites, null, 2));
 
-    // Only fail if we have zero inserts despite processing
-    if (writeMetrics.inserted === 0 && writeMetrics.attemptedWrites > 0) {
-      console.error(`[SMOKE] FAIL: processed>0 but inserted==0 despite attempts`);
-      // Allow delta>0 or processed>0 to still pass
-    } else if (writeMetrics.inserted > 0) {
-      note = `Passed via inserted=${writeMetrics.inserted} (dedup may have affected delta)`;
+    // Try to get first error from feed report
+    if (feedReport?.firstWriteError) {
+      writeError = feedReport.firstWriteError;
+      console.error(`[SMOKE] First PostgREST error:`, JSON.stringify(writeError, null, 2));
     }
+  } else if (hasAttempts && !hasInserts && !hasErrors && hasDedup) {
+    // This is OK - all picks were deduplicated
+    console.log(`\x1b[32m[SMOKE] ✅ All ${coreMarketWrites.attemptedWrites} picks deduplicated (repeat run)\x1b[0m`);
   }
 
   const passSummary = {
@@ -263,6 +283,9 @@ function assert(cond: boolean, msg: string) {
     scored,
     settled,
     processed,
+    eventsFetched,
+    marketsProcessed,
+    coreMarketWrites,
     passNew,
     passScored,
     scorePercentage: newRows > 0 ? '100.0' : '0', // Optimistic for delta validation
@@ -282,7 +305,8 @@ function assert(cond: boolean, msg: string) {
       eventLookaheadHours,
       sport
     },
-    note
+    note,
+    writeError // Include first PostgREST error if writes failed
   };
 
   const summaryFile = path.join(SMOKEDIR, 'summary.json');

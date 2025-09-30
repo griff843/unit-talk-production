@@ -96,7 +96,7 @@ export function UserPreferences() {
   const updatePreferences = (path: string[], value: any) => {
     setPreferences(prev => {
       const newPrefs = { ...prev };
-      let current = newPrefs;
+      let current: any = newPrefs;
       for (let i = 0; i < path.length - 1; i++) {
         current = current[path[i]];
       }
@@ -187,7 +187,7 @@ export function UserPreferences() {
                 <div className="flex items-center space-x-4">
                   <Switch
                     checked={preferences.autoRefresh}
-                    onCheckedChange={checked => updatePreferences(['autoRefresh'], checked)}
+                    onCheckedChange={(checked: any) => updatePreferences(['autoRefresh'], checked)}
                   />
                   {preferences.autoRefresh && (
                     <Select
@@ -218,7 +218,7 @@ export function UserPreferences() {
                 <Label>Pick Notifications</Label>
                 <Switch
                   checked={preferences.notifications.picks}
-                  onCheckedChange={checked =>
+                  onCheckedChange={(checked: any) =>
                     updatePreferences(['notifications', 'picks'], checked)
                   }
                 />
@@ -227,7 +227,7 @@ export function UserPreferences() {
                 <Label>AI Insights</Label>
                 <Switch
                   checked={preferences.notifications.insights}
-                  onCheckedChange={checked =>
+                  onCheckedChange={(checked: any) =>
                     updatePreferences(['notifications', 'insights'], checked)
                   }
                 />
@@ -236,7 +236,7 @@ export function UserPreferences() {
                 <Label>System Updates</Label>
                 <Switch
                   checked={preferences.notifications.system}
-                  onCheckedChange={checked =>
+                  onCheckedChange={(checked: any) =>
                     updatePreferences(['notifications', 'system'], checked)
                   }
                 />
@@ -245,7 +245,7 @@ export function UserPreferences() {
                 <Label>Sound Effects</Label>
                 <Switch
                   checked={preferences.notifications.sound}
-                  onCheckedChange={checked =>
+                  onCheckedChange={(checked: any) =>
                     updatePreferences(['notifications', 'sound'], checked)
                   }
                 />
@@ -259,7 +259,7 @@ export function UserPreferences() {
                 <Label>Compact Mode</Label>
                 <Switch
                   checked={preferences.display.compactMode}
-                  onCheckedChange={checked =>
+                  onCheckedChange={(checked: any) =>
                     updatePreferences(['display', 'compactMode'], checked)
                   }
                 />
@@ -268,7 +268,7 @@ export function UserPreferences() {
                 <Label>Show Predictions</Label>
                 <Switch
                   checked={preferences.display.showPredictions}
-                  onCheckedChange={checked =>
+                  onCheckedChange={(checked: any) =>
                     updatePreferences(['display', 'showPredictions'], checked)
                   }
                 />
@@ -277,7 +277,7 @@ export function UserPreferences() {
                 <Label>Show Confidence</Label>
                 <Switch
                   checked={preferences.display.showConfidence}
-                  onCheckedChange={checked =>
+                  onCheckedChange={(checked: any) =>
                     updatePreferences(['display', 'showConfidence'], checked)
                   }
                 />
@@ -286,7 +286,7 @@ export function UserPreferences() {
                 <Label>Enable Animations</Label>
                 <Switch
                   checked={preferences.display.animationsEnabled}
-                  onCheckedChange={checked =>
+                  onCheckedChange={(checked: any) =>
                     updatePreferences(['display', 'animationsEnabled'], checked)
                   }
                 />
@@ -300,7 +300,7 @@ export function UserPreferences() {
                 <Label>Include Metadata</Label>
                 <Switch
                   checked={preferences.export.includeMetadata}
-                  onCheckedChange={checked =>
+                  onCheckedChange={(checked: any) =>
                     updatePreferences(['export', 'includeMetadata'], checked)
                   }
                 />

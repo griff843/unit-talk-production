@@ -9,6 +9,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const logger = createLogger('E2EProof');
@@ -77,15 +78,17 @@ async function runE2EProofWithRealData() {
     console.log('📊 STEP 1: VERIFYING REAL DATA INGESTION');
     console.log('─'.repeat(50));
     
-    const { count: totalRawProps } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: totalRawProps } = await supabase
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true });
       
     console.log(`✅ Total raw props in database: ${totalRawProps}`);
     
     // Get recent real props from Optimal API
-    const { data: recentProps } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: recentProps } = await supabase
+      .from('sports_game_odds')
       .select('*')
       .eq('provider', 'Optimal')
       .not('player_name', 'is', null)
@@ -159,6 +162,7 @@ async function runE2EProofWithRealData() {
       };
       
       // Insert professional pick
+      const supabaseClient = requireSupabase();
       const { error: insertError } = await supabase
         .from('unified_picks')
         .insert([professionalPick]);
@@ -183,6 +187,7 @@ async function runE2EProofWithRealData() {
         created_at: new Date().toISOString()
       };
       
+      const supabaseClient = requireSupabase();
       const { error: clvError } = await supabase
         .from('clv_tracking')
         .insert([clvEntry]);
@@ -208,16 +213,19 @@ async function runE2EProofWithRealData() {
     console.log('\n🔍 STEP 3: FINAL VERIFICATION & COMPLIANCE');
     console.log('─'.repeat(50));
     
-    const { count: finalUnifiedPicks } = await supabase
+    const supabaseClient = requireSupabase();
+      const { count: finalUnifiedPicks } = await supabase
       .from('unified_picks')
       .select('*', { count: 'exact', head: true });
       
-    const { count: professionalPicks } = await supabase
+    const supabaseClient = requireSupabase();
+      const { count: professionalPicks } = await supabase
       .from('unified_picks')
       .select('*', { count: 'exact', head: true })
       .not('professional_score', 'is', null);
       
-    const { count: clvEntries } = await supabase
+    const supabaseClient = requireSupabase();
+      const { count: clvEntries } = await supabase
       .from('clv_tracking')
       .select('*', { count: 'exact', head: true });
     

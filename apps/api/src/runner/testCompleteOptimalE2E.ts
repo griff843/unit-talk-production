@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -65,8 +66,9 @@ async function testCompleteOptimalE2E() {
     
     console.log(`   Inserting ${sampleProps.length} sample props...`);
     
-    const { data: insertedProps, error: insertError } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: insertedProps, error: insertError } = await supabase
+      .from('sports_game_odds')
       .insert(sampleProps)
       .select('id, player_name, stat_type, line, over_odds, under_odds');
       
@@ -80,8 +82,9 @@ async function testCompleteOptimalE2E() {
       console.log(`   Testing: ${singleProp.player_name} ${singleProp.stat_type} ${singleProp.line}`);
       console.log(`   Over: ${singleProp.over_odds} | Under: ${singleProp.under_odds}`);
       
+      const supabaseClient = requireSupabase();
       const { error: singleError } = await supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .insert([singleProp])
         .select('id');
         
@@ -108,8 +111,9 @@ async function testCompleteOptimalE2E() {
     // Step 4: Verify data in database
     console.log('\n🔍 STEP 4: Verifying data in database...');
     
-    const { data: verifyProps, count: verifyCount } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { data: verifyProps, count: verifyCount } = await supabase
+      .from('sports_game_odds')
       .select('*', { count: 'exact' })
       .eq('source', 'e2e-test-optimal')
       .not('over_odds', 'is', null)
@@ -173,8 +177,9 @@ async function testCompleteOptimalE2E() {
     // Step 6: Cleanup test data
     console.log('\n🧹 STEP 6: Cleaning up test data...');
     
-    const { error: deleteError } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { error: deleteError } = await supabase
+      .from('sports_game_odds')
       .delete()
       .eq('source', 'e2e-test-optimal');
       

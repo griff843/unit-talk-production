@@ -1,0 +1,398 @@
+# Syndicate-Level Production Infrastructure
+# Phase 10: High-Volume Production Deployment
+# Handles 1000+ daily props with 99.9% uptime
+
+version: '3.8'
+
+services:
+  # Main API with scaling configuration
+  syndicate-api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile.production
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@syndicate-postgres:5432/unit_talk_production
+      - REDIS_URL=redis://syndicate-redis-cluster:6379
+      - SYNDICATE_MODE=production
+      - MAX_DAILY_PROPS=1000
+      - MAX_SIMULTANEOUS_PROPS=8000
+      - PROCESSING_SPEED=2000
+      - TARGET_WIN_RATE=0.55
+      - TARGET_MONTHLY_ROI=0.06
+    ports:
+      - "3000-3002:3000"
+    depends_on:
+      - syndicate-postgres
+      - syndicate-redis-cluster
+      - syndicate-monitoring
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # High-availability PostgreSQL cluster
+  syndicate-postgres:
+    image: postgres:15-alpine
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 8G
+        reservations:
+          cpus: '2.0'
+          memory: 4G
+    environment:
+      - POSTGRES_DB=unit_talk_production
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--data-checksums
+    volumes:
+      - syndicate_postgres_data:/var/lib/postgresql/data
+      - ./apps/api/migrations:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    command: >
+      postgres
+      -c max_connections=200
+      -c shared_buffers=2GB
+      -c effective_cache_size=6GB
+      -c maintenance_work_mem=512MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+
+  # PostgreSQL read replica for analytics
+  syndicate-postgres-replica:
+    image: postgres:15-alpine
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+    environment:
+      - POSTGRES_DB=unit_talk_production
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - PGUSER=postgres
+    volumes:
+      - syndicate_postgres_replica_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+
+  # Redis cluster for high-availability caching
+  syndicate-redis-cluster:
+    image: redis:7-alpine
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+    command: >
+      redis-server
+      --maxmemory 1gb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --appendfsync everysec
+    ports:
+      - "6379-6381:6379"
+    volumes:
+      - syndicate_redis_data:/data
+
+  # ML Training Service with GPU support
+  syndicate-ml-training:
+    build:
+      context: ./apps/ml-training
+      dockerfile: Dockerfile.gpu
+    deploy:
+      resources:
+        limits:
+          cpus: '8.0'
+          memory: 16G
+        reservations:
+          cpus: '4.0'
+          memory: 8G
+    environment:
+      - TRAINING_MODE=syndicate_production
+      - MODEL_REGISTRY=s3://syndicate-models
+      - FEATURE_STORE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@syndicate-postgres:5432/unit_talk_production
+    volumes:
+      - syndicate_ml_models:/app/models
+      - syndicate_training_data:/app/data
+    ports:
+      - "8888:8888"  # Jupyter Lab
+      - "5000:5000"  # ML API
+
+  # Temporal workflow engine with clustering
+  syndicate-temporal:
+    image: temporalio/auto-setup:1.20.0
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+    environment:
+      - DB=postgresql
+      - DB_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PWD=${POSTGRES_PASSWORD}
+      - POSTGRES_SEEDS=syndicate-temporal-db
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+    ports:
+      - "7233:7233"
+    depends_on:
+      - syndicate-temporal-db
+
+  syndicate-temporal-db:
+    image: postgres:13
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=temporal
+    volumes:
+      - syndicate_temporal_data:/var/lib/postgresql/data
+
+  # Enterprise monitoring stack
+  syndicate-prometheus:
+    image: prom/prometheus:latest
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+    volumes:
+      - ./monitoring/prometheus-syndicate.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/alert_rules_syndicate.yml:/etc/prometheus/alert_rules.yml
+      - syndicate_prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=90d'
+      - '--storage.tsdb.retention.size=50GB'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    ports:
+      - "9090:9090"
+
+  syndicate-grafana:
+    image: grafana/grafana:latest
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+    volumes:
+      - syndicate_grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    ports:
+      - "3005:3000"
+    depends_on:
+      - syndicate-prometheus
+
+  syndicate-alertmanager:
+    image: prom/alertmanager:latest
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+    volumes:
+      - ./monitoring/alertmanager-syndicate.yml:/etc/alertmanager/alertmanager.yml
+      - syndicate_alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+    ports:
+      - "9093:9093"
+
+  # Load balancer for high availability
+  syndicate-nginx:
+    image: nginx:alpine
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    volumes:
+      - ./config/nginx/syndicate.conf:/etc/nginx/nginx.conf
+      - ./config/nginx/ssl:/etc/nginx/ssl
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - syndicate-api
+
+  # Background worker pool
+  syndicate-workers:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile.worker
+    deploy:
+      replicas: 8
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+    environment:
+      - NODE_ENV=production
+      - WORKER_TYPE=prop_processing
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@syndicate-postgres:5432/unit_talk_production
+      - REDIS_URL=redis://syndicate-redis-cluster:6379
+    depends_on:
+      - syndicate-postgres
+      - syndicate-redis-cluster
+
+  # Data backup service
+  syndicate-backup:
+    build:
+      context: ./infrastructure/backup
+      dockerfile: Dockerfile
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+    environment:
+      - BACKUP_SCHEDULE=0 2 * * *  # Daily at 2 AM
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@syndicate-postgres:5432/unit_talk_production
+      - S3_BUCKET=syndicate-backups
+      - RETENTION_DAYS=90
+    volumes:
+      - syndicate_backup_data:/backups
+    depends_on:
+      - syndicate-postgres
+
+  # Command center for operations
+  syndicate-command-center:
+    build:
+      context: ./apps/command-center
+      dockerfile: Dockerfile.production
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=https://api.syndicate.company
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@syndicate-postgres:5432/unit_talk_production
+    ports:
+      - "3004:3000"
+    depends_on:
+      - syndicate-api
+
+  # Discord bot for notifications
+  syndicate-discord-bot:
+    build:
+      context: ./apps/discord-bot
+      dockerfile: Dockerfile.production
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+    environment:
+      - NODE_ENV=production
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@syndicate-postgres:5432/unit_talk_production
+    depends_on:
+      - syndicate-postgres
+
+volumes:
+  syndicate_postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/syndicate/data/postgres
+
+  syndicate_postgres_replica_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/syndicate/data/postgres-replica
+
+  syndicate_redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/syndicate/data/redis
+
+  syndicate_ml_models:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/syndicate/data/ml-models
+
+  syndicate_training_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/syndicate/data/training
+
+  syndicate_temporal_data:
+    driver: local
+
+  syndicate_prometheus_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/syndicate/data/prometheus
+
+  syndicate_grafana_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/syndicate/data/grafana
+
+  syndicate_alertmanager_data:
+    driver: local
+
+  syndicate_backup_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/syndicate/backups
+
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# Health check configuration
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: 10s
+  timeout: 5s
+  retries: 3
+  start_period: 30s

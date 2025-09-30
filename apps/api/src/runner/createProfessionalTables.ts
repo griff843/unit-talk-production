@@ -10,6 +10,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -23,7 +24,8 @@ async function createProfessionalTables() {
   try {
     // Create CLV Tracking table
     console.log('📊 Creating CLV Tracking table...');
-    const { error: clvError } = await supabase.rpc('exec_sql', {
+    const supabaseClient = requireSupabase();
+      const { error: clvError } = await supabase.rpc('exec_sql', {
       sql: `
         CREATE TABLE IF NOT EXISTS clv_tracking (
           id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -85,7 +87,8 @@ async function createProfessionalTables() {
     
     // Create Processing Logs table
     console.log('📋 Creating Processing Logs table...');
-    const { error: logsError } = await supabase.rpc('exec_sql', {
+    const supabaseClient = requireSupabase();
+      const { error: logsError } = await supabase.rpc('exec_sql', {
       sql: `
         CREATE TABLE IF NOT EXISTS processing_logs (
           id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -116,12 +119,14 @@ async function createProfessionalTables() {
     // Verify tables were created
     console.log('\n🔍 Verifying table creation...');
     
-    const { data: clvData, error: clvCheckError } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: clvData, error: clvCheckError } = await supabase
       .from('clv_tracking')
       .select('*')
       .limit(1);
     
-    const { data: logsData, error: logsCheckError } = await supabase
+    const supabaseClient = requireSupabase();
+      const { data: logsData, error: logsCheckError } = await supabase
       .from('processing_logs')
       .select('*')
       .limit(1);

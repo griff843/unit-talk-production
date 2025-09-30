@@ -10,6 +10,7 @@
 import { createLogger } from '../../utils/logger';
 import { clvTrackingService } from '../clv/CLVTrackingService';
 import { supabaseClient } from '../supabaseClient';
+import { requireSupabase } from '../../utils/supabaseUtils';
 
 export interface AlertThresholds {
   critical: {
@@ -280,7 +281,8 @@ export class CLVAlertService {
    * Check if similar alert already exists
    */
   private async getExistingAlert(level: string, duration: number): Promise<CLVAlert | null> {
-    const { data } = await supabaseClient
+    const supabaseClient = requireSupabase();
+      const { data } = await supabaseClient
       .from('clv_alerts')
       .select('*')
       .eq('level', level)
@@ -296,7 +298,8 @@ export class CLVAlertService {
    */
   private async createAndSendAlert(alert: Omit<CLVAlert, 'id' | 'createdAt' | 'acknowledged' | 'acknowledgedBy' | 'acknowledgedAt'>): Promise<void> {
     // Save to database
-    const { data, error } = await supabaseClient
+    const supabaseClient = requireSupabase();
+      const { data, error } = await supabaseClient
       .from('clv_alerts')
       .insert({
         level: alert.level,
@@ -442,6 +445,7 @@ export class CLVAlertService {
    * Acknowledge an alert
    */
   async acknowledgeAlert(alertId: string, userId: string): Promise<void> {
+    const supabaseClient = requireSupabase();
     await supabaseClient
       .from('clv_alerts')
       .update({
@@ -456,7 +460,8 @@ export class CLVAlertService {
    * Get active alerts
    */
   async getActiveAlerts(): Promise<CLVAlert[]> {
-    const { data, error } = await supabaseClient
+    const supabaseClient = requireSupabase();
+      const { data, error } = await supabaseClient
       .from('clv_alerts')
       .select('*')
       .eq('acknowledged', false)

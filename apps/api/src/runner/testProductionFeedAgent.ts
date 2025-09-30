@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -57,8 +58,9 @@ async function testProductionFeedAgent() {
     
     // Get current raw_props count before processing
     console.log('\n📊 Checking database before processing...');
-    const { count: beforeCount, error: beforeError } = await supabase
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: beforeCount, error: beforeError } = await supabase
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .gte('created_at', new Date(Date.now() - 60000).toISOString()); // Last minute
       
@@ -111,8 +113,9 @@ async function testProductionFeedAgent() {
           created_at: new Date().toISOString()
         }));
         
-        const { data: insertedProps, error: insertError } = await supabase
-          .from('raw_props')
+        const supabaseClient = requireSupabase();
+      const { data: insertedProps, error: insertError } = await supabase
+          .from('sports_game_odds')
           .insert(sampleProps)
           .select('id, player_name, stat_type, over_odds, under_odds');
           
@@ -130,8 +133,9 @@ async function testProductionFeedAgent() {
           }
           
           // Clean up test data
-          await supabase
-            .from('raw_props')
+          const supabaseClient = requireSupabase();
+    await supabase
+            .from('sports_game_odds')
             .delete()
             .eq('source', 'production-test');
           console.log('   🧹 Test data cleaned up');

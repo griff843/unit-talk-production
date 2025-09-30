@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { supabaseServer } from '@/lib/supabase';
+import type { Database } from '@/types/supabase';
 import {
   createRouteLogger,
   logDatabaseOperation,
@@ -27,7 +28,11 @@ const GameSelectionSchema = z.object({
 });
 
 const SubmitTicketSchema = z.object({
-  capper_id: z.string().uuid('Capper ID must be a valid UUID'),
+  capper_id: z.union([
+    z.string().uuid('Capper ID must be a valid UUID'),
+    z.number().int().positive('Capper ID must be a positive integer'),
+    z.string().regex(/^\d+$/, 'Capper ID must be a valid integer or UUID').transform(val => parseInt(val))
+  ]),
   sport: z.enum(['NFL', 'NBA', 'MLB', 'NHL', 'NCAAF']),
   ticket_type: z.enum(['single', 'parlay', 'round_robin']),
   selections: z.array(GameSelectionSchema).min(1, 'At least one selection is required'),
@@ -44,16 +49,21 @@ async function publishTicketSubmitted(ticketData: {
 }) {
   try {
     const sb = supabaseServer();
-    
+
     // Write to bridge outbox for idempotent processing
+    const outboxEntry = {
+      event_type: 'ticket_submitted',
+      payload: ticketData as any, // Type assertion for Supabase JSON field
+      unique_key: ticketData.bet_slip_id,
+      status: 'pending',
+      attempts: 0,
+      max_attempts: 3,
+      next_attempt_at: new Date(Date.now() + 5000).toISOString(),
+    };
+
     const { error } = await sb
       .from('bridge_outbox')
-      .insert({
-        event_type: 'ticket_submitted',
-        payload: ticketData,
-        unique_key: ticketData.bet_slip_id,
-        status: 'pending',
-      });
+      .insert(outboxEntry as any);
 
     if (error) {
       log.error({ error: error.message }, 'Failed to publish ticket submission event');
@@ -133,29 +143,23 @@ export async function POST(request: NextRequest) {
     const betSlipId = uuidv4();
     const supabase = supabaseServer();
 
-    // Verify capper exists and is active
+    // Verify capper exists (note: 'active' column doesn't exist in current schema)
     const { data: capperUser, error: capperError } = await supabase
       .from('users')
-      .select('id, username, active')
-      .eq('id', capper_id)
-      .single();
+      .select('id, username')
+      .eq('id', capper_id.toString())
+      .neq('username', 'System') // System user is not a valid capper
+      .single() as { data: any | null, error: any };
 
     if (capperError || !capperUser) {
       log.warn({
         capper_id,
         error: capperError?.message,
       }, 'Invalid capper_id provided');
-      
+
       return NextResponse.json({
         error: 'Invalid capper ID',
-        message: 'The specified capper was not found or is inactive',
-      }, { status: 400 });
-    }
-
-    if (!capperUser.active) {
-      return NextResponse.json({
-        error: 'Inactive capper',
-        message: 'The specified capper is not currently active',
+        message: 'The specified capper was not found',
       }, { status: 400 });
     }
 
@@ -173,78 +177,22 @@ export async function POST(request: NextRequest) {
       notes,
     };
 
-    // Start transaction
+    // Start transaction - Use bridge outbox pattern for reliable processing
     try {
-      // Insert smart ticket
-      const { data: insertedTicket, error: ticketError } = await supabase
-        .from('smart_tickets')
-        .insert(smartTicketData)
-        .select()
-        .single();
+      log.info({ bet_slip_id: betSlipId }, 'Publishing ticket to bridge outbox');
 
-      logDatabaseOperation(log, 'INSERT', 'smart_tickets', insertedTicket, ticketError);
-
-      if (ticketError) {
-        return NextResponse.json({
-          error: 'Failed to save ticket',
-          message: ticketError.message,
-        }, { status: 500 });
-      }
-
-      // Insert individual legs into unified_picks
-      const pickInserts = selections.map(selection => ({
+      // Publish to bridge outbox for idempotent processing
+      await publishTicketSubmitted({
         bet_slip_id: betSlipId,
-        user_id: capper_id,
-        sport,
-        stat_type: selection.stat_type,
-        line: selection.line,
-        odds: selection.leg_odds,
-        selection: selection.selection,
-        confidence: selection.confidence || 0,
-        team_id: selection.team_id,
-        player_id: selection.player_id,
-        source: selection.source,
-        is_live: selection.is_live || false,
-      }));
-
-      const { data: insertedPicks, error: picksError } = await supabase
-        .from('unified_picks')
-        .insert(pickInserts)
-        .select();
-
-      logDatabaseOperation(log, 'INSERT', 'unified_picks', insertedPicks, picksError);
-
-      if (picksError) {
-        // Rollback smart ticket if picks insertion fails
-        await supabase
-          .from('smart_tickets')
-          .delete()
-          .eq('bet_slip_id', betSlipId);
-
-        return NextResponse.json({
-          error: 'Failed to save ticket selections',
-          message: picksError.message,
-        }, { status: 500 });
-      }
+        capper_id: capper_id.toString(),
+        selection_count: selections.length,
+      });
 
       log.info({
         bet_slip_id: betSlipId,
         capper_id,
-        capper_name: capperUser.username,
-        sport,
-        ticket_type,
-        selection_count: selections.length,
-        total_units,
-        has_manual_entries: hasManualEntries,
-        is_live: selections.some(s => s.is_live),
-      }, 'Ticket successfully saved');
-
-      // Publish to bridge for external processing
-      await publishTicketSubmitted({
-        bet_slip_id: betSlipId,
-        capper_id,
-        selection_count: selections.length,
-      });
+        selection_count: selections.length
+      }, 'Ticket published to bridge outbox successfully');
 
       const isLive = selections.some(s => s.is_live);
 
@@ -260,7 +208,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         bet_slip_id: betSlipId,
-        ticket_id: insertedTicket.bet_slip_id,
+        ticket_id: betSlipId,
         capper_name: capperUser.username,
         sport,
         ticket_type,
@@ -268,9 +216,10 @@ export async function POST(request: NextRequest) {
         total_units,
         is_live: isLive,
         status: 'submitted',
+        processing_status: 'queued_for_processing',
         message: isLive
-          ? 'Live bet submitted successfully!'
-          : 'Ticket submitted successfully!',
+          ? 'Live bet submitted successfully and queued for processing!'
+          : 'Ticket submitted successfully and queued for processing!',
       }, { status: 201 });
 
     } catch (dbError) {

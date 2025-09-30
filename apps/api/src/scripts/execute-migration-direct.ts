@@ -9,8 +9,9 @@
 
 import { config } from 'dotenv';
 
-import { supabaseClient } from '../services/supabaseClient';
+import { supabaseClient } from '../utils/supabaseUtils';
 import { Logger } from '../shared/logger';
+import { requireSupabase } from '../utils/supabaseUtils';
 
 // Load environment variables
 config();
@@ -24,13 +25,15 @@ async function executeMigrationDirect() {
   try {
     // 1. Current state analysis
     console.log('\n📊 Step 1: Analyzing current data state...');
-    const { count: totalProps } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: totalProps } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true }) || { count: 0 };
 
     const cutoffDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const { count: oldProps } = await supabaseClient
-      .from('raw_props')
+    const supabaseClient = requireSupabase();
+      const { count: oldProps } = await supabaseClient
+      .from('sports_game_odds')
       .select('*', { count: 'exact', head: true })
       .lt('game_date', cutoffDate) || { count: 0 };
 
@@ -123,8 +126,10 @@ ORDER BY table_name;
     
     let tablesExist = false;
     try {
-      await supabaseClient.from('raw_props_historical').select('id').limit(1);
-      await supabaseClient.from('raw_props_recent').select('id').limit(1);
+      const supabaseClient = requireSupabase();
+    await supabaseClient.from('raw_props_historical').select('id').limit(1);
+      const supabaseClient = requireSupabase();
+    await supabaseClient.from('raw_props_recent').select('id').limit(1);
       tablesExist = true;
       console.log('✅ Historical tables detected!');
     } catch (error) {
@@ -135,15 +140,18 @@ ORDER BY table_name;
       // 4. Verify migration if tables exist
       console.log('\n📊 Step 4: Verifying migration results...');
       
+      const supabaseClient = requireSupabase();
       const { count: finalTotal } = await supabaseClient
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*', { count: 'exact', head: true }) || { count: 0 };
 
+      const supabaseClient = requireSupabase();
       const { count: finalOld } = await supabaseClient
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('*', { count: 'exact', head: true })
         .lt('game_date', cutoffDate) || { count: 0 };
 
+      const supabaseClient = requireSupabase();
       const { count: historicalCount } = await supabaseClient
         .from('raw_props_historical')
         .select('*', { count: 'exact', head: true }) || { count: 0 };

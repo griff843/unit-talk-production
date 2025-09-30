@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables from root directory
 import dotenv from 'dotenv';
 import path from 'path';
+import { requireSupabase } from '../utils/supabaseUtils';
 dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 
 const supabase = createClient(
@@ -19,7 +20,8 @@ async function checkGameCount() {
   
   const today = '2025-08-05';
   
-  const { data: games } = await supabase
+  const supabaseClient = requireSupabase();
+      const { data: games } = await supabase
     .from('games')
     .select('sport, home_team, away_team')
     .eq('game_date', today)

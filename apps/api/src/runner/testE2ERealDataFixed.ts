@@ -73,7 +73,7 @@ class E2RealDataTesterFixed {
       console.log('🔍 Checking recent props with optimized query...');
       
       const { data: recentProps, error } = await this.supabase
-        .from('raw_props')
+        .from('sports_game_odds')
         .select('id, player_name, sport, stat_type, line, over_odds, under_odds, created_at')
         .order('created_at', { ascending: false })
         .limit(10);
@@ -136,16 +136,20 @@ class E2RealDataTesterFixed {
 
   private async testAPIConnectivity(): Promise<void> {
     console.log('🌐 Testing API connectivity...');
-    
-    // Check API keys without making actual calls
+
+    // Check API keys without making actual calls - PRIORITIZE OPTIMAL
     const optimalKey = process.env.OPTIMAL_API_KEY;
     const oddsKey = process.env.ODDS_API_KEY;
-    
-    console.log(`✅ Optimal API: ${optimalKey ? 'Key configured' : 'Key missing'}`);
-    console.log(`✅ Odds API: ${oddsKey ? 'Key configured' : 'Key missing'}`);
-    
-    if (optimalKey && oddsKey) {
-      console.log('✅ Both API keys available for live data ingestion');
+    const sgoKey = process.env.SGO_API_KEY;
+
+    console.log(`🎯 Optimal API (PRIMARY): ${optimalKey ? 'Key configured' : 'Key missing'}`);
+    console.log(`🔄 Odds API (SECONDARY): ${oddsKey ? 'Key configured' : 'Key missing'}`);
+    console.log(`📂 SGO API (TERTIARY): ${sgoKey ? 'Key configured - fallback only' : 'Key missing - optional'}`);
+
+    if (optimalKey) {
+      console.log('✅ Primary API (Optimal) available - system operational');
+    } else {
+      console.log('⚠️ Primary API (Optimal) missing - using fallback');
     }
   }
 

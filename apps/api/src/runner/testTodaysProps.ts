@@ -159,7 +159,7 @@ class TodaysPropsTester {
     
     try {
       // Database connectivity
-      const { data, error } = await this.supabase.from('raw_props').select('count').limit(1);
+      const { data, error } = await this.supabase.from('sports_game_odds').select('count').limit(1);
       checks.push({
         name: 'Database Connection',
         passed: !error,
@@ -265,7 +265,7 @@ class TodaysPropsTester {
     const today = new Date().toISOString().split('T')[0];
     
     const { data, error } = await this.supabase
-      .from('raw_props')
+      .from('sports_game_odds')
       .select('*')
       .gte('created_at', today + 'T00:00:00Z')
       .lt('created_at', today + 'T23:59:59Z')

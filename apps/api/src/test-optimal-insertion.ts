@@ -1,29 +1,28 @@
 import 'dotenv/config';
-import { createSupabaseClient } from './utils/supabase';
-
-const supabase = createSupabaseClient();
+import { requireSupabase } from './utils/supabaseUtils';
 
 async function testOptimalInsertion() {
   console.log('Environment check:');
   console.log('SUPABASE_URL:', process.env['SUPABASE_URL'] ? 'Set' : 'Not set');
   console.log('SUPABASE_KEY:', process.env['SUPABASE_KEY'] ? 'Set' : 'Not set');
-  
+
   try {
     // Test basic connection
-    const { error: connectionError } = await supabase
+    const supabaseClient = requireSupabase();
+    const { error: connectionError } = await supabaseClient
       .from('raw_props')
       .select('count')
       .limit(1);
-    
+
     if (connectionError) {
       console.error('Connection error:', connectionError);
       return;
     }
-    
+
     console.log('✅ Database connection successful');
-    
+
     // Test data retrieval
-    const { data: testProps, error: retrievalError } = await supabase
+    const { data: testProps, error: retrievalError } = await supabaseClient
       .from('raw_props')
       .select('*')
       .limit(1);
