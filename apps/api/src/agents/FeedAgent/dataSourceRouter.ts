@@ -1,7 +1,7 @@
 /**
  * Cache-First Unified Data Source Router for Unit Talk Platform
  *
- * Intelligently routes data requests between SGO, The Odds API, and Optimal API
+ * Intelligently routes data requests between The Odds API, SGO, and Optimal API
  * based on sport, market type, and data requirements.
  *
  * NEW FEATURES (v2.0.0):
@@ -11,10 +11,10 @@
  * - Direct unified_picks writes (skips raw_props)
  * - Credit usage tracking and monitoring
  *
- * Routing Strategy (UPDATED Sept 29, 2025):
- * - Optimal API: PRIMARY for all major sports - best player props coverage
- * - Odds API: Secondary for settlement data, NCAAF, and fallback
- * - SGO API: Tertiary fallback (optional secondary source)
+ * Routing Strategy (UPDATED Sept 30, 2025):
+ * - Odds API: PRIMARY for all sports - reliable, comprehensive coverage
+ * - SGO API: Secondary fallback for additional coverage
+ * - Optimal API: Tertiary fallback (DEPRECATED - expired key)
  * - Redis Cache: L1/L2 caching for sub-second response times
  */
 
@@ -30,46 +30,46 @@ import { fetchAndFlattenSGOProps, SGOFlattenedProp } from '../../logic/providers
 // Data source identification - UPDATED with SGO
 export type DataSource = 'sgo-api' | 'odds-api' | 'optimal-api' | 'unified';
 
-// Enhanced sport mapping with routing logic - OPTIMAL API PRIORITY
+// Enhanced sport mapping with routing logic - ODDS API PRIMARY
 const SPORT_ROUTING_CONFIG = {
-  // Optimal API PRIMARY for all major sports (best player props coverage)
+  // Odds API PRIMARY for all major sports
   'NFL': {
-    primary: 'optimal-api' as const,
-    secondary: 'odds-api' as const,
-    tertiary: 'sgo-api' as const,
+    primary: 'odds-api' as const,
+    secondary: 'sgo-api' as const,
+    tertiary: 'optimal-api' as const,
     sgoLeagueID: 'NFL',
     oddsApiKey: 'americanfootball_nfl',
     supports: ['player-props', 'spreads', 'totals', 'moneylines', 'settlement']
   },
 
   'NBA': {
-    primary: 'optimal-api' as const,
-    secondary: 'odds-api' as const,
-    tertiary: 'sgo-api' as const,
+    primary: 'odds-api' as const,
+    secondary: 'sgo-api' as const,
+    tertiary: 'optimal-api' as const,
     sgoLeagueID: 'NBA',
     oddsApiKey: 'basketball_nba',
     supports: ['player-props', 'spreads', 'totals', 'moneylines', 'settlement']
   },
 
   'MLB': {
-    primary: 'optimal-api' as const,
-    secondary: 'odds-api' as const,
-    tertiary: 'sgo-api' as const,
+    primary: 'odds-api' as const,
+    secondary: 'sgo-api' as const,
+    tertiary: 'optimal-api' as const,
     sgoLeagueID: 'MLB',
     oddsApiKey: 'baseball_mlb',
     supports: ['player-props', 'spreads', 'totals', 'moneylines', 'settlement']
   },
 
   'NHL': {
-    primary: 'optimal-api' as const,
-    secondary: 'odds-api' as const,
-    tertiary: 'sgo-api' as const,
+    primary: 'odds-api' as const,
+    secondary: 'sgo-api' as const,
+    tertiary: 'optimal-api' as const,
     sgoLeagueID: 'NHL',
     oddsApiKey: 'icehockey_nhl',
     supports: ['player-props', 'spreads', 'totals', 'moneylines', 'settlement']
   },
 
-  // NCAAF uses Odds API as primary (Optimal API doesn't support NCAAF)
+  // NCAAF uses Odds API as primary
   'NCAAF': {
     primary: 'odds-api' as const,
     secondary: 'sgo-api' as const,

@@ -123,36 +123,38 @@ npx tsx src/scripts/test-professional-features.ts
 
 ## <� Architecture
 
-### Optimal-First API Architecture
+### Odds API Primary Architecture
 
-The platform prioritizes Optimal API as the primary data source with intelligent
-fallback to Odds API and SGO API for comprehensive coverage:
+The platform uses The Odds API as the primary data source with intelligent
+fallback to SGO API and Optimal API (deprecated) for comprehensive coverage:
 
-#### **API Strategy (UPDATED Sept 29, 2025)**
+#### **API Strategy (UPDATED Sept 30, 2025)**
 
 ```typescript
-const OPTIMAL_FIRST_ROUTING = {
-  // Optimal API: PRIMARY for all major sports (best player props coverage)
-  NFL: { primary: 'optimal-api', secondary: 'odds-api', tertiary: 'sgo-api' },
-  NBA: { primary: 'optimal-api', secondary: 'odds-api', tertiary: 'sgo-api' },
-  MLB: { primary: 'optimal-api', secondary: 'odds-api', tertiary: 'sgo-api' },
-  NHL: { primary: 'optimal-api', secondary: 'odds-api', tertiary: 'sgo-api' },
-
-  // Odds API: PRIMARY for specialized sports and settlement
+const ODDS_API_PRIMARY_ROUTING = {
+  // Odds API: PRIMARY for all sports (reliable, comprehensive coverage)
+  NFL: { primary: 'odds-api', secondary: 'sgo-api', tertiary: 'optimal-api' },
+  NBA: { primary: 'odds-api', secondary: 'sgo-api', tertiary: 'optimal-api' },
+  MLB: { primary: 'odds-api', secondary: 'sgo-api', tertiary: 'optimal-api' },
+  NHL: { primary: 'odds-api', secondary: 'sgo-api', tertiary: 'optimal-api' },
   NCAAF: { primary: 'odds-api', secondary: 'sgo-api' },
+  NCAAB: { primary: 'odds-api', secondary: null },
   WNBA: { primary: 'odds-api', secondary: 'sgo-api' },
+
+  // Odds API: Exclusive for settlement
   Settlement: { primary: 'odds-api', exclusive: true },
 };
 ```
 
 #### **Performance Specifications**
 
-- **Primary Provider**: Optimal API for all major sports player props
+- **Primary Provider**: The Odds API for all sports (5M+ remaining credits)
 - **Update Frequency**: Real-time intervals during live games
 - **Processing Target**: <50 seconds per cycle
-- **Sports Coverage**: 100% major sports via Optimal + NCAAF exclusive via Odds API
+- **Sports Coverage**: 100% coverage via Odds API
 - **Settlement**: Automated via Odds API within 30 minutes post-game
-- **Redundancy**: Triple-tier fallback (Optimal → Odds → SGO)
+- **Redundancy**: Triple-tier fallback (Odds API → SGO → Optimal)
+- **Optimal API**: DEPRECATED (expired key as of Sept 30, 2025)
 
 ### Agent System Architecture
 
