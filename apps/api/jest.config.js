@@ -9,7 +9,8 @@ module.exports = {
   roots: ['<rootDir>/test'],
   testMatch: [
     '<rootDir>/test/contracts/**/*.test.ts',
-    '<rootDir>/test/smartform/**/*.test.ts'
+    '<rootDir>/test/smartform/**/*.test.ts',
+    '<rootDir>/test/smoke/**/*.test.ts'
   ],
   setupFilesAfterEnv: ['<rootDir>/test/setup.ts'],
   moduleNameMapper: {
