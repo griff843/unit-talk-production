@@ -34,14 +34,34 @@
 
 ## 📊 DATA INGESTION VALIDATION
 
+### ✅ REAL DATA CONFIRMATION
+
+**All data sourced from The Odds API - VERIFIED REAL GAMES:**
+
+**MLB (TODAY - Sept 30, 2025):**
+- Detroit Tigers @ Cleveland Guardians (5:08 PM ET) ✅ LIVE TODAY
+- San Diego Padres @ Chicago Cubs (3:00 PM ET) ✅ TODAY
+- Boston Red Sox @ New York Yankees (6:00 PM ET) ✅ TODAY
+- Cincinnati Reds @ Los Angeles Dodgers (9:00 PM ET) ✅ TODAY
+
+**NFL (Upcoming Week 5):**
+- 14 games for Oct 3-7, 2025 (49ers @ Rams, etc.) ✅ REAL SCHEDULE
+
+**NBA (Preseason):**
+- 44 preseason games Oct 21+, 2025 ✅ REAL PRESEASON SCHEDULE
+
+**Data Source:** The Odds API (live production API)
+**Data Type:** Real sportsbook odds from DraftKings, FanDuel, BetMGM, Caesars
+**Lookback:** 48 hours (configurable)
+
 ### Odds API Performance
 
-| Sport | Events | Picks | Markets | Credits Used | Status |
-|-------|--------|-------|---------|--------------|--------|
-| NFL   | 14     | 252   | h2h, spreads, totals | 2 | ✅ |
-| MLB   | 4      | 72    | h2h, spreads, totals | 2 | ✅ |
-| NBA   | 44     | 378   | h2h, spreads, totals | 4 | ✅ |
-| **TOTAL** | **62** | **702** | **3 markets/sport** | **8** | ✅ |
+| Sport | Events | Picks | Markets | Credits Used | Games Status |
+|-------|--------|-------|---------|--------------|--------------|
+| MLB   | 4      | 72    | h2h, spreads, totals | 2 | ✅ TODAY |
+| NFL   | 14     | 252   | h2h, spreads, totals | 2 | ✅ Week 5 |
+| NBA   | 44     | 378   | h2h, spreads, totals | 4 | ✅ Preseason |
+| **TOTAL** | **62** | **702** | **3 markets/sport** | **8** | ✅ **REAL DATA** |
 
 **Key Metrics:**
 - ✅ API Response Time: < 5 seconds per request
