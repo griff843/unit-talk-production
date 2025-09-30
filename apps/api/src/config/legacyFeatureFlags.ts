@@ -10,7 +10,8 @@
 export interface LegacyFeatureFlags {
   /**
    * GradingAgent - DEPRECATED
-   * Replaced by: ScoringAgent with Enhanced45Factor engine
+   * Replaced by: SettlementAgent for post-game win/loss determination
+   * Note: ScoringAgent handles pre-game pick quality scoring (different purpose)
    * Status: LEGACY_DISABLED 2025-09-30
    */
   GRADING_AGENT_ENABLED: boolean;
@@ -113,11 +114,12 @@ export function validateProductionFlags(): void {
  */
 export function getEnabledAgents(): string[] {
   return [
-    'FeedAgent',      // Odds API event-first ingestion
-    'ScoringAgent',   // Enhanced45Factor 195-factor scoring
-    'AlertAgent',     // Discord notifications & alerts
-    'RecapAgent',     // Post-game recaps
-    'OperatorAgent',  // System operations
+    'FeedAgent',        // Odds API event-first ingestion
+    'ScoringAgent',     // Enhanced45Factor 195-factor pre-game scoring
+    'SettlementAgent',  // Post-game win/loss determination
+    'AlertAgent',       // Discord notifications & alerts
+    'RecapAgent',       // Post-game recaps
+    'OperatorAgent',    // System operations
   ];
 }
 
@@ -128,7 +130,7 @@ export function getDisabledAgents(): string[] {
   const disabled: string[] = [];
 
   if (!getFeatureFlag('GRADING_AGENT_ENABLED')) {
-    disabled.push('GradingAgent (LEGACY_DISABLED 2025-09-30)');
+    disabled.push('GradingAgent (LEGACY_DISABLED 2025-09-30 - replaced by SettlementAgent)');
   }
 
   return disabled;
@@ -207,9 +209,13 @@ export function logSystemConfiguration(): void {
 
   console.log('\n' + '='.repeat(80));
   console.log('📊 PRODUCTION FLOW:');
+  console.log('   PRE-GAME:');
   console.log('   1. FeedAgent (Odds API event-first) → unified_picks');
   console.log('   2. ScoringAgent (195-factor) → professional scores');
   console.log('   3. Approval flow → Command Center');
   console.log('   4. AlertAgent → Discord publish');
+  console.log('   POST-GAME:');
+  console.log('   5. SettlementAgent → win/loss determination');
+  console.log('   6. RecapAgent → performance recaps');
   console.log('='.repeat(80) + '\n');
 }
