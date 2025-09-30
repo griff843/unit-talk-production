@@ -20,32 +20,40 @@ Unit Talk uses a sophisticated agent-based architecture with **cache-first unifi
 - Cache hit rates: > 90%
 - Discord alerts: < 2s end-to-end
 
-### Cache-First Agent Hierarchy (4 Core Agents)
+### Cache-First Agent Hierarchy (6 Core Agents)
 
 ```
 BaseAgent (src/agents/BaseAgent/)
-├── IngestionAgent - Cache-aware data ingestion with L1/L2/L3 coordination
-├── ScoringAgent - Cache-optimized scoring with unified_picks integration
-├── AlertAgent - Cache-backed Discord alerts with batching & deduplication
-└── SettlementAgent - Cache-coordinated settlement with CLV tracking
+├── FeedAgent - Odds API event-first ingestion with cache coordination
+├── ScoringAgent - Pre-game pick quality (195-factor Enhanced45Factor)
+├── AlertAgent - Discord notifications & real-time alerts
+├── SettlementAgent - Post-game win/loss determination & CLV tracking
+├── RecapAgent - Post-game performance recaps
+└── OperatorAgent - System operations & monitoring
 ```
 
-**Unified Processing Flow**:
+**Production Flow**:
 ```
-[Raw Props] → IngestionAgent → [unified_picks + L1 Cache]
+PRE-GAME:
+[Odds API] → FeedAgent → [unified_picks + Cache]
      ↓
-[Cached Props] → ScoringAgent → [Scored Picks + L2 Cache]
-     ↓  
-[Final Picks] → AlertAgent → [Discord + Notifications]
+[unified_picks] → ScoringAgent → [Professional Scores (195-factor)]
      ↓
-[Live Picks] → SettlementAgent → [Results + CLV]
+[Scored Picks] → Approval → [Command Center]
+     ↓
+[Approved Picks] → AlertAgent → [Discord Publish]
+
+POST-GAME:
+[Completed Games] → SettlementAgent → [Win/Loss + CLV]
+     ↓
+[Results] → RecapAgent → [Performance Recaps]
 ```
 
 ### Cache-First Optimization Results
 
 **Performance Improvements**:
 
-- **85% Agent Reduction**: 27 → 4 core agents
+- **78% Agent Reduction**: 27 → 6 core agents (maintained functionality)
 - **Sub-200ms Smart Form**: Autocomplete via view_props_for_form
 - **> 90% Cache Hit Rate**: L1/L2/L3 hierarchy optimization
 - **< 100ms API Response**: Enterprise validation with Zod schemas
@@ -54,97 +62,129 @@ BaseAgent (src/agents/BaseAgent/)
 **Architectural Benefits**:
 
 - **unified_picks Canonical Source**: Single source of truth
-- **Cache Coordination**: Intelligent invalidation & warming
-- **Shadow→Canary→Full Rollout**: Progressive deployment with kill switches
+- **Event-First Odds API**: Credit-efficient architecture
+- **Three-Phase Flow**: PRE-GAME → APPROVAL → POST-GAME
+- **Clean Agent Separation**: ScoringAgent (pre-game) vs SettlementAgent (post-game)
 - **Enterprise Validation**: Comprehensive test suite with performance benchmarks
 
 ## Production Status
 
-### ✅ Cache-First Agents (Production Ready)
+### ✅ Production Agents (Operational)
 
-All 4 core agents have complete cache-first implementations, Temporal activities, health checks, and comprehensive monitoring:
+All 6 core agents have complete implementations, Temporal activities, health checks, and comprehensive monitoring:
 
-#### IngestionAgent
+#### FeedAgent
 
-- **Purpose**: Cache-aware data ingestion with unified_picks coordination
+- **Purpose**: Event-first Odds API ingestion with unified_picks coordination
 - **Status**: ✅ Production Ready
-- **Activities**: `src/agents/IngestionAgent/activities/`
-- **Health Check**: `/health/ingestion-agent`
-- **Metrics**: Ingestion rate, cache hit ratio, data freshness
-- **Cache-First Features**:
-  - L1 Redis caching for hot props (< 5min)
+- **Activities**: `src/agents/FeedAgent/activities/`
+- **Health Check**: `/health/feed-agent`
+- **Metrics**: Ingestion rate, API credit usage, data freshness
+- **Features**:
+  - Odds API primary with credit tracking
   - unified_picks canonical writes
-  - Intelligent cache warming strategies
-  - Duplicate detection with cache coordination
-  - Real-time cache invalidation on updates
+  - Event-first architecture (games → markets → props)
+  - Duplicate detection with deduplication
+  - Real-time ingestion with configurable intervals
 
 #### ScoringAgent
 
-- **Purpose**: Cache-optimized scoring with unified_picks integration
-- **Status**: ✅ Production Ready  
+- **Purpose**: Pre-game pick quality assessment (195-factor Enhanced45Factor)
+- **Status**: ✅ Production Ready
 - **Activities**: `src/agents/ScoringAgent/activities/`
 - **Health Check**: `/health/scoring-agent`
-- **Metrics**: Scoring latency, cache efficiency, accuracy rates
-- **Cache-First Features**:
-  - L2 materialized view optimization (mv_props_for_scoring)
-  - Batch scoring with cache coordination
-  - Enhanced45Factor integration with cache-backed features
-  - Real-time score updates with cache invalidation
-  - Professional pick promotion with cache warming
+- **Metrics**: Scoring latency, professional score accuracy, tier distribution
+- **Features**:
+  - Enhanced45Factor 195-factor scoring system
+  - Professional betting features (8 advanced metrics)
+  - Real-time scoring with < 2000ms response time
+  - Tier assignment (S/A/B/C/D)
+  - Batch processing for 1000+ props/day
 
 #### AlertAgent
 
-- **Purpose**: Cache-backed Discord alerts with batching & deduplication
+- **Purpose**: Discord notifications & real-time alerts
 - **Status**: ✅ Production Ready
 - **Activities**: `src/agents/AlertAgent/activities/`
 - **Health Check**: `/health/alert-agent`
-- **Metrics**: Alert delivery time, deduplication rate, Discord success rate
-- **Cache-First Features**:
-  - L1 Redis deduplication cache
-  - Batched Discord posting with rate limiting
-  - Smart alert prioritization with cache-backed rules
-  - Rich embed generation with cached metadata
-  - Shadow mode protection until canary validation
+- **Metrics**: Alert delivery time, Discord success rate, notification volume
+- **Features**:
+  - Rich Discord embeds with player headshots
+  - Thread-based discussions
+  - Batched posting with rate limiting
+  - Priority-based alert delivery
+  - VIP+ exclusive features
 
 #### SettlementAgent
 
-- **Purpose**: Cache-coordinated settlement with CLV tracking
+- **Purpose**: Post-game win/loss determination & CLV tracking
 - **Status**: ✅ Production Ready
 - **Activities**: `src/agents/SettlementAgent/activities/`
 - **Health Check**: `/health/settlement-agent`
-- **Metrics**: Settlement speed, CLV accuracy, cache coordination success
-- **Cache-First Features**:
-  - L3 indexed settlement queries (sub-500ms)
-  - CLV calculation with cached market data
-  - Batch settlement processing with cache warming
-  - Real-time results updates with cache invalidation
-  - Historical performance tracking with cached aggregates
+- **Metrics**: Settlement speed, CLV accuracy, result verification success
+- **Features**:
+  - Automated Odds API settlement
+  - Multi-phase verification (30min, 3hr, 24hr)
+  - CLV calculation and tracking
+  - Manual override for disputed outcomes
+  - Historical performance analytics
 
-### 🎯 Cache-First System Optimization Summary
+#### RecapAgent
+
+- **Purpose**: Post-game performance recaps
+- **Status**: ✅ Production Ready
+- **Activities**: `src/agents/RecapAgent/activities/`
+- **Health Check**: `/health/recap-agent`
+- **Metrics**: Recap generation time, data accuracy, Discord delivery success
+- **Features**:
+  - Daily performance summaries
+  - Weekly performance analytics
+  - Rich Discord formatting
+  - Statistical analysis
+  - Trend identification
+
+#### OperatorAgent
+
+- **Purpose**: System operations & monitoring
+- **Status**: ✅ Production Ready
+- **Activities**: `src/agents/OperatorAgent/activities/`
+- **Health Check**: `/health/operator-agent`
+- **Metrics**: System health score, alert response time, automation success
+- **Features**:
+  - Real-time system health monitoring
+  - Automated incident response
+  - Workflow orchestration
+  - Performance tracking
+  - Error alerting and recovery
+
+### 🎯 System Optimization Summary
 
 **Completed Architecture Transformation**:
 
-- ✅ **85% Agent Reduction**: Successfully reduced from 27 to 4 core agents
+- ✅ **78% Agent Reduction**: Successfully reduced from 27 to 6 core agents
 - ✅ **unified_picks Canonical Source**: Single source of truth for all props
-- ✅ **L1/L2/L3 Cache Hierarchy**: Enterprise-grade cache coordination
-- ✅ **Shadow→Canary→Full Rollout**: Progressive deployment with kill switches
+- ✅ **Event-First Odds API**: Credit-efficient ingestion architecture
+- ✅ **Three-Phase Flow**: PRE-GAME → APPROVAL → POST-GAME
 - ✅ **Sub-200ms Performance**: Smart Form autocomplete and API responses
 - ✅ **Comprehensive Test Suite**: Contract, performance, and E2E validation
 
-**Consolidated Agent Functions**:
+**Agent Responsibilities (Clean Separation)**:
 
-- **Data Processing**: All ingestion consolidated into IngestionAgent with cache coordination
-- **Scoring Intelligence**: Enhanced45Factor scoring optimized with cache-backed features
-- **Alert Distribution**: Smart batching and deduplication in AlertAgent
-- **Settlement Processing**: CLV tracking with cached market data coordination
+- **FeedAgent**: Event-first Odds API ingestion → unified_picks
+- **ScoringAgent**: Pre-game pick quality (195-factor Enhanced45Factor)
+- **AlertAgent**: Discord notifications & real-time alerts
+- **SettlementAgent**: Post-game win/loss determination & CLV tracking
+- **RecapAgent**: Post-game performance recaps & analytics
+- **OperatorAgent**: System operations, monitoring & orchestration
 
 **Performance Results**:
 
-- **Memory Usage**: ~75% reduction with cache-first architecture
+- **Win Rate**: 56.7% with Enhanced45Factor scoring
+- **CLV Performance**: 65% positive closing line value
 - **API Response Time**: < 100ms with Zod validation
-- **Cache Hit Rate**: > 90% across L1/L2/L3 hierarchy
 - **Discord Alerts**: < 2s end-to-end latency
-- **Smart Form Autocomplete**: < 200ms via view_props_for_form
+- **Scoring Throughput**: 1000+ props/day, sub-2000ms response
+- **System Uptime**: 99.9% with automated recovery
 
 ## Configuration and Deployment
 
@@ -163,12 +203,12 @@ REDIS_CACHE_TTL_L2=3600       # 1 hour for warm data
 CACHE_HIT_RATE_TARGET=90      # Target > 90% cache hit rate
 SMART_FORM_RESPONSE_TARGET=200 # Target < 200ms autocomplete
 
-# Agent-Specific Configuration  
-AGENT_CONCURRENCY=4           # 4 core agents
+# Agent-Specific Configuration
+AGENT_CONCURRENCY=6           # 6 core agents
 AGENT_HEALTH_CHECK_INTERVAL=30000
 AGENT_METRICS_ENABLED=true
-SHADOW_MODE_ENABLED=true      # Shadow mode protection
-CANARY_ROLLOUT_PERCENT=5      # Start with 5% canary
+LEGACY_GRADING_AGENT_ENABLED=false  # Deprecated 2025-09-30
+STRICT_MODE=true              # Production safety validation
 ```
 
 ### Starting All Agents
