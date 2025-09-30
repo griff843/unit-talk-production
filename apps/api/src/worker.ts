@@ -1,4 +1,20 @@
 import 'dotenv/config';
+
+// CRITICAL: Import and validate legacy feature flags BEFORE any agent imports
+import {
+  validateProductionFlags,
+  logSystemConfiguration
+} from './config/legacyFeatureFlags';
+
+// Validate no legacy modules are enabled (fails fast if STRICT_MODE is on)
+try {
+  validateProductionFlags();
+  logSystemConfiguration();
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+}
+
 import { Worker, NativeConnection } from '@temporalio/worker';
 
 // import { createClient } from '@supabase/supabase-js'; // Unused
@@ -6,6 +22,8 @@ import { Worker, NativeConnection } from '@temporalio/worker';
 // Import base activities
 import * as healthMonitoringActivities from './activities/healthMonitoring';
 import * as mainOperatorActivities from './activities/operator';
+import * as backfillSGOActivities from './activities/backfillSGOActivities';
+import * as settlementActivities from './activities/settlementActivities';
 
 // Import agent-specific activities
 import * as alertActivities from './agents/AlertAgent/activities';
@@ -15,7 +33,7 @@ import * as baseActivities from './agents/BaseAgent/activities';
 import * as campaignActivities from './agents/CampaignAgent/activities';
 import * as contestActivities from './agents/ContestAgent/activities';
 import * as feedActivities from './agents/FeedAgent/activities';
-import * as gradingActivities from './agents/GradingAgent/activities';
+import * as scoringActivities from './agents/ScoringAgent/activities'; // Fixed: was gradingActivities
 import * as notificationActivities from './agents/NotificationAgent/activities';
 import * as operatorActivities from './agents/OperatorAgent/activities';
 import * as playerEnrichmentActivities from './agents/PlayerEnrichmentAgent/activities';
@@ -53,17 +71,35 @@ export default async function startWorker() {
         ...notificationActivities,
         ...feedActivities,
         ...auditActivities,
-        ...gradingActivities,
+        ...scoringActivities, // Fixed: was gradingActivities
         ...alertActivities,
         ...campaignActivities,
         ...contestActivities,
         ...operatorActivities,
-        ...playerEnrichmentActivities
+        ...playerEnrichmentActivities,
+
+        // Register SGO backfill activities
+        ...backfillSGOActivities,
+
+        // Register settlement activities
+        ...settlementActivities
       },
       taskQueue: env.TEMPORAL_TASK_QUEUE,
       // Add worker-specific configuration for stability
       maxConcurrentActivityTaskExecutions: 10,
-      maxConcurrentWorkflowTaskExecutions: 10
+      maxConcurrentWorkflowTaskExecutions: 10,
+      // Ignore non-deterministic modules that are used in activities but not in workflows at runtime
+      bundlerOptions: {
+        ignoreModules: ['fs', 'path', 'os', 'crypto', 'http', 'https', 'zlib', 'stream', 'events', 'tty', 'punycode'],
+        // Fix webpack issues for Node.js environment
+        webpackConfigHook: (config) => {
+          config.output = config.output || {};
+          config.output.publicPath = '';
+          config.output.globalObject = 'this';
+          config.target = 'node';
+          return config;
+        }
+      }
     });
 
     // Start the worker in the background

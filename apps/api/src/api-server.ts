@@ -6,11 +6,42 @@ import 'dotenv/config';
 import cors from 'cors';
 import express from 'express';
 
+// CRITICAL: Import and validate legacy feature flags BEFORE any agent imports
+import {
+  validateProductionFlags,
+  logSystemConfiguration,
+  getFeatureFlag
+} from './config/legacyFeatureFlags';
+
+// Validate no legacy modules are enabled (fails fast if STRICT_MODE is on)
+try {
+  validateProductionFlags();
+  logSystemConfiguration();
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+}
+
 import healthRouter from './routes/health';
 import { smartFormRouter } from './routes/smart-form';
 import opsRouter from './routes/ops';
 import picksRouter from './routes/picks';
 import featuresRouter from './routes/features';
+import operatorDashboardRouter from './routes/operator-dashboard';
+
+import settlementRouter from './routes/settlement';
+import whopWebhookRouter from './routes/webhooks/whop';
+import approvalWorkflowRouter from './routes/approval-workflow';
+
+// New enhanced API routes
+import ingestionRouter from './routes/ingestion';
+import creditUsageRouter from './routes/credit-usage';
+import alertsRouter from './routes/alerts';
+import cacheRouter from './routes/cache';
+import unifiedPicksRouter from './routes/unified-picks';
+import featureFlagsRouter from './routes/feature-flags';
+import shadowModeRouter from './routes/shadow-mode';
+
 import { ErrorHandler } from './utils/errorHandling';
 import { getEnv } from './utils/getEnv';
 import { createLogger } from './utils/logger';
@@ -49,6 +80,10 @@ const securityMiddleware = new EnhancedSecurityMiddleware({
   }
 }, logger);
 
+// Health routes FIRST - no rate limiting or auth
+app.use('/health', healthRouter);
+app.use('/api/health', healthRouter);
+
 // Observability Middleware (MUST BE EARLY)
 app.use(metricsMiddleware());
 app.use(loggingMiddleware());
@@ -63,70 +98,46 @@ app.use(cors({
     'http://localhost:3001', // Smart form dev server
     'http://localhost:3002',
     'http://localhost:3003',
+    'http://localhost:3004', // Command Center (standardized)
     process.env.SMART_FORM_URL || 'http://localhost:3001'
   ],
   credentials: true
 }));
 
 // Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
+// Capture rawBody for HMAC verification use-cases (e.g., Whop webhooks)
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, _res, buf) => {
+    (req as any).rawBody = Buffer.from(buf);
+  }
+}));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 
 // Routes with specific rate limiting
 app.use('/api/smart-form', rateLimitMiddleware(authLimiter), smartFormRouter); // Stricter limits for form submissions
-app.use('/api/health', healthRouter); // No rate limiting for health checks
 app.use('/api/picks', rateLimitMiddleware(generalLimiter), picksRouter);
 app.use('/api/features', rateLimitMiddleware(generalLimiter), featuresRouter);
 app.use('/ops', rateLimitMiddleware(authLimiter), opsRouter); // Stricter limits for operations
+app.use('/api/operator-dashboard', rateLimitMiddleware(authLimiter), operatorDashboardRouter); // Stricter limits for operator functions
+app.use('/api/settlement', rateLimitMiddleware(authLimiter), settlementRouter); // Settlement operations require authentication
+app.use('/api/approval', rateLimitMiddleware(authLimiter), approvalWorkflowRouter); // Manual approval workflow
 
-// Provider health endpoint
-app.get('/health/provider', async (req, res) => {
-  try {
-    const { getProviderHealth } = await import('./agents/FeedAgent/activities');
-    const providerHealth = getProviderHealth();
+// Enhanced API routes with enterprise-grade validation and monitoring
+app.use('/api/ingestion', rateLimitMiddleware(authLimiter), ingestionRouter); // Ingestion configuration and monitoring
+app.use('/api/ops/credit-usage', rateLimitMiddleware(authLimiter), creditUsageRouter); // Credit usage monitoring
+app.use('/api/alerts', rateLimitMiddleware(authLimiter), alertsRouter); // Alert replay and debugging
+app.use('/api/cache', rateLimitMiddleware(authLimiter), cacheRouter); // Cache metrics and management
+app.use('/api/unified-picks', rateLimitMiddleware(generalLimiter), unifiedPicksRouter); // Unified picks CRUD with cache
+app.use('/api/feature-flags', rateLimitMiddleware(authLimiter), featureFlagsRouter); // Feature flag management
+app.use('/api/shadow-mode', rateLimitMiddleware(authLimiter), shadowModeRouter); // Shadow mode configuration
 
-    // Get data freshness from database
-    const { supabaseClient } = await import('./services/supabaseClient');
-    const { data: latestProp } = await supabaseClient
-      .from('raw_props')
-      .select('created_at')
-      .order('created_at', { ascending: false })
-      .limit(1);
+// Webhooks (Whop) - behind general limiter, signature verified inside route
+app.use('/api/webhooks/whop', rateLimitMiddleware(generalLimiter), whopWebhookRouter);
 
-    const lastIngestion = latestProp?.[0]?.created_at || null;
-    const minutesSinceLastIngestion = lastIngestion
-      ? Math.floor((Date.now() - new Date(lastIngestion).getTime()) / 60000)
-      : null;
 
-    const dataFreshness = {
-      status: minutesSinceLastIngestion === null ? 'critical' :
-              minutesSinceLastIngestion < 15 ? 'fresh' :
-              minutesSinceLastIngestion < 60 ? 'stale' : 'critical',
-      lastIngestion,
-      minutesSinceLastIngestion,
-      statusText: minutesSinceLastIngestion === null ? 'No data ingested' :
-                  minutesSinceLastIngestion < 15 ? `Fresh data (${minutesSinceLastIngestion}m ago)` :
-                  minutesSinceLastIngestion < 60 ? `Stale data (${minutesSinceLastIngestion}m ago)` :
-                  `Critical - No data for ${minutesSinceLastIngestion}m`
-    };
-
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-    res.json({
-      success: true,
-      dataFreshness,
-      ...providerHealth,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Provider health check failed:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Health check failed',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
+// Provider health endpoint moved to health router to avoid conflicts
 
 // Admin endpoints
 app.post('/admin/reload-secrets', async (req, res) => {
@@ -183,7 +194,22 @@ app.get('/', (_req, res) => {
       'POST /admin/invalidate-cache',
       'POST /ops/ingest-now',
       'GET /ops/status/:runId',
-      'GET /ops/health'
+      'GET /ops/health',
+      // Enhanced API endpoints
+      'GET /api/ingestion/watchlist',
+      'POST /api/ingestion/watchlist',
+      'GET /api/settlement/runs',
+      'POST /api/settlement/run',
+      'GET /api/ops/credit-usage',
+      'POST /api/alerts/replay',
+      'GET /api/cache/metrics',
+      'POST /api/cache/invalidate',
+      'GET /api/unified-picks',
+      'POST /api/unified-picks',
+      'GET /api/feature-flags',
+      'POST /api/feature-flags',
+      'GET /api/shadow-mode/config',
+      'POST /api/shadow-mode/config'
     ]
   });
 });
@@ -215,7 +241,11 @@ app.use('*', (req, res) => {
       'GET /',
       'GET /api/health',
       'POST /api/smart-form/process',
-      'GET /api/smart-form/health'
+      'GET /api/smart-form/health',
+      'GET /api/unified-picks',
+      'POST /api/unified-picks',
+      'GET /api/cache/metrics',
+      'GET /api/feature-flags'
     ]
   });
 });

@@ -20,6 +20,8 @@
     "test:coverage": "jest --coverage",
     "test:integration": "jest --testPathPattern=integration",
     "test:unit": "jest --testPathPattern=unit",
+    "test:smoke": "jest --testPathPattern=smoke/production-flow --verbose",
+    "e2e:smoke": "jest --testPathPattern=smoke/production-flow --verbose",
     "lint": "eslint src/api-server.ts src/routes/**/* src/security/**/* src/services/**/* src/utils/**/* --ext .ts,.tsx",
     "lint:fix": "eslint src/api-server.ts src/routes/**/* src/security/**/* src/services/**/* src/utils/**/* --ext .ts,.tsx --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,json}\"",
@@ -29,6 +31,8 @@
     "metrics:show": "node scripts/showMetrics.js",
     "agents:test": "tsx src/runner/testAllAgents.ts",
     "agents:monitor": "tsx scripts/healthMonitor.ts",
+    "run:approve": "tsx src/runner/runApprovalAgent.ts",
+    "run:publish": "tsx src/runner/runAlertAgent.ts",
     "odds-api:test": "tsx scripts/test-odds-api-integration.ts",
     "odds-api:monitor": "tsx scripts/monitor-credit-usage.ts",
     "elite:test": "tsx scripts/test-elite-dual-api.ts",
@@ -99,6 +103,10 @@
     "runner:build": "tsc -p tsconfig.runner.json",
     "runner:start": "TS_NODE_COMPILER_OPTIONS=\"{\\\"noResolve\\\":false,\\\"types\\\":[\\\"node\\\"]}\" ts-node --project tsconfig.runner.json src/runner/runFeedAgentNow.ts",
     "test:ci": "node /app/node_modules/jest/bin/jest.js --config '{\"preset\":\"ts-jest\",\"testEnvironment\":\"node\",\"rootDir\":\"/app/apps/api\",\"transform\":{\"^.+\\\\.(t|j)sx?$\":\"ts-jest\"}}' test/contracts/database-schema.test.ts test/smartform/view-performance.test.ts --runInBand --silent",
+    "agent:feed": "tsx src/runner/runFeedAgentNow.ts",
+    "agent:score": "tsx src/runner/runScoringAgent.ts",
+    "agent:alert": "tsx -e \"import('./src/agents/AlertAgent').then(m => m.processRecentPicks?.() || console.log('Alert agent run'))\"",
+    "agent:settle": "tsx -e \"import('./src/agents/SettlementAgent').then(m => m.checkRecentSettlements?.() || console.log('Settlement check run'))\"",
     "clean": "rimraf dist"
   },
   "dependencies": {
