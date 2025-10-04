@@ -43,6 +43,13 @@
     "settlement:backfill": "tsx bin/settlement-runner.ts backfill",
     "settlement:health": "tsx bin/settlement-runner.ts health",
     "settlement:stats": "tsx bin/settlement-runner.ts stats",
+    "db:health": "tsx src/scripts/db-health.ts",
+    "db:push:cloud": "tsx src/scripts/db-push-cloud.ts",
+    "canary": "tsx src/scripts/ops/canary.ts",
+    "e2e": "tsx src/scripts/e2e/everything.ts",
+    "e2e:verify": "tsx src/scripts/e2e/verifyCloud.ts",
+    "props:mlb:ingest": "python scripts/mlb_props_ingest.py",
+    "polling:start": "python scripts/polling_loop.py",
     "db:backfill:sgo": "tsx scripts/sgo-backfill.ts --days=7 --sports=all",
     "db:backfill:sgo:test": "tsx scripts/sgo-backfill.ts --days=2 --sports=MLB,NBA --dry-run",
     "db:backfill:sgo:continuous": "tsx scripts/sgo-backfill.ts --continuous --days=30",
@@ -197,7 +204,7 @@
     "ts-jest": "^29.1.1",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "tsx": "^4.6.0",
+    "tsx": "^4.20.6",
     "typescript": "^5.8.3"
   },
   "lint-staged": {

@@ -688,28 +688,43 @@ export class FeedAgent extends BaseAgent {
     const duplicateKeys = new Set<string>();
 
     for (const pick of picks) {
-      // Create a deduplication key
-      const dedupeKey = `${pick.userId}_${pick.outcome}_${pick.line}_${pick.groupKey}`;
+      // Create a deduplication key using external IDs for proper matching
+      const dedupeKey = pick.externalPropId ||
+                        `${pick.externalGameId}_${pick.market}_${pick.outcome}_${pick.line}`;
 
       if (duplicateKeys.has(dedupeKey)) {
         // Skip duplicate within current batch
         continue;
       }
 
-      // Check against existing picks in database (cache-first)
+      // Check against existing picks in database using proper filters
       try {
-        const existingPicks = await this.unifiedPicksService.listPicks({
-          // This is a simple check - in production you'd want more sophisticated deduplication
-          limit: 10
-        });
+        const supabase = this.unifiedPicksService['supabase'];
 
-        const existsInDb = existingPicks.some(existing =>
-          existing.groupKey === pick.groupKey &&
-          existing.outcome === pick.outcome &&
-          existing.line === pick.line
-        );
+        // Get bookmaker_key from metadata
+        const bookmakerKey = pick.metadata?.bookmaker_key || 'unknown';
 
-        if (!existsInDb) {
+        // Query with proper filters: external IDs, market, AND bookmaker_key
+        let query = supabase
+          .from('unified_picks')
+          .select('id')
+          .eq('external_game_id', pick.externalGameId)
+          .eq('market', pick.market)
+          .eq('metadata->>bookmaker_key', bookmakerKey);  // CRITICAL: Include bookmaker
+
+        // Add external_prop_id filter if it exists (for player props)
+        if (pick.externalPropId) {
+          query = query.eq('external_prop_id', pick.externalPropId);
+        } else {
+          // For non-player props, match on outcome and line
+          query = query
+            .eq('outcome', pick.outcome)
+            .eq('line', pick.line);
+        }
+
+        const { data: existingPicks } = await query.limit(1);
+
+        if (!existingPicks || existingPicks.length === 0) {
           duplicateKeys.add(dedupeKey);
           deduplicatedPicks.push(pick);
         }
@@ -718,7 +733,7 @@ export class FeedAgent extends BaseAgent {
         // If deduplication check fails, include the pick to be safe
         this.logger.warn('Deduplication check failed, including pick', {
           error: error instanceof Error ? error.message : String(error),
-          groupKey: pick.groupKey
+          externalGameId: pick.externalGameId
         });
 
         duplicateKeys.add(dedupeKey);

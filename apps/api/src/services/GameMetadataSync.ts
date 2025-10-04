@@ -23,8 +23,9 @@ interface GameMetadataRow {
   sport: string;
   home_team: string;
   away_team: string;
-  commence_time: string;
+  game_date: string; // Changed from commence_time to match database schema
   matchup: string;
+  external_game_id: string; // Map to Odds API id
   external_data: {
     odds_api_id: string;
     sport_key: string;
@@ -75,13 +76,16 @@ export async function syncGameMetadata(games: OddsApiGame[]): Promise<{
       return { success: false, synced: 0, errors };
     }
 
+    const { randomUUID } = await import('crypto');
+
     const rows: GameMetadataRow[] = games.map(game => ({
-      id: game.id,
+      id: randomUUID(), // Generate UUID for games table primary key
       sport: mapSportKeyToDbFormat(game.sport_key),
       home_team: game.home_team,
       away_team: game.away_team,
-      commence_time: game.commence_time,
+      game_date: game.commence_time, // Map commence_time to game_date
       matchup: `${game.away_team} @ ${game.home_team}`,
+      external_game_id: game.id, // Store Odds API id in external_game_id
       external_data: {
         odds_api_id: game.id,
         sport_key: game.sport_key,
@@ -94,7 +98,7 @@ export async function syncGameMetadata(games: OddsApiGame[]): Promise<{
     const { data, error } = await supabase
       .from('games')
       .upsert(rows, {
-        onConflict: 'id',
+        onConflict: 'external_game_id', // Upsert by Odds API game id, not UUID
         ignoreDuplicates: false,
       });
 

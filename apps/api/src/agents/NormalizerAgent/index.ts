@@ -12,9 +12,9 @@
 import { BaseAgent } from '../BaseAgent';
 import { BaseAgentConfig, BaseAgentDependencies, HealthStatus, BaseMetrics } from '../BaseAgent/types';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { createLogger } from '../../shared/logger';
+import { logger as baseLogger } from '../../shared/logger';
 
-const logger = createLogger('NormalizerAgent');
+const logger = baseLogger;
 
 export interface RawProp {
   id: string;

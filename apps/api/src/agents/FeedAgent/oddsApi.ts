@@ -29,10 +29,10 @@ const API_CONFIG = {
   retryDelay: 1000
 };
 
-// Credit monitoring for free tier (500 credits/month)
+// Credit monitoring (5M credits available)
 const CREDIT_MONITOR = {
-  monthlyLimit: 500,
-  dailyBudget: 16, // ~500/30 days
+  monthlyLimit: 5_000_000,
+  dailyBudget: 10_000, // ~5M/30 days = 166K/day, but use 10K conservative
   currentUsage: 0,
   resetDate: new Date()
 };
@@ -285,11 +285,37 @@ export function expandMarketAliases(sport: string, tokens: string[]): string[] {
 
   // Define sport-specific player prop expansions
   const NFL_PLAYER_PROPS = [
+    // Standard Passing props
     'player_pass_yds', 'player_pass_tds', 'player_pass_attempts', 'player_pass_completions',
-    'player_rush_yds', 'player_rush_tds', 'player_rush_attempts',
-    'player_reception_yds', 'player_reception_tds', 'player_receptions',
-    'player_anytime_td', 'player_1st_td', 'player_last_td',
-    'player_pass_rush_yds', 'player_rush_reception_yds'
+    'player_pass_interceptions', 'player_pass_longest_completion', 'player_pass_yds_q1',
+    // Standard Rushing props
+    'player_rush_yds', 'player_rush_tds', 'player_rush_attempts', 'player_rush_longest',
+    // Standard Receiving props
+    'player_receptions', 'player_reception_longest', 'player_reception_tds', 'player_reception_yds',
+    // Standard Touchdowns
+    'player_anytime_td', 'player_1st_td', 'player_last_td', 'player_tds_over',
+    // Standard Combined stats
+    'player_pass_rush_yds', 'player_pass_rush_reception_tds', 'player_pass_rush_reception_yds',
+    'player_rush_reception_tds', 'player_rush_reception_yds',
+    // Standard Kicking
+    'player_field_goals', 'player_kicking_points', 'player_pats',
+    // Standard Defense
+    'player_assists', 'player_defensive_interceptions', 'player_sacks',
+    'player_solo_tackles', 'player_tackles_assists',
+
+    // ALTERNATE LINES - Same markets with _alternate suffix
+    'player_pass_yds_alternate', 'player_pass_tds_alternate', 'player_pass_attempts_alternate',
+    'player_pass_completions_alternate', 'player_pass_interceptions_alternate',
+    'player_pass_longest_completion_alternate', 'player_pass_rush_yds_alternate',
+    'player_rush_yds_alternate', 'player_rush_tds_alternate', 'player_rush_attempts_alternate',
+    'player_rush_longest_alternate', 'player_receptions_alternate',
+    'player_reception_longest_alternate', 'player_reception_tds_alternate',
+    'player_reception_yds_alternate', 'player_pass_rush_reception_tds_alternate',
+    'player_pass_rush_reception_yds_alternate', 'player_rush_reception_tds_alternate',
+    'player_rush_reception_yds_alternate', 'player_field_goals_alternate',
+    'player_kicking_points_alternate', 'player_pats_alternate', 'player_assists_alternate',
+    'player_defensive_interceptions_alternate', 'player_sacks_alternate',
+    'player_solo_tackles_alternate', 'player_tackles_assists_alternate'
   ];
 
   const NBA_PLAYER_PROPS = [
@@ -299,9 +325,14 @@ export function expandMarketAliases(sport: string, tokens: string[]): string[] {
   ];
 
   const MLB_PLAYER_PROPS = [
-    'batter_home_runs', 'batter_hits', 'batter_total_bases', 'batter_rbis', 'batter_runs_scored',
-    'batter_singles', 'batter_doubles', 'batter_triples', 'batter_walks', 'batter_strikeouts', 'batter_stolen_bases',
-    'pitcher_strikeouts', 'pitcher_hits_allowed', 'pitcher_walks', 'pitcher_earned_runs', 'pitcher_outs'
+    // Batter props
+    'batter_home_runs', 'batter_first_home_run', 'batter_hits', 'batter_total_bases',
+    'batter_rbis', 'batter_runs_scored', 'batter_hits_runs_rbis',
+    'batter_singles', 'batter_doubles', 'batter_triples',
+    'batter_walks', 'batter_strikeouts', 'batter_stolen_bases',
+    // Pitcher props
+    'pitcher_strikeouts', 'pitcher_record_a_win', 'pitcher_hits_allowed',
+    'pitcher_walks', 'pitcher_earned_runs', 'pitcher_outs'
   ];
 
   const WNBA_PLAYER_PROPS = [
@@ -644,6 +675,19 @@ export async function fetchOddsByEventIds(params: {
   console.log(`[OddsAPI] Fetching odds for ${eventIds.length} events in ${sportKey}`);
   console.log(`[OddsAPI] Core markets: ${core.length}, Player props: ${playerProps.length}`);
 
+  // TELEMETRY: Log requested configuration
+  console.log(`[OddsAPI] TELEMETRY - Request config:`, {
+    sportKey,
+    eventCount: eventIds.length,
+    requestedMarkets: markets,
+    coreMarkets: core,
+    playerPropsMarkets: playerProps,
+    regions,
+    bookmakers: bookmakers || 'all',
+    oddsFormat,
+    dateFormat
+  });
+
   const allGames: OddsApiGame[] = [];
 
   // Fetch core markets (batch endpoint)
@@ -662,12 +706,56 @@ export async function fetchOddsByEventIds(params: {
         requestParams.bookmakers = bookmakers.join(',');
       }
 
+      // TELEMETRY: Log exact request params
+      console.log(`[OddsAPI] TELEMETRY - Core markets request params:`, requestParams);
+
       const games = await makeOddsApiRequest<OddsApiGame[]>(
         `/sports/${sportKey}/odds`,
         requestParams
       );
 
       console.log(`[OddsAPI] Fetched ${games.length} games with core markets`);
+
+      // TELEMETRY: Count markets returned per event
+      const perEventMarketCounts: Record<string, { h2h: number; spreads: number; totals: number }> = {};
+
+      for (const game of games) {
+        const eventCounts = { h2h: 0, spreads: 0, totals: 0 };
+
+        for (const bookmaker of game.bookmakers) {
+          for (const market of bookmaker.markets) {
+            const key = market.key.toLowerCase();
+            if (key === 'h2h') eventCounts.h2h++;
+            else if (key === 'spreads') eventCounts.spreads++;
+            else if (key === 'totals') eventCounts.totals++;
+          }
+        }
+
+        perEventMarketCounts[game.id] = eventCounts;
+      }
+
+      // TELEMETRY: Log market counts
+      console.log(`[OddsAPI] TELEMETRY - Per-event market counts:`, perEventMarketCounts);
+
+      // TELEMETRY: Sample first event's raw markets
+      if (games.length > 0) {
+        const firstGame = games[0];
+        const firstEventSample = {
+          eventId: firstGame.id,
+          matchup: `${firstGame.away_team} @ ${firstGame.home_team}`,
+          bookmakerCount: firstGame.bookmakers.length,
+          rawMarkets: firstGame.bookmakers.map(b => ({
+            bookmaker: b.key,
+            markets: b.markets.map(m => ({
+              key: m.key,
+              outcomeCount: m.outcomes.length,
+              sampleOutcome: m.outcomes[0]
+            }))
+          }))
+        };
+        console.log(`[OddsAPI] TELEMETRY - First event sample:`, JSON.stringify(firstEventSample, null, 2));
+      }
+
       allGames.push(...games);
     } catch (error) {
       console.error(`[OddsAPI] Failed to fetch core markets:`, error);
@@ -678,9 +766,17 @@ export async function fetchOddsByEventIds(params: {
   // Fetch player props (per-event endpoint)
   if (playerProps.length > 0) {
     console.log(`[OddsAPI] Fetching player props via per-event endpoint for ${eventIds.length} events`);
+    console.log(`[OddsAPI] Rate limiting: 500ms delay between requests to avoid 429 errors`);
 
-    for (const eventId of eventIds) {
+    for (let i = 0; i < eventIds.length; i++) {
+      const eventId = eventIds[i];
+
       try {
+        // Rate limiting: 500ms delay between requests (Odds API limit is 2 req/sec)
+        if (i > 0) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+
         const requestParams: Record<string, any> = {
           regions,
           markets: playerProps.join(','),
@@ -713,7 +809,7 @@ export async function fetchOddsByEventIds(params: {
           allGames.push(game);
         }
 
-        console.log(`[OddsAPI] Fetched player props for event ${eventId}`);
+        console.log(`[OddsAPI] Fetched player props for event ${i + 1}/${eventIds.length}: ${eventId}`);
       } catch (error) {
         console.warn(`[OddsAPI] Failed to fetch player props for event ${eventId}:`, error);
         // Continue with other events
@@ -898,6 +994,12 @@ export async function fetchAndWriteCoreMarkets(
     errors: number;
   };
   games: OddsApiGame[];
+  telemetry?: {
+    requestedMarkets: string[];
+    perEventMarketCounts: Record<string, { h2h: number; spreads: number; totals: number }>;
+    transformedMarkets: { h2h: number; spreads: number; totals: number; playerProps: number };
+    firstEventSample?: any;
+  };
 }> {
   const resolvedConfig = resolveOddsConfig(config);
   const { transformGamesToUnifiedPicks } = await import('./transform.js');
@@ -905,6 +1007,14 @@ export async function fetchAndWriteCoreMarkets(
 
   console.log('[OddsAPI] Fetching core markets using event-first flow');
   console.log('[OddsAPI] Sport:', sportKey, 'Markets:', resolvedConfig.markets);
+
+  // Initialize telemetry
+  const telemetry = {
+    requestedMarkets: resolvedConfig.markets,
+    perEventMarketCounts: {} as Record<string, { h2h: number; spreads: number; totals: number }>,
+    transformedMarkets: { h2h: 0, spreads: 0, totals: 0, playerProps: 0 },
+    firstEventSample: undefined as any
+  };
 
   // Expand market aliases and filter out player-props
   const expandedMarkets = expandMarketAliases(sportKey, resolvedConfig.markets);
@@ -921,6 +1031,7 @@ export async function fetchAndWriteCoreMarkets(
       marketsProcessed: { h2h: 0, spreads: 0, totals: 0 },
       coreMarketWrites: { attemptedWrites: 0, inserted: 0, skippedDedup: 0, errors: 0 },
       games: [],
+      telemetry
     };
   }
 
@@ -959,28 +1070,64 @@ export async function fetchAndWriteCoreMarkets(
 
   console.log(`[OddsAPI] Fetched odds for ${allGames.length} games`);
 
-  // Count markets processed
+  // Count markets processed AND populate telemetry
   const marketsProcessed = { h2h: 0, spreads: 0, totals: 0 };
   for (const game of allGames) {
+    const eventCounts = { h2h: 0, spreads: 0, totals: 0 };
+
     for (const bookmaker of game.bookmakers) {
       for (const market of bookmaker.markets) {
         const key = market.key.toLowerCase();
-        if (key === 'h2h') marketsProcessed.h2h++;
-        else if (key === 'spreads') marketsProcessed.spreads++;
-        else if (key === 'totals') marketsProcessed.totals++;
+        if (key === 'h2h') {
+          marketsProcessed.h2h++;
+          eventCounts.h2h++;
+        } else if (key === 'spreads') {
+          marketsProcessed.spreads++;
+          eventCounts.spreads++;
+        } else if (key === 'totals') {
+          marketsProcessed.totals++;
+          eventCounts.totals++;
+        }
       }
     }
+
+    telemetry.perEventMarketCounts[game.id] = eventCounts;
+  }
+
+  // Capture first event sample
+  if (allGames.length > 0) {
+    const firstGame = allGames[0];
+    telemetry.firstEventSample = {
+      eventId: firstGame.id,
+      matchup: `${firstGame.away_team} @ ${firstGame.home_team}`,
+      bookmakerCount: firstGame.bookmakers.length,
+      rawMarkets: firstGame.bookmakers.map(b => ({
+        bookmaker: b.key,
+        markets: b.markets.map(m => m.key)
+      }))
+    };
   }
 
   console.log('[OddsAPI] Markets processed:', marketsProcessed);
 
   // Step 4: Transform to UnifiedPickCoreMarket[]
-  const picks = transformGamesToUnifiedPicks(allGames, resolvedConfig.bookmakers);
-  console.log(`[OddsAPI] Transformed ${picks.length} picks from ${allGames.length} games`);
+  const rawPicks = transformGamesToUnifiedPicks(allGames, resolvedConfig.bookmakers);
+  console.log(`[OddsAPI] Transformed ${rawPicks.length} picks from ${allGames.length} games`);
+
+  // Step 4.5: In-memory deduplication before database write
+  const { dedupPicks } = await import('./utils/dedup.js');
+  const { kept, inMemoryDropped, invalidDropped, samples } = dedupPicks(rawPicks);
+
+  console.log(`[OddsAPI] Dedup: kept=${kept.length}, inMemoryDropped=${inMemoryDropped}, invalidDropped=${invalidDropped}, toWrite=${kept.length}`);
+
+  // Log first 3 duplicate/invalid samples for debugging
+  if (samples.length > 0) {
+    console.log(`[OddsAPI] Dedup samples (first 3):`, JSON.stringify(samples.slice(0, 3), null, 2));
+  }
 
   // Log first 2 picks per market for debugging
-  const samplesByMarket: Record<string, typeof picks> = { h2h: [], spreads: [], totals: [] };
-  for (const pick of picks) {
+  const samplesByMarket: Record<string, typeof kept> = { h2h: [], spreads: [], totals: [] };
+  for (const pick of kept) {
     if (!samplesByMarket[pick.market]) {
       samplesByMarket[pick.market] = [];
     }
@@ -989,20 +1136,33 @@ export async function fetchAndWriteCoreMarkets(
     }
   }
 
-  for (const [market, samples] of Object.entries(samplesByMarket)) {
-    if (samples.length > 0) {
-      console.log(`[OddsAPI] Sample ${market} picks:`, JSON.stringify(samples, null, 2));
+  for (const [market, marketSamples] of Object.entries(samplesByMarket)) {
+    if (marketSamples.length > 0) {
+      console.log(`[OddsAPI] Sample ${market} picks:`, JSON.stringify(marketSamples, null, 2));
     }
   }
 
-  // Step 5: Write to unified_picks
-  const writeMetrics = await upsertUnifiedPicksCore(picks);
+  // Step 5: Write to unified_picks (using deduplicated picks)
+  const writeMetrics = await upsertUnifiedPicksCore(kept);
+
+  // Capture transformed market counts from kept picks
+  for (const pick of kept) {
+    const market = pick.market.toLowerCase();
+    if (market === 'h2h') telemetry.transformedMarkets.h2h++;
+    else if (market === 'spreads') telemetry.transformedMarkets.spreads++;
+    else if (market === 'totals') telemetry.transformedMarkets.totals++;
+    else telemetry.transformedMarkets.playerProps++;
+  }
+
+  // Final telemetry report
+  console.log('[OddsAPI] FINAL TELEMETRY REPORT:', JSON.stringify(telemetry, null, 2));
 
   return {
     eventsFetched: events.length,
     marketsProcessed,
     coreMarketWrites: writeMetrics,
     games: allGames,
+    telemetry
   };
 }
 

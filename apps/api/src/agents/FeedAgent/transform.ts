@@ -47,6 +47,7 @@ export interface UnifiedPickCoreMarket {
   external_game_id: string;
   external_prop_id: string | null;
   market: 'h2h' | 'spreads' | 'totals' | string;
+  selection: string; // Team/player name for the pick (required for unique constraint)
   matchup: string;
   game_date: string;
   line: number | null;
@@ -100,6 +101,7 @@ export function mapCoreMarketsToUnifiedPicks(
             external_game_id: game.id,
             external_prop_id: null, // NULL for core markets
             market: 'h2h',
+            selection: outcome.name, // Team name
             matchup,
             game_date: game.commence_time,
             line: null, // NULL for h2h
@@ -130,6 +132,7 @@ export function mapCoreMarketsToUnifiedPicks(
             external_game_id: game.id,
             external_prop_id: null, // NULL for core markets
             market: 'spreads',
+            selection: outcome.name, // Team name
             matchup,
             game_date: game.commence_time,
             line: outcome.point || 0,
@@ -160,6 +163,7 @@ export function mapCoreMarketsToUnifiedPicks(
             external_game_id: game.id,
             external_prop_id: null, // NULL for core markets
             market: 'totals',
+            selection: outcome.name, // 'Over' or 'Under'
             matchup,
             game_date: game.commence_time,
             line: outcome.point || 0,
@@ -187,12 +191,18 @@ export function mapCoreMarketsToUnifiedPicks(
           // MLB props have player name in description field
           const playerName = outcome.description || outcome.name;
 
+          // Include line and outcome (Over/Under) in external_prop_id for uniqueness
+          // This prevents duplicates when same prop has both Over and Under
+          const line = outcome.point !== undefined ? outcome.point : 'noLine';
+          const outcomeType = outcome.name; // 'Over', 'Under', 'Yes', 'No'
+
           picks.push({
             id: randomUUID(),
             source: 'odds-api',
             external_game_id: game.id,
-            external_prop_id: `${game.id}_${market.key}_${playerName}`,
+            external_prop_id: `${game.id}_${market.key}_${playerName}_${line}_${outcomeType}`,
             market: market.key,
+            selection: playerName, // Player name
             matchup,
             game_date: game.commence_time,
             line: outcome.point || null,
@@ -229,10 +239,37 @@ export function transformGamesToUnifiedPicks(
 ): UnifiedPickCoreMarket[] {
   const allPicks: UnifiedPickCoreMarket[] = [];
 
+  // TELEMETRY: Track per-market counts during transform
+  const telemetry = {
+    perMarketCounts: { h2h: 0, spreads: 0, totals: 0, playerProps: 0 },
+    totalPicks: 0,
+    gamesProcessed: games.length
+  };
+
   for (const game of games) {
     const picks = mapCoreMarketsToUnifiedPicks(game, allowedBookmakers);
     allPicks.push(...picks);
+
+    // TELEMETRY: Count picks by market
+    for (const pick of picks) {
+      const market = pick.market.toLowerCase();
+      if (market === 'h2h') telemetry.perMarketCounts.h2h++;
+      else if (market === 'spreads') telemetry.perMarketCounts.spreads++;
+      else if (market === 'totals') telemetry.perMarketCounts.totals++;
+      else telemetry.perMarketCounts.playerProps++;
+    }
   }
+
+  telemetry.totalPicks = allPicks.length;
+
+  // TELEMETRY: Log transform results
+  console.log(`[Transform] TELEMETRY - Transform complete:`, telemetry);
+  console.log(`[Transform] TELEMETRY - Markets breakdown:`, {
+    h2h: `${telemetry.perMarketCounts.h2h} picks`,
+    spreads: `${telemetry.perMarketCounts.spreads} picks`,
+    totals: `${telemetry.perMarketCounts.totals} picks`,
+    playerProps: `${telemetry.perMarketCounts.playerProps} picks`
+  });
 
   return allPicks;
 }

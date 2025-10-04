@@ -9,6 +9,10 @@ if (!process.env.NODE_ENV) {
   process.env.NODE_ENV = 'development';
 }
 
+// Enforce SaaS mode - fail fast if DB config is invalid
+import { assertNoLocalDb } from './lib/db/dbGuard';
+assertNoLocalDb();
+
 import { getEnv } from './utils/getEnv';
 import { createLogger } from './utils/logger';
 // Optional telemetry import to avoid blocking local dev if package resolution differs

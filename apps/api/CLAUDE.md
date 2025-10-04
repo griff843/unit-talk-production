@@ -10,11 +10,13 @@ provides premium betting insights through advanced analytics, machine learning,
 and real-time market analysis. The platform operates primarily through Discord
 integration with a sophisticated agent-based automation system.
 
-### 🚀 **ScoringAgent - 53-Factor Professional Scoring System**
+### 🚀 **ScoringAgent - 45-Factor Professional Scoring System**
 
-**OPERATIONAL**: Professional betting intelligence with comprehensive multi-factor analysis:
+**⚠️ STATUS**: Operational but requires optimization (see `TIER_1_MASTER_ROADMAP.md`)
 
-**✅ Enhanced45Factor Engine (45 factors)**:
+**CURRENT STATE**: Professional betting intelligence with comprehensive multi-factor analysis:
+
+**✅ Enhanced45Factor Engine (45 factors - NOT 53)**:
 1. **Market Factors (10)** 🔥 - Devigged EV, line velocity, CLV prediction, market efficiency, sharp/public split, volume profile, cross-market arb, steam detection, market resistance, optimal timing
 2. **Player Factors (10)** 📊 - Player form, role stability, matchup history, injury impact, fatigue level, usage rate, performance trends, clutch factor, prop tendencies, situational performance
 3. **Matchup Factors (10)** 🏀 - Team vs team, defense vs position, pace impact, game script, home/away splits, referee tendencies, weather impact, venue factors, rest advantage, motivational factors
@@ -23,6 +25,12 @@ integration with a sophisticated agent-based automation system.
 
 **✅ Professional Features (8 features)**:
 6. **Professional Intelligence** ⚡ - Steam detection, closing line prediction, optimal timing, line shopping, public/sharp split analysis, market timing, injury timing, cross-market discrepancy
+
+**OPTIMIZATION REQUIRED**:
+- ML-based factor weighting (currently hardcoded)
+- Sport-specific tuning (NFL vs MLB vs NBA)
+- CalibratedProbabilityCalculator integration (reduce calibration error from 10.31% to <5%)
+- Historical data collection (currently only 2 days MLB, 0 days NFL)
 
 **System Architecture**: Real-time scoring with automatic triggers on pick ingestion. Sub-200ms feature retrieval, parallel processing for 1000+ props.
 

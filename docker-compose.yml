@@ -6,7 +6,7 @@ services:
   # DATABASE LAYER
   # ==============================================
 
-  # PostgreSQL Database
+  # PostgreSQL Database (LOCAL PROFILE ONLY)
   postgres:
     image: postgres:15-alpine
     container_name: unit-talk-postgres
@@ -36,6 +36,8 @@ services:
     networks:
       - unit-talk-network
     restart: unless-stopped
+    profiles:
+      - local
     # PRODUCTION RESOURCE LIMITS
     deploy:
       resources:
@@ -299,8 +301,8 @@ services:
   # APPLICATION SERVICES
   # ==============================================
 
-  # Main API Platform
-  api:
+  # Main API Platform - LOCAL PROFILE (with postgres dependency)
+  api-local:
     build:
       context: .
       dockerfile: ./apps/api/Dockerfile
@@ -310,12 +312,12 @@ services:
       - "3000:3000" # Fixed port mapping consistency
       - "9464:9464" # Metrics port
     env_file:
-      - .env
+      - .env.shared
+      - .env.local
     environment:
       - NODE_ENV=development
       - API_PORT=3000
       - PORT=3000
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-unit_talk_dev}
       - REDIS_URL=redis://redis:6379
       - REDIS_HOST=redis
       - REDIS_PORT=6379
@@ -327,13 +329,11 @@ services:
       - HEALTH_CHECK_INTERVAL=30000
       - ALLOW_SUPABASE_DEGRADED=true
       - NODE_OPTIONS=--max-old-space-size=8192
-      - SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-      - ODDS_API_KEY=${ODDS_API_KEY}
 
     volumes:
       - ./apps/api/src:/app/apps/api/src
       - ./apps/api/logs:/app/apps/api/logs
+      - ./apps/api/out:/app/apps/api/out
       - ./apps/api/tsconfig.json:/app/apps/api/tsconfig.json
       - ./apps/api/tsconfig.prod.json:/app/apps/api/tsconfig.prod.json
       - ./apps/api/tsconfig.test.json:/app/apps/api/tsconfig.test.json
@@ -342,15 +342,10 @@ services:
       - ./apps/api/scripts:/app/apps/api/scripts
       - ./apps/api/package.json:/app/apps/api/package.json
       - ./tsconfig.base.json:/app/tsconfig.base.json
-
       - ./apps/api/test:/app/apps/api/test
       - ./apps/api/jest.config.js:/app/apps/api/jest.config.js
-
-
       - ./scripts:/app/scripts
       - ./out:/app/out
-
-
       - ./apps/api/run-performance-benchmark.ts:/app/apps/api/run-performance-benchmark.ts
       - ./migrations:/app/migrations
       - ./apps/api/.eslintrc.json:/app/apps/api/.eslintrc.json
@@ -361,6 +356,8 @@ services:
         condition: service_healthy
       temporal:
         condition: service_healthy
+    profiles:
+      - local
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
       interval: 30s
@@ -370,15 +367,88 @@ services:
     networks:
       - unit-talk-network
     restart: unless-stopped
-    # PRODUCTION RESOURCE LIMITS
     deploy:
       resources:
         limits:
-          memory: 1G # 1GB memory limit
-          cpus: "1.0" # 1 CPU core limit
+          memory: 1G
+          cpus: "1.0"
         reservations:
-          memory: 512M # 512MB memory reservation
-          cpus: "0.5" # 0.5 CPU core reservation
+          memory: 512M
+          cpus: "0.5"
+
+  # Main API Platform - CLOUD PROFILE (NO postgres dependency)
+  api-cloud:
+    build:
+      context: .
+      dockerfile: ./apps/api/Dockerfile
+      target: development
+    container_name: unit-talk-api
+    ports:
+      - "3000:3000"
+      - "9464:9464"
+    env_file:
+      - .env.shared
+      - .env.cloud
+    environment:
+      - NODE_ENV=production
+      - E2E=1
+      - API_PORT=3000
+      - PORT=3000
+      - REDIS_URL=redis://redis:6379
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - TEMPORAL_SERVER_URL=temporal:7233
+      - PROMETHEUS_ENABLED=true
+      - PROMETHEUS_PORT=9464
+      - START_TEMPORAL_WORKER=true
+      - LOG_LEVEL=info
+      - HEALTH_CHECK_INTERVAL=30000
+      - ALLOW_SUPABASE_DEGRADED=false
+      - NODE_OPTIONS=--max-old-space-size=8192
+
+    volumes:
+      - ./apps/api/src:/app/apps/api/src
+      - ./apps/api/logs:/app/apps/api/logs
+      - ./apps/api/out:/app/apps/api/out
+      - ./apps/api/tsconfig.json:/app/apps/api/tsconfig.json
+      - ./apps/api/tsconfig.prod.json:/app/apps/api/tsconfig.prod.json
+      - ./apps/api/tsconfig.test.json:/app/apps/api/tsconfig.test.json
+      - ./apps/api/tsconfig.runner.json:/app/apps/api/tsconfig.runner.json
+      - ./packages:/app/packages
+      - ./apps/api/scripts:/app/apps/api/scripts
+      - ./apps/api/package.json:/app/apps/api/package.json
+      - ./tsconfig.base.json:/app/tsconfig.base.json
+      - ./apps/api/test:/app/apps/api/test
+      - ./apps/api/jest.config.js:/app/apps/api/jest.config.js
+      - ./scripts:/app/scripts
+      - ./out:/app/out
+      - ./apps/api/run-performance-benchmark.ts:/app/apps/api/run-performance-benchmark.ts
+      - ./migrations:/app/migrations
+      - ./apps/api/.eslintrc.json:/app/apps/api/.eslintrc.json
+    depends_on:
+      redis:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+    profiles:
+      - cloud
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - unit-talk-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+        reservations:
+          memory: 512M
+          cpus: "0.5"
 
   # Temporal Workers
   workers:
@@ -404,8 +474,10 @@ services:
       - ./packages:/app/packages
     command: npm run worker:dev
     depends_on:
-      api:
+      api-local:
         condition: service_healthy
+    profiles:
+      - local
     healthcheck:
       test: ["CMD", "node", "-e", "process.exit(0)"]
       interval: 60s
@@ -438,7 +510,7 @@ services:
       - NODE_ENV=test
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-unit_talk_dev}
       - REDIS_URL=redis://redis:6379
-      - API_URL=http://api:3000
+      - API_URL=http://api-local:3000
       - LOG_LEVEL=debug
       - DISCORD_BOT_TOKEN=${DISCORD_TOKEN}
       - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
@@ -449,8 +521,10 @@ services:
       - ./apps/discord-bot/logs:/app/logs
       - ./packages:/app/packages
     depends_on:
-      api:
+      api-local:
         condition: service_healthy
+    profiles:
+      - local
     healthcheck:
       test: ["CMD", "node", "-e", "process.exit(0)"]
       interval: 60s
@@ -482,8 +556,10 @@ services:
       - /app/node_modules
       - /app/.next
     depends_on:
-      api:
+      api-local:
         condition: service_healthy
+    profiles:
+      - local
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3021/api/health"]
       interval: 30s
@@ -513,8 +589,10 @@ services:
       - /app/node_modules
       - /app/.next
     depends_on:
-      api:
+      api-local:
         condition: service_healthy
+    profiles:
+      - local
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
       interval: 30s
@@ -550,10 +628,12 @@ services:
       - /app/node_modules
       - /app/.next
     depends_on:
-      api:
+      api-local:
         condition: service_healthy
       prometheus:
         condition: service_healthy
+    profiles:
+      - local
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3015/"]
       interval: 30s
@@ -642,8 +722,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      api:
+      api-local:
         condition: service_healthy
+    profiles:
+      - local
     networks:
       - unit-talk-network
     restart: unless-stopped

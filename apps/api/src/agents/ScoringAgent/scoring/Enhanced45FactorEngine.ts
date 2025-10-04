@@ -10,6 +10,12 @@ import { GradingFeatureSet } from '../../../types/GradingFeatureSet';
 import { FeatureStoreIntegration } from './FeatureStoreIntegration';
 import { MaterialChangeDetector } from './MaterialChangeDetector';
 import { createLogger } from '../../../utils/logger';
+import {
+  applyProfessionalOddsFilter,
+  calculateOddsPenalty,
+  calculateTrueExpectedValue,
+  oddsToImpliedProbability
+} from './oddsValueCalculator';
 
 export interface Enhanced45FactorResult {
   totalScore: number;
@@ -211,6 +217,29 @@ export class Enhanced45FactorEngine {
     }
 
     try {
+      // Step 0: Professional Odds Filter - CRITICAL
+      const odds = features.odds || features.market?.odds || -110;
+      const oddsFilter = applyProfessionalOddsFilter(odds);
+
+      if (!oddsFilter.passes) {
+        this.logger.warn('Pick rejected by professional odds filter', {
+          propId: features.propId,
+          odds,
+          reason: oddsFilter.reason
+        });
+
+        // Return minimum score for filtered picks
+        return this.createRejectedResult(features, startTime, oddsFilter.reason);
+      }
+
+      if (oddsFilter.severity === 'warn') {
+        this.logger.info('Pick flagged for odds review', {
+          propId: features.propId,
+          odds,
+          reason: oddsFilter.reason
+        });
+      }
+
       // Step 1: Retrieve precomputed features from feature store (sub-50ms target)
       const featureStartTime = Date.now();
       const enhancedFeatures = await this.featureStore.getEnhancedFeatures(
@@ -219,11 +248,13 @@ export class Enhanced45FactorEngine {
         features.player || 'unknown'
       );
       const featuresRetrievedMs = Date.now() - featureStartTime;
-      
+
       this.logger.debug('Features retrieved', {
         propId: features.propId,
         retrievalTimeMs: featuresRetrievedMs,
-        featuresCount: Object.keys(enhancedFeatures).length
+        featuresCount: Object.keys(enhancedFeatures).length,
+        odds,
+        oddsFilter: oddsFilter.severity
       });
       
       // Step 2: Calculate all 45 factors in parallel
@@ -323,9 +354,9 @@ export class Enhanced45FactorEngine {
     enhancedFeatures: any,
     weights: Factor45Config['marketFactors']
   ): Promise<{ categoryScore: number; factors: Record<string, number> }> {
-    
+
     const factors = {
-      expectedValueDevigged: this.calculateDeviggedEV(features, enhancedFeatures),
+      expectedValueDevigged: await this.calculateDeviggedEV(features, enhancedFeatures),
       lineMovementVelocity: this.calculateLineVelocity(enhancedFeatures.lineHistory || []),
       closingLineValue: this.calculateCLV(features, enhancedFeatures.predictedClosingLine || 0),
       marketEfficiency: this.calculateMarketEfficiency(enhancedFeatures.marketData || {}),
@@ -494,13 +525,77 @@ export class Enhanced45FactorEngine {
   // MARKET FACTORS IMPLEMENTATION
   // ========================================
   
-  private calculateDeviggedEV(features: GradingFeatureSet, enhancedFeatures: any): number {
-    const rawEV = features.expectedValue || 0;
+  private async calculateDeviggedEV(features: GradingFeatureSet, enhancedFeatures: any): Promise<number> {
+    const odds = features.odds || features.market?.odds || -110;
+
+    // Apply odds penalty FIRST
+    const oddsPenalty = calculateOddsPenalty(odds);
+
+    // Calculate implied probability
+    const impliedProb = oddsToImpliedProbability(odds);
+
+    // Assume 5% vig (standard two-way market)
     const vigAdjustment = enhancedFeatures.vigData?.totalVig || 0.05;
-    const deviggedEV = rawEV / (1 - vigAdjustment);
-    
-    // Scale to 0-100: 10% EV = 80 points
-    return Math.max(0, Math.min(100, 50 + (deviggedEV * 4)));
+    const trueProb = impliedProb / (1 + vigAdjustment);
+
+    // Calculate TRUE expected value using REAL probability model
+    // This replaces the hardcoded 52% assumption
+    let calculatedProb = 0.52; // Fallback default
+
+    try {
+      // Import probability calculator
+      const { probabilityCalculator } = await import('../../../models/ProbabilityCalculator');
+
+      // Calculate real probability
+      const probResult = await probabilityCalculator.calculateProbability({
+        sport: features.sport || 'NFL',
+        playerId: features.player?.id || features.player?.player_id,
+        playerName: features.player?.name || features.player?.player_name || 'Unknown',
+        marketType: features.market?.type || features.market?.market_type || 'unknown',
+        line: features.market?.line || 0,
+        opponent: features.opponent?.name || features.opponent,
+        venue: features.venue,
+        gameDate: features.game?.date || features.event_date
+      });
+
+      calculatedProb = probResult.probability;
+
+      // Log the real probability calculation
+      this.logger.info('Real probability calculated', {
+        player: features.player?.name,
+        market: features.market?.type,
+        line: features.market?.line,
+        probability: probResult.probability.toFixed(4),
+        confidence: probResult.confidence.toFixed(4),
+        method: probResult.method,
+        dataPoints: probResult.dataPoints
+      });
+    } catch (error: any) {
+      this.logger.warn('Failed to calculate real probability, using fallback', {
+        error: error.message,
+        fallbackProb: calculatedProb
+      });
+    }
+
+    const ev = calculateTrueExpectedValue(odds, calculatedProb);
+
+    // Base score on EV
+    let baseScore = Math.max(0, Math.min(100, 50 + (ev * 2)));
+
+    // Apply odds penalty to base score
+    const finalScore = baseScore * oddsPenalty;
+
+    this.logger.debug('Devigged EV calculated', {
+      odds,
+      impliedProb: impliedProb.toFixed(4),
+      trueProb: trueProb.toFixed(4),
+      ev: ev.toFixed(2),
+      oddsPenalty: oddsPenalty.toFixed(2),
+      baseScore: baseScore.toFixed(2),
+      finalScore: finalScore.toFixed(2)
+    });
+
+    return finalScore;
   }
   
   private calculateLineVelocity(lineHistory: any[]): number {
@@ -997,6 +1092,40 @@ export class Enhanced45FactorEngine {
       timestamp: new Date().toISOString(),
       version: '1.0.0-fallback',
       configUsed: 'fallback'
+    };
+  }
+
+  /**
+   * Create result for picks rejected by professional odds filter
+   */
+  private createRejectedResult(
+    features: GradingFeatureSet,
+    startTime: number,
+    reason?: string
+  ): Enhanced45FactorResult {
+    return {
+      totalScore: 0,  // Zero score for rejected picks
+      tier: 'D',
+      confidence: 0,
+      kellyFraction: 0,
+      marketScore: 0,
+      playerScore: 0,
+      matchupScore: 0,
+      priceScore: 0,
+      metaScore: 0,
+      factorScores: { rejection_reason: reason || 'Unprofessional odds' },
+      factorWeights: {},
+      riskAdjustedScore: 0,
+      expectedValue: -100,  // Negative EV to signal bad value
+      sharpeRatio: 0,
+      maxDrawdown: 1.0,  // 100% drawdown risk
+      processingTimeMs: Date.now() - startTime,
+      featuresRetrievedMs: 0,
+      modelAgreement: 0,
+      dataQuality: 0,
+      timestamp: new Date().toISOString(),
+      version: '1.0.0-rejected',
+      configUsed: 'professional-odds-filter'
     };
   }
   

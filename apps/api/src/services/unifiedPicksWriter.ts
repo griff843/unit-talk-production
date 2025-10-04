@@ -88,9 +88,10 @@ export async function upsertUnifiedPicksCore(
   // System user ID for automated picks
   const SYSTEM_USER_ID = '7ce2ba1f-459f-47cf-ab06-dc3566a847c6';
 
-  // Transform picks to DB rows and calculate promotion_fingerprint
+  // Transform picks to DB rows matching Supabase cloud schema
   const dbRows = picks.map(pick => {
-    const selection = pick.metadata.team || pick.metadata.outcome || 'unknown';
+    // Use the selection field directly (required for unique constraint)
+    const selection = pick.selection || pick.metadata.team || pick.metadata.outcome || 'unknown';
 
     // Calculate potential_payout from American odds (1 unit stake)
     const stake = 1;
@@ -102,7 +103,6 @@ export async function upsertUnifiedPicksCore(
     }
 
     return {
-      id: pick.id,
       user_id: SYSTEM_USER_ID,
       pick_type: 'single',
       selection,
@@ -117,6 +117,8 @@ export async function upsertUnifiedPicksCore(
       line: pick.line,
       odds: pick.odds,
       posted_at: pick.posted_at,
+      bookmaker_key: pick.metadata.bookmaker_key,
+      sport: pick.metadata.sport_title || 'NFL',
       metadata: pick.metadata,
     };
   });
@@ -157,17 +159,24 @@ export async function upsertUnifiedPicksCore(
   // Track pre-filter dedup (we'll calculate this from upsert results instead)
   const originalLength = toInsert.length;
 
-  // Chunk the upserts to avoid payload limits
-  const chunks: typeof dbRows[] = [];
-  for (let i = 0; i < toInsert.length; i += chunkSize) {
-    chunks.push(toInsert.slice(i, i + chunkSize));
-  }
+  // Split into player props and core markets (they have different unique constraints)
+  const playerProps = toInsert.filter(row => row.external_prop_id !== null);
+  const coreMarkets = toInsert.filter(row => row.external_prop_id === null);
 
-  console.log(`[UnifiedPicksWriter] Processing ${chunks.length} chunks`);
+  console.log(`[UnifiedPicksWriter] Split: ${playerProps.length} player props, ${coreMarkets.length} core markets`);
 
-  for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i];
-    console.log(`[UnifiedPicksWriter] Upserting chunk ${i + 1}/${chunks.length} (${chunk.length} rows)`);
+  // Process player props first
+  if (playerProps.length > 0) {
+    const chunks: typeof dbRows[] = [];
+    for (let i = 0; i < playerProps.length; i += chunkSize) {
+      chunks.push(playerProps.slice(i, i + chunkSize));
+    }
+
+    console.log(`[UnifiedPicksWriter] Processing ${chunks.length} player prop chunks`);
+
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      console.log(`[UnifiedPicksWriter] Upserting player prop chunk ${i + 1}/${chunks.length} (${chunk.length} rows)`);
 
     try {
       // Debug: Log sample row on first chunk
@@ -213,10 +222,70 @@ export async function upsertUnifiedPicksCore(
       // Since we can't distinguish, we count them as inserted (first-run behavior)
       metrics.inserted += chunk.length;
 
-      console.log(`[UnifiedPicksWriter] Chunk ${i + 1} complete: ${chunk.length} upserted`);
+      console.log(`[UnifiedPicksWriter] Player prop chunk ${i + 1} complete: ${chunk.length} upserted`);
     } catch (err) {
-      console.error(`[UnifiedPicksWriter] Chunk ${i + 1} exception:`, err);
+      console.error(`[UnifiedPicksWriter] Player prop chunk ${i + 1} exception:`, err);
       metrics.errors += chunk.length;
+    }
+    }
+  }
+
+  // Process core markets
+  if (coreMarkets.length > 0) {
+    const chunks: typeof dbRows[] = [];
+    for (let i = 0; i < coreMarkets.length; i += chunkSize) {
+      chunks.push(coreMarkets.slice(i, i + chunkSize));
+    }
+
+    console.log(`[UnifiedPicksWriter] Processing ${chunks.length} core market chunks`);
+
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      console.log(`[UnifiedPicksWriter] Upserting core market chunk ${i + 1}/${chunks.length} (${chunk.length} rows)`);
+
+      try {
+        // Debug: Log sample row on first chunk
+        if (i === 0 && playerProps.length === 0) {
+          console.log(`[UnifiedPicksWriter] Sample core market row:`, JSON.stringify(chunk[0], null, 2));
+        }
+
+        // Upsert with ignoreDuplicates
+        const { data, error } = await client
+          .from('unified_picks')
+          .upsert(chunk, {
+            ignoreDuplicates: true,
+            returning: 'minimal'
+          });
+
+        if (error) {
+          // Check if this is a duplicate key error (23505)
+          if (error.code === '23505') {
+            console.log(`[UnifiedPicksWriter] Core market chunk ${i + 1}: duplicate detected (${error.code}), treating as skippedDedup`);
+            metrics.skippedDedup += chunk.length;
+          } else {
+            // Real error - log and count
+            console.error(`[UnifiedPicksWriter] Core market chunk ${i + 1} error:`, JSON.stringify(error, null, 2));
+
+            if (!metrics.firstError) {
+              metrics.firstError = {
+                code: error.code || 'UNKNOWN',
+                message: error.message || 'Unknown error',
+                details: error.details,
+                hint: error.hint,
+              };
+            }
+
+            metrics.errors += chunk.length;
+          }
+          continue;
+        }
+
+        metrics.inserted += chunk.length;
+        console.log(`[UnifiedPicksWriter] Core market chunk ${i + 1} complete: ${chunk.length} upserted`);
+      } catch (err) {
+        console.error(`[UnifiedPicksWriter] Core market chunk ${i + 1} exception:`, err);
+        metrics.errors += chunk.length;
+      }
     }
   }
 
@@ -324,7 +393,7 @@ export async function upsertUnifiedPicksCoreWithDedup(
   const SYSTEM_USER_ID = '7ce2ba1f-459f-47cf-ab06-dc3566a847c6'; // System user from users table
 
   const dbRows = newPicks.map(pick => {
-    const selection = pick.metadata.team || pick.metadata.outcome || 'unknown';
+    const selection = pick.selection || pick.metadata.team || pick.metadata.outcome || 'unknown';
 
     const stake = 1;
     let potentialPayout: number;
@@ -335,7 +404,6 @@ export async function upsertUnifiedPicksCoreWithDedup(
     }
 
     return {
-      id: pick.id,
       user_id: SYSTEM_USER_ID,
       pick_type: 'single',
       selection,
@@ -350,6 +418,8 @@ export async function upsertUnifiedPicksCoreWithDedup(
       line: pick.line,
       odds: pick.odds,
       posted_at: pick.posted_at,
+      bookmaker_key: pick.metadata.bookmaker_key,
+      sport: pick.metadata.sport_title || 'NFL',
       metadata: pick.metadata,
     };
   });

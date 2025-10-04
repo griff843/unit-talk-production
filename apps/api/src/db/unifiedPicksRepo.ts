@@ -40,7 +40,7 @@ export async function createUnifiedPick(pick: UnifiedPick) {
 
   const snake = toSnakeKeys(pick);
   const supabaseClient = requireSupabase();
-      const { data, error } = await supabase.from('unified_picks').insert(snake).select().single();
+      const { data, error} = await supabaseClient.from('unified_picks').insert(snake).select().single();
   if (error) throw error;
   return toCamelKeys<UnifiedPick>(data);
 }
@@ -49,7 +49,7 @@ export async function patchUnifiedPick(id: string, patch: Partial<UnifiedPick>) 
 
   const snake = toSnakeKeys(patch);
   const supabaseClient = requireSupabase();
-      const { data, error } = await supabase.from('unified_picks').update(snake).eq('id', id).select().single();
+      const { data, error } = await supabaseClient.from('unified_picks').update(snake).eq('id', id).select().single();
   if (error) throw error;
   return toCamelKeys<UnifiedPick>(data);
 }
@@ -57,7 +57,7 @@ export async function patchUnifiedPick(id: string, patch: Partial<UnifiedPick>) 
 export async function findUnifiedPick(id: string) {
 
   const supabaseClient = requireSupabase();
-      const { data, error } = await supabase.from('unified_picks').select('*').eq('id', id).single();
+      const { data, error } = await supabaseClient.from('unified_picks').select('*').eq('id', id).single();
   if (error) throw error;
   return toCamelKeys<UnifiedPick>(data);
 }

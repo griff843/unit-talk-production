@@ -23,20 +23,62 @@ export class ProductionRedisService {
 
   private async initializeRedis(): Promise<void> {
     try {
+      // Determine Redis URL based on environment
+      const redisUrl = process.env.REDIS_URL || this.getDefaultRedisUrl();
+
       // Try to import and connect to Redis
       const Redis = await import('ioredis');
-      this.redis = new Redis.default(process.env.REDIS_URL || 'redis://localhost:6379', {
+      this.redis = new Redis.default(redisUrl, {
         maxRetriesPerRequest: 1,
         lazyConnect: true,
         connectTimeout: 5000,
+        retryStrategy: (times: number) => {
+          // Stop retrying after 3 attempts
+          if (times > 3) {
+            logger.warn('Redis max retries exceeded, falling back to memory cache');
+            this.isRedisAvailable = false;
+            return null; // Stop retrying
+          }
+          // Exponential backoff: 100ms, 200ms, 400ms
+          return Math.min(times * 100, 1000);
+        }
       });
 
       await this.redis.ping();
       this.isRedisAvailable = true;
-      logger.info('Redis connected successfully');
+      logger.info('Redis connected successfully', { url: this.sanitizeUrl(redisUrl) });
     } catch (error) {
       this.isRedisAvailable = false;
-      logger.warn('Redis not available, using memory cache fallback', { error: (error as Error).message });
+      logger.warn('Redis not available, using memory cache fallback', {
+        error: (error as Error).message,
+        url: this.sanitizeUrl(process.env.REDIS_URL || 'default')
+      });
+    }
+  }
+
+  /**
+   * Get default Redis URL based on environment
+   * Docker: redis://redis:6379
+   * Local: redis://localhost:6379
+   */
+  private getDefaultRedisUrl(): string {
+    // Check if running in Docker by looking for Docker-specific env vars
+    const isDocker = process.env.DOCKER_CONTAINER === 'true' ||
+                     process.env.HOSTNAME?.includes('docker') ||
+                     process.env.HOSTNAME?.includes('api-');
+
+    return isDocker ? 'redis://redis:6379' : 'redis://localhost:6379';
+  }
+
+  /**
+   * Sanitize Redis URL for logging (remove credentials)
+   */
+  private sanitizeUrl(url: string): string {
+    try {
+      const parsed = new URL(url);
+      return `${parsed.protocol}//${parsed.hostname}:${parsed.port}`;
+    } catch {
+      return url;
     }
   }
 
