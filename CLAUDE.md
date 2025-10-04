@@ -19,11 +19,15 @@ Guidance for Claude Code (claude.ai/code) for the Unit Talk Platform workspace.
 
 ## 📊 Current System Status
 
-### Enhanced45Factor Engine - 195-Factor System ✅
+**⚠️ CRITICAL**: See `TIER_1_MASTER_ROADMAP.md` for complete system status and Tier 1 implementation plan
+
+### Enhanced45Factor Engine - 45-Factor Professional System ⚠️
+- **Actual Factors**: 45 factors across 5 categories (Market, Player, Matchup, Price, Meta)
+- **Documentation Correction**: Previously claimed 195 factors (53 base × processing), actually 45
 - **Performance**: Win Rate: 56.7% | CLV: 65% | Uptime: 99.9%
 - **Processing**: 1000+ props/day | Sub-2000ms response time
-- **All 10 Phases Complete**: Data Foundation → Syndicate Production
 - **Professional Features**: 8/8 operational (Steam detection, CLV, timing, etc.)
+- **Status**: Operational but requires ML optimization, calibration fixes, and historical data
 
 ### System Health
 - **Database**: v3.0.0 unified architecture (45 tables, 3-10x performance)
@@ -75,13 +79,29 @@ docker-compose exec api npm run test:e2e    # E2E tests
 
 ### Enhanced45Factor Commands
 ```bash
-# Generate picks through 195-factor system
+# Generate picks through 45-factor system
 docker-compose exec api npx tsx scripts/final-3-todays-picks.ts
 docker-compose exec api npx tsx scripts/generate-3-nfl-todays-picks.ts
 
 # Validate system
 docker-compose exec api npx tsx scripts/validate-enhanced45factor-success.ts
 docker-compose exec api npx tsx scripts/run-real-feedagent-workflow.ts
+```
+
+### Operations & Monitoring (NEW)
+```bash
+# Schedulers (PM2-managed continuous loops)
+npm run ops:start-schedulers    # Start FeedLoop (45s), ScoringLoop (30s), PromotionLoop (30s)
+npm run ops:stop-schedulers     # Stop all schedulers
+npm run ops:restart-schedulers  # Restart schedulers
+npm run ops:logs-schedulers     # View scheduler logs
+
+# Health & Verification
+npm run ops:verify              # Verify Command Center health (board, feed, scoring)
+npm run ops:watchdog            # Check agent health (alerts if stale >2min)
+
+# Database Cleanup (DRY-RUN only)
+npm run ops:cleanup-plan        # Generate cleanup bundle (NO EXECUTION)
 ```
 
 ## 📍 Service URLs
@@ -175,6 +195,13 @@ docker-compose exec discord-bot npm run test:connection
 - [docs/api/](docs/api/) - API specifications
 - [docs/deployment/](docs/deployment/) - Deployment guides
 - [docs/operator-training/](docs/operator-training/) - Operator handbook
+
+### Operations Documentation (NEW)
+- [docs/OPS_RUNBOOK.md](docs/OPS_RUNBOOK.md) - **Primary ops reference** (day-to-day operations)
+- [docs/OPS_SCHEDULERS.md](docs/OPS_SCHEDULERS.md) - Scheduler management (PM2, intervals, monitoring)
+- [CLEANUP_PLAYBOOK.md](CLEANUP_PLAYBOOK.md) - Safe database cleanup procedures
+- [READMODELS_WIRING.md](READMODELS_WIRING.md) - Command Center read-models integration
+- [out/ops/README.md](out/ops/README.md) - Artifacts directory structure
 
 ## 🎯 Development Guidelines
 
