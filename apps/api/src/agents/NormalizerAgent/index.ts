@@ -18,21 +18,25 @@ const logger = baseLogger;
 
 export interface RawProp {
   id: string;
-  external_id: string;
-  game_id?: string;
+  external_game_id: string;
+  external_prop_id: string;
   sport: string;
-  market: string;
+  market_key: string;
   player_name?: string;
-  team?: string;
-  opponent?: string;
+  stat_type?: string;
+  home_team?: string;
+  away_team?: string;
   game_date: string;
   over_odds?: number;
   under_odds?: number;
   line?: number;
-  selection?: string;
+  outcome_name?: string;
   bookmaker_key: string;
+  bookmaker_title?: string;
+  price?: number;
   raw_data?: any;
   ingested_at?: string;
+  created_at?: string;
 }
 
 export interface UnifiedPick {
@@ -159,8 +163,8 @@ export class NormalizerAgent extends BaseAgent {
       .from('raw_props')
       .select('*')
       .is('normalized_at', null)  // Not yet normalized
-      .gte('ingested_at', new Date(Date.now() - 3600000).toISOString())  // Last hour
-      .order('ingested_at', { ascending: true })
+      .gte('created_at', new Date(Date.now() - 3600000).toISOString())  // Last hour
+      .order('created_at', { ascending: true })
       .limit(1000);
 
     if (error) {
@@ -234,29 +238,36 @@ export class NormalizerAgent extends BaseAgent {
       const odds = this.deriveOdds(raw, selection);
 
       if (!odds) {
-        logger.warn('Could not derive odds', { propId: raw.external_id });
+        logger.warn('Could not derive odds', { propId: raw.external_prop_id });
         return null;
       }
 
+      // Determine team from home/away
+      const team = raw.home_team || undefined;
+      const opponent = raw.away_team || undefined;
+
       return {
-        external_prop_id: raw.external_id,
-        external_game_id: raw.game_id,
+        external_prop_id: raw.external_prop_id,
+        external_game_id: raw.external_game_id,
         sport: raw.sport.toUpperCase(),
-        market: this.normalizeMarket(raw.market),
+        market: this.normalizeMarket(raw.market_key),
         selection,
         line: raw.line,
         odds,
         player_name: raw.player_name,
-        team: raw.team,
-        opponent: raw.opponent,
+        team,
+        opponent,
         game_date: raw.game_date,
         bookmaker_key: raw.bookmaker_key,
         metadata: {
           raw_id: raw.id,
           source: 'normalizer',
-          raw_selection: raw.selection,
+          bookmaker_title: raw.bookmaker_title,
+          stat_type: raw.stat_type,
+          raw_outcome: raw.outcome_name,
           over_odds: raw.over_odds,
           under_odds: raw.under_odds,
+          price: raw.price,
           normalized_at: new Date().toISOString()
         },
         workflow_stage: 'normalized',
@@ -265,7 +276,7 @@ export class NormalizerAgent extends BaseAgent {
 
     } catch (error) {
       logger.error('Failed to normalize raw prop', {
-        propId: raw.external_id,
+        propId: raw.external_prop_id,
         error: error instanceof Error ? error.message : String(error)
       });
       return null;
@@ -276,24 +287,25 @@ export class NormalizerAgent extends BaseAgent {
    * Normalize selection across bookmaker formats
    */
   private normalizeSelection(raw: RawProp): string {
-    if (!raw.selection) {
-      // Default to over if no selection specified
-      return 'over';
+    // Use outcome_name if available
+    if (raw.outcome_name) {
+      const outcome = raw.outcome_name.toLowerCase().trim();
+
+      // Map to standard values
+      if (['over', 'yes', 'true', 'o', '+'].includes(outcome)) {
+        return 'over';
+      }
+
+      if (['under', 'no', 'false', 'u', '-'].includes(outcome)) {
+        return 'under';
+      }
+
+      // Pass through for other markets
+      return raw.outcome_name;
     }
 
-    const sel = raw.selection.toLowerCase().trim();
-
-    // Map to standard values
-    if (['over', 'yes', 'true', 'o', '+'].includes(sel)) {
-      return 'over';
-    }
-
-    if (['under', 'no', 'false', 'u', '-'].includes(sel)) {
-      return 'under';
-    }
-
-    // Pass through as-is for other markets (moneyline, spread, etc.)
-    return raw.selection;
+    // Default to over if no outcome specified
+    return 'over';
   }
 
   /**
