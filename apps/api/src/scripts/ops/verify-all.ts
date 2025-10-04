@@ -77,7 +77,7 @@ async function checkRecentFeed(): Promise<Check> {
     const { data, error } = await supabase
       .from('raw_props')
       .select('id')
-      .gte('ingested_at', oneHourAgo);
+      .gte('created_at', oneHourAgo);
 
     if (error) {
       return {
@@ -113,7 +113,7 @@ async function checkRecentScoring(): Promise<Check> {
     const { data, error } = await supabase
       .from('scored_props')
       .select('id')
-      .gte('scored_at', thirtyMinAgo);
+      .gte('created_at', thirtyMinAgo);
 
     if (error) {
       return {
@@ -147,11 +147,10 @@ async function checkAlertsBacklog(): Promise<Check> {
     const now = new Date().toISOString();
 
     const { data, error } = await supabase
-      .from('promotion_queue')
-      .select('id, pick_id, publish_at')
+      .from('approval_queue')
+      .select('id, unified_id, created_at')
       .eq('status', 'approved')
-      .lte('publish_at', now)
-      .is('published_at', null);
+      .is('approved_at', null);
 
     if (error) {
       return {
@@ -195,8 +194,8 @@ async function checkAgentHealth(): Promise<Check> {
 
     const { data, error } = await supabase
       .from('agent_health')
-      .select('agent_name, last_ping, status')
-      .gte('last_ping', twoMinAgo);
+      .select('agent, last_run, status')
+      .gte('last_run', twoMinAgo);
 
     if (error) {
       return {
@@ -205,8 +204,8 @@ async function checkAgentHealth(): Promise<Check> {
       };
     }
 
-    const requiredAgents = ['FeedAgent', 'ScoringAgent', 'AlertAgent'];
-    const healthyAgents = data?.map(a => a.agent_name) || [];
+    const requiredAgents = ['FeedAgent', 'ScoringAgent', 'AlertAgent', 'NormalizerAgent'];
+    const healthyAgents = data?.map(a => a.agent) || [];
     const missingAgents = requiredAgents.filter(a => !healthyAgents.includes(a));
 
     if (missingAgents.length > 0) {
@@ -221,8 +220,8 @@ async function checkAgentHealth(): Promise<Check> {
     if (unhealthyAgents.length > 0) {
       return {
         status: 'warn',
-        message: `Some agents degraded: ${unhealthyAgents.map(a => a.agent_name).join(', ')}`,
-        details: { degraded: unhealthyAgents.map(a => a.agent_name) }
+        message: `Some agents degraded: ${unhealthyAgents.map(a => a.agent).join(', ')}`,
+        details: { degraded: unhealthyAgents.map(a => a.agent) }
       };
     }
 
