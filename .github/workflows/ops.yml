@@ -1,0 +1,105 @@
+name: Operations - Verify & Cleanup
+
+on:
+  push:
+    branches: [main, master]
+  schedule:
+    # Weekly cleanup plan generation (Sundays at 2 AM UTC)
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+
+jobs:
+  verify-command-center:
+    name: Verify Command Center Health
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Command Center verification
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run ops:verify
+
+      - name: Upload verification results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: verify-command-center
+          path: out/ops/verify/verify_command_center.json
+          retention-days: 30
+
+      - name: Fail if verification failed
+        run: exit $(cat out/ops/verify/verify_command_center.json | jq -r '.checks | map(select(. == false)) | length')
+
+  generate-cleanup-plan:
+    name: Generate Database Cleanup Plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate cleanup plan (DRY-RUN)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run ops:cleanup-plan
+
+      - name: Find latest cleanup bundle
+        id: find_bundle
+        run: |
+          LATEST_DIR=$(ls -td apps/api/out/ops/cleanup/* | head -1)
+          echo "bundle_dir=$LATEST_DIR" >> $GITHUB_OUTPUT
+
+      - name: Upload cleanup bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: cleanup-plan-${{ github.run_number }}
+          path: ${{ steps.find_bundle.outputs.bundle_dir }}
+          retention-days: 90
+
+      - name: Create cleanup plan summary
+        run: |
+          cd ${{ steps.find_bundle.outputs.bundle_dir }}
+          echo "## Database Cleanup Plan" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Status**: DRY-RUN ONLY - No destructive actions executed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Summary" >> $GITHUB_STEP_SUMMARY
+          cat 03_keep_vs_drop.json | jq -r '"**Keep Tables**: \(.keep_tables | length)\n**Keep Views**: \(.keep_views | length)\n**Keep Functions**: \(.keep_functions | length)"' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Files Generated" >> $GITHUB_STEP_SUMMARY
+          ls -lh | tail -n +2 >> $GITHUB_STEP_SUMMARY
+
+      - name: Check protection conflicts
+        run: |
+          CONFLICTS=$(cat ${{ steps.find_bundle.outputs.bundle_dir }}/protect_conflicts.json | jq -r '.summary.total_conflicts')
+          if [ "$CONFLICTS" -gt 0 ]; then
+            echo "::warning::Protection conflicts detected: $CONFLICTS objects blocked from cleanup"
+          else
+            echo "::notice::No protection conflicts - all protected objects safe"
+          fi
