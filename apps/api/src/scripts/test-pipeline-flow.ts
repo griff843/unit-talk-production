@@ -29,22 +29,21 @@ interface RawProp {
   external_game_id: string;
   external_prop_id: string;
   sport: string;
-  game_date: string;
-  home_team: string;
-  away_team: string;
-  bookmaker_key: string;
-  bookmaker_title: string;
-  market_key: string;
+  game_date: string | Date;
+  home_team?: string;
+  away_team?: string;
+  bookmaker_key?: string;
+  bookmaker_title?: string;
+  market?: string;
   player_name?: string;
   stat_type?: string;
   line?: number;
   over_odds?: number;
   under_odds?: number;
-  outcome_name: string;
-  price: number;
-  raw_data: any;
-  ingested_at: string;
-  created_at: string;
+  outcome_name?: string;
+  price?: number;
+  raw_data?: any;
+  odds?: number;
 }
 
 /**
@@ -88,30 +87,28 @@ async function fetchMLBProps(): Promise<any> {
  */
 function transformToRawProps(oddsApiResult: any): RawProp[] {
   const rawProps: RawProp[] = [];
-  const now = new Date().toISOString();
 
-  // Transform props to raw_props format
+  // Transform props to raw_props format (matching actual table schema)
   for (const prop of oddsApiResult.props || []) {
     rawProps.push({
       external_game_id: prop.game_id || prop.external_game_id || `game_${Date.now()}`,
       external_prop_id: prop.id || prop.external_prop_id || `prop_${Date.now()}_${Math.random()}`,
       sport: prop.sport || 'baseball_mlb',
       game_date: prop.game_date || prop.commence_time || new Date().toISOString(),
-      home_team: prop.home_team || '',
-      away_team: prop.away_team || '',
-      bookmaker_key: prop.bookmaker || prop.bookmaker_key || 'unknown',
-      bookmaker_title: prop.bookmaker_title || prop.bookmaker || 'Unknown',
-      market_key: prop.market || prop.market_key || 'unknown',
+      home_team: prop.home_team,
+      away_team: prop.away_team,
+      bookmaker_key: prop.bookmaker || prop.bookmaker_key,
+      bookmaker_title: prop.bookmaker_title || prop.bookmaker,
+      market: prop.market || prop.market_key,
       player_name: prop.player_name,
       stat_type: prop.stat_type,
       line: prop.line ? parseFloat(String(prop.line)) : undefined,
       over_odds: prop.over_odds ? parseInt(String(prop.over_odds)) : undefined,
       under_odds: prop.under_odds ? parseInt(String(prop.under_odds)) : undefined,
-      outcome_name: prop.outcome || prop.selection || 'over',
-      price: prop.price || prop.over_odds || 0,
-      raw_data: prop,
-      ingested_at: now,
-      created_at: now
+      outcome_name: prop.outcome || prop.selection,
+      price: prop.price || prop.over_odds,
+      odds: prop.price || prop.over_odds,
+      raw_data: prop
     });
   }
 
