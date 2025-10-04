@@ -1,0 +1,232 @@
+-- =====================================================================================
+-- Migration: 40_unified_picks_view.sql
+-- Purpose: Create unified_picks compatibility view bridging new architecture
+-- Strategy: Rename existing unified_picks table to _legacy, create as VIEW
+-- Dependencies: 10_core_tables.sql (raw_props, scored_props, promotion_queue, settled_outcomes)
+-- =====================================================================================
+
+-- =====================================================================================
+-- STEP 1: Safely rename existing unified_picks table to unified_picks_legacy
+-- =====================================================================================
+DO $$
+BEGIN
+  -- Check if unified_picks exists as a table (not a view)
+  IF EXISTS (
+    SELECT 1
+    FROM pg_tables
+    WHERE schemaname = 'public'
+    AND tablename = 'unified_picks'
+  ) THEN
+    -- Rename existing table to _legacy for preservation
+    ALTER TABLE public.unified_picks RENAME TO unified_picks_legacy;
+    RAISE NOTICE 'ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ Renamed unified_picks table to unified_picks_legacy';
+    RAISE NOTICE '  Preserved % rows for backfill reference', (SELECT COUNT(*) FROM unified_picks_legacy);
+  ELSIF EXISTS (
+    SELECT 1
+    FROM pg_views
+    WHERE schemaname = 'public'
+    AND viewname = 'unified_picks'
+  ) THEN
+    -- If it's already a view, drop and recreate
+    DROP VIEW IF EXISTS public.unified_picks CASCADE;
+    RAISE NOTICE 'ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ Dropped existing unified_picks view';
+  ELSE
+    RAISE NOTICE 'ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¾ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¹ No existing unified_picks found, will create new view';
+  END IF;
+END $$;
+
+-- =====================================================================================
+-- STEP 2: Create unified_picks as VIEW joining new architecture
+-- =====================================================================================
+-- This view bridges the new architecture (raw_props ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ scored_props ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ promotion_queue)
+-- to the legacy unified_picks schema, ensuring backward compatibility for:
+-- - Command Center queries
+-- - Smart Form submissions
+-- - Dashboard analytics
+-- - Discord bot integration
+-- =====================================================================================
+
+CREATE OR REPLACE VIEW public.unified_picks AS
+SELECT
+  -- ============================================================================
+  -- CORE IDENTIFIERS
+  -- ============================================================================
+  rp.id,                                    -- Primary key from raw_props
+  rp.user_id,                               -- User who owns this prop (from ingestion)
+  rp.game_id,                               -- External game identifier
+  rp.id as prop_id,                         -- Alias for prop reference
+
+  -- ============================================================================
+  -- PICK CLASSIFICATION & STATUS
+  -- ============================================================================
+  COALESCE(pq.status::TEXT, 'pending') as pick_type,  -- Classification: pending/approved/rejected
+  COALESCE(pq.status::TEXT, 'pending') as status,     -- Current workflow status
+  rp.selection,                             -- Pick selection (Over/Under, Team, etc)
+  rp.line,                                  -- Line value (e.g., 5.5 for O/U)
+  rp.odds,                                  -- American odds (e.g., -110, +150)
+
+  -- ============================================================================
+  -- STAKING & PAYOUT (defaults for pre-submission props)
+  -- ============================================================================
+  1.0 as stake,                             -- Default 1 unit stake
+  CASE
+    WHEN rp.odds > 0 THEN 1.0 + (rp.odds / 100.0)      -- Positive odds: 1 + (odds/100)
+    ELSE 1.0 + (100.0 / ABS(rp.odds))                  -- Negative odds: 1 + (100/|odds|)
+  END as potential_payout,                   -- Calculated potential payout
+  0.0 as actual_payout,                      -- Actual payout (0 until settled)
+  0.0 as profit_loss,                        -- P&L (0 until settled)
+
+  -- ============================================================================
+  -- PROFESSIONAL SCORING (from scored_props via Enhanced45Factor)
+  -- ============================================================================
+  sp.prob_win as confidence,                -- Win probability (0.0-1.0)
+  sp.market_factors as analysis,            -- Market analysis factors (JSONB)
+  sp.professional_features as reasoning,    -- Professional reasoning breakdown
+  sp.tier as tier_when_placed,              -- Quality tier (1-3) when scored
+
+  -- ============================================================================
+  -- WORKFLOW & PROMOTION
+  -- ============================================================================
+  'automated' as pick_source,               -- Source: automated (vs manual)
+  COALESCE(pq.status::TEXT, 'draft') as workflow_stage,        -- Workflow stage
+  COALESCE(pq.status::TEXT, 'not_promoted') as promotion_status, -- Promotion status
+  NULL::JSONB as promotion_data,            -- Promotion metadata (future use)
+
+  -- ============================================================================
+  -- TIMESTAMPS
+  -- ============================================================================
+  rp.created_at as placed_at,               -- When prop was ingested
+  so.settled_at,                            -- When settled (NULL if pending)
+  rp.game_date as game_start_time,          -- Game start datetime
+
+  -- ============================================================================
+  -- SETTLEMENT (from settled_outcomes)
+  -- ============================================================================
+  so.decision as settlement_source,         -- Settlement decision (win/loss/push)
+  so.metadata as settlement_details,        -- Settlement metadata (JSONB)
+  so.actual_result,                         -- Actual outcome value
+
+  -- ============================================================================
+  -- PARLAY SUPPORT (NULL for single picks)
+  -- ============================================================================
+  NULL::UUID as parlay_id,                  -- Parlay group ID (future)
+  NULL::INTEGER as parlay_leg_number,       -- Leg number in parlay (future)
+  NULL::INTEGER as parlay_total_legs,       -- Total legs in parlay (future)
+  NULL::NUMERIC as parlay_total_odds,       -- Combined parlay odds (future)
+  NULL::NUMERIC as parlay_stake_allocation, -- Stake allocation per leg (future)
+
+  -- ============================================================================
+  -- DISCORD INTEGRATION
+  -- ============================================================================
+  NULL::TEXT as discord_thread_id,          -- Discord thread ID (future)
+  NULL::TEXT as discord_message_id,         -- Discord message ID (future)
+
+  -- ============================================================================
+  -- AUDIT TRAIL
+  -- ============================================================================
+  rp.created_at,                            -- Record creation timestamp
+  GREATEST(
+    rp.updated_at,
+    COALESCE(sp.updated_at, rp.updated_at),
+    COALESCE(pq.updated_at, rp.updated_at)
+  ) as updated_at,                          -- Latest update across joined tables
+  rp.metadata,                              -- Raw metadata (JSONB)
+  rp.user_id as created_by,                 -- Created by user ID
+  pq.approved_by as updated_by,             -- Last updated by user ID
+
+  -- ============================================================================
+  -- MARKET METADATA
+  -- ============================================================================
+  rp.sport,                                 -- Sport (nfl, mlb, nba, nhl)
+  COALESCE(pq.status = 'approved', false) as published,  -- Published flag
+  rp.id::TEXT as promotion_fingerprint,     -- Unique promotion fingerprint
+  pq.approved_by,                           -- Approved by user ID
+  pq.approved_at,                           -- Approval timestamp
+  NULL::JSONB as publish_targets,           -- Publish targets (future)
+  false as dry_run,                         -- Dry run flag (always false)
+  NULL::UUID as capper_id,                  -- Capper ID (future)
+  pq.publish_at as promoted_at,             -- Promotion timestamp
+
+  -- ============================================================================
+  -- PROFESSIONAL SCORING FIELDS (Enhanced45Factor Engine)
+  -- ============================================================================
+  rp.id as raw_id,                          -- Raw prop reference ID
+  sp.kelly_fraction,                        -- Kelly criterion stake fraction
+  sp.professional_score,                    -- Overall professional score (0-100)
+  sp.edge as devigged_edge,                 -- Devigged market edge
+  sp.clv_tracking_id,                       -- CLV tracking identifier
+
+  -- Feature contributions (combined 45 factors)
+  sp.market_factors ||
+  sp.player_factors ||
+  sp.matchup_factors ||
+  sp.price_factors ||
+  sp.meta_factors as feature_contributions, -- All 45 factors combined
+
+  sp.processing_time,                       -- Scoring processing time (ms)
+  sp.professional_score as rule_compliance_score,  -- Alias for compliance
+  sp.model_version as sharp_grading_version,       -- Model version
+  pq.created_at as posted_at,               -- Posted timestamp
+
+  -- ============================================================================
+  -- EXTERNAL REFERENCES & CLV
+  -- ============================================================================
+  NULL::TEXT as ticket_id,                  -- External ticket ID (future)
+  NULL::NUMERIC as clv_line,                -- CLV line tracking (future)
+  NULL::NUMERIC as clv_delta,               -- CLV delta (future)
+  rp.source,                                -- Data source (odds_api, etc)
+  rp.market,                                -- Market type (player_points, etc)
+  rp.external_game_id,                      -- External game ID
+  rp.matchup,                               -- Matchup description
+  rp.game_date,                             -- Game date/time
+  rp.external_prop_id,                      -- External prop ID
+  rp.bookmaker_key                          -- Bookmaker identifier
+
+-- ============================================================================
+-- TABLE JOINS
+-- ============================================================================
+FROM raw_props rp
+LEFT JOIN scored_props sp ON sp.prop_ref = rp.id
+LEFT JOIN promotion_queue pq ON pq.prop_ref = rp.id
+LEFT JOIN settled_outcomes so ON so.prop_id = rp.id
+
+-- ============================================================================
+-- FILTERING (only recent data for performance)
+-- ============================================================================
+WHERE rp.game_date >= CURRENT_DATE - INTERVAL '30 days'  -- Rolling 30-day window
+;
+
+-- =====================================================================================
+-- METADATA & PERMISSIONS
+-- =====================================================================================
+COMMENT ON VIEW public.unified_picks IS
+'Compatibility view bridging new architecture (raw_props + scored_props + promotion_queue) to legacy unified_picks schema. Provides backward compatibility for Command Center, Smart Form, Dashboard, and Discord bot while maintaining clean separation of concerns in the new architecture.';
+
+-- Grant read access to authenticated users
+GRANT SELECT ON public.unified_picks TO authenticated;
+GRANT SELECT ON public.unified_picks TO service_role;
+
+-- =====================================================================================
+-- VALIDATION
+-- =====================================================================================
+DO $$
+DECLARE
+  v_view_count BIGINT;
+  v_legacy_count BIGINT := 0;
+BEGIN
+  -- Count rows in new view
+  SELECT COUNT(*) INTO v_view_count FROM public.unified_picks;
+
+  -- Count legacy rows if table exists
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE tablename = 'unified_picks_legacy') THEN
+    SELECT COUNT(*) INTO v_legacy_count FROM unified_picks_legacy;
+  END IF;
+
+  RAISE NOTICE 'ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ unified_picks view created successfully';
+  RAISE NOTICE '  New view rows: %', v_view_count;
+  RAISE NOTICE '  Legacy table rows: %', v_legacy_count;
+  RAISE NOTICE '  View covers % of legacy data',
+    CASE WHEN v_legacy_count > 0
+         THEN ROUND(100.0 * v_view_count / v_legacy_count, 2)
+         ELSE 100.0 END || '%';
+END $$;

@@ -1,0 +1,32 @@
+-- Fix unique constraints to allow multiple bookmakers per prop
+-- This migration makes external_prop_id nullable and creates proper unique indexes
+
+-- Step 1: Make external_prop_id nullable (market picks don't have prop IDs)
+ALTER TABLE public.unified_picks
+  ALTER COLUMN external_prop_id DROP NOT NULL;
+
+-- Step 2: Drop old bookmaker constraint if it exists
+DROP INDEX IF EXISTS public.idx_unified_picks_unique_per_bookmaker;
+
+-- Step 3: Create new unique index that allows multiple bookmakers
+CREATE UNIQUE INDEX idx_unified_picks_unique_per_bookmaker_v2
+  ON public.unified_picks (
+    external_game_id,
+    market,
+    COALESCE(external_prop_id, ''),
+    COALESCE(player_name, ''),
+    COALESCE(team, ''),
+    COALESCE(line, 0),
+    COALESCE((metadata->>'bookmaker_key')::text, 'unknown')
+  );
+
+-- Step 4: Supporting indexes for performance
+CREATE INDEX IF NOT EXISTS idx_unified_picks_game_market
+  ON public.unified_picks (external_game_id, market);
+
+CREATE INDEX IF NOT EXISTS idx_unified_picks_bookmaker
+  ON public.unified_picks ((metadata->>'bookmaker_key'));
+
+-- Comments
+COMMENT ON INDEX idx_unified_picks_unique_per_bookmaker_v2 IS
+  'Allows multiple bookmakers per prop - REQUIRED for devigging, line shopping, CLV tracking';

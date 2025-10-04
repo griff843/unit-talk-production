@@ -1,0 +1,164 @@
+-- Baseline SaaS Migration for Unit Talk Platform
+-- Date: 2025-10-01
+-- Purpose: Minimal, idempotent schema for production Supabase Cloud
+-- Safe to run multiple times
+
+-- Enable crypto extension for UUIDs
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- ============================================================================
+-- GAMES TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.games (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  external_game_id TEXT UNIQUE,
+  sport TEXT NOT NULL DEFAULT 'mlb',
+  league TEXT DEFAULT 'MLB',
+  home_team TEXT,
+  away_team TEXT,
+  game_date TIMESTAMPTZ NOT NULL,
+  status TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON TABLE public.games IS 'Core games table - stores game metadata from odds providers';
+COMMENT ON COLUMN public.games.external_game_id IS 'Provider-specific game identifier (e.g., Odds API game_id)';
+COMMENT ON COLUMN public.games.sport IS 'Sport identifier (mlb, nfl, nba, nhl, etc.)';
+COMMENT ON COLUMN public.games.game_date IS 'Scheduled game start time (UTC)';
+
+-- ============================================================================
+-- UNIFIED_PICKS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.unified_picks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  game_id UUID REFERENCES public.games(id) ON DELETE SET NULL,
+  sport TEXT NOT NULL,
+  market TEXT NOT NULL,          -- h2h | spreads | totals | player_props
+  selection TEXT NOT NULL,       -- team name or player selection
+  odds INTEGER NOT NULL,         -- american odds converted to integer
+  line NUMERIC,                  -- NULL for h2h, point value for spreads/totals
+  bookmaker_key TEXT NOT NULL,   -- draftkings | caesars | betmgm | fanduel
+  game_date TIMESTAMPTZ NOT NULL,
+  source TEXT NOT NULL DEFAULT 'odds-api',
+  posted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  user_id UUID,                  -- Optional: link to users table if exists
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+COMMENT ON TABLE public.unified_picks IS 'Unified picks table - ALL ingested picks from all providers with dedup';
+COMMENT ON COLUMN public.unified_picks.market IS 'Market type: h2h, spreads, totals, player_props';
+COMMENT ON COLUMN public.unified_picks.selection IS 'What was picked (team name for h2h/spreads, player name for props)';
+COMMENT ON COLUMN public.unified_picks.odds IS 'American odds as integer (e.g., -110, +150)';
+COMMENT ON COLUMN public.unified_picks.line IS 'Point line for spreads/totals, NULL for h2h';
+COMMENT ON COLUMN public.unified_picks.bookmaker_key IS 'Bookmaker identifier from Odds API';
+COMMENT ON COLUMN public.unified_picks.source IS 'Data source (odds-api, sgo-api, optimal-api)';
+
+-- ============================================================================
+-- DEDUPLICATION INDEX
+-- ============================================================================
+-- This index enforces unique picks based on:
+-- - source (provider)
+-- - market (h2h, spreads, etc.)
+-- - selection (team/player)
+-- - bookmaker_key (sportsbook)
+-- - game_date (when the game is)
+-- - line (NULL-safe using COALESCE)
+-- - game_id (NULL-safe using COALESCE)
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_unified_picks_dedup
+ON public.unified_picks (
+  source,
+  market,
+  selection,
+  bookmaker_key,
+  game_date,
+  COALESCE(line, -9999),
+  COALESCE(game_id, '00000000-0000-0000-0000-000000000000'::UUID)
+);
+
+COMMENT ON INDEX ux_unified_picks_dedup IS 'Dedup constraint matching writer logic - prevents duplicate picks';
+
+-- ============================================================================
+-- PERFORMANCE INDEXES
+-- ============================================================================
+CREATE INDEX IF NOT EXISTS ix_unified_picks_game_date
+ON public.unified_picks (game_date);
+
+CREATE INDEX IF NOT EXISTS ix_unified_picks_market
+ON public.unified_picks (market);
+
+CREATE INDEX IF NOT EXISTS ix_unified_picks_bookmaker
+ON public.unified_picks (bookmaker_key);
+
+CREATE INDEX IF NOT EXISTS ix_unified_picks_source
+ON public.unified_picks (source);
+
+CREATE INDEX IF NOT EXISTS ix_games_game_date
+ON public.games (game_date);
+
+CREATE INDEX IF NOT EXISTS ix_games_external_id
+ON public.games (external_game_id);
+
+-- ============================================================================
+-- ROW LEVEL SECURITY (RLS)
+-- ============================================================================
+-- Enable RLS on all tables (service_role bypasses RLS automatically)
+ALTER TABLE public.games ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.unified_picks ENABLE ROW LEVEL SECURITY;
+
+-- Create minimal read policies for authenticated users
+DO $$
+BEGIN
+  -- Games read policy
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE tablename = 'games'
+    AND policyname = 'read_games_auth'
+  ) THEN
+    CREATE POLICY read_games_auth ON public.games
+      FOR SELECT
+      USING (TRUE);
+  END IF;
+
+  -- Unified picks read policy
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE tablename = 'unified_picks'
+    AND policyname = 'read_unified_picks_auth'
+  ) THEN
+    CREATE POLICY read_unified_picks_auth ON public.unified_picks
+      FOR SELECT
+      USING (TRUE);
+  END IF;
+END $$;
+
+-- ============================================================================
+-- UTILITY FUNCTIONS
+-- ============================================================================
+-- Optional: Credit usage tracking function (if ops.credit_usage table exists)
+CREATE OR REPLACE FUNCTION public.get_credit_usage_summary()
+RETURNS TABLE(provider TEXT, credits BIGINT, calls BIGINT)
+LANGUAGE SQL
+SECURITY DEFINER
+AS $$
+  SELECT
+    'odds-api' AS provider,
+    0::BIGINT AS credits,
+    0::BIGINT AS calls
+  WHERE FALSE; -- Returns empty result if ops.credit_usage doesn't exist
+$$;
+
+COMMENT ON FUNCTION public.get_credit_usage_summary IS 'Returns credit usage summary - returns empty if ops schema not present';
+
+-- ============================================================================
+-- GRANTS
+-- ============================================================================
+-- Grant basic read access to anon and authenticated users
+GRANT SELECT ON public.games TO anon, authenticated;
+GRANT SELECT ON public.unified_picks TO anon, authenticated;
+
+-- ============================================================================
+-- MIGRATION COMPLETE
+-- ============================================================================
+-- This migration is idempotent and safe to run multiple times
+-- Tables, indexes, and policies will only be created if they don't exist

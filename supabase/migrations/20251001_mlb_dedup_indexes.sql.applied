@@ -1,0 +1,10 @@
+-- Dedup key aligned with REST upsert (sport included)
+drop index if exists ux_unified_picks_dedup;
+create unique index if not exists ux_unified_picks_dedup
+on public.unified_picks (sport, source, market, selection, bookmaker_key, game_date, line, game_id);
+
+-- Helpful read indexes
+create index if not exists ix_unified_picks_sport_market_date
+  on public.unified_picks (sport, market, game_date desc);
+create index if not exists ix_unified_picks_bookmaker_date
+  on public.unified_picks (bookmaker_key, game_date desc);

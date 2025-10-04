@@ -1,0 +1,30 @@
+-- Settlement infrastructure indexes and policies
+-- Idempotent, safe to re-run
+
+-- raw_props: settle by sport/date, need stable identity
+CREATE INDEX IF NOT EXISTS ix_raw_props_sport_date ON public.raw_props (sport, game_date);
+CREATE INDEX IF NOT EXISTS ix_raw_props_prop_id ON public.raw_props (id);
+
+-- player_stats: JSONB lookups by (sport, game_id, player_name)
+CREATE INDEX IF NOT EXISTS ix_player_stats_sport_game_player
+  ON public.player_stats (sport, game_id, player_name);
+CREATE INDEX IF NOT EXISTS gin_player_stats_stats ON public.player_stats
+  USING gin (stats);
+
+-- settled_outcomes: insert-only, dedup by prop_id
+CREATE UNIQUE INDEX IF NOT EXISTS ux_settled_outcomes_prop
+  ON public.settled_outcomes (prop_id);
+
+-- Service role insert policy
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+    AND tablename = 'settled_outcomes'
+    AND policyname = 'sr_insert_settled'
+  ) THEN
+    CREATE POLICY sr_insert_settled ON public.settled_outcomes
+    FOR INSERT TO service_role USING (true) WITH CHECK (true);
+  END IF;
+END $$;

@@ -1,0 +1,23 @@
+-- Add bookmaker_key column if it doesn't exist
+-- This is a minimal fix for E2E to work with existing Cloud schema
+
+ALTER TABLE public.unified_picks
+ADD COLUMN IF NOT EXISTS bookmaker_key TEXT;
+
+-- Backfill from metadata if it exists there
+UPDATE public.unified_picks
+SET bookmaker_key = (metadata->>'bookmaker_key')::text
+WHERE bookmaker_key IS NULL AND metadata->>'bookmaker_key' IS NOT NULL;
+
+-- Set default for rows that still don't have it
+UPDATE public.unified_picks
+SET bookmaker_key = 'unknown'
+WHERE bookmaker_key IS NULL;
+
+-- Make it NOT NULL now that we've backfilled
+ALTER TABLE public.unified_picks
+ALTER COLUMN bookmaker_key SET NOT NULL;
+
+-- Create index if it doesn't exist
+CREATE INDEX IF NOT EXISTS ix_unified_picks_bookmaker
+ON public.unified_picks (bookmaker_key);

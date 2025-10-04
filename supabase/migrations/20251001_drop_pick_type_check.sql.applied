@@ -1,0 +1,2 @@
+-- Drop the problematic pick_type check constraint to allow REST inserts
+ALTER TABLE public.unified_picks DROP CONSTRAINT IF EXISTS unified_picks_pick_type_check;

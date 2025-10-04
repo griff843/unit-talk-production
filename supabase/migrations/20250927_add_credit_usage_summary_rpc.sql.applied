@@ -1,6 +1,6 @@
 -- 20250927_add_credit_usage_summary_rpc.sql
 -- Fortune-100 style: expose a safe, aggregated credit usage summary
--- Keeps ops schema private; exposes only what’s needed for dashboards
+-- Keeps ops schema private; exposes only whatÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢s needed for dashboards
 
 -- Ensure ops.credit_usage exists (idempotent)
 CREATE SCHEMA IF NOT EXISTS ops;

@@ -1,0 +1,292 @@
+-- =====================================================
+-- ML FEATURE STORAGE TABLES
+-- Created: October 2, 2025
+-- Purpose: Store computed features for ML probability models
+-- =====================================================
+
+-- Feature values table: stores all computed features
+CREATE TABLE IF NOT EXISTS feature_values (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  entity_type TEXT NOT NULL,  -- 'player', 'team', 'game', 'prop', 'market'
+  entity_id TEXT NOT NULL,     -- player_id, team_id, etc.
+  sport TEXT NOT NULL,         -- 'NFL', 'NBA', 'MLB', 'NHL', 'NCAAF', 'NCAAB', 'WNBA'
+  feature_name TEXT NOT NULL,  -- 'recent_hit_rate', 'dvp_rating', 'league_avg', etc.
+  feature_category TEXT,       -- 'player', 'matchup', 'market', 'meta'
+  value JSONB NOT NULL,        -- flexible storage for any data type
+  confidence NUMERIC(5,4),     -- 0.0 to 1.0 confidence in this feature value
+  as_of TIMESTAMPTZ NOT NULL,  -- point-in-time value
+  expires_at TIMESTAMPTZ,      -- when this feature value becomes stale
+  metadata JSONB,              -- additional context
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes for fast lookups
+CREATE INDEX idx_feature_values_lookup
+  ON feature_values(entity_type, entity_id, sport, feature_name);
+
+CREATE INDEX idx_feature_values_asof
+  ON feature_values(as_of DESC);
+
+CREATE INDEX idx_feature_values_sport_category
+  ON feature_values(sport, feature_category);
+
+CREATE INDEX idx_feature_values_expires
+  ON feature_values(expires_at) WHERE expires_at IS NOT NULL;
+
+-- Unique constraint to prevent duplicates
+CREATE UNIQUE INDEX idx_feature_values_unique
+  ON feature_values(entity_type, entity_id, sport, feature_name, as_of);
+
+-- Feature freshness tracking
+CREATE TABLE IF NOT EXISTS feature_freshness (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  feature_name TEXT NOT NULL,
+  entity_type TEXT NOT NULL,
+  sport TEXT NOT NULL,
+  last_updated TIMESTAMPTZ NOT NULL,
+  last_value JSONB,
+  update_frequency_minutes INTEGER DEFAULT 1440, -- 24 hours default
+  is_stale BOOLEAN DEFAULT FALSE, -- Computed via trigger instead of generated column
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX idx_feature_freshness_unique
+  ON feature_freshness(feature_name, entity_type, sport);
+
+CREATE INDEX idx_feature_freshness_stale
+  ON feature_freshness(is_stale, last_updated);
+
+-- Player statistics table (historical performance)
+CREATE TABLE IF NOT EXISTS player_stats (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  player_id TEXT NOT NULL,
+  player_name TEXT NOT NULL,
+  sport TEXT NOT NULL,
+  team TEXT,
+  game_date DATE NOT NULL,
+  game_id TEXT,
+  opponent TEXT,
+  home_away TEXT CHECK (home_away IN ('home', 'away')),
+  stats JSONB NOT NULL,        -- all stats for that game (flexible schema per sport)
+  season INTEGER NOT NULL,
+  week INTEGER,                 -- for NFL/NCAAF
+  game_number INTEGER,          -- for other sports
+  minutes_played NUMERIC(5,2),
+  dnp_reason TEXT,              -- did not play reason
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX idx_player_stats_unique
+  ON player_stats(player_id, sport, game_date);
+
+CREATE INDEX idx_player_stats_lookup
+  ON player_stats(player_id, sport, game_date DESC);
+
+CREATE INDEX idx_player_stats_season
+  ON player_stats(sport, season, player_id);
+
+CREATE INDEX idx_player_stats_team
+  ON player_stats(team, game_date DESC);
+
+-- Line movement history table
+CREATE TABLE IF NOT EXISTS line_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  prop_id TEXT,
+  event_id TEXT NOT NULL,
+  sport TEXT NOT NULL,
+  bookmaker TEXT NOT NULL,
+  market TEXT NOT NULL,
+  selection TEXT,              -- 'over', 'under', 'player_name', etc.
+  line NUMERIC(6,2),
+  odds INTEGER,                -- American odds
+  decimal_odds NUMERIC(6,3),
+  probability NUMERIC(5,4),    -- implied probability
+  timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  movement_from_open NUMERIC(6,2), -- difference from opening line
+  velocity NUMERIC(6,2),       -- points moved per hour
+  is_steam BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_line_history_prop
+  ON line_history(prop_id, timestamp DESC);
+
+CREATE INDEX idx_line_history_event
+  ON line_history(event_id, market, timestamp DESC);
+
+CREATE INDEX idx_line_history_bookmaker
+  ON line_history(bookmaker, sport, timestamp DESC);
+
+CREATE INDEX idx_line_history_steam
+  ON line_history(is_steam, timestamp DESC) WHERE is_steam = TRUE;
+
+-- League averages table (cached statistical baselines)
+CREATE TABLE IF NOT EXISTS league_averages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sport TEXT NOT NULL,
+  season INTEGER NOT NULL,
+  market_type TEXT NOT NULL,   -- 'points', 'rebounds', 'assists', 'total_bases', etc.
+  stat_name TEXT NOT NULL,
+  average_value NUMERIC(8,4) NOT NULL,
+  median_value NUMERIC(8,4),
+  std_deviation NUMERIC(8,4),
+  sample_size INTEGER NOT NULL,
+  percentile_25 NUMERIC(8,4),
+  percentile_50 NUMERIC(8,4),
+  percentile_75 NUMERIC(8,4),
+  percentile_90 NUMERIC(8,4),
+  last_calculated TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX idx_league_averages_unique
+  ON league_averages(sport, season, market_type, stat_name);
+
+CREATE INDEX idx_league_averages_sport
+  ON league_averages(sport, season);
+
+-- Settled outcomes table (ground truth for model training)
+CREATE TABLE IF NOT EXISTS settled_outcomes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  prop_id TEXT,
+  external_id TEXT,
+  sport TEXT NOT NULL,
+  player_name TEXT,
+  player_id TEXT,
+  team TEXT,
+  opponent TEXT,
+  market_type TEXT NOT NULL,
+  market_selection TEXT,       -- 'over' or 'under'
+  line NUMERIC(6,2) NOT NULL,
+  odds INTEGER,
+  game_date DATE NOT NULL,
+  game_id TEXT,
+  actual_value NUMERIC(8,4),   -- actual stat value
+  outcome TEXT NOT NULL CHECK (outcome IN ('win', 'loss', 'push', 'void')),
+  settled_at TIMESTAMPTZ NOT NULL,
+  predicted_probability NUMERIC(5,4), -- our model's prediction at time of bet
+  bookmaker TEXT,
+  source TEXT NOT NULL,        -- 'oddsapi', 'sgo', 'manual', etc.
+  metadata JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX idx_settled_outcomes_prop_id
+  ON settled_outcomes(prop_id) WHERE prop_id IS NOT NULL;
+
+CREATE INDEX idx_settled_outcomes_player
+  ON settled_outcomes(player_id, sport, game_date DESC);
+
+CREATE INDEX idx_settled_outcomes_market
+  ON settled_outcomes(sport, market_type, game_date DESC);
+
+CREATE INDEX idx_settled_outcomes_outcome
+  ON settled_outcomes(outcome, sport, settled_at DESC);
+
+CREATE INDEX idx_settled_outcomes_source
+  ON settled_outcomes(source, settled_at DESC);
+
+-- Model performance tracking
+CREATE TABLE IF NOT EXISTS model_performance (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  model_name TEXT NOT NULL,
+  model_version TEXT NOT NULL,
+  sport TEXT NOT NULL,
+  market_type TEXT,
+  evaluation_period_start DATE NOT NULL,
+  evaluation_period_end DATE NOT NULL,
+  total_predictions INTEGER NOT NULL,
+  correct_predictions INTEGER NOT NULL,
+  accuracy NUMERIC(5,4) NOT NULL,
+  log_loss NUMERIC(8,6),
+  brier_score NUMERIC(8,6),
+  roi NUMERIC(6,4),
+  sharpe_ratio NUMERIC(6,4),
+  max_drawdown NUMERIC(6,4),
+  calibration_score NUMERIC(5,4),
+  metadata JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_model_performance_model
+  ON model_performance(model_name, model_version, created_at DESC);
+
+CREATE INDEX idx_model_performance_sport
+  ON model_performance(sport, evaluation_period_end DESC);
+
+-- Probability predictions log
+CREATE TABLE IF NOT EXISTS probability_predictions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  prop_id TEXT,
+  external_id TEXT,
+  sport TEXT NOT NULL,
+  player_id TEXT,
+  market_type TEXT NOT NULL,
+  line NUMERIC(6,2) NOT NULL,
+  predicted_probability NUMERIC(5,4) NOT NULL,
+  confidence NUMERIC(5,4),
+  model_name TEXT NOT NULL,
+  model_version TEXT NOT NULL,
+  feature_contributions JSONB,  -- which features contributed to prediction
+  calculated_at TIMESTAMPTZ DEFAULT NOW(),
+  actual_outcome TEXT,          -- filled in after settlement
+  was_correct BOOLEAN,          -- filled in after settlement
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_probability_predictions_prop
+  ON probability_predictions(prop_id, calculated_at DESC);
+
+CREATE INDEX idx_probability_predictions_player
+  ON probability_predictions(player_id, sport, calculated_at DESC);
+
+CREATE INDEX idx_probability_predictions_model
+  ON probability_predictions(model_name, model_version, calculated_at DESC);
+
+-- Row-level security policies (enable RLS)
+ALTER TABLE feature_values ENABLE ROW LEVEL SECURITY;
+ALTER TABLE feature_freshness ENABLE ROW LEVEL SECURITY;
+ALTER TABLE player_stats ENABLE ROW LEVEL SECURITY;
+ALTER TABLE line_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE league_averages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE settled_outcomes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE model_performance ENABLE ROW LEVEL SECURITY;
+ALTER TABLE probability_predictions ENABLE ROW LEVEL SECURITY;
+
+-- Policies for service role (full access)
+CREATE POLICY "Service role full access" ON feature_values FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "Service role full access" ON feature_freshness FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "Service role full access" ON player_stats FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "Service role full access" ON line_history FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "Service role full access" ON league_averages FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "Service role full access" ON settled_outcomes FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "Service role full access" ON model_performance FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "Service role full access" ON probability_predictions FOR ALL USING (auth.role() = 'service_role');
+
+-- Policies for anonymous read access on league averages (public data)
+CREATE POLICY "Public read league averages" ON league_averages FOR SELECT USING (true);
+
+-- Comments for documentation
+COMMENT ON TABLE feature_values IS 'Stores computed feature values for ML models - flexible JSONB storage for any feature type';
+COMMENT ON TABLE feature_freshness IS 'Tracks when features were last updated to detect stale data';
+COMMENT ON TABLE player_stats IS 'Historical player game-by-game statistics from external APIs';
+COMMENT ON TABLE line_history IS 'Line movement tracking from bookmakers for CLV and sharp money detection';
+COMMENT ON TABLE league_averages IS 'Cached league-wide statistical baselines for normalization';
+COMMENT ON TABLE settled_outcomes IS 'Ground truth outcomes for model training and backtesting';
+COMMENT ON TABLE model_performance IS 'Model accuracy and performance metrics over time';
+COMMENT ON TABLE probability_predictions IS 'Log of all probability predictions made by models';
+
+-- Grants
+GRANT ALL ON feature_values TO postgres, service_role;
+GRANT ALL ON feature_freshness TO postgres, service_role;
+GRANT ALL ON player_stats TO postgres, service_role;
+GRANT ALL ON line_history TO postgres, service_role;
+GRANT ALL ON league_averages TO postgres, service_role;
+GRANT ALL ON settled_outcomes TO postgres, service_role;
+GRANT ALL ON model_performance TO postgres, service_role;
+GRANT ALL ON probability_predictions TO postgres, service_role;
+
+GRANT SELECT ON league_averages TO anon, authenticated;

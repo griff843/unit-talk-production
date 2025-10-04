@@ -92,11 +92,10 @@ create table if not exists audit_log(
 );
 
 -- Indexes and Constraints
-create index if not exists idx_raw_props_org on raw_props(org_id);
-create index if not exists idx_unified_picks_org on unified_picks(org_id);
+
 create index if not exists idx_unified_picks_raw on unified_picks(raw_id);
-create unique index if not exists ux_alerts_dedupe on alerts_queue(org_id, unified_id, type, coalesce(last_sent_hash,''));
-create index if not exists idx_approval_pending on approval_queue(org_id, status);
+-- REMOVED (org_id column not present): create unique index if not exists ux_alerts_dedupe on alerts_queue(org_id, unified_id, type, coalesce(last_sent_hash,''));
+-- REMOVED (org_id column not present): create index if not exists idx_approval_pending on approval_queue(org_id, status);
 
 -- Enable RLS on HOT tables
 alter table users enable row level security;
@@ -109,30 +108,46 @@ alter table agent_health enable row level security;
 alter table audit_log enable row level security;
 
 -- Tenant isolation policies (restrict by org_id)
-create policy if not exists users_tenant_isolation
-  on users using (org_id = current_setting('app.org_id', true));
 
-create policy if not exists raw_props_tenant_isolation
-  on raw_props using (org_id = current_setting('app.org_id', true));
+-- REMOVED (org_id column not present): drop policy if exists users_tenant_isolation on users;
+-- REMOVED (org_id column not present): create policy users_tenant_isolation
+-- REMOVED (org_id column not present):   on users using (org_id = current_setting('app.org_id', true));
+-- REMOVED (org_id column not present): 
 
-create policy if not exists unified_picks_tenant_isolation
-  on unified_picks using (org_id = current_setting('app.org_id', true));
+-- REMOVED (org_id column not present): drop policy if exists raw_props_tenant_isolation on raw_props;
+-- REMOVED (org_id column not present): create policy raw_props_tenant_isolation
+-- REMOVED (org_id column not present):   on raw_props using (org_id = current_setting('app.org_id', true));
+-- REMOVED (org_id column not present): 
 
-create policy if not exists approval_queue_tenant_isolation
-  on approval_queue using (org_id = current_setting('app.org_id', true));
+-- REMOVED (org_id column not present): drop policy if exists unified_picks_tenant_isolation on unified_picks;
+-- REMOVED (org_id column not present): create policy unified_picks_tenant_isolation
+-- REMOVED (org_id column not present):   on unified_picks using (org_id = current_setting('app.org_id', true));
+-- REMOVED (org_id column not present): 
 
-create policy if not exists alerts_queue_tenant_isolation
-  on alerts_queue using (org_id = current_setting('app.org_id', true));
+-- REMOVED (org_id column not present): drop policy if exists approval_queue_tenant_isolation on approval_queue;
+-- REMOVED (org_id column not present): create policy approval_queue_tenant_isolation
+-- REMOVED (org_id column not present):   on approval_queue using (org_id = current_setting('app.org_id', true));
+-- REMOVED (org_id column not present): 
 
-create policy if not exists api_quota_configs_tenant_isolation
-  on api_quota_configs using (org_id = current_setting('app.org_id', true));
+-- REMOVED (org_id column not present): drop policy if exists alerts_queue_tenant_isolation on alerts_queue;
+-- REMOVED (org_id column not present): create policy alerts_queue_tenant_isolation
+-- REMOVED (org_id column not present):   on alerts_queue using (org_id = current_setting('app.org_id', true));
+-- REMOVED (org_id column not present): 
 
-create policy if not exists agent_health_tenant_isolation
-  on agent_health using (org_id = current_setting('app.org_id', true));
+-- REMOVED (org_id column not present): drop policy if exists api_quota_configs_tenant_isolation on api_quota_configs;
+-- REMOVED (org_id column not present): create policy api_quota_configs_tenant_isolation
+-- REMOVED (org_id column not present):   on api_quota_configs using (org_id = current_setting('app.org_id', true));
+-- REMOVED (org_id column not present): 
 
-create policy if not exists audit_log_tenant_isolation
-  on audit_log using (org_id = current_setting('app.org_id', true));
+-- REMOVED (org_id column not present): drop policy if exists agent_health_tenant_isolation on agent_health;
+-- REMOVED (org_id column not present): create policy agent_health_tenant_isolation
+-- REMOVED (org_id column not present):   on agent_health using (org_id = current_setting('app.org_id', true));
+-- REMOVED (org_id column not present): 
 
+-- REMOVED (org_id column not present): drop policy if exists audit_log_tenant_isolation on audit_log;
+-- REMOVED (org_id column not present): create policy audit_log_tenant_isolation
+-- REMOVED (org_id column not present):   on audit_log using (org_id = current_setting('app.org_id', true));
+-- REMOVED (org_id column not present): 
 -- Promoter single-writer guard: revoke insert from anon/authenticated
 revoke insert on unified_picks from anon, authenticated;
 
@@ -184,8 +199,9 @@ create materialized view if not exists mv_alert_overlay_today as
   left join alerts_queue a on a.unified_id = u.id
   where u.created_at::date = now()::date;
 
-create materialized view if not exists mv_provider_quota_state as
-  select provider, daily_limit, used, window_start from api_quota_configs;
+-- REMOVED: mv_provider_quota_state (column mismatch with cloud schema)
+-- create materialized view if not exists mv_provider_quota_state as
+--   select provider, daily_limit, used, window_start from api_quota_configs;
 
 create materialized view if not exists mv_edge_summary_today as
   select sport, count(*) picks from unified_picks
@@ -226,25 +242,31 @@ alter table metrics_timeseries enable row level security;
 alter table slo_incidents enable row level security;
 
 -- COLD table policies
-create policy if not exists settlements_tenant_isolation
-  on settlements using (org_id = current_setting('app.org_id', true));
 
-create policy if not exists metrics_timeseries_tenant_isolation
-  on metrics_timeseries using (org_id = current_setting('app.org_id', true));
+-- REMOVED (org_id column not present): drop policy if exists settlements_tenant_isolation on settlements;
+-- REMOVED (org_id column not present): create policy settlements_tenant_isolation
+-- REMOVED (org_id column not present):   on settlements using (org_id = current_setting('app.org_id', true));
+-- REMOVED (org_id column not present): 
 
-create policy if not exists slo_incidents_tenant_isolation
-  on slo_incidents using (org_id = current_setting('app.org_id', true));
+-- REMOVED (org_id column not present): drop policy if exists metrics_timeseries_tenant_isolation on metrics_timeseries;
+-- REMOVED (org_id column not present): create policy metrics_timeseries_tenant_isolation
+-- REMOVED (org_id column not present):   on metrics_timeseries using (org_id = current_setting('app.org_id', true));
+-- REMOVED (org_id column not present): 
 
+-- REMOVED (org_id column not present): drop policy if exists slo_incidents_tenant_isolation on slo_incidents;
+-- REMOVED (org_id column not present): create policy slo_incidents_tenant_isolation
+-- REMOVED (org_id column not present):   on slo_incidents using (org_id = current_setting('app.org_id', true));
+-- REMOVED (org_id column not present): 
 -- Additional indexes for performance
-create index if not exists idx_settlements_org on settlements(org_id);
-create index if not exists idx_metrics_org_name on metrics_timeseries(org_id, metric_name);
-create index if not exists idx_slo_incidents_org on slo_incidents(org_id);
+-- REMOVED (org_id column not present): create index if not exists idx_settlements_org on settlements(org_id);
+-- REMOVED (org_id column not present): create index if not exists idx_metrics_org_name on metrics_timeseries(org_id, metric_name);
+-- REMOVED (org_id column not present): create index if not exists idx_slo_incidents_org on slo_incidents(org_id);
 
 -- Refresh materialized views
 refresh materialized view mv_daily_unified_recaps;
 refresh materialized view mv_capper_leaderboard_7_30_90;
 refresh materialized view mv_alert_overlay_today;
-refresh materialized view mv_provider_quota_state;
+-- REMOVED: refresh materialized view mv_provider_quota_state;
 refresh materialized view mv_edge_summary_today;
 
 -- Insert minimal bootstrap data

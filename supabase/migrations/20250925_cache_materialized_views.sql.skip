@@ -11,12 +11,12 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS public.mv_hot_published_picks AS
 SELECT 
     up.id,
     up.user_id,
-    up.external_game_id,
-    up.external_prop_id,
+    -- REMOVED (column not present): up.external_game_id,
+    -- REMOVED (column not present): up.external_prop_id,
     up.sport,
-    up.league,
+    -- REMOVED (league column not present): up.league,
     up.market,
-    up.submarket,
+    -- REMOVED (column not present): up.submarket,
     up.player_name,
     up.team,
     up.matchup,
@@ -64,11 +64,11 @@ WITH todays_date AS (
 SELECT 
     up.id,
     up.user_id,
-    up.external_game_id,
+    -- REMOVED (column not present): up.external_game_id,
     up.sport,
-    up.league,
+    -- REMOVED (league column not present): up.league,
     up.market,
-    up.submarket,
+    -- REMOVED (column not present): up.submarket,
     up.player_name,
     up.team,
     up.matchup,
@@ -231,15 +231,15 @@ recent_props AS (
     WHERE posted_at >= NOW() - INTERVAL '7 days'
 )
 SELECT 
-    COALESCE(rg.external_game_id, rp.external_game_id) AS external_game_id,
+    -- REMOVED (column not present): COALESCE(rg.external_game_id, rp.external_game_id) AS external_game_id,
     COALESCE(rg.sport, rp.sport) AS sport,
-    COALESCE(rg.league, rp.league) AS league,
+    -- REMOVED (column not present): COALESCE(rg.league, rp.league) AS league,
     rg.matchup,
     rg.game_date,
     rg.prop_count,
-    rp.external_prop_id,
+    -- REMOVED (column not present): rp.external_prop_id,
     rp.market,
-    rp.submarket,
+    -- REMOVED (column not present): rp.submarket,
     rp.player_name,
     rp.team,
     rp.line,
@@ -249,9 +249,9 @@ SELECT
     LOWER(rp.player_name) AS player_name_lower,
     LOWER(rp.team) AS team_lower,
     LOWER(rg.matchup) AS matchup_lower,
-    LOWER(rp.market || ' ' || COALESCE(rp.submarket, '')) AS market_search
+    -- REMOVED (column not present): LOWER(rp.market || ' ' || COALESCE(rp.submarket, '')) AS market_search
 FROM recent_games rg
-FULL OUTER JOIN recent_props rp ON rg.external_game_id = rp.external_game_id
+-- REMOVED (column not present): FULL OUTER JOIN recent_props rp ON rg.external_game_id = rp.external_game_id
 WHERE COALESCE(rg.game_date, NOW() + INTERVAL '1 day') >= NOW() - INTERVAL '3 days'
 ORDER BY rg.game_date ASC NULLS LAST, rp.usage_count DESC NULLS LAST;
 

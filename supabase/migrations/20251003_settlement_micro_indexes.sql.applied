@@ -1,0 +1,24 @@
+-- Settlement micro-indexes for speed
+-- Idempotent, safe to re-run
+
+-- raw_props: typical filters (sport/date/player/market) and identity
+CREATE INDEX IF NOT EXISTS ix_raw_props_sport_date
+  ON public.raw_props (sport, game_date);
+CREATE INDEX IF NOT EXISTS ix_raw_props_player_market_date
+  ON public.raw_props (lower(player_name), market, game_date);
+CREATE INDEX IF NOT EXISTS ix_raw_props_prop_id
+  ON public.raw_props (prop_id);
+
+-- player_stats: join & JSONB
+CREATE INDEX IF NOT EXISTS ix_player_stats_sport_game_player
+  ON public.player_stats (sport, game_id, player_name);
+CREATE INDEX IF NOT EXISTS ix_player_stats_player_key
+  ON public.player_stats (lower(player_name));
+CREATE INDEX IF NOT EXISTS gin_player_stats_stats
+  ON public.player_stats USING gin (stats);
+
+-- settled_outcomes: dedup + query
+CREATE UNIQUE INDEX IF NOT EXISTS ux_settled_outcomes_prop
+  ON public.settled_outcomes (prop_id);
+CREATE INDEX IF NOT EXISTS ix_settled_outcomes_sport_date
+  ON public.settled_outcomes (sport, game_date);

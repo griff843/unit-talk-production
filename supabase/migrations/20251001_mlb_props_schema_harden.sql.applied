@@ -1,0 +1,37 @@
+-- Schema hardening for MLB player props ingest
+-- Idempotent: safe to run multiple times
+
+-- required columns (add if missing)
+alter table public.unified_picks
+  add column if not exists sport text not null default 'mlb',
+  add column if not exists market text not null default 'player_props',
+  add column if not exists selection text not null default '',
+  add column if not exists odds integer not null default 0,
+  add column if not exists line numeric null,
+  add column if not exists bookmaker_key text not null default '',
+  add column if not exists game_date timestamptz not null default now(),
+  add column if not exists source text not null default 'odds-api',
+  add column if not exists posted_at timestamptz not null default now(),
+  add column if not exists user_id uuid not null default '00000000-0000-0000-0000-000000000001',
+  add column if not exists pick_type text not null default 'automated',
+  add column if not exists stake numeric not null default 1,
+  add column if not exists potential_payout numeric not null default 0;
+
+-- align unique key with our REST upsert (includes sport)
+drop index if exists ux_unified_picks_dedup;
+create unique index ux_unified_picks_dedup
+on public.unified_picks (sport, source, market, selection, bookmaker_key, game_date, line, game_id);
+
+-- types sanity (no-ops if already correct)
+alter table public.unified_picks
+  alter column odds type integer using round(odds)::integer,
+  alter column line type numeric using nullif(line::text,'')::numeric;
+
+-- service_role insert policy (service_role normally bypasses RLS; keep for clarity)
+do $$
+begin
+  if not exists (select 1 from pg_policies where tablename='unified_picks' and policyname='write_sr') then
+    create policy write_sr on public.unified_picks
+    for insert to service_role using (true) with check (true);
+  end if;
+end$$;

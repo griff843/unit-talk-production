@@ -33,13 +33,13 @@ alter table if exists public.unified_picks
   add column if not exists outcome text,
   add column if not exists meta jsonb default '{}'::jsonb;
 
--- Basic not-null constraints for core IDs
-alter table if exists public.unified_picks
-  alter column external_game_id set not null,
-  alter column external_prop_id set not null,
-  alter column sport set not null,
-  alter column market set not null,
-  alter column source set not null;
+-- Basic not-null constraints for core IDs (COMMENTED: existing data has nulls)
+-- alter table if exists public.unified_picks
+--   alter column external_game_id set not null,
+--   alter column external_prop_id set not null,
+--   alter column sport set not null,
+--   alter column market set not null,
+--   alter column source set not null;
 
 -- Indexes (create if not exists)
 -- Unique pair for idempotent upsert semantics
@@ -84,7 +84,7 @@ from public.unified_picks
 where (game_date >= now() - interval '3 days')
    or (posted_at >= now() - interval '3 days');
 
--- Optional: materialized view for blazing-fast form queries (Postgres ≥ 12)
+-- Optional: materialized view for blazing-fast form queries (Postgres ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â°ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¥ 12)
 create materialized view if not exists public.mv_props_for_form as
 select
   external_prop_id,
@@ -139,7 +139,7 @@ BEGIN
     -- Not a table: provide compatibility view
     EXECUTE $$create or replace view public.raw_props as
       select * from public.unified_picks$$;
-    COMMENT ON VIEW public.raw_props IS 'DEPRECATED compatibility view (mapped to unified_picks). Scheduled for removal within 30–45 days.';
+    COMMENT ON VIEW public.raw_props IS 'DEPRECATED compatibility view (mapped to unified_picks). Scheduled for removal within 30ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ45 days.';
   END IF;
 END$$;
 
