@@ -40,7 +40,7 @@ async function checkBoardRows(): Promise<Check> {
   try {
     const { data, error } = await supabase
       .from('v_daily_board')
-      .select('id')
+      .select('pick_id')
       .limit(10);
 
     if (error) {
@@ -146,11 +146,10 @@ async function checkAlertsBacklog(): Promise<Check> {
   try {
     const now = new Date().toISOString();
 
-    const { data, error } = await supabase
+    const { data, error} = await supabase
       .from('approval_queue')
-      .select('id, unified_id, created_at')
-      .eq('status', 'approved')
-      .is('approved_at', null);
+      .select('id, unified_id, created_at, status')
+      .eq('status', 'pending');
 
     if (error) {
       return {
@@ -162,7 +161,7 @@ async function checkAlertsBacklog(): Promise<Check> {
     if (data && data.length > 10) {
       return {
         status: 'fail',
-        message: `${data.length} stale approved picks not published - AlertAgent may be down`,
+        message: `${data.length} stale pending picks in queue - ApprovalAgent may be down`,
         details: { staleCount: data.length }
       };
     }
@@ -170,14 +169,14 @@ async function checkAlertsBacklog(): Promise<Check> {
     if (data && data.length > 0) {
       return {
         status: 'warn',
-        message: `${data.length} picks pending publish (normal if < 5 min old)`,
+        message: `${data.length} picks pending approval (normal if < 5 min old)`,
         details: { pendingCount: data.length }
       };
     }
 
     return {
       status: 'pass',
-      message: 'No stale alerts backlog',
+      message: 'No stale approval backlog',
       details: { backlog: 0 }
     };
   } catch (error) {
