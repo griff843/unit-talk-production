@@ -14,8 +14,7 @@
 
 -- raw_props performance indexes
 CREATE INDEX IF NOT EXISTS idx_raw_props_game_date
-  ON public.raw_props(game_date DESC)
-  WHERE game_date >= CURRENT_DATE - INTERVAL '7 days';
+  ON public.raw_props(game_date DESC);
 
 CREATE INDEX IF NOT EXISTS idx_raw_props_external_prop_id
   ON public.raw_props(external_prop_id)
@@ -31,8 +30,7 @@ CREATE INDEX IF NOT EXISTS idx_raw_props_promoted
 
 -- unified_picks performance indexes
 CREATE INDEX IF NOT EXISTS idx_unified_picks_game_date
-  ON public.unified_picks(game_date DESC)
-  WHERE game_date >= CURRENT_DATE - INTERVAL '7 days';
+  ON public.unified_picks(game_date DESC);
 
 CREATE INDEX IF NOT EXISTS idx_unified_picks_external_prop_id
   ON public.unified_picks(external_prop_id)
