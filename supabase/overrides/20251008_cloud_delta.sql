@@ -9,8 +9,13 @@
 -- We'll ensure the pipeline populates both correctly
 
 -- ============================================================================
--- 1. ENSURE CRITICAL INDEXES (Idempotent)
+-- 1. ENSURE CRITICAL INDEXES & CONSTRAINTS (Idempotent)
 -- ============================================================================
+
+-- raw_props unique constraint for ON CONFLICT upserts
+CREATE UNIQUE INDEX IF NOT EXISTS raw_props_unique_external_prop_id
+  ON public.raw_props(external_prop_id)
+  WHERE external_prop_id IS NOT NULL;
 
 -- raw_props performance indexes
 CREATE INDEX IF NOT EXISTS idx_raw_props_game_date
