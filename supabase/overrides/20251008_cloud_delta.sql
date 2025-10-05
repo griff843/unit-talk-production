@@ -13,9 +13,19 @@
 -- ============================================================================
 
 -- raw_props unique constraint for ON CONFLICT upserts
-CREATE UNIQUE INDEX IF NOT EXISTS raw_props_unique_external_prop_id
-  ON public.raw_props(external_prop_id)
-  WHERE external_prop_id IS NOT NULL;
+-- Must be CONSTRAINT not INDEX for Supabase upsert to work
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'raw_props_external_prop_id_unique'
+      AND conrelid = 'public.raw_props'::regclass
+  ) THEN
+    ALTER TABLE public.raw_props
+      ADD CONSTRAINT raw_props_external_prop_id_unique
+      UNIQUE (external_prop_id);
+  END IF;
+END $$;
 
 -- raw_props performance indexes
 CREATE INDEX IF NOT EXISTS idx_raw_props_game_date
