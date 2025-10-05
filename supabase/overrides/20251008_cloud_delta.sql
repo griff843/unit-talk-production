@@ -153,11 +153,10 @@ SELECT
   -- Promotion queue data
   pq.id AS queue_id,
   pq.status AS promotion_status,
-  pq.discord_thread_id,
   pq.published_at
 FROM public.unified_picks up
 LEFT JOIN public.scored_props sp ON sp.prop_ref = up.id
-LEFT JOIN public.promotion_queue pq ON pq.pick_id = up.id
+LEFT JOIN public.promotion_queue pq ON pq.prop_ref = up.id
 WHERE up.game_date >= CURRENT_DATE
   AND up.status IN ('pending', 'approved')
 ORDER BY sp.edge DESC NULLS LAST, up.created_at DESC;
@@ -168,11 +167,9 @@ COMMENT ON VIEW public.v_daily_board IS 'Daily board: approved picks with scorin
 CREATE VIEW public.v_open_promotions AS
 SELECT
   pq.id AS queue_id,
-  pq.pick_id,
+  pq.prop_ref,
   pq.status,
   pq.priority,
-  pq.discord_thread_id,
-  pq.discord_message_id,
   pq.published_at,
   pq.created_at,
   pq.updated_at,
@@ -191,7 +188,7 @@ SELECT
   sp.edge,
   sp.prob_win
 FROM public.promotion_queue pq
-JOIN public.unified_picks up ON up.id = pq.pick_id
+JOIN public.unified_picks up ON up.id = pq.prop_ref
 LEFT JOIN public.scored_props sp ON sp.prop_ref = up.id
 WHERE pq.status IN ('pending', 'processing', 'published')
 ORDER BY pq.priority DESC, pq.created_at ASC;
@@ -266,9 +263,9 @@ BEGIN
 
   -- Add to promotion queue if approved
   IF FOUND THEN
-    INSERT INTO public.promotion_queue (pick_id, status, priority, created_at)
+    INSERT INTO public.promotion_queue (prop_ref, status, priority, created_at)
     VALUES (p_pick_id, 'pending', 50, NOW())
-    ON CONFLICT (pick_id) DO NOTHING;
+    ON CONFLICT (prop_ref) DO NOTHING;
     RETURN TRUE;
   END IF;
 
