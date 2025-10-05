@@ -73,8 +73,13 @@ END $$;
 -- 3. RECREATE/UPDATE VIEWS (Idempotent - CREATE OR REPLACE)
 -- ============================================================================
 
+-- Drop existing views first to avoid column name conflicts
+DROP VIEW IF EXISTS public.v_prop_read_model CASCADE;
+DROP VIEW IF EXISTS public.v_daily_board CASCADE;
+DROP VIEW IF EXISTS public.v_open_promotions CASCADE;
+
 -- v_prop_read_model: Feed for Command Center
-CREATE OR REPLACE VIEW public.v_prop_read_model AS
+CREATE VIEW public.v_prop_read_model AS
 SELECT
   rp.id,
   rp.external_prop_id,
@@ -114,7 +119,7 @@ WHERE rp.game_date >= CURRENT_DATE - INTERVAL '1 day'
 COMMENT ON VIEW public.v_prop_read_model IS 'Pipeline feed view: raw_props with scoring data for Command Center';
 
 -- v_daily_board: Approved picks ready for promotion
-CREATE OR REPLACE VIEW public.v_daily_board AS
+CREATE VIEW public.v_daily_board AS
 SELECT
   up.id AS prop_id,
   up.external_prop_id,
@@ -160,7 +165,7 @@ ORDER BY sp.edge DESC NULLS LAST, up.created_at DESC;
 COMMENT ON VIEW public.v_daily_board IS 'Daily board: approved picks with scoring for promotion workflow';
 
 -- v_open_promotions: Active promotions in queue
-CREATE OR REPLACE VIEW public.v_open_promotions AS
+CREATE VIEW public.v_open_promotions AS
 SELECT
   pq.id AS queue_id,
   pq.pick_id,
