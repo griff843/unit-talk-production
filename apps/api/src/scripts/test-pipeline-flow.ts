@@ -40,10 +40,9 @@ interface RawProp {
   line?: number;
   over_odds?: number;
   under_odds?: number;
-  outcome_name?: string;
-  price?: number;
-  raw_data?: any;
   odds?: number;
+  outcome?: string;
+  metadata?: any;
 }
 
 /**
@@ -88,7 +87,7 @@ async function fetchMLBProps(): Promise<any> {
 function transformToRawProps(oddsApiResult: any): RawProp[] {
   const rawProps: RawProp[] = [];
 
-  // Transform props to raw_props format (matching actual table schema)
+  // Transform props to match Supabase Cloud raw_props schema
   for (const prop of oddsApiResult.props || []) {
     rawProps.push({
       external_game_id: prop.game_id || prop.external_game_id || `game_${Date.now()}`,
@@ -105,10 +104,13 @@ function transformToRawProps(oddsApiResult: any): RawProp[] {
       line: prop.line ? parseFloat(String(prop.line)) : undefined,
       over_odds: prop.over_odds ? parseInt(String(prop.over_odds)) : undefined,
       under_odds: prop.under_odds ? parseInt(String(prop.under_odds)) : undefined,
-      outcome_name: prop.outcome || prop.selection,
-      price: prop.price || prop.over_odds,
       odds: prop.price || prop.over_odds,
-      raw_data: prop
+      outcome: prop.outcome || prop.selection,
+      metadata: {
+        raw_api_response: prop,
+        source: 'odds-api',
+        ingested_by: 'test-pipeline-flow'
+      }
     });
   }
 
