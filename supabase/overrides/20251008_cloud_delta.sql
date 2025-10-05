@@ -199,13 +199,38 @@ COMMENT ON VIEW public.v_open_promotions IS 'Open promotions: active queue items
 -- 4. DROP EXISTING RPCS & RECREATE (Handle overloads)
 -- ============================================================================
 
--- Drop all overloaded versions of these functions
-DROP FUNCTION IF EXISTS public.submit_pick(UUID, UUID, TEXT, TEXT);
-DROP FUNCTION IF EXISTS public.submit_pick(UUID, UUID, TEXT);
-DROP FUNCTION IF EXISTS public.approve_pick(UUID, UUID);
-DROP FUNCTION IF EXISTS public.approve_pick(UUID);
-DROP FUNCTION IF EXISTS public.deny_pick(UUID, TEXT);
-DROP FUNCTION IF EXISTS public.deny_pick(UUID);
+-- Drop all overloaded versions - use DO block to handle "not unique" error
+DO $$
+BEGIN
+  -- Drop all submit_pick overloads
+  EXECUTE 'DROP FUNCTION IF EXISTS public.submit_pick CASCADE';
+EXCEPTION
+  WHEN OTHERS THEN
+    -- If ambiguous, drop by schema
+    DELETE FROM pg_proc
+    WHERE proname = 'submit_pick'
+      AND pronamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public');
+END $$;
+
+DO $$
+BEGIN
+  EXECUTE 'DROP FUNCTION IF EXISTS public.approve_pick CASCADE';
+EXCEPTION
+  WHEN OTHERS THEN
+    DELETE FROM pg_proc
+    WHERE proname = 'approve_pick'
+      AND pronamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public');
+END $$;
+
+DO $$
+BEGIN
+  EXECUTE 'DROP FUNCTION IF EXISTS public.deny_pick CASCADE';
+EXCEPTION
+  WHEN OTHERS THEN
+    DELETE FROM pg_proc
+    WHERE proname = 'deny_pick'
+      AND pronamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public');
+END $$;
 
 -- submit_pick: Submit a pick for approval
 CREATE FUNCTION public.submit_pick(
