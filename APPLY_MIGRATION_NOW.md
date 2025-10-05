@@ -6,10 +6,11 @@
 1. Removed non-immutable functions from index predicates (ERROR 42P17)
 2. Added DROP VIEW before CREATE to avoid column rename conflicts (ERROR 42P16)
 3. Fixed promotion_queue column references from pick_id to prop_ref (ERROR 42703)
+4. Added DROP FUNCTION for all overloaded RPC versions (ERROR 42725)
 
 **File**: `supabase/overrides/20251008_cloud_delta.sql`
 **Status**: Ready to apply
-**Commit**: `344d551`
+**Commit**: `7aed4f5`
 
 ---
 
@@ -138,7 +139,7 @@ Gates: 5/5 RED (will turn GREEN after migration)
 
 ---
 
-**Last Updated**: Commit `344d551`
+**Last Updated**: Commit `7aed4f5`
 **Ready**: YES ✅
-**All Errors Fixed**: 3/3 resolved
+**All Errors Fixed**: 4/4 resolved
 **Waiting For**: Manual migration application
