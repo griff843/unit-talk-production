@@ -11,8 +11,9 @@ $env:SUPABASE_POOLER_URL = "postgresql://postgres.lxqmuzmqtnnlpfapvief@aws-0-us-
 Write-Host "Step 1: Applying cloud delta migration..." -ForegroundColor Yellow
 
 # Apply the delta migration
-docker run --rm -i postgres:16-alpine sh -lc 'cat > /tmp/cloud_delta.sql && psql "$SUPABASE_URL" --set ON_ERROR_STOP=1 -f /tmp/cloud_delta.sql' `
-  -e SUPABASE_URL=$env:SUPABASE_POOLER_URL < supabase/overrides/20251008_cloud_delta.sql
+Get-Content supabase/overrides/20251008_cloud_delta.sql | docker run --rm -i `
+  -e SUPABASE_URL=$env:SUPABASE_POOLER_URL `
+  postgres:16-alpine sh -lc 'cat > /tmp/cloud_delta.sql && psql "$SUPABASE_URL" --set ON_ERROR_STOP=1 -f /tmp/cloud_delta.sql'
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "`n❌ Migration failed!" -ForegroundColor Red
@@ -59,4 +60,5 @@ $verifyJson | Out-File -FilePath "$outDir/VERIFY_DB.json" -Encoding UTF8
 Write-Host "`n✅ Saved to: $outDir/VERIFY_DB.json" -ForegroundColor Green
 
 Write-Host "`n=== MIGRATION COMPLETE ===" -ForegroundColor Cyan
-Write-Host "Next: Run npx tsx apps/api/src/scripts/test-pipeline-flow.ts`n" -ForegroundColor Gray
+Write-Host "Next: Run npx tsx apps/api/src/scripts/test-pipeline-flow.ts" -ForegroundColor Gray
+Write-Host ""
