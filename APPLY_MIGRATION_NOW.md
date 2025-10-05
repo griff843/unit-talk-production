@@ -2,10 +2,13 @@
 
 ## ✅ Migration Fixed & Ready
 
-**Issue Resolved**: Removed non-immutable functions from index predicates
+**Issues Resolved**:
+1. Removed non-immutable functions from index predicates
+2. Added DROP VIEW before CREATE to avoid column rename conflicts
+
 **File**: `supabase/overrides/20251008_cloud_delta.sql`
 **Status**: Ready to apply
-**Commit**: `c943db0`
+**Commit**: `997c90d`
 
 ---
 
@@ -134,6 +137,6 @@ Gates: 5/5 RED (will turn GREEN after migration)
 
 ---
 
-**Last Updated**: Commit `c943db0`
+**Last Updated**: Commit `997c90d`
 **Ready**: YES ✅
 **Waiting For**: Manual migration application
