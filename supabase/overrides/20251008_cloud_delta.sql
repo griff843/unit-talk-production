@@ -196,11 +196,19 @@ ORDER BY pq.priority DESC, pq.created_at ASC;
 COMMENT ON VIEW public.v_open_promotions IS 'Open promotions: active queue items with pick and scoring data';
 
 -- ============================================================================
--- 4. VERIFY/RECREATE RPCS (Idempotent)
+-- 4. DROP EXISTING RPCS & RECREATE (Handle overloads)
 -- ============================================================================
 
+-- Drop all overloaded versions of these functions
+DROP FUNCTION IF EXISTS public.submit_pick(UUID, UUID, TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.submit_pick(UUID, UUID, TEXT);
+DROP FUNCTION IF EXISTS public.approve_pick(UUID, UUID);
+DROP FUNCTION IF EXISTS public.approve_pick(UUID);
+DROP FUNCTION IF EXISTS public.deny_pick(UUID, TEXT);
+DROP FUNCTION IF EXISTS public.deny_pick(UUID);
+
 -- submit_pick: Submit a pick for approval
-CREATE OR REPLACE FUNCTION public.submit_pick(
+CREATE FUNCTION public.submit_pick(
   p_raw_id UUID,
   p_user_id UUID,
   p_selection TEXT,
@@ -242,7 +250,7 @@ $$;
 COMMENT ON FUNCTION public.submit_pick IS 'Submit a raw prop for approval workflow';
 
 -- approve_pick: Approve a submitted pick
-CREATE OR REPLACE FUNCTION public.approve_pick(
+CREATE FUNCTION public.approve_pick(
   p_pick_id UUID,
   p_approver_id UUID
 )
@@ -276,7 +284,7 @@ $$;
 COMMENT ON FUNCTION public.approve_pick IS 'Approve a pick and add to promotion queue';
 
 -- deny_pick: Deny a submitted pick
-CREATE OR REPLACE FUNCTION public.deny_pick(
+CREATE FUNCTION public.deny_pick(
   p_pick_id UUID,
   p_reason TEXT DEFAULT NULL
 )
