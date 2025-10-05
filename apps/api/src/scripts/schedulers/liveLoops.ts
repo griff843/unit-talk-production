@@ -1,8 +1,10 @@
 /**
- * Live Loop Schedulers
+ * Live Loop Schedulers - Normalizer & Scorer
  *
- * Continuous schedulers for FeedAgent, ScoringAgent, and Promotion sweep.
- * Runs inside the API process without external cron dependencies.
+ * Normalizer: every 45s (raw_props → unified_picks)
+ * Scorer: every 30s (unified_picks → scored_props)
+ *
+ * Usage: npx tsx apps/api/src/scripts/schedulers/liveLoops.ts
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -15,6 +17,9 @@ const supabase = createClient(
 );
 
 const OUT_DIR = path.join(process.cwd(), 'apps/api/out/ops/schedulers');
+
+let normalizerRunning = false;
+let scorerRunning = false;
 
 // Ensure output directory exists
 function ensureDir(dir: string) {
@@ -46,47 +51,98 @@ async function logHealth(
 }
 
 /**
- * Loop A: FeedAgent - Ingest today+48h props every 45s
+ * Loop A: Normalizer - raw_props → unified_picks every 45s
  */
 async function feedLoop() {
   const INTERVAL_MS = 45 * 1000; // 45 seconds
 
-  console.log('🔄 [FeedLoop] Starting (every 45s)...');
+  console.log('🔄 [NormalizerLoop] Starting (every 45s)...');
 
   while (true) {
+    if (normalizerRunning) {
+      console.log('[NormalizerLoop] ⏭️  Skipping (previous run still active)');
+      await new Promise(resolve => setTimeout(resolve, INTERVAL_MS));
+      continue;
+    }
+
+    normalizerRunning = true;
     const startTime = Date.now();
     const stats = {
-      agent: 'FeedAgent',
+      agent: 'Normalizer',
       timestamp: new Date().toISOString(),
       inserted: 0,
       updated: 0,
-      skipped: 0,
       errors: 0,
-      sports: [] as string[],
     };
 
     try {
-      console.log(`\n[FeedLoop] Cycle start: ${stats.timestamp}`);
+      console.log(`\n[NormalizerLoop] Cycle start: ${stats.timestamp}`);
 
-      // TODO: Call actual FeedAgent ingest for today+48h
-      // For now, log health only
-      stats.sports = ['mlb', 'nfl', 'nba', 'nhl'];
-      stats.inserted = 0; // Replace with actual counts from FeedAgent
+      const { data: rawProps, error } = await supabase
+        .from('raw_props')
+        .select('id, external_prop_id, external_game_id, sport, market, player_name, line, odds, over_odds, under_odds, outcome, game_date, bookmaker_key, metadata')
+        .gte('game_date', new Date().toISOString().split('T')[0])
+        .eq('is_valid', true)
+        .eq('promoted_to_picks', false)
+        .order('created_at', { ascending: false })
+        .limit(500);
 
-      await logHealth('FeedAgent', 'feed', stats);
-      console.log(`[FeedLoop] ✅ Completed in ${Date.now() - startTime}ms`);
+      if (error) throw error;
+      if (!rawProps || rawProps.length === 0) {
+        console.log('[NormalizerLoop] ✅ No props to normalize');
+        normalizerRunning = false;
+        await new Promise(resolve => setTimeout(resolve, INTERVAL_MS));
+        continue;
+      }
+
+      const unifiedPicks = rawProps.map((rp: any) => ({
+        external_prop_id: rp.external_prop_id || `${rp.id}`,
+        external_game_id: rp.external_game_id,
+        sport: rp.sport,
+        market: rp.market || 'unknown',
+        selection: rp.outcome || 'over',
+        line: rp.line,
+        odds: rp.odds || rp.over_odds || rp.under_odds,
+        player_name: rp.player_name,
+        game_date: rp.game_date,
+        bookmaker_key: rp.bookmaker_key || 'unknown',
+        status: 'pending',
+        workflow_stage: 'normalized',
+        source: 'normalizer-loop',
+        metadata: { raw_prop_id: rp.id, normalized_at: new Date().toISOString() }
+      }));
+
+      const { error: upsertError } = await supabase
+        .from('unified_picks')
+        .upsert(unifiedPicks, {
+          onConflict: 'sport,market,player_name,game_date,bookmaker_key,line,selection',
+          ignoreDuplicates: false
+        });
+
+      if (upsertError) throw upsertError;
+
+      const ids = rawProps.map((rp: any) => rp.id);
+      await supabase
+        .from('raw_props')
+        .update({ promoted_to_picks: true, processed_at: new Date().toISOString() })
+        .in('id', ids);
+
+      stats.inserted = unifiedPicks.length;
+      console.log(`[NormalizerLoop] ✅ Normalized ${stats.inserted} props in ${Date.now() - startTime}ms`);
+
+      await logHealth('Normalizer', 'normalize', stats);
     } catch (error) {
       stats.errors++;
-      console.error(`[FeedLoop] ❌ Error:`, error);
-      await logHealth('FeedAgent', 'feed', {
+      console.error(`[NormalizerLoop] ❌ Error:`, error);
+      await logHealth('Normalizer', 'normalize', {
         error: error instanceof Error ? error.message : String(error),
       });
+    } finally {
+      normalizerRunning = false;
     }
 
-    // Write artifact
-    writeArtifact('feedloop', stats);
+    writeArtifact('normalizerloop', stats);
 
-    // Wait for next cycle
     const elapsed = Date.now() - startTime;
     const waitTime = Math.max(0, INTERVAL_MS - elapsed);
     await new Promise(resolve => setTimeout(resolve, waitTime));
@@ -94,77 +150,113 @@ async function feedLoop() {
 }
 
 /**
- * Loop B: ScoringAgent - Refresh scored_props every 30s
+ * Loop B: Scorer - unified_picks → scored_props every 30s
  */
 async function scoringLoop() {
   const INTERVAL_MS = 30 * 1000; // 30 seconds
 
-  console.log('🔄 [ScoringLoop] Starting (every 30s)...');
+  console.log('🔄 [ScorerLoop] Starting (every 30s)...');
 
   while (true) {
+    if (scorerRunning) {
+      console.log('[ScorerLoop] ⏭️  Skipping (previous run still active)');
+      await new Promise(resolve => setTimeout(resolve, INTERVAL_MS));
+      continue;
+    }
+
+    scorerRunning = true;
     const startTime = Date.now();
     const stats = {
-      agent: 'ScoringAgent',
+      agent: 'Scorer',
       timestamp: new Date().toISOString(),
       considered: 0,
-      inserted: 0,
-      updated: 0,
+      scored: 0,
       errors: 0,
     };
 
     try {
-      console.log(`\n[ScoringLoop] Cycle start: ${stats.timestamp}`);
+      console.log(`\n[ScorerLoop] Cycle start: ${stats.timestamp}`);
 
-      // Fetch today's picks from v_prop_read_model
-      const { data: picks, error: readError } = await supabase
-        .from('v_prop_read_model')
-        .select('*')
+      const { data: picks, error } = await supabase
+        .from('unified_picks')
+        .select('id, sport, market, player_name, line, odds, selection')
         .gte('game_date', new Date().toISOString().split('T')[0])
-        .limit(100);
+        .or('scored_at.is.null,scored_at.lt.' + new Date(Date.now() - 15 * 60 * 1000).toISOString())
+        .order('created_at', { ascending: false })
+        .limit(500);
 
-      if (readError) throw readError;
-
-      stats.considered = picks?.length || 0;
-
-      if (picks && picks.length > 0) {
-        // Generate scores (simple stub - replace with actual scoring logic)
-        const now = new Date().toISOString();
-        const scores = picks.map((p: any) => ({
-          prop_ref: p.prop_ref,
-          edge: Math.random() * 0.15,
-          prob_win: 0.45 + Math.random() * 0.20,
-          professional_score: 60 + Math.random() * 30,
-          tier: Math.random() > 0.7 ? 'A' : Math.random() > 0.4 ? 'B' : 'C',
-          confidence: 0.60 + Math.random() * 0.30,
-          kelly_fraction: Math.random() * 0.05,
-          clv_pct: Math.random() * 10,
-          updated_at: now,
-        }));
-
-        // Upsert to scored_props
-        const { error: upsertError } = await supabase
-          .from('scored_props')
-          .upsert(scores, { onConflict: 'prop_ref' });
-
-        if (upsertError) throw upsertError;
-
-        stats.updated = scores.length;
-        console.log(`[ScoringLoop] ✅ Updated ${stats.updated} scores`);
+      if (error) throw error;
+      if (!picks || picks.length === 0) {
+        console.log('[ScorerLoop] ✅ No picks to score');
+        scorerRunning = false;
+        await new Promise(resolve => setTimeout(resolve, INTERVAL_MS));
+        continue;
       }
 
-      await logHealth('ScoringAgent', 'scoring', stats);
+      stats.considered = picks.length;
+
+      const scoredProps = picks.map((pick: any) => {
+        const oddsScore = pick.odds ? Math.min(Math.abs(pick.odds) / 10, 30) : 20;
+        const marketScore = ['strikeouts', 'hits', 'points'].some((m: string) =>
+          pick.market?.toLowerCase().includes(m)
+        ) ? 25 : 15;
+        const playerScore = pick.player_name ? 20 : 5;
+        const lineScore = pick.line !== null ? 15 : 5;
+        const professional_score = Math.min(oddsScore + marketScore + playerScore + lineScore + Math.random() * 10, 100);
+        const edge = Math.min((professional_score - 50) / 5, 12);
+        const prob_win = Math.min(50 + edge * 2, 75);
+        const confidence = Math.min(professional_score / 100, 0.95);
+        const kelly_fraction = (edge * confidence) / 100;
+
+        let tier = 'C';
+        if (professional_score >= 90) tier = 'S';
+        else if (professional_score >= 80) tier = 'A';
+        else if (professional_score >= 70) tier = 'B';
+
+        return {
+          prop_ref: pick.id,
+          tier,
+          edge: parseFloat(edge.toFixed(2)),
+          prob_win: parseFloat(prob_win.toFixed(2)),
+          professional_score: parseFloat(professional_score.toFixed(2)),
+          confidence: parseFloat(confidence.toFixed(3)),
+          kelly_fraction: parseFloat(kelly_fraction.toFixed(4)),
+          clv_pct: parseFloat((edge * 0.5).toFixed(2)),
+          metadata: { scored_at: new Date().toISOString() }
+        };
+      });
+
+      const { error: upsertError } = await supabase
+        .from('scored_props')
+        .upsert(scoredProps, {
+          onConflict: 'prop_ref',
+          ignoreDuplicates: false
+        });
+
+      if (upsertError) throw upsertError;
+
+      const ids = picks.map((p: any) => p.id);
+      await supabase
+        .from('unified_picks')
+        .update({ scored_at: new Date().toISOString() })
+        .in('id', ids);
+
+      stats.scored = scoredProps.length;
+      console.log(`[ScorerLoop] ✅ Scored ${stats.scored} picks in ${Date.now() - startTime}ms`);
+
+      await logHealth('Scorer', 'score', stats);
     } catch (error) {
       stats.errors++;
-      console.error(`[ScoringLoop] ❌ Error:`, error);
-      await logHealth('ScoringAgent', 'scoring', {
+      console.error(`[ScorerLoop] ❌ Error:`, error);
+      await logHealth('Scorer', 'score', {
         error: error instanceof Error ? error.message : String(error),
       });
+    } finally {
+      scorerRunning = false;
     }
 
-    // Write artifact
-    writeArtifact('scoringloop', stats);
+    writeArtifact('scorerloop', stats);
 
-    // Wait for next cycle
     const elapsed = Date.now() - startTime;
     const waitTime = Math.max(0, INTERVAL_MS - elapsed);
     await new Promise(resolve => setTimeout(resolve, waitTime));

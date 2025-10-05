@@ -129,17 +129,17 @@ export class SGOAdapter {
     try {
       const leagueID = params.league || this.mapSportToSGO(params.sport);
 
-      const response = await this.client.get('/events', {
-        params: {
-          apiKey: this.apiKey,
-          leagueID,
-          startsAfter: params.startDate,
-          startsBefore: params.endDate,
-          includeAltLine: true,
-          finalized: false, // Get current props
-          limit: params.limit || 100,
-        },
-      });
+      // Build URL manually (axios params serialization causes 400 errors)
+      const queryParams = new URLSearchParams();
+      queryParams.append('apiKey', this.apiKey);
+      if (leagueID) queryParams.append('leagueID', leagueID);
+      if (params.startDate) queryParams.append('startsAfter', params.startDate);
+      if (params.endDate) queryParams.append('startsBefore', params.endDate);
+      queryParams.append('includeAltLine', 'true');
+      queryParams.append('finalized', 'false'); // Get current props
+      if (params.limit) queryParams.append('limit', params.limit.toString());
+
+      const response = await this.client.get(`/events?${queryParams.toString()}`);
 
       const events: SGOEvent[] = response.data.data || [];
 
@@ -274,17 +274,17 @@ export class SGOAdapter {
     try {
       const leagueID = this.mapSportToSGO(params.sport);
 
-      const response = await this.client.get('/events', {
-        params: {
-          apiKey: this.apiKey,
-          leagueID,
-          startsAfter: params.startDate,
-          startsBefore: params.endDate,
-          includeAltLine: true,
-          finalized: true, // Only get completed games
-          limit: params.limit || 100,
-        },
-      });
+      // Build URL manually (axios params serialization causes 400 errors)
+      const queryParams = new URLSearchParams();
+      queryParams.append('apiKey', this.apiKey);
+      if (leagueID) queryParams.append('leagueID', leagueID);
+      if (params.startDate) queryParams.append('startsAfter', params.startDate);
+      if (params.endDate) queryParams.append('startsBefore', params.endDate);
+      queryParams.append('includeAltLine', 'true');
+      queryParams.append('finalized', 'true'); // Only get completed games
+      if (params.limit) queryParams.append('limit', params.limit.toString());
+
+      const response = await this.client.get(`/events?${queryParams.toString()}`);
 
       const events: SGOEvent[] = response.data.data || [];
 
@@ -420,16 +420,16 @@ export class SGOAdapter {
     try {
       const leagueID = this.mapSportToSGO(params.sport);
 
-      const response = await this.client.get('/events', {
-        params: {
-          apiKey: this.apiKey,
-          leagueID,
-          startsAfter: params.startDate,
-          startsBefore: params.endDate,
-          finalized: true, // Only completed games have stats
-          limit: params.limit || 100,
-        },
-      });
+      // Build URL manually (axios params serialization causes 400 errors)
+      const queryParams = new URLSearchParams();
+      queryParams.append('apiKey', this.apiKey);
+      if (leagueID) queryParams.append('leagueID', leagueID);
+      if (params.startDate) queryParams.append('startsAfter', params.startDate);
+      if (params.endDate) queryParams.append('startsBefore', params.endDate);
+      queryParams.append('finalized', 'true'); // Only completed games have stats
+      if (params.limit) queryParams.append('limit', params.limit.toString());
+
+      const response = await this.client.get(`/events?${queryParams.toString()}`);
 
       const events: SGOEvent[] = response.data.data || [];
 
