@@ -175,24 +175,47 @@ class FactorWeightOptimizer {
   private async validateDataAvailability(): Promise<void> {
     console.log('🔍 Validating data availability...\n');
 
-    const { data: sportCounts } = await this.supabase
-      .rpc('count_outcomes_by_sport', {});
+    // Use direct count instead of RPC (RPC times out on 2.3M records)
+    const { count: totalCount, error: countError } = await this.supabase
+      .from('settled_outcomes')
+      .select('*', { count: 'exact', head: true })
+      .not('actual_value', 'is', null);
 
-    if (!sportCounts || sportCounts.length === 0) {
+    if (countError) {
+      throw new Error(`Database error: ${countError.message}`);
+    }
+
+    if (!totalCount || totalCount === 0) {
       throw new Error('No settled outcomes found in database');
     }
 
-    console.log('Sport Distribution:');
-    for (const row of sportCounts) {
-      console.log(`  ${row.sport}: ${row.count.toLocaleString()} outcomes`);
+    console.log(`Total settled outcomes: ${totalCount.toLocaleString()}`);
+
+    // Get sport distribution from sample (RPC function times out)
+    const { data: sampleData } = await this.supabase
+      .from('settled_outcomes')
+      .select('sport')
+      .not('actual_value', 'is', null)
+      .limit(50000);
+
+    if (sampleData && sampleData.length > 0) {
+      const sportCounts = sampleData.reduce((acc: any, row: any) => {
+        acc[row.sport] = (acc[row.sport] || 0) + 1;
+        return acc;
+      }, {});
+
+      console.log('\nSport Distribution (50K sample):');
+      Object.entries(sportCounts).forEach(([sport, count]) => {
+        const estimated = Math.round((count as number / sampleData.length) * totalCount);
+        console.log(`  ${sport}: ~${estimated.toLocaleString()} outcomes (estimated)`);
+      });
     }
 
-    const total = sportCounts.reduce((sum: number, row: any) => sum + row.count, 0);
-    console.log(`\nTotal: ${total.toLocaleString()} settled outcomes`);
-
-    if (total < 10000) {
-      throw new Error(`Insufficient data: ${total} outcomes (minimum 10,000 required)`);
+    if (totalCount < 10000) {
+      throw new Error(`Insufficient data: ${totalCount} outcomes (minimum 10,000 required)`);
     }
+
+    console.log('');
   }
 
   /**

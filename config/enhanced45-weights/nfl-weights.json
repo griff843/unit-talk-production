@@ -1,0 +1,69 @@
+{
+  "sport": "NFL",
+  "version": "1.0.0-ml-optimized",
+  "trainedAt": "2025-10-06T13:38:45.634Z",
+  "performance": {
+    "winRate": 50,
+    "accuracy": 50,
+    "brierScore": 2.2901806361528507,
+    "logLoss": 3.454377889657853,
+    "sampleSize": 200
+  },
+  "weights": {
+    "marketFactors": {
+      "expectedValueDevigged": 0.769230769230769,
+      "lineMovementVelocity": 0.025641025641025637,
+      "closingLineValue": 0.025641025641025637,
+      "marketEfficiency": 0.025641025641025637,
+      "publicVsSharpSplit": 0.025641025641025637,
+      "volumeProfile": 0.025641025641025637,
+      "crossMarketArbitrage": 0.025641025641025637,
+      "steamDetection": 0.025641025641025637,
+      "marketResistance": 0.025641025641025637,
+      "optimalTiming": 0.025641025641025637
+    },
+    "playerFactors": {
+      "playerForm": 0.1646582879941792,
+      "roleStability": 0.009753338514950948,
+      "matchupHistory": 0.009753338514950948,
+      "injuryImpact": 0.009753338514950948,
+      "fatigueLevel": 0.009753338514950948,
+      "usageRate": 0.1646582879941792,
+      "performanceTrends": 0.1646582879941792,
+      "clutchFactor": 0.009753338514950948,
+      "propSpecificTendencies": 0.29260015544852847,
+      "situationalPerformance": 0.1646582879941792
+    },
+    "matchupFactors": {
+      "teamVsTeam": 0.025641025641025637,
+      "defenseVsPosition": 0.769230769230769,
+      "paceImpact": 0.025641025641025637,
+      "gameScript": 0.025641025641025637,
+      "homeAwaysplits": 0.025641025641025637,
+      "refereeTendencies": 0.025641025641025637,
+      "weatherImpact": 0.025641025641025637,
+      "venueFactors": 0.025641025641025637,
+      "restAdvantage": 0.025641025641025637,
+      "motivationalFactors": 0.025641025641025637
+    },
+    "priceFactors": {
+      "lineShoppingEdge": 0.014705882352941176,
+      "kellyFraction": 0.4411764705882352,
+      "riskAdjustedReturn": 0.4411764705882352,
+      "correlationRisk": 0.014705882352941176,
+      "portfolioImpact": 0.014705882352941176,
+      "volatilityScore": 0.014705882352941176,
+      "liquidityPremium": 0.014705882352941176,
+      "marketTiming": 0.014705882352941176,
+      "bidAskSpread": 0.014705882352941176,
+      "optionValue": 0.014705882352941176
+    },
+    "metaFactors": {
+      "dataQuality": 0,
+      "modelAgreement": 0,
+      "historicalAccuracy": 0,
+      "confidenceInterval": 0,
+      "recencyBiasAdjustment": 0
+    }
+  }
+}

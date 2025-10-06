@@ -1,0 +1,69 @@
+{
+  "sport": "NBA",
+  "version": "1.0.0-ml-optimized",
+  "trainedAt": "2025-10-06T13:38:45.632Z",
+  "performance": {
+    "winRate": 0,
+    "accuracy": 0,
+    "brierScore": 0,
+    "logLoss": 0,
+    "sampleSize": 0
+  },
+  "weights": {
+    "marketFactors": {
+      "expectedValueDevigged": 0.25,
+      "lineMovementVelocity": 0.15,
+      "closingLineValue": 0.12,
+      "marketEfficiency": 0.1,
+      "publicVsSharpSplit": 0.08,
+      "volumeProfile": 0.08,
+      "crossMarketArbitrage": 0.06,
+      "steamDetection": 0.06,
+      "marketResistance": 0.05,
+      "optimalTiming": 0.05
+    },
+    "playerFactors": {
+      "playerForm": 0.2,
+      "roleStability": 0.15,
+      "matchupHistory": 0.12,
+      "injuryImpact": 0.12,
+      "fatigueLevel": 0.1,
+      "usageRate": 0.08,
+      "performanceTrends": 0.08,
+      "clutchFactor": 0.06,
+      "propSpecificTendencies": 0.05,
+      "situationalPerformance": 0.04
+    },
+    "matchupFactors": {
+      "teamVsTeam": 0.18,
+      "defenseVsPosition": 0.16,
+      "paceImpact": 0.14,
+      "gameScript": 0.12,
+      "homeAwaysplits": 0.1,
+      "refereeTendencies": 0.08,
+      "weatherImpact": 0.08,
+      "venueFactors": 0.06,
+      "restAdvantage": 0.04,
+      "motivationalFactors": 0.04
+    },
+    "priceFactors": {
+      "lineShoppingEdge": 0.18,
+      "kellyFraction": 0.16,
+      "riskAdjustedReturn": 0.14,
+      "correlationRisk": 0.12,
+      "portfolioImpact": 0.1,
+      "volatilityScore": 0.08,
+      "liquidityPremium": 0.08,
+      "marketTiming": 0.06,
+      "bidAskSpread": 0.04,
+      "optionValue": 0.04
+    },
+    "metaFactors": {
+      "dataQuality": 0.3,
+      "modelAgreement": 0.25,
+      "historicalAccuracy": 0.2,
+      "confidenceInterval": 0.15,
+      "recencyBiasAdjustment": 0.1
+    }
+  }
+}
