@@ -1,12 +1,12 @@
 {
   "sport": "NFL",
   "version": "1.0.0-ml-optimized",
-  "trainedAt": "2025-10-06T13:38:45.634Z",
+  "trainedAt": "2025-10-06T14:02:49.996Z",
   "performance": {
-    "winRate": 50,
-    "accuracy": 50,
-    "brierScore": 2.2901806361528507,
-    "logLoss": 3.454377889657853,
+    "winRate": 48,
+    "accuracy": 48,
+    "brierScore": 2.7673161488846985,
+    "logLoss": 3.592512985230824,
     "sampleSize": 200
   },
   "weights": {
@@ -23,16 +23,16 @@
       "optimalTiming": 0.025641025641025637
     },
     "playerFactors": {
-      "playerForm": 0.1646582879941792,
-      "roleStability": 0.009753338514950948,
-      "matchupHistory": 0.009753338514950948,
-      "injuryImpact": 0.009753338514950948,
-      "fatigueLevel": 0.009753338514950948,
-      "usageRate": 0.1646582879941792,
-      "performanceTrends": 0.1646582879941792,
-      "clutchFactor": 0.009753338514950948,
-      "propSpecificTendencies": 0.29260015544852847,
-      "situationalPerformance": 0.1646582879941792
+      "playerForm": 0.2073182744776483,
+      "roleStability": 0.009523809523809526,
+      "matchupHistory": 0.009523809523809526,
+      "injuryImpact": 0.009523809523809526,
+      "fatigueLevel": 0.009523809523809526,
+      "usageRate": 0.2073182744776483,
+      "performanceTrends": 0.2073182744776483,
+      "clutchFactor": 0.009523809523809526,
+      "propSpecificTendencies": 0.12310785447035925,
+      "situationalPerformance": 0.2073182744776483
     },
     "matchupFactors": {
       "teamVsTeam": 0.025641025641025637,

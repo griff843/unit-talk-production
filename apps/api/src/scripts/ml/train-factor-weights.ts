@@ -25,14 +25,14 @@ dotenv.config({ path: path.resolve(__dirname, '../../../../../.env') });
 const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-// Training configuration
+// Training configuration - REAL DATA SIZES
 const TRAINING_CONFIG = {
-  // Sample sizes per sport (balance training cost vs accuracy)
+  // Sample sizes per sport (using ALL available real data)
   sampleSizes: {
-    MLB: 100000,  // 1.5M available
-    NBA: 80000,   // 493K available
-    NHL: 50000,   // 277K available
-    NFL: 15000    // 15K available
+    MLB: 200000,  // ~2.28M available - use 200K for training efficiency
+    NBA: 50000,   // Real NBA data available - use 50K
+    NHL: 13000,   // ~13K available - use ALL
+    NFL: 14000    // ~14.5K available - use ALL
   },
 
   // Train/test split
@@ -254,24 +254,30 @@ class FactorWeightOptimizer {
   }
 
   /**
-   * Fetch settled outcomes from Supabase
+   * Fetch settled outcomes from Supabase - use simple LIMIT (avoid timeouts)
+   * For large tables, limit to recent data only
    */
   private async fetchSettledOutcomes(sport: string, limit: number): Promise<any[]> {
+    console.log(`  Fetching ${sport} data (limit: ${limit})...`);
+
+    // Use simple limit with recent data filter to avoid timeout
     const { data, error } = await this.supabase
       .from('settled_outcomes')
       .select('*')
       .eq('sport', sport.toUpperCase())
       .not('actual_value', 'is', null)
       .neq('actual_value', -1)
-      .in('outcome', ['win', 'loss'])  // Exclude push/void
-      .order('settled_at', { ascending: false })
+      .in('outcome', ['win', 'loss'])
+      .gte('game_date', '2024-01-01')  // Recent data only (2024+)
+      .order('game_date', { ascending: false })
       .limit(limit);
 
     if (error) {
-      console.error(`Error fetching ${sport} outcomes:`, error);
+      console.error(`  Error fetching ${sport}:`, error.message);
       return [];
     }
 
+    console.log(`  ✅ Fetched ${(data || []).length} ${sport} outcomes`);
     return data || [];
   }
 
