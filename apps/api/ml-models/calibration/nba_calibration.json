@@ -1,0 +1,1050 @@
+{
+  "sport": "NBA",
+  "models": {
+    "points": {
+      "sport": "NBA",
+      "marketType": "points",
+      "bins": [
+        {
+          "predictedProb": 0.00999999999999984,
+          "actualRate": 0,
+          "count": 823,
+          "confidence": 0.0023230567983033266
+        },
+        {
+          "predictedProb": 0.010210838712782049,
+          "actualRate": 0,
+          "count": 823,
+          "confidence": 0.0023230567983033266
+        },
+        {
+          "predictedProb": 0.03291532486198289,
+          "actualRate": 0,
+          "count": 823,
+          "confidence": 0.0023230567983033266
+        },
+        {
+          "predictedProb": 0.06844743993101171,
+          "actualRate": 0,
+          "count": 823,
+          "confidence": 0.0023230567983033266
+        },
+        {
+          "predictedProb": 0.11983381928226557,
+          "actualRate": 0,
+          "count": 823,
+          "confidence": 0.0023230567983033266
+        },
+        {
+          "predictedProb": 0.19873929314994326,
+          "actualRate": 0,
+          "count": 823,
+          "confidence": 0.0023230567983033266
+        },
+        {
+          "predictedProb": 0.2730860728545719,
+          "actualRate": 0,
+          "count": 823,
+          "confidence": 0.0023230567983033266
+        },
+        {
+          "predictedProb": 0.3085375372760093,
+          "actualRate": 0,
+          "count": 823,
+          "confidence": 0.0023230567983033266
+        },
+        {
+          "predictedProb": 0.3151413674629682,
+          "actualRate": 0,
+          "count": 823,
+          "confidence": 0.0023230567983033266
+        },
+        {
+          "predictedProb": 0.37139488496901446,
+          "actualRate": 0,
+          "count": 823,
+          "confidence": 0.0023230567983033266
+        },
+        {
+          "predictedProb": 0.43584893239735595,
+          "actualRate": 0,
+          "count": 823,
+          "confidence": 0.0023230567983033266
+        },
+        {
+          "predictedProb": 0.48698061690192446,
+          "actualRate": 0,
+          "count": 823,
+          "confidence": 0.0023230567983033266
+        },
+        {
+          "predictedProb": 0.5645432244290398,
+          "actualRate": 0,
+          "count": 823,
+          "confidence": 0.0023230567983033266
+        },
+        {
+          "predictedProb": 0.6527126897331181,
+          "actualRate": 0,
+          "count": 823,
+          "confidence": 0.0023230567983033266
+        },
+        {
+          "predictedProb": 0.6982777060292664,
+          "actualRate": 0,
+          "count": 823,
+          "confidence": 0.0023230567983033266
+        },
+        {
+          "predictedProb": 0.7695247485460653,
+          "actualRate": 0,
+          "count": 823,
+          "confidence": 0.0023230567983033266
+        },
+        {
+          "predictedProb": 0.8652803494896282,
+          "actualRate": 0,
+          "count": 823,
+          "confidence": 0.0023230567983033266
+        },
+        {
+          "predictedProb": 0.9343456681430641,
+          "actualRate": 0,
+          "count": 823,
+          "confidence": 0.0023230567983033266
+        },
+        {
+          "predictedProb": 0.9804287293595164,
+          "actualRate": 0,
+          "count": 823,
+          "confidence": 0.0023230567983033266
+        },
+        {
+          "predictedProb": 0.9900000000000073,
+          "actualRate": 0,
+          "count": 814,
+          "confidence": 0.0023486210532699726
+        }
+      ],
+      "totalSamples": 16451,
+      "brierScore": 0.314006636698308,
+      "calibrationError": 0.45401939866420327,
+      "trainedAt": "2025-10-06T04:10:50.338Z"
+    },
+    "assists": {
+      "sport": "NBA",
+      "marketType": "assists",
+      "bins": [
+        {
+          "predictedProb": 0.009999999999999926,
+          "actualRate": 0,
+          "count": 318,
+          "confidence": 0.005968153277885768
+        },
+        {
+          "predictedProb": 0.010735323099501244,
+          "actualRate": 0,
+          "count": 318,
+          "confidence": 0.005968153277885768
+        },
+        {
+          "predictedProb": 0.04699392392990202,
+          "actualRate": 0,
+          "count": 318,
+          "confidence": 0.005968153277885768
+        },
+        {
+          "predictedProb": 0.06680723097650214,
+          "actualRate": 0,
+          "count": 318,
+          "confidence": 0.005968153277885768
+        },
+        {
+          "predictedProb": 0.0979969394078364,
+          "actualRate": 0,
+          "count": 318,
+          "confidence": 0.005968153277885768
+        },
+        {
+          "predictedProb": 0.17694637597296467,
+          "actualRate": 0,
+          "count": 318,
+          "confidence": 0.005968153277885768
+        },
+        {
+          "predictedProb": 0.28048039545345954,
+          "actualRate": 0,
+          "count": 318,
+          "confidence": 0.005968153277885768
+        },
+        {
+          "predictedProb": 0.3085375372760086,
+          "actualRate": 0,
+          "count": 318,
+          "confidence": 0.005968153277885768
+        },
+        {
+          "predictedProb": 0.3097837490874134,
+          "actualRate": 0,
+          "count": 318,
+          "confidence": 0.005968153277885768
+        },
+        {
+          "predictedProb": 0.34031454643446907,
+          "actualRate": 0,
+          "count": 318,
+          "confidence": 0.005968153277885768
+        },
+        {
+          "predictedProb": 0.3953986011590631,
+          "actualRate": 0,
+          "count": 318,
+          "confidence": 0.005968153277885768
+        },
+        {
+          "predictedProb": 0.4618747844667195,
+          "actualRate": 0,
+          "count": 318,
+          "confidence": 0.005968153277885768
+        },
+        {
+          "predictedProb": 0.593750952717029,
+          "actualRate": 0,
+          "count": 318,
+          "confidence": 0.005968153277885768
+        },
+        {
+          "predictedProb": 0.6666511840763233,
+          "actualRate": 0,
+          "count": 318,
+          "confidence": 0.005968153277885768
+        },
+        {
+          "predictedProb": 0.6914624627239908,
+          "actualRate": 0,
+          "count": 318,
+          "confidence": 0.005968153277885768
+        },
+        {
+          "predictedProb": 0.7519636722550135,
+          "actualRate": 0,
+          "count": 318,
+          "confidence": 0.005968153277885768
+        },
+        {
+          "predictedProb": 0.8701679713838263,
+          "actualRate": 0,
+          "count": 318,
+          "confidence": 0.005968153277885768
+        },
+        {
+          "predictedProb": 0.9328307025758976,
+          "actualRate": 0,
+          "count": 318,
+          "confidence": 0.005968153277885768
+        },
+        {
+          "predictedProb": 0.9824203145655391,
+          "actualRate": 0,
+          "count": 318,
+          "confidence": 0.005968153277885768
+        },
+        {
+          "predictedProb": 0.9900000000000044,
+          "actualRate": 0,
+          "count": 317,
+          "confidence": 0.005986754834784516
+        }
+      ],
+      "totalSamples": 6359,
+      "brierScore": 0.3111568153758932,
+      "calibrationError": 0.4491707973399191,
+      "trainedAt": "2025-10-06T04:10:50.342Z"
+    },
+    "rebounds": {
+      "sport": "NBA",
+      "marketType": "rebounds",
+      "bins": [
+        {
+          "predictedProb": 0.010000000000000007,
+          "actualRate": 0,
+          "count": 161,
+          "confidence": 0.011652398423698872
+        },
+        {
+          "predictedProb": 0.010000000000000007,
+          "actualRate": 0,
+          "count": 161,
+          "confidence": 0.011652398423698872
+        },
+        {
+          "predictedProb": 0.014583893214208304,
+          "actualRate": 0,
+          "count": 161,
+          "confidence": 0.011652398423698872
+        },
+        {
+          "predictedProb": 0.054215901048673174,
+          "actualRate": 0,
+          "count": 161,
+          "confidence": 0.011652398423698872
+        },
+        {
+          "predictedProb": 0.07074620793058001,
+          "actualRate": 0,
+          "count": 161,
+          "confidence": 0.011652398423698872
+        },
+        {
+          "predictedProb": 0.11548198730896993,
+          "actualRate": 0,
+          "count": 161,
+          "confidence": 0.011652398423698872
+        },
+        {
+          "predictedProb": 0.19764499311259454,
+          "actualRate": 0,
+          "count": 161,
+          "confidence": 0.011652398423698872
+        },
+        {
+          "predictedProb": 0.30364405363063307,
+          "actualRate": 0,
+          "count": 161,
+          "confidence": 0.011652398423698872
+        },
+        {
+          "predictedProb": 0.3133033463679157,
+          "actualRate": 0,
+          "count": 161,
+          "confidence": 0.011652398423698872
+        },
+        {
+          "predictedProb": 0.3340954298722215,
+          "actualRate": 0,
+          "count": 161,
+          "confidence": 0.011652398423698872
+        },
+        {
+          "predictedProb": 0.3773663989846857,
+          "actualRate": 0,
+          "count": 161,
+          "confidence": 0.011652398423698872
+        },
+        {
+          "predictedProb": 0.42491359935209966,
+          "actualRate": 0,
+          "count": 161,
+          "confidence": 0.011652398423698872
+        },
+        {
+          "predictedProb": 0.5926931232298652,
+          "actualRate": 0,
+          "count": 161,
+          "confidence": 0.011652398423698872
+        },
+        {
+          "predictedProb": 0.6612815579724285,
+          "actualRate": 0,
+          "count": 161,
+          "confidence": 0.011652398423698872
+        },
+        {
+          "predictedProb": 0.690100802983446,
+          "actualRate": 0,
+          "count": 161,
+          "confidence": 0.011652398423698872
+        },
+        {
+          "predictedProb": 0.7905033539620953,
+          "actualRate": 0,
+          "count": 161,
+          "confidence": 0.011652398423698872
+        },
+        {
+          "predictedProb": 0.8995801351465587,
+          "actualRate": 0,
+          "count": 161,
+          "confidence": 0.011652398423698872
+        },
+        {
+          "predictedProb": 0.9437400517013208,
+          "actualRate": 0,
+          "count": 161,
+          "confidence": 0.011652398423698872
+        },
+        {
+          "predictedProb": 0.9895400449457673,
+          "actualRate": 0,
+          "count": 161,
+          "confidence": 0.011652398423698872
+        },
+        {
+          "predictedProb": 0.9899999999999999,
+          "actualRate": 0,
+          "count": 160,
+          "confidence": 0.011723518325016355
+        }
+      ],
+      "totalSamples": 3219,
+      "brierScore": 0.31189164034402606,
+      "calibrationError": 0.4390006262202592,
+      "trainedAt": "2025-10-06T04:10:50.343Z"
+    },
+    "steals": {
+      "sport": "NBA",
+      "marketType": "steals",
+      "bins": [
+        {
+          "predictedProb": 0.05598680602859718,
+          "actualRate": 0,
+          "count": 315,
+          "confidence": 0.0060243079949416885
+        },
+        {
+          "predictedProb": 0.06680723097650215,
+          "actualRate": 0,
+          "count": 315,
+          "confidence": 0.0060243079949416885
+        },
+        {
+          "predictedProb": 0.29269032721129995,
+          "actualRate": 0,
+          "count": 315,
+          "confidence": 0.0060243079949416885
+        },
+        {
+          "predictedProb": 0.3085375372760086,
+          "actualRate": 0,
+          "count": 315,
+          "confidence": 0.0060243079949416885
+        },
+        {
+          "predictedProb": 0.3085375372760086,
+          "actualRate": 0,
+          "count": 315,
+          "confidence": 0.0060243079949416885
+        },
+        {
+          "predictedProb": 0.3085375372760086,
+          "actualRate": 0,
+          "count": 315,
+          "confidence": 0.0060243079949416885
+        },
+        {
+          "predictedProb": 0.3085375372760086,
+          "actualRate": 0,
+          "count": 315,
+          "confidence": 0.0060243079949416885
+        },
+        {
+          "predictedProb": 0.3085375372760086,
+          "actualRate": 0,
+          "count": 315,
+          "confidence": 0.0060243079949416885
+        },
+        {
+          "predictedProb": 0.3085375372760086,
+          "actualRate": 0,
+          "count": 315,
+          "confidence": 0.0060243079949416885
+        },
+        {
+          "predictedProb": 0.3085375372760086,
+          "actualRate": 0,
+          "count": 315,
+          "confidence": 0.0060243079949416885
+        },
+        {
+          "predictedProb": 0.3085375372760086,
+          "actualRate": 0,
+          "count": 315,
+          "confidence": 0.0060243079949416885
+        },
+        {
+          "predictedProb": 0.35882152174086995,
+          "actualRate": 0,
+          "count": 315,
+          "confidence": 0.0060243079949416885
+        },
+        {
+          "predictedProb": 0.6910341800021783,
+          "actualRate": 0,
+          "count": 315,
+          "confidence": 0.0060243079949416885
+        },
+        {
+          "predictedProb": 0.6914624627239908,
+          "actualRate": 0,
+          "count": 315,
+          "confidence": 0.0060243079949416885
+        },
+        {
+          "predictedProb": 0.6914624627239908,
+          "actualRate": 0,
+          "count": 315,
+          "confidence": 0.0060243079949416885
+        },
+        {
+          "predictedProb": 0.6914624627239908,
+          "actualRate": 0,
+          "count": 315,
+          "confidence": 0.0060243079949416885
+        },
+        {
+          "predictedProb": 0.6914624627239908,
+          "actualRate": 0,
+          "count": 315,
+          "confidence": 0.0060243079949416885
+        },
+        {
+          "predictedProb": 0.9244485624844117,
+          "actualRate": 0,
+          "count": 315,
+          "confidence": 0.0060243079949416885
+        },
+        {
+          "predictedProb": 0.9331927690234935,
+          "actualRate": 0,
+          "count": 315,
+          "confidence": 0.0060243079949416885
+        },
+        {
+          "predictedProb": 0.9894484734856693,
+          "actualRate": 0,
+          "count": 309,
+          "confidence": 0.006139848408907255
+        }
+      ],
+      "totalSamples": 6294,
+      "brierScore": 0.30415517443122037,
+      "calibrationError": 0.47684080322164885,
+      "trainedAt": "2025-10-06T04:10:50.346Z"
+    },
+    "blocks": {
+      "sport": "NBA",
+      "marketType": "blocks",
+      "bins": [
+        {
+          "predictedProb": 0.1916864063863529,
+          "actualRate": 0,
+          "count": 159,
+          "confidence": 0.011795511711994972
+        },
+        {
+          "predictedProb": 0.3085375372760074,
+          "actualRate": 0,
+          "count": 159,
+          "confidence": 0.011795511711994972
+        },
+        {
+          "predictedProb": 0.3085375372760074,
+          "actualRate": 0,
+          "count": 159,
+          "confidence": 0.011795511711994972
+        },
+        {
+          "predictedProb": 0.3085375372760074,
+          "actualRate": 0,
+          "count": 159,
+          "confidence": 0.011795511711994972
+        },
+        {
+          "predictedProb": 0.3085375372760074,
+          "actualRate": 0,
+          "count": 159,
+          "confidence": 0.011795511711994972
+        },
+        {
+          "predictedProb": 0.3085375372760074,
+          "actualRate": 0,
+          "count": 159,
+          "confidence": 0.011795511711994972
+        },
+        {
+          "predictedProb": 0.3085375372760074,
+          "actualRate": 0,
+          "count": 159,
+          "confidence": 0.011795511711994972
+        },
+        {
+          "predictedProb": 0.3085375372760074,
+          "actualRate": 0,
+          "count": 159,
+          "confidence": 0.011795511711994972
+        },
+        {
+          "predictedProb": 0.3085375372760074,
+          "actualRate": 0,
+          "count": 159,
+          "confidence": 0.011795511711994972
+        },
+        {
+          "predictedProb": 0.3085375372760074,
+          "actualRate": 0,
+          "count": 159,
+          "confidence": 0.011795511711994972
+        },
+        {
+          "predictedProb": 0.3085375372760074,
+          "actualRate": 0,
+          "count": 159,
+          "confidence": 0.011795511711994972
+        },
+        {
+          "predictedProb": 0.3085375372760074,
+          "actualRate": 0,
+          "count": 159,
+          "confidence": 0.011795511711994972
+        },
+        {
+          "predictedProb": 0.3085375372760074,
+          "actualRate": 0,
+          "count": 159,
+          "confidence": 0.011795511711994972
+        },
+        {
+          "predictedProb": 0.3222922918613565,
+          "actualRate": 0,
+          "count": 159,
+          "confidence": 0.011795511711994972
+        },
+        {
+          "predictedProb": 0.6312541412699058,
+          "actualRate": 0,
+          "count": 159,
+          "confidence": 0.011795511711994972
+        },
+        {
+          "predictedProb": 0.6914624627239914,
+          "actualRate": 0,
+          "count": 159,
+          "confidence": 0.011795511711994972
+        },
+        {
+          "predictedProb": 0.6914624627239914,
+          "actualRate": 0,
+          "count": 159,
+          "confidence": 0.011795511711994972
+        },
+        {
+          "predictedProb": 0.6914624627239914,
+          "actualRate": 0,
+          "count": 159,
+          "confidence": 0.011795511711994972
+        },
+        {
+          "predictedProb": 0.9064353670166969,
+          "actualRate": 0,
+          "count": 159,
+          "confidence": 0.011795511711994972
+        },
+        {
+          "predictedProb": 0.9676160973354453,
+          "actualRate": 0,
+          "count": 143,
+          "confidence": 0.013080761854951184
+        }
+      ],
+      "totalSamples": 3164,
+      "brierScore": 0.24171520617987496,
+      "calibrationError": 0.4371370298988276,
+      "trainedAt": "2025-10-06T04:10:50.347Z"
+    },
+    "turnovers": {
+      "sport": "NBA",
+      "marketType": "turnovers",
+      "bins": [
+        {
+          "predictedProb": 0.03358788308141953,
+          "actualRate": 0,
+          "count": 156,
+          "confidence": 0.012016896727760481
+        },
+        {
+          "predictedProb": 0.0668072309765025,
+          "actualRate": 0,
+          "count": 156,
+          "confidence": 0.012016896727760481
+        },
+        {
+          "predictedProb": 0.234086810218573,
+          "actualRate": 0,
+          "count": 156,
+          "confidence": 0.012016896727760481
+        },
+        {
+          "predictedProb": 0.30853753727600736,
+          "actualRate": 0,
+          "count": 156,
+          "confidence": 0.012016896727760481
+        },
+        {
+          "predictedProb": 0.30853753727600736,
+          "actualRate": 0,
+          "count": 156,
+          "confidence": 0.012016896727760481
+        },
+        {
+          "predictedProb": 0.30853753727600736,
+          "actualRate": 0,
+          "count": 156,
+          "confidence": 0.012016896727760481
+        },
+        {
+          "predictedProb": 0.30853753727600736,
+          "actualRate": 0,
+          "count": 156,
+          "confidence": 0.012016896727760481
+        },
+        {
+          "predictedProb": 0.30853753727600736,
+          "actualRate": 0,
+          "count": 156,
+          "confidence": 0.012016896727760481
+        },
+        {
+          "predictedProb": 0.30853753727600736,
+          "actualRate": 0,
+          "count": 156,
+          "confidence": 0.012016896727760481
+        },
+        {
+          "predictedProb": 0.30853753727600736,
+          "actualRate": 0,
+          "count": 156,
+          "confidence": 0.012016896727760481
+        },
+        {
+          "predictedProb": 0.30853753727600736,
+          "actualRate": 0,
+          "count": 156,
+          "confidence": 0.012016896727760481
+        },
+        {
+          "predictedProb": 0.326032812138379,
+          "actualRate": 0,
+          "count": 156,
+          "confidence": 0.012016896727760481
+        },
+        {
+          "predictedProb": 0.6381526423761475,
+          "actualRate": 0,
+          "count": 156,
+          "confidence": 0.012016896727760481
+        },
+        {
+          "predictedProb": 0.6914624627239914,
+          "actualRate": 0,
+          "count": 156,
+          "confidence": 0.012016896727760481
+        },
+        {
+          "predictedProb": 0.6914624627239914,
+          "actualRate": 0,
+          "count": 156,
+          "confidence": 0.012016896727760481
+        },
+        {
+          "predictedProb": 0.6914624627239914,
+          "actualRate": 0,
+          "count": 156,
+          "confidence": 0.012016896727760481
+        },
+        {
+          "predictedProb": 0.6914624627239914,
+          "actualRate": 0,
+          "count": 156,
+          "confidence": 0.012016896727760481
+        },
+        {
+          "predictedProb": 0.8873872130984198,
+          "actualRate": 0,
+          "count": 156,
+          "confidence": 0.012016896727760481
+        },
+        {
+          "predictedProb": 0.9331927690234949,
+          "actualRate": 0,
+          "count": 156,
+          "confidence": 0.012016896727760481
+        },
+        {
+          "predictedProb": 0.9891884681289056,
+          "actualRate": 0,
+          "count": 140,
+          "confidence": 0.013353577824495835
+        }
+      ],
+      "totalSamples": 3104,
+      "brierScore": 0.29225819585203133,
+      "calibrationError": 0.4644382722618211,
+      "trainedAt": "2025-10-06T04:10:50.348Z"
+    },
+    "goals": {
+      "sport": "NBA",
+      "marketType": "goals",
+      "bins": [
+        {
+          "predictedProb": 0.010000000000000005,
+          "actualRate": 0,
+          "count": 43,
+          "confidence": 0.04100628501161361
+        },
+        {
+          "predictedProb": 0.010000000000000005,
+          "actualRate": 0,
+          "count": 43,
+          "confidence": 0.04100628501161361
+        },
+        {
+          "predictedProb": 0.02562186310831665,
+          "actualRate": 0,
+          "count": 43,
+          "confidence": 0.04100628501161361
+        },
+        {
+          "predictedProb": 0.06607280045118868,
+          "actualRate": 0,
+          "count": 43,
+          "confidence": 0.04100628501161361
+        },
+        {
+          "predictedProb": 0.11008916419713656,
+          "actualRate": 0,
+          "count": 43,
+          "confidence": 0.04100628501161361
+        },
+        {
+          "predictedProb": 0.1605549353207826,
+          "actualRate": 0,
+          "count": 43,
+          "confidence": 0.04100628501161361
+        },
+        {
+          "predictedProb": 0.2338938775331483,
+          "actualRate": 0,
+          "count": 43,
+          "confidence": 0.04100628501161361
+        },
+        {
+          "predictedProb": 0.2870023619512795,
+          "actualRate": 0,
+          "count": 43,
+          "confidence": 0.04100628501161361
+        },
+        {
+          "predictedProb": 0.3575526462860644,
+          "actualRate": 0,
+          "count": 43,
+          "confidence": 0.04100628501161361
+        },
+        {
+          "predictedProb": 0.46788570776025545,
+          "actualRate": 0,
+          "count": 43,
+          "confidence": 0.04100628501161361
+        },
+        {
+          "predictedProb": 0.5000000005000005,
+          "actualRate": 0,
+          "count": 43,
+          "confidence": 0.04100628501161361
+        },
+        {
+          "predictedProb": 0.5922259528926695,
+          "actualRate": 0,
+          "count": 43,
+          "confidence": 0.04100628501161361
+        },
+        {
+          "predictedProb": 0.6663794034887328,
+          "actualRate": 0,
+          "count": 43,
+          "confidence": 0.04100628501161361
+        },
+        {
+          "predictedProb": 0.7127749183609753,
+          "actualRate": 0,
+          "count": 43,
+          "confidence": 0.04100628501161361
+        },
+        {
+          "predictedProb": 0.7891425202935614,
+          "actualRate": 0,
+          "count": 43,
+          "confidence": 0.04100628501161361
+        },
+        {
+          "predictedProb": 0.8527809098742697,
+          "actualRate": 0,
+          "count": 43,
+          "confidence": 0.04100628501161361
+        },
+        {
+          "predictedProb": 0.9194413560681817,
+          "actualRate": 0,
+          "count": 43,
+          "confidence": 0.04100628501161361
+        },
+        {
+          "predictedProb": 0.9668142047882426,
+          "actualRate": 0,
+          "count": 43,
+          "confidence": 0.04100628501161361
+        },
+        {
+          "predictedProb": 0.99,
+          "actualRate": 0,
+          "count": 43,
+          "confidence": 0.04100628501161361
+        },
+        {
+          "predictedProb": 0.9899999999999994,
+          "actualRate": 0,
+          "count": 30,
+          "confidence": 0.056758545695239006
+        }
+      ],
+      "totalSamples": 847,
+      "brierScore": 0.34931700003006744,
+      "calibrationError": 0.47766706349895705,
+      "trainedAt": "2025-10-06T04:10:50.349Z"
+    },
+    "home_runs": {
+      "sport": "NBA",
+      "marketType": "home_runs",
+      "bins": [
+        {
+          "predictedProb": 0.010000000000000004,
+          "actualRate": 0,
+          "count": 29,
+          "confidence": 0.058486797232777936
+        },
+        {
+          "predictedProb": 0.03977168016235076,
+          "actualRate": 0,
+          "count": 29,
+          "confidence": 0.058486797232777936
+        },
+        {
+          "predictedProb": 0.06680723097650226,
+          "actualRate": 0,
+          "count": 29,
+          "confidence": 0.058486797232777936
+        },
+        {
+          "predictedProb": 0.07501904693372814,
+          "actualRate": 0,
+          "count": 29,
+          "confidence": 0.058486797232777936
+        },
+        {
+          "predictedProb": 0.30467236037170103,
+          "actualRate": 0,
+          "count": 29,
+          "confidence": 0.058486797232777936
+        },
+        {
+          "predictedProb": 0.3085375372760062,
+          "actualRate": 0,
+          "count": 29,
+          "confidence": 0.058486797232777936
+        },
+        {
+          "predictedProb": 0.3085375372760062,
+          "actualRate": 0,
+          "count": 29,
+          "confidence": 0.058486797232777936
+        },
+        {
+          "predictedProb": 0.3085375372760062,
+          "actualRate": 0,
+          "count": 29,
+          "confidence": 0.058486797232777936
+        },
+        {
+          "predictedProb": 0.3085375372760062,
+          "actualRate": 0,
+          "count": 29,
+          "confidence": 0.058486797232777936
+        },
+        {
+          "predictedProb": 0.3085375372760062,
+          "actualRate": 0,
+          "count": 29,
+          "confidence": 0.058486797232777936
+        },
+        {
+          "predictedProb": 0.3085375372760062,
+          "actualRate": 0,
+          "count": 29,
+          "confidence": 0.058486797232777936
+        },
+        {
+          "predictedProb": 0.309700546391273,
+          "actualRate": 0,
+          "count": 29,
+          "confidence": 0.058486797232777936
+        },
+        {
+          "predictedProb": 0.5917314334211838,
+          "actualRate": 0,
+          "count": 29,
+          "confidence": 0.058486797232777936
+        },
+        {
+          "predictedProb": 0.6914624627239938,
+          "actualRate": 0,
+          "count": 29,
+          "confidence": 0.058486797232777936
+        },
+        {
+          "predictedProb": 0.7101224745343139,
+          "actualRate": 0,
+          "count": 29,
+          "confidence": 0.058486797232777936
+        },
+        {
+          "predictedProb": 0.9174336315610038,
+          "actualRate": 0,
+          "count": 29,
+          "confidence": 0.058486797232777936
+        },
+        {
+          "predictedProb": 0.9331927690234981,
+          "actualRate": 0,
+          "count": 29,
+          "confidence": 0.058486797232777936
+        },
+        {
+          "predictedProb": 0.9607507554610369,
+          "actualRate": 0,
+          "count": 29,
+          "confidence": 0.058486797232777936
+        },
+        {
+          "predictedProb": 0.9899999999999994,
+          "actualRate": 0,
+          "count": 29,
+          "confidence": 0.058486797232777936
+        },
+        {
+          "predictedProb": 0.9900000000000001,
+          "actualRate": 0,
+          "count": 11,
+          "confidence": 0.12942000862440706
+        }
+      ],
+      "totalSamples": 562,
+      "brierScore": 0.31572866553405954,
+      "calibrationError": 0.45550675950406055,
+      "trainedAt": "2025-10-06T04:10:50.349Z"
+    }
+  },
+  "overallStats": {
+    "totalSamples": 40000,
+    "avgBrierScore": 0.30502866680568513,
+    "avgCalibrationError": 0.4567225938262121
+  }
+}

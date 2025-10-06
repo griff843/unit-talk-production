@@ -125,9 +125,7 @@ async function ingestPlayerStats(sgo: SGOAdapter, sport: string, startDate: stri
         metadata: s.metadata,
       }));
 
-      const { error } = await supabase.from('player_stats').upsert(rows, {
-        onConflict: 'sport,player_name,game_date',
-      });
+      const { error } = await supabase.from('player_stats').insert(rows);
 
       if (error) {
         console.error('Player stats insert error:', error.message);
@@ -190,6 +188,7 @@ async function ingestOutcomes(sgo: SGOAdapter, sport: string, startDate: string,
         actual: o.actualValue,
         outcome: o.outcome,
         decision: o.outcome,
+        game_date: o.settledAt.toISOString().split('T')[0],
         settled_at: o.settledAt.toISOString(),
         source: 'sgo',
         settlement_method: 'sgo_historical',
