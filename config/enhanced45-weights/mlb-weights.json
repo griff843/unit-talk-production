@@ -1,12 +1,12 @@
 {
   "sport": "MLB",
   "version": "1.0.0-ml-optimized",
-  "trainedAt": "2025-10-06T14:02:49.992Z",
+  "trainedAt": "2025-10-06T14:22:25.226Z",
   "performance": {
-    "winRate": 48,
-    "accuracy": 48,
-    "brierScore": 2.200744469080781,
-    "logLoss": 3.592512985230824,
+    "winRate": 47.5,
+    "accuracy": 47.5,
+    "brierScore": 2.4266206619616475,
+    "logLoss": 3.6270467591240667,
     "sampleSize": 200
   },
   "weights": {
@@ -23,16 +23,16 @@
       "optimalTiming": 0.025641025641025637
     },
     "playerFactors": {
-      "playerForm": 0.17943387969643826,
-      "roleStability": 0.009523809523809526,
-      "matchupHistory": 0.009523809523809526,
-      "injuryImpact": 0.009523809523809526,
-      "fatigueLevel": 0.009523809523809526,
-      "usageRate": 0.17943387969643826,
-      "performanceTrends": 0.17943387969643826,
-      "clutchFactor": 0.009523809523809526,
-      "propSpecificTendencies": 0.23464543359519938,
-      "situationalPerformance": 0.17943387969643826
+      "playerForm": 0.19554043855534278,
+      "roleStability": 0.009523809523809523,
+      "matchupHistory": 0.009523809523809523,
+      "injuryImpact": 0.009523809523809523,
+      "fatigueLevel": 0.009523809523809523,
+      "usageRate": 0.19554043855534278,
+      "performanceTrends": 0.19554043855534278,
+      "clutchFactor": 0.009523809523809523,
+      "propSpecificTendencies": 0.17021919815958128,
+      "situationalPerformance": 0.19554043855534278
     },
     "matchupFactors": {
       "teamVsTeam": 0.025641025641025637,

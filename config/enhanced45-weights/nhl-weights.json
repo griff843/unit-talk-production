@@ -1,12 +1,12 @@
 {
   "sport": "NHL",
   "version": "1.0.0-ml-optimized",
-  "trainedAt": "2025-10-06T14:02:49.995Z",
+  "trainedAt": "2025-10-06T14:22:25.228Z",
   "performance": {
-    "winRate": 52.5,
-    "accuracy": 52.5,
-    "brierScore": 1.4005550303664522,
-    "logLoss": 3.281709020191641,
+    "winRate": 46,
+    "accuracy": 46,
+    "brierScore": 1.420859883516849,
+    "logLoss": 3.7306480808037947,
     "sampleSize": 200
   },
   "weights": {
@@ -23,16 +23,16 @@
       "optimalTiming": 0.025641025641025637
     },
     "playerFactors": {
-      "playerForm": 0.19606302150412586,
+      "playerForm": 0.1962464042296159,
       "roleStability": 0.009523809523809523,
       "matchupHistory": 0.009523809523809523,
       "injuryImpact": 0.009523809523809523,
       "fatigueLevel": 0.009523809523809523,
-      "usageRate": 0.19606302150412586,
-      "performanceTrends": 0.19606302150412586,
+      "usageRate": 0.1962464042296159,
+      "performanceTrends": 0.1962464042296159,
       "clutchFactor": 0.009523809523809523,
-      "propSpecificTendencies": 0.16812886636444896,
-      "situationalPerformance": 0.19606302150412586
+      "propSpecificTendencies": 0.16739533546248894,
+      "situationalPerformance": 0.1962464042296159
     },
     "matchupFactors": {
       "teamVsTeam": 0.025641025641025637,

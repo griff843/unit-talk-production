@@ -1,7 +1,7 @@
 {
   "sport": "NBA",
   "version": "1.0.0-ml-optimized",
-  "trainedAt": "2025-10-06T14:02:49.995Z",
+  "trainedAt": "2025-10-06T14:22:25.227Z",
   "performance": {
     "winRate": 0,
     "accuracy": 0,

@@ -260,7 +260,14 @@ class FactorWeightOptimizer {
   private async fetchSettledOutcomes(sport: string, limit: number): Promise<any[]> {
     console.log(`  Fetching ${sport} data (limit: ${limit})...`);
 
-    // Use simple limit with recent data filter to avoid timeout
+    // Use aggressive date filters for large datasets (NBA)
+    // NBA has more data density, so use last 6 months instead of full 2024
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const dateFilter = sport === 'NBA' ? sixMonthsAgo.toISOString().split('T')[0] : '2024-01-01';
+
+    console.log(`  Using date filter: ${dateFilter}`);
+
     const { data, error } = await this.supabase
       .from('settled_outcomes')
       .select('*')
@@ -268,7 +275,7 @@ class FactorWeightOptimizer {
       .not('actual_value', 'is', null)
       .neq('actual_value', -1)
       .in('outcome', ['win', 'loss'])
-      .gte('game_date', '2024-01-01')  // Recent data only (2024+)
+      .gte('game_date', dateFilter)
       .order('game_date', { ascending: false })
       .limit(limit);
 

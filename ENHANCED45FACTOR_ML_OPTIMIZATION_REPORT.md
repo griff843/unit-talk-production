@@ -1,6 +1,6 @@
 # Enhanced45Factor ML Weight Optimization Report
 
-Generated: 2025-10-06T14:02:49.998Z
+Generated: 2025-10-06T14:22:25.229Z
 
 ## Executive Summary
 
@@ -10,10 +10,10 @@ ML-optimized factor weights trained on 2.3M+ settled outcomes from Supabase.
 
 | Sport | Win Rate | Accuracy | Brier Score | Log Loss | Sample Size |
 |-------|----------|----------|-------------|----------|-------------|
-| MLB | 48.00% | 48.00% | 2.2007 | 3.5925 | 200 |
+| MLB | 47.50% | 47.50% | 2.4266 | 3.6270 | 200 |
 | NBA | 0.00% | 0.00% | 0.0000 | 0.0000 | 0 |
-| NHL | 52.50% | 52.50% | 1.4006 | 3.2817 | 200 |
-| NFL | 48.00% | 48.00% | 2.7673 | 3.5925 | 200 |
+| NHL | 46.00% | 46.00% | 1.4209 | 3.7306 | 200 |
+| NFL | 100.00% | 100.00% | 0.0000 | 0.0010 | 200 |
 
 ## Sport-Specific Weights
 
@@ -25,11 +25,11 @@ Top 10 Most Important Factors:
 2. **defenseVsPosition**: 76.92%
 3. **kellyFraction**: 44.12%
 4. **riskAdjustedReturn**: 44.12%
-5. **propSpecificTendencies**: 23.46%
-6. **playerForm**: 17.94%
-7. **usageRate**: 17.94%
-8. **performanceTrends**: 17.94%
-9. **situationalPerformance**: 17.94%
+5. **playerForm**: 19.55%
+6. **usageRate**: 19.55%
+7. **performanceTrends**: 19.55%
+8. **situationalPerformance**: 19.55%
+9. **propSpecificTendencies**: 17.02%
 10. **lineMovementVelocity**: 2.56%
 
 ### NBA
@@ -55,27 +55,27 @@ Top 10 Most Important Factors:
 2. **defenseVsPosition**: 76.92%
 3. **kellyFraction**: 44.12%
 4. **riskAdjustedReturn**: 44.12%
-5. **playerForm**: 19.61%
-6. **usageRate**: 19.61%
-7. **performanceTrends**: 19.61%
-8. **situationalPerformance**: 19.61%
-9. **propSpecificTendencies**: 16.81%
+5. **playerForm**: 19.62%
+6. **usageRate**: 19.62%
+7. **performanceTrends**: 19.62%
+8. **situationalPerformance**: 19.62%
+9. **propSpecificTendencies**: 16.74%
 10. **lineMovementVelocity**: 2.56%
 
 ### NFL
 
 Top 10 Most Important Factors:
 
-1. **expectedValueDevigged**: 76.92%
-2. **defenseVsPosition**: 76.92%
-3. **kellyFraction**: 44.12%
-4. **riskAdjustedReturn**: 44.12%
-5. **playerForm**: 20.73%
-6. **usageRate**: 20.73%
-7. **performanceTrends**: 20.73%
-8. **situationalPerformance**: 20.73%
-9. **propSpecificTendencies**: 12.31%
-10. **lineMovementVelocity**: 2.56%
+1. **expectedValueDevigged**: 0.00%
+2. **lineMovementVelocity**: 0.00%
+3. **closingLineValue**: 0.00%
+4. **marketEfficiency**: 0.00%
+5. **publicVsSharpSplit**: 0.00%
+6. **volumeProfile**: 0.00%
+7. **crossMarketArbitrage**: 0.00%
+8. **steamDetection**: 0.00%
+9. **marketResistance**: 0.00%
+10. **optimalTiming**: 0.00%
 
 ## Optimization Details
 
