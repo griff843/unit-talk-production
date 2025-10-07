@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { supabaseServer } from '@/lib/supabase';
-import type { Database } from '@/types/supabase';
 import {
   createRouteLogger,
-  logDatabaseOperation,
   logApiPerformance,
   logValidationError,
   logSecurityEvent,
@@ -44,29 +42,38 @@ const SubmitTicketSchema = z.object({
 // SmartFormBridge integration
 async function publishTicketSubmitted(ticketData: {
   bet_slip_id: string;
-  capper_id: string;
+  capper_id: string | number;
+  sport: string;
+  ticket_type: string;
+  game_selections: any[];
+  parlay_odds?: number;
+  total_units: number;
+  status: string;
   selection_count: number;
+  notes?: string;
 }) {
   try {
     const sb = supabaseServer();
 
     // Write to bridge outbox for idempotent processing
+    // FIXED: Match actual schema (event_data not payload, retry_count not attempts, etc.)
     const outboxEntry = {
       event_type: 'ticket_submitted',
-      payload: ticketData as any, // Type assertion for Supabase JSON field
-      unique_key: ticketData.bet_slip_id,
+      event_data: ticketData, // Actual column is event_data, not payload
+      bet_slip_id: ticketData.bet_slip_id, // Store for reference
       status: 'pending',
-      attempts: 0,
-      max_attempts: 3,
-      next_attempt_at: new Date(Date.now() + 5000).toISOString(),
+      retry_count: 0, // Actual column is retry_count, not attempts
+      // Note: No unique_key, max_attempts, or next_attempt_at columns in actual schema
     };
 
     const { error } = await sb
       .from('bridge_outbox')
-      .insert(outboxEntry as any);
+      .insert(outboxEntry);
 
     if (error) {
-      log.error({ error: error.message }, 'Failed to publish ticket submission event');
+      log.error({ error: error.message, code: error.code }, 'Failed to publish ticket submission event');
+      // IMPORTANT: Throw error so API returns 500 instead of 201
+      throw new Error(`Failed to write to bridge_outbox: ${error.message}`);
     } else {
       log.info({
         bet_slip_id: ticketData.bet_slip_id,
@@ -78,6 +85,8 @@ async function publishTicketSubmitted(ticketData: {
       error: error instanceof Error ? error.message : 'Unknown error',
       bet_slip_id: ticketData.bet_slip_id,
     }, 'Error publishing ticket submission event');
+    // Re-throw so the API returns an error response
+    throw error;
   }
 }
 
@@ -182,11 +191,7 @@ export async function POST(request: NextRequest) {
       log.info({ bet_slip_id: betSlipId }, 'Publishing ticket to bridge outbox');
 
       // Publish to bridge outbox for idempotent processing
-      await publishTicketSubmitted({
-        bet_slip_id: betSlipId,
-        capper_id: capper_id.toString(),
-        selection_count: selections.length,
-      });
+      await publishTicketSubmitted(smartTicketData);
 
       log.info({
         bet_slip_id: betSlipId,

@@ -47,9 +47,7 @@ interface BridgeOutboxRecord {
   event_data: any;
   bet_slip_id: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
-  attempts: number;
-  max_attempts: number;
-  retry_count?: number;
+  retry_count: number;
   created_at: string;
   updated_at?: string;
   processed_at?: string;
@@ -310,7 +308,6 @@ export class BridgeWorker extends BaseAgent {
           .from('bridge_outbox')
           .select('*')
           .eq('status', 'pending')
-          .filter('attempts', 'lt', 'max_attempts')
           .order('created_at', { ascending: true })
           .limit(this.bridgeOutboxBatchSize);
 
@@ -339,7 +336,7 @@ export class BridgeWorker extends BaseAgent {
         eventId: event.id,
         eventType: event.event_type,
         betSlipId: event.bet_slip_id,
-        attempts: event.attempts
+        retryCount: event.retry_count
       });
       
       // Check if handler exists
@@ -360,7 +357,7 @@ export class BridgeWorker extends BaseAgent {
         metadata: {
           source: 'bridge_outbox',
           bet_slip_id: event.bet_slip_id,
-          attempts: event.attempts,
+          retryCount: event.retry_count,
         },
         idempotency_key: event.bet_slip_id,
         created_at: event.created_at,
@@ -865,7 +862,7 @@ export class BridgeWorker extends BaseAgent {
       .from('bridge_outbox')
       .update({
         status: 'processing',
-        attempts: event.attempts + 1,
+        attempts: event.retry_count + 1,
         updated_at: new Date().toISOString(),
       })
       .eq('id', event.id);
@@ -879,21 +876,22 @@ export class BridgeWorker extends BaseAgent {
       .update({ 
         status: 'completed',
         processed_at: new Date().toISOString(),
-        attempts: event.attempts + 1,
+        attempts: event.retry_count + 1,
       })
       .eq('id', event.id);
   }
 
   private async handleBridgeOutboxEventProcessingError(event: BridgeOutboxRecord, error: any, processingTime: number): Promise<void> {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const shouldRetry = event.attempts + 1 < event.max_attempts;
+    const MAX_RETRIES = 3; // Default max retry attempts
+    const shouldRetry = event.retry_count + 1 < MAX_RETRIES;
 
     this.bridgeMetrics.bridgeOutboxEventsFailed++;
     this.bridgeMetrics.errorCount++;
 
     if (shouldRetry) {
       // Calculate exponential backoff: 1min, 5min, 15min
-      const backoffMinutes = Math.pow(3, event.attempts + 1);
+      const backoffMinutes = Math.pow(3, event.retry_count + 1);
       const nextAttempt = new Date(Date.now() + backoffMinutes * 60 * 1000);
 
       // Update retry count and schedule next attempt
@@ -902,7 +900,7 @@ export class BridgeWorker extends BaseAgent {
           .from('bridge_outbox')
           .update({
             status: 'pending',
-            attempts: event.attempts + 1,
+            retry_count: event.retry_count + 1,
             updated_at: new Date().toISOString(),
             error_message: errorMessage,
           })
@@ -913,8 +911,8 @@ export class BridgeWorker extends BaseAgent {
         eventId: event.id,
         eventType: event.event_type,
         betSlipId: event.bet_slip_id,
-        attempts: event.attempts + 1,
-        maxAttempts: event.max_attempts,
+        retryCount: event.retry_count + 1,
+        maxRetries: MAX_RETRIES,
         nextAttempt: nextAttempt.toISOString(),
         error: errorMessage,
       });
@@ -923,10 +921,10 @@ export class BridgeWorker extends BaseAgent {
       if (this.hasSupabase()) {
         await this.requireSupabase()
           .from('bridge_outbox')
-          .update({ 
+          .update({
             status: 'failed',
             processed_at: new Date().toISOString(),
-            attempts: event.attempts + 1,
+            retry_count: event.retry_count + 1,
             error_message: errorMessage,
           })
           .eq('id', event.id);
@@ -936,7 +934,7 @@ export class BridgeWorker extends BaseAgent {
         eventId: event.id,
         eventType: event.event_type,
         betSlipId: event.bet_slip_id,
-        attempts: event.attempts + 1,
+        retryCount: event.retry_count + 1,
         error: errorMessage,
       });
     }
