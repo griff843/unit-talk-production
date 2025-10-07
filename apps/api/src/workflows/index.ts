@@ -256,6 +256,9 @@ export {
   wnbaScheduleWorkflow
 } from './support-workflows';
 
+// Recap workflows
+export { combinedRecapWorkflow } from './recap-workflows';
+
 // Test workflow for E2E testing
 export { testWorkflow } from './test-workflow';
 

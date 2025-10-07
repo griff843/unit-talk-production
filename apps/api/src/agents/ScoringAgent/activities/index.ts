@@ -118,7 +118,25 @@ export async function getNewUnifiedPicksActivity(params: {
   }
 }
 
+// Standalone activity function for Temporal worker registration
+export async function updateUnifiedPicksActivity(params: {
+  scoringResults: any[];
+  cycleCount: number;
+  timestamp: Date;
+}): Promise<void> {
+  try {
+    console.log(`[ScoringAgent] Processing updateUnifiedPicks (cycle: ${params.cycleCount})`);
+
+    // Return a basic response for now - this will be properly implemented later
+    return;
+  } catch (error) {
+    console.error(`[ScoringAgent] Error in updateUnifiedPicksActivity:`, error);
+    throw error;
+  }
+}
+
 // Export with the exact names Temporal expects
 export { gradeNewPropsActivity as gradeNewProps };
 export { scoreTopTierPicksActivity as scoreTopTierPicks };
 export { getNewUnifiedPicksActivity as getNewUnifiedPicks };
+export { updateUnifiedPicksActivity as updateUnifiedPicks };

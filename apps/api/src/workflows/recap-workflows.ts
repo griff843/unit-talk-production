@@ -1,8 +1,6 @@
 // src/workflows/recap-workflows.ts
 import { proxyActivities, defineSignal, setHandler, sleep, CancellationScope, log } from '@temporalio/workflow';
 
-import { env } from '../config/env';
-
 import type { RecapType } from '../types/picks';
 
 // Define activity interfaces
@@ -206,8 +204,8 @@ export async function microRecapWorkflow(): Promise<void> {
         // Update state with current timestamp
         state.lastMicroRecap = now.toISOString();
 
-        // Set cooldown (5 minutes from now)
-        const cooldownMinutes = env.MICRO_RECAP_COOLDOWN || 5;
+        // Set cooldown (5 minutes from now) - hardcoded since workflows cannot access env
+        const cooldownMinutes = 5;
         const cooldownMs = cooldownMinutes * 60 * 1000;
         const newCooldown = new Date(now.getTime() + cooldownMs);
         state.microRecapCooldownUntil = newCooldown.toISOString();

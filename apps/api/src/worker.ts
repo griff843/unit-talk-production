@@ -37,6 +37,7 @@ import * as scoringActivities from './agents/ScoringAgent/activities'; // Fixed:
 import * as notificationActivities from './agents/NotificationAgent/activities';
 import * as operatorActivities from './agents/OperatorAgent/activities';
 import * as playerEnrichmentActivities from './agents/PlayerEnrichmentAgent/activities';
+import * as recapActivities from './agents/RecapAgent/activities';
 import { ErrorHandler } from './utils/errorHandling';
 import { getEnv } from './utils/getEnv';
 import { createLogger } from './utils/logger';
@@ -77,6 +78,7 @@ export default async function startWorker() {
         ...contestActivities,
         ...operatorActivities,
         ...playerEnrichmentActivities,
+        ...recapActivities,
 
         // Register SGO backfill activities
         ...backfillSGOActivities,

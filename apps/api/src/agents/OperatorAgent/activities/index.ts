@@ -110,11 +110,20 @@ export async function checkApiQuota(params: { provider: string }): Promise<{ pro
   try {
     console.log(`[OperatorAgent] Checking API quota for provider: ${params.provider}`);
 
-    // Mock quota data - in production this would check actual API quotas
+    // TODO: Implement real API quota checking via provider-specific endpoints
+    // For now, return conservative estimates based on known limits
+    const quotaLimits: Record<string, { hourly: number; daily: number }> = {
+      'odds-api': { hourly: 500, daily: 10000 },
+      'sgo-api': { hourly: 300, daily: 5000 },
+      'optimal-api': { hourly: 200, daily: 3000 }
+    };
+
+    const limits = quotaLimits[params.provider.toLowerCase()] || { hourly: 100, daily: 1000 };
+
     const quotaData = {
       provider: params.provider,
-      hourlyUsed: Math.floor(Math.random() * 100),
-      hourlyLimit: 500,
+      hourlyUsed: 0, // Would query from tracking system
+      hourlyLimit: limits.hourly,
       resetTime: new Date(Date.now() + 3600000) // 1 hour from now
     };
 
@@ -135,9 +144,9 @@ export async function checkApiQuota(params: { provider: string }): Promise<{ pro
   }
 }
 
-export async function logError(params: { error: string; workflow?: string; timestamp?: Date; agentId?: string }): Promise<{ success: boolean; message: string }> {
+export async function logError(params: { error: string; workflow?: string; league?: string; timestamp?: Date; agentId?: string }): Promise<{ success: boolean; message: string }> {
   try {
-    const timestamp = params.timestamp || new Date();
+    const timestamp = params.timestamp instanceof Date ? params.timestamp : new Date();
     const workflow = params.workflow || 'unknown';
 
     console.log(`[OperatorAgent] ${timestamp.toISOString()} - Workflow: ${workflow} - Error: ${params.error}`);
@@ -153,6 +162,66 @@ export async function logError(params: { error: string; workflow?: string; times
     return {
       success: false,
       message: `Failed to log error: ${errorMessage}`
+    };
+  }
+}
+
+export async function logFallbackActivation(params: { league: string; primaryError: string; cycleCount: number }): Promise<{ success: boolean; message: string }> {
+  try {
+    console.log(`[OperatorAgent] Fallback activated for ${params.league} - Cycle: ${params.cycleCount}`);
+    console.log(`[OperatorAgent] Primary error: ${params.primaryError}`);
+
+    return {
+      success: true,
+      message: `Fallback activation logged for ${params.league}`
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`[OperatorAgent] Failed to log fallback activation:`, errorMessage);
+
+    return {
+      success: false,
+      message: `Failed to log fallback activation: ${errorMessage}`
+    };
+  }
+}
+
+export async function logPerformanceWarning(params: { cycleTime: number; maxCycleTime: number; cycleCount: number; message: string }): Promise<{ success: boolean; message: string }> {
+  try {
+    console.warn(`[OperatorAgent] Performance Warning - Cycle ${params.cycleCount}: ${params.message}`);
+    console.warn(`[OperatorAgent] Cycle time: ${params.cycleTime}ms exceeded max: ${params.maxCycleTime}ms`);
+
+    return {
+      success: true,
+      message: `Performance warning logged for cycle ${params.cycleCount}`
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`[OperatorAgent] Failed to log performance warning:`, errorMessage);
+
+    return {
+      success: false,
+      message: `Failed to log performance warning: ${errorMessage}`
+    };
+  }
+}
+
+export async function updateProcessingMetrics(params: { league: string; batchId: string; propCount: number; cycleCount: number; processingTime: number }): Promise<{ success: boolean; message: string }> {
+  try {
+    console.log(`[OperatorAgent] Processing metrics - League: ${params.league}, Props: ${params.propCount}, Cycle: ${params.cycleCount}`);
+    console.log(`[OperatorAgent] Batch ID: ${params.batchId}, Processing time: ${params.processingTime}ms`);
+
+    return {
+      success: true,
+      message: `Processing metrics updated for ${params.league}`
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`[OperatorAgent] Failed to update processing metrics:`, errorMessage);
+
+    return {
+      success: false,
+      message: `Failed to update processing metrics: ${errorMessage}`
     };
   }
 } 
