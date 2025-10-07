@@ -325,7 +325,8 @@ export function Step1Essentials({ data, onUpdate, onNext, errors }: Step1Essenti
 
   const handleCapperSelect = (capperId: string) => {
     const selectedCapper = cappers.find(c => c.id === capperId);
-    onUpdate({ capper: selectedCapper?.name || capperId });
+    // Store the capper ID (UUID) for API submission, not the name
+    onUpdate({ capper: capperId });
   };
 
   const handleTicketTypeSelect = (type: TicketType) => {

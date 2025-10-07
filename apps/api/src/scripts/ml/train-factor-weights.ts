@@ -175,21 +175,22 @@ class FactorWeightOptimizer {
   private async validateDataAvailability(): Promise<void> {
     console.log('🔍 Validating data availability...\n');
 
-    // Use direct count instead of RPC (RPC times out on 2.3M records)
-    const { count: totalCount, error: countError } = await this.supabase
+    // Skip expensive count query - just validate we have data
+    const { data: testData, error: testError } = await this.supabase
       .from('settled_outcomes')
-      .select('*', { count: 'exact', head: true })
-      .not('actual_value', 'is', null);
+      .select('id')
+      .not('actual_value', 'is', null)
+      .limit(1);
 
-    if (countError) {
-      throw new Error(`Database error: ${countError.message}`);
+    if (testError) {
+      throw new Error(`Database error: ${testError.message}`);
     }
 
-    if (!totalCount || totalCount === 0) {
+    if (!testData || testData.length === 0) {
       throw new Error('No settled outcomes found in database');
     }
 
-    console.log(`Total settled outcomes: ${totalCount.toLocaleString()}`);
+    console.log(`✅ Database connection validated`);
 
     // Get sport distribution from sample (RPC function times out)
     const { data: sampleData } = await this.supabase
@@ -206,13 +207,8 @@ class FactorWeightOptimizer {
 
       console.log('\nSport Distribution (50K sample):');
       Object.entries(sportCounts).forEach(([sport, count]) => {
-        const estimated = Math.round((count as number / sampleData.length) * totalCount);
-        console.log(`  ${sport}: ~${estimated.toLocaleString()} outcomes (estimated)`);
+        console.log(`  ${sport}: ${count} in sample`);
       });
-    }
-
-    if (totalCount < 10000) {
-      throw new Error(`Insufficient data: ${totalCount} outcomes (minimum 10,000 required)`);
     }
 
     console.log('');

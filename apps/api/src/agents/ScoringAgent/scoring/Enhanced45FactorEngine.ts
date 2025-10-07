@@ -16,6 +16,7 @@ import {
   calculateTrueExpectedValue,
   oddsToImpliedProbability
 } from './oddsValueCalculator';
+import { dynamicWeightLoader } from './DynamicWeightLoader';
 
 export interface Enhanced45FactorResult {
   totalScore: number;
@@ -189,6 +190,15 @@ export class Enhanced45FactorEngine {
   ) {
     this.featureStore = featureStore;
     this.changeDetector = changeDetector;
+
+    // Log available ML-optimized configs
+    const availableConfigs = dynamicWeightLoader.getAvailableConfigs();
+    if (availableConfigs.length > 0) {
+      this.logger.info('ML-optimized weights available', {
+        sports: availableConfigs,
+        count: availableConfigs.length
+      });
+    }
   }
   
   /**
@@ -199,7 +209,13 @@ export class Enhanced45FactorEngine {
     config?: Partial<Factor45Config>
   ): Promise<Enhanced45FactorResult> {
     const startTime = Date.now();
-    const effectiveConfig = this.mergeConfig(config);
+
+    // Load sport-specific ML-optimized weights (if available)
+    const sport = features.sport || 'NFL';
+    const mlWeights = dynamicWeightLoader.loadWeights(sport);
+
+    // Merge with provided config (provided config takes precedence)
+    const effectiveConfig = this.mergeConfig(config, mlWeights);
 
     // Defensive validation - ensure all config sections exist
     if (!effectiveConfig.marketFactors || !effectiveConfig.playerFactors ||
@@ -538,16 +554,17 @@ export class Enhanced45FactorEngine {
     const vigAdjustment = enhancedFeatures.vigData?.totalVig || 0.05;
     const trueProb = impliedProb / (1 + vigAdjustment);
 
-    // Calculate TRUE expected value using REAL probability model
-    // This replaces the hardcoded 52% assumption
+    // Calculate TRUE expected value using ML-CALIBRATED probability model
+    // This uses 2.3M settled outcomes for sport-specific calibration
     let calculatedProb = 0.52; // Fallback default
 
     try {
-      // Import probability calculator
-      const { probabilityCalculator } = await import('../../../models/ProbabilityCalculator');
+      // Import ML-calibrated probability calculator
+      const { CalibratedProbabilityCalculator } = await import('../../../models/CalibratedProbabilityCalculator');
+      const calibratedCalc = new CalibratedProbabilityCalculator();
 
-      // Calculate real probability
-      const probResult = await probabilityCalculator.calculateProbability({
+      // Calculate calibrated probability
+      const probResult = await calibratedCalc.calculateProbability({
         sport: features.sport || 'NFL',
         playerId: features.player?.id || features.player?.player_id,
         playerName: features.player?.name || features.player?.player_name || 'Unknown',
@@ -558,20 +575,25 @@ export class Enhanced45FactorEngine {
         gameDate: features.game?.date || features.event_date
       });
 
-      calculatedProb = probResult.probability;
+      if (probResult) {
+        calculatedProb = probResult.probability;
 
-      // Log the real probability calculation
-      this.logger.info('Real probability calculated', {
-        player: features.player?.name,
-        market: features.market?.type,
-        line: features.market?.line,
-        probability: probResult.probability.toFixed(4),
-        confidence: probResult.confidence.toFixed(4),
-        method: probResult.method,
-        dataPoints: probResult.dataPoints
-      });
+        // Log the ML-calibrated probability calculation
+        this.logger.info('ML-calibrated probability calculated', {
+          player: features.player?.name,
+          market: features.market?.type,
+          line: features.market?.line,
+          probability: probResult.probability.toFixed(4),
+          baseProbability: probResult.metadata?.baseProbability?.toFixed(4),
+          calibrationMethod: probResult.metadata?.calibrationMethod,
+          confidence: probResult.confidence.toFixed(4),
+          method: probResult.method,
+          dataPoints: probResult.dataPoints,
+          sport: features.sport || 'NFL'
+        });
+      }
     } catch (error: any) {
-      this.logger.warn('Failed to calculate real probability, using fallback', {
+      this.logger.warn('Failed to calculate ML-calibrated probability, using fallback', {
         error: error.message,
         fallbackProb: calculatedProb
       });
@@ -956,15 +978,21 @@ export class Enhanced45FactorEngine {
   // HELPER METHODS
   // ========================================
   
-  private mergeConfig(config?: Partial<Factor45Config>): Factor45Config {
-    if (!config) return this.defaultConfig;
-    
+  private mergeConfig(
+    config?: Partial<Factor45Config>,
+    mlWeights?: Factor45Config
+  ): Factor45Config {
+    // Priority: config > mlWeights > defaultConfig
+    const baseConfig = mlWeights || this.defaultConfig;
+
+    if (!config) return baseConfig;
+
     return {
-      marketFactors: { ...this.defaultConfig.marketFactors, ...config.marketFactors },
-      playerFactors: { ...this.defaultConfig.playerFactors, ...config.playerFactors },
-      matchupFactors: { ...this.defaultConfig.matchupFactors, ...config.matchupFactors },
-      priceFactors: { ...this.defaultConfig.priceFactors, ...config.priceFactors },
-      metaFactors: { ...this.defaultConfig.metaFactors, ...config.metaFactors }
+      marketFactors: { ...baseConfig.marketFactors, ...config.marketFactors },
+      playerFactors: { ...baseConfig.playerFactors, ...config.playerFactors },
+      matchupFactors: { ...baseConfig.matchupFactors, ...config.matchupFactors },
+      priceFactors: { ...baseConfig.priceFactors, ...config.priceFactors },
+      metaFactors: { ...baseConfig.metaFactors, ...config.metaFactors }
     };
   }
   

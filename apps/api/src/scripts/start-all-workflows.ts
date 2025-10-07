@@ -150,12 +150,22 @@ async function startWorkflow(client: Client, workflow: WorkflowConfig, dryRun: b
     logger.info(`🎯 ${workflow.name} started successfully`);
     return { name: workflow.name, status: 'started' };
   } catch (error: any) {
-    if (error.message?.includes('WorkflowExecutionAlreadyStarted')) {
+    // Check for "already started" in both message and error name
+    if (error.message?.includes('WorkflowExecutionAlreadyStarted') ||
+        error.message?.includes('Workflow execution already started') ||
+        error.name === 'WorkflowExecutionAlreadyStartedError') {
       logger.info(`✅ ${workflow.name} already running`);
       return { name: workflow.name, status: 'already_running' };
     }
-    
-    logger.error(`❌ Failed to start ${workflow.name}:`, { error: error.message });
+
+    // Log FULL error details for debugging
+    logger.error(`❌ Failed to start ${workflow.name}:`, {
+      error: error.message,
+      code: error.code,
+      cause: error.cause,
+      stack: error.stack,
+      fullError: JSON.stringify(error, null, 2)
+    });
     return { name: workflow.name, status: 'failed', error: error.message };
   }
 }

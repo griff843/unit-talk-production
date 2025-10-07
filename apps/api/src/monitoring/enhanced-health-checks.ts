@@ -78,7 +78,7 @@ export class EnhancedHealthChecker {
         
         try {
           // Check if we have env vars
-          if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+          if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
             throw new Error('Missing Supabase configuration');
           }
 
@@ -89,7 +89,7 @@ export class EnhancedHealthChecker {
               const { createClient } = await import('@supabase/supabase-js');
               const supabase = createClient(
                 process.env.SUPABASE_URL!,
-                process.env.SUPABASE_ANON_KEY!
+                process.env.SUPABASE_SERVICE_ROLE_KEY!
               );
               
               // Simple connectivity test
@@ -290,7 +290,7 @@ export class EnhancedHealthChecker {
           const { createClient } = await import('@supabase/supabase-js');
           const supabase = createClient(
             process.env.SUPABASE_URL!,
-            process.env.SUPABASE_ANON_KEY!
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
           );
 
 
@@ -341,7 +341,7 @@ export class EnhancedHealthChecker {
           const { createClient } = await import('@supabase/supabase-js');
           const supabase = createClient(
             process.env.SUPABASE_URL!,
-            process.env.SUPABASE_ANON_KEY!
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
           );
 
 
@@ -396,7 +396,7 @@ export class EnhancedHealthChecker {
           const { createClient } = await import('@supabase/supabase-js');
           const supabase = createClient(
             process.env.SUPABASE_URL!,
-            process.env.SUPABASE_ANON_KEY!
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
           );
 
 
@@ -451,7 +451,7 @@ export class EnhancedHealthChecker {
           const { createClient } = await import('@supabase/supabase-js');
           const supabase = createClient(
             process.env.SUPABASE_URL!,
-            process.env.SUPABASE_ANON_KEY!
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
           );
 
           // Check quota configs table (tolerant to missing enabled column)
@@ -548,7 +548,7 @@ export class EnhancedHealthChecker {
           const { createClient } = await import('@supabase/supabase-js');
           const supabase = createClient(
             process.env.SUPABASE_URL!,
-            process.env.SUPABASE_ANON_KEY!
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
           );
 
           // Check recent settlement activity
@@ -608,7 +608,7 @@ export class EnhancedHealthChecker {
           const { createClient } = await import('@supabase/supabase-js');
           const supabase = createClient(
             process.env.SUPABASE_URL!,
-            process.env.SUPABASE_ANON_KEY!
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
           );
 
 

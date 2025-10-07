@@ -128,32 +128,64 @@ export class SGOAdapter {
   }): Promise<UnifiedProp[]> {
     try {
       const leagueID = params.league || this.mapSportToSGO(params.sport);
+      const requestedLimit = params.limit || 50;
+      const maxPerPage = 50; // SGO API maximum
 
-      // Build URL manually (axios params serialization causes 400 errors)
-      const queryParams = new URLSearchParams();
-      queryParams.append('apiKey', this.apiKey);
-      if (leagueID) queryParams.append('leagueID', leagueID);
-      if (params.startDate) queryParams.append('startsAfter', params.startDate);
-      if (params.endDate) queryParams.append('startsBefore', params.endDate);
-      queryParams.append('includeAltLine', 'true');
-      queryParams.append('finalized', 'false'); // Get current props
-      if (params.limit) queryParams.append('limit', params.limit.toString());
+      // Paginate if limit > 50
+      let allEvents: SGOEvent[] = [];
+      let cursor: string | null = null;
+      let fetched = 0;
 
-      const response = await this.client.get(`/events?${queryParams.toString()}`);
+      do {
+        const queryParams = new URLSearchParams();
+        queryParams.append('apiKey', this.apiKey);
+        if (leagueID) queryParams.append('leagueID', leagueID);
+        if (params.startDate) queryParams.append('startsAfter', params.startDate);
+        if (params.endDate) queryParams.append('startsBefore', params.endDate);
+        queryParams.append('includeAltLine', 'true');
+        queryParams.append('finalized', 'false');
 
-      const events: SGOEvent[] = response.data.data || [];
+        const pageLimit = Math.min(maxPerPage, requestedLimit - fetched);
+        queryParams.append('limit', pageLimit.toString());
+        if (cursor) queryParams.append('cursor', cursor);
 
-      console.log(`Fetched ${events.length} events from SGO`);
+        const url = `${this.client.defaults.baseURL}/events?${queryParams.toString()}`;
+        console.log(`[SGOAdapter] Fetching props page (${fetched}/${requestedLimit})...`);
+
+        const fetchResponse = await fetch(url);
+
+        if (!fetchResponse.ok) {
+          console.error('[SGOAdapter] Request failed:', fetchResponse.status, fetchResponse.statusText);
+          const errorText = await fetchResponse.text();
+          console.error('[SGOAdapter] Error body:', errorText);
+          throw new Error(`HTTP ${fetchResponse.status}: ${fetchResponse.statusText}`);
+        }
+
+        const responseData = await fetchResponse.json();
+        const events: SGOEvent[] = responseData.data || [];
+        allEvents.push(...events);
+        fetched += events.length;
+
+        cursor = responseData.nextCursor || null;
+
+        console.log(`Fetched ${events.length} events (total: ${allEvents.length})`);
+
+        if (fetched >= requestedLimit || !cursor || events.length === 0) {
+          break;
+        }
+      } while (cursor);
+
+      console.log(`Fetched ${allEvents.length} events from SGO`);
 
       // Extract player props from events
       const props: UnifiedProp[] = [];
 
-      for (const event of events) {
+      for (const event of allEvents) {
         const eventProps = this.extractPlayerPropsFromEvent(event);
         props.push(...eventProps);
       }
 
-      console.log(`Extracted ${props.length} player props from ${events.length} events`);
+      console.log(`Extracted ${props.length} player props from ${allEvents.length} events`);
 
       return props;
     } catch (error: any) {
@@ -208,6 +240,13 @@ export class SGOAdapter {
       // Get best bookmaker if available
       const bookmaker = this.extractBestBookmaker(odd.byBookmaker);
 
+      // Parse game date safely
+      const gameDate = event.startDate ? new Date(event.startDate) : new Date();
+      if (isNaN(gameDate.getTime())) {
+        console.warn(`Invalid date for event ${event.eventID}: ${event.startDate}`);
+        continue;
+      }
+
       props.push({
         id: `${event.eventID}-${oddID}`,
         sport: this.mapSportFromSGO(event.sportID),
@@ -217,7 +256,7 @@ export class SGOAdapter {
         line,
         odds,
         bookmaker,
-        gameDate: new Date(event.startDate),
+        gameDate,
         metadata: {
           source: 'sgo',
           eventID: event.eventID,
@@ -273,32 +312,64 @@ export class SGOAdapter {
   }): Promise<UnifiedOutcome[]> {
     try {
       const leagueID = this.mapSportToSGO(params.sport);
+      const requestedLimit = params.limit || 50;
+      const maxPerPage = 50; // SGO API maximum
 
-      // Build URL manually (axios params serialization causes 400 errors)
-      const queryParams = new URLSearchParams();
-      queryParams.append('apiKey', this.apiKey);
-      if (leagueID) queryParams.append('leagueID', leagueID);
-      if (params.startDate) queryParams.append('startsAfter', params.startDate);
-      if (params.endDate) queryParams.append('startsBefore', params.endDate);
-      queryParams.append('includeAltLine', 'true');
-      queryParams.append('finalized', 'true'); // Only get completed games
-      if (params.limit) queryParams.append('limit', params.limit.toString());
+      // Paginate if limit > 50
+      let allEvents: SGOEvent[] = [];
+      let cursor: string | null = null;
+      let fetched = 0;
 
-      const response = await this.client.get(`/events?${queryParams.toString()}`);
+      do {
+        const queryParams = new URLSearchParams();
+        queryParams.append('apiKey', this.apiKey);
+        if (leagueID) queryParams.append('leagueID', leagueID);
+        if (params.startDate) queryParams.append('startsAfter', params.startDate);
+        if (params.endDate) queryParams.append('startsBefore', params.endDate);
+        queryParams.append('includeAltLine', 'true');
+        queryParams.append('finalized', 'true');
 
-      const events: SGOEvent[] = response.data.data || [];
+        const pageLimit = Math.min(maxPerPage, requestedLimit - fetched);
+        queryParams.append('limit', pageLimit.toString());
+        if (cursor) queryParams.append('cursor', cursor);
 
-      console.log(`Fetched ${events.length} finalized events from SGO`);
+        const url = `${this.client.defaults.baseURL}/events?${queryParams.toString()}`;
+        console.log(`[SGOAdapter] Fetching outcomes page (${fetched}/${requestedLimit})...`);
+
+        const fetchResponse = await fetch(url);
+
+        if (!fetchResponse.ok) {
+          console.error('[SGOAdapter] Request failed:', fetchResponse.status, fetchResponse.statusText);
+          const errorText = await fetchResponse.text();
+          console.error('[SGOAdapter] Error body:', errorText);
+          throw new Error(`HTTP ${fetchResponse.status}: ${fetchResponse.statusText}`);
+        }
+
+        const responseData = await fetchResponse.json();
+        const events: SGOEvent[] = responseData.data || [];
+        allEvents.push(...events);
+        fetched += events.length;
+
+        cursor = responseData.nextCursor || null;
+
+        console.log(`Fetched ${events.length} events (total: ${allEvents.length})`);
+
+        if (fetched >= requestedLimit || !cursor || events.length === 0) {
+          break;
+        }
+      } while (cursor);
+
+      console.log(`Fetched ${allEvents.length} finalized events from SGO`);
 
       // Extract outcomes from events
       const outcomes: UnifiedOutcome[] = [];
 
-      for (const event of events) {
+      for (const event of allEvents) {
         const eventOutcomes = this.extractOutcomesFromEvent(event);
         outcomes.push(...eventOutcomes);
       }
 
-      console.log(`Extracted ${outcomes.length} outcomes from ${events.length} events`);
+      console.log(`Extracted ${outcomes.length} outcomes from ${allEvents.length} events`);
 
       return outcomes;
     } catch (error: any) {
@@ -360,6 +431,13 @@ export class SGOAdapter {
       // Determine outcome based on sideID (over/under)
       const outcome = this.determineOutcome(actualValue, line, odd.sideID || 'over');
 
+      // Parse settled date safely
+      const settledDate = event.startDate ? new Date(event.startDate) : new Date();
+      if (isNaN(settledDate.getTime())) {
+        console.warn(`Invalid date for event ${event.eventID}: ${event.startDate}`);
+        continue;
+      }
+
       outcomes.push({
         propId: `${event.eventID}-${oddID}`,
         playerName: player.name,
@@ -367,7 +445,7 @@ export class SGOAdapter {
         line,
         actualValue,
         outcome,
-        settledAt: new Date(event.startDate), // Use event start date as settled time
+        settledAt: settledDate,
         metadata: {
           source: 'sgo',
           eventID: event.eventID,
@@ -419,26 +497,59 @@ export class SGOAdapter {
   }): Promise<UnifiedPlayerStats[]> {
     try {
       const leagueID = this.mapSportToSGO(params.sport);
+      const requestedLimit = params.limit || 50;
+      const maxPerPage = 50; // SGO API maximum
 
-      // Build URL manually (axios params serialization causes 400 errors)
-      const queryParams = new URLSearchParams();
-      queryParams.append('apiKey', this.apiKey);
-      if (leagueID) queryParams.append('leagueID', leagueID);
-      if (params.startDate) queryParams.append('startsAfter', params.startDate);
-      if (params.endDate) queryParams.append('startsBefore', params.endDate);
-      queryParams.append('finalized', 'true'); // Only completed games have stats
-      if (params.limit) queryParams.append('limit', params.limit.toString());
+      // Paginate if limit > 50
+      let allEvents: SGOEvent[] = [];
+      let cursor: string | null = null;
+      let fetched = 0;
 
-      const response = await this.client.get(`/events?${queryParams.toString()}`);
+      do {
+        const queryParams = new URLSearchParams();
+        queryParams.append('apiKey', this.apiKey);
+        if (leagueID) queryParams.append('leagueID', leagueID);
+        if (params.startDate) queryParams.append('startsAfter', params.startDate);
+        if (params.endDate) queryParams.append('startsBefore', params.endDate);
+        queryParams.append('finalized', 'true');
 
-      const events: SGOEvent[] = response.data.data || [];
+        const pageLimit = Math.min(maxPerPage, requestedLimit - fetched);
+        queryParams.append('limit', pageLimit.toString());
+        if (cursor) queryParams.append('cursor', cursor);
 
-      console.log(`Fetched ${events.length} finalized events for player stats`);
+        const url = `${this.client.defaults.baseURL}/events?${queryParams.toString()}`;
+        console.log(`[SGOAdapter] Fetching page (${fetched}/${requestedLimit})...`);
+
+        const fetchResponse = await fetch(url);
+
+        if (!fetchResponse.ok) {
+          console.error('[SGOAdapter] Request failed:', fetchResponse.status, fetchResponse.statusText);
+          const errorText = await fetchResponse.text();
+          console.error('[SGOAdapter] Error body:', errorText);
+          throw new Error(`HTTP ${fetchResponse.status}: ${fetchResponse.statusText}`);
+        }
+
+        const responseData = await fetchResponse.json();
+        const events: SGOEvent[] = responseData.data || [];
+        allEvents.push(...events);
+        fetched += events.length;
+
+        cursor = responseData.nextCursor || null;
+
+        console.log(`Fetched ${events.length} events (total: ${allEvents.length})`);
+
+        // Stop if we hit requested limit or no more pages
+        if (fetched >= requestedLimit || !cursor || events.length === 0) {
+          break;
+        }
+      } while (cursor);
+
+      console.log(`Fetched ${allEvents.length} finalized events for player stats`);
 
       // Extract player stats from events
       const statsMap = new Map<string, UnifiedPlayerStats>();
 
-      for (const event of events) {
+      for (const event of allEvents) {
         const eventStats = this.extractPlayerStatsFromEvent(event);
 
         for (const stat of eventStats) {
@@ -508,11 +619,17 @@ export class SGOAdapter {
     }
 
     // Convert to UnifiedPlayerStats
+    const gameDate = event.startDate ? new Date(event.startDate) : new Date();
+    if (isNaN(gameDate.getTime())) {
+      console.warn(`Invalid date for event ${event.eventID}: ${event.startDate}`);
+      return stats;
+    }
+
     for (const [playerID, data] of playerStatsMap.entries()) {
       stats.push({
         playerName: data.player.name,
         sport: this.mapSportFromSGO(event.sportID),
-        gameDate: new Date(event.startDate),
+        gameDate,
         stats: data.stats,
         metadata: {
           source: 'sgo',

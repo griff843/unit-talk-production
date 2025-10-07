@@ -145,7 +145,6 @@ export function usePicks() {
           status,
           workflow_stage,
           tier_when_placed,
-          tier,
           sport,
           created_at,
           placed_at,
@@ -155,9 +154,6 @@ export function usePicks() {
           feature_contributions,
           approved_at,
           approved_by,
-          rejected_at,
-          rejected_by,
-          rejected_reason,
           users!unified_picks_user_id_fkey (
             username,
             discord_id,

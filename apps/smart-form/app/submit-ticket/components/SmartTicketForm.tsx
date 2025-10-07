@@ -30,8 +30,8 @@ export function SmartTicketForm({ onSubmitSuccess }: SmartTicketFormProps) {
       game_date: undefined,
 
       // Step 2 fields
-      unit_size: undefined,
-      confidence_level: undefined,
+      unit_size: 2.0, // Default moderate bet size
+      confidence_level: 7, // Default medium-high confidence
 
       // Step 3 fields
       bet_type: undefined,
@@ -234,27 +234,77 @@ export function SmartTicketForm({ onSubmitSuccess }: SmartTicketFormProps) {
           status: 'open' as const,
         })) || [];
 
-      // Prepare ticket data for submission
-      const ticketData = {
-        capper: formState.data.capper!,
-        ticket_type: formState.data.ticket_type!,
-        unit_size: formState.data.unit_size!,
-        odds_format: formState.data.odds_format!,
-        auto_parlay: formState.data.auto_parlay || false,
-        sport: formState.data.sport!,
-        game_date: formState.data.game_date!,
-        confidence_level: formState.data.confidence_level!,
-        user_tier: formState.data.user_tier!,
-        bet_type: formState.data.bet_type!,
-        market_type: formState.data.market_type!,
-        legs: legs,
-        game_selections: formState.data.game_selections,
-        notes: formState.data.notes,
-        timestamp: new Date().toISOString(),
-        timezone: getTimezoneOffset(),
-        status: 'submitted' as const,
-        bet_slip_id: crypto.randomUUID(),
+      // Helper function to parse selection string
+      const parseSelection = (selectionString: string) => {
+        const parts = selectionString.split(' - ');
+        const propDesc = parts[0]; // "Patrick Mahomes Passing Yards 275.5"
+        const directionPart = parts[1] || ''; // "Over 275.5"
+
+        // Extract stat type from prop description
+        // Remove player name and line number to get stat type
+        const propWords = propDesc.split(' ');
+        let statType = '';
+
+        // Find the stat type (words before the line number)
+        for (let i = propWords.length - 1; i >= 0; i--) {
+          const word = propWords[i];
+          // If we hit a number (the line), stop
+          if (!isNaN(parseFloat(word))) {
+            // Take the 2 words before the line as stat type
+            if (i >= 2) {
+              statType = propWords
+                .slice(i - 2, i)
+                .join('_')
+                .toLowerCase()
+                .replace(/\s+/g, '_');
+            }
+            break;
+          }
+        }
+
+        // Fallback: if no stat type found, use the last 2 words before line
+        if (!statType && propWords.length >= 3) {
+          statType = propWords
+            .slice(-3, -1)
+            .join('_')
+            .toLowerCase()
+            .replace(/\s+/g, '_');
+        }
+
+        // Extract direction (over/under)
+        const direction = directionPart.toLowerCase().startsWith('over')
+          ? 'over'
+          : directionPart.toLowerCase().startsWith('under')
+            ? 'under'
+            : 'over'; // default
+
+        return { statType, direction };
       };
+
+      // Transform form data to API format
+      const apiPayload = {
+        capper_id: formState.data.capper!, // Assuming capper is already the ID
+        sport: formState.data.sport!,
+        ticket_type: formState.data.ticket_type!,
+        total_units: formState.data.unit_size!,
+        notes: formState.data.notes,
+        selections: (formState.data.game_selections || []).map(gs => {
+          const { statType, direction } = parseSelection(gs.selection);
+          return {
+            sport: formState.data.sport!,
+            stat_type: statType,
+            line: parseFloat(gs.line),
+            leg_odds: parseInt(gs.odds),
+            source: 'manual' as const,
+            selection: direction as 'over' | 'under' | 'yes' | 'no',
+            confidence: formState.data.confidence_level
+              ? formState.data.confidence_level / 10
+              : 0.7,
+          };
+        }),
+      };
+
+      console.log('📤 Submitting transformed payload:', JSON.stringify(apiPayload, null, 2));
 
       // Submit to API endpoint
       const response = await fetch('/api/submit-ticket', {
@@ -262,7 +312,7 @@ export function SmartTicketForm({ onSubmitSuccess }: SmartTicketFormProps) {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(ticketData),
+        body: JSON.stringify(apiPayload),
       });
 
       const result = await response.json();

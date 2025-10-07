@@ -7,7 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 import { Client, Connection } from '@temporalio/client';
 import { requireSupabase } from '../utils/supabaseUtils';
 
-const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
+const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
 export class PipelineOrchestrator {
   private temporalClient: Client | null = null;

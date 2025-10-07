@@ -112,10 +112,11 @@ class ApiClient {
   /**
    * Fetch games for a sport
    */
-  async fetchGames(sport: string, teamId?: string, refresh = false): Promise<Game[]> {
+  async fetchGames(sport: string, teamId?: string, refresh = false, date?: string): Promise<Game[]> {
     const params = new URLSearchParams({ sport });
     if (teamId) params.set('team_id', teamId);
     if (refresh) params.set('refresh', 'true');
+    if (date) params.set('date', date);
 
     const result = await this.makeRequest<{ games: Game[] }>(
       `/api/games?${params.toString()}`

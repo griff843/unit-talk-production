@@ -20,6 +20,7 @@ const QuerySchema = z.object({
   sport: z.enum(['NFL', 'NBA', 'MLB', 'NHL', 'NCAAF']),
   team_id: z.string().uuid().nullish(),
   refresh: z.string().nullish().transform(val => val === 'true'),
+  date: z.string().nullish(), // Add date parameter (YYYY-MM-DD format)
 });
 
 // Optimal API Configuration - using environment variables
@@ -210,13 +211,16 @@ export async function GET(request: NextRequest) {
       }, { status: 400 });
     }
 
-    const { sport, team_id, refresh: forceRefresh } = queryValidation.data;
-    
-    log.info({
-      query: { sport, team_id, refresh: forceRefresh },
-    }, `Fetching ${sport} games`);
+    const { sport, team_id, refresh: forceRefresh, date } = queryValidation.data;
 
-    const today = new Date().toISOString().split('T')[0];
+    // Use provided date or default to today
+    const queryDate = date || new Date().toISOString().split('T')[0];
+
+    log.info({
+      query: { sport, team_id, refresh: forceRefresh, date: queryDate },
+    }, `Fetching ${sport} games for ${queryDate}`);
+
+    const today = queryDate; // Use queryDate instead of hardcoding today
     const supabase = supabaseServer();
 
     // Check if we should fetch fresh data from Optimal API

@@ -142,7 +142,7 @@ CREATE INDEX IF NOT EXISTS idx_performance_alerts_triggered_at ON performance_al
 import { createClient } from '@supabase/supabase-js';
 import { requireSupabase } from '../utils/supabaseUtils';
 
-const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
+const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
 export class PerformanceMonitor {
   private static instance: PerformanceMonitor;

@@ -142,8 +142,8 @@ export function Step4GameSelection({
       try {
         console.log(`🔍 Loading ${data.sport} games for ${data.game_date}...`);
 
-        // Use the API client to fetch games
-        const realGames = await apiClient.fetchGames(data.sport);
+        // Use the API client to fetch games with date parameter
+        const realGames = await apiClient.fetchGames(data.sport, undefined, false, data.game_date);
 
         if (realGames && realGames.length > 0) {
           console.log(`✅ Found ${realGames.length} real games`);
@@ -343,10 +343,21 @@ export function Step4GameSelection({
         console.log(
           `🎯 Selected prop: ${prop.display_name} - ${selectedOption.label} (${selectedOption.odds})`
         );
-        setSelection(`${prop.display_name} - ${selectedOption.label}`);
-        setOdds(selectedOption.odds.toString());
-        setLine(prop.line ? prop.line.toString() : '');
-        setSelectedProp(prop);
+
+        // For manual props, immediately add to selections
+        const newSelection: GameSelection = {
+          id: crypto.randomUUID(),
+          game_id: selectedGame?.id || '',
+          game: selectedGame?.matchup || 'Manual Entry',
+          selection: `${prop.display_name} - ${selectedOption.label}`,
+          odds: selectedOption.odds.toString(),
+          line: prop.line ? prop.line.toString() : '',
+        };
+
+        const updatedSelections = [...(data.game_selections || []), newSelection];
+        onUpdate({ game_selections: updatedSelections });
+
+        console.log('✅ Added selection to form:', newSelection);
       }
     }
   };
@@ -463,11 +474,100 @@ export function Step4GameSelection({
         </div>
       )}
 
-      {!loading && games.length === 0 && (
+      {!loading && games.length === 0 && !showManualPropCreator && (
         <div className="text-center py-8">
           <p className="text-muted-foreground mb-4">No games found</p>
-          <p className="text-sm text-muted-foreground">Try selecting a different date or sport</p>
+          <p className="text-sm text-muted-foreground mb-4">Try selecting a different date or sport, or create a manual pick</p>
+          <Button
+            onClick={() => {
+              // Create a temporary game object for manual entry
+              const tempGame = {
+                id: `manual-${Date.now()}`,
+                sport: data.sport || 'NFL',
+                league: data.sport || 'NFL',
+                home_team: 'TBD',
+                away_team: 'TBD',
+                awayTeam: 'TBD',
+                homeTeam: 'TBD',
+                game_date: data.game_date || new Date().toISOString().split('T')[0],
+                matchup: 'Manual Entry',
+                status: 'scheduled',
+                is_live: false,
+              };
+              setSelectedGame(tempGame);
+              setShowManualPropCreator(true);
+            }}
+            variant="outline"
+            className="mt-2"
+          >
+            Create Manual Pick
+          </Button>
         </div>
+      )}
+
+      {/* Manual Prop Creator - shown when no games available */}
+      {!loading && games.length === 0 && selectedGame && showManualPropCreator && (
+        <ManualPropCreator
+          gameId={selectedGame.id}
+          gameMatchup={selectedGame.matchup || `${selectedGame.awayTeam} @ ${selectedGame.homeTeam}`}
+          sport={data.sport || 'NFL'}
+          onPropCreated={handleManualPropCreated}
+          onCancel={() => {
+            setShowManualPropCreator(false);
+            setSelectedGame(null);
+          }}
+        />
+      )}
+
+      {/* Player Props Selection - shown for manual props when no games */}
+      {!loading && games.length === 0 && selectedGame && !showManualPropCreator && props.length > 0 && (
+        <Card className="p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">
+              Manual Props: {selectedGame.matchup}
+            </h3>
+            <Button
+              onClick={() => setShowManualPropCreator(true)}
+              variant="outline"
+              size="sm"
+            >
+              Add Another Prop
+            </Button>
+          </div>
+
+          <div className="space-y-4">
+            <div className="space-y-3">
+              {props.map(prop => (
+                <div key={prop.id} className="p-4 border rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="font-medium">{prop.display_name}</div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    {prop.selection_options?.map((option: any) => (
+                      <Button
+                        key={option.value}
+                        variant={
+                          selectedProp?.id === prop.id && selection.includes(option.label)
+                            ? 'default'
+                            : 'outline'
+                        }
+                        size="sm"
+                        onClick={() => handlePropSelectionChange(prop.id, option.value)}
+                        className="flex-1"
+                      >
+                        <div className="flex flex-col items-center">
+                          <span>{option.label}</span>
+                          <span className="text-xs">{option.odds}</span>
+                        </div>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
       )}
 
       {!loading && games.length > 0 && (
@@ -564,7 +664,7 @@ export function Step4GameSelection({
             )}
 
           {/* Manual Prop Creator */}
-          {selectedGame && data.bet_type === 'player_prop' && showManualPropCreator && (
+          {selectedGame && showManualPropCreator && (
             <ManualPropCreator
               gameId={selectedGame.id}
               gameMatchup={

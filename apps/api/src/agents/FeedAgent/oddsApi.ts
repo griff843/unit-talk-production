@@ -451,10 +451,10 @@ export function getCreditUsageStatus() {
  * Make authenticated API request to The Odds API
  */
 async function makeOddsApiRequest<T>(endpoint: string, params?: Record<string, any>): Promise<T> {
-  const apiKey = process.env['ODDS_API_KEY'] || '8014c48eb8a05f289de049c0961ac4cf';
-  
+  const apiKey = process.env['ODDS_API_KEY'];
+
   if (!apiKey) {
-    throw new Error('ODDS_API_KEY environment variable is required');
+    throw new Error('ODDS_API_KEY environment variable is required but not configured. Check .env.cloud configuration.');
   }
 
   // Check credit limits before making request

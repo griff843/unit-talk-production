@@ -47,17 +47,18 @@ export interface LegacyFeatureFlags {
 
 /**
  * Production-safe defaults
- * All legacy features OFF, modern features ON
+ * CORRECTED: raw_props IS THE ENTRY POINT (verified Oct 6, 2025)
+ * Flow: raw_props → market_props → scored_props → promotion_queue → Discord
  */
 export const LEGACY_FEATURE_FLAGS: LegacyFeatureFlags = {
-  // Legacy features - ALL DISABLED
-  GRADING_AGENT_ENABLED: false,           // LEGACY_DISABLED 2025-09-30
-  RAW_PROPS_TABLE_ENABLED: false,         // LEGACY_DISABLED 2025-09-30
-  RAW_PROPS_INGESTION_ENABLED: false,     // LEGACY_DISABLED 2025-09-30
+  // ENABLED FOR PRODUCTION (verified working Oct 6, 2025)
+  GRADING_AGENT_ENABLED: false,           // Still disabled (replaced by SettlementAgent)
+  RAW_PROPS_TABLE_ENABLED: true,          // ✅ ENABLED - Entry point for all props
+  RAW_PROPS_INGESTION_ENABLED: true,      // ✅ ENABLED - Required for data flow
 
-  // Modern production features - ALL ENABLED
-  UNIFIED_PICKS_ONLY: true,               // PRODUCTION STANDARD
-  STRICT_MODE: true,                      // PRODUCTION SAFETY
+  // Modern production features
+  UNIFIED_PICKS_ONLY: false,              // ❌ DISABLED - Using raw_props → market_props flow
+  STRICT_MODE: false,                     // ❌ DISABLED - Allow raw_props ingestion
 };
 
 /**
@@ -208,14 +209,15 @@ export function logSystemConfiguration(): void {
   }
 
   console.log('\n' + '='.repeat(80));
-  console.log('📊 PRODUCTION FLOW:');
+  console.log('📊 PRODUCTION FLOW (VERIFIED OCT 6, 2025):');
   console.log('   PRE-GAME:');
-  console.log('   1. FeedAgent (Odds API event-first) → unified_picks');
-  console.log('   2. ScoringAgent (195-factor) → professional scores');
-  console.log('   3. Approval flow → Command Center');
-  console.log('   4. AlertAgent → Discord publish');
+  console.log('   1. FeedAgent (Odds API) → raw_props');
+  console.log('   2. NormalizerAgent → market_props');
+  console.log('   3. ScoringAgent (Enhanced45Factor) → scored_props');
+  console.log('   4. PromotionAgent → promotion_queue');
+  console.log('   5. AlertAgent → Discord publish');
   console.log('   POST-GAME:');
-  console.log('   5. SettlementAgent → win/loss determination');
-  console.log('   6. RecapAgent → performance recaps');
+  console.log('   6. SettlementAgent → win/loss determination');
+  console.log('   7. RecapAgent → performance recaps');
   console.log('='.repeat(80) + '\n');
 }
