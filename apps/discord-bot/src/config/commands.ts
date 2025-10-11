@@ -131,7 +131,24 @@ export const COMMAND_CONFIG: {
     supabaseRequired: true,
   },
 
-  // Admin Commands
+  // Admin + Onboarding Commands
+  'gen-invite': {
+    enabled: true,
+    allowedTiers: ['admin', 'owner'],
+  },
+  'setup-onboarding-check': {
+    enabled: true,
+    allowedTiers: ['admin', 'owner'],
+  },
+  'ops-staff-code': {
+    enabled: true,
+    allowedTiers: ['admin', 'owner'],
+    supabaseRequired: true,
+  },
+  'ops-onboarding-metrics': {
+    enabled: true,
+    allowedTiers: ['admin', 'owner'],
+  },
   'test-onboarding': {
     enabled: true,
     allowedTiers: ['admin', 'owner'],

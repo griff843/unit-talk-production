@@ -21,6 +21,11 @@ import * as heatSignal from './heat-signal';
 import * as edgeTracker from './edge-tracker';
 import * as startTrialOnboarding from './start-trial-onboarding';
 import * as simulateTier from './simulate-tier';
+// Onboarding V2 commands
+import * as genInvite from './gen-invite';
+import * as setupOnboardingCheck from './setup-onboarding-check';
+import * as opsStaffCode from './ops-staff-code';
+import * as opsOnboardingMetrics from './ops-onboarding-metrics';
 
 // Create an object with the command names as they appear in config
 const commands = {
