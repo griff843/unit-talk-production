@@ -196,6 +196,7 @@ interface OddsApiMarket {
 
 interface OddsApiOutcome {
   name: string;
+  description?: string; // For player props - contains "Player Name Over/Under X.X Stat"
   price: number;
   point?: number; // For spreads and totals
 }
@@ -856,44 +857,87 @@ function convertOddsApiToRawProp(
     console.warn(`[OddsAPI] Unmapped sport_key: ${game.sport_key} → defaulting to: ${sport}`);
   }
   
+  // Determine if this is a player prop market
+  const isPlayerProp = market.key.startsWith('player_') || market.key.startsWith('batter_') || market.key.startsWith('pitcher_');
+
+  // Extract player name for player props
+  let playerName = outcome.name; // Default to team name for team markets
+  let selection = outcome.name; // Over/Under for player props
+  let team = null;
+
+  if (isPlayerProp && outcome.description) {
+    // For player props:
+    // - outcome.name = "Over" or "Under"
+    // - outcome.description = "Bo Nix" (player name)
+    // - outcome.point = 226.5 (line)
+    playerName = outcome.description.trim();
+    selection = outcome.name; // "Over" or "Under"
+    // Note: team assignment for players requires roster data lookup - will be null for now
+  } else if (!isPlayerProp) {
+    // For team markets, determine which team this outcome is for
+    team = outcome.name.includes(game.home_team) ? game.home_team : game.away_team;
+  }
+
   // Determine bet type based on market
   let betType = 'unknown';
   let line = outcome.point || 0;
   let statType = market.key;
-  
-  switch (market.key) {
-    case 'h2h':
-      betType = 'moneyline';
-      statType = 'moneyline';
-      break;
-    case 'spreads':
-      betType = 'spread';
-      statType = 'spread';
-      line = outcome.point || 0;
-      break;
-    case 'totals':
-      betType = 'total';
-      statType = 'total';
-      line = outcome.point || 0;
-      break;
+
+  if (isPlayerProp) {
+    betType = 'player_prop';
+    statType = market.key;
+  } else {
+    switch (market.key) {
+      case 'h2h':
+        betType = 'moneyline';
+        statType = 'moneyline';
+        break;
+      case 'spreads':
+        betType = 'spread';
+        statType = 'spread';
+        line = outcome.point || 0;
+        break;
+      case 'totals':
+        betType = 'total';
+        statType = 'total';
+        line = outcome.point || 0;
+        break;
+    }
   }
-  
+
   // Convert American odds to over/under format
   const odds = outcome.price;
   const isPositive = odds > 0;
-  
+
+  // Determine over/under odds based on selection direction
+  let overOdds = 0;
+  let underOdds = 0;
+
+  if (isPlayerProp) {
+    if (selection === 'Over') {
+      overOdds = odds;
+    } else if (selection === 'Under') {
+      underOdds = Math.abs(odds);
+    }
+  } else {
+    // For team markets, use old logic
+    overOdds = isPositive ? odds : 0;
+    underOdds = isPositive ? 0 : Math.abs(odds);
+  }
+
   return {
     // Required database fields
     id: uuid,
     external_game_id: game.id,
     game_id: null,
-    player_name: outcome.name, // Team name for team-based bets
-    team: outcome.name.includes(game.home_team) ? game.home_team : game.away_team,
+    player_name: playerName,
+    team: team,
     stat_type: statType,
     line: line,
-    over_odds: isPositive ? odds : 0,
-    under_odds: isPositive ? 0 : Math.abs(odds),
+    over_odds: overOdds,
+    under_odds: underOdds,
     provider: 'The Odds API',
+    selection: selection, // Store Over/Under for player props
 
     // Timing
     game_time: game.commence_time,
@@ -904,7 +948,7 @@ function convertOddsApiToRawProp(
     // Teams
     home_team: game.home_team,
     away_team: game.away_team,
-    opponent: outcome.name.includes(game.home_team) ? game.away_team : game.home_team,
+    opponent: team ? (team === game.home_team ? game.away_team : game.home_team) : null,
 
     // Sport info - Fixed to use proper sport mapping
     sport: sport,
@@ -1185,7 +1229,7 @@ export async function fetchAndWriteCoreMarkets(
  */
 export async function fetchOddsApiProps(
   sportKey: SupportedSportKey = 'americanfootball_ncaaf',
-  markets: string[] = ['h2h', 'spreads', 'totals'],
+  markets: string[] = ['h2h', 'spreads', 'totals', 'player-props'],
   regions: string = 'us',
   oddsFormat: 'decimal' | 'american' = 'american',
   dateFormat: 'iso' | 'unix' = 'iso',

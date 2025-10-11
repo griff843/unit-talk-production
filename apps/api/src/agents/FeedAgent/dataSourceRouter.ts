@@ -377,9 +377,14 @@ async function fetchFromOddsApi(request: DataRequest): Promise<RawProp[]> {
       markets.push('outrights');
     }
 
-    // Default to comprehensive markets if none specified
+    // Default to comprehensive markets if none specified - ALWAYS include player props!
     if (markets.length === 0) {
-      markets.push('h2h', 'spreads', 'totals');
+      markets.push('h2h', 'spreads', 'totals', 'player-props');
+    } else {
+      // Always add player-props for maximum coverage (expands to sport-specific props)
+      if (!markets.includes('player-props')) {
+        markets.push('player-props');
+      }
     }
 
     return await fetchOddsApiProps(config.oddsApiKey as any, markets);
