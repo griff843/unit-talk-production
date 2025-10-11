@@ -1,5 +1,6 @@
 import { GuildMember } from 'discord.js';
 import { supabaseService } from '../../../services/supabase';
+import { getCache } from '../../../services/enterpriseCache';
 import bcrypt from 'bcryptjs';
 
 export async function verifyStaffCode(member: GuildMember, inputCode: string): Promise<{ ok: boolean; message: string }>{
@@ -17,6 +18,8 @@ export async function verifyStaffCode(member: GuildMember, inputCode: string): P
   }
 
   if (!matched) {
+    // increment fail metric (24h TTL)
+    await getCache().increment('metrics:discord:staff_code_fail', 1, { ttl: 24 * 3600 });
     return { ok: false, message: 'Invalid or expired code' };
   }
 
@@ -33,6 +36,9 @@ export async function verifyStaffCode(member: GuildMember, inputCode: string): P
     .from('staff_access_codes')
     .update({ status: 'used', verified_by: 'bot', verified_at: new Date().toISOString(), discord_id: member.id })
     .eq('id', matched.id);
+
+  // increment success metric (24h TTL)
+  await getCache().increment('metrics:discord:staff_code_success', 1, { ttl: 24 * 3600 });
 
   return { ok: true, message: 'Staff role assigned' };
 }
