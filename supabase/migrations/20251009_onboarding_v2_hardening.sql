@@ -21,12 +21,14 @@ CREATE TABLE IF NOT EXISTS public.staff_access_codes (
 
 -- updated_at trigger
 CREATE OR REPLACE FUNCTION public.set_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $func$
 BEGIN
   NEW.updated_at = now();
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$func$;
 
 DO $$ BEGIN
   IF NOT EXISTS (

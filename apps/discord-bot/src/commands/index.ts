@@ -26,6 +26,7 @@ import * as genInvite from './gen-invite';
 import * as setupOnboardingCheck from './setup-onboarding-check';
 import * as opsStaffCode from './ops-staff-code';
 import * as opsOnboardingMetrics from './ops-onboarding-metrics';
+import * as staffVerify from './staff-verify';
 
 // Create an object with the command names as they appear in config
 const commands = {
@@ -42,6 +43,12 @@ const commands = {
   'edge-tracker': edgeTracker,
   'start-trial-onboarding': startTrialOnboarding,
   'simulate-tier': simulateTier,
+  // Onboarding V2
+  'gen-invite': genInvite,
+  'setup-onboarding-check': setupOnboardingCheck,
+  'ops-staff-code': opsStaffCode,
+  'ops-onboarding-metrics': opsOnboardingMetrics,
+  'staff-verify': staffVerify,
 };
 
 // Export individual commands with hyphenated names

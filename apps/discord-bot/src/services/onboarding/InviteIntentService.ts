@@ -1,5 +1,5 @@
 import { Guild, Invite } from 'discord.js';
-import { getCache } from '../../enterpriseCache';
+import { getCache } from '../../services/enterpriseCache';
 
 export class InviteIntentService {
   private cache = getCache();
@@ -11,7 +11,7 @@ export class InviteIntentService {
   async preloadInvites(guild: Guild): Promise<void> {
     const invites = await guild.invites.fetch().catch(() => null);
     if (!invites) return;
-    const snapshot = Array.from(invites.values()).map(i => ({ code: i.code, uses: i.uses ?? 0 }));
+    const snapshot = Array.from(invites.values()).map((i: any) => ({ code: i.code, uses: i.uses ?? 0 }));
     await this.cache.set(this.snapshotKey(guild.id), snapshot, { ttl: 24 * 3600 });
   }
 
@@ -21,7 +21,7 @@ export class InviteIntentService {
     const nowInvites = await guild.invites.fetch().catch(() => null);
     if (!nowInvites) return null;
 
-    const after = Array.from(nowInvites.values()).map(i => ({ code: i.code, uses: i.uses ?? 0 }));
+    const after = Array.from(nowInvites.values()).map((i: any) => ({ code: i.code, uses: i.uses ?? 0 }));
 
     // Find code whose uses increased
     for (const a of after) {

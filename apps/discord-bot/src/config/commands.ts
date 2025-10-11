@@ -149,6 +149,11 @@ export const COMMAND_CONFIG: {
     enabled: true,
     allowedTiers: ['admin', 'owner'],
   },
+  'staff-verify': {
+    enabled: true,
+    allowedTiers: ['member', 'vip', 'vip_plus', 'capper', 'staff', 'admin', 'owner'],
+    supabaseRequired: true,
+  },
   'test-onboarding': {
     enabled: true,
     allowedTiers: ['admin', 'owner'],

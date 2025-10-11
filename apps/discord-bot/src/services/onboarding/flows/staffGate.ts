@@ -17,7 +17,6 @@ export async function verifyStaffCode(member: GuildMember, inputCode: string): P
   }
 
   if (!matched) {
-    await supabaseService.client.rpc('increment_staff_code_fail').catch(() => null);
     return { ok: false, message: 'Invalid or expired code' };
   }
 
