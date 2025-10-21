@@ -9,8 +9,9 @@ on:
 
 jobs:
   verify-e2e:
-    name: Supabase migrate → RPC backfill/score/refresh → Gates → SLOs
+    name: Supabase migrate → admin RPCs → Gates → SLOs
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -30,17 +31,26 @@ jobs:
           echo "::add-mask::${{ secrets.SUPABASE_ACCESS_TOKEN }}"
           echo "::add-mask::${{ secrets.SUPABASE_SERVICE_ROLE_KEY_2 }}"
 
-      - name: Install Supabase CLI
-        run: |
-          curl -fsSL https://cli.supabase.com/install/linux | sh
-          echo "$HOME/.supabase/bin" >> $GITHUB_PATH
+      # ✅ Reliable CLI install (replaces curl; handles DNS/retries)
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Show Supabase CLI version
+        run: supabase --version
 
       - name: Supabase login & link
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
-          supabase db push
+          # retry push to tolerate transient network hiccups
+          n=0
+          until [ $n -ge 3 ]; do
+            supabase db push && break
+            n=$((n+1)); echo "retry $n/3"; sleep 5
+          done
 
       - name: Run admin RPCs (backfill → score loop → refresh)
         env:
