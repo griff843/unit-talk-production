@@ -1,0 +1,159 @@
+name: Nightly Baseline Check
+
+on:
+  schedule:
+    - cron: '15 2 * * *' # 02:15 UTC daily
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Link Supabase project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+      
+      - name: Schema Drift Check
+        id: drift
+        continue-on-error: true
+        run: |
+          mkdir -p out/ops/audit
+          supabase db diff --linked > out/ops/audit/schema-drift-$(date +%Y%m%d).sql || true
+          
+          if [ -s out/ops/audit/schema-drift-$(date +%Y%m%d).sql ]; then
+            echo "drift_detected=true" >> $GITHUB_OUTPUT
+            echo "⚠️ SCHEMA DRIFT DETECTED"
+            cat out/ops/audit/schema-drift-$(date +%Y%m%d).sql
+          else
+            echo "drift_detected=false" >> $GITHUB_OUTPUT
+            echo "✅ No schema drift detected"
+          fi
+      
+      - name: Run Gate Verification
+        id: gates
+        continue-on-error: true
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          cd apps/api
+          npx tsx src/scripts/verify-gates.ts
+          
+          if [ $? -eq 0 ]; then
+            echo "gates_passed=true" >> $GITHUB_OUTPUT
+            echo "✅ All gates passed"
+          else
+            echo "gates_passed=false" >> $GITHUB_OUTPUT
+            echo "❌ Gate verification failed"
+          fi
+      
+      - name: Run SLO Verification
+        id: slo
+        continue-on-error: true
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          cd apps/api
+          npx tsx src/scripts/verify-slo.ts
+          
+          if [ $? -eq 0 ]; then
+            echo "slo_met=true" >> $GITHUB_OUTPUT
+            echo "✅ All SLOs met"
+          else
+            echo "slo_met=false" >> $GITHUB_OUTPUT
+            echo "❌ SLO verification failed"
+          fi
+      
+      - name: Upload Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-baseline-${{ github.run_number }}
+          path: |
+            out/ops/
+            apps/api/out/ops/
+          retention-days: 30
+      
+      - name: Create GitHub Issue on Failure
+        if: steps.drift.outputs.drift_detected == 'true' || steps.gates.outputs.gates_passed == 'false' || steps.slo.outputs.slo_met == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const date = new Date().toISOString().split('T')[0];
+            const driftDetected = '${{ steps.drift.outputs.drift_detected }}' === 'true';
+            const gatesPassed = '${{ steps.gates.outputs.gates_passed }}' === 'true';
+            const sloMet = '${{ steps.slo.outputs.slo_met }}' === 'true';
+            
+            let body = '## Nightly Baseline Check Failed\n\n';
+            body += `**Date**: ${date}\n`;
+            body += `**Run**: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n`;
+            body += '### Issues Detected\n\n';
+            
+            if (driftDetected) {
+              body += '- ❌ **Schema Drift**: Database schema has diverged from migrations\n';
+            }
+            if (!gatesPassed) {
+              body += '- ❌ **Gates Failed**: One or more system gates are not passing\n';
+            }
+            if (!sloMet) {
+              body += '- ❌ **SLOs Not Met**: Service level objectives are below target\n';
+            }
+            
+            body += '\n### Action Required\n\n';
+            body += '1. Review artifacts from this run\n';
+            body += '2. Investigate root cause of failures\n';
+            body += '3. Apply fixes and re-run verification\n';
+            body += '4. Close this issue once resolved\n\n';
+            body += '### Artifacts\n\n';
+            body += `Download artifacts: [nightly-baseline-${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\n`;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[BASELINE] Nightly check failed - ${date}`,
+              body: body,
+              labels: ['baseline-failure', 'critical', 'automated']
+            });
+      
+      - name: Fail workflow if issues detected
+        if: steps.drift.outputs.drift_detected == 'true' || steps.gates.outputs.gates_passed == 'false' || steps.slo.outputs.slo_met == 'false'
+        run: |
+          echo "❌ Nightly baseline check failed"
+          echo "Schema drift: ${{ steps.drift.outputs.drift_detected }}"
+          echo "Gates passed: ${{ steps.gates.outputs.gates_passed }}"
+          echo "SLOs met: ${{ steps.slo.outputs.slo_met }}"
+          exit 1
+      
+      - name: Success summary
+        if: steps.drift.outputs.drift_detected == 'false' && steps.gates.outputs.gates_passed == 'true' && steps.slo.outputs.slo_met == 'true'
+        run: |
+          echo "✅ Nightly baseline check passed"
+          echo "✅ No schema drift"
+          echo "✅ All gates passing"
+          echo "✅ All SLOs met"
+
