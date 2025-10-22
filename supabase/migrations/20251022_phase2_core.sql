@@ -209,9 +209,10 @@ GRANT EXECUTE ON FUNCTION admin_score_batch(int) TO service_role;
 GRANT EXECUTE ON FUNCTION admin_refresh_views() TO service_role;
 
 -- ============================================================================
--- 5. Ensure views exist (create if missing)
+-- 5. Ensure views exist (drop and recreate to handle schema changes)
 -- ============================================================================
-CREATE OR REPLACE VIEW public.v_prop_read_model AS
+DROP VIEW IF EXISTS public.v_prop_read_model CASCADE;
+CREATE VIEW public.v_prop_read_model AS
 SELECT 
   mp.id AS prop_ref,
   'market'::TEXT AS source,
@@ -238,7 +239,8 @@ WHERE mp.game_date >= CURRENT_DATE;
 
 GRANT SELECT ON public.v_prop_read_model TO authenticated, anon, service_role;
 
-CREATE OR REPLACE VIEW public.v_daily_board AS
+DROP VIEW IF EXISTS public.v_daily_board CASCADE;
+CREATE VIEW public.v_daily_board AS
 SELECT 
   mp.id AS prop_ref,
   mp.sport,
