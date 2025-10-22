@@ -378,10 +378,10 @@ class PromotionGatekeeper {
       weight: 15
     });
 
-    // Calculate weighted professional_score
+    // Calculate weighted score
     const totalWeight = results.reduce((sum, r) => sum + r.weight, 0);
     const weightedScore = results.reduce((sum, r) => {
-      const normalizedScore = r.passed ? 1 : (r.professional_score / r.threshold);
+      const normalizedScore = r.passed ? 1 : (r.score / r.threshold);
       return sum + (normalizedScore * r.weight);
     }, 0) / totalWeight;
 
@@ -448,7 +448,7 @@ class PromotionGatekeeper {
     }
 
     // Calculate confidence and impact
-    const avgGateScore = gateResults.reduce((sum, r) => sum + r.professional_score, 0) / gateResults.length;
+    const avgGateScore = gateResults.reduce((sum, r) => sum + r.score, 0) / gateResults.length;
     const confidence = Math.min(0.95, avgGateScore / 100);
     const estimatedImpact = this.calculateEstimatedImpact(pick, confidence);
 
@@ -505,7 +505,7 @@ class PromotionGatekeeper {
   private calculateRiskContribution(result: GateResult): number {
     const baseRisk = result.passed ? 0 : 10;
     const impactMultiplier = result.impact === 'blocking' ? 2 : result.impact === 'warning' ? 1 : 0.5;
-    return baseRisk * impactMultiplier * (1 - result.professional_score / 100);
+    return baseRisk * impactMultiplier * (1 - result.score / 100);
   }
 
   /**

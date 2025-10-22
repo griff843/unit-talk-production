@@ -214,5 +214,11 @@ export function resetDiscordBot(): void {
   discordBotInstance = null;
 }
 
+/**
+ * Singleton instance for direct import
+ * @deprecated Use getDiscordBot() instead for better testability
+ */
+export const discordBotIntegration = getDiscordBot();
+
 export default DiscordBotIntegration;
 

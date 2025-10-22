@@ -2,6 +2,7 @@ import { EventEmitter } from 'events';
 
 import { redisCache } from '../cache/enhanced-cache';
 import { Logger } from '../shared/logger/types';
+import { professionalScoreOf } from '../types/compat';
 
 interface AgentMetrics {
   agentName: string;
@@ -204,7 +205,7 @@ export class AgentMetricsCollector extends EventEmitter {
         const latest = buffer[buffer.length - 1];
         status[agentName] = {
           status: latest.health.status,
-          score: latest.health.professional_score,
+          score: professionalScoreOf(latest.health),
           lastUpdate: latest.timestamp
         };
       }
@@ -479,7 +480,7 @@ export class AgentMetricsCollector extends EventEmitter {
       m.performance.successRate,
       m.business.operationsCompleted,
       m.health.status,
-      m.health.professional_score,
+      professionalScoreOf(m.health),
       m.cache.hitRate
     ]);
     

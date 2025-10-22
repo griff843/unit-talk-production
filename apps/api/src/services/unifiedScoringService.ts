@@ -24,6 +24,7 @@ import {
 import { logger } from '../shared/logger';
 import { PropObject } from '../types/propTypes';
 import { RawProp } from '../types/rawProps';
+import { professionalScoreOf } from '../types/compat';
 
 import { LLMService } from './llmService';
 
@@ -74,7 +75,7 @@ export class UnifiedScoringService {
 
       // Enhance with AI if requested
       let aiEnhanced = false;
-      let confidence = baseScore.professional_score / 100;
+      let confidence = professionalScoreOf(baseScore) / 100;
       let insights: string[] = [];
 
       if (options.useAI) {
@@ -168,9 +169,9 @@ export class UnifiedScoringService {
         insights: result.insights
       };
     } catch (error) {
-      logger.error('Error enhancing professional_score with AI:', error);
+      logger.error('Error enhancing score with AI:', error);
       return {
-        confidence: baseScore.professional_score / 100,
+        confidence: professionalScoreOf(baseScore) / 100,
         insights: []
       };
     }
