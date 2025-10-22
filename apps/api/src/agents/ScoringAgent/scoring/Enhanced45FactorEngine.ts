@@ -77,13 +77,17 @@ export interface Enhanced45FactorInput {
 
 /**
  * Enhanced 45-Factor Scoring Engine
- * 
+ *
  * Stub implementation - provides minimal interface for compilation
  */
 export class Enhanced45FactorEngine {
   private initialized: boolean = false;
+  private featureStore: any;
+  private changeDetector: any;
 
-  constructor() {
+  constructor(featureStore?: any, changeDetector?: any) {
+    this.featureStore = featureStore;
+    this.changeDetector = changeDetector;
     logger.info('Enhanced45FactorEngine initialized (stub)');
   }
 

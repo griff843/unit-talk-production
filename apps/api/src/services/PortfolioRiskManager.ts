@@ -228,7 +228,7 @@ class PortfolioRiskManager {
     
     for (const [type1, type2, correlation] of highCorrelationPairs) {
       if ((prop1 === type1 && prop2 === type2) || (prop1 === type2 && prop2 === type1)) {
-        return (correlation as number) || 0.7;
+        return (correlation as unknown as number) || 0.7;
       }
     }
     

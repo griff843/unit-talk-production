@@ -99,8 +99,8 @@ export class RealTimeScorer {
     try {
       // Initialize Enhanced45Factor scoring system
       const featureStoreService = new FeatureStoreService();
+      this.featureStore = new FeatureStoreIntegration(featureStoreService);
       this.changeDetector = new MaterialChangeDetector();
-      this.featureStore = new FeatureStoreIntegration(featureStoreService, this.changeDetector);
       this.enhanced45Engine = new Enhanced45FactorEngine(
         this.featureStore,
         this.changeDetector
@@ -251,7 +251,7 @@ export class RealTimeScorer {
         overOdds: prop.over_odds,
         underOdds: prop.under_odds,
         sport: prop.sport,
-        bookmaker: prop.bookmaker || 'unknown',
+        bookmaker: prop.bookmaker_key || 'unknown',
         gameDate: prop.game_date,
         features,
       };

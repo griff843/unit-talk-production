@@ -55,6 +55,9 @@ export async function autoRecheckWorkflow(input: RecheckWorkflowInput): Promise<
   let state: RecheckWorkflowState = {
     pickId: input.pickId,
     status: 'initializing',
+    currentCheckpoint: 0,
+    totalCheckpoints: (input.checkpoints || []).length,
+    alerts: [],
     currentPhase: 'pre_game',
     completedCheckpoints: [],
     scheduledCheckpoints: input.checkpoints || [],
@@ -436,8 +439,7 @@ export async function criticalAlertWorkflow(input: {
     }
   });
 
-  await handleCriticalAlert(input.pickId, {
-    type: input.alertType,
+  await handleCriticalAlert(input.pickId, input.alertType, {
     severity: input.severity,
     data: input.data,
     timestamp: Date.now()
