@@ -31,7 +31,7 @@ jobs:
           echo "::add-mask::${{ secrets.SUPABASE_ACCESS_TOKEN }}"
           echo "::add-mask::${{ secrets.SUPABASE_SERVICE_ROLE_KEY_2 }}"
 
-      # ✅ Reliable CLI install (replaces curl; handles DNS/retries)
+      # Reliable CLI setup (replaces curl; handles retries)
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
@@ -40,15 +40,30 @@ jobs:
       - name: Show Supabase CLI version
         run: supabase --version
 
-      - name: Supabase login & link
+      # Link to project (required for db commands)
+      - name: Supabase link
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
+
+      # 🧹 NEW: Repair remote-only migrations, then push (idempotent)
+      - name: Repair migrations & push
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        shell: bash
         run: |
-          supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
-          # retry push to tolerate transient network hiccups
+          set -e
+          echo "Attempting migration repair for remote-only versions (safe if already repaired)."
+          for v in 20251003 20251009110000 20251009120000; do
+            echo "→ supabase migration repair --status reverted $v"
+            supabase migration repair --status reverted "$v" || true
+          done
+          echo "Pushing migrations (retry up to 3x on transient errors)..."
           n=0
           until [ $n -ge 3 ]; do
-            supabase db push && break
+            if supabase db push; then
+              echo "db push success"; break
+            fi
             n=$((n+1)); echo "retry $n/3"; sleep 5
           done
 
