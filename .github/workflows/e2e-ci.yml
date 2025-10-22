@@ -2,16 +2,19 @@ name: E2E CI Pipeline
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [master, main]
   pull_request:
-    branches: [ master, main ]
-  workflow_dispatch: {}
+    branches: [master, main]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+  SUPABASE_PROJECT_REF: cqfnsozknjzvyiziwicl
 
 jobs:
   verify-e2e:
-    name: Supabase migrate → admin RPCs → Gates → SLOs
+    name: Supabase migrate → RPC backfill/score/refresh → Gates → SLOs
     runs-on: ubuntu-latest
-    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -20,8 +23,8 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "npm"
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
 
       - name: Install deps
         run: npm ci
@@ -31,8 +34,6 @@ jobs:
           echo "::add-mask::${{ secrets.SUPABASE_ACCESS_TOKEN }}"
           echo "::add-mask::${{ secrets.SUPABASE_SERVICE_ROLE_KEY_2 }}"
 
-      # Reliable CLI setup (replaces curl; handles retries)
-      # ✅ Reliable CLI install (replaces curl; handles DNS/retries)
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
@@ -41,8 +42,7 @@ jobs:
       - name: Show Supabase CLI version
         run: supabase --version
 
-      # Link to project (required for db commands)
-       - name: Supabase login & link
+      - name: Supabase login & link
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
@@ -53,23 +53,6 @@ jobs:
           supabase migration repair --status reverted 20251003 20251009110000 20251009120000 || echo "Migration repair completed (some may not exist)"
 
           # Retry push with backoff
-          n=0
-          until [ $n -ge 3 ]; do
-            supabase db push && break
-            n=$((n+1)); echo "retry $n/3"; sleep 5
-          done
-                 echo "Pushing migrations (retry up to 3x on transient errors)..."
-          n=0
-          until [ $n -ge 3 ]; do
-            if supabase db push; then
-              echo "db push success"; break
-            fi
-      - name: Supabase login & link
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: |
-          supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
-          # retry push to tolerate transient network hiccups
           n=0
           until [ $n -ge 3 ]; do
             supabase db push && break
