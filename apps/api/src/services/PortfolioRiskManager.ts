@@ -226,9 +226,9 @@ class PortfolioRiskManager {
       ['receiving_yards', 'receptions'] // 0.85
     ];
     
-    for (const [type1, type2] of highCorrelationPairs) {
+    for (const [type1, type2, correlation] of highCorrelationPairs) {
       if ((prop1 === type1 && prop2 === type2) || (prop1 === type2 && prop2 === type1)) {
-        return highCorrelationPairs.find(pair => pair.includes(type1) && pair.includes(type2))?.[2] as number || 0.7;
+        return (correlation as number) || 0.7;
       }
     }
     
@@ -468,8 +468,9 @@ class PortfolioRiskManager {
       acc[pick.sport] = (acc[pick.sport] || 0) + (pick.kelly_fraction || 0);
       return acc;
     }, {} as Record<string, number>);
-    
-    const maxSportExposure = Math.max(...Object.values(sportExposures));
+
+    const exposureValues = Object.values(sportExposures) as number[];
+    const maxSportExposure = exposureValues.length > 0 ? Math.max(...exposureValues) : 0;
     return Math.max(0, maxSportExposure - this.LIMITS.maxSportConcentration);
   }
 

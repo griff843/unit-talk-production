@@ -185,19 +185,31 @@ router.get('/status/:runId', async (req, res) => {
       const handle = client.workflow.getHandle(workflowId);
       const description = await handle.describe();
       
-      const response = {
+      const response: {
+        success: boolean;
+        runId: string;
+        workflowId: string;
+        status: string;
+        startTime: Date;
+        executionTime: Date;
+        runTime?: any;
+        historyLength: number;
+        memo: Record<string, any>;
+        timestamp: string;
+        result?: any;
+      } = {
         success: true,
         runId,
         workflowId,
         status: description.status.name,
         startTime: description.startTime,
         executionTime: description.executionTime,
-        runTime: description.runTime,
+        runTime: (description as any).runTime, // Property may not exist on all workflow types
         historyLength: description.historyLength,
         memo: description.memo,
         timestamp: new Date().toISOString()
       };
-      
+
       // If workflow is completed, try to get result
       if (description.status.name === 'COMPLETED') {
         try {

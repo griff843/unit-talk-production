@@ -6,8 +6,10 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   TEMPORAL_TASK_QUEUE: z.string().default('unit-talk-main'),
   TEMPORAL_SERVER_URL: z.string().default('localhost:7233'),
+  TEMPORAL_UI_URL: z.string().default('http://localhost:8080'),
   SUPABASE_URL: z.string().url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  SUPABASE_ANON_KEY: z.string().optional(),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
   METRICS_ENABLED: z.coerce.boolean().default(true),
   HEALTH_CHECK_INTERVAL: z.coerce.number().default(30000)

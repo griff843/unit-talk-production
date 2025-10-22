@@ -349,7 +349,13 @@ export async function replayGradingWorkflow(
     try {
       const result = await eventDrivenGradingWorkflow({
         ticketId,
-        eventData: { isReplay: true },
+        betSlipId: `replay-${ticketId}`,
+        eventData: {
+          bet_slip_id: `replay-${ticketId}`,
+          capper_id: 'system',
+          selection_count: 1,
+          source: 'events' as const,
+        },
         idempotencyKey: `replay-${ticketId}-${Date.now()}`,
         replayContext: {
           isReplay: true,

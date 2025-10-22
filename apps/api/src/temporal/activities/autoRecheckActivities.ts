@@ -21,6 +21,19 @@ export interface RecheckWorkflowInput {
   sport: string;
   recheckSchedule: RecheckCheckpoint[];
   metadata?: Record<string, any>;
+  checkpoints?: RecheckCheckpoint[];
+  config?: RecheckConfig;
+}
+
+/**
+ * Recheck configuration
+ */
+export interface RecheckConfig {
+  maxRetries?: number;
+  autoRetry?: boolean;
+  tierAdjustmentTriggered?: boolean;
+  adjustedPositionSize?: number;
+  [key: string]: any;
 }
 
 /**
@@ -28,7 +41,7 @@ export interface RecheckWorkflowInput {
  */
 export interface RecheckWorkflowState {
   pickId: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'initializing' | 'running' | 'paused' | 'cancelled';
   currentCheckpoint: number;
   totalCheckpoints: number;
   lastCheckTime?: string;
@@ -38,6 +51,24 @@ export interface RecheckWorkflowState {
     message: string;
     timestamp: string;
   }>;
+  config?: RecheckConfig;
+  lastUpdate?: number;
+  errors?: Array<{
+    timestamp: number;
+    message: string;
+    checkpoint?: string;
+  }>;
+  currentPhase?: string;
+  metrics?: {
+    totalChecks: number;
+    successfulChecks: number;
+    failedChecks: number;
+    totalOddsUpdates: number;
+    alertsGenerated: number;
+    averageCheckDuration: number;
+  };
+  completedCheckpoints?: RecheckCheckpoint[];
+  scheduledCheckpoints?: RecheckCheckpoint[];
 }
 
 /**
@@ -46,9 +77,14 @@ export interface RecheckWorkflowState {
 export interface RecheckCheckpoint {
   id: string;
   scheduledTime: string;
-  type: 'pre_game' | 'live' | 'post_game';
+  type: 'pre_game' | 'live' | 'post_game' | 'final_validation' | 'emergency_check';
   priority: 'low' | 'medium' | 'high';
   actions: string[];
+  status?: 'pending' | 'in_progress' | 'completed' | 'failed';
+  completedAt?: number;
+  result?: any;
+  error?: string;
+  retryCount?: number;
 }
 
 /**
@@ -78,14 +114,16 @@ export const AutoRecheckActivities = {
    */
   async executeRecheckPoint(
     pickId: string,
-    checkpoint: RecheckCheckpoint
-  ): Promise<{ success: boolean; changes: string[] }> {
+    checkpoint: RecheckCheckpoint,
+    config?: RecheckConfig
+  ): Promise<{ success: boolean; changes: string[]; alertRequired?: boolean; error?: string; retryable?: boolean }> {
     logger.info('Executing recheck point', { pickId, checkpointId: checkpoint.id });
-    
+
     // Stub implementation
     return {
       success: true,
       changes: [],
+      alertRequired: false,
     };
   },
 
@@ -96,14 +134,18 @@ export const AutoRecheckActivities = {
     valid: boolean;
     status: string;
     issues: string[];
+    cancelled?: boolean;
+    settled?: boolean;
   }> {
     logger.debug('Validating pick status', { pickId });
-    
+
     // Stub implementation
     return {
       valid: true,
       status: 'active',
       issues: [],
+      cancelled: false,
+      settled: false,
     };
   },
 
@@ -111,11 +153,11 @@ export const AutoRecheckActivities = {
    * Update odds tracking
    */
   async updateOddsTracking(
-    pickId: string,
-    currentOdds: number
+    pickId: number,
+    checkpointType: string
   ): Promise<{ updated: boolean; clv: number }> {
-    logger.debug('Updating odds tracking', { pickId, currentOdds });
-    
+    logger.debug('Updating odds tracking', { pickId, checkpointType });
+
     // Stub implementation
     return {
       updated: true,
@@ -128,11 +170,11 @@ export const AutoRecheckActivities = {
    */
   async generateRecheckAlert(
     pickId: string,
-    alertType: string,
-    message: string
+    checkpoint: string | null,
+    alertData: any
   ): Promise<{ sent: boolean; channelId?: string }> {
-    logger.info('Generating recheck alert', { pickId, alertType, message });
-    
+    logger.info('Generating recheck alert', { pickId, checkpoint, alertData });
+
     // Stub implementation
     return {
       sent: true,
@@ -161,14 +203,31 @@ export const AutoRecheckActivities = {
    */
   async handleRecheckFailure(
     pickId: string,
+    state: RecheckWorkflowState,
     error: Error
   ): Promise<{ handled: boolean; retryable: boolean }> {
-    logger.error('Handling recheck failure', { pickId, error: error.message });
-    
+    logger.error('Handling recheck failure', { pickId, state: state.status, error: error.message });
+
     // Stub implementation
     return {
       handled: true,
       retryable: true,
+    };
+  },
+
+  /**
+   * Handle critical alert
+   */
+  async handleCriticalAlert(
+    pickId: string,
+    alertType: string,
+    data: any
+  ): Promise<{ handled: boolean }> {
+    logger.warn('Handling critical alert', { pickId, alertType, data });
+
+    // Stub implementation
+    return {
+      handled: true,
     };
   },
 };

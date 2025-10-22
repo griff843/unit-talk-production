@@ -164,7 +164,7 @@ export class DiscordBotIntegration {
 
   /**
    * Create a Discord embed for an alert
-   * 
+   *
    * @param alertType - Type of alert (hedge, middle, injury, steam)
    * @param data - Alert data
    * @returns Discord embed
@@ -187,6 +187,41 @@ export class DiscordBotIntegration {
       },
       timestamp: new Date().toISOString()
     };
+  }
+
+  /**
+   * Create a forum thread
+   *
+   * @param forumId - Forum channel ID
+   * @param name - Thread name
+   * @param content - Initial message content
+   * @returns Promise resolving to thread ID
+   */
+  async createForumThread(forumId: string, name: string, content: string): Promise<string> {
+    // TODO: Implement actual Discord API integration for forum thread creation
+    // For now, this is a stub that logs the request
+    console.log('[DiscordBotIntegration] Creating forum thread:', {
+      forumId,
+      name,
+      content: content.substring(0, 100)
+    });
+
+    // Return a mock thread ID
+    return `thread_${Date.now()}`;
+  }
+
+  /**
+   * Post plain text message to a channel
+   *
+   * @param channelId - Channel ID
+   * @param content - Message content
+   * @returns Promise resolving to message ID
+   */
+  async postPlainText(channelId: string, content: string): Promise<string> {
+    return this.sendMessage({
+      content,
+      channelId
+    });
   }
 }
 

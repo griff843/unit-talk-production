@@ -882,11 +882,19 @@ export class AlertAgent extends BaseAgent {
     embed.setTitle(`📅 DAILY PICK: ${currentTitle}`)
       .setColor(0x00AA00) // Green for scheduled picks
       .setTimestamp(new Date());
-    
+
     // Add batch footer
     const existingFooter = embed.data.footer?.text || '';
     embed.setFooter({ text: `${existingFooter} • 📅 10 AM BATCH`.trim() });
-    
+
     return embed;
+  }
+
+  /**
+   * Post approved pick to Discord (alias for postLivePick for backward compatibility)
+   * Used by smoke tests and legacy code
+   */
+  public async postApprovedPickToDiscord(pickData: any): Promise<void> {
+    return this.postLivePick(pickData);
   }
 }
