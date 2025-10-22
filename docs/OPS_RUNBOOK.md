@@ -1,7 +1,7 @@
 # Operations Runbook
 
 **Platform**: Unit Talk Production
-**Last Updated**: 2025-10-04
+**Last Updated**: 2025-10-22 (Phase 4 Remediation)
 **Owner**: Platform Engineering
 
 ---
@@ -451,6 +451,178 @@ npm run dev
 | Database cleanup | `CLEANUP_PLAYBOOK.md` |
 | Read-models wiring | `READMODELS_WIRING.md` |
 | Command Center setup | `apps/command-center/CLAUDE.md` |
+| Secrets policy | `docs/SECRETS_POLICY.md` |
+| Dependency upgrades | `docs/DEPENDENCY_UPGRADE_PLAN.md` |
+
+---
+
+## 🔄 Phase 4 Workflows (October 2025)
+
+### Nightly Baseline Workflow
+
+**Schedule**: Daily at 02:15 UTC
+**Workflow**: `.github/workflows/nightly-baseline.yml`
+**Purpose**: Automated health checks and drift detection
+
+**Checks Performed**:
+1. Schema drift detection (`supabase db diff --linked`)
+2. Gate verification (5 gates: raw props, market props, scored props, feed, board)
+3. SLO verification (error rate, response time, agent health)
+4. Auto-creates GitHub issues on failure
+
+**Manual Trigger**:
+```bash
+gh workflow run nightly-baseline.yml
+```
+
+**Artifacts**:
+- `schema-drift.txt` (30-day retention)
+- `gate-verification.json` (30-day retention)
+- `slo-verification.json` (30-day retention)
+
+**Troubleshooting**:
+- **Schema drift detected**: Review migration files, apply pending migrations
+- **Gate failure**: Check database connectivity, verify data ingestion
+- **SLO failure**: Review Prometheus metrics, check agent health
+
+---
+
+### Weekly Cleanup Workflow
+
+**Schedule**: Monday at 03:00 UTC
+**Workflow**: `.github/workflows/weekly-cleanup.yml`
+**Purpose**: Identify stale data for cleanup (DRY-RUN only)
+
+**Scans For**:
+- Stale props (>90 days)
+- Old picks (>180 days)
+- Orphaned scores (no matching prop)
+- Stale agent health (>7 days)
+
+**Manual Trigger**:
+```bash
+gh workflow run weekly-cleanup.yml
+```
+
+**Artifacts**:
+- `cleanup-inventory-YYYYMMDD.json` (90-day retention)
+
+**Action Required**:
+1. Download cleanup inventory artifact
+2. Review items for deletion
+3. Execute cleanup manually using approved procedures
+4. Document cleanup actions in GitHub issue
+
+**⚠️ IMPORTANT**: This workflow does NOT execute deletions. Manual approval required.
+
+---
+
+### Build Hygiene Workflow
+
+**Trigger**: On PR and push to master/main
+**Workflow**: `.github/workflows/build-hygiene.yml`
+**Purpose**: Prevent merge conflicts and dependency issues
+
+**Checks Performed**:
+1. Merge conflict detection in `package-lock.json`
+2. Lock file integrity (`npm ci --ignore-scripts`)
+3. Uncommitted changes (`npm install --package-lock-only && git diff`)
+4. Duplicate dependencies (`npm dedupe --dry-run`)
+
+**Failure Actions**:
+- **Merge conflict**: Resolve conflicts in `package-lock.json`
+- **Lock file integrity**: Run `npm install` and commit changes
+- **Uncommitted changes**: Commit `package-lock.json` changes
+- **Duplicate dependencies**: Run `npm dedupe` and commit changes
+
+---
+
+### Agent Watchdog
+
+**Schedule**: Every 2 minutes (PM2-managed)
+**Script**: `apps/api/src/scripts/ops/watchdogAgentHealth.ts`
+**Purpose**: Continuous agent health monitoring
+
+**Start Watchdog**:
+```bash
+npm run ops:watchdog-start
+```
+
+**Stop Watchdog**:
+```bash
+npm run ops:watchdog-stop
+```
+
+**View Logs**:
+```bash
+npm run ops:watchdog-logs
+```
+
+**Alert Threshold**: Agent stale > 2 minutes
+**Alert Channel**: Discord ops webhook
+
+**Troubleshooting**:
+- **Agent stale**: Check agent process, restart if needed
+- **No alerts**: Verify Discord webhook URL in GitHub Secrets
+- **Watchdog not running**: Check PM2 status (`pm2 list`)
+
+---
+
+## 📋 Phase 4 Audit Cadence
+
+### Daily (Automated)
+- ✅ Nightly baseline workflow (02:15 UTC)
+- ✅ Agent watchdog (every 2 minutes)
+- ✅ Build hygiene (on every PR/push)
+
+### Weekly (Automated)
+- ✅ Weekly cleanup workflow (Monday 03:00 UTC)
+
+### Monthly (Manual)
+- 📅 Review cleanup inventory and execute approved deletions
+- 📅 Review secrets policy compliance
+- 📅 Review dependency upgrade plan progress
+
+### Quarterly (Manual)
+- 📅 Rotate all Tier 1 secrets (database, Discord, API keys)
+- 📅 Execute dependency upgrade phases
+- 📅 Review and update runbook documentation
+
+---
+
+## 🔐 Secrets Management
+
+**Policy**: `docs/SECRETS_POLICY.md`
+
+**Required GitHub Secrets**:
+```
+SUPABASE_URL
+SUPABASE_SERVICE_ROLE_KEY
+SUPABASE_ANON_KEY
+SUPABASE_ACCESS_TOKEN
+SUPABASE_PROJECT_REF
+SUPABASE_DB_PASSWORD
+DATABASE_URL
+DISCORD_TOKEN
+DISCORD_BOT_TOKEN
+DISCORD_CLIENT_ID
+DISCORD_GUILD_ID
+DISCORD_ALERT_WEBHOOK
+DISCORD_OPS_WEBHOOK
+OPTIMAL_API_KEY
+ODDS_API_KEY
+SGO_API_KEY
+NOTION_TOKEN
+```
+
+**Setting Secrets**:
+```bash
+gh secret set SECRET_NAME < secret.txt
+```
+
+**Rotation Schedule**:
+- **Immediate**: Upon exposure
+- **Quarterly**: All Tier 1 credentials
 
 ---
 
