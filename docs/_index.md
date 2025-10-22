@@ -12,10 +12,9 @@ Welcome to the Unit Talk Platform documentation. This is a Fortune 100-grade spo
 ## Quick Links
 
 - [Architecture Overview](ARCHITECTURE.md)
-- [Deployment Guide](deployment/DEPLOYMENT_RUNBOOK.md)
-- [Operator Handbook](operator-training/OPERATOR_HANDBOOK.md)
-- [API Documentation](api/OPERATOR_DASHBOARD_API.md)
 - [Contributing Guide](CONTRIBUTING.md)
+- [Environment Configuration](ENVIRONMENT_CONFIGURATION.md)
+- [Scripts Reference](SCRIPTS_REFERENCE.md)
 
 ## Core Documentation
 
@@ -23,39 +22,37 @@ Welcome to the Unit Talk Platform documentation. This is a Fortune 100-grade spo
 - [Architecture](ARCHITECTURE.md) - System architecture overview
 - [Agents](AGENTS.md) - Agent system documentation
 - [Database Schema](database-schema-v3.md) - Database schema v3.0.0
-- [Monitoring](MONITORING_ARCHITECTURE_2025.md) - Monitoring and observability
+- [Base Agent Spec](BASE_AGENT_SPEC.md) - Agent development specification
 
 ### Operations
-- [OPS Runbook](OPS_RUNBOOK.md) - Day-to-day operations guide
-- [OPS Schedulers](OPS_SCHEDULERS.md) - Scheduler management
-- [Deployment Runbook](deployment/DEPLOYMENT_RUNBOOK.md) - Deployment procedures
+- [System Operations Guide](SYSTEM_OPERATIONS_GUIDE.md) - Operations guide
 - [Incident Response](INCIDENT_RESPONSE_PLAYBOOK.md) - Incident response playbook
+- [Standard Operating Procedures](STANDARD_OPERATING_PROCEDURES.md) - SOPs
 
 ### Development
 - [Contributing](CONTRIBUTING.md) - How to contribute
 - [Environment Configuration](ENVIRONMENT_CONFIGURATION.md) - Environment setup
 - [Scripts Reference](SCRIPTS_REFERENCE.md) - Available scripts
-- [Workflows](WORKFLOWS.md) - CI/CD workflows
+- [Workflow Overview](WORKFLOW_OVERVIEW.md) - CI/CD workflows
 
 ### Features
-- [Command Center](COMMAND_CENTER.md) - Command center documentation
 - [Discord Architecture](DISCORD_ARCHITECTURE_ANALYSIS.md) - Discord integration
-- [Smart Form](SMART_FORM_SOURCE.md) - Smart form documentation
 - [Alert System](ALERT_SYSTEM_SUMMARY.md) - Alert system overview
+- [Professional Grading System](PROFESSIONAL_GRADING_SYSTEM_v2025.md) - Grading system
 
 ## Getting Started
 
 1. Read the [Architecture Overview](ARCHITECTURE.md)
-2. Follow the [Deployment Guide](deployment/DEPLOYMENT_RUNBOOK.md)
-3. Review the [Operator Handbook](operator-training/OPERATOR_HANDBOOK.md)
-4. Check the [OPS Runbook](OPS_RUNBOOK.md) for daily operations
+2. Review the [Environment Configuration](ENVIRONMENT_CONFIGURATION.md)
+3. Check the [System Operations Guide](SYSTEM_OPERATIONS_GUIDE.md) for daily operations
+4. Follow the [Contributing Guide](CONTRIBUTING.md) for development
 
 ## Support
 
 For questions or issues, please refer to:
 - [Incident Response Playbook](INCIDENT_RESPONSE_PLAYBOOK.md)
 - [System Operations Guide](SYSTEM_OPERATIONS_GUIDE.md)
-- [Troubleshooting](OPS_RUNBOOK.md#troubleshooting)
+- [Standard Operating Procedures](STANDARD_OPERATING_PROCEDURES.md)
 
 ---
 
