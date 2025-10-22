@@ -99,7 +99,12 @@ async function main() {
   console.log('CI Admin RPC Runner');
   console.log('Date: 2025-10-20');
   console.log('='.repeat(60));
-  
+
+  // Wait for PostgREST schema cache to reload after migration
+  console.log('\n[INFO] Waiting 5 seconds for PostgREST schema cache to reload...');
+  await new Promise(resolve => setTimeout(resolve, 5000));
+  console.log('[INFO] Schema cache should be refreshed. Starting RPC calls...\n');
+
   try {
     // Step 1: Backfill
     await runBackfill(3);
