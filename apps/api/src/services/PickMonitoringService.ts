@@ -3,7 +3,7 @@
  * Real-time monitoring of active picks with odds tracking and alert generation
  */
 
-import { Logger } from '../utils/logger';
+import { Logger, createLogger } from '../utils/logger';
 import { supabaseClient } from './supabaseClient';
 import { autoRecheckService } from './AutoRecheckService';
 import { publishGuard } from '../promotion/PublishGuard';
@@ -85,7 +85,7 @@ class PickMonitoringService {
   };
 
   private constructor() {
-    this.logger = new Logger('PickMonitoringService');
+    this.logger = createLogger('PickMonitoringService');
   }
 
   public static getInstance(): PickMonitoringService {

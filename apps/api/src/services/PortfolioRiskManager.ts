@@ -3,7 +3,7 @@
  * Implements correlation limits, portfolio caps, and position sizing controls
  */
 
-import { Logger } from '../utils/logger';
+import { Logger, createLogger } from '../utils/logger';
 import { supabaseClient } from './supabaseClient';
 
 export interface PortfolioLimits {
@@ -96,7 +96,7 @@ class PortfolioRiskManager {
   };
 
   private constructor() {
-    this.logger = new Logger('PortfolioRiskManager');
+    this.logger = createLogger('PortfolioRiskManager');
   }
 
   public static getInstance(): PortfolioRiskManager {
