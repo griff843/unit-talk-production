@@ -1,0 +1,126 @@
+name: Weekly Cleanup DRY-RUN
+
+on:
+  schedule:
+    - cron: '0 3 * * 1' # Monday 03:00 UTC
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  cleanup-inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Generate Cleanup Inventory
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          mkdir -p out/ops/cleanup
+          cd apps/api
+          npx tsx src/scripts/ops/generate-cleanup-inventory.ts
+      
+      - name: Analyze Cleanup Inventory
+        id: analyze
+        run: |
+          cd apps/api/out/ops/cleanup
+          
+          # Count items in each category
+          STALE_PROPS=$(jq '.stale_props | length' cleanup-inventory-*.json 2>/dev/null || echo "0")
+          OLD_PICKS=$(jq '.old_picks | length' cleanup-inventory-*.json 2>/dev/null || echo "0")
+          ORPHANED_SCORES=$(jq '.orphaned_scores | length' cleanup-inventory-*.json 2>/dev/null || echo "0")
+          STALE_AGENTS=$(jq '.stale_agents | length' cleanup-inventory-*.json 2>/dev/null || echo "0")
+          
+          echo "stale_props=$STALE_PROPS" >> $GITHUB_OUTPUT
+          echo "old_picks=$OLD_PICKS" >> $GITHUB_OUTPUT
+          echo "orphaned_scores=$ORPHANED_SCORES" >> $GITHUB_OUTPUT
+          echo "stale_agents=$STALE_AGENTS" >> $GITHUB_OUTPUT
+          
+          TOTAL=$((STALE_PROPS + OLD_PICKS + ORPHANED_SCORES + STALE_AGENTS))
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          
+          echo "## Cleanup Inventory Summary"
+          echo "- Stale props (>90 days): $STALE_PROPS"
+          echo "- Old picks (>180 days): $OLD_PICKS"
+          echo "- Orphaned scores: $ORPHANED_SCORES"
+          echo "- Stale agent health: $STALE_AGENTS"
+          echo "- **Total items**: $TOTAL"
+      
+      - name: Upload Cleanup Inventory
+        uses: actions/upload-artifact@v4
+        with:
+          name: cleanup-inventory-${{ github.run_number }}
+          path: apps/api/out/ops/cleanup/
+          retention-days: 90
+      
+      - name: Create GitHub Issue with Inventory
+        if: steps.analyze.outputs.total > 0
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const date = new Date().toISOString().split('T')[0];
+            const staleProps = '${{ steps.analyze.outputs.stale_props }}';
+            const oldPicks = '${{ steps.analyze.outputs.old_picks }}';
+            const orphanedScores = '${{ steps.analyze.outputs.orphaned_scores }}';
+            const staleAgents = '${{ steps.analyze.outputs.stale_agents }}';
+            const total = '${{ steps.analyze.outputs.total }}';
+            
+            let body = '## Weekly Cleanup Inventory\n\n';
+            body += `**Date**: ${date}\n`;
+            body += `**Run**: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n`;
+            body += '### Items Identified for Cleanup\n\n';
+            body += `- **Stale props** (>90 days): ${staleProps}\n`;
+            body += `- **Old picks** (>180 days): ${oldPicks}\n`;
+            body += `- **Orphaned scores**: ${orphanedScores}\n`;
+            body += `- **Stale agent health**: ${staleAgents}\n`;
+            body += `- **Total**: ${total}\n\n`;
+            body += '### ⚠️ DRY-RUN ONLY\n\n';
+            body += 'This workflow generates a cleanup inventory but **DOES NOT** execute any deletions.\n\n';
+            body += '### Action Required\n\n';
+            body += '1. Download and review the cleanup inventory artifact\n';
+            body += '2. Verify items are safe to delete\n';
+            body += '3. Execute cleanup manually using approved procedures\n';
+            body += '4. Document cleanup actions in this issue\n';
+            body += '5. Close this issue once cleanup is complete\n\n';
+            body += '### Artifacts\n\n';
+            body += `Download inventory: [cleanup-inventory-${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n`;
+            body += '### Cleanup Procedures\n\n';
+            body += 'See `CLEANUP_PLAYBOOK.md` for safe cleanup procedures.\n';
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[CLEANUP] Weekly inventory - ${date} (${total} items)`,
+              body: body,
+              labels: ['cleanup', 'weekly', 'automated']
+            });
+      
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Weekly Cleanup DRY-RUN Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Status**: Inventory generated (DRY-RUN only)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Items Identified" >> $GITHUB_STEP_SUMMARY
+          echo "- Stale props: ${{ steps.analyze.outputs.stale_props }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Old picks: ${{ steps.analyze.outputs.old_picks }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Orphaned scores: ${{ steps.analyze.outputs.orphaned_scores }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Stale agents: ${{ steps.analyze.outputs.stale_agents }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total**: ${{ steps.analyze.outputs.total }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "⚠️ **No deletions executed** - DRY-RUN mode" >> $GITHUB_STEP_SUMMARY
+
