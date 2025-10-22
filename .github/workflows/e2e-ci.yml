@@ -1,0 +1,79 @@
+name: E2E CI Pipeline
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch: {}
+
+jobs:
+  verify-e2e:
+    name: Supabase migrate → admin RPCs → Gates → SLOs
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Mask secrets
+        run: |
+          echo "::add-mask::${{ secrets.SUPABASE_ACCESS_TOKEN }}"
+          echo "::add-mask::${{ secrets.SUPABASE_SERVICE_ROLE_KEY_2 }}"
+
+      # ✅ Reliable CLI install (replaces curl; handles DNS/retries)
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Show Supabase CLI version
+        run: supabase --version
+
+      - name: Supabase login & link
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
+          # retry push to tolerate transient network hiccups
+          n=0
+          until [ $n -ge 3 ]; do
+            supabase db push && break
+            n=$((n+1)); echo "retry $n/3"; sleep 5
+          done
+
+      - name: Run admin RPCs (backfill → score loop → refresh)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL_new }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_2 }}
+        run: npx tsx apps/api/src/scripts/ci-run-admin-rpcs.ts
+
+      - name: Verify gates (must hard-fail on red)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL_new }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_2 }}
+        run: npx tsx apps/api/src/scripts/verify-gates.ts
+
+      - name: Verify SLOs (must hard-fail on breach)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL_new }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_2 }}
+        run: npx tsx apps/api/src/scripts/verify-slo.ts
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: |
+            apps/api/out/ops/verify/**
+          if-no-files-found: warn
