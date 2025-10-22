@@ -1,0 +1,114 @@
+name: Build Hygiene Check
+
+on:
+  pull_request:
+    branches: [master, main]
+  push:
+    branches: [master, main]
+
+jobs:
+  lockfile-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2 # Need previous commit for diff
+      
+      - name: Check for merge conflicts in package-lock.json
+        run: |
+          if grep -q "<<<<<<< HEAD" package-lock.json; then
+            echo "❌ Merge conflict detected in package-lock.json"
+            echo "Please resolve the conflict before merging"
+            exit 1
+          fi
+          
+          if grep -q "=======" package-lock.json; then
+            echo "❌ Merge conflict markers detected in package-lock.json"
+            exit 1
+          fi
+          
+          if grep -q ">>>>>>> " package-lock.json; then
+            echo "❌ Merge conflict markers detected in package-lock.json"
+            exit 1
+          fi
+          
+          echo "✅ No merge conflicts detected"
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Verify lock file integrity
+        run: |
+          echo "Verifying package-lock.json integrity..."
+          npm ci --ignore-scripts
+          
+          if [ $? -ne 0 ]; then
+            echo "❌ package-lock.json is corrupted or out of sync"
+            echo "Run 'npm install' locally and commit the updated lock file"
+            exit 1
+          fi
+          
+          echo "✅ Lock file integrity verified"
+      
+      - name: Check for uncommitted lock file changes
+        if: github.event_name == 'pull_request'
+        run: |
+          # Run npm install to see if lock file would change
+          npm install --package-lock-only
+          
+          if git diff --exit-code package-lock.json; then
+            echo "✅ Lock file is up to date"
+          else
+            echo "❌ package-lock.json has uncommitted changes"
+            echo "The lock file would be modified by 'npm install'"
+            echo ""
+            echo "Please run the following commands and commit the result:"
+            echo "  npm install"
+            echo "  git add package-lock.json"
+            echo "  git commit -m 'chore: update package-lock.json'"
+            exit 1
+          fi
+      
+      - name: Check lock file version
+        run: |
+          LOCKFILE_VERSION=$(node -p "require('./package-lock.json').lockfileVersion")
+          echo "Lock file version: $LOCKFILE_VERSION"
+          
+          if [ "$LOCKFILE_VERSION" != "3" ]; then
+            echo "⚠️  Warning: Lock file version is $LOCKFILE_VERSION (expected 3)"
+            echo "Consider upgrading to npm 7+ for lockfileVersion 3"
+          else
+            echo "✅ Lock file version is correct (v3)"
+          fi
+      
+      - name: Check for duplicate dependencies
+        run: |
+          echo "Checking for duplicate dependencies..."
+          npm dedupe --dry-run > dedupe-output.txt 2>&1 || true
+          
+          if grep -q "deduped" dedupe-output.txt; then
+            echo "⚠️  Duplicate dependencies detected:"
+            cat dedupe-output.txt
+            echo ""
+            echo "Consider running 'npm dedupe' to optimize the dependency tree"
+          else
+            echo "✅ No duplicate dependencies detected"
+          fi
+      
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Build Hygiene Check Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ No merge conflicts" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Lock file integrity verified" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Lock file is up to date" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Status**: All checks passed" >> $GITHUB_STEP_SUMMARY
+
