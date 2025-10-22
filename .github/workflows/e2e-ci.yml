@@ -32,6 +32,7 @@ jobs:
           echo "::add-mask::${{ secrets.SUPABASE_SERVICE_ROLE_KEY_2 }}"
 
       # Reliable CLI setup (replaces curl; handles retries)
+      # ✅ Reliable CLI install (replaces curl; handles DNS/retries)
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
@@ -64,6 +65,15 @@ jobs:
             if supabase db push; then
               echo "db push success"; break
             fi
+      - name: Supabase login & link
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
+          # retry push to tolerate transient network hiccups
+          n=0
+          until [ $n -ge 3 ]; do
+            supabase db push && break
             n=$((n+1)); echo "retry $n/3"; sleep 5
           done
 
