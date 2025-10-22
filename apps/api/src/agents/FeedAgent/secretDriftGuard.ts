@@ -18,7 +18,7 @@ export interface SecretMetadata {
   version: number;
 }
 
-class SecretDriftGuard {
+export class SecretDriftGuard {
   private currentSecrets: SecretConfig;
   private previousSecrets: SecretConfig | null = null;
   private secretMetadata: Map<string, SecretMetadata> = new Map();

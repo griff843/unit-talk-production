@@ -1,6 +1,7 @@
 // src/logic/scoring/unified-edge-score.ts
 import { PropObject } from '../../types/propTypes';
 import { RawProp } from '../../types/rawProps';
+import { professionalScoreOf } from '../../types/compat';
 
 // Import league-specific rules
 import { mlbCoreStats, mlbSynergy } from './rules/mlb';
@@ -367,7 +368,7 @@ export function gradePick(prop: any): {
 } {
   const result = unifiedEdgeScore(prop, DEFAULT_EDGE_CONFIG, { useLeagueRules: true });
   return {
-    score: result.professional_score,
+    score: professionalScoreOf(result),
     tier: result.tier as 'S' | 'A' | 'B' | 'C',
     breakdown: result.breakdown
   };
@@ -394,7 +395,7 @@ export function scorePropEdge(prop: PropObject): {
 } {
   const result = unifiedEdgeScore(prop, DEFAULT_EDGE_CONFIG);
   return {
-    edge_score: result.professional_score,
+    edge_score: professionalScoreOf(result),
     tier: result.tier,
     context_tags: result.tags,
     edge_breakdown: result.breakdown

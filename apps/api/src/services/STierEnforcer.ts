@@ -3,7 +3,7 @@
  * Enforces strict S-tier thresholds with EV/CLV/Steam validation gates
  */
 
-import { Logger } from '../utils/logger';
+import { Logger, createLogger } from '../utils/logger';
 import { supabaseClient } from './supabaseClient';
 
 export interface STierRequirements {
@@ -106,7 +106,7 @@ class STierEnforcer {
   };
 
   private constructor() {
-    this.logger = new Logger('STierEnforcer');
+    this.logger = createLogger('STierEnforcer');
   }
 
   public static getInstance(): STierEnforcer {

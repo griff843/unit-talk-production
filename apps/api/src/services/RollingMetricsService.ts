@@ -4,7 +4,7 @@
  * Includes auto-learning feedback loops for performance optimization
  */
 
-import { Logger } from '../utils/logger';
+import { Logger, createLogger } from '../utils/logger';
 import { supabaseClient } from './supabaseClient';
 import { shadowWriteMetrics, isShadowMode } from '../shadow/ShadowMode';
 
@@ -124,7 +124,7 @@ class RollingMetricsService {
   };
 
   private constructor() {
-    this.logger = new Logger('RollingMetricsService');
+    this.logger = createLogger('RollingMetricsService');
     this.initializeService();
   }
 

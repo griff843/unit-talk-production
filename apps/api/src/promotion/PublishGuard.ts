@@ -350,7 +350,7 @@ class PublishGuardService {
   /**
    * Check if public actions should be skipped
    */
-  public shouldSkipPublicAction(actionType: 'publish' | 'alert' | 'webhook' | 'notification'): boolean {
+  public shouldSkipPublicAction(actionType: 'publish' | 'alert' | 'webhook'): boolean {
     return shadowMode.shouldSkipPublicAction(actionType);
   }
 
@@ -372,4 +372,7 @@ class PublishGuardService {
   }
 }
 
+// Export both the class and the singleton instance
+export { PublishGuardService };
 export const publishGuard = PublishGuardService.getInstance();
+export default PublishGuardService;

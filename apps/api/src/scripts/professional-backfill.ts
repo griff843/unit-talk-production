@@ -16,7 +16,7 @@
 import 'dotenv/config';
 import { GradingAgent } from '../agents/GradingAgent/GradingAgent';
 import { BaseAgentConfig, BaseAgentDependencies } from '../agents/BaseAgent/types';
-import { createSupabaseClient } from '../services/supabaseClient';
+import { supabaseClient } from '../services/supabaseClient';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('professional-backfill');
@@ -44,7 +44,7 @@ interface BackfillMetrics {
 }
 
 class ProfessionalBackfillProcessor {
-  private supabase = createSupabaseClient();
+  private supabase = supabaseClient;
   private gradingAgent: GradingAgent;
   private metrics: BackfillMetrics;
   
@@ -179,8 +179,8 @@ class ProfessionalBackfillProcessor {
         bookmaker: rawProp.bookmaker || 'unknown',
         gameDate: rawProp.game_date,
         timestamp: rawProp.created_at
-      };
-      
+      } as any; // Type assertion for GradingFeatureSet compatibility
+
       // Process through GradingAgent which routes to professional system
       const result = await this.gradingAgent.gradeProp(features);
       

@@ -3,7 +3,7 @@
  * Automated 5-15 minute pre-post game validation with real-time monitoring
  */
 
-import { Logger } from '../utils/logger';
+import { Logger, createLogger } from '../utils/logger';
 import { supabaseClient } from './supabaseClient';
 import { promotionGatekeeper } from './PromotionGatekeeper';
 import { sTierEnforcer } from './STierEnforcer';
@@ -98,7 +98,7 @@ class AutoRecheckService {
   ];
 
   private constructor() {
-    this.logger = new Logger('AutoRecheckService');
+    this.logger = createLogger('AutoRecheckService');
     this.initializeService();
   }
 
