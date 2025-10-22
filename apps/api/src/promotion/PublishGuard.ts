@@ -372,4 +372,7 @@ class PublishGuardService {
   }
 }
 
+// Export both the class and the singleton instance
+export { PublishGuardService };
 export const publishGuard = PublishGuardService.getInstance();
+export default PublishGuardService;

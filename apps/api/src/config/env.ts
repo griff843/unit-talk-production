@@ -49,8 +49,10 @@ validateEnv();
 export const env = {
   isTest: process.env.NODE_ENV === 'test',
   NODE_ENV: process.env.NODE_ENV || 'development',
+  RUN_MODE: process.env.RUN_MODE || 'development',
   TEMPORAL_TASK_QUEUE: process.env.TEMPORAL_TASK_QUEUE || 'unit-talk-queue',
   TEMPORAL_SERVER_URL: process.env.TEMPORAL_SERVER_URL || 'localhost:7233',
+  TEMPORAL_UI_URL: process.env.TEMPORAL_UI_URL || 'http://localhost:8080',
   SUPABASE_URL: process.env.SUPABASE_URL || 'http://mock-supabase-url',
   SUPABASE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || 'mock-key',
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || 'mock-service-role-key',
@@ -65,6 +67,8 @@ export const env = {
   TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN || '',
   TWILIO_FROM_NUMBER: process.env.TWILIO_FROM_NUMBER || '',
   MICRO_RECAP_COOLDOWN: parseInt(process.env.MICRO_RECAP_COOLDOWN || '300000'),
+  DISCORD_BOT_API_URL: process.env.DISCORD_BOT_API_URL || 'http://localhost:3001',
+  DISCORD_BOT_API_KEY: process.env.DISCORD_BOT_API_KEY || '',
   supabase: {
     url: process.env.SUPABASE_URL || 'http://mock-supabase-url',
     serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || 'mock-service-role-key',

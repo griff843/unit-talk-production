@@ -21,6 +21,7 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,json}\"",
     "type-check": "tsc --noEmit",
     "type-check:watch": "tsc --noEmit --watch",
+    "build:typecheck": "tsc --noEmit",
     "health:check": "node scripts/healthCheck.js",
     "metrics:show": "node scripts/showMetrics.js",
     "agents:test": "tsx src/runner/testAllAgents.ts",
