@@ -1,0 +1,165 @@
+version: '3.8'
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: unit-talk-prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    networks:
+      - unit-talk-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: unit-talk-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource,yesoreyeram-boomtable-panel
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - unit-talk-network
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: unit-talk-alertmanager
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager-data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    ports:
+      - "9093:9093"
+    networks:
+      - unit-talk-network
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: unit-talk-node-exporter
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - "9100:9100"
+    networks:
+      - unit-talk-network
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: unit-talk-cadvisor
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    ports:
+      - "8080:8080"
+    networks:
+      - unit-talk-network
+
+  # Anomaly detection service
+  anomaly-detector:
+    build:
+      context: ./monitoring/anomaly-detector
+      dockerfile: Dockerfile
+    container_name: unit-talk-anomaly-detector
+    environment:
+      - PROMETHEUS_URL=http://prometheus:9090
+      - ALERTMANAGER_URL=http://alertmanager:9093
+      - DETECTION_INTERVAL=60
+      - SENSITIVITY=medium
+    depends_on:
+      - prometheus
+      - alertmanager
+    networks:
+      - unit-talk-network
+
+  # Metrics aggregator for custom metrics
+  metrics-aggregator:
+    build:
+      context: ./monitoring/metrics-aggregator
+      dockerfile: Dockerfile
+    container_name: unit-talk-metrics-aggregator
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - REDIS_URL=redis://redis:6379
+      - PROMETHEUS_PUSHGATEWAY=http://pushgateway:9091
+    depends_on:
+      - pushgateway
+    networks:
+      - unit-talk-network
+
+  pushgateway:
+    image: prom/pushgateway:latest
+    container_name: unit-talk-pushgateway
+    ports:
+      - "9091:9091"
+    networks:
+      - unit-talk-network
+
+  # Loki for log aggregation
+  loki:
+    image: grafana/loki:latest
+    container_name: unit-talk-loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./monitoring/loki.yml:/etc/loki/local-config.yaml
+      - loki-data:/loki
+    networks:
+      - unit-talk-network
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: unit-talk-promtail
+    volumes:
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ./monitoring/promtail.yml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - unit-talk-network
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  alertmanager-data:
+  loki-data:
+
+networks:
+  unit-talk-network:
+    external: true

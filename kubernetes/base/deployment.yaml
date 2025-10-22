@@ -1,0 +1,187 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: unit-talk-api
+  labels:
+    app: unit-talk
+    component: api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: unit-talk
+      component: api
+  template:
+    metadata:
+      labels:
+        app: unit-talk
+        component: api
+    spec:
+      containers:
+      - name: api
+        image: unit-talk/api:latest
+        ports:
+        - containerPort: 8080
+          name: http
+        - containerPort: 9090
+          name: metrics
+        env:
+        - name: NODE_ENV
+          value: production
+        - name: SUPABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: unit-talk-secrets
+              key: supabase-url
+        - name: SUPABASE_SERVICE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: unit-talk-secrets
+              key: supabase-service-key
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: unit-talk-secrets
+              key: redis-url
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 2000m
+            memory: 4Gi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: unit-talk-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: unit-talk-worker
+  labels:
+    app: unit-talk
+    component: worker
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: unit-talk
+      component: worker
+  template:
+    metadata:
+      labels:
+        app: unit-talk
+        component: worker
+    spec:
+      containers:
+      - name: worker
+        image: unit-talk/worker:latest
+        env:
+        - name: NODE_ENV
+          value: production
+        - name: WORKER_TYPE
+          value: temporal
+        - name: TEMPORAL_ADDRESS
+          value: temporal-frontend:7233
+        - name: SUPABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: unit-talk-secrets
+              key: supabase-url
+        - name: SUPABASE_SERVICE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: unit-talk-secrets
+              key: supabase-service-key
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: unit-talk-secrets
+              key: redis-url
+        resources:
+          requests:
+            cpu: 1000m
+            memory: 2Gi
+          limits:
+            cpu: 4000m
+            memory: 8Gi
+        livenessProbe:
+          exec:
+            command:
+            - /app/health-check.sh
+          initialDelaySeconds: 30
+          periodSeconds: 30
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: unit-talk-agents
+  labels:
+    app: unit-talk
+    component: agents
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: unit-talk
+      component: agents
+  template:
+    metadata:
+      labels:
+        app: unit-talk
+        component: agents
+    spec:
+      containers:
+      - name: feed-agent
+        image: unit-talk/agents:latest
+        env:
+        - name: AGENT_TYPE
+          value: feed
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+      - name: scoring-agent
+        image: unit-talk/agents:latest
+        env:
+        - name: AGENT_TYPE
+          value: scoring
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 2000m
+            memory: 4Gi
+      - name: alert-agent
+        image: unit-talk/agents:latest
+        env:
+        - name: AGENT_TYPE
+          value: alert
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
