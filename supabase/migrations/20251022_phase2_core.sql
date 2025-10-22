@@ -31,7 +31,7 @@ BEGIN
       bookmaker_key, best_book, best_available_line,
       game_date, game_time, player_name, team, opponent,
       external_prop_id, external_game_id, game_id, metadata,
-      status, created_at, updated_at
+      created_at, updated_at
     )
     SELECT
       COALESCE((rp.metadata->>'sport')::text, rp.sport, 'NFL'),
@@ -53,7 +53,6 @@ BEGIN
       rp.external_game_id,
       rp.game_id,
       rp.metadata,
-      'active',
       NOW(),
       NOW()
     FROM public.raw_props rp
