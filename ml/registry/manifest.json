@@ -1,0 +1,25 @@
+{
+  "registry_version": "1.0.0",
+  "created_at": "2025-10-23T00:00:00Z",
+  "last_updated": "2025-10-23T00:00:00Z",
+  "models": [],
+  "production_model": null,
+  "staging_model": null,
+  "archived_models": [],
+  "governance": {
+    "approval_required": true,
+    "minimum_approval_score": 0.75,
+    "required_metrics": ["auc", "accuracy", "precision", "recall"],
+    "promotion_criteria": {
+      "auc_threshold": -0.005,
+      "roi_threshold": -0.02,
+      "minimum_improvement": 0.001
+    },
+    "retention_policy": {
+      "max_archived_models": 10,
+      "retention_days": 90
+    }
+  },
+  "deployment_history": [],
+  "rollback_history": []
+}

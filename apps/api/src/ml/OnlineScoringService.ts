@@ -297,12 +297,66 @@ export class OnlineScoringService {
   }
 
   /**
-   * Load latest trained model from /ml/models/
+   * Load model from registry (Phase 7C integration)
    */
   private async loadLatestModel(): Promise<void> {
     try {
+      // First try to load from model registry
+      const registryPath = path.resolve('../../ml/registry/manifest.json');
+      
+      if (await this.fileExists(registryPath)) {
+        this.logger.info('📁 Loading model from registry:', registryPath);
+        
+        const registryData = await fs.readFile(registryPath, 'utf-8');
+        const registry = JSON.parse(registryData);
+        
+        if (registry.production_model) {
+          const prodModel = registry.production_model;
+          const modelPath = path.resolve(prodModel.path);
+          
+          if (await this.fileExists(modelPath)) {
+            this.loadedModel = {
+              version: prodModel.version,
+              path: modelPath,
+              metadata: {
+                accuracy: prodModel.metrics.accuracy || 0,
+                auc: prodModel.metrics.auc || 0,
+                trainingDate: prodModel.training_date,
+                features: prodModel.features || [],
+                hyperparameters: prodModel.hyperparameters || {},
+              },
+              loadedAt: new Date(),
+            };
+
+            this.logger.info('✅ Model loaded from registry', {
+              version: prodModel.version,
+              accuracy: prodModel.metrics.accuracy,
+              auc: prodModel.metrics.auc,
+              features: prodModel.features.length,
+              deployedAt: prodModel.deployed_at,
+            });
+            return;
+          }
+        }
+      }
+
+      // Fallback to legacy model loading
+      this.logger.info('📁 Registry not found, falling back to model directory');
+      await this.loadLegacyModel();
+
+    } catch (error) {
+      this.logger.error('❌ Failed to load model from registry, trying fallback:', error);
+      await this.loadLegacyModel();
+    }
+  }
+
+  /**
+   * Legacy model loading from /ml/models/
+   */
+  private async loadLegacyModel(): Promise<void> {
+    try {
       const modelDir = path.resolve(this.config.modelPath);
-      this.logger.info('📁 Loading model from:', modelDir);
+      this.logger.info('📁 Loading model from directory:', modelDir);
 
       // Find latest model artifact
       const files = await fs.readdir(modelDir);
@@ -328,7 +382,7 @@ export class OnlineScoringService {
         loadedAt: new Date(),
       };
 
-      this.logger.info('✅ Model loaded successfully', {
+      this.logger.info('✅ Legacy model loaded successfully', {
         version: artifact.version,
         accuracy: artifact.metadata.accuracy,
         auc: artifact.metadata.auc,
@@ -336,8 +390,34 @@ export class OnlineScoringService {
       });
 
     } catch (error) {
-      this.logger.error('❌ Failed to load model:', error);
+      this.logger.error('❌ Failed to load legacy model:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Check if file exists
+   */
+  private async fileExists(filePath: string): Promise<boolean> {
+    try {
+      await fs.access(filePath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Reload model from registry (for hot-swapping)
+   */
+  async reloadModelFromRegistry(): Promise<boolean> {
+    try {
+      this.logger.info('🔄 Reloading model from registry...');
+      await this.loadLatestModel();
+      return true;
+    } catch (error) {
+      this.logger.error('❌ Failed to reload model from registry:', error);
+      return false;
     }
   }
 

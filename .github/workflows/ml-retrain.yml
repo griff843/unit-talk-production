@@ -1,0 +1,683 @@
+name: ML Retraining Pipeline
+on:
+  schedule:
+    # Weekly retraining every Sunday at 2 AM UTC
+    - cron: '0 2 * * 0'
+  
+  workflow_dispatch:
+    inputs:
+      force_retrain:
+        description: 'Force retraining regardless of drift threshold'
+        required: false
+        default: 'false'
+        type: boolean
+      drift_threshold:
+        description: 'Custom drift threshold (default: 0.005)'
+        required: false
+        default: '0.005'
+        type: string
+
+  # Trigger on drift detection from monitoring
+  repository_dispatch:
+    types: [drift-detected]
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+jobs:
+  drift-check:
+    name: Feature Drift Analysis
+    runs-on: ubuntu-latest
+    outputs:
+      should_retrain: ${{ steps.drift.outputs.should_retrain }}
+      drift_score: ${{ steps.drift.outputs.drift_score }}
+      drift_report: ${{ steps.drift.outputs.report_path }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install Python dependencies
+        run: |
+          cd ml
+          pip install -r requirements.txt
+          
+      - name: Run drift detection
+        id: drift
+        run: |
+          cd ml
+          python -c "
+          import os
+          import json
+          from datetime import datetime, timedelta
+          from pipeline.drift_detector import FeatureDriftDetector
+          
+          # Initialize drift detector
+          detector = FeatureDriftDetector(
+              supabase_url=os.environ['SUPABASE_URL'],
+              supabase_key=os.environ['SUPABASE_SERVICE_ROLE_KEY']
+          )
+          
+          # Get drift threshold
+          drift_threshold = float('${{ github.event.inputs.drift_threshold || 0.005 }}')
+          force_retrain = '${{ github.event.inputs.force_retrain }}' == 'true'
+          
+          # Analyze drift over last 30 days
+          end_date = datetime.now()
+          start_date = end_date - timedelta(days=30)
+          
+          drift_results = detector.analyze_feature_drift(
+              start_date=start_date,
+              end_date=end_date,
+              reference_period_days=90
+          )
+          
+          # Check if retraining is needed
+          max_drift = max(drift_results['feature_drift_scores'].values())
+          should_retrain = force_retrain or max_drift >= drift_threshold
+          
+          # Save drift report
+          report_path = f'reports/drift_analysis_{datetime.now().strftime(\"%Y%m%d_%H%M%S\")}.json'
+          os.makedirs('reports', exist_ok=True)
+          
+          with open(report_path, 'w') as f:
+              json.dump({
+                  'analysis_date': datetime.now().isoformat(),
+                  'drift_threshold': drift_threshold,
+                  'max_drift_score': max_drift,
+                  'should_retrain': should_retrain,
+                  'feature_drift_scores': drift_results['feature_drift_scores'],
+                  'data_quality_metrics': drift_results['data_quality'],
+                  'recommendation': 'RETRAIN' if should_retrain else 'MONITOR'
+              }, f, indent=2)
+          
+          print(f'should_retrain={should_retrain}')
+          print(f'drift_score={max_drift}')
+          print(f'report_path={report_path}')
+          
+          # Set GitHub Actions outputs
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f'should_retrain={should_retrain}\n')
+              f.write(f'drift_score={max_drift}\n')
+              f.write(f'report_path={report_path}\n')
+          "
+          
+      - name: Upload drift report
+        uses: actions/upload-artifact@v3
+        with:
+          name: drift-analysis-report
+          path: ml/reports/drift_analysis_*.json
+          retention-days: 30
+
+  data-ingestion:
+    name: Data Ingestion & Validation
+    runs-on: ubuntu-latest
+    needs: drift-check
+    if: needs.drift-check.outputs.should_retrain == 'true'
+    outputs:
+      dataset_path: ${{ steps.ingest.outputs.dataset_path }}
+      data_quality_score: ${{ steps.ingest.outputs.quality_score }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install dependencies
+        run: |
+          cd ml
+          pip install -r requirements.txt
+          
+      - name: Ingest latest training data
+        id: ingest
+        run: |
+          cd ml
+          python -c "
+          import os
+          import json
+          from datetime import datetime, timedelta
+          from pipeline.dataset_builder import DatasetBuilder
+          from pipeline.data_quality_checker import DataQualityChecker
+          
+          # Initialize components
+          builder = DatasetBuilder(
+              supabase_url=os.environ['SUPABASE_URL'],
+              supabase_key=os.environ['SUPABASE_SERVICE_ROLE_KEY']
+          )
+          
+          quality_checker = DataQualityChecker()
+          
+          # Build dataset for last 30 days
+          end_date = datetime.now()
+          start_date = end_date - timedelta(days=30)
+          
+          print(f'Building dataset from {start_date} to {end_date}')
+          
+          # Build comprehensive dataset
+          dataset = builder.build_retraining_dataset(
+              start_date=start_date,
+              end_date=end_date,
+              min_samples=1000,  # Minimum samples required
+              include_sports=['NFL', 'NBA', 'MLB', 'NHL']
+          )
+          
+          # Data quality validation
+          quality_results = quality_checker.validate_dataset(dataset)
+          quality_score = quality_results['overall_score']
+          
+          if quality_score < 0.8:
+              raise ValueError(f'Data quality score {quality_score} below threshold 0.8')
+          
+          # Save dataset
+          timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+          dataset_path = f'datasets/retraining_{timestamp}.parquet'
+          os.makedirs('datasets', exist_ok=True)
+          dataset.to_parquet(dataset_path)
+          
+          print(f'Dataset saved: {dataset_path}')
+          print(f'Dataset shape: {dataset.shape}')
+          print(f'Quality score: {quality_score}')
+          
+          # Set outputs
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f'dataset_path={dataset_path}\n')
+              f.write(f'quality_score={quality_score}\n')
+          "
+          
+      - name: Upload dataset
+        uses: actions/upload-artifact@v3
+        with:
+          name: retraining-dataset
+          path: ml/datasets/retraining_*.parquet
+          retention-days: 7
+
+  automated-training:
+    name: Automated Model Training
+    runs-on: ubuntu-latest
+    needs: [drift-check, data-ingestion]
+    if: needs.drift-check.outputs.should_retrain == 'true'
+    outputs:
+      model_path: ${{ steps.train.outputs.model_path }}
+      model_version: ${{ steps.train.outputs.model_version }}
+      training_metrics: ${{ steps.train.outputs.metrics_path }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install dependencies
+        run: |
+          cd ml
+          pip install -r requirements.txt
+          
+      - name: Download dataset
+        uses: actions/download-artifact@v3
+        with:
+          name: retraining-dataset
+          path: ml/datasets/
+          
+      - name: Run adaptive training pipeline
+        id: train
+        run: |
+          cd ml
+          python -c "
+          import os
+          import json
+          import glob
+          from datetime import datetime
+          from pipeline.train import AdaptiveTrainingPipeline
+          from pipeline.hyperparameter_tuner import OptunaHyperparameterTuner
+          
+          # Find latest dataset
+          dataset_files = glob.glob('datasets/retraining_*.parquet')
+          if not dataset_files:
+              raise FileNotFoundError('No retraining dataset found')
+          dataset_path = max(dataset_files)
+          
+          print(f'Training with dataset: {dataset_path}')
+          
+          # Initialize training pipeline
+          pipeline = AdaptiveTrainingPipeline()
+          tuner = OptunaHyperparameterTuner(n_trials=100)
+          
+          # Load dataset
+          import pandas as pd
+          df = pd.read_parquet(dataset_path)
+          
+          # Adaptive hyperparameter tuning
+          print('Starting hyperparameter optimization...')
+          best_params = tuner.optimize(
+              dataset=df,
+              target_metric='auc',
+              timeout_minutes=30
+          )
+          
+          # Train model with best parameters
+          print('Training final model...')
+          model_artifacts = pipeline.train_with_params(
+              dataset=df,
+              hyperparameters=best_params,
+              model_types=['xgboost', 'lightgbm', 'neural_network'],
+              cross_validation_folds=5
+          )
+          
+          # Select best model
+          best_model = max(model_artifacts, key=lambda x: x['metrics']['auc'])
+          
+          # Save model artifact
+          timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+          model_version = f'v{timestamp}'
+          model_path = f'models/model_{timestamp}.pkl'
+          
+          os.makedirs('models', exist_ok=True)
+          
+          # Save model and metadata
+          import pickle
+          with open(model_path, 'wb') as f:
+              pickle.dump(best_model['model'], f)
+          
+          # Save metadata
+          metadata_path = f'models/model_{timestamp}.json'
+          with open(metadata_path, 'w') as f:
+              json.dump({
+                  'version': model_version,
+                  'path': model_path,
+                  'metadata': {
+                      'accuracy': best_model['metrics']['accuracy'],
+                      'auc': best_model['metrics']['auc'],
+                      'precision': best_model['metrics']['precision'],
+                      'recall': best_model['metrics']['recall'],
+                      'f1': best_model['metrics']['f1'],
+                      'trainingDate': datetime.now().isoformat(),
+                      'features': best_model['features'],
+                      'hyperparameters': best_params,
+                      'model_type': best_model['model_type'],
+                      'cross_val_score': best_model['cv_score'],
+                      'dataset_size': len(df),
+                      'dataset_path': dataset_path
+                  }
+              }, f, indent=2)
+          
+          # Save training metrics
+          metrics_path = f'reports/training_metrics_{timestamp}.json'
+          os.makedirs('reports', exist_ok=True)
+          with open(metrics_path, 'w') as f:
+              json.dump({
+                  'model_version': model_version,
+                  'training_date': datetime.now().isoformat(),
+                  'hyperparameter_trials': 100,
+                  'best_hyperparameters': best_params,
+                  'model_performance': best_model['metrics'],
+                  'cross_validation_results': best_model['cv_results'],
+                  'training_duration_minutes': best_model.get('training_time', 0)
+              }, f, indent=2)
+          
+          print(f'Model trained: {model_path}')
+          print(f'Model version: {model_version}')
+          print(f'AUC score: {best_model[\"metrics\"][\"auc\"]:.4f}')
+          
+          # Set outputs
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f'model_path={model_path}\n')
+              f.write(f'model_version={model_version}\n')
+              f.write(f'metrics_path={metrics_path}\n')
+          "
+          
+      - name: Upload model artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: trained-model
+          path: |
+            ml/models/model_*.pkl
+            ml/models/model_*.json
+          retention-days: 30
+          
+      - name: Upload training metrics
+        uses: actions/upload-artifact@v3
+        with:
+          name: training-metrics
+          path: ml/reports/training_metrics_*.json
+          retention-days: 30
+
+  model-evaluation:
+    name: Model Evaluation & A/B Testing
+    runs-on: ubuntu-latest
+    needs: [drift-check, data-ingestion, automated-training]
+    if: needs.drift-check.outputs.should_retrain == 'true'
+    outputs:
+      should_promote: ${{ steps.evaluate.outputs.should_promote }}
+      evaluation_report: ${{ steps.evaluate.outputs.report_path }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install dependencies
+        run: |
+          cd ml
+          pip install -r requirements.txt
+          
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: trained-model
+          path: ml/models/
+          
+      - name: Evaluate model performance
+        id: evaluate
+        run: |
+          cd ml
+          python -c "
+          import os
+          import json
+          import glob
+          import pickle
+          from datetime import datetime
+          from pipeline.evaluate import ModelEvaluator
+          from pipeline.ab_tester import OfflineABTester
+          
+          # Find latest model
+          model_files = glob.glob('models/model_*.pkl')
+          metadata_files = glob.glob('models/model_*.json')
+          
+          if not model_files or not metadata_files:
+              raise FileNotFoundError('No trained model found')
+          
+          latest_model_path = max(model_files)
+          latest_metadata_path = max(metadata_files)
+          
+          # Load new model
+          with open(latest_model_path, 'rb') as f:
+              new_model = pickle.load(f)
+          
+          with open(latest_metadata_path, 'r') as f:
+              new_metadata = json.load(f)
+          
+          print(f'Evaluating model: {latest_model_path}')
+          
+          # Load production model for comparison
+          prod_model_path = None
+          try:
+              with open('../ml/registry/manifest.json', 'r') as f:
+                  registry = json.load(f)
+                  prod_model_info = registry.get('production_model')
+                  if prod_model_info:
+                      prod_model_path = prod_model_info['path']
+          except FileNotFoundError:
+              print('No production model registry found - first deployment')
+          
+          # Initialize evaluator
+          evaluator = ModelEvaluator()
+          ab_tester = OfflineABTester()
+          
+          # Prepare test dataset (held-out from training)
+          test_dataset = evaluator.prepare_test_dataset(
+              days_back=7,  # Use last 7 days as test set
+              min_samples=500
+          )
+          
+          # Evaluate new model
+          new_metrics = evaluator.evaluate_comprehensive(
+              model=new_model,
+              test_data=test_dataset,
+              feature_names=new_metadata['metadata']['features']
+          )
+          
+          # Compare with production model if exists
+          should_promote = True
+          comparison_results = {}
+          
+          if prod_model_path and os.path.exists(prod_model_path):
+              print('Comparing with production model...')
+              
+              with open(prod_model_path, 'rb') as f:
+                  prod_model = pickle.load(f)
+              
+              prod_metrics = evaluator.evaluate_comprehensive(
+                  model=prod_model,
+                  test_data=test_dataset,
+                  feature_names=new_metadata['metadata']['features']
+              )
+              
+              # A/B test comparison
+              ab_results = ab_tester.compare_models(
+                  model_a=prod_model,
+                  model_b=new_model,
+                  test_data=test_dataset,
+                  metrics=['auc', 'roi', 'accuracy']
+              )
+              
+              # Promotion criteria
+              auc_improvement = new_metrics['auc'] - prod_metrics['auc']
+              roi_improvement = new_metrics.get('roi', 0) - prod_metrics.get('roi', 0)
+              
+              # Promotion rules: AUC >= prod - 0.5% AND ROI >= prod - 2%
+              auc_acceptable = auc_improvement >= -0.005  # -0.5%
+              roi_acceptable = roi_improvement >= -0.02   # -2%
+              
+              should_promote = auc_acceptable and roi_acceptable
+              
+              comparison_results = {
+                  'production_metrics': prod_metrics,
+                  'new_model_metrics': new_metrics,
+                  'auc_improvement': auc_improvement,
+                  'roi_improvement': roi_improvement,
+                  'ab_test_results': ab_results,
+                  'promotion_criteria': {
+                      'auc_acceptable': auc_acceptable,
+                      'roi_acceptable': roi_acceptable
+                  }
+              }
+              
+              print(f'AUC improvement: {auc_improvement:.4f}')
+              print(f'ROI improvement: {roi_improvement:.4f}')
+              print(f'Should promote: {should_promote}')
+          
+          # Generate evaluation report
+          timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+          report_path = f'reports/PHASE7C_EVAL_{timestamp}.json'
+          
+          evaluation_report = {
+              'evaluation_date': datetime.now().isoformat(),
+              'model_version': new_metadata['version'],
+              'model_path': latest_model_path,
+              'test_dataset_size': len(test_dataset),
+              'new_model_metrics': new_metrics,
+              'comparison_results': comparison_results,
+              'promotion_decision': {
+                  'should_promote': should_promote,
+                  'reason': 'Performance meets criteria' if should_promote else 'Performance below thresholds'
+              },
+              'next_steps': 'Deploy to production' if should_promote else 'Continue monitoring'
+          }
+          
+          os.makedirs('reports', exist_ok=True)
+          with open(report_path, 'w') as f:
+              json.dump(evaluation_report, f, indent=2)
+          
+          print(f'Evaluation complete: {report_path}')
+          
+          # Set outputs
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f'should_promote={should_promote}\n')
+              f.write(f'report_path={report_path}\n')
+          "
+          
+      - name: Upload evaluation report
+        uses: actions/upload-artifact@v3
+        with:
+          name: evaluation-report
+          path: ml/reports/PHASE7C_EVAL_*.json
+          retention-days: 30
+
+  update-registry:
+    name: Update Model Registry
+    runs-on: ubuntu-latest
+    needs: [automated-training, model-evaluation]
+    if: needs.model-evaluation.outputs.should_promote == 'true'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Download model artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: trained-model
+          path: ml/models/
+          
+      - name: Update model registry
+        run: |
+          cd ml
+          python -c "
+          import os
+          import json
+          import glob
+          from datetime import datetime
+          import hashlib
+          
+          # Find latest model
+          metadata_files = glob.glob('models/model_*.json')
+          if not metadata_files:
+              raise FileNotFoundError('No model metadata found')
+          
+          latest_metadata_path = max(metadata_files)
+          
+          with open(latest_metadata_path, 'r') as f:
+              model_metadata = json.load(f)
+          
+          # Create registry directory
+          os.makedirs('registry', exist_ok=True)
+          
+          # Load existing registry or create new
+          registry_path = 'registry/manifest.json'
+          try:
+              with open(registry_path, 'r') as f:
+                  registry = json.load(f)
+          except FileNotFoundError:
+              registry = {
+                  'models': [],
+                  'production_model': None,
+                  'created_at': datetime.now().isoformat()
+              }
+          
+          # Calculate model hash
+          model_file_path = model_metadata['path']
+          with open(model_file_path, 'rb') as f:
+              model_hash = hashlib.sha256(f.read()).hexdigest()[:16]
+          
+          # Add new model to registry
+          new_model_entry = {
+              'version': model_metadata['version'],
+              'path': model_metadata['path'],
+              'hash': model_hash,
+              'metrics': model_metadata['metadata'],
+              'approval_status': 'approved',
+              'deployment_status': 'pending',
+              'created_at': datetime.now().isoformat(),
+              'approved_by': 'automated-pipeline',
+              'promotion_criteria_met': True
+          }
+          
+          # Update production pointer
+          if registry['production_model']:
+              # Archive previous production model
+              registry['production_model']['deployment_status'] = 'archived'
+              registry['production_model']['archived_at'] = datetime.now().isoformat()
+          
+          registry['production_model'] = new_model_entry
+          registry['models'].append(new_model_entry)
+          registry['last_updated'] = datetime.now().isoformat()
+          
+          # Save updated registry
+          with open(registry_path, 'w') as f:
+              json.dump(registry, f, indent=2)
+          
+          print(f'Registry updated: {model_metadata[\"version\"]} promoted to production')
+          print(f'Model hash: {model_hash}')
+          print(f'AUC: {model_metadata[\"metadata\"][\"auc\"]:.4f}')
+          "
+          
+      - name: Commit registry changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add ml/registry/manifest.json
+          git commit -m "feat(ml): Update model registry - automated promotion $(date -u +%Y%m%d_%H%M%S)
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>" || exit 0
+
+  trigger-deployment:
+    name: Trigger Canary Deployment
+    runs-on: ubuntu-latest
+    needs: [model-evaluation, update-registry]
+    if: needs.model-evaluation.outputs.should_promote == 'true'
+    
+    steps:
+      - name: Trigger ML Promotion Workflow
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'ml-promotion.yml',
+              ref: 'phase7c-ml-lifecycle',
+              inputs: {
+                model_version: '${{ needs.automated-training.outputs.model_version }}',
+                deployment_mode: 'canary'
+              }
+            });
+
+  notification:
+    name: Send Notifications
+    runs-on: ubuntu-latest
+    needs: [drift-check, model-evaluation]
+    if: always()
+    
+    steps:
+      - name: Notify completion
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { needs } = context.payload;
+            const driftScore = '${{ needs.drift-check.outputs.drift_score }}';
+            const shouldRetrain = '${{ needs.drift-check.outputs.should_retrain }}';
+            const shouldPromote = '${{ needs.model-evaluation.outputs.should_promote }}';
+            
+            let status = '✅ No retraining needed';
+            if (shouldRetrain === 'true') {
+              if (shouldPromote === 'true') {
+                status = '🚀 Model retrained and promoted successfully';
+              } else {
+                status = '⚠️ Model retrained but not promoted (performance criteria not met)';
+              }
+            }
+            
+            console.log(`ML Retraining Pipeline Complete: ${status}`);
+            console.log(`Drift Score: ${driftScore}`);
