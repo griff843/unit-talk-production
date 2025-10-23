@@ -1,5 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import { Logger } from '../logger';
+import { Logger, createLogger } from '../../utils/logger';
 
 export interface QueryStats {
   query: string;
@@ -25,7 +25,7 @@ export class QueryOptimizer {
 
   constructor(supabase: SupabaseClient) {
     this.supabase = supabase;
-    this.logger = new Logger('QueryOptimizer');
+    this.logger = createLogger('QueryOptimizer');
   }
 
   /**

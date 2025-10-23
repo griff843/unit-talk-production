@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { RedisCache } from '../services/cache/RedisCache';
-import { Logger } from '../utils/logger';
+import { Logger, createLogger } from '../utils/logger';
 import { FeatureStore } from './FeatureStore';
 import { EnhancedMLPipeline } from './enhanced-pipeline';
 import { FeatureSet, PredictionResult, ModelConfig } from '../types/ml';
@@ -111,7 +111,7 @@ export class OnlineScoringService {
     this.cache = cache;
     this.featureStore = featureStore;
     this.config = config;
-    this.logger = new Logger('OnlineScoringService');
+    this.logger = createLogger('OnlineScoringService');
     
     this.circuitBreaker = {
       isOpen: false,
@@ -191,7 +191,7 @@ export class OnlineScoringService {
         if (cached) {
           this.metrics.cacheHits++;
           return {
-            ...JSON.parse(cached),
+            ...(cached as ScoringResponse),
             latencyMs: Date.now() - startTime,
             fromCache: true,
           };

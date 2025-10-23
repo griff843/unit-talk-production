@@ -1,9 +1,9 @@
 import { Context } from '@temporalio/activity';
 import { createClient } from '@supabase/supabase-js';
 import { RedisCache } from '../services/cache/RedisCache';
-import { Logger } from '../services/logger';
+import { Logger, createLogger } from '../utils/logger';
 
-const logger = new Logger('PropIngestionActivities');
+const logger = createLogger('PropIngestionActivities');
 
 // Initialize clients
 const supabase = createClient(

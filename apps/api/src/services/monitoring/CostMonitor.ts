@@ -1,5 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import { Logger } from '../logger';
+import { Logger, createLogger } from '../../utils/logger';
 import { WebhookClient } from 'discord.js';
 
 export interface ResourceUsage {
@@ -66,7 +66,7 @@ export class CostMonitor {
     webhookUrl?: string
   ) {
     this.supabase = supabase;
-    this.logger = new Logger('CostMonitor');
+    this.logger = createLogger('CostMonitor');
     
     if (webhookUrl) {
       this.discordWebhook = new WebhookClient({ url: webhookUrl });

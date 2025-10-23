@@ -1,6 +1,6 @@
-import { Queue, Worker, QueueScheduler, QueueEvents, Job } from 'bullmq';
+import { Queue, Worker, QueueEvents, Job } from 'bullmq';
 import { Redis } from 'ioredis';
-import { Logger } from '../services/logger';
+import { Logger, createLogger } from '../utils/logger';
 import { performance } from 'perf_hooks';
 
 export interface QueueConfig {
@@ -30,14 +30,14 @@ export interface QueueMetrics {
 export class QueueManager {
   private queues: Map<string, Queue> = new Map();
   private workers: Map<string, Worker> = new Map();
-  private schedulers: Map<string, QueueScheduler> = new Map();
+  // Note: QueueScheduler removed in newer bullmq versions
   private events: Map<string, QueueEvents> = new Map();
   private logger: Logger;
   private redis: Redis;
   private metricsInterval: NodeJS.Timer | null = null;
 
   constructor(redisUrl: string) {
-    this.logger = new Logger('QueueManager');
+    this.logger = createLogger('QueueManager');
     this.redis = new Redis(redisUrl, {
       maxRetriesPerRequest: null,
       enableReadyCheck: false,
@@ -68,10 +68,7 @@ export class QueueManager {
       },
     });
 
-    // Create scheduler for delayed jobs
-    const scheduler = new QueueScheduler(name, {
-      connection: this.redis.duplicate(),
-    });
+    // Note: QueueScheduler no longer needed in newer bullmq versions
 
     // Create worker
     const worker = new Worker<T>(
@@ -109,7 +106,7 @@ export class QueueManager {
     // Store references
     this.queues.set(name, queue);
     this.workers.set(name, worker);
-    this.schedulers.set(name, scheduler);
+    // Note: scheduler removed from newer bullmq versions
     this.events.set(name, events);
 
     this.logger.info(`Queue ${name} created with concurrency ${concurrency}`);
@@ -327,7 +324,7 @@ export class QueueManager {
    */
   stopMetricsCollection(): void {
     if (this.metricsInterval) {
-      clearInterval(this.metricsInterval);
+      clearInterval(this.metricsInterval as NodeJS.Timeout);
       this.metricsInterval = null;
     }
   }
@@ -346,11 +343,7 @@ export class QueueManager {
       this.logger.info(`Worker ${name} closed`);
     }
 
-    // Close all schedulers
-    for (const [name, scheduler] of this.schedulers) {
-      await scheduler.close();
-      this.logger.info(`Scheduler ${name} closed`);
-    }
+    // Note: Schedulers no longer needed in newer bullmq versions
 
     // Close all event listeners
     for (const [name, events] of this.events) {

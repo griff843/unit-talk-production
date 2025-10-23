@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { RedisCache } from '../services/cache/RedisCache';
-import { Logger } from '../utils/logger';
+import { Logger, createLogger } from '../utils/logger';
 
 export interface Feature {
   name: string;
@@ -46,7 +46,7 @@ export class FeatureStore {
   constructor(supabase: SupabaseClient, cache: RedisCache) {
     this.supabase = supabase;
     this.cache = cache;
-    this.logger = new Logger('FeatureStore');
+    this.logger = createLogger('FeatureStore');
     
     this.initializeFeatureGroups();
   }

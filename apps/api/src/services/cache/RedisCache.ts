@@ -1,5 +1,5 @@
 import { createClient, RedisClientType } from 'redis';
-import { Logger } from '../logger';
+import { Logger, createLogger } from '../../utils/logger';
 import { performance } from 'perf_hooks';
 
 export interface CacheConfig {
@@ -32,7 +32,7 @@ export class RedisCache {
 
   constructor(config: CacheConfig) {
     this.config = config;
-    this.logger = new Logger('RedisCache');
+    this.logger = createLogger('RedisCache');
     this.metrics = {
       hits: 0,
       misses: 0,
@@ -82,10 +82,6 @@ export class RedisCache {
     }
   }
 
-  async disconnect(): Promise<void> {
-    await this.client.quit();
-    this.connected = false;
-  }
 
   /**
    * Get value with automatic deserialization
