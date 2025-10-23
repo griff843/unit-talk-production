@@ -1,0 +1,1 @@
+{"version":3,"file":"audit.d.ts","sourceRoot":"","sources":["../../../src/types/agent-activities/audit.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,cAAc,EAAE,MAAM,4BAA4B,CAAC;AAE5D,MAAM,WAAW,oBAAoB;IAErC,QAAQ,CAAC,MAAM,EAAE;QAAE,OAAO,EAAE,MAAM,CAAC;QAAC,SAAS,CAAC,EAAE,MAAM,CAAA;KAAE,GAAG,OAAO,CAAC,cAAc,CAAC,CAAC;CAClF"}

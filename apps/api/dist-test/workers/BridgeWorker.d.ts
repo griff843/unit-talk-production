@@ -1,0 +1,63 @@
+import 'dotenv/config';
+import { BaseAgent } from '../agents/BaseAgent';
+import { BaseAgentConfig, BaseAgentDependencies, BaseMetrics, HealthStatus } from '../agents/BaseAgent/types';
+interface BridgeWorkerConfig extends BaseAgentConfig {
+    eventBatchSize: number;
+    processingInterval: number;
+    maxConcurrentEvents: number;
+    enableBridgeOutbox: boolean;
+    bridgeOutboxBatchSize: number;
+}
+export declare class BridgeWorker extends BaseAgent {
+    private eventSubscriptions;
+    private isProcessing;
+    private processingPromise;
+    private bridgeMetrics;
+    private eventBatchSize;
+    private processingInterval;
+    private maxConcurrentEvents;
+    private enableBridgeOutbox;
+    private bridgeOutboxBatchSize;
+    constructor(config: BridgeWorkerConfig, deps: BaseAgentDependencies);
+    protected initialize(): Promise<void>;
+    private setupEventSubscriptions;
+    private registerSubscriber;
+    protected process(): Promise<void>;
+    private processUnprocessedEvents;
+    private processBridgeOutboxEvents;
+    private fetchUnprocessedEvents;
+    private fetchBridgeOutboxEvents;
+    private processBridgeOutboxEvent;
+    private processEvent;
+    private handleTicketSubmitted;
+    private handleTicketSubmittedReplay;
+    private handleGradingCompleted;
+    private handleGradingCompletedReplay;
+    private handleAlertReemit;
+    private triggerGradingWorkflow;
+    private checkForImmediateAlerts;
+    private checkForHedgeMiddleOpportunities;
+    private emitHighTierAlert;
+    private emitReemissionAlert;
+    private handleBridgeOutboxTicketSubmitted;
+    private handleBridgeOutboxStatusUpdate;
+    private publishEvent;
+    private isAlertInCooldown;
+    private isSubscriberInCooldown;
+    private setCooldown;
+    private markEventAsProcessed;
+    private markEventAsSkipped;
+    private markBridgeOutboxEventAsProcessing;
+    private markBridgeOutboxEventAsCompleted;
+    private handleBridgeOutboxEventProcessingError;
+    private handleEventProcessingError;
+    private logProcessingStart;
+    private logProcessingComplete;
+    private logProcessingFailure;
+    private chunkArray;
+    protected collectMetrics(): Promise<BaseMetrics>;
+    checkHealth(): Promise<HealthStatus>;
+    protected cleanup(): Promise<void>;
+}
+export {};
+//# sourceMappingURL=BridgeWorker.d.ts.map

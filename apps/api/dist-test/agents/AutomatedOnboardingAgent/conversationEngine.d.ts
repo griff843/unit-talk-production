@@ -1,0 +1,41 @@
+import { Logger } from '../../shared/logger/types';
+import { UserBehaviorProfile, MessageAnalysis, InterventionType } from './types';
+export declare class ConversationEngine {
+    private readonly logger;
+    private conversationTemplates;
+    private userContexts;
+    constructor(logger: Logger);
+    initialize(): Promise<void>;
+    sendWelcomeMessage(userId: string, userProfile: UserBehaviorProfile): Promise<any>;
+    generateResponse(userId: string, message: any, behaviorAnalysis: MessageAnalysis): Promise<any | null>;
+    generateInterventionResponse(userId: string, intervention: InterventionType): Promise<any>;
+    generateConversionMessage(userId: string, userProfile: UserBehaviorProfile): Promise<any | null>;
+    handleOnboardingFlow(userId: string, interaction: any): Promise<any>;
+    private loadConversationTemplates;
+    private getWelcomeTemplate;
+    private getInterventionTemplate;
+    private initializeConversationContext;
+    private updateConversationHistory;
+    private shouldGenerateResponse;
+    private generateContextualResponse;
+    private generateConfusionHelp;
+    private generateEngagementBoost;
+    private generateConversionPrompt;
+    private generateChurnPrevention;
+    private generateLearningAcceleration;
+    private generateQuestionResponse;
+    private generateFrustrationResponse;
+    private generateLearningResponse;
+    private generateGuidanceResponse;
+    private handleExperienceSelection;
+    private handleConversionFlow;
+    private handleTutorialFlow;
+    private determineConversionStrategy;
+    private getConversionTemplate;
+    private getTimeSinceLastBotResponse;
+    private getGenericInterventionResponse;
+    private getGenericFlowResponse;
+    isHealthy(): Promise<boolean>;
+    cleanup(): Promise<void>;
+}
+//# sourceMappingURL=conversationEngine.d.ts.map

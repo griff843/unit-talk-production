@@ -1,0 +1,20 @@
+[
+  { "discord_id": "1183000572484395038", "capper_handle": "talk2me", "thread_type": "picks", "thread_id": "1384035375151976469" },
+  { "discord_id": "1183000572484395038", "capper_handle": "talk2me", "thread_type": "qa",    "thread_id": "1384035423847714886" },
+
+  { "discord_id": "553124578948284436",   "capper_handle": "sauced",   "thread_type": "picks", "thread_id": "1291931021817679924" },
+  { "discord_id": "553124578948284436",   "capper_handle": "sauced",   "thread_type": "qa",    "thread_id": "1384040187893649508" },
+
+  { "discord_id": "476056648956379137",   "capper_handle": "jaybird607","thread_type": "picks", "thread_id": "1384037051242123315" },
+  { "discord_id": "476056648956379137",   "capper_handle": "jaybird607","thread_type": "qa",    "thread_id": "1384037222197493770" },
+
+  { "discord_id": "781959500441321512",   "capper_handle": "moneyreef", "thread_type": "picks", "thread_id": "1384035284144095262" },
+  { "discord_id": "781959500441321512",   "capper_handle": "moneyreef", "thread_type": "qa",    "thread_id": "1384035333376573490" },
+
+  { "discord_id": "1229126755890233452",  "capper_handle": "dub",       "thread_type": "picks", "thread_id": "1293722495433572432" },
+  { "discord_id": "1229126755890233452",  "capper_handle": "dub",       "thread_type": "qa",    "thread_id": "1384041208648568853" },
+
+  { "discord_id": "1330247425855586387",  "capper_handle": "kingro623", "thread_type": "picks", "thread_id": "1384035097820401674" },
+  { "discord_id": "1330247425855586387",  "capper_handle": "kingro623", "thread_type": "qa",    "thread_id": "1384035150743998516" }
+]
+

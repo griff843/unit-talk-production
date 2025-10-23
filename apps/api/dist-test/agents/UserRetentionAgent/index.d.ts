@@ -1,0 +1,41 @@
+import { BaseAgent } from '../BaseAgent';
+import { BaseAgentConfig, BaseAgentDependencies, BaseMetrics } from '../BaseAgent/types';
+export declare class UserRetentionAgent extends BaseAgent {
+    private churnPredictor;
+    private retentionStrategy;
+    private userSegmentation;
+    private engagementAnalyzer;
+    private retentionMetrics;
+    private userRetentionData;
+    constructor(config: BaseAgentConfig, deps: BaseAgentDependencies);
+    protected initialize(): Promise<void>;
+    protected process(): Promise<void>;
+    private analyzeUserEngagement;
+    private generateChurnPredictions;
+    private segmentUsersForRetention;
+    private executeRetentionStrategies;
+    private monitorRetentionEffectiveness;
+    private generateRetentionInsights;
+    private getActiveUsers;
+    private initializeUserRetentionData;
+    private executeRetentionCampaign;
+    private sendPersonalizedEmail;
+    private sendDiscountOffer;
+    private highlightRelevantFeatures;
+    private schedulePersonalOutreach;
+    private recommendPersonalizedContent;
+    private calculateDaysSince;
+    private calculateLifetimeValueIncrease;
+    private calculateChurnPreventionRate;
+    private identifyTopRiskFactors;
+    private identifyMostEffectiveStrategies;
+    private analyzeSegmentPerformance;
+    private calculateRetentionROI;
+    private projectChurnReduction;
+    private generateRetentionRecommendations;
+    private loadRetentionData;
+    protected cleanup(): Promise<void>;
+    protected collectMetrics(): Promise<BaseMetrics>;
+    checkHealth(): Promise<any>;
+}
+//# sourceMappingURL=index.d.ts.map

@@ -1,0 +1,5 @@
+BEGIN;
+-- Copy of 20251004_000000_core_setup.sql intentionally skipped to avoid unified_picks view dependencies in cloud
+-- See 20251008_market_split.sql and later migrations for dual-track views.
+COMMIT;
+

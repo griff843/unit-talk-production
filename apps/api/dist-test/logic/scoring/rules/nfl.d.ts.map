@@ -1,0 +1,1 @@
+{"version":3,"file":"nfl.d.ts","sourceRoot":"","sources":["../../../../src/logic/scoring/rules/nfl.ts"],"names":[],"mappings":"AAGA,OAAO,EAAE,UAAU,EAAE,MAAM,0BAA0B,CAAC;AACtD,OAAO,EAAE,cAAc,EAAE,MAAM,uBAAuB,CAAC;AAEvD;;;GAGG;AACH,wBAAgB,YAAY,CAAC,IAAI,EAAE,UAAU,GAAG,cAAc,CA4B7D;AAED;;;GAGG;AACH,wBAAgB,UAAU,CAAC,IAAI,EAAE,UAAU,GAAG,cAAc,CA2C3D"}

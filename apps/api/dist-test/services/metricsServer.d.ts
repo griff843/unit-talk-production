@@ -1,0 +1,27 @@
+import { Counter, Histogram, Gauge } from 'prom-client';
+import { FeatureStoreMetrics } from './metrics/featureStoreMetrics';
+export declare const httpRequestsTotal: Counter<"method" | "route" | "status_code">;
+export declare const httpRequestDuration: Histogram<"method" | "route" | "status_code">;
+export declare const httpRequestSize: Histogram<"method" | "route">;
+export declare const httpResponseSize: Histogram<"method" | "route" | "status_code">;
+export declare const activeConnections: Gauge<string>;
+export declare const dbQueryDuration: Histogram<"status" | "operation" | "table">;
+export declare const dbConnectionsActive: Gauge<string>;
+export declare const dbConnectionsIdle: Gauge<string>;
+export declare const dbOperationsTotal: Counter<"status" | "operation" | "table">;
+export declare const externalApiCalls: Counter<"endpoint" | "status_code" | "provider">;
+export declare const externalApiDuration: Histogram<"endpoint" | "status_code" | "provider">;
+export declare const externalApiErrors: Counter<"error_type" | "provider">;
+export declare const ingestedCounter: Counter<"agent_type">;
+export declare const skippedCounter: Counter<"reason" | "agent_type">;
+export declare const errorCounter: Counter<"error_type" | "agent_type">;
+export declare const durationHistogram: Histogram<"agent_type" | "phase">;
+export declare const agentHealthStatus: Gauge<"agent_name" | "agent_type">;
+export declare const picksProcessed: Counter<"status" | "sport" | "capper">;
+export declare const picksGraded: Counter<"sport" | "result" | "capper">;
+export declare const userActions: Counter<"action_type" | "user_tier">;
+export declare const contestEntries: Counter<"contest_type" | "entry_fee_tier">;
+export declare const alertsSent: Counter<"alert_type" | "channel">;
+export declare const featureMetrics: FeatureStoreMetrics;
+export declare function startMetricsServer(port?: number): void;
+//# sourceMappingURL=metricsServer.d.ts.map

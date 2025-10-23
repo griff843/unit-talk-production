@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { RedisCache } from '../services/cache/RedisCache';
-import { Logger } from '../services/logger';
+import { Logger } from '../utils/logger';
 
 export interface Feature {
   name: string;

@@ -1,0 +1,444 @@
+name: ML Canary Deployment Pipeline
+
+on:
+  push:
+    paths:
+      - 'apps/api/src/ml/**'
+      - 'ml/**'
+      - '.github/workflows/ml-canary.yml'
+    branches:
+      - main
+      - 'phase7b-*'
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: 'Deployment stage'
+        required: true
+        default: 'stage1'
+        type: choice
+        options:
+          - stage1  # Shadow mode (0% traffic)
+          - stage2  # Canary (5% traffic)
+          - stage3  # Full production (100% traffic)
+      rollback:
+        description: 'Rollback to previous version'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  DEPLOYMENT_TIMEOUT: 300  # 5 minutes
+  ROLLBACK_TIMEOUT: 120    # 2 minutes
+  ERROR_THRESHOLD: 0.01    # 1% error rate
+  LATENCY_THRESHOLD: 20    # 20ms P95 latency
+  ACCURACY_THRESHOLD: 0.02 # 2% accuracy degradation
+
+jobs:
+  # Stage 1: Shadow Mode (0% traffic)
+  stage1-shadow:
+    name: 'Stage 1 - Shadow Mode (0%)'
+    runs-on: ubuntu-latest
+    if: ${{ !inputs.rollback && (inputs.stage == 'stage1' || !inputs.stage) }}
+    environment: 
+      name: ml-shadow
+      url: https://api.unit-talk.com/ml/health
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'apps/api/package-lock.json'
+
+      - name: Install dependencies
+        run: |
+          cd apps/api
+          npm ci
+
+      - name: Build ML artifacts
+        run: |
+          cd apps/api
+          npm run build:ml
+
+      - name: Validate ML models
+        run: |
+          cd apps/api
+          npm run ml:validate
+
+      - name: Deploy to shadow environment
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ML_DEPLOYMENT_STAGE: stage1
+          ML_SHADOW_MODE_ENABLED: true
+        run: |
+          echo "🚀 Deploying ML models to shadow environment..."
+          cd apps/api
+          npm run ml:deploy:shadow
+
+      - name: Run shadow validation tests
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ML_DEPLOYMENT_STAGE: stage1
+        run: |
+          cd apps/api
+          npm run ml:test:shadow
+
+      - name: Monitor shadow metrics (5 minutes)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "📊 Monitoring shadow metrics for 5 minutes..."
+          cd apps/api
+          timeout 300 npm run ml:monitor:shadow || {
+            echo "❌ Shadow monitoring failed or timed out"
+            exit 1
+          }
+
+      - name: Validate shadow metrics
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          cd apps/api
+          npm run ml:validate:metrics -- \
+            --stage=stage1 \
+            --error-threshold=${{ env.ERROR_THRESHOLD }} \
+            --latency-threshold=${{ env.LATENCY_THRESHOLD }}
+
+      - name: Generate shadow report
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          cd apps/api
+          npm run ml:report:shadow
+
+      - name: Archive shadow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: shadow-artifacts-${{ github.sha }}
+          path: |
+            apps/api/ml/reports/
+            apps/api/out/ml/
+          retention-days: 30
+
+  # Stage 2: Canary (5% traffic)
+  stage2-canary:
+    name: 'Stage 2 - Canary (5%)'
+    runs-on: ubuntu-latest
+    needs: stage1-shadow
+    if: ${{ !inputs.rollback && (inputs.stage == 'stage2' || inputs.stage == 'stage3') }}
+    environment:
+      name: ml-canary
+      url: https://api.unit-talk.com/ml/health
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'apps/api/package-lock.json'
+
+      - name: Install dependencies
+        run: |
+          cd apps/api
+          npm ci
+
+      - name: Download shadow artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: shadow-artifacts-${{ github.sha }}
+          path: apps/api/
+
+      - name: Deploy to canary (5% traffic)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ML_DEPLOYMENT_STAGE: stage2
+          ML_CANARY_PERCENTAGE: 5
+        run: |
+          echo "🚀 Deploying ML models to canary (5% traffic)..."
+          cd apps/api
+          npm run ml:deploy:canary
+
+      - name: Monitor canary metrics (10 minutes)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "📊 Monitoring canary metrics for 10 minutes..."
+          cd apps/api
+          timeout 600 npm run ml:monitor:canary || {
+            echo "❌ Canary monitoring failed - initiating rollback"
+            npm run ml:rollback
+            exit 1
+          }
+
+      - name: Validate canary SLOs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          cd apps/api
+          npm run ml:validate:slo -- \
+            --stage=stage2 \
+            --error-threshold=${{ env.ERROR_THRESHOLD }} \
+            --latency-threshold=${{ env.LATENCY_THRESHOLD }} \
+            --accuracy-threshold=${{ env.ACCURACY_THRESHOLD }} || {
+            echo "❌ SLO validation failed - initiating rollback"
+            npm run ml:rollback
+            exit 1
+          }
+
+      - name: A/B test validation
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          cd apps/api
+          npm run ml:validate:ab-test
+
+      - name: Generate canary report
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          cd apps/api
+          npm run ml:report:canary
+
+      - name: Archive canary artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: canary-artifacts-${{ github.sha }}
+          path: |
+            apps/api/ml/reports/
+            apps/api/out/ml/
+          retention-days: 30
+
+  # Stage 3: Full Production (100% traffic)
+  stage3-production:
+    name: 'Stage 3 - Production (100%)'
+    runs-on: ubuntu-latest
+    needs: stage2-canary
+    if: ${{ !inputs.rollback && inputs.stage == 'stage3' }}
+    environment:
+      name: ml-production
+      url: https://api.unit-talk.com/ml/health
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'apps/api/package-lock.json'
+
+      - name: Install dependencies
+        run: |
+          cd apps/api
+          npm ci
+
+      - name: Download canary artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: canary-artifacts-${{ github.sha }}
+          path: apps/api/
+
+      - name: Deploy to production (100% traffic)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ML_DEPLOYMENT_STAGE: stage3
+          ML_PRODUCTION_MODE: true
+        run: |
+          echo "🚀 Deploying ML models to production (100% traffic)..."
+          cd apps/api
+          npm run ml:deploy:production
+
+      - name: Monitor production metrics (15 minutes)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "📊 Monitoring production metrics for 15 minutes..."
+          cd apps/api
+          timeout 900 npm run ml:monitor:production || {
+            echo "❌ Production monitoring failed - initiating rollback"
+            npm run ml:rollback
+            exit 1
+          }
+
+      - name: Validate production SLOs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          cd apps/api
+          npm run ml:validate:slo -- \
+            --stage=stage3 \
+            --error-threshold=${{ env.ERROR_THRESHOLD }} \
+            --latency-threshold=${{ env.LATENCY_THRESHOLD }} \
+            --accuracy-threshold=${{ env.ACCURACY_THRESHOLD }} || {
+            echo "❌ Production SLO validation failed - initiating rollback"
+            npm run ml:rollback
+            exit 1
+          }
+
+      - name: Generate production report
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          cd apps/api
+          npm run ml:report:production
+
+      - name: Update model registry
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          cd apps/api
+          npm run ml:registry:update
+
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-artifacts-${{ github.sha }}
+          path: |
+            apps/api/ml/reports/
+            apps/api/out/ml/
+          retention-days: 90
+
+  # Emergency Rollback
+  emergency-rollback:
+    name: 'Emergency Rollback'
+    runs-on: ubuntu-latest
+    if: ${{ inputs.rollback }}
+    environment:
+      name: ml-rollback
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'apps/api/package-lock.json'
+
+      - name: Install dependencies
+        run: |
+          cd apps/api
+          npm ci
+
+      - name: Execute emergency rollback
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "🚨 Executing emergency rollback..."
+          cd apps/api
+          timeout ${{ env.ROLLBACK_TIMEOUT }} npm run ml:rollback:emergency
+
+      - name: Validate rollback
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          cd apps/api
+          npm run ml:validate:rollback
+
+      - name: Generate rollback report
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          cd apps/api
+          npm run ml:report:rollback
+
+      - name: Alert operations team
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_OPS_WEBHOOK }}
+        run: |
+          curl -X POST "$DISCORD_WEBHOOK_URL" \
+            -H 'Content-Type: application/json' \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"🚨 ML Emergency Rollback Completed\",
+                \"description\": \"ML deployment has been rolled back to previous stable version\",
+                \"color\": 15548997,
+                \"fields\": [
+                  {\"name\": \"Commit\", \"value\": \"${{ github.sha }}\", \"inline\": true},
+                  {\"name\": \"Actor\", \"value\": \"${{ github.actor }}\", \"inline\": true},
+                  {\"name\": \"Workflow\", \"value\": \"${{ github.workflow }}\", \"inline\": true}
+                ],
+                \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\"
+              }]
+            }"
+
+  # Notification
+  notify:
+    name: 'Notify Deployment Status'
+    runs-on: ubuntu-latest
+    needs: [stage1-shadow, stage2-canary, stage3-production, emergency-rollback]
+    if: always()
+    
+    steps:
+      - name: Determine status
+        id: status
+        run: |
+          if [[ "${{ needs.emergency-rollback.result }}" == "success" ]]; then
+            echo "status=rollback" >> $GITHUB_OUTPUT
+            echo "color=15548997" >> $GITHUB_OUTPUT  # Red
+          elif [[ "${{ needs.stage3-production.result }}" == "success" ]]; then
+            echo "status=production" >> $GITHUB_OUTPUT
+            echo "color=3066993" >> $GITHUB_OUTPUT   # Green
+          elif [[ "${{ needs.stage2-canary.result }}" == "success" ]]; then
+            echo "status=canary" >> $GITHUB_OUTPUT
+            echo "color=15105570" >> $GITHUB_OUTPUT  # Orange
+          elif [[ "${{ needs.stage1-shadow.result }}" == "success" ]]; then
+            echo "status=shadow" >> $GITHUB_OUTPUT
+            echo "color=3447003" >> $GITHUB_OUTPUT   # Blue
+          else
+            echo "status=failed" >> $GITHUB_OUTPUT
+            echo "color=15548997" >> $GITHUB_OUTPUT  # Red
+          fi
+
+      - name: Send Discord notification
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_ML_WEBHOOK }}
+        run: |
+          curl -X POST "$DISCORD_WEBHOOK_URL" \
+            -H 'Content-Type: application/json' \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"🤖 ML Canary Deployment: ${{ steps.status.outputs.status }}\",
+                \"description\": \"ML deployment pipeline completed with status: ${{ steps.status.outputs.status }}\",
+                \"color\": ${{ steps.status.outputs.color }},
+                \"fields\": [
+                  {\"name\": \"Branch\", \"value\": \"${{ github.ref_name }}\", \"inline\": true},
+                  {\"name\": \"Commit\", \"value\": \"${{ github.sha }}\", \"inline\": true},
+                  {\"name\": \"Actor\", \"value\": \"${{ github.actor }}\", \"inline\": true},
+                  {\"name\": \"Stage\", \"value\": \"${{ inputs.stage || 'stage1' }}\", \"inline\": true}
+                ],
+                \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\",
+                \"footer\": {\"text\": \"Unit Talk ML Pipeline\"}
+              }]
+            }"

@@ -1,0 +1,64 @@
+import { Logger } from '../../shared/logger/types';
+interface ChurnPrediction {
+    userId: string;
+    riskScore: number;
+    probability: number;
+    timeToChurn: number;
+    riskFactors: string[];
+    confidence: number;
+    modelVersion: string;
+    timestamp: Date;
+}
+export declare class ChurnPredictor {
+    private readonly logger;
+    private models;
+    private featureCache;
+    private predictionCache;
+    constructor(logger: Logger);
+    initialize(): Promise<void>;
+    predictChurn(userId: string, userData: any): Promise<ChurnPrediction>;
+    calculateRiskScore(userId: string, currentData: any): Promise<number>;
+    batchPredict(userIds: string[]): Promise<Map<string, ChurnPrediction>>;
+    private extractUserFeatures;
+    private getEnsemblePrediction;
+    private getLogisticPrediction;
+    private getRandomForestPrediction;
+    private getNeuralNetworkPrediction;
+    private getGradientBoostingPrediction;
+    private identifyRiskFactors;
+    private estimateTimeToChurn;
+    private convertRiskToProbability;
+    private normalizeFeatures;
+    private relu;
+    private evaluateTree1;
+    private evaluateTree2;
+    private evaluateTree3;
+    private evaluateTree4;
+    private evaluateTree5;
+    private calculateDaysActive;
+    private calculateDaysSinceLastLogin;
+    private calculateSessionFrequency;
+    private calculateAvgSessionDuration;
+    private getFeatureUsage;
+    private countSupportTickets;
+    private countNegativeFeedback;
+    private countPaymentIssues;
+    private countDowngrades;
+    private calculateWeekdayActivity;
+    private calculateWeekendActivity;
+    private getTimeOfDayPattern;
+    private calculateConsistencyScore;
+    private getMonthlyValue;
+    private getLifetimeValue;
+    private getPaymentHistory;
+    private countReferrals;
+    private getCommunityParticipation;
+    private getHelpfulnessScore;
+    private getConservativePrediction;
+    private loadChurnModels;
+    private loadFeatureCache;
+    isHealthy(): Promise<boolean>;
+    cleanup(): Promise<void>;
+}
+export {};
+//# sourceMappingURL=churnPredictor.d.ts.map

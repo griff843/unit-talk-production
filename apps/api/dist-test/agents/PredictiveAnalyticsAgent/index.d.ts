@@ -1,0 +1,46 @@
+import { BaseAgent } from '../BaseAgent';
+import { BaseAgentConfig, BaseAgentDependencies, BaseMetrics } from '../BaseAgent/types';
+export declare class PredictiveAnalyticsAgent extends BaseAgent {
+    private marketForecaster;
+    private modelManager;
+    private dataProcessor;
+    private predictionEngine;
+    private analyticsMetrics;
+    private activePredictions;
+    private marketInsights;
+    private modelPerformance;
+    constructor(config: BaseAgentConfig, deps: BaseAgentDependencies);
+    protected initialize(): Promise<void>;
+    protected process(): Promise<void>;
+    private processIncomingData;
+    private updateModels;
+    private generateMarketPredictions;
+    private identifyMarketInsights;
+    private validateExistingPredictions;
+    private updateModelPerformance;
+    private generateForecastingInsights;
+    private fetchMarketData;
+    private getActiveMarkets;
+    private storeProcessedData;
+    private storePredictions;
+    private processCriticalInsights;
+    private getActualOutcome;
+    private calculatePredictionAccuracy;
+    private recordPredictionResult;
+    private getModelPerformanceSummary;
+    private getMarketTrendSummary;
+    private getPredictionDistribution;
+    private groupPredictionsByBetType;
+    private groupPredictionsByTimeHorizon;
+    private getAccuracyTrends;
+    private getTopPerformingModels;
+    private getMarketOpportunities;
+    private getRiskAlerts;
+    private loadActivePredictions;
+    private loadMarketInsights;
+    private loadModelPerformance;
+    protected cleanup(): Promise<void>;
+    protected collectMetrics(): Promise<BaseMetrics>;
+    checkHealth(): Promise<any>;
+}
+//# sourceMappingURL=index.d.ts.map

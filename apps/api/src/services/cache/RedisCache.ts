@@ -266,6 +266,43 @@ export class RedisCache {
   }
 
   /**
+   * Ping Redis server for health check
+   */
+  async ping(): Promise<boolean> {
+    if (!this.connected) return false;
+    
+    try {
+      const response = await this.client.ping();
+      return response === 'PONG';
+    } catch (error) {
+      this.logger.error('Redis ping failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Disconnect from Redis
+   */
+  async disconnect(): Promise<void> {
+    if (this.connected && this.client) {
+      try {
+        await this.client.disconnect();
+        this.connected = false;
+        this.logger.info('Disconnected from Redis');
+      } catch (error) {
+        this.logger.error('Error disconnecting from Redis:', error);
+      }
+    }
+  }
+
+  /**
+   * Check if Redis is connected
+   */
+  isConnected(): boolean {
+    return this.connected;
+  }
+
+  /**
    * Warm up cache with common data
    */
   async warmup(): Promise<void> {

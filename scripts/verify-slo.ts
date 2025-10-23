@@ -57,6 +57,62 @@ const sloCompliance = new promClient.Gauge({
   labelNames: ['slo_name'],
 });
 
+// ML-specific metrics
+const mlPredictionLatency = new promClient.Histogram({
+  name: 'ml_prediction_latency_seconds',
+  help: 'ML prediction latency in seconds',
+  labelNames: ['model_version', 'environment', 'from_cache'],
+  buckets: [0.001, 0.005, 0.01, 0.02, 0.05, 0.1, 0.25, 0.5, 1],
+});
+
+const mlPredictionCount = new promClient.Counter({
+  name: 'ml_predictions_total',
+  help: 'Total number of ML predictions',
+  labelNames: ['model_version', 'environment', 'status'],
+});
+
+const mlErrorRate = new promClient.Gauge({
+  name: 'ml_error_rate',
+  help: 'ML prediction error rate',
+  labelNames: ['model_version', 'environment'],
+});
+
+const mlAccuracyDelta = new promClient.Gauge({
+  name: 'ml_accuracy_delta',
+  help: 'ML accuracy difference vs heuristic',
+  labelNames: ['model_version', 'environment'],
+});
+
+const mlDiscrepancyRate = new promClient.Gauge({
+  name: 'ml_discrepancy_rate',
+  help: 'Rate of ML vs heuristic discrepancies',
+  labelNames: ['model_version', 'environment', 'magnitude'],
+});
+
+const mlCacheHitRate = new promClient.Gauge({
+  name: 'ml_cache_hit_rate',
+  help: 'ML prediction cache hit rate',
+  labelNames: ['model_version'],
+});
+
+const mlFallbackRate = new promClient.Gauge({
+  name: 'ml_fallback_rate',
+  help: 'ML fallback to heuristic rate',
+  labelNames: ['model_version', 'environment'],
+});
+
+const mlDriftScore = new promClient.Gauge({
+  name: 'ml_drift_score',
+  help: 'ML model drift detection score',
+  labelNames: ['model_version', 'feature_name'],
+});
+
+const mlDeploymentStatus = new promClient.Gauge({
+  name: 'ml_deployment_status',
+  help: 'ML deployment status (1=active, 0=inactive)',
+  labelNames: ['deployment_id', 'stage', 'status'],
+});
+
 // Register metrics
 register.registerMetric(queryDuration);
 register.registerMetric(apiLatency);
@@ -64,6 +120,17 @@ register.registerMetric(queueDepth);
 register.registerMetric(cacheHitRate);
 register.registerMetric(activeConnections);
 register.registerMetric(sloCompliance);
+
+// Register ML metrics
+register.registerMetric(mlPredictionLatency);
+register.registerMetric(mlPredictionCount);
+register.registerMetric(mlErrorRate);
+register.registerMetric(mlAccuracyDelta);
+register.registerMetric(mlDiscrepancyRate);
+register.registerMetric(mlCacheHitRate);
+register.registerMetric(mlFallbackRate);
+register.registerMetric(mlDriftScore);
+register.registerMetric(mlDeploymentStatus);
 
 // Add default metrics
 promClient.collectDefaultMetrics({ register });
@@ -165,6 +232,18 @@ class EnhancedSLOVerifier {
         target_ms: 40,
         query_pattern: 'INSERT INTO agent_metrics (agent_name, metric_value) VALUES (\'test\', 0)',
         category: 'write',
+      },
+      {
+        name: 'ml_predictions',
+        target_ms: 20,
+        query_pattern: 'SELECT * FROM ml_shadow_predictions WHERE created_at > NOW() - INTERVAL \'1 hour\' LIMIT 100',
+        category: 'read',
+      },
+      {
+        name: 'ml_metrics_view',
+        target_ms: 100,
+        query_pattern: 'SELECT * FROM ml_performance_metrics WHERE hour > NOW() - INTERVAL \'24 hours\' LIMIT 50',
+        category: 'read',
       },
     ];
 
@@ -286,6 +365,159 @@ class EnhancedSLOVerifier {
     // Cache hit rates (simulated)
     cacheHitRate.set({ cache_type: 'redis' }, 85 + Math.random() * 10);
     cacheHitRate.set({ cache_type: 'cdn' }, 90 + Math.random() * 8);
+
+    // Collect ML metrics
+    await this.collectMLMetrics();
+  }
+
+  /**
+   * Collect ML-specific metrics
+   */
+  async collectMLMetrics(): Promise<void> {
+    try {
+      // Get ML performance metrics from last hour
+      const { data: mlMetrics, error } = await this.supabase
+        .from('ml_performance_metrics')
+        .select('*')
+        .gte('hour', new Date(Date.now() - 3600000).toISOString())
+        .order('hour', { ascending: false });
+
+      if (error) {
+        console.error('Failed to collect ML metrics:', error);
+        return;
+      }
+
+      if (!mlMetrics || mlMetrics.length === 0) {
+        return;
+      }
+
+      // Process metrics by model version and environment
+      for (const metric of mlMetrics) {
+        const labels = {
+          model_version: metric.model_version || 'unknown',
+          environment: metric.environment || 'unknown',
+        };
+
+        // Prediction latency
+        if (metric.avg_latency_ms) {
+          mlPredictionLatency.observe(
+            { ...labels, from_cache: 'false' },
+            metric.avg_latency_ms / 1000
+          );
+        }
+
+        // Error rate
+        if (metric.total_predictions > 0) {
+          const errorRate = (metric.error_count || 0) / metric.total_predictions;
+          mlErrorRate.set(labels, errorRate);
+
+          // Fallback rate
+          const fallbackRate = (metric.fallback_count || 0) / metric.total_predictions;
+          mlFallbackRate.set(labels, fallbackRate);
+
+          // Cache hit rate
+          const cacheHitRate = (metric.cache_hits || 0) / metric.total_predictions;
+          mlCacheHitRate.set({ model_version: labels.model_version }, cacheHitRate);
+        }
+
+        // Accuracy delta
+        if (metric.avg_accuracy_differential !== null) {
+          mlAccuracyDelta.set(labels, metric.avg_accuracy_differential);
+        }
+
+        // Discrepancy rates by magnitude
+        if (metric.extreme_discrepancies !== null) {
+          mlDiscrepancyRate.set(
+            { ...labels, magnitude: 'extreme' },
+            (metric.extreme_discrepancies || 0) / Math.max(1, metric.total_predictions || 1)
+          );
+        }
+
+        // Update prediction count
+        mlPredictionCount.inc(
+          { ...labels, status: 'success' },
+          (metric.total_predictions || 0) - (metric.error_count || 0)
+        );
+        mlPredictionCount.inc(
+          { ...labels, status: 'error' },
+          metric.error_count || 0
+        );
+      }
+
+      // Get deployment status
+      await this.collectMLDeploymentStatus();
+
+      // Get drift scores
+      await this.collectMLDriftScores();
+
+    } catch (error) {
+      console.error('Error collecting ML metrics:', error);
+    }
+  }
+
+  /**
+   * Collect ML deployment status
+   */
+  async collectMLDeploymentStatus(): Promise<void> {
+    try {
+      const { data: deployments, error } = await this.supabase
+        .from('ml_deployment_status')
+        .select('deployment_id, stage, status, model_version')
+        .eq('status', 'active')
+        .order('updated_at', { ascending: false })
+        .limit(10);
+
+      if (error) {
+        console.error('Failed to collect deployment status:', error);
+        return;
+      }
+
+      if (deployments) {
+        for (const deployment of deployments) {
+          mlDeploymentStatus.set(
+            {
+              deployment_id: deployment.deployment_id,
+              stage: deployment.stage,
+              status: deployment.status,
+            },
+            1
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Error collecting deployment status:', error);
+    }
+  }
+
+  /**
+   * Collect ML drift scores
+   */
+  async collectMLDriftScores(): Promise<void> {
+    try {
+      // Get latest drift scores from shadow predictions
+      const { data: driftData, error } = await this.supabase
+        .rpc('calculate_feature_drift_scores')
+        .gte('created_at', new Date(Date.now() - 3600000).toISOString());
+
+      if (error) {
+        console.error('Failed to collect drift scores:', error);
+        return;
+      }
+
+      if (driftData) {
+        for (const drift of driftData) {
+          mlDriftScore.set(
+            {
+              model_version: drift.model_version,
+              feature_name: drift.feature_name,
+            },
+            drift.drift_score
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Error collecting drift scores:', error);
+    }
   }
 }
 

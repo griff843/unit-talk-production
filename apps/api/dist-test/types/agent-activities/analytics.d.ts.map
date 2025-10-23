@@ -1,0 +1,1 @@
+{"version":3,"file":"analytics.d.ts","sourceRoot":"","sources":["../../../src/types/agent-activities/analytics.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,cAAc,EAAE,MAAM,4BAA4B,CAAC;AAE5D,MAAM,WAAW,wBAAwB;IAEzC,WAAW,CAAC,MAAM,EAAE;QAAE,OAAO,EAAE,MAAM,CAAC;QAAC,SAAS,CAAC,EAAE,MAAM,CAAA;KAAE,GAAG,OAAO,CAAC,cAAc,CAAC,CAAC;CACrF"}

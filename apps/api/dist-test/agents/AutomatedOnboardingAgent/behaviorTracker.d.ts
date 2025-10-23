@@ -1,0 +1,51 @@
+import { Logger } from '../../shared/logger/types';
+import { MessageAnalysis } from './types';
+export declare class BehaviorTracker {
+    private readonly logger;
+    private activeTracking;
+    private behaviorPatterns;
+    constructor(logger: Logger);
+    initialize(): Promise<void>;
+    startTracking(userId: string): Promise<void>;
+    stopTracking(userId: string): Promise<void>;
+    analyzeMessage(message: any): Promise<MessageAnalysis>;
+    analyzeInteraction(interaction: any): Promise<MessageAnalysis>;
+    analyzeReaction(reaction: any, user: any): Promise<MessageAnalysis>;
+    analyzePresence(_oldPresence: any, newPresence: any): Promise<MessageAnalysis>;
+    analyzeUserPatterns(userId: string): Promise<any>;
+    private analyzeSentiment;
+    private analyzeComplexity;
+    private analyzeUrgency;
+    private categorizeTopics;
+    private extractQuestions;
+    private detectFrustration;
+    private detectLearning;
+    private detectConversionSignals;
+    private storeBehaviorEvent;
+    private getEventContext;
+    private calculateActivityLevel;
+    private calculateEngagementTrend;
+    private calculateLearningVelocity;
+    private calculateFrustrationLevel;
+    private calculateConversionReadiness;
+    private analyzeResponsePatterns;
+    private identifyPeakTimes;
+    private calculateSessionDuration;
+    private calculateTimeSinceLastActivity;
+    private categorizeQuestion;
+    private analyzeInteractionComplexity;
+    private categorizeInteractionTopics;
+    private detectInteractionLearning;
+    private detectInteractionConversion;
+    private getDefaultAnalysis;
+    private getDefaultPatternAnalysis;
+    isHealthy(): Promise<boolean>;
+    recordBehavior(data: {
+        userId: string;
+        action: string;
+        metadata: any;
+        timestamp: Date;
+    }): Promise<string>;
+    cleanup(): Promise<void>;
+}
+//# sourceMappingURL=behaviorTracker.d.ts.map

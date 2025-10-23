@@ -1,0 +1,1 @@
+{"version":3,"file":"shared.js","sourceRoot":"","sources":["../../src/types/shared.ts"],"names":[],"mappings":";AAAA,mBAAmB;;;AA2GjB,uBAAuB;AACV,QAAA,SAAS,GAAG;IACvB,WAAW,EAAE,aAAa;IAC1B,UAAU,EAAE,YAAY;IACxB,aAAa,EAAE,eAAe;IAC9B,YAAY,EAAE,cAAc;IAC5B,YAAY,EAAE,cAAc;IAC5B,gBAAgB,EAAE,kBAAkB;CAC5B,CAAC"}

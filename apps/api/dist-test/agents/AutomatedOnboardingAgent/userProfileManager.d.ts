@@ -1,0 +1,50 @@
+import { SupabaseClient } from '@supabase/supabase-js';
+import { Logger } from '../../shared/logger/types';
+import { UserBehaviorProfile, MessageAnalysis, OnboardingMetrics } from './types';
+export declare class UserProfileManager {
+    private readonly supabase;
+    private readonly logger;
+    private profileCache;
+    constructor(supabase: SupabaseClient | undefined, logger: Logger);
+    initialize(): Promise<void>;
+    createProfile(userId: string, initialData: any): Promise<UserBehaviorProfile>;
+    updateBehavior(userId: string, behaviorData: MessageAnalysis): Promise<void>;
+    updateInteraction(userId: string, interactionData: MessageAnalysis): Promise<void>;
+    updateEngagement(userId: string, reactionData: MessageAnalysis): Promise<void>;
+    updateActivity(userId: string, _presenceData: MessageAnalysis): Promise<void>;
+    updateAnalysis(userId: string, behaviorAnalysis: any): Promise<void>;
+    recalculateMetrics(userId: string): Promise<UserBehaviorProfile>;
+    getProfile(userId: string): Promise<UserBehaviorProfile | null>;
+    getAllProfiles(): Promise<UserBehaviorProfile[]>;
+    getActiveUsers(): Promise<UserBehaviorProfile[]>;
+    getConversionCandidates(): Promise<Array<{
+        id: string;
+        profile: UserBehaviorProfile;
+    }>>;
+    generateInsights(): Promise<OnboardingMetrics>;
+    private ensureDatabaseSchema;
+    private loadActiveProfiles;
+    private saveProfile;
+    private loadProfileFromDB;
+    private updateEngagementScore;
+    private updateExperienceLevel;
+    private updateLearningMetrics;
+    private updateConversionLikelihood;
+    private updateChurnRisk;
+    private calculateSuccessRate;
+    private detectTimezone;
+    private calculateEngagementScore;
+    private calculateConversionLikelihood;
+    private calculateChurnRisk;
+    private calculateProgressScore;
+    private calculateAverageCompletionTime;
+    private calculateChurnRate;
+    private calculateInterventionSuccess;
+    private identifyCommonStuckPoints;
+    private identifyBestFlows;
+    private serializeProfile;
+    private deserializeProfile;
+    isHealthy(): Promise<boolean>;
+    cleanup(): Promise<void>;
+}
+//# sourceMappingURL=userProfileManager.d.ts.map
