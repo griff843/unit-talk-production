@@ -5,6 +5,7 @@ metadata:
   labels:
     app: unit-talk
     component: api
+    phase: phase6-performance
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
@@ -13,45 +14,56 @@ spec:
   minReplicas: 3
   maxReplicas: 20
   metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 70
-  - type: Resource
-    resource:
-      name: memory
-      target:
-        type: Utilization
-        averageUtilization: 80
-  - type: Pods
-    pods:
-      metric:
-        name: http_requests_per_second
-      target:
-        type: AverageValue
-        averageValue: "1000"
+    # Phase 6: CPU threshold at 70% (from Phase 5 targets)
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    # Phase 6: Memory threshold at 80%
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+    # Phase 6: HTTP requests per second
+    - type: Pods
+      pods:
+        metric:
+          name: http_requests_per_second
+        target:
+          type: AverageValue
+          averageValue: '1000'
+    # Phase 6: P95 API latency threshold < 200ms
+    - type: Pods
+      pods:
+        metric:
+          name: http_request_duration_p95_milliseconds
+        target:
+          type: AverageValue
+          averageValue: '200'
   behavior:
     scaleDown:
       stabilizationWindowSeconds: 300
       policies:
-      - type: Percent
-        value: 50
-        periodSeconds: 60
-      - type: Pods
-        value: 2
-        periodSeconds: 60
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+        - type: Pods
+          value: 2
+          periodSeconds: 60
       selectPolicy: Min
     scaleUp:
       stabilizationWindowSeconds: 60
       policies:
-      - type: Percent
-        value: 100
-        periodSeconds: 60
-      - type: Pods
-        value: 4
-        periodSeconds: 60
+        - type: Percent
+          value: 100
+          periodSeconds: 60
+        - type: Pods
+          value: 4
+          periodSeconds: 60
       selectPolicy: Max
 ---
 apiVersion: autoscaling/v2
@@ -61,6 +73,7 @@ metadata:
   labels:
     app: unit-talk
     component: worker
+    phase: phase6-performance
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
@@ -69,48 +82,51 @@ spec:
   minReplicas: 5
   maxReplicas: 50
   metrics:
-  - type: External
-    external:
-      metric:
-        name: queue_depth
-        selector:
-          matchLabels:
-            queue_name: prop-ingestion
-      target:
-        type: AverageValue
-        averageValue: "500"
-  - type: External
-    external:
-      metric:
-        name: queue_lag_seconds
-        selector:
-          matchLabels:
-            queue_name: prop-scoring
-      target:
-        type: Value
-        value: "30"
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 70
+    # Phase 6: Queue depth threshold
+    - type: External
+      external:
+        metric:
+          name: queue_depth
+          selector:
+            matchLabels:
+              queue_name: prop-ingestion
+        target:
+          type: AverageValue
+          averageValue: '500'
+    # Phase 6: Queue lag threshold at 30s (from Phase 5 targets)
+    - type: External
+      external:
+        metric:
+          name: queue_lag_seconds
+          selector:
+            matchLabels:
+              queue_name: prop-scoring
+        target:
+          type: Value
+          value: '30'
+    # Phase 6: CPU threshold at 70%
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
   behavior:
     scaleDown:
       stabilizationWindowSeconds: 600
       policies:
-      - type: Percent
-        value: 25
-        periodSeconds: 120
+        - type: Percent
+          value: 25
+          periodSeconds: 120
     scaleUp:
       stabilizationWindowSeconds: 30
       policies:
-      - type: Percent
-        value: 200
-        periodSeconds: 60
-      - type: Pods
-        value: 10
-        periodSeconds: 60
+        - type: Percent
+          value: 200
+          periodSeconds: 60
+        - type: Pods
+          value: 10
+          periodSeconds: 60
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -127,23 +143,23 @@ spec:
   minReplicas: 3
   maxReplicas: 10
   metrics:
-  - type: External
-    external:
-      metric:
-        name: agent_processing_lag
-      target:
-        type: Value
-        value: "60"
-  - type: Resource
-    resource:
-      name: memory
-      target:
-        type: Utilization
-        averageUtilization: 70
+    - type: External
+      external:
+        metric:
+          name: agent_processing_lag
+        target:
+          type: Value
+          value: '60'
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 70
   behavior:
     scaleDown:
       stabilizationWindowSeconds: 900
       policies:
-      - type: Pods
-        value: 1
-        periodSeconds: 300
+        - type: Pods
+          value: 1
+          periodSeconds: 300

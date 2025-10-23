@@ -122,3 +122,6 @@ prometheus_data/
 unit-talk-custom-bot/
 unit-talk-frontend/
 unit-talk-smart form/
+
+# k6 load testing scripts (use ES6 modules natively)
+scripts/load-tests/
