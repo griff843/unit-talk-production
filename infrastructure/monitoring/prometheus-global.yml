@@ -1,0 +1,264 @@
+# =============================================================================
+# PHASE 10 - GLOBAL PROMETHEUS CONFIGURATION
+# =============================================================================
+# Multi-region monitoring with federation and cross-region metrics aggregation
+# Date: 2025-01-23
+# =============================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'unit-talk-global'
+    environment: 'production'
+
+# =============================================================================
+# ALERTING CONFIGURATION
+# =============================================================================
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - 'alertmanager:9093'
+      timeout: 10s
+
+# =============================================================================
+# RULE FILES
+# =============================================================================
+
+rule_files:
+  - '/etc/prometheus/rules/global-slo.yml'
+  - '/etc/prometheus/rules/replication-lag.yml'
+  - '/etc/prometheus/rules/latency.yml'
+
+# =============================================================================
+# SCRAPE CONFIGURATIONS
+# =============================================================================
+
+scrape_configs:
+  # -------------------------------------------------------------------------
+  # NORTH AMERICA REGION (Primary)
+  # -------------------------------------------------------------------------
+  
+  - job_name: 'unit-talk-api-na'
+    static_configs:
+      - targets: ['api-na.unittalk.io:9464']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: region
+        replacement: 'na'
+      - source_labels: [__address__]
+        target_label: role
+        replacement: 'primary'
+    scrape_interval: 10s
+    metrics_path: /metrics
+  
+  - job_name: 'unit-talk-workers-na'
+    static_configs:
+      - targets: ['workers-na.unittalk.io:9464']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: region
+        replacement: 'na'
+    scrape_interval: 15s
+  
+  - job_name: 'redis-na'
+    static_configs:
+      - targets: ['redis-na.unittalk.io:9121']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: region
+        replacement: 'na'
+    scrape_interval: 30s
+  
+  # -------------------------------------------------------------------------
+  # EUROPE REGION (Replica)
+  # -------------------------------------------------------------------------
+  
+  - job_name: 'unit-talk-api-eu'
+    static_configs:
+      - targets: ['api-eu.unittalk.io:9464']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: region
+        replacement: 'eu'
+      - source_labels: [__address__]
+        target_label: role
+        replacement: 'replica'
+    scrape_interval: 10s
+    metrics_path: /metrics
+  
+  - job_name: 'unit-talk-workers-eu'
+    static_configs:
+      - targets: ['workers-eu.unittalk.io:9464']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: region
+        replacement: 'eu'
+    scrape_interval: 15s
+  
+  - job_name: 'redis-eu'
+    static_configs:
+      - targets: ['redis-eu.unittalk.io:9121']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: region
+        replacement: 'eu'
+    scrape_interval: 30s
+  
+  # -------------------------------------------------------------------------
+  # ASIA PACIFIC REGION (Replica)
+  # -------------------------------------------------------------------------
+  
+  - job_name: 'unit-talk-api-apac'
+    static_configs:
+      - targets: ['api-apac.unittalk.io:9464']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: region
+        replacement: 'apac'
+      - source_labels: [__address__]
+        target_label: role
+        replacement: 'replica'
+    scrape_interval: 10s
+    metrics_path: /metrics
+  
+  - job_name: 'unit-talk-workers-apac'
+    static_configs:
+      - targets: ['workers-apac.unittalk.io:9464']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: region
+        replacement: 'apac'
+    scrape_interval: 15s
+  
+  - job_name: 'redis-apac'
+    static_configs:
+      - targets: ['redis-apac.unittalk.io:9121']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: region
+        replacement: 'apac'
+    scrape_interval: 30s
+  
+  # -------------------------------------------------------------------------
+  # CLOUDFLARE LOAD BALANCER METRICS
+  # -------------------------------------------------------------------------
+  
+  - job_name: 'cloudflare-lb'
+    static_configs:
+      - targets: ['cloudflare-exporter:9199']
+    scrape_interval: 60s
+    metrics_path: /metrics
+  
+  # -------------------------------------------------------------------------
+  # SUPABASE DATABASE METRICS
+  # -------------------------------------------------------------------------
+  
+  - job_name: 'supabase-primary'
+    static_configs:
+      - targets: ['supabase-exporter-na:9187']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: region
+        replacement: 'na'
+      - source_labels: [__address__]
+        target_label: role
+        replacement: 'primary'
+    scrape_interval: 30s
+  
+  - job_name: 'supabase-replica-eu'
+    static_configs:
+      - targets: ['supabase-exporter-eu:9187']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: region
+        replacement: 'eu'
+      - source_labels: [__address__]
+        target_label: role
+        replacement: 'replica'
+    scrape_interval: 30s
+  
+  - job_name: 'supabase-replica-apac'
+    static_configs:
+      - targets: ['supabase-exporter-apac:9187']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: region
+        replacement: 'apac'
+      - source_labels: [__address__]
+        target_label: role
+        replacement: 'replica'
+    scrape_interval: 30s
+  
+  # -------------------------------------------------------------------------
+  # KUBERNETES CLUSTER METRICS
+  # -------------------------------------------------------------------------
+  
+  - job_name: 'kubernetes-nodes-na'
+    kubernetes_sd_configs:
+      - role: node
+        api_server: 'https://eks-na.unittalk.io'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: region
+        replacement: 'na'
+  
+  - job_name: 'kubernetes-nodes-eu'
+    kubernetes_sd_configs:
+      - role: node
+        api_server: 'https://eks-eu.unittalk.io'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: region
+        replacement: 'eu'
+  
+  - job_name: 'kubernetes-nodes-apac'
+    kubernetes_sd_configs:
+      - role: node
+        api_server: 'https://eks-apac.unittalk.io'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: region
+        replacement: 'apac'
+  
+  # -------------------------------------------------------------------------
+  # BLACKBOX EXPORTER - GLOBAL HEALTH CHECKS
+  # -------------------------------------------------------------------------
+  
+  - job_name: 'blackbox-global-health'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - 'https://api.unittalk.io/api/health/global'
+          - 'https://api-na.unittalk.io/api/health/global'
+          - 'https://api-eu.unittalk.io/api/health/global'
+          - 'https://api-apac.unittalk.io/api/health/global'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 'blackbox-exporter:9115'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+# =============================================================================
+# REMOTE WRITE - LONG-TERM STORAGE
+# =============================================================================
+
+remote_write:
+  - url: 'https://prometheus-remote-storage.unittalk.io/api/v1/write'
+    queue_config:
+      capacity: 10000
+      max_shards: 10
+      min_shards: 1
+      max_samples_per_send: 5000
+      batch_send_deadline: 5s
+      min_backoff: 30ms
+      max_backoff: 100ms
+

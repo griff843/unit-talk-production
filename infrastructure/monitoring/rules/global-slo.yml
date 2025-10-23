@@ -1,0 +1,285 @@
+# =============================================================================
+# PHASE 10 - GLOBAL SLO ALERTING RULES
+# =============================================================================
+# Service Level Objective monitoring and alerting for multi-region deployment
+# Date: 2025-01-23
+# =============================================================================
+
+groups:
+  # ---------------------------------------------------------------------------
+  # LATENCY SLO - P95 < 200ms
+  # ---------------------------------------------------------------------------
+  
+  - name: latency_slo
+    interval: 30s
+    rules:
+      # P95 latency by region
+      - record: http_request_duration_p95_by_region
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (region, le)
+          ) * 1000
+      
+      # Global P95 latency
+      - record: http_request_duration_p95_global
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+          ) * 1000
+      
+      # Alert: Regional P95 latency exceeds 200ms
+      - alert: HighLatencyRegional
+        expr: http_request_duration_p95_by_region > 200
+        for: 5m
+        labels:
+          severity: warning
+          slo: latency
+        annotations:
+          summary: "High P95 latency in {{ $labels.region }}"
+          description: "P95 latency is {{ $value }}ms in {{ $labels.region }}, exceeding 200ms SLO target"
+      
+      # Alert: Global P95 latency exceeds 200ms
+      - alert: HighLatencyGlobal
+        expr: http_request_duration_p95_global > 200
+        for: 5m
+        labels:
+          severity: critical
+          slo: latency
+        annotations:
+          summary: "High global P95 latency"
+          description: "Global P95 latency is {{ $value }}ms, exceeding 200ms SLO target"
+      
+      # Alert: Critical latency spike (>500ms)
+      - alert: CriticalLatencySpike
+        expr: http_request_duration_p95_by_region > 500
+        for: 2m
+        labels:
+          severity: critical
+          slo: latency
+        annotations:
+          summary: "Critical latency spike in {{ $labels.region }}"
+          description: "P95 latency is {{ $value }}ms in {{ $labels.region }}, critical threshold exceeded"
+  
+  # ---------------------------------------------------------------------------
+  # REPLICATION LAG SLO - ≤ 3 seconds
+  # ---------------------------------------------------------------------------
+  
+  - name: replication_lag_slo
+    interval: 30s
+    rules:
+      # Replication lag by replica region
+      - record: database_replication_lag_seconds
+        expr: |
+          pg_stat_replication_lag_seconds{role="replica"}
+      
+      # Alert: Replication lag exceeds 3 seconds
+      - alert: HighReplicationLag
+        expr: database_replication_lag_seconds > 3
+        for: 2m
+        labels:
+          severity: warning
+          slo: replication
+        annotations:
+          summary: "High replication lag in {{ $labels.region }}"
+          description: "Replication lag is {{ $value }}s in {{ $labels.region }}, exceeding 3s SLO target"
+      
+      # Alert: Critical replication lag (>10 seconds)
+      - alert: CriticalReplicationLag
+        expr: database_replication_lag_seconds > 10
+        for: 1m
+        labels:
+          severity: critical
+          slo: replication
+        annotations:
+          summary: "Critical replication lag in {{ $labels.region }}"
+          description: "Replication lag is {{ $value }}s in {{ $labels.region }}, critical threshold exceeded"
+      
+      # Alert: Replication stopped
+      - alert: ReplicationStopped
+        expr: |
+          (time() - pg_stat_replication_last_msg_send_time) > 60
+        for: 2m
+        labels:
+          severity: critical
+          slo: replication
+        annotations:
+          summary: "Database replication stopped in {{ $labels.region }}"
+          description: "No replication activity detected for {{ $value }}s in {{ $labels.region }}"
+  
+  # ---------------------------------------------------------------------------
+  # AVAILABILITY SLO - 99.95%
+  # ---------------------------------------------------------------------------
+  
+  - name: availability_slo
+    interval: 1m
+    rules:
+      # Success rate by region
+      - record: http_request_success_rate_by_region
+        expr: |
+          sum(rate(http_requests_total{status=~"2.."}[5m])) by (region) /
+          sum(rate(http_requests_total[5m])) by (region) * 100
+      
+      # Global success rate
+      - record: http_request_success_rate_global
+        expr: |
+          sum(rate(http_requests_total{status=~"2.."}[5m])) /
+          sum(rate(http_requests_total[5m])) * 100
+      
+      # Alert: Regional availability below 99.95%
+      - alert: LowAvailabilityRegional
+        expr: http_request_success_rate_by_region < 99.95
+        for: 5m
+        labels:
+          severity: warning
+          slo: availability
+        annotations:
+          summary: "Low availability in {{ $labels.region }}"
+          description: "Availability is {{ $value }}% in {{ $labels.region }}, below 99.95% SLO target"
+      
+      # Alert: Global availability below 99.95%
+      - alert: LowAvailabilityGlobal
+        expr: http_request_success_rate_global < 99.95
+        for: 5m
+        labels:
+          severity: critical
+          slo: availability
+        annotations:
+          summary: "Low global availability"
+          description: "Global availability is {{ $value }}%, below 99.95% SLO target"
+      
+      # Alert: Critical availability drop (<99%)
+      - alert: CriticalAvailabilityDrop
+        expr: http_request_success_rate_by_region < 99
+        for: 2m
+        labels:
+          severity: critical
+          slo: availability
+        annotations:
+          summary: "Critical availability drop in {{ $labels.region }}"
+          description: "Availability is {{ $value }}% in {{ $labels.region }}, critical threshold exceeded"
+  
+  # ---------------------------------------------------------------------------
+  # ERROR RATE SLO - < 0.1%
+  # ---------------------------------------------------------------------------
+  
+  - name: error_rate_slo
+    interval: 30s
+    rules:
+      # Error rate by region
+      - record: http_request_error_rate_by_region
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m])) by (region) /
+          sum(rate(http_requests_total[5m])) by (region) * 100
+      
+      # Global error rate
+      - record: http_request_error_rate_global
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m])) /
+          sum(rate(http_requests_total[5m])) * 100
+      
+      # Alert: Regional error rate exceeds 0.1%
+      - alert: HighErrorRateRegional
+        expr: http_request_error_rate_by_region > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          slo: error_rate
+        annotations:
+          summary: "High error rate in {{ $labels.region }}"
+          description: "Error rate is {{ $value }}% in {{ $labels.region }}, exceeding 0.1% SLO target"
+      
+      # Alert: Global error rate exceeds 0.1%
+      - alert: HighErrorRateGlobal
+        expr: http_request_error_rate_global > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          slo: error_rate
+        annotations:
+          summary: "High global error rate"
+          description: "Global error rate is {{ $value }}%, exceeding 0.1% SLO target"
+      
+      # Alert: Critical error rate spike (>1%)
+      - alert: CriticalErrorRateSpike
+        expr: http_request_error_rate_by_region > 1
+        for: 2m
+        labels:
+          severity: critical
+          slo: error_rate
+        annotations:
+          summary: "Critical error rate spike in {{ $labels.region }}"
+          description: "Error rate is {{ $value }}% in {{ $labels.region }}, critical threshold exceeded"
+  
+  # ---------------------------------------------------------------------------
+  # HEALTH CHECK SLO
+  # ---------------------------------------------------------------------------
+  
+  - name: health_check_slo
+    interval: 30s
+    rules:
+      # Health check success rate by region
+      - record: health_check_success_rate_by_region
+        expr: |
+          avg_over_time(probe_success{job="blackbox-global-health"}[5m]) * 100
+      
+      # Alert: Health check failures
+      - alert: HealthCheckFailure
+        expr: health_check_success_rate_by_region < 100
+        for: 3m
+        labels:
+          severity: critical
+          slo: health
+        annotations:
+          summary: "Health check failures detected"
+          description: "Health check success rate is {{ $value }}% for {{ $labels.instance }}"
+      
+      # Alert: Health check timeout
+      - alert: HealthCheckTimeout
+        expr: probe_duration_seconds{job="blackbox-global-health"} > 10
+        for: 2m
+        labels:
+          severity: warning
+          slo: health
+        annotations:
+          summary: "Health check timeout"
+          description: "Health check taking {{ $value }}s for {{ $labels.instance }}"
+  
+  # ---------------------------------------------------------------------------
+  # COMPOSITE SLO - OVERALL SYSTEM HEALTH
+  # ---------------------------------------------------------------------------
+  
+  - name: composite_slo
+    interval: 1m
+    rules:
+      # Overall SLO compliance score (0-100)
+      - record: slo_compliance_score
+        expr: |
+          (
+            (http_request_duration_p95_global < 200) * 25 +
+            (max(database_replication_lag_seconds) < 3) * 25 +
+            (http_request_success_rate_global >= 99.95) * 25 +
+            (http_request_error_rate_global < 0.1) * 25
+          )
+      
+      # Alert: SLO compliance below 75%
+      - alert: SLOComplianceLow
+        expr: slo_compliance_score < 75
+        for: 10m
+        labels:
+          severity: warning
+          slo: composite
+        annotations:
+          summary: "SLO compliance below target"
+          description: "Overall SLO compliance score is {{ $value }}%, below 75% threshold"
+      
+      # Alert: Critical SLO violations
+      - alert: CriticalSLOViolations
+        expr: slo_compliance_score < 50
+        for: 5m
+        labels:
+          severity: critical
+          slo: composite
+        annotations:
+          summary: "Critical SLO violations detected"
+          description: "Overall SLO compliance score is {{ $value }}%, critical threshold exceeded"
+

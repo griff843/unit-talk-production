@@ -1,0 +1,88 @@
+# =============================================================================
+# PHASE 10 - GLOBAL TERRAFORM VARIABLES (EXAMPLE)
+# =============================================================================
+# Copy this file to terraform.tfvars and fill in your actual values
+# Date: 2025-01-23
+# =============================================================================
+
+# Environment Configuration
+environment = "production"
+domain_name = "unittalk.io"
+ops_email   = "ops@unittalk.io"
+
+# Cloudflare Configuration
+cloudflare_api_token = "your-cloudflare-api-token-here"
+
+# Kubernetes Version
+kubernetes_version = "1.28"
+
+# Redis Configuration
+redis_node_type = "cache.r7g.large"
+
+# Regional Configuration
+regions = {
+  na = {
+    aws_region    = "us-east-1"
+    role          = "primary"
+    min_nodes     = 2
+    max_nodes     = 10
+    desired_nodes = 3
+  }
+  eu = {
+    aws_region    = "eu-west-1"
+    role          = "replica"
+    min_nodes     = 1
+    max_nodes     = 8
+    desired_nodes = 2
+  }
+  apac = {
+    aws_region    = "ap-southeast-1"
+    role          = "replica"
+    min_nodes     = 1
+    max_nodes     = 8
+    desired_nodes = 2
+  }
+}
+
+# SLO Targets
+slo_targets = {
+  p95_latency_ms          = 200
+  max_replication_lag_sec = 3
+  availability_percent    = 99.95
+  error_rate_percent      = 0.1
+}
+
+# Health Check Configuration
+health_check_config = {
+  interval_seconds    = 30
+  timeout_seconds     = 5
+  healthy_threshold   = 2
+  unhealthy_threshold = 3
+  path                = "/api/health/global"
+}
+
+# Monitoring Configuration
+monitoring_config = {
+  prometheus_retention_days = 30
+  grafana_admin_password    = "CHANGE_ME_IN_PRODUCTION"
+  alert_channels            = ["email", "slack"]
+}
+
+# Deployment Configuration
+deployment_config = {
+  strategy                  = "rolling"
+  max_surge                 = "25%"
+  max_unavailable           = "0"
+  health_check_grace_period = 300
+  rollback_on_failure       = true
+}
+
+# Common Tags
+common_tags = {
+  Project     = "Unit Talk Platform"
+  ManagedBy   = "Terraform"
+  Phase       = "Phase10-Global"
+  CostCenter  = "Engineering"
+  Compliance  = "SOC2"
+}
+

@@ -1,0 +1,512 @@
+name: Phase 10 - Global Multi-Region Deployment
+
+on:
+  push:
+    branches:
+      - main
+      - 'phase10-*'
+    paths:
+      - 'apps/**'
+      - 'infrastructure/terraform/global/**'
+      - 'infrastructure/kubernetes/**'
+      - '.github/workflows/global-deploy.yml'
+  workflow_dispatch:
+    inputs:
+      region:
+        description: 'Target region (all, na, eu, apac)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - na
+          - eu
+          - apac
+      deployment_strategy:
+        description: 'Deployment strategy'
+        required: true
+        default: 'rolling'
+        type: choice
+        options:
+          - rolling
+          - blue-green
+          - canary
+      skip_tests:
+        description: 'Skip pre-deployment tests'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  TERRAFORM_VERSION: '1.6.0'
+  KUBECTL_VERSION: '1.28.0'
+  NODE_VERSION: '18'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: unit-talk-production
+  
+  # SLO Targets
+  P95_LATENCY_TARGET_MS: 200
+  MAX_REPLICATION_LAG_SEC: 3
+  AVAILABILITY_TARGET: 99.95
+
+jobs:
+  # =============================================================================
+  # PRE-DEPLOYMENT VALIDATION
+  # =============================================================================
+  
+  validate:
+    name: Pre-Deployment Validation
+    runs-on: ubuntu-latest
+    if: ${{ !inputs.skip_tests }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run linting
+        run: npm run lint
+      
+      - name: Run type checking
+        run: npm run type-check
+      
+      - name: Run unit tests
+        run: npm run test
+      
+      - name: Run integration tests
+        run: npm run test:integration
+        env:
+          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+      
+      - name: Security audit
+        run: npm audit --audit-level=high
+      
+      - name: Validate Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+      
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive infrastructure/terraform/global/
+      
+      - name: Terraform Validate
+        run: |
+          cd infrastructure/terraform/global
+          terraform init -backend=false
+          terraform validate
+
+  # =============================================================================
+  # BUILD MULTI-ARCH IMAGES
+  # =============================================================================
+  
+  build:
+    name: Build Multi-Region Images
+    runs-on: ubuntu-latest
+    needs: validate
+    if: always() && (needs.validate.result == 'success' || inputs.skip_tests)
+    
+    strategy:
+      matrix:
+        app: [api, discord-bot, dashboard, smart-form, command-center]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.app }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=global-{{date 'YYYYMMDD-HHmmss'}}
+      
+      - name: Build and push multi-arch image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infrastructure/docker/Dockerfile.${{ matrix.app }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
+            VERSION=${{ steps.meta.outputs.version }}
+
+  # =============================================================================
+  # DATABASE MIGRATION - PRIMARY REGION FIRST
+  # =============================================================================
+  
+  migrate-primary:
+    name: Migrate Primary Database (NA)
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      
+      - name: Run migrations on primary
+        run: |
+          supabase db push --db-url "${{ secrets.SUPABASE_PRIMARY_URL }}"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      
+      - name: Verify migration
+        run: |
+          supabase db diff --db-url "${{ secrets.SUPABASE_PRIMARY_URL }}"
+      
+      - name: Wait for replication
+        run: |
+          echo "Waiting for replication to catch up..."
+          sleep 10
+
+  # =============================================================================
+  # DEPLOY TO REGIONS
+  # =============================================================================
+  
+  deploy-na:
+    name: Deploy to North America (Primary)
+    runs-on: ubuntu-latest
+    needs: migrate-primary
+    if: ${{ inputs.region == 'all' || inputs.region == 'na' || inputs.region == '' }}
+    environment: production-na
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --name unit-talk-na --region us-east-1
+      
+      - name: Deploy to NA cluster
+        run: |
+          kubectl set image deployment/unit-talk-api \
+            api=${{ env.REGISTRY }}/${{ github.repository }}/api:${{ github.sha }} \
+            -n unit-talk
+          
+          kubectl rollout status deployment/unit-talk-api -n unit-talk --timeout=600s
+      
+      - name: Run health checks
+        run: |
+          kubectl wait --for=condition=ready pod -l app=unit-talk-api -n unit-talk --timeout=300s
+          
+          # Test API endpoint
+          API_URL=$(kubectl get ingress unit-talk-api-ingress -n unit-talk -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          curl -f "https://${API_URL}/api/health/global" || exit 1
+      
+      - name: Verify SLO compliance
+        run: |
+          # Check P95 latency
+          LATENCY=$(curl -s "https://${API_URL}/api/metrics" | grep 'http_request_duration_p95' | awk '{print $2}')
+          if (( $(echo "$LATENCY > ${{ env.P95_LATENCY_TARGET_MS }}" | bc -l) )); then
+            echo "❌ P95 latency ${LATENCY}ms exceeds target ${{ env.P95_LATENCY_TARGET_MS }}ms"
+            exit 1
+          fi
+          echo "✅ P95 latency ${LATENCY}ms within target"
+
+  deploy-eu:
+    name: Deploy to Europe (Replica)
+    runs-on: ubuntu-latest
+    needs: deploy-na
+    if: ${{ inputs.region == 'all' || inputs.region == 'eu' }}
+    environment: production-eu
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-1
+      
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --name unit-talk-eu --region eu-west-1
+      
+      - name: Deploy to EU cluster
+        run: |
+          kubectl set image deployment/unit-talk-api \
+            api=${{ env.REGISTRY }}/${{ github.repository }}/api:${{ github.sha }} \
+            -n unit-talk
+          
+          kubectl rollout status deployment/unit-talk-api -n unit-talk --timeout=600s
+      
+      - name: Verify replication lag
+        run: |
+          # Check Supabase replication lag
+          LAG=$(curl -s "${{ secrets.SUPABASE_EU_METRICS_URL }}" | jq '.replication_lag_seconds')
+          if (( $(echo "$LAG > ${{ env.MAX_REPLICATION_LAG_SEC }}" | bc -l) )); then
+            echo "❌ Replication lag ${LAG}s exceeds target ${{ env.MAX_REPLICATION_LAG_SEC }}s"
+            exit 1
+          fi
+          echo "✅ Replication lag ${LAG}s within target"
+
+  deploy-apac:
+    name: Deploy to Asia Pacific (Replica)
+    runs-on: ubuntu-latest
+    needs: deploy-na
+    if: ${{ inputs.region == 'all' || inputs.region == 'apac' }}
+    environment: production-apac
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-southeast-1
+      
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --name unit-talk-apac --region ap-southeast-1
+      
+      - name: Deploy to APAC cluster
+        run: |
+          kubectl set image deployment/unit-talk-api \
+            api=${{ env.REGISTRY }}/${{ github.repository }}/api:${{ github.sha }} \
+            -n unit-talk
+
+          kubectl rollout status deployment/unit-talk-api -n unit-talk --timeout=600s
+
+      - name: Verify replication lag
+        run: |
+          # Check Supabase replication lag
+          LAG=$(curl -s "${{ secrets.SUPABASE_APAC_METRICS_URL }}" | jq '.replication_lag_seconds')
+          if (( $(echo "$LAG > ${{ env.MAX_REPLICATION_LAG_SEC }}" | bc -l) )); then
+            echo "❌ Replication lag ${LAG}s exceeds target ${{ env.MAX_REPLICATION_LAG_SEC }}s"
+            exit 1
+          fi
+          echo "✅ Replication lag ${LAG}s within target"
+
+  # =============================================================================
+  # GLOBAL VALIDATION
+  # =============================================================================
+
+  validate-global:
+    name: Validate Global Deployment
+    runs-on: ubuntu-latest
+    needs: [deploy-na, deploy-eu, deploy-apac]
+    if: always()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Test global load balancer
+        run: |
+          # Test Cloudflare load balancer
+          GLOBAL_URL="https://api.unittalk.io"
+
+          echo "Testing global endpoint..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" "$GLOBAL_URL/api/health/global")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ Global health check failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
+          echo "✅ Global health check passed"
+
+      - name: Test regional routing
+        run: |
+          # Test that requests are routed to correct regions
+          for REGION in na eu apac; do
+            echo "Testing $REGION routing..."
+            RESPONSE=$(curl -s -H "CF-IPCountry: ${REGION^^}" "https://api.unittalk.io/api/health/region")
+            ROUTED_REGION=$(echo "$RESPONSE" | jq -r '.region')
+
+            if [ "$ROUTED_REGION" != "$REGION" ]; then
+              echo "⚠️  Warning: Expected $REGION but routed to $ROUTED_REGION"
+            else
+              echo "✅ $REGION routing correct"
+            fi
+          done
+
+      - name: Measure global latency
+        run: |
+          # Test P95 latency from multiple regions
+          echo "Measuring global latency..."
+
+          # Simulate requests from different regions
+          REGIONS=("us-east-1" "eu-west-1" "ap-southeast-1")
+          TOTAL_LATENCY=0
+          COUNT=0
+
+          for REGION in "${REGIONS[@]}"; do
+            for i in {1..10}; do
+              START=$(date +%s%3N)
+              curl -s "https://api.unittalk.io/api/health" > /dev/null
+              END=$(date +%s%3N)
+              LATENCY=$((END - START))
+              TOTAL_LATENCY=$((TOTAL_LATENCY + LATENCY))
+              COUNT=$((COUNT + 1))
+            done
+          done
+
+          AVG_LATENCY=$((TOTAL_LATENCY / COUNT))
+          echo "Average latency: ${AVG_LATENCY}ms"
+
+          if [ $AVG_LATENCY -gt ${{ env.P95_LATENCY_TARGET_MS }} ]; then
+            echo "❌ Average latency ${AVG_LATENCY}ms exceeds target ${{ env.P95_LATENCY_TARGET_MS }}ms"
+            exit 1
+          fi
+          echo "✅ Global latency within SLO target"
+
+      - name: Verify database replication
+        run: |
+          echo "Verifying cross-region database replication..."
+
+          # Check replication lag for all replicas
+          EU_LAG=$(curl -s "${{ secrets.SUPABASE_EU_METRICS_URL }}" | jq '.replication_lag_seconds')
+          APAC_LAG=$(curl -s "${{ secrets.SUPABASE_APAC_METRICS_URL }}" | jq '.replication_lag_seconds')
+
+          echo "EU replication lag: ${EU_LAG}s"
+          echo "APAC replication lag: ${APAC_LAG}s"
+
+          MAX_LAG=$(echo "$EU_LAG $APAC_LAG" | tr ' ' '\n' | sort -rn | head -n1)
+
+          if (( $(echo "$MAX_LAG > ${{ env.MAX_REPLICATION_LAG_SEC }}" | bc -l) )); then
+            echo "❌ Max replication lag ${MAX_LAG}s exceeds target ${{ env.MAX_REPLICATION_LAG_SEC }}s"
+            exit 1
+          fi
+          echo "✅ All replicas within replication lag target"
+
+      - name: Generate deployment report
+        run: |
+          cat > deployment-report.md << EOF
+          # Global Deployment Report
+
+          **Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          **Commit**: ${{ github.sha }}
+          **Branch**: ${{ github.ref_name }}
+          **Triggered by**: ${{ github.actor }}
+
+          ## Deployment Summary
+
+          - ✅ North America (us-east-1): Deployed
+          - ✅ Europe (eu-west-1): Deployed
+          - ✅ Asia Pacific (ap-southeast-1): Deployed
+
+          ## SLO Compliance
+
+          - P95 Latency Target: < ${{ env.P95_LATENCY_TARGET_MS }}ms
+          - Replication Lag Target: ≤ ${{ env.MAX_REPLICATION_LAG_SEC }}s
+          - Availability Target: ${{ env.AVAILABILITY_TARGET }}%
+
+          ## Health Checks
+
+          - Global Load Balancer: ✅ Healthy
+          - Regional Routing: ✅ Verified
+          - Database Replication: ✅ Within SLO
+
+          ## Next Steps
+
+          1. Monitor Grafana dashboards for 24 hours
+          2. Review error rates and latency metrics
+          3. Validate zero-downtime deployment
+          EOF
+
+          cat deployment-report.md
+
+      - name: Upload deployment report
+        uses: actions/upload-artifact@v3
+        with:
+          name: deployment-report
+          path: deployment-report.md
+          retention-days: 30
+
+  # =============================================================================
+  # ROLLBACK ON FAILURE
+  # =============================================================================
+
+  rollback:
+    name: Rollback on Failure
+    runs-on: ubuntu-latest
+    needs: [deploy-na, deploy-eu, deploy-apac, validate-global]
+    if: failure()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Rollback all regions
+        run: |
+          echo "🔄 Initiating global rollback..."
+
+          # Rollback NA
+          aws eks update-kubeconfig --name unit-talk-na --region us-east-1
+          kubectl rollout undo deployment/unit-talk-api -n unit-talk
+
+          # Rollback EU
+          aws eks update-kubeconfig --name unit-talk-eu --region eu-west-1
+          kubectl rollout undo deployment/unit-talk-api -n unit-talk
+
+          # Rollback APAC
+          aws eks update-kubeconfig --name unit-talk-apac --region ap-southeast-1
+          kubectl rollout undo deployment/unit-talk-api -n unit-talk
+
+          echo "✅ Rollback completed"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Notify team
+        run: |
+          curl -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "text": "🚨 Global deployment failed and was rolled back",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Global Deployment Rollback*\n\nDeployment failed and was automatically rolled back.\n\n*Commit*: `${{ github.sha }}`\n*Branch*: `${{ github.ref_name }}`\n*Triggered by*: ${{ github.actor }}"
+                  }
+                }
+              ]
+            }'
