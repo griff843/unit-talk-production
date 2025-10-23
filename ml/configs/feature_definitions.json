@@ -1,0 +1,319 @@
+{
+  "feature_groups": {
+    "player_stats": {
+      "description": "Player performance and statistical features",
+      "entity_key": "player_name",
+      "features": {
+        "season_avg_points": {
+          "type": "numerical",
+          "description": "Player season average points",
+          "source": "raw_props",
+          "update_frequency": "daily"
+        },
+        "last_5_games_avg": {
+          "type": "numerical",
+          "description": "Average performance last 5 games",
+          "source": "derived",
+          "update_frequency": "daily"
+        },
+        "injury_status": {
+          "type": "categorical",
+          "description": "Current injury status",
+          "source": "external",
+          "update_frequency": "hourly"
+        },
+        "minutes_per_game": {
+          "type": "numerical",
+          "description": "Average minutes played per game",
+          "source": "raw_props",
+          "update_frequency": "daily"
+        },
+        "home_vs_away_differential": {
+          "type": "numerical",
+          "description": "Performance differential home vs away",
+          "source": "derived",
+          "update_frequency": "daily"
+        }
+      }
+    },
+    "market_features": {
+      "description": "Market dynamics and betting line features",
+      "entity_key": "prop_id",
+      "features": {
+        "opening_line": {
+          "type": "numerical",
+          "description": "Opening betting line",
+          "source": "raw_props.opening_line",
+          "update_frequency": "static"
+        },
+        "current_line": {
+          "type": "numerical",
+          "description": "Current betting line",
+          "source": "raw_props.line",
+          "update_frequency": "real-time"
+        },
+        "line_movement": {
+          "type": "numerical",
+          "description": "Line movement from opening",
+          "source": "derived",
+          "formula": "current_line - opening_line",
+          "update_frequency": "real-time"
+        },
+        "over_odds": {
+          "type": "numerical",
+          "description": "Over betting odds",
+          "source": "raw_props.over_odds",
+          "update_frequency": "real-time"
+        },
+        "under_odds": {
+          "type": "numerical",
+          "description": "Under betting odds",
+          "source": "raw_props.under_odds",
+          "update_frequency": "real-time"
+        },
+        "devigged_edge": {
+          "type": "numerical",
+          "description": "Edge after removing vig",
+          "source": "unified_picks.devigged_edge",
+          "update_frequency": "static"
+        }
+      }
+    },
+    "professional_features": {
+      "description": "Professional grading and advanced features",
+      "entity_key": "prop_id",
+      "features": {
+        "professional_score": {
+          "type": "numerical",
+          "description": "Professional grading score (0-100)",
+          "source": "unified_picks.professional_score",
+          "update_frequency": "static"
+        },
+        "steam_detected": {
+          "type": "boolean",
+          "description": "Steam move detection flag",
+          "source": "unified_picks.professional_insights.steam_moves",
+          "update_frequency": "static"
+        },
+        "clv_prediction": {
+          "type": "numerical",
+          "description": "Closing line value prediction",
+          "source": "unified_picks.professional_insights.clv_prediction",
+          "update_frequency": "static"
+        },
+        "kelly_fraction": {
+          "type": "numerical",
+          "description": "Optimal Kelly sizing",
+          "source": "unified_picks.kelly_fraction",
+          "update_frequency": "static"
+        },
+        "tier": {
+          "type": "categorical",
+          "description": "Professional tier assignment (S/A/B/C/D)",
+          "source": "unified_picks.tier",
+          "categories": ["S", "A", "B", "C", "D"],
+          "update_frequency": "static"
+        }
+      }
+    },
+    "enhanced_scoring_features": {
+      "description": "Enhanced 45-factor scoring features",
+      "entity_key": "prop_id",
+      "features": {
+        "edge": {
+          "type": "numerical",
+          "description": "Calculated edge percentage",
+          "source": "scored_props.edge",
+          "update_frequency": "static"
+        },
+        "prob_win": {
+          "type": "numerical",
+          "description": "Win probability (0-1)",
+          "source": "scored_props.prob_win",
+          "update_frequency": "static"
+        },
+        "market_factors": {
+          "type": "json",
+          "description": "Market-based scoring factors",
+          "source": "scored_props.market_factors",
+          "update_frequency": "static"
+        },
+        "player_factors": {
+          "type": "json",
+          "description": "Player performance factors",
+          "source": "scored_props.player_factors",
+          "update_frequency": "static"
+        },
+        "matchup_factors": {
+          "type": "json",
+          "description": "Matchup-based factors",
+          "source": "scored_props.matchup_factors",
+          "update_frequency": "static"
+        }
+      }
+    },
+    "game_context": {
+      "description": "Game-level contextual features",
+      "entity_key": "game_id",
+      "features": {
+        "game_total": {
+          "type": "numerical",
+          "description": "Game over/under total",
+          "source": "games",
+          "update_frequency": "hourly"
+        },
+        "spread": {
+          "type": "numerical",
+          "description": "Point spread",
+          "source": "games",
+          "update_frequency": "hourly"
+        },
+        "is_primetime": {
+          "type": "boolean",
+          "description": "Primetime game indicator",
+          "source": "derived",
+          "update_frequency": "static"
+        },
+        "days_rest": {
+          "type": "numerical",
+          "description": "Days of rest before game",
+          "source": "derived",
+          "update_frequency": "static"
+        }
+      }
+    },
+    "user_features": {
+      "description": "User/capper performance features",
+      "entity_key": "user_id",
+      "features": {
+        "overall_roi": {
+          "type": "numerical",
+          "description": "Return on investment percentage",
+          "source": "users.roi",
+          "update_frequency": "daily"
+        },
+        "win_rate": {
+          "type": "numerical",
+          "description": "Overall win rate percentage",
+          "source": "users.win_rate",
+          "update_frequency": "daily"
+        },
+        "sport_specialization": {
+          "type": "categorical",
+          "description": "Primary sport expertise",
+          "source": "derived",
+          "categories": ["NFL", "NBA", "MLB", "NHL", "NCAAF", "WNBA", "Multi-Sport"],
+          "update_frequency": "weekly"
+        },
+        "user_tier": {
+          "type": "categorical",
+          "description": "User tier classification",
+          "source": "users.tier",
+          "categories": ["ELITE", "PRO", "STANDARD"],
+          "update_frequency": "daily"
+        }
+      }
+    },
+    "temporal_features": {
+      "description": "Time-based and seasonal features",
+      "entity_key": "prop_id",
+      "features": {
+        "hour_to_game": {
+          "type": "numerical",
+          "description": "Hours until game start",
+          "source": "derived",
+          "update_frequency": "real-time"
+        },
+        "day_of_week": {
+          "type": "categorical",
+          "description": "Day of week",
+          "source": "derived",
+          "categories": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+          "update_frequency": "static"
+        },
+        "month": {
+          "type": "categorical",
+          "description": "Month of year",
+          "source": "derived",
+          "categories": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+          "update_frequency": "static"
+        },
+        "season_progress": {
+          "type": "numerical",
+          "description": "Season progress percentage (0-100)",
+          "source": "derived",
+          "update_frequency": "daily"
+        }
+      }
+    }
+  },
+  "target_definitions": {
+    "binary_outcome": {
+      "type": "categorical",
+      "description": "Binary win/loss outcome",
+      "source": "unified_picks.status",
+      "values": ["won", "lost"],
+      "exclude_values": ["pending", "push", "void"]
+    },
+    "profit_loss": {
+      "type": "numerical",
+      "description": "Actual profit/loss amount",
+      "source": "unified_picks.profit_loss"
+    },
+    "actual_value": {
+      "type": "numerical",
+      "description": "Actual stat value achieved",
+      "source": "prop_settlements.actual_value"
+    },
+    "clv_realized": {
+      "type": "numerical",
+      "description": "Realized closing line value",
+      "source": "derived",
+      "formula": "closing_line - placed_line"
+    }
+  },
+  "data_quality_rules": {
+    "missing_value_threshold": 0.1,
+    "outlier_detection": {
+      "method": "iqr",
+      "multiplier": 3.0
+    },
+    "temporal_leakage_check": {
+      "enforce_time_ordering": true,
+      "buffer_hours": 1
+    },
+    "duplicate_removal": {
+      "primary_keys": ["prop_id", "user_id", "placed_at"]
+    }
+  },
+  "feature_engineering": {
+    "interaction_features": [
+      {
+        "name": "line_movement_x_volume",
+        "formula": "line_movement * market_volume",
+        "description": "Interaction between line movement and betting volume"
+      },
+      {
+        "name": "player_form_x_matchup",
+        "formula": "last_5_games_avg * matchup_quality",
+        "description": "Player recent form adjusted by matchup difficulty"
+      }
+    ],
+    "rolling_features": [
+      {
+        "name": "user_roi_7d",
+        "base_feature": "profit_loss",
+        "window": "7d",
+        "aggregation": "mean"
+      },
+      {
+        "name": "player_hit_rate_30d",
+        "base_feature": "binary_outcome",
+        "window": "30d",
+        "aggregation": "mean"
+      }
+    ]
+  },
+  "version": "1.0.0",
+  "last_updated": "2025-01-23"
+}

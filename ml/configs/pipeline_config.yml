@@ -1,0 +1,246 @@
+# Unit Talk ML Pipeline Configuration
+# Phase 7A - Offline ML Prep
+
+pipeline:
+  name: "unit_talk_ml_pipeline"
+  version: "1.0.0"
+  random_seed: 42
+  
+data:
+  # Historical data window
+  historical_months: 12
+  min_samples_per_user: 10
+  min_samples_per_sport: 1000
+  
+  # Supported sports
+  sports:
+    - NFL
+    - NBA
+    - MLB
+    - NHL
+    - NCAAF
+    - WNBA
+    
+  # Target definitions
+  targets:
+    primary: "status"  # Binary: won/lost
+    secondary:
+      - "profit_loss"  # Regression: actual profit
+      - "clv_realized"  # Regression: closing line value
+      
+  # Train/val/test splits
+  splits:
+    train: 0.7
+    validation: 0.15
+    test: 0.15
+    strategy: "time_based"  # Ensures no future leakage
+    
+  # Data quality thresholds
+  quality:
+    max_missing_rate: 0.1
+    min_variance: 0.001
+    outlier_std_threshold: 3.0
+    
+models:
+  # Baseline models
+  xgboost:
+    type: "classification"
+    n_estimators: 100
+    max_depth: 6
+    learning_rate: 0.1
+    subsample: 0.8
+    colsample_bytree: 0.8
+    objective: "binary:logistic"
+    eval_metric: "logloss"
+    use_gpu: false
+    
+  lightgbm:
+    type: "classification"
+    n_estimators: 100
+    num_leaves: 31
+    learning_rate: 0.1
+    feature_fraction: 0.8
+    bagging_fraction: 0.8
+    objective: "binary"
+    metric: "binary_logloss"
+    
+  # Neural network
+  neural_net:
+    type: "classification"
+    architecture:
+      - layer: "dense"
+        units: 256
+        activation: "relu"
+        dropout: 0.3
+      - layer: "dense"
+        units: 128
+        activation: "relu"
+        dropout: 0.2
+      - layer: "dense"
+        units: 64
+        activation: "relu"
+        dropout: 0.1
+      - layer: "dense"
+        units: 1
+        activation: "sigmoid"
+    optimizer: "adam"
+    learning_rate: 0.001
+    batch_size: 256
+    epochs: 50
+    early_stopping_patience: 5
+    
+  # Ensemble configuration
+  ensemble:
+    method: "soft_voting"
+    weights:
+      xgboost: 0.4
+      lightgbm: 0.4
+      neural_net: 0.2
+      
+training:
+  # Cross-validation settings
+  cross_validation:
+    n_splits: 5
+    strategy: "time_series_split"
+    
+  # Rolling window validation
+  rolling_window:
+    window_size: 90  # days
+    step_size: 30   # days
+    min_train_size: 180  # days
+    
+  # Hyperparameter tuning
+  hyperparameter_tuning:
+    method: "optuna"
+    n_trials: 50
+    timeout: 3600  # seconds
+    metrics: ["auc", "pr_auc", "log_loss"]
+    
+  # Early stopping
+  early_stopping:
+    patience: 10
+    min_delta: 0.001
+    restore_best_weights: true
+    
+evaluation:
+  # Primary metrics
+  primary_metric: "auc"
+  
+  # All metrics to compute
+  metrics:
+    - auc
+    - pr_auc
+    - accuracy
+    - precision
+    - recall
+    - f1_score
+    - log_loss
+    - brier_score
+    - calibration_error
+    
+  # Business metrics
+  business_metrics:
+    - roi
+    - sharpe_ratio
+    - max_drawdown
+    - profit_factor
+    - win_rate
+    
+  # Threshold optimization
+  threshold_optimization:
+    method: "maximize_f1"
+    constraints:
+      min_precision: 0.6
+      min_samples_per_tier: 100
+      
+  # Tier assignment thresholds
+  tier_thresholds:
+    S: 0.85  # Top 5% of predictions
+    A: 0.75  # Next 10%
+    B: 0.65  # Next 20%
+    C: 0.55  # Next 30%
+    D: 0.0   # Bottom 35%
+    
+monitoring:
+  # Performance monitoring
+  performance_tracking:
+    rolling_window_days: 30
+    alert_thresholds:
+      auc_drop: 0.05
+      precision_drop: 0.1
+      
+  # Feature drift detection
+  drift_detection:
+    method: "kolmogorov_smirnov"
+    significance_level: 0.01
+    check_frequency_days: 7
+    
+  # Model retraining triggers
+  retraining_triggers:
+    - metric: "auc"
+      threshold: 0.05  # 5% drop
+    - metric: "calibration_error"
+      threshold: 0.1   # 10% increase
+    - trigger: "calendar"
+      frequency: "monthly"
+      
+deployment:
+  # Shadow mode configuration
+  shadow_mode:
+    enabled: true
+    duration_days: 14
+    comparison_metrics:
+      - auc
+      - precision
+      - roi
+      
+  # Canary deployment
+  canary:
+    initial_percentage: 5
+    increment: 10
+    increment_interval_hours: 24
+    success_criteria:
+      min_auc: 0.7
+      max_latency_ms: 20
+      error_rate: 0.01
+      
+  # Rollback criteria
+  rollback:
+    triggers:
+      - metric: "error_rate"
+        threshold: 0.05
+      - metric: "p95_latency_ms"
+        threshold: 50
+      - metric: "auc"
+        threshold: 0.65  # Absolute minimum
+        
+  # Feature serving
+  feature_serving:
+    cache_ttl_seconds: 300
+    batch_size: 100
+    timeout_ms: 10
+    
+infrastructure:
+  # Resource requirements
+  training:
+    cpu: 8
+    memory_gb: 32
+    gpu: optional
+    
+  serving:
+    cpu: 2
+    memory_gb: 8
+    replicas: 3
+    
+  # Storage
+  storage:
+    datasets: "ml/datasets"
+    models: "ml/models"
+    reports: "ml/reports"
+    checkpoints: "ml/checkpoints"
+    
+  # Monitoring
+  monitoring:
+    prometheus: true
+    grafana: true
+    alerts: true
