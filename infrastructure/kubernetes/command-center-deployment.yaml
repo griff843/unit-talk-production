@@ -1,137 +1,127 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: unit-talk-api-blue
+  name: unit-talk-command-center-blue
   namespace: unit-talk
   labels:
-    app: unit-talk-api
+    app: unit-talk-command-center
     version: blue
 spec:
-  replicas: 3
+  replicas: 2
   selector:
     matchLabels:
-      app: unit-talk-api
+      app: unit-talk-command-center
       version: blue
   template:
     metadata:
       labels:
-        app: unit-talk-api
+        app: unit-talk-command-center
         version: blue
     spec:
       containers:
-        - name: api
-          image: ghcr.io/griff843/unit-talk-production/api:latest
+        - name: command-center
+          image: ghcr.io/griff843/unit-talk-production/command-center:latest
           ports:
             - containerPort: 3000
           env:
             - name: NODE_ENV
               value: 'production'
-            - name: DATABASE_URL
+            - name: NEXT_PUBLIC_SUPABASE_URL
               valueFrom:
                 secretKeyRef:
                   name: unit-talk-secrets
-                  key: database-url
-            - name: REDIS_URL
+                  key: supabase-url
+            - name: NEXT_PUBLIC_SUPABASE_ANON_KEY
               valueFrom:
                 secretKeyRef:
                   name: unit-talk-secrets
-                  key: redis-url
+                  key: supabase-anon-key
           resources:
             requests:
-              memory: '512Mi'
-              cpu: '250m'
+              memory: '256Mi'
+              cpu: '200m'
             limits:
-              memory: '1Gi'
-              cpu: '500m'
+              memory: '512Mi'
+              cpu: '400m'
           livenessProbe:
             httpGet:
-              path: /health
+              path: /api/health
               port: 3000
             initialDelaySeconds: 30
             periodSeconds: 10
           readinessProbe:
             httpGet:
-              path: /health
+              path: /api/health
               port: 3000
             initialDelaySeconds: 5
             periodSeconds: 5
-          securityContext:
-            runAsNonRoot: true
-            runAsUser: 1001
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: unit-talk-api-green
+  name: unit-talk-command-center-green
   namespace: unit-talk
   labels:
-    app: unit-talk-api
+    app: unit-talk-command-center
     version: green
 spec:
-  replicas: 3
+  replicas: 2
   selector:
     matchLabels:
-      app: unit-talk-api
+      app: unit-talk-command-center
       version: green
   template:
     metadata:
       labels:
-        app: unit-talk-api
+        app: unit-talk-command-center
         version: green
     spec:
       containers:
-        - name: api
-          image: ghcr.io/griff843/unit-talk-production/api:latest
+        - name: command-center
+          image: ghcr.io/griff843/unit-talk-production/command-center:latest
           ports:
             - containerPort: 3000
           env:
             - name: NODE_ENV
               value: 'production'
-            - name: DATABASE_URL
+            - name: NEXT_PUBLIC_SUPABASE_URL
               valueFrom:
                 secretKeyRef:
                   name: unit-talk-secrets
-                  key: database-url
-            - name: REDIS_URL
+                  key: supabase-url
+            - name: NEXT_PUBLIC_SUPABASE_ANON_KEY
               valueFrom:
                 secretKeyRef:
                   name: unit-talk-secrets
-                  key: redis-url
+                  key: supabase-anon-key
           resources:
             requests:
-              memory: '512Mi'
-              cpu: '250m'
+              memory: '256Mi'
+              cpu: '200m'
             limits:
-              memory: '1Gi'
-              cpu: '500m'
+              memory: '512Mi'
+              cpu: '400m'
           livenessProbe:
             httpGet:
-              path: /health
+              path: /api/health
               port: 3000
             initialDelaySeconds: 30
             periodSeconds: 10
           readinessProbe:
             httpGet:
-              path: /health
+              path: /api/health
               port: 3000
             initialDelaySeconds: 5
             periodSeconds: 5
-          securityContext:
-            runAsNonRoot: true
-            runAsUser: 1001
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: unit-talk-api-blue
+  name: unit-talk-command-center-blue
   namespace: unit-talk
 spec:
   selector:
-    app: unit-talk-api
+    app: unit-talk-command-center
     version: blue
   ports:
     - protocol: TCP
@@ -142,40 +132,14 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: unit-talk-api-green
+  name: unit-talk-command-center-green
   namespace: unit-talk
 spec:
   selector:
-    app: unit-talk-api
+    app: unit-talk-command-center
     version: green
   ports:
     - protocol: TCP
       port: 80
       targetPort: 3000
   type: ClusterIP
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: unit-talk-api-ingress
-  namespace: unit-talk
-  annotations:
-    kubernetes.io/ingress.class: nginx
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/rate-limit: '100'
-spec:
-  tls:
-    - hosts:
-        - api.unit-talk.com
-      secretName: unit-talk-api-tls
-  rules:
-    - host: api.unit-talk.com
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: unit-talk-api-service
-                port:
-                  number: 80

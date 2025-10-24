@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: unit-talk-discord-bot-blue
+  namespace: unit-talk
+  labels:
+    app: unit-talk-discord-bot
+    version: blue
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: unit-talk-discord-bot
+      version: blue
+  template:
+    metadata:
+      labels:
+        app: unit-talk-discord-bot
+        version: blue
+    spec:
+      containers:
+        - name: discord-bot
+          image: ghcr.io/griff843/unit-talk-production/discord-bot:latest
+          env:
+            - name: NODE_ENV
+              value: 'production'
+            - name: DISCORD_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: unit-talk-secrets
+                  key: discord-token
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: unit-talk-secrets
+                  key: database-url
+            - name: SUPABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: unit-talk-secrets
+                  key: supabase-url
+            - name: SUPABASE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: unit-talk-secrets
+                  key: supabase-service-role-key
+          resources:
+            requests:
+              memory: '256Mi'
+              cpu: '200m'
+            limits:
+              memory: '512Mi'
+              cpu: '400m'
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: unit-talk-discord-bot-green
+  namespace: unit-talk
+  labels:
+    app: unit-talk-discord-bot
+    version: green
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: unit-talk-discord-bot
+      version: green
+  template:
+    metadata:
+      labels:
+        app: unit-talk-discord-bot
+        version: green
+    spec:
+      containers:
+        - name: discord-bot
+          image: ghcr.io/griff843/unit-talk-production/discord-bot:latest
+          env:
+            - name: NODE_ENV
+              value: 'production'
+            - name: DISCORD_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: unit-talk-secrets
+                  key: discord-token
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: unit-talk-secrets
+                  key: database-url
+            - name: SUPABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: unit-talk-secrets
+                  key: supabase-url
+            - name: SUPABASE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: unit-talk-secrets
+                  key: supabase-service-role-key
+          resources:
+            requests:
+              memory: '256Mi'
+              cpu: '200m'
+            limits:
+              memory: '512Mi'
+              cpu: '400m'
