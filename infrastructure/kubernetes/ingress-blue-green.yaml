@@ -1,0 +1,54 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: unit-talk-api-ingress
+  namespace: unit-talk
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/rate-limit: '100'
+    nginx.ingress.kubernetes.io/canary: 'false'
+    nginx.ingress.kubernetes.io/service-upstream: 'true'
+spec:
+  tls:
+    - hosts:
+        - api.unit-talk.com
+      secretName: unit-talk-api-tls
+  rules:
+    - host: api.unit-talk.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: unit-talk-api-blue
+                port:
+                  number: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: unit-talk-api-ingress-canary
+  namespace: unit-talk
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/canary: 'true'
+    nginx.ingress.kubernetes.io/canary-weight: '0'
+spec:
+  tls:
+    - hosts:
+        - api.unit-talk.com
+      secretName: unit-talk-api-tls
+  rules:
+    - host: api.unit-talk.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: unit-talk-api-green
+                port:
+                  number: 80

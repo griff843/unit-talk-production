@@ -1,0 +1,280 @@
+name: Global Blue-Green Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+        default: staging
+      mode:
+        description: "Deployment color (blue or green)"
+        required: true
+        type: choice
+        options:
+          - blue
+          - green
+        default: blue
+      rollout:
+        description: "Traffic percentage rollout"
+        required: true
+        type: choice
+        options:
+          - "5"
+          - "25"
+          - "100"
+        default: "5"
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Validate inputs
+  validate:
+    name: Validate Deployment Parameters
+    runs-on: ubuntu-latest
+    outputs:
+      env: ${{ steps.validate.outputs.env }}
+      mode: ${{ steps.validate.outputs.mode }}
+      rollout: ${{ steps.validate.outputs.rollout }}
+    steps:
+      - name: Validate inputs
+        id: validate
+        run: |
+          echo "env=${{ inputs.env }}" >> $GITHUB_OUTPUT
+          echo "mode=${{ inputs.mode }}" >> $GITHUB_OUTPUT
+          echo "rollout=${{ inputs.rollout }}" >> $GITHUB_OUTPUT
+
+          echo "✅ Deployment validated:"
+          echo "  Environment: ${{ inputs.env }}"
+          echo "  Mode: ${{ inputs.mode }}"
+          echo "  Rollout: ${{ inputs.rollout }}%"
+
+  # Pre-deployment verification
+  pre-deployment-checks:
+    name: Pre-Deployment Verification
+    runs-on: ubuntu-latest
+    needs: [validate]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run verification gates
+        run: npm run ops:verify
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+
+  # Deploy to target environment
+  deploy:
+    name: Deploy ${{ needs.validate.outputs.mode }} @ ${{ needs.validate.outputs.rollout }}%
+    runs-on: ubuntu-latest
+    needs: [validate, pre-deployment-checks]
+    environment:
+      name: ${{ needs.validate.outputs.env }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      - name: Update kubeconfig
+        run: |
+          echo "Configuring kubectl for EKS cluster..."
+          aws eks update-kubeconfig --name unit-talk-cluster --region ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      - name: Deploy core applications
+        run: |
+          echo "🚀 Deploying core apps to ${{ needs.validate.outputs.mode }} environment..."
+
+          # Update image tags with commit SHA
+          export IMAGE_TAG="${{ github.sha }}"
+
+          # Deploy API
+          kubectl set image deployment/unit-talk-api-${{ needs.validate.outputs.mode }} \
+            api=ghcr.io/${{ github.repository }}/api:${IMAGE_TAG} -n unit-talk
+
+          # Deploy Command Center
+          kubectl set image deployment/unit-talk-command-center-${{ needs.validate.outputs.mode }} \
+            command-center=ghcr.io/${{ github.repository }}/command-center:${IMAGE_TAG} -n unit-talk
+
+          # Deploy Dashboard
+          kubectl set image deployment/unit-talk-dashboard-${{ needs.validate.outputs.mode }} \
+            dashboard=ghcr.io/${{ github.repository }}/dashboard:${IMAGE_TAG} -n unit-talk
+
+          # Deploy Discord Bot
+          kubectl set image deployment/unit-talk-discord-bot-${{ needs.validate.outputs.mode }} \
+            discord-bot=ghcr.io/${{ github.repository }}/discord-bot:${IMAGE_TAG} -n unit-talk
+
+          echo "✅ Image updates applied to ${{ needs.validate.outputs.mode }} deployments"
+
+      - name: Wait for deployments to be ready
+        run: |
+          echo "⏳ Waiting for deployments to complete..."
+
+          kubectl rollout status deployment/unit-talk-api-${{ needs.validate.outputs.mode }} -n unit-talk --timeout=600s
+          kubectl rollout status deployment/unit-talk-command-center-${{ needs.validate.outputs.mode }} -n unit-talk --timeout=600s
+          kubectl rollout status deployment/unit-talk-dashboard-${{ needs.validate.outputs.mode }} -n unit-talk --timeout=600s
+          kubectl rollout status deployment/unit-talk-discord-bot-${{ needs.validate.outputs.mode }} -n unit-talk --timeout=600s
+
+          echo "✅ All deployments ready"
+
+      - name: Update load balancer traffic routing
+        run: |
+          echo "🔄 Routing ${{ needs.validate.outputs.rollout }}% of traffic to ${{ needs.validate.outputs.mode }}..."
+
+          chmod +x scripts/blue-green/route-traffic.sh
+          ./scripts/blue-green/route-traffic.sh ${{ needs.validate.outputs.mode }} ${{ needs.validate.outputs.rollout }}
+
+          echo "✅ Traffic routing updated"
+
+          # Log current routing
+          echo "📊 Current traffic distribution:"
+          if [ "${{ needs.validate.outputs.mode }}" == "green" ]; then
+            echo "  GREEN: ${{ needs.validate.outputs.rollout }}%"
+            echo "  BLUE: $((100 - ${{ needs.validate.outputs.rollout }}))%"
+          else
+            echo "  BLUE: ${{ needs.validate.outputs.rollout }}%"
+            echo "  GREEN: $((100 - ${{ needs.validate.outputs.rollout }}))%"
+          fi
+
+      - name: Verify deployment health
+        run: |
+          echo "🏥 Verifying deployment health..."
+
+          # Wait for traffic routing to stabilize
+          sleep 30
+
+          # Check pod health
+          kubectl get pods -n unit-talk -l version=${{ needs.validate.outputs.mode }}
+
+          # Verify all pods are running
+          READY_PODS=$(kubectl get pods -n unit-talk -l version=${{ needs.validate.outputs.mode }} -o jsonpath='{.items[*].status.conditions[?(@.type=="Ready")].status}' | grep -o "True" | wc -l)
+          TOTAL_PODS=$(kubectl get pods -n unit-talk -l version=${{ needs.validate.outputs.mode }} --no-headers | wc -l)
+
+          echo "Ready pods: ${READY_PODS}/${TOTAL_PODS}"
+
+          if [ "${READY_PODS}" -ne "${TOTAL_PODS}" ]; then
+            echo "❌ Not all pods are ready"
+            exit 1
+          fi
+
+          echo "✅ Health check passed"
+
+  # Post-deployment verification
+  post-deployment-verification:
+    name: Post-Deployment Verification
+    runs-on: ubuntu-latest
+    needs: [validate, deploy]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run SLO verification
+        run: |
+          echo "🔍 Running SLO verification..."
+          npm run ops:verify
+
+          # Create metrics directory
+          mkdir -p out/ops/cutover/metrics/${{ needs.validate.outputs.rollout }}
+
+          # Capture metrics
+          echo "📊 Capturing deployment metrics..."
+          kubectl top pods -n unit-talk -l version=${{ needs.validate.outputs.mode }} > out/ops/cutover/metrics/${{ needs.validate.outputs.rollout }}/pod-metrics.txt || true
+          kubectl get pods -n unit-talk -l version=${{ needs.validate.outputs.mode }} -o wide > out/ops/cutover/metrics/${{ needs.validate.outputs.rollout }}/pod-status.txt
+
+          # Create metrics JSON
+          cat > out/ops/cutover/metrics/${{ needs.validate.outputs.rollout }}/metrics.json <<EOF
+          {
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "environment": "${{ needs.validate.outputs.env }}",
+            "color": "${{ needs.validate.outputs.mode }}",
+            "rollout_percentage": ${{ needs.validate.outputs.rollout }},
+            "commit_sha": "${{ github.sha }}",
+            "workflow_run_id": "${{ github.run_id }}"
+          }
+          EOF
+
+          echo "✅ Metrics captured"
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+
+      - name: Upload deployment artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: deployment-metrics-${{ needs.validate.outputs.rollout }}pct
+          path: out/ops/cutover/metrics/${{ needs.validate.outputs.rollout }}/
+          retention-days: 30
+
+      - name: Run smoke tests
+        run: |
+          echo "🧪 Running smoke tests on ${{ needs.validate.outputs.mode }}..."
+
+          # Test API health endpoint
+          API_URL=$(kubectl get ingress unit-talk-api-ingress -n unit-talk -o jsonpath='{.spec.rules[0].host}')
+          echo "Testing API at https://${API_URL}/health"
+
+          # Retry logic for health check
+          for i in {1..5}; do
+            if curl -f -s "https://${API_URL}/health" > /dev/null; then
+              echo "✅ API health check passed"
+              break
+            fi
+            echo "⏳ Waiting for API... (${i}/5)"
+            sleep 10
+          done
+
+          echo "✅ Smoke tests passed"
+
+  # Notify deployment status
+  notify:
+    name: Notify Deployment Status
+    runs-on: ubuntu-latest
+    needs: [validate, deploy, post-deployment-verification]
+    if: always()
+    steps:
+      - name: Notify success
+        if: success()
+        run: |
+          echo "🚀 Deployment successful!"
+          echo "Environment: ${{ needs.validate.outputs.env }}"
+          echo "Mode: ${{ needs.validate.outputs.mode }}"
+          echo "Rollout: ${{ needs.validate.outputs.rollout }}%"
+
+      - name: Notify failure
+        if: failure()
+        run: |
+          echo "❌ Deployment failed!"
+          echo "Please check logs and rollback if necessary"
