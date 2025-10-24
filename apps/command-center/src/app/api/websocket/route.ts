@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * WebSocket API Endpoint
@@ -9,19 +9,22 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const upgrade = request.headers.get('upgrade')
-    const connection = request.headers.get('connection')
+    const { searchParams } = new URL(request.url);
+    const upgrade = request.headers.get('upgrade');
+    const connection = request.headers.get('connection');
 
-    console.log('🔌 WebSocket connection request', { upgrade, connection })
+    console.log('🔌 WebSocket connection request', { upgrade, connection });
 
     // Check if this is a WebSocket upgrade request
     if (upgrade !== 'websocket' || !connection?.toLowerCase().includes('upgrade')) {
-      return NextResponse.json({
-        success: false,
-        error: 'Expected WebSocket upgrade request',
-        message: 'This endpoint is for WebSocket connections only'
-      }, { status: 400 })
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Expected WebSocket upgrade request',
+          message: 'This endpoint is for WebSocket connections only',
+        },
+        { status: 400 }
+      );
     }
 
     // Return WebSocket configuration information
@@ -36,51 +39,56 @@ export async function GET(request: NextRequest) {
         message_types: [
           'system-metrics',
           'agent-status',
-          'user-activity', 
+          'user-activity',
           'security-alerts',
           'system-alerts',
-          'performance-metrics'
-        ]
+          'performance-metrics',
+        ],
       },
       endpoints: {
         production: process.env.WEBSOCKET_URL || 'wss://api.unittalk.com/ws',
-        development: 'ws://localhost:3011/ws'
-      }
-    })
-
+        development: 'ws://localhost:3011/ws',
+      },
+    });
   } catch (error) {
-    console.error('❌ WebSocket endpoint error:', error)
-    return NextResponse.json({
-      success: false,
-      error: 'WebSocket endpoint error'
-    }, { status: 500 })
+    console.error('❌ WebSocket endpoint error:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'WebSocket endpoint error',
+      },
+      { status: 500 }
+    );
   }
 }
 
 // POST /api/websocket - Send message to WebSocket clients
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { type, payload, target, priority } = body
+    const body = await request.json();
+    const { type, payload, target, priority } = body;
 
-    console.log('📡 WebSocket message broadcast', { type, target, priority })
+    console.log('📡 WebSocket message broadcast', { type, target, priority });
 
     // Validate message type
     const validTypes = [
       'system-metrics',
-      'agent-status', 
+      'agent-status',
       'user-activity',
       'security-alerts',
       'system-alerts',
       'performance-metrics',
-      'emergency-broadcast'
-    ]
+      'emergency-broadcast',
+    ];
 
     if (!validTypes.includes(type)) {
-      return NextResponse.json({
-        success: false,
-        error: `Invalid message type. Must be one of: ${validTypes.join(', ')}`
-      }, { status: 400 })
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Invalid message type. Must be one of: ${validTypes.join(', ')}`,
+        },
+        { status: 400 }
+      );
     }
 
     // Create WebSocket message format
@@ -90,27 +98,27 @@ export async function POST(request: NextRequest) {
       payload,
       timestamp: new Date().toISOString(),
       priority: priority || 'normal',
-      target: target || 'all'
-    }
+      target: target || 'all',
+    };
 
     // In a real implementation, this would broadcast to connected WebSocket clients
     // For now, we'll simulate the broadcast and log it
-    console.log('📤 Broadcasting message:', message)
+    console.log('📤 Broadcasting message:', message);
 
     // Simulate broadcasting to different targets
-    let recipientCount = 0
+    let recipientCount = 0;
     switch (target) {
       case 'admins':
-        recipientCount = 5
-        break
+        recipientCount = 5;
+        break;
       case 'operators':
-        recipientCount = 12
-        break
+        recipientCount = 12;
+        break;
       case 'viewers':
-        recipientCount = 45
-        break
+        recipientCount = 45;
+        break;
       default:
-        recipientCount = 62 // all users
+        recipientCount = 62; // all users
     }
 
     return NextResponse.json({
@@ -120,22 +128,24 @@ export async function POST(request: NextRequest) {
         message_id: message.id,
         type: message.type,
         recipients: recipientCount,
-        timestamp: message.timestamp
-      }
-    })
-
+        timestamp: message.timestamp,
+      },
+    });
   } catch (error) {
-    console.error('❌ WebSocket broadcast error:', error)
-    return NextResponse.json({
-      success: false,
-      error: 'Failed to broadcast WebSocket message'
-    }, { status: 500 })
+    console.error('❌ WebSocket broadcast error:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Failed to broadcast WebSocket message',
+      },
+      { status: 500 }
+    );
   }
 }
 
 /**
  * WebSocket Message Types and Schemas
- * 
+ *
  * system-metrics:
  * {
  *   type: 'system-metrics',
@@ -146,7 +156,7 @@ export async function POST(request: NextRequest) {
  *     users: { active: number, total: number }
  *   }
  * }
- * 
+ *
  * agent-status:
  * {
  *   type: 'agent-status',
@@ -158,7 +168,7 @@ export async function POST(request: NextRequest) {
  *     success_rate: number
  *   }
  * }
- * 
+ *
  * security-alerts:
  * {
  *   type: 'security-alerts',
@@ -171,7 +181,7 @@ export async function POST(request: NextRequest) {
  *     user_id?: string
  *   }
  * }
- * 
+ *
  * system-alerts:
  * {
  *   type: 'system-alerts',

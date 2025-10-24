@@ -7,7 +7,13 @@ import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   LineChart,
   Line,
@@ -55,10 +61,8 @@ export function PipelineLagCard({ className }: PipelineLagCardProps) {
 
     const now = new Date();
     const fifteenMinAgo = new Date(now.getTime() - 15 * 60 * 1000);
-    
-    const recentData = currentData.filter(point => 
-      new Date(point.t) >= fifteenMinAgo
-    );
+
+    const recentData = currentData.filter(point => new Date(point.t) >= fifteenMinAgo);
 
     if (recentData.length === 0) return { p50: 0, p95: 0, count: 0 };
 
@@ -101,15 +105,9 @@ export function PipelineLagCard({ className }: PipelineLagCardProps) {
         <div className="bg-background border rounded-lg p-3 shadow-lg">
           <p className="font-medium">{format(new Date(label), 'MMM dd, HH:mm')}</p>
           <div className="space-y-1 text-sm">
-            <p className="text-blue-600">
-              p50: {data.p50.toFixed(2)}s
-            </p>
-            <p className="text-purple-600">
-              p95: {data.p95.toFixed(2)}s
-            </p>
-            <p className="text-muted-foreground">
-              Promoted: {data.count.toLocaleString()}
-            </p>
+            <p className="text-blue-600">p50: {data.p50.toFixed(2)}s</p>
+            <p className="text-purple-600">p95: {data.p95.toFixed(2)}s</p>
+            <p className="text-muted-foreground">Promoted: {data.count.toLocaleString()}</p>
           </div>
         </div>
       );
@@ -146,9 +144,7 @@ export function PipelineLagCard({ className }: PipelineLagCardProps) {
               Pipeline Lag (24h)
               <div className={`w-3 h-3 rounded-full ml-2 ${status.color}`} />
             </CardTitle>
-            <CardDescription>
-              p50/p95 promotion lag in seconds, per sport
-            </CardDescription>
+            <CardDescription>p50/p95 promotion lag in seconds, per sport</CardDescription>
           </div>
           <div className="flex items-center space-x-2">
             <Select value={selectedSport} onValueChange={setSelectedSport}>
@@ -163,52 +159,40 @@ export function PipelineLagCard({ className }: PipelineLagCardProps) {
                     <SelectItem key={sport} value={sport}>
                       {sport.toUpperCase()}
                     </SelectItem>
-                  ))
-                }
+                  ))}
               </SelectContent>
             </Select>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={refetch}
-              disabled={isLoading}
-            >
+            <Button variant="outline" size="sm" onClick={refetch} disabled={isLoading}>
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             </Button>
           </div>
         </div>
       </CardHeader>
-      
+
       <CardContent>
         {/* KPI Chips */}
         <div className="grid grid-cols-3 gap-4 mb-6">
           <div className="text-center p-3 rounded-lg border bg-muted/20">
-            <div className="text-lg font-bold text-blue-600">
-              {last15MinKPIs.p50}s
-            </div>
+            <div className="text-lg font-bold text-blue-600">{last15MinKPIs.p50}s</div>
             <div className="text-sm text-muted-foreground">Last 15m p50</div>
           </div>
           <div className="text-center p-3 rounded-lg border bg-muted/20">
-            <div className="text-lg font-bold text-purple-600">
-              {last15MinKPIs.p95}s
-            </div>
+            <div className="text-lg font-bold text-purple-600">{last15MinKPIs.p95}s</div>
             <div className="text-sm text-muted-foreground">Last 15m p95</div>
           </div>
           <div className="text-center p-3 rounded-lg border bg-muted/20">
-            <div className="text-lg font-bold">
-              {last15MinKPIs.count.toLocaleString()}
-            </div>
+            <div className="text-lg font-bold">{last15MinKPIs.count.toLocaleString()}</div>
             <div className="text-sm text-muted-foreground">Promoted</div>
           </div>
         </div>
 
         {/* Status Badge */}
         <div className="flex justify-center mb-4">
-          <Badge 
-            variant="outline" 
+          <Badge
+            variant="outline"
             className={`${
-              status.level === 'critical' 
-                ? 'border-red-500 text-red-600' 
+              status.level === 'critical'
+                ? 'border-red-500 text-red-600'
                 : status.level === 'warning'
                   ? 'border-yellow-500 text-yellow-600'
                   : 'border-green-500 text-green-600'
@@ -237,44 +221,44 @@ export function PipelineLagCard({ className }: PipelineLagCardProps) {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                <XAxis 
+                <XAxis
                   dataKey="timeFormatted"
                   tick={{ fontSize: 12 }}
                   interval="preserveStartEnd"
                 />
-                <YAxis 
+                <YAxis
                   tick={{ fontSize: 12 }}
                   label={{ value: 'Seconds', angle: -90, position: 'insideLeft' }}
                 />
                 <Tooltip content={<CustomTooltip />} />
-                
+
                 {/* Threshold reference lines */}
-                <ReferenceLine 
-                  y={5} 
-                  stroke="#eab308" 
+                <ReferenceLine
+                  y={5}
+                  stroke="#eab308"
                   strokeDasharray="5 5"
-                  label={{ value: "5s threshold", position: "top", fontSize: 10 }}
+                  label={{ value: '5s threshold', position: 'top', fontSize: 10 }}
                 />
-                <ReferenceLine 
-                  y={15} 
-                  stroke="#dc2626" 
+                <ReferenceLine
+                  y={15}
+                  stroke="#dc2626"
                   strokeDasharray="5 5"
-                  label={{ value: "15s threshold", position: "top", fontSize: 10 }}
+                  label={{ value: '15s threshold', position: 'top', fontSize: 10 }}
                 />
-                
+
                 {/* Data lines */}
-                <Line 
-                  type="monotone" 
-                  dataKey="p50" 
-                  stroke="#3b82f6" 
+                <Line
+                  type="monotone"
+                  dataKey="p50"
+                  stroke="#3b82f6"
                   strokeWidth={2}
                   dot={false}
                   name="p50"
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="p95" 
-                  stroke="#7c3aed" 
+                <Line
+                  type="monotone"
+                  dataKey="p95"
+                  stroke="#7c3aed"
                   strokeWidth={2}
                   dot={false}
                   name="p95"

@@ -7,6 +7,7 @@
 # Build outputs
 dist/
 build/
+out/
 *.tsbuildinfo
 
 # Dependencies
@@ -59,6 +60,7 @@ jspm_packages/
 
 # next.js build output
 .next
+**/.next/
 
 # nuxt.js build output
 .nuxt

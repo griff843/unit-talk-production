@@ -1,20 +1,20 @@
-'use client'
+'use client';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { 
-  Users, 
-  UserPlus, 
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Users,
+  UserPlus,
   Search,
   Shield,
   Crown,
   Star,
   MoreHorizontal,
   Ban,
-  UserCheck
-} from 'lucide-react'
+  UserCheck,
+} from 'lucide-react';
 
 const users = [
   {
@@ -26,8 +26,8 @@ const users = [
     joinDate: '2024-01-15',
     totalPicks: 847,
     winRate: 67.2,
-    revenue: 2847.50,
-    lastActive: '2 minutes ago'
+    revenue: 2847.5,
+    lastActive: '2 minutes ago',
   },
   {
     id: 2,
@@ -39,7 +39,7 @@ const users = [
     totalPicks: 523,
     winRate: 58.9,
     revenue: 1234.75,
-    lastActive: '15 minutes ago'
+    lastActive: '15 minutes ago',
   },
   {
     id: 3,
@@ -51,7 +51,7 @@ const users = [
     totalPicks: 89,
     winRate: 45.2,
     revenue: 0,
-    lastActive: '3 days ago'  
+    lastActive: '3 days ago',
   },
   {
     id: 4,
@@ -62,10 +62,10 @@ const users = [
     joinDate: '2024-01-08',
     totalPicks: 1205,
     winRate: 72.1,
-    revenue: 4521.30,
-    lastActive: '1 week ago'
-  }
-]
+    revenue: 4521.3,
+    lastActive: '1 week ago',
+  },
+];
 
 const stats = [
   {
@@ -73,54 +73,54 @@ const stats = [
     value: '1,234',
     change: '+12.3%',
     icon: Users,
-    description: 'Registered users'
+    description: 'Registered users',
   },
   {
     title: 'Active Users',
     value: '892',
     change: '+8.1%',
     icon: UserCheck,
-    description: 'Active in last 7 days'
+    description: 'Active in last 7 days',
   },
   {
     title: 'VIP Members',
     value: '156',
     change: '+15.2%',
     icon: Crown,
-    description: 'Premium subscribers'
+    description: 'Premium subscribers',
   },
   {
     title: 'Banned Users',
     value: '23',
     change: '-5.8%',
     icon: Ban,
-    description: 'Suspended accounts'
-  }
-]
+    description: 'Suspended accounts',
+  },
+];
 
 function getTierColor(tier: string) {
   switch (tier) {
     case 'VIP':
-      return 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+      return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
     case 'Premium':
-      return 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+      return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
     case 'Free':
-      return 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+      return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
     default:
-      return 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+      return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
   }
 }
 
 function getStatusColor(status: string) {
   switch (status) {
     case 'active':
-      return 'bg-green-500/20 text-green-400 border-green-500/30'
+      return 'bg-green-500/20 text-green-400 border-green-500/30';
     case 'inactive':
-      return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+      return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
     case 'banned':
-      return 'bg-red-500/20 text-red-400 border-red-500/30'
+      return 'bg-red-500/20 text-red-400 border-red-500/30';
     default:
-      return 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+      return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
   }
 }
 
@@ -143,12 +143,10 @@ export default function UsersPage() {
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
+        {stats.map(stat => (
           <Card key={stat.title} className="metric-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                {stat.title}
-              </CardTitle>
+              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
               <stat.icon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -159,9 +157,7 @@ export default function UsersPage() {
                 </span>
                 <span>from last month</span>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {stat.description}
-              </p>
+              <p className="text-xs text-muted-foreground mt-1">{stat.description}</p>
             </CardContent>
           </Card>
         ))}
@@ -171,18 +167,13 @@ export default function UsersPage() {
       <Card>
         <CardHeader>
           <CardTitle>Users</CardTitle>
-          <CardDescription>
-            Manage user accounts and permissions
-          </CardDescription>
+          <CardDescription>Manage user accounts and permissions</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center space-x-4 mb-6">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input 
-                placeholder="Search users by username or Discord ID..."
-                className="pl-10"
-              />
+              <Input placeholder="Search users by username or Discord ID..." className="pl-10" />
             </div>
             <Button variant="outline">Filter</Button>
           </div>
@@ -193,23 +184,39 @@ export default function UsersPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">User</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Tier</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Status</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Stats</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Revenue</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Last Active</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Actions</th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
+                      User
+                    </th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
+                      Tier
+                    </th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
+                      Status
+                    </th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
+                      Stats
+                    </th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
+                      Revenue
+                    </th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
+                      Last Active
+                    </th>
+                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((user) => (
+                  {users.map(user => (
                     <tr key={user.id} className="border-b hover:bg-muted/20">
                       <td className="h-16 px-4 align-middle">
                         <div>
                           <div className="font-medium">{user.username}</div>
                           <div className="text-sm text-muted-foreground">ID: {user.discordId}</div>
-                          <div className="text-xs text-muted-foreground">Joined {user.joinDate}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Joined {user.joinDate}
+                          </div>
                         </div>
                       </td>
                       <td className="h-16 px-4 align-middle">
@@ -251,5 +258,5 @@ export default function UsersPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

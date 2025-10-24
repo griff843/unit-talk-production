@@ -5,7 +5,7 @@ import { UnitTalkTracing } from '@/lib/telemetry';
 
 /**
  * Production Pipeline Events API for Command Center
- * 
+ *
  * Provides real-time access to production pipeline events including:
  * - Bridge outbox events (Smart Form integration)
  * - Temporal workflow executions
@@ -42,16 +42,19 @@ interface PipelineEvent {
 
 export async function GET(request: NextRequest) {
   const span = UnitTalkTracing.startTemporalSpan('command-center', 'fetch-events');
-  
+
   try {
     const userId = request.headers.get('x-user-id');
     const clientIP = request.headers.get('x-forwarded-for') || 'unknown';
-    
+
     if (!userId) {
-      return NextResponse.json({ 
-        error: 'Authentication required',
-        code: 'AUTH_REQUIRED' 
-      }, { status: 401 });
+      return NextResponse.json(
+        {
+          error: 'Authentication required',
+          code: 'AUTH_REQUIRED',
+        },
+        { status: 401 }
+      );
     }
 
     // Check permissions
@@ -63,7 +66,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const query: EventQuery = {
       eventTypes: searchParams.get('eventTypes')?.split(','),
-      timeRange: searchParams.get('timeRange') as any || '1h',
+      timeRange: (searchParams.get('timeRange') as any) || '1h',
       customStart: searchParams.get('customStart') || undefined,
       customEnd: searchParams.get('customEnd') || undefined,
       aggregateTypes: searchParams.get('aggregateTypes')?.split(','),
@@ -71,7 +74,7 @@ export async function GET(request: NextRequest) {
       limit: parseInt(searchParams.get('limit') || '50'),
       offset: parseInt(searchParams.get('offset') || '0'),
       includeMetadata: searchParams.get('includeMetadata') === 'true',
-      source: searchParams.get('source') as any || 'all',
+      source: (searchParams.get('source') as any) || 'all',
     };
 
     const events = await fetchPipelineEvents(query);
@@ -102,21 +105,22 @@ export async function GET(request: NextRequest) {
         hasMore: events.length === query.limit,
       },
     });
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const statusCode = errorMessage.includes('Access denied') ? 403 : 500;
-    
+
     console.error('Events fetch failed:', {
       error: errorMessage,
       stack: error instanceof Error ? error.stack : undefined,
     });
 
-    return NextResponse.json({
-      error: errorMessage,
-      code: statusCode === 403 ? 'ACCESS_DENIED' : 'FETCH_FAILED',
-    }, { status: statusCode });
-    
+    return NextResponse.json(
+      {
+        error: errorMessage,
+        code: statusCode === 403 ? 'ACCESS_DENIED' : 'FETCH_FAILED',
+      },
+      { status: statusCode }
+    );
   } finally {
     span.end();
   }
@@ -127,7 +131,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   const span = UnitTalkTracing.startTemporalSpan('command-center', 'stream-events');
-  
+
   try {
     const userId = request.headers.get('x-user-id');
     if (!userId) {
@@ -185,13 +189,15 @@ export async function POST(request: NextRequest) {
         'Access-Control-Allow-Headers': 'Cache-Control',
       },
     });
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({
-      error: errorMessage,
-      code: 'STREAM_SETUP_FAILED',
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: errorMessage,
+        code: 'STREAM_SETUP_FAILED',
+      },
+      { status: 500 }
+    );
   } finally {
     span.end();
   }
@@ -199,36 +205,34 @@ export async function POST(request: NextRequest) {
 
 async function fetchPipelineEvents(query: EventQuery): Promise<PipelineEvent[]> {
   const events: PipelineEvent[] = [];
-  
+
   // Fetch from events table
   if (query.source === 'events' || query.source === 'all') {
     const eventsData = await fetchFromEventsTable(query);
     events.push(...eventsData);
   }
-  
+
   // Fetch from bridge_outbox table
   if (query.source === 'bridge_outbox' || query.source === 'all') {
     const bridgeData = await fetchFromBridgeOutboxTable(query);
     events.push(...bridgeData);
   }
-  
+
   // Fetch from workflow_executions table
   if (query.source === 'workflow_executions' || query.source === 'all') {
     const workflowData = await fetchFromWorkflowExecutionsTable(query);
     events.push(...workflowData);
   }
-  
+
   // Sort by creation time (most recent first)
   events.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  
+
   // Apply limit
   return events.slice(query.offset || 0, (query.offset || 0) + (query.limit || 50));
 }
 
 async function fetchFromEventsTable(query: EventQuery): Promise<PipelineEvent[]> {
-  let dbQuery = supabase
-    .from('events')
-    .select('*');
+  let dbQuery = supabase.from('events').select('*');
 
   // Apply filters
   if (query.eventTypes && query.eventTypes.length > 0) {
@@ -267,9 +271,7 @@ async function fetchFromEventsTable(query: EventQuery): Promise<PipelineEvent[]>
 }
 
 async function fetchFromBridgeOutboxTable(query: EventQuery): Promise<PipelineEvent[]> {
-  let dbQuery = supabase
-    .from('bridge_outbox')
-    .select('*');
+  let dbQuery = supabase.from('bridge_outbox').select('*');
 
   // Apply filters (bridge_outbox has different column names)
   if (query.eventTypes && query.eventTypes.length > 0) {
@@ -313,9 +315,7 @@ async function fetchFromBridgeOutboxTable(query: EventQuery): Promise<PipelineEv
 }
 
 async function fetchFromWorkflowExecutionsTable(query: EventQuery): Promise<PipelineEvent[]> {
-  let dbQuery = supabase
-    .from('workflow_executions')
-    .select('*');
+  let dbQuery = supabase.from('workflow_executions').select('*');
 
   // Apply filters
   if (query.status) {
@@ -410,7 +410,11 @@ async function getEventStatistics(query: EventQuery) {
   return stats;
 }
 
-function setupEventSubscriptions(controller: ReadableStreamDefaultController, eventTypes?: string[], source?: string) {
+function setupEventSubscriptions(
+  controller: ReadableStreamDefaultController,
+  eventTypes?: string[],
+  source?: string
+) {
   const subscriptions: any[] = [];
 
   try {
@@ -418,14 +422,15 @@ function setupEventSubscriptions(controller: ReadableStreamDefaultController, ev
     if (source === 'events' || source === 'all') {
       const eventsSubscription = supabase
         .channel('command-center-events')
-        .on('postgres_changes', 
+        .on(
+          'postgres_changes',
           {
             event: '*',
             schema: 'public',
             table: 'events',
             filter: eventTypes ? `event_type=in.(${eventTypes.join(',')})` : undefined,
           },
-          (payload) => {
+          payload => {
             const event = mapDatabaseEventToPipelineEvent(payload.new, 'events');
             const message = `data: ${JSON.stringify({
               type: 'event_update',
@@ -433,7 +438,7 @@ function setupEventSubscriptions(controller: ReadableStreamDefaultController, ev
               changeType: payload.eventType,
               timestamp: new Date().toISOString(),
             })}\n\n`;
-            
+
             try {
               controller.enqueue(new TextEncoder().encode(message));
             } catch (error) {
@@ -442,7 +447,7 @@ function setupEventSubscriptions(controller: ReadableStreamDefaultController, ev
           }
         )
         .subscribe();
-      
+
       subscriptions.push(eventsSubscription);
     }
 
@@ -450,13 +455,14 @@ function setupEventSubscriptions(controller: ReadableStreamDefaultController, ev
     if (source === 'bridge_outbox' || source === 'all') {
       const bridgeSubscription = supabase
         .channel('command-center-bridge-outbox')
-        .on('postgres_changes',
+        .on(
+          'postgres_changes',
           {
             event: '*',
             schema: 'public',
             table: 'bridge_outbox',
           },
-          (payload) => {
+          payload => {
             const event = mapDatabaseEventToPipelineEvent(payload.new, 'bridge_outbox');
             const message = `data: ${JSON.stringify({
               type: 'bridge_outbox_update',
@@ -464,7 +470,7 @@ function setupEventSubscriptions(controller: ReadableStreamDefaultController, ev
               changeType: payload.eventType,
               timestamp: new Date().toISOString(),
             })}\n\n`;
-            
+
             try {
               controller.enqueue(new TextEncoder().encode(message));
             } catch (error) {
@@ -473,7 +479,7 @@ function setupEventSubscriptions(controller: ReadableStreamDefaultController, ev
           }
         )
         .subscribe();
-      
+
       subscriptions.push(bridgeSubscription);
     }
 
@@ -481,13 +487,14 @@ function setupEventSubscriptions(controller: ReadableStreamDefaultController, ev
     if (source === 'workflow_executions' || source === 'all') {
       const workflowSubscription = supabase
         .channel('command-center-workflows')
-        .on('postgres_changes',
+        .on(
+          'postgres_changes',
           {
             event: '*',
             schema: 'public',
             table: 'workflow_executions',
           },
-          (payload) => {
+          payload => {
             const event = mapDatabaseEventToPipelineEvent(payload.new, 'workflow_executions');
             const message = `data: ${JSON.stringify({
               type: 'workflow_update',
@@ -495,7 +502,7 @@ function setupEventSubscriptions(controller: ReadableStreamDefaultController, ev
               changeType: payload.eventType,
               timestamp: new Date().toISOString(),
             })}\n\n`;
-            
+
             try {
               controller.enqueue(new TextEncoder().encode(message));
             } catch (error) {
@@ -504,10 +511,9 @@ function setupEventSubscriptions(controller: ReadableStreamDefaultController, ev
           }
         )
         .subscribe();
-      
+
       subscriptions.push(workflowSubscription);
     }
-
   } catch (error) {
     console.error('Failed to setup event subscriptions:', error);
   }
@@ -533,19 +539,29 @@ function determineEventStatus(event: any): 'pending' | 'processing' | 'completed
   return 'pending';
 }
 
-function mapWorkflowStatusToEventStatus(workflowStatus: string): 'pending' | 'processing' | 'completed' | 'failed' {
+function mapWorkflowStatusToEventStatus(
+  workflowStatus: string
+): 'pending' | 'processing' | 'completed' | 'failed' {
   switch (workflowStatus) {
-    case 'queued': return 'pending';
-    case 'running': return 'processing';
-    case 'completed': return 'completed';
+    case 'queued':
+      return 'pending';
+    case 'running':
+      return 'processing';
+    case 'completed':
+      return 'completed';
     case 'failed':
     case 'terminated':
-    case 'cancelled': return 'failed';
-    default: return 'pending';
+    case 'cancelled':
+      return 'failed';
+    default:
+      return 'pending';
   }
 }
 
-function mapDatabaseEventToPipelineEvent(dbRecord: any, source: 'events' | 'bridge_outbox' | 'workflow_executions'): PipelineEvent {
+function mapDatabaseEventToPipelineEvent(
+  dbRecord: any,
+  source: 'events' | 'bridge_outbox' | 'workflow_executions'
+): PipelineEvent {
   switch (source) {
     case 'events':
       return {
@@ -560,7 +576,7 @@ function mapDatabaseEventToPipelineEvent(dbRecord: any, source: 'events' | 'brid
         processedAt: dbRecord.processed_at,
         status: determineEventStatus(dbRecord),
       };
-    
+
     case 'bridge_outbox':
       return {
         id: dbRecord.id,
@@ -579,7 +595,7 @@ function mapDatabaseEventToPipelineEvent(dbRecord: any, source: 'events' | 'brid
         processedAt: dbRecord.processed_at,
         status: dbRecord.status,
       };
-    
+
     case 'workflow_executions':
       return {
         id: dbRecord.workflow_id,
@@ -608,7 +624,7 @@ function mapDatabaseEventToPipelineEvent(dbRecord: any, source: 'events' | 'brid
 
 function getTimeRangeFilter(timeRange: string, customStart?: string, customEnd?: string) {
   const now = new Date();
-  
+
   switch (timeRange) {
     case '1h':
       return {
@@ -645,10 +661,8 @@ function getTimeRangeFilter(timeRange: string, customStart?: string, customEnd?:
 
 // Statistics helper functions (simplified implementations)
 async function getEventsTableStatistics(query: EventQuery) {
-  const { count } = await supabase
-    .from('events')
-    .select('*', { count: 'exact', head: true });
-  
+  const { count } = await supabase.from('events').select('*', { count: 'exact', head: true });
+
   return {
     count: count || 0,
     byType: {},
@@ -660,7 +674,7 @@ async function getBridgeOutboxStatistics(query: EventQuery) {
   const { count } = await supabase
     .from('bridge_outbox')
     .select('*', { count: 'exact', head: true });
-  
+
   return {
     count: count || 0,
     byStatus: {},
@@ -671,7 +685,7 @@ async function getWorkflowExecutionsStatistics(query: EventQuery) {
   const { count } = await supabase
     .from('workflow_executions')
     .select('*', { count: 'exact', head: true });
-  
+
   return {
     count: count || 0,
     byStatus: {},

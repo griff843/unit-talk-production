@@ -6,15 +6,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { 
-  RotateCcw, 
-  Zap, 
-  Clock, 
-  Filter, 
-  AlertTriangle, 
+import {
+  RotateCcw,
+  Zap,
+  Clock,
+  Filter,
+  AlertTriangle,
   CheckCircle,
   XCircle,
   Loader2,
@@ -24,7 +30,7 @@ import {
   Activity,
   BarChart3,
   Eye,
-  RefreshCw
+  RefreshCw,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { usePermissions } from '@/lib/rbac';
@@ -80,11 +86,11 @@ interface ReplayStatus {
   }>;
 }
 
-export function ReplayControlPanel({ 
-  onReplayGrading, 
-  onReemitAlerts, 
+export function ReplayControlPanel({
+  onReplayGrading,
+  onReemitAlerts,
   onGetReplayStatus,
-  onCancelReplay 
+  onCancelReplay,
 }: ReplayControlPanelProps) {
   const { hasPermission } = usePermissions();
   const [criteria, setCriteria] = useState<ReplayCriteria>({
@@ -94,7 +100,7 @@ export function ReplayControlPanel({
     reason: '',
     dryRun: false,
   });
-  
+
   const [isReplaying, setIsReplaying] = useState(false);
   const [activeReplays, setActiveReplays] = useState<Map<string, ReplayStatus>>(new Map());
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -113,7 +119,7 @@ export function ReplayControlPanel({
           try {
             const updatedStatus = await onGetReplayStatus(replayId);
             setActiveReplays(prev => new Map(prev.set(replayId, updatedStatus)));
-            
+
             // Remove completed/failed replays after 30 seconds
             if (['completed', 'failed', 'cancelled'].includes(updatedStatus.status)) {
               setTimeout(() => {
@@ -138,9 +144,9 @@ export function ReplayControlPanel({
   const handlePreview = async () => {
     if (!criteria.reason.trim()) {
       toast({
-        title: "Reason Required",
-        description: "Please provide a reason for the replay operation",
-        variant: "destructive",
+        title: 'Reason Required',
+        description: 'Please provide a reason for the replay operation',
+        variant: 'destructive',
       });
       return;
     }
@@ -153,18 +159,18 @@ export function ReplayControlPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(criteria),
       }).then(res => res.json());
-      
+
       setPreviewResults(previewData);
-      
+
       toast({
-        title: "Preview Generated",
+        title: 'Preview Generated',
         description: `Found ${previewData.eventCount} events matching criteria`,
       });
     } catch (error) {
       toast({
-        title: "Preview Failed",
+        title: 'Preview Failed',
         description: error.message,
-        variant: "destructive",
+        variant: 'destructive',
       });
     } finally {
       setPreviewMode(false);
@@ -174,18 +180,18 @@ export function ReplayControlPanel({
   const handleRerunGrading = async () => {
     if (!canReplay) {
       toast({
-        title: "Access Denied",
+        title: 'Access Denied',
         description: "You don't have permission to replay workflows",
-        variant: "destructive",
+        variant: 'destructive',
       });
       return;
     }
 
     if (!criteria.reason.trim()) {
       toast({
-        title: "Reason Required",
-        description: "Please provide a reason for the grading replay",
-        variant: "destructive",
+        title: 'Reason Required',
+        description: 'Please provide a reason for the grading replay',
+        variant: 'destructive',
       });
       return;
     }
@@ -193,28 +199,35 @@ export function ReplayControlPanel({
     setIsReplaying(true);
     try {
       const result = await onReplayGrading(criteria);
-      
+
       if (result.success) {
         // Add to active replays for monitoring
-        setActiveReplays(prev => new Map(prev.set(result.replayId, {
-          id: result.replayId,
-          status: 'running',
-          progress: {
-            completed: 0,
-            total: result.eventCount,
-            currentStep: 'Initializing replay...',
-            estimatedCompletion: new Date(Date.now() + (result.estimatedDuration || 300000)).toISOString(),
-          },
-          metrics: {
-            processingTime: 0,
-            alertsGenerated: 0,
-            opportunitiesFound: 0,
-            errorsEncountered: 0,
-          },
-        })));
+        setActiveReplays(
+          prev =>
+            new Map(
+              prev.set(result.replayId, {
+                id: result.replayId,
+                status: 'running',
+                progress: {
+                  completed: 0,
+                  total: result.eventCount,
+                  currentStep: 'Initializing replay...',
+                  estimatedCompletion: new Date(
+                    Date.now() + (result.estimatedDuration || 300000)
+                  ).toISOString(),
+                },
+                metrics: {
+                  processingTime: 0,
+                  alertsGenerated: 0,
+                  opportunitiesFound: 0,
+                  errorsEncountered: 0,
+                },
+              })
+            )
+        );
 
         toast({
-          title: "Grading Replay Started",
+          title: 'Grading Replay Started',
           description: result.message,
         });
       } else {
@@ -222,9 +235,9 @@ export function ReplayControlPanel({
       }
     } catch (error) {
       toast({
-        title: "Replay Failed", 
+        title: 'Replay Failed',
         description: error.message,
-        variant: "destructive",
+        variant: 'destructive',
       });
     } finally {
       setIsReplaying(false);
@@ -234,18 +247,18 @@ export function ReplayControlPanel({
   const handleReemitAlerts = async () => {
     if (!canReplay) {
       toast({
-        title: "Access Denied",
+        title: 'Access Denied',
         description: "You don't have permission to replay workflows",
-        variant: "destructive",
+        variant: 'destructive',
       });
       return;
     }
 
     if (!criteria.reason.trim()) {
       toast({
-        title: "Reason Required",
-        description: "Please provide a reason for alert re-emission",
-        variant: "destructive",
+        title: 'Reason Required',
+        description: 'Please provide a reason for alert re-emission',
+        variant: 'destructive',
       });
       return;
     }
@@ -253,27 +266,34 @@ export function ReplayControlPanel({
     setIsReplaying(true);
     try {
       const result = await onReemitAlerts(criteria);
-      
+
       if (result.success) {
-        setActiveReplays(prev => new Map(prev.set(result.replayId, {
-          id: result.replayId,
-          status: 'running',
-          progress: {
-            completed: 0,
-            total: result.eventCount,
-            currentStep: 'Re-emitting alerts...',
-            estimatedCompletion: new Date(Date.now() + (result.estimatedDuration || 120000)).toISOString(),
-          },
-          metrics: {
-            processingTime: 0,
-            alertsGenerated: 0,
-            opportunitiesFound: 0,
-            errorsEncountered: 0,
-          },
-        })));
+        setActiveReplays(
+          prev =>
+            new Map(
+              prev.set(result.replayId, {
+                id: result.replayId,
+                status: 'running',
+                progress: {
+                  completed: 0,
+                  total: result.eventCount,
+                  currentStep: 'Re-emitting alerts...',
+                  estimatedCompletion: new Date(
+                    Date.now() + (result.estimatedDuration || 120000)
+                  ).toISOString(),
+                },
+                metrics: {
+                  processingTime: 0,
+                  alertsGenerated: 0,
+                  opportunitiesFound: 0,
+                  errorsEncountered: 0,
+                },
+              })
+            )
+        );
 
         toast({
-          title: "Alert Re-emission Started",
+          title: 'Alert Re-emission Started',
           description: result.message,
         });
       } else {
@@ -281,9 +301,9 @@ export function ReplayControlPanel({
       }
     } catch (error) {
       toast({
-        title: "Re-emission Failed",
+        title: 'Re-emission Failed',
         description: error.message,
-        variant: "destructive",
+        variant: 'destructive',
       });
     } finally {
       setIsReplaying(false);
@@ -293,7 +313,7 @@ export function ReplayControlPanel({
   const handleCancelReplay = async (replayId: string) => {
     try {
       await onCancelReplay(replayId);
-      
+
       setActiveReplays(prev => {
         const newMap = new Map(prev);
         const status = newMap.get(replayId);
@@ -304,14 +324,14 @@ export function ReplayControlPanel({
       });
 
       toast({
-        title: "Replay Cancelled",
+        title: 'Replay Cancelled',
         description: `Replay ${replayId.substring(0, 8)} has been cancelled`,
       });
     } catch (error) {
       toast({
-        title: "Cancellation Failed",
+        title: 'Cancellation Failed',
         description: error.message,
-        variant: "destructive",
+        variant: 'destructive',
       });
     }
   };
@@ -333,11 +353,16 @@ export function ReplayControlPanel({
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'running': return 'bg-blue-100 text-blue-800';
-      case 'completed': return 'bg-green-100 text-green-800';
-      case 'failed': return 'bg-red-100 text-red-800';
-      case 'cancelled': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'running':
+        return 'bg-blue-100 text-blue-800';
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'failed':
+        return 'bg-red-100 text-red-800';
+      case 'cancelled':
+        return 'bg-yellow-100 text-yellow-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -365,18 +390,14 @@ export function ReplayControlPanel({
               Event Replay Control Panel
             </div>
             <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAdvanced(!showAdvanced)}
-              >
+              <Button variant="outline" size="sm" onClick={() => setShowAdvanced(!showAdvanced)}>
                 <Settings className="w-4 h-4 mr-2" />
                 {showAdvanced ? 'Basic' : 'Advanced'}
               </Button>
             </div>
           </CardTitle>
         </CardHeader>
-        
+
         <CardContent className="space-y-6">
           {/* Reason Field (Required) */}
           <div>
@@ -387,7 +408,7 @@ export function ReplayControlPanel({
               id="reason"
               placeholder="Describe why you're replaying these events (e.g., 'Fixing missing alerts after system downtime')"
               value={criteria.reason}
-              onChange={(e) => setCriteria(prev => ({ ...prev, reason: e.target.value }))}
+              onChange={e => setCriteria(prev => ({ ...prev, reason: e.target.value }))}
               className="mt-1"
               required
             />
@@ -399,7 +420,7 @@ export function ReplayControlPanel({
               <Label htmlFor="timeRange">Time Range</Label>
               <Select
                 value={criteria.timeRange}
-                onValueChange={(value) => setCriteria(prev => ({ ...prev, timeRange: value as any }))}
+                onValueChange={value => setCriteria(prev => ({ ...prev, timeRange: value as any }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select time range" />
@@ -417,7 +438,9 @@ export function ReplayControlPanel({
               <Label htmlFor="eventType">Event Type (Optional)</Label>
               <Select
                 value={criteria.eventType || ''}
-                onValueChange={(value) => setCriteria(prev => ({ ...prev, eventType: value || undefined }))}
+                onValueChange={value =>
+                  setCriteria(prev => ({ ...prev, eventType: value || undefined }))
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="All events" />
@@ -440,7 +463,7 @@ export function ReplayControlPanel({
                 <Input
                   type="datetime-local"
                   value={criteria.customStart || ''}
-                  onChange={(e) => setCriteria(prev => ({ ...prev, customStart: e.target.value }))}
+                  onChange={e => setCriteria(prev => ({ ...prev, customStart: e.target.value }))}
                 />
               </div>
               <div>
@@ -448,7 +471,7 @@ export function ReplayControlPanel({
                 <Input
                   type="datetime-local"
                   value={criteria.customEnd || ''}
-                  onChange={(e) => setCriteria(prev => ({ ...prev, customEnd: e.target.value }))}
+                  onChange={e => setCriteria(prev => ({ ...prev, customEnd: e.target.value }))}
                 />
               </div>
             </div>
@@ -458,13 +481,15 @@ export function ReplayControlPanel({
           {showAdvanced && (
             <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
               <h4 className="font-medium">Advanced Options</h4>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="batchSize">Batch Size</Label>
                   <Select
                     value={String(criteria.batchSize)}
-                    onValueChange={(value) => setCriteria(prev => ({ ...prev, batchSize: Number(value) }))}
+                    onValueChange={value =>
+                      setCriteria(prev => ({ ...prev, batchSize: Number(value) }))
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -482,7 +507,9 @@ export function ReplayControlPanel({
                   <Label htmlFor="priority">Priority</Label>
                   <Select
                     value={criteria.priority}
-                    onValueChange={(value) => setCriteria(prev => ({ ...prev, priority: value as any }))}
+                    onValueChange={value =>
+                      setCriteria(prev => ({ ...prev, priority: value as any }))
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -500,7 +527,7 @@ export function ReplayControlPanel({
                   <Switch
                     id="dryRun"
                     checked={criteria.dryRun}
-                    onCheckedChange={(checked) => setCriteria(prev => ({ ...prev, dryRun: checked }))}
+                    onCheckedChange={checked => setCriteria(prev => ({ ...prev, dryRun: checked }))}
                   />
                   <Label htmlFor="dryRun">Dry Run (Preview Only)</Label>
                 </div>
@@ -535,7 +562,9 @@ export function ReplayControlPanel({
                 </div>
                 <div>
                   <span className="font-medium">Est. Duration:</span>
-                  <div className="text-lg font-bold">{Math.ceil(previewResults.estimatedDuration / 60000)}m</div>
+                  <div className="text-lg font-bold">
+                    {Math.ceil(previewResults.estimatedDuration / 60000)}m
+                  </div>
                 </div>
                 <div>
                   <span className="font-medium">Tickets:</span>
@@ -564,7 +593,7 @@ export function ReplayControlPanel({
               )}
               {criteria.dryRun ? 'Preview Grading Replay' : 'Re-run Grading'}
             </Button>
-            
+
             <Button
               onClick={handleReemitAlerts}
               disabled={isReplaying || !criteria.reason.trim()}
@@ -584,11 +613,13 @@ export function ReplayControlPanel({
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start space-x-3">
             <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
             <div className="text-sm text-yellow-800">
-              <strong>Important:</strong> Replay operations will reprocess events and may generate duplicate notifications. 
-              All operations are logged and include idempotency measures to prevent data corruption.
+              <strong>Important:</strong> Replay operations will reprocess events and may generate
+              duplicate notifications. All operations are logged and include idempotency measures to
+              prevent data corruption.
               {criteria.dryRun && (
                 <div className="mt-2 font-medium">
-                  🔍 Dry Run Mode: No actual changes will be made, only preview results will be shown.
+                  🔍 Dry Run Mode: No actual changes will be made, only preview results will be
+                  shown.
                 </div>
               )}
             </div>
@@ -614,13 +645,13 @@ export function ReplayControlPanel({
                       {getStatusIcon(status.status)}
                       <div>
                         <div className="font-medium">Replay {replayId.substring(0, 8)}</div>
-                        <div className="text-sm text-muted-foreground">{status.progress.currentStep}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {status.progress.currentStep}
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Badge className={getStatusColor(status.status)}>
-                        {status.status}
-                      </Badge>
+                      <Badge className={getStatusColor(status.status)}>{status.status}</Badge>
                       {status.status === 'running' && (
                         <Button
                           variant="outline"
@@ -638,12 +669,16 @@ export function ReplayControlPanel({
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span>Progress</span>
-                      <span>{status.progress.completed} / {status.progress.total}</span>
+                      <span>
+                        {status.progress.completed} / {status.progress.total}
+                      </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
                         className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${(status.progress.completed / status.progress.total) * 100}%` }}
+                        style={{
+                          width: `${(status.progress.completed / status.progress.total) * 100}%`,
+                        }}
                       />
                     </div>
                   </div>
@@ -652,7 +687,9 @@ export function ReplayControlPanel({
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-sm">
                     <div>
                       <span className="text-muted-foreground">Processing Time</span>
-                      <div className="font-medium">{Math.round(status.metrics.processingTime / 1000)}s</div>
+                      <div className="font-medium">
+                        {Math.round(status.metrics.processingTime / 1000)}s
+                      </div>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Alerts Generated</span>
@@ -664,7 +701,9 @@ export function ReplayControlPanel({
                     </div>
                     <div>
                       <span className="text-muted-foreground">Errors</span>
-                      <div className={`font-medium ${status.metrics.errorsEncountered > 0 ? 'text-red-600' : ''}`}>
+                      <div
+                        className={`font-medium ${status.metrics.errorsEncountered > 0 ? 'text-red-600' : ''}`}
+                      >
                         {status.metrics.errorsEncountered}
                       </div>
                     </div>

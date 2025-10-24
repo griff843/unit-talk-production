@@ -1,0 +1,34 @@
+﻿
+> unit-talk-command-center@1.0.0 type-check
+> tsc --noEmit
+
+src/components/ui/dialog.tsx(47,30): error TS2322: Type '{ children: Element[]; className: string; }' is not assignable to type 'IntrinsicAttributes & DialogCloseProps & RefAttributes<HTMLButtonElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & DialogCloseProps & RefAttributes<HTMLButtonElement>'.
+src/components/ui/dropdown-menu.tsx(110,8): error TS2559: Type '{ children: Element; }' has no properties in common with type 'IntrinsicAttributes & DropdownMenuItemIndicatorProps & RefAttributes<HTMLSpanElement>'.
+src/components/ui/dropdown-menu.tsx(133,8): error TS2559: Type '{ children: Element; }' has no properties in common with type 'IntrinsicAttributes & DropdownMenuItemIndicatorProps & RefAttributes<HTMLSpanElement>'.
+src/components/ui/progress.tsx(12,4): error TS2322: Type '{ children: Element; key?: Key; max?: number; getValueLabel?: (value: number, max: number) => string; defaultChecked?: boolean; defaultValue?: string | number | readonly string[]; suppressContentEditableWarning?: boolean; ... 273 more ...; className: string; }' is not assignable to type 'IntrinsicAttributes & ProgressProps & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & ProgressProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/progress.tsx(21,7): error TS2322: Type '{ className: string; style: { transform: string; }; }' is not assignable to type 'IntrinsicAttributes & ProgressIndicatorProps & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & ProgressIndicatorProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/select.tsx(28,6): error TS2322: Type '{ children: Element; asChild: true; }' is not assignable to type 'IntrinsicAttributes & SelectIconProps & RefAttributes<HTMLSpanElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & SelectIconProps & RefAttributes<HTMLSpanElement>'.
+src/components/ui/select.tsx(87,8): error TS2322: Type '{ children: ReactNode; className: string; }' is not assignable to type 'IntrinsicAttributes & SelectViewportProps & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & SelectViewportProps & RefAttributes<HTMLDivElement>'.
+src/hooks/usePicks.ts(165,13): error TS2322: Type '{ id: string; capper_discord_id: any; capper: any; sport: unknown; selection: string; odds: number; status: "pending" | "approved" | "rejected"; workflow_stage: string; tier: any; confidence: number; ... 6 more ...; market_type: string; }[]' is not assignable to type 'Pick[]'.
+  Type '{ id: string; capper_discord_id: any; capper: any; sport: unknown; selection: string; odds: number; status: "pending" | "approved" | "rejected"; workflow_stage: string; tier: any; confidence: number; ... 6 more ...; market_type: string; }' is not assignable to type 'Pick'.
+    Types of property 'sport' are incompatible.
+      Type 'unknown' is not assignable to type 'string'.
+node.exe : npm error Lifecycle script `type-check` failed with error:
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Users\griff\AppData\Roaming\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (npm error Lifec...led with error::String) [], RemoteExceptio 
+   n
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+npm error code 1
+npm error path C:\Users\griff\OneDrive\Desktop\unit-talk-production-main\apps\command-center
+npm error workspace unit-talk-command-center@1.0.0
+npm error location C:\Users\griff\OneDrive\Desktop\unit-talk-production-main\apps\command-center
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c tsc --noEmit

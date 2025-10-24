@@ -81,14 +81,22 @@ class TemporalMonitoringService {
     ]);
 
     // Calculate overall health metrics
-    const totalWorkflows = workflowSummaries.reduce((sum, w) => sum + ((w as any).total_executions as number), 0);
-    const healthyWorkflows = workflowSummaries.filter(w => 
-      w.success_rate > 0.95 && 
-      (w.last_success_at ? (Date.now() - w.last_success_at.getTime()) < 60 * 60 * 1000 : false)
+    const totalWorkflows = workflowSummaries.reduce(
+      (sum, w) => sum + ((w as any).total_executions as number),
+      0
+    );
+    const healthyWorkflows = workflowSummaries.filter(
+      w =>
+        w.success_rate > 0.95 &&
+        (w.last_success_at ? Date.now() - w.last_success_at.getTime() < 60 * 60 * 1000 : false)
     ).length;
 
-    const systemHealthScore = totalWorkflows > 0 ? 
-      (workflowSummaries.reduce((sum, w) => sum + (w.success_rate * w.total_executions), 0) / totalWorkflows) * 100 : 100;
+    const systemHealthScore =
+      totalWorkflows > 0
+        ? (workflowSummaries.reduce((sum, w) => sum + w.success_rate * w.total_executions, 0) /
+            totalWorkflows) *
+          100
+        : 100;
 
     return {
       overall: {
@@ -133,7 +141,7 @@ class TemporalMonitoringService {
     const summaries: WorkflowSummary[] = [];
     grouped.forEach((workflows, key) => {
       const [workflow_type, task_queue] = key.split(':');
-      
+
       const running = workflows.filter(w => w.status === 'running').length;
       const succeeded = workflows.filter(w => w.status === 'completed').length;
       const failed = workflows.filter(w => w.status === 'failed').length;
@@ -141,11 +149,9 @@ class TemporalMonitoringService {
       const canceled = workflows.filter(w => w.status === 'canceled').length;
       const total = workflows.length;
 
-      const durations = workflows
-        .filter(w => w.duration_ms)
-        .map(w => w.duration_ms);
-      const avgDuration = durations.length > 0 ? 
-        durations.reduce((sum, d) => sum + d, 0) / durations.length : 0;
+      const durations = workflows.filter(w => w.duration_ms).map(w => w.duration_ms);
+      const avgDuration =
+        durations.length > 0 ? durations.reduce((sum, d) => sum + d, 0) / durations.length : 0;
 
       const successRate = total > 0 ? succeeded / total : 1;
       const failureRate = total > 0 ? failed / total : 0;
@@ -153,7 +159,11 @@ class TemporalMonitoringService {
 
       const lastSuccess = workflows
         .filter(w => w.status === 'completed')
-        .sort((a, b) => new Date(b.completed_at || b.created_at).getTime() - new Date(a.completed_at || a.created_at).getTime())[0];
+        .sort(
+          (a, b) =>
+            new Date(b.completed_at || b.created_at).getTime() -
+            new Date(a.completed_at || a.created_at).getTime()
+        )[0];
 
       const lastFailure = workflows
         .filter(w => w.status === 'failed')
@@ -172,11 +182,21 @@ class TemporalMonitoringService {
         success_rate: Math.round(successRate * 10000) / 10000,
         failure_rate: Math.round(failureRate * 10000) / 10000,
         retry_rate: Math.round(retryRate * 10000) / 10000,
-        last_success_at: lastSuccess ? new Date(lastSuccess.completed_at || lastSuccess.created_at) : undefined,
+        last_success_at: lastSuccess
+          ? new Date(lastSuccess.completed_at || lastSuccess.created_at)
+          : undefined,
         last_failure_at: lastFailure ? new Date(lastFailure.created_at) : undefined,
         backlog_depth: running,
-        oldest_backlog_age_minutes: running > 0 ? 
-          Math.round((Date.now() - new Date(workflows.filter(w => w.status === 'running')[0]?.started_at || Date.now()).getTime()) / 60000) : undefined,
+        oldest_backlog_age_minutes:
+          running > 0
+            ? Math.round(
+                (Date.now() -
+                  new Date(
+                    workflows.filter(w => w.status === 'running')[0]?.started_at || Date.now()
+                  ).getTime()) /
+                  60000
+              )
+            : undefined,
       });
     });
 
@@ -215,8 +235,9 @@ class TemporalMonitoringService {
     const summaries: TemporalSummary['by_queue'] = [];
     queueMap.forEach((info, task_queue) => {
       const oldestWorkflow = info.workflows[0];
-      const oldestAge = oldestWorkflow ? 
-        Math.round((Date.now() - new Date((oldestWorkflow as any).started_at).getTime()) / 60000) : 0;
+      const oldestAge = oldestWorkflow
+        ? Math.round((Date.now() - new Date((oldestWorkflow as any).started_at).getTime()) / 60000)
+        : 0;
 
       summaries.push({
         task_queue,
@@ -234,12 +255,14 @@ class TemporalMonitoringService {
    * Get alerts and critical issues
    */
   private static async getAlerts(since: Date): Promise<TemporalSummary['alerts']> {
-    const [missedSchedules, stuckWorkflows, recentFailures, highRetryWorkflows] = await Promise.all([
-      this.getMissedScheduleCount(),
-      this.getStuckWorkflowCount(since),
-      this.getRecentFailureCount(since),
-      this.getHighRetryWorkflowCount(since),
-    ]);
+    const [missedSchedules, stuckWorkflows, recentFailures, highRetryWorkflows] = await Promise.all(
+      [
+        this.getMissedScheduleCount(),
+        this.getStuckWorkflowCount(since),
+        this.getRecentFailureCount(since),
+        this.getHighRetryWorkflowCount(since),
+      ]
+    );
 
     return {
       missed_schedules: missedSchedules,
@@ -273,7 +296,7 @@ class TemporalMonitoringService {
     const avg = durations.reduce((sum, d) => sum + d, 0) / durations.length;
     const p95Index = Math.floor(durations.length * 0.95);
     const p99Index = Math.floor(durations.length * 0.99);
-    
+
     const windowMinutes = (Date.now() - since.getTime()) / (1000 * 60);
     const throughput = data.length / windowMinutes;
 
@@ -294,7 +317,7 @@ class TemporalMonitoringService {
       .select('*', { count: 'exact', head: true })
       .eq('is_missing', true);
 
-    return error ? 0 : (count || 0);
+    return error ? 0 : count || 0;
   }
 
   /**
@@ -309,7 +332,7 @@ class TemporalMonitoringService {
       .eq('status', 'running')
       .lt('started_at', stuckThreshold.toISOString());
 
-    return error ? 0 : (count || 0);
+    return error ? 0 : count || 0;
   }
 
   /**
@@ -324,7 +347,7 @@ class TemporalMonitoringService {
       .eq('status', 'failed')
       .gte('created_at', oneHourAgo.toISOString());
 
-    return error ? 0 : (count || 0);
+    return error ? 0 : count || 0;
   }
 
   /**
@@ -337,7 +360,7 @@ class TemporalMonitoringService {
       .gte('retry_count', 3)
       .gte('created_at', since.toISOString());
 
-    return error ? 0 : (count || 0);
+    return error ? 0 : count || 0;
   }
 
   /**
@@ -349,12 +372,16 @@ class TemporalMonitoringService {
 
     const [, num, unit] = match;
     const value = parseInt(num);
-    
+
     switch (unit) {
-      case 'm': return value / 60;
-      case 'h': return value;
-      case 'd': return value * 24;
-      default: return 24;
+      case 'm':
+        return value / 60;
+      case 'h':
+        return value;
+      case 'd':
+        return value * 24;
+      default:
+        return 24;
     }
   }
 
@@ -369,7 +396,7 @@ class TemporalMonitoringService {
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    return error ? [] : (data || []);
+    return error ? [] : data || [];
   }
 
   /**
@@ -386,7 +413,7 @@ class TemporalMonitoringService {
       .order('started_at', { ascending: true })
       .limit(limit);
 
-    return error ? [] : (data || []);
+    return error ? [] : data || [];
   }
 }
 
@@ -403,7 +430,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const userId = request.headers.get('x-user-id') || 'anonymous';
-    
+
     // Check permissions - viewers can see temporal health
     await RBACService.requirePermission(userId, Permission.VIEW_DASHBOARD);
 
@@ -417,7 +444,7 @@ export async function GET(request: NextRequest) {
 
     // Add detailed workflow information if requested
     let detailedData = {};
-    if (includeDetails && await RBACService.hasPermission(userId, Permission.VIEW_TRACES)) {
+    if (includeDetails && (await RBACService.hasPermission(userId, Permission.VIEW_TRACES))) {
       // Add more detailed information for ops/admin users
       detailedData = {
         recent_failures: await TemporalMonitoringService.getRecentFailures(),
@@ -441,21 +468,21 @@ export async function GET(request: NextRequest) {
         },
       },
     });
-
   } catch (error) {
     UnitTalkTracing.recordError(span, error as Error);
-    
+
     const errorMessage = error.message || 'Unknown error';
     const statusCode = errorMessage.includes('Access denied') ? 403 : 500;
-    
-    return NextResponse.json({
-      success: false,
-      error: errorMessage,
-      code: statusCode === 403 ? 'INSUFFICIENT_PERMISSIONS' : 'TEMPORAL_SUMMARY_ERROR',
-    }, { status: statusCode });
 
+    return NextResponse.json(
+      {
+        success: false,
+        error: errorMessage,
+        code: statusCode === 403 ? 'INSUFFICIENT_PERMISSIONS' : 'TEMPORAL_SUMMARY_ERROR',
+      },
+      { status: statusCode }
+    );
   } finally {
     span.end();
   }
 }
-

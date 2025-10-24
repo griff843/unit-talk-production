@@ -4,7 +4,13 @@ import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -25,11 +31,11 @@ interface PromoBacklogCardProps {
 export function PromoBacklogCard({ className }: PromoBacklogCardProps) {
   const [selectedSport, setSelectedSport] = useState<string>('all');
   const [selectedTier, setSelectedTier] = useState<string>('all');
-  
+
   const { data, loading, error, refetch } = usePromoBacklog({
     sport: selectedSport,
     tier: selectedTier,
-    limit: 500
+    limit: 500,
   });
 
   // Get available options from data
@@ -51,14 +57,14 @@ export function PromoBacklogCard({ className }: PromoBacklogCardProps) {
     try {
       await navigator.clipboard.writeText(id);
       toast({
-        title: "ID Copied",
+        title: 'ID Copied',
         description: `Copied ${id} to clipboard`,
       });
     } catch (error) {
       toast({
-        title: "Copy Failed",
-        description: "Failed to copy ID to clipboard",
-        variant: "destructive",
+        title: 'Copy Failed',
+        description: 'Failed to copy ID to clipboard',
+        variant: 'destructive',
       });
     }
   };
@@ -91,9 +97,7 @@ export function PromoBacklogCard({ className }: PromoBacklogCardProps) {
         <CardContent>
           <div className="flex items-center space-x-2">
             <AlertCircle className="h-4 w-4 text-red-600" />
-            <span className="text-sm text-red-600 dark:text-red-400">
-              {error}
-            </span>
+            <span className="text-sm text-red-600 dark:text-red-400">{error}</span>
           </div>
         </CardContent>
       </Card>
@@ -112,9 +116,7 @@ export function PromoBacklogCard({ className }: PromoBacklogCardProps) {
                 {data?.length || 0} items
               </Badge>
             </CardTitle>
-            <CardDescription>
-              Unprocessed promotional items awaiting processing
-            </CardDescription>
+            <CardDescription>Unprocessed promotional items awaiting processing</CardDescription>
           </div>
           <div className="flex items-center space-x-2">
             <Select value={selectedSport} onValueChange={setSelectedSport}>
@@ -141,18 +143,13 @@ export function PromoBacklogCard({ className }: PromoBacklogCardProps) {
                 ))}
               </SelectContent>
             </Select>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={refetch}
-              disabled={loading}
-            >
+            <Button variant="outline" size="sm" onClick={refetch} disabled={loading}>
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </Button>
           </div>
         </div>
       </CardHeader>
-      
+
       <CardContent>
         {loading && !data ? (
           <div className="flex items-center justify-center py-8">
@@ -175,9 +172,7 @@ export function PromoBacklogCard({ className }: PromoBacklogCardProps) {
                     {backlogStatus.text}
                   </Badge>
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  Total: {data.length} items
-                </div>
+                <div className="text-sm text-muted-foreground">Total: {data.length} items</div>
               </div>
             </div>
 
@@ -196,13 +191,11 @@ export function PromoBacklogCard({ className }: PromoBacklogCardProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data.map((item) => (
+                  {data.map(item => (
                     <TableRow key={item.raw_prop_id}>
                       <TableCell>
                         <div className="flex items-center space-x-1">
-                          <span className="font-mono text-xs">
-                            {item.raw_prop_id.slice(-8)}
-                          </span>
+                          <span className="font-mono text-xs">{item.raw_prop_id.slice(-8)}</span>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -218,17 +211,14 @@ export function PromoBacklogCard({ className }: PromoBacklogCardProps) {
                           {item.sport}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-sm">
-                        {item.pick_type}
-                      </TableCell>
+                      <TableCell className="text-sm">{item.pick_type}</TableCell>
+                      <TableCell className="font-mono text-sm">{item.line}</TableCell>
                       <TableCell className="font-mono text-sm">
-                        {item.line}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm">
-                        {item.odds > 0 ? '+' : ''}{item.odds}
+                        {item.odds > 0 ? '+' : ''}
+                        {item.odds}
                       </TableCell>
                       <TableCell>
-                        <Badge 
+                        <Badge
                           variant={item.tier === 'S' ? 'default' : 'secondary'}
                           className="text-xs"
                         >

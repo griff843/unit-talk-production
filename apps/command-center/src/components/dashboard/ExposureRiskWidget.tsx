@@ -105,7 +105,7 @@ export function ExposureRiskWidget() {
 
   useEffect(() => {
     fetchExposureData();
-    
+
     // Refresh every 60 seconds
     const interval = setInterval(fetchExposureData, 60000);
     return () => clearInterval(interval);
@@ -131,7 +131,7 @@ export function ExposureRiskWidget() {
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
         // Refresh data after successful remediation
         await fetchExposureData();
@@ -160,10 +160,14 @@ export function ExposureRiskWidget() {
    */
   const getRiskTierColor = (tier: string) => {
     switch (tier.toLowerCase()) {
-      case 'critical': return 'text-red-500';
-      case 'high': return 'text-orange-500';
-      case 'medium': return 'text-yellow-500';
-      default: return 'text-green-500';
+      case 'critical':
+        return 'text-red-500';
+      case 'high':
+        return 'text-orange-500';
+      case 'medium':
+        return 'text-yellow-500';
+      default:
+        return 'text-green-500';
     }
   };
 
@@ -182,10 +186,14 @@ export function ExposureRiskWidget() {
    */
   const getAlertSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'critical': return 'border-red-500 bg-red-50 dark:bg-red-900/20';
-      case 'high': return 'border-orange-500 bg-orange-50 dark:bg-orange-900/20';
-      case 'medium': return 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20';
-      default: return 'border-blue-500 bg-blue-50 dark:bg-blue-900/20';
+      case 'critical':
+        return 'border-red-500 bg-red-50 dark:bg-red-900/20';
+      case 'high':
+        return 'border-orange-500 bg-orange-50 dark:bg-orange-900/20';
+      case 'medium':
+        return 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20';
+      default:
+        return 'border-blue-500 bg-blue-50 dark:bg-blue-900/20';
     }
   };
 
@@ -240,8 +248,8 @@ export function ExposureRiskWidget() {
             Exposure & Kelly Risk
           </div>
           <div className="flex items-center space-x-2">
-            <Badge 
-              variant={data?.daily_limits.utilization_percentage < 75 ? "default" : "destructive"}
+            <Badge
+              variant={data?.daily_limits.utilization_percentage < 75 ? 'default' : 'destructive'}
               className="text-xs"
             >
               {data ? `${data.daily_limits.utilization_percentage}%` : 'N/A'} Utilized
@@ -303,13 +311,11 @@ export function ExposureRiskWidget() {
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-semibold">Daily Exposure Limit</h4>
                 <span className="text-sm text-muted-foreground">
-                  {formatCurrency(data.daily_limits.current_exposure)} / {formatCurrency(data.daily_limits.max_daily_exposure)}
+                  {formatCurrency(data.daily_limits.current_exposure)} /{' '}
+                  {formatCurrency(data.daily_limits.max_daily_exposure)}
                 </span>
               </div>
-              <Progress 
-                value={data.daily_limits.utilization_percentage} 
-                className="h-3"
-              />
+              <Progress value={data.daily_limits.utilization_percentage} className="h-3" />
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>{data.daily_limits.utilization_percentage}% utilized</span>
                 <span>{formatCurrency(data.daily_limits.remaining_capacity)} remaining</span>
@@ -325,20 +331,27 @@ export function ExposureRiskWidget() {
                 </h4>
                 <div className="space-y-2">
                   {data.risk_alerts.slice(0, 3).map((alert, index) => (
-                    <Alert key={index} className={`border-l-4 ${getAlertSeverityColor(alert.severity)}`}>
+                    <Alert
+                      key={index}
+                      className={`border-l-4 ${getAlertSeverityColor(alert.severity)}`}
+                    >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <AlertDescription>
                             <div className="font-medium text-sm mb-1">{alert.message}</div>
                             <div className="text-xs text-muted-foreground mb-2">
-                              Type: {alert.type} • Severity: {alert.severity} • Affects: {alert.affected_picks.length} picks
+                              Type: {alert.type} • Severity: {alert.severity} • Affects:{' '}
+                              {alert.affected_picks.length} picks
                             </div>
                             <div className="text-xs bg-muted/50 p-2 rounded">
                               <strong>Recommended:</strong> {alert.recommended_action}
                             </div>
                           </AlertDescription>
                         </div>
-                        <Badge variant={alert.severity === 'critical' ? 'destructive' : 'secondary'} className="ml-2">
+                        <Badge
+                          variant={alert.severity === 'critical' ? 'destructive' : 'secondary'}
+                          className="ml-2"
+                        >
                           {alert.severity}
                         </Badge>
                       </div>
@@ -353,7 +366,10 @@ export function ExposureRiskWidget() {
               <h4 className="text-sm font-semibold">Top Risk Clusters</h4>
               <div className="space-y-2">
                 {data.correlation_clusters.slice(0, 5).map((cluster, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 rounded-lg border bg-card">
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 rounded-lg border bg-card"
+                  >
                     <div className="flex-1">
                       <div className="flex items-center space-x-2">
                         <span className="font-medium text-sm">{cluster.cluster}</span>
@@ -397,19 +413,24 @@ export function ExposureRiskWidget() {
                             </span>
                           </div>
                           <p className="text-sm mb-2">{action.adjustment.reason}</p>
-                          
+
                           <div className="flex items-center space-x-4 text-xs text-muted-foreground">
                             <div className="flex items-center space-x-1">
                               <ArrowDown className="w-3 h-3 text-green-500" />
-                              <span>Exposure: -{formatCurrency(action.estimated_impact.exposure_reduction)}</span>
+                              <span>
+                                Exposure: -
+                                {formatCurrency(action.estimated_impact.exposure_reduction)}
+                              </span>
                             </div>
                             <div className="flex items-center space-x-1">
                               <ArrowDown className="w-3 h-3 text-blue-500" />
-                              <span>Kelly: -{action.estimated_impact.kelly_reduction.toFixed(2)}</span>
+                              <span>
+                                Kelly: -{action.estimated_impact.kelly_reduction.toFixed(2)}
+                              </span>
                             </div>
                           </div>
                         </div>
-                        
+
                         <Button
                           size="sm"
                           variant="outline"
@@ -443,7 +464,7 @@ export function ExposureRiskWidget() {
                 <h4 className="text-sm font-semibold mb-2">Exposure by Sport</h4>
                 <div className="space-y-2">
                   {Object.entries(data.exposure_by_sport)
-                    .sort(([,a], [,b]) => b - a)
+                    .sort(([, a], [, b]) => b - a)
                     .slice(0, 4)
                     .map(([sport, exposure]) => (
                       <div key={sport} className="flex items-center justify-between text-sm">
@@ -464,7 +485,7 @@ export function ExposureRiskWidget() {
                 <h4 className="text-sm font-semibold mb-2">Exposure by Market</h4>
                 <div className="space-y-2">
                   {Object.entries(data.exposure_by_market)
-                    .sort(([,a], [,b]) => b - a)
+                    .sort(([, a], [, b]) => b - a)
                     .slice(0, 4)
                     .map(([market, exposure]) => (
                       <div key={market} className="flex items-center justify-between text-sm">

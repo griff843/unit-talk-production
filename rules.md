@@ -1,11 +1,12 @@
 # Code Quality Rules for Unit Talk Enterprise System
 
-This document defines the code quality rules that must be enforced automatically for the Unit Talk TypeScript system.
+This document defines the code quality rules that must be enforced automatically
+for the Unit Talk TypeScript system.
 
 ## Formatting Rules
 
 1. **Auto-format all TypeScript files** after any edit using Prettier
-2. **Auto-format all JSON files** after any edit using Prettier  
+2. **Auto-format all JSON files** after any edit using Prettier
 3. **Auto-format all Markdown files** after any edit using Prettier
 4. **Enforce consistent line endings** (LF) across all text files
 5. **Remove trailing whitespace** from all files
@@ -53,23 +54,27 @@ This document defines the code quality rules that must be enforced automatically
 
 ## File-Specific Rules
 
-### TypeScript Files (*.ts, *.tsx)
+### TypeScript Files (_.ts, _.tsx)
+
 - Must pass type checking with `tsc --noEmit`
 - Must pass ESLint validation with security rules
 - Must be formatted with Prettier
 - Must have proper import organization
 
-### JSON Files (*.json)
+### JSON Files (\*.json)
+
 - Must be valid JSON
 - Must be formatted with Prettier
 - Must follow consistent key ordering where applicable
 
-### Markdown Files (*.md)
+### Markdown Files (\*.md)
+
 - Must be formatted with Prettier
 - Must have consistent heading structure
 - Must have proper line length (80 chars for prose)
 
 ### Configuration Files
+
 - Must be syntactically valid
 - Must follow project conventions
 - Must be formatted appropriately
@@ -94,6 +99,7 @@ This document defines the code quality rules that must be enforced automatically
 ## Success Criteria
 
 A file or change is considered "ready" when:
+
 - All formatting rules pass
 - No ESLint errors remain
 - TypeScript compilation succeeds

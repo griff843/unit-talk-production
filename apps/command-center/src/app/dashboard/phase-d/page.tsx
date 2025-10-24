@@ -1,16 +1,16 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Progress } from '@/components/ui/progress'
-import { 
-  Brain, 
-  TrendingUp, 
-  BarChart3, 
-  Activity, 
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
+import {
+  Brain,
+  TrendingUp,
+  BarChart3,
+  Activity,
   DollarSign,
   Target,
   Zap,
@@ -24,8 +24,8 @@ import {
   Bot,
   LineChart,
   PieChart,
-  Calendar
-} from 'lucide-react'
+  Calendar,
+} from 'lucide-react';
 
 // Advanced Phase D Analytics Data
 const phaseDData = {
@@ -34,7 +34,7 @@ const phaseDData = {
     modelConfidence: 94.2,
     trainingData: 150000,
     lastTraining: new Date(Date.now() - 3600000),
-    nextUpdate: new Date(Date.now() + 7200000)
+    nextUpdate: new Date(Date.now() + 7200000),
   },
   marketAnalysis: {
     totalMarkets: 47,
@@ -42,14 +42,14 @@ const phaseDData = {
     closedMarkets: 15,
     upcomingMarkets: 12,
     avgOddsMovement: 2.3,
-    sharpMoney: 67.8
+    sharpMoney: 67.8,
   },
   performance: {
     systemUptime: 99.97,
     apiLatency: 45,
     dataFreshness: 98.5,
     errorRate: 0.03,
-    throughput: 15420
+    throughput: 15420,
   },
   mlModels: [
     {
@@ -58,15 +58,15 @@ const phaseDData = {
       confidence: 92.1,
       lastTrained: '2 hours ago',
       status: 'active',
-      predictions: 2847
+      predictions: 2847,
     },
     {
       name: 'NBA Spread Analyzer',
       accuracy: 83.2,
       confidence: 89.7,
-      lastTrained: '4 hours ago', 
+      lastTrained: '4 hours ago',
       status: 'active',
-      predictions: 1923
+      predictions: 1923,
     },
     {
       name: 'MLB Run Line Engine',
@@ -74,7 +74,7 @@ const phaseDData = {
       confidence: 85.3,
       lastTrained: '6 hours ago',
       status: 'training',
-      predictions: 1456
+      predictions: 1456,
     },
     {
       name: 'Soccer Goal Predictor',
@@ -82,8 +82,8 @@ const phaseDData = {
       confidence: 96.4,
       lastTrained: '1 hour ago',
       status: 'active',
-      predictions: 3241
-    }
+      predictions: 3241,
+    },
   ],
   liveData: [
     {
@@ -93,7 +93,7 @@ const phaseDData = {
       currentOdds: -110,
       recommendedOdds: -105,
       edge: 2.1,
-      status: 'strong'
+      status: 'strong',
     },
     {
       market: 'NBA - Lakers vs Warriors',
@@ -102,7 +102,7 @@ const phaseDData = {
       currentOdds: -108,
       recommendedOdds: -102,
       edge: 1.8,
-      status: 'moderate'
+      status: 'moderate',
     },
     {
       market: 'MLB - Dodgers vs Padres',
@@ -111,8 +111,8 @@ const phaseDData = {
       currentOdds: -115,
       recommendedOdds: -108,
       edge: 3.2,
-      status: 'strong'
-    }
+      status: 'strong',
+    },
   ],
   dataStreams: {
     oddsProviders: 12,
@@ -120,40 +120,40 @@ const phaseDData = {
     socialSentiment: 15,
     weatherData: true,
     injuryReports: true,
-    lineupData: true
-  }
-}
+    lineupData: true,
+  },
+};
 
 function getModelStatusColor(status: string) {
   switch (status) {
     case 'active':
-      return 'bg-green-500/20 text-green-400 border-green-500/30'
+      return 'bg-green-500/20 text-green-400 border-green-500/30';
     case 'training':
-      return 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+      return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
     case 'error':
-      return 'bg-red-500/20 text-red-400 border-red-500/30'
+      return 'bg-red-500/20 text-red-400 border-red-500/30';
     default:
-      return 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+      return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
   }
 }
 
 function getEdgeColor(edge: number) {
-  if (edge >= 3) return 'text-green-400'
-  if (edge >= 2) return 'text-yellow-400'
-  return 'text-orange-400'
+  if (edge >= 3) return 'text-green-400';
+  if (edge >= 2) return 'text-yellow-400';
+  return 'text-orange-400';
 }
 
 export default function PhaseDPage() {
-  const [selectedTab, setSelectedTab] = useState('overview')
-  const [isLoading, setIsLoading] = useState(false)
-  const [isConnected, setIsConnected] = useState(true)
+  const [selectedTab, setSelectedTab] = useState('overview');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isConnected, setIsConnected] = useState(true);
 
   const handleRefresh = async () => {
-    setIsLoading(true)
+    setIsLoading(true);
     // Simulate Phase D API refresh
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    setIsLoading(false)
-  }
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    setIsLoading(false);
+  };
 
   return (
     <div className="space-y-6">
@@ -177,12 +177,7 @@ export default function PhaseDPage() {
             <Download className="w-4 h-4 mr-2" />
             Export Data
           </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleRefresh}
-            disabled={isLoading}
-          >
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isLoading}>
             <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Sync Models
           </Button>
@@ -190,7 +185,11 @@ export default function PhaseDPage() {
       </div>
 
       {/* Connection Status */}
-      <Card className={isConnected ? "border-green-500/20 bg-green-500/10" : "border-red-500/20 bg-red-500/10"}>
+      <Card
+        className={
+          isConnected ? 'border-green-500/20 bg-green-500/10' : 'border-red-500/20 bg-red-500/10'
+        }
+      >
         <CardContent className="flex items-center justify-between p-4">
           <div className="flex items-center space-x-3">
             {isConnected ? (
@@ -203,14 +202,18 @@ export default function PhaseDPage() {
                 Phase D Engine: {isConnected ? 'Connected' : 'Disconnected'}
               </p>
               <p className="text-sm text-muted-foreground">
-                {isConnected 
+                {isConnected
                   ? `${phaseDData.mlModels.length} AI models running • Real-time data streaming active`
-                  : 'Connection to Phase D analytics engine lost • Attempting reconnection...'
-                }
+                  : 'Connection to Phase D analytics engine lost • Attempting reconnection...'}
               </p>
             </div>
           </div>
-          <Badge variant="outline" className={isConnected ? "text-green-400 border-green-500/20" : "text-red-400 border-red-500/20"}>
+          <Badge
+            variant="outline"
+            className={
+              isConnected ? 'text-green-400 border-green-500/20' : 'text-red-400 border-red-500/20'
+            }
+          >
             {isConnected ? 'Live' : 'Offline'}
           </Badge>
         </CardContent>
@@ -226,9 +229,7 @@ export default function PhaseDPage() {
           <CardContent>
             <div className="text-2xl font-bold">{phaseDData.aiInsights.predictionAccuracy}%</div>
             <Progress value={phaseDData.aiInsights.predictionAccuracy} className="mt-2" />
-            <p className="text-xs text-muted-foreground mt-1">
-              Prediction accuracy rate
-            </p>
+            <p className="text-xs text-muted-foreground mt-1">Prediction accuracy rate</p>
           </CardContent>
         </Card>
 
@@ -240,9 +241,7 @@ export default function PhaseDPage() {
           <CardContent>
             <div className="text-2xl font-bold">{phaseDData.aiInsights.modelConfidence}%</div>
             <Progress value={phaseDData.aiInsights.modelConfidence} className="mt-2" />
-            <p className="text-xs text-muted-foreground mt-1">
-              Average model confidence
-            </p>
+            <p className="text-xs text-muted-foreground mt-1">Average model confidence</p>
           </CardContent>
         </Card>
 
@@ -256,9 +255,7 @@ export default function PhaseDPage() {
             <div className="flex items-center space-x-1 text-xs text-muted-foreground">
               <span>of {phaseDData.marketAnalysis.totalMarkets} total</span>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Markets being analyzed
-            </p>
+            <p className="text-xs text-muted-foreground mt-1">Markets being analyzed</p>
           </CardContent>
         </Card>
 
@@ -272,9 +269,7 @@ export default function PhaseDPage() {
             <div className="flex items-center space-x-1 text-xs text-muted-foreground">
               <span className="text-green-500">Uptime</span>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              System uptime
-            </p>
+            <p className="text-xs text-muted-foreground mt-1">System uptime</p>
           </CardContent>
         </Card>
       </div>
@@ -392,7 +387,9 @@ export default function PhaseDPage() {
                         </div>
                         <div>
                           <div className="text-sm text-muted-foreground">Confidence</div>
-                          <div className="text-2xl font-bold text-blue-400">{model.confidence}%</div>
+                          <div className="text-2xl font-bold text-blue-400">
+                            {model.confidence}%
+                          </div>
                           <Progress value={model.confidence} className="mt-1" />
                         </div>
                       </div>
@@ -453,7 +450,10 @@ export default function PhaseDPage() {
                         <span>API Latency</span>
                         <span>{phaseDData.performance.apiLatency}ms</span>
                       </div>
-                      <Progress value={100 - (phaseDData.performance.apiLatency / 2)} className="mt-1" />
+                      <Progress
+                        value={100 - phaseDData.performance.apiLatency / 2}
+                        className="mt-1"
+                      />
                     </div>
                     <div>
                       <div className="flex justify-between text-sm">
@@ -467,7 +467,10 @@ export default function PhaseDPage() {
                         <span>Error Rate</span>
                         <span>{phaseDData.performance.errorRate}%</span>
                       </div>
-                      <Progress value={100 - (phaseDData.performance.errorRate * 33)} className="mt-1" />
+                      <Progress
+                        value={100 - phaseDData.performance.errorRate * 33}
+                        className="mt-1"
+                      />
                     </div>
                   </CardContent>
                 </Card>
@@ -481,9 +484,7 @@ export default function PhaseDPage() {
                       <div className="text-4xl font-bold text-green-400">
                         {phaseDData.performance.throughput.toLocaleString()}
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        Predictions per hour
-                      </div>
+                      <div className="text-sm text-muted-foreground">Predictions per hour</div>
                       <div className="text-xs text-muted-foreground mt-2">
                         Current processing rate
                       </div>
@@ -496,5 +497,5 @@ export default function PhaseDPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

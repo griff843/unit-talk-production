@@ -15,7 +15,7 @@ import { supabase } from '@/lib/supabase';
 interface SafeModeConfig {
   enabled: boolean;
   force_s_tier_only: boolean;
-  ev_minimum_boost: number;      // Boost EV minimum by this percentage
+  ev_minimum_boost: number; // Boost EV minimum by this percentage
   mute_teasers: boolean;
   mute_combos: boolean;
   max_exposure_reduction: number; // Reduce max exposure by this percentage
@@ -27,10 +27,10 @@ interface SafeModeConfig {
 
 const DEFAULT_SAFE_MODE_CONFIG: SafeModeConfig = {
   enabled: false,
-  force_s_tier_only: true,      // Force S-tier only picks
-  ev_minimum_boost: 2.0,        // +2% EV minimum boost
-  mute_teasers: true,           // Disable teaser recommendations
-  mute_combos: true,            // Disable combo recommendations
+  force_s_tier_only: true, // Force S-tier only picks
+  ev_minimum_boost: 2.0, // +2% EV minimum boost
+  mute_teasers: true, // Disable teaser recommendations
+  mute_combos: true, // Disable combo recommendations
   max_exposure_reduction: 25.0, // 25% exposure reduction
 };
 
@@ -80,14 +80,12 @@ class SafeModeService {
     };
 
     // Update in database
-    const { error } = await supabase
-      .from('system_config')
-      .upsert({
-        config_key: 'safe_mode',
-        config_value: JSON.stringify(newConfig),
-        updated_at: new Date().toISOString(),
-        updated_by: actor,
-      });
+    const { error } = await supabase.from('system_config').upsert({
+      config_key: 'safe_mode',
+      config_value: JSON.stringify(newConfig),
+      updated_at: new Date().toISOString(),
+      updated_by: actor,
+    });
 
     if (error) {
       throw new Error(`Failed to update safe mode: ${error.message}`);
@@ -118,13 +116,11 @@ class SafeModeService {
       applied_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase
-      .from('system_config')
-      .upsert({
-        config_key: 'active_restrictions',
-        config_value: JSON.stringify(restrictions),
-        updated_at: new Date().toISOString(),
-      });
+    const { error } = await supabase.from('system_config').upsert({
+      config_key: 'active_restrictions',
+      config_value: JSON.stringify(restrictions),
+      updated_at: new Date().toISOString(),
+    });
 
     if (error) {
       console.error('Error applying restrictions:', error);
@@ -136,18 +132,16 @@ class SafeModeService {
    */
   private static async recordSafeModeMetric(enabled: boolean): Promise<void> {
     try {
-      const { error } = await supabase
-        .from('system_metrics')
-        .insert({
-          metric: 'safe_mode_status',
-          value: enabled ? 1 : 0,
-          labels: JSON.stringify({
-            action: enabled ? 'enabled' : 'disabled',
-            timestamp: new Date().toISOString(),
-          }),
-          source: 'admin_control',
-          created_at: new Date().toISOString(),
-        });
+      const { error } = await supabase.from('system_metrics').insert({
+        metric: 'safe_mode_status',
+        value: enabled ? 1 : 0,
+        labels: JSON.stringify({
+          action: enabled ? 'enabled' : 'disabled',
+          timestamp: new Date().toISOString(),
+        }),
+        source: 'admin_control',
+        created_at: new Date().toISOString(),
+      });
 
       if (error) {
         console.error('Error recording safe mode metric:', error);
@@ -171,28 +165,29 @@ export async function GET(request: NextRequest) {
 
   try {
     const userId = request.headers.get('x-user-id') || 'anonymous';
-    
+
     // Check permissions
     await RBACService.requirePermission(userId, Permission.VIEW_DASHBOARD);
 
     const status = await SafeModeService.getStatus();
 
     UnitTalkTracing.recordSuccess(span);
-    
+
     return NextResponse.json({
       success: true,
       data: status,
     });
-
   } catch (error) {
     UnitTalkTracing.recordError(span, error as Error);
-    
-    return NextResponse.json({
-      success: false,
-      error: (error as Error).message,
-      code: 'SAFE_MODE_GET_ERROR',
-    }, { status: 500 });
 
+    return NextResponse.json(
+      {
+        success: false,
+        error: (error as Error).message,
+        code: 'SAFE_MODE_GET_ERROR',
+      },
+      { status: 500 }
+    );
   } finally {
     span.end();
   }
@@ -217,11 +212,14 @@ export async function POST(request: NextRequest) {
     const { enable, reason, emergency_contact } = body;
 
     if (typeof enable !== 'boolean') {
-      return NextResponse.json({
-        success: false,
-        error: 'Missing required field: enable (boolean)',
-        code: 'INVALID_REQUEST',
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Missing required field: enable (boolean)',
+          code: 'INVALID_REQUEST',
+        },
+        { status: 400 }
+      );
     }
 
     // Get current state for audit
@@ -271,10 +269,9 @@ export async function POST(request: NextRequest) {
       data: newConfig,
       message: `Safe mode ${enable ? 'enabled' : 'disabled'} successfully`,
     });
-
   } catch (error) {
     const errorMessage = (error as Error).message || 'Unknown error';
-    
+
     UnitTalkTracing.recordError(span, error as Error);
 
     // Log failed attempt
@@ -291,13 +288,15 @@ export async function POST(request: NextRequest) {
     });
 
     const statusCode = errorMessage.includes('Access denied') ? 403 : 500;
-    
-    return NextResponse.json({
-      success: false,
-      error: errorMessage,
-      code: statusCode === 403 ? 'INSUFFICIENT_PERMISSIONS' : 'SAFE_MODE_ERROR',
-    }, { status: statusCode });
 
+    return NextResponse.json(
+      {
+        success: false,
+        error: errorMessage,
+        code: statusCode === 403 ? 'INSUFFICIENT_PERMISSIONS' : 'SAFE_MODE_ERROR',
+      },
+      { status: statusCode }
+    );
   } finally {
     span.end();
   }

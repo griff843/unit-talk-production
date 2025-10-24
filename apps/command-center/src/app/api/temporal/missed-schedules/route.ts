@@ -69,7 +69,7 @@ class MissedScheduleService {
 
     for (const schedule of schedules || []) {
       const analysis = await this.analyzeSchedule(schedule, currentTime, threshold_minutes);
-      
+
       if (analysis.is_missed) {
         missedSchedules.push(analysis.schedule);
         totalDelayMinutes += analysis.delay_minutes;
@@ -78,14 +78,19 @@ class MissedScheduleService {
     }
 
     const criticalMissed = missedSchedules.filter(s => s.severity === 'critical').length;
-    const healthScore = this.calculateHealthScore(schedules?.length || 0, missedSchedules.length, criticalMissed);
+    const healthScore = this.calculateHealthScore(
+      schedules?.length || 0,
+      missedSchedules.length,
+      criticalMissed
+    );
     const recommendations = this.generateRecommendations(missedSchedules);
 
     return {
       total_schedules: schedules?.length || 0,
       missed_schedules: missedSchedules.length,
       critical_missed: criticalMissed,
-      average_delay_minutes: missedSchedules.length > 0 ? Math.round(totalDelayMinutes / missedSchedules.length) : 0,
+      average_delay_minutes:
+        missedSchedules.length > 0 ? Math.round(totalDelayMinutes / missedSchedules.length) : 0,
       longest_missed_duration_hours: Math.round(longestMissedHours * 100) / 100,
       schedules: missedSchedules,
       recommendations,
@@ -107,25 +112,25 @@ class MissedScheduleService {
   }> {
     const lastScheduled = schedule.last_scheduled_at ? new Date(schedule.last_scheduled_at) : null;
     const expectedFreq = schedule.expected_frequency_minutes || 60;
-    
-    // Calculate when next execution should have happened
-    const expectedNext = lastScheduled ? 
-      new Date(lastScheduled.getTime() + expectedFreq * 60 * 1000) :
-      new Date(currentTime.getTime() - expectedFreq * 60 * 1000);
 
-    const delayMinutes = lastScheduled ? 
-      Math.max(0, (currentTime.getTime() - expectedNext.getTime()) / (60 * 1000)) :
-      expectedFreq; // If never scheduled, delay is at least the frequency
+    // Calculate when next execution should have happened
+    const expectedNext = lastScheduled
+      ? new Date(lastScheduled.getTime() + expectedFreq * 60 * 1000)
+      : new Date(currentTime.getTime() - expectedFreq * 60 * 1000);
+
+    const delayMinutes = lastScheduled
+      ? Math.max(0, (currentTime.getTime() - expectedNext.getTime()) / (60 * 1000))
+      : expectedFreq; // If never scheduled, delay is at least the frequency
 
     const isMissed = delayMinutes > threshold_minutes && !schedule.paused;
-    
+
     // Calculate severity based on delay and workflow importance
     let severity: MissedSchedule['severity'] = 'low';
     let impactScore = 1;
 
     if (isMissed) {
       const delayRatio = delayMinutes / expectedFreq;
-      
+
       if (delayRatio > 5 || this.isCriticalWorkflow(schedule.workflow_type)) {
         severity = 'critical';
         impactScore = 10;
@@ -148,7 +153,9 @@ class MissedScheduleService {
       schedule_spec: schedule.schedule_spec || 'unknown',
       workflow_type: schedule.workflow_type,
       last_scheduled_at: lastScheduled,
-      next_scheduled_at: schedule.next_scheduled_at ? new Date(schedule.next_scheduled_at) : undefined,
+      next_scheduled_at: schedule.next_scheduled_at
+        ? new Date(schedule.next_scheduled_at)
+        : undefined,
       expected_frequency_minutes: expectedFreq,
       missed_count: schedule.missed_count || 0,
       missing_since: schedule.missing_since ? new Date(schedule.missing_since) : undefined,
@@ -176,7 +183,7 @@ class MissedScheduleService {
       'DataIngestionWorkflow',
       'HealthCheckWorkflow',
     ];
-    return criticalWorkflows.some(critical => 
+    return criticalWorkflows.some(critical =>
       workflowType.toLowerCase().includes(critical.toLowerCase())
     );
   }
@@ -185,16 +192,8 @@ class MissedScheduleService {
    * Check if workflow type is business critical
    */
   private static isBusinessCritical(workflowType: string): boolean {
-    const businessCritical = [
-      'grading',
-      'publishing',
-      'alert',
-      'settlement',
-      'financial',
-    ];
-    return businessCritical.some(critical => 
-      workflowType.toLowerCase().includes(critical)
-    );
+    const businessCritical = ['grading', 'publishing', 'alert', 'settlement', 'financial'];
+    return businessCritical.some(critical => workflowType.toLowerCase().includes(critical));
   }
 
   /**
@@ -209,13 +208,13 @@ class MissedScheduleService {
 
     const missedRatio = missedSchedules / totalSchedules;
     const criticalRatio = criticalMissed / totalSchedules;
-    
+
     // Base score from missed ratio
     let score = (1 - missedRatio) * 100;
-    
+
     // Additional penalty for critical misses
     score -= criticalRatio * 30;
-    
+
     return Math.max(0, Math.min(100, Math.round(score * 100) / 100));
   }
 
@@ -231,8 +230,8 @@ class MissedScheduleService {
 
     const critical = missedSchedules.filter(s => s.severity === 'critical');
     const high = missedSchedules.filter(s => s.severity === 'high');
-    const longRunning = missedSchedules.filter(s => 
-      s.missing_since && (Date.now() - s.missing_since.getTime()) > 4 * 60 * 60 * 1000
+    const longRunning = missedSchedules.filter(
+      s => s.missing_since && Date.now() - s.missing_since.getTime() > 4 * 60 * 60 * 1000
     );
 
     if (critical.length > 0) {
@@ -256,15 +255,21 @@ class MissedScheduleService {
     // Workflow-specific recommendations
     const workflowTypes = [...new Set(missedSchedules.map(s => s.workflow_type))];
     if (workflowTypes.includes('GradingWorkflow')) {
-      recommendations.push('GradingWorkflow missed - picks may not be processed. Check grading queue.');
+      recommendations.push(
+        'GradingWorkflow missed - picks may not be processed. Check grading queue.'
+      );
     }
     if (workflowTypes.includes('AlertWorkflow')) {
-      recommendations.push('AlertWorkflow missed - users may not receive notifications. Verify Discord bot.');
+      recommendations.push(
+        'AlertWorkflow missed - users may not receive notifications. Verify Discord bot.'
+      );
     }
 
     // General recommendations based on patterns
     if (missedSchedules.length > 5) {
-      recommendations.push('Multiple schedules missed - check Temporal cluster capacity and health.');
+      recommendations.push(
+        'Multiple schedules missed - check Temporal cluster capacity and health.'
+      );
     }
 
     return recommendations;
@@ -344,8 +349,9 @@ class MissedScheduleService {
         workflow_type: schedule.workflow_type,
         severity: schedule.severity,
         missing_since: schedule.missing_since,
-        delay_minutes: schedule.missing_since ? 
-          Math.round((Date.now() - schedule.missing_since.getTime()) / 60000) : 0,
+        delay_minutes: schedule.missing_since
+          ? Math.round((Date.now() - schedule.missing_since.getTime()) / 60000)
+          : 0,
       },
       status: 'success',
     });
@@ -377,7 +383,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const userId = request.headers.get('x-user-id') || 'anonymous';
-    
+
     // Check permissions
     await RBACService.requirePermission(userId, Permission.VIEW_DASHBOARD);
 
@@ -391,8 +397,8 @@ export async function GET(request: NextRequest) {
 
     // Filter out resolved schedules if requested
     if (!includeResolved) {
-      analysis.schedules = analysis.schedules.filter(s => 
-        s.missing_since && (Date.now() - s.missing_since.getTime()) < 24 * 60 * 60 * 1000
+      analysis.schedules = analysis.schedules.filter(
+        s => s.missing_since && Date.now() - s.missing_since.getTime() < 24 * 60 * 60 * 1000
       );
     }
 
@@ -415,19 +421,20 @@ export async function GET(request: NextRequest) {
         },
       },
     });
-
   } catch (error) {
     UnitTalkTracing.recordError(span, error as Error);
-    
+
     const errorMessage = error.message || 'Unknown error';
     const statusCode = errorMessage.includes('Access denied') ? 403 : 500;
-    
-    return NextResponse.json({
-      success: false,
-      error: errorMessage,
-      code: statusCode === 403 ? 'INSUFFICIENT_PERMISSIONS' : 'MISSED_SCHEDULES_ERROR',
-    }, { status: statusCode });
 
+    return NextResponse.json(
+      {
+        success: false,
+        error: errorMessage,
+        code: statusCode === 403 ? 'INSUFFICIENT_PERMISSIONS' : 'MISSED_SCHEDULES_ERROR',
+      },
+      { status: statusCode }
+    );
   } finally {
     span.end();
   }
@@ -442,7 +449,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const userId = request.headers.get('x-user-id') || 'anonymous';
-    
+
     // Require ops permissions to resolve issues
     await RBACService.requirePermission(userId, Permission.CONTROL_AGENTS);
 
@@ -450,11 +457,14 @@ export async function POST(request: NextRequest) {
     const { schedule_id, resolution_note } = body;
 
     if (!schedule_id) {
-      return NextResponse.json({
-        success: false,
-        error: 'Missing required field: schedule_id',
-        code: 'INVALID_REQUEST',
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Missing required field: schedule_id',
+          code: 'INVALID_REQUEST',
+        },
+        { status: 400 }
+      );
     }
 
     // Update schedule status
@@ -489,19 +499,20 @@ export async function POST(request: NextRequest) {
         resolved_by: userId,
       },
     });
-
   } catch (error) {
     UnitTalkTracing.recordError(span, error as Error);
-    
+
     const errorMessage = error.message || 'Unknown error';
     const statusCode = errorMessage.includes('Access denied') ? 403 : 500;
-    
-    return NextResponse.json({
-      success: false,
-      error: errorMessage,
-      code: statusCode === 403 ? 'INSUFFICIENT_PERMISSIONS' : 'RESOLVE_SCHEDULE_ERROR',
-    }, { status: statusCode });
 
+    return NextResponse.json(
+      {
+        success: false,
+        error: errorMessage,
+        code: statusCode === 403 ? 'INSUFFICIENT_PERMISSIONS' : 'RESOLVE_SCHEDULE_ERROR',
+      },
+      { status: statusCode }
+    );
   } finally {
     span.end();
   }

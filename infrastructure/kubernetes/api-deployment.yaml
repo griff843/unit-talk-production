@@ -1,25 +1,89 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: unit-talk-api
+  name: unit-talk-api-blue
   namespace: unit-talk
   labels:
     app: unit-talk-api
-    version: v1
+    version: blue
 spec:
   replicas: 3
   selector:
     matchLabels:
       app: unit-talk-api
+      version: blue
   template:
     metadata:
       labels:
         app: unit-talk-api
-        version: v1
+        version: blue
     spec:
       containers:
         - name: api
-          image: unit-talk/api:latest
+          image: ghcr.io/griff843/unit-talk-production/api:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: 'production'
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: unit-talk-secrets
+                  key: database-url
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: unit-talk-secrets
+                  key: redis-url
+          resources:
+            requests:
+              memory: '512Mi'
+              cpu: '250m'
+            limits:
+              memory: '1Gi'
+              cpu: '500m'
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: unit-talk-api-green
+  namespace: unit-talk
+  labels:
+    app: unit-talk-api
+    version: green
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: unit-talk-api
+      version: green
+  template:
+    metadata:
+      labels:
+        app: unit-talk-api
+        version: green
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/griff843/unit-talk-production/api:latest
           ports:
             - containerPort: 3000
           env:
@@ -63,11 +127,27 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: unit-talk-api-service
+  name: unit-talk-api-blue
   namespace: unit-talk
 spec:
   selector:
     app: unit-talk-api
+    version: blue
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: unit-talk-api-green
+  namespace: unit-talk
+spec:
+  selector:
+    app: unit-talk-api
+    version: green
   ports:
     - protocol: TCP
       port: 80

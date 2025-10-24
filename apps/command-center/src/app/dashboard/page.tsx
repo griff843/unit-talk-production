@@ -1,11 +1,11 @@
-'use client'
+'use client';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { 
-  Activity, 
-  Target, 
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Activity,
+  Target,
   Bot,
   CheckCircle,
   Clock,
@@ -13,9 +13,9 @@ import {
   AlertCircle,
   Settings,
   Shield,
-  Eye
-} from 'lucide-react'
-import { useState, useEffect } from 'react'
+  Eye,
+} from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 type PipelineHealthData = {
   total_picks_24h: number;
@@ -24,109 +24,111 @@ type PipelineHealthData = {
   writer_audit_percentage: number;
   status: string;
   last_updated: string;
-}
+};
 
 type DataFreshness = {
   status: 'fresh' | 'stale' | 'critical';
   lastIngestion: string | null;
   minutesSinceLastIngestion: number | null;
   statusText: string;
-}
+};
 
 export default function DashboardPage() {
-  const [pipelineHealth, setPipelineHealth] = useState<PipelineHealthData | null>(null)
-  const [providerHealth, setProviderHealth] = useState<{ dataFreshness: DataFreshness } | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [pipelineHealth, setPipelineHealth] = useState<PipelineHealthData | null>(null);
+  const [providerHealth, setProviderHealth] = useState<{ dataFreshness: DataFreshness } | null>(
+    null
+  );
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchHealthData = async () => {
       try {
-        console.log('Fetching health data...')
-        
+        console.log('Fetching health data...');
+
         // Fetch pipeline health
-        const pipelineResponse = await fetch('/api/pipeline/health')
+        const pipelineResponse = await fetch('/api/pipeline/health');
         if (!pipelineResponse.ok) {
-          throw new Error(`Failed to fetch pipeline health: ${pipelineResponse.status}`)
+          throw new Error(`Failed to fetch pipeline health: ${pipelineResponse.status}`);
         }
-        const pipelineData = await pipelineResponse.json()
-        setPipelineHealth(pipelineData)
-        
+        const pipelineData = await pipelineResponse.json();
+        setPipelineHealth(pipelineData);
+
         // Fetch provider health with data freshness (with cache control for E2E testing)
         const providerResponse = await fetch('/api/health/provider', {
           headers: {
             'Cache-Control': 'no-store, no-cache, must-revalidate',
-            'Pragma': 'no-cache'
-          }
-        })
+            Pragma: 'no-cache',
+          },
+        });
         if (providerResponse.ok) {
-          const providerData = await providerResponse.json()
-          setProviderHealth(providerData)
+          const providerData = await providerResponse.json();
+          setProviderHealth(providerData);
         } else {
-          console.warn('Provider health endpoint not available')
+          console.warn('Provider health endpoint not available');
         }
-        
-        setError(null)
-      } catch (err) {
-        console.error('Error fetching health data:', err)
-        setError(err instanceof Error ? err.message : 'Unknown error')
-      } finally {
-        setLoading(false)
-      }
-    }
 
-    fetchHealthData()
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching health data:', err);
+        setError(err instanceof Error ? err.message : 'Unknown error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHealthData();
     // Refresh every 15 seconds as requested
-    const interval = setInterval(fetchHealthData, 15000)
+    const interval = setInterval(fetchHealthData, 15000);
 
     return () => {
-      clearInterval(interval)
-    }
-  }, [])
+      clearInterval(interval);
+    };
+  }, []);
 
   const refresh = async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
       // Fetch pipeline health
-      const pipelineResponse = await fetch('/api/pipeline/health')
+      const pipelineResponse = await fetch('/api/pipeline/health');
       if (!pipelineResponse.ok) {
-        throw new Error('Failed to fetch pipeline health')
+        throw new Error('Failed to fetch pipeline health');
       }
-      const pipelineData = await pipelineResponse.json()
-      setPipelineHealth(pipelineData)
-      
+      const pipelineData = await pipelineResponse.json();
+      setPipelineHealth(pipelineData);
+
       // Fetch provider health with cache control
       const providerResponse = await fetch('/api/health/provider', {
         headers: {
           'Cache-Control': 'no-store, no-cache, must-revalidate',
-          'Pragma': 'no-cache'
-        }
-      })
+          Pragma: 'no-cache',
+        },
+      });
       if (providerResponse.ok) {
-        const providerData = await providerResponse.json()
-        setProviderHealth(providerData)
+        const providerData = await providerResponse.json();
+        setProviderHealth(providerData);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
-  
+  };
+
   const invalidateCache = async () => {
     try {
-      const response = await fetch('/api/admin/invalidate-cache', { method: 'POST' })
+      const response = await fetch('/api/admin/invalidate-cache', { method: 'POST' });
       if (response.ok) {
-        console.log('Cache invalidated successfully')
-        refresh() // Refresh data after cache invalidation
+        console.log('Cache invalidated successfully');
+        refresh(); // Refresh data after cache invalidation
       } else {
-        console.error('Failed to invalidate cache')
+        console.error('Failed to invalidate cache');
       }
     } catch (err) {
-      console.error('Error invalidating cache:', err)
+      console.error('Error invalidating cache:', err);
     }
-  }
+  };
 
   if (loading && !pipelineHealth) {
     return (
@@ -137,7 +139,7 @@ export default function DashboardPage() {
           <p className="text-xs text-muted-foreground mt-2">Fetching from /api/pipeline/health</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -146,7 +148,7 @@ export default function DashboardPage() {
         <AlertCircle className="w-8 h-8 mr-2" />
         Error loading dashboard data: {error}
       </div>
-    )
+    );
   }
 
   return (
@@ -155,9 +157,7 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Command Center Dashboard</h1>
-          <p className="text-muted-foreground">
-            Real-time pipeline monitoring and system health
-          </p>
+          <p className="text-muted-foreground">Real-time pipeline monitoring and system health</p>
         </div>
         <div className="flex items-center space-x-2">
           <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
@@ -185,18 +185,27 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center space-x-3">
-              <Badge 
-                variant={providerHealth.dataFreshness.status === 'fresh' ? 'default' : 
-                        providerHealth.dataFreshness.status === 'stale' ? 'secondary' : 'destructive'}
+              <Badge
+                variant={
+                  providerHealth.dataFreshness.status === 'fresh'
+                    ? 'default'
+                    : providerHealth.dataFreshness.status === 'stale'
+                      ? 'secondary'
+                      : 'destructive'
+                }
                 className={`text-sm font-medium ${
-                  providerHealth.dataFreshness.status === 'fresh' ? 'bg-green-100 text-green-800 border-green-200' :
-                  providerHealth.dataFreshness.status === 'stale' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
-                  'bg-red-100 text-red-800 border-red-200'
+                  providerHealth.dataFreshness.status === 'fresh'
+                    ? 'bg-green-100 text-green-800 border-green-200'
+                    : providerHealth.dataFreshness.status === 'stale'
+                      ? 'bg-yellow-100 text-yellow-800 border-yellow-200'
+                      : 'bg-red-100 text-red-800 border-red-200'
                 }`}
               >
-                {providerHealth.dataFreshness.status === 'fresh' ? '🟢 FRESH' :
-                 providerHealth.dataFreshness.status === 'stale' ? '🟡 STALE' : 
-                 '🔴 CRITICAL'}
+                {providerHealth.dataFreshness.status === 'fresh'
+                  ? '🟢 FRESH'
+                  : providerHealth.dataFreshness.status === 'stale'
+                    ? '🟡 STALE'
+                    : '🔴 CRITICAL'}
               </Badge>
               <span className="text-sm text-muted-foreground">
                 {providerHealth.dataFreshness.statusText}
@@ -206,10 +215,9 @@ export default function DashboardPage() {
               <div>
                 <p className="text-xs text-muted-foreground">Last Ingestion</p>
                 <p className="text-sm font-medium">
-                  {providerHealth.dataFreshness.lastIngestion 
+                  {providerHealth.dataFreshness.lastIngestion
                     ? new Date(providerHealth.dataFreshness.lastIngestion).toLocaleString()
-                    : 'Never'
-                  }
+                    : 'Never'}
                 </p>
               </div>
               <div>
@@ -232,7 +240,9 @@ export default function DashboardPage() {
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{pipelineHealth.total_picks_24h.toLocaleString()}</div>
+              <div className="text-2xl font-bold">
+                {pipelineHealth.total_picks_24h.toLocaleString()}
+              </div>
               <p className="text-xs text-muted-foreground mt-1">
                 All picks processed in last 24 hours
               </p>
@@ -245,10 +255,10 @@ export default function DashboardPage() {
               <Bot className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{pipelineHealth.system_picks_24h.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Automated system picks
-              </p>
+              <div className="text-2xl font-bold">
+                {pipelineHealth.system_picks_24h.toLocaleString()}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Automated system picks</p>
             </CardContent>
           </Card>
 
@@ -258,10 +268,10 @@ export default function DashboardPage() {
               <Eye className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{pipelineHealth.manual_picks_24h.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Manually submitted picks
-              </p>
+              <div className="text-2xl font-bold">
+                {pipelineHealth.manual_picks_24h.toLocaleString()}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Manually submitted picks</p>
             </CardContent>
           </Card>
 
@@ -278,9 +288,7 @@ export default function DashboardPage() {
                   </Badge>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Overall pipeline status
-              </p>
+              <p className="text-xs text-muted-foreground mt-1">Overall pipeline status</p>
             </CardContent>
           </Card>
         </div>
@@ -293,9 +301,7 @@ export default function DashboardPage() {
             <Settings className="w-5 h-5 mr-2" />
             API Endpoints
           </CardTitle>
-          <CardDescription>
-            Available monitoring endpoints and their status
-          </CardDescription>
+          <CardDescription>Available monitoring endpoints and their status</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2">
@@ -353,9 +359,7 @@ export default function DashboardPage() {
             <Shield className="w-5 h-5 mr-2" />
             System Information
           </CardTitle>
-          <CardDescription>
-            Command Center deployment and configuration details
-          </CardDescription>
+          <CardDescription>Command Center deployment and configuration details</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -380,5 +384,5 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

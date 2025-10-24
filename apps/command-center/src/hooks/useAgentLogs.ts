@@ -29,13 +29,18 @@ export function useAgentLogs(limit = 50) {
   // Map database log levels to our interface
   const mapLogLevel = (level: string): AgentLog['level'] => {
     switch (level?.toLowerCase()) {
-      case 'info': return 'info';
-      case 'warn': 
-      case 'warning': return 'warn';
+      case 'info':
+        return 'info';
+      case 'warn':
+      case 'warning':
+        return 'warn';
       case 'error':
-      case 'fatal': return 'error';
-      case 'debug': return 'debug';
-      default: return 'info';
+      case 'fatal':
+        return 'error';
+      case 'debug':
+        return 'debug';
+      default:
+        return 'info';
     }
   };
 
@@ -57,7 +62,7 @@ export function useAgentLogs(limit = 50) {
 
     if (payload.new) {
       const newLog = transformDbLogToAgentLog(payload.new);
-      
+
       setLogs(prev => {
         // Add new log to the beginning and maintain limit
         const updatedLogs = [newLog, ...prev].slice(0, limit);
@@ -79,7 +84,7 @@ export function useAgentLogs(limit = 50) {
   const loadLogs = async () => {
     try {
       console.log('📊 Loading initial agent logs...');
-      
+
       // For local testing - always use working mock data first
       const mockLogs: AgentLog[] = [
         {
@@ -128,12 +133,12 @@ export function useAgentLogs(limit = 50) {
           created_at: new Date(Date.now() - 480000).toISOString(),
         },
       ];
-      
+
       console.log('✅ Using production agent logs data (simulated for testing)');
       setLogs(mockLogs);
       setLoading(false);
       return;
-      
+
       const client = getSupabaseClient();
       if (!client) {
         // Use fallback mock data if no database connection
@@ -174,7 +179,7 @@ export function useAgentLogs(limit = 50) {
     } catch (err) {
       console.error('❌ Failed to load agent logs:', err);
       setError(err instanceof Error ? err : new Error('Unknown error'));
-      
+
       // Use mock data as fallback
       const mockLogs: AgentLog[] = [
         {

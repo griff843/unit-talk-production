@@ -1,8 +1,8 @@
-'use client'
+'use client';
 
-import { Bell, Search, Settings, User, LogOut, Bot, Users, Activity } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Bell, Search, Settings, User, LogOut, Bot, Users, Activity } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,19 +10,21 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
-import { ConnectionIndicator } from '@/components/ui/sync-status'
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { ConnectionIndicator } from '@/components/ui/sync-status';
 // import { ThemeToggle } from '@/components/ui/theme-toggle'
 
 interface HeaderProps {
-  className?: string
+  className?: string;
 }
 
 export function Header({ className }: HeaderProps) {
   return (
-    <header className={`flex h-16 items-center justify-between border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 ${className}`}>
+    <header
+      className={`flex h-16 items-center justify-between border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 ${className}`}
+    >
       {/* Search */}
       <div className="flex items-center space-x-4 flex-1 max-w-md">
         <div className="relative w-full">
@@ -46,8 +48,8 @@ export function Header({ className }: HeaderProps) {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="relative">
               <Bell className="h-5 w-5" />
-              <Badge 
-                variant="destructive" 
+              <Badge
+                variant="destructive"
                 className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
               >
                 3
@@ -60,7 +62,9 @@ export function Header({ className }: HeaderProps) {
             <div className="max-h-96 overflow-y-auto">
               <DropdownMenuItem className="flex-col items-start space-y-1 h-auto py-3">
                 <div className="font-medium">Agent GradingAgent needs attention</div>
-                <div className="text-sm text-muted-foreground">Performance degraded - response time &gt;5s</div>
+                <div className="text-sm text-muted-foreground">
+                  Performance degraded - response time &gt;5s
+                </div>
                 <div className="text-xs text-muted-foreground">2 minutes ago</div>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -72,7 +76,9 @@ export function Header({ className }: HeaderProps) {
               <DropdownMenuSeparator />
               <DropdownMenuItem className="flex-col items-start space-y-1 h-auto py-3">
                 <div className="font-medium">Database connection restored</div>
-                <div className="text-sm text-muted-foreground">Connection to Unit Talk Production is stable</div>
+                <div className="text-sm text-muted-foreground">
+                  Connection to Unit Talk Production is stable
+                </div>
                 <div className="text-xs text-muted-foreground">1 hour ago</div>
               </DropdownMenuItem>
             </div>
@@ -93,20 +99,20 @@ export function Header({ className }: HeaderProps) {
           <DropdownMenuContent className="w-56" align="end">
             <DropdownMenuLabel>System Settings</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => window.location.href = '/dashboard/settings'}>
+            <DropdownMenuItem onClick={() => (window.location.href = '/dashboard/settings')}>
               <Settings className="mr-2 h-4 w-4" />
               <span>General Settings</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => window.location.href = '/dashboard/agents'}>
+            <DropdownMenuItem onClick={() => (window.location.href = '/dashboard/agents')}>
               <Bot className="mr-2 h-4 w-4" />
               <span>Agent Configuration</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => window.location.href = '/dashboard/users'}>
+            <DropdownMenuItem onClick={() => (window.location.href = '/dashboard/users')}>
               <Users className="mr-2 h-4 w-4" />
               <span>User Management</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => window.location.href = '/dashboard/analytics'}>
+            <DropdownMenuItem onClick={() => (window.location.href = '/dashboard/analytics')}>
               <Activity className="mr-2 h-4 w-4" />
               <span>Analytics Settings</span>
             </DropdownMenuItem>
@@ -129,9 +135,7 @@ export function Header({ className }: HeaderProps) {
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
                 <p className="text-sm font-medium leading-none">Admin User</p>
-                <p className="text-xs leading-none text-muted-foreground">
-                  admin@unittalk.com
-                </p>
+                <p className="text-xs leading-none text-muted-foreground">admin@unittalk.com</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -152,5 +156,5 @@ export function Header({ className }: HeaderProps) {
         </DropdownMenu>
       </div>
     </header>
-  )
+  );
 }

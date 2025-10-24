@@ -1,0 +1,145 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: unit-talk-command-center-blue
+  namespace: unit-talk
+  labels:
+    app: unit-talk-command-center
+    version: blue
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: unit-talk-command-center
+      version: blue
+  template:
+    metadata:
+      labels:
+        app: unit-talk-command-center
+        version: blue
+    spec:
+      containers:
+        - name: command-center
+          image: ghcr.io/griff843/unit-talk-production/command-center:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: 'production'
+            - name: NEXT_PUBLIC_SUPABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: unit-talk-secrets
+                  key: supabase-url
+            - name: NEXT_PUBLIC_SUPABASE_ANON_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: unit-talk-secrets
+                  key: supabase-anon-key
+          resources:
+            requests:
+              memory: '256Mi'
+              cpu: '200m'
+            limits:
+              memory: '512Mi'
+              cpu: '400m'
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: unit-talk-command-center-green
+  namespace: unit-talk
+  labels:
+    app: unit-talk-command-center
+    version: green
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: unit-talk-command-center
+      version: green
+  template:
+    metadata:
+      labels:
+        app: unit-talk-command-center
+        version: green
+    spec:
+      containers:
+        - name: command-center
+          image: ghcr.io/griff843/unit-talk-production/command-center:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: 'production'
+            - name: NEXT_PUBLIC_SUPABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: unit-talk-secrets
+                  key: supabase-url
+            - name: NEXT_PUBLIC_SUPABASE_ANON_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: unit-talk-secrets
+                  key: supabase-anon-key
+          resources:
+            requests:
+              memory: '256Mi'
+              cpu: '200m'
+            limits:
+              memory: '512Mi'
+              cpu: '400m'
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: unit-talk-command-center-blue
+  namespace: unit-talk
+spec:
+  selector:
+    app: unit-talk-command-center
+    version: blue
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: unit-talk-command-center-green
+  namespace: unit-talk
+spec:
+  selector:
+    app: unit-talk-command-center
+    version: green
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+  type: ClusterIP

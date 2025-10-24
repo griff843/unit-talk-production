@@ -1,6 +1,6 @@
 /**
  * Unit Talk Command Center - Configuration Adapter
- * 
+ *
  * This adapter provides Command Center-specific configuration by importing from the
  * centralized environment configuration. This follows SaaS-level monorepo
  * best practices by maintaining a single source of truth while providing

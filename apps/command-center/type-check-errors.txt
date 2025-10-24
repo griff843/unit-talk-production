@@ -1,0 +1,648 @@
+﻿
+> unit-talk-command-center@1.0.0 type-check
+> tsc --noEmit
+
+src/app/dashboard/analytics/page.tsx(255,12): error TS2322: Type '{ children: Element[]; value: string; onValueChange: Dispatch<SetStateAction<string>>; }' is not assignable to type 'IntrinsicAttributes & TabsProps & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & TabsProps & RefAttributes<HTMLDivElement>'.
+src/app/dashboard/analytics/page.tsx(256,14): error TS2322: Type '{ children: Element[]; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsListProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsListProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/app/dashboard/analytics/page.tsx(257,16): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/analytics/page.tsx(258,16): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/analytics/page.tsx(259,16): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/analytics/page.tsx(260,16): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/analytics/page.tsx(263,14): error TS2322: Type '{ children: Element; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/analytics/page.tsx(334,14): error TS2322: Type '{ children: Element; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/analytics/page.tsx(422,14): error TS2322: Type '{ children: Element; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/analytics/page.tsx(436,14): error TS2322: Type '{ children: Element; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/api-health/page.tsx(166,8): error TS2322: Type '{ children: Element[]; defaultValue: string; className: string; }' is not assignable to type 'IntrinsicAttributes & TabsProps & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & TabsProps & RefAttributes<HTMLDivElement>'.
+src/app/dashboard/api-health/page.tsx(167,10): error TS2559: Type '{ children: Element[]; }' has no properties in common with type 'IntrinsicAttributes & Omit<TabsListProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/app/dashboard/api-health/page.tsx(168,12): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/api-health/page.tsx(169,12): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/api-health/page.tsx(170,12): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/api-health/page.tsx(171,12): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/api-health/page.tsx(174,10): error TS2322: Type '{ children: Element; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/api-health/page.tsx(178,10): error TS2322: Type '{ children: Element; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/api-health/page.tsx(182,10): error TS2322: Type '{ children: Element; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/api-health/page.tsx(186,10): error TS2322: Type '{ children: Element; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/audit/page.tsx(224,48): error TS2322: Type '{ value: number; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/app/dashboard/audit/page.tsx(243,12): error TS2322: Type '{ children: Element[]; value: string; onValueChange: Dispatch<SetStateAction<string>>; }' is not assignable to type 'IntrinsicAttributes & TabsProps & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & TabsProps & RefAttributes<HTMLDivElement>'.
+src/app/dashboard/audit/page.tsx(244,14): error TS2322: Type '{ children: Element[]; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsListProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsListProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/app/dashboard/audit/page.tsx(245,16): error TS2322: Type '{ children: (string | Element)[]; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/audit/page.tsx(249,16): error TS2322: Type '{ children: (string | Element)[]; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/audit/page.tsx(253,16): error TS2322: Type '{ children: (string | Element)[]; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/audit/page.tsx(257,16): error TS2322: Type '{ children: (string | Element)[]; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/audit/page.tsx(264,14): error TS2322: Type '{ children: Element; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/audit/page.tsx(269,14): error TS2322: Type '{ children: Element; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/audit/page.tsx(353,14): error TS2322: Type '{ children: Element; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/audit/page.tsx(429,14): error TS2322: Type '{ children: Element; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/grading/page.tsx(156,12): error TS2322: Type '{ children: Element[]; value: string; onValueChange: Dispatch<SetStateAction<string>>; }' is not assignable to type 'IntrinsicAttributes & TabsProps & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & TabsProps & RefAttributes<HTMLDivElement>'.
+src/app/dashboard/grading/page.tsx(157,14): error TS2322: Type '{ children: Element[]; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsListProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsListProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/app/dashboard/grading/page.tsx(158,16): error TS2322: Type '{ children: (string | Element)[]; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/grading/page.tsx(162,16): error TS2322: Type '{ children: (string | Element)[]; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/grading/page.tsx(166,16): error TS2322: Type '{ children: (string | Element)[]; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/grading/page.tsx(173,14): error TS2322: Type '{ children: Element; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/grading/page.tsx(178,14): error TS2322: Type '{ children: Element; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/grading/page.tsx(189,14): error TS2322: Type '{ children: Element; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/llm/page.tsx(199,8): error TS2322: Type '{ children: Element[]; value: string; onValueChange: Dispatch<SetStateAction<string>>; className: string; }' is not assignable to type 'IntrinsicAttributes & TabsProps & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & TabsProps & RefAttributes<HTMLDivElement>'.
+src/app/dashboard/llm/page.tsx(200,10): error TS2322: Type '{ children: Element[]; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsListProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsListProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/app/dashboard/llm/page.tsx(201,12): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/llm/page.tsx(202,12): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/llm/page.tsx(203,12): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/llm/page.tsx(204,12): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/llm/page.tsx(205,12): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/llm/page.tsx(208,10): error TS2322: Type '{ children: Element[]; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/llm/page.tsx(320,10): error TS2322: Type '{ children: Element; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/llm/page.tsx(406,10): error TS2322: Type '{ children: Element[]; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/llm/page.tsx(420,22): error TS2559: Type '{ children: Element; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/llm/page.tsx(423,22): error TS2559: Type '{ children: Element[]; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/llm/page.tsx(425,26): error TS2322: Type '{ children: string[]; key: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/llm/page.tsx(512,10): error TS2322: Type '{ children: Element; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/phase-d/page.tsx(228,72): error TS2322: Type '{ value: number; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/app/dashboard/phase-d/page.tsx(242,69): error TS2322: Type '{ value: number; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/app/dashboard/phase-d/page.tsx(291,12): error TS2322: Type '{ children: Element[]; value: string; onValueChange: Dispatch<SetStateAction<string>>; }' is not assignable to type 'IntrinsicAttributes & TabsProps & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & TabsProps & RefAttributes<HTMLDivElement>'.
+src/app/dashboard/phase-d/page.tsx(292,14): error TS2322: Type '{ children: Element[]; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsListProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsListProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/app/dashboard/phase-d/page.tsx(293,16): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/phase-d/page.tsx(294,16): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/phase-d/page.tsx(295,16): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/phase-d/page.tsx(296,16): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/phase-d/page.tsx(299,14): error TS2322: Type '{ children: Element; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/phase-d/page.tsx(363,14): error TS2322: Type '{ children: Element; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/phase-d/page.tsx(391,60): error TS2322: Type '{ value: number; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/app/dashboard/phase-d/page.tsx(396,62): error TS2322: Type '{ value: number; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/app/dashboard/phase-d/page.tsx(405,14): error TS2322: Type '{ children: Element; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/phase-d/page.tsx(444,14): error TS2322: Type '{ children: Element; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/phase-d/page.tsx(456,87): error TS2322: Type '{ value: number; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/app/dashboard/phase-d/page.tsx(463,78): error TS2322: Type '{ value: number; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/app/dashboard/phase-d/page.tsx(470,87): error TS2322: Type '{ value: number; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/app/dashboard/picks/page.tsx(257,16): error TS2559: Type '{ children: Element; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(260,16): error TS2559: Type '{ children: Element[]; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(261,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(262,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(263,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(264,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(265,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(266,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(272,16): error TS2559: Type '{ children: Element; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(275,16): error TS2559: Type '{ children: Element[]; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(276,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(277,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(278,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(279,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(280,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(281,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(287,16): error TS2559: Type '{ children: Element; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(290,16): error TS2559: Type '{ children: Element[]; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(291,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(292,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(293,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(294,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(324,12): error TS2322: Type '{ children: Element[]; value: string; onValueChange: Dispatch<SetStateAction<string>>; }' is not assignable to type 'IntrinsicAttributes & TabsProps & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & TabsProps & RefAttributes<HTMLDivElement>'.
+src/app/dashboard/picks/page.tsx(325,14): error TS2322: Type '{ children: Element[]; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsListProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsListProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/app/dashboard/picks/page.tsx(326,16): error TS2322: Type '{ children: (string | number)[]; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(327,16): error TS2322: Type '{ children: (string | number)[]; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(330,16): error TS2322: Type '{ children: (string | number)[]; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(333,16): error TS2322: Type '{ children: (string | number)[]; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(336,16): error TS2322: Type '{ children: (string | Element)[]; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(340,16): error TS2322: Type '{ children: (string | Element)[]; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(351,16): error TS2322: Type '{ children: Element[]; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(480,14): error TS2322: Type '{ children: Element; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/picks/page.tsx(485,14): error TS2322: Type '{ children: Element; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/security/page.tsx(367,51): error TS2322: Type '{ value: number; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/app/dashboard/smartform/page.tsx(199,12): error TS2322: Type '{ children: Element[]; value: string; onValueChange: Dispatch<SetStateAction<string>>; }' is not assignable to type 'IntrinsicAttributes & TabsProps & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & TabsProps & RefAttributes<HTMLDivElement>'.
+src/app/dashboard/smartform/page.tsx(200,14): error TS2322: Type '{ children: Element[]; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsListProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsListProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/app/dashboard/smartform/page.tsx(201,16): error TS2322: Type '{ children: (string | number)[]; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/smartform/page.tsx(204,16): error TS2322: Type '{ children: (string | number)[]; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/smartform/page.tsx(207,16): error TS2322: Type '{ children: (string | number)[]; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/smartform/page.tsx(210,16): error TS2322: Type '{ children: (string | number)[]; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/smartform/page.tsx(215,14): error TS2322: Type '{ children: Element[]; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/smartform/page.tsx(298,32): error TS2322: Type '{ children: Element; asChild: true; }' is not assignable to type 'IntrinsicAttributes & DialogTriggerProps & RefAttributes<HTMLButtonElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & DialogTriggerProps & RefAttributes<HTMLButtonElement>'.
+src/app/dashboard/smartform/page.tsx(303,32): error TS2322: Type '{ children: Element[]; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<DialogContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<DialogContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/smartform/page.tsx(305,36): error TS2559: Type '{ children: string; }' has no properties in common with type 'IntrinsicAttributes & Omit<DialogTitleProps & RefAttributes<HTMLHeadingElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/smartform/page.tsx(306,36): error TS2559: Type '{ children: string[]; }' has no properties in common with type 'IntrinsicAttributes & Omit<DialogDescriptionProps & RefAttributes<HTMLParagraphElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/tasks/page.tsx(192,14): error TS2322: Type '{ children: Element; asChild: true; }' is not assignable to type 'IntrinsicAttributes & DialogTriggerProps & RefAttributes<HTMLButtonElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & DialogTriggerProps & RefAttributes<HTMLButtonElement>'.
+src/app/dashboard/tasks/page.tsx(198,14): error TS2322: Type '{ children: Element[]; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<DialogContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<DialogContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/tasks/page.tsx(200,18): error TS2559: Type '{ children: string; }' has no properties in common with type 'IntrinsicAttributes & Omit<DialogTitleProps & RefAttributes<HTMLHeadingElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/tasks/page.tsx(201,18): error TS2559: Type '{ children: string; }' has no properties in common with type 'IntrinsicAttributes & Omit<DialogDescriptionProps & RefAttributes<HTMLParagraphElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/tasks/page.tsx(208,22): error TS2322: Type '{ children: string; htmlFor: string; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+src/app/dashboard/tasks/page.tsx(217,22): error TS2322: Type '{ children: string; htmlFor: string; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+src/app/dashboard/tasks/page.tsx(219,24): error TS2559: Type '{ children: Element; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/tasks/page.tsx(222,24): error TS2559: Type '{ children: Element[]; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/tasks/page.tsx(224,28): error TS2322: Type '{ children: string; key: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/tasks/page.tsx(233,22): error TS2322: Type '{ children: string; htmlFor: string; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+src/app/dashboard/tasks/page.tsx(235,24): error TS2559: Type '{ children: Element; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/tasks/page.tsx(238,24): error TS2559: Type '{ children: Element[]; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/tasks/page.tsx(240,28): error TS2322: Type '{ children: string; key: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/tasks/page.tsx(246,22): error TS2322: Type '{ children: string; htmlFor: string; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+src/app/dashboard/tasks/page.tsx(248,24): error TS2559: Type '{ children: Element; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/tasks/page.tsx(251,24): error TS2559: Type '{ children: Element[]; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/tasks/page.tsx(252,26): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/tasks/page.tsx(253,26): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/tasks/page.tsx(254,26): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/tasks/page.tsx(255,26): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/tasks/page.tsx(260,22): error TS2322: Type '{ children: string; htmlFor: string; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+src/app/dashboard/tasks/page.tsx(271,20): error TS2322: Type '{ children: string; htmlFor: string; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+src/app/dashboard/tasks/page.tsx(325,12): error TS2322: Type '{ children: Element[]; value: string; onValueChange: Dispatch<SetStateAction<string>>; }' is not assignable to type 'IntrinsicAttributes & TabsProps & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & TabsProps & RefAttributes<HTMLDivElement>'.
+src/app/dashboard/tasks/page.tsx(326,14): error TS2322: Type '{ children: Element[]; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsListProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsListProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/app/dashboard/tasks/page.tsx(327,16): error TS2322: Type '{ children: (string | number)[]; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/tasks/page.tsx(330,16): error TS2322: Type '{ children: (string | number)[]; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/tasks/page.tsx(333,16): error TS2322: Type '{ children: (string | number)[]; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/tasks/page.tsx(336,16): error TS2322: Type '{ children: (string | number)[]; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/app/dashboard/tasks/page.tsx(341,14): error TS2322: Type '{ children: Element[]; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/ApiHealthMonitoring.tsx(91,15): error TS2322: Type '{ value: number; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/components/cards/PipelineLagCard.tsx(155,16): error TS2322: Type '{ children: Element; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/components/cards/PipelineLagCard.tsx(158,16): error TS2559: Type '{ children: (Element | Element[])[]; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/cards/PipelineLagCard.tsx(159,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/cards/PipelineLagCard.tsx(163,22): error TS2322: Type '{ children: string; key: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/cards/PromoBacklogCard.tsx(121,16): error TS2322: Type '{ children: Element; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/components/cards/PromoBacklogCard.tsx(124,16): error TS2559: Type '{ children: Element[]; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/cards/PromoBacklogCard.tsx(126,20): error TS2322: Type '{ children: string; key: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/cards/PromoBacklogCard.tsx(133,16): error TS2322: Type '{ children: Element; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/components/cards/PromoBacklogCard.tsx(136,16): error TS2559: Type '{ children: Element[]; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/cards/PromoBacklogCard.tsx(138,20): error TS2322: Type '{ children: string; key: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/dashboard/ExposureRiskWidget.tsx(311,17): error TS2322: Type '{ value: number; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/components/dashboard/OperationalOverview.tsx(314,55): error TS2322: Type '{ value: number; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/components/dashboard/SLOStatusWidget.tsx(304,27): error TS2322: Type '{ value: number; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/components/dashboard/TemporalHealthWidget.tsx(394,29): error TS2322: Type '{ value: number; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/components/EventStream.tsx(411,12): error TS2559: Type '{ children: Element; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/components/EventStream.tsx(414,12): error TS2559: Type '{ children: Element[]; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/EventStream.tsx(415,14): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/EventStream.tsx(416,14): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/EventStream.tsx(417,14): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/EventStream.tsx(418,14): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/EventStream.tsx(426,12): error TS2559: Type '{ children: Element; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/components/EventStream.tsx(429,12): error TS2559: Type '{ children: Element[]; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/EventStream.tsx(430,14): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/EventStream.tsx(431,14): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/EventStream.tsx(432,14): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/EventStream.tsx(433,14): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/EventStream.tsx(441,12): error TS2559: Type '{ children: Element; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/components/EventStream.tsx(444,12): error TS2559: Type '{ children: Element[]; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/EventStream.tsx(445,14): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/EventStream.tsx(446,14): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/EventStream.tsx(447,14): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/EventStream.tsx(448,14): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/EventStream.tsx(449,14): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/EventStream.tsx(545,16): error TS2322: Type '{ children: Element[]; defaultValue: string; className: string; }' is not assignable to type 'IntrinsicAttributes & TabsProps & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & TabsProps & RefAttributes<HTMLDivElement>'.
+src/components/EventStream.tsx(546,18): error TS2322: Type '{ children: Element[]; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsListProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsListProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/components/EventStream.tsx(547,20): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/components/EventStream.tsx(548,20): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/components/EventStream.tsx(549,20): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/components/EventStream.tsx(552,18): error TS2322: Type '{ children: Element[]; value: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/EventStream.tsx(598,18): error TS2322: Type '{ children: Element; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/EventStream.tsx(606,18): error TS2322: Type '{ children: Element; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/layout/header.tsx(46,12): error TS2322: Type '{ children: Element; asChild: true; }' is not assignable to type 'IntrinsicAttributes & DropdownMenuTriggerProps & RefAttributes<HTMLButtonElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & DropdownMenuTriggerProps & RefAttributes<HTMLButtonElement>'.
+src/components/layout/header.tsx(57,12): error TS2322: Type '{ children: Element[]; className: string; align: "end"; }' is not assignable to type 'IntrinsicAttributes & Omit<DropdownMenuContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<DropdownMenuContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/layout/header.tsx(58,14): error TS2559: Type '{ children: string; }' has no properties in common with type 'IntrinsicAttributes & Omit<DropdownMenuLabelProps & RefAttributes<HTMLDivElement>, "ref"> & { ...; } & RefAttributes<...>'.
+src/components/layout/header.tsx(61,16): error TS2322: Type '{ children: Element[]; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<DropdownMenuItemProps & RefAttributes<HTMLDivElement>, "ref"> & { ...; } & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<DropdownMenuItemProps & RefAttributes<HTMLDivElement>, "ref"> & { ...; } & RefAttributes<...>'.
+src/components/layout/header.tsx(67,16): error TS2322: Type '{ children: Element[]; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<DropdownMenuItemProps & RefAttributes<HTMLDivElement>, "ref"> & { ...; } & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<DropdownMenuItemProps & RefAttributes<HTMLDivElement>, "ref"> & { ...; } & RefAttributes<...>'.
+src/components/layout/header.tsx(73,16): error TS2322: Type '{ children: Element[]; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<DropdownMenuItemProps & RefAttributes<HTMLDivElement>, "ref"> & { ...; } & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<DropdownMenuItemProps & RefAttributes<HTMLDivElement>, "ref"> & { ...; } & RefAttributes<...>'.
+src/components/layout/header.tsx(80,14): error TS2322: Type '{ children: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<DropdownMenuItemProps & RefAttributes<HTMLDivElement>, "ref"> & { ...; } & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<DropdownMenuItemProps & RefAttributes<HTMLDivElement>, "ref"> & { ...; } & RefAttributes<...>'.
+src/components/layout/header.tsx(88,12): error TS2322: Type '{ children: Element; asChild: true; }' is not assignable to type 'IntrinsicAttributes & DropdownMenuTriggerProps & RefAttributes<HTMLButtonElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & DropdownMenuTriggerProps & RefAttributes<HTMLButtonElement>'.
+src/components/layout/header.tsx(93,12): error TS2322: Type '{ children: Element[]; className: string; align: "end"; }' is not assignable to type 'IntrinsicAttributes & Omit<DropdownMenuContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<DropdownMenuContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/layout/header.tsx(94,14): error TS2559: Type '{ children: string; }' has no properties in common with type 'IntrinsicAttributes & Omit<DropdownMenuLabelProps & RefAttributes<HTMLDivElement>, "ref"> & { ...; } & RefAttributes<...>'.
+src/components/layout/header.tsx(96,14): error TS2322: Type '{ children: Element[]; onClick: () => string; }' is not assignable to type 'IntrinsicAttributes & Omit<DropdownMenuItemProps & RefAttributes<HTMLDivElement>, "ref"> & { ...; } & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<DropdownMenuItemProps & RefAttributes<HTMLDivElement>, "ref"> & { ...; } & RefAttributes<...>'.
+src/components/layout/header.tsx(100,14): error TS2322: Type '{ children: Element[]; onClick: () => string; }' is not assignable to type 'IntrinsicAttributes & Omit<DropdownMenuItemProps & RefAttributes<HTMLDivElement>, "ref"> & { ...; } & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<DropdownMenuItemProps & RefAttributes<HTMLDivElement>, "ref"> & { ...; } & RefAttributes<...>'.
+src/components/layout/header.tsx(104,14): error TS2322: Type '{ children: Element[]; onClick: () => string; }' is not assignable to type 'IntrinsicAttributes & Omit<DropdownMenuItemProps & RefAttributes<HTMLDivElement>, "ref"> & { ...; } & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<DropdownMenuItemProps & RefAttributes<HTMLDivElement>, "ref"> & { ...; } & RefAttributes<...>'.
+src/components/layout/header.tsx(109,14): error TS2322: Type '{ children: Element[]; onClick: () => string; }' is not assignable to type 'IntrinsicAttributes & Omit<DropdownMenuItemProps & RefAttributes<HTMLDivElement>, "ref"> & { ...; } & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<DropdownMenuItemProps & RefAttributes<HTMLDivElement>, "ref"> & { ...; } & RefAttributes<...>'.
+src/components/layout/header.tsx(118,12): error TS2322: Type '{ children: Element; asChild: true; }' is not assignable to type 'IntrinsicAttributes & DropdownMenuTriggerProps & RefAttributes<HTMLButtonElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & DropdownMenuTriggerProps & RefAttributes<HTMLButtonElement>'.
+src/components/layout/header.tsx(120,16): error TS2322: Type '{ children: Element[]; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<AvatarProps & RefAttributes<HTMLSpanElement>, "ref"> & RefAttributes<HTMLSpanElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<AvatarProps & RefAttributes<HTMLSpanElement>, "ref"> & RefAttributes<HTMLSpanElement>'.
+src/components/layout/header.tsx(121,30): error TS2322: Type '{ src: string; alt: string; }' is not assignable to type 'IntrinsicAttributes & Omit<AvatarImageProps & RefAttributes<HTMLImageElement>, "ref"> & RefAttributes<...>'.
+  Property 'src' does not exist on type 'IntrinsicAttributes & Omit<AvatarImageProps & RefAttributes<HTMLImageElement>, "ref"> & RefAttributes<...>'.
+src/components/layout/header.tsx(122,18): error TS2322: Type '{ children: Element; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<AvatarFallbackProps & RefAttributes<HTMLSpanElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<AvatarFallbackProps & RefAttributes<HTMLSpanElement>, "ref"> & RefAttributes<...>'.
+src/components/layout/header.tsx(128,12): error TS2322: Type '{ children: Element[]; className: string; align: "end"; }' is not assignable to type 'IntrinsicAttributes & Omit<DropdownMenuContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<DropdownMenuContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/layout/header.tsx(129,14): error TS2322: Type '{ children: Element; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<DropdownMenuLabelProps & RefAttributes<HTMLDivElement>, "ref"> & { ...; } & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<DropdownMenuLabelProps & RefAttributes<HTMLDivElement>, "ref"> & { ...; } & RefAttributes<...>'.
+src/components/layout/header.tsx(138,14): error TS2559: Type '{ children: Element[]; }' has no properties in common with type 'IntrinsicAttributes & Omit<DropdownMenuItemProps & RefAttributes<HTMLDivElement>, "ref"> & { ...; } & RefAttributes<...>'.
+src/components/layout/header.tsx(142,14): error TS2559: Type '{ children: Element[]; }' has no properties in common with type 'IntrinsicAttributes & Omit<DropdownMenuItemProps & RefAttributes<HTMLDivElement>, "ref"> & { ...; } & RefAttributes<...>'.
+src/components/layout/header.tsx(147,14): error TS2322: Type '{ children: Element[]; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<DropdownMenuItemProps & RefAttributes<HTMLDivElement>, "ref"> & { ...; } & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<DropdownMenuItemProps & RefAttributes<HTMLDivElement>, "ref"> & { ...; } & RefAttributes<...>'.
+src/components/monitoring/AuditTrail.tsx(439,16): error TS2559: Type '{ children: Element; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/components/monitoring/AuditTrail.tsx(442,16): error TS2559: Type '{ children: (Element | Element[])[]; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/monitoring/AuditTrail.tsx(443,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/monitoring/AuditTrail.tsx(445,20): error TS2322: Type '{ children: string; key: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/monitoring/AuditTrail.tsx(454,16): error TS2559: Type '{ children: Element; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/components/monitoring/AuditTrail.tsx(457,16): error TS2559: Type '{ children: Element[]; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/monitoring/AuditTrail.tsx(458,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/monitoring/AuditTrail.tsx(459,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/monitoring/AuditTrail.tsx(460,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/monitoring/AuditTrail.tsx(461,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/monitoring/AuditTrail.tsx(462,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/monitoring/AuditTrail.tsx(468,16): error TS2559: Type '{ children: Element; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/components/monitoring/AuditTrail.tsx(471,16): error TS2559: Type '{ children: Element[]; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/monitoring/AuditTrail.tsx(472,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/monitoring/AuditTrail.tsx(473,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/monitoring/AuditTrail.tsx(474,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/monitoring/AuditTrail.tsx(475,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/monitoring/AuditTrail.tsx(476,18): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/monitoring/GradingQueue.tsx(257,15): error TS2322: Type '{ value: number; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/components/monitoring/GradingQueue.tsx(397,78): error TS2322: Type '{ value: number; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/components/monitoring/PipelineHealth.tsx(396,64): error TS2322: Type '{ value: number; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/components/monitoring/PipelineHealth.tsx(492,38): error TS2322: Type '{ value: number; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/components/monitoring/PipelineHealth.tsx(504,38): error TS2322: Type '{ value: number; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/components/monitoring/PipelineHealth.tsx(516,38): error TS2322: Type '{ value: number; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/components/monitoring/ServiceHealthDashboard.tsx(207,19): error TS2322: Type '{ value: any; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/components/monitoring/ServiceHealthDashboard.tsx(218,19): error TS2322: Type '{ value: any; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/components/monitoring/ServiceHealthDashboard.tsx(231,82): error TS2322: Type '{ value: number; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/components/monitoring/ServiceHealthDashboard.tsx(371,55): error TS2322: Type '{ value: number; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/components/monitoring/ServiceHealthDashboard.tsx(384,21): error TS2322: Type '{ value: number; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/components/monitoring/ServiceHealthDashboard.tsx(422,30): error TS2322: Type '{ className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SeparatorProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Omit<SeparatorProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/components/PickDetailsModal.tsx(100,8): error TS2322: Type '{ children: Element[]; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<DialogContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<DialogContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/PickDetailsModal.tsx(103,14): error TS2322: Type '{ children: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<DialogTitleProps & RefAttributes<HTMLHeadingElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<DialogTitleProps & RefAttributes<HTMLHeadingElement>, "ref"> & RefAttributes<...>'.
+src/components/PickDetailsModal.tsx(111,12): error TS2559: Type '{ children: string[]; }' has no properties in common with type 'IntrinsicAttributes & Omit<DialogDescriptionProps & RefAttributes<HTMLParagraphElement>, "ref"> & RefAttributes<...>'.
+src/components/PickDetailsModal.tsx(245,20): error TS2322: Type '{ className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SeparatorProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Omit<SeparatorProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<HTMLDivElement>'.
+src/components/ReplayControlPanel.tsx(383,14): error TS2322: Type '{ children: (string | Element)[]; htmlFor: string; className: string; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(399,16): error TS2322: Type '{ children: string; htmlFor: string; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(404,18): error TS2559: Type '{ children: Element; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(407,18): error TS2559: Type '{ children: Element[]; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(408,20): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(409,20): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(410,20): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(411,20): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(417,16): error TS2322: Type '{ children: string; htmlFor: string; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(422,18): error TS2559: Type '{ children: Element; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(425,18): error TS2559: Type '{ children: Element[]; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(426,20): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(427,20): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(428,20): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(429,20): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(439,18): error TS2322: Type '{ children: string; htmlFor: string; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(447,18): error TS2322: Type '{ children: string; htmlFor: string; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(464,20): error TS2322: Type '{ children: string; htmlFor: string; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(469,22): error TS2559: Type '{ children: Element; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(472,22): error TS2559: Type '{ children: Element[]; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(473,24): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(474,24): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(475,24): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(476,24): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(482,20): error TS2322: Type '{ children: string; htmlFor: string; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(487,22): error TS2559: Type '{ children: Element; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectTriggerProps & RefAttributes<HTMLButtonElement>, "ref"> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(490,22): error TS2559: Type '{ children: Element[]; }' has no properties in common with type 'IntrinsicAttributes & Omit<SelectContentProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(491,24): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(492,24): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(493,24): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(494,24): error TS2322: Type '{ children: string; value: string; }' is not assignable to type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/ReplayControlPanel.tsx(505,20): error TS2322: Type '{ children: string; htmlFor: string; }' is not assignable to type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string> & RefAttributes<...>'.
+src/components/ui/avatar.tsx(11,6): error TS2339: Property 'className' does not exist on type 'Omit<AvatarProps & RefAttributes<HTMLSpanElement>, "ref">'.
+src/components/ui/avatar.tsx(14,5): error TS2322: Type '{ key?: Key; ref: ForwardedRef<HTMLSpanElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & AvatarProps & RefAttributes<HTMLSpanElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & AvatarProps & RefAttributes<HTMLSpanElement>'.
+src/components/ui/avatar.tsx(26,6): error TS2339: Property 'className' does not exist on type 'Omit<AvatarImageProps & RefAttributes<HTMLImageElement>, "ref">'.
+src/components/ui/avatar.tsx(29,5): error TS2322: Type '{ key?: Key; onLoadingStatusChange?: (status: ImageLoadingStatus) => void; ref: ForwardedRef<HTMLImageElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & AvatarImageProps & RefAttributes<HTMLImageElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & AvatarImageProps & RefAttributes<HTMLImageElement>'.
+src/components/ui/avatar.tsx(38,6): error TS2339: Property 'className' does not exist on type 'Omit<AvatarFallbackProps & RefAttributes<HTMLSpanElement>, "ref">'.
+src/components/ui/avatar.tsx(41,5): error TS2322: Type '{ key?: Key; delayMs?: number; ref: ForwardedRef<HTMLSpanElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & AvatarFallbackProps & RefAttributes<HTMLSpanElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & AvatarFallbackProps & RefAttributes<HTMLSpanElement>'.
+src/components/ui/dialog.tsx(20,6): error TS2339: Property 'className' does not exist on type 'Omit<DialogOverlayProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/dialog.tsx(23,5): error TS2322: Type '{ key?: Key; forceMount?: true; ref: ForwardedRef<HTMLDivElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & DialogOverlayProps & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & DialogOverlayProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/dialog.tsx(35,6): error TS2339: Property 'className' does not exist on type 'Omit<DialogContentProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/dialog.tsx(35,17): error TS2339: Property 'children' does not exist on type 'Omit<DialogContentProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/dialog.tsx(38,6): error TS2322: Type '{ children: any[]; key?: Key; onEscapeKeyDown?: (event: KeyboardEvent) => void; forceMount?: true; onPointerDownOutside?: (event: PointerDownOutsideEvent) => void; ... 5 more ...; className: string; }' is not assignable to type 'IntrinsicAttributes & DialogContentProps & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & DialogContentProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/dialog.tsx(47,8): error TS2322: Type '{ children: Element[]; className: string; }' is not assignable to type 'IntrinsicAttributes & DialogCloseProps & RefAttributes<HTMLButtonElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & DialogCloseProps & RefAttributes<HTMLButtonElement>'.
+src/components/ui/dialog.tsx(87,6): error TS2339: Property 'className' does not exist on type 'Omit<DialogTitleProps & RefAttributes<HTMLHeadingElement>, "ref">'.
+src/components/ui/dialog.tsx(90,5): error TS2322: Type '{ key?: Key; ref: ForwardedRef<HTMLHeadingElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & DialogTitleProps & RefAttributes<HTMLHeadingElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & DialogTitleProps & RefAttributes<HTMLHeadingElement>'.
+src/components/ui/dialog.tsx(102,6): error TS2339: Property 'className' does not exist on type 'Omit<DialogDescriptionProps & RefAttributes<HTMLParagraphElement>, "ref">'.
+src/components/ui/dialog.tsx(105,5): error TS2322: Type '{ key?: Key; ref: ForwardedRef<HTMLParagraphElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & DialogDescriptionProps & RefAttributes<HTMLParagraphElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & DialogDescriptionProps & RefAttributes<HTMLParagraphElement>'.
+src/components/ui/dropdown-menu.tsx(26,6): error TS2339: Property 'className' does not exist on type 'Omit<DropdownMenuSubTriggerProps & RefAttributes<HTMLDivElement>, "ref"> & { inset?: boolean; }'.
+src/components/ui/dropdown-menu.tsx(26,24): error TS2339: Property 'children' does not exist on type 'Omit<DropdownMenuSubTriggerProps & RefAttributes<HTMLDivElement>, "ref"> & { inset?: boolean; }'.
+src/components/ui/dropdown-menu.tsx(27,4): error TS2322: Type '{ children: any[]; disabled?: boolean; key?: Key; textValue?: string; ref: ForwardedRef<HTMLDivElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & DropdownMenuSubTriggerProps & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & DropdownMenuSubTriggerProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/dropdown-menu.tsx(46,6): error TS2339: Property 'className' does not exist on type 'Omit<DropdownMenuSubContentProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/dropdown-menu.tsx(49,5): error TS2322: Type '{ key?: Key; loop?: boolean; onEscapeKeyDown?: (event: KeyboardEvent) => void; forceMount?: true; onPointerDownOutside?: (event: PointerDownOutsideEvent) => void; ... 12 more ...; className: string; }' is not assignable to type 'IntrinsicAttributes & DropdownMenuSubContentProps & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & DropdownMenuSubContentProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/dropdown-menu.tsx(62,6): error TS2339: Property 'className' does not exist on type 'Omit<DropdownMenuContentProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/dropdown-menu.tsx(67,7): error TS2322: Type '{ key?: Key; loop?: boolean; align?: "start" | "end" | "center"; onEscapeKeyDown?: (event: KeyboardEvent) => void; forceMount?: true; onPointerDownOutside?: (event: PointerDownOutsideEvent) => void; ... 14 more ...; className: string; }' is not assignable to type 'IntrinsicAttributes & DropdownMenuContentProps & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & DropdownMenuContentProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/dropdown-menu.tsx(83,6): error TS2339: Property 'className' does not exist on type 'Omit<DropdownMenuItemProps & RefAttributes<HTMLDivElement>, "ref"> & { inset?: boolean; }'.
+src/components/ui/dropdown-menu.tsx(86,5): error TS2322: Type '{ disabled?: boolean; key?: Key; onSelect?: (event: Event) => void; textValue?: string; ref: ForwardedRef<HTMLDivElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & DropdownMenuItemProps & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & DropdownMenuItemProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/dropdown-menu.tsx(99,6): error TS2339: Property 'className' does not exist on type 'Omit<DropdownMenuCheckboxItemProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/dropdown-menu.tsx(99,17): error TS2339: Property 'children' does not exist on type 'Omit<DropdownMenuCheckboxItemProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/dropdown-menu.tsx(100,4): error TS2322: Type '{ children: any[]; disabled?: boolean; key?: Key; onSelect?: (event: Event) => void; textValue?: string; onCheckedChange?: (checked: boolean) => void; ref: ForwardedRef<HTMLDivElement>; className: string; checked: CheckedState; }' is not assignable to type 'IntrinsicAttributes & DropdownMenuCheckboxItemProps & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & DropdownMenuCheckboxItemProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/dropdown-menu.tsx(110,8): error TS2559: Type '{ children: Element; }' has no properties in common with type 'IntrinsicAttributes & DropdownMenuItemIndicatorProps & RefAttributes<HTMLSpanElement>'.
+src/components/ui/dropdown-menu.tsx(123,6): error TS2339: Property 'className' does not exist on type 'Omit<DropdownMenuRadioItemProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/dropdown-menu.tsx(123,17): error TS2339: Property 'children' does not exist on type 'Omit<DropdownMenuRadioItemProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/dropdown-menu.tsx(124,4): error TS2322: Type '{ children: any[]; value: string; disabled?: boolean; key?: Key; onSelect?: (event: Event) => void; textValue?: string; ref: ForwardedRef<HTMLDivElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & DropdownMenuRadioItemProps & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & DropdownMenuRadioItemProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/dropdown-menu.tsx(133,8): error TS2559: Type '{ children: Element; }' has no properties in common with type 'IntrinsicAttributes & DropdownMenuItemIndicatorProps & RefAttributes<HTMLSpanElement>'.
+src/components/ui/dropdown-menu.tsx(147,6): error TS2339: Property 'className' does not exist on type 'Omit<DropdownMenuLabelProps & RefAttributes<HTMLDivElement>, "ref"> & { inset?: boolean; }'.
+src/components/ui/dropdown-menu.tsx(150,5): error TS2322: Type '{ key?: Key; ref: ForwardedRef<HTMLDivElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & DropdownMenuLabelProps & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & DropdownMenuLabelProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/dropdown-menu.tsx(163,6): error TS2339: Property 'className' does not exist on type 'Omit<DropdownMenuSeparatorProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/dropdown-menu.tsx(166,5): error TS2322: Type '{ key?: Key; ref: ForwardedRef<HTMLDivElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & DropdownMenuSeparatorProps & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & DropdownMenuSeparatorProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/label.tsx(17,6): error TS2339: Property 'className' does not exist on type 'Omit<LabelProps & RefAttributes<HTMLLabelElement>, "ref"> & VariantProps<(props?: ClassProp) => string>'.
+src/components/ui/label.tsx(20,5): error TS2322: Type '{ key?: Key; ref: ForwardedRef<HTMLLabelElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & LabelProps & RefAttributes<HTMLLabelElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & LabelProps & RefAttributes<HTMLLabelElement>'.
+src/components/ui/progress.tsx(11,6): error TS2339: Property 'className' does not exist on type 'Omit<ProgressProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/progress.tsx(12,4): error TS2322: Type '{ children: Element; max?: number; key?: Key; getValueLabel?: (value: number, max: number) => string; ref: ForwardedRef<HTMLDivElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & ProgressProps & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & ProgressProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/progress.tsx(21,7): error TS2322: Type '{ className: string; style: { transform: string; }; }' is not assignable to type 'IntrinsicAttributes & ProgressIndicatorProps & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & ProgressIndicatorProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/select.tsx(18,6): error TS2339: Property 'className' does not exist on type 'Omit<SelectTriggerProps & RefAttributes<HTMLButtonElement>, "ref">'.
+src/components/ui/select.tsx(18,17): error TS2339: Property 'children' does not exist on type 'Omit<SelectTriggerProps & RefAttributes<HTMLButtonElement>, "ref">'.
+src/components/ui/select.tsx(19,4): error TS2322: Type '{ children: any[]; key?: Key; ref: ForwardedRef<HTMLButtonElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & SelectTriggerProps & RefAttributes<HTMLButtonElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & SelectTriggerProps & RefAttributes<HTMLButtonElement>'.
+src/components/ui/select.tsx(28,6): error TS2322: Type '{ children: Element; asChild: true; }' is not assignable to type 'IntrinsicAttributes & SelectIconProps & RefAttributes<HTMLSpanElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & SelectIconProps & RefAttributes<HTMLSpanElement>'.
+src/components/ui/select.tsx(38,6): error TS2339: Property 'className' does not exist on type 'Omit<SelectScrollUpButtonProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/select.tsx(39,4): error TS2322: Type '{ children: Element; key?: Key; ref: ForwardedRef<HTMLDivElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & SelectScrollUpButtonProps & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & SelectScrollUpButtonProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/select.tsx(55,6): error TS2339: Property 'className' does not exist on type 'Omit<SelectScrollDownButtonProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/select.tsx(56,4): error TS2322: Type '{ children: Element; key?: Key; ref: ForwardedRef<HTMLDivElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & SelectScrollDownButtonProps & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & SelectScrollDownButtonProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/select.tsx(73,6): error TS2339: Property 'className' does not exist on type 'Omit<SelectContentProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/select.tsx(73,17): error TS2339: Property 'children' does not exist on type 'Omit<SelectContentProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/select.tsx(75,6): error TS2322: Type '{ children: Element[]; key?: Key; align?: "start" | "end" | "center"; onEscapeKeyDown?: (event: KeyboardEvent) => void; onPointerDownOutside?: (event: PointerDownOutsideEvent) => void; ... 13 more ...; position: "item-aligned" | "popper"; }' is not assignable to type 'IntrinsicAttributes & SelectContentProps & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & SelectContentProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/select.tsx(87,8): error TS2322: Type '{ children: any; className: string; }' is not assignable to type 'IntrinsicAttributes & SelectViewportProps & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & SelectViewportProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/select.tsx(105,6): error TS2339: Property 'className' does not exist on type 'Omit<SelectLabelProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/select.tsx(108,5): error TS2322: Type '{ key?: Key; ref: ForwardedRef<HTMLDivElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & SelectLabelProps & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & SelectLabelProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/select.tsx(117,6): error TS2339: Property 'className' does not exist on type 'Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/select.tsx(117,17): error TS2339: Property 'children' does not exist on type 'Omit<SelectItemProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/select.tsx(118,4): error TS2322: Type '{ children: Element[]; value: string; disabled?: boolean; key?: Key; textValue?: string; ref: ForwardedRef<HTMLDivElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & SelectItemProps & RefAttributes<HTMLDivElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & SelectItemProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/select.tsx(139,6): error TS2339: Property 'className' does not exist on type 'Omit<SelectSeparatorProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/select.tsx(142,5): error TS2322: Type '{ key?: Key; ref: ForwardedRef<HTMLDivElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & SelectSeparatorProps & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & SelectSeparatorProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/separator.tsx(13,7): error TS2339: Property 'className' does not exist on type 'Omit<SeparatorProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/separator.tsx(20,7): error TS2322: Type '{ key?: Key; ref: ForwardedRef<HTMLDivElement>; decorative: boolean; orientation: "horizontal" | "vertical"; className: string; }' is not assignable to type 'IntrinsicAttributes & SeparatorProps & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & SeparatorProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/tabs.tsx(13,6): error TS2339: Property 'className' does not exist on type 'Omit<TabsListProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/tabs.tsx(16,5): error TS2322: Type '{ key?: Key; loop?: boolean; ref: ForwardedRef<HTMLDivElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & TabsListProps & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & TabsListProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/tabs.tsx(28,6): error TS2339: Property 'className' does not exist on type 'Omit<TabsTriggerProps & RefAttributes<HTMLButtonElement>, "ref">'.
+src/components/ui/tabs.tsx(31,5): error TS2322: Type '{ value: string; key?: Key; ref: ForwardedRef<HTMLButtonElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & TabsTriggerProps & RefAttributes<HTMLButtonElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & TabsTriggerProps & RefAttributes<HTMLButtonElement>'.
+src/components/ui/tabs.tsx(43,6): error TS2339: Property 'className' does not exist on type 'Omit<TabsContentProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/tabs.tsx(46,5): error TS2322: Type '{ value: string; key?: Key; forceMount?: true; ref: ForwardedRef<HTMLDivElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & TabsContentProps & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & TabsContentProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/toast.tsx(15,6): error TS2339: Property 'className' does not exist on type 'Omit<ToastViewportProps & RefAttributes<HTMLOListElement>, "ref">'.
+src/components/ui/toast.tsx(18,5): error TS2322: Type '{ label?: string; key?: Key; hotkey?: string[]; ref: ForwardedRef<HTMLOListElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & ToastViewportProps & RefAttributes<HTMLOListElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & ToastViewportProps & RefAttributes<HTMLOListElement>'.
+src/components/ui/toast.tsx(47,6): error TS2339: Property 'className' does not exist on type 'Omit<ToastProps & RefAttributes<HTMLLIElement>, "ref"> & VariantProps<(props?: ConfigVariants<{ variant: { default: string; destructive: string; }; }> & ClassProp) => string>'.
+src/components/ui/toast.tsx(51,7): error TS2322: Type '{ open?: boolean; type?: "foreground" | "background"; key?: Key; duration?: number; onPause?: () => void; onEscapeKeyDown?: (event: KeyboardEvent) => void; onResume?: () => void; ... 8 more ...; className: string; }' is not assignable to type 'IntrinsicAttributes & ToastProps & RefAttributes<HTMLLIElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & ToastProps & RefAttributes<HTMLLIElement>'.
+src/components/ui/toast.tsx(61,6): error TS2339: Property 'className' does not exist on type 'Omit<ToastActionProps & RefAttributes<HTMLButtonElement>, "ref">'.
+src/components/ui/toast.tsx(64,5): error TS2322: Type '{ key?: Key; altText: string; ref: ForwardedRef<HTMLButtonElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & ToastActionProps & RefAttributes<HTMLButtonElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & ToastActionProps & RefAttributes<HTMLButtonElement>'.
+src/components/ui/toast.tsx(76,6): error TS2339: Property 'className' does not exist on type 'Omit<ToastCloseProps & RefAttributes<HTMLButtonElement>, "ref">'.
+src/components/ui/toast.tsx(77,4): error TS2322: Type '{ children: Element; key?: Key; ref: ForwardedRef<HTMLButtonElement>; className: string; "toast-close": string; }' is not assignable to type 'IntrinsicAttributes & ToastCloseProps & RefAttributes<HTMLButtonElement>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & ToastCloseProps & RefAttributes<HTMLButtonElement>'.
+src/components/ui/toast.tsx(94,6): error TS2339: Property 'className' does not exist on type 'Omit<ToastTitleProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/toast.tsx(97,5): error TS2322: Type '{ key?: Key; ref: ForwardedRef<HTMLDivElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & ToastTitleProps & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & ToastTitleProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/toast.tsx(106,6): error TS2339: Property 'className' does not exist on type 'Omit<ToastDescriptionProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/components/ui/toast.tsx(109,5): error TS2322: Type '{ key?: Key; ref: ForwardedRef<HTMLDivElement>; className: string; }' is not assignable to type 'IntrinsicAttributes & ToastDescriptionProps & RefAttributes<HTMLDivElement>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & ToastDescriptionProps & RefAttributes<HTMLDivElement>'.
+src/components/ui/toaster.tsx(20,12): error TS2322: Type '{ children: (Element | ToastActionElement)[]; open?: boolean; type?: "foreground" | "background"; key: Key; duration?: number; onPause?: () => void; onEscapeKeyDown?: (event: KeyboardEvent) => void; ... 8 more ...; variant?: "default" | "destructive"; }' is not assignable to type 'IntrinsicAttributes & Omit<ToastProps & RefAttributes<HTMLLIElement>, "ref"> & VariantProps<(props?: ConfigVariants<{ variant: { ...; }; }> & ClassProp) => string> & RefAttributes<...>'.
+  Property 'children' does not exist on type 'IntrinsicAttributes & Omit<ToastProps & RefAttributes<HTMLLIElement>, "ref"> & VariantProps<(props?: ConfigVariants<{ variant: { ...; }; }> & ClassProp) => string> & RefAttributes<...>'.
+src/components/ui/toaster.tsx(22,26): error TS2559: Type '{ children: string | number | bigint | true | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<...>; }' has no properties in common with type 'IntrinsicAttributes & Omit<ToastTitleProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/components/ui/toaster.tsx(24,18): error TS2559: Type '{ children: string | number | bigint | true | ReactElement<any, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<...>; }' has no properties in common with type 'IntrinsicAttributes & Omit<ToastDescriptionProps & RefAttributes<HTMLDivElement>, "ref"> & RefAttributes<...>'.
+src/hooks/usePicks.ts(165,13): error TS2322: Type '{ id: string; capper_discord_id: any; capper: any; sport: unknown; selection: string; odds: number; status: "pending" | "approved" | "rejected"; workflow_stage: string; tier: any; confidence: number; ... 6 more ...; market_type: string; }[]' is not assignable to type 'Pick[]'.
+  Type '{ id: string; capper_discord_id: any; capper: any; sport: unknown; selection: string; odds: number; status: "pending" | "approved" | "rejected"; workflow_stage: string; tier: any; confidence: number; ... 6 more ...; market_type: string; }' is not assignable to type 'Pick'.
+    Types of property 'sport' are incompatible.
+      Type 'unknown' is not assignable to type 'string'.
+node.exe : npm error Lifecycle script `type-check` failed with error:
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Users\griff\AppData\Roaming\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (npm error Lifec...led with error::String) [], RemoteExceptio 
+   n
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+npm error code 1
+npm error path C:\Users\griff\OneDrive\Desktop\unit-talk-production-main\apps\command-center
+npm error workspace unit-talk-command-center@1.0.0
+npm error location C:\Users\griff\OneDrive\Desktop\unit-talk-production-main\apps\command-center
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c tsc --noEmit

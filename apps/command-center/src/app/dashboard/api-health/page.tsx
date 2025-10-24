@@ -116,18 +116,20 @@ export default function ApiHealthPage() {
               <Activity className="w-5 h-5 mr-2" />
               System Overview
             </CardTitle>
-            <CardDescription>
-              Overall health status across all monitored systems
-            </CardDescription>
+            <CardDescription>Overall health status across all monitored systems</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center p-4 rounded-lg border bg-muted/20">
-                <div className={`w-4 h-4 rounded-full mx-auto mb-2 ${
-                  systemStatus.overall_system_health?.status === 'healthy' ? 'bg-green-500' :
-                  systemStatus.overall_system_health?.status === 'degraded' ? 'bg-yellow-500' :
-                  'bg-red-500'
-                } animate-pulse`} />
+                <div
+                  className={`w-4 h-4 rounded-full mx-auto mb-2 ${
+                    systemStatus.overall_system_health?.status === 'healthy'
+                      ? 'bg-green-500'
+                      : systemStatus.overall_system_health?.status === 'degraded'
+                        ? 'bg-yellow-500'
+                        : 'bg-red-500'
+                  } animate-pulse`}
+                />
                 <div className="text-lg font-bold">
                   {systemStatus.overall_system_health?.status?.toUpperCase() || 'UNKNOWN'}
                 </div>
@@ -220,9 +222,9 @@ function AlertHistoryTab() {
           <span>Alert History</span>
           <div className="flex items-center space-x-2">
             <Filter className="w-4 h-4" />
-            <select 
-              value={filter} 
-              onChange={(e) => setFilter(e.target.value)}
+            <select
+              value={filter}
+              onChange={e => setFilter(e.target.value)}
               className="text-sm border rounded px-2 py-1"
             >
               <option value="all">All Alerts</option>
@@ -241,13 +243,15 @@ function AlertHistoryTab() {
               No alerts found
             </div>
           ) : (
-            alerts.map((alert) => (
+            alerts.map(alert => (
               <div
                 key={alert.id}
                 className={`p-4 rounded-lg border ${
-                  alert.severity === 'critical' ? 'border-red-200 bg-red-50' :
-                  alert.severity === 'warning' ? 'border-yellow-200 bg-yellow-50' :
-                  'border-blue-200 bg-blue-50'
+                  alert.severity === 'critical'
+                    ? 'border-red-200 bg-red-50'
+                    : alert.severity === 'warning'
+                      ? 'border-yellow-200 bg-yellow-50'
+                      : 'border-blue-200 bg-blue-50'
                 }`}
               >
                 <div className="flex items-start justify-between">
@@ -258,11 +262,15 @@ function AlertHistoryTab() {
                       {new Date(alert.created_at).toLocaleString()}
                     </p>
                   </div>
-                  <Badge className={
-                    alert.severity === 'critical' ? 'bg-red-100 text-red-800' :
-                    alert.severity === 'warning' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-blue-100 text-blue-800'
-                  }>
+                  <Badge
+                    className={
+                      alert.severity === 'critical'
+                        ? 'bg-red-100 text-red-800'
+                        : alert.severity === 'warning'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-blue-100 text-blue-800'
+                    }
+                  >
                     {alert.severity}
                   </Badge>
                 </div>
@@ -293,12 +301,12 @@ function AnalyticsTab({ historicalData }: { historicalData: any[] }) {
   );
 }
 
-function ConfigurationTab({ 
-  config, 
-  onConfigChange 
-}: { 
-  config: MonitoringConfig; 
-  onConfigChange: (config: MonitoringConfig) => void; 
+function ConfigurationTab({
+  config,
+  onConfigChange,
+}: {
+  config: MonitoringConfig;
+  onConfigChange: (config: MonitoringConfig) => void;
 }) {
   const handleConfigUpdate = async () => {
     try {
@@ -307,7 +315,7 @@ function ConfigurationTab({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
       });
-      
+
       if (response.ok) {
         alert('Configuration updated successfully!');
       }
@@ -332,19 +340,19 @@ function ConfigurationTab({
             <input
               type="number"
               value={config.intervalMs}
-              onChange={(e) => onConfigChange({ ...config, intervalMs: parseInt(e.target.value) })}
+              onChange={e => onConfigChange({ ...config, intervalMs: parseInt(e.target.value) })}
               className="w-full mt-1 px-3 py-2 border rounded-md"
               min="10000"
               step="1000"
             />
           </div>
-          
+
           <div>
             <label className="text-sm font-medium">Timeout (ms)</label>
             <input
               type="number"
               value={config.timeout}
-              onChange={(e) => onConfigChange({ ...config, timeout: parseInt(e.target.value) })}
+              onChange={e => onConfigChange({ ...config, timeout: parseInt(e.target.value) })}
               className="w-full mt-1 px-3 py-2 border rounded-md"
               min="1000"
               step="1000"
@@ -356,10 +364,15 @@ function ConfigurationTab({
             <input
               type="number"
               value={config.alertThresholds.responseTime}
-              onChange={(e) => onConfigChange({
-                ...config,
-                alertThresholds: { ...config.alertThresholds, responseTime: parseInt(e.target.value) }
-              })}
+              onChange={e =>
+                onConfigChange({
+                  ...config,
+                  alertThresholds: {
+                    ...config.alertThresholds,
+                    responseTime: parseInt(e.target.value),
+                  },
+                })
+              }
               className="w-full mt-1 px-3 py-2 border rounded-md"
               min="1000"
               step="500"
@@ -371,10 +384,15 @@ function ConfigurationTab({
             <input
               type="number"
               value={config.alertThresholds.quotaWarning * 100}
-              onChange={(e) => onConfigChange({
-                ...config,
-                alertThresholds: { ...config.alertThresholds, quotaWarning: parseInt(e.target.value) / 100 }
-              })}
+              onChange={e =>
+                onConfigChange({
+                  ...config,
+                  alertThresholds: {
+                    ...config.alertThresholds,
+                    quotaWarning: parseInt(e.target.value) / 100,
+                  },
+                })
+              }
               className="w-full mt-1 px-3 py-2 border rounded-md"
               min="50"
               max="99"

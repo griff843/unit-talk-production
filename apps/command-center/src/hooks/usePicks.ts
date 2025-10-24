@@ -2,7 +2,10 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
 // Helper functions for v3.0.0 unified data transformation
-function mapWorkflowStageToStatus(workflowStage: string | null, status: string | null = null): Pick['status'] {
+function mapWorkflowStageToStatus(
+  workflowStage: string | null,
+  status: string | null = null
+): Pick['status'] {
   // First check the status field (v3.0.0 unified structure)
   if (status) {
     switch (status) {
@@ -17,7 +20,7 @@ function mapWorkflowStageToStatus(workflowStage: string | null, status: string |
         break;
     }
   }
-  
+
   // Then check workflow_stage for backward compatibility
   switch (workflowStage) {
     case 'approved':
@@ -176,7 +179,7 @@ export function usePicks() {
           id: pickId,
           capper_discord_id: user?.discord_id || pick.user_id,
           capper: user?.username || 'Unknown Capper',
-          sport: pick.sport || 'Unknown',
+          sport: String(pick.sport || 'Unknown'),
           selection: selection,
           odds: odds,
           status: mapWorkflowStageToStatus(workflowStage, String(pick.status || '')),

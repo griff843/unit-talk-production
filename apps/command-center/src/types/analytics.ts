@@ -147,4 +147,12 @@ export interface MetricDataWithSource {
 }
 
 export type Period = '1d' | '7d' | '30d' | '90d';
-export type MetricType = 'users' | 'agents' | 'security' | 'picks' | 'revenue' | 'system' | 'overview' | 'performance';
+export type MetricType =
+  | 'users'
+  | 'agents'
+  | 'security'
+  | 'picks'
+  | 'revenue'
+  | 'system'
+  | 'overview'
+  | 'performance';

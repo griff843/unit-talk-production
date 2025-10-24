@@ -481,8 +481,8 @@ export default function SecurityPage() {
             </div>
             <p className="text-sm text-yellow-700 mb-3">
               The system monitors for any attempts to bypass professional processing and triggers
-              is_instant alerts. All picks must follow the proper workflow: Submission → Professional
-              Review → Approval → Publication.
+              is_instant alerts. All picks must follow the proper workflow: Submission →
+              Professional Review → Approval → Publication.
             </p>
             <div className="flex items-center space-x-4">
               <Badge className="bg-yellow-100 text-yellow-800">Real-time Monitoring: ACTIVE</Badge>
