@@ -115,7 +115,7 @@ export function TemporalHealthWidget() {
 
   useEffect(() => {
     fetchTemporalData();
-    
+
     // Refresh every 30 seconds
     const interval = setInterval(fetchTemporalData, 30000);
     return () => clearInterval(interval);
@@ -155,7 +155,7 @@ export function TemporalHealthWidget() {
   const getWorkflowStatusColor = (workflow: WorkflowSummary) => {
     if (workflow.success_rate >= 0.95 && workflow.failed === 0) return 'text-green-500';
     if (workflow.success_rate >= 0.85 && workflow.failed <= 2) return 'text-yellow-500';
-    if (workflow.success_rate >= 0.70) return 'text-orange-500';
+    if (workflow.success_rate >= 0.7) return 'text-orange-500';
     return 'text-red-500';
   };
 
@@ -220,8 +220,8 @@ export function TemporalHealthWidget() {
             Temporal Health
           </div>
           <div className="flex items-center space-x-2">
-            <Badge 
-              variant={data?.overall.system_health_score >= 90 ? "default" : "destructive"}
+            <Badge
+              variant={data?.overall.system_health_score >= 90 ? 'default' : 'destructive'}
               className="text-xs"
             >
               {data ? `${data.overall.system_health_score.toFixed(1)}%` : 'N/A'} Health
@@ -246,21 +246,27 @@ export function TemporalHealthWidget() {
             {/* Overall Health Summary */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center p-3 rounded-lg bg-muted/20">
-                <div className={`text-2xl font-bold ${getHealthScoreColor(data.overall.system_health_score)}`}>
+                <div
+                  className={`text-2xl font-bold ${getHealthScoreColor(data.overall.system_health_score)}`}
+                >
                   {data.overall.system_health_score.toFixed(1)}%
                 </div>
                 <div className="text-xs text-muted-foreground">System Health</div>
               </div>
 
               <div className="text-center p-3 rounded-lg bg-muted/20">
-                <div className={`text-2xl font-bold ${data.overall.healthy_workflows > data.overall.unhealthy_workflows ? 'text-green-500' : 'text-red-500'}`}>
+                <div
+                  className={`text-2xl font-bold ${data.overall.healthy_workflows > data.overall.unhealthy_workflows ? 'text-green-500' : 'text-red-500'}`}
+                >
                   {data.overall.healthy_workflows}
                 </div>
                 <div className="text-xs text-muted-foreground">Healthy Workflows</div>
               </div>
 
               <div className="text-center p-3 rounded-lg bg-muted/20">
-                <div className={`text-2xl font-bold ${data.overall.uptime_percentage >= 99 ? 'text-green-500' : 'text-red-500'}`}>
+                <div
+                  className={`text-2xl font-bold ${data.overall.uptime_percentage >= 99 ? 'text-green-500' : 'text-red-500'}`}
+                >
                   {data.overall.uptime_percentage.toFixed(1)}%
                 </div>
                 <div className="text-xs text-muted-foreground">Uptime</div>
@@ -275,8 +281,8 @@ export function TemporalHealthWidget() {
             </div>
 
             {/* Critical Alerts */}
-            {(data.alerts.missed_schedules > 0 || 
-              data.alerts.stuck_workflows > 0 || 
+            {(data.alerts.missed_schedules > 0 ||
+              data.alerts.stuck_workflows > 0 ||
               data.alerts.failed_workflows_1h > 5) && (
               <div className="space-y-2">
                 <h4 className="text-sm font-semibold flex items-center text-red-600">
@@ -289,27 +295,33 @@ export function TemporalHealthWidget() {
                       <Calendar className="h-4 w-4 text-red-500" />
                       <AlertDescription>
                         <div className="font-semibold">Missed Schedules</div>
-                        <div className="text-sm">{data.alerts.missed_schedules} schedules not executed</div>
+                        <div className="text-sm">
+                          {data.alerts.missed_schedules} schedules not executed
+                        </div>
                       </AlertDescription>
                     </Alert>
                   )}
-                  
+
                   {data.alerts.stuck_workflows > 0 && (
                     <Alert className="border-orange-500 bg-orange-50 dark:bg-orange-900/20">
                       <Clock className="h-4 w-4 text-orange-500" />
                       <AlertDescription>
                         <div className="font-semibold">Stuck Workflows</div>
-                        <div className="text-sm">{data.alerts.stuck_workflows} workflows running &gt;30min</div>
+                        <div className="text-sm">
+                          {data.alerts.stuck_workflows} workflows running &gt;30min
+                        </div>
                       </AlertDescription>
                     </Alert>
                   )}
-                  
+
                   {data.alerts.failed_workflows_1h > 5 && (
                     <Alert className="border-red-500 bg-red-50 dark:bg-red-900/20">
                       <XCircle className="h-4 w-4 text-red-500" />
                       <AlertDescription>
                         <div className="font-semibold">High Failure Rate</div>
-                        <div className="text-sm">{data.alerts.failed_workflows_1h} failures in last hour</div>
+                        <div className="text-sm">
+                          {data.alerts.failed_workflows_1h} failures in last hour
+                        </div>
                       </AlertDescription>
                     </Alert>
                   )}
@@ -322,19 +334,27 @@ export function TemporalHealthWidget() {
               <h4 className="text-sm font-semibold">Performance Metrics</h4>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center p-3 rounded-lg border bg-card">
-                  <div className="text-lg font-bold">{formatDuration(data.performance.avg_start_to_finish_ms)}</div>
+                  <div className="text-lg font-bold">
+                    {formatDuration(data.performance.avg_start_to_finish_ms)}
+                  </div>
                   <div className="text-xs text-muted-foreground">Avg Duration</div>
                 </div>
                 <div className="text-center p-3 rounded-lg border bg-card">
-                  <div className="text-lg font-bold">{formatDuration(data.performance.p95_execution_time_ms)}</div>
+                  <div className="text-lg font-bold">
+                    {formatDuration(data.performance.p95_execution_time_ms)}
+                  </div>
                   <div className="text-xs text-muted-foreground">P95 Duration</div>
                 </div>
                 <div className="text-center p-3 rounded-lg border bg-card">
-                  <div className="text-lg font-bold">{formatDuration(data.performance.p99_execution_time_ms)}</div>
+                  <div className="text-lg font-bold">
+                    {formatDuration(data.performance.p99_execution_time_ms)}
+                  </div>
                   <div className="text-xs text-muted-foreground">P99 Duration</div>
                 </div>
                 <div className="text-center p-3 rounded-lg border bg-card">
-                  <div className="text-lg font-bold">{formatThroughput(data.performance.throughput_per_minute)}</div>
+                  <div className="text-lg font-bold">
+                    {formatThroughput(data.performance.throughput_per_minute)}
+                  </div>
                   <div className="text-xs text-muted-foreground">Throughput</div>
                 </div>
               </div>
@@ -342,7 +362,7 @@ export function TemporalHealthWidget() {
 
             {/* Tab Navigation */}
             <div className="flex space-x-4 border-b">
-              {(['overview', 'workflows', 'queues'] as const).map((tab) => (
+              {(['overview', 'workflows', 'queues'] as const).map(tab => (
                 <button
                   key={tab}
                   onClick={() => setSelectedTab(tab)}
@@ -363,7 +383,10 @@ export function TemporalHealthWidget() {
                 <h4 className="text-sm font-semibold">Workflow Status</h4>
                 <div className="space-y-2">
                   {data.by_workflow.map((workflow, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 rounded-lg border bg-card">
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 rounded-lg border bg-card"
+                    >
                       <div className="flex-1">
                         <div className="flex items-center space-x-2">
                           <span className="font-medium text-sm">{workflow.workflow_type}</span>
@@ -376,23 +399,24 @@ export function TemporalHealthWidget() {
                             <XCircle className="w-4 h-4 text-red-500" />
                           )}
                         </div>
-                        
+
                         <div className="flex items-center space-x-4 mt-2 text-xs text-muted-foreground">
                           <span>Running: {workflow.running}</span>
                           <span>Success: {(workflow.success_rate * 100).toFixed(1)}%</span>
                           <span>Failed: {workflow.failed}</span>
                           {workflow.backlog_depth > 0 && (
-                            <span className={getBacklogUrgencyColor(workflow.oldest_backlog_age_minutes || 0)}>
+                            <span
+                              className={getBacklogUrgencyColor(
+                                workflow.oldest_backlog_age_minutes || 0
+                              )}
+                            >
                               Backlog: {workflow.backlog_depth}
                             </span>
                           )}
                         </div>
 
                         <div className="mt-2">
-                          <Progress 
-                            value={workflow.success_rate * 100} 
-                            className="h-2"
-                          />
+                          <Progress value={workflow.success_rate * 100} className="h-2" />
                         </div>
                       </div>
 
@@ -414,16 +438,20 @@ export function TemporalHealthWidget() {
                 <h4 className="text-sm font-semibold">Task Queue Status</h4>
                 <div className="space-y-2">
                   {data.by_queue.map((queue, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 rounded-lg border bg-card">
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 rounded-lg border bg-card"
+                    >
                       <div className="flex-1">
                         <div className="flex items-center space-x-2">
                           <Database className="w-4 h-4 text-blue-500" />
                           <span className="font-medium text-sm">{queue.task_queue}</span>
                           <Badge variant="outline" className="text-xs">
-                            {queue.workflow_types.length} workflow type{queue.workflow_types.length > 1 ? 's' : ''}
+                            {queue.workflow_types.length} workflow type
+                            {queue.workflow_types.length > 1 ? 's' : ''}
                           </Badge>
                         </div>
-                        
+
                         <div className="flex items-center space-x-4 mt-2 text-xs text-muted-foreground">
                           <span>Depth: {queue.depth}</span>
                           {queue.oldest_age_minutes > 0 && (
@@ -440,7 +468,9 @@ export function TemporalHealthWidget() {
                       </div>
 
                       <div className="text-right ml-4">
-                        <div className={`text-lg font-bold ${queue.depth > 10 ? 'text-red-500' : queue.depth > 5 ? 'text-yellow-500' : 'text-green-500'}`}>
+                        <div
+                          className={`text-lg font-bold ${queue.depth > 10 ? 'text-red-500' : queue.depth > 5 ? 'text-yellow-500' : 'text-green-500'}`}
+                        >
                           {queue.depth}
                         </div>
                         <div className="text-xs text-muted-foreground">Queue Depth</div>

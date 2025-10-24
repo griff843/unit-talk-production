@@ -84,8 +84,8 @@ class ExposureTrackingService {
   // Risk configuration constants
   static readonly DAILY_EXPOSURE_LIMIT = 50000; // $50k daily exposure limit
   static readonly MAX_KELLY_RISK = 0.25; // 25% max Kelly risk
-  static readonly CORRELATION_LIMIT = 0.60; // 60% correlation limit
-  static readonly HIGH_CONCENTRATION_THRESHOLD = 0.40; // 40% concentration threshold
+  static readonly CORRELATION_LIMIT = 0.6; // 60% correlation limit
+  static readonly HIGH_CONCENTRATION_THRESHOLD = 0.4; // 40% concentration threshold
 
   /**
    * Create exposure snapshot from unified pick
@@ -183,16 +183,16 @@ class ExposureTrackingService {
       const startDate = new Date(options.date);
       const endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + 1);
-      query = query.gte('created_at', startDate.toISOString())
-                   .lt('created_at', endDate.toISOString());
+      query = query
+        .gte('created_at', startDate.toISOString())
+        .lt('created_at', endDate.toISOString());
     } else {
       // Default to today
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
-      query = query.gte('created_at', today.toISOString())
-                   .lt('created_at', tomorrow.toISOString());
+      query = query.gte('created_at', today.toISOString()).lt('created_at', tomorrow.toISOString());
     }
     if (options.published_only) {
       query = query.eq('published', true);
@@ -229,7 +229,10 @@ class ExposureTrackingService {
     });
 
     // Analyze correlation clusters
-    const clusterMap = new Map<string, { exposure: number; picks: string[]; risk_tiers: string[] }>();
+    const clusterMap = new Map<
+      string,
+      { exposure: number; picks: string[]; risk_tiers: string[] }
+    >();
     snapshots.forEach(s => {
       const cluster = s.correlation_cluster;
       if (!clusterMap.has(cluster)) {
@@ -241,14 +244,20 @@ class ExposureTrackingService {
       clusterData.risk_tiers.push(s.risk_tier);
     });
 
-    const correlationClusters = Array.from(clusterMap.entries()).map(([cluster, data]) => ({
-      cluster,
-      exposure: data.exposure,
-      picks_count: data.picks.length,
-      risk_tier: data.risk_tiers.includes('critical') ? 'critical' :
-                 data.risk_tiers.includes('high') ? 'high' :
-                 data.risk_tiers.includes('medium') ? 'medium' : 'low',
-    })).sort((a, b) => b.exposure - a.exposure);
+    const correlationClusters = Array.from(clusterMap.entries())
+      .map(([cluster, data]) => ({
+        cluster,
+        exposure: data.exposure,
+        picks_count: data.picks.length,
+        risk_tier: data.risk_tiers.includes('critical')
+          ? 'critical'
+          : data.risk_tiers.includes('high')
+            ? 'high'
+            : data.risk_tiers.includes('medium')
+              ? 'medium'
+              : 'low',
+      }))
+      .sort((a, b) => b.exposure - a.exposure);
 
     // Calculate daily limits
     const dailyLimits = {
@@ -316,7 +325,9 @@ class ExposureTrackingService {
         type: 'kelly',
         severity: 'critical',
         message: `Kelly risk exceeds maximum threshold (${kellyAtRisk.toFixed(2)} > ${this.MAX_KELLY_RISK})`,
-        affected_picks: snapshots.filter(s => Math.abs(s.kelly_fraction) > 0.05).map(s => s.unified_pick_id),
+        affected_picks: snapshots
+          .filter(s => Math.abs(s.kelly_fraction) > 0.05)
+          .map(s => s.unified_pick_id),
         recommended_action: 'Reduce Kelly fractions or split positions across multiple picks',
       });
     }
@@ -329,7 +340,9 @@ class ExposureTrackingService {
           type: 'concentration',
           severity: concentrationPct > 0.6 ? 'critical' : 'high',
           message: `High concentration in ${cluster.cluster} (${Math.round(concentrationPct * 100)}% of exposure)`,
-          affected_picks: snapshots.filter(s => s.correlation_cluster === cluster.cluster).map(s => s.unified_pick_id),
+          affected_picks: snapshots
+            .filter(s => s.correlation_cluster === cluster.cluster)
+            .map(s => s.unified_pick_id),
           recommended_action: 'Diversify positions across different games/markets',
         });
       }
@@ -377,7 +390,7 @@ class ExposureTrackingService {
         },
         estimated_impact: {
           exposure_reduction: targetReduction,
-          kelly_reduction: targetReduction / analysis.total_exposure * analysis.kelly_at_risk,
+          kelly_reduction: (targetReduction / analysis.total_exposure) * analysis.kelly_at_risk,
         },
       });
     }
@@ -473,7 +486,6 @@ class ExposureTrackingService {
         estimated_impact: action.estimated_impact,
         message: `Successfully executed ${action.type} on ${affectedCount} picks`,
       };
-
     } catch (error) {
       console.error('Error executing remediation action:', error);
       return {
@@ -549,7 +561,6 @@ class ExposureTrackingService {
         pick_id: pickId,
         new_units: newUnits,
       };
-
     } catch (error) {
       console.error('Error reducing pick units:', error);
       return { success: false, pick_id: pickId };
@@ -576,7 +587,6 @@ class ExposureTrackingService {
         pick_id: pickId,
         action: 'demoted_to_draft',
       };
-
     } catch (error) {
       console.error('Error demoting pick:', error);
       return { success: false, pick_id: pickId, action: 'failed' };
@@ -615,7 +625,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const userId = request.headers.get('x-user-id') || 'anonymous';
-    
+
     // Check permissions
     await RBACService.requirePermission(userId, Permission.VIEW_DASHBOARD);
 
@@ -635,7 +645,10 @@ export async function GET(request: NextRequest) {
 
     // Generate remediation actions if requested
     let remediationActions = [];
-    if (includeRemediation && await RBACService.hasPermission(userId, Permission.CONTROL_AGENTS)) {
+    if (
+      includeRemediation &&
+      (await RBACService.hasPermission(userId, Permission.CONTROL_AGENTS))
+    ) {
       remediationActions = await ExposureTrackingService.generateRemediationActions(analysis);
     }
 
@@ -661,19 +674,20 @@ export async function GET(request: NextRequest) {
         },
       },
     });
-
   } catch (error) {
     UnitTalkTracing.recordError(span, error as Error);
-    
+
     const errorMessage = error.message || 'Unknown error';
     const statusCode = errorMessage.includes('Access denied') ? 403 : 500;
-    
-    return NextResponse.json({
-      success: false,
-      error: errorMessage,
-      code: statusCode === 403 ? 'INSUFFICIENT_PERMISSIONS' : 'EXPOSURE_ANALYSIS_ERROR',
-    }, { status: statusCode });
 
+    return NextResponse.json(
+      {
+        success: false,
+        error: errorMessage,
+        code: statusCode === 403 ? 'INSUFFICIENT_PERMISSIONS' : 'EXPOSURE_ANALYSIS_ERROR',
+      },
+      { status: statusCode }
+    );
   } finally {
     span.end();
   }
@@ -688,21 +702,24 @@ export async function POST(request: NextRequest) {
 
   try {
     const userId = request.headers.get('x-user-id') || 'system';
-    
+
     // Require ops permissions to create snapshots
     await RBACService.requirePermission(userId, Permission.CONTROL_AGENTS);
 
     const body = await request.json();
-    
+
     // Validate required fields
     const requiredFields = ['unified_pick_id', 'sport', 'market', 'kelly_fraction', 'units'];
     for (const field of requiredFields) {
       if (!body[field]) {
-        return NextResponse.json({
-          success: false,
-          error: `Missing required field: ${field}`,
-          code: 'INVALID_REQUEST',
-        }, { status: 400 });
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Missing required field: ${field}`,
+            code: 'INVALID_REQUEST',
+          },
+          { status: 400 }
+        );
       }
     }
 
@@ -718,19 +735,20 @@ export async function POST(request: NextRequest) {
       data: snapshot,
       message: 'Exposure snapshot created successfully',
     });
-
   } catch (error) {
     UnitTalkTracing.recordError(span, error as Error);
-    
+
     const errorMessage = error.message || 'Unknown error';
     const statusCode = errorMessage.includes('Access denied') ? 403 : 500;
-    
-    return NextResponse.json({
-      success: false,
-      error: errorMessage,
-      code: statusCode === 403 ? 'INSUFFICIENT_PERMISSIONS' : 'CREATE_SNAPSHOT_ERROR',
-    }, { status: statusCode });
 
+    return NextResponse.json(
+      {
+        success: false,
+        error: errorMessage,
+        code: statusCode === 403 ? 'INSUFFICIENT_PERMISSIONS' : 'CREATE_SNAPSHOT_ERROR',
+      },
+      { status: statusCode }
+    );
   } finally {
     span.end();
   }

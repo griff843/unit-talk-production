@@ -12,8 +12,8 @@ import { UnitTalkTracing } from '@/lib/telemetry';
 
 export enum Role {
   VIEWER = 'VIEWER',
-  OPS = 'OPS', 
-  ADMIN = 'ADMIN'
+  OPS = 'OPS',
+  ADMIN = 'ADMIN',
 }
 
 export enum Permission {
@@ -23,21 +23,21 @@ export enum Permission {
   VIEW_LOGS = 'view:logs',
   VIEW_TRACES = 'view:traces',
   VIEW_EVENTS = 'view:events',
-  
+
   // Operational permissions
   CONTROL_AGENTS = 'control:agents',
   MANAGE_QUEUES = 'control:queues',
   RUN_BACKFILL = 'ops:backfill',
   REPLAY_WORKFLOWS = 'ops:replay',
-  
+
   // Administrative permissions
   SAFE_MODE = 'admin:safe_mode',
   FREEZE_SYSTEM = 'admin:freeze',
   MANAGE_USERS = 'admin:users',
   SYSTEM_CONFIG = 'admin:config',
-  
+
   // Emergency permissions
-  EMERGENCY_CONTROLS = 'emergency:all'
+  EMERGENCY_CONTROLS = 'emergency:all',
 }
 
 export interface UserRole {
@@ -119,28 +119,24 @@ export class RBACService {
   /**
    * Check if user has specific permission
    */
-  static async hasPermission(
-    userId: string, 
-    permission: Permission
-  ): Promise<boolean> {
+  static async hasPermission(userId: string, permission: Permission): Promise<boolean> {
     try {
       const userRole = await this.getUserRole(userId);
       if (!userRole) return false;
-      
+
       // Check if role has expired
       if (userRole.expires_at && new Date() > userRole.expires_at) {
         return false;
       }
-      
+
       // Check explicit permissions first
       if (userRole.permissions.includes(permission)) {
         return true;
       }
-      
+
       // Check role-based permissions
       const rolePermissions = ROLE_PERMISSIONS[userRole.role] || [];
       return rolePermissions.includes(permission);
-      
     } catch (error) {
       console.error('Error checking permission:', error);
       return false;
@@ -156,7 +152,7 @@ export class RBACService {
     context?: any
   ): Promise<void> {
     const hasAccess = await this.hasPermission(userId, permission);
-    
+
     if (!hasAccess) {
       // Log unauthorized access attempt
       await this.logAudit({
@@ -169,7 +165,7 @@ export class RBACService {
         status: 'failure',
         error_message: `User ${userId} lacks permission: ${permission}`,
       });
-      
+
       throw new Error(`Access denied: insufficient permissions for ${permission}`);
     }
   }
@@ -218,24 +214,19 @@ export class RBACService {
     }
   ): Promise<void> {
     const rolePermissions = ROLE_PERMISSIONS[role] || [];
-    const allPermissions = [
-      ...rolePermissions,
-      ...(options?.additionalPermissions || [])
-    ];
+    const allPermissions = [...rolePermissions, ...(options?.additionalPermissions || [])];
 
-    const { error } = await supabase
-      .from('roles')
-      .upsert({
-        user_id: userId,
-        role,
-        permissions: allPermissions,
-        granted_by: grantedBy,
-        granted_at: new Date().toISOString(),
-        expires_at: options?.expiresAt?.toISOString(),
-        team: options?.team,
-        region: options?.region,
-        updated_at: new Date().toISOString(),
-      });
+    const { error } = await supabase.from('roles').upsert({
+      user_id: userId,
+      role,
+      permissions: allPermissions,
+      granted_by: grantedBy,
+      granted_at: new Date().toISOString(),
+      expires_at: options?.expiresAt?.toISOString(),
+      team: options?.team,
+      region: options?.region,
+      updated_at: new Date().toISOString(),
+    });
 
     if (error) {
       throw new Error(`Failed to grant role: ${error.message}`);
@@ -256,16 +247,10 @@ export class RBACService {
   /**
    * Revoke user role
    */
-  static async revokeRole(
-    userId: string,
-    revokedBy: string
-  ): Promise<void> {
+  static async revokeRole(userId: string, revokedBy: string): Promise<void> {
     const previousRole = await this.getUserRole(userId);
-    
-    const { error } = await supabase
-      .from('roles')
-      .delete()
-      .eq('user_id', userId);
+
+    const { error } = await supabase.from('roles').delete().eq('user_id', userId);
 
     if (error) {
       throw new Error(`Failed to revoke role: ${error.message}`);
@@ -319,9 +304,7 @@ export class RBACService {
         created_at: new Date().toISOString(),
       };
 
-      const { error } = await supabase
-        .from('audit_log')
-        .insert(auditEvent);
+      const { error } = await supabase.from('audit_log').insert(auditEvent);
 
       if (error) {
         console.error('Failed to log audit event:', error);
@@ -334,21 +317,16 @@ export class RBACService {
   /**
    * Get audit trail for user or resource
    */
-  static async getAuditTrail(
-    filters?: {
-      actor?: string;
-      action?: string;
-      resourceType?: string;
-      resourceId?: string;
-      status?: string;
-      limit?: number;
-      offset?: number;
-    }
-  ): Promise<AuditEvent[]> {
-    let query = supabase
-      .from('audit_log')
-      .select('*')
-      .order('created_at', { ascending: false });
+  static async getAuditTrail(filters?: {
+    actor?: string;
+    action?: string;
+    resourceType?: string;
+    resourceId?: string;
+    status?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<AuditEvent[]> {
+    let query = supabase.from('audit_log').select('*').order('created_at', { ascending: false });
 
     if (filters?.actor) {
       query = query.eq('actor', filters.actor);
@@ -370,7 +348,7 @@ export class RBACService {
       query = query.limit(filters.limit);
     }
     if (filters?.offset) {
-      query = query.range(filters.offset, (filters.offset + (filters.limit || 50)) - 1);
+      query = query.range(filters.offset, filters.offset + (filters.limit || 50) - 1);
     }
 
     const { data, error } = await query;
@@ -397,29 +375,24 @@ export function rbacMiddleware(requiredPermission: Permission) {
   return async (req: any, res: any, next: any) => {
     try {
       const userId = req.user?.id || req.headers['x-user-id'];
-      
+
       if (!userId) {
-        return res.status(401).json({ 
+        return res.status(401).json({
           error: 'Authentication required',
-          code: 'AUTH_REQUIRED'
+          code: 'AUTH_REQUIRED',
         });
       }
 
-      await RBACService.requirePermission(
-        userId,
-        requiredPermission,
-        {
-          ip_address: req.ip,
-          user_agent: req.get('User-Agent'),
-          path: req.path,
-          method: req.method,
-        }
-      );
+      await RBACService.requirePermission(userId, requiredPermission, {
+        ip_address: req.ip,
+        user_agent: req.get('User-Agent'),
+        path: req.path,
+        method: req.method,
+      });
 
       // Add user role to request for downstream use
       req.userRole = await RBACService.getUserRole(userId);
       next();
-      
     } catch (error) {
       return res.status(403).json({
         error: error.message,

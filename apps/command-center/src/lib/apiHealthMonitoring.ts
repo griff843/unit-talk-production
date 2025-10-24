@@ -45,7 +45,7 @@ class ApiHealthMonitoringService {
       description: 'Primary player props source for NFL/NBA/MLB/NHL',
       authMethod: 'bearer' as const,
       envKey: 'OPTIMAL_API_KEY',
-      mockStatus: 'healthy' // For testing - Optimal should be working
+      mockStatus: 'healthy', // For testing - Optimal should be working
     },
     {
       name: 'Odds API',
@@ -57,17 +57,17 @@ class ApiHealthMonitoringService {
       authMethod: 'query' as const,
       envKey: 'ODDS_API_KEY',
       mockStatus: 'down', // For testing - Odds should be out of tier
-      mockError: 'QUOTA EXCEEDED: Free tier limit reached (500/500 requests)'
-    }
+      mockError: 'QUOTA EXCEEDED: Free tier limit reached (500/500 requests)',
+    },
   ];
 
-  async checkApiHealth(config: typeof this.apiConfigs[0]): Promise<ApiHealthStatus> {
+  async checkApiHealth(config: (typeof this.apiConfigs)[0]): Promise<ApiHealthStatus> {
     const startTime = Date.now();
-    
+
     // For local testing - use mock status if defined
     if (config.mockStatus && typeof window !== 'undefined') {
       const responseTime = 45 + Math.random() * 20; // Simulate realistic response time
-      
+
       if (config.mockStatus === 'healthy') {
         console.log(`✅ ${config.name}: Healthy (${responseTime.toFixed(0)}ms) - MOCK DATA`);
         return {
@@ -106,12 +106,13 @@ class ApiHealthMonitoringService {
         };
       }
     }
-    
+
     try {
       // Get API key from centralized configuration
-      const apiKey = config.envKey === 'OPTIMAL_API_KEY' 
-        ? commandCenterConfig.apiKeys.optimal 
-        : commandCenterConfig.apiKeys.odds;
+      const apiKey =
+        config.envKey === 'OPTIMAL_API_KEY'
+          ? commandCenterConfig.apiKeys.optimal
+          : commandCenterConfig.apiKeys.odds;
       if (!apiKey) {
         return {
           name: config.name,
@@ -133,7 +134,7 @@ class ApiHealthMonitoringService {
 
       const headers: Record<string, string> = {
         'User-Agent': 'Unit-Talk-Command-Center/1.0',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       };
 
       let testUrl = config.endpoint;
@@ -155,23 +156,23 @@ class ApiHealthMonitoringService {
       const responseTime = Date.now() - startTime;
 
       let quotaInfo: { used?: number; limit?: number; percent?: number } = {};
-      
+
       // Try to get quota information if endpoint exists
       if (config.quotaEndpoint) {
         try {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), config.timeout);
-          
+
           const quotaResponse = await fetch(config.quotaEndpoint, {
             signal: controller.signal,
             headers: {
               'User-Agent': 'Unit-Talk-Command-Center/1.0',
-              'Accept': 'application/json',
+              Accept: 'application/json',
             },
           });
-          
+
           clearTimeout(timeoutId);
-          
+
           if (quotaResponse.ok) {
             const quotaData = await quotaResponse.json();
             quotaInfo.used = quotaData.used || quotaData.requests_made || 0;
@@ -193,11 +194,11 @@ class ApiHealthMonitoringService {
 
       // Enhanced validation for API responses
       // Check if response looks like a valid API response
-      const isValidApiResponse = response.ok && (
-        contentType.includes('application/json') ||
-        contentType.includes('text/json') ||
-        (response.status === 200 && contentType.includes('application/'))
-      );
+      const isValidApiResponse =
+        response.ok &&
+        (contentType.includes('application/json') ||
+          contentType.includes('text/json') ||
+          (response.status === 200 && contentType.includes('application/')));
 
       // Success responses (2xx range) with valid API content
       if (response.ok && isValidApiResponse) {
@@ -217,7 +218,9 @@ class ApiHealthMonitoringService {
         status = 'down';
         errorMessage = `❌ INVALID API RESPONSE: ${config.name} returned ${contentType || 'unknown content'} instead of JSON (likely error page)`;
         alertType = 'invalid_response';
-        console.error(`❌ ${config.name}: Invalid response - Status ${response.status} but content-type: ${contentType}`);
+        console.error(
+          `❌ ${config.name}: Invalid response - Status ${response.status} but content-type: ${contentType}`
+        );
         await this.triggerCriticalAlert(config.name, 'INVALID_RESPONSE', errorMessage, {
           httpStatus: response.status,
           contentType,
@@ -312,18 +315,18 @@ class ApiHealthMonitoringService {
       };
 
       return healthStatus;
-
     } catch (error) {
       const responseTime = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
+
       // Special handling for CORS errors - browser security feature, not API failure
-      if (errorMessage.includes('Failed to fetch') || 
-          errorMessage.includes('CORS') || 
-          errorMessage.includes('Cross-Origin')) {
-        
+      if (
+        errorMessage.includes('Failed to fetch') ||
+        errorMessage.includes('CORS') ||
+        errorMessage.includes('Cross-Origin')
+      ) {
         console.warn(`⚠️ ${config.name}: CORS blocked by browser (API may be working)`);
-        
+
         return {
           name: config.name,
           endpoint: config.endpoint,
@@ -340,16 +343,20 @@ class ApiHealthMonitoringService {
           },
         };
       }
-      
+
       // Timeout errors
       if (errorMessage.includes('timeout') || errorMessage.includes('AbortError')) {
-        await this.triggerCriticalAlert(config.name, 'TIMEOUT', 
-          `${config.name} request timeout after ${config.timeout}ms`, {
+        await this.triggerCriticalAlert(
+          config.name,
+          'TIMEOUT',
+          `${config.name} request timeout after ${config.timeout}ms`,
+          {
             error: errorMessage,
             provider: config.name,
             timeout: config.timeout,
-          });
-        
+          }
+        );
+
         return {
           name: config.name,
           endpoint: config.endpoint,
@@ -365,15 +372,19 @@ class ApiHealthMonitoringService {
           },
         };
       }
-      
+
       // Other connection failures
-      await this.triggerCriticalAlert(config.name, 'CONNECTION_FAILED', 
-        `Failed to connect to ${config.name}: ${errorMessage}`, {
+      await this.triggerCriticalAlert(
+        config.name,
+        'CONNECTION_FAILED',
+        `Failed to connect to ${config.name}: ${errorMessage}`,
+        {
           error: errorMessage,
           provider: config.name,
           timeout: config.timeout,
-        });
-      
+        }
+      );
+
       return {
         name: config.name,
         endpoint: config.endpoint,
@@ -435,7 +446,6 @@ class ApiHealthMonitoringService {
           console.error('Failed to notify callback:', err);
         }
       });
-
     } catch (error) {
       console.error('Failed to trigger critical alert:', error);
       // Even if everything fails, still log the critical issue
@@ -445,8 +455,8 @@ class ApiHealthMonitoringService {
 
   async checkAllAPIs(): Promise<ApiHealthStatus[]> {
     console.log('🔍 Checking health of all external APIs...');
-    
-    const healthChecks = this.apiConfigs.map(config => 
+
+    const healthChecks = this.apiConfigs.map(config =>
       this.checkApiHealth(config).catch(error => ({
         name: config.name,
         endpoint: config.endpoint,
@@ -459,7 +469,7 @@ class ApiHealthMonitoringService {
     );
 
     const results = await Promise.all(healthChecks);
-    
+
     // Update cache
     results.forEach(result => {
       this.healthCache.set(result.name, result);
@@ -477,9 +487,10 @@ class ApiHealthMonitoringService {
     const healthyAPIs = statuses.filter(api => api.status === 'healthy').length;
     const degradedAPIs = statuses.filter(api => api.status === 'degraded').length;
     const downAPIs = statuses.filter(api => api.status === 'down').length;
-    
-    const averageResponseTime = statuses.reduce((sum, api) => sum + api.responseTime, 0) / totalAPIs;
-    
+
+    const averageResponseTime =
+      statuses.reduce((sum, api) => sum + api.responseTime, 0) / totalAPIs;
+
     const criticalQuotaAlerts = statuses
       .filter(api => api.quotaPercent && api.quotaPercent > 90)
       .map(api => `${api.name}: ${api.quotaPercent!.toFixed(1)}% quota used`);
@@ -508,10 +519,10 @@ class ApiHealthMonitoringService {
     }
 
     console.log(`🔍 Starting API health monitoring (interval: ${intervalMs}ms)`);
-    
+
     // Initial check
     this.checkAllAPIs();
-    
+
     // Schedule regular checks
     this.monitoringInterval = setInterval(() => {
       this.checkAllAPIs();
@@ -532,12 +543,12 @@ class ApiHealthMonitoringService {
 
   subscribe(callback: (statuses: ApiHealthStatus[]) => void): () => void {
     this.updateCallbacks.add(callback);
-    
+
     // Send current data immediately
     if (this.healthCache.size > 0) {
       callback(this.getCachedStatuses());
     }
-    
+
     // Return unsubscribe function
     return () => {
       this.updateCallbacks.delete(callback);
@@ -559,9 +570,9 @@ export function useApiHealthMonitoring() {
     let mounted = true;
 
     // Subscribe to updates
-    const unsubscribe = apiHealthMonitor.subscribe((newStatuses) => {
+    const unsubscribe = apiHealthMonitor.subscribe(newStatuses => {
       if (!mounted) return;
-      
+
       setStatuses(newStatuses);
       setSummary(apiHealthMonitor.getHealthSummary(newStatuses));
       setLastUpdate(new Date());

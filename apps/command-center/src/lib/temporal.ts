@@ -44,7 +44,7 @@ class TemporalService {
       });
 
       const result: ApiResponse<WorkflowInfo[]> = await response.json();
-      
+
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch workflows');
       }
@@ -70,7 +70,7 @@ class TemporalService {
       });
 
       const result: ApiResponse<WorkflowSummary> = await response.json();
-      
+
       if (!result.success) {
         throw new Error(result.error || 'Failed to fetch workflow summary');
       }
@@ -94,7 +94,10 @@ class TemporalService {
     }
   }
 
-  async terminateWorkflow(workflowId: string, reason: string = 'Manual termination from Command Center'): Promise<boolean> {
+  async terminateWorkflow(
+    workflowId: string,
+    reason: string = 'Manual termination from Command Center'
+  ): Promise<boolean> {
     try {
       const response = await fetch(`${this.baseUrl}/workflows`, {
         method: 'POST',
@@ -109,7 +112,7 @@ class TemporalService {
       });
 
       const result: ApiResponse<{ terminated: boolean }> = await response.json();
-      
+
       if (!result.success) {
         throw new Error(result.error || 'Failed to terminate workflow');
       }
@@ -154,7 +157,7 @@ export class TemporalMonitoringService {
     try {
       // Import supabase dynamically to avoid circular imports
       const { supabase } = await import('./supabase');
-      
+
       const { data, error } = await supabase
         .from('temporal_workflow_health')
         .select('*')
@@ -178,7 +181,7 @@ export class TemporalMonitoringService {
     try {
       // Import supabase dynamically to avoid circular imports
       const { supabase } = await import('./supabase');
-      
+
       const stuckThreshold = new Date(Date.now() - 30 * 60 * 1000);
 
       const { data, error } = await supabase
@@ -214,12 +217,12 @@ export function useWorkflowMonitoring() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const [workflowList, workflowSummary] = await Promise.all([
         temporalService.getWorkflowList(),
         temporalService.getWorkflowSummary(),
       ]);
-      
+
       setWorkflows(workflowList);
       setSummary(workflowSummary);
       setLastUpdate(new Date());
@@ -235,10 +238,10 @@ export function useWorkflowMonitoring() {
   React.useEffect(() => {
     // Initial load
     refreshWorkflows();
-    
+
     // Set up periodic refresh every 30 seconds
     const interval = setInterval(refreshWorkflows, 30000);
-    
+
     return () => {
       clearInterval(interval);
       temporalService.disconnect();

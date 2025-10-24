@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     const supabase = createRouteHandlerClient(
       { cookies },
       {
-        supabaseKey: process.env.SUPABASE_SERVICE_ROLE_KEY
+        supabaseKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
       }
     );
 
@@ -32,7 +32,8 @@ export async function GET(req: NextRequest) {
 
     const { data, error } = await supabase
       .from('v_recent_promotions_24h')
-      .select(`
+      .select(
+        `
         unified_pick_id,
         promoted_at,
         pick_source,
@@ -46,7 +47,8 @@ export async function GET(req: NextRequest) {
         promotion_status,
         game_start_time,
         processed_at
-      `)
+      `
+      )
       .order('promoted_at', { ascending: false })
       .limit(limit);
 
@@ -72,19 +74,16 @@ export async function GET(req: NextRequest) {
       tier_when_placed: String(item.tier_when_placed || ''),
       promotion_status: String(item.promotion_status || ''),
       game_start_time: String(item.game_start_time || ''),
-      processed_at: String(item.processed_at || '')
+      processed_at: String(item.processed_at || ''),
     }));
 
     return NextResponse.json(promotionsData, {
       headers: {
-        'Cache-Control': 'public, max-age=30, stale-while-revalidate=60'
-      }
+        'Cache-Control': 'public, max-age=30, stale-while-revalidate=60',
+      },
     });
   } catch (error) {
     console.error('Recent promotions API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

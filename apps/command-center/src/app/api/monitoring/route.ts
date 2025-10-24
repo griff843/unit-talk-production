@@ -18,13 +18,14 @@ export async function GET(request: NextRequest) {
       console.log('📡 Checking API health...');
       const apiStatuses = await apiHealthMonitor.checkAllAPIs();
       const apiSummary = apiHealthMonitor.getHealthSummary(apiStatuses);
-      
+
       result.api_health = {
         statuses: apiStatuses,
         summary: apiSummary,
-        critical_alerts: apiStatuses.filter(api => 
-          api.status === 'down' && 
-          (api.errorMessage?.includes('API KEY') || api.errorMessage?.includes('EXPIRED'))
+        critical_alerts: apiStatuses.filter(
+          api =>
+            api.status === 'down' &&
+            (api.errorMessage?.includes('API KEY') || api.errorMessage?.includes('EXPIRED'))
         ),
       };
 
@@ -42,12 +43,12 @@ export async function GET(request: NextRequest) {
       console.log('📊 Checking data ingestion health...');
       const ingestionStatuses = await dataIngestionMonitor.checkDataIngestionHealth();
       const ingestionSummary = await dataIngestionMonitor.getIngestionSummary();
-      
+
       result.data_ingestion = {
         statuses: ingestionStatuses,
         summary: ingestionSummary,
-        critical_sources: ingestionStatuses.filter(source => 
-          source.status === 'critical' || source.status === 'no_data'
+        critical_sources: ingestionStatuses.filter(
+          source => source.status === 'critical' || source.status === 'no_data'
         ),
       };
 
@@ -56,7 +57,9 @@ export async function GET(request: NextRequest) {
       if (criticalSources.length > 0) {
         console.error('🚨 CRITICAL DATA INGESTION ISSUES DETECTED:');
         criticalSources.forEach((source: any) => {
-          console.error(`  - ${source.source}: Last data ${source.minutesSinceLastData} minutes ago`);
+          console.error(
+            `  - ${source.source}: Last data ${source.minutesSinceLastData} minutes ago`
+          );
         });
       }
     }
@@ -68,22 +71,26 @@ export async function GET(request: NextRequest) {
 
       if (result.api_health?.critical_alerts?.length > 0) {
         overallStatus = 'critical';
-        criticalIssues.push(...result.api_health.critical_alerts.map((api: any) => 
-          `${api.name}: ${api.errorMessage}`
-        ));
+        criticalIssues.push(
+          ...result.api_health.critical_alerts.map((api: any) => `${api.name}: ${api.errorMessage}`)
+        );
       }
 
       if (result.data_ingestion?.critical_sources?.length > 0) {
         overallStatus = 'critical';
-        criticalIssues.push(...result.data_ingestion.critical_sources.map((source: any) => 
-          `${source.source}: No data for ${source.minutesSinceLastData} minutes`
-        ));
+        criticalIssues.push(
+          ...result.data_ingestion.critical_sources.map(
+            (source: any) => `${source.source}: No data for ${source.minutesSinceLastData} minutes`
+          )
+        );
       }
 
       if (overallStatus === 'healthy') {
         // Check for degraded states
-        if (result.api_health?.summary?.overallStatus === 'degraded' || 
-            result.data_ingestion?.summary?.overallStatus === 'degraded') {
+        if (
+          result.api_health?.summary?.overallStatus === 'degraded' ||
+          result.data_ingestion?.summary?.overallStatus === 'degraded'
+        ) {
           overallStatus = 'degraded';
         }
       }
@@ -109,15 +116,17 @@ export async function GET(request: NextRequest) {
       success: true,
       ...result,
     });
-
   } catch (error) {
     console.error('Failed to perform monitoring check:', error);
-    return NextResponse.json({
-      success: false,
-      error: 'Failed to perform monitoring check',
-      details: error instanceof Error ? error.message : String(error),
-      timestamp: new Date().toISOString(),
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Failed to perform monitoring check',
+        details: error instanceof Error ? error.message : String(error),
+        timestamp: new Date().toISOString(),
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -127,12 +136,12 @@ export async function POST(request: NextRequest) {
 
     if (action === 'start_monitoring') {
       const interval = 60000; // 1 minute
-      
+
       if (type === 'apis' || type === 'all') {
         apiHealthMonitor.startMonitoring(interval);
         console.log('✅ API health monitoring started');
       }
-      
+
       if (type === 'ingestion' || type === 'all') {
         dataIngestionMonitor.startMonitoring(120000); // 2 minutes for data ingestion
         console.log('✅ Data ingestion monitoring started');
@@ -143,13 +152,12 @@ export async function POST(request: NextRequest) {
         message: `${type} monitoring started`,
         interval,
       });
-
     } else if (action === 'stop_monitoring') {
       if (type === 'apis' || type === 'all') {
         apiHealthMonitor.stopMonitoring();
         console.log('🛑 API health monitoring stopped');
       }
-      
+
       if (type === 'ingestion' || type === 'all') {
         dataIngestionMonitor.stopMonitoring();
         console.log('🛑 Data ingestion monitoring stopped');
@@ -159,7 +167,6 @@ export async function POST(request: NextRequest) {
         success: true,
         message: `${type} monitoring stopped`,
       });
-
     } else if (action === 'trigger_test_alert') {
       // Test alert system
       const testAlert = {
@@ -188,32 +195,36 @@ export async function POST(request: NextRequest) {
         message: 'Test alert triggered successfully',
         alert: testAlert,
       });
-
     } else {
-      return NextResponse.json({
-        success: false,
-        error: 'Invalid action',
-        validActions: ['start_monitoring', 'stop_monitoring', 'trigger_test_alert'],
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Invalid action',
+          validActions: ['start_monitoring', 'stop_monitoring', 'trigger_test_alert'],
+        },
+        { status: 400 }
+      );
     }
-
   } catch (error) {
     console.error('Failed to perform monitoring action:', error);
-    return NextResponse.json({
-      success: false,
-      error: 'Failed to perform monitoring action',
-      details: error instanceof Error ? error.message : String(error),
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Failed to perform monitoring action',
+        details: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 }
+    );
   }
 }
 
 // Health check endpoint for the monitoring system itself
 export async function HEAD() {
-  return new NextResponse(null, { 
+  return new NextResponse(null, {
     status: 200,
     headers: {
       'X-Monitoring-Status': 'active',
       'X-Last-Check': new Date().toISOString(),
-    }
+    },
   });
 }

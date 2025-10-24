@@ -33,9 +33,7 @@ const UnifiedPicksHealthCard: React.FC = () => {
         <CardContent>
           <div className="flex items-center space-x-2">
             <AlertTriangle className="h-4 w-4 text-red-600" />
-            <span className="text-sm text-red-600 dark:text-red-400">
-              {error}
-            </span>
+            <span className="text-sm text-red-600 dark:text-red-400">{error}</span>
           </div>
         </CardContent>
       </Card>
@@ -46,9 +44,7 @@ const UnifiedPicksHealthCard: React.FC = () => {
     return (
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">
-            Unified Picks Health (24h)
-          </CardTitle>
+          <CardTitle className="text-sm font-medium">Unified Picks Health (24h)</CardTitle>
           <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
         </CardHeader>
         <CardContent>
@@ -70,22 +66,13 @@ const UnifiedPicksHealthCard: React.FC = () => {
     return (
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">
-            Unified Picks Health (24h)
-          </CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleRefresh}
-            className="h-8 w-8 p-0"
-          >
+          <CardTitle className="text-sm font-medium">Unified Picks Health (24h)</CardTitle>
+          <Button variant="ghost" size="sm" onClick={handleRefresh} className="h-8 w-8 p-0">
             <RefreshCw className="h-4 w-4" />
           </Button>
         </CardHeader>
         <CardContent>
-          <div className="text-center text-sm text-muted-foreground">
-            No data available
-          </div>
+          <div className="text-center text-sm text-muted-foreground">No data available</div>
         </CardContent>
       </Card>
     );
@@ -93,27 +80,27 @@ const UnifiedPicksHealthCard: React.FC = () => {
 
   const hasAlerts = data.duplicate_fingerprints > 0 || data.missing_prop_ids > 0;
   const writerAuditGood = data.writer_audit_percentage >= 100;
-  
+
   // Status-based styling
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'healthy': return 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950';
-      case 'warning': return 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950';
-      case 'critical': return 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950';
-      default: return '';
+      case 'healthy':
+        return 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950';
+      case 'warning':
+        return 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950';
+      case 'critical':
+        return 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950';
+      default:
+        return '';
     }
   };
 
   return (
     <Card className={getStatusColor(data.status)}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">
-          Unified Picks Health (24h)
-        </CardTitle>
+        <CardTitle className="text-sm font-medium">Unified Picks Health (24h)</CardTitle>
         <div className="flex items-center space-x-2">
-          {hasAlerts && (
-            <AlertTriangle className="h-4 w-4 text-amber-600" />
-          )}
+          {hasAlerts && <AlertTriangle className="h-4 w-4 text-amber-600" />}
           <Button
             variant="ghost"
             size="sm"
@@ -136,7 +123,7 @@ const UnifiedPicksHealthCard: React.FC = () => {
                 <p className="text-xs text-muted-foreground">Total (24h)</p>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-2">
               <Users className="h-4 w-4 text-green-600" />
               <div>
@@ -144,7 +131,7 @@ const UnifiedPicksHealthCard: React.FC = () => {
                 <p className="text-xs text-muted-foreground">System (24h)</p>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-2">
               <FileText className="h-4 w-4 text-purple-600" />
               <div>
@@ -152,11 +139,15 @@ const UnifiedPicksHealthCard: React.FC = () => {
                 <p className="text-xs text-muted-foreground">Manual (24h)</p>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-2">
-              <Target className={`h-4 w-4 ${writerAuditGood ? 'text-green-600' : 'text-red-600'}`} />
+              <Target
+                className={`h-4 w-4 ${writerAuditGood ? 'text-green-600' : 'text-red-600'}`}
+              />
               <div>
-                <div className={`text-2xl font-bold ${writerAuditGood ? 'text-green-600' : 'text-red-600'}`}>
+                <div
+                  className={`text-2xl font-bold ${writerAuditGood ? 'text-green-600' : 'text-red-600'}`}
+                >
                   {data.writer_audit_percentage.toFixed(0)}%
                 </div>
                 <p className="text-xs text-muted-foreground">Writer Audit %</p>

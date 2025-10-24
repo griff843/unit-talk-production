@@ -1,15 +1,15 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ClientTime } from '@/components/ui/client-time'
-import { 
-  TrendingUp, 
-  BarChart3, 
-  Activity, 
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ClientTime } from '@/components/ui/client-time';
+import {
+  TrendingUp,
+  BarChart3,
+  Activity,
   DollarSign,
   Users,
   Target,
@@ -18,9 +18,9 @@ import {
   CheckCircle,
   RefreshCw,
   ExternalLink,
-  Download
-} from 'lucide-react'
-import { formatCurrency, formatPercentage } from '@/lib/utils'
+  Download,
+} from 'lucide-react';
+import { formatCurrency, formatPercentage } from '@/lib/utils';
 
 // Mock analytics data - in production this would come from Phase D system
 const analyticsData = {
@@ -29,35 +29,35 @@ const analyticsData = {
     activeUsers: 1234,
     pickAccuracy: 67.3,
     revenueGrowth: 18.9,
-    lastUpdated: new Date()
+    lastUpdated: new Date(),
   },
   businessMetrics: {
     revenue: {
-      daily: 2847.50,
-      monthly: 87234.20,
-      trend: 15.3
+      daily: 2847.5,
+      monthly: 87234.2,
+      trend: 15.3,
     },
     users: {
       active: 1234,
       new: 87,
-      churn: 2.1
+      churn: 2.1,
     },
     picks: {
       total: 2847,
       approved: 2623,
-      accuracy: 67.3
+      accuracy: 67.3,
     },
     agents: {
       healthy: 5,
       warning: 1,
-      error: 0
-    }
+      error: 0,
+    },
   },
   topPerformers: [
     { name: 'ProCapper23', picks: 247, accuracy: 74.2, roi: 18.7, tier: 'S' },
     { name: 'AnalyticsMaster', picks: 189, accuracy: 71.8, roi: 15.2, tier: 'A' },
     { name: 'SharpBettor', picks: 156, accuracy: 69.1, roi: 12.4, tier: 'B' },
-    { name: 'DataDriven', picks: 134, accuracy: 65.7, roi: 8.9, tier: 'C' }
+    { name: 'DataDriven', picks: 134, accuracy: 65.7, roi: 8.9, tier: 'C' },
   ],
   trends: {
     revenue: [
@@ -65,24 +65,24 @@ const analyticsData = {
       { date: '2024-01-08', value: 52000 },
       { date: '2024-01-15', value: 48000 },
       { date: '2024-01-22', value: 67000 },
-      { date: '2024-01-29', value: 73000 }
+      { date: '2024-01-29', value: 73000 },
     ],
     users: [
       { date: '2024-01-01', value: 980 },
       { date: '2024-01-08', value: 1045 },
       { date: '2024-01-15', value: 1123 },
       { date: '2024-01-22', value: 1189 },
-      { date: '2024-01-29', value: 1234 }
+      { date: '2024-01-29', value: 1234 },
     ],
     picks: [
       { date: '2024-01-01', value: 156 },
       { date: '2024-01-08', value: 203 },
       { date: '2024-01-15', value: 187 },
       { date: '2024-01-22', value: 234 },
-      { date: '2024-01-29', value: 267 }
-    ]
-  }
-}
+      { date: '2024-01-29', value: 267 },
+    ],
+  },
+};
 
 const alerts = [
   {
@@ -92,7 +92,7 @@ const alerts = [
     title: 'High Pick Volume Detected',
     description: 'Pick submissions increased by 45% in the last hour',
     timestamp: new Date(Date.now() - 300000),
-    status: 'active'
+    status: 'active',
   },
   {
     id: 'alert_002',
@@ -101,7 +101,7 @@ const alerts = [
     title: 'RecapAgent Performance Warning',
     description: 'Average response time increased to 340ms (threshold: 200ms)',
     timestamp: new Date(Date.now() - 900000),
-    status: 'acknowledged'
+    status: 'acknowledged',
   },
   {
     id: 'alert_003',
@@ -110,26 +110,26 @@ const alerts = [
     title: 'New Capper Milestone',
     description: 'ProCapper23 reached 75% accuracy rate milestone',
     timestamp: new Date(Date.now() - 1800000),
-    status: 'resolved'
-  }
-]
+    status: 'resolved',
+  },
+];
 
 export default function AnalyticsPage() {
-  const [selectedTab, setSelectedTab] = useState('overview')
-  const [isLoading, setIsLoading] = useState(false)
-  const [lastRefresh, setLastRefresh] = useState(new Date())
+  const [selectedTab, setSelectedTab] = useState('overview');
+  const [isLoading, setIsLoading] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState(new Date());
 
   const handleRefresh = async () => {
-    setIsLoading(true)
+    setIsLoading(true);
     // Simulate API call to Phase D system
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    setLastRefresh(new Date())
-    setIsLoading(false)
-  }
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setLastRefresh(new Date());
+    setIsLoading(false);
+  };
 
   const handleOpenPhaseD = () => {
-    window.open('http://localhost:3005/dashboard', '_blank')
-  }
+    window.open('http://localhost:3005/dashboard', '_blank');
+  };
 
   return (
     <div className="space-y-6">
@@ -150,12 +150,7 @@ export default function AnalyticsPage() {
             <Download className="w-4 h-4 mr-2" />
             Export Report
           </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleRefresh}
-            disabled={isLoading}
-          >
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isLoading}>
             <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
@@ -168,9 +163,12 @@ export default function AnalyticsPage() {
           <div className="flex items-center space-x-3">
             <CheckCircle className="h-6 w-6 text-green-500" />
             <div>
-              <p className="font-semibold text-green-400">System Health: {analyticsData.overview.systemHealth}%</p>
+              <p className="font-semibold text-green-400">
+                System Health: {analyticsData.overview.systemHealth}%
+              </p>
               <p className="text-sm text-muted-foreground">
-                All Phase D analytics systems operational • Last updated: <ClientTime date={lastRefresh} />
+                All Phase D analytics systems operational • Last updated:{' '}
+                <ClientTime date={lastRefresh} />
               </p>
             </div>
           </div>
@@ -188,7 +186,9 @@ export default function AnalyticsPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analyticsData.overview.activeUsers.toLocaleString()}</div>
+            <div className="text-2xl font-bold">
+              {analyticsData.overview.activeUsers.toLocaleString()}
+            </div>
             <div className="flex items-center space-x-1 text-xs text-muted-foreground">
               <TrendingUp className="h-3 w-3 text-green-500" />
               <span className="text-green-500">+8.1%</span>
@@ -203,7 +203,9 @@ export default function AnalyticsPage() {
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatPercentage(analyticsData.overview.pickAccuracy)}</div>
+            <div className="text-2xl font-bold">
+              {formatPercentage(analyticsData.overview.pickAccuracy)}
+            </div>
             <div className="flex items-center space-x-1 text-xs text-muted-foreground">
               <TrendingUp className="h-3 w-3 text-green-500" />
               <span className="text-green-500">+2.3%</span>
@@ -218,7 +220,9 @@ export default function AnalyticsPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatPercentage(analyticsData.overview.revenueGrowth)}</div>
+            <div className="text-2xl font-bold">
+              {formatPercentage(analyticsData.overview.revenueGrowth)}
+            </div>
             <div className="flex items-center space-x-1 text-xs text-muted-foreground">
               <TrendingUp className="h-3 w-3 text-green-500" />
               <span className="text-green-500">+3.7%</span>
@@ -233,7 +237,9 @@ export default function AnalyticsPage() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatPercentage(analyticsData.overview.systemHealth)}</div>
+            <div className="text-2xl font-bold">
+              {formatPercentage(analyticsData.overview.systemHealth)}
+            </div>
             <div className="flex items-center space-x-1 text-xs text-muted-foreground">
               <CheckCircle className="h-3 w-3 text-green-500" />
               <span className="text-green-500">Optimal</span>
@@ -299,7 +305,10 @@ export default function AnalyticsPage() {
                   <CardContent>
                     <div className="space-y-3">
                       {analyticsData.topPerformers.map((capper, index) => (
-                        <div key={capper.name} className="flex items-center justify-between p-3 rounded-lg border bg-muted/20">
+                        <div
+                          key={capper.name}
+                          className="flex items-center justify-between p-3 rounded-lg border bg-muted/20"
+                        >
                           <div className="flex items-center space-x-3">
                             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm">
                               {index + 1}
@@ -312,11 +321,17 @@ export default function AnalyticsPage() {
                             </div>
                           </div>
                           <div className="text-right">
-                            <Badge className={
-                              capper.tier === 'S' ? 'tier-s' :
-                              capper.tier === 'A' ? 'tier-a' :
-                              capper.tier === 'B' ? 'tier-b' : 'tier-c'
-                            }>
+                            <Badge
+                              className={
+                                capper.tier === 'S'
+                                  ? 'tier-s'
+                                  : capper.tier === 'A'
+                                    ? 'tier-a'
+                                    : capper.tier === 'B'
+                                      ? 'tier-b'
+                                      : 'tier-c'
+                              }
+                            >
                               {capper.tier}
                             </Badge>
                             <p className="text-sm font-mono text-green-600 mt-1">
@@ -435,20 +450,29 @@ export default function AnalyticsPage() {
 
             <TabsContent value="alerts" className="mt-6">
               <div className="space-y-4">
-                {alerts.map((alert) => (
-                  <Card key={alert.id} className={`border-l-4 ${
-                    alert.severity === 'high' ? 'border-l-red-500' :
-                    alert.severity === 'medium' ? 'border-l-yellow-500' :
-                    'border-l-blue-500'
-                  }`}>
+                {alerts.map(alert => (
+                  <Card
+                    key={alert.id}
+                    className={`border-l-4 ${
+                      alert.severity === 'high'
+                        ? 'border-l-red-500'
+                        : alert.severity === 'medium'
+                          ? 'border-l-yellow-500'
+                          : 'border-l-blue-500'
+                    }`}
+                  >
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between">
                         <div className="flex items-start space-x-3">
-                          <div className={`p-1 rounded-full ${
-                            alert.severity === 'high' ? 'bg-red-500/20 text-red-400' :
-                            alert.severity === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                            'bg-blue-500/20 text-blue-400'
-                          }`}>
+                          <div
+                            className={`p-1 rounded-full ${
+                              alert.severity === 'high'
+                                ? 'bg-red-500/20 text-red-400'
+                                : alert.severity === 'medium'
+                                  ? 'bg-yellow-500/20 text-yellow-400'
+                                  : 'bg-blue-500/20 text-blue-400'
+                            }`}
+                          >
                             <AlertTriangle className="h-4 w-4" />
                           </div>
                           <div>
@@ -465,11 +489,15 @@ export default function AnalyticsPage() {
                             </div>
                           </div>
                         </div>
-                        <Badge variant={
-                          alert.status === 'active' ? 'destructive' :
-                          alert.status === 'acknowledged' ? 'secondary' :
-                          'outline'
-                        }>
+                        <Badge
+                          variant={
+                            alert.status === 'active'
+                              ? 'destructive'
+                              : alert.status === 'acknowledged'
+                                ? 'secondary'
+                                : 'outline'
+                          }
+                        >
                           {alert.status}
                         </Badge>
                       </div>
@@ -482,5 +510,5 @@ export default function AnalyticsPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

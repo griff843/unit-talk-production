@@ -29,8 +29,8 @@ const WorkflowStatusBadge: React.FC<{ status: WorkflowInfo['status'] }> = ({ sta
   );
 };
 
-const WorkflowCard: React.FC<{ 
-  workflow: WorkflowInfo; 
+const WorkflowCard: React.FC<{
+  workflow: WorkflowInfo;
   onTerminate: (workflowId: string) => void;
 }> = ({ workflow, onTerminate }) => {
   const formatDuration = (startTime: Date) => {
@@ -38,7 +38,7 @@ const WorkflowCard: React.FC<{
     const diff = now.getTime() - startTime.getTime();
     const minutes = Math.floor(diff / (1000 * 60));
     const hours = Math.floor(minutes / 60);
-    
+
     if (hours > 0) {
       return `${hours}h ${minutes % 60}m`;
     }
@@ -49,7 +49,7 @@ const WorkflowCard: React.FC<{
     'syndicate-scheduler-main',
     'live-game-detector',
     'quota-monitoring',
-    'health-monitoring'
+    'health-monitoring',
   ].includes(workflow.workflowId);
 
   return (
@@ -81,7 +81,7 @@ const WorkflowCard: React.FC<{
           <div>
             <span className="font-medium">Started:</span> {workflow.startTime.toLocaleString()}
           </div>
-          
+
           {workflow.status === 'RUNNING' && (
             <Button
               variant="destructive"
@@ -100,15 +100,8 @@ const WorkflowCard: React.FC<{
 };
 
 export const WorkflowMonitoring: React.FC = () => {
-  const {
-    workflows,
-    summary,
-    loading,
-    error,
-    lastUpdate,
-    refreshWorkflows,
-    terminateWorkflow,
-  } = useWorkflowMonitoring();
+  const { workflows, summary, loading, error, lastUpdate, refreshWorkflows, terminateWorkflow } =
+    useWorkflowMonitoring();
 
   const handleTerminateWorkflow = async (workflowId: string) => {
     try {
@@ -119,7 +112,9 @@ export const WorkflowMonitoring: React.FC = () => {
         toast.error(`Failed to terminate workflow ${workflowId}`);
       }
     } catch (error) {
-      toast.error(`Error terminating workflow: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(
+        `Error terminating workflow: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   };
 
@@ -158,36 +153,28 @@ export const WorkflowMonitoring: React.FC = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-blue-600">
-              {summary?.running || 0}
-            </div>
+            <div className="text-2xl font-bold text-blue-600">{summary?.running || 0}</div>
             <p className="text-xs text-gray-500">Running Workflows</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-green-600">
-              {summary?.healthy || 0}
-            </div>
+            <div className="text-2xl font-bold text-green-600">{summary?.healthy || 0}</div>
             <p className="text-xs text-gray-500">Critical Healthy</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-gray-600">
-              {summary?.total || 0}
-            </div>
+            <div className="text-2xl font-bold text-gray-600">{summary?.total || 0}</div>
             <p className="text-xs text-gray-500">Total Workflows</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-red-600">
-              {summary?.failed || 0}
-            </div>
+            <div className="text-2xl font-bold text-red-600">{summary?.failed || 0}</div>
             <p className="text-xs text-gray-500">Failed</p>
           </CardContent>
         </Card>
@@ -198,23 +185,16 @@ export const WorkflowMonitoring: React.FC = () => {
         <div>
           <h2 className="text-xl font-semibold">Temporal Workflows</h2>
           {lastUpdate && (
-            <p className="text-sm text-gray-500">
-              Last updated: {lastUpdate.toLocaleTimeString()}
-            </p>
+            <p className="text-sm text-gray-500">Last updated: {lastUpdate.toLocaleTimeString()}</p>
           )}
         </div>
-        
+
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={loading}
-          >
+          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
             <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          
+
           <Button
             variant="outline"
             size="sm"
@@ -243,7 +223,7 @@ export const WorkflowMonitoring: React.FC = () => {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {workflows.map((workflow) => (
+          {workflows.map(workflow => (
             <WorkflowCard
               key={`${workflow.workflowId}-${workflow.runId}`}
               workflow={workflow}

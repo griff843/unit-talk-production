@@ -1,10 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,10 +14,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Error fetching unified picks health:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch pipeline health data' },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: 'Failed to fetch pipeline health data' }, { status: 500 });
     }
 
     // Transform view data to expected format
@@ -35,21 +29,18 @@ export async function GET(request: NextRequest) {
       status: determineHealthStatus(data),
       metadata: {
         source: 'v_unified_picks_health_24h',
-        timeframe: '24h'
-      }
+        timeframe: '24h',
+      },
     };
 
     return NextResponse.json(healthSummary, {
       headers: {
-        'Cache-Control': 'public, max-age=30, stale-while-revalidate=60'
-      }
+        'Cache-Control': 'public, max-age=30, stale-while-revalidate=60',
+      },
     });
   } catch (error) {
-    console.error('Pipeline health API error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch pipeline health metrics' },
-      { status: 500 }
-    )
+    console.error('Pipeline health API error:', error);
+    return NextResponse.json({ error: 'Failed to fetch pipeline health metrics' }, { status: 500 });
   }
 }
 
@@ -73,53 +64,43 @@ function determineHealthStatus(data: any): 'healthy' | 'warning' | 'critical' {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { type, data } = body
+    const body = await request.json();
+    const { type, data } = body;
 
     // Log conflict skip events from GradingAgent
     if (type === 'conflict_skip') {
-      const { raw_prop_id, reason, timestamp } = data
-      
-      await supabase
-        .from('conflict_events')
-        .insert({
-          event_type: 'conflict_skip',
-          raw_prop_id,
-          reason,
-          occurred_at: timestamp || new Date().toISOString(),
-          metadata: data
-        })
+      const { raw_prop_id, reason, timestamp } = data;
 
-      return NextResponse.json({ success: true })
+      await supabase.from('conflict_events').insert({
+        event_type: 'conflict_skip',
+        raw_prop_id,
+        reason,
+        occurred_at: timestamp || new Date().toISOString(),
+        metadata: data,
+      });
+
+      return NextResponse.json({ success: true });
     }
 
     // Log promotion attempts and outcomes
     if (type === 'promotion_attempt') {
-      const { raw_prop_id, success, reason, processing_time } = data
+      const { raw_prop_id, success, reason, processing_time } = data;
 
-      await supabase
-        .from('promotion_events')
-        .insert({
-          raw_prop_id,
-          success,
-          reason,
-          processing_time_ms: processing_time,
-          occurred_at: new Date().toISOString(),
-          metadata: data
-        })
+      await supabase.from('promotion_events').insert({
+        raw_prop_id,
+        success,
+        reason,
+        processing_time_ms: processing_time,
+        occurred_at: new Date().toISOString(),
+        metadata: data,
+      });
 
-      return NextResponse.json({ success: true })
+      return NextResponse.json({ success: true });
     }
 
-    return NextResponse.json(
-      { error: 'Unknown event type' },
-      { status: 400 }
-    )
+    return NextResponse.json({ error: 'Unknown event type' }, { status: 400 });
   } catch (error) {
-    console.error('Pipeline health logging error:', error)
-    return NextResponse.json(
-      { error: 'Failed to log pipeline event' },
-      { status: 500 }
-    )
+    console.error('Pipeline health logging error:', error);
+    return NextResponse.json({ error: 'Failed to log pipeline event' }, { status: 500 });
   }
 }

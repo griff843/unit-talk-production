@@ -11,21 +11,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { 
-  Calendar, 
-  Clock, 
-  TrendingUp, 
-  Target, 
-  DollarSign, 
-  User, 
-  Trophy, 
+import {
+  Calendar,
+  Clock,
+  TrendingUp,
+  Target,
+  DollarSign,
+  User,
+  Trophy,
   BarChart3,
   CheckCircle,
   XCircle,
   AlertCircle,
   Activity,
   Shield,
-  Zap
+  Zap,
 } from 'lucide-react';
 import { Pick } from '@/hooks/usePicks';
 import { getTierColor, formatCurrency, formatPercentage } from '@/lib/utils';
@@ -39,12 +39,12 @@ interface PickDetailsModalProps {
   onReject?: (pickId: string) => Promise<boolean>;
 }
 
-export function PickDetailsModal({ 
-  pick, 
-  isOpen, 
-  onClose, 
-  onApprove, 
-  onReject 
+export function PickDetailsModal({
+  pick,
+  isOpen,
+  onClose,
+  onApprove,
+  onReject,
 }: PickDetailsModalProps) {
   if (!pick) return null;
 
@@ -101,7 +101,7 @@ export function PickDetailsModal({
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="text-2xl font-bold">Pick Details</DialogTitle>
-            <Badge className={cn("ml-2", getStatusColor(pick.status))}>
+            <Badge className={cn('ml-2', getStatusColor(pick.status))}>
               <span className="flex items-center gap-1">
                 {getStatusIcon(pick.status)}
                 {pick.status}
@@ -164,7 +164,7 @@ export function PickDetailsModal({
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{pick.confidence}%</span>
                     <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div 
+                      <div
                         className="bg-blue-500 h-2 rounded-full transition-all"
                         style={{ width: `${pick.confidence}%` }}
                       />
@@ -249,11 +249,7 @@ export function PickDetailsModal({
           {pick.status === 'pending' && (onApprove || onReject) && (
             <>
               {onReject && (
-                <Button
-                  variant="destructive"
-                  onClick={handleReject}
-                  className="gap-2"
-                >
+                <Button variant="destructive" onClick={handleReject} className="gap-2">
                   <XCircle className="w-4 h-4" />
                   Reject Pick
                 </Button>

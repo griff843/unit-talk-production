@@ -1,18 +1,24 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { 
-  Brain, 
-  MessageCircle, 
-  Zap, 
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Brain,
+  MessageCircle,
+  Zap,
   Activity,
   Settings,
   Send,
@@ -23,137 +29,150 @@ import {
   Database,
   TrendingUp,
   Bot,
-  Cpu
-} from 'lucide-react'
-import { toast } from 'sonner'
+  Cpu,
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 interface LLMModel {
-  id: string
-  name: string
-  provider: 'openai' | 'anthropic' | 'local'
-  status: 'active' | 'inactive' | 'error'
-  tokensUsed: number
-  tokensLimit: number
-  requestsToday: number
-  avgResponseTime: number
-  cost: number
-  accuracy: number
-  lastUsed: string
+  id: string;
+  name: string;
+  provider: 'openai' | 'anthropic' | 'local';
+  status: 'active' | 'inactive' | 'error';
+  tokensUsed: number;
+  tokensLimit: number;
+  requestsToday: number;
+  avgResponseTime: number;
+  cost: number;
+  accuracy: number;
+  lastUsed: string;
   configuration: {
-    temperature: number
-    maxTokens: number
-    topP: number
-    frequencyPenalty: number
-  }
+    temperature: number;
+    maxTokens: number;
+    topP: number;
+    frequencyPenalty: number;
+  };
 }
 
 interface LLMRequest {
-  id: string
-  model: string
-  prompt: string
-  response?: string
-  tokens: number
-  cost: number
-  responseTime: number
-  status: 'pending' | 'completed' | 'error'
-  timestamp: string
-  user: string
-  type: 'pick-analysis' | 'market-research' | 'user-query' | 'system'
+  id: string;
+  model: string;
+  prompt: string;
+  response?: string;
+  tokens: number;
+  cost: number;
+  responseTime: number;
+  status: 'pending' | 'completed' | 'error';
+  timestamp: string;
+  user: string;
+  type: 'pick-analysis' | 'market-research' | 'user-query' | 'system';
 }
 
 export default function LLMManagementPage() {
-  const [selectedModel, setSelectedModel] = useState<string>('')
-  const [testPrompt, setTestPrompt] = useState('')
-  const [selectedTab, setSelectedTab] = useState('overview')
-  const queryClient = useQueryClient()
+  const [selectedModel, setSelectedModel] = useState<string>('');
+  const [testPrompt, setTestPrompt] = useState('');
+  const [selectedTab, setSelectedTab] = useState('overview');
+  const queryClient = useQueryClient();
 
   // Fetch LLM models
-  const { data: models = [], isLoading: modelsLoading, error: modelsError } = useQuery<LLMModel[]>({
+  const {
+    data: models = [],
+    isLoading: modelsLoading,
+    error: modelsError,
+  } = useQuery<LLMModel[]>({
     queryKey: ['llm-models'],
     queryFn: async () => {
-      const response = await fetch('/api/llm/models')
-      if (!response.ok) throw new Error('Failed to fetch LLM models')
-      return response.json()
+      const response = await fetch('/api/llm/models');
+      if (!response.ok) throw new Error('Failed to fetch LLM models');
+      return response.json();
     },
-    refetchInterval: 30000 // Update every 30 seconds
-  })
+    refetchInterval: 30000, // Update every 30 seconds
+  });
 
   // Fetch recent LLM requests
   const { data: requests = [], isLoading: requestsLoading } = useQuery<LLMRequest[]>({
     queryKey: ['llm-requests'],
     queryFn: async () => {
-      const response = await fetch('/api/llm/requests')
-      if (!response.ok) throw new Error('Failed to fetch LLM requests')
-      return response.json()
+      const response = await fetch('/api/llm/requests');
+      if (!response.ok) throw new Error('Failed to fetch LLM requests');
+      return response.json();
     },
-    refetchInterval: 10000 // Update every 10 seconds
-  })
+    refetchInterval: 10000, // Update every 10 seconds
+  });
 
   // Test LLM mutation
   const testModelMutation = useMutation({
-    mutationFn: async ({ modelId, prompt }: { modelId: string, prompt: string }) => {
+    mutationFn: async ({ modelId, prompt }: { modelId: string; prompt: string }) => {
       const response = await fetch('/api/llm/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ modelId, prompt })
-      })
-      if (!response.ok) throw new Error('Failed to test model')
-      return response.json()
+        body: JSON.stringify({ modelId, prompt }),
+      });
+      if (!response.ok) throw new Error('Failed to test model');
+      return response.json();
     },
-    onSuccess: (data) => {
-      toast.success(`Model test completed in ${data.responseTime}ms`)
-      queryClient.invalidateQueries({ queryKey: ['llm-requests'] })
+    onSuccess: data => {
+      toast.success(`Model test completed in ${data.responseTime}ms`);
+      queryClient.invalidateQueries({ queryKey: ['llm-requests'] });
     },
-    onError: (error) => {
-      toast.error(`Model test failed: ${error.message}`)
-    }
-  })
+    onError: error => {
+      toast.error(`Model test failed: ${error.message}`);
+    },
+  });
 
   // Update model configuration mutation
   const updateModelMutation = useMutation({
-    mutationFn: async ({ modelId, configuration }: { modelId: string, configuration: any }) => {
+    mutationFn: async ({ modelId, configuration }: { modelId: string; configuration: any }) => {
       const response = await fetch(`/api/llm/models/${modelId}/config`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(configuration)
-      })
-      if (!response.ok) throw new Error('Failed to update model configuration')
-      return response.json()
+        body: JSON.stringify(configuration),
+      });
+      if (!response.ok) throw new Error('Failed to update model configuration');
+      return response.json();
     },
     onSuccess: () => {
-      toast.success('Model configuration updated')
-      queryClient.invalidateQueries({ queryKey: ['llm-models'] })
+      toast.success('Model configuration updated');
+      queryClient.invalidateQueries({ queryKey: ['llm-models'] });
     },
-    onError: (error) => {
-      toast.error(`Configuration update failed: ${error.message}`)
-    }
-  })
+    onError: error => {
+      toast.error(`Configuration update failed: ${error.message}`);
+    },
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'bg-green-500'
-      case 'inactive': return 'bg-gray-500' 
-      case 'error': return 'bg-red-500'
-      case 'pending': return 'bg-yellow-500'
-      case 'completed': return 'bg-blue-500'
-      default: return 'bg-gray-500'
+      case 'active':
+        return 'bg-green-500';
+      case 'inactive':
+        return 'bg-gray-500';
+      case 'error':
+        return 'bg-red-500';
+      case 'pending':
+        return 'bg-yellow-500';
+      case 'completed':
+        return 'bg-blue-500';
+      default:
+        return 'bg-gray-500';
     }
-  }
+  };
 
   const getProviderIcon = (provider: string) => {
     switch (provider) {
-      case 'openai': return <Brain className="w-4 h-4" />
-      case 'anthropic': return <MessageCircle className="w-4 h-4" />
-      case 'local': return <Cpu className="w-4 h-4" />
-      default: return <Bot className="w-4 h-4" />
+      case 'openai':
+        return <Brain className="w-4 h-4" />;
+      case 'anthropic':
+        return <MessageCircle className="w-4 h-4" />;
+      case 'local':
+        return <Cpu className="w-4 h-4" />;
+      default:
+        return <Bot className="w-4 h-4" />;
     }
-  }
+  };
 
-  const totalTokensUsed = models.reduce((sum, model) => sum + model.tokensUsed, 0)
-  const totalCost = models.reduce((sum, model) => sum + model.cost, 0)
-  const avgAccuracy = models.length > 0 
-    ? models.reduce((sum, model) => sum + model.accuracy, 0) / models.length 
-    : 0
+  const totalTokensUsed = models.reduce((sum, model) => sum + model.tokensUsed, 0);
+  const totalCost = models.reduce((sum, model) => sum + model.cost, 0);
+  const avgAccuracy =
+    models.length > 0 ? models.reduce((sum, model) => sum + model.accuracy, 0) / models.length : 0;
 
   if (modelsError) {
     return (
@@ -161,10 +180,10 @@ export default function LLMManagementPage() {
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <h3 className="text-red-800 font-semibold">LLM Service Unavailable</h3>
           <p className="text-red-600 mt-2">
-            Unable to connect to LLM management system. This may indicate the AI services are not properly configured 
-            or the API endpoints are unavailable.
+            Unable to connect to LLM management system. This may indicate the AI services are not
+            properly configured or the API endpoints are unavailable.
           </p>
-          <Button 
+          <Button
             onClick={() => queryClient.invalidateQueries({ queryKey: ['llm-models'] })}
             className="mt-3"
           >
@@ -172,7 +191,7 @@ export default function LLMManagementPage() {
           </Button>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -186,10 +205,7 @@ export default function LLMManagementPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            onClick={() => queryClient.invalidateQueries()}
-          >
+          <Button variant="outline" onClick={() => queryClient.invalidateQueries()}>
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh All
           </Button>
@@ -217,9 +233,7 @@ export default function LLMManagementPage() {
                 <div className="text-2xl font-bold">
                   {models.filter(m => m.status === 'active').length}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {models.length} total models
-                </p>
+                <p className="text-xs text-muted-foreground">{models.length} total models</p>
               </CardContent>
             </Card>
 
@@ -229,12 +243,8 @@ export default function LLMManagementPage() {
                 <Zap className="h-4 w-4 text-blue-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {totalTokensUsed.toLocaleString()}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Tokens consumed
-                </p>
+                <div className="text-2xl font-bold">{totalTokensUsed.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">Tokens consumed</p>
               </CardContent>
             </Card>
 
@@ -244,12 +254,8 @@ export default function LLMManagementPage() {
                 <TrendingUp className="h-4 w-4 text-purple-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  ${totalCost.toFixed(2)}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Today's spending
-                </p>
+                <div className="text-2xl font-bold">${totalCost.toFixed(2)}</div>
+                <p className="text-xs text-muted-foreground">Today's spending</p>
               </CardContent>
             </Card>
 
@@ -259,12 +265,8 @@ export default function LLMManagementPage() {
                 <Activity className="h-4 w-4 text-green-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {avgAccuracy.toFixed(1)}%
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Across all models
-                </p>
+                <div className="text-2xl font-bold">{avgAccuracy.toFixed(1)}%</div>
+                <p className="text-xs text-muted-foreground">Across all models</p>
               </CardContent>
             </Card>
           </div>
@@ -273,9 +275,7 @@ export default function LLMManagementPage() {
           <Card>
             <CardHeader>
               <CardTitle>Recent LLM Activity</CardTitle>
-              <CardDescription>
-                Latest requests and responses from AI models
-              </CardDescription>
+              <CardDescription>Latest requests and responses from AI models</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -291,11 +291,16 @@ export default function LLMManagementPage() {
                   </div>
                 ) : (
                   requests.slice(0, 5).map(request => (
-                    <div key={request.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div
+                      key={request.id}
+                      className="flex items-center justify-between p-3 border rounded-lg"
+                    >
                       <div className="flex items-center space-x-3">
                         <div className={`w-3 h-3 rounded-full ${getStatusColor(request.status)}`} />
                         <div>
-                          <p className="font-medium">{request.type.replace('-', ' ').toUpperCase()}</p>
+                          <p className="font-medium">
+                            {request.type.replace('-', ' ').toUpperCase()}
+                          </p>
                           <p className="text-sm text-muted-foreground">
                             {request.model} • {request.tokens} tokens • {request.responseTime}ms
                           </p>
@@ -347,7 +352,8 @@ export default function LLMManagementPage() {
                         <div>
                           <CardTitle>{model.name}</CardTitle>
                           <CardDescription>
-                            {model.provider.toUpperCase()} • {model.tokensUsed.toLocaleString()} tokens used • ${model.cost.toFixed(2)} cost
+                            {model.provider.toUpperCase()} • {model.tokensUsed.toLocaleString()}{' '}
+                            tokens used • ${model.cost.toFixed(2)} cost
                           </CardDescription>
                         </div>
                       </div>
@@ -374,9 +380,11 @@ export default function LLMManagementPage() {
                         <p className="text-sm text-muted-foreground">Token Usage</p>
                         <div className="flex items-center space-x-2">
                           <div className="flex-1 bg-muted rounded-full h-2">
-                            <div 
-                              className="bg-blue-500 h-2 rounded-full" 
-                              style={{ width: `${Math.min(100, (model.tokensUsed / model.tokensLimit) * 100)}%` }}
+                            <div
+                              className="bg-blue-500 h-2 rounded-full"
+                              style={{
+                                width: `${Math.min(100, (model.tokensUsed / model.tokensLimit) * 100)}%`,
+                              }}
                             />
                           </div>
                           <span className="text-xs">
@@ -385,7 +393,7 @@ export default function LLMManagementPage() {
                         </div>
                       </div>
                     </div>
-                    
+
                     {/* Configuration */}
                     <div className="mt-4 p-3 bg-muted/20 rounded-lg">
                       <p className="text-sm font-medium mb-2">Configuration</p>
@@ -421,33 +429,35 @@ export default function LLMManagementPage() {
                       <SelectValue placeholder="Choose a model to test" />
                     </SelectTrigger>
                     <SelectContent>
-                      {models.filter(m => m.status === 'active').map(model => (
-                        <SelectItem key={model.id} value={model.id}>
-                          {model.name} ({model.provider})
-                        </SelectItem>
-                      ))}
+                      {models
+                        .filter(m => m.status === 'active')
+                        .map(model => (
+                          <SelectItem key={model.id} value={model.id}>
+                            {model.name} ({model.provider})
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
-              
+
               <div>
                 <label className="text-sm font-medium">Test Prompt</label>
                 <Textarea
                   placeholder="Enter your test prompt here..."
                   value={testPrompt}
-                  onChange={(e) => setTestPrompt(e.target.value)}
+                  onChange={e => setTestPrompt(e.target.value)}
                   rows={4}
                 />
               </div>
-              
-              <Button 
+
+              <Button
                 onClick={() => {
                   if (!selectedModel || !testPrompt) {
-                    toast.error('Please select a model and enter a prompt')
-                    return
+                    toast.error('Please select a model and enter a prompt');
+                    return;
                   }
-                  testModelMutation.mutate({ modelId: selectedModel, prompt: testPrompt })
+                  testModelMutation.mutate({ modelId: selectedModel, prompt: testPrompt });
                 }}
                 disabled={!selectedModel || !testPrompt || testModelMutation.isPending}
                 className="w-full"
@@ -472,37 +482,42 @@ export default function LLMManagementPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Recent Test Results</CardTitle>
-                <CardDescription>
-                  Results from recent model tests and evaluations
-                </CardDescription>
+                <CardDescription>Results from recent model tests and evaluations</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {requests.filter(r => r.type === 'system').slice(0, 3).map(test => (
-                    <div key={test.id} className="p-4 border rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center space-x-2">
-                          <Badge>{test.model}</Badge>
-                          <span className="text-sm text-muted-foreground">
-                            {test.responseTime}ms • {test.tokens} tokens
+                  {requests
+                    .filter(r => r.type === 'system')
+                    .slice(0, 3)
+                    .map(test => (
+                      <div key={test.id} className="p-4 border rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center space-x-2">
+                            <Badge>{test.model}</Badge>
+                            <span className="text-sm text-muted-foreground">
+                              {test.responseTime}ms • {test.tokens} tokens
+                            </span>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(test.timestamp).toLocaleString()}
                           </span>
                         </div>
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(test.timestamp).toLocaleString()}
-                        </span>
+                        <div className="text-sm">
+                          <p className="font-medium">Prompt:</p>
+                          <p className="text-muted-foreground mb-2">
+                            {test.prompt.substring(0, 100)}...
+                          </p>
+                          {test.response && (
+                            <>
+                              <p className="font-medium">Response:</p>
+                              <p className="text-muted-foreground">
+                                {test.response.substring(0, 200)}...
+                              </p>
+                            </>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-sm">
-                        <p className="font-medium">Prompt:</p>
-                        <p className="text-muted-foreground mb-2">{test.prompt.substring(0, 100)}...</p>
-                        {test.response && (
-                          <>
-                            <p className="font-medium">Response:</p>
-                            <p className="text-muted-foreground">{test.response.substring(0, 200)}...</p>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               </CardContent>
             </Card>
@@ -532,10 +547,11 @@ export default function LLMManagementPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Most Used Model</span>
                     <span className="font-semibold">
-                      {models.length > 0 
-                        ? models.reduce((prev, curr) => prev.requestsToday > curr.requestsToday ? prev : curr).name
-                        : 'N/A'
-                      }
+                      {models.length > 0
+                        ? models.reduce((prev, curr) =>
+                            prev.requestsToday > curr.requestsToday ? prev : curr
+                          ).name
+                        : 'N/A'}
                     </span>
                   </div>
                 </div>
@@ -552,19 +568,26 @@ export default function LLMManagementPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Average Response Time</span>
                     <span className="font-semibold">
-                      {models.length > 0 
-                        ? Math.round(models.reduce((sum, model) => sum + model.avgResponseTime, 0) / models.length)
-                        : 0
-                      }ms
+                      {models.length > 0
+                        ? Math.round(
+                            models.reduce((sum, model) => sum + model.avgResponseTime, 0) /
+                              models.length
+                          )
+                        : 0}
+                      ms
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Success Rate</span>
                     <span className="font-semibold">
-                      {requests.length > 0 
-                        ? Math.round((requests.filter(r => r.status === 'completed').length / requests.length) * 100)
-                        : 0
-                      }%
+                      {requests.length > 0
+                        ? Math.round(
+                            (requests.filter(r => r.status === 'completed').length /
+                              requests.length) *
+                              100
+                          )
+                        : 0}
+                      %
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -580,5 +603,5 @@ export default function LLMManagementPage() {
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }

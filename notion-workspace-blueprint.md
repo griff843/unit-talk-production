@@ -1,4 +1,5 @@
 # 🏆 Unit Talk Notion Workspace Blueprint
+
 ## Complete Production-Grade SaaS Operations Center
 
 ---
@@ -6,6 +7,7 @@
 ## 🏠 HOME PAGE STRUCTURE
 
 ### Quick Access Panel
+
 ```
 🎯 Command Center
 ├── 📊 [Executive Dashboard]
@@ -30,6 +32,7 @@
 ```
 
 ### Navigation Structure (Left Sidebar)
+
 ```
 🏠 Home
 ├── 📊 Dashboards
@@ -70,11 +73,14 @@
 ### 1. 🎯 Roadmap / Projects Database
 
 **Properties:**
+
 - **Name** (Title) - Project name with emoji prefix
-- **Status** (Select): 🔵 Backlog | 🟡 In Progress | 🟠 In Review | 🔴 Blocked | 🟢 Done
+- **Status** (Select): 🔵 Backlog | 🟡 In Progress | 🟠 In Review | 🔴 Blocked |
+  🟢 Done
 - **Priority** (Select): 🔥 P0 | ⚡ P1 | 🎯 P2 | 📌 P3
 - **Owner** (Person) - Project lead
-- **Team** (Multi-select): Engineering, Product, Data, Discord Ops, Marketing, Customer Success, Executive
+- **Team** (Multi-select): Engineering, Product, Data, Discord Ops, Marketing,
+  Customer Success, Executive
 - **Start Date** (Date)
 - **Due Date** (Date)
 - **Objective** (Text) - Clear goal statement
@@ -84,30 +90,37 @@
 - **Related Tasks** (Relation → Tasks)
 - **Related Agents** (Relation → Agents Registry)
 - **Risks** (Text) - Key risks and mitigations
-- **Confidence** (Formula): `if(empty(prop("Risks")), 90, if(prop("Priority") == "🔥 P0", 60, 75))`
+- **Confidence** (Formula):
+  `if(empty(prop("Risks")), 90, if(prop("Priority") == "🔥 P0", 60, 75))`
 - **Progress** (Rollup → Tasks): Count where Status = Done / Count All
 
 **Views:**
+
 - **Now/Next/Later** (Board by Status)
 - **Gantt** (Timeline by Start/Due Date)
 - **By Team** (Table grouped by Team)
-- **At Risk** (Table filtered: Confidence < 70 OR Due Date < 7 days AND Status != Done)
+- **At Risk** (Table filtered: Confidence < 70 OR Due Date < 7 days AND Status
+  != Done)
 
 ---
 
 ### 2. ✅ Tasks Database
 
 **Properties:**
+
 - **Name** (Title) - Task description
-- **Status** (Select): 🔵 Backlog | 🟡 In Progress | 🟠 In Review | 🔴 Blocked | 🟢 Done
+- **Status** (Select): 🔵 Backlog | 🟡 In Progress | 🟠 In Review | 🔴 Blocked |
+  🟢 Done
 - **Priority** (Select): 🔥 P0 | ⚡ P1 | 🎯 P2 | 📌 P3
 - **Owner** (Person)
-- **Team** (Multi-select): Engineering, Product, Data, Discord Ops, Marketing, Customer Success
+- **Team** (Multi-select): Engineering, Product, Data, Discord Ops, Marketing,
+  Customer Success
 - **Due Date** (Date)
 - **Project** (Relation → Roadmap/Projects)
 - **Agent** (Relation → Agents Registry)
 - **Workflow** (Relation → Workflows)
-- **Labels** (Multi-select): Bug, Feature, Tech Debt, Documentation, Testing, Deployment, Hotfix
+- **Labels** (Multi-select): Bug, Feature, Tech Debt, Documentation, Testing,
+  Deployment, Hotfix
 - **Spec/Notes** (Text) - Detailed requirements
 - **GitHub PR** (URL)
 - **Supabase Row Ref** (Text)
@@ -118,6 +131,7 @@
 - **Definition of Done** (Text) - Checklist format
 
 **Views:**
+
 - **My Queue** (Table filtered by Owner = Me)
 - **Sprint Board** (Board by Status)
 - **Engineering** (Table filtered by Team contains Engineering)
@@ -125,6 +139,7 @@
 - **This Week** (Calendar by Due Date)
 
 **Templates:**
+
 - **🔧 Dev Task Template**
   - Definition of Done checklist
   - Test coverage requirements
@@ -141,6 +156,7 @@
 ### 3. 🤖 Agents Registry Database
 
 **Properties:**
+
 - **Name** (Title) - Agent name
 - **Status** (Select): 🟢 Active | 🟡 Testing | 🔴 Inactive | 🔵 Development
 - **Owner** (Person) - Technical owner
@@ -159,6 +175,7 @@
 - **Environment** (Multi-select): Sandbox, Staging, Production
 
 **Seed Agents:**
+
 1. **🎯 GradingAgent** - Evaluates picks against outcomes
 2. **✅ FinalizerAgent** - Finalizes and locks picks
 3. **📊 RecapAgent** - Generates daily/weekly/monthly recaps
@@ -171,6 +188,7 @@
 10. **👤 OperatorAgent** - Manual intervention handler
 
 **Views:**
+
 - **By Status** (Board)
 - **By Owner** (Table grouped)
 - **Performance** (Table sorted by Success Rate)
@@ -181,6 +199,7 @@
 ### 4. ⚙️ Workflows (Temporal) Database
 
 **Properties:**
+
 - **Name** (Title) - Workflow identifier
 - **Status** (Select): 🟢 Active | 🟡 Testing | 🔴 Inactive | 🔵 Development
 - **Owner** (Person)
@@ -200,6 +219,7 @@
 - **Task Queue** (Text)
 
 **Seed Workflows:**
+
 1. **WF1: Raw Props Ingestion** - Ingests betting propositions
 2. **WF2: Promote** - Promotes picks to production
 3. **WF4: Grading** - Grades picks against results
@@ -212,6 +232,7 @@
 10. **Hedge Alerts** - Hedge opportunity notifications
 
 **Views:**
+
 - **Active Workflows** (Table where Status = Active)
 - **By Trigger Type** (Board)
 - **Error Dashboard** (Table where Error Rate > 5)
@@ -222,8 +243,10 @@
 ### 5. 🗃️ Data Schemas (Supabase) Database
 
 **Properties:**
+
 - **Table Name** (Title)
-- **Status** (Select): 🟢 Production | 🟡 Staging | 🔵 Development | 🔴 Deprecated
+- **Status** (Select): 🟢 Production | 🟡 Staging | 🔵 Development | 🔴
+  Deprecated
 - **Owner** (Person) - Schema owner
 - **Purpose** (Text) - What data it stores
 - **Columns** (Text) - Column definitions
@@ -237,6 +260,7 @@
 - **Last Modified** (Date)
 
 **Seed Tables:**
+
 - **raw_props** - Raw betting propositions
 - **daily_picks** - Daily pick selections
 - **final_picks** - Finalized picks
@@ -247,6 +271,7 @@
 - **view_enriched_final_picks** - Enriched final picks
 
 **Views:**
+
 - **Production Tables** (Table where Status = Production)
 - **PII Tables** (Table where PII Risk != None)
 - **Schema Dependencies** (Graph view)
@@ -257,10 +282,12 @@
 ### 6. 📝 Change Log Database
 
 **Properties:**
+
 - **Title** (Title) - Change description
 - **Date** (Date)
 - **Owner** (Person)
-- **Area** (Select): 📊 Schema | 🤖 Agent | ⚙️ Workflow | 🎨 Frontend | 💬 Discord | 🛠️ Retool
+- **Area** (Select): 📊 Schema | 🤖 Agent | ⚙️ Workflow | 🎨 Frontend | 💬
+  Discord | 🛠️ Retool
 - **Description** (Text) - Detailed change notes
 - **Impact** (Select): 🔴 Breaking | 🟡 Major | 🟢 Minor | ⚪ Patch
 - **Linked Agents** (Relation → Agents Registry)
@@ -271,6 +298,7 @@
 - **Rollback Plan** (Text)
 
 **Views:**
+
 - **Recent Changes** (Table last 7 days)
 - **By Area** (Board)
 - **Breaking Changes** (Table where Impact = Breaking)
@@ -281,6 +309,7 @@
 ### 7. 🎯 OKRs Database
 
 **Properties:**
+
 - **Objective** (Title)
 - **Owner** (Person)
 - **Quarter** (Select): Q1 2025 | Q2 2025 | Q3 2025 | Q4 2025
@@ -289,9 +318,11 @@
 - **Confidence** (Number) - 0-100
 - **Linked Projects** (Relation → Roadmap/Projects)
 - **Progress** (Formula) - Based on KR checkboxes
-- **Status** (Formula): `if(prop("Progress") >= 100, "🟢 Complete", if(prop("Progress") >= 70, "🟡 On Track", if(prop("Progress") >= 40, "🟠 At Risk", "🔴 Off Track")))`
+- **Status** (Formula):
+  `if(prop("Progress") >= 100, "🟢 Complete", if(prop("Progress") >= 70, "🟡 On Track", if(prop("Progress") >= 40, "🟠 At Risk", "🔴 Off Track")))`
 
 **Views:**
+
 - **Current Quarter** (Table filtered)
 - **By Owner** (Table grouped)
 - **Company OKRs** (Gallery)
@@ -302,10 +333,13 @@
 ### 8. 📣 Marketing Calendar Database
 
 **Properties:**
+
 - **Campaign** (Title)
-- **Status** (Select): 📝 Planning | 🎨 Creating | 🚀 Scheduled | ✅ Published | 📊 Analyzing
+- **Status** (Select): 📝 Planning | 🎨 Creating | 🚀 Scheduled | ✅ Published |
+  📊 Analyzing
 - **Owner** (Person)
-- **Channel** (Multi-select): X | Instagram | Discord | Email | Web | YouTube | TikTok
+- **Channel** (Multi-select): X | Instagram | Discord | Email | Web | YouTube |
+  TikTok
 - **Persona** (Multi-select): Beginner | Sharp | Degen | VIP | Trial
 - **Asset Links** (Files & Media)
 - **Copy** (Text) - Marketing copy
@@ -317,11 +351,13 @@
 - **Linked Project** (Relation → Roadmap/Projects)
 
 **Templates:**
+
 - **🚀 Launch Campaign** - New feature announcement
 - **📢 Feature Announcement** - Update communications
 - **⭐ VIP Upgrade Push** - Conversion campaign
 
 **Views:**
+
 - **Content Calendar** (Calendar)
 - **By Channel** (Board)
 - **This Week** (Table)
@@ -332,11 +368,14 @@
 ### 9. 📄 Content / Docs / SOPs Database
 
 **Properties:**
+
 - **Title** (Title)
-- **Type** (Select): 📋 SOP | 📖 Playbook | 📜 Policy | 🔧 Runbook | ❓ FAQ | 📚 Guide
+- **Type** (Select): 📋 SOP | 📖 Playbook | 📜 Policy | 🔧 Runbook | ❓ FAQ | 📚
+  Guide
 - **Team** (Multi-select)
 - **Owner** (Person)
-- **Status** (Select): ✅ Current | 📝 Draft | 🔄 In Review | 🗓️ Scheduled | 📛 Deprecated
+- **Status** (Select): ✅ Current | 📝 Draft | 🔄 In Review | 🗓️ Scheduled | 📛
+  Deprecated
 - **Linked Workflow** (Relation → Workflows)
 - **Last Updated** (Date)
 - **Version** (Text)
@@ -347,6 +386,7 @@
 **SOP Templates to Create:**
 
 **1. Discord Onboarding SOP**
+
 ```
 Purpose: Standardize new user onboarding
 Tiers: Free, VIP, VIP+
@@ -360,6 +400,7 @@ Flow:
 ```
 
 **2. Alert Handling SOP**
+
 ```
 Types: Steam, Heat, Hedge, Injury
 Rules:
@@ -371,6 +412,7 @@ Response Time: <5 minutes
 ```
 
 **3. Recap SOP**
+
 ```
 Daily: 10:00 AM ET
 - Yesterday's performance
@@ -389,6 +431,7 @@ Monthly: 1st Monday 2:00 PM ET
 ```
 
 **Views:**
+
 - **Active SOPs** (Table where Status = Current)
 - **By Type** (Board)
 - **Compliance Required** (Table where Compliance Tag != None)
@@ -399,8 +442,10 @@ Monthly: 1st Monday 2:00 PM ET
 ### 10. 💬 Discord Operations Database
 
 **Properties:**
+
 - **Asset/Message** (Title)
-- **Type** (Select): 🎨 Embed | 💬 Slash Cmd | 🔘 Button Flow | 📢 Announcement | 🤖 Auto Reply
+- **Type** (Select): 🎨 Embed | 💬 Slash Cmd | 🔘 Button Flow | 📢 Announcement
+  | 🤖 Auto Reply
 - **Channel** (Select with IDs):
   - general (1234567890)
   - vip-picks (1234567891)
@@ -417,6 +462,7 @@ Monthly: 1st Monday 2:00 PM ET
 - **Performance** (Number) - Usage/engagement %
 
 **Seed Entries:**
+
 - **/vip-info** - VIP tier information
 - **/edge-tracker** - Track edge picks
 - **/ev-report** - Expected value report
@@ -426,6 +472,7 @@ Monthly: 1st Monday 2:00 PM ET
 - **Trial Reminder 71h** - 71-hour final reminder
 
 **Views:**
+
 - **Active Commands** (Table where Status = Active)
 - **By Tier** (Board)
 - **By Channel** (Table grouped)
@@ -436,8 +483,10 @@ Monthly: 1st Monday 2:00 PM ET
 ### 11. ⚠️ Risk Register Database
 
 **Properties:**
+
 - **Risk** (Title) - Risk description
-- **Category** (Select): 🔧 Technical | 📊 Data | 💰 Financial | 📜 Compliance | 👥 Operational
+- **Category** (Select): 🔧 Technical | 📊 Data | 💰 Financial | 📜 Compliance |
+  👥 Operational
 - **Severity** (Select): 🔥 P0 | ⚡ P1 | 🎯 P2 | 📌 P3
 - **Likelihood** (Select): 5-Very High | 4-High | 3-Medium | 2-Low | 1-Very Low
 - **Risk Score** (Formula): `prop("Severity Score") * prop("Likelihood")`
@@ -450,6 +499,7 @@ Monthly: 1st Monday 2:00 PM ET
 - **Review Date** (Date)
 
 **Views:**
+
 - **Risk Matrix** (Board by Severity/Likelihood)
 - **Active Risks** (Table where Status = Active)
 - **P0/P1 Risks** (Table filtered)
@@ -460,8 +510,10 @@ Monthly: 1st Monday 2:00 PM ET
 ### 12. 📖 Runbooks Database
 
 **Properties:**
+
 - **Name** (Title)
-- **Service** (Select): 🤖 Agent | ⚙️ Workflow | 💬 Discord | 🗃️ Database | 🌐 API
+- **Service** (Select): 🤖 Agent | ⚙️ Workflow | 💬 Discord | 🗃️ Database | 🌐
+  API
 - **Owner** (Person)
 - **Severity** (Select): 🔥 P0 | ⚡ P1 | 🎯 P2 | 📌 P3
 - **SLA** (Text) - Response time requirement
@@ -475,11 +527,13 @@ Monthly: 1st Monday 2:00 PM ET
 - **Effectiveness** (Select): ✅ Effective | 🟡 Needs Update | 🔴 Ineffective
 
 **Templates:**
+
 - **Workflow Failure** - Generic workflow recovery
 - **Schema Mismatch** - Database sync issues
 - **Discord Alert Flood** - Rate limiting response
 
 **Views:**
+
 - **By Service** (Board)
 - **Emergency Runbooks** (Table P0/P1)
 - **Recently Used** (Table sorted)
@@ -490,10 +544,12 @@ Monthly: 1st Monday 2:00 PM ET
 ### 13. 🚨 Incidents Database
 
 **Properties:**
+
 - **Title** (Title)
 - **Incident ID** (Text) - Auto-generated
 - **Severity** (Select): 🔥 P0-Critical | ⚡ P1-High | 🎯 P2-Medium | 📌 P3-Low
-- **Status** (Select): 🔴 Active | 🟡 Investigating | 🟠 Mitigating | 🟢 Resolved | 📝 Post-Mortem
+- **Status** (Select): 🔴 Active | 🟡 Investigating | 🟠 Mitigating | 🟢
+  Resolved | 📝 Post-Mortem
 - **Started** (Date & Time)
 - **Detected By** (Select): Monitoring | User Report | Internal
 - **Resolved** (Date & Time)
@@ -509,6 +565,7 @@ Monthly: 1st Monday 2:00 PM ET
 - **Lessons Learned** (Text)
 
 **Views:**
+
 - **Active Incidents** (Table where Status != Resolved)
 - **Post-Mortem Queue** (Table needs post-mortem)
 - **By Severity** (Board)
@@ -519,9 +576,11 @@ Monthly: 1st Monday 2:00 PM ET
 ### 14. 📊 Analytics & KPIs Database
 
 **Properties:**
+
 - **Metric** (Title)
 - **Description** (Text)
-- **Category** (Select): 💰 Revenue | 👥 Users | 🎯 Performance | 🔧 Technical | 📈 Growth
+- **Category** (Select): 💰 Revenue | 👥 Users | 🎯 Performance | 🔧 Technical |
+  📈 Growth
 - **Owner** (Person)
 - **Source** (Multi-select): Supabase | Discord | Stripe | Mixpanel | Custom
 - **Query/Formula** (Code) - SQL or calculation
@@ -529,12 +588,14 @@ Monthly: 1st Monday 2:00 PM ET
 - **Target** (Number)
 - **Current** (Number)
 - **Previous** (Number)
-- **Trend** (Formula): `if(prop("Current") > prop("Previous"), "📈", if(prop("Current") < prop("Previous"), "📉", "➡️"))`
+- **Trend** (Formula):
+  `if(prop("Current") > prop("Previous"), "📈", if(prop("Current") < prop("Previous"), "📉", "➡️"))`
 - **Performance** (Formula): `prop("Current") / prop("Target") * 100`
 - **Linked Project** (Relation → Roadmap/Projects)
 - **Dashboard** (Multi-select): Executive | Engineering | Marketing | Finance
 
 **Seed Metrics:**
+
 - **Win Rate by Tier** - Performance by subscription tier
 - **ROI by Ticket Type** - Return on investment analysis
 - **Time to Alert** - Alert latency measurement
@@ -544,6 +605,7 @@ Monthly: 1st Monday 2:00 PM ET
 - **Trial→VIP Conversion** - Conversion funnel
 
 **Views:**
+
 - **Executive KPIs** (Gallery key metrics)
 - **By Category** (Board)
 - **Performance vs Target** (Table with conditional formatting)
@@ -554,6 +616,7 @@ Monthly: 1st Monday 2:00 PM ET
 ### 15. 🎉 Release Notes Database
 
 **Properties:**
+
 - **Version** (Title) - e.g., v2.1.0
 - **Release Date** (Date)
 - **Type** (Select): 🚀 Major | 🎯 Minor | 🔧 Patch | 🔥 Hotfix
@@ -569,6 +632,7 @@ Monthly: 1st Monday 2:00 PM ET
 - **Public URL** (URL) - Public release notes link
 
 **Views:**
+
 - **Recent Releases** (Table last 30 days)
 - **By Type** (Board)
 - **Major Releases** (Gallery)
@@ -581,6 +645,7 @@ Monthly: 1st Monday 2:00 PM ET
 ### 1. 🏠 Home / Command Center
 
 **Layout:**
+
 ```
 [Header: Unit Talk Command Center - Real-time Operations]
 
@@ -616,6 +681,7 @@ Right Column:
 ### 2. 🚀 Engineering Ops Dashboard
 
 **Sections:**
+
 1. **System Health**
    - Agent Status Grid (all 10 agents)
    - Workflow Success Rates
@@ -641,6 +707,7 @@ Right Column:
 ### 3. 💬 Discord & Community Dashboard
 
 **Sections:**
+
 1. **Scheduled Operations**
    - Recap Calendar (Daily/Weekly/Monthly)
    - Upcoming Alerts
@@ -666,6 +733,7 @@ Right Column:
 ### 4. 📊 Data & Schema Dashboard
 
 **Sections:**
+
 1. **Schema Health**
    - Table Status Overview
    - Recent Schema Changes
@@ -691,6 +759,7 @@ Right Column:
 ### 5. 📣 Marketing & Growth Dashboard
 
 **Sections:**
+
 1. **Campaign Performance**
    - Active Campaigns
    - Channel Performance
@@ -716,6 +785,7 @@ Right Column:
 ### 6. 📊 Executive View Dashboard
 
 **Sections:**
+
 1. **Company Metrics**
    - MRR/ARR
    - User Growth
@@ -772,11 +842,13 @@ Analytics ←→ Projects (KPI Tracking)
 ## 🤖 AUTOMATIONS & RECURRING ITEMS
 
 ### Daily Automations
+
 - **10:00 AM ET**: Create Daily Recap task → Link to RecapAgent
 - **2:00 PM ET**: Update Analytics KPIs
 - **6:00 PM ET**: Generate tomorrow's workflow schedule
 
 ### Weekly Automations
+
 - **Monday 9:00 AM ET**: Create sprint planning task
 - **Monday 5:00 PM ET**: Create Weekly Recap task
 - **Wednesday 11:00 AM ET**: Schema Drift Audit task
@@ -784,12 +856,14 @@ Analytics ←→ Projects (KPI Tracking)
 - **Friday 4:00 PM ET**: Generate weekly analytics report
 
 ### Monthly Automations
+
 - **1st Monday 2:00 PM ET**: Create Monthly Recap task
 - **1st Tuesday**: OKR review and update
 - **15th**: Risk Register review
 - **Last Friday**: Runbook effectiveness review
 
 ### Triggered Automations
+
 - When Incident created → Create follow-up tasks
 - When Project status = Done → Update linked OKRs
 - When Agent deployed → Create Change Log entry
@@ -800,153 +874,183 @@ Analytics ←→ Projects (KPI Tracking)
 ## 📝 TEMPLATE LIBRARY
 
 ### 1. Project Template
+
 ```markdown
 # 🎯 [Project Name]
 
 ## 📋 Overview
-**Problem Statement:**
-**Goals:**
-**Non-Goals:**
-**Success Metrics:**
+
+**Problem Statement:** **Goals:** **Non-Goals:** **Success Metrics:**
 
 ## 📊 Key Information
+
 - **Owner:** @[Name]
 - **Team:** [Teams]
 - **Timeline:** [Start] → [End]
 - **Priority:** [P0/P1/P2/P3]
 
 ## 🎯 Success Criteria
+
 - [ ] Criterion 1
 - [ ] Criterion 2
 - [ ] Criterion 3
 
 ## ⚠️ Risks & Dependencies
+
 **Risks:**
+
 - Risk 1: [Description] | Mitigation: [Plan]
 
 **Dependencies:**
+
 - [Upstream project/system]
 
 ## 📈 Milestones
+
 - [ ] Milestone 1 - [Date]
 - [ ] Milestone 2 - [Date]
 - [ ] Milestone 3 - [Date]
 
 ## 🔗 Related Items
+
 - Tasks: [Linked view]
 - Agents: [Linked view]
 - Workflows: [Linked view]
 ```
 
 ### 2. Workflow Spec Template
+
 ```markdown
 # ⚙️ [Workflow Name]
 
 ## Specification
-**Trigger:** [CRON/Manual/Event]
-**Schedule:** [If CRON]
-**Owner:** @[Name]
+
+**Trigger:** [CRON/Manual/Event] **Schedule:** [If CRON] **Owner:** @[Name]
 
 ## Activities
+
 1. Step 1: [Description]
 2. Step 2: [Description]
 3. Step 3: [Description]
 
 ## Data Flow
+
 **Inputs:**
+
 - Input 1: [Type, Source]
 
 **Outputs:**
+
 - Output 1: [Type, Destination]
 
 ## Testing Matrix
-| Scenario | Input | Expected Output | Result |
-|----------|-------|-----------------|---------|
-| Happy Path | ... | ... | ✅/❌ |
-| Edge Case 1 | ... | ... | ✅/❌ |
+
+| Scenario    | Input | Expected Output | Result |
+| ----------- | ----- | --------------- | ------ |
+| Happy Path  | ...   | ...             | ✅/❌  |
+| Edge Case 1 | ...   | ...             | ✅/❌  |
 
 ## Observability
+
 - **Logs:** [Location]
 - **Metrics:** [What we track]
 - **Alerts:** [Conditions]
 
 ## Failure Modes
+
 - **Mode 1:** [Description] → [Recovery]
 ```
 
 ### 3. Agent Spec Template
+
 ```markdown
 # 🤖 [Agent Name]
 
 ## Purpose
+
 [What this agent does and why]
 
 ## Configuration
-**Owner:** @[Name]
-**Environment:** [Sandbox/Staging/Production]
-**Version:** [Current version]
+
+**Owner:** @[Name] **Environment:** [Sandbox/Staging/Production] **Version:**
+[Current version]
 
 ## Behavior
+
 **Triggers:**
+
 - Trigger 1: [Condition]
 
 **Actions:**
+
 1. Action 1: [Description]
 2. Action 2: [Description]
 
 ## Dependencies
+
 - **Upstream:** [What it needs]
 - **Downstream:** [What depends on it]
 
 ## API/Integrations
+
 - **Endpoints:** [If applicable]
 - **Credentials:** [Vault reference]
 
 ## KPIs
+
 - Success Rate Target: [%]
 - Avg Runtime Target: [seconds]
 - Error Rate Threshold: [%]
 
 ## Monitoring
+
 - **Logs:** [Notion page/Datadog]
 - **Alerts:** [Conditions and recipients]
 ```
 
 ### 4. SOP Template
+
 ```markdown
 # 📋 SOP: [Procedure Name]
 
 ## Purpose
+
 [Why this procedure exists]
 
 ## Scope
-**Applies to:** [Teams/Systems]
-**Frequency:** [When used]
+
+**Applies to:** [Teams/Systems] **Frequency:** [When used]
 
 ## Prerequisites
+
 - [ ] Prerequisite 1
 - [ ] Prerequisite 2
 
 ## Procedure
+
 ### Step 1: [Name]
+
 **Actions:**
+
 1. Do this first
-2. Then do this
-**Verification:** [How to verify]
-**Time:** [Expected duration]
+2. Then do this **Verification:** [How to verify] **Time:** [Expected duration]
 
 ### Step 2: [Name]
+
 [Continue pattern]
 
 ## Edge Cases
+
 - **Scenario 1:** [What to do]
 - **Scenario 2:** [What to do]
 
 ## Rollback Procedure
+
 1. Step 1
 2. Step 2
 
 ## Contacts
+
 - **Primary:** @[Name]
 - **Escalation:** @[Manager]
 - **Emergency:** [Phone/Slack]
@@ -957,24 +1061,28 @@ Analytics ←→ Projects (KPI Tracking)
 ## 🎯 IMPLEMENTATION CHECKLIST
 
 ### Phase 1: Foundation (Days 1-2)
+
 - [ ] Create workspace structure and navigation
 - [ ] Set up all 15 databases with properties
 - [ ] Create database templates
 - [ ] Establish relations between databases
 
 ### Phase 2: Content & Configuration (Days 3-4)
+
 - [ ] Seed all example content
 - [ ] Create SOPs (Discord, Alerts, Recaps)
 - [ ] Set up all dashboard pages
 - [ ] Configure views and filters
 
 ### Phase 3: Automation & Polish (Day 5)
+
 - [ ] Set up recurring tasks
 - [ ] Create automation rules
 - [ ] Add formulas and rollups
 - [ ] Test all relations and views
 
 ### Phase 4: Training & Launch (Day 6-7)
+
 - [ ] Create "Start Here" guide
 - [ ] Build onboarding flow
 - [ ] Document workflows
@@ -985,6 +1093,7 @@ Analytics ←→ Projects (KPI Tracking)
 ## 🚀 QUICK START GUIDE
 
 ### For New Users
+
 1. **Start** at Home dashboard
 2. **Check** "My Tasks" for assignments
 3. **Create** new items using templates
@@ -992,6 +1101,7 @@ Analytics ←→ Projects (KPI Tracking)
 5. **Update** status in real-time
 
 ### For Managers
+
 1. **Monitor** Executive View daily
 2. **Review** OKR progress weekly
 3. **Check** Risk Register regularly
@@ -999,6 +1109,7 @@ Analytics ←→ Projects (KPI Tracking)
 5. **Analyze** via Analytics dashboard
 
 ### For Engineers
+
 1. **Use** Engineering Ops as home base
 2. **Update** Tasks throughout the day
 3. **Document** in Change Log
@@ -1010,6 +1121,7 @@ Analytics ←→ Projects (KPI Tracking)
 ## 📚 STYLE GUIDE
 
 ### Emoji Usage
+
 - 🎯 Goals, targets, objectives
 - ✅ Complete, done, success
 - 🔴 Critical, blocked, P0
@@ -1022,12 +1134,14 @@ Analytics ←→ Projects (KPI Tracking)
 - 📋 Documentation, process
 
 ### Naming Conventions
+
 - **Databases:** Plural, descriptive (e.g., "Tasks", "Agents Registry")
 - **Views:** Action-oriented (e.g., "My Queue", "Active Workflows")
 - **Templates:** Type + Template (e.g., "Dev Task Template")
 - **Properties:** Singular, clear (e.g., "Status", "Owner", "Priority")
 
 ### Colors
+
 - **Red:** Critical, blocked, urgent
 - **Yellow:** In progress, warning
 - **Green:** Complete, healthy
@@ -1039,16 +1153,12 @@ Analytics ←→ Projects (KPI Tracking)
 
 ## 🎉 LAUNCH READY!
 
-This workspace is now ready for:
-✅ Full team collaboration
-✅ Real-time operations tracking
-✅ Strategic planning
-✅ Performance monitoring
-✅ Risk management
-✅ Customer success
-✅ Executive reporting
+This workspace is now ready for: ✅ Full team collaboration ✅ Real-time
+operations tracking ✅ Strategic planning ✅ Performance monitoring ✅ Risk
+management ✅ Customer success ✅ Executive reporting
 
 **Next Steps:**
+
 1. Import this structure to Notion
 2. Customize for your specific needs
 3. Train team on usage
@@ -1057,7 +1167,5 @@ This workspace is now ready for:
 
 ---
 
-**Built for:** Unit Talk - Premium Sports Betting Intelligence
-**Version:** 1.0.0
-**Last Updated:** January 2025
-**Status:** 🚀 Production Ready
+**Built for:** Unit Talk - Premium Sports Betting Intelligence **Version:**
+1.0.0 **Last Updated:** January 2025 **Status:** 🚀 Production Ready

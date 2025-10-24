@@ -87,17 +87,20 @@ npm run start:command-center # Command center
 ## 🗄️ Database Architecture v3.0.0
 
 ### Core Tables (Unified Schema)
+
 - `unified_picks`: Core pick management (was `final_picks`)
 - `raw_props`: Market data with `processed_at` timestamp gate
 - `users`: User/capper profiles with Discord integration
 - `agent_health`: System monitoring and metrics
 
 ### Schema Migration Summary
+
 - **Table rename**: `final_picks` → `unified_picks`
 - **Column migration**: `auto_approved` → `published`
 - **Status migration**: `is_graded` → `grading_status`
 - **Processing gate**: `processed` (boolean) → `processed_at` (timestamp)
-- **Professional columns**: `professional_score`, `devigged_edge`, `kelly_fraction`, `clv_pct`
+- **Professional columns**: `professional_score`, `devigged_edge`,
+  `kelly_fraction`, `clv_pct`
 - **Performance gain**: 42% table reduction (77→45 tables)
 
 ## 📚 Documentation

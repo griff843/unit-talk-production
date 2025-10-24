@@ -88,22 +88,13 @@ export class MetricsAggregatorService {
     this.collectMetrics();
 
     // Schedule recurring collection
-    this.intervalHandle = setInterval(
-      () => this.collectMetrics(),
-      this.collectionIntervalMs
-    );
+    this.intervalHandle = setInterval(() => this.collectMetrics(), this.collectionIntervalMs);
 
     // Schedule SLO burn-rate checks every 5 minutes
-    setInterval(
-      () => this.checkSLOBurnRates(),
-      5 * 60 * 1000
-    );
+    setInterval(() => this.checkSLOBurnRates(), 5 * 60 * 1000);
 
     // Schedule cleanup every hour
-    setInterval(
-      () => this.cleanupExpiredMetrics(),
-      60 * 60 * 1000
-    );
+    setInterval(() => this.cleanupExpiredMetrics(), 60 * 60 * 1000);
   }
 
   /**
@@ -136,11 +127,11 @@ export class MetricsAggregatorService {
 
       console.log('📊 Metrics collected successfully:', {
         grading_lag_p95: metrics.grading_lag.p95_ms,
-        queue_backlog: metrics.queue_status.instant_backlog + metrics.queue_status.scheduled_backlog,
+        queue_backlog:
+          metrics.queue_status.instant_backlog + metrics.queue_status.scheduled_backlog,
         system_uptime: metrics.system_health.uptime_pct,
         total_exposure: metrics.exposure_metrics.total_exposure,
       });
-
     } catch (error) {
       UnitTalkTracing.recordError(span, error as Error);
       console.error('❌ Error collecting metrics:', error);
@@ -153,26 +144,30 @@ export class MetricsAggregatorService {
    * Gather metrics from all sources
    */
   private async gatherAllMetrics(): Promise<MetricCollection> {
-    const [
-      gradingLag,
-      queueStatus,
-      systemHealth,
-      exposureMetrics,
-      temporalHealth
-    ] = await Promise.allSettled([
-      this.collectGradingLag(),
-      this.collectQueueStatus(),
-      this.collectSystemHealth(),
-      this.collectExposureMetrics(),
-      this.collectTemporalHealth(),
-    ]);
+    const [gradingLag, queueStatus, systemHealth, exposureMetrics, temporalHealth] =
+      await Promise.allSettled([
+        this.collectGradingLag(),
+        this.collectQueueStatus(),
+        this.collectSystemHealth(),
+        this.collectExposureMetrics(),
+        this.collectTemporalHealth(),
+      ]);
 
     return {
-      grading_lag: gradingLag.status === 'fulfilled' ? gradingLag.value : this.getDefaultGradingLag(),
-      queue_status: queueStatus.status === 'fulfilled' ? queueStatus.value : this.getDefaultQueueStatus(),
-      system_health: systemHealth.status === 'fulfilled' ? systemHealth.value : this.getDefaultSystemHealth(),
-      exposure_metrics: exposureMetrics.status === 'fulfilled' ? exposureMetrics.value : this.getDefaultExposureMetrics(),
-      temporal_health: temporalHealth.status === 'fulfilled' ? temporalHealth.value : this.getDefaultTemporalHealth(),
+      grading_lag:
+        gradingLag.status === 'fulfilled' ? gradingLag.value : this.getDefaultGradingLag(),
+      queue_status:
+        queueStatus.status === 'fulfilled' ? queueStatus.value : this.getDefaultQueueStatus(),
+      system_health:
+        systemHealth.status === 'fulfilled' ? systemHealth.value : this.getDefaultSystemHealth(),
+      exposure_metrics:
+        exposureMetrics.status === 'fulfilled'
+          ? exposureMetrics.value
+          : this.getDefaultExposureMetrics(),
+      temporal_health:
+        temporalHealth.status === 'fulfilled'
+          ? temporalHealth.value
+          : this.getDefaultTemporalHealth(),
     };
   }
 
@@ -180,10 +175,7 @@ export class MetricsAggregatorService {
    * Collect grading lag metrics
    */
   private async collectGradingLag(): Promise<MetricCollection['grading_lag']> {
-    const { data, error } = await supabase
-      .from('vw_grading_lag')
-      .select('*')
-      .single();
+    const { data, error } = await supabase.from('vw_grading_lag').select('*').single();
 
     if (error || !data) {
       return this.getDefaultGradingLag();
@@ -201,10 +193,7 @@ export class MetricsAggregatorService {
    * Collect queue status metrics
    */
   private async collectQueueStatus(): Promise<MetricCollection['queue_status']> {
-    const { data, error } = await supabase
-      .from('vw_queue_backlog')
-      .select('*')
-      .single();
+    const { data, error } = await supabase.from('vw_queue_backlog').select('*').single();
 
     if (error || !data) {
       return this.getDefaultQueueStatus();
@@ -233,7 +222,7 @@ export class MetricsAggregatorService {
       .select('*', { count: 'exact', head: true })
       .gte('created_at', new Date(Date.now() - 5 * 60 * 1000).toISOString()); // Last 5 minutes
 
-    const uptimePct = error ? 0 : Math.min(100, (recentMetrics || 0) / 5 * 100); // Expected 5 collections in 5 minutes
+    const uptimePct = error ? 0 : Math.min(100, ((recentMetrics || 0) / 5) * 100); // Expected 5 collections in 5 minutes
 
     // Calculate error rate from recent system metrics
     const { count: errorMetrics } = await supabase
@@ -268,10 +257,16 @@ export class MetricsAggregatorService {
       return this.getDefaultExposureMetrics();
     }
 
-    const totalExposure = exposureData.reduce((sum, item) => sum + ((item as any).exposure_amount as number || 0), 0);
-    const kellyAtRisk = exposureData.reduce((sum, item) => sum + Math.abs((item as any).kelly_fraction as number || 0), 0);
-    const highRiskPicks = exposureData.filter(item => 
-      item.risk_tier === 'high' || item.risk_tier === 'critical'
+    const totalExposure = exposureData.reduce(
+      (sum, item) => sum + (((item as any).exposure_amount as number) || 0),
+      0
+    );
+    const kellyAtRisk = exposureData.reduce(
+      (sum, item) => sum + Math.abs(((item as any).kelly_fraction as number) || 0),
+      0
+    );
+    const highRiskPicks = exposureData.filter(
+      item => item.risk_tier === 'high' || item.risk_tier === 'critical'
     ).length;
 
     // Count correlation violations (more than 3 picks in same cluster)
@@ -280,7 +275,9 @@ export class MetricsAggregatorService {
       const cluster = (item as any).correlation_cluster as string;
       clusterCounts.set(cluster, (clusterCounts.get(cluster) || 0) + 1);
     });
-    const correlationViolations = Array.from(clusterCounts.values()).filter(count => count > 3).length;
+    const correlationViolations = Array.from(clusterCounts.values()).filter(
+      count => count > 3
+    ).length;
 
     return {
       total_exposure: Math.round(totalExposure),
@@ -432,9 +429,7 @@ export class MetricsAggregatorService {
       },
     ];
 
-    const { error } = await supabase
-      .from('system_metrics')
-      .insert(metricsToStore);
+    const { error } = await supabase.from('system_metrics').insert(metricsToStore);
 
     if (error) {
       console.error('Error storing metrics:', error);
@@ -450,10 +445,7 @@ export class MetricsAggregatorService {
 
     try {
       // Get all enabled SLOs
-      const { data: slos, error } = await supabase
-        .from('slos')
-        .select('*')
-        .eq('enabled', true);
+      const { data: slos, error } = await supabase.from('slos').select('*').eq('enabled', true);
 
       if (error || !slos) {
         console.error('Error fetching SLOs:', error);
@@ -468,7 +460,6 @@ export class MetricsAggregatorService {
       UnitTalkTracing.recordSuccess(span, {
         itemsProcessed: slos.length,
       });
-
     } catch (error) {
       UnitTalkTracing.recordError(span, error as Error);
       console.error('Error checking SLO burn rates:', error);
@@ -508,8 +499,8 @@ export class MetricsAggregatorService {
     const slowThreshold = slo.slow_burn_rate || 1.0;
 
     const shouldAlert = burnRate > fastThreshold || burnRate > slowThreshold;
-    const severity = burnRate > fastThreshold ? 'critical' : 
-                    burnRate > slowThreshold ? 'high' : 'medium';
+    const severity =
+      burnRate > fastThreshold ? 'critical' : burnRate > slowThreshold ? 'high' : 'medium';
 
     return {
       slo_id: slo.id,
@@ -552,17 +543,15 @@ export class MetricsAggregatorService {
         .eq('id', existingIncident.id);
     } else {
       // Create new incident
-      await supabase
-        .from('slo_incidents')
-        .insert({
-          slo_id: burnRate.slo_id,
-          burn_rate: burnRate.fast_burn_rate,
-          window: burnRate.fast_window,
-          status: 'open',
-          severity: burnRate.severity,
-          details: JSON.stringify(burnRate),
-          created_at: new Date().toISOString(),
-        });
+      await supabase.from('slo_incidents').insert({
+        slo_id: burnRate.slo_id,
+        burn_rate: burnRate.fast_burn_rate,
+        window: burnRate.fast_window,
+        status: 'open',
+        severity: burnRate.severity,
+        details: JSON.stringify(burnRate),
+        created_at: new Date().toISOString(),
+      });
     }
 
     console.log(`🚨 SLO incident created/updated for ${burnRate.slo_name}:`, {
@@ -577,7 +566,7 @@ export class MetricsAggregatorService {
   private async cleanupExpiredMetrics(): Promise<void> {
     try {
       const { data, error } = await supabase.rpc('cleanup_expired_metrics');
-      
+
       if (error) {
         console.error('Error cleaning up expired metrics:', error);
       } else {

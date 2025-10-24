@@ -470,12 +470,7 @@ export default function AgentDashboardPage() {
                   Updated {timeAgo(logsLastUpdate)}
                 </Badge>
               )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={refreshLogs}
-                disabled={logsLoading}
-              >
+              <Button variant="ghost" size="sm" onClick={refreshLogs} disabled={logsLoading}>
                 <RefreshCw className={`w-4 h-4 ${logsLoading ? 'animate-spin' : ''}`} />
               </Button>
               {logsRealTimeEnabled ? (
@@ -527,7 +522,9 @@ export default function AgentDashboardPage() {
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center space-x-2 mb-1">
-                      <span className="text-muted-foreground text-xs">{timeAgo(log.timestamp)}</span>
+                      <span className="text-muted-foreground text-xs">
+                        {timeAgo(log.timestamp)}
+                      </span>
                       <Badge variant="outline" className="text-xs">
                         {log.agent}
                       </Badge>
@@ -557,8 +554,8 @@ export default function AgentDashboardPage() {
             <div className="flex items-center justify-between text-sm text-muted-foreground">
               <span>Total Logs: {agentLogs.length}</span>
               <span>
-                Errors: {agentLogs.filter(log => log.level === 'error').length} | 
-                Warnings: {agentLogs.filter(log => log.level === 'warn').length}
+                Errors: {agentLogs.filter(log => log.level === 'error').length} | Warnings:{' '}
+                {agentLogs.filter(log => log.level === 'warn').length}
               </span>
             </div>
             <Button variant="outline" size="sm" className="w-full">

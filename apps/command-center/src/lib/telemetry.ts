@@ -74,7 +74,7 @@ export class UnitTalkTracing {
     try {
       // Mock synthetic canary test
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
       return {
         success: true,
         duration_ms: Date.now() - start,

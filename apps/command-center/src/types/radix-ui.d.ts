@@ -1,0 +1,242 @@
+/**
+ * Type augmentations for Radix UI components
+ *
+ * Newer versions of Radix UI have incomplete type definitions that don't include
+ * className and children props, even though the components accept them at runtime.
+ * This file augments those types to include the missing props.
+ *
+ * Date: 2025-10-24
+ */
+
+import * as React from 'react';
+
+declare module '@radix-ui/react-dialog' {
+  interface DialogOverlayProps {
+    className?: string;
+  }
+
+  interface DialogContentProps {
+    className?: string;
+    children?: React.ReactNode;
+  }
+
+  interface DialogTitleProps {
+    className?: string;
+    children?: React.ReactNode;
+  }
+
+  interface DialogDescriptionProps {
+    className?: string;
+    children?: React.ReactNode;
+  }
+
+  interface DialogTriggerProps {
+    asChild?: boolean;
+    children?: React.ReactNode;
+  }
+
+  interface DialogCloseProps {
+    asChild?: boolean;
+    children?: React.ReactNode;
+    className?: string;
+  }
+}
+
+declare module '@radix-ui/react-dropdown-menu' {
+  interface DropdownMenuTriggerProps {
+    asChild?: boolean;
+    children?: React.ReactNode;
+  }
+
+  interface DropdownMenuSubTriggerProps {
+    className?: string;
+    children?: React.ReactNode;
+  }
+
+  interface DropdownMenuSubContentProps {
+    className?: string;
+    children?: React.ReactNode;
+  }
+
+  interface DropdownMenuContentProps {
+    className?: string;
+    children?: React.ReactNode;
+  }
+
+  interface DropdownMenuItemProps {
+    className?: string;
+    children?: React.ReactNode;
+  }
+
+  interface DropdownMenuCheckboxItemProps {
+    className?: string;
+    children?: React.ReactNode;
+  }
+
+  interface DropdownMenuRadioItemProps {
+    className?: string;
+    children?: React.ReactNode;
+  }
+
+  interface DropdownMenuLabelProps {
+    className?: string;
+    children?: React.ReactNode;
+  }
+
+  interface DropdownMenuSeparatorProps {
+    className?: string;
+  }
+
+  interface DropdownMenuItemIndicatorProps {
+    children?: React.ReactNode;
+  }
+}
+
+declare module '@radix-ui/react-select' {
+  interface SelectTriggerProps {
+    className?: string;
+    children?: React.ReactNode;
+  }
+
+  interface SelectScrollUpButtonProps {
+    className?: string;
+    children?: React.ReactNode;
+  }
+
+  interface SelectScrollDownButtonProps {
+    className?: string;
+    children?: React.ReactNode;
+  }
+
+  interface SelectContentProps {
+    className?: string;
+    children?: React.ReactNode;
+  }
+
+  interface SelectLabelProps {
+    className?: string;
+    children?: React.ReactNode;
+  }
+
+  interface SelectItemProps {
+    className?: string;
+    children?: React.ReactNode;
+  }
+
+  interface SelectSeparatorProps {
+    className?: string;
+  }
+
+  interface SelectIconProps {
+    asChild?: boolean;
+    children?: React.ReactNode;
+  }
+
+  interface SelectViewportProps {
+    className?: string;
+    children?: React.ReactNode;
+  }
+}
+
+declare module '@radix-ui/react-tabs' {
+  interface TabsProps {
+    className?: string;
+    children?: React.ReactNode;
+    value?: string;
+    onValueChange?: (value: string) => void;
+    defaultValue?: string;
+  }
+
+  interface TabsListProps {
+    className?: string;
+    children?: React.ReactNode;
+  }
+
+  interface TabsTriggerProps {
+    className?: string;
+    children?: React.ReactNode;
+  }
+
+  interface TabsContentProps {
+    className?: string;
+    children?: React.ReactNode;
+  }
+}
+
+declare module '@radix-ui/react-toast' {
+  interface ToastViewportProps {
+    className?: string;
+  }
+
+  interface ToastProps {
+    className?: string;
+    children?: React.ReactNode;
+  }
+
+  interface ToastActionProps {
+    className?: string;
+    children?: React.ReactNode;
+  }
+
+  interface ToastCloseProps {
+    className?: string;
+    children?: React.ReactNode;
+  }
+
+  interface ToastTitleProps {
+    className?: string;
+    children?: React.ReactNode;
+  }
+
+  interface ToastDescriptionProps {
+    className?: string;
+    children?: React.ReactNode;
+  }
+}
+
+declare module '@radix-ui/react-avatar' {
+  interface AvatarProps {
+    className?: string;
+    children?: React.ReactNode;
+  }
+
+  interface AvatarImageProps {
+    className?: string;
+    src?: string;
+    alt?: string;
+  }
+
+  interface AvatarFallbackProps {
+    className?: string;
+    children?: React.ReactNode;
+  }
+}
+
+declare module '@radix-ui/react-progress' {
+  interface ProgressProps {
+    className?: string;
+    value?: number;
+    children?: React.ReactNode;
+  }
+
+  interface ProgressIndicatorProps {
+    className?: string;
+    style?: React.CSSProperties;
+  }
+}
+
+declare module '@radix-ui/react-label' {
+  interface LabelProps {
+    className?: string;
+    children?: React.ReactNode;
+    htmlFor?: string;
+  }
+}
+
+declare module '@radix-ui/react-separator' {
+  interface SeparatorProps {
+    className?: string;
+    orientation?: 'horizontal' | 'vertical';
+    decorative?: boolean;
+  }
+}

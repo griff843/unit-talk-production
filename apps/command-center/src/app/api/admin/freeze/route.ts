@@ -27,9 +27,9 @@ interface FreezeConfig {
 
 const DEFAULT_FREEZE_CONFIG: FreezeConfig = {
   enabled: false,
-  freeze_publishing: true,       // Stop all publishing
-  enable_shadow_mode: true,      // Auto-enable shadow mode
-  allow_grading: true,          // Continue grading for analysis
+  freeze_publishing: true, // Stop all publishing
+  enable_shadow_mode: true, // Auto-enable shadow mode
+  allow_grading: true, // Continue grading for analysis
   emergency_override: false,
 };
 
@@ -66,10 +66,7 @@ class FreezeService {
   /**
    * Update freeze configuration
    */
-  static async updateConfig(
-    config: Partial<FreezeConfig>,
-    actor: string
-  ): Promise<FreezeConfig> {
+  static async updateConfig(config: Partial<FreezeConfig>, actor: string): Promise<FreezeConfig> {
     const currentConfig = await this.getStatus();
     const newConfig = {
       ...currentConfig,
@@ -79,14 +76,12 @@ class FreezeService {
     };
 
     // Update in database
-    const { error } = await supabase
-      .from('system_config')
-      .upsert({
-        config_key: 'system_freeze',
-        config_value: JSON.stringify(newConfig),
-        updated_at: new Date().toISOString(),
-        updated_by: actor,
-      });
+    const { error } = await supabase.from('system_config').upsert({
+      config_key: 'system_freeze',
+      config_value: JSON.stringify(newConfig),
+      updated_at: new Date().toISOString(),
+      updated_by: actor,
+    });
 
     if (error) {
       throw new Error(`Failed to update freeze status: ${error.message}`);
@@ -120,13 +115,11 @@ class FreezeService {
       };
 
       // Store freeze settings for agents to read
-      const { error: configError } = await supabase
-        .from('system_config')
-        .upsert({
-          config_key: 'freeze_restrictions',
-          config_value: JSON.stringify(freezeSettings),
-          updated_at: new Date().toISOString(),
-        });
+      const { error: configError } = await supabase.from('system_config').upsert({
+        config_key: 'freeze_restrictions',
+        config_value: JSON.stringify(freezeSettings),
+        updated_at: new Date().toISOString(),
+      });
 
       if (configError) {
         console.error('Error applying freeze restrictions:', configError);
@@ -141,7 +134,7 @@ class FreezeService {
       if (config.freeze_publishing) {
         const { error: picksError } = await supabase
           .from('unified_picks')
-          .update({ 
+          .update({
             frozen: true,
             frozen_at: new Date().toISOString(),
             frozen_reason: 'System freeze activated',
@@ -153,7 +146,6 @@ class FreezeService {
           console.error('Error freezing picks:', picksError);
         }
       }
-
     } catch (error) {
       console.error('Error in applyFreezeRestrictions:', error);
       throw error;
@@ -190,7 +182,6 @@ class FreezeService {
       if (picksError) {
         console.error('Error unfreezing picks:', picksError);
       }
-
     } catch (error) {
       console.error('Error in removeFreezeRestrictions:', error);
       throw error;
@@ -202,17 +193,15 @@ class FreezeService {
    */
   private static async enableShadowMode(): Promise<void> {
     try {
-      const { error } = await supabase
-        .from('system_config')
-        .upsert({
-          config_key: 'shadow_mode',
-          config_value: JSON.stringify({
-            enabled: true,
-            reason: 'Auto-enabled by system freeze',
-            enabled_at: new Date().toISOString(),
-          }),
-          updated_at: new Date().toISOString(),
-        });
+      const { error } = await supabase.from('system_config').upsert({
+        config_key: 'shadow_mode',
+        config_value: JSON.stringify({
+          enabled: true,
+          reason: 'Auto-enabled by system freeze',
+          enabled_at: new Date().toISOString(),
+        }),
+        updated_at: new Date().toISOString(),
+      });
 
       if (error) {
         console.error('Error enabling shadow mode:', error);
@@ -227,18 +216,16 @@ class FreezeService {
    */
   private static async recordFreezeMetric(enabled: boolean): Promise<void> {
     try {
-      const { error } = await supabase
-        .from('system_metrics')
-        .insert({
-          metric: 'system_freeze_status',
-          value: enabled ? 1 : 0,
-          labels: JSON.stringify({
-            action: enabled ? 'frozen' : 'unfrozen',
-            timestamp: new Date().toISOString(),
-          }),
-          source: 'admin_control',
-          created_at: new Date().toISOString(),
-        });
+      const { error } = await supabase.from('system_metrics').insert({
+        metric: 'system_freeze_status',
+        value: enabled ? 1 : 0,
+        labels: JSON.stringify({
+          action: enabled ? 'frozen' : 'unfrozen',
+          timestamp: new Date().toISOString(),
+        }),
+        source: 'admin_control',
+        created_at: new Date().toISOString(),
+      });
 
       if (error) {
         console.error('Error recording freeze metric:', error);
@@ -277,15 +264,15 @@ class FreezeService {
         .eq('config_key', 'shadow_mode')
         .single();
 
-      const shadowModeActive = shadowData ? 
-        JSON.parse((shadowData.config_value as string)).enabled : false;
+      const shadowModeActive = shadowData
+        ? JSON.parse(shadowData.config_value as string).enabled
+        : false;
 
       return {
         frozen_picks: frozenCount || 0,
         queued_picks: queuedCount || 0,
         shadow_mode_active: shadowModeActive,
       };
-
     } catch (error) {
       console.error('Error getting freeze impact stats:', error);
       return {
@@ -310,7 +297,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const userId = request.headers.get('x-user-id') || 'anonymous';
-    
+
     // Check permissions
     await RBACService.requirePermission(userId, Permission.VIEW_DASHBOARD);
 
@@ -320,7 +307,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     UnitTalkTracing.recordSuccess(span);
-    
+
     return NextResponse.json({
       success: true,
       data: {
@@ -328,16 +315,17 @@ export async function GET(request: NextRequest) {
         impact: impactStats,
       },
     });
-
   } catch (error) {
     UnitTalkTracing.recordError(span, error as Error);
-    
-    return NextResponse.json({
-      success: false,
-      error: (error as Error).message,
-      code: 'FREEZE_GET_ERROR',
-    }, { status: 500 });
 
+    return NextResponse.json(
+      {
+        success: false,
+        error: (error as Error).message,
+        code: 'FREEZE_GET_ERROR',
+      },
+      { status: 500 }
+    );
   } finally {
     span.end();
   }
@@ -362,11 +350,14 @@ export async function POST(request: NextRequest) {
     const { enable, reason, estimated_duration, scheduled_end, emergency_override } = body;
 
     if (typeof enable !== 'boolean') {
-      return NextResponse.json({
-        success: false,
-        error: 'Missing required field: enable (boolean)',
-        code: 'INVALID_REQUEST',
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Missing required field: enable (boolean)',
+          code: 'INVALID_REQUEST',
+        },
+        { status: 400 }
+      );
     }
 
     // Get current state for audit
@@ -426,10 +417,9 @@ export async function POST(request: NextRequest) {
       },
       message: `System ${enable ? 'freeze enabled' : 'freeze disabled'} successfully`,
     });
-
   } catch (error) {
     const errorMessage = (error as Error).message || 'Unknown error';
-    
+
     UnitTalkTracing.recordError(span, error as Error);
 
     // Log failed attempt
@@ -446,13 +436,15 @@ export async function POST(request: NextRequest) {
     });
 
     const statusCode = errorMessage.includes('Access denied') ? 403 : 500;
-    
-    return NextResponse.json({
-      success: false,
-      error: errorMessage,
-      code: statusCode === 403 ? 'INSUFFICIENT_PERMISSIONS' : 'FREEZE_ERROR',
-    }, { status: statusCode });
 
+    return NextResponse.json(
+      {
+        success: false,
+        error: errorMessage,
+        code: statusCode === 403 ? 'INSUFFICIENT_PERMISSIONS' : 'FREEZE_ERROR',
+      },
+      { status: statusCode }
+    );
   } finally {
     span.end();
   }

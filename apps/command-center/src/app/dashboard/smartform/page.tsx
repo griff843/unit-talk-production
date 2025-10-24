@@ -1,11 +1,11 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ClientTime } from '@/components/ui/client-time'
+import { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ClientTime } from '@/components/ui/client-time';
 import {
   Dialog,
   DialogContent,
@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog'
+} from '@/components/ui/dialog';
 import {
   Table,
   TableBody,
@@ -21,22 +21,22 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
-import { 
-  FileCheck, 
-  Eye, 
-  ThumbsUp, 
-  ThumbsDown, 
-  Clock, 
+} from '@/components/ui/table';
+import {
+  FileCheck,
+  Eye,
+  ThumbsUp,
+  ThumbsDown,
+  Clock,
   AlertTriangle,
   CheckCircle,
   XCircle,
   Filter,
   Download,
   Tag,
-  MessageSquare
-} from 'lucide-react'
-import { getTierColor, getStatusColor, timeAgo, formatPercentage } from '@/lib/utils'
+  MessageSquare,
+} from 'lucide-react';
+import { getTierColor, getStatusColor, timeAgo, formatPercentage } from '@/lib/utils';
 
 // Mock SmartForm submission data
 const submissions = [
@@ -51,11 +51,12 @@ const submissions = [
     odds: -110,
     book: 'DraftKings',
     confidence: 92,
-    reasoning: 'Ohtani has hit over 1.5 total bases in 8 of his last 10 games. Facing a struggling pitcher with a 5.40 ERA.',
+    reasoning:
+      'Ohtani has hit over 1.5 total bases in 8 of his last 10 games. Facing a struggling pitcher with a 5.40 ERA.',
     aiSuggestedTier: 'S',
     validationFlags: ['high_confidence', 'strong_reasoning'],
     status: 'pending',
-    evScore: 8.7
+    evScore: 8.7,
   },
   {
     id: 'sf_002',
@@ -68,11 +69,12 @@ const submissions = [
     odds: -105,
     book: 'FanDuel',
     confidence: 78,
-    reasoning: 'LeBron averaging 27.8 PPG in last 5 games. Lakers need this win for playoff positioning.',
+    reasoning:
+      'LeBron averaging 27.8 PPG in last 5 games. Lakers need this win for playoff positioning.',
     aiSuggestedTier: 'B',
     validationFlags: ['moderate_confidence'],
     status: 'approved',
-    evScore: 4.2
+    evScore: 4.2,
   },
   {
     id: 'sf_003',
@@ -89,7 +91,7 @@ const submissions = [
     aiSuggestedTier: 'C',
     validationFlags: ['weather_dependent', 'low_sample_size'],
     status: 'needs_review',
-    evScore: 2.1
+    evScore: 2.1,
   },
   {
     id: 'sf_004',
@@ -102,51 +104,79 @@ const submissions = [
     odds: -120,
     book: 'BetMGM',
     confidence: 85,
-    reasoning: 'McDavid has recorded multiple points in 12 of last 15 games. Oilers in must-win situation.',
+    reasoning:
+      'McDavid has recorded multiple points in 12 of last 15 games. Oilers in must-win situation.',
     aiSuggestedTier: 'A',
     validationFlags: ['high_confidence', 'strong_trend'],
     status: 'rejected',
     evScore: 1.8,
-    rejectionReason: 'Insufficient edge value for tier assignment'
-  }
-]
+    rejectionReason: 'Insufficient edge value for tier assignment',
+  },
+];
 
 const stats = [
   { title: 'Pending Review', value: '12', change: '+3', icon: Clock },
   { title: 'Approved Today', value: '47', change: '+8', icon: CheckCircle },
   { title: 'Rejected Today', value: '6', change: '-2', icon: XCircle },
-  { title: 'Avg Review Time', value: '4.2m', change: '-0.8m', icon: FileCheck }
-]
+  { title: 'Avg Review Time', value: '4.2m', change: '-0.8m', icon: FileCheck },
+];
 
-const validationFlagDescriptions: Record<string, { label: string; color: string; description: string }> = {
-  'high_confidence': { label: 'High Confidence', color: 'bg-green-500/20 text-green-400', description: 'Capper confidence >= 85%' },
-  'strong_reasoning': { label: 'Strong Reasoning', color: 'bg-blue-500/20 text-blue-400', description: 'Detailed analysis provided' },
-  'moderate_confidence': { label: 'Moderate Confidence', color: 'bg-yellow-500/20 text-yellow-400', description: 'Capper confidence 70-84%' },
-  'weather_dependent': { label: 'Weather Risk', color: 'bg-orange-500/20 text-orange-400', description: 'Weather may impact outcome' },
-  'low_sample_size': { label: 'Small Sample', color: 'bg-purple-500/20 text-purple-400', description: 'Limited historical data' },
-  'strong_trend': { label: 'Strong Trend', color: 'bg-emerald-500/20 text-emerald-400', description: 'Clear statistical trend identified' }
-}
+const validationFlagDescriptions: Record<
+  string,
+  { label: string; color: string; description: string }
+> = {
+  high_confidence: {
+    label: 'High Confidence',
+    color: 'bg-green-500/20 text-green-400',
+    description: 'Capper confidence >= 85%',
+  },
+  strong_reasoning: {
+    label: 'Strong Reasoning',
+    color: 'bg-blue-500/20 text-blue-400',
+    description: 'Detailed analysis provided',
+  },
+  moderate_confidence: {
+    label: 'Moderate Confidence',
+    color: 'bg-yellow-500/20 text-yellow-400',
+    description: 'Capper confidence 70-84%',
+  },
+  weather_dependent: {
+    label: 'Weather Risk',
+    color: 'bg-orange-500/20 text-orange-400',
+    description: 'Weather may impact outcome',
+  },
+  low_sample_size: {
+    label: 'Small Sample',
+    color: 'bg-purple-500/20 text-purple-400',
+    description: 'Limited historical data',
+  },
+  strong_trend: {
+    label: 'Strong Trend',
+    color: 'bg-emerald-500/20 text-emerald-400',
+    description: 'Clear statistical trend identified',
+  },
+};
 
 export default function SmartFormReviewPage() {
-  const [selectedSubmission, setSelectedSubmission] = useState<string | null>(null)
-  const [selectedTab, setSelectedTab] = useState('pending')
+  const [selectedSubmission, setSelectedSubmission] = useState<string | null>(null);
+  const [selectedTab, setSelectedTab] = useState('pending');
 
   const filteredSubmissions = submissions.filter(sub => {
-    if (selectedTab === 'pending') return sub.status === 'pending' || sub.status === 'needs_review'
-    if (selectedTab === 'approved') return sub.status === 'approved'
-    if (selectedTab === 'rejected') return sub.status === 'rejected'
-    return true
-  })
+    if (selectedTab === 'pending') return sub.status === 'pending' || sub.status === 'needs_review';
+    if (selectedTab === 'approved') return sub.status === 'approved';
+    if (selectedTab === 'rejected') return sub.status === 'rejected';
+    return true;
+  });
 
   const handleApprove = (submissionId: string) => {
-    console.log('Approving submission:', submissionId)
+    console.log('Approving submission:', submissionId);
     // In production: API call to approve submission
-  }
+  };
 
   const handleReject = (submissionId: string) => {
-    console.log('Rejecting submission:', submissionId)
+    console.log('Rejecting submission:', submissionId);
     // In production: API call to reject submission
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -168,12 +198,10 @@ export default function SmartFormReviewPage() {
 
       {/* Key Metrics */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
+        {stats.map(stat => (
           <Card key={stat.title} className="metric-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                {stat.title}
-              </CardTitle>
+              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
               <stat.icon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -199,7 +227,12 @@ export default function SmartFormReviewPage() {
           <Tabs value={selectedTab} onValueChange={setSelectedTab}>
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="pending">
-                Pending ({submissions.filter(s => s.status === 'pending' || s.status === 'needs_review').length})
+                Pending (
+                {
+                  submissions.filter(s => s.status === 'pending' || s.status === 'needs_review')
+                    .length
+                }
+                )
               </TabsTrigger>
               <TabsTrigger value="approved">
                 Approved ({submissions.filter(s => s.status === 'approved').length})
@@ -207,9 +240,7 @@ export default function SmartFormReviewPage() {
               <TabsTrigger value="rejected">
                 Rejected ({submissions.filter(s => s.status === 'rejected').length})
               </TabsTrigger>
-              <TabsTrigger value="all">
-                All ({submissions.length})
-              </TabsTrigger>
+              <TabsTrigger value="all">All ({submissions.length})</TabsTrigger>
             </TabsList>
 
             <TabsContent value={selectedTab} className="mt-6">
@@ -229,7 +260,7 @@ export default function SmartFormReviewPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredSubmissions.map((submission) => (
+                    {filteredSubmissions.map(submission => (
                       <TableRow key={submission.id}>
                         <TableCell>
                           <div className="text-sm">
@@ -239,9 +270,7 @@ export default function SmartFormReviewPage() {
                             </p>
                           </div>
                         </TableCell>
-                        <TableCell className="font-medium">
-                          {submission.capper}
-                        </TableCell>
+                        <TableCell className="font-medium">{submission.capper}</TableCell>
                         <TableCell>
                           <div>
                             <p className="font-medium">{submission.player}</p>
@@ -249,7 +278,8 @@ export default function SmartFormReviewPage() {
                               {submission.sport} • {submission.market} {submission.line}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {submission.odds > 0 ? '+' : ''}{submission.odds} @ {submission.book}
+                              {submission.odds > 0 ? '+' : ''}
+                              {submission.odds} @ {submission.book}
                             </p>
                           </div>
                         </TableCell>
@@ -266,7 +296,7 @@ export default function SmartFormReviewPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
-                            {submission.validationFlags.slice(0, 2).map((flag) => (
+                            {submission.validationFlags.slice(0, 2).map(flag => (
                               <Badge
                                 key={flag}
                                 variant="outline"
@@ -283,13 +313,22 @@ export default function SmartFormReviewPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={
-                            submission.status === 'approved' ? 'default' :
-                            submission.status === 'pending' ? 'secondary' :
-                            submission.status === 'needs_review' ? 'destructive' :
-                            submission.status === 'rejected' ? 'outline' : 'outline'
-                          }>
-                            {submission.status === 'needs_review' ? 'needs review' : submission.status}
+                          <Badge
+                            variant={
+                              submission.status === 'approved'
+                                ? 'default'
+                                : submission.status === 'pending'
+                                  ? 'secondary'
+                                  : submission.status === 'needs_review'
+                                    ? 'destructive'
+                                    : submission.status === 'rejected'
+                                      ? 'outline'
+                                      : 'outline'
+                            }
+                          >
+                            {submission.status === 'needs_review'
+                              ? 'needs review'
+                              : submission.status}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -312,26 +351,50 @@ export default function SmartFormReviewPage() {
                                     <div>
                                       <h4 className="font-medium mb-2">Pick Details</h4>
                                       <div className="space-y-1 text-sm">
-                                        <p><span className="text-muted-foreground">Player:</span> {submission.player}</p>
-                                        <p><span className="text-muted-foreground">Market:</span> {submission.market} {submission.line}</p>
-                                        <p><span className="text-muted-foreground">Odds:</span> {submission.odds > 0 ? '+' : ''}{submission.odds}</p>
-                                        <p><span className="text-muted-foreground">Book:</span> {submission.book}</p>
+                                        <p>
+                                          <span className="text-muted-foreground">Player:</span>{' '}
+                                          {submission.player}
+                                        </p>
+                                        <p>
+                                          <span className="text-muted-foreground">Market:</span>{' '}
+                                          {submission.market} {submission.line}
+                                        </p>
+                                        <p>
+                                          <span className="text-muted-foreground">Odds:</span>{' '}
+                                          {submission.odds > 0 ? '+' : ''}
+                                          {submission.odds}
+                                        </p>
+                                        <p>
+                                          <span className="text-muted-foreground">Book:</span>{' '}
+                                          {submission.book}
+                                        </p>
                                       </div>
                                     </div>
                                     <div>
                                       <h4 className="font-medium mb-2">AI Analysis</h4>
                                       <div className="space-y-1 text-sm">
-                                        <p><span className="text-muted-foreground">Suggested Tier:</span> 
-                                          <Badge className={`ml-2 ${getTierColor(submission.aiSuggestedTier)}`}>
+                                        <p>
+                                          <span className="text-muted-foreground">
+                                            Suggested Tier:
+                                          </span>
+                                          <Badge
+                                            className={`ml-2 ${getTierColor(submission.aiSuggestedTier)}`}
+                                          >
                                             {submission.aiSuggestedTier}
                                           </Badge>
                                         </p>
-                                        <p><span className="text-muted-foreground">EV Score:</span> {submission.evScore}</p>
-                                        <p><span className="text-muted-foreground">Confidence:</span> {submission.confidence}%</p>
+                                        <p>
+                                          <span className="text-muted-foreground">EV Score:</span>{' '}
+                                          {submission.evScore}
+                                        </p>
+                                        <p>
+                                          <span className="text-muted-foreground">Confidence:</span>{' '}
+                                          {submission.confidence}%
+                                        </p>
                                       </div>
                                     </div>
                                   </div>
-                                  
+
                                   <div>
                                     <h4 className="font-medium mb-2">Capper Reasoning</h4>
                                     <p className="text-sm bg-muted p-3 rounded-md">
@@ -342,11 +405,14 @@ export default function SmartFormReviewPage() {
                                   <div>
                                     <h4 className="font-medium mb-2">Validation Flags</h4>
                                     <div className="flex flex-wrap gap-2">
-                                      {submission.validationFlags.map((flag) => (
+                                      {submission.validationFlags.map(flag => (
                                         <Badge
                                           key={flag}
                                           variant="outline"
-                                          className={validationFlagDescriptions[flag]?.color || 'bg-gray-500/20 text-gray-400'}
+                                          className={
+                                            validationFlagDescriptions[flag]?.color ||
+                                            'bg-gray-500/20 text-gray-400'
+                                          }
                                           title={validationFlagDescriptions[flag]?.description}
                                         >
                                           {validationFlagDescriptions[flag]?.label || flag}
@@ -355,16 +421,20 @@ export default function SmartFormReviewPage() {
                                     </div>
                                   </div>
 
-                                  {submission.status === 'rejected' && submission.rejectionReason && (
-                                    <div>
-                                      <h4 className="font-medium mb-2 text-red-600">Rejection Reason</h4>
-                                      <p className="text-sm bg-red-50 dark:bg-red-950 p-3 rounded-md">
-                                        {submission.rejectionReason}
-                                      </p>
-                                    </div>
-                                  )}
+                                  {submission.status === 'rejected' &&
+                                    submission.rejectionReason && (
+                                      <div>
+                                        <h4 className="font-medium mb-2 text-red-600">
+                                          Rejection Reason
+                                        </h4>
+                                        <p className="text-sm bg-red-50 dark:bg-red-950 p-3 rounded-md">
+                                          {submission.rejectionReason}
+                                        </p>
+                                      </div>
+                                    )}
 
-                                  {(submission.status === 'pending' || submission.status === 'needs_review') && (
+                                  {(submission.status === 'pending' ||
+                                    submission.status === 'needs_review') && (
                                     <div className="flex justify-end space-x-2 pt-4 border-t">
                                       <Button
                                         variant="outline"
@@ -386,25 +456,26 @@ export default function SmartFormReviewPage() {
                                 </div>
                               </DialogContent>
                             </Dialog>
-                            
-                            {(submission.status === 'pending' || submission.status === 'needs_review') && (
+
+                            {(submission.status === 'pending' ||
+                              submission.status === 'needs_review') && (
                               <>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
                                   className="text-green-600 hover:text-green-700"
                                   onClick={() => handleApprove(submission.id)}
                                 >
                                   <ThumbsUp className="h-4 w-4" />
                                 </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
                                   className="text-red-600 hover:text-red-700"
                                   onClick={() => handleReject(submission.id)}
                                 >
                                   <ThumbsDown className="h-4 w-4" />
-                                </Button>  
+                                </Button>
                               </>
                             )}
                           </div>
@@ -420,10 +491,9 @@ export default function SmartFormReviewPage() {
                   <FileCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-semibold mb-2">No submissions found</h3>
                   <p className="text-muted-foreground">
-                    {selectedTab === 'pending' 
+                    {selectedTab === 'pending'
                       ? 'All caught up! No pending submissions to review.'
-                      : `No ${selectedTab} submissions at this time.`
-                    }
+                      : `No ${selectedTab} submissions at this time.`}
                   </p>
                 </div>
               )}
@@ -436,9 +506,7 @@ export default function SmartFormReviewPage() {
       <Card>
         <CardHeader>
           <CardTitle>Bulk Operations</CardTitle>
-          <CardDescription>
-            Perform batch operations on multiple submissions
-          </CardDescription>
+          <CardDescription>Perform batch operations on multiple submissions</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
@@ -462,5 +530,5 @@ export default function SmartFormReviewPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

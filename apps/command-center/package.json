@@ -7,6 +7,7 @@
     "build": "cross-env NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production next build",
     "build:windows": "set NEXT_TELEMETRY_DISABLED=1 && set NODE_ENV=production && next build",
     "build:clean": "rimraf .next && rimraf build && npm run build",
+    "clean": "rimraf .next",
     "start": "next start -p 3010",
     "lint": "next lint",
     "type-check": "tsc --noEmit",

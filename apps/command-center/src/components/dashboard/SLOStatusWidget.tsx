@@ -95,7 +95,7 @@ export function SLOStatusWidget() {
 
   useEffect(() => {
     fetchSLOData();
-    
+
     // Refresh every 30 seconds
     const interval = setInterval(fetchSLOData, 30000);
     return () => clearInterval(interval);
@@ -126,9 +126,12 @@ export function SLOStatusWidget() {
    */
   const getTrendIndicator = (trend: string) => {
     switch (trend) {
-      case 'up': return { icon: TrendingUp, color: 'text-red-500' };
-      case 'down': return { icon: TrendingDown, color: 'text-green-500' };
-      default: return { icon: Target, color: 'text-gray-500' };
+      case 'up':
+        return { icon: TrendingUp, color: 'text-red-500' };
+      case 'down':
+        return { icon: TrendingDown, color: 'text-green-500' };
+      default:
+        return { icon: Target, color: 'text-gray-500' };
     }
   };
 
@@ -207,8 +210,8 @@ export function SLOStatusWidget() {
             SLO Status
           </div>
           <div className="flex items-center space-x-2">
-            <Badge 
-              variant={data?.overall_health_score >= 95 ? "default" : "destructive"}
+            <Badge
+              variant={data?.overall_health_score >= 95 ? 'default' : 'destructive'}
               className="text-xs"
             >
               {data ? formatPercentage(data.overall_health_score) : 'N/A'} Health
@@ -233,19 +236,25 @@ export function SLOStatusWidget() {
             {/* Overall Summary */}
             <div className="grid grid-cols-3 gap-4 p-4 rounded-lg bg-muted/20">
               <div className="text-center">
-                <div className={`text-2xl font-bold ${getOverallHealthColor(data.overall_health_score)}`}>
+                <div
+                  className={`text-2xl font-bold ${getOverallHealthColor(data.overall_health_score)}`}
+                >
                   {formatPercentage(data.overall_health_score)}
                 </div>
                 <div className="text-xs text-muted-foreground">Overall Health</div>
               </div>
               <div className="text-center">
-                <div className={`text-2xl font-bold ${data.total_breaches > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                <div
+                  className={`text-2xl font-bold ${data.total_breaches > 0 ? 'text-red-500' : 'text-green-500'}`}
+                >
                   {data.total_breaches}
                 </div>
                 <div className="text-xs text-muted-foreground">Active Breaches</div>
               </div>
               <div className="text-center">
-                <div className={`text-2xl font-bold ${data.critical_incidents > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                <div
+                  className={`text-2xl font-bold ${data.critical_incidents > 0 ? 'text-red-500' : 'text-green-500'}`}
+                >
                   {data.critical_incidents}
                 </div>
                 <div className="text-xs text-muted-foreground">Critical Incidents</div>
@@ -255,7 +264,7 @@ export function SLOStatusWidget() {
             {/* Individual SLOs */}
             <div className="space-y-3">
               <h4 className="text-sm font-semibold">Service Level Objectives</h4>
-              {data.slos.map((slo) => {
+              {data.slos.map(slo => {
                 const burnRateIndicator = getBurnRateIndicator(slo.burn_rate);
                 const trendIndicator = getTrendIndicator(slo.trend);
                 const BurnRateIcon = burnRateIndicator.icon;
@@ -281,28 +290,30 @@ export function SLOStatusWidget() {
                           </Badge>
                         )}
                       </div>
-                      
+
                       <div className="flex items-center space-x-4 mt-2">
                         <div className="text-xs text-muted-foreground">
-                          SLI: <span className={getStatusColor(slo)}>{slo.current_sli || 'N/A'}</span>
+                          SLI:{' '}
+                          <span className={getStatusColor(slo)}>{slo.current_sli || 'N/A'}</span>
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          Target: {slo.objective}
-                        </div>
+                        <div className="text-xs text-muted-foreground">Target: {slo.objective}</div>
                       </div>
 
                       {/* Error Budget Progress */}
                       <div className="mt-2">
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-muted-foreground">Error Budget</span>
-                          <span className={slo.error_budget_consumed > 75 ? 'text-red-500' : 'text-muted-foreground'}>
+                          <span
+                            className={
+                              slo.error_budget_consumed > 75
+                                ? 'text-red-500'
+                                : 'text-muted-foreground'
+                            }
+                          >
                             {formatPercentage(slo.error_budget_consumed)} consumed
                           </span>
                         </div>
-                        <Progress 
-                          value={slo.error_budget_consumed} 
-                          className="mt-1 h-2"
-                        />
+                        <Progress value={slo.error_budget_consumed} className="mt-1 h-2" />
                       </div>
                     </div>
 
@@ -336,7 +347,7 @@ export function SLOStatusWidget() {
                   Recent Incidents
                 </h4>
                 <div className="space-y-2">
-                  {data.incidents.slice(0, 3).map((incident) => (
+                  {data.incidents.slice(0, 3).map(incident => (
                     <div
                       key={incident.id}
                       className="flex items-center justify-between p-2 rounded border-l-4 border-l-red-500 bg-red-50 dark:bg-red-900/20"

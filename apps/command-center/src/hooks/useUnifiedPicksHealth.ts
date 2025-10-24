@@ -30,7 +30,7 @@ export function useUnifiedPicksHealth(): UseUnifiedPicksHealthReturn {
   const [data, setData] = useState<UnifiedPicksHealth | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const abortControllerRef = useRef<AbortController | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const retryCountRef = useRef(0);
@@ -63,7 +63,7 @@ export function useUnifiedPicksHealth(): UseUnifiedPicksHealthReturn {
       }
 
       const result = await response.json();
-      
+
       setData(result);
       setError(null);
       retryCountRef.current = 0;
@@ -77,8 +77,11 @@ export function useUnifiedPicksHealth(): UseUnifiedPicksHealthReturn {
         // Retry logic
         if (retryCountRef.current < MAX_RETRIES) {
           retryCountRef.current += 1;
-          console.warn(`Unified picks health fetch failed, retrying (${retryCountRef.current}/${MAX_RETRIES}):`, err.message);
-          
+          console.warn(
+            `Unified picks health fetch failed, retrying (${retryCountRef.current}/${MAX_RETRIES}):`,
+            err.message
+          );
+
           setTimeout(() => {
             fetchData(true);
           }, RETRY_DELAY * retryCountRef.current);

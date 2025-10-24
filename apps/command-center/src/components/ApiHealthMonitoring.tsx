@@ -5,7 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { RefreshCw, AlertTriangle, CheckCircle, Clock, ExternalLink, DollarSign } from 'lucide-react';
+import {
+  RefreshCw,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  ExternalLink,
+  DollarSign,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { useApiHealthMonitoring, ApiHealthStatus } from '@/lib/apiHealthMonitoring';
 
@@ -28,8 +35,8 @@ const ApiStatusBadge: React.FC<{ status: ApiHealthStatus['status'] }> = ({ statu
   );
 };
 
-const ApiCard: React.FC<{ 
-  api: ApiHealthStatus; 
+const ApiCard: React.FC<{
+  api: ApiHealthStatus;
   onRefresh: (apiName: string) => void;
 }> = ({ api, onRefresh }) => {
   const getQuotaColor = (percent?: number): string => {
@@ -50,9 +57,7 @@ const ApiCard: React.FC<{
     <Card className={`${api.status === 'down' ? 'border-red-200 bg-red-50/50' : ''}`}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold">
-            {api.name}
-          </CardTitle>
+          <CardTitle className="text-lg font-semibold">{api.name}</CardTitle>
           <ApiStatusBadge status={api.status} />
         </div>
         {api.details?.cost && (
@@ -62,7 +67,7 @@ const ApiCard: React.FC<{
           </div>
         )}
       </CardHeader>
-      
+
       <CardContent className="space-y-4">
         {/* Description */}
         {api.details?.description && (
@@ -86,9 +91,9 @@ const ApiCard: React.FC<{
                 {api.quotaUsed || 0} / {api.quotaLimit || 0} ({api.quotaPercent.toFixed(1)}%)
               </span>
             </div>
-            <Progress 
-              value={api.quotaPercent} 
-              className={`w-full h-2 ${getQuotaColor(api.quotaPercent)}`} 
+            <Progress
+              value={api.quotaPercent}
+              className={`w-full h-2 ${getQuotaColor(api.quotaPercent)}`}
             />
             {api.quotaPercent >= 90 && (
               <div className="flex items-center text-sm text-red-600">
@@ -126,12 +131,8 @@ const ApiCard: React.FC<{
             <RefreshCw className="w-4 h-4 mr-1" />
             Check Now
           </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => window.open(api.endpoint, '_blank')}
-          >
+
+          <Button variant="outline" size="sm" onClick={() => window.open(api.endpoint, '_blank')}>
             <ExternalLink className="w-4 h-4" />
           </Button>
         </div>
@@ -141,14 +142,8 @@ const ApiCard: React.FC<{
 };
 
 export const ApiHealthMonitoring: React.FC = () => {
-  const {
-    statuses,
-    summary,
-    loading,
-    lastUpdate,
-    refreshAll,
-    checkSingleAPI,
-  } = useApiHealthMonitoring();
+  const { statuses, summary, loading, lastUpdate, refreshAll, checkSingleAPI } =
+    useApiHealthMonitoring();
 
   const handleRefreshAll = async () => {
     try {
@@ -164,7 +159,9 @@ export const ApiHealthMonitoring: React.FC = () => {
       await checkSingleAPI(apiName);
       toast.success(`${apiName} status refreshed`);
     } catch (error) {
-      toast.error(`Failed to refresh ${apiName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(
+        `Failed to refresh ${apiName}: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   };
 
@@ -174,31 +171,25 @@ export const ApiHealthMonitoring: React.FC = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-green-600">
-              {summary?.healthyAPIs || 0}
-            </div>
+            <div className="text-2xl font-bold text-green-600">{summary?.healthyAPIs || 0}</div>
             <p className="text-xs text-gray-500">Healthy APIs</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-yellow-600">
-              {summary?.degradedAPIs || 0}
-            </div>
+            <div className="text-2xl font-bold text-yellow-600">{summary?.degradedAPIs || 0}</div>
             <p className="text-xs text-gray-500">Degraded</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold text-red-600">
-              {summary?.downAPIs || 0}
-            </div>
+            <div className="text-2xl font-bold text-red-600">{summary?.downAPIs || 0}</div>
             <p className="text-xs text-gray-500">Down</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-blue-600">
@@ -236,17 +227,11 @@ export const ApiHealthMonitoring: React.FC = () => {
         <div>
           <h2 className="text-xl font-semibold">External API Health</h2>
           {lastUpdate && (
-            <p className="text-sm text-gray-500">
-              Last updated: {lastUpdate.toLocaleTimeString()}
-            </p>
+            <p className="text-sm text-gray-500">Last updated: {lastUpdate.toLocaleTimeString()}</p>
           )}
         </div>
-        
-        <Button
-          variant="outline"
-          onClick={handleRefreshAll}
-          disabled={loading}
-        >
+
+        <Button variant="outline" onClick={handleRefreshAll} disabled={loading}>
           <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
           Refresh All
         </Button>
@@ -266,12 +251,8 @@ export const ApiHealthMonitoring: React.FC = () => {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {statuses.map((api) => (
-            <ApiCard
-              key={api.name}
-              api={api}
-              onRefresh={handleRefreshSingle}
-            />
+          {statuses.map(api => (
+            <ApiCard key={api.name} api={api} onRefresh={handleRefreshSingle} />
           ))}
         </div>
       )}

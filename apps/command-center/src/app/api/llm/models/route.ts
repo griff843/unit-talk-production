@@ -1,26 +1,26 @@
-'use server'
+'use server';
 
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase'
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase';
 
 interface LLMModel {
-  id: string
-  name: string
-  provider: 'openai' | 'anthropic' | 'local'
-  status: 'active' | 'inactive' | 'error'
-  tokensUsed: number
-  tokensLimit: number
-  requestsToday: number
-  avgResponseTime: number
-  cost: number
-  accuracy: number
-  lastUsed: string
+  id: string;
+  name: string;
+  provider: 'openai' | 'anthropic' | 'local';
+  status: 'active' | 'inactive' | 'error';
+  tokensUsed: number;
+  tokensLimit: number;
+  requestsToday: number;
+  avgResponseTime: number;
+  cost: number;
+  accuracy: number;
+  lastUsed: string;
   configuration: {
-    temperature: number
-    maxTokens: number
-    topP: number
-    frequencyPenalty: number
-  }
+    temperature: number;
+    maxTokens: number;
+    topP: number;
+    frequencyPenalty: number;
+  };
 }
 
 // Mock data for now - in production, this would come from a configuration database
@@ -41,8 +41,8 @@ const mockModels: LLMModel[] = [
       temperature: 0.7,
       maxTokens: 4096,
       topP: 0.9,
-      frequencyPenalty: 0.1
-    }
+      frequencyPenalty: 0.1,
+    },
   },
   {
     id: 'claude-3-sonnet',
@@ -60,8 +60,8 @@ const mockModels: LLMModel[] = [
       temperature: 0.3,
       maxTokens: 4096,
       topP: 0.9,
-      frequencyPenalty: 0.0
-    }
+      frequencyPenalty: 0.0,
+    },
   },
   {
     id: 'gpt-3.5-turbo',
@@ -79,52 +79,52 @@ const mockModels: LLMModel[] = [
       temperature: 0.9,
       maxTokens: 2048,
       topP: 0.95,
-      frequencyPenalty: 0.2
-    }
-  }
-]
+      frequencyPenalty: 0.2,
+    },
+  },
+];
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient()
-    
+    const supabase = createClient();
+
     // Try to get real model configuration from database
     // For now, return mock data but could be enhanced to store in database
     const { data: models, error } = await supabase
       .from('llm_models')
       .select('*')
-      .order('created_at', { ascending: false })
-    
+      .order('created_at', { ascending: false });
+
     if (error) {
-      console.log('LLM models table not found, returning mock data')
-      return NextResponse.json(mockModels)
+      console.log('LLM models table not found, returning mock data');
+      return NextResponse.json(mockModels);
     }
-    
+
     // If we have real data, transform it to match interface
-    const transformedModels = models?.map(model => ({
-      id: model.id,
-      name: model.name,
-      provider: model.provider,
-      status: model.status || 'active',
-      tokensUsed: model.tokens_used || 0,
-      tokensLimit: model.tokens_limit || 1000000,
-      requestsToday: model.requests_today || 0,
-      avgResponseTime: model.avg_response_time || 1000,
-      cost: model.cost || 0,
-      accuracy: model.accuracy || 90,
-      lastUsed: model.last_used || new Date().toISOString(),
-      configuration: model.configuration || {
-        temperature: 0.7,
-        maxTokens: 4096,
-        topP: 0.9,
-        frequencyPenalty: 0.1
-      }
-    })) || []
-    
-    return NextResponse.json(transformedModels.length > 0 ? transformedModels : mockModels)
-    
+    const transformedModels =
+      models?.map(model => ({
+        id: model.id,
+        name: model.name,
+        provider: model.provider,
+        status: model.status || 'active',
+        tokensUsed: model.tokens_used || 0,
+        tokensLimit: model.tokens_limit || 1000000,
+        requestsToday: model.requests_today || 0,
+        avgResponseTime: model.avg_response_time || 1000,
+        cost: model.cost || 0,
+        accuracy: model.accuracy || 90,
+        lastUsed: model.last_used || new Date().toISOString(),
+        configuration: model.configuration || {
+          temperature: 0.7,
+          maxTokens: 4096,
+          topP: 0.9,
+          frequencyPenalty: 0.1,
+        },
+      })) || [];
+
+    return NextResponse.json(transformedModels.length > 0 ? transformedModels : mockModels);
   } catch (error) {
-    console.error('Error fetching LLM models:', error)
-    return NextResponse.json(mockModels, { status: 200 })
+    console.error('Error fetching LLM models:', error);
+    return NextResponse.json(mockModels, { status: 200 });
   }
 }

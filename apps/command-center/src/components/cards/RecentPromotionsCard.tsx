@@ -22,7 +22,7 @@ interface RecentPromotionsCardProps {
 
 export function RecentPromotionsCard({ className }: RecentPromotionsCardProps) {
   const { data, loading, error, refetch } = useRecentPromotions({
-    limit: 500
+    limit: 500,
   });
 
   // Calculate summary stats
@@ -32,7 +32,7 @@ export function RecentPromotionsCard({ className }: RecentPromotionsCardProps) {
         total: 0,
         successful: 0,
         pending: 0,
-        successRate: 0
+        successRate: 0,
       };
     }
 
@@ -44,34 +44,50 @@ export function RecentPromotionsCard({ className }: RecentPromotionsCardProps) {
       total: data.length,
       successful,
       pending,
-      successRate: Math.round(successRate)
+      successRate: Math.round(successRate),
     };
   }, [data]);
 
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
       case 'promoted':
-        return <Badge variant="default" className="text-xs bg-green-100 text-green-800">Promoted</Badge>;
+        return (
+          <Badge variant="default" className="text-xs bg-green-100 text-green-800">
+            Promoted
+          </Badge>
+        );
       case 'pending':
-        return <Badge variant="secondary" className="text-xs">Pending</Badge>;
+        return (
+          <Badge variant="secondary" className="text-xs">
+            Pending
+          </Badge>
+        );
       case 'failed':
-        return <Badge variant="destructive" className="text-xs">Failed</Badge>;
+        return (
+          <Badge variant="destructive" className="text-xs">
+            Failed
+          </Badge>
+        );
       default:
-        return <Badge variant="outline" className="text-xs">{status}</Badge>;
+        return (
+          <Badge variant="outline" className="text-xs">
+            {status}
+          </Badge>
+        );
     }
   };
 
   const getTierBadge = (tier: string) => {
     const tierColors = {
-      'S': 'bg-purple-100 text-purple-800',
-      'A': 'bg-blue-100 text-blue-800',
-      'B': 'bg-yellow-100 text-yellow-800',
-      'C': 'bg-gray-100 text-gray-800'
+      S: 'bg-purple-100 text-purple-800',
+      A: 'bg-blue-100 text-blue-800',
+      B: 'bg-yellow-100 text-yellow-800',
+      C: 'bg-gray-100 text-gray-800',
     };
-    
+
     return (
-      <Badge 
-        variant="outline" 
+      <Badge
+        variant="outline"
         className={`text-xs ${tierColors[tier as keyof typeof tierColors] || 'bg-gray-100 text-gray-800'}`}
       >
         {tier}
@@ -99,9 +115,7 @@ export function RecentPromotionsCard({ className }: RecentPromotionsCardProps) {
         <CardContent>
           <div className="flex items-center space-x-2">
             <AlertCircle className="h-4 w-4 text-red-600" />
-            <span className="text-sm text-red-600 dark:text-red-400">
-              {error}
-            </span>
+            <span className="text-sm text-red-600 dark:text-red-400">{error}</span>
           </div>
         </CardContent>
       </Card>
@@ -120,21 +134,14 @@ export function RecentPromotionsCard({ className }: RecentPromotionsCardProps) {
                 {summaryStats.total} items
               </Badge>
             </CardTitle>
-            <CardDescription>
-              Picks promoted to production in the last 24 hours
-            </CardDescription>
+            <CardDescription>Picks promoted to production in the last 24 hours</CardDescription>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={refetch}
-            disabled={loading}
-          >
+          <Button variant="outline" size="sm" onClick={refetch} disabled={loading}>
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
         </div>
       </CardHeader>
-      
+
       <CardContent>
         {loading && !data ? (
           <div className="flex items-center justify-center py-8">
@@ -185,7 +192,7 @@ export function RecentPromotionsCard({ className }: RecentPromotionsCardProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data.map((item) => (
+                  {data.map(item => (
                     <TableRow key={item.unified_pick_id}>
                       <TableCell className="text-sm">
                         <div className="flex items-center space-x-1">
@@ -195,42 +202,31 @@ export function RecentPromotionsCard({ className }: RecentPromotionsCardProps) {
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="font-medium text-sm">
-                        {item.pick_source}
-                      </TableCell>
+                      <TableCell className="font-medium text-sm">{item.pick_source}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-xs">
                           {item.sport}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-sm">
-                        {item.pick_type}
-                      </TableCell>
-                      <TableCell className="text-sm font-medium">
-                        {item.selection}
-                      </TableCell>
+                      <TableCell className="text-sm">{item.pick_type}</TableCell>
+                      <TableCell className="text-sm font-medium">{item.selection}</TableCell>
                       <TableCell className="font-mono text-sm">
                         <div>
                           <div>{item.line}</div>
                           <div className="text-xs text-muted-foreground">
-                            {item.odds > 0 ? '+' : ''}{item.odds}
+                            {item.odds > 0 ? '+' : ''}
+                            {item.odds}
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>
-                        {getTierBadge(item.tier_when_placed)}
-                      </TableCell>
+                      <TableCell>{getTierBadge(item.tier_when_placed)}</TableCell>
                       <TableCell className="text-sm">
                         <div className="flex items-center space-x-1">
                           <Clock className="h-3 w-3 text-muted-foreground" />
-                          <span>
-                            {format(new Date(item.game_start_time), 'MMM dd, HH:mm')}
-                          </span>
+                          <span>{format(new Date(item.game_start_time), 'MMM dd, HH:mm')}</span>
                         </div>
                       </TableCell>
-                      <TableCell>
-                        {getStatusBadge(item.promotion_status)}
-                      </TableCell>
+                      <TableCell>{getStatusBadge(item.promotion_status)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

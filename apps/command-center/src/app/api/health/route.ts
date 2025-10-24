@@ -63,11 +63,11 @@ interface HealthStatus {
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const startTime = Date.now();
-  
+
   try {
     const userId = request.headers.get('x-user-id') || 'anonymous';
     const detailed = request.nextUrl.searchParams.get('detailed') === 'true';
-    
+
     // Check if user wants detailed health check (requires permissions)
     if (detailed) {
       try {
@@ -81,37 +81,40 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         return getBasicHealthCheck();
       }
     }
-    
+
     if (detailed) {
       return getDetailedHealthCheck(userId, startTime);
     } else {
       return getBasicHealthCheck();
     }
-    
   } catch (error) {
     console.error('Health check failed:', error);
-    
+
     const errorResponse: PipelineHealthResponse = {
       overall_status: 'unhealthy',
       timestamp: new Date().toISOString(),
-      components: [{
-        component: 'health_check_system',
-        status: 'unhealthy',
-        lastCheck: new Date().toISOString(),
-        responseTime: Date.now() - startTime,
-        details: {
-          message: 'Health check system failure',
-          checks: [{
-            name: 'system_error',
-            status: 'fail',
-            message: error instanceof Error ? error.message : 'Unknown error',
-          }],
+      components: [
+        {
+          component: 'health_check_system',
+          status: 'unhealthy',
+          lastCheck: new Date().toISOString(),
+          responseTime: Date.now() - startTime,
+          details: {
+            message: 'Health check system failure',
+            checks: [
+              {
+                name: 'system_error',
+                status: 'fail',
+                message: error instanceof Error ? error.message : 'Unknown error',
+              },
+            ],
+          },
         },
-      }],
+      ],
       summary: { healthy: 0, degraded: 0, unhealthy: 1, total: 1 },
     };
-    
-    return NextResponse.json(errorResponse, { 
+
+    return NextResponse.json(errorResponse, {
       status: 503,
       headers: {
         'X-Response-Time': `${Date.now() - startTime}ms`,
@@ -123,31 +126,31 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 // Enhanced detailed health check for production pipeline monitoring
 async function getDetailedHealthCheck(userId: string, startTime: number): Promise<NextResponse> {
   const healthChecks: ComponentHealthStatus[] = [];
-  
+
   // 1. Database Health Check
   const dbHealth = await checkDatabaseHealth();
   healthChecks.push(dbHealth);
-  
+
   // 2. BridgeWorker Health Check
   const bridgeWorkerHealth = await checkBridgeWorkerHealth();
   healthChecks.push(bridgeWorkerHealth);
-  
+
   // 3. Temporal Workflows Health Check
   const temporalHealth = await checkTemporalHealth();
   healthChecks.push(temporalHealth);
-  
+
   // 4. AlertAgent Health Check
   const alertAgentHealth = await checkAlertAgentHealth();
   healthChecks.push(alertAgentHealth);
-  
+
   // 5. Events Stream Health Check
   const eventsStreamHealth = await checkEventsStreamHealth();
   healthChecks.push(eventsStreamHealth);
-  
+
   // 6. Smart Form Bridge Health Check
   const smartFormHealth = await checkSmartFormBridgeHealth();
   healthChecks.push(smartFormHealth);
-  
+
   // Calculate overall status
   const summary = {
     healthy: healthChecks.filter(c => c.status === 'healthy').length,
@@ -155,19 +158,19 @@ async function getDetailedHealthCheck(userId: string, startTime: number): Promis
     unhealthy: healthChecks.filter(c => c.status === 'unhealthy').length,
     total: healthChecks.length,
   };
-  
-  const overallStatus = summary.unhealthy > 0 ? 'unhealthy' :
-                       summary.degraded > 0 ? 'degraded' : 'healthy';
-  
+
+  const overallStatus =
+    summary.unhealthy > 0 ? 'unhealthy' : summary.degraded > 0 ? 'degraded' : 'healthy';
+
   const response: PipelineHealthResponse = {
     overall_status: overallStatus,
     timestamp: new Date().toISOString(),
     components: healthChecks,
     summary,
   };
-  
+
   const responseTime = Date.now() - startTime;
-  
+
   // Log health check completion
   await RBACService.logAudit({
     actor: userId,
@@ -183,7 +186,7 @@ async function getDetailedHealthCheck(userId: string, startTime: number): Promis
     status: 'success',
     duration_ms: responseTime,
   });
-  
+
   return NextResponse.json(response, {
     status: 200,
     headers: {
@@ -196,7 +199,7 @@ async function getDetailedHealthCheck(userId: string, startTime: number): Promis
 // Basic health check for backward compatibility and load balancers
 async function getBasicHealthCheck(): Promise<NextResponse> {
   const startTime = Date.now();
-  
+
   // Initialize basic health status
   const health: HealthStatus = {
     status: 'healthy',
@@ -320,22 +323,19 @@ export async function HEAD() {
 async function checkDatabaseHealth(): Promise<ComponentHealthStatus> {
   const startTime = Date.now();
   const checks: ComponentHealthStatus['details']['checks'] = [];
-  
+
   try {
     // 1. Connection Test
     const connectionStart = Date.now();
-    const { data: connectionTest } = await supabase
-      .from('unified_picks')
-      .select('count')
-      .limit(1);
-    
+    const { data: connectionTest } = await supabase.from('unified_picks').select('count').limit(1);
+
     checks.push({
       name: 'database_connection',
       status: 'pass',
       message: 'Database connection successful',
       responseTime: Date.now() - connectionStart,
     });
-    
+
     // 2. Core Tables Test
     const tablesStart = Date.now();
     const coreTableChecks = await Promise.allSettled([
@@ -345,10 +345,10 @@ async function checkDatabaseHealth(): Promise<ComponentHealthStatus> {
       supabase.from('events').select('count').limit(1),
       supabase.from('bridge_outbox').select('count').limit(1),
     ]);
-    
+
     const tablesHealthy = coreTableChecks.filter(result => result.status === 'fulfilled').length;
     const tablesTotal = coreTableChecks.length;
-    
+
     checks.push({
       name: 'core_tables_accessibility',
       status: tablesHealthy === tablesTotal ? 'pass' : tablesHealthy > 0 ? 'warn' : 'fail',
@@ -356,7 +356,7 @@ async function checkDatabaseHealth(): Promise<ComponentHealthStatus> {
       responseTime: Date.now() - tablesStart,
       data: { accessible_tables: tablesHealthy, total_tables: tablesTotal },
     });
-    
+
     // 3. Recent Activity Test
     const activityStart = Date.now();
     const { data: recentEvents } = await supabase
@@ -364,7 +364,7 @@ async function checkDatabaseHealth(): Promise<ComponentHealthStatus> {
       .select('created_at')
       .gte('created_at', new Date(Date.now() - 60 * 60 * 1000).toISOString())
       .limit(10);
-    
+
     checks.push({
       name: 'recent_activity',
       status: (recentEvents?.length || 0) > 0 ? 'pass' : 'warn',
@@ -372,10 +372,13 @@ async function checkDatabaseHealth(): Promise<ComponentHealthStatus> {
       responseTime: Date.now() - activityStart,
       data: { recent_events_count: recentEvents?.length || 0 },
     });
-    
-    const overallStatus = checks.every(c => c.status === 'pass') ? 'healthy' :
-                         checks.some(c => c.status === 'fail') ? 'unhealthy' : 'degraded';
-    
+
+    const overallStatus = checks.every(c => c.status === 'pass')
+      ? 'healthy'
+      : checks.some(c => c.status === 'fail')
+        ? 'unhealthy'
+        : 'degraded';
+
     return {
       component: 'database',
       status: overallStatus,
@@ -386,14 +389,13 @@ async function checkDatabaseHealth(): Promise<ComponentHealthStatus> {
         checks,
       },
     };
-    
   } catch (error) {
     checks.push({
       name: 'database_error',
       status: 'fail',
       message: error instanceof Error ? error.message : 'Database check failed',
     });
-    
+
     return {
       component: 'database',
       status: 'unhealthy',
@@ -411,7 +413,7 @@ async function checkDatabaseHealth(): Promise<ComponentHealthStatus> {
 async function checkBridgeWorkerHealth(): Promise<ComponentHealthStatus> {
   const startTime = Date.now();
   const checks: ComponentHealthStatus['details']['checks'] = [];
-  
+
   try {
     // Check for recent bridge worker activity
     const activityStart = Date.now();
@@ -420,7 +422,7 @@ async function checkBridgeWorkerHealth(): Promise<ComponentHealthStatus> {
       .select('id, status, updated_at')
       .gte('updated_at', new Date(Date.now() - 15 * 60 * 1000).toISOString())
       .limit(10);
-    
+
     const processingCount = recentProcessing?.length || 0;
     checks.push({
       name: 'recent_processing',
@@ -429,7 +431,7 @@ async function checkBridgeWorkerHealth(): Promise<ComponentHealthStatus> {
       responseTime: Date.now() - activityStart,
       data: { recent_processing_count: processingCount },
     });
-    
+
     // Check for failed events that need retry
     const failuresStart = Date.now();
     const { data: failedEvents } = await supabase
@@ -438,7 +440,7 @@ async function checkBridgeWorkerHealth(): Promise<ComponentHealthStatus> {
       .eq('status', 'failed')
       .lt('attempts', 3)
       .limit(10);
-    
+
     const failedCount = failedEvents?.length || 0;
     checks.push({
       name: 'failed_events_pending_retry',
@@ -447,10 +449,13 @@ async function checkBridgeWorkerHealth(): Promise<ComponentHealthStatus> {
       responseTime: Date.now() - failuresStart,
       data: { failed_pending_retry: failedCount },
     });
-    
-    const overallStatus = checks.every(c => c.status === 'pass') ? 'healthy' :
-                         checks.some(c => c.status === 'fail') ? 'unhealthy' : 'degraded';
-    
+
+    const overallStatus = checks.every(c => c.status === 'pass')
+      ? 'healthy'
+      : checks.some(c => c.status === 'fail')
+        ? 'unhealthy'
+        : 'degraded';
+
     return {
       component: 'bridge_worker',
       status: overallStatus,
@@ -462,7 +467,6 @@ async function checkBridgeWorkerHealth(): Promise<ComponentHealthStatus> {
         checks,
       },
     };
-    
   } catch (error) {
     return {
       component: 'bridge_worker',
@@ -471,11 +475,13 @@ async function checkBridgeWorkerHealth(): Promise<ComponentHealthStatus> {
       responseTime: Date.now() - startTime,
       details: {
         message: 'Bridge Worker health check failed',
-        checks: [{
-          name: 'bridge_worker_error',
-          status: 'fail',
-          message: error instanceof Error ? error.message : 'Bridge Worker check failed',
-        }],
+        checks: [
+          {
+            name: 'bridge_worker_error',
+            status: 'fail',
+            message: error instanceof Error ? error.message : 'Bridge Worker check failed',
+          },
+        ],
       },
     };
   }
@@ -485,7 +491,7 @@ async function checkBridgeWorkerHealth(): Promise<ComponentHealthStatus> {
 async function checkTemporalHealth(): Promise<ComponentHealthStatus> {
   const startTime = Date.now();
   const checks: ComponentHealthStatus['details']['checks'] = [];
-  
+
   try {
     // Check for recent workflow executions
     const executionsStart = Date.now();
@@ -494,7 +500,7 @@ async function checkTemporalHealth(): Promise<ComponentHealthStatus> {
       .select('workflow_id, status, created_at')
       .gte('created_at', new Date(Date.now() - 60 * 60 * 1000).toISOString())
       .limit(20);
-    
+
     const executionCount = recentWorkflows?.length || 0;
     checks.push({
       name: 'recent_workflow_executions',
@@ -503,27 +509,30 @@ async function checkTemporalHealth(): Promise<ComponentHealthStatus> {
       responseTime: Date.now() - executionsStart,
       data: { recent_executions: executionCount },
     });
-    
+
     // Check success rate
     if (recentWorkflows && recentWorkflows.length > 0) {
       const successfulWorkflows = recentWorkflows.filter(w => w.status === 'completed').length;
       const successRate = (successfulWorkflows / recentWorkflows.length) * 100;
-      
+
       checks.push({
         name: 'workflow_success_rate',
         status: successRate >= 90 ? 'pass' : successRate >= 70 ? 'warn' : 'fail',
         message: `${successRate.toFixed(1)}% success rate`,
-        data: { 
+        data: {
           success_rate: successRate,
           successful: successfulWorkflows,
-          total: recentWorkflows.length 
+          total: recentWorkflows.length,
         },
       });
     }
-    
-    const overallStatus = checks.every(c => c.status === 'pass') ? 'healthy' :
-                         checks.some(c => c.status === 'fail') ? 'unhealthy' : 'degraded';
-    
+
+    const overallStatus = checks.every(c => c.status === 'pass')
+      ? 'healthy'
+      : checks.some(c => c.status === 'fail')
+        ? 'unhealthy'
+        : 'degraded';
+
     return {
       component: 'temporal_workflows',
       status: overallStatus,
@@ -535,7 +544,6 @@ async function checkTemporalHealth(): Promise<ComponentHealthStatus> {
         checks,
       },
     };
-    
   } catch (error) {
     return {
       component: 'temporal_workflows',
@@ -544,11 +552,13 @@ async function checkTemporalHealth(): Promise<ComponentHealthStatus> {
       responseTime: Date.now() - startTime,
       details: {
         message: 'Temporal workflows health check failed',
-        checks: [{
-          name: 'temporal_error',
-          status: 'fail',
-          message: error instanceof Error ? error.message : 'Temporal check failed',
-        }],
+        checks: [
+          {
+            name: 'temporal_error',
+            status: 'fail',
+            message: error instanceof Error ? error.message : 'Temporal check failed',
+          },
+        ],
       },
     };
   }
@@ -558,7 +568,7 @@ async function checkTemporalHealth(): Promise<ComponentHealthStatus> {
 async function checkAlertAgentHealth(): Promise<ComponentHealthStatus> {
   const startTime = Date.now();
   const checks: ComponentHealthStatus['details']['checks'] = [];
-  
+
   try {
     // Check agent health table
     const agentHealthStart = Date.now();
@@ -567,11 +577,13 @@ async function checkAlertAgentHealth(): Promise<ComponentHealthStatus> {
       .select('agent_name, status, last_heartbeat')
       .eq('agent_name', 'AlertAgent')
       .single();
-    
-    const isHealthy = agentHealth && 
-                     agentHealth.status === 'active' && 
-                     new Date(String(agentHealth.last_heartbeat || new Date().toISOString())) > new Date(Date.now() - 5 * 60 * 1000);
-    
+
+    const isHealthy =
+      agentHealth &&
+      agentHealth.status === 'active' &&
+      new Date(String(agentHealth.last_heartbeat || new Date().toISOString())) >
+        new Date(Date.now() - 5 * 60 * 1000);
+
     checks.push({
       name: 'agent_heartbeat',
       status: isHealthy ? 'pass' : 'fail',
@@ -582,7 +594,7 @@ async function checkAlertAgentHealth(): Promise<ComponentHealthStatus> {
         last_heartbeat: agentHealth?.last_heartbeat || null,
       },
     });
-    
+
     // Check recent alerts generated
     const alertsStart = Date.now();
     const { data: recentAlerts } = await supabase
@@ -592,11 +604,11 @@ async function checkAlertAgentHealth(): Promise<ComponentHealthStatus> {
         'alert.injury.detected.v1',
         'alert.high_tier.v1',
         'alert.hedge.opportunity.v1',
-        'alert.middle.opportunity.v1'
+        'alert.middle.opportunity.v1',
       ])
       .gte('created_at', new Date(Date.now() - 60 * 60 * 1000).toISOString())
       .limit(10);
-    
+
     const alertCount = recentAlerts?.length || 0;
     checks.push({
       name: 'alert_generation',
@@ -605,10 +617,13 @@ async function checkAlertAgentHealth(): Promise<ComponentHealthStatus> {
       responseTime: Date.now() - alertsStart,
       data: { recent_alerts: alertCount },
     });
-    
-    const overallStatus = checks.every(c => c.status === 'pass') ? 'healthy' :
-                         checks.some(c => c.status === 'fail') ? 'unhealthy' : 'degraded';
-    
+
+    const overallStatus = checks.every(c => c.status === 'pass')
+      ? 'healthy'
+      : checks.some(c => c.status === 'fail')
+        ? 'unhealthy'
+        : 'degraded';
+
     return {
       component: 'alert_agent',
       status: overallStatus,
@@ -620,7 +635,6 @@ async function checkAlertAgentHealth(): Promise<ComponentHealthStatus> {
         checks,
       },
     };
-    
   } catch (error) {
     return {
       component: 'alert_agent',
@@ -629,11 +643,13 @@ async function checkAlertAgentHealth(): Promise<ComponentHealthStatus> {
       responseTime: Date.now() - startTime,
       details: {
         message: 'AlertAgent health check failed',
-        checks: [{
-          name: 'alert_agent_error',
-          status: 'fail',
-          message: error instanceof Error ? error.message : 'AlertAgent check failed',
-        }],
+        checks: [
+          {
+            name: 'alert_agent_error',
+            status: 'fail',
+            message: error instanceof Error ? error.message : 'AlertAgent check failed',
+          },
+        ],
       },
     };
   }
@@ -643,7 +659,7 @@ async function checkAlertAgentHealth(): Promise<ComponentHealthStatus> {
 async function checkEventsStreamHealth(): Promise<ComponentHealthStatus> {
   const startTime = Date.now();
   const checks: ComponentHealthStatus['details']['checks'] = [];
-  
+
   try {
     // Check recent event ingestion across all sources
     const ingestionStart = Date.now();
@@ -661,8 +677,10 @@ async function checkEventsStreamHealth(): Promise<ComponentHealthStatus> {
         .select('count')
         .gte('created_at', new Date(Date.now() - 15 * 60 * 1000).toISOString()),
     ]);
-    
-    const healthySources = recentEventSources.filter(result => result.status === 'fulfilled').length;
+
+    const healthySources = recentEventSources.filter(
+      result => result.status === 'fulfilled'
+    ).length;
     checks.push({
       name: 'event_sources_accessible',
       status: healthySources === 3 ? 'pass' : healthySources >= 2 ? 'warn' : 'fail',
@@ -670,10 +688,13 @@ async function checkEventsStreamHealth(): Promise<ComponentHealthStatus> {
       responseTime: Date.now() - ingestionStart,
       data: { accessible_sources: healthySources },
     });
-    
-    const overallStatus = checks.every(c => c.status === 'pass') ? 'healthy' :
-                         checks.some(c => c.status === 'fail') ? 'unhealthy' : 'degraded';
-    
+
+    const overallStatus = checks.every(c => c.status === 'pass')
+      ? 'healthy'
+      : checks.some(c => c.status === 'fail')
+        ? 'unhealthy'
+        : 'degraded';
+
     return {
       component: 'events_stream',
       status: overallStatus,
@@ -685,7 +706,6 @@ async function checkEventsStreamHealth(): Promise<ComponentHealthStatus> {
         checks,
       },
     };
-    
   } catch (error) {
     return {
       component: 'events_stream',
@@ -694,11 +714,13 @@ async function checkEventsStreamHealth(): Promise<ComponentHealthStatus> {
       responseTime: Date.now() - startTime,
       details: {
         message: 'Events stream health check failed',
-        checks: [{
-          name: 'events_stream_error',
-          status: 'fail',
-          message: error instanceof Error ? error.message : 'Events stream check failed',
-        }],
+        checks: [
+          {
+            name: 'events_stream_error',
+            status: 'fail',
+            message: error instanceof Error ? error.message : 'Events stream check failed',
+          },
+        ],
       },
     };
   }
@@ -708,7 +730,7 @@ async function checkEventsStreamHealth(): Promise<ComponentHealthStatus> {
 async function checkSmartFormBridgeHealth(): Promise<ComponentHealthStatus> {
   const startTime = Date.now();
   const checks: ComponentHealthStatus['details']['checks'] = [];
-  
+
   try {
     // Check bridge outbox processing
     const outboxStart = Date.now();
@@ -716,11 +738,11 @@ async function checkSmartFormBridgeHealth(): Promise<ComponentHealthStatus> {
       .from('bridge_outbox')
       .select('status')
       .gte('created_at', new Date(Date.now() - 60 * 60 * 1000).toISOString());
-    
+
     const totalEvents = outboxStats?.length || 0;
     const processedEvents = outboxStats?.filter(e => e.status === 'processed').length || 0;
     const processingRate = totalEvents > 0 ? (processedEvents / totalEvents) * 100 : 100;
-    
+
     checks.push({
       name: 'bridge_processing_rate',
       status: processingRate >= 95 ? 'pass' : processingRate >= 85 ? 'warn' : 'fail',
@@ -732,7 +754,7 @@ async function checkSmartFormBridgeHealth(): Promise<ComponentHealthStatus> {
         total_events: totalEvents,
       },
     });
-    
+
     // Check for stuck events
     const stuckStart = Date.now();
     const { data: stuckEvents } = await supabase
@@ -740,7 +762,7 @@ async function checkSmartFormBridgeHealth(): Promise<ComponentHealthStatus> {
       .select('id')
       .eq('status', 'processing')
       .lt('updated_at', new Date(Date.now() - 30 * 60 * 1000).toISOString());
-    
+
     const stuckCount = stuckEvents?.length || 0;
     checks.push({
       name: 'stuck_events',
@@ -749,10 +771,13 @@ async function checkSmartFormBridgeHealth(): Promise<ComponentHealthStatus> {
       responseTime: Date.now() - stuckStart,
       data: { stuck_events: stuckCount },
     });
-    
-    const overallStatus = checks.every(c => c.status === 'pass') ? 'healthy' :
-                         checks.some(c => c.status === 'fail') ? 'unhealthy' : 'degraded';
-    
+
+    const overallStatus = checks.every(c => c.status === 'pass')
+      ? 'healthy'
+      : checks.some(c => c.status === 'fail')
+        ? 'unhealthy'
+        : 'degraded';
+
     return {
       component: 'smart_form_bridge',
       status: overallStatus,
@@ -764,7 +789,6 @@ async function checkSmartFormBridgeHealth(): Promise<ComponentHealthStatus> {
         checks,
       },
     };
-    
   } catch (error) {
     return {
       component: 'smart_form_bridge',
@@ -773,11 +797,13 @@ async function checkSmartFormBridgeHealth(): Promise<ComponentHealthStatus> {
       responseTime: Date.now() - startTime,
       details: {
         message: 'Smart Form bridge health check failed',
-        checks: [{
-          name: 'smart_form_bridge_error',
-          status: 'fail',
-          message: error instanceof Error ? error.message : 'Smart Form bridge check failed',
-        }],
+        checks: [
+          {
+            name: 'smart_form_bridge_error',
+            status: 'fail',
+            message: error instanceof Error ? error.message : 'Smart Form bridge check failed',
+          },
+        ],
       },
     };
   }

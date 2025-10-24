@@ -4,18 +4,24 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  Activity, 
-  AlertTriangle, 
-  CheckCircle2, 
-  Clock, 
-  Filter, 
-  Pause, 
-  Play, 
+import {
+  Activity,
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  Filter,
+  Pause,
+  Play,
   RefreshCw,
   Search,
   Workflow,
@@ -126,14 +132,16 @@ const SOURCE_CONFIGS = {
 
 export function EventStream({ className }: EventStreamProps) {
   const { toast } = useToast();
-  
+
   // State management
   const [events, setEvents] = useState<PipelineEvent[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected');
+  const [connectionStatus, setConnectionStatus] = useState<
+    'connected' | 'disconnected' | 'connecting'
+  >('disconnected');
   const [eventSource, setEventSource] = useState<EventSource | null>(null);
-  
+
   // Filter state
   const [filters, setFilters] = useState({
     timeRange: '1h' as '1h' | '6h' | '24h' | '7d' | 'custom',
@@ -142,7 +150,7 @@ export function EventStream({ className }: EventStreamProps) {
     status: 'all' as 'all' | 'pending' | 'processing' | 'completed' | 'failed',
     search: '',
   });
-  
+
   // UI state
   const [selectedEvent, setSelectedEvent] = useState<PipelineEvent | null>(null);
   const [replayDialogOpen, setReplayDialogOpen] = useState(false);
@@ -158,28 +166,30 @@ export function EventStream({ className }: EventStreamProps) {
           event.aggregateId,
           event.aggregateType,
           JSON.stringify(event.eventData),
-        ].join(' ').toLowerCase();
-        
+        ]
+          .join(' ')
+          .toLowerCase();
+
         if (!searchableText.includes(searchLower)) {
           return false;
         }
       }
-      
+
       // Event type filter
       if (filters.eventTypes.length > 0 && !filters.eventTypes.includes(event.eventType)) {
         return false;
       }
-      
+
       // Source filter
       if (filters.source !== 'all' && event.source !== filters.source) {
         return false;
       }
-      
+
       // Status filter
       if (filters.status !== 'all' && event.status !== filters.status) {
         return false;
       }
-      
+
       return true;
     });
   }, [events, filters]);
@@ -194,11 +204,11 @@ export function EventStream({ className }: EventStreamProps) {
         limit: '100',
         includeMetadata: 'true',
       });
-      
+
       if (filters.eventTypes.length > 0) {
         searchParams.set('eventTypes', filters.eventTypes.join(','));
       }
-      
+
       if (filters.status !== 'all') {
         searchParams.set('status', filters.status);
       }
@@ -215,7 +225,7 @@ export function EventStream({ className }: EventStreamProps) {
 
       const data = await response.json();
       setEvents(data.events || []);
-      
+
       toast({
         title: 'Events Loaded',
         description: `Loaded ${data.events?.length || 0} events`,
@@ -253,11 +263,15 @@ export function EventStream({ className }: EventStreamProps) {
         });
       };
 
-      source.onmessage = (event) => {
+      source.onmessage = event => {
         try {
           const data = JSON.parse(event.data);
-          
-          if (data.type === 'event_update' || data.type === 'bridge_outbox_update' || data.type === 'workflow_update') {
+
+          if (
+            data.type === 'event_update' ||
+            data.type === 'bridge_outbox_update' ||
+            data.type === 'workflow_update'
+          ) {
             setEvents(prev => {
               // Avoid duplicates and keep most recent events first
               const filtered = prev.filter(e => e.id !== data.event.id);
@@ -301,48 +315,51 @@ export function EventStream({ className }: EventStreamProps) {
   }, [eventSource]);
 
   // Handle replay request
-  const handleReplay = useCallback(async (event: PipelineEvent) => {
-    try {
-      const replayData = {
-        action: 'rerun-grading',
-        criteria: {
-          timeRange: '1h',
-          eventType: event.eventType,
-          reason: `Manual replay from Command Center for event ${event.id}`,
-          batchSize: 1,
-          priority: 'high',
-          dryRun: false,
-        },
-      };
+  const handleReplay = useCallback(
+    async (event: PipelineEvent) => {
+      try {
+        const replayData = {
+          action: 'rerun-grading',
+          criteria: {
+            timeRange: '1h',
+            eventType: event.eventType,
+            reason: `Manual replay from Command Center for event ${event.id}`,
+            batchSize: 1,
+            priority: 'high',
+            dryRun: false,
+          },
+        };
 
-      const response = await fetch('/api/replay', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': 'command-center-user',
-        },
-        body: JSON.stringify(replayData),
-      });
+        const response = await fetch('/api/replay', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-user-id': 'command-center-user',
+          },
+          body: JSON.stringify(replayData),
+        });
 
-      if (!response.ok) {
-        throw new Error(`Replay failed: ${response.statusText}`);
+        if (!response.ok) {
+          throw new Error(`Replay failed: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+
+        toast({
+          title: 'Replay Started',
+          description: `Replay ${result.replayId} initiated for ${result.eventCount} events`,
+        });
+      } catch (error) {
+        console.error('Failed to start replay:', error);
+        toast({
+          title: 'Replay Failed',
+          description: 'Failed to initiate event replay',
+          variant: 'destructive',
+        });
       }
-
-      const result = await response.json();
-      
-      toast({
-        title: 'Replay Started',
-        description: `Replay ${result.replayId} initiated for ${result.eventCount} events`,
-      });
-    } catch (error) {
-      console.error('Failed to start replay:', error);
-      toast({
-        title: 'Replay Failed',
-        description: 'Failed to initiate event replay',
-        variant: 'destructive',
-      });
-    }
-  }, [toast]);
+    },
+    [toast]
+  );
 
   // Load initial data on mount
   useEffect(() => {
@@ -355,29 +372,29 @@ export function EventStream({ className }: EventStreamProps) {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-4">
           <h2 className="text-2xl font-bold">Production Pipeline Events</h2>
-          <Badge variant="outline" className={
-            connectionStatus === 'connected' ? 'border-green-500 text-green-700' :
-            connectionStatus === 'connecting' ? 'border-yellow-500 text-yellow-700' :
-            'border-red-500 text-red-700'
-          }>
+          <Badge
+            variant="outline"
+            className={
+              connectionStatus === 'connected'
+                ? 'border-green-500 text-green-700'
+                : connectionStatus === 'connecting'
+                  ? 'border-yellow-500 text-yellow-700'
+                  : 'border-red-500 text-red-700'
+            }
+          >
             {connectionStatus === 'connected' && '🟢'}
             {connectionStatus === 'connecting' && '🟡'}
             {connectionStatus === 'disconnected' && '🔴'}
             {connectionStatus.charAt(0).toUpperCase() + connectionStatus.slice(1)}
           </Badge>
         </div>
-        
+
         <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={loadEvents}
-            disabled={isLoading}
-          >
+          <Button size="sm" variant="outline" onClick={loadEvents} disabled={isLoading}>
             <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          
+
           {isStreaming ? (
             <Button size="sm" onClick={stopStreaming} variant="outline">
               <Pause className="w-4 h-4 mr-2" />
@@ -399,7 +416,7 @@ export function EventStream({ className }: EventStreamProps) {
           <Input
             placeholder="Search events..."
             value={filters.search}
-            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+            onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
             className="pl-10"
           />
         </div>
@@ -467,11 +484,12 @@ export function EventStream({ className }: EventStreamProps) {
                   {isLoading ? 'Loading events...' : 'No events found matching your filters'}
                 </div>
               ) : (
-                filteredEvents.map((event) => {
-                  const eventConfig = EVENT_TYPE_CONFIGS[event.eventType as keyof typeof EVENT_TYPE_CONFIGS];
+                filteredEvents.map(event => {
+                  const eventConfig =
+                    EVENT_TYPE_CONFIGS[event.eventType as keyof typeof EVENT_TYPE_CONFIGS];
                   const statusConfig = STATUS_CONFIGS[event.status];
                   const sourceConfig = SOURCE_CONFIGS[event.source];
-                  
+
                   return (
                     <div
                       key={event.id}
@@ -482,7 +500,9 @@ export function EventStream({ className }: EventStreamProps) {
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
-                          <div className={`w-2 h-8 rounded ${eventConfig?.color || 'bg-gray-400'}`} />
+                          <div
+                            className={`w-2 h-8 rounded ${eventConfig?.color || 'bg-gray-400'}`}
+                          />
                           <div>
                             <div className="flex items-center gap-2">
                               <span className="font-medium">
@@ -504,12 +524,12 @@ export function EventStream({ className }: EventStreamProps) {
                             </div>
                           </div>
                         </div>
-                        
+
                         <div className="flex gap-2">
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={(e) => {
+                            onClick={e => {
                               e.stopPropagation();
                               setSelectedEvent(event);
                             }}
@@ -519,7 +539,7 @@ export function EventStream({ className }: EventStreamProps) {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={(e) => {
+                            onClick={e => {
                               e.stopPropagation();
                               handleReplay(event);
                             }}
@@ -541,32 +561,33 @@ export function EventStream({ className }: EventStreamProps) {
           {selectedEvent ? (
             <div className="border rounded-lg p-4">
               <h3 className="text-lg font-semibold mb-4">Event Details</h3>
-              
+
               <Tabs defaultValue="overview" className="w-full">
                 <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
                   <TabsTrigger value="data">Data</TabsTrigger>
                   <TabsTrigger value="metadata">Metadata</TabsTrigger>
                 </TabsList>
-                
+
                 <TabsContent value="overview" className="space-y-4">
                   <div className="space-y-2">
                     <div className="text-sm text-gray-600">Event Type</div>
                     <div className="font-medium">{selectedEvent.eventType}</div>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <div className="text-sm text-gray-600">Aggregate ID</div>
                     <div className="font-medium break-all">{selectedEvent.aggregateId}</div>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <div className="text-sm text-gray-600">Source</div>
                     <Badge variant="outline">
-                      {SOURCE_CONFIGS[selectedEvent.source].icon} {SOURCE_CONFIGS[selectedEvent.source].label}
+                      {SOURCE_CONFIGS[selectedEvent.source].icon}{' '}
+                      {SOURCE_CONFIGS[selectedEvent.source].label}
                     </Badge>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <div className="text-sm text-gray-600">Status</div>
                     <Badge className={STATUS_CONFIGS[selectedEvent.status].color}>
@@ -577,14 +598,14 @@ export function EventStream({ className }: EventStreamProps) {
                       {STATUS_CONFIGS[selectedEvent.status].label}
                     </Badge>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <div className="text-sm text-gray-600">Created</div>
                     <div className="font-medium">
                       {new Date(selectedEvent.createdAt).toLocaleString()}
                     </div>
                   </div>
-                  
+
                   {selectedEvent.processedAt && (
                     <div className="space-y-2">
                       <div className="text-sm text-gray-600">Processed</div>
@@ -594,7 +615,7 @@ export function EventStream({ className }: EventStreamProps) {
                     </div>
                   )}
                 </TabsContent>
-                
+
                 <TabsContent value="data">
                   <ScrollArea className="h-[300px]">
                     <pre className="text-xs whitespace-pre-wrap">
@@ -602,7 +623,7 @@ export function EventStream({ className }: EventStreamProps) {
                     </pre>
                   </ScrollArea>
                 </TabsContent>
-                
+
                 <TabsContent value="metadata">
                   <ScrollArea className="h-[300px]">
                     <pre className="text-xs whitespace-pre-wrap">

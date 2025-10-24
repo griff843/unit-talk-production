@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://lxqmuzmqtnnlpfapvief.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cW11em1xdG5ubHBmYXB2aWVmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NTA5Njg0NSwiZXhwIjoyMDYwNjcyODQ1fQ.NFMR0P7iQU7aEa1ssY-jnDD2Tm5ylfzEpUEAkZZ2n7E';
+const supabaseKey =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cW11em1xdG5ubHBmYXB2aWVmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NTA5Njg0NSwiZXhwIjoyMDYwNjcyODQ1fQ.NFMR0P7iQU7aEa1ssY-jnDD2Tm5ylfzEpUEAkZZ2n7E';
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -23,24 +24,24 @@ class DataIngestionMonitorService {
 
   // Expected data sources and their intervals
   private dataSources = {
-    'optimal_api': {
+    optimal_api: {
       table: 'raw_props',
       expectedInterval: 1, // 1 minute during peak hours
       minRecordsPerHour: 100, // Minimum props expected per hour
       peakHours: [18, 19, 20, 21, 22, 23], // 6PM - 11PM EST
     },
-    'odds_api': {
-      table: 'raw_props', 
+    odds_api: {
+      table: 'raw_props',
       expectedInterval: 2, // 2 minutes
       minRecordsPerHour: 50,
       peakHours: [18, 19, 20, 21, 22, 23],
     },
-    'agent_processing': {
+    agent_processing: {
       table: 'unified_picks',
       expectedInterval: 5, // 5 minutes
       minRecordsPerHour: 10, // At least 10 picks processed per hour
       peakHours: [18, 19, 20, 21, 22, 23],
-    }
+    },
   };
 
   /**
@@ -56,10 +57,12 @@ class DataIngestionMonitorService {
         results.push(status);
 
         // Trigger alerts for critical issues
-        if (status.status === 'critical' || (status.status === 'stale' && status.minutesSinceLastData > 10)) {
+        if (
+          status.status === 'critical' ||
+          (status.status === 'stale' && status.minutesSinceLastData > 10)
+        ) {
           await this.triggerDataIngestionAlert(status);
         }
-
       } catch (error) {
         console.error(`Failed to check data source ${source}:`, error);
         results.push({
@@ -83,8 +86,8 @@ class DataIngestionMonitorService {
    * Check individual data source health
    */
   private async checkSingleDataSource(
-    source: string, 
-    config: typeof this.dataSources[keyof typeof this.dataSources],
+    source: string,
+    config: (typeof this.dataSources)[keyof typeof this.dataSources],
     currentHour: number
   ): Promise<DataIngestionStatus> {
     const now = new Date();
@@ -121,7 +124,7 @@ class DataIngestionMonitorService {
 
     const { count: hourCount, error: hourError } = await hourCountQuery;
 
-    // Count records in last 24 hours  
+    // Count records in last 24 hours
     let dayCountQuery = supabase
       .from(config.table)
       .select('*', { count: 'exact', head: true })
@@ -136,7 +139,7 @@ class DataIngestionMonitorService {
     const { count: dayCount, error: dayError } = await dayCountQuery;
 
     const lastDataReceived = lastRecord && !lastError ? new Date(lastRecord.created_at) : null;
-    const minutesSinceLastData = lastDataReceived 
+    const minutesSinceLastData = lastDataReceived
       ? Math.floor((now.getTime() - lastDataReceived.getTime()) / (1000 * 60))
       : 999;
 
@@ -153,7 +156,10 @@ class DataIngestionMonitorService {
       status = 'no_data';
     } else if (minutesSinceLastData > expectedInterval * 3) {
       status = 'critical';
-    } else if (minutesSinceLastData > expectedInterval || recordsInLastHour < config.minRecordsPerHour / (isPeakHour ? 1 : 2)) {
+    } else if (
+      minutesSinceLastData > expectedInterval ||
+      recordsInLastHour < config.minRecordsPerHour / (isPeakHour ? 1 : 2)
+    ) {
       status = 'stale';
     } else {
       status = 'healthy';
@@ -177,7 +183,7 @@ class DataIngestionMonitorService {
    */
   private async triggerDataIngestionAlert(status: DataIngestionStatus): Promise<void> {
     const alertKey = `${status.source}_${status.status}`;
-    
+
     // Prevent spam - only alert once per hour for the same issue
     if (this.alertCache.has(alertKey)) {
       return;
@@ -214,16 +220,15 @@ class DataIngestionMonitorService {
       });
 
       // Also log directly to database
-      await supabase
-        .from('system_logs')
-        .insert([{
+      await supabase.from('system_logs').insert([
+        {
           level: 'error',
           message: alertData.message,
           metadata: alertData,
           source: 'data_ingestion_monitor',
           created_at: new Date().toISOString(),
-        }]);
-
+        },
+      ]);
     } catch (error) {
       console.error('Failed to send data ingestion alert:', error);
       // Fallback logging
@@ -236,7 +241,7 @@ class DataIngestionMonitorService {
    */
   private getAlertMessage(status: DataIngestionStatus): string {
     const source = status.source.replace('_', ' ').toUpperCase();
-    
+
     switch (status.status) {
       case 'no_data':
         return `📭 NO DATA: ${source} has never received data - check API keys and connections`;
@@ -252,25 +257,28 @@ class DataIngestionMonitorService {
   /**
    * Start continuous monitoring
    */
-  startMonitoring(intervalMs: number = 120000): void { // Default: 2 minutes
+  startMonitoring(intervalMs: number = 120000): void {
+    // Default: 2 minutes
     if (this.monitoringInterval) {
       this.stopMonitoring();
     }
 
     console.log(`🔍 Starting data ingestion monitoring (interval: ${intervalMs}ms)`);
-    
+
     // Initial check
     this.checkDataIngestionHealth().then(results => {
       console.log('📊 Data ingestion health check results:', results);
     });
-    
+
     // Schedule regular checks
     this.monitoringInterval = setInterval(() => {
       this.checkDataIngestionHealth().then(results => {
         const criticalSources = results.filter(r => r.status === 'critical');
         if (criticalSources.length > 0) {
-          console.warn(`⚠️ ${criticalSources.length} data sources in critical state:`, 
-            criticalSources.map(s => s.source));
+          console.warn(
+            `⚠️ ${criticalSources.length} data sources in critical state:`,
+            criticalSources.map(s => s.source)
+          );
         }
       });
     }, intervalMs);
@@ -298,11 +306,13 @@ class DataIngestionMonitorService {
     overallStatus: 'healthy' | 'degraded' | 'critical';
   }> {
     const results = await this.checkDataIngestionHealth();
-    
+
     const totalSources = results.length;
     const healthySources = results.filter(r => r.status === 'healthy').length;
     const staleSources = results.filter(r => r.status === 'stale').length;
-    const criticalSources = results.filter(r => r.status === 'critical' || r.status === 'no_data').length;
+    const criticalSources = results.filter(
+      r => r.status === 'critical' || r.status === 'no_data'
+    ).length;
 
     let overallStatus: 'healthy' | 'degraded' | 'critical' = 'healthy';
     if (criticalSources > 0) {

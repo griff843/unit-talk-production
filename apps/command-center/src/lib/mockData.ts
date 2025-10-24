@@ -3,13 +3,13 @@
  * Provides realistic, live-updating data that simulates real database functionality
  */
 
-import { User, Agent, SecurityEvent } from './supabase'
+import { User, Agent, SecurityEvent } from './supabase';
 
 // Generate realistic timestamps
-const now = new Date()
-const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
-const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
-const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+const now = new Date();
+const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
 // Mock Users Data
 export const mockUsers: User[] = [
@@ -24,7 +24,7 @@ export const mockUsers: User[] = [
     last_active: new Date(now.getTime() - 5 * 60 * 1000).toISOString(), // 5 minutes ago
     total_picks: 247,
     win_rate: 74.5,
-    revenue: 2847.50
+    revenue: 2847.5,
   },
   {
     id: '2',
@@ -37,7 +37,7 @@ export const mockUsers: User[] = [
     last_active: new Date(now.getTime() - 15 * 60 * 1000).toISOString(), // 15 minutes ago
     total_picks: 189,
     win_rate: 58.9,
-    revenue: 1234.75
+    revenue: 1234.75,
   },
   {
     id: '3',
@@ -50,7 +50,7 @@ export const mockUsers: User[] = [
     last_active: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
     total_picks: 89,
     win_rate: 45.2,
-    revenue: 0
+    revenue: 0,
   },
   {
     id: '4',
@@ -63,7 +63,7 @@ export const mockUsers: User[] = [
     last_active: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 1 week ago
     total_picks: 1205,
     win_rate: 72.1,
-    revenue: 4521.30
+    revenue: 4521.3,
   },
   {
     id: '5',
@@ -76,9 +76,9 @@ export const mockUsers: User[] = [
     last_active: new Date(now.getTime() - 2 * 60 * 1000).toISOString(), // 2 minutes ago
     total_picks: 156,
     win_rate: 69.1,
-    revenue: 1876.90
-  }
-]
+    revenue: 1876.9,
+  },
+];
 
 // Mock Agents Data with dynamic status updates
 export const mockAgents: Agent[] = [
@@ -95,8 +95,8 @@ export const mockAgents: Agent[] = [
       enabled: true,
       interval: '30s',
       channels: ['discord', 'email'],
-      priority_levels: ['high', 'critical']
-    }
+      priority_levels: ['high', 'critical'],
+    },
   },
   {
     id: '2',
@@ -111,8 +111,8 @@ export const mockAgents: Agent[] = [
       enabled: true,
       auto_grade: true,
       confidence_threshold: 0.85,
-      sources: ['odds_api', 'sportsbook_feeds']
-    }
+      sources: ['odds_api', 'sportsbook_feeds'],
+    },
   },
   {
     id: '3',
@@ -127,8 +127,8 @@ export const mockAgents: Agent[] = [
       enabled: true,
       schedule: 'daily',
       formats: ['summary', 'detailed'],
-      performance_threshold: 200
-    }
+      performance_threshold: 200,
+    },
   },
   {
     id: '4',
@@ -143,8 +143,8 @@ export const mockAgents: Agent[] = [
       enabled: true,
       refresh_rate: '5m',
       sources: ['twitter', 'reddit', 'discord'],
-      filters: ['high_engagement']
-    }
+      filters: ['high_engagement'],
+    },
   },
   {
     id: '5',
@@ -159,10 +159,10 @@ export const mockAgents: Agent[] = [
       enabled: true,
       delivery_methods: ['discord', 'push', 'email'],
       retry_attempts: 3,
-      rate_limit: 100
-    }
-  }
-]
+      rate_limit: 100,
+    },
+  },
+];
 
 // Mock Security Events with recent timestamps
 export const mockSecurityEvents: SecurityEvent[] = [
@@ -170,7 +170,8 @@ export const mockSecurityEvents: SecurityEvent[] = [
     id: '1',
     type: 'login_attempt',
     severity: 'high',
-    description: 'Multiple failed login attempts detected from IP 192.168.1.100 (5 attempts in 2 minutes)',
+    description:
+      'Multiple failed login attempts detected from IP 192.168.1.100 (5 attempts in 2 minutes)',
     ip_address: '192.168.1.100',
     user_id: undefined,
     created_at: new Date(now.getTime() - 5 * 60 * 1000).toISOString(), // 5 minutes ago
@@ -179,14 +180,15 @@ export const mockSecurityEvents: SecurityEvent[] = [
       attempt_count: 5,
       user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       geolocation: 'Unknown',
-      blocked: true
-    }
+      blocked: true,
+    },
   },
   {
     id: '2',
     type: 'rate_limit',
     severity: 'medium',
-    description: 'API rate limit exceeded for user ProCapper23 (150 requests in 1 minute, limit: 100)',
+    description:
+      'API rate limit exceeded for user ProCapper23 (150 requests in 1 minute, limit: 100)',
     ip_address: '10.0.0.45',
     user_id: '1',
     created_at: new Date(now.getTime() - 12 * 60 * 1000).toISOString(), // 12 minutes ago
@@ -195,8 +197,8 @@ export const mockSecurityEvents: SecurityEvent[] = [
       request_count: 150,
       endpoint: '/api/picks',
       user_tier: 'VIP',
-      action_taken: 'temporary_throttle'
-    }
+      action_taken: 'temporary_throttle',
+    },
   },
   {
     id: '3',
@@ -212,8 +214,8 @@ export const mockSecurityEvents: SecurityEvent[] = [
       new_location: 'Nigeria',
       distance_km: 11200,
       confidence_score: 0.75,
-      vpn_detected: false
-    }
+      vpn_detected: false,
+    },
   },
   {
     id: '4',
@@ -228,14 +230,15 @@ export const mockSecurityEvents: SecurityEvent[] = [
       device_type: 'Mobile',
       browser: 'Chrome Mobile',
       first_access: true,
-      verification_sent: true
-    }
+      verification_sent: true,
+    },
   },
   {
     id: '5',
     type: 'login_attempt',
     severity: 'critical',
-    description: 'Potential credential stuffing attack detected - 127 failed attempts across 15 accounts',
+    description:
+      'Potential credential stuffing attack detected - 127 failed attempts across 15 accounts',
     ip_address: '185.220.101.47',
     user_id: undefined,
     created_at: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
@@ -245,10 +248,10 @@ export const mockSecurityEvents: SecurityEvent[] = [
       accounts_targeted: 15,
       attempts_per_account: 8.47,
       ip_reputation: 'malicious',
-      blocked_permanently: true
-    }
-  }
-]
+      blocked_permanently: true,
+    },
+  },
+];
 
 // Mock Recent Picks Data
 export const mockRecentPicks = [
@@ -261,7 +264,7 @@ export const mockRecentPicks = [
     odds: -110,
     confidence: 8,
     created_at: new Date(now.getTime() - 30 * 60 * 1000).toISOString(),
-    status: 'pending'
+    status: 'pending',
   },
   {
     id: '2',
@@ -272,7 +275,7 @@ export const mockRecentPicks = [
     odds: -105,
     confidence: 7,
     created_at: new Date(now.getTime() - 45 * 60 * 1000).toISOString(),
-    status: 'pending'
+    status: 'pending',
   },
   {
     id: '3',
@@ -283,28 +286,30 @@ export const mockRecentPicks = [
     odds: -115,
     confidence: 9,
     created_at: new Date(now.getTime() - 60 * 60 * 1000).toISOString(),
-    status: 'won'
-  }
-]
+    status: 'won',
+  },
+];
 
 // Dynamic Analytics Calculator
 export function getMockAnalytics() {
-  const totalUsers = mockUsers.length
-  const activeUsers = mockUsers.filter(u => u.status === 'active').length
-  const vipUsers = mockUsers.filter(u => u.tier === 'VIP').length
-  const premiumUsers = mockUsers.filter(u => u.tier === 'Premium').length
-  const bannedUsers = mockUsers.filter(u => u.status === 'banned').length
-  
-  const totalPicks = mockUsers.reduce((sum, user) => sum + user.total_picks, 0)
-  const totalRevenue = mockUsers.reduce((sum, user) => sum + user.revenue, 0)
-  
-  const healthyAgents = mockAgents.filter(a => a.status === 'healthy').length
-  const warningAgents = mockAgents.filter(a => a.status === 'warning').length
-  const errorAgents = mockAgents.filter(a => a.status === 'error').length
-  
-  const openSecurityEvents = mockSecurityEvents.filter(e => !e.resolved_at).length
-  const criticalEvents = mockSecurityEvents.filter(e => e.severity === 'critical' && !e.resolved_at).length
-  
+  const totalUsers = mockUsers.length;
+  const activeUsers = mockUsers.filter(u => u.status === 'active').length;
+  const vipUsers = mockUsers.filter(u => u.tier === 'VIP').length;
+  const premiumUsers = mockUsers.filter(u => u.tier === 'Premium').length;
+  const bannedUsers = mockUsers.filter(u => u.status === 'banned').length;
+
+  const totalPicks = mockUsers.reduce((sum, user) => sum + user.total_picks, 0);
+  const totalRevenue = mockUsers.reduce((sum, user) => sum + user.revenue, 0);
+
+  const healthyAgents = mockAgents.filter(a => a.status === 'healthy').length;
+  const warningAgents = mockAgents.filter(a => a.status === 'warning').length;
+  const errorAgents = mockAgents.filter(a => a.status === 'error').length;
+
+  const openSecurityEvents = mockSecurityEvents.filter(e => !e.resolved_at).length;
+  const criticalEvents = mockSecurityEvents.filter(
+    e => e.severity === 'critical' && !e.resolved_at
+  ).length;
+
   return {
     overview: {
       totalUsers,
@@ -321,62 +326,64 @@ export function getMockAnalytics() {
       warningAgents,
       errorAgents,
       openSecurityEvents,
-      criticalEvents
+      criticalEvents,
     },
     usersByTier: {
       Free: mockUsers.filter(u => u.tier === 'Free').length,
       Premium: premiumUsers,
-      VIP: vipUsers
+      VIP: vipUsers,
     },
     usersByStatus: {
       active: activeUsers,
       inactive: mockUsers.filter(u => u.status === 'inactive').length,
-      banned: bannedUsers
+      banned: bannedUsers,
     },
     agentsByStatus: {
       healthy: healthyAgents,
       warning: warningAgents,
       error: errorAgents,
-      inactive: mockAgents.filter(a => a.status === 'inactive').length
-    }
-  }
+      inactive: mockAgents.filter(a => a.status === 'inactive').length,
+    },
+  };
 }
 
 // Simulate real-time updates
 export function simulateAgentStatusUpdate(agentId: string) {
-  const agent = mockAgents.find(a => a.id === agentId)
+  const agent = mockAgents.find(a => a.id === agentId);
   if (agent) {
-    agent.last_run = new Date().toISOString()
-    agent.total_operations += Math.floor(Math.random() * 10) + 1
-    
+    agent.last_run = new Date().toISOString();
+    agent.total_operations += Math.floor(Math.random() * 10) + 1;
+
     // Occasionally change status
-    if (Math.random() < 0.1) { // 10% chance
-      const statuses: Agent['status'][] = ['healthy', 'warning', 'healthy', 'healthy'] // Bias toward healthy
-      agent.status = statuses[Math.floor(Math.random() * statuses.length)]
+    if (Math.random() < 0.1) {
+      // 10% chance
+      const statuses: Agent['status'][] = ['healthy', 'warning', 'healthy', 'healthy']; // Bias toward healthy
+      agent.status = statuses[Math.floor(Math.random() * statuses.length)];
     }
   }
 }
 
 // Simulate new security events
 export function simulateNewSecurityEvent(): SecurityEvent {
-  const eventTypes = ['login_attempt', 'rate_limit', 'api_access', 'suspicious_activity']
-  const severities: SecurityEvent['severity'][] = ['low', 'medium', 'high']
-  const ips = ['192.168.1.100', '10.0.0.45', '203.0.113.15', '185.220.101.47']
-  
+  const eventTypes = ['login_attempt', 'rate_limit', 'api_access', 'suspicious_activity'];
+  const severities: SecurityEvent['severity'][] = ['low', 'medium', 'high'];
+  const ips = ['192.168.1.100', '10.0.0.45', '203.0.113.15', '185.220.101.47'];
+
   return {
     id: Math.random().toString(36).substr(2, 9),
     type: eventTypes[Math.floor(Math.random() * eventTypes.length)] as any,
     severity: severities[Math.floor(Math.random() * severities.length)],
     description: `Simulated security event: ${eventTypes[Math.floor(Math.random() * eventTypes.length)]} detected`,
     ip_address: ips[Math.floor(Math.random() * ips.length)],
-    user_id: Math.random() > 0.5 ? mockUsers[Math.floor(Math.random() * mockUsers.length)].id : undefined,
+    user_id:
+      Math.random() > 0.5 ? mockUsers[Math.floor(Math.random() * mockUsers.length)].id : undefined,
     created_at: new Date().toISOString(),
     resolved_at: undefined,
     metadata: {
       simulated: true,
-      confidence: Math.random()
-    }
-  }
+      confidence: Math.random(),
+    },
+  };
 }
 
 // Live data simulation intervals (can be used in components)
@@ -384,20 +391,21 @@ export function startLiveDataSimulation() {
   // Update agent statuses every 30 seconds
   setInterval(() => {
     mockAgents.forEach(agent => {
-      simulateAgentStatusUpdate(agent.id)
-    })
-  }, 30000)
-  
+      simulateAgentStatusUpdate(agent.id);
+    });
+  }, 30000);
+
   // Add random security events every 2 minutes
   setInterval(() => {
-    if (Math.random() < 0.3) { // 30% chance every 2 minutes
-      mockSecurityEvents.unshift(simulateNewSecurityEvent())
+    if (Math.random() < 0.3) {
+      // 30% chance every 2 minutes
+      mockSecurityEvents.unshift(simulateNewSecurityEvent());
       // Keep only last 20 events
       if (mockSecurityEvents.length > 20) {
-        mockSecurityEvents.splice(20)
+        mockSecurityEvents.splice(20);
       }
     }
-  }, 120000)
+  }, 120000);
 }
 
 // Export function to get all mock data
@@ -407,6 +415,6 @@ export function getAllMockData() {
     agents: mockAgents,
     securityEvents: mockSecurityEvents,
     recentPicks: mockRecentPicks,
-    analytics: getMockAnalytics()
-  }
+    analytics: getMockAnalytics(),
+  };
 }

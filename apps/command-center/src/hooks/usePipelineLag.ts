@@ -31,7 +31,7 @@ export function usePipelineLag(sport: string = 'all'): PipelineLagData {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | undefined>();
   const [lastUpdated, setLastUpdated] = useState<string | undefined>();
-  
+
   const abortControllerRef = useRef<AbortController | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -41,20 +41,20 @@ export function usePipelineLag(sport: string = 'all'): PipelineLagData {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
-      
+
       // Create new abort controller for this request
       abortControllerRef.current = new AbortController();
-      
+
       setError(undefined);
-      
+
       const url = new URL('/api/pipeline/lag', window.location.origin);
       url.searchParams.set('limit', '600');
       if (sport && sport !== 'all') {
         url.searchParams.set('sport', sport);
       }
-      
+
       console.log('🔍 Fetching pipeline lag metrics...', { sport, url: url.pathname + url.search });
-      
+
       const response = await fetch(url.toString(), {
         method: 'GET',
         headers: {
@@ -62,19 +62,19 @@ export function usePipelineLag(sport: string = 'all'): PipelineLagData {
         },
         signal: abortControllerRef.current.signal,
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         throw new Error(`API Error: ${errorData.error || response.statusText}`);
       }
-      
+
       const lagRows: LagRow[] = await response.json();
-      
+
       console.log(`✅ Successfully fetched ${lagRows.length} pipeline lag data points`);
-      
+
       // Group data by sport and sort by time ascending (oldest first for time-series)
       const groupedData: Record<string, PipelineLagPoint[]> = {};
-      
+
       lagRows
         .sort((a, b) => new Date(a.minute_bucket).getTime() - new Date(b.minute_bucket).getTime())
         .forEach(row => {
@@ -82,7 +82,7 @@ export function usePipelineLag(sport: string = 'all'): PipelineLagData {
           if (!groupedData[sportKey]) {
             groupedData[sportKey] = [];
           }
-          
+
           groupedData[sportKey].push({
             t: row.minute_bucket,
             sport: sportKey,
@@ -91,29 +91,31 @@ export function usePipelineLag(sport: string = 'all'): PipelineLagData {
             ct: row.promoted_ct,
           });
         });
-      
+
       // Create combined "all sports" dataset if multiple sports exist
       const sportKeys = Object.keys(groupedData);
       if (sportKeys.length > 1) {
         const allSportsData: PipelineLagPoint[] = [];
-        const timeMap = new Map<string, { p50s: number[], p95s: number[], ct: number }>();
-        
+        const timeMap = new Map<string, { p50s: number[]; p95s: number[]; ct: number }>();
+
         // Aggregate data by time bucket
-        Object.values(groupedData).flat().forEach(point => {
-          if (!timeMap.has(point.t)) {
-            timeMap.set(point.t, { p50s: [], p95s: [], ct: 0 });
-          }
-          const entry = timeMap.get(point.t)!;
-          entry.p50s.push(point.p50s);
-          entry.p95s.push(point.p95s);
-          entry.ct += point.ct;
-        });
-        
+        Object.values(groupedData)
+          .flat()
+          .forEach(point => {
+            if (!timeMap.has(point.t)) {
+              timeMap.set(point.t, { p50s: [], p95s: [], ct: 0 });
+            }
+            const entry = timeMap.get(point.t)!;
+            entry.p50s.push(point.p50s);
+            entry.p95s.push(point.p95s);
+            entry.ct += point.ct;
+          });
+
         // Calculate aggregated metrics
         timeMap.forEach((entry, timestamp) => {
           const avgP50 = entry.p50s.reduce((sum, val) => sum + val, 0) / entry.p50s.length;
           const avgP95 = entry.p95s.reduce((sum, val) => sum + val, 0) / entry.p95s.length;
-          
+
           allSportsData.push({
             t: timestamp,
             sport: 'all',
@@ -122,20 +124,21 @@ export function usePipelineLag(sport: string = 'all'): PipelineLagData {
             ct: entry.ct,
           });
         });
-        
-        groupedData['all'] = allSportsData.sort((a, b) => new Date(a.t).getTime() - new Date(b.t).getTime());
+
+        groupedData['all'] = allSportsData.sort(
+          (a, b) => new Date(a.t).getTime() - new Date(b.t).getTime()
+        );
       }
-      
+
       setData(groupedData);
       setLastUpdated(new Date().toISOString());
       setIsLoading(false);
-      
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
         console.log('Pipeline lag fetch aborted');
         return; // Don't set error state for aborted requests
       }
-      
+
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch pipeline lag data';
       console.error('❌ Pipeline lag fetch failed:', errorMessage);
       setError(errorMessage);
@@ -155,12 +158,12 @@ export function usePipelineLag(sport: string = 'all'): PipelineLagData {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
     }
-    
+
     // Set up new interval for auto-refresh
     intervalRef.current = setInterval(() => {
       fetchData();
     }, 30000); // 30 seconds
-    
+
     // Cleanup on unmount
     return () => {
       if (intervalRef.current) {

@@ -5,9 +5,9 @@
  * Outputs SQL commands that need to be run in Supabase SQL Editor
  */
 
-console.log('🚧 Command Center Database Setup\n')
-console.log('Please run the following SQL commands in your Supabase SQL Editor:\n')
-console.log('='.repeat(80) + '\n')
+console.log('🚧 Command Center Database Setup\n');
+console.log('Please run the following SQL commands in your Supabase SQL Editor:\n');
+console.log('='.repeat(80) + '\n');
 
 const completeSQL = `
 -- Command Center Basic Tables Setup
@@ -104,14 +104,14 @@ INSERT INTO security_events (type, severity, description, ip_address, metadata) 
 GRANT USAGE ON SCHEMA public TO authenticated;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO authenticated;
-`
+`;
 
-console.log(completeSQL)
-console.log('\n' + '='.repeat(80))
-console.log('\n📋 Steps to complete setup:')
-console.log('1. Copy the SQL above')
-console.log('2. Go to your Supabase project dashboard')
-console.log('3. Navigate to SQL Editor')
-console.log('4. Paste and run the SQL')
-console.log('5. Run: npm run db:test')
-console.log('\n🎉 After running the SQL, your database will be ready!')
+console.log(completeSQL);
+console.log('\n' + '='.repeat(80));
+console.log('\n📋 Steps to complete setup:');
+console.log('1. Copy the SQL above');
+console.log('2. Go to your Supabase project dashboard');
+console.log('3. Navigate to SQL Editor');
+console.log('4. Paste and run the SQL');
+console.log('5. Run: npm run db:test');
+console.log('\n🎉 After running the SQL, your database will be ready!');

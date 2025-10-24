@@ -39,20 +39,20 @@ class ServerTemporalService {
           address: process.env.TEMPORAL_SERVER_URL || 'localhost:7233',
         }),
       });
-      
+
       console.log('✅ Server Temporal client initialized');
       this.connectionRetries = 0;
     } catch (error) {
       console.error('❌ Failed to connect to Temporal:', error);
-      
+
       if (this.connectionRetries < this.maxRetries) {
         this.connectionRetries++;
         console.log(`🔄 Retrying connection (${this.connectionRetries}/${this.maxRetries})...`);
-        
+
         await new Promise(resolve => setTimeout(resolve, this.retryDelay * this.connectionRetries));
         return this.connect();
       }
-      
+
       throw new Error(`Failed to connect to Temporal after ${this.maxRetries} attempts`);
     }
   }
@@ -64,7 +64,7 @@ class ServerTemporalService {
 
     try {
       const workflows: WorkflowInfo[] = [];
-      
+
       // List all workflows
       for await (const workflow of this.client!.workflow.list()) {
         const workflowInfo: WorkflowInfo = {
@@ -77,7 +77,7 @@ class ServerTemporalService {
           taskQueue: workflow.taskQueue,
           memo: workflow.memo,
         };
-        
+
         workflows.push(workflowInfo);
       }
 
@@ -92,19 +92,19 @@ class ServerTemporalService {
 
   async getWorkflowSummary(): Promise<WorkflowSummary> {
     const workflows = await this.getWorkflowList();
-    
+
     // Critical workflows that should always be running
     const criticalWorkflows = [
       'syndicate-scheduler-main',
-      'live-game-detector', 
+      'live-game-detector',
       'quota-monitoring',
-      'health-monitoring'
+      'health-monitoring',
     ];
-    
+
     const runningCritical = workflows
       .filter(w => criticalWorkflows.includes(w.workflowId) && w.status === 'RUNNING')
       .map(w => w.workflowId);
-    
+
     const summary: WorkflowSummary = {
       total: workflows.length,
       running: workflows.filter(w => w.status === 'RUNNING').length,
@@ -117,7 +117,10 @@ class ServerTemporalService {
     return summary;
   }
 
-  async terminateWorkflow(workflowId: string, reason: string = 'Manual termination from Command Center'): Promise<boolean> {
+  async terminateWorkflow(
+    workflowId: string,
+    reason: string = 'Manual termination from Command Center'
+  ): Promise<boolean> {
     if (!this.client) {
       await this.connect();
     }
@@ -166,21 +169,24 @@ export async function GET(request: NextRequest) {
           serverTemporalService.getWorkflowList(),
           serverTemporalService.getWorkflowSummary(),
         ]);
-        
-        return NextResponse.json({ 
-          success: true, 
-          data: { 
-            workflows: workflowList, 
-            summary: workflowSummary 
-          } 
+
+        return NextResponse.json({
+          success: true,
+          data: {
+            workflows: workflowList,
+            summary: workflowSummary,
+          },
         });
     }
   } catch (error) {
     console.error('❌ Temporal API error:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -192,27 +198,36 @@ export async function POST(request: NextRequest) {
     switch (action) {
       case 'terminate':
         if (!workflowId) {
-          return NextResponse.json({ 
-            success: false, 
-            error: 'workflowId is required for terminate action' 
-          }, { status: 400 });
+          return NextResponse.json(
+            {
+              success: false,
+              error: 'workflowId is required for terminate action',
+            },
+            { status: 400 }
+          );
         }
 
         const success = await serverTemporalService.terminateWorkflow(workflowId, reason);
         return NextResponse.json({ success, data: { terminated: success } });
 
       default:
-        return NextResponse.json({ 
-          success: false, 
-          error: `Unknown action: ${action}` 
-        }, { status: 400 });
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Unknown action: ${action}`,
+          },
+          { status: 400 }
+        );
     }
   } catch (error) {
     console.error('❌ Temporal API POST error:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 500 }
+    );
   }
 }
 
