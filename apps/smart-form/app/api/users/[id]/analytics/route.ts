@@ -7,9 +7,9 @@ const supabase = createClient(
 );
 
 // Enhanced user analytics API with sport-specific performance
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const startTime = Date.now();
-  const userId = params.id;
+  const { id: userId } = await params;
   const { searchParams } = new URL(request.url);
   const days = parseInt(searchParams.get('days') || '30');
 
@@ -177,8 +177,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // NEW: POST endpoint for updating user analytics preferences
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
-  const userId = params.id;
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id: userId } = await params;
 
   try {
     const body = await request.json();

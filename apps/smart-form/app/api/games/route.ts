@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseServer } from '@/lib/supabase';
-import { 
-  createRouteLogger, 
-  logDatabaseOperation, 
-  logApiPerformance, 
+import {
+  createRouteLogger,
+  logDatabaseOperation,
+  logApiPerformance,
   logExternalApiCall,
-  logValidationError 
+  logValidationError,
 } from '@/lib/logger';
 
 const log = createRouteLogger('GET /api/games', 'GET');
@@ -15,7 +15,10 @@ const log = createRouteLogger('GET /api/games', 'GET');
 const QuerySchema = z.object({
   sport: z.enum(['NFL', 'NBA', 'MLB', 'NHL', 'NCAAF']),
   team_id: z.string().uuid().nullish(),
-  refresh: z.string().nullish().transform(val => val === 'true'),
+  refresh: z
+    .string()
+    .nullish()
+    .transform(val => val === 'true'),
 });
 
 // Optimal API Configuration - using environment variables
@@ -77,27 +80,12 @@ async function makeOptimalRequest<T>(endpoint: string, params?: Record<string, a
     }
 
     const data = await response.json();
-    
-    logExternalApiCall(
-      log, 
-      'Optimal API', 
-      endpoint, 
-      'GET', 
-      startTime, 
-      response.status
-    );
+
+    logExternalApiCall(log, 'Optimal API', endpoint, 'GET', startTime, response.status);
 
     return data;
   } catch (error) {
-    logExternalApiCall(
-      log, 
-      'Optimal API', 
-      endpoint, 
-      'GET', 
-      startTime, 
-      undefined,
-      error
-    );
+    logExternalApiCall(log, 'Optimal API', endpoint, 'GET', startTime, undefined, error);
     throw error;
   }
 }
@@ -186,7 +174,7 @@ function convertOptimalEventToGame(event: OptimalEvent, gameLines: OptimalGameLi
 
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
-  
+
   try {
     const { searchParams } = new URL(request.url);
     const rawQuery = {
@@ -199,18 +187,24 @@ export async function GET(request: NextRequest) {
     const queryValidation = QuerySchema.safeParse(rawQuery);
     if (!queryValidation.success) {
       logValidationError(log, queryValidation.error.errors, rawQuery);
-      
-      return NextResponse.json({
-        error: 'Invalid query parameters',
-        details: queryValidation.error.errors,
-      }, { status: 400 });
+
+      return NextResponse.json(
+        {
+          error: 'Invalid query parameters',
+          details: queryValidation.error.errors,
+        },
+        { status: 400 }
+      );
     }
 
     const { sport, team_id, refresh: forceRefresh } = queryValidation.data;
-    
-    log.info({
-      query: { sport, team_id, refresh: forceRefresh },
-    }, `Fetching ${sport} games`);
+
+    log.info(
+      {
+        query: { sport, team_id, refresh: forceRefresh },
+      },
+      `Fetching ${sport} games`
+    );
 
     const today = new Date().toISOString().split('T')[0];
     const supabase = supabaseServer();
@@ -232,11 +226,14 @@ export async function GET(request: NextRequest) {
           return eventDate === today && event.league.toUpperCase() === sport.toUpperCase();
         });
 
-        log.info({
-          events_found: todaysEvents.length,
-          sport,
-          date: today,
-        }, `Found ${todaysEvents.length} ${sport} events for today`);
+        log.info(
+          {
+            events_found: todaysEvents.length,
+            sport,
+            date: today,
+          },
+          `Found ${todaysEvents.length} ${sport} events for today`
+        );
 
         if (todaysEvents.length > 0) {
           // Convert Optimal events to our game format
@@ -263,31 +260,33 @@ export async function GET(request: NextRequest) {
           logDatabaseOperation(log, 'INSERT', 'games', insertedGames, insertError);
 
           if (!insertError) {
-            log.info({
-              inserted_count: insertedGames?.length || 0,
-              source: 'optimal_api',
-            }, `Successfully inserted ${insertedGames?.length} games from Optimal API`);
+            log.info(
+              {
+                inserted_count: insertedGames?.length || 0,
+                source: 'optimal_api',
+              },
+              `Successfully inserted ${insertedGames?.length} games from Optimal API`
+            );
           }
         }
       } catch (optimalError) {
-        log.error({
-          error: optimalError instanceof Error ? optimalError.message : 'Unknown error',
-        }, 'Error fetching from Optimal API, falling back to database data');
+        log.error(
+          {
+            error: optimalError instanceof Error ? optimalError.message : 'Unknown error',
+          },
+          'Error fetching from Optimal API, falling back to database data'
+        );
       }
     }
 
     // Fetch games from database (either fresh Optimal data or existing data)
-    let query = supabase
-      .from('games')
-      .select('*')
-      .eq('league', sport)
-      .eq('game_date', today);
-    
+    let query = supabase.from('games').select('*').eq('league', sport).eq('game_date', today);
+
     // Add team filter if provided
     if (team_id) {
       query = query.or(`home_team_id.eq.${team_id},away_team_id.eq.${team_id}`);
     }
-    
+
     query = query.order('commence_time');
 
     const { data: games, error } = await query;
@@ -295,29 +294,38 @@ export async function GET(request: NextRequest) {
     logDatabaseOperation(log, 'SELECT', 'games', games, error);
 
     if (error) {
-      log.error({
-        error: error.message,
-        code: error.code,
-        sport,
-        team_id,
-        date: today,
-      }, 'Database query error');
-      
-      return NextResponse.json({
-        error: 'Failed to fetch games',
-        message: error.message,
-      }, { status: 500 });
+      log.error(
+        {
+          error: error.message,
+          code: error.code,
+          sport,
+          team_id,
+          date: today,
+        },
+        'Database query error'
+      );
+
+      return NextResponse.json(
+        {
+          error: 'Failed to fetch games',
+          message: error.message,
+        },
+        { status: 500 }
+      );
     }
 
-    log.info({
-      game_count: games?.length || 0,
-      sport,
-      date: today,
-      team_filter: !!team_id,
-    }, `Returning ${games?.length || 0} games for ${sport} on ${today}`);
+    log.info(
+      {
+        game_count: games?.length || 0,
+        sport,
+        date: today,
+        team_filter: !!team_id,
+      },
+      `Returning ${games?.length || 0} games for ${sport} on ${today}`
+    );
 
     // Transform games for frontend consumption with proper time and odds handling
-    let transformedGames =
+    const transformedGames =
       games
         ?.map(game => {
           let gameTime, display_time, formatted_time;
@@ -448,7 +456,6 @@ export async function GET(request: NextRequest) {
         })
         .filter(game => game !== null) || []; // Filter out games that ended too long ago
 
-
     logApiPerformance(log, 'fetch-games', startTime, {
       game_count: transformedGames.length,
       sport,
@@ -457,33 +464,44 @@ export async function GET(request: NextRequest) {
       source: OPTIMAL_API_KEY ? 'optimal_api' : 'database',
     });
 
-    return NextResponse.json({
-      games: transformedGames,
-      meta: {
-        count: transformedGames.length,
-        date: today,
-        sport,
-        team_id: team_id || null,
-        source: OPTIMAL_API_KEY ? 'optimal_api' : 'database',
-        timestamp: new Date().toISOString(),
+    return NextResponse.json(
+      {
+        games: transformedGames,
+        meta: {
+          count: transformedGames.length,
+          date: today,
+          sport,
+          team_id: team_id || null,
+          source: OPTIMAL_API_KEY ? 'optimal_api' : 'database',
+          timestamp: new Date().toISOString(),
+        },
       },
-    }, {
-      status: 200,
-      headers: {
-        'Cache-Control': forceRefresh ? 'no-cache' : 'public, s-maxage=300, stale-while-revalidate=900', // 5min cache unless refresh
-      },
-    });
+      {
+        status: 200,
+        headers: {
+          'Cache-Control': forceRefresh
+            ? 'no-cache'
+            : 'public, s-maxage=300, stale-while-revalidate=900', // 5min cache unless refresh
+        },
+      }
+    );
   } catch (error) {
-    log.error({
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      sport: (request.url.match(/sport=([^&]+)/) || [])[1],
-    }, 'Unexpected error in games endpoint');
-    
-    return NextResponse.json({
-      error: 'Internal server error',
-      message: 'An unexpected error occurred while fetching games',
-    }, { status: 500 });
+    log.error(
+      {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        sport: (request.url.match(/sport=([^&]+)/) || [])[1],
+      },
+      'Unexpected error in games endpoint'
+    );
+
+    return NextResponse.json(
+      {
+        error: 'Internal server error',
+        message: 'An unexpected error occurred while fetching games',
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -492,11 +510,11 @@ export async function HEAD() {
   try {
     const sb = supabaseServer();
     const { error } = await sb.from('games').select('count').limit(1).single();
-    
+
     if (error) {
       return NextResponse.json(null, { status: 503 });
     }
-    
+
     return NextResponse.json(null, { status: 200 });
   } catch {
     return NextResponse.json(null, { status: 503 });

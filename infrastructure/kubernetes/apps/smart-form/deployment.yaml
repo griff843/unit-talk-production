@@ -1,0 +1,116 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smart-form
+  namespace: unit-talk
+  labels:
+    app: smart-form
+    tier: frontend
+    version: v1.0.0
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: smart-form
+  template:
+    metadata:
+      labels:
+        app: smart-form
+        tier: frontend
+        version: v1.0.0
+    spec:
+      containers:
+        - name: smart-form
+          image: ${REGISTRY}/unit-talk/smart-form:${VERSION}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3021
+              name: http
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: 'production'
+            - name: NEXT_PUBLIC_SUPABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: supabase-credentials
+                  key: url
+            - name: NEXT_PUBLIC_SUPABASE_ANON_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: supabase-credentials
+                  key: anon-key
+            - name: PORT
+              value: '3021'
+          resources:
+            requests:
+              memory: '256Mi'
+              cpu: '100m'
+            limits:
+              memory: '512Mi'
+              cpu: '500m'
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3021
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3021
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: smart-form
+  namespace: unit-talk
+  labels:
+    app: smart-form
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3021
+      targetPort: 3021
+      protocol: TCP
+      name: http
+  selector:
+    app: smart-form
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: smart-form
+  namespace: unit-talk
+  annotations:
+    kubernetes.io/ingress.class: 'nginx'
+    cert-manager.io/cluster-issuer: 'letsencrypt-prod'
+    nginx.ingress.kubernetes.io/ssl-redirect: 'true'
+    nginx.ingress.kubernetes.io/force-ssl-redirect: 'true'
+    # Canary annotations - DEFAULT TRAFFIC WEIGHT 0%
+    nginx.ingress.kubernetes.io/canary: 'true'
+    nginx.ingress.kubernetes.io/canary-weight: '0'
+    nginx.ingress.kubernetes.io/canary-by-header: 'X-Canary-Smart-Form'
+    nginx.ingress.kubernetes.io/canary-by-header-value: 'enabled'
+spec:
+  tls:
+    - hosts:
+        - smart-form.unit-talk.com
+      secretName: smart-form-tls
+  rules:
+    - host: smart-form.unit-talk.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: smart-form
+                port:
+                  number: 3021

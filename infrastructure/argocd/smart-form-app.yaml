@@ -1,0 +1,58 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: smart-form
+  namespace: argocd
+  labels:
+    app: smart-form
+    tier: frontend
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: unit-talk
+  source:
+    repoURL: https://github.com/your-org/unit-talk-production.git
+    targetRevision: HEAD
+    path: infrastructure/kubernetes/apps/smart-form
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: unit-talk
+  syncPolicy:
+    automated:
+      prune: false # DO NOT auto-prune - require manual approval
+      selfHeal: false # DO NOT auto-heal - require manual review
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  # Health assessment
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas # Ignore replica count changes from HPA
+  healthCheck:
+    enabled: true
+    # Custom health check script
+    script: |
+      hs = {}
+      if obj.status ~= nil then
+        if obj.status.availableReplicas ~= nil and obj.status.availableReplicas > 0 then
+          hs.status = "Healthy"
+          hs.message = "Smart Form is running with " .. obj.status.availableReplicas .. " replicas"
+        else
+          hs.status = "Progressing"
+          hs.message = "Waiting for Smart Form replicas"
+        end
+      else
+        hs.status = "Progressing"
+        hs.message = "Waiting for Smart Form status"
+      end
+      return hs

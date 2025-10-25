@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { LegCard } from './LegCard';
-import { 
+import {
   apiClient,
   fetchCappers,
   fetchTeams,
@@ -100,7 +100,6 @@ export function SubmitTicketForm() {
     },
   });
 
-
   // Fetch cappers with error handling using API client
   useEffect(() => {
     const loadCappers = async () => {
@@ -126,7 +125,7 @@ export function SubmitTicketForm() {
         // Use fallback data only if API is completely unavailable
         setCappers([
           { id: 'fallback-1', name: 'Mike Johnson', active: true },
-          { id: 'fallback-2', name: 'Sarah Wilson', active: true }, 
+          { id: 'fallback-2', name: 'Sarah Wilson', active: true },
           { id: 'fallback-3', name: 'David Chen', active: true },
         ]);
 
@@ -267,7 +266,7 @@ export function SubmitTicketForm() {
           line: parseFloat(leg.line || '0') || 0,
           leg_odds: parseFloat(leg.odds || '0') || 0,
           source: 'manual' as const,
-          selection: (leg as any).selection || 'over' as 'over' | 'under' | 'yes' | 'no',
+          selection: (leg as any).selection || ('over' as 'over' | 'under' | 'yes' | 'no'),
           confidence: (data.confidence_level || 7) / 10,
         })),
         total_units: data.unit_size,
@@ -275,10 +274,10 @@ export function SubmitTicketForm() {
       };
 
       try {
-        const result = await apiClient.submitTicket(ticketData) as any;
+        const result = (await apiClient.submitTicket(ticketData)) as any;
 
         toast({
-          title: 'Success', 
+          title: 'Success',
           description: `Ticket submitted successfully. Bet Slip ID: ${result?.bet_slip_id || 'Generated'}`,
           variant: 'default',
         });
@@ -455,7 +454,8 @@ export function SubmitTicketForm() {
                         setSelectedGame(game);
                         // Auto-load props for this game
                         if (game) {
-                          apiClient.fetchProps(sportValue, { gameId: game.id })
+                          apiClient
+                            .fetchProps(sportValue, { gameId: game.id })
                             .then(props => {
                               setAvailableProps(props || []);
                             })
@@ -542,7 +542,7 @@ export function SubmitTicketForm() {
                     <Switch
                       id="auto_parlay"
                       checked={form.watch('auto_parlay')}
-                      onCheckedChange={checked => form.setValue('auto_parlay', checked)}
+                      onCheckedChange={(checked: boolean) => form.setValue('auto_parlay', checked)}
                     />
                     <label htmlFor="auto_parlay" className="text-sm font-medium text-gray-700">
                       Auto Parlay
