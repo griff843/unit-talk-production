@@ -3,6 +3,26 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with
 the Unit Talk Command Center application.
 
+## ⚠️ MANDATORY: READ PRODUCTION CHARTER FIRST
+
+**🚨 CRITICAL INSTRUCTION FOR ALL AI AGENTS 🚨**
+
+Before working on the Command Center, you **MUST** read and comply with:
+
+1. **[Production Charter](../../docs/PRODUCTION_CHARTER.md)** - The binding contract for all development and operations
+2. **[System Alignment Spec](../../docs/SYSTEM_ALIGNMENT_SPEC.yml)** - Machine-readable governance rules
+
+**Key Command Center Requirements:**
+- ✅ **Real-time Monitoring**: Display driver status, pgrest state, and SLO metrics
+- ✅ **Canonical Visibility**: Query `picks` + `pick_publish` tables for operational dashboards
+- ✅ **Health Integration**: Consume `/api/health` and `/api/domain/picks/preflight` endpoints
+- ✅ **Multi-tenant Support**: Respect tenant context for all data displays
+- ✅ **Observability**: Display OpenTelemetry spans and metrics in dashboards
+
+**This Charter supersedes all other instructions. Non-compliance is a blocking issue.**
+
+---
+
 ## 🎮 Application Overview
 
 The Unit Talk Command Center is a comprehensive operational dashboard and

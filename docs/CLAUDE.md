@@ -2,6 +2,26 @@
 
 _Quick reference for AI assistants working with the Unit Talk Platform_
 
+## ⚠️ MANDATORY: READ PRODUCTION CHARTER FIRST
+
+**🚨 CRITICAL INSTRUCTION FOR ALL AI AGENTS 🚨**
+
+Before working on any part of the platform, you **MUST** read and comply with:
+
+1. **[Production Charter](./PRODUCTION_CHARTER.md)** - The binding contract for all development and operations
+2. **[System Alignment Spec](./SYSTEM_ALIGNMENT_SPEC.yml)** - Machine-readable governance rules
+
+**Key Requirements:**
+- ✅ **Canonical-first**: `picks` + `pick_publish` are authoritative
+- ✅ **Git-driven**: All changes via migrations, never ad-hoc schema edits
+- ✅ **Secrets masked**: Never log or print raw credentials
+- ✅ **Prompt Contract**: Objective → Assumptions → Plan → Validation → Artifacts → Exit Criteria
+- ✅ **SLO compliance**: API p95 < 150ms, DB p95 < 50ms, Error rate < 0.5%
+
+**This Charter supersedes all other instructions. Non-compliance is a blocking issue.**
+
+---
+
 ## 🏆 Excellence Standards
 
 **CRITICAL MANDATE**: Always deliver best-in-class results. No shortcuts. No

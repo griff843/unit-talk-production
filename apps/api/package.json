@@ -4,9 +4,10 @@
   "description": "Enterprise-grade betting automation platform",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc --project tsconfig.prod.json",
-    "start": "node dist/index.js",
-    "dev": "tsx --watch src/api-server.ts",
+    "clean": "rimraf dist",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/api/src/index.js",
+    "dev": "tsx watch src/index.ts",
     "start:dev": "tsx src/index.ts",
     "api:dev": "tsx --watch src/api-server.ts",
     "api:start": "tsx src/api-server.ts",
@@ -24,6 +25,8 @@
     "build:typecheck": "tsc --noEmit",
     "health:check": "node scripts/healthCheck.js",
     "metrics:show": "node scripts/showMetrics.js",
+    "ops:reload-pgrst": "tsx ../../scripts/ops/force-postgrest-reload.ts",
+    "ops:verify-pgrst": "tsx ../../scripts/ops/verify-pgrst-visible.ts",
     "agents:test": "tsx src/runner/testAllAgents.ts",
     "agents:monitor": "tsx scripts/healthMonitor.ts",
     "odds-api:test": "tsx scripts/test-odds-api-integration.ts",
@@ -78,8 +81,7 @@
     "dev:services": "docker compose up -d postgres redis temporal temporal-web",
     "dev:stop": "docker compose down",
     "dev:logs": "docker compose logs -f",
-    "dev:status": "docker compose ps",
-    "clean": "rimraf dist"
+    "dev:status": "docker compose ps"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.56.0",
@@ -106,6 +108,7 @@
     "next-themes": "^0.4.6",
     "node-cron": "^3.0.3",
     "openai": "^4.103.0",
+    "pg": "^8.11.5",
     "pino": "^8.21.0",
     "pino-pretty": "^10.3.1",
     "prom-client": "^15.1.3",

@@ -3,6 +3,27 @@
 This file provides guidance to Claude Code (claude.ai/code) for the Unit Talk
 Platform workspace.
 
+## ⚠️ MANDATORY: READ PRODUCTION CHARTER FIRST
+
+**🚨 CRITICAL INSTRUCTION FOR ALL AI AGENTS 🚨**
+
+Before taking any action, you **MUST** read and comply with:
+
+1. **[Production Charter](docs/PRODUCTION_CHARTER.md)** - The binding contract for all development and operations
+2. **[System Alignment Spec](docs/SYSTEM_ALIGNMENT_SPEC.yml)** - Machine-readable governance rules
+
+**Key Requirements:**
+- ✅ Canonical-first architecture: `picks` + `pick_publish` are authoritative
+- ✅ All changes must reference the Charter
+- ✅ Schema changes only via `supabase/migrations/**`
+- ✅ Secrets must be masked in all outputs
+- ✅ Use Prompt Contract: Objective → Assumptions → Plan → Validation → Artifacts → Exit Criteria
+- ✅ Produce artifacts in `out/ops/cutover/metrics/100/`
+
+**This Charter supersedes all other instructions. Non-compliance is a blocking issue.**
+
+---
+
 ## 🚀 UNIT TALK – AI CODING & ENVIRONMENT RULES (FOR CLAUDE & ALL AI TOOLS)
 
 **DOCKER-FIRST, SAAS-GRADE DEVELOPMENT RULES**

@@ -3,7 +3,28 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with
 the Unit Talk Platform API application.
 
-## =� Application Overview
+## ⚠️ MANDATORY: READ PRODUCTION CHARTER FIRST
+
+**🚨 CRITICAL INSTRUCTION FOR ALL AI AGENTS 🚨**
+
+Before working on the API, you **MUST** read and comply with:
+
+1. **[Production Charter](../../docs/PRODUCTION_CHARTER.md)** - The binding contract for all development and operations
+2. **[System Alignment Spec](../../docs/SYSTEM_ALIGNMENT_SPEC.yml)** - Machine-readable governance rules
+
+**Key API-Specific Requirements:**
+- ✅ **Canonical-first**: Use `picks` + `pick_publish` tables (not `unified_picks`)
+- ✅ **Driver probe on boot**: PicksDriverFactory validates schema visibility
+- ✅ **Self-healing**: Auto-retry writes after PostgREST reload
+- ✅ **Preflight endpoint**: `/api/domain/picks/preflight` must return `ok: true`
+- ✅ **Health endpoint**: `/api/health` includes driver status and pgrest state
+- ✅ **SLO compliance**: API p95 < 150ms, DB p95 < 50ms, Error rate < 0.5%
+
+**This Charter supersedes all other instructions. Non-compliance is a blocking issue.**
+
+---
+
+## 🎯 Application Overview
 
 Unit Talk is a Fortune 100-grade sports betting intelligence platform that
 provides premium betting insights through advanced analytics, machine learning,

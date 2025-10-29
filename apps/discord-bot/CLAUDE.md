@@ -3,6 +3,27 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with
 the Unit Talk Discord Bot application.
 
+n## ⚠️ MANDATORY: READ PRODUCTION CHARTER FIRST
+
+**🚨 CRITICAL INSTRUCTION FOR ALL AI AGENTS 🚨**
+
+Before working on the Discord Bot, you **MUST** read and comply with:
+
+1. **[Production Charter](../../docs/PRODUCTION_CHARTER.md)** - The binding contract for all development and operations
+2. **[System Alignment Spec](../../docs/SYSTEM_ALIGNMENT_SPEC.yml)** - Machine-readable governance rules
+
+**Key Discord Bot Requirements:**
+- ✅ **Outbox Consumer**: Consume from `pick_publish` table for reliable message delivery
+- ✅ **Idempotency**: Verify `external_message_id` to prevent duplicate Discord posts
+- ✅ **Shadow Mode**: Respect `SHADOW_MODE=true` for testing without live publishes
+- ✅ **Thread Mapping**: Use `capper_threads` config for proper channel/thread routing
+- ✅ **Retry Logic**: Implement exponential backoff with jitter for failed publishes
+- ✅ **Circuit Breaker**: Trip on sustained failures, auto-recover when healthy
+
+**This Charter supersedes all other instructions. Non-compliance is a blocking issue.**
+
+---
+
 ## > Application Overview
 
 The Unit Talk Discord Bot is the primary user interface for the sports betting

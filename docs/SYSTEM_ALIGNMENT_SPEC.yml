@@ -1,0 +1,493 @@
+# UNIT TALK — SYSTEM ALIGNMENT SPEC (v3.0)
+# Machine-readable contract for automation agents and CI/CD pipelines
+
+version: "3.0"
+last_updated: "2025-10-29"
+owner: "Engineering Team"
+
+# ============================================================================
+# SYSTEM IDENTIFICATION
+# ============================================================================
+system:
+  name: "Unit Talk"
+  repository: "griff843/unit-talk-production"
+  main_branch: "main"
+  start_command: "./dev.sh start"
+  artifacts_dir: "out/ops/cutover/metrics/100"
+  charter_path: "docs/PRODUCTION_CHARTER.md"
+
+# ============================================================================
+# ENVIRONMENTS & ENV FILES
+# ============================================================================
+environments:
+  precedence:
+    - .env.shared
+    - .env.local
+    - .env
+
+  required_keys:
+    # Supabase
+    - SUPABASE_URL
+    - SUPABASE_SERVICE_ROLE_KEY
+    - DATABASE_DIRECT_URL
+
+    # Core
+    - DEFAULT_TENANT_ID
+    - PICK_DRIVER
+    - PUBLISH_MODE
+    - SHADOW_MODE
+    - LOG_MODE
+
+    # Discord
+    - DISCORD_TOKEN
+    - DISCORD_CLIENT_ID
+    - DISCORD_TEST_CHANNEL_ID
+
+  optional_keys:
+    - OTEL_EXPORTER_OTLP_ENDPOINT
+    - REDIS_URL
+    - TEMPORAL_ADDRESS
+
+  masking_rules:
+    - pattern: "(SUPABASE|SERVICE|KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL)"
+      replacement: "***masked***"
+      apply_to: ["logs", "console", "artifacts", "errors"]
+
+# ============================================================================
+# SUPABASE & POSTGREST
+# ============================================================================
+supabase:
+  project_must_match_env: true
+
+  visibility_check:
+    script: "node scripts/ops/verify-pgrst-visible.ts"
+    tables:
+      - picks
+      - pick_publish
+    exit_code_success: 0
+    exit_code_failure: 1
+
+  reload:
+    on_boot: true
+    sql: "SELECT pg_notify('pgrst', 'reload schema');"
+    script: "node scripts/ops/force-postgrest-reload.ts"
+    retries: 2
+    backoff_seconds: [10, 20]
+    wait_after_reload_seconds: 10
+
+# ============================================================================
+# SCHEMA & DATA MODEL
+# ============================================================================
+schema:
+  canonical:
+    tables:
+      - name: picks
+        description: "Core pick record with tenant isolation"
+        primary_key: id
+        required_columns:
+          - tenant_id
+          - user_id
+          - selection
+          - odds
+          - workflow_stage
+          - status
+
+      - name: pick_publish
+        description: "Outbox pattern for Discord publishing"
+        primary_key: id
+        required_columns:
+          - pick_id
+          - tenant_id
+          - channel
+          - status
+
+    required_indexes:
+      - idx_picks_tenant_id
+      - idx_picks_user_id
+      - idx_picks_workflow_stage
+      - idx_picks_status
+      - idx_picks_grading_status
+      - idx_picks_idempotency_key
+      - idx_pick_publish_pick_id
+      - idx_pick_publish_status
+      - idx_pick_publish_next_retry
+
+    rls:
+      enabled: false
+      policies_defined: true
+      staged_rollout_required: true
+
+  fallback:
+    table: unified_picks
+    use_case: "Read/compat only during convergence"
+
+# ============================================================================
+# DRIVERS & RUNTIME BEHAVIOR
+# ============================================================================
+drivers:
+  requested_from_env: true
+  env_key: PICK_DRIVER
+  valid_values: ["canonical", "unified"]
+
+  probe_on_boot: true
+  probe_tables: ["picks", "pick_publish"]
+
+  fallback_if_missing:
+    from: canonical
+    to: unified
+    reason: "fallback_canonical_missing"
+    log_level: "warn"
+
+  self_heal_writes:
+    enabled: true
+    retry_once_after_reload: true
+    max_retries: 1
+
+# ============================================================================
+# VALIDATION GATES
+# ============================================================================
+validation_gates:
+  premerge:
+    - name: "typecheck_zero_ts_errors"
+      command: "npm run type-check"
+      required: true
+      timeout_seconds: 120
+
+    - name: "unit_tests"
+      command: "npm run test"
+      required: true
+      timeout_seconds: 300
+
+    - name: "migration_dry_run"
+      script: "scripts/ops/migration-dry-run.sh"
+      required: true
+      timeout_seconds: 60
+
+    - name: "postgrest_visibility_required"
+      script: "node scripts/ops/verify-pgrst-visible.ts"
+      required: true
+      timeout_seconds: 30
+
+    - name: "e2e_dry_run_multileague"
+      script: "scripts/ops/industry-standard-e2e-validation.ps1"
+      env:
+        DRY_RUN: "true"
+      required: true
+      timeout_seconds: 600
+
+  predeploy:
+    - name: "health_status_ok"
+      endpoint: "/api/health"
+      required: true
+      expected_status: 200
+
+    - name: "preflight_ok"
+      endpoint: "/api/domain/picks/preflight"
+      required: true
+      expected_response:
+        ok: true
+
+    - name: "e2e_live_multileague"
+      script: "scripts/ops/self-heal-and-validate.ps1"
+      leagues: ["NBA", "NFL", "MLB", "NHL"]
+      required: true
+      timeout_seconds: 1200
+
+    - name: "discord_publish_ok"
+      validate_outbox: true
+      required: true
+
+    - name: "slo_guard_ok"
+      check_metrics: true
+      required: true
+
+# ============================================================================
+# SLOs (Service Level Objectives)
+# ============================================================================
+slo:
+  api_p95_ms: 150
+  db_p95_ms: 50
+  error_rate: 0.005  # 0.5%
+  publish_lag_p95_ms: 60000  # 60 seconds
+
+  monitoring:
+    window_seconds: 300  # 5 minutes
+    alert_on_breach: true
+    auto_rollback: true
+
+# ============================================================================
+# OBSERVABILITY
+# ============================================================================
+observability:
+  otel:
+    enabled: true
+    exporter: "otlp"
+    endpoint_env: "OTEL_EXPORTER_OTLP_ENDPOINT"
+
+    spans:
+      - name: "api.picks.insert"
+        attributes:
+          - league
+          - market_type
+          - driver_effective
+          - tenant_id
+          - shadow_mode
+
+      - name: "db.write"
+        attributes:
+          - table
+          - operation
+          - duration_ms
+
+      - name: "outbox.publish"
+        attributes:
+          - channel
+          - status
+          - attempts
+          - discord_thread_id
+
+  dashboards:
+    grafana:
+      panels:
+        - api_p95_latency
+        - db_p95_latency
+        - error_rate
+        - publish_lag
+        - driver_status
+        - pgrest_reload_attempts
+
+  alerts:
+    prometheus:
+      - name: "API_P95_SLO_BREACH"
+        condition: "api_p95_ms > 150"
+        window: "5m"
+        action: "page"
+
+      - name: "ERROR_RATE_HIGH"
+        condition: "error_rate > 0.005"
+        window: "5m"
+        action: "page"
+
+      - name: "PUBLISH_LAG_HIGH"
+        condition: "publish_lag_p95_ms > 60000"
+        window: "5m"
+        action: "alert"
+
+# ============================================================================
+# RATE LIMITING
+# ============================================================================
+rate_limits:
+  write_per_minute: 10
+  read_per_minute: 300
+  burst_multiplier: 1.5
+  strategy: "token_bucket"
+  key_by: ["ip", "user_id"]
+
+# ============================================================================
+# OUTBOX PATTERN
+# ============================================================================
+outbox:
+  mode: "outbox"
+  table: "pick_publish"
+
+  backoff_schedule_seconds: [5, 15, 45, 120, 360, 900]
+  jitter_percent: 25
+  max_attempts: 3
+
+  circuit_breaker:
+    trip_failures: 5
+    window_seconds: 60
+    open_seconds: 60
+    half_open_attempts: 3
+
+  worker:
+    poll_interval_ms: 5000
+    batch_size: 10
+    concurrent_publishes: 5
+
+# ============================================================================
+# DISCORD INTEGRATION
+# ============================================================================
+discord:
+  shadow_mode_allowed: true
+  shadow_mode_env: "SHADOW_MODE"
+
+  require_idempotency: true
+  verify_external_message_id: true
+
+  thread_mapping:
+    config_file: "config/capper_threads.json"
+    required_fields: ["capper_name", "thread_id", "channel_id"]
+
+  rate_limits:
+    messages_per_minute: 50
+    embeds_per_message: 10
+
+# ============================================================================
+# AUTOMATION AGENTS CONTRACT
+# ============================================================================
+automation_agents:
+  must_read_charter: true
+  charter_path: "docs/PRODUCTION_CHARTER.md"
+  alignment_spec_path: "docs/SYSTEM_ALIGNMENT_SPEC.yml"
+
+  supported_agents:
+    - name: "Claude Code"
+      config_file: "CLAUDE.md"
+
+    - name: "Augment"
+      config_file: ".augment/config.json"
+
+    - name: "ChatGPT PM"
+      config_file: "docs/CHATGPT_PM_INSTRUCTIONS.md"
+
+    - name: "GitHub Copilot"
+      config_file: ".github/copilot-instructions.md"
+
+  prompt_contract:
+    required_sections:
+      - Objective
+      - Assumptions
+      - Plan
+      - Validation
+      - Artifacts
+      - ExitCriteria
+
+  refuse_if:
+    - condition: "canonical_requested_but_not_visible"
+      message: "Canonical tables (picks, pick_publish) are not visible. Run: npm run ops:reload-pgrst"
+
+    - condition: "env_secrets_missing"
+      message: "Required environment variables not set. Check .env.shared and .env"
+
+    - condition: "preflight_failed"
+      message: "Preflight check failed. Endpoint: /api/domain/picks/preflight"
+
+  artifacts:
+    directory: "out/ops/cutover/metrics/100"
+    formats: ["json", "md"]
+    required_files:
+      - validation_results.json
+      - go_no_go_decision.md
+      - artifacts_summary.json
+
+  masking_requirements:
+    - never_log_secrets: true
+    - mask_pattern: "(SUPABASE|SERVICE|KEY|TOKEN|SECRET)"
+    - apply_to_all_outputs: true
+
+# ============================================================================
+# ROLLOUT STRATEGY
+# ============================================================================
+rollout:
+  strategy: "canary"
+  steps_percent: [5, 25, 50, 100]
+
+  canary:
+    soak_time_minutes: 30
+    rollback_on_slo_breach: true
+    rollback_on_error_spike: true
+    error_spike_threshold: 0.01  # 1%
+
+  blue_green:
+    enabled: true
+    instant_rollback: true
+
+  feature_flags:
+    use_launchdarkly: false
+    env_based: true
+    flag_prefix: "FEATURE_"
+
+# ============================================================================
+# INCIDENT RESPONSE
+# ============================================================================
+incident_response:
+  tiers:
+    P0:
+      description: "Publishing halted"
+      response_time_minutes: 0
+      action: "immediate_page"
+
+    P1:
+      description: "SLO breach"
+      response_time_minutes: 5
+      action: "page"
+
+    P2:
+      description: "Degraded, self-healed"
+      response_time_minutes: 15
+      action: "alert_only"
+
+  capture_on_incident:
+    - endpoint: "/api/health"
+    - endpoint: "/api/domain/picks/status"
+    - logs: "last_200_lines"
+    - database: "pick_publish_last_20_failures"
+    - metrics: "last_1_hour_timeseries"
+
+  postmortem:
+    required_within_hours: 24
+    template_path: "docs/templates/postmortem.md"
+    action_items_required: true
+    update_charter_if_needed: true
+
+# ============================================================================
+# CI/CD PIPELINE
+# ============================================================================
+cicd:
+  platform: "github_actions"
+
+  pre_merge_checks:
+    - typecheck
+    - unit_tests
+    - lint
+    - migration_dry_run
+    - visibility_check
+
+  pre_deploy_checks:
+    - health_check
+    - preflight_check
+    - e2e_tests
+    - slo_validation
+
+  secrets_management:
+    provider: "github_secrets"
+    never_log_secrets: true
+    rotate_every_days: 90
+
+  artifacts:
+    retention_days: 30
+    s3_bucket: "unit-talk-ci-artifacts"
+
+# ============================================================================
+# COMPLIANCE & GOVERNANCE
+# ============================================================================
+governance:
+  change_management:
+    require_charter_reference: true
+    require_diff_plan: true
+    require_rollback_plan: true
+
+  code_review:
+    minimum_reviewers: 1
+    require_security_review_for:
+      - rls_changes
+      - auth_changes
+      - rate_limit_changes
+
+  deprecation_policy:
+    notice_period_days: 30
+    require_migration_guide: true
+    legacy_path_sunset_after_stable: true
+
+# ============================================================================
+# VALIDATION COMMANDS (Quick Reference)
+# ============================================================================
+commands:
+  start: "./dev.sh start"
+  preflight: "curl -sf http://localhost:3010/api/domain/picks/preflight"
+  verify_visibility: "npm run ops:verify-pgrst"
+  force_reload: "npm run ops:reload-pgrst"
+  e2e_validation: "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\ops\\self-heal-and-validate.ps1"
+  health_check: "curl -sf http://localhost:3010/api/health"
+  type_check: "npm run type-check"
