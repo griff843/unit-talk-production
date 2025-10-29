@@ -25,6 +25,8 @@
     "build:typecheck": "tsc --noEmit",
     "health:check": "node scripts/healthCheck.js",
     "metrics:show": "node scripts/showMetrics.js",
+    "ops:check-project": "tsx ../../scripts/ops/check-project-alignment.ts",
+    "ops:ensure-reload": "tsx ../../scripts/ops/ensure-migration-reload.ts",
     "ops:reload-pgrst": "tsx ../../scripts/ops/force-postgrest-reload.ts",
     "ops:verify-pgrst": "tsx ../../scripts/ops/verify-pgrst-visible.ts",
     "agents:test": "tsx src/runner/testAllAgents.ts",

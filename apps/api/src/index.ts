@@ -10,14 +10,28 @@ const logger = log;
 /**
  * Boot-time PostgREST schema reload (Charter-mandated)
  * Ensures canonical tables (picks, pick_publish) are visible via REST API
+ *
+ * MANDATORY when PICK_DRIVER=canonical
  */
 async function handleBootTimeSchemaReload() {
-  if (process.env.SCHEMA_RELOAD_ON_BOOT !== 'true') {
-    logger.info('SCHEMA_RELOAD_ON_BOOT not enabled, skipping boot-time reload');
+  const pickDriver = process.env.PICK_DRIVER || 'unified';
+  const schemaReloadEnabled = process.env.SCHEMA_RELOAD_ON_BOOT === 'true';
+
+  // Make reload mandatory for canonical driver
+  const shouldReload = schemaReloadEnabled || pickDriver === 'canonical';
+
+  if (!shouldReload) {
+    logger.info('Boot-time schema reload not required (PICK_DRIVER=unified, SCHEMA_RELOAD_ON_BOOT≠true)');
     return;
   }
 
-  logger.info('SCHEMA_RELOAD_ON_BOOT=true, triggering PostgREST reload...');
+  if (pickDriver === 'canonical') {
+    logger.info('PICK_DRIVER=canonical detected - boot-time reload MANDATORY');
+  }
+  if (schemaReloadEnabled) {
+    logger.info('SCHEMA_RELOAD_ON_BOOT=true - triggering PostgREST reload');
+  }
+
   const { forcePostgrestReload, getPgRestState } = await import('./lib/pgrest-reload');
   const reloadResult = await forcePostgrestReload({ reason: 'boot', maxRetries: 1 });
 
@@ -25,16 +39,18 @@ async function handleBootTimeSchemaReload() {
     logger.info('PostgREST schema reload successful', {
       attempt: reloadResult.attempt,
       lastReloadAt: reloadResult.lastReloadAt,
+      pickDriver,
     });
   } else {
     logger.warn('PostgREST schema reload failed (continuing anyway)', {
       error: reloadResult.error,
       attempt: reloadResult.attempt,
+      pickDriver,
     });
   }
 
   const pgrestState = getPgRestState();
-  logger.info('PostgREST state after boot reload', pgrestState);
+  logger.info('PostgREST state after boot reload', { ...pgrestState, pickDriver });
 }
 
 /**
