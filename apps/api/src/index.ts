@@ -12,6 +12,7 @@ const logger = log;
  * Ensures canonical tables (picks, pick_publish) are visible via REST API
  *
  * MANDATORY when PICK_DRIVER=canonical
+ * Uses SECURITY DEFINER RPC for dashboard-free self-healing
  */
 async function handleBootTimeSchemaReload() {
   const pickDriver = process.env.PICK_DRIVER || 'unified';
@@ -32,25 +33,27 @@ async function handleBootTimeSchemaReload() {
     logger.info('SCHEMA_RELOAD_ON_BOOT=true - triggering PostgREST reload');
   }
 
-  const { forcePostgrestReload, getPgRestState } = await import('./lib/pgrest-reload');
-  const reloadResult = await forcePostgrestReload({ reason: 'boot', maxRetries: 1 });
+  // Use RPC-based reload (dashboard-free, SECURITY DEFINER)
+  const { rpcReload } = await import('./lib/rpc-reload');
+  const reloadResult = await rpcReload({
+    triggeredBy: 'boot',
+    reason: `startup schema sync (PICK_DRIVER=${pickDriver})`,
+    maxRetries: 3,
+  });
 
   if (reloadResult.success) {
-    logger.info('PostgREST schema reload successful', {
-      attempt: reloadResult.attempt,
-      lastReloadAt: reloadResult.lastReloadAt,
+    logger.info('PostgREST schema reload successful (RPC)', {
+      reloadId: reloadResult.reloadId,
+      reloadedAt: reloadResult.reloadedAt,
       pickDriver,
     });
   } else {
     logger.warn('PostgREST schema reload failed (continuing anyway)', {
       error: reloadResult.error,
-      attempt: reloadResult.attempt,
+      reloadId: reloadResult.reloadId,
       pickDriver,
     });
   }
-
-  const pgrestState = getPgRestState();
-  logger.info('PostgREST state after boot reload', { ...pgrestState, pickDriver });
 }
 
 /**
