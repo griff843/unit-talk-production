@@ -43,6 +43,7 @@ import {
 import { CLVChart } from '@/components/charts/CLVChart';
 import { ComboPlayBuilder } from '@/components/charts/ComboPlayBuilder';
 import { PickDetailsModal } from '@/components/PickDetailsModal';
+import { RealtimePickFeed } from '@/components/picks/RealtimePickFeed';
 import { getTierColor, formatCurrency, formatPercentage } from '@/lib/utils';
 import { usePicks, Pick } from '@/hooks/usePicks';
 import { toast } from 'sonner';
@@ -322,8 +323,12 @@ export default function PicksHQPage() {
         </CardHeader>
         <CardContent>
           <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList className="grid w-full grid-cols-7">
               <TabsTrigger value="all">All Picks ({picks.length})</TabsTrigger>
+              <TabsTrigger value="realtime">
+                <RefreshCw className="w-4 h-4 mr-1" />
+                Live Feed
+              </TabsTrigger>
               <TabsTrigger value="pending">
                 Pending ({picks.filter(p => p.status === 'pending').length})
               </TabsTrigger>
@@ -342,6 +347,11 @@ export default function PicksHQPage() {
                 Combo Builder
               </TabsTrigger>
             </TabsList>
+
+            {/* Realtime Feed Tab - Charter v3.0 Canonical Integration */}
+            <TabsContent value="realtime" className="mt-6">
+              <RealtimePickFeed />
+            </TabsContent>
 
             {/* Pick Management Tabs */}
             {(selectedTab === 'all' ||

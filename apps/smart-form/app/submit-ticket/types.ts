@@ -218,6 +218,7 @@ export interface SmartTicketFormData {
   odds_format: OddsFormat;
   auto_parlay: boolean;
   confidence_level: number;
+  user_score?: number; // Optional self-assessment score (1-10)
 
   // Step 3: Bet Details
   bet_type: string;
@@ -286,6 +287,12 @@ export const smartTicketFormSchema = z.object({
     .min(1, 'Minimum confidence is 1')
     .max(10, 'Maximum confidence is 10')
     .int('Confidence must be a whole number'),
+  user_score: z
+    .number()
+    .min(1, 'Minimum self-score is 1')
+    .max(10, 'Maximum self-score is 10')
+    .int('Self-score must be a whole number')
+    .optional(),
 
   // Step 3: Bet Details - required
   bet_type: z.string().min(1, 'Bet type is required'),

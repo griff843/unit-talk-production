@@ -9,17 +9,19 @@ the Unit Talk Command Center application.
 
 Before working on the Command Center, you **MUST** read and comply with:
 
-1. **[Production Charter](../../docs/PRODUCTION_CHARTER.md)** - The binding contract for all development and operations
+1. **[Production Charter v3.0](../../docs/PRODUCTION_CHARTER.md)** - The binding contract for all development and operations
 2. **[System Alignment Spec](../../docs/SYSTEM_ALIGNMENT_SPEC.yml)** - Machine-readable governance rules
 
-**Key Command Center Requirements:**
-- ✅ **Real-time Monitoring**: Display driver status, pgrest state, and SLO metrics
-- ✅ **Canonical Visibility**: Query `picks` + `pick_publish` tables for operational dashboards
+**Key Command Center Requirements (Charter v3.0 Compliance):**
+- ✅ **Canonical-First Monitoring**: Display `picks` + `pick_publish` tables as authoritative data sources
+- ✅ **Real-time Pick Feed**: Live updates from canonical picks table with workflow stage tracking
+- ✅ **Lifecycle Controls**: Workflow management for draft → review → approved → published stages
+- ✅ **Self-Healing Visibility**: Display PostgREST reload status and automatic fallback behavior
 - ✅ **Health Integration**: Consume `/api/health` and `/api/domain/picks/preflight` endpoints
 - ✅ **Multi-tenant Support**: Respect tenant context for all data displays
-- ✅ **Observability**: Display OpenTelemetry spans and metrics in dashboards
+- ✅ **Observability**: Display OpenTelemetry spans, SLO metrics, and audit trails
 
-**This Charter supersedes all other instructions. Non-compliance is a blocking issue.**
+**This Charter v3.0 supersedes all other instructions. Non-compliance is a blocking issue.**
 
 ---
 
@@ -271,18 +273,71 @@ const { data: healthData } = await client
   .select('agent, status, details, created_at')
   .order('created_at', { ascending: false });
 
-// v3.0.0 unified pick management workflow
+// v3.0.0 canonical pick management workflow
 const { data: pickData } = await client
-  .from('unified_picks')
+  .from('picks')
   .select(
     `
-    id, user_id, selection, odds, workflow_stage, confidence,
-    users!unified_picks_user_id_fkey (username, discord_id, tier, capper_tier),
-    raw_props (stat_type, player_name, line, over_odds, under_odds, sport)
+    id, user_id, selection, odds, workflow_stage, confidence, self_score, professional_score,
+    users!picks_user_id_fkey (username, tier),
+    props (sport, league, player_name, stat_type, line)
   `
   )
   .order('created_at', { ascending: false });
 ```
+
+### Canonical UI Components (Charter v3.0)
+
+**RealtimePickFeed Component** (`src/components/picks/RealtimePickFeed.tsx`):
+
+Production-grade real-time pick monitoring with:
+- **Live Updates**: WebSocket subscriptions + 5-second polling fallback
+- **Advanced Filtering**: League, workflow stage, capper, date range filters
+- **Workflow Tracking**: Visual badges for draft → pending_review → approved → published stages
+- **Self-Score Display**: Shows both confidence and optional user self-assessment
+- **Quick Actions**: Approve, reject, publish buttons based on current workflow stage
+- **Performance**: 50-pick limit with optimistic updates and query invalidation
+
+**Integration**:
+```typescript
+import { RealtimePickFeed } from '@/components/picks/RealtimePickFeed';
+
+export function PicksDashboard() {
+  return (
+    <div className="space-y-6">
+      <RealtimePickFeed />
+    </div>
+  );
+}
+```
+
+**PickLifecycleControls Component** (`src/components/picks/PickLifecycleControls.tsx`):
+
+Production-grade workflow management for individual picks:
+- **Workflow Timeline**: Visual progress indicator showing current stage
+- **Available Actions**: Context-sensitive buttons for valid state transitions
+- **Audit Trail**: Automatic audit_events logging for all workflow changes
+- **Reason Requirement**: Mandatory notes for reject/unpublish actions
+- **State Transitions**:
+  - Draft → Pending Review (Submit for Review)
+  - Pending Review → Approved (Approve)
+  - Pending Review → Rejected (Reject, requires note)
+  - Approved → Published (Publish)
+  - Approved → Pending Review (Return to Review, requires note)
+  - Published → Approved (Unpublish, requires note)
+
+**Integration**:
+```typescript
+import { PickLifecycleControls } from '@/components/picks/PickLifecycleControls';
+
+export function PickDetailPage({ pickId }: { pickId: string }) {
+  return (
+    <div className="grid grid-cols-2 gap-6">
+      <PickDetailCard pickId={pickId} />
+      <PickLifecycleControls pickId={pickId} />
+    </div>
+  );
+}
 
 **v3.0.0 Real-Time Subscriptions**:
 

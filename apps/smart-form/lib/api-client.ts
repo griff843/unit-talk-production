@@ -58,18 +58,36 @@ export interface ApiResponse<T> {
 }
 
 class ApiClient {
+  /**
+   * Generate a unique request ID for tracing
+   */
+  private generateRequestId(): string {
+    return `req_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+  }
+
   private async makeRequest<T>(
     url: string,
     options: any = {}
   ): Promise<ApiResponse<T>> {
+    const requestId = this.generateRequestId();
+
     try {
       const response = await fetch(url, {
         ...options,
         headers: {
           'Content-Type': 'application/json',
+          // OpenTelemetry client headers for observability
+          'X-Client-App': 'smart-form',
+          'X-Request-Id': requestId,
           ...options.headers,
         },
       });
+
+      // Log Server-Timing headers if present (for QA/debugging)
+      const serverTiming = response.headers.get('Server-Timing');
+      if (serverTiming) {
+        console.debug(`[${requestId}] Server-Timing: ${serverTiming}`);
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -83,6 +101,7 @@ class ApiClient {
         error: error instanceof Error ? error.message : 'Unknown error',
         url,
         method: options.method || 'GET',
+        requestId,
       }, 'API request failed');
 
       return {
@@ -156,7 +175,7 @@ class ApiClient {
   }
 
   /**
-   * Submit a ticket
+   * Submit a ticket (legacy endpoint - for backward compatibility)
    */
   async submitTicket(ticketData: {
     capper_id: string;
@@ -184,6 +203,59 @@ class ApiClient {
         body: JSON.stringify(ticketData),
       }
     );
+
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    return result.data;
+  }
+
+  /**
+   * Submit canonical pick (v3.0+ canonical picks system)
+   *
+   * This is the new canonical integration for the picks system.
+   * Uses the unified picks table and outbox publishing pattern.
+   */
+  async submitCanonicalPick(pickData: {
+    userId: string;
+    league: 'NFL' | 'NBA' | 'MLB' | 'NHL' | 'NCAAF' | 'WNBA';
+    marketType: string;
+    line: number;
+    side: 'over' | 'under';
+    playerId?: string;
+    playerName?: string;
+    gameId?: string;
+    gameDate?: string;
+    odds?: number;
+    stake?: number;
+    userScore?: number;
+    betSlipId?: string;
+    confidence?: number;
+    threadId?: string;
+    autoPublish?: boolean;
+    idempotencyKey?: string;
+  }) {
+    const result = await this.makeRequest(
+      '/api/domain/picks/insert',
+      {
+        method: 'POST',
+        body: JSON.stringify(pickData),
+      }
+    );
+
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    return result.data;
+  }
+
+  /**
+   * Get canonical picks system status
+   */
+  async getCanonicalStatus() {
+    const result = await this.makeRequest('/api/domain/picks/insert');
 
     if (result.error) {
       throw new Error(result.error);

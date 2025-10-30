@@ -14,6 +14,7 @@ interface Step2ConfigurationProps {
     odds_format?: OddsFormat;
     auto_parlay?: boolean;
     confidence_level?: number;
+    user_score?: number; // Self-assessment score 1-10
     ticket_type?: string;
   };
   onUpdate: (updates: any) => void;
@@ -52,6 +53,7 @@ export function Step2Configuration({
 }: Step2ConfigurationProps) {
   const [unitSize, setUnitSize] = useState([data.unit_size || 2.0]);
   const [confidence, setConfidence] = useState(data.confidence_level || 7);
+  const [userScore, setUserScore] = useState(data.user_score || undefined);
 
   // Unit size recommendations based on ticket type
   const getUnitRecommendation = () => {
@@ -102,6 +104,11 @@ export function Step2Configuration({
   const handleConfidenceChange = (level: number) => {
     setConfidence(level);
     onUpdate({ confidence_level: level });
+  };
+
+  const handleUserScoreChange = (score: number | undefined) => {
+    setUserScore(score);
+    onUpdate({ user_score: score });
   };
 
   const isValid = data.unit_size && data.odds_format !== undefined && data.confidence_level;
@@ -255,6 +262,82 @@ export function Step2Configuration({
 
             {errors?.confidence_level && (
               <p className="text-sm text-red-600 text-center">{errors.confidence_level}</p>
+            )}
+          </div>
+
+          {/* Self-Score (Optional) */}
+          <div className="space-y-4 pt-6 border-t border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">🎯 Self-Score (Optional)</h3>
+                <p className="text-xs text-gray-600 mt-1">Rate the quality of your analysis (1-10)</p>
+              </div>
+              {userScore !== undefined && (
+                <Badge className="bg-purple-600 text-white border-purple-600">
+                  {userScore}/10
+                </Badge>
+              )}
+            </div>
+
+            {/* Score Slider */}
+            <div className="px-2">
+              <input
+                type="range"
+                min={1}
+                max={10}
+                step={1}
+                value={userScore || 5}
+                onChange={e => handleUserScoreChange(parseInt(e.target.value))}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+              />
+              <div className="flex justify-between text-xs text-gray-700 font-medium mt-2">
+                <span>1 (Low)</span>
+                <span>5 (Medium)</span>
+                <span>10 (High)</span>
+              </div>
+            </div>
+
+            {/* Score visualization */}
+            <div className="flex items-center justify-center space-x-1">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(score => (
+                <button
+                  key={score}
+                  onClick={() => handleUserScoreChange(score)}
+                  className={`
+                    w-8 h-8 rounded-lg font-bold text-sm transition-all duration-200 hover:scale-110
+                    ${score <= (userScore || 0) ? 'bg-purple-500 text-white' : 'bg-gray-200 text-gray-600'}
+                  `}
+                >
+                  {score}
+                </button>
+              ))}
+            </div>
+
+            <div className="text-center bg-purple-50 border border-purple-200 p-3 rounded-lg">
+              <div className="text-sm text-purple-800 font-medium">
+                💡 Self-score reflects your subjective assessment of pick quality
+              </div>
+              <div className="text-xs text-purple-700 mt-1">
+                This is separate from confidence and helps track your analysis accuracy
+              </div>
+            </div>
+
+            {/* Clear button */}
+            {userScore !== undefined && (
+              <div className="text-center">
+                <Button
+                  onClick={() => handleUserScoreChange(undefined)}
+                  variant="outline"
+                  size="sm"
+                  className="text-gray-600 hover:text-gray-900"
+                >
+                  Clear Self-Score
+                </Button>
+              </div>
+            )}
+
+            {errors?.user_score && (
+              <p className="text-sm text-red-600 text-center">{errors.user_score}</p>
             )}
           </div>
         </div>
