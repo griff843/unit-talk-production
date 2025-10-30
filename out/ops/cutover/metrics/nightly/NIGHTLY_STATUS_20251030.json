@@ -1,0 +1,54 @@
+{
+  "timestamp": "2025-10-30T15:39:33.509Z",
+  "date": "20251030",
+  "charter_version": "3.0",
+  "validations": {
+    "rls_policies": {
+      "status": "PASS",
+      "details": {
+        "picks": {
+          "accessible": true,
+          "error": null
+        },
+        "pick_publish": {
+          "accessible": true,
+          "error": null
+        },
+        "unified_picks": {
+          "accessible": true,
+          "error": null
+        }
+      },
+      "note": "RLS policies exist but are disabled by default per Charter (staged rollout required)"
+    },
+    "picks_visibility": {
+      "status": "PASS",
+      "visible": {
+        "picks": true,
+        "pick_publish": true,
+        "unified_picks": true
+      },
+      "counts": {
+        "picks": 5,
+        "pick_publish": 0,
+        "unified_picks": 1
+      },
+      "errors": {
+        "picks": null,
+        "pick_publish": null,
+        "unified_picks": null
+      }
+    },
+    "publish_lag": {
+      "status": "WARN",
+      "message": "No published picks in last 24 hours",
+      "count": 0
+    },
+    "alert_status": {
+      "status": "WARN",
+      "error": "column agent_health.last_check does not exist",
+      "note": "agent_health table may not be accessible"
+    }
+  },
+  "overall_status": "WARN"
+}
