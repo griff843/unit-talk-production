@@ -1,0 +1,94 @@
+{
+  "timestamp": "2025-10-31T11:47:01.358Z",
+  "leagues": {
+    "NBA": {
+      "league": "NBA",
+      "dryRun": {
+        "status": "FAIL",
+        "latencyMs": 118,
+        "httpStatus": 404,
+        "error": "{\"success\":false,\"error\":\"Route not found\",\"path\":\"/api/domain/picks/dry-run\",\"method\":\"POST\",\"correlationId\":\"18758966-c01c-4b99-8567-e3cd14ba0207\",\"availableEndpoints\":[\"GET /\",\"GET /api/health\",\"POST /api/smart-form/process\",\"GET /api/smart-form/health\"]}"
+      },
+      "live": {
+        "status": "NOT_RUN"
+      },
+      "outbox": {
+        "status": "NOT_RUN"
+      },
+      "commandCenter": {
+        "status": "NOT_RUN"
+      },
+      "discord": {
+        "status": "NOT_RUN"
+      }
+    },
+    "NFL": {
+      "league": "NFL",
+      "dryRun": {
+        "status": "FAIL",
+        "latencyMs": 71,
+        "httpStatus": 404,
+        "error": "{\"success\":false,\"error\":\"Route not found\",\"path\":\"/api/domain/picks/dry-run\",\"method\":\"POST\",\"correlationId\":\"00051b21-f370-44f4-8745-f7e6f378be03\",\"availableEndpoints\":[\"GET /\",\"GET /api/health\",\"POST /api/smart-form/process\",\"GET /api/smart-form/health\"]}"
+      },
+      "live": {
+        "status": "NOT_RUN"
+      },
+      "outbox": {
+        "status": "NOT_RUN"
+      },
+      "commandCenter": {
+        "status": "NOT_RUN"
+      },
+      "discord": {
+        "status": "NOT_RUN"
+      }
+    },
+    "MLB": {
+      "league": "MLB",
+      "dryRun": {
+        "status": "FAIL",
+        "latencyMs": 71,
+        "httpStatus": 404,
+        "error": "{\"success\":false,\"error\":\"Route not found\",\"path\":\"/api/domain/picks/dry-run\",\"method\":\"POST\",\"correlationId\":\"e477d7e6-2db2-4ea3-89c6-a9d4974326a7\",\"availableEndpoints\":[\"GET /\",\"GET /api/health\",\"POST /api/smart-form/process\",\"GET /api/smart-form/health\"]}"
+      },
+      "live": {
+        "status": "NOT_RUN"
+      },
+      "outbox": {
+        "status": "NOT_RUN"
+      },
+      "commandCenter": {
+        "status": "NOT_RUN"
+      },
+      "discord": {
+        "status": "NOT_RUN"
+      }
+    },
+    "NHL": {
+      "league": "NHL",
+      "dryRun": {
+        "status": "FAIL",
+        "latencyMs": 81,
+        "httpStatus": 404,
+        "error": "{\"success\":false,\"error\":\"Route not found\",\"path\":\"/api/domain/picks/dry-run\",\"method\":\"POST\",\"correlationId\":\"268d2e4c-4f52-446f-a3d6-774e42b6e013\",\"availableEndpoints\":[\"GET /\",\"GET /api/health\",\"POST /api/smart-form/process\",\"GET /api/smart-form/health\"]}"
+      },
+      "live": {
+        "status": "NOT_RUN"
+      },
+      "outbox": {
+        "status": "NOT_RUN"
+      },
+      "commandCenter": {
+        "status": "NOT_RUN"
+      },
+      "discord": {
+        "status": "NOT_RUN"
+      }
+    }
+  },
+  "summary": {
+    "total": 4,
+    "passed": 0,
+    "failed": 4
+  }
+}

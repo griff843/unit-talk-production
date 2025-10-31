@@ -1,0 +1,265 @@
+{
+  "decision": "NO-GO",
+  "timestamp": "2025-10-31T11:49:00Z",
+  "phase": "13",
+  "charter_version": "3.0",
+  "alignment_spec_version": "3.0",
+  "operator": "Automated Validation System",
+  
+  "summary": {
+    "status": "BLOCKED",
+    "critical_blocker": "API routes /api/domain/picks/insert and /api/domain/picks/dry-run not registered",
+    "impact": "All 4 leagues (NBA, NFL, MLB, NHL) failed E2E validation with 404 errors",
+    "severity": "P0",
+    "estimated_remediation_time_hours": 4
+  },
+  
+  "validation_steps": {
+    "step_0_env_precheck": {
+      "status": "PASS",
+      "timestamp": "2025-10-31T11:32:51.616Z",
+      "details": "All required environment variables loaded",
+      "artifact": "out/ops/cutover/metrics/phase13/preflight/env_check_20251031_113251.json"
+    },
+    "step_1_test_user_seeding": {
+      "status": "PASS",
+      "timestamp": "2025-10-31T11:34:50.694Z",
+      "user_id": "00000000-0000-0000-0000-000000000001",
+      "username": "test_user_phase13",
+      "tier": "vip",
+      "issue_resolved": "Updated tier from 'test' to 'vip' to match production constraint",
+      "artifact": "out/ops/cutover/metrics/phase13/preflight/seed_verification_20251031_113450.json"
+    },
+    "step_2_postgrest_reload": {
+      "status": "PASS",
+      "timestamp": "2025-10-31T11:33:00Z",
+      "tables_visible": ["picks", "pick_publish"],
+      "picks_row_count": 1,
+      "pick_publish_row_count": 0,
+      "reload_method": "REST API header",
+      "propagation_time_seconds": 10,
+      "artifact": "out/ops/cutover/metrics/phase13/preflight/pgrst_verification_20251031_113300.json"
+    },
+    "step_3_api_health": {
+      "status": "PARTIAL_PASS",
+      "timestamp": "2025-10-31T11:45:58.411Z",
+      "container_status": "healthy",
+      "uptime_hours": 26,
+      "endpoints": {
+        "/api/health": "PASS",
+        "/api/domain/picks/status": "PASS",
+        "/api/inference/health": "FAIL_404_NOT_CRITICAL"
+      },
+      "driver": {
+        "effective": "canonical",
+        "requested": "canonical",
+        "reason": "config_canonical"
+      },
+      "publisher": {
+        "enabled": true,
+        "running": true,
+        "mode": "outbox",
+        "circuit_breaker_state": "CLOSED"
+      },
+      "artifact": "out/ops/cutover/metrics/phase13/preflight/api_health_20251031_114558.json"
+    },
+    "step_4_alert_integrations": {
+      "status": "PARTIAL_PASS",
+      "timestamp": "2025-10-31T11:46:47.491Z",
+      "channels": {
+        "discord": {
+          "status": "FAIL",
+          "http_status": 405,
+          "note": "Discord uses outbox pattern, not webhooks - not a blocker"
+        },
+        "prometheus": {
+          "status": "PASS",
+          "http_status": 200
+        }
+      },
+      "artifact": "out/ops/cutover/metrics/phase13/integrations/alerts_test_20251031_114647.json"
+    },
+    "step_5_e2e_validation": {
+      "status": "FAIL",
+      "timestamp": "2025-10-31T11:47:05.741Z",
+      "root_cause": "API routes /api/domain/picks/dry-run and /api/domain/picks/insert return 404",
+      "leagues": {
+        "NBA": {
+          "dry_run": "FAIL_404",
+          "live": "NOT_RUN"
+        },
+        "NFL": {
+          "dry_run": "FAIL_404",
+          "live": "NOT_RUN"
+        },
+        "MLB": {
+          "dry_run": "FAIL_404",
+          "live": "NOT_RUN"
+        },
+        "NHL": {
+          "dry_run": "FAIL_404",
+          "live": "NOT_RUN"
+        }
+      },
+      "available_endpoints": [
+        "GET /",
+        "GET /api/health",
+        "POST /api/smart-form/process",
+        "GET /api/smart-form/health"
+      ],
+      "missing_endpoints": [
+        "POST /api/domain/picks/dry-run",
+        "POST /api/domain/picks/insert",
+        "GET /api/domain/picks/:id",
+        "POST /api/domain/picks/:id/score",
+        "POST /api/domain/picks/:id/publish"
+      ],
+      "artifact": "out/ops/cutover/metrics/phase13/e2e/manual_e2e_results_2025-10-31T11-47-05-741Z.json"
+    },
+    "step_6_canary_rollout": {
+      "status": "NOT_EXECUTED",
+      "reason": "Blocked by E2E validation failure"
+    },
+    "step_7_final_attestation": {
+      "status": "COMPLETED",
+      "timestamp": "2025-10-31T11:49:00Z",
+      "artifacts": [
+        "out/ops/cutover/metrics/phase13/final/go_no_go_20251031_114900.md",
+        "out/ops/cutover/metrics/phase13/final/go_no_go_20251031_114900.json"
+      ]
+    }
+  },
+  
+  "root_cause_analysis": {
+    "primary_issue": "Route registration failure",
+    "evidence": [
+      "Routes defined in source: apps/api/src/routes/domain/picks-insert.ts",
+      "Routes imported in api-server.ts lines 77-78",
+      "Routes NOT served by running container",
+      "TypeScript compilation errors preventing module loading"
+    ],
+    "typescript_errors": [
+      "error TS1192: Module 'dotenv' has no default export",
+      "error TS1259: Module 'express' requires esModuleInterop flag",
+      "error TS2694: glob/minimatch type errors",
+      "error TS18028: Private identifiers require ES2015+ target"
+    ],
+    "secondary_issue": "Outbox schema mismatch",
+    "secondary_evidence": "column pick_publish.next_attempt_at does not exist (should be next_retry_at)"
+  },
+  
+  "remediation_plan": {
+    "immediate_actions": [
+      {
+        "step": 1,
+        "action": "Fix TypeScript configuration",
+        "file": "apps/api/tsconfig.json",
+        "changes": {
+          "esModuleInterop": true,
+          "allowSyntheticDefaultImports": true,
+          "target": "ES2020"
+        }
+      },
+      {
+        "step": 2,
+        "action": "Fix import statements or enable esModuleInterop",
+        "file": "apps/api/src/routes/domain/picks-insert.ts"
+      },
+      {
+        "step": 3,
+        "action": "Rebuild and restart API container",
+        "commands": [
+          "docker compose build --no-cache api",
+          "docker compose up -d api",
+          "docker logs api --tail 100"
+        ]
+      },
+      {
+        "step": 4,
+        "action": "Verify route registration",
+        "test": "curl -X POST http://localhost:3010/api/domain/picks/dry-run",
+        "expected": "204 No Content"
+      },
+      {
+        "step": 5,
+        "action": "Fix outbox schema mismatch",
+        "details": "Update publisher code to use next_retry_at instead of next_attempt_at"
+      },
+      {
+        "step": 6,
+        "action": "Re-run E2E validation",
+        "command": "node scripts/ops/phase13-manual-e2e.js",
+        "expected": "All 4 leagues PASS"
+      }
+    ],
+    "validation_criteria": [
+      "TypeScript compilation clean (tsc --noEmit returns 0)",
+      "API container restart successful",
+      "Route /api/domain/picks/dry-run returns 204",
+      "Route /api/domain/picks/insert returns 201 with pickId",
+      "NBA E2E: DRY-RUN PASS + LIVE PASS",
+      "NFL E2E: DRY-RUN PASS + LIVE PASS",
+      "MLB E2E: DRY-RUN PASS + LIVE PASS",
+      "NHL E2E: DRY-RUN PASS + LIVE PASS",
+      "Outbox publisher error resolved",
+      "All picks visible in picks table",
+      "Outbox entries created in pick_publish table"
+    ]
+  },
+  
+  "rollback_plan": {
+    "if_remediation_fails": [
+      "Set PICK_DRIVER=unified in .env",
+      "Restart API: docker compose restart api",
+      "Verify fallback: curl http://localhost:3010/api/domain/picks/status",
+      "Expected: currentDriver = unified"
+    ],
+    "hotfix_script": "scripts/ops/phase13-blocker-remediation.ps1"
+  },
+  
+  "artifacts": {
+    "preflight": [
+      "env_check_20251031_113251.json",
+      "seed_verification_20251031_113450.json",
+      "pgrst_verification_20251031_113300.json",
+      "api_health_20251031_114558.json"
+    ],
+    "integrations": [
+      "alerts_test_20251031_114647.json"
+    ],
+    "e2e": [
+      "manual_e2e_results_2025-10-31T11-47-05-741Z.json"
+    ],
+    "final": [
+      "go_no_go_20251031_114900.md",
+      "go_no_go_20251031_114900.json"
+    ]
+  },
+  
+  "charter_compliance": {
+    "canonical_first_architecture": true,
+    "postgrest_visibility": true,
+    "e2e_validation": false,
+    "canary_rollout": false,
+    "artifacts_generated": true,
+    "secrets_masked": true
+  },
+  
+  "next_steps": [
+    "Engineering Team: Execute remediation plan (2-4 hours)",
+    "QA Team: Re-run Phase 13 validation after fixes",
+    "Operations: Monitor Slack/Discord for completion",
+    "Product: Update stakeholders on revised timeline"
+  ],
+  
+  "sign_off": {
+    "validation_system": "Automated Phase 13 Orchestrator",
+    "timestamp": "2025-10-31T11:49:00Z",
+    "decision": "NO-GO",
+    "reason": "Critical API route registration failure",
+    "severity": "P0",
+    "approval_required": ["Engineering Lead", "DevOps Lead"],
+    "re_validation_required": true
+  }
+}
+

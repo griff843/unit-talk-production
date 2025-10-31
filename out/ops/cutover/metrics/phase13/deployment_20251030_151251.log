@@ -1,0 +1,5 @@
+[2025-10-30 15:12:51] 1. Environment Verification
+  OK: .env file exists
+  OK: Docker is running
+[2025-10-30 15:12:52] 2. Applying Migration to Supabase Cloud
+  OK: Migration file found

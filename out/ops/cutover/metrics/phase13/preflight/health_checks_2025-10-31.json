@@ -1,0 +1,125 @@
+{
+  "timestamp": "2025-10-31T10:17:28.503Z",
+  "phase": "13",
+  "operator": "Ops Orchestrator",
+  "checks": {
+    "api_health": {
+      "status": "PASS",
+      "endpoint": "/api/health",
+      "response": {
+        "status": "healthy",
+        "services": {
+          "database": {
+            "status": "up",
+            "responseTime": 0
+          },
+          "redis": {
+            "status": "up",
+            "responseTime": 1
+          },
+          "agents": {
+            "status": "up"
+          },
+          "external_apis": {
+            "status": "up"
+          }
+        },
+        "driver": {
+          "effective": "canonical",
+          "requested": "canonical",
+          "reason": "config_canonical"
+        },
+        "publisher": {
+          "enabled": true,
+          "running": true,
+          "mode": "outbox",
+          "circuitBreaker": {
+            "state": "CLOSED",
+            "opens": 0
+          }
+        },
+        "shadowMode": false,
+        "logMode": "sync"
+      }
+    },
+    "preflight_check": {
+      "status": "PASS",
+      "endpoint": "/api/domain/picks/preflight",
+      "response": {
+        "ok": true,
+        "tables": {
+          "picks": {
+            "visible": true,
+            "columnsVisible": ["id", "tenant_id", "user_id", "selection", "confidence", "created_at"]
+          },
+          "pick_publish": {
+            "visible": true,
+            "columnsVisible": ["id", "pick_id", "external_message_id", "status", "created_at"]
+          },
+          "unified_picks": {
+            "visible": true,
+            "columnsVisible": ["id", "user_id", "sport", "side", "created_at"]
+          }
+        },
+        "reloaded": false,
+        "selfHealEnabled": true
+      }
+    },
+    "inference_health": {
+      "status": "NOT_IMPLEMENTED",
+      "endpoint": "/api/inference/health",
+      "error": "Route not found",
+      "note": "Phase 13 inference endpoints need to be implemented"
+    },
+    "docker_services": {
+      "status": "PASS",
+      "services": {
+        "api": {
+          "status": "Up 24 hours",
+          "health": "healthy",
+          "ports": ["3010:3000", "3011:3010"]
+        },
+        "postgres": {
+          "status": "Up 33 hours",
+          "health": "healthy",
+          "ports": ["5432:5432"]
+        },
+        "redis": {
+          "status": "Up 33 hours",
+          "health": "healthy",
+          "ports": ["6379:6379"]
+        },
+        "temporal": {
+          "status": "Up 33 hours",
+          "health": "healthy",
+          "ports": ["7233:7233"]
+        },
+        "prometheus": {
+          "status": "Up 33 hours",
+          "health": "healthy",
+          "ports": ["9090:9090"]
+        },
+        "grafana": {
+          "status": "Up 33 hours",
+          "health": "healthy",
+          "ports": ["3001:3000"]
+        }
+      }
+    }
+  },
+  "summary": {
+    "total_checks": 4,
+    "passed": 3,
+    "failed": 0,
+    "not_implemented": 1,
+    "overall_status": "READY_FOR_E2E",
+    "notes": [
+      "All core services healthy",
+      "Canonical driver operational",
+      "Outbox publisher running",
+      "PostgREST visibility confirmed",
+      "Phase 13 inference layer needs implementation"
+    ]
+  }
+}
+

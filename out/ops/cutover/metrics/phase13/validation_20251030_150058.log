@@ -1,0 +1,98 @@
+[0;34m[2025-10-30 15:00:58][0m Starting Phase 13 Deployment Validation
+[0;34m[2025-10-30 15:00:58][0m Output directory: out/ops/cutover/metrics/phase13
+[0;34m[2025-10-30 15:00:58][0m Validation log: out/ops/cutover/metrics/phase13/validation_20251030_150058.log
+
+[0;34m═══════════════════════════════════════════════════════════════[0m
+[0;34m1. Docker Environment Validation[0m
+[0;34m═══════════════════════════════════════════════════════════════[0m
+
+[0;34m[2025-10-30 15:00:58][0m Checking Docker services...
+[0;32m✅ Docker services are running[0m
+[0;34m[2025-10-30 15:00:58][0m Checking API service...
+[0;32m✅ API service is running[0m
+[0;34m[2025-10-30 15:00:59][0m Checking database connectivity...
+[0;31m❌ Database is not accessible[0m
+
+[0;34m═══════════════════════════════════════════════════════════════[0m
+[0;34m2. Database Schema Validation[0m
+[0;34m═══════════════════════════════════════════════════════════════[0m
+
+[0;34m[2025-10-30 15:01:02][0m Checking model_predictions_live table...
+[0;31m❌ model_predictions_live table does not exist[0m
+
+[0;34m═══════════════════════════════════════════════════════════════[0m
+[0;34m3. PostgREST Schema Validation[0m
+[0;34m═══════════════════════════════════════════════════════════════[0m
+
+[0;34m[2025-10-30 15:01:03][0m Checking PostgREST schema visibility...
+[0;34m[2025-10-30 15:01:03][0m Verifying pg_notify was called in migration...
+[0;32m✅ Migration includes PostgREST reload trigger[0m
+
+[0;34m═══════════════════════════════════════════════════════════════[0m
+[0;34m4. TypeScript Compilation Validation[0m
+[0;34m═══════════════════════════════════════════════════════════════[0m
+
+[0;34m[2025-10-30 15:01:03][0m Checking TypeScript compilation...
+[0;31m❌ TypeScript compilation has errors[0m
+
+[0;34m═══════════════════════════════════════════════════════════════[0m
+[0;34m5. Metrics Server Validation[0m
+[0;34m═══════════════════════════════════════════════════════════════[0m
+
+[0;34m[2025-10-30 15:01:05][0m Checking if metrics server port is configured...
+[0;32m✅ Metrics server port 9464 configured[0m
+[0;34m[2025-10-30 15:01:05][0m Testing metrics endpoint (if server is running)...
+[1;33m⚠️  Metrics endpoint not responding (server may not be started yet)[0m
+[0;34m[2025-10-30 15:01:05][0m Checking health endpoint...
+[1;33m⚠️  Health endpoint not responding[0m
+
+[0;34m═══════════════════════════════════════════════════════════════[0m
+[0;34m6. Grafana Dashboard Validation[0m
+[0;34m═══════════════════════════════════════════════════════════════[0m
+
+[0;34m[2025-10-30 15:01:05][0m Checking dashboard file exists...
+[0;32m✅ Dashboard file exists[0m
+[0;34m[2025-10-30 15:01:05][0m Validating dashboard JSON syntax...
+[0;31m❌ Dashboard JSON is invalid[0m
+
+[0;34m═══════════════════════════════════════════════════════════════[0m
+[0;34m7. Alert Rules Validation[0m
+[0;34m═══════════════════════════════════════════════════════════════[0m
+
+[0;34m[2025-10-30 15:01:05][0m Checking alert rules file exists...
+[0;32m✅ Alert rules file exists[0m
+[0;34m[2025-10-30 15:01:05][0m Validating YAML syntax...
+[0;32m✅ Alert rules YAML is valid[0m
+[0;34m[2025-10-30 15:01:06][0m Checking alert groups...
+[0;32m✅ Alert rules have 3 groups (expected ≥3)[0m
+[0;34m[2025-10-30 15:01:06][0m Checking SLO alerts...
+[0;32m✅ Latency SLO alert configured[0m
+[0;32m✅ Drift SLO alert configured[0m
+[0;32m✅ Accuracy SLO alert configured[0m
+
+[0;34m═══════════════════════════════════════════════════════════════[0m
+[0;34m8. Attestation Artifacts Validation[0m
+[0;34m═══════════════════════════════════════════════════════════════[0m
+
+[0;34m[2025-10-30 15:01:06][0m Checking attestation directory...
+[0;32m✅ Attestation directory exists[0m
+[0;34m[2025-10-30 15:01:06][0m Checking Markdown attestation...
+[0;32m✅ Markdown attestation exists[0m
+[0;34m[2025-10-30 15:01:06][0m Checking JSON attestation...
+[0;32m✅ JSON attestation exists[0m
+[0;34m[2025-10-30 15:01:06][0m Validating JSON attestation syntax...
+[0;31m❌ JSON attestation is invalid[0m
+[0;34m[2025-10-30 15:01:06][0m Checking deployment checklist...
+[0;32m✅ Deployment checklist exists[0m
+
+[0;34m═══════════════════════════════════════════════════════════════[0m
+[0;34mValidation Summary[0m
+[0;34m═══════════════════════════════════════════════════════════════[0m
+
+
+[0;32m✅ Passed:   15[0m
+[1;33m⚠️  Warnings: 2[0m
+[0;31m❌ Failed:   5[0m
+
+[0;31m❌ Phase 13 deployment validation FAILED[0m
+[0;34m[2025-10-30 15:01:07][0m Validation log saved to: out/ops/cutover/metrics/phase13/validation_20251030_150058.log
