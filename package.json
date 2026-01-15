@@ -63,6 +63,11 @@
     "audit:security": "npx tsx scripts/audit/phase16-security-audit.ts",
     "audit:master": "npx tsx scripts/audit/phase16-master-audit.ts",
     "audit:all": "npm run audit:master",
+    "smoke:run": "npx tsx scripts/smoke/run-smoke.ts",
+    "smoke:report": "npx tsx scripts/smoke/run-smoke.ts --report-only",
+    "db:local:status": "docker-compose exec -T postgres psql -U postgres -d unit_talk_dev -c \"SELECT version, applied_at FROM schema_versions ORDER BY applied_at DESC LIMIT 5\" 2>/dev/null || echo 'schema_versions table not found'",
+    "db:local:migrate": "bash -c 'for f in supabase/migrations/*.sql; do echo \"Applying $f...\"; docker-compose exec -T postgres psql -U postgres -d unit_talk_dev < \"$f\" 2>&1 | grep -v \"already exists\\|duplicate\"; done; echo \"✅ Migrations complete\"'",
+    "db:local:tables": "docker-compose exec -T postgres psql -U postgres -d unit_talk_dev -c \"SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name\"",
     "prepare": "husky"
   },
   "keywords": [
