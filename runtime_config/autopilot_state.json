@@ -1,0 +1,10 @@
+{
+  "frozen": false,
+  "scope": null,
+  "reason": null,
+  "triggered_at": null,
+  "triggered_by": null,
+  "auto_unfreeze_at": null,
+  "incident_id": null,
+  "_comment": "Managed by CI automation. See docs/ops/AUTOPILOT_FREEZE_MATRIX.md"
+}
