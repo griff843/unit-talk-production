@@ -164,6 +164,15 @@ const LABELS: Label[] = [
     description: 'Needs classification and assignment',
     color: 'ededed', // Gray
   },
+
+  // ==========================================================================
+  // Autopilot Freeze Labels (Phase D)
+  // ==========================================================================
+  {
+    name: 'autopilot-frozen',
+    description: 'Autopilot operations paused due to CI incident',
+    color: '8B0000', // Dark red
+  },
 ];
 
 // =============================================================================
