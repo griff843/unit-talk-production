@@ -1,0 +1,271 @@
+{
+  "dashboard": {
+    "title": "Smart Form Production Metrics",
+    "description": "Real-time monitoring for Smart Form production cutover",
+    "tags": ["smart-form", "production", "slo", "cutover"],
+    "timezone": "utc",
+    "editable": true,
+    "graphTooltip": 1,
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Smart Form API Latency (p95 < 150ms SLO)",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"smart-form\", route=\"/api/domain/picks/insert\"}[5m])) by (le)) * 1000",
+            "legendFormat": "p95 Latency (ms)",
+            "refId": "A"
+          },
+          {
+            "expr": "150",
+            "legendFormat": "SLO Threshold (150ms)",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "ms",
+            "label": "Latency"
+          }
+        ],
+        "alert": {
+          "name": "Smart Form API Latency SLO Violation",
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [150],
+                "type": "gt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "params": ["A", "5m", "now"]
+              },
+              "reducer": {
+                "params": [],
+                "type": "avg"
+              },
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "frequency": "1m",
+          "handler": 1,
+          "message": "Smart Form API p95 latency exceeds 150ms SLO",
+          "noDataState": "no_data",
+          "notifications": []
+        }
+      },
+      {
+        "id": 2,
+        "title": "Smart Form Discord Lag (< 60s SLO)",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 0
+        },
+        "targets": [
+          {
+            "expr": "max(time() - max_over_time(bridge_outbox_last_processed_timestamp{job=\"smart-form\"}[5m]))",
+            "legendFormat": "Discord Publish Lag (s)",
+            "refId": "A"
+          },
+          {
+            "expr": "60",
+            "legendFormat": "SLO Threshold (60s)",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "s",
+            "label": "Lag"
+          }
+        ],
+        "alert": {
+          "name": "Smart Form Discord Lag SLO Violation",
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [60],
+                "type": "gt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "params": ["A", "5m", "now"]
+              },
+              "reducer": {
+                "params": [],
+                "type": "avg"
+              },
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "frequency": "1m",
+          "handler": 1,
+          "message": "Smart Form Discord publish lag exceeds 60s SLO",
+          "noDataState": "no_data",
+          "notifications": []
+        }
+      },
+      {
+        "id": 3,
+        "title": "Smart Form Submit Rate (picks/min)",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        },
+        "targets": [
+          {
+            "expr": "rate(pick_insert_attempts_total{job=\"smart-form\"}[5m]) * 60",
+            "legendFormat": "Submit Rate (picks/min)",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(pick_insert_success_total{job=\"smart-form\"}[5m]) * 60",
+            "legendFormat": "Success Rate (picks/min)",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "short",
+            "label": "Picks per Minute"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Audit Events Count (events/min)",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        },
+        "targets": [
+          {
+            "expr": "rate(audit_events_total{job=\"smart-form\"}[5m]) * 60",
+            "legendFormat": "{{event_type}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "short",
+            "label": "Events per Minute"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Error Rate (< 0.5% SLO)",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 16
+        },
+        "targets": [
+          {
+            "expr": "(sum(rate(http_requests_total{job=\"smart-form\", status=~\"5..\"}[5m])) / sum(rate(http_requests_total{job=\"smart-form\"}[5m]))) * 100",
+            "legendFormat": "5xx Error Rate (%)",
+            "refId": "A"
+          },
+          {
+            "expr": "0.5",
+            "legendFormat": "SLO Threshold (0.5%)",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "percent",
+            "label": "Error Rate"
+          }
+        ],
+        "alert": {
+          "name": "Smart Form Error Rate SLO Violation",
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [0.5],
+                "type": "gt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "params": ["A", "5m", "now"]
+              },
+              "reducer": {
+                "params": [],
+                "type": "avg"
+              },
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "frequency": "1m",
+          "handler": 1,
+          "message": "Smart Form 5xx error rate exceeds 0.5% SLO",
+          "noDataState": "no_data",
+          "notifications": []
+        }
+      },
+      {
+        "id": 6,
+        "title": "Database Query Latency (p95 < 50ms SLO)",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 16
+        },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(database_query_duration_seconds_bucket{job=\"smart-form\"}[5m])) by (le)) * 1000",
+            "legendFormat": "p95 DB Latency (ms)",
+            "refId": "A"
+          },
+          {
+            "expr": "50",
+            "legendFormat": "SLO Threshold (50ms)",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "ms",
+            "label": "Latency"
+          }
+        ]
+      }
+    ]
+  }
+}
+

@@ -1,0 +1,186 @@
+# Redis Cache Warming CronJobs for Smart Form
+# Date: 2025-10-25
+# Ensures first-hit performance by pre-warming cache
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: warm-players-today
+  namespace: unit-talk
+  labels:
+    app: smart-form
+    component: cache-warmer
+spec:
+  # Run hourly
+  schedule: "0 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: smart-form
+            component: cache-warmer
+            job: warm-players
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: warm-players
+              image: curlimages/curl:8.5.0
+              command:
+                - sh
+                - -c
+                - |
+                  echo "🔥 Warming player cache for today's games..."
+                  
+                  # Get leagues from environment
+                  LEAGUES="${SMARTFORM_LEAGUES:-NBA,NFL,MLB,NHL,NCAAF}"
+                  
+                  # Split leagues and warm cache for each
+                  IFS=',' read -ra LEAGUE_ARRAY <<< "$LEAGUES"
+                  for league in "${LEAGUE_ARRAY[@]}"; do
+                    echo "Warming $league players..."
+                    
+                    # Warm top 100 players for each league
+                    curl -f -s -o /dev/null \
+                      -H "X-Cache-Warmer: true" \
+                      "http://smart-form:3021/api/players?sport=$league&limit=100" \
+                      && echo "✅ $league players warmed" \
+                      || echo "❌ Failed to warm $league players"
+                    
+                    sleep 2
+                  done
+                  
+                  echo "✅ Player cache warming complete"
+              envFrom:
+                - secretRef:
+                    name: smart-form-secrets
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: warm-games-today
+  namespace: unit-talk
+  labels:
+    app: smart-form
+    component: cache-warmer
+spec:
+  # Run hourly
+  schedule: "5 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: smart-form
+            component: cache-warmer
+            job: warm-games
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: warm-games
+              image: curlimages/curl:8.5.0
+              command:
+                - sh
+                - -c
+                - |
+                  echo "🔥 Warming games cache for today..."
+                  
+                  # Get leagues from environment
+                  LEAGUES="${SMARTFORM_LEAGUES:-NBA,NFL,MLB,NHL,NCAAF}"
+                  
+                  # Split leagues and warm cache for each
+                  IFS=',' read -ra LEAGUE_ARRAY <<< "$LEAGUES"
+                  for league in "${LEAGUE_ARRAY[@]}"; do
+                    echo "Warming $league games..."
+                    
+                    # Warm today's games for each league
+                    curl -f -s -o /dev/null \
+                      -H "X-Cache-Warmer: true" \
+                      "http://smart-form:3021/api/games?sport=$league" \
+                      && echo "✅ $league games warmed" \
+                      || echo "❌ Failed to warm $league games"
+                    
+                    sleep 2
+                  done
+                  
+                  echo "✅ Games cache warming complete"
+              envFrom:
+                - secretRef:
+                    name: smart-form-secrets
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: warm-popular-players
+  namespace: unit-talk
+  labels:
+    app: smart-form
+    component: cache-warmer
+spec:
+  # Run every 30 minutes
+  schedule: "*/30 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: smart-form
+            component: cache-warmer
+            job: warm-popular-players
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: warm-popular-players
+              image: ${REGISTRY}/unit-talk/cache-warmer:latest
+              command:
+                - node
+                - /app/warm-popular-players.js
+              env:
+                - name: COMMAND_CENTER_URL
+                  value: "http://command-center:3000"
+                - name: SMART_FORM_URL
+                  value: "http://smart-form:3021"
+                - name: TOP_N_PLAYERS
+                  value: "50"
+              envFrom:
+                - secretRef:
+                    name: smart-form-secrets
+              resources:
+                requests:
+                  memory: "128Mi"
+                  cpu: "100m"
+                limits:
+                  memory: "256Mi"
+                  cpu: "200m"
+
+---
+# ServiceMonitor for cache warmer metrics
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: smart-form-cache-warmers
+  namespace: unit-talk
+  labels:
+    app: smart-form
+    component: cache-warmer
+spec:
+  selector:
+    matchLabels:
+      app: smart-form
+      component: cache-warmer
+  endpoints:
+    - port: metrics
+      interval: 30s
+      path: /metrics
+

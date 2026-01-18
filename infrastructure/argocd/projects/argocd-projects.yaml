@@ -1,0 +1,265 @@
+# ArgoCD Projects for Environment Segregation
+# Implements RBAC and policy enforcement per environment
+# Date: 2025-01-24
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: production
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Production environment project with strict policies
+
+  # Source repositories
+  sourceRepos:
+    - 'https://github.com/griff843/unit-talk-production.git'
+    - 'https://*.github.io/*'  # Helm charts
+    - 'https://charts.jetstack.io'
+    - 'https://kubernetes.github.io/*'
+    - 'https://prometheus-community.github.io/*'
+    - 'https://grafana.github.io/*'
+
+  # Destination namespaces and clusters
+  destinations:
+    - namespace: 'unit-talk'
+      server: 'https://kubernetes.default.svc'
+    - namespace: 'monitoring'
+      server: 'https://kubernetes.default.svc'
+    - namespace: 'ingress-nginx'
+      server: 'https://kubernetes.default.svc'
+    - namespace: 'cert-manager'
+      server: 'https://kubernetes.default.svc'
+
+  # Cluster resource whitelist
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+    - group: 'rbac.authorization.k8s.io'
+      kind: ClusterRole
+    - group: 'rbac.authorization.k8s.io'
+      kind: ClusterRoleBinding
+    - group: 'apiextensions.k8s.io'
+      kind: CustomResourceDefinition
+    - group: 'cert-manager.io'
+      kind: ClusterIssuer
+
+  # Namespace resource whitelist
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+  # Sync windows (maintenance windows)
+  syncWindows:
+    - kind: allow
+      schedule: '0 2 * * *'  # Daily at 2 AM
+      duration: 2h
+      applications:
+        - '*'
+      manualSync: true
+
+    - kind: deny
+      schedule: '0 9-17 * * 1-5'  # Business hours Mon-Fri
+      duration: 8h
+      applications:
+        - 'unit-talk-api'
+        - 'unit-talk-database'
+      manualSync: false
+
+  # Orphaned resources policy
+  orphanedResources:
+    warn: true
+
+  # Role definitions
+  roles:
+    # Platform engineers - full access
+    - name: platform-engineer
+      description: Full access to all production resources
+      policies:
+        - p, proj:production:platform-engineer, applications, *, production/*, allow
+        - p, proj:production:platform-engineer, clusters, get, production/*, allow
+        - p, proj:production:platform-engineer, repositories, *, production/*, allow
+        - p, proj:production:platform-engineer, logs, get, production/*, allow
+        - p, proj:production:platform-engineer, exec, create, production/*, allow
+      groups:
+        - platform-engineering
+        - admin
+
+    # Developers - read and sync only
+    - name: developer
+      description: Can view and sync applications
+      policies:
+        - p, proj:production:developer, applications, get, production/*, allow
+        - p, proj:production:developer, applications, sync, production/*, allow
+        - p, proj:production:developer, logs, get, production/*, allow
+        - p, proj:production:developer, applications, override, production/*, deny
+        - p, proj:production:developer, applications, delete, production/*, deny
+      groups:
+        - engineering
+        - developers
+
+    # Read-only access for stakeholders
+    - name: viewer
+      description: Read-only access to production
+      policies:
+        - p, proj:production:viewer, applications, get, production/*, allow
+        - p, proj:production:viewer, logs, get, production/*, allow
+        - p, proj:production:viewer, repositories, get, production/*, allow
+        - p, proj:production:viewer, applications, sync, production/*, deny
+      groups:
+        - stakeholders
+        - management
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: staging
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Staging environment project with relaxed policies
+
+  sourceRepos:
+    - 'https://github.com/griff843/unit-talk-production.git'
+    - 'https://*.github.io/*'
+    - 'https://charts.jetstack.io'
+    - 'https://kubernetes.github.io/*'
+    - 'https://prometheus-community.github.io/*'
+    - 'https://grafana.github.io/*'
+
+  destinations:
+    - namespace: 'unit-talk-staging'
+      server: 'https://kubernetes.default.svc'
+    - namespace: 'monitoring'
+      server: 'https://kubernetes.default.svc'
+    - namespace: 'ingress-nginx'
+      server: 'https://kubernetes.default.svc'
+
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+  # More relaxed sync windows for staging
+  syncWindows:
+    - kind: allow
+      schedule: '* * * * *'  # Always allow
+      duration: 24h
+      applications:
+        - '*'
+      manualSync: true
+
+  orphanedResources:
+    warn: false
+
+  roles:
+    # Developers - full access in staging
+    - name: developer
+      description: Full access to staging environment
+      policies:
+        - p, proj:staging:developer, applications, *, staging/*, allow
+        - p, proj:staging:developer, clusters, get, staging/*, allow
+        - p, proj:staging:developer, repositories, *, staging/*, allow
+        - p, proj:staging:developer, logs, get, staging/*, allow
+        - p, proj:staging:developer, exec, create, staging/*, allow
+      groups:
+        - engineering
+        - developers
+        - qa
+
+    # QA team
+    - name: qa
+      description: QA team access for testing
+      policies:
+        - p, proj:staging:qa, applications, get, staging/*, allow
+        - p, proj:staging:qa, applications, sync, staging/*, allow
+        - p, proj:staging:qa, logs, get, staging/*, allow
+      groups:
+        - qa
+        - test-automation
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: infrastructure
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Core infrastructure components (NGINX, cert-manager, monitoring)
+
+  sourceRepos:
+    - 'https://github.com/griff843/unit-talk-production.git'
+    - 'https://*.github.io/*'
+    - 'https://charts.jetstack.io'
+    - 'https://kubernetes.github.io/*'
+    - 'https://prometheus-community.github.io/*'
+    - 'https://grafana.github.io/*'
+    - 'https://bitnami-labs.github.io/*'
+    - 'https://kubernetes-sigs.github.io/*'
+
+  destinations:
+    - namespace: '*'
+      server: 'https://kubernetes.default.svc'
+
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+  # Infrastructure changes only during maintenance windows
+  syncWindows:
+    - kind: allow
+      schedule: '0 2 * * 0'  # Sunday at 2 AM
+      duration: 4h
+      applications:
+        - 'nginx-ingress'
+        - 'cert-manager'
+      manualSync: true
+
+    - kind: deny
+      schedule: '0 0 * * 1-6'  # Mon-Sat
+      duration: 24h
+      applications:
+        - 'nginx-ingress'
+        - 'cert-manager'
+      manualSync: false
+
+  orphanedResources:
+    warn: true
+
+  roles:
+    # Platform engineers only
+    - name: platform-engineer
+      description: Full access to infrastructure
+      policies:
+        - p, proj:infrastructure:platform-engineer, applications, *, infrastructure/*, allow
+        - p, proj:infrastructure:platform-engineer, clusters, get, infrastructure/*, allow
+        - p, proj:infrastructure:platform-engineer, repositories, *, infrastructure/*, allow
+      groups:
+        - platform-engineering
+        - sre
+
+    # Monitoring team
+    - name: monitoring
+      description: Access to observability stack
+      policies:
+        - p, proj:infrastructure:monitoring, applications, get, infrastructure/kube-prometheus-stack, allow
+        - p, proj:infrastructure:monitoring, applications, get, infrastructure/loki, allow
+        - p, proj:infrastructure:monitoring, applications, get, infrastructure/tempo, allow
+        - p, proj:infrastructure:monitoring, applications, sync, infrastructure/kube-prometheus-stack, allow
+        - p, proj:infrastructure:monitoring, logs, get, infrastructure/*, allow
+      groups:
+        - sre
+        - monitoring

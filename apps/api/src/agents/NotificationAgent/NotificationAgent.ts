@@ -1,5 +1,8 @@
 import { BaseAgent } from '../BaseAgent';
 import { BaseAgentConfig, BaseAgentDependencies, HealthCheckResult } from '../BaseAgent/types';
+
+import { autopilotGuard } from '../../lib/AutopilotGuard';
+
 // import { logger } from '../../shared/logger';
 
 export interface NotificationPayload {
@@ -51,6 +54,23 @@ export class NotificationAgent extends BaseAgent {
   }
 
   async sendNotification(payload: NotificationPayload): Promise<void> {
+    // Phase 6.5: AutopilotGuard is the SOLE authority for side effects
+    const guardResult = await autopilotGuard.assertMayPerformSideEffect({
+      action: 'NOTIFICATION_SEND',
+      agent_name: 'NotificationAgent',
+      metadata: { type: payload.type, recipient: payload.recipient, subject: payload.subject }
+    });
+
+    if (!guardResult.allowed) {
+      this.logger.info('Notification blocked by AutopilotGuard', {
+        type: payload.type,
+        recipient: payload.recipient,
+        reason: guardResult.reason,
+        mode: guardResult.mode
+      });
+      return;
+    }
+
     try {
       // Validate payload
       this.validatePayload(payload);

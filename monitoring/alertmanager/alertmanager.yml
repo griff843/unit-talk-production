@@ -1,0 +1,73 @@
+# Alertmanager Configuration - Phase 13 Observability
+# Date: 2025-10-31
+# Purpose: Route alerts to Slack/Discord channels with SLO-based severity
+
+global:
+  resolve_timeout: 5m
+
+# Routing tree
+route:
+  receiver: 'discord-alerts'
+  group_by: ['alertname', 'severity', 'component']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+
+  routes:
+    # Critical SLO violations - immediate notification
+    - match:
+        severity: critical
+      receiver: 'discord-critical'
+      continue: true
+      group_wait: 0s
+      repeat_interval: 5m
+
+    # Slack alerts for all critical issues
+    - match:
+        severity: critical
+      receiver: 'slack-critical'
+      continue: false
+      group_wait: 0s
+      repeat_interval: 30m
+
+    # Warning SLO violations
+    - match:
+        severity: warning
+      receiver: 'discord-warnings'
+      group_wait: 30s
+      repeat_interval: 1h
+
+# Inhibition rules
+inhibit_rules:
+  # Suppress warnings if critical is firing
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'component']
+
+# Receivers
+receivers:
+  # Default Discord channel
+  - name: 'discord-alerts'
+    webhook_configs:
+      - url: '${DISCORD_WEBHOOK_URL}'
+        send_resolved: true
+
+  # Critical alerts - Discord
+  - name: 'discord-critical'
+    webhook_configs:
+      - url: '${DISCORD_OPERATOR_WEBHOOK_URL}'
+        send_resolved: true
+
+  # Warning alerts - Discord
+  - name: 'discord-warnings'
+    webhook_configs:
+      - url: '${DISCORD_WEBHOOK_URL}'
+        send_resolved: true
+
+  # Critical alerts - Slack
+  - name: 'slack-critical'
+    webhook_configs:
+      - url: '${SLACK_WEBHOOK_URL}'
+        send_resolved: true

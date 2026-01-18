@@ -4,6 +4,8 @@ import { EmbedBuilder } from 'discord.js';
 import { env } from '../config/env';
 import { logger } from '../shared/logger';
 
+import { autopilotGuard } from '../lib/AutopilotGuard';
+
 import { DiscordBotService } from './DiscordBotService';
 
 /**
@@ -38,10 +40,27 @@ export class VIPPlusChannelService {
 
   /**
    * Post advanced analytics to exclusive-insights (S/A-tier picks only)
+   * Phase 6.5: All VIP+ posts MUST go through AutopilotGuard
    */
   async postExclusiveAnalysis(pick: any, insights: any, correlationId: string): Promise<void> {
     const analysisLogger = logger.child({ correlationId, pickId: pick.id });
-    
+
+    // Phase 6.5: AutopilotGuard is the SOLE authority for side effects
+    const guardResult = await autopilotGuard.assertMayPerformSideEffect({
+      action: 'DISCORD_POST',
+      agent_name: 'VIPPlusChannelService.postExclusiveAnalysis',
+      pick_id: pick.id,
+      metadata: { grade: insights.systemGrade, channel: 'exclusive-insights' }
+    });
+
+    if (!guardResult.allowed) {
+      analysisLogger.info('VIP+ post blocked by AutopilotGuard', {
+        reason: guardResult.reason,
+        mode: guardResult.mode
+      });
+      return;
+    }
+
     try {
       // Only post S-tier and A-tier picks to exclusive insights
       if (insights.systemGrade !== 'S-tier' && insights.systemGrade !== 'A-tier') {
@@ -117,10 +136,26 @@ export class VIPPlusChannelService {
 
   /**
    * Post market movement analysis to trader-insights
+   * Phase 6.5: All VIP+ posts MUST go through AutopilotGuard
    */
   async postMarketMovement(marketData: any, correlationId: string): Promise<void> {
     const marketLogger = logger.child({ correlationId });
-    
+
+    // Phase 6.5: AutopilotGuard is the SOLE authority for side effects
+    const guardResult = await autopilotGuard.assertMayPerformSideEffect({
+      action: 'DISCORD_POST',
+      agent_name: 'VIPPlusChannelService.postMarketMovement',
+      metadata: { channel: 'trader-insights', movement: marketData.movement }
+    });
+
+    if (!guardResult.allowed) {
+      marketLogger.info('Market movement post blocked by AutopilotGuard', {
+        reason: guardResult.reason,
+        mode: guardResult.mode
+      });
+      return;
+    }
+
     try {
       const embed = new EmbedBuilder()
         .setTitle('📊 **TRADER INSIGHTS** | Market Movement Alert')
@@ -178,10 +213,26 @@ export class VIPPlusChannelService {
 
   /**
    * Post daily curated picks to best-bets
+   * Phase 6.5: All VIP+ posts MUST go through AutopilotGuard
    */
   async postDailyBestBets(picks: any[], correlationId: string): Promise<void> {
     const curatedLogger = logger.child({ correlationId });
-    
+
+    // Phase 6.5: AutopilotGuard is the SOLE authority for side effects
+    const guardResult = await autopilotGuard.assertMayPerformSideEffect({
+      action: 'DISCORD_POST',
+      agent_name: 'VIPPlusChannelService.postDailyBestBets',
+      metadata: { channel: 'best-bets', pick_count: picks.length }
+    });
+
+    if (!guardResult.allowed) {
+      curatedLogger.info('Daily best bets post blocked by AutopilotGuard', {
+        reason: guardResult.reason,
+        mode: guardResult.mode
+      });
+      return;
+    }
+
     try {
       const embed = new EmbedBuilder()
         .setTitle('🎯 **DAILY BEST BETS** | Curated Excellence')
@@ -631,10 +682,26 @@ export class VIPPlusChannelService {
 
   /**
    * Post live game updates to VIP+ channels
+   * Phase 6.5: All VIP+ posts MUST go through AutopilotGuard
    */
   async postLiveGameUpdate(gameData: any, correlationId: string): Promise<void> {
     const updateLogger = logger.child({ correlationId, action: 'post_live_game_update' });
-    
+
+    // Phase 6.5: AutopilotGuard is the SOLE authority for side effects
+    const guardResult = await autopilotGuard.assertMayPerformSideEffect({
+      action: 'DISCORD_POST',
+      agent_name: 'VIPPlusChannelService.postLiveGameUpdate',
+      metadata: { channel: 'live-updates', matchup: gameData.matchup }
+    });
+
+    if (!guardResult.allowed) {
+      updateLogger.info('Live game update blocked by AutopilotGuard', {
+        reason: guardResult.reason,
+        mode: guardResult.mode
+      });
+      return;
+    }
+
     try {
       const embed = new EmbedBuilder()
         .setTitle(`🔴 LIVE: ${gameData.matchup}`)

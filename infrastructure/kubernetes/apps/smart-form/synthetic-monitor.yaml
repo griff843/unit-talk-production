@@ -1,0 +1,111 @@
+# E2E Synthetic Monitoring for Smart Form
+# Date: 2025-10-25
+# Runs every 10 minutes to validate production endpoints
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: smart-form-synthetic-monitor
+  namespace: unit-talk
+  labels:
+    app: smart-form
+    component: synthetic-monitor
+spec:
+  # Run every 10 minutes
+  schedule: "*/10 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: smart-form
+            component: synthetic-monitor
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: synthetic-monitor
+              image: ${REGISTRY}/unit-talk/synthetic-monitor:latest
+              command:
+                - node
+                - /app/synthetic-monitor.js
+              env:
+                - name: SMART_FORM_URL
+                  value: "https://smart-form.unit-talk.com"
+                - name: ALERT_WEBHOOK
+                  valueFrom:
+                    secretKeyRef:
+                      name: smart-form-secrets
+                      key: DISCORD_WEBHOOK_URL
+                - name: PROMETHEUS_PUSHGATEWAY
+                  value: "http://prometheus-pushgateway:9091"
+              envFrom:
+                - secretRef:
+                    name: smart-form-secrets
+              resources:
+                requests:
+                  memory: "256Mi"
+                  cpu: "100m"
+                limits:
+                  memory: "512Mi"
+                  cpu: "500m"
+
+---
+# PrometheusRule for synthetic monitor alerts
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: smart-form-synthetic-alerts
+  namespace: unit-talk
+  labels:
+    app: smart-form
+    component: synthetic-monitor
+spec:
+  groups:
+    - name: smart-form-synthetic
+      interval: 1m
+      rules:
+        # Alert on 5xx errors
+        - alert: SmartFormSynthetic5xxError
+          expr: |
+            smart_form_synthetic_status_code{status=~"5.."} > 0
+          for: 2m
+          labels:
+            severity: critical
+            component: smart-form
+            alert_type: synthetic
+          annotations:
+            summary: "Smart Form synthetic monitor detected 5xx error"
+            description: "Endpoint {{ $labels.endpoint }} returned {{ $labels.status }} for 2 consecutive checks"
+            runbook_url: "https://docs.unit-talk.com/runbooks/smart-form-5xx"
+        
+        # Alert on high latency (p95 > 120ms)
+        - alert: SmartFormSyntheticHighLatency
+          expr: |
+            smart_form_synthetic_latency_p95_ms > 120
+          for: 2m
+          labels:
+            severity: warning
+            component: smart-form
+            alert_type: synthetic
+          annotations:
+            summary: "Smart Form synthetic monitor detected high latency"
+            description: "Endpoint {{ $labels.endpoint }} p95 latency is {{ $value }}ms (threshold: 120ms)"
+            runbook_url: "https://docs.unit-talk.com/runbooks/smart-form-latency"
+        
+        # Alert on consecutive failures
+        - alert: SmartFormSyntheticConsecutiveFailures
+          expr: |
+            smart_form_synthetic_consecutive_failures >= 2
+          for: 1m
+          labels:
+            severity: critical
+            component: smart-form
+            alert_type: synthetic
+          annotations:
+            summary: "Smart Form synthetic monitor detected consecutive failures"
+            description: "Endpoint {{ $labels.endpoint }} has failed {{ $value }} consecutive times"
+            runbook_url: "https://docs.unit-talk.com/runbooks/smart-form-down"
+

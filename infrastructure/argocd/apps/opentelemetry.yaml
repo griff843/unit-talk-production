@@ -1,0 +1,210 @@
+# ArgoCD Application - OpenTelemetry Collector
+# Unified observability pipeline for metrics, logs, and traces
+# Date: 2025-01-24
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: opentelemetry-collector
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: infrastructure
+
+  source:
+    repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
+    chart: opentelemetry-collector
+    targetRevision: 0.79.0
+    helm:
+      values: |
+        mode: deployment
+
+        replicaCount: 2
+
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+
+        # Service configuration
+        service:
+          type: ClusterIP
+          ports:
+            otlp:
+              enabled: true
+              containerPort: 4317
+              servicePort: 4317
+              protocol: TCP
+            otlp-http:
+              enabled: true
+              containerPort: 4318
+              servicePort: 4318
+              protocol: TCP
+            metrics:
+              enabled: true
+              containerPort: 8888
+              servicePort: 8888
+              protocol: TCP
+
+        # OpenTelemetry Collector configuration
+        config:
+          receivers:
+            otlp:
+              protocols:
+                grpc:
+                  endpoint: 0.0.0.0:4317
+                http:
+                  endpoint: 0.0.0.0:4318
+
+            # Prometheus receiver for scraping
+            prometheus:
+              config:
+                scrape_configs:
+                  - job_name: 'otel-collector'
+                    scrape_interval: 10s
+                    static_configs:
+                      - targets: ['0.0.0.0:8888']
+
+          processors:
+            # Batch processor for efficiency
+            batch:
+              timeout: 10s
+              send_batch_size: 1024
+
+            # Memory limiter to prevent OOM
+            memory_limiter:
+              check_interval: 1s
+              limit_mib: 1536
+              spike_limit_mib: 512
+
+            # Resource processor to add metadata
+            resource:
+              attributes:
+                - key: cluster.name
+                  value: unit-talk-production
+                  action: upsert
+                - key: environment
+                  value: production
+                  action: upsert
+
+            # Tail sampling for traces
+            tail_sampling:
+              decision_wait: 10s
+              num_traces: 100
+              expected_new_traces_per_sec: 10
+              policies:
+                - name: errors-policy
+                  type: status_code
+                  status_code:
+                    status_codes: [ERROR]
+                - name: slow-requests-policy
+                  type: latency
+                  latency:
+                    threshold_ms: 500
+                - name: probabilistic-policy
+                  type: probabilistic
+                  probabilistic:
+                    sampling_percentage: 10
+
+          exporters:
+            # Prometheus exporter
+            prometheus:
+              endpoint: '0.0.0.0:8889'
+              namespace: unit_talk
+              const_labels:
+                cluster: production
+              send_timestamps: true
+              metric_expiration: 5m
+
+            # Loki exporter for logs
+            loki:
+              endpoint: http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push
+              labels:
+                resource:
+                  service.name: "service_name"
+                  service.namespace: "service_namespace"
+                attributes:
+                  level: "severity"
+
+            # Tempo exporter for traces
+            otlp/tempo:
+              endpoint: tempo.monitoring.svc.cluster.local:4317
+              tls:
+                insecure: true
+              sending_queue:
+                num_consumers: 4
+                queue_size: 100
+              retry_on_failure:
+                enabled: true
+                initial_interval: 5s
+                max_interval: 30s
+                max_elapsed_time: 300s
+
+            # Debug logging (can be removed in production)
+            logging:
+              loglevel: info
+              sampling_initial: 5
+              sampling_thereafter: 200
+
+          service:
+            pipelines:
+              # Metrics pipeline
+              metrics:
+                receivers: [otlp, prometheus]
+                processors: [memory_limiter, batch, resource]
+                exporters: [prometheus, logging]
+
+              # Traces pipeline
+              traces:
+                receivers: [otlp]
+                processors: [memory_limiter, tail_sampling, batch, resource]
+                exporters: [otlp/tempo, logging]
+
+              # Logs pipeline
+              logs:
+                receivers: [otlp]
+                processors: [memory_limiter, batch, resource]
+                exporters: [loki, logging]
+
+            # Telemetry configuration
+            telemetry:
+              logs:
+                level: info
+              metrics:
+                level: detailed
+                address: 0.0.0.0:8888
+
+        # Prometheus ServiceMonitor
+        serviceMonitor:
+          enabled: true
+          metricsEndpoints:
+            - port: metrics
+              interval: 30s
+
+        # Pod annotations for scraping
+        podAnnotations:
+          prometheus.io/scrape: "true"
+          prometheus.io/port: "8888"
+          prometheus.io/path: "/metrics"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

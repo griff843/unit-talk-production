@@ -1,0 +1,25 @@
+# ===============================================================================
+# dbt Packages Configuration - Unit Talk Analytics
+# Purpose: External dbt packages for enhanced functionality
+# ===============================================================================
+
+packages:
+  # dbt utilities for common macros
+  - package: dbt-labs/dbt_utils
+    version: 1.1.1
+
+  # Date and time utilities
+  - package: calogica/dbt_date
+    version: 0.10.0
+
+  # Metrics framework for KPI tracking
+  - package: dbt-labs/metrics
+    version: 1.6.0
+
+  # Audit and logging helpers
+  - package: dbt-labs/audit_helper
+    version: 0.9.0
+
+  # Code generation helpers
+  - package: dbt-labs/codegen
+    version: 0.12.0

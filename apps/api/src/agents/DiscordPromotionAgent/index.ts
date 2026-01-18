@@ -6,6 +6,8 @@ import FormData from 'form-data';
 import { logger } from '../../services/logging';
 import { supabase } from '../../services/supabaseClient';
 
+import { autopilotGuard } from '../../lib/AutopilotGuard';
+
 // ---- CONFIG ----
 const DISCORD_WEBHOOK_URL = process.env['DISCORD_WEBHOOK_URL'] || '';
 
@@ -48,11 +50,30 @@ function buildEliteEmbed(pick: any) {
 }
 
 // ---- POSTER ----
+// Phase 6.5: All Discord posts MUST go through AutopilotGuard
 async function postEliteCardToDiscord(pick: any) {
   if (!DISCORD_WEBHOOK_URL) {
     logger.error('No Discord webhook URL set!');
     return;
   }
+
+  // Phase 6.5: AutopilotGuard is the SOLE authority for side effects
+  const guardResult = await autopilotGuard.assertMayPerformSideEffect({
+    action: 'DISCORD_POST',
+    agent_name: 'DiscordPromotionAgent',
+    pick_id: pick.id,
+    metadata: { tier: pick.tier, player: pick.player_name }
+  });
+
+  if (!guardResult.allowed) {
+    logger.info({
+      pickId: pick.id,
+      reason: guardResult.reason,
+      mode: guardResult.mode
+    }, 'Discord post blocked by AutopilotGuard');
+    return;
+  }
+
   const imageBuffer = await generateEliteCard(pick);
   const form = new FormData();
   form.append('file', imageBuffer, { filename: 'pick.png', contentType: 'image/png' });

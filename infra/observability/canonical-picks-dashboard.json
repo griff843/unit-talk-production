@@ -1,0 +1,362 @@
+{
+  "dashboard": {
+    "title": "Canonical Picks - Production SLOs",
+    "tags": ["picks", "canonical", "slo", "production"],
+    "timezone": "utc",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "API Request Latency (p95)",
+        "type": "graph",
+        "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(api_picks_insert_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "p95 Latency",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "ms",
+            "label": "Latency"
+          }
+        ],
+        "alert": {
+          "name": "API p95 Latency SLO Breach",
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [150],
+                "type": "gt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "params": ["A", "5m", "now"]
+              },
+              "reducer": {
+                "params": [],
+                "type": "avg"
+              },
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "for": "5m",
+          "frequency": "1m",
+          "handler": 1,
+          "message": "API p95 latency exceeded 150ms SLO for 5 minutes",
+          "noDataState": "no_data",
+          "notifications": []
+        }
+      },
+      {
+        "id": 2,
+        "title": "Database Write Latency (p95)",
+        "type": "graph",
+        "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(db_write_duration_seconds_bucket{table=\"picks\"}[5m])) by (le))",
+            "legendFormat": "p95 DB Write",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "ms",
+            "label": "Latency"
+          }
+        ],
+        "alert": {
+          "name": "DB p95 Latency SLO Breach",
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [50],
+                "type": "gt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "params": ["A", "5m", "now"]
+              },
+              "reducer": {
+                "params": [],
+                "type": "avg"
+              },
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "for": "5m",
+          "frequency": "1m",
+          "handler": 1,
+          "message": "Database p95 latency exceeded 50ms SLO for 5 minutes",
+          "noDataState": "no_data",
+          "notifications": []
+        }
+      },
+      {
+        "id": 3,
+        "title": "Error Rate",
+        "type": "graph",
+        "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "sum(rate(api_picks_insert_errors_total[5m])) / sum(rate(api_picks_insert_total[5m]))",
+            "legendFormat": "Error Rate",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "percentunit",
+            "label": "Error Rate"
+          }
+        ],
+        "alert": {
+          "name": "Error Rate SLO Breach",
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [0.005],
+                "type": "gt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "params": ["A", "5m", "now"]
+              },
+              "reducer": {
+                "params": [],
+                "type": "avg"
+              },
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "for": "5m",
+          "frequency": "1m",
+          "handler": 1,
+          "message": "Error rate exceeded 0.5% SLO for 5 minutes",
+          "noDataState": "no_data",
+          "notifications": []
+        }
+      },
+      {
+        "id": 4,
+        "title": "Outbox Publish Lag (p95)",
+        "type": "graph",
+        "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(outbox_publish_lag_seconds_bucket[5m])) by (le))",
+            "legendFormat": "p95 Publish Lag",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "s",
+            "label": "Lag"
+          }
+        ],
+        "alert": {
+          "name": "Outbox Publish Lag SLO Breach",
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [60],
+                "type": "gt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "params": ["A", "5m", "now"]
+              },
+              "reducer": {
+                "params": [],
+                "type": "avg"
+              },
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "for": "5m",
+          "frequency": "1m",
+          "handler": 1,
+          "message": "Outbox publish lag exceeded 60s SLO for 5 minutes",
+          "noDataState": "no_data",
+          "notifications": []
+        }
+      },
+      {
+        "id": 5,
+        "title": "Pick Submission Rate",
+        "type": "graph",
+        "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "sum(rate(api_picks_insert_total[5m]))",
+            "legendFormat": "Submissions/sec",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "reqps",
+            "label": "Rate"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Outbox Status Distribution",
+        "type": "piechart",
+        "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "sum by (status) (pick_publish_status_total)",
+            "legendFormat": "{{status}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Circuit Breaker Status",
+        "type": "stat",
+        "gridPos": { "x": 0, "y": 24, "w": 8, "h": 4 },
+        "targets": [
+          {
+            "expr": "sum(circuit_breaker_state{service=\"discord\"} == 1)",
+            "legendFormat": "Discord CB Open",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          },
+          "textMode": "auto"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "red", "value": 1 }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "RLS Policy Violations",
+        "type": "stat",
+        "gridPos": { "x": 8, "y": 24, "w": 8, "h": 4 },
+        "targets": [
+          {
+            "expr": "sum(rate(rls_policy_violations_total[5m]))",
+            "legendFormat": "Violations/sec",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          },
+          "textMode": "auto"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 0.1 },
+                { "color": "red", "value": 1 }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "Rate Limit Hits",
+        "type": "stat",
+        "gridPos": { "x": 16, "y": 24, "w": 8, "h": 4 },
+        "targets": [
+          {
+            "expr": "sum(rate(rate_limit_exceeded_total[5m]))",
+            "legendFormat": "Rate Limits/sec",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          },
+          "textMode": "auto"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 1 },
+                { "color": "red", "value": 10 }
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "datasource": "Prometheus",
+          "enable": true,
+          "expr": "ALERTS{alertname=~\".*SLO.*\"}",
+          "iconColor": "red",
+          "name": "SLO Alerts",
+          "step": "60s",
+          "tagKeys": "alertname",
+          "textFormat": "{{alertname}}",
+          "titleFormat": "Alert"
+        }
+      ]
+    }
+  }
+}
+

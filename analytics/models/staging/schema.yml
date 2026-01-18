@@ -1,0 +1,143 @@
+# ===============================================================================
+# Staging Models Schema - Data Sources and Tests
+# Purpose: Define sources, freshness checks, and data quality tests
+# ===============================================================================
+
+version: 2
+
+sources:
+  - name: public
+    description: "Canonical database schema per Charter v3.0"
+    database: postgres
+    schema: public
+    tables:
+      - name: picks
+        description: "Canonical picks table - authoritative source for all picks"
+        identifier: picks
+        freshness:
+          warn_after: {count: 6, period: hour}
+          error_after: {count: 24, period: hour}
+        columns:
+          - name: id
+            description: "Primary key (UUID)"
+            tests:
+              - unique
+              - not_null
+          - name: tenant_id
+            description: "Tenant isolation key"
+            tests:
+              - not_null
+          - name: user_id
+            description: "Capper/user who submitted pick"
+            tests:
+              - not_null
+          - name: workflow_stage
+            description: "Workflow stage (draft, published, etc.)"
+            tests:
+              - accepted_values:
+                  values: ['draft', 'pending_review', 'approved', 'rejected', 'published']
+          - name: status
+            description: "Pick outcome status"
+            tests:
+              - accepted_values:
+                  values: ['pending', 'won', 'lost', 'push', 'void', 'cancelled']
+          - name: professional_score
+            description: "Professional grading score (0-100)"
+            tests:
+              - not_null:
+                  where: "grading_status = 'completed'"
+          - name: created_at
+            description: "Pick creation timestamp"
+            tests:
+              - not_null
+
+      - name: internal_scores
+        description: "Detailed scoring breakdown for ML model ingestion"
+        identifier: internal_scores
+        freshness:
+          warn_after: {count: 12, period: hour}
+          error_after: {count: 48, period: hour}
+        columns:
+          - name: id
+            description: "Primary key (UUID)"
+            tests:
+              - unique
+              - not_null
+          - name: pick_id
+            description: "Foreign key to picks table"
+            tests:
+              - not_null
+              - unique
+          - name: professional_score
+            description: "Overall professional score (0-100)"
+            tests:
+              - not_null
+          - name: model_confidence
+            description: "ML model confidence (0-1)"
+          - name: scored_at
+            description: "Scoring timestamp"
+            tests:
+              - not_null
+
+      - name: users
+        description: "Users/cappers table"
+        identifier: users
+        columns:
+          - name: id
+            tests:
+              - unique
+              - not_null
+          - name: tenant_id
+            tests:
+              - not_null
+
+      - name: props
+        description: "Market propositions table"
+        identifier: props
+
+models:
+  - name: stg_picks
+    description: "Staged picks data with transformations and derived columns"
+    columns:
+      - name: pick_id
+        description: "Primary key"
+        tests:
+          - unique
+          - not_null
+      - name: tenant_id
+        description: "Tenant ID for multi-tenant isolation"
+        tests:
+          - not_null
+      - name: is_win
+        description: "Binary indicator: 1 for win, 0 for loss, NULL for pending"
+      - name: score_tier
+        description: "Professional score tier classification"
+        tests:
+          - accepted_values:
+              values: ['elite', 'strong', 'good', 'average', 'below_average']
+      - name: implied_probability
+        description: "Implied probability derived from odds"
+
+  - name: stg_internal_scores
+    description: "Staged internal scores with ML features"
+    columns:
+      - name: internal_score_id
+        description: "Primary key"
+        tests:
+          - unique
+          - not_null
+      - name: pick_id
+        description: "Foreign key to picks"
+        tests:
+          - not_null
+          - unique
+      - name: clv_tier
+        description: "CLV tier classification"
+        tests:
+          - accepted_values:
+              values: ['elite', 'strong', 'good', 'neutral', 'poor']
+      - name: confidence_tier
+        description: "Model confidence tier"
+        tests:
+          - accepted_values:
+              values: ['very_high', 'high', 'medium', 'low', 'very_low']

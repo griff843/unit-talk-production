@@ -1,0 +1,52 @@
+# ===============================================================================
+# dbt Profiles Configuration - Unit Talk Analytics
+# Purpose: Connection profiles for different environments
+# ===============================================================================
+
+unit_talk:
+  target: dev
+  outputs:
+    # Development environment (local Supabase)
+    dev:
+      type: postgres
+      host: "{{ env_var('SUPABASE_DB_HOST', 'localhost') }}"
+      port: "{{ env_var('SUPABASE_DB_PORT', 5432) | int }}"
+      user: "{{ env_var('SUPABASE_DB_USER', 'postgres') }}"
+      password: "{{ env_var('SUPABASE_DB_PASSWORD', 'postgres') }}"
+      dbname: "{{ env_var('SUPABASE_DB_NAME', 'postgres') }}"
+      schema: analytics
+      threads: 4
+      keepalives_idle: 0
+      connect_timeout: 10
+      search_path: public,analytics
+      sslmode: prefer
+
+    # Staging environment
+    staging:
+      type: postgres
+      host: "{{ env_var('STAGING_DB_HOST') }}"
+      port: "{{ env_var('STAGING_DB_PORT', 5432) | int }}"
+      user: "{{ env_var('STAGING_DB_USER') }}"
+      password: "{{ env_var('STAGING_DB_PASSWORD') }}"
+      dbname: "{{ env_var('STAGING_DB_NAME') }}"
+      schema: analytics
+      threads: 8
+      keepalives_idle: 0
+      connect_timeout: 10
+      search_path: public,analytics
+      sslmode: require
+
+    # Production environment
+    prod:
+      type: postgres
+      host: "{{ env_var('PROD_DB_HOST') }}"
+      port: "{{ env_var('PROD_DB_PORT', 5432) | int }}"
+      user: "{{ env_var('PROD_DB_USER') }}"
+      password: "{{ env_var('PROD_DB_PASSWORD') }}"
+      dbname: "{{ env_var('PROD_DB_NAME') }}"
+      schema: analytics
+      threads: 16
+      keepalives_idle: 0
+      connect_timeout: 10
+      search_path: public,analytics
+      sslmode: require

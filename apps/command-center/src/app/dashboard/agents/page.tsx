@@ -21,6 +21,7 @@ import {
   RefreshCw,
   Wifi,
   WifiOff,
+  Shield,
 } from 'lucide-react';
 import { getStatusColor, timeAgo } from '@/lib/utils';
 import { useAgentMonitoring } from '@/hooks/useAgentMonitoring';
@@ -28,6 +29,7 @@ import { useAgentLogs } from '@/hooks/useAgentLogs';
 import { AgentStatus } from '@/lib/agentMonitoring';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { AgentControlPanel } from '@/components/dashboard/AgentControlPanel';
 
 // Agent descriptions mapping
 const agentDescriptions = {
@@ -145,6 +147,9 @@ export default function AgentDashboardPage() {
       ? Math.round((systemMetrics.healthyAgents / systemMetrics.totalAgents) * 100)
       : 0;
 
+  // Track current tab
+  const [activeTab, setActiveTab] = useState('control-plane');
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -219,27 +224,47 @@ export default function AgentDashboardPage() {
         </div>
       </div>
 
-      {/* Loading State */}
-      {isLoading && (
-        <div className="flex items-center justify-center py-8">
-          <RefreshCw className="w-6 h-6 animate-spin mr-2" />
-          <span>Loading agent data...</span>
-        </div>
-      )}
+      {/* Main Tabs: Control Plane vs Legacy Monitoring */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="control-plane" className="flex items-center gap-2">
+            <Shield className="w-4 h-4" />
+            Control Plane (Phase 1)
+          </TabsTrigger>
+          <TabsTrigger value="monitoring" className="flex items-center gap-2">
+            <Activity className="w-4 h-4" />
+            Legacy Monitoring
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Error State */}
-      {error && (
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="pt-6">
-            <div className="flex items-center space-x-2 text-red-600">
-              <XCircle className="w-5 h-5" />
-              <span>Failed to load agent data: {error.message}</span>
+        {/* Phase 1 Agent Control Plane Tab */}
+        <TabsContent value="control-plane">
+          <AgentControlPanel />
+        </TabsContent>
+
+        {/* Legacy Monitoring Tab */}
+        <TabsContent value="monitoring">
+          {/* Loading State */}
+          {isLoading && (
+            <div className="flex items-center justify-center py-8">
+              <RefreshCw className="w-6 h-6 animate-spin mr-2" />
+              <span>Loading agent data...</span>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
 
-      {/* System Overview */}
+          {/* Error State */}
+          {error && (
+            <Card className="border-red-200 bg-red-50">
+              <CardContent className="pt-6">
+                <div className="flex items-center space-x-2 text-red-600">
+                  <XCircle className="w-5 h-5" />
+                  <span>Failed to load agent data: {error.message}</span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* System Overview */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="metric-card" data-testid="stat-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -564,6 +589,8 @@ export default function AgentDashboardPage() {
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

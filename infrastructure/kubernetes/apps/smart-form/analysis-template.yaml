@@ -1,0 +1,237 @@
+# Argo Rollout AnalysisTemplate for Smart Form Production Cutover
+# Date: 2025-10-25
+# SLO Validation: API p95<150ms, DB p95<50ms, error rate<0.5%, outbox lag<60s
+
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: smart-form-slo-validation
+  namespace: unit-talk
+  labels:
+    app: smart-form
+    tier: frontend
+spec:
+  metrics:
+    # =========================================================================
+    # METRIC 1: API Latency SLO (p95 < 150ms)
+    # =========================================================================
+    - name: api-latency-p95
+      interval: 1m
+      count: 5
+      successCondition: result < 150
+      failureLimit: 2
+      provider:
+        prometheus:
+          address: http://prometheus.monitoring.svc.cluster.local:9090
+          query: |
+            histogram_quantile(0.95, 
+              sum(rate(http_request_duration_seconds_bucket{
+                job="smart-form",
+                route="/api/domain/picks/insert"
+              }[5m])) by (le)
+            ) * 1000
+
+    # =========================================================================
+    # METRIC 2: Database Query Latency SLO (p95 < 50ms)
+    # =========================================================================
+    - name: database-latency-p95
+      interval: 1m
+      count: 5
+      successCondition: result < 50
+      failureLimit: 2
+      provider:
+        prometheus:
+          address: http://prometheus.monitoring.svc.cluster.local:9090
+          query: |
+            histogram_quantile(0.95,
+              sum(rate(database_query_duration_seconds_bucket{
+                job="smart-form"
+              }[5m])) by (le)
+            ) * 1000
+
+    # =========================================================================
+    # METRIC 3: Error Rate SLO (< 0.5%)
+    # =========================================================================
+    - name: error-rate
+      interval: 1m
+      count: 5
+      successCondition: result < 0.005
+      failureLimit: 2
+      provider:
+        prometheus:
+          address: http://prometheus.monitoring.svc.cluster.local:9090
+          query: |
+            sum(rate(http_requests_total{
+              job="smart-form",
+              status=~"5.."
+            }[5m]))
+            /
+            sum(rate(http_requests_total{
+              job="smart-form"
+            }[5m]))
+
+    # =========================================================================
+    # METRIC 4: Outbox Lag SLO (< 60 seconds)
+    # =========================================================================
+    - name: outbox-lag
+      interval: 1m
+      count: 5
+      successCondition: result < 60
+      failureLimit: 2
+      provider:
+        prometheus:
+          address: http://prometheus.monitoring.svc.cluster.local:9090
+          query: |
+            max(
+              time() - max_over_time(
+                bridge_outbox_last_processed_timestamp{
+                  job="smart-form"
+                }[5m]
+              )
+            )
+
+    # =========================================================================
+    # METRIC 5: Discord Publish Success Rate (> 99%)
+    # =========================================================================
+    - name: discord-publish-success-rate
+      interval: 1m
+      count: 5
+      successCondition: result > 0.99
+      failureLimit: 2
+      provider:
+        prometheus:
+          address: http://prometheus.monitoring.svc.cluster.local:9090
+          query: |
+            sum(rate(discord_publish_success_total{
+              job="smart-form"
+            }[5m]))
+            /
+            sum(rate(discord_publish_attempts_total{
+              job="smart-form"
+            }[5m]))
+
+    # =========================================================================
+    # METRIC 6: Pick Insert Success Rate (> 99.5%)
+    # =========================================================================
+    - name: pick-insert-success-rate
+      interval: 1m
+      count: 5
+      successCondition: result > 0.995
+      failureLimit: 1
+      provider:
+        prometheus:
+          address: http://prometheus.monitoring.svc.cluster.local:9090
+          query: |
+            sum(rate(pick_insert_success_total{
+              job="smart-form"
+            }[5m]))
+            /
+            sum(rate(pick_insert_attempts_total{
+              job="smart-form"
+            }[5m]))
+
+---
+# AnalysisTemplate for API Backend
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: api-slo-validation
+  namespace: unit-talk
+  labels:
+    app: unit-talk-api
+    tier: backend
+spec:
+  metrics:
+    # =========================================================================
+    # METRIC 1: API Latency SLO (p95 < 150ms)
+    # =========================================================================
+    - name: api-latency-p95
+      interval: 1m
+      count: 5
+      successCondition: result < 150
+      failureLimit: 2
+      provider:
+        prometheus:
+          address: http://prometheus.monitoring.svc.cluster.local:9090
+          query: |
+            histogram_quantile(0.95,
+              sum(rate(http_request_duration_seconds_bucket{
+                job="unit-talk-api"
+              }[5m])) by (le)
+            ) * 1000
+
+    # =========================================================================
+    # METRIC 2: Database Query Latency SLO (p95 < 50ms)
+    # =========================================================================
+    - name: database-latency-p95
+      interval: 1m
+      count: 5
+      successCondition: result < 50
+      failureLimit: 2
+      provider:
+        prometheus:
+          address: http://prometheus.monitoring.svc.cluster.local:9090
+          query: |
+            histogram_quantile(0.95,
+              sum(rate(database_query_duration_seconds_bucket{
+                job="unit-talk-api"
+              }[5m])) by (le)
+            ) * 1000
+
+    # =========================================================================
+    # METRIC 3: Error Rate SLO (< 0.5%)
+    # =========================================================================
+    - name: error-rate
+      interval: 1m
+      count: 5
+      successCondition: result < 0.005
+      failureLimit: 2
+      provider:
+        prometheus:
+          address: http://prometheus.monitoring.svc.cluster.local:9090
+          query: |
+            sum(rate(http_requests_total{
+              job="unit-talk-api",
+              status=~"5.."
+            }[5m]))
+            /
+            sum(rate(http_requests_total{
+              job="unit-talk-api"
+            }[5m]))
+
+    # =========================================================================
+    # METRIC 4: Agent Health (all agents healthy)
+    # =========================================================================
+    - name: agent-health
+      interval: 1m
+      count: 5
+      successCondition: result == 1
+      failureLimit: 2
+      provider:
+        prometheus:
+          address: http://prometheus.monitoring.svc.cluster.local:9090
+          query: |
+            min(agent_health_status{
+              job="unit-talk-api"
+            })
+
+    # =========================================================================
+    # METRIC 5: Temporal Workflow Success Rate (> 99%)
+    # =========================================================================
+    - name: temporal-workflow-success-rate
+      interval: 1m
+      count: 5
+      successCondition: result > 0.99
+      failureLimit: 2
+      provider:
+        prometheus:
+          address: http://prometheus.monitoring.svc.cluster.local:9090
+          query: |
+            sum(rate(temporal_workflow_completed_total{
+              job="unit-talk-api"
+            }[5m]))
+            /
+            sum(rate(temporal_workflow_started_total{
+              job="unit-talk-api"
+            }[5m]))
+

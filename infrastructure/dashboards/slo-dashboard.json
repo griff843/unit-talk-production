@@ -1,0 +1,380 @@
+{
+  "dashboard": {
+    "title": "Unit Talk SLO Dashboard",
+    "description": "Service Level Objectives monitoring with error budgets",
+    "tags": ["slo", "sli", "error-budget", "production"],
+    "timezone": "utc",
+    "editable": true,
+    "graphTooltip": 1,
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "API Latency SLO (p95 < 150ms)",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"unit-talk-api\"}[5m])) by (le)) * 1000",
+            "legendFormat": "p95 Latency",
+            "refId": "A"
+          },
+          {
+            "expr": "150",
+            "legendFormat": "SLO Threshold (150ms)",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "ms",
+            "label": "Latency"
+          }
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [150],
+                "type": "gt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "params": ["A", "5m", "now"]
+              },
+              "reducer": {
+                "type": "avg"
+              },
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "frequency": "1m",
+          "handler": 1,
+          "name": "API p95 Latency Alert",
+          "noDataState": "no_data",
+          "notifications": []
+        }
+      },
+      {
+        "id": 2,
+        "title": "Error Rate SLO (< 0.5%)",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 0
+        },
+        "targets": [
+          {
+            "expr": "(sum(rate(http_requests_total{job=\"unit-talk-api\",status=~\"5..\"}[5m])) / sum(rate(http_requests_total{job=\"unit-talk-api\"}[5m]))) * 100",
+            "legendFormat": "Error Rate %",
+            "refId": "A"
+          },
+          {
+            "expr": "0.5",
+            "legendFormat": "SLO Threshold (0.5%)",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "percent",
+            "label": "Error Rate"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Database Query Latency SLO (p95 < 50ms)",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(database_query_duration_seconds_bucket{job=\"unit-talk-api\"}[5m])) by (le)) * 1000",
+            "legendFormat": "p95 DB Latency",
+            "refId": "A"
+          },
+          {
+            "expr": "50",
+            "legendFormat": "SLO Threshold (50ms)",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "ms",
+            "label": "Latency"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Error Budget Remaining (30 days)",
+        "type": "gauge",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        },
+        "targets": [
+          {
+            "expr": "(1 - (sum(increase(http_requests_total{job=\"unit-talk-api\",status=~\"5..\"}[30d])) / sum(increase(http_requests_total{job=\"unit-talk-api\"}[30d])))) / 0.995 * 100",
+            "legendFormat": "Error Budget %",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showThresholdLabels": true,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": 0
+                },
+                {
+                  "color": "yellow",
+                  "value": 20
+                },
+                {
+                  "color": "green",
+                  "value": 50
+                }
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Availability SLO (99.5%)",
+        "type": "stat",
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 0,
+          "y": 16
+        },
+        "targets": [
+          {
+            "expr": "(1 - (sum(increase(http_requests_total{job=\"unit-talk-api\",status=~\"5..\"}[30d])) / sum(increase(http_requests_total{job=\"unit-talk-api\"}[30d])))) * 100",
+            "legendFormat": "Availability %",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": 0
+                },
+                {
+                  "color": "yellow",
+                  "value": 99.0
+                },
+                {
+                  "color": "green",
+                  "value": 99.5
+                }
+              ]
+            },
+            "unit": "percent",
+            "decimals": 3
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "Request Success Rate",
+        "type": "stat",
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 6,
+          "y": 16
+        },
+        "targets": [
+          {
+            "expr": "(sum(rate(http_requests_total{job=\"unit-talk-api\",status!~\"5..\"}[5m])) / sum(rate(http_requests_total{job=\"unit-talk-api\"}[5m]))) * 100",
+            "legendFormat": "Success Rate %",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": 0
+                },
+                {
+                  "color": "yellow",
+                  "value": 99.0
+                },
+                {
+                  "color": "green",
+                  "value": 99.5
+                }
+              ]
+            },
+            "unit": "percent",
+            "decimals": 2
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "Throughput (req/s)",
+        "type": "stat",
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 12,
+          "y": 16
+        },
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{job=\"unit-talk-api\"}[5m]))",
+            "legendFormat": "Requests/sec",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "decimals": 1
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "Database Connection Pool Utilization",
+        "type": "stat",
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 18,
+          "y": 16
+        },
+        "targets": [
+          {
+            "expr": "(database_connections_active{job=\"unit-talk-api\"} / database_connections_max{job=\"unit-talk-api\"}) * 100",
+            "legendFormat": "Pool Usage %",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": 0
+                },
+                {
+                  "color": "yellow",
+                  "value": 70
+                },
+                {
+                  "color": "red",
+                  "value": 90
+                }
+              ]
+            },
+            "unit": "percent"
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "SLO Compliance Trend (7 days)",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 20
+        },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"unit-talk-api\"}[1h])) by (le)) * 1000 < 150",
+            "legendFormat": "Latency SLO Met",
+            "refId": "A"
+          },
+          {
+            "expr": "(sum(rate(http_requests_total{job=\"unit-talk-api\",status=~\"5..\"}[1h])) / sum(rate(http_requests_total{job=\"unit-talk-api\"}[1h]))) * 100 < 0.5",
+            "legendFormat": "Error Rate SLO Met",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(database_query_duration_seconds_bucket{job=\"unit-talk-api\"}[1h])) by (le)) * 1000 < 50",
+            "legendFormat": "DB Latency SLO Met",
+            "refId": "C"
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "SLO Incident Count (Last 30 days)",
+        "type": "table",
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 28
+        },
+        "targets": [
+          {
+            "expr": "count_over_time((histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"unit-talk-api\"}[5m])) by (le)) * 1000 > 150)[30d:5m])",
+            "legendFormat": "Latency Violations",
+            "refId": "A",
+            "format": "table"
+          },
+          {
+            "expr": "count_over_time(((sum(rate(http_requests_total{job=\"unit-talk-api\",status=~\"5..\"}[5m])) / sum(rate(http_requests_total{job=\"unit-talk-api\"}[5m]))) * 100 > 0.5)[30d:5m])",
+            "legendFormat": "Error Rate Violations",
+            "refId": "B",
+            "format": "table"
+          },
+          {
+            "expr": "count_over_time((histogram_quantile(0.95, sum(rate(database_query_duration_seconds_bucket{job=\"unit-talk-api\"}[5m])) by (le)) * 1000 > 50)[30d:5m])",
+            "legendFormat": "DB Latency Violations",
+            "refId": "C",
+            "format": "table"
+          }
+        ]
+      }
+    ]
+  }
+}
