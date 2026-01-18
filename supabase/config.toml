@@ -12,8 +12,6 @@ port = 54321
 schemas = ["public", "storage"]
 # Max rows returned by PostgREST
 max_rows = 1000
-# Enable OpenAPI documentation
-openapi_mode = "ignore_routes"
 
 [db]
 # Database port
@@ -26,7 +24,6 @@ major_version = 15
 [realtime]
 # Enable Realtime API
 enabled = true
-port = 54323
 
 [studio]
 # Enable Supabase Studio (web UI)
@@ -45,13 +42,11 @@ pop3_port = 54327
 [storage]
 # Enable Storage API
 enabled = true
-port = 54328
 file_size_limit = "50MiB"
 
 [auth]
 # Enable Auth API
 enabled = true
-port = 54329
 # Site URL for redirects
 site_url = "http://localhost:3000"
 # Additional redirect URLs (comma-separated)

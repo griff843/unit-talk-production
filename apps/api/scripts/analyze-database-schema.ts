@@ -1,6 +1,7 @@
+/* eslint-disable max-lines-per-function, complexity, max-depth, @typescript-eslint/no-unused-vars, no-unused-vars, no-console, security/detect-object-injection */
 /**
  * DATABASE SCHEMA ANALYSIS FOR COMMAND CENTER
- * 
+ *
  * Comprehensive analysis of Supabase database to determine
  * Command Center features and data requirements
  */
@@ -38,29 +39,35 @@ async function analyzeDatabaseSchema() {
 
     // Get all table names
     console.log('\n📊 DISCOVERING TABLES...');
-    const { data: tables, error: tablesError } = await supabase
-      .rpc('get_schema_tables');
+    const { data: tables, error: tablesError } = await supabase.rpc('get_schema_tables');
 
     let tableNames: string[] = [];
-    
+
     if (tablesError) {
       // Fallback: try to get tables through information_schema
       console.log('Using fallback method to discover tables...');
-      
+
       // Try common Unit Talk tables
       const commonTables = [
-        'picks', 'capper_profiles', 'users', 'players', 'games', 
-        'agent_logs', 'discord_flags', 'user_profiles', 'contests',
-        'analytics', 'notifications', 'feedback', 'raw_props'
+        'picks',
+        'capper_profiles',
+        'users',
+        'players',
+        'games',
+        'agent_logs',
+        'discord_flags',
+        'user_profiles',
+        'contests',
+        'analytics',
+        'notifications',
+        'feedback',
+        'raw_props',
       ];
-      
+
       for (const tableName of commonTables) {
         try {
-          const { error } = await supabase
-            .from(tableName)
-            .select('*')
-            .limit(1);
-          
+          const { error } = await supabase.from(tableName).select('*').limit(1);
+
           if (!error) {
             tableNames.push(tableName);
           }
@@ -73,13 +80,13 @@ async function analyzeDatabaseSchema() {
     }
 
     console.log(`✅ Found ${tableNames.length} tables`);
-    
+
     const allTableInfo: TableInfo[] = [];
 
     // Analyze each table
     for (const tableName of tableNames) {
       console.log(`\n🔍 Analyzing table: ${tableName}`);
-      
+
       try {
         // Get row count
         const { count, error: countError } = await supabase
@@ -107,7 +114,7 @@ async function analyzeDatabaseSchema() {
               name: columnName,
               type: typeof value === 'object' && value !== null ? 'object' : typeof value,
               nullable: value === null,
-              defaultValue: value
+              defaultValue: value,
             });
           });
         }
@@ -116,13 +123,15 @@ async function analyzeDatabaseSchema() {
           tableName,
           columns,
           rowCount: count || 0,
-          sampleData: sampleData || []
+          sampleData: sampleData || [],
         });
 
         console.log(`   ✅ ${tableName}: ${count || 0} rows, ${columns.length} columns`);
-
       } catch (error) {
-        console.log(`   ❌ Failed to analyze ${tableName}:`, error instanceof Error ? error.message : error);
+        console.log(
+          `   ❌ Failed to analyze ${tableName}:`,
+          error instanceof Error ? error.message : error
+        );
       }
     }
 
@@ -134,7 +143,9 @@ async function analyzeDatabaseSchema() {
     // Core data analysis
     const picksTable = allTableInfo.find(t => t.tableName === 'picks');
     const cappersTable = allTableInfo.find(t => t.tableName === 'capper_profiles');
-    const usersTable = allTableInfo.find(t => t.tableName === 'users' || t.tableName === 'user_profiles');
+    const usersTable = allTableInfo.find(
+      t => t.tableName === 'users' || t.tableName === 'user_profiles'
+    );
     const playersTable = allTableInfo.find(t => t.tableName === 'players');
     const agentLogsTable = allTableInfo.find(t => t.tableName === 'agent_logs');
 
@@ -143,16 +154,22 @@ async function analyzeDatabaseSchema() {
       console.log(`✅ Picks table available (${picksTable.rowCount} records)`);
       console.log('   📊 Filterable fields:');
       picksTable.columns.forEach(col => {
-        if (['capper', 'tier', 'sport', 'market_type', 'status', 'outcome'].some(field => 
-          col.name.toLowerCase().includes(field.toLowerCase()))) {
+        if (
+          ['capper', 'tier', 'sport', 'market_type', 'status', 'outcome'].some(field =>
+            col.name.toLowerCase().includes(field.toLowerCase())
+          )
+        ) {
           console.log(`      - ${col.name} (${col.type})`);
         }
       });
-      
+
       console.log('\n   🎯 Key metrics available:');
       picksTable.columns.forEach(col => {
-        if (['ev', 'roi', 'confidence', 'edge_score', 'odds'].some(field => 
-          col.name.toLowerCase().includes(field.toLowerCase()))) {
+        if (
+          ['ev', 'roi', 'confidence', 'edge_score', 'odds'].some(field =>
+            col.name.toLowerCase().includes(field.toLowerCase())
+          )
+        ) {
           console.log(`      - ${col.name} (${col.type})`);
         }
       });
@@ -266,7 +283,7 @@ async function analyzeDatabaseSchema() {
         const nullable = col.nullable ? '(nullable)' : '(required)';
         console.log(`      ${col.name}: ${col.type} ${nullable}`);
       });
-      
+
       if (table.sampleData.length > 0) {
         console.log('   Sample data keys:', Object.keys(table.sampleData[0]).join(', '));
       }
@@ -284,7 +301,6 @@ async function analyzeDatabaseSchema() {
     console.log('5. Implement RBAC authentication and authorization');
     console.log('6. Add advanced filtering and search capabilities');
     console.log('7. Integrate Phase D analytics into unified interface');
-
   } catch (error) {
     console.error('💥 Database schema analysis failed:', error);
   }

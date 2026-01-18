@@ -1,10 +1,11 @@
+/* eslint-disable max-params */
 /**
  * QA Test Utilities
  * Common utilities for QA testing
  */
 
 export function createTimestamp(): string {
-  return new Date().toISOString().toISOString();
+  return new Date().toISOString();
 }
 
 export function createQATestResult(
@@ -27,6 +28,6 @@ export function createQATestResult(
     message,
     duration,
     timestamp: createTimestamp(),
-    ...(metrics && { metrics })
+    ...(metrics && { metrics }),
   };
 }

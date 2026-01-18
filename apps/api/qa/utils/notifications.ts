@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars, no-unused-vars, no-console */
 /**
  * QA Notification Service
  * Handles notifications for QA test results and alerts
@@ -28,21 +29,21 @@ export class QANotificationService {
       console.log(`⚠️  Severity: ${payload.severity.toUpperCase()}`);
       console.log(`🌍 Environment: ${payload.metadata.environment}`);
       console.log(`⏰ Timestamp: ${payload.metadata.timestamp}`);
-      
+
       if (payload.results.criticalIssues.length > 0) {
         console.log('\n❌ Critical Issues:');
         payload.results.criticalIssues.forEach(issue => {
           console.log(`  • ${issue}`);
         });
       }
-      
+
       if (payload.results.warnings.length > 0) {
         console.log('\n⚠️  Warnings:');
         payload.results.warnings.forEach(warning => {
           console.log(`  • ${warning}`);
         });
       }
-      
+
       console.log('='.repeat(50));
 
       // In a real implementation, you would integrate with:
@@ -51,7 +52,6 @@ export class QANotificationService {
       // - Discord webhooks
       // - PagerDuty
       // - etc.
-
     } catch (error) {
       console.error('Failed to send notification:', error);
     }

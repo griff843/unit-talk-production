@@ -1,3 +1,4 @@
+/* eslint-disable max-lines-per-function, no-console, security/detect-non-literal-fs-filename */
 /**
  * QA Report Generator
  * Generates comprehensive reports from QA test results
@@ -41,22 +42,32 @@ export class QAReportGenerator {
     }
   }
 
-  private async generateHTMLReport(assessment: LaunchAssessment, options: ReportOptions): Promise<void> {
+  private async generateHTMLReport(
+    assessment: LaunchAssessment,
+    options: ReportOptions
+  ): Promise<void> {
     const html = this.buildHTMLReport(assessment);
     const filename = join(options.outputDir, `qa-report-${options.timestamp}.html`);
     writeFileSync(filename, html);
     console.log(`HTML report generated: ${filename}`);
   }
 
-  private async generateJSONReport(assessment: LaunchAssessment, options: ReportOptions): Promise<void> {
+  private async generateJSONReport(
+    assessment: LaunchAssessment,
+    options: ReportOptions
+  ): Promise<void> {
     const filename = join(options.outputDir, `qa-report-${options.timestamp}.json`);
     writeFileSync(filename, JSON.stringify(assessment, null, 2));
     console.log(`JSON report generated: ${filename}`);
   }
 
   private buildHTMLReport(assessment: LaunchAssessment): string {
-    const statusColor = assessment.overallStatus === 'READY' ? '#28a745' : 
-                       assessment.overallStatus === 'CONDITIONAL' ? '#ffc107' : '#dc3545';
+    const statusColor =
+      assessment.overallStatus === 'READY'
+        ? '#28a745'
+        : assessment.overallStatus === 'CONDITIONAL'
+          ? '#ffc107'
+          : '#dc3545';
 
     return `
 <!DOCTYPE html>
@@ -91,33 +102,49 @@ export class QAReportGenerator {
     </div>
 
     <h2>Test Suites</h2>
-    ${assessment.testSuites.map(suite => `
+    ${assessment.testSuites
+      .map(
+        suite => `
         <div class="suite suite-${suite.status.toLowerCase()}">
             <h3>${suite.name} - ${suite.status}</h3>
             <p><strong>Duration:</strong> ${suite.duration}ms</p>
             <p><strong>Tests:</strong> ${suite.results.length}</p>
-            ${suite.results.map(result => `
+            ${suite.results
+              .map(
+                result => `
                 <div class="test-result">
                     <strong>${result.testName}:</strong> ${result.status}<br>
                     ${result.message}
                 </div>
-            `).join('')}
+            `
+              )
+              .join('')}
         </div>
-    `).join('')}
+    `
+      )
+      .join('')}
 
-    ${assessment.criticalIssues.length > 0 ? `
+    ${
+      assessment.criticalIssues.length > 0
+        ? `
         <h2>Critical Issues</h2>
         <ul>
             ${assessment.criticalIssues.map(issue => `<li class="critical">${issue}</li>`).join('')}
         </ul>
-    ` : ''}
+    `
+        : ''
+    }
 
-    ${assessment.warnings.length > 0 ? `
+    ${
+      assessment.warnings.length > 0
+        ? `
         <h2>Warnings</h2>
         <ul>
             ${assessment.warnings.map(warning => `<li class="warning">${warning}</li>`).join('')}
         </ul>
-    ` : ''}
+    `
+        : ''
+    }
 
     <h2>Recommendations</h2>
     <ul>
