@@ -135,7 +135,7 @@ The following features are gated behind runtime flags:
 | Failure classification  | `FAILURE_CLASSIFICATION_ENABLED` | true    | A     | Active      |
 | Auto-fix PR creation    | `AUTO_FIX_PR_ENABLED`            | true    | A     | Active      |
 | Auto-revert PR creation | `AUTO_REVERT_ENABLED`            | false   | C     | Implemented |
-| Autopilot freeze        | `AUTOPILOT_FREEZE_ENABLED`       | false   | D     | Planned     |
+| Autopilot freeze        | `AUTOPILOT_FREEZE_ENABLED`       | false   | D     | Implemented |
 
 Flags are stored in `runtime_config/ci_automation.json`.
 
@@ -166,9 +166,18 @@ Flags are stored in `runtime_config/ci_automation.json`.
 - Creates issue with revert command when flag is disabled
 - See [CI_FAILURE_RESOLVER_GUIDE.md](./CI_FAILURE_RESOLVER_GUIDE.md#auto-revert-feature-phase-c)
 
-### Phase D: Full Automation
+### Phase D: Autopilot Freeze (Implemented - Feature Flagged)
 
-- All features enabled
+- Autopilot freeze integration implemented (`AUTOPILOT_FREEZE_ENABLED=false` by default)
+- High-risk failures (MIGRATION, SECURITY, POLICY) trigger freeze
+- Lane-specific freeze support (ScoringAgent, SettlementAgent, etc.)
+- 4-hour auto-unfreeze default
+- Creates GitHub issue with freeze details and rollback instructions
+- See [CI_FAILURE_RESOLVER_GUIDE.md](./CI_FAILURE_RESOLVER_GUIDE.md#autopilot-freeze-feature-phase-d)
+
+### Phase E: Full Automation (Planned)
+
+- All features enabled by default
 - Continuous improvement based on metrics
 - Human oversight remains for all merges
 
