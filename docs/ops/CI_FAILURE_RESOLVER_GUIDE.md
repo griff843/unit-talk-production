@@ -1,7 +1,8 @@
 # CI Failure Resolver Guide
 
-**Version**: 1.0.0 **Phase**: A (Classification + Safe Autofix) **Status**:
-Active
+**Version**: 1.1.0
+**Phase**: A (Classification + Safe Autofix) + C (Auto-Revert, feature-flagged)
+**Status**: Active
 
 ## Overview
 
@@ -172,6 +173,12 @@ When a monitored workflow fails:
    - Logs informational notice
    - Comments on PR (if exists) suggesting re-run
 
+5. **For protected branch failures** (main, release/*):
+   - If `AUTO_REVERT_ENABLED=true`: Creates revert PR
+   - If `AUTO_REVERT_ENABLED=false`: Creates issue recommending revert
+   - Labels: `auto-revert`, `ci-restore-green`, `ci-failed`
+   - Never auto-merges the revert PR
+
 ### Manual Intervention
 
 The resolver **never** auto-merges. You must:
@@ -322,12 +329,88 @@ Classifications use regex heuristics. To improve:
 
 ## Phase Roadmap
 
-| Phase           | Features                               | Status  |
-| --------------- | -------------------------------------- | ------- |
-| **A** (Current) | Classification + LINT autofix + Issues | Active  |
-| B               | Staging autofix expansion              | Planned |
-| C               | Production autofix expansion           | Planned |
-| D               | Auto-revert + Freeze enforcement       | Planned |
+| Phase           | Features                                    | Status                      |
+| --------------- | ------------------------------------------- | --------------------------- |
+| **A** (Current) | Classification + LINT autofix + Issues      | Active                      |
+| B               | Staging autofix expansion                   | Planned                     |
+| **C**           | Auto-revert PR generation (feature-flagged) | Implemented (flag OFF)      |
+| D               | Freeze enforcement                          | Planned                     |
+
+---
+
+## Auto-Revert Feature (Phase C)
+
+### Overview
+
+When a CI failure occurs on a protected branch (`main` or `release/*`) and it's
+not classified as a FLAKE, the resolver can automatically create a revert PR.
+
+### Feature Flag
+
+The auto-revert feature is controlled by `AUTO_REVERT_ENABLED` in
+`runtime_config/ci_automation.json`:
+
+```json
+{
+  "features": {
+    "AUTO_REVERT_ENABLED": false
+  }
+}
+```
+
+**Default**: `false` (disabled)
+
+### Enabling Auto-Revert
+
+To enable auto-revert PR creation:
+
+1. Edit `runtime_config/ci_automation.json`:
+   ```json
+   {
+     "features": {
+       "AUTO_REVERT_ENABLED": true
+     }
+   }
+   ```
+
+2. Commit and push the change to `main`
+
+3. Future protected branch failures will trigger revert PR creation
+
+### Behavior When Enabled
+
+1. **Failure detected** on `main` or `release/*`
+2. **Classification** determines it's NOT a FLAKE
+3. **Revert branch created**: `revert/{branch}-{commit-short}-{run-id}`
+4. **Git revert executed**: `git revert --no-edit {commit}`
+5. **Push to revert branch** (never force push)
+6. **Revert PR created** with:
+   - Title: `revert: {original commit message}`
+   - Labels: `auto-revert`, `ci-restore-green`, `ci-failed`
+   - Body: Reason, evidence, fix-forward reminder
+
+### Behavior When Disabled
+
+1. **Failure detected** on `main` or `release/*`
+2. **Classification** determines it's NOT a FLAKE
+3. **Issue created** with:
+   - Title: `CI Failure on {branch}: Revert Recommended`
+   - Labels: `needs-human`, `ci-restore-green`, `ci-failed`
+   - Body: Revert command, manual steps, explanation
+
+### Conflict Handling
+
+If the revert encounters merge conflicts:
+- Revert is aborted (no partial reverts)
+- Issue created requesting manual revert
+- Labels: `needs-human`, `ci-restore-green`
+
+### Safety Guarantees
+
+- **Never force pushes** - All pushes are regular pushes
+- **Never auto-merges** - Revert PR requires human approval
+- **Respects freeze state** - No action if autopilot is frozen
+- **Clean rollback** - Conflicts trigger abort, not partial commit
 
 ---
 

@@ -1,6 +1,7 @@
 name: CI Failure Resolver
 
 # Phase A: Classification + Safe Autofix + Issue Creation
+# Phase C: Auto-Revert PR Generation (feature-flagged)
 # NO auto-merge, NO branch protection changes
 # See: docs/ops/AUTO_RESOLUTION_POLICY.md
 
@@ -40,12 +41,14 @@ jobs:
       is_safe_autofix: ${{ steps.classify.outputs.is_safe_autofix }}
       pr_number: ${{ steps.context.outputs.pr_number }}
       branch_name: ${{ steps.context.outputs.branch_name }}
+      is_protected_branch: ${{ steps.context.outputs.is_protected_branch }}
       run_url: ${{ steps.context.outputs.run_url }}
       workflow_name: ${{ steps.context.outputs.workflow_name }}
       commit_sha: ${{ steps.context.outputs.commit_sha }}
       failed_jobs: ${{ steps.context.outputs.failed_jobs }}
       error_summary: ${{ steps.classify.outputs.error_summary }}
       evidence_file: ${{ steps.evidence.outputs.evidence_file }}
+      auto_revert_enabled: ${{ steps.flags.outputs.auto_revert_enabled }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -71,11 +74,14 @@ jobs:
           if [ -f "runtime_config/ci_automation.json" ]; then
             CLASSIFICATION_ENABLED=$(jq -r '.features.FAILURE_CLASSIFICATION_ENABLED' runtime_config/ci_automation.json)
             AUTOFIX_ENABLED=$(jq -r '.features.AUTO_FIX_PR_ENABLED' runtime_config/ci_automation.json)
+            AUTO_REVERT_ENABLED=$(jq -r '.features.AUTO_REVERT_ENABLED' runtime_config/ci_automation.json)
             echo "classification_enabled=$CLASSIFICATION_ENABLED" >> $GITHUB_OUTPUT
             echo "autofix_enabled=$AUTOFIX_ENABLED" >> $GITHUB_OUTPUT
+            echo "auto_revert_enabled=$AUTO_REVERT_ENABLED" >> $GITHUB_OUTPUT
           else
             echo "classification_enabled=true" >> $GITHUB_OUTPUT
             echo "autofix_enabled=true" >> $GITHUB_OUTPUT
+            echo "auto_revert_enabled=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Collect workflow context
@@ -95,6 +101,13 @@ jobs:
           echo "run_url=$RUN_URL" >> $GITHUB_OUTPUT
           echo "commit_sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
           echo "branch_name=$BRANCH" >> $GITHUB_OUTPUT
+
+          # Check if this is a protected branch (main or release/*)
+          IS_PROTECTED="false"
+          if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "master" ] || [[ "$BRANCH" == release/* ]]; then
+            IS_PROTECTED="true"
+          fi
+          echo "is_protected_branch=$IS_PROTECTED" >> $GITHUB_OUTPUT
 
           # Try to find associated PR
           PR_NUMBER=""
@@ -601,3 +614,311 @@ jobs:
           > This is an informational comment. No action required unless failure persists.
           FLAKE_EOF
           )"
+
+  # ==========================================================================
+  # Job 5: Auto-Revert PR Generation (Phase C - Feature Flagged)
+  # ==========================================================================
+  auto-revert:
+    name: Auto-Revert PR
+    runs-on: ubuntu-latest
+    needs: collect-and-classify
+    # Only run for protected branch failures that are NOT flakes
+    if: |
+      needs.collect-and-classify.outputs.is_protected_branch == 'true' &&
+      needs.collect-and-classify.outputs.failure_class != 'FLAKE' &&
+      needs.collect-and-classify.outputs.pr_number == ''
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.collect-and-classify.outputs.branch_name }}
+          fetch-depth: 10
+
+      - name: Check auto-revert feature flag
+        id: check-flag
+        run: |
+          AUTO_REVERT="${{ needs.collect-and-classify.outputs.auto_revert_enabled }}"
+          echo "auto_revert_enabled=$AUTO_REVERT" >> $GITHUB_OUTPUT
+          if [ "$AUTO_REVERT" = "true" ]; then
+            echo "::notice::Auto-revert is ENABLED - will create revert PR"
+          else
+            echo "::notice::Auto-revert is DISABLED - will create issue recommending revert"
+          fi
+
+      - name: Get commit info for revert
+        id: commit-info
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          COMMIT_SHA="${{ needs.collect-and-classify.outputs.commit_sha }}"
+
+          # Get commit message and author
+          COMMIT_MSG=$(git log -1 --format="%s" "$COMMIT_SHA" 2>/dev/null || echo "Unknown commit")
+          COMMIT_AUTHOR=$(git log -1 --format="%an" "$COMMIT_SHA" 2>/dev/null || echo "Unknown")
+          COMMIT_SHORT="${COMMIT_SHA:0:7}"
+
+          # Try to find the PR that merged this commit
+          MERGED_PR=$(gh api "/repos/${{ github.repository }}/commits/$COMMIT_SHA/pulls" \
+            --jq '.[0].number' 2>/dev/null || echo "")
+
+          echo "commit_msg=$COMMIT_MSG" >> $GITHUB_OUTPUT
+          echo "commit_author=$COMMIT_AUTHOR" >> $GITHUB_OUTPUT
+          echo "commit_short=$COMMIT_SHORT" >> $GITHUB_OUTPUT
+          echo "merged_pr=$MERGED_PR" >> $GITHUB_OUTPUT
+
+          echo "::notice::Commit to revert: $COMMIT_SHORT by $COMMIT_AUTHOR"
+
+      # ========================================================================
+      # Path A: Auto-Revert ENABLED - Create Revert PR
+      # ========================================================================
+      - name: Create revert branch
+        id: revert-branch
+        if: steps.check-flag.outputs.auto_revert_enabled == 'true'
+        run: |
+          COMMIT_SHA="${{ needs.collect-and-classify.outputs.commit_sha }}"
+          BRANCH="${{ needs.collect-and-classify.outputs.branch_name }}"
+          REVERT_BRANCH="revert/$BRANCH-${{ steps.commit-info.outputs.commit_short }}-${{ github.event.workflow_run.id }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Create revert branch from current state
+          git checkout -b "$REVERT_BRANCH"
+
+          echo "revert_branch=$REVERT_BRANCH" >> $GITHUB_OUTPUT
+
+      - name: Perform git revert
+        id: git-revert
+        if: steps.check-flag.outputs.auto_revert_enabled == 'true'
+        run: |
+          COMMIT_SHA="${{ needs.collect-and-classify.outputs.commit_sha }}"
+
+          # Attempt to revert the commit
+          # Use --no-edit to auto-generate commit message
+          # NEVER use --force or push --force
+          if git revert --no-edit "$COMMIT_SHA"; then
+            echo "revert_success=true" >> $GITHUB_OUTPUT
+            echo "::notice::Successfully reverted commit $COMMIT_SHA"
+          else
+            echo "revert_success=false" >> $GITHUB_OUTPUT
+            echo "::warning::Revert failed - likely has conflicts. Manual intervention required."
+            # Abort the failed revert to leave clean state
+            git revert --abort 2>/dev/null || true
+          fi
+
+      - name: Push revert branch
+        if: |
+          steps.check-flag.outputs.auto_revert_enabled == 'true' &&
+          steps.git-revert.outputs.revert_success == 'true'
+        run: |
+          # Push WITHOUT force - safe push only
+          git push origin "${{ steps.revert-branch.outputs.revert_branch }}"
+
+      - name: Create revert PR
+        if: |
+          steps.check-flag.outputs.auto_revert_enabled == 'true' &&
+          steps.git-revert.outputs.revert_success == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ORIGINAL_PR="${{ steps.commit-info.outputs.merged_pr }}"
+          PR_REF=""
+          if [ -n "$ORIGINAL_PR" ]; then
+            PR_REF="Reverts: #$ORIGINAL_PR"
+          fi
+
+          gh pr create \
+            --title "revert: ${{ steps.commit-info.outputs.commit_msg }}" \
+            --body "$(cat <<'REVERT_PR_EOF'
+          ## Revert: ${{ steps.commit-info.outputs.commit_msg }}
+
+          **Generated by**: CI Failure Resolver (Phase C)
+          **Reason**: CI failure on protected branch `${{ needs.collect-and-classify.outputs.branch_name }}`
+          **Classification**: ${{ needs.collect-and-classify.outputs.failure_class }} (Severity: ${{ needs.collect-and-classify.outputs.severity }})
+
+          ---
+
+          ### Why Revert?
+
+          The CI pipeline failed on the protected branch after this commit was merged.
+          This revert restores the branch to a green state while the issue is investigated.
+
+          **Error Summary**: ${{ needs.collect-and-classify.outputs.error_summary }}
+
+          ### Original Commit
+
+          - **Commit**: [`${{ steps.commit-info.outputs.commit_short }}`](https://github.com/${{ github.repository }}/commit/${{ needs.collect-and-classify.outputs.commit_sha }})
+          - **Author**: ${{ steps.commit-info.outputs.commit_author }}
+          - **Message**: ${{ steps.commit-info.outputs.commit_msg }}
+          REVERT_PR_EOF
+          )"
+
+          # Add the PR reference if we found one
+          if [ -n "$ORIGINAL_PR" ]; then
+            echo "" >> /dev/null
+          fi
+
+          cat <<'REVERT_PR_CONT' | gh pr edit --add-body -
+          ### Evidence
+
+          - **Failed Run**: [${{ github.event.workflow_run.id }}](${{ needs.collect-and-classify.outputs.run_url }})
+          - **Workflow**: ${{ needs.collect-and-classify.outputs.workflow_name }}
+          - **Failed Jobs**: ${{ needs.collect-and-classify.outputs.failed_jobs }}
+
+          ### Next Steps
+
+          1. **Merge this revert** to restore green CI
+          2. **Investigate** the root cause of the failure
+          3. **Fix forward** with a new PR that addresses the issue
+          4. **Re-apply** the original changes with the fix included
+
+          ### Verification Checklist
+
+          - [ ] Revert PR passes CI
+          - [ ] Original author notified
+          - [ ] Root cause investigation started
+          - [ ] Fix-forward PR planned
+
+          ---
+
+          > **IMPORTANT**: This revert was auto-generated but **NOT auto-merged**.
+          > Human review required before merging.
+          > See [FORBIDDEN_ACTIONS.md](docs/ops/FORBIDDEN_ACTIONS.md) for policy.
+          REVERT_PR_CONT
+
+          gh pr edit \
+            --add-label "auto-revert" \
+            --add-label "ci-restore-green" \
+            --add-label "ci-failed" \
+            --add-label "ci:${{ needs.collect-and-classify.outputs.failure_class }}" \
+            --add-label "severity:${{ needs.collect-and-classify.outputs.severity }}"
+
+      - name: Notify revert conflict
+        if: |
+          steps.check-flag.outputs.auto_revert_enabled == 'true' &&
+          steps.git-revert.outputs.revert_success != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --title "Manual Revert Required: ${{ steps.commit-info.outputs.commit_msg }}" \
+            --body "$(cat <<'CONFLICT_EOF'
+          ## Manual Revert Required
+
+          **Reason**: Automatic revert failed due to conflicts
+          **Classification**: ${{ needs.collect-and-classify.outputs.failure_class }} (Severity: ${{ needs.collect-and-classify.outputs.severity }})
+
+          ---
+
+          ### What Happened
+
+          The CI Failure Resolver attempted to create a revert PR for a failing commit on
+          `${{ needs.collect-and-classify.outputs.branch_name }}`, but the git revert operation
+          encountered merge conflicts.
+
+          ### Commit to Revert
+
+          - **Commit**: [`${{ steps.commit-info.outputs.commit_short }}`](https://github.com/${{ github.repository }}/commit/${{ needs.collect-and-classify.outputs.commit_sha }})
+          - **Author**: ${{ steps.commit-info.outputs.commit_author }}
+          - **Message**: ${{ steps.commit-info.outputs.commit_msg }}
+
+          ### CI Failure Details
+
+          - **Failed Run**: [${{ github.event.workflow_run.id }}](${{ needs.collect-and-classify.outputs.run_url }})
+          - **Workflow**: ${{ needs.collect-and-classify.outputs.workflow_name }}
+          - **Error**: ${{ needs.collect-and-classify.outputs.error_summary }}
+
+          ### Required Actions
+
+          1. **Manually create revert**: `git revert ${{ needs.collect-and-classify.outputs.commit_sha }}`
+          2. **Resolve conflicts** in the revert commit
+          3. **Open PR** to restore green CI
+          4. **Investigate** root cause
+
+          ---
+
+          > This issue was auto-generated because automatic revert failed.
+          CONFLICT_EOF
+          )" \
+            --label "needs-human" \
+            --label "ci-restore-green" \
+            --label "ci-failed" \
+            --label "severity:${{ needs.collect-and-classify.outputs.severity }}"
+
+      # ========================================================================
+      # Path B: Auto-Revert DISABLED - Create Issue Recommending Revert
+      # ========================================================================
+      - name: Create revert recommendation issue
+        if: steps.check-flag.outputs.auto_revert_enabled != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --title "CI Failure on ${{ needs.collect-and-classify.outputs.branch_name }}: Revert Recommended" \
+            --body "$(cat <<'RECOMMEND_EOF'
+          ## CI Failure on Protected Branch
+
+          **Branch**: `${{ needs.collect-and-classify.outputs.branch_name }}`
+          **Classification**: ${{ needs.collect-and-classify.outputs.failure_class }} (Severity: ${{ needs.collect-and-classify.outputs.severity }})
+          **Status**: Revert Recommended
+
+          ---
+
+          ### Summary
+
+          The CI pipeline failed on the protected branch `${{ needs.collect-and-classify.outputs.branch_name }}`.
+          To restore green CI, consider reverting the offending commit.
+
+          **Error**: ${{ needs.collect-and-classify.outputs.error_summary }}
+
+          ### Commit to Consider Reverting
+
+          - **Commit**: [`${{ steps.commit-info.outputs.commit_short }}`](https://github.com/${{ github.repository }}/commit/${{ needs.collect-and-classify.outputs.commit_sha }})
+          - **Author**: ${{ steps.commit-info.outputs.commit_author }}
+          - **Message**: ${{ steps.commit-info.outputs.commit_msg }}
+
+          ### Failure Details
+
+          - **Failed Run**: [${{ github.event.workflow_run.id }}](${{ needs.collect-and-classify.outputs.run_url }})
+          - **Workflow**: ${{ needs.collect-and-classify.outputs.workflow_name }}
+          - **Failed Jobs**: ${{ needs.collect-and-classify.outputs.failed_jobs }}
+
+          ### Recommended Actions
+
+          **Option 1: Revert the commit**
+          ```bash
+          git checkout ${{ needs.collect-and-classify.outputs.branch_name }}
+          git pull
+          git revert ${{ needs.collect-and-classify.outputs.commit_sha }}
+          git push origin ${{ needs.collect-and-classify.outputs.branch_name }}
+          ```
+
+          **Option 2: Fix forward**
+          - Identify the root cause
+          - Create a fix PR targeting `${{ needs.collect-and-classify.outputs.branch_name }}`
+
+          ### Why Automatic Revert is Disabled
+
+          The `AUTO_REVERT_ENABLED` feature flag is currently set to `false`.
+          To enable automatic revert PR creation, update `runtime_config/ci_automation.json`:
+          ```json
+          {
+            "features": {
+              "AUTO_REVERT_ENABLED": true
+            }
+          }
+          ```
+
+          See [AUTO_RESOLUTION_POLICY.md](docs/ops/AUTO_RESOLUTION_POLICY.md) for details.
+
+          ---
+
+          > Auto-generated by CI Failure Resolver.
+          > Automatic revert is disabled by feature flag.
+          RECOMMEND_EOF
+          )" \
+            --label "needs-human" \
+            --label "ci-restore-green" \
+            --label "ci-failed" \
+            --label "ci:${{ needs.collect-and-classify.outputs.failure_class }}" \
+            --label "severity:${{ needs.collect-and-classify.outputs.severity }}"

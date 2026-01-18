@@ -135,7 +135,7 @@ The following features are gated behind runtime flags:
 | Failure classification  | `FAILURE_CLASSIFICATION_ENABLED` | true    | A     | Active      |
 | Auto-fix PR creation    | `AUTO_FIX_PR_ENABLED`            | true    | A     | Active      |
 | Auto-revert PR creation | `AUTO_REVERT_ENABLED`            | false   | C     | Implemented |
-| Autopilot freeze        | `AUTOPILOT_FREEZE_ENABLED`       | false   | D     | Implemented |
+| Autopilot freeze        | `AUTOPILOT_FREEZE_ENABLED`       | false   | D     | Planned     |
 
 Flags are stored in `runtime_config/ci_automation.json`.
 
@@ -166,18 +166,9 @@ Flags are stored in `runtime_config/ci_automation.json`.
 - Creates issue with revert command when flag is disabled
 - See [CI_FAILURE_RESOLVER_GUIDE.md](./CI_FAILURE_RESOLVER_GUIDE.md#auto-revert-feature-phase-c)
 
-### Phase D: Autopilot Freeze (Implemented - Feature Flagged)
+### Phase D: Full Automation
 
-- Autopilot freeze integration implemented (`AUTOPILOT_FREEZE_ENABLED=false` by default)
-- High-risk failures (MIGRATION, SECURITY, POLICY) trigger freeze
-- Lane-specific freeze support (ScoringAgent, SettlementAgent, etc.)
-- 4-hour auto-unfreeze default
-- Creates GitHub issue with freeze details and rollback instructions
-- See [CI_FAILURE_RESOLVER_GUIDE.md](./CI_FAILURE_RESOLVER_GUIDE.md#autopilot-freeze-feature-phase-d)
-
-### Phase E: Full Automation (Planned)
-
-- All features enabled by default
+- All features enabled
 - Continuous improvement based on metrics
 - Human oversight remains for all merges
 
@@ -212,8 +203,6 @@ The CI Failure Resolver workflow implements this policy:
 - [CI_FAILURE_RESOLVER_GUIDE.md](./CI_FAILURE_RESOLVER_GUIDE.md) - Setup and
   usage
 - [CI_FAILURE_CLASSIFICATION.md](./CI_FAILURE_CLASSIFICATION.md)
-- [REQUIRED_CHECKS_ROLLOUT.md](./REQUIRED_CHECKS_ROLLOUT.md) - Phase B rollout
-  plan
 - [FORBIDDEN_ACTIONS.md](./FORBIDDEN_ACTIONS.md)
 - [AUTOPILOT_FREEZE_MATRIX.md](./AUTOPILOT_FREEZE_MATRIX.md)
 - [PR_FAILURE_TEMPLATE.md](./PR_FAILURE_TEMPLATE.md)
