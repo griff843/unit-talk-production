@@ -1,0 +1,225 @@
+# ArgoCD Application - Infrastructure Components
+# Manages core infrastructure: NGINX Ingress, cert-manager, ExternalDNS, Sealed Secrets
+# Date: 2025-01-24
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nginx-ingress
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  
+  source:
+    repoURL: https://kubernetes.github.io/ingress-nginx
+    chart: ingress-nginx
+    targetRevision: 4.8.3
+    helm:
+      values: |
+        controller:
+          replicaCount: 3
+          
+          service:
+            type: LoadBalancer
+            annotations:
+              service.beta.kubernetes.io/do-loadbalancer-name: "unit-talk-ingress-lb"
+              service.beta.kubernetes.io/do-loadbalancer-protocol: "http"
+              service.beta.kubernetes.io/do-loadbalancer-healthcheck-path: "/healthz"
+              service.beta.kubernetes.io/do-loadbalancer-healthcheck-protocol: "http"
+          
+          metrics:
+            enabled: true
+            serviceMonitor:
+              enabled: true
+          
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          
+          config:
+            use-forwarded-headers: "true"
+            compute-full-forwarded-for: "true"
+            use-proxy-protocol: "true"
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ingress-nginx
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  
+  source:
+    repoURL: https://charts.jetstack.io
+    chart: cert-manager
+    targetRevision: v1.13.3
+    helm:
+      values: |
+        installCRDs: true
+        
+        global:
+          leaderElection:
+            namespace: cert-manager
+        
+        prometheus:
+          enabled: true
+          servicemonitor:
+            enabled: true
+        
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sealed-secrets
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  
+  source:
+    repoURL: https://bitnami-labs.github.io/sealed-secrets
+    chart: sealed-secrets
+    targetRevision: 2.13.2
+    helm:
+      values: |
+        fullnameOverride: sealed-secrets-controller
+        
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+        
+        metrics:
+          serviceMonitor:
+            enabled: true
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: external-dns
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  
+  source:
+    repoURL: https://kubernetes-sigs.github.io/external-dns
+    chart: external-dns
+    targetRevision: 1.14.0
+    helm:
+      values: |
+        provider: digitalocean
+        
+        digitalocean:
+          apiToken: ${DO_API_TOKEN}
+        
+        policy: sync
+        registry: txt
+        txtOwnerId: unit-talk-platform
+        
+        domainFilters:
+          - unit-talk.com
+        
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            cpu: 50m
+            memory: 64Mi
+        
+        metrics:
+          enabled: true
+          serviceMonitor:
+            enabled: true
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: external-dns
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+

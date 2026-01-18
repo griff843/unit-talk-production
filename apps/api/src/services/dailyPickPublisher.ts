@@ -3,6 +3,8 @@ import { Client, TextChannel, EmbedBuilder } from 'discord.js';
 import { logger } from '../shared/logger';
 import { getTierColor } from '../utils/roleUtils';
 
+import { autopilotGuard } from '../lib/AutopilotGuard';
+
 import { capperService } from './capperService';
 
 interface Leg {
@@ -78,14 +80,14 @@ export class DailyPickPublisher {
         await capperService.finalizePicks(pickIds);
       }
 
-      logger.info('Daily pick publishing completed', { 
+      logger.info('Daily pick publishing completed', {
         totalPicks: picks.length,
-        cappers: picksByCapper.size 
+        cappers: picksByCapper.size
       });
 
     } catch (error) {
-      logger.error('Error during daily pick publishing', { 
-        err: error instanceof Error ? error.message : String(error) 
+      logger.error('Error during daily pick publishing', {
+        err: error instanceof Error ? error.message : String(error)
       });
     } finally {
       this.isRunning = false;
@@ -97,6 +99,24 @@ export class DailyPickPublisher {
       const firstPick = picks[0];
       if (!firstPick) {
         logger.error('No picks provided to publish');
+        return;
+      }
+
+      // Phase 6.5: AutopilotGuard is the SOLE authority for side effects
+      const guardResult = await autopilotGuard.assertMayPerformSideEffect({
+        action: 'DISCORD_POST',
+        agent_name: 'DailyPickPublisher',
+        pick_id: firstPick.id,
+        metadata: { capper_id: firstPick.capper_id, pick_count: picks.length, tier: firstPick.tier }
+      });
+
+      if (!guardResult.allowed) {
+        logger.info('Daily pick publish blocked by AutopilotGuard', {
+          capper_id: firstPick.capper_id,
+          pick_count: picks.length,
+          reason: guardResult.reason,
+          mode: guardResult.mode
+        });
         return;
       }
 
@@ -142,8 +162,8 @@ export class DailyPickPublisher {
       });
 
     } catch (error) {
-      logger.error('Error publishing capper picks', { 
-        err: error instanceof Error ? error.message : String(error) 
+      logger.error('Error publishing capper picks', {
+        err: error instanceof Error ? error.message : String(error)
       });
     }
   }
@@ -156,5 +176,5 @@ export class DailyPickPublisher {
   }
 }
 
-export const dailyPickPublisher = (client: Client, channelId: string) => 
+export const dailyPickPublisher = (client: Client, channelId: string) =>
   new DailyPickPublisher(client, channelId);

@@ -1,12 +1,17 @@
 /**
  * Publish Guard
- * Routes publishing decisions through shadow mode or live publishing
- * Provides central control point for shadow mode integration
+ * Routes publishing decisions through AutopilotGuard (sole authority for side effects)
+ * Phase 6.5: All side effects now go through AutopilotGuard
  */
 
 import { createLogger } from '../utils/logger';
 import { shadowMode, shadowWritePick, shadowPublishPreview, type ShadowPick, type ShadowAction } from '../shadow/ShadowMode';
 import { supabase as supabaseClient } from '../services/supabaseClient';
+
+import { autopilotGuard } from '../lib/AutopilotGuard';
+
+// NOTE: shadowMode is imported for internal logging only.
+// ALL gating decisions MUST go through AutopilotGuard (Phase 6.5 requirement).
 
 export interface PromotionDecision {
   approved: boolean;
@@ -41,7 +46,8 @@ class PublishGuardService {
   }
 
   /**
-   * Central publish decision point with shadow mode routing
+   * Central publish decision point - ALL decisions go through AutopilotGuard
+   * Phase 6.5: AutopilotGuard is the sole authority for side effects
    */
   public async handlePromotionDecision(
     decision: PromotionDecision,
@@ -51,23 +57,37 @@ class PublishGuardService {
     shadowLogged: boolean;
     channelsNotified: string[];
   }> {
-    this.logger.info('Processing promotion decision', {
-      approved: decision.approved,
-      lane: decision.lane,
-      player: decision.pick.player_name,
-      shadowMode: shadowMode.isShadowMode()
+    // Phase 6.5: Check AutopilotGuard FIRST - it is the sole authority
+    const guardResult = await autopilotGuard.assertMayPerformSideEffect({
+      action: 'DISCORD_POST',
+      agent_name: 'PublishGuard',
+      pick_id: decision.pick?.id,
+      metadata: {
+        lane: decision.lane,
+        tier: options.tier,
+        player: decision.pick?.player_name
+      }
     });
 
-    // Prepare shadow pick data
+    this.logger.info('Processing promotion decision via AutopilotGuard', {
+      approved: decision.approved,
+      lane: decision.lane,
+      player: decision.pick?.player_name,
+      autopilotAllowed: guardResult.allowed,
+      autopilotMode: guardResult.mode,
+      autopilotDecision: guardResult.decision
+    });
+
+    // Prepare shadow pick data for logging
     const shadowPick: ShadowPick = this.prepareShadowPick(decision.pick, options);
     const shadowAction: ShadowAction = this.mapToShadowAction(decision.lane);
-    
-    // In shadow mode, log everything but don't publish publicly
-    if (shadowMode.isShadowMode()) {
+
+    // If AutopilotGuard blocks, log to shadow and return
+    if (!guardResult.allowed) {
       return await this.handleShadowMode(shadowPick, shadowAction, decision.reasons, options);
     }
 
-    // Normal mode - proceed with actual publishing
+    // AutopilotGuard allowed - proceed with actual publishing
     return await this.handleNormalMode(decision, options, shadowPick, shadowAction);
   }
 
@@ -237,18 +257,19 @@ class PublishGuardService {
     // This would integrate with actual Discord publishing logic
     // For now, return mock successful channels
     this.logger.info('Publishing to channels', { channels: channels.length });
-    
+
     // In a real implementation, this would:
     // 1. Send to Discord channels
     // 2. Send to webhooks
     // 3. Send to other notification systems
     // 4. Return list of successful channels
-    
+
     return channels; // Mock success
   }
 
   /**
-   * Handle recheck decision in shadow or normal mode
+   * Handle recheck decision - gates through AutopilotGuard
+   * Phase 6.5: AutopilotGuard determines if actions can proceed
    */
   public async handleRecheckDecision(
     pickId: string,
@@ -257,43 +278,49 @@ class PublishGuardService {
     action: string,
     metrics: any = {}
   ): Promise<void> {
-    if (shadowMode.isShadowMode()) {
-      // Find corresponding shadow pick
-      const { data: shadowPick } = await supabaseClient
-        .from('shadow_decisions')
-        .select('id')
-        .eq('unified_pick_id', pickId)
-        .eq('decision_type', 'promotion')
-        .order('created_at', { ascending: false })
-        .limit(1)
+    // Phase 6.5: Check AutopilotGuard for any side effect decisions
+    const guardResult = await autopilotGuard.assertMayPerformSideEffect({
+      action: 'DB_POSTED_MUTATION',
+      agent_name: 'PublishGuard.handleRecheckDecision',
+      pick_id: pickId,
+      metadata: { recheckType, validationStatus, action }
+    });
+
+    // Always log to shadow for analysis
+    const { data: shadowPickRecord } = await supabaseClient
+      .from('shadow_decisions')
+      .select('id')
+      .eq('unified_pick_id', pickId)
+      .eq('decision_type', 'promotion')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (shadowPickRecord) {
+      await shadowMode.shadowWriteRecheck(
+        shadowPickRecord.id,
+        recheckType,
+        validationStatus,
+        action,
+        metrics
+      );
+    }
+
+    // If recheck fails, write new rejection row
+    if (validationStatus === 'invalid' || validationStatus === 'cancelled') {
+      const { data: originalPick } = await supabaseClient
+        .from('unified_picks')
+        .select('*')
+        .eq('id', pickId)
         .single();
 
-      if (shadowPick) {
-        await shadowMode.shadowWriteRecheck(
-          shadowPick.id,
-          recheckType,
-          validationStatus,
-          action,
-          metrics
-        );
-      }
-
-      // If recheck fails, write new rejection row
-      if (validationStatus === 'invalid' || validationStatus === 'cancelled') {
-        const { data: originalPick } = await supabaseClient
-          .from('unified_picks')
-          .select('*')
-          .eq('id', pickId)
-          .single();
-
-        if (originalPick) {
-          const shadowPick = this.prepareShadowPick(originalPick, {});
-          await shadowWritePick(shadowPick, 'rejected-recheck', [
-            `${recheckType}: ${validationStatus}`,
-            `EV: ${metrics.evAtRecheck || 'N/A'}`,
-            `CLV: ${metrics.clvAtRecheck || 'N/A'}`
-          ]);
-        }
+      if (originalPick) {
+        const shadowPick = this.prepareShadowPick(originalPick, {});
+        await shadowWritePick(shadowPick, 'rejected-recheck', [
+          `${recheckType}: ${validationStatus}`,
+          `EV: ${metrics.evAtRecheck || 'N/A'}`,
+          `CLV: ${metrics.clvAtRecheck || 'N/A'}`
+        ]);
       }
     }
 
@@ -302,12 +329,14 @@ class PublishGuardService {
       recheckType,
       validationStatus,
       action,
-      shadowMode: shadowMode.isShadowMode()
+      autopilotAllowed: guardResult.allowed,
+      autopilotMode: guardResult.mode
     });
   }
 
   /**
-   * Handle alert decision in shadow or normal mode
+   * Handle alert decision - gates through AutopilotGuard
+   * Phase 6.5: AutopilotGuard determines if alerts can be sent
    */
   public async handleAlertDecision(
     pickId: string,
@@ -316,42 +345,69 @@ class PublishGuardService {
     message: string,
     data: any = {}
   ): Promise<void> {
-    if (shadowMode.isShadowMode()) {
-      // Find corresponding shadow pick
-      const { data: shadowPick } = await supabaseClient
-        .from('shadow_decisions')
-        .select('id')
-        .eq('unified_pick_id', pickId)
-        .eq('decision_type', 'promotion')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+    // Phase 6.5: Check AutopilotGuard for alert side effects
+    const guardResult = await autopilotGuard.assertMayPerformSideEffect({
+      action: 'DISCORD_ALERT',
+      agent_name: 'PublishGuard.handleAlertDecision',
+      pick_id: pickId,
+      metadata: { alertType, severity, message }
+    });
 
-      if (shadowPick) {
-        await shadowMode.shadowWriteAlert(
-          shadowPick.id,
-          alertType,
-          severity,
-          message,
-          data
-        );
-      }
-    } else {
-      // In normal mode, process actual alert
-      this.logger.info('Processing normal mode alert', {
+    // Always log to shadow for analysis
+    const { data: shadowPick } = await supabaseClient
+      .from('shadow_decisions')
+      .select('id')
+      .eq('unified_pick_id', pickId)
+      .eq('decision_type', 'promotion')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (shadowPick) {
+      await shadowMode.shadowWriteAlert(
+        shadowPick.id,
+        alertType,
+        severity,
+        message,
+        data
+      );
+    }
+
+    // Only process actual alert if AutopilotGuard allows
+    if (guardResult.allowed) {
+      this.logger.info('Processing alert (AutopilotGuard allowed)', {
         pickId,
         alertType,
         severity
       });
       // Would trigger actual alert mechanisms here
+    } else {
+      this.logger.info('Alert blocked by AutopilotGuard', {
+        pickId,
+        alertType,
+        severity,
+        reason: guardResult.reason,
+        mode: guardResult.mode
+      });
     }
   }
 
   /**
    * Check if public actions should be skipped
+   * Phase 6.5: Delegates to AutopilotGuard - the sole authority for side effects
+   * @deprecated Use autopilotGuard.assertMayPerformSideEffect() directly
    */
-  public shouldSkipPublicAction(actionType: 'publish' | 'alert' | 'webhook'): boolean {
-    return shadowMode.shouldSkipPublicAction(actionType);
+  public async shouldSkipPublicAction(actionType: 'publish' | 'alert' | 'webhook'): Promise<boolean> {
+    const actionMap: Record<string, 'DISCORD_POST' | 'DISCORD_ALERT' | 'WEBHOOK_CALL'> = {
+      publish: 'DISCORD_POST',
+      alert: 'DISCORD_ALERT',
+      webhook: 'WEBHOOK_CALL'
+    };
+    const result = await autopilotGuard.assertMayPerformSideEffect({
+      action: actionMap[actionType] || 'WEBHOOK_CALL',
+      agent_name: 'PublishGuard.shouldSkipPublicAction'
+    });
+    return !result.allowed;
   }
 
   /**
@@ -362,7 +418,7 @@ class PublishGuardService {
     shadowStats?: any;
   }> {
     const mode = shadowMode.isShadowMode() ? 'shadow' : 'normal';
-    
+
     if (mode === 'shadow') {
       const shadowStats = await shadowMode.getShadowStats('7d');
       return { mode, shadowStats };

@@ -1,0 +1,307 @@
+{
+  "dashboard": {
+    "title": "Model Serving - Charter v4.0",
+    "description": "Real-time model serving metrics with SLO tracking (p95 < 150ms, drift < 0.05, accuracy ≥ baseline - 2%)",
+    "tags": ["model-serving", "ml", "slo", "charter-v4"],
+    "timezone": "utc",
+    "editable": true,
+    "graphTooltip": 1,
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "🎯 SLO: Inference Latency (p95 < 150ms)",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(model_serving_inference_latency_seconds_bucket{environment=\"prod\"}[5m])) by (le, model_id)) * 1000",
+            "legendFormat": "p95 - {{model_id}}",
+            "refId": "A"
+          },
+          {
+            "expr": "150",
+            "legendFormat": "SLO Threshold (150ms)",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [{ "format": "ms", "label": "Latency" }],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": { "params": [150], "type": "gt" },
+              "operator": { "type": "and" },
+              "query": { "params": ["A", "5m", "now"] },
+              "reducer": { "params": [], "type": "avg" },
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "for": "5m",
+          "frequency": "1m",
+          "name": "Inference Latency SLO Violation"
+        }
+      },
+      {
+        "id": 2,
+        "title": "🎯 SLO: Drift Score (< 0.05)",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+        "targets": [
+          {
+            "expr": "model_serving_current_drift_score{environment=\"prod\"}",
+            "legendFormat": "Drift - {{model_id}}",
+            "refId": "A"
+          },
+          {
+            "expr": "0.05",
+            "legendFormat": "SLO Threshold (0.05)",
+            "refId": "B"
+          },
+          {
+            "expr": "0.1",
+            "legendFormat": "Critical Threshold (0.1)",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [{ "format": "percentunit", "label": "Drift Score" }],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": { "params": [0.05], "type": "gt" },
+              "operator": { "type": "and" },
+              "query": { "params": ["A", "5m", "now"] },
+              "reducer": { "params": [], "type": "avg" },
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "for": "5m",
+          "frequency": "1m",
+          "name": "Drift Score SLO Violation"
+        }
+      },
+      {
+        "id": 3,
+        "title": "🎯 SLO: Accuracy Delta from Baseline (≥ -2%)",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+        "targets": [
+          {
+            "expr": "model_serving_accuracy_delta_from_baseline{environment=\"prod\"} * 100",
+            "legendFormat": "Accuracy Δ - {{model_id}}",
+            "refId": "A"
+          },
+          {
+            "expr": "-2",
+            "legendFormat": "SLO Threshold (-2%)",
+            "refId": "B"
+          },
+          {
+            "expr": "-5",
+            "legendFormat": "Critical Threshold (-5%)",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [{ "format": "percent", "label": "Accuracy Delta %" }],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": { "params": [-2], "type": "lt" },
+              "operator": { "type": "and" },
+              "query": { "params": ["A", "15m", "now"] },
+              "reducer": { "params": [], "type": "avg" },
+              "type": "query"
+            }
+          ],
+          "executionErrorState": "alerting",
+          "for": "15m",
+          "frequency": "1m",
+          "name": "Accuracy Drop SLO Violation"
+        }
+      },
+      {
+        "id": 4,
+        "title": "📊 Inference Request Rate",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+        "targets": [
+          {
+            "expr": "sum(rate(model_serving_inference_requests_total{environment=\"prod\"}[5m])) by (model_id, status)",
+            "legendFormat": "{{model_id}} - {{status}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [{ "format": "reqps", "label": "Requests/sec" }]
+      },
+      {
+        "id": 5,
+        "title": "🔄 Ensemble Confidence Distribution",
+        "type": "heatmap",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+        "targets": [
+          {
+            "expr": "sum(rate(model_serving_ensemble_confidence_score_bucket{environment=\"prod\"}[5m])) by (le)",
+            "legendFormat": "{{le}}",
+            "refId": "A"
+          }
+        ],
+        "dataFormat": "tsbuckets"
+      },
+      {
+        "id": 6,
+        "title": "🤝 Model Agreement Score",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.5, sum(rate(model_serving_model_agreement_score_bucket{environment=\"prod\"}[5m])) by (le, model_id))",
+            "legendFormat": "p50 - {{model_id}}",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(model_serving_model_agreement_score_bucket{environment=\"prod\"}[5m])) by (le, model_id))",
+            "legendFormat": "p95 - {{model_id}}",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [{ "format": "percentunit", "label": "Agreement Score" }]
+      },
+      {
+        "id": 7,
+        "title": "⚡ Latency Breakdown",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(model_serving_feature_extraction_latency_ms_bucket[5m])) by (le))",
+            "legendFormat": "Feature Extraction (p95)",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(model_serving_model_execution_latency_ms_bucket[5m])) by (le))",
+            "legendFormat": "Model Execution (p95)",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [{ "format": "ms", "label": "Latency" }]
+      },
+      {
+        "id": 8,
+        "title": "🚨 SLO Violations (Last 24h)",
+        "type": "stat",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+        "targets": [
+          {
+            "expr": "sum(increase(model_serving_slo_violations_total{environment=\"prod\"}[24h])) by (slo_type)",
+            "legendFormat": "{{slo_type}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area",
+          "orientation": "auto",
+          "textMode": "auto"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 5 },
+                { "color": "red", "value": 20 }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "🎲 Canary Deployment Status",
+        "type": "table",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+        "targets": [
+          {
+            "expr": "model_serving_active_canary_deployments",
+            "legendFormat": "",
+            "refId": "A",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {},
+              "indexByName": {},
+              "renameByName": {
+                "canary_stage": "Canary Stage",
+                "Value": "Active Deployments"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "📈 Prediction Error Distribution",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.5, sum(rate(model_serving_prediction_error_bucket{environment=\"prod\"}[5m])) by (le, model_id))",
+            "legendFormat": "p50 - {{model_id}}",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(model_serving_prediction_error_bucket{environment=\"prod\"}[5m])) by (le, model_id))",
+            "legendFormat": "p95 - {{model_id}}",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [{ "format": "short", "label": "Prediction Error" }]
+      },
+      {
+        "id": 11,
+        "title": "🔥 Error Rate",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+        "targets": [
+          {
+            "expr": "sum(rate(model_serving_inference_errors_total{environment=\"prod\"}[5m])) by (model_id, error_type)",
+            "legendFormat": "{{model_id}} - {{error_type}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [{ "format": "errps", "label": "Errors/sec" }]
+      },
+      {
+        "id": 12,
+        "title": "🏭 Models in Production",
+        "type": "stat",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
+        "targets": [
+          {
+            "expr": "sum(model_serving_models_in_production) by (model_type)",
+            "legendFormat": "{{model_type}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "none",
+          "orientation": "auto",
+          "textMode": "auto"
+        }
+      }
+    ]
+  }
+}
+

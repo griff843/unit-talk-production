@@ -1,0 +1,291 @@
+# ArgoCD Applications - Unit Talk Platform Services
+# Manages all Unit Talk application deployments with blue/green strategy
+# Date: 2025-01-24
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: unit-talk-api
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  
+  source:
+    repoURL: https://github.com/griff843/unit-talk-production.git
+    targetRevision: main
+    path: infrastructure/kubernetes/api
+    
+    helm:
+      parameters:
+        - name: image.repository
+          value: registry.digitalocean.com/unit-talk/api
+        - name: image.tag
+          value: latest
+        - name: replicaCount
+          value: "3"
+        - name: autoscaling.enabled
+          value: "true"
+        - name: autoscaling.minReplicas
+          value: "3"
+        - name: autoscaling.maxReplicas
+          value: "10"
+        - name: autoscaling.targetCPUUtilizationPercentage
+          value: "70"
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: unit-talk
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  
+  # Health assessment
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: unit-talk-command-center
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  
+  source:
+    repoURL: https://github.com/griff843/unit-talk-production.git
+    targetRevision: main
+    path: infrastructure/kubernetes/command-center
+    
+    helm:
+      parameters:
+        - name: image.repository
+          value: registry.digitalocean.com/unit-talk/command-center
+        - name: image.tag
+          value: latest
+        - name: replicaCount
+          value: "2"
+        - name: autoscaling.enabled
+          value: "true"
+        - name: autoscaling.minReplicas
+          value: "2"
+        - name: autoscaling.maxReplicas
+          value: "5"
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: unit-talk
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: unit-talk-dashboard
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  
+  source:
+    repoURL: https://github.com/griff843/unit-talk-production.git
+    targetRevision: main
+    path: infrastructure/kubernetes/dashboard
+    
+    helm:
+      parameters:
+        - name: image.repository
+          value: registry.digitalocean.com/unit-talk/dashboard
+        - name: image.tag
+          value: latest
+        - name: replicaCount
+          value: "2"
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: unit-talk
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: unit-talk-smart-form
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  
+  source:
+    repoURL: https://github.com/griff843/unit-talk-production.git
+    targetRevision: main
+    path: infrastructure/kubernetes/smart-form
+    
+    helm:
+      parameters:
+        - name: image.repository
+          value: registry.digitalocean.com/unit-talk/smart-form
+        - name: image.tag
+          value: latest
+        - name: replicaCount
+          value: "2"
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: unit-talk
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: unit-talk-discord-bot
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  
+  source:
+    repoURL: https://github.com/griff843/unit-talk-production.git
+    targetRevision: main
+    path: infrastructure/kubernetes/discord-bot
+    
+    helm:
+      parameters:
+        - name: image.repository
+          value: registry.digitalocean.com/unit-talk/discord-bot
+        - name: image.tag
+          value: latest
+        - name: replicaCount
+          value: "1"  # StatefulSet - single instance
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: unit-talk
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: unit-talk-workers
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  
+  source:
+    repoURL: https://github.com/griff843/unit-talk-production.git
+    targetRevision: main
+    path: infrastructure/kubernetes/workers
+    
+    helm:
+      parameters:
+        - name: image.repository
+          value: registry.digitalocean.com/unit-talk/workers
+        - name: image.tag
+          value: latest
+        - name: replicaCount
+          value: "2"
+        - name: autoscaling.enabled
+          value: "true"
+        - name: autoscaling.minReplicas
+          value: "2"
+        - name: autoscaling.maxReplicas
+          value: "8"
+        - name: nodeSelector.workload-type
+          value: "workers"
+        - name: tolerations[0].key
+          value: "workload-type"
+        - name: tolerations[0].value
+          value: "workers"
+        - name: tolerations[0].effect
+          value: "NoSchedule"
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: unit-talk
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+

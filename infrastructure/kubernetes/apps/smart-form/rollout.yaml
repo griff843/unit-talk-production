@@ -1,0 +1,322 @@
+# Argo Rollout for Smart Form with Canary Deployment
+# Date: 2025-10-25
+# Zero-downtime deployment with automated rollback on SLO violations
+
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: smart-form
+  namespace: unit-talk
+  labels:
+    app: smart-form
+    tier: frontend
+spec:
+  replicas: 3
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: smart-form
+  template:
+    metadata:
+      labels:
+        app: smart-form
+        tier: frontend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      # Fail-fast secrets validation
+      initContainers:
+        - name: validate-secrets
+          image: busybox:1.35
+          command:
+            - sh
+            - -c
+            - |
+              echo "🔍 Validating required secrets..."
+              
+              # Check required environment variables
+              REQUIRED_VARS="DISCORD_BOT_TOKEN DISCORD_APP_ID DATABASE_URL REDIS_URL CDN_BASE"
+              
+              for var in $REQUIRED_VARS; do
+                if [ -z "$(eval echo \$$var)" ]; then
+                  echo "❌ ERROR: Required secret $var is missing!"
+                  exit 1
+                fi
+                echo "✅ $var is set"
+              done
+              
+              echo "✅ All required secrets validated successfully"
+          envFrom:
+            - secretRef:
+                name: smart-form-secrets
+      
+      containers:
+        - name: smart-form
+          image: ${REGISTRY}/unit-talk/smart-form:${VERSION}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3021
+              name: http
+              protocol: TCP
+            - containerPort: 9090
+              name: metrics
+              protocol: TCP
+          
+          envFrom:
+            - secretRef:
+                name: smart-form-secrets
+            - configMapRef:
+                name: smart-form-config
+          
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          
+          # Readiness gate - prevents traffic until healthy
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3021
+              httpHeaders:
+                - name: X-Health-Check
+                  value: "readiness"
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 2
+            failureThreshold: 3
+          
+          # Liveness probe
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3021
+              httpHeaders:
+                - name: X-Health-Check
+                  value: "liveness"
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          
+          # Startup probe for slow starts
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: 3021
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 12  # 60 seconds max startup time
+  
+  # Canary deployment strategy
+  strategy:
+    canary:
+      # Stable service for production traffic
+      stableService: smart-form-stable
+      # Canary service for canary traffic
+      canaryService: smart-form-canary
+      
+      # Traffic routing
+      trafficRouting:
+        nginx:
+          stableIngress: smart-form-stable
+          annotationPrefix: nginx.ingress.kubernetes.io
+      
+      # Canary steps with automated SLO validation
+      steps:
+        # =====================================================================
+        # STEP 1: 5% Traffic - Initial Validation (10 minutes)
+        # =====================================================================
+        - setWeight: 5
+        - pause:
+            duration: 10m
+        - analysis:
+            templates:
+              - templateName: smart-form-slo-validation
+            args:
+              - name: service-name
+                value: smart-form-canary
+              - name: weight
+                value: "5"
+
+        # =====================================================================
+        # STEP 2: 25% Traffic - Extended Validation (20 minutes)
+        # =====================================================================
+        - setWeight: 25
+        - pause:
+            duration: 20m
+        - analysis:
+            templates:
+              - templateName: smart-form-slo-validation
+            args:
+              - name: service-name
+                value: smart-form-canary
+              - name: weight
+                value: "25"
+
+        # =====================================================================
+        # STEP 3: 100% Traffic - Full Rollout
+        # =====================================================================
+        - setWeight: 100
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: smart-form-analysis
+  namespace: unit-talk
+spec:
+  args:
+    - name: service-name
+    - name: weight
+  
+  metrics:
+    # Metric 1: /players/search p95 latency < 120ms
+    - name: players-search-latency
+      interval: 1m
+      count: 5
+      successCondition: result < 120
+      failureLimit: 2
+      provider:
+        prometheus:
+          address: http://prometheus:9090
+          query: |
+            histogram_quantile(0.95,
+              sum(rate(http_request_duration_seconds_bucket{
+                job="smart-form",
+                route="/api/players",
+                method="GET"
+              }[5m])) by (le)
+            ) * 1000
+    
+    # Metric 2: /games/resolve p95 latency < 120ms
+    - name: games-resolve-latency
+      interval: 1m
+      count: 5
+      successCondition: result < 120
+      failureLimit: 2
+      provider:
+        prometheus:
+          address: http://prometheus:9090
+          query: |
+            histogram_quantile(0.95,
+              sum(rate(http_request_duration_seconds_bucket{
+                job="smart-form",
+                route="/api/games",
+                method="GET"
+              }[5m])) by (le)
+            ) * 1000
+    
+    # Metric 3: POST /api/picks error rate < 0.5%
+    - name: picks-error-rate
+      interval: 1m
+      count: 5
+      successCondition: result < 0.5
+      failureLimit: 1
+      provider:
+        prometheus:
+          address: http://prometheus:9090
+          query: |
+            (
+              sum(rate(http_requests_total{
+                job="smart-form",
+                route="/api/submit-ticket",
+                method="POST",
+                status=~"5.."
+              }[5m]))
+              /
+              sum(rate(http_requests_total{
+                job="smart-form",
+                route="/api/submit-ticket",
+                method="POST"
+              }[5m]))
+            ) * 100
+    
+    # Metric 4: POST /api/picks 5xx count == 0
+    - name: picks-5xx-count
+      interval: 1m
+      count: 5
+      successCondition: result == 0
+      failureLimit: 1
+      provider:
+        prometheus:
+          address: http://prometheus:9090
+          query: |
+            sum(increase(http_requests_total{
+              job="smart-form",
+              route="/api/submit-ticket",
+              method="POST",
+              status=~"5.."
+            }[5m]))
+    
+    # Metric 5: Database p95 latency < 50ms
+    - name: database-latency
+      interval: 1m
+      count: 5
+      successCondition: result < 50
+      failureLimit: 2
+      provider:
+        prometheus:
+          address: http://prometheus:9090
+          query: |
+            histogram_quantile(0.95,
+              sum(rate(database_query_duration_seconds_bucket{
+                job="smart-form"
+              }[5m])) by (le)
+            ) * 1000
+
+---
+# Stable Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: smart-form-stable
+  namespace: unit-talk
+  labels:
+    app: smart-form
+    role: stable
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3021
+      targetPort: 3021
+      protocol: TCP
+      name: http
+    - port: 9090
+      targetPort: 9090
+      protocol: TCP
+      name: metrics
+  selector:
+    app: smart-form
+
+---
+# Canary Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: smart-form-canary
+  namespace: unit-talk
+  labels:
+    app: smart-form
+    role: canary
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3021
+      targetPort: 3021
+      protocol: TCP
+      name: http
+    - port: 9090
+      targetPort: 9090
+      protocol: TCP
+      name: metrics
+  selector:
+    app: smart-form
+

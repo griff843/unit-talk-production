@@ -1,0 +1,225 @@
+# Argo Rollout for Unit Talk API with Canary Deployment
+# Date: 2025-10-25
+# Zero-downtime deployment with automated SLO validation
+
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: unit-talk-api
+  namespace: unit-talk
+  labels:
+    app: unit-talk-api
+    tier: backend
+spec:
+  replicas: 3
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: unit-talk-api
+  template:
+    metadata:
+      labels:
+        app: unit-talk-api
+        tier: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      # Fail-fast secrets validation
+      initContainers:
+        - name: validate-secrets
+          image: busybox:1.35
+          command:
+            - sh
+            - -c
+            - |
+              echo "🔍 Validating required secrets..."
+              
+              # Check required environment variables
+              REQUIRED_VARS="SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY TEMPORAL_ADDRESS REDIS_URL"
+              
+              for var in $REQUIRED_VARS; do
+                if [ -z "$(eval echo \$$var)" ]; then
+                  echo "❌ ERROR: Required secret $var is missing!"
+                  exit 1
+                fi
+                echo "✅ $var is set"
+              done
+              
+              echo "✅ All required secrets validated successfully"
+          envFrom:
+            - secretRef:
+                name: api-secrets
+      
+      containers:
+        - name: api
+          image: ${REGISTRY}/unit-talk/api:${VERSION}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+              name: http
+              protocol: TCP
+            - containerPort: 9090
+              name: metrics
+              protocol: TCP
+          
+          envFrom:
+            - secretRef:
+                name: api-secrets
+            - configMapRef:
+                name: api-config
+          
+          env:
+            # Production cutover configuration
+            - name: PICK_DRIVER
+              value: "canonical"
+            - name: PUBLISH_MODE
+              value: "outbox"
+            - name: NODE_ENV
+              value: "production"
+          
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "2000m"
+          
+          # Readiness gate - prevents traffic until healthy
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+              httpHeaders:
+                - name: X-Health-Check
+                  value: "readiness"
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 2
+            failureThreshold: 3
+          
+          # Liveness probe
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+              httpHeaders:
+                - name: X-Health-Check
+                  value: "liveness"
+            initialDelaySeconds: 40
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          
+          # Startup probe for slow starts
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 20  # 100 seconds max startup time
+  
+  # Canary deployment strategy
+  strategy:
+    canary:
+      # Stable service for production traffic
+      stableService: api-stable
+      # Canary service for canary traffic
+      canaryService: api-canary
+      
+      # Traffic routing
+      trafficRouting:
+        nginx:
+          stableIngress: api-stable
+          annotationPrefix: nginx.ingress.kubernetes.io
+      
+      # Canary steps with automated SLO validation
+      steps:
+        # =====================================================================
+        # STEP 1: 5% Traffic - Initial Validation (10 minutes)
+        # =====================================================================
+        - setWeight: 5
+        - pause:
+            duration: 10m
+        - analysis:
+            templates:
+              - templateName: api-slo-validation
+            args:
+              - name: service-name
+                value: api-canary
+              - name: weight
+                value: "5"
+        
+        # =====================================================================
+        # STEP 2: 25% Traffic - Extended Validation (20 minutes)
+        # =====================================================================
+        - setWeight: 25
+        - pause:
+            duration: 20m
+        - analysis:
+            templates:
+              - templateName: api-slo-validation
+            args:
+              - name: service-name
+                value: api-canary
+              - name: weight
+                value: "25"
+        
+        # =====================================================================
+        # STEP 3: 100% Traffic - Full Rollout
+        # =====================================================================
+        - setWeight: 100
+
+---
+# Stable Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-stable
+  namespace: unit-talk
+  labels:
+    app: unit-talk-api
+    role: stable
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: 3000
+      protocol: TCP
+      name: http
+    - port: 9090
+      targetPort: 9090
+      protocol: TCP
+      name: metrics
+  selector:
+    app: unit-talk-api
+
+---
+# Canary Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-canary
+  namespace: unit-talk
+  labels:
+    app: unit-talk-api
+    role: canary
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: 3000
+      protocol: TCP
+      name: http
+    - port: 9090
+      targetPort: 9090
+      protocol: TCP
+      name: metrics
+  selector:
+    app: unit-talk-api
+

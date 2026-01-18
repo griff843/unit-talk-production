@@ -1,0 +1,51 @@
+# Unit Talk Platform - DigitalOcean Infrastructure Variables
+# Copy this file to terraform.tfvars and fill in your values
+# Date: 2025-01-24
+
+# DigitalOcean API Token (required)
+# Get from: https://cloud.digitalocean.com/account/api/tokens
+do_token = "dop_v1_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# Project Configuration
+project_name = "unit-talk"
+environment  = "production"  # or "staging"
+
+# Region Configuration
+# Available regions: nyc1, nyc3, sfo3, ams3, sgp1, lon1, fra1, tor1, blr1, syd1
+region        = "nyc3"
+spaces_region = "nyc3"
+
+# Kubernetes Configuration
+kubernetes_version_prefix = "1.28."
+auto_upgrade_enabled      = true
+
+# PostgreSQL Configuration
+postgres_version      = "15"
+postgres_node_size    = "db-s-2vcpu-4gb"  # Production: db-s-4vcpu-8gb or higher
+postgres_node_count   = 2                  # 2 for HA, 1 for staging
+postgres_database_name = "unit_talk_production"
+
+# Redis Configuration
+redis_version   = "7"
+redis_node_size = "db-s-1vcpu-2gb"  # Production: db-s-2vcpu-4gb or higher
+
+# Container Registry
+registry_tier = "professional"  # starter, basic, or professional
+
+# SSL Certificate (optional - can be managed by cert-manager)
+ssl_certificate_name = ""  # Leave empty to use cert-manager
+
+# CORS Configuration
+allowed_origins = [
+  "https://unit-talk.com",
+  "https://www.unit-talk.com",
+  "https://app.unit-talk.com",
+  "https://command-center.unit-talk.com"
+]
+
+# Additional Tags
+additional_tags = [
+  "owner:engineering",
+  "cost-center:platform"
+]
+

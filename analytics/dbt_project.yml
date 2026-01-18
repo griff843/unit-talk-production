@@ -1,0 +1,97 @@
+# ===============================================================================
+# dbt Project Configuration - Unit Talk Analytics
+# Purpose: Canonical analytics models per Charter v3.0
+# Reference: docs/PRODUCTION_CHARTER.md, docs/analytics/ANALYTICS_ROADMAP_v4.md
+# ===============================================================================
+
+name: 'unit_talk_analytics'
+version: '1.0.0'
+config-version: 2
+
+# Profile configuration (connects to Supabase PostgreSQL)
+profile: 'unit_talk'
+
+# Model paths
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+# Target directory for compiled SQL
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Documentation
+docs-paths: ["docs"]
+
+# Materialization defaults
+models:
+  unit_talk_analytics:
+    +materialized: view
+    +schema: analytics
+
+    # Staging models - raw data transformations
+    staging:
+      +materialized: view
+      +schema: staging
+
+    # Core models - business logic
+    core:
+      +materialized: table
+      +schema: analytics
+
+    # Marts - department-specific data models
+    marts:
+      +materialized: table
+      picks:
+        +schema: analytics
+      scoring:
+        +schema: analytics
+      predictive:
+        +schema: analytics
+
+# Seeds configuration
+seeds:
+  unit_talk_analytics:
+    +schema: seeds
+
+# Snapshots configuration
+snapshots:
+  unit_talk_analytics:
+    +target_schema: snapshots
+    +strategy: timestamp
+    +updated_at: updated_at
+
+# Variables
+vars:
+  # Date ranges for incremental models
+  start_date: '2024-01-01'
+
+  # Tenant filtering
+  default_tenant_id: '00000000-0000-0000-0000-000000000001'
+
+  # Model thresholds
+  min_picks_for_analysis: 10
+  clv_elite_threshold: 5.0
+  clv_strong_threshold: 2.0
+  professional_score_threshold: 70.0
+
+  # Forecast parameters
+  forecast_horizon_days: 7
+  confidence_level: 0.95
+
+# Testing
+on-run-start:
+  - "{{ log('Starting dbt run for Unit Talk Analytics', info=True) }}"
+
+on-run-end:
+  - "{{ log('Completed dbt run for Unit Talk Analytics', info=True) }}"
+
+# Dispatch configuration for cross-database compatibility
+dispatch:
+  - macro_namespace: dbt
+    search_order: ['unit_talk_analytics', 'dbt']

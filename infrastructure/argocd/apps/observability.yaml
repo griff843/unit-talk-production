@@ -1,0 +1,334 @@
+# ArgoCD Application - Observability Stack
+# Manages Prometheus, Grafana, Loki, Tempo, AlertManager
+# Date: 2025-01-24
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 55.5.0
+    helm:
+      values: |
+        fullnameOverride: prometheus
+        
+        # Prometheus configuration
+        prometheus:
+          prometheusSpec:
+            retention: 30d
+            retentionSize: "50GB"
+            
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 100Gi
+            
+            resources:
+              requests:
+                cpu: 500m
+                memory: 2Gi
+              limits:
+                cpu: 2000m
+                memory: 4Gi
+            
+            # Service monitors
+            serviceMonitorSelectorNilUsesHelmValues: false
+            podMonitorSelectorNilUsesHelmValues: false
+            
+            # Additional scrape configs
+            additionalScrapeConfigs:
+              - job_name: 'unit-talk-api'
+                kubernetes_sd_configs:
+                  - role: pod
+                    namespaces:
+                      names:
+                        - unit-talk
+                relabel_configs:
+                  - source_labels: [__meta_kubernetes_pod_label_app]
+                    action: keep
+                    regex: unit-talk-api
+                  - source_labels: [__meta_kubernetes_pod_container_port_name]
+                    action: keep
+                    regex: metrics
+        
+        # Grafana configuration
+        grafana:
+          enabled: true
+          
+          adminPassword: ${GRAFANA_ADMIN_PASSWORD}
+          
+          persistence:
+            enabled: true
+            size: 10Gi
+          
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          
+          # Datasources
+          datasources:
+            datasources.yaml:
+              apiVersion: 1
+              datasources:
+                - name: Prometheus
+                  type: prometheus
+                  url: http://prometheus-kube-prometheus-prometheus:9090
+                  access: proxy
+                  isDefault: true
+                
+                - name: Loki
+                  type: loki
+                  url: http://loki:3100
+                  access: proxy
+                
+                - name: Tempo
+                  type: tempo
+                  url: http://tempo:3100
+                  access: proxy
+          
+          # Dashboard providers
+          dashboardProviders:
+            dashboardproviders.yaml:
+              apiVersion: 1
+              providers:
+                - name: 'default'
+                  orgId: 1
+                  folder: ''
+                  type: file
+                  disableDeletion: false
+                  editable: true
+                  options:
+                    path: /var/lib/grafana/dashboards/default
+          
+          # Pre-configured dashboards
+          dashboards:
+            default:
+              kubernetes-cluster:
+                gnetId: 7249
+                revision: 1
+                datasource: Prometheus
+              
+              nginx-ingress:
+                gnetId: 9614
+                revision: 1
+                datasource: Prometheus
+              
+              postgresql:
+                gnetId: 9628
+                revision: 7
+                datasource: Prometheus
+              
+              redis:
+                gnetId: 11835
+                revision: 1
+                datasource: Prometheus
+        
+        # AlertManager configuration
+        alertmanager:
+          enabled: true
+          
+          config:
+            global:
+              resolve_timeout: 5m
+            
+            route:
+              group_by: ['alertname', 'cluster', 'service']
+              group_wait: 10s
+              group_interval: 10s
+              repeat_interval: 12h
+              receiver: 'slack'
+              routes:
+                - match:
+                    severity: critical
+                  receiver: 'pagerduty'
+                  continue: true
+                
+                - match:
+                    severity: warning
+                  receiver: 'slack'
+            
+            receivers:
+              - name: 'slack'
+                slack_configs:
+                  - api_url: ${SLACK_WEBHOOK_URL}
+                    channel: '#alerts'
+                    title: '{{ .GroupLabels.alertname }}'
+                    text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+              
+              - name: 'pagerduty'
+                pagerduty_configs:
+                  - service_key: ${PAGERDUTY_SERVICE_KEY}
+          
+          alertmanagerSpec:
+            storage:
+              volumeClaimTemplate:
+                spec:
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 10Gi
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: loki
+    targetRevision: 5.41.4
+    helm:
+      values: |
+        loki:
+          auth_enabled: false
+          
+          commonConfig:
+            replication_factor: 1
+          
+          storage:
+            type: 'filesystem'
+          
+          schemaConfig:
+            configs:
+              - from: 2024-01-01
+                store: tsdb
+                object_store: filesystem
+                schema: v12
+                index:
+                  prefix: index_
+                  period: 24h
+        
+        singleBinary:
+          replicas: 1
+          
+          persistence:
+            enabled: true
+            size: 50Gi
+          
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+        
+        monitoring:
+          serviceMonitor:
+            enabled: true
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tempo
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: tempo
+    targetRevision: 1.7.1
+    helm:
+      values: |
+        tempo:
+          retention: 720h  # 30 days
+          
+          storage:
+            trace:
+              backend: local
+              local:
+                path: /var/tempo/traces
+        
+        persistence:
+          enabled: true
+          size: 50Gi
+        
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+        
+        serviceMonitor:
+          enabled: true
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+

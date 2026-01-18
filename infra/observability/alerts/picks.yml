@@ -1,0 +1,289 @@
+# ===============================================================================
+# Prometheus Alert Rules - Canonical Picks Domain
+# Date: 2025-10-30
+# Purpose: SLO-based alerting for picks + pick_publish canonical architecture
+# Charter: docs/PRODUCTION_CHARTER.md v3.0
+# Alignment: docs/SYSTEM_ALIGNMENT_SPEC.yml
+# ===============================================================================
+#
+# SLO Targets (from Charter):
+#   - API p95 latency: < 150ms
+#   - DB write p95 latency: < 50ms
+#   - Publish lag p95: < 60s
+#   - Error rate: < 0.5%
+#
+# Alert Severity Levels:
+#   - critical: Immediate page (P0/P1)
+#   - warning: Alert only (P2)
+#   - info: Log only
+#
+# ===============================================================================
+
+groups:
+  # =============================================================================
+  # PICKS SLO ALERTS
+  # =============================================================================
+  - name: picks-slo
+    interval: 30s
+    rules:
+      # -----------------------------------------------------------------------
+      # API Latency Alerts
+      # -----------------------------------------------------------------------
+      - alert: APIHighLatencyP95
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(api_latency_ms_bucket{endpoint=~"/api/domain/picks.*"}[5m])) by (le, endpoint)
+          ) > 150
+        for: 10m
+        labels:
+          severity: warning
+          component: api
+          slo: latency
+        annotations:
+          summary: "API p95 latency exceeds 150ms SLO"
+          description: "API endpoint {{ $labels.endpoint }} p95 latency is {{ $value | humanizeDuration }} (threshold: 150ms)"
+          runbook_url: "https://github.com/griff843/unit-talk-production/blob/main/docs/runbooks/api-latency.md"
+          dashboard_url: "http://localhost:3000/d/canonical-picks/canonical-picks-dashboard"
+
+      - alert: APIHighLatencyP95Critical
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(api_latency_ms_bucket{endpoint=~"/api/domain/picks.*"}[5m])) by (le, endpoint)
+          ) > 300
+        for: 5m
+        labels:
+          severity: critical
+          component: api
+          slo: latency
+        annotations:
+          summary: "API p95 latency critically high (>300ms)"
+          description: "API endpoint {{ $labels.endpoint }} p95 latency is {{ $value | humanizeDuration }} (critical threshold: 300ms)"
+          runbook_url: "https://github.com/griff843/unit-talk-production/blob/main/docs/runbooks/api-latency.md"
+          dashboard_url: "http://localhost:3000/d/canonical-picks/canonical-picks-dashboard"
+
+      # -----------------------------------------------------------------------
+      # Database Latency Alerts
+      # -----------------------------------------------------------------------
+      - alert: DBHighLatencyP95
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(db_write_ms_bucket{table=~"picks|pick_publish"}[5m])) by (le, table, operation)
+          ) > 50
+        for: 10m
+        labels:
+          severity: warning
+          component: database
+          slo: latency
+        annotations:
+          summary: "Database write p95 latency exceeds 50ms SLO"
+          description: "Database {{ $labels.operation }} on {{ $labels.table }} p95 latency is {{ $value | humanizeDuration }} (threshold: 50ms)"
+          runbook_url: "https://github.com/griff843/unit-talk-production/blob/main/docs/runbooks/db-latency.md"
+          dashboard_url: "http://localhost:3000/d/canonical-picks/canonical-picks-dashboard"
+
+      - alert: DBHighLatencyP95Critical
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(db_write_ms_bucket{table=~"picks|pick_publish"}[5m])) by (le, table, operation)
+          ) > 100
+        for: 5m
+        labels:
+          severity: critical
+          component: database
+          slo: latency
+        annotations:
+          summary: "Database write p95 latency critically high (>100ms)"
+          description: "Database {{ $labels.operation }} on {{ $labels.table }} p95 latency is {{ $value | humanizeDuration }} (critical threshold: 100ms)"
+          runbook_url: "https://github.com/griff843/unit-talk-production/blob/main/docs/runbooks/db-latency.md"
+          dashboard_url: "http://localhost:3000/d/canonical-picks/canonical-picks-dashboard"
+
+      # -----------------------------------------------------------------------
+      # Publish Lag Alerts
+      # -----------------------------------------------------------------------
+      - alert: PublishLagHigh
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(pick_publish_lag_seconds_bucket[5m])) by (le)
+          ) > 60
+        for: 10m
+        labels:
+          severity: warning
+          component: outbox
+          slo: publish_lag
+        annotations:
+          summary: "Pick publish lag p95 exceeds 60s SLO"
+          description: "Pick publish lag p95 is {{ $value | humanizeDuration }} (threshold: 60s)"
+          runbook_url: "https://github.com/griff843/unit-talk-production/blob/main/docs/runbooks/publish-lag.md"
+          dashboard_url: "http://localhost:3000/d/canonical-picks/canonical-picks-dashboard"
+
+      - alert: PublishLagCritical
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(pick_publish_lag_seconds_bucket[5m])) by (le)
+          ) > 300
+        for: 5m
+        labels:
+          severity: critical
+          component: outbox
+          slo: publish_lag
+        annotations:
+          summary: "Pick publish lag critically high (>5min)"
+          description: "Pick publish lag p95 is {{ $value | humanizeDuration }} (critical threshold: 300s)"
+          runbook_url: "https://github.com/griff843/unit-talk-production/blob/main/docs/runbooks/publish-lag.md"
+          dashboard_url: "http://localhost:3000/d/canonical-picks/canonical-picks-dashboard"
+
+      # -----------------------------------------------------------------------
+      # Error Rate Alerts
+      # -----------------------------------------------------------------------
+      - alert: ErrorRateHigh
+        expr: |
+          sum(rate(api_errors_total{endpoint=~"/api/domain/picks.*"}[5m])) 
+          / 
+          sum(rate(api_requests_total{endpoint=~"/api/domain/picks.*"}[5m])) 
+          > 0.005
+        for: 10m
+        labels:
+          severity: warning
+          component: api
+          slo: error_rate
+        annotations:
+          summary: "API error rate exceeds 0.5% SLO"
+          description: "API error rate is {{ $value | humanizePercentage }} (threshold: 0.5%)"
+          runbook_url: "https://github.com/griff843/unit-talk-production/blob/main/docs/runbooks/error-rate.md"
+          dashboard_url: "http://localhost:3000/d/canonical-picks/canonical-picks-dashboard"
+
+      - alert: ErrorRateCritical
+        expr: |
+          sum(rate(api_errors_total{endpoint=~"/api/domain/picks.*"}[5m])) 
+          / 
+          sum(rate(api_requests_total{endpoint=~"/api/domain/picks.*"}[5m])) 
+          > 0.01
+        for: 5m
+        labels:
+          severity: critical
+          component: api
+          slo: error_rate
+        annotations:
+          summary: "API error rate critically high (>1%)"
+          description: "API error rate is {{ $value | humanizePercentage }} (critical threshold: 1%)"
+          runbook_url: "https://github.com/griff843/unit-talk-production/blob/main/docs/runbooks/error-rate.md"
+          dashboard_url: "http://localhost:3000/d/canonical-picks/canonical-picks-dashboard"
+
+  # =============================================================================
+  # CANONICAL ARCHITECTURE HEALTH
+  # =============================================================================
+  - name: canonical-health
+    interval: 60s
+    rules:
+      # -----------------------------------------------------------------------
+      # PostgREST Visibility
+      # -----------------------------------------------------------------------
+      - alert: PostgRESTTablesNotVisible
+        expr: |
+          postgrest_table_visible{table=~"picks|pick_publish"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          component: postgrest
+        annotations:
+          summary: "Canonical table {{ $labels.table }} not visible via PostgREST"
+          description: "Table {{ $labels.table }} is not visible via PostgREST API. Run: npm run ops:pgrst:reload"
+          runbook_url: "https://github.com/griff843/unit-talk-production/blob/main/docs/runbooks/postgrest-reload.md"
+
+      # -----------------------------------------------------------------------
+      # Driver Fallback Detection
+      # -----------------------------------------------------------------------
+      - alert: DriverFallbackActive
+        expr: |
+          pick_driver_effective{driver="unified"} > 0 
+          and 
+          pick_driver_requested{driver="canonical"} > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: driver
+        annotations:
+          summary: "Pick driver fallback to unified_picks active"
+          description: "Canonical driver requested but fallback to unified_picks is active. Check PostgREST visibility."
+          runbook_url: "https://github.com/griff843/unit-talk-production/blob/main/docs/runbooks/driver-fallback.md"
+
+      # -----------------------------------------------------------------------
+      # Outbox Backlog
+      # -----------------------------------------------------------------------
+      - alert: OutboxBacklogHigh
+        expr: |
+          sum(pick_publish_pending_count) > 100
+        for: 15m
+        labels:
+          severity: warning
+          component: outbox
+        annotations:
+          summary: "Pick publish outbox backlog high (>100 pending)"
+          description: "Outbox has {{ $value }} pending publish jobs. Check worker health."
+          runbook_url: "https://github.com/griff843/unit-talk-production/blob/main/docs/runbooks/outbox-backlog.md"
+
+      - alert: OutboxBacklogCritical
+        expr: |
+          sum(pick_publish_pending_count) > 500
+        for: 10m
+        labels:
+          severity: critical
+          component: outbox
+        annotations:
+          summary: "Pick publish outbox backlog critically high (>500 pending)"
+          description: "Outbox has {{ $value }} pending publish jobs. Immediate investigation required."
+          runbook_url: "https://github.com/griff843/unit-talk-production/blob/main/docs/runbooks/outbox-backlog.md"
+
+      # -----------------------------------------------------------------------
+      # Failed Publishes
+      # -----------------------------------------------------------------------
+      - alert: PublishFailureRateHigh
+        expr: |
+          sum(rate(pick_publish_failed_total[5m])) 
+          / 
+          sum(rate(pick_publish_attempts_total[5m])) 
+          > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          component: outbox
+        annotations:
+          summary: "Pick publish failure rate high (>5%)"
+          description: "Publish failure rate is {{ $value | humanizePercentage }}. Check Discord API health."
+          runbook_url: "https://github.com/griff843/unit-talk-production/blob/main/docs/runbooks/publish-failures.md"
+
+  # =============================================================================
+  # RLS POLICY ALERTS
+  # =============================================================================
+  - name: rls-security
+    interval: 60s
+    rules:
+      # -----------------------------------------------------------------------
+      # RLS Bypass Detection
+      # -----------------------------------------------------------------------
+      - alert: RLSBypassDetected
+        expr: |
+          sum(rate(rls_bypass_attempts_total[5m])) > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: security
+        annotations:
+          summary: "RLS bypass attempt detected"
+          description: "{{ $value }} RLS bypass attempts detected in last 5 minutes. Investigate immediately."
+          runbook_url: "https://github.com/griff843/unit-talk-production/blob/main/docs/runbooks/rls-bypass.md"
+
+      # -----------------------------------------------------------------------
+      # Tenant Isolation Violation
+      # -----------------------------------------------------------------------
+      - alert: TenantIsolationViolation
+        expr: |
+          sum(rate(tenant_isolation_violations_total[5m])) > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: security
+        annotations:
+          summary: "Tenant isolation violation detected"
+          description: "{{ $value }} tenant isolation violations detected. Immediate investigation required."
+          runbook_url: "https://github.com/griff843/unit-talk-production/blob/main/docs/runbooks/tenant-isolation.md"
+
