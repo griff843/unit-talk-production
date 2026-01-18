@@ -8,7 +8,10 @@
  * can be implemented when needed.
  */
 
-async function main() {
+// Force TypeScript to treat this as a module (not a script)
+export {};
+
+async function runSloVerification(): Promise<void> {
   console.log('='.repeat(60));
   console.log('CI SLO Verification');
   console.log('Date: 2026-01-18');
@@ -25,4 +28,4 @@ async function main() {
   process.exit(0);
 }
 
-main();
+runSloVerification();
