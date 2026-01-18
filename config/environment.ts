@@ -1,10 +1,11 @@
+/* eslint-disable max-lines, max-lines-per-function */
 /**
  * CENTRALIZED ENVIRONMENT CONFIGURATION
- * 
+ *
  * This is the SINGLE SOURCE OF TRUTH for environment variable management
  * across the entire Unit Talk monorepo. All applications should import
  * configuration from this module instead of accessing process.env directly.
- * 
+ *
  * CRITICAL: This follows SaaS-level monorepo best practices for:
  * - Centralized configuration management
  * - Type-safe environment variable access
@@ -16,10 +17,16 @@
 import { z } from 'zod';
 
 // Only load dotenv in Node.js environment (server-side)
-if (typeof window === 'undefined' && typeof process !== 'undefined') {
+// Use globalThis check for cross-platform TypeScript compatibility
+const isNodeEnvironment =
+  typeof globalThis !== 'undefined' &&
+  typeof (globalThis as any).window === 'undefined' &&
+  typeof process !== 'undefined';
+
+if (isNodeEnvironment) {
   const dotenv = require('dotenv');
   const path = require('path');
-  
+
   // Load environment variables from .env files
   // Load .env first (base configuration)
   dotenv.config({ path: path.join(process.cwd(), '.env') });
@@ -36,7 +43,10 @@ const EnvironmentSchema = z.object({
   // Environment & Deployment
   NODE_ENV: z.enum(['development', 'staging', 'production']).default('development'),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
-  DEBUG_MODE: z.string().default('false').transform(val => val === 'true'),
+  DEBUG_MODE: z
+    .string()
+    .default('false')
+    .transform(val => val === 'true'),
 
   // Application Ports
   API_PORT: z.string().default('3000').transform(Number),
@@ -104,7 +114,10 @@ const EnvironmentSchema = z.object({
 
   // Redis & Caching
   REDIS_URL: z.string().default('redis://localhost:6379'),
-  CACHE_ENABLED: z.string().default('true').transform(val => val === 'true'),
+  CACHE_ENABLED: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
 
   // Security & Encryption
   JWT_SECRET: z.string().min(32, 'JWT secret must be at least 32 characters'),
@@ -122,29 +135,98 @@ const EnvironmentSchema = z.object({
   SYNC_API_KEY: z.string().min(1, 'Sync API key is required'),
 
   // Feature Flags & System Configuration
-  AUTO_GRADING_ENABLED: z.string().default('true').transform(val => val === 'true'),
-  DM_NOTIFICATIONS_ENABLED: z.string().default('true').transform(val => val === 'true'),
-  ANALYTICS_ENABLED: z.string().default('true').transform(val => val === 'true'),
-  THREAD_MANAGEMENT_ENABLED: z.string().default('true').transform(val => val === 'true'),
-  CAPPER_TRACKING_ENABLED: z.string().default('true').transform(val => val === 'true'),
-  FORUM_MANAGEMENT_ENABLED: z.string().default('true').transform(val => val === 'true'),
-  CAPPER_THREAD_AUTO_CREATE: z.string().default('true').transform(val => val === 'true'),
-  CAPPER_QA_THREADS_ENABLED: z.string().default('true').transform(val => val === 'true'),
-  CAPPER_PERFORMANCE_TRACKING: z.string().default('true').transform(val => val === 'true'),
-  CAPPER_DAILY_PICK_AGGREGATION: z.string().default('true').transform(val => val === 'true'),
-  XP_SYSTEM_ENABLED: z.string().default('true').transform(val => val === 'true'),
-  LEADERBOARD_ENABLED: z.string().default('true').transform(val => val === 'true'),
-  ENGAGEMENT_TRACKING_ENABLED: z.string().default('true').transform(val => val === 'true'),
-  MILESTONE_CELEBRATIONS_ENABLED: z.string().default('true').transform(val => val === 'true'),
-  STREAK_TRACKING_ENABLED: z.string().default('true').transform(val => val === 'true'),
-  ACHIEVEMENT_SYSTEM_ENABLED: z.string().default('true').transform(val => val === 'true'),
-  VIP_CONVERSION_TRACKING: z.string().default('true').transform(val => val === 'true'),
-  TRIAL_USAGE_TRACKING: z.string().default('true').transform(val => val === 'true'),
-  UPGRADE_FUNNEL_ANALYTICS: z.string().default('true').transform(val => val === 'true'),
-  AUTO_VIP_PROMOTION_MESSAGES: z.string().default('false').transform(val => val === 'true'),
-  WELCOME_SYSTEM_ENABLED: z.string().default('true').transform(val => val === 'true'),
-  NEW_MEMBER_GUIDE_ENABLED: z.string().default('true').transform(val => val === 'true'),
-  AUTO_ROLE_SUGGESTIONS: z.string().default('true').transform(val => val === 'true'),
+  AUTO_GRADING_ENABLED: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
+  DM_NOTIFICATIONS_ENABLED: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
+  ANALYTICS_ENABLED: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
+  THREAD_MANAGEMENT_ENABLED: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
+  CAPPER_TRACKING_ENABLED: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
+  FORUM_MANAGEMENT_ENABLED: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
+  CAPPER_THREAD_AUTO_CREATE: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
+  CAPPER_QA_THREADS_ENABLED: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
+  CAPPER_PERFORMANCE_TRACKING: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
+  CAPPER_DAILY_PICK_AGGREGATION: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
+  XP_SYSTEM_ENABLED: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
+  LEADERBOARD_ENABLED: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
+  ENGAGEMENT_TRACKING_ENABLED: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
+  MILESTONE_CELEBRATIONS_ENABLED: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
+  STREAK_TRACKING_ENABLED: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
+  ACHIEVEMENT_SYSTEM_ENABLED: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
+  VIP_CONVERSION_TRACKING: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
+  TRIAL_USAGE_TRACKING: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
+  UPGRADE_FUNNEL_ANALYTICS: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
+  AUTO_VIP_PROMOTION_MESSAGES: z
+    .string()
+    .default('false')
+    .transform(val => val === 'true'),
+  WELCOME_SYSTEM_ENABLED: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
+  NEW_MEMBER_GUIDE_ENABLED: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
+  AUTO_ROLE_SUGGESTIONS: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
 
   // XP System Configuration
   XP_MULTIPLIER_GENERAL: z.string().default('1.5').transform(Number),
@@ -158,16 +240,36 @@ const EnvironmentSchema = z.object({
   MAX_PICKS_PER_DAY: z.string().default('10').transform(Number),
   MAX_UNITS_PER_PICK: z.string().default('10').transform(Number),
   MIN_UNITS_PER_PICK: z.string().default('1').transform(Number),
-  PICK_CATEGORIES: z.string().default('NFL,NBA,MLB,NHL,Soccer,Tennis,UFC,Boxing,College Football,College Basketball'),
+  PICK_CATEGORIES: z
+    .string()
+    .default('NFL,NBA,MLB,NHL,Soccer,Tennis,UFC,Boxing,College Football,College Basketball'),
   AUTO_GRADE_DELAY_HOURS: z.string().default('2').transform(Number),
-  GRADE_CONFIRMATION_REQUIRED: z.string().default('true').transform(val => val === 'true'),
-  MANUAL_GRADE_OVERRIDE: z.string().default('true').transform(val => val === 'true'),
+  GRADE_CONFIRMATION_REQUIRED: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
+  MANUAL_GRADE_OVERRIDE: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
 
   // System Performance & Limits
-  RATE_LIMIT_ENABLED: z.string().default('true').transform(val => val === 'true'),
-  AUTO_BACKUP_ENABLED: z.string().default('true').transform(val => val === 'true'),
-  HOT_RELOAD: z.string().default('false').transform(val => val === 'true'),
-  SECURITY_HEADERS_ENABLED: z.string().default('true').transform(val => val === 'true'),
+  RATE_LIMIT_ENABLED: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
+  AUTO_BACKUP_ENABLED: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
+  HOT_RELOAD: z
+    .string()
+    .default('false')
+    .transform(val => val === 'true'),
+  SECURITY_HEADERS_ENABLED: z
+    .string()
+    .default('true')
+    .transform(val => val === 'true'),
   THREAD_AUTO_ARCHIVE_MINUTES: z.string().default('1440').transform(Number),
   FORUM_AUTO_CLEANUP_DAYS: z.string().default('30').transform(Number),
   CAPPER_THREAD_AUTO_ARCHIVE_HOURS: z.string().default('168').transform(Number),
@@ -208,7 +310,7 @@ class EnvironmentConfig {
 
       // Load environment variables from process.env (Node.js environment)
       const rawConfig = process.env;
-      
+
       // Validate and transform the configuration
       this.config = EnvironmentSchema.parse(rawConfig);
       this.isValidated = true;
@@ -216,7 +318,7 @@ class EnvironmentConfig {
       console.log(`✅ Environment configuration loaded successfully for ${this.config.NODE_ENV}`);
     } catch (error) {
       console.error('❌ Environment configuration validation failed:');
-      
+
       if (error instanceof z.ZodError) {
         error.issues.forEach((err: any) => {
           console.error(`  - ${err.path.join('.')}: ${err.message}`);
@@ -224,7 +326,7 @@ class EnvironmentConfig {
       } else {
         console.error(error);
       }
-      
+
       throw new Error('Failed to load environment configuration');
     }
   }
@@ -239,31 +341,31 @@ class EnvironmentConfig {
       NODE_ENV: 'production', // Default for browser
       LOG_LEVEL: 'info',
       DEBUG_MODE: 'false',
-      
+
       // Ports (not used in browser)
       API_PORT: '3000',
       DISCORD_BOT_PORT: '3001',
       DASHBOARD_PORT: '3002',
       SMART_FORM_PORT: '3003',
       COMMAND_CENTER_PORT: '3015',
-      
+
       // Database - use public variables that are available in browser
       SUPABASE_URL: (globalThis as any).NEXT_PUBLIC_SUPABASE_URL || '',
       SUPABASE_ANON_KEY: (globalThis as any).NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
       SUPABASE_SERVICE_ROLE_KEY: '', // Not available in browser
       NEXT_PUBLIC_SUPABASE_URL: (globalThis as any).NEXT_PUBLIC_SUPABASE_URL || '',
       NEXT_PUBLIC_SUPABASE_ANON_KEY: (globalThis as any).NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-      
+
       // API Keys - not available in browser (server-only)
       OPTIMAL_API_KEY: '',
       ODDS_API_KEY: '',
-      
+
       // Discord - not available in browser (server-only)
       DISCORD_BOT_TOKEN: '',
       DISCORD_TOKEN: '',
       DISCORD_CLIENT_ID: '',
       DISCORD_GUILD_ID: '',
-      
+
       // Default role/channel IDs (empty in browser)
       ADMIN_ROLE_IDS: '',
       MODERATOR_ROLE_IDS: '',
@@ -274,7 +376,7 @@ class EnvironmentConfig {
       VIP_PLUS_ROLE_IDS: '',
       CAPPER_ROLE_IDS: '',
       TRIAL_ROLE_IDS: '',
-      
+
       // Channel IDs (empty in browser)
       ANNOUNCEMENTS_CHANNEL_ID: '',
       GENERAL_CHANNEL_ID: '',
@@ -293,32 +395,35 @@ class EnvironmentConfig {
       SPORTS_TALK_CHANNEL_ID: '',
       ADMIN_CHANNEL_ID: '',
       BOT_LOGS_CHANNEL_ID: '',
-      
+
       // Temporal (not used in browser)
       TEMPORAL_ADDRESS: 'localhost:7233',
       TEMPORAL_SERVER_URL: 'unit-talk-temporal:7233',
       TEMPORAL_NAMESPACE: 'default',
       TEMPORAL_TASK_QUEUE: 'unit-talk-dev',
-      
+
       // Redis (not used in browser)
       REDIS_URL: 'redis://localhost:6379',
       CACHE_ENABLED: 'true',
-      
+
       // Security (not available in browser)
       JWT_SECRET: 'browser-environment-placeholder-32chars',
       ENCRYPTION_KEY: 'browser-environment-placeholder32',
       NEXTAUTH_SECRET: 'browser-environment-placeholder',
-      
+
       // URLs - use public variables
       NEXT_PUBLIC_APP_URL: (globalThis as any).NEXT_PUBLIC_APP_URL || 'http://localhost:3015',
       NEXTAUTH_URL: (globalThis as any).NEXT_PUBLIC_APP_URL || 'http://localhost:3015',
-      NEXT_PUBLIC_PLATFORM_API_URL: (globalThis as any).NEXT_PUBLIC_PLATFORM_API_URL || 'http://localhost:3000',
-      UNIT_TALK_PRODUCTION_URL: (globalThis as any).NEXT_PUBLIC_PLATFORM_API_URL || 'http://localhost:3000',
-      NEXT_PUBLIC_ANALYTICS_API_URL: (globalThis as any).NEXT_PUBLIC_ANALYTICS_API_URL || 'http://localhost:3005',
+      NEXT_PUBLIC_PLATFORM_API_URL:
+        (globalThis as any).NEXT_PUBLIC_PLATFORM_API_URL || 'http://localhost:3000',
+      UNIT_TALK_PRODUCTION_URL:
+        (globalThis as any).NEXT_PUBLIC_PLATFORM_API_URL || 'http://localhost:3000',
+      NEXT_PUBLIC_ANALYTICS_API_URL:
+        (globalThis as any).NEXT_PUBLIC_ANALYTICS_API_URL || 'http://localhost:3005',
       AGENTS_BASE_URL: 'http://localhost:3001',
       AGENTS_API_KEY: '',
       SYNC_API_KEY: '',
-      
+
       // Feature flags - defaults
       AUTO_GRADING_ENABLED: 'true',
       DM_NOTIFICATIONS_ENABLED: 'true',
@@ -343,7 +448,7 @@ class EnvironmentConfig {
       WELCOME_SYSTEM_ENABLED: 'true',
       NEW_MEMBER_GUIDE_ENABLED: 'true',
       AUTO_ROLE_SUGGESTIONS: 'true',
-      
+
       // XP System
       XP_MULTIPLIER_GENERAL: '1.5',
       XP_MULTIPLIER_VIP: '2.0',
@@ -351,16 +456,17 @@ class EnvironmentConfig {
       XP_GENERAL_CHANNELS: '',
       XP_VIP_CHANNELS: '',
       XP_VIP_PLUS_CHANNELS: '',
-      
+
       // Pick Management
       MAX_PICKS_PER_DAY: '10',
       MAX_UNITS_PER_PICK: '10',
       MIN_UNITS_PER_PICK: '1',
-      PICK_CATEGORIES: 'NFL,NBA,MLB,NHL,Soccer,Tennis,UFC,Boxing,College Football,College Basketball',
+      PICK_CATEGORIES:
+        'NFL,NBA,MLB,NHL,Soccer,Tennis,UFC,Boxing,College Football,College Basketball',
       AUTO_GRADE_DELAY_HOURS: '2',
       GRADE_CONFIRMATION_REQUIRED: 'true',
       MANUAL_GRADE_OVERRIDE: 'true',
-      
+
       // System Performance
       RATE_LIMIT_ENABLED: 'true',
       AUTO_BACKUP_ENABLED: 'true',
@@ -373,7 +479,7 @@ class EnvironmentConfig {
       BACKUP_FREQUENCY_HOURS: '24',
       MAX_DMS_PER_HOUR: '5',
       MAX_THREADS_PER_DAY: '20',
-      
+
       // Optional integrations
       NOTION_TOKEN: '',
       DISCORD_ALERT_WEBHOOK: '',
@@ -670,11 +776,11 @@ export function validateProductionApiKeys(): void {
   if (env.isProduction) {
     const requiredKeys = ['optimal', 'odds'] as const;
     const missing = requiredKeys.filter(key => !env.apiKeys[key]);
-    
+
     if (missing.length > 0) {
       throw new Error(`Missing required API keys for production: ${missing.join(', ')}`);
     }
-    
+
     console.log('✅ All required production API keys are present');
   }
 }

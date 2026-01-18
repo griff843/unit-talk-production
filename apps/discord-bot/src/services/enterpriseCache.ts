@@ -1,4 +1,6 @@
+/* eslint-disable max-lines, no-return-await */
 import Redis from 'ioredis';
+
 import { logger, withErrorHandling } from '../utils/enterpriseErrorHandling';
 
 export interface CacheOptions {
@@ -354,8 +356,8 @@ export class EnterpriseCache {
       const fullKey = this.buildKey(key, options?.prefix);
       const args: (string | number)[] = [];
 
-      for (const { professional_score, member } of scoreMembers) {
-        args.push(professional_score, member);
+      for (const { score, member } of scoreMembers) {
+        args.push(score, member);
       }
 
       const result = await this.redis.zadd(fullKey, ...args);

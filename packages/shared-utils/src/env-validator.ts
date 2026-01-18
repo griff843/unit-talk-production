@@ -1,3 +1,4 @@
+/* eslint-disable max-lines-per-function, complexity */
 /**
  * Environment Validator - Production Safety Guardrails
  *
@@ -34,10 +35,7 @@ const PRODUCTION_IDENTIFIERS = {
   supabaseProjects: [
     'cqfnsozknjzvyiziwicl.supabase.co', // Current production Supabase
   ],
-  temporalHosts: [
-    'temporal.unit-talk.com',
-    'prod-temporal.unit-talk.com',
-  ],
+  temporalHosts: ['temporal.unit-talk.com', 'prod-temporal.unit-talk.com'],
   discordChannels: [
     // Add production Discord webhook URLs here
     'discord.com/api/webhooks/production',
@@ -52,9 +50,7 @@ const STAGING_IDENTIFIERS = {
     // To be populated when staging Supabase is created
     // Example: 'abcd1234staging.supabase.co'
   ],
-  temporalHosts: [
-    'staging-temporal.unit-talk.com',
-  ],
+  temporalHosts: ['staging-temporal.unit-talk.com'],
   discordChannels: [
     // Staging Discord webhook URLs
     'discord.com/api/webhooks/staging',
@@ -64,31 +60,33 @@ const STAGING_IDENTIFIERS = {
 /**
  * Detects which environment the configuration is pointing to
  */
-export function detectEnvironment(config: EnvironmentConfig): 'local' | 'staging' | 'production' | 'unknown' {
+export function detectEnvironment(
+  config: EnvironmentConfig
+): 'local' | 'staging' | 'production' | 'unknown' {
   const { supabaseUrl, temporalAddress, discordWebhook } = config;
 
   // Check for production identifiers
-  const isProductionSupabase = PRODUCTION_IDENTIFIERS.supabaseProjects.some(
-    project => supabaseUrl?.includes(project)
+  const isProductionSupabase = PRODUCTION_IDENTIFIERS.supabaseProjects.some(project =>
+    supabaseUrl?.includes(project)
   );
-  const isProductionTemporal = temporalAddress && PRODUCTION_IDENTIFIERS.temporalHosts.some(
-    host => temporalAddress.includes(host)
-  );
-  const isProductionDiscord = discordWebhook && PRODUCTION_IDENTIFIERS.discordChannels.some(
-    channel => discordWebhook.includes(channel)
-  );
+  const isProductionTemporal =
+    temporalAddress &&
+    PRODUCTION_IDENTIFIERS.temporalHosts.some(host => temporalAddress.includes(host));
+  const isProductionDiscord =
+    discordWebhook &&
+    PRODUCTION_IDENTIFIERS.discordChannels.some(channel => discordWebhook.includes(channel));
 
   if (isProductionSupabase || isProductionTemporal || isProductionDiscord) {
     return 'production';
   }
 
   // Check for staging identifiers
-  const isStagingSupabase = STAGING_IDENTIFIERS.supabaseProjects.some(
-    project => supabaseUrl?.includes(project)
+  const isStagingSupabase = STAGING_IDENTIFIERS.supabaseProjects.some(project =>
+    supabaseUrl?.includes(project)
   );
-  const isStagingTemporal = temporalAddress && STAGING_IDENTIFIERS.temporalHosts.some(
-    host => temporalAddress.includes(host)
-  );
+  const isStagingTemporal =
+    temporalAddress &&
+    STAGING_IDENTIFIERS.temporalHosts.some(host => temporalAddress.includes(host));
 
   if (isStagingSupabase || isStagingTemporal) {
     return 'staging';
@@ -96,8 +94,10 @@ export function detectEnvironment(config: EnvironmentConfig): 'local' | 'staging
 
   // Check for local identifiers
   const isLocalSupabase = supabaseUrl?.includes('localhost') || supabaseUrl?.includes('127.0.0.1');
-  const isLocalTemporal = temporalAddress?.includes('localhost') || temporalAddress?.includes('127.0.0.1');
-  const isLocalRedis = config.redisUrl?.includes('localhost') || config.redisUrl?.includes('127.0.0.1');
+  const isLocalTemporal =
+    temporalAddress?.includes('localhost') || temporalAddress?.includes('127.0.0.1');
+  const isLocalRedis =
+    config.redisUrl?.includes('localhost') || config.redisUrl?.includes('127.0.0.1');
 
   if (isLocalSupabase || isLocalTemporal || isLocalRedis) {
     return 'local';
@@ -117,19 +117,16 @@ export function validateEnvironment(config: EnvironmentConfig): EnvironmentValid
   const nodeEnv = config.nodeEnv.toLowerCase();
 
   // CRITICAL SAFETY CHECK: Prevent local/dev/test from touching production
-  if ((nodeEnv === 'development' || nodeEnv === 'test' || nodeEnv === 'local') && detectedEnv === 'production') {
+  if (
+    (nodeEnv === 'development' || nodeEnv === 'test' || nodeEnv === 'local') &&
+    detectedEnv === 'production'
+  ) {
     errors.push(
       `🚨 CRITICAL SAFETY VIOLATION: NODE_ENV="${config.nodeEnv}" but configuration points to PRODUCTION infrastructure!`
     );
-    errors.push(
-      `   Supabase URL: ${maskSensitive(config.supabaseUrl)}`
-    );
-    errors.push(
-      `   This could cause PRODUCTION DATA CORRUPTION or LOSS.`
-    );
-    errors.push(
-      `   ACTION REQUIRED: Update .env to use local or staging infrastructure.`
-    );
+    errors.push(`   Supabase URL: ${maskSensitive(config.supabaseUrl)}`);
+    errors.push(`   This could cause PRODUCTION DATA CORRUPTION or LOSS.`);
+    errors.push(`   ACTION REQUIRED: Update .env to use local or staging infrastructure.`);
   }
 
   // Prevent staging from accidentally using production
@@ -137,9 +134,7 @@ export function validateEnvironment(config: EnvironmentConfig): EnvironmentValid
     errors.push(
       `⚠️  ENVIRONMENT MISMATCH: NODE_ENV="staging" but configuration points to PRODUCTION infrastructure!`
     );
-    errors.push(
-      `   This could affect production users or data.`
-    );
+    errors.push(`   This could affect production users or data.`);
   }
 
   // Prevent test runs from using non-local infrastructure
@@ -160,9 +155,7 @@ export function validateEnvironment(config: EnvironmentConfig): EnvironmentValid
     warnings.push(
       `⚠️  Could not determine environment from configuration. Please verify settings.`
     );
-    warnings.push(
-      `   Supabase URL: ${maskSensitive(config.supabaseUrl)}`
-    );
+    warnings.push(`   Supabase URL: ${maskSensitive(config.supabaseUrl)}`);
   }
 
   // Warn if production is not using production NODE_ENV
@@ -240,12 +233,12 @@ function maskSensitive(value: string | undefined): string {
  */
 export function getEnvironmentConfig(): EnvironmentConfig {
   return {
-    nodeEnv: process.env.NODE_ENV || 'development',
-    supabaseUrl: process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-    supabaseKey: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '',
-    temporalAddress: process.env.TEMPORAL_ADDRESS || process.env.TEMPORAL_SERVER_URL,
-    discordWebhook: process.env.DISCORD_WEBHOOK_URL,
-    redisUrl: process.env.REDIS_URL,
+    nodeEnv: process.env['NODE_ENV'] || 'development',
+    supabaseUrl: process.env['SUPABASE_URL'] || process.env['NEXT_PUBLIC_SUPABASE_URL'] || '',
+    supabaseKey: process.env['SUPABASE_SERVICE_ROLE_KEY'] || process.env['SUPABASE_ANON_KEY'] || '',
+    temporalAddress: process.env['TEMPORAL_ADDRESS'] || process.env['TEMPORAL_SERVER_URL'] || '',
+    discordWebhook: process.env['DISCORD_WEBHOOK_URL'] || '',
+    redisUrl: process.env['REDIS_URL'] || '',
   };
 }
 
@@ -253,11 +246,13 @@ export function getEnvironmentConfig(): EnvironmentConfig {
  * Quick check for E2E/Playwright tests
  */
 export function validateTestEnvironment(): void {
-  const config = {
+  const config: EnvironmentConfig = {
     nodeEnv: 'test',
-    supabaseUrl: process.env.E2E_SUPABASE_URL || process.env.SUPABASE_URL || '',
-    supabaseKey: process.env.E2E_SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-    temporalAddress: process.env.E2E_TEMPORAL_URL || process.env.TEMPORAL_ADDRESS,
+    supabaseUrl: process.env['E2E_SUPABASE_URL'] || process.env['SUPABASE_URL'] || '',
+    supabaseKey: process.env['E2E_SUPABASE_KEY'] || process.env['SUPABASE_SERVICE_ROLE_KEY'] || '',
+    temporalAddress: process.env['E2E_TEMPORAL_URL'] || process.env['TEMPORAL_ADDRESS'] || '',
+    discordWebhook: '',
+    redisUrl: '',
   };
 
   const result = validateEnvironment(config);
@@ -266,11 +261,15 @@ export function validateTestEnvironment(): void {
     console.error(chalk.red.bold('\n🚨 TEST ENVIRONMENT VALIDATION FAILED:\n'));
     result.errors.forEach(error => console.error(chalk.red(error)));
     console.error(chalk.red.bold('\n❌ TESTS BLOCKED FOR SAFETY\n'));
-    throw new Error('Test environment validation failed - refusing to run tests against production');
+    throw new Error(
+      'Test environment validation failed - refusing to run tests against production'
+    );
   }
 
   if (result.environment === 'production') {
-    throw new Error('🚨 CRITICAL: Tests attempted to run against PRODUCTION infrastructure. Aborting.');
+    throw new Error(
+      '🚨 CRITICAL: Tests attempted to run against PRODUCTION infrastructure. Aborting.'
+    );
   }
 
   console.log(chalk.green(`✅ Test environment validated: ${result.environment}`));

@@ -22,7 +22,8 @@
  */
 
 import { Pool, PoolClient, QueryResult } from 'pg';
-import { rootLogger as logger } from '../../../shared/lib/logger';
+
+import { rootLogger as logger } from './logger';
 
 // ============================================================================
 // TYPES
@@ -96,9 +97,7 @@ export class CanonicalDirectWriter {
     }
 
     const databaseUrl =
-      process.env.DATABASE_DIRECT_URL ||
-      process.env.DATABASE_URL ||
-      process.env.SUPABASE_DB_URL;
+      process.env.DATABASE_DIRECT_URL || process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
 
     if (!databaseUrl) {
       throw new Error('DATABASE_DIRECT_URL not configured for CanonicalDirectWriter');
@@ -117,7 +116,7 @@ export class CanonicalDirectWriter {
     });
 
     // Handle pool errors
-    this.pool.on('error', (err) => {
+    this.pool.on('error', err => {
       logger.error('Unexpected error on idle database client', {
         error: err.message,
         stack: err.stack,
@@ -148,6 +147,7 @@ export class CanonicalDirectWriter {
   /**
    * Insert pick directly via SQL (fallback)
    */
+  // eslint-disable-next-line max-lines-per-function, complexity
   async insertPick(pick: CanonicalPick): Promise<DirectWriteResult> {
     const pool = this.getPool();
     let client: PoolClient | null = null;
@@ -257,6 +257,7 @@ export class CanonicalDirectWriter {
   /**
    * Insert pick_publish record directly via SQL (fallback)
    */
+  // eslint-disable-next-line max-lines-per-function, complexity
   async insertPickPublish(pickPublish: CanonicalPickPublish): Promise<DirectWriteResult> {
     const pool = this.getPool();
     let client: PoolClient | null = null;

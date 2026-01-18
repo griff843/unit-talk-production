@@ -5,9 +5,10 @@
  * Call this at the very top of any entrypoint BEFORE importing anything that reads env
  */
 
-import { config } from 'dotenv';
-import { resolve, join, dirname } from 'path';
 import { existsSync, readFileSync } from 'fs';
+import { resolve, join, dirname } from 'path';
+
+import { config } from 'dotenv';
 
 let envLoaded = false;
 
@@ -82,7 +83,7 @@ export function loadRootEnv(): void {
   envLoaded = true;
 
   // Debug log in non-production (check current NODE_ENV after all loads)
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env['NODE_ENV'] !== 'production') {
     const sharedExists = existsSync(sharedEnvPath) ? '✓' : '✗';
     const mainExists = existsSync(mainEnvPath) ? '✓' : '✗';
     const canaryExists = existsSync(canaryEnvPath) ? '✓' : '✗';
@@ -94,6 +95,6 @@ export function loadRootEnv(): void {
 }
 
 // Auto-load when this module is imported (unless explicitly disabled)
-if (process.env.DISABLE_AUTO_ENV_LOAD !== 'true') {
+if (process.env['DISABLE_AUTO_ENV_LOAD'] !== 'true') {
   loadRootEnv();
 }

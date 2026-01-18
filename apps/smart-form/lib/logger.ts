@@ -10,20 +10,21 @@ const logLevel = process.env.LOG_LEVEL || (isDevelopment ? 'debug' : 'info');
 const logger = pino({
   level: logLevel,
   formatters: {
-    level: (label) => ({ level: label.toUpperCase() }),
+    level: label => ({ level: label.toUpperCase() }),
   },
   timestamp: pino.stdTimeFunctions.isoTime,
-  ...(isDevelopment && !disableLogWorkers && {
-    transport: {
-      target: 'pino-pretty',
-      options: {
-        colorize: true,
-        ignore: 'pid,hostname',
-        translateTime: 'HH:MM:ss',
-        singleLine: false,
+  ...(isDevelopment &&
+    !disableLogWorkers && {
+      transport: {
+        target: 'pino-pretty',
+        options: {
+          colorize: true,
+          ignore: 'pid,hostname',
+          translateTime: 'HH:MM:ss',
+          singleLine: false,
+        },
       },
-    },
-  }),
+    }),
   serializers: {
     req: pino.stdSerializers.req,
     res: pino.stdSerializers.res,
@@ -56,12 +57,15 @@ export const logApiPerformance = (
   metadata?: Record<string, any>
 ) => {
   const duration = Date.now() - startTime;
-  log.info({
-    operation,
-    duration_ms: duration,
-    performance: duration < 100 ? 'excellent' : duration < 500 ? 'good' : 'slow',
-    ...metadata,
-  }, `${operation} completed in ${duration}ms`);
+  log.info(
+    {
+      operation,
+      duration_ms: duration,
+      performance: duration < 100 ? 'excellent' : duration < 500 ? 'good' : 'slow',
+      ...metadata,
+    },
+    `${operation} completed in ${duration}ms`
+  );
 };
 
 // Helper function to log validation errors with context
@@ -71,11 +75,14 @@ export const logValidationError = (
   input: any,
   context?: Record<string, any>
 ) => {
-  log.warn({
-    validation_errors: errors,
-    input_keys: Object.keys(input || {}),
-    ...context,
-  }, 'Validation failed');
+  log.warn(
+    {
+      validation_errors: errors,
+      input_keys: Object.keys(input || {}),
+      ...context,
+    },
+    'Validation failed'
+  );
 };
 
 // Helper function to log database operations
@@ -87,18 +94,24 @@ export const logDatabaseOperation = (
   error?: any
 ) => {
   if (error) {
-    log.error({
-      operation,
-      table,
-      error: error.message,
-      error_code: error.code,
-    }, `Database ${operation} failed on ${table}`);
+    log.error(
+      {
+        operation,
+        table,
+        error: error.message,
+        error_code: error.code,
+      },
+      `Database ${operation} failed on ${table}`
+    );
   } else {
-    log.info({
-      operation,
-      table,
-      affected_rows: Array.isArray(result) ? result.length : result ? 1 : 0,
-    }, `Database ${operation} successful on ${table}`);
+    log.info(
+      {
+        operation,
+        table,
+        affected_rows: Array.isArray(result) ? result.length : result ? 1 : 0,
+      },
+      `Database ${operation} successful on ${table}`
+    );
   }
 };
 
@@ -113,25 +126,39 @@ export const logExternalApiCall = (
   error?: any
 ) => {
   const duration = Date.now() - startTime;
-  
+
   if (error) {
-    log.error({
-      external_service: service,
-      endpoint,
-      method,
-      duration_ms: duration,
-      error: error.message,
-    }, `External API call to ${service} failed`);
+    log.error(
+      {
+        external_service: service,
+        endpoint,
+        method,
+        duration_ms: duration,
+        error: error.message,
+      },
+      `External API call to ${service} failed`
+    );
   } else {
-    log.info({
-      external_service: service,
-      endpoint,
-      method,
-      duration_ms: duration,
-      status_code: statusCode,
-      success: (statusCode || 0) >= 200 && (statusCode || 0) < 300,
-    }, `External API call to ${service} completed`);
+    log.info(
+      {
+        external_service: service,
+        endpoint,
+        method,
+        duration_ms: duration,
+        status_code: statusCode,
+        success: (statusCode || 0) >= 200 && (statusCode || 0) < 300,
+      },
+      `External API call to ${service} completed`
+    );
   }
+};
+
+// Factory function for creating named loggers
+export const createLogger = (name: string) => {
+  return logger.child({
+    name,
+    service: 'smart-form',
+  });
 };
 
 // Security logging helper - never log sensitive data
@@ -142,21 +169,26 @@ export const logSecurityEvent = (
   metadata?: Record<string, any>
 ) => {
   // Filter out any potentially sensitive data
-  const sanitizedMetadata = metadata ? 
-    Object.fromEntries(
-      Object.entries(metadata).filter(([key]) => 
-        !['password', 'token', 'key', 'secret', 'auth'].some(sensitive => 
-          key.toLowerCase().includes(sensitive)
+  const sanitizedMetadata = metadata
+    ? Object.fromEntries(
+        Object.entries(metadata).filter(
+          ([key]) =>
+            !['password', 'token', 'key', 'secret', 'auth'].some(sensitive =>
+              key.toLowerCase().includes(sensitive)
+            )
         )
       )
-    ) : {};
+    : {};
 
-  log.warn({
-    security_event: event,
-    severity,
-    timestamp: new Date().toISOString(),
-    ...sanitizedMetadata,
-  }, `Security event: ${event}`);
+  log.warn(
+    {
+      security_event: event,
+      severity,
+      timestamp: new Date().toISOString(),
+      ...sanitizedMetadata,
+    },
+    `Security event: ${event}`
+  );
 };
 
 export default logger;

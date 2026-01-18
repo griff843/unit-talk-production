@@ -1,9 +1,9 @@
 import 'dotenv/config';
-import { getEnv } from './utils/getEnv';
-import { rootLogger as log } from '../../shared/lib/logger';
 import { validateEnvironment, logEnvironmentSummary } from './lib/env-validate';
-import { initializeTracing } from './telemetry/otel';
+import { rootLogger as log } from './lib/logger';
 import { startPublisherLoop, stopPublisherLoop } from './publish/worker';
+import { initializeTracing } from './telemetry/otel';
+import { getEnv } from './utils/getEnv';
 
 const logger = log;
 
@@ -22,7 +22,9 @@ async function handleBootTimeSchemaReload() {
   const shouldReload = schemaReloadEnabled || pickDriver === 'canonical';
 
   if (!shouldReload) {
-    logger.info('Boot-time schema reload not required (PICK_DRIVER=unified, SCHEMA_RELOAD_ON_BOOT≠true)');
+    logger.info(
+      'Boot-time schema reload not required (PICK_DRIVER=unified, SCHEMA_RELOAD_ON_BOOT≠true)'
+    );
     return;
   }
 
@@ -197,7 +199,7 @@ process.on('uncaughtException', (error: Error, origin: string) => {
   }
 });
 
-main().catch((error) => {
+main().catch(error => {
   const errorMessage = error instanceof Error ? error.message : String(error);
   const errorStack = error instanceof Error ? error.stack : undefined;
   logger.error('Unhandled error in main:', { error: errorMessage, stack: errorStack });

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 // All types are defined as exports below
 /** Core Discord Types */
 export interface BotConfig {
@@ -381,6 +382,8 @@ export interface GradingFactor {
   description?: string;
   score?: number;
   category?: string;
+  professional_score?: number;
+  timing?: string;
 }
 
 export interface CoachingRecommendation {
@@ -983,5 +986,18 @@ export interface OnboardingMessage {
   content: any;
   embed?: any;
   components?: any[];
-  type: 'welcome' | 'features' | 'tutorial' | 'reminder' | 'engagement' | 'discovery' | 'capper_welcome' | 'admin_welcome' | 'followup' | 'conversion' | 'personalized_welcome' | 'personalized_followup' | 'personalized_conversion';
+  type:
+    | 'welcome'
+    | 'features'
+    | 'tutorial'
+    | 'reminder'
+    | 'engagement'
+    | 'discovery'
+    | 'capper_welcome'
+    | 'admin_welcome'
+    | 'followup'
+    | 'conversion'
+    | 'personalized_welcome'
+    | 'personalized_followup'
+    | 'personalized_conversion';
 }

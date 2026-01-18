@@ -97,7 +97,7 @@ test.describe('Resilient Logging and Normalization', () => {
   test('logger factory creates working logger', async () => {
     // This test verifies the logger can be imported and used
     // The logger factory should not throw even if pino-pretty fails
-    const { createLogger } = await import('../../shared/lib/logger');
+    const { createLogger } = await import('../lib/logger');
 
     expect(() => {
       const logger = createLogger('test');
@@ -110,7 +110,7 @@ test.describe('Resilient Logging and Normalization', () => {
     // Verify logger creates successfully with forced sync mode
     process.env.LOG_MODE = 'sync';
 
-    const { createLogger } = await import('../../shared/lib/logger');
+    const { createLogger } = await import('../lib/logger');
     const logger = createLogger('test-sync');
 
     expect(() => {

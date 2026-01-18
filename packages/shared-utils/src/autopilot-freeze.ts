@@ -1,3 +1,4 @@
+/* eslint-disable complexity */
 /**
  * Autopilot Freeze State Reader
  *
@@ -30,11 +31,7 @@ import * as path from 'path';
 // =============================================================================
 
 export type FreezeScope = 'ALL' | 'DEPLOYMENTS' | 'AFFECTED_FLOW' | 'DATA_OPERATIONS';
-export type AgentLane =
-  | 'ScoringAgent'
-  | 'SettlementAgent'
-  | 'GradingAgent'
-  | 'PublishingAgent';
+export type AgentLane = 'ScoringAgent' | 'SettlementAgent' | 'GradingAgent' | 'PublishingAgent';
 
 export interface AutopilotFreezeState {
   frozen: boolean;
@@ -107,17 +104,19 @@ export function getAutopilotState(): AutopilotFreezeState {
     if (fs.existsSync(STATE_FILE)) {
       const content = fs.readFileSync(STATE_FILE, 'utf-8');
       const parsed = JSON.parse(content);
-      cachedState = { ...DEFAULT_STATE, ...parsed };
+      const state: AutopilotFreezeState = { ...DEFAULT_STATE, ...parsed };
+      cachedState = state;
       lastReadTime = now;
-      return cachedState;
+      return state;
     }
   } catch {
     // Silently fall back to default state
   }
 
-  cachedState = { ...DEFAULT_STATE };
+  const defaultState: AutopilotFreezeState = { ...DEFAULT_STATE };
+  cachedState = defaultState;
   lastReadTime = now;
-  return cachedState;
+  return defaultState;
 }
 
 /**

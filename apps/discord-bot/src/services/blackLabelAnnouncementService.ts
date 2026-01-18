@@ -1,11 +1,12 @@
+/* eslint-disable max-lines, max-lines-per-function, complexity, @typescript-eslint/no-unused-vars */
 import {
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  ChannelType,
   ThreadAutoArchiveDuration,
 } from 'discord.js';
+
 import { logger } from '../utils/logger';
 
 export interface BlackLabelAnnouncement {
@@ -247,7 +248,7 @@ export class BlackLabelAnnouncementService {
     const baseEV = announcement.confidence * 2.5;
     const oddsMultiplier = announcement.odds.includes('-') ? 0.9 : 1.1;
     const devigged_edge = (baseEV * oddsMultiplier).toFixed(1);
-    return ev;
+    return devigged_edge;
   }
 
   private getRiskLevel(confidence: number): string {
