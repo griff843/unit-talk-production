@@ -1,0 +1,16 @@
+{
+  "version": "1.0.0",
+  "phase": "A",
+  "features": {
+    "AUTO_REVERT_ENABLED": false,
+    "AUTOPILOT_FREEZE_ENABLED": false,
+    "AUTO_FIX_PR_ENABLED": true,
+    "FAILURE_CLASSIFICATION_ENABLED": true
+  },
+  "thresholds": {
+    "flake_retry_max": 2,
+    "main_red_freeze_minutes": 30,
+    "consecutive_failures_freeze": 3
+  },
+  "_comment": "CI automation feature flags. See docs/ops/AUTO_RESOLUTION_POLICY.md"
+}
