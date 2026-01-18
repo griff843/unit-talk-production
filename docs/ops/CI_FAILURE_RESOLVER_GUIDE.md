@@ -1,7 +1,7 @@
 # CI Failure Resolver Guide
 
-**Version**: 1.1.0
-**Phase**: A (Classification + Safe Autofix) + C (Auto-Revert, feature-flagged)
+**Version**: 1.2.0
+**Phase**: A (Classification + Safe Autofix) + C (Auto-Revert) + D (Autopilot Freeze)
 **Status**: Active
 
 ## Overview
@@ -334,7 +334,7 @@ Classifications use regex heuristics. To improve:
 | **A** (Current) | Classification + LINT autofix + Issues      | Active                      |
 | B               | Staging autofix expansion                   | Planned                     |
 | **C**           | Auto-revert PR generation (feature-flagged) | Implemented (flag OFF)      |
-| D               | Freeze enforcement                          | Planned                     |
+| **D**           | Autopilot freeze integration                | Implemented (flag OFF)      |
 
 ---
 
@@ -411,6 +411,115 @@ If the revert encounters merge conflicts:
 - **Never auto-merges** - Revert PR requires human approval
 - **Respects freeze state** - No action if autopilot is frozen
 - **Clean rollback** - Conflicts trigger abort, not partial commit
+
+---
+
+## Autopilot Freeze Feature (Phase D)
+
+### Overview
+
+When a high-risk CI failure occurs (MIGRATION, SECURITY, or POLICY), the
+resolver can automatically freeze autopilot operations to prevent cascading
+failures.
+
+### Feature Flag
+
+The autopilot freeze feature is controlled by `AUTOPILOT_FREEZE_ENABLED` in
+`runtime_config/ci_automation.json`:
+
+```json
+{
+  "features": {
+    "AUTOPILOT_FREEZE_ENABLED": false
+  }
+}
+```
+
+**Default**: `false` (disabled)
+
+### Enabling Autopilot Freeze
+
+To enable autopilot freeze on high-risk CI failures:
+
+1. Edit `runtime_config/ci_automation.json`:
+   ```json
+   {
+     "features": {
+       "AUTOPILOT_FREEZE_ENABLED": true
+     }
+   }
+   ```
+
+2. Commit and push the change to `main`
+
+3. Future high-risk failures will trigger autopilot freeze
+
+### Trigger Conditions
+
+Autopilot freeze triggers on these failure classes:
+
+| Failure Class | Freeze Scope      | Lane Selection              |
+| ------------- | ----------------- | --------------------------- |
+| `MIGRATION`   | DATA_OPERATIONS   | ScoringAgent/SettlementAgent (if workflow matches) |
+| `SECURITY`    | ALL               | All lanes                   |
+| `POLICY`      | DEPLOYMENTS       | GradingAgent/PublishingAgent (if workflow matches) |
+
+### Behavior When Enabled
+
+1. **Failure detected** with MIGRATION, SECURITY, or POLICY class
+2. **Scope and lane determined** based on failure class and workflow name
+3. **Freeze state written** to `runtime_config/autopilot_state.json`
+4. **State committed and pushed** to the affected branch
+5. **GitHub issue created** with freeze details and rollback instructions
+6. **Auto-unfreeze scheduled** for 4 hours (configurable)
+
+### Behavior When Disabled
+
+1. **Failure detected** with high-risk class
+2. **Warning logged** in workflow output
+3. **No freeze state written**
+4. **Normal failure handling** continues (issue/comment creation)
+
+### Lane-Specific Freeze
+
+The resolver can freeze specific agent lanes based on the workflow name:
+
+- Workflows containing "scoring" or "grade" → `ScoringAgent` lane
+- Workflows containing "settlement" or "payout" → `SettlementAgent` lane
+- Workflows containing "grading" or "grade" → `GradingAgent` lane
+- Workflows containing "publish" or "discord" → `PublishingAgent` lane
+
+### Unfreeze Procedure
+
+**Option 1: Wait for auto-unfreeze** (default: 4 hours)
+
+**Option 2: Manual unfreeze**
+```bash
+npx tsx scripts/ops/set-autopilot-mode.ts --mode=NORMAL
+git add runtime_config/autopilot_state.json
+git commit -m "ci: unfreeze autopilot (manual)"
+git push
+```
+
+**Option 3: Check current status**
+```bash
+npx tsx scripts/ops/set-autopilot-mode.ts --status
+```
+
+### Agent Integration
+
+Agents can check freeze state using the shared library:
+
+```typescript
+import { shouldAgentOperate, isLaneFrozen } from '@shared-utils/autopilot-freeze';
+
+if (!shouldAgentOperate('ScoringAgent')) {
+  logger.info('ScoringAgent lane frozen, skipping operation');
+  return;
+}
+```
+
+See [AUTOPILOT_FREEZE_MATRIX.md](./AUTOPILOT_FREEZE_MATRIX.md) for full details.
 
 ---
 

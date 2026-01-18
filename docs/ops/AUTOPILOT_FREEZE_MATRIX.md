@@ -1,6 +1,6 @@
 # Autopilot Freeze Matrix
 
-**Version**: 1.0.0 **Status**: Phase A (Feature-Flagged) **Flag**:
+**Version**: 1.1.0 **Status**: Phase D (Implemented, Feature-Flagged) **Flag**:
 `AUTOPILOT_FREEZE_ENABLED=false`
 
 ## Purpose
@@ -88,11 +88,13 @@ Freeze state is stored in `runtime_config/autopilot_state.json`:
   "triggered_at": null,
   "triggered_by": null,
   "auto_unfreeze_at": null,
-  "incident_id": null
+  "incident_id": null,
+  "frozen_lanes": [],
+  "_comment": "Managed by CI automation. See docs/ops/AUTOPILOT_FREEZE_MATRIX.md"
 }
 ```
 
-### Freeze Example
+### Freeze Example (Global)
 
 ```json
 {
@@ -100,11 +102,38 @@ Freeze state is stored in `runtime_config/autopilot_state.json`:
   "scope": "DEPLOYMENTS",
   "reason": "Main branch red > 30 minutes (run #12345)",
   "triggered_at": "2026-01-18T10:00:00Z",
-  "triggered_by": "ci-resolver-bot",
-  "auto_unfreeze_at": null,
-  "incident_id": "INC-2026-0118-001"
+  "triggered_by": "ci-failure-resolver",
+  "auto_unfreeze_at": "2026-01-18T14:00:00Z",
+  "incident_id": "ci-12345",
+  "frozen_lanes": [],
+  "_comment": "Managed by CI automation. See docs/ops/AUTOPILOT_FREEZE_MATRIX.md"
 }
 ```
+
+### Freeze Example (Lane-Specific)
+
+```json
+{
+  "frozen": true,
+  "scope": "AFFECTED_FLOW",
+  "reason": "Scoring tests failed in CI run #67890",
+  "triggered_at": "2026-01-18T10:00:00Z",
+  "triggered_by": "ci-failure-resolver",
+  "auto_unfreeze_at": "2026-01-18T14:00:00Z",
+  "incident_id": "ci-67890",
+  "frozen_lanes": ["ScoringAgent"],
+  "_comment": "Managed by CI automation. See docs/ops/AUTOPILOT_FREEZE_MATRIX.md"
+}
+```
+
+### Available Agent Lanes
+
+| Lane              | Description                  | Freeze Impact              |
+| ----------------- | ---------------------------- | -------------------------- |
+| `ScoringAgent`    | Pick scoring operations      | No new scoring runs        |
+| `SettlementAgent` | Settlement/payout operations | No settlement processing   |
+| `GradingAgent`    | Pick grading workflows       | No grading runs            |
+| `PublishingAgent` | Discord publishing           | No Discord publish actions |
 
 ---
 
@@ -146,14 +175,88 @@ Trigger Condition Detected
 ### Manual Unfreeze
 
 ```bash
-# Operator command to unfreeze
-./scripts/ops/autopilot-control.sh unfreeze --reason "Issue resolved" --operator "username"
+# Option 1: Use the set-autopilot-mode script
+npx tsx scripts/ops/set-autopilot-mode.ts --mode=NORMAL
+
+# Option 2: Manually edit the state file
+# Edit runtime_config/autopilot_state.json and set "frozen": false
+
+# After unfreezing, commit and push if on a branch
+git add runtime_config/autopilot_state.json
+git commit -m "ci: unfreeze autopilot (manual) - Issue resolved"
+git push
 ```
 
-Required fields:
+---
 
-- `--reason`: Why freeze is being lifted
-- `--operator`: Who is authorizing unfreeze
+## Rollback / Unfreeze Procedure
+
+### Quick Unfreeze (Emergency)
+
+If you need to immediately unfreeze autopilot:
+
+```bash
+# 1. Check current status
+npx tsx scripts/ops/set-autopilot-mode.ts --status
+
+# 2. Unfreeze
+npx tsx scripts/ops/set-autopilot-mode.ts --mode=NORMAL
+
+# 3. Commit and push the change
+git add runtime_config/autopilot_state.json
+git commit -m "ci: emergency unfreeze autopilot - [Your reason]"
+git push origin main
+```
+
+### Standard Unfreeze (Post-Resolution)
+
+After resolving the underlying issue:
+
+1. **Verify the fix**: Ensure the CI failure has been resolved
+2. **Run verification**: `npm run test` and `npm run type-check` pass
+3. **Unfreeze**:
+   ```bash
+   npx tsx scripts/ops/set-autopilot-mode.ts --mode=NORMAL
+   ```
+4. **Commit with evidence**:
+   ```bash
+   git add runtime_config/autopilot_state.json
+   git commit -m "ci: unfreeze autopilot - Issue #123 resolved
+
+   Fix verified: PR #456 merged
+   Tests passing: CI run #789
+   "
+   git push origin main
+   ```
+5. **Close the freeze issue**: Update the GitHub issue created by the freeze
+
+### Checking Freeze Status
+
+```bash
+# View current freeze state
+npx tsx scripts/ops/set-autopilot-mode.ts --status
+
+# Or read the state file directly
+cat runtime_config/autopilot_state.json | jq '.'
+```
+
+### Auto-Unfreeze
+
+Some freezes have an auto-unfreeze time set. The freeze will automatically be
+considered expired after this time. Agents should check `auto_unfreeze_at` and
+treat expired freezes as unfrozen.
+
+**Note**: Auto-unfreeze does NOT modify the state file. The file still shows
+`frozen: true` but agents check the `auto_unfreeze_at` timestamp.
+
+To permanently unfreeze after auto-unfreeze expires:
+
+```bash
+npx tsx scripts/ops/set-autopilot-mode.ts --mode=NORMAL
+git add runtime_config/autopilot_state.json
+git commit -m "ci: clear expired freeze state"
+git push
+```
 
 ---
 
@@ -245,7 +348,7 @@ Freeze status should be visible in:
 
 ## Feature Flag Rollout
 
-### Phase A (Current)
+### Phase A
 
 - Flag: `AUTOPILOT_FREEZE_ENABLED=false`
 - Freeze state file exists but not enforced
@@ -259,9 +362,64 @@ Freeze status should be visible in:
 
 ### Phase C
 
-- Flag: `AUTOPILOT_FREEZE_ENABLED=true` for production
-- Full enforcement
-- Auto-unfreeze for recoverable conditions
+- Flag: `AUTOPILOT_FREEZE_ENABLED=true` for production (auto-revert)
+- Auto-revert PR generation implemented
+- Human approval still required for all merges
+
+### Phase D (Current - Implemented)
+
+- Flag: `AUTOPILOT_FREEZE_ENABLED=false` (default)
+- Full autopilot freeze integration implemented
+- CI Failure Resolver triggers freeze on high-risk failures
+- Lane-specific freeze support (ScoringAgent, SettlementAgent, etc.)
+- 4-hour auto-unfreeze default
+- GitHub issue created for freeze incidents
+
+**To Enable Autopilot Freeze**:
+
+Edit `runtime_config/ci_automation.json`:
+
+```json
+{
+  "features": {
+    "AUTOPILOT_FREEZE_ENABLED": true
+  }
+}
+```
+
+---
+
+## Agent Integration
+
+Agents can check freeze state using the shared library:
+
+```typescript
+import {
+  isAutopilotFrozen,
+  shouldAgentOperate,
+  isLaneFrozen,
+} from '@shared-utils/autopilot-freeze';
+
+// Global freeze check
+if (isAutopilotFrozen()) {
+  logger.info('Autopilot frozen, skipping operation');
+  return;
+}
+
+// Lane-specific check
+if (!shouldAgentOperate('ScoringAgent')) {
+  logger.info('ScoringAgent lane frozen');
+  return;
+}
+
+// Check specific lane
+if (isLaneFrozen('SettlementAgent')) {
+  logger.info('Settlement operations paused');
+  return;
+}
+```
+
+See `packages/shared-utils/src/autopilot-freeze.ts` for full API.
 
 ---
 
@@ -269,8 +427,14 @@ Freeze status should be visible in:
 
 - [AUTO_RESOLUTION_POLICY.md](./AUTO_RESOLUTION_POLICY.md)
 - [CI_FAILURE_CLASSIFICATION.md](./CI_FAILURE_CLASSIFICATION.md)
+- [CI_FAILURE_RESOLVER_GUIDE.md](./CI_FAILURE_RESOLVER_GUIDE.md)
 - [FORBIDDEN_ACTIONS.md](./FORBIDDEN_ACTIONS.md)
 - [incident_response_playbook.md](./incident_response_playbook.md)
+
+## Related Scripts
+
+- `scripts/ops/set-autopilot-mode.ts` - Set/unset freeze state
+- `scripts/ops/bootstrap-github-labels.ts` - Bootstrap GitHub labels
 
 ---
 

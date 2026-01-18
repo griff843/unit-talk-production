@@ -2,6 +2,7 @@ name: CI Failure Resolver
 
 # Phase A: Classification + Safe Autofix + Issue Creation
 # Phase C: Auto-Revert PR Generation (feature-flagged)
+# Phase D: Autopilot Freeze Integration (feature-flagged)
 # NO auto-merge, NO branch protection changes
 # See: docs/ops/AUTO_RESOLUTION_POLICY.md
 
@@ -49,6 +50,7 @@ jobs:
       error_summary: ${{ steps.classify.outputs.error_summary }}
       evidence_file: ${{ steps.evidence.outputs.evidence_file }}
       auto_revert_enabled: ${{ steps.flags.outputs.auto_revert_enabled }}
+      autopilot_freeze_enabled: ${{ steps.flags.outputs.autopilot_freeze_enabled }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -75,13 +77,16 @@ jobs:
             CLASSIFICATION_ENABLED=$(jq -r '.features.FAILURE_CLASSIFICATION_ENABLED' runtime_config/ci_automation.json)
             AUTOFIX_ENABLED=$(jq -r '.features.AUTO_FIX_PR_ENABLED' runtime_config/ci_automation.json)
             AUTO_REVERT_ENABLED=$(jq -r '.features.AUTO_REVERT_ENABLED' runtime_config/ci_automation.json)
+            AUTOPILOT_FREEZE_ENABLED=$(jq -r '.features.AUTOPILOT_FREEZE_ENABLED' runtime_config/ci_automation.json)
             echo "classification_enabled=$CLASSIFICATION_ENABLED" >> $GITHUB_OUTPUT
             echo "autofix_enabled=$AUTOFIX_ENABLED" >> $GITHUB_OUTPUT
             echo "auto_revert_enabled=$AUTO_REVERT_ENABLED" >> $GITHUB_OUTPUT
+            echo "autopilot_freeze_enabled=$AUTOPILOT_FREEZE_ENABLED" >> $GITHUB_OUTPUT
           else
             echo "classification_enabled=true" >> $GITHUB_OUTPUT
             echo "autofix_enabled=true" >> $GITHUB_OUTPUT
             echo "auto_revert_enabled=false" >> $GITHUB_OUTPUT
+            echo "autopilot_freeze_enabled=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Collect workflow context
@@ -922,3 +927,245 @@ jobs:
             --label "ci-failed" \
             --label "ci:${{ needs.collect-and-classify.outputs.failure_class }}" \
             --label "severity:${{ needs.collect-and-classify.outputs.severity }}"
+
+  # ==========================================================================
+  # Job 6: Autopilot Freeze Integration (Phase D - Feature Flagged)
+  # ==========================================================================
+  autopilot-freeze:
+    name: Autopilot Freeze
+    runs-on: ubuntu-latest
+    needs: collect-and-classify
+    # Trigger on high-risk failure classes that warrant autopilot freeze
+    if: |
+      needs.collect-and-classify.outputs.autopilot_freeze_enabled == 'true' &&
+      (needs.collect-and-classify.outputs.failure_class == 'MIGRATION' ||
+       needs.collect-and-classify.outputs.failure_class == 'SECURITY' ||
+       needs.collect-and-classify.outputs.failure_class == 'POLICY')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Determine freeze scope and lane
+        id: freeze-config
+        run: |
+          FAILURE_CLASS="${{ needs.collect-and-classify.outputs.failure_class }}"
+          WORKFLOW_NAME="${{ needs.collect-and-classify.outputs.workflow_name }}"
+
+          # Default to global freeze
+          SCOPE="ALL"
+          LANE=""
+
+          # Determine scope based on failure class
+          case "$FAILURE_CLASS" in
+            MIGRATION)
+              SCOPE="DATA_OPERATIONS"
+              # Check if this is a scoring-related workflow
+              if echo "$WORKFLOW_NAME" | grep -qiE "(scoring|grade)"; then
+                LANE="ScoringAgent"
+              # Check if this is settlement-related
+              elif echo "$WORKFLOW_NAME" | grep -qiE "(settlement|payout)"; then
+                LANE="SettlementAgent"
+              fi
+              ;;
+            SECURITY)
+              SCOPE="ALL"
+              # Security issues freeze everything
+              ;;
+            POLICY)
+              SCOPE="DEPLOYMENTS"
+              # Check for specific agent patterns in workflow
+              if echo "$WORKFLOW_NAME" | grep -qiE "(grading|grade)"; then
+                LANE="GradingAgent"
+              elif echo "$WORKFLOW_NAME" | grep -qiE "(publish|discord)"; then
+                LANE="PublishingAgent"
+              fi
+              ;;
+          esac
+
+          echo "scope=$SCOPE" >> $GITHUB_OUTPUT
+          echo "lane=$LANE" >> $GITHUB_OUTPUT
+          echo "::notice::Freeze scope: $SCOPE, Lane: ${LANE:-ALL}"
+
+      - name: Activate autopilot freeze
+        id: freeze
+        run: |
+          INCIDENT_ID="ci-${{ github.event.workflow_run.id }}"
+          REASON="CI Failure: ${{ needs.collect-and-classify.outputs.failure_class }} in ${{ needs.collect-and-classify.outputs.workflow_name }}"
+          SCOPE="${{ steps.freeze-config.outputs.scope }}"
+          LANE="${{ steps.freeze-config.outputs.lane }}"
+
+          # Build freeze command
+          FREEZE_CMD="npx tsx scripts/ops/set-autopilot-mode.ts --mode=SAFE"
+          FREEZE_CMD="$FREEZE_CMD --reason=\"$REASON\""
+          FREEZE_CMD="$FREEZE_CMD --scope=$SCOPE"
+          FREEZE_CMD="$FREEZE_CMD --triggered-by=ci-failure-resolver"
+          FREEZE_CMD="$FREEZE_CMD --incident=$INCIDENT_ID"
+          FREEZE_CMD="$FREEZE_CMD --auto-unfreeze-hours=4"
+
+          if [ -n "$LANE" ]; then
+            FREEZE_CMD="$FREEZE_CMD --lane=$LANE"
+          fi
+
+          echo "::group::Executing autopilot freeze"
+          echo "Command: $FREEZE_CMD"
+          eval $FREEZE_CMD
+          echo "::endgroup::"
+
+          echo "freeze_activated=true" >> $GITHUB_OUTPUT
+
+      - name: Commit freeze state
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet runtime_config/autopilot_state.json; then
+            echo "No changes to commit"
+          else
+            git add runtime_config/autopilot_state.json
+            git commit -m "ci: activate autopilot freeze (incident: ci-${{ github.event.workflow_run.id }})
+
+          Failure Class: ${{ needs.collect-and-classify.outputs.failure_class }}
+          Workflow: ${{ needs.collect-and-classify.outputs.workflow_name }}
+          Scope: ${{ steps.freeze-config.outputs.scope }}
+          Lane: ${{ steps.freeze-config.outputs.lane || 'ALL' }}
+
+          Auto-unfreeze scheduled in 4 hours.
+          See: docs/ops/AUTOPILOT_FREEZE_MATRIX.md for rollback procedure."
+
+            # Push to main/current branch
+            git push origin HEAD:${{ needs.collect-and-classify.outputs.branch_name }} || \
+              echo "::warning::Could not push freeze state. Manual intervention may be required."
+          fi
+
+      - name: Log freeze evidence
+        run: |
+          echo "==================================================================="
+          echo "AUTOPILOT FREEZE ACTIVATED"
+          echo "==================================================================="
+          echo ""
+          echo "Incident ID:     ci-${{ github.event.workflow_run.id }}"
+          echo "Failure Class:   ${{ needs.collect-and-classify.outputs.failure_class }}"
+          echo "Severity:        ${{ needs.collect-and-classify.outputs.severity }}"
+          echo "Scope:           ${{ steps.freeze-config.outputs.scope }}"
+          echo "Lane:            ${{ steps.freeze-config.outputs.lane || 'ALL' }}"
+          echo "Workflow:        ${{ needs.collect-and-classify.outputs.workflow_name }}"
+          echo "Run URL:         ${{ needs.collect-and-classify.outputs.run_url }}"
+          echo ""
+          echo "Auto-unfreeze:   In 4 hours"
+          echo ""
+          echo "To manually unfreeze:"
+          echo "  npx tsx scripts/ops/set-autopilot-mode.ts --mode=NORMAL"
+          echo ""
+          echo "See: docs/ops/AUTOPILOT_FREEZE_MATRIX.md"
+          echo "==================================================================="
+
+      - name: Create freeze notification issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --title "Autopilot Frozen: ${{ needs.collect-and-classify.outputs.failure_class }} - ci-${{ github.event.workflow_run.id }}" \
+            --body "$(cat <<'FREEZE_ISSUE_EOF'
+          ## Autopilot Freeze Activated
+
+          **Status**: FROZEN (SAFE MODE)
+          **Incident ID**: ci-${{ github.event.workflow_run.id }}
+          **Triggered At**: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          **Auto-Unfreeze**: $(date -u -d "+4 hours" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "In 4 hours")
+
+          ---
+
+          ### Freeze Configuration
+
+          | Field | Value |
+          |-------|-------|
+          | **Scope** | ${{ steps.freeze-config.outputs.scope }} |
+          | **Lane** | ${{ steps.freeze-config.outputs.lane || 'ALL' }} |
+          | **Failure Class** | ${{ needs.collect-and-classify.outputs.failure_class }} |
+          | **Severity** | ${{ needs.collect-and-classify.outputs.severity }} |
+
+          ### Why Frozen?
+
+          A high-risk CI failure was detected that warrants pausing autopilot operations:
+
+          **Error Summary**: ${{ needs.collect-and-classify.outputs.error_summary }}
+
+          ### Affected Operations
+
+          While frozen, the following operations are paused:
+          - **Scope ${{ steps.freeze-config.outputs.scope }}**: $(case "${{ steps.freeze-config.outputs.scope }}" in
+              ALL) echo "All autopilot operations paused" ;;
+              DEPLOYMENTS) echo "Deployment operations paused" ;;
+              DATA_OPERATIONS) echo "Data-modifying operations paused" ;;
+              AFFECTED_FLOW) echo "Specific agent lane paused" ;;
+            esac)
+
+          ### Rollback / Unfreeze Procedure
+
+          **Option 1: Wait for auto-unfreeze** (4 hours)
+
+          **Option 2: Manual unfreeze**
+          \`\`\`bash
+          npx tsx scripts/ops/set-autopilot-mode.ts --mode=NORMAL
+          git add runtime_config/autopilot_state.json
+          git commit -m "ci: unfreeze autopilot (manual)"
+          git push
+          \`\`\`
+
+          **Option 3: Check current status**
+          \`\`\`bash
+          npx tsx scripts/ops/set-autopilot-mode.ts --status
+          \`\`\`
+
+          ### Evidence
+
+          - **Failed Run**: [${{ github.event.workflow_run.id }}](${{ needs.collect-and-classify.outputs.run_url }})
+          - **Workflow**: ${{ needs.collect-and-classify.outputs.workflow_name }}
+          - **Failed Jobs**: ${{ needs.collect-and-classify.outputs.failed_jobs }}
+          - **Commit**: ${{ needs.collect-and-classify.outputs.commit_sha }}
+
+          ### Resolution Checklist
+
+          - [ ] Root cause identified
+          - [ ] Fix PR created
+          - [ ] Fix verified in CI
+          - [ ] Autopilot unfrozen
+          - [ ] Post-incident review scheduled
+
+          ---
+
+          > See [AUTOPILOT_FREEZE_MATRIX.md](docs/ops/AUTOPILOT_FREEZE_MATRIX.md) for freeze policy details.
+          FREEZE_ISSUE_EOF
+          )" \
+            --label "autopilot-frozen" \
+            --label "ci-failed" \
+            --label "ci:${{ needs.collect-and-classify.outputs.failure_class }}" \
+            --label "severity:${{ needs.collect-and-classify.outputs.severity }}"
+
+  # ==========================================================================
+  # Job 7: Log Freeze Skip (When Feature Flag Disabled)
+  # ==========================================================================
+  log-freeze-skip:
+    name: Log Freeze Skip
+    runs-on: ubuntu-latest
+    needs: collect-and-classify
+    # Log when freeze would have triggered but feature is disabled
+    if: |
+      needs.collect-and-classify.outputs.autopilot_freeze_enabled != 'true' &&
+      (needs.collect-and-classify.outputs.failure_class == 'MIGRATION' ||
+       needs.collect-and-classify.outputs.failure_class == 'SECURITY' ||
+       needs.collect-and-classify.outputs.failure_class == 'POLICY')
+    steps:
+      - name: Log freeze would have triggered
+        run: |
+          echo "::warning::Autopilot freeze would have been triggered but AUTOPILOT_FREEZE_ENABLED=false"
+          echo "Failure Class: ${{ needs.collect-and-classify.outputs.failure_class }}"
+          echo "Severity: ${{ needs.collect-and-classify.outputs.severity }}"
+          echo ""
+          echo "To enable autopilot freeze, update runtime_config/ci_automation.json:"
+          echo '  "AUTOPILOT_FREEZE_ENABLED": true'
