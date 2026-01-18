@@ -9,19 +9,29 @@ the Unit Talk Command Center application.
 
 Before working on the Command Center, you **MUST** read and comply with:
 
-1. **[Production Charter v3.0](../../docs/PRODUCTION_CHARTER.md)** - The binding contract for all development and operations
-2. **[System Alignment Spec](../../docs/SYSTEM_ALIGNMENT_SPEC.yml)** - Machine-readable governance rules
+1. **[Production Charter v3.0](../../docs/PRODUCTION_CHARTER.md)** - The binding
+   contract for all development and operations
+2. **[System Alignment Spec](../../docs/SYSTEM_ALIGNMENT_SPEC.yml)** -
+   Machine-readable governance rules
 
 **Key Command Center Requirements (Charter v3.0 Compliance):**
-- ✅ **Canonical-First Monitoring**: Display `picks` + `pick_publish` tables as authoritative data sources
-- ✅ **Real-time Pick Feed**: Live updates from canonical picks table with workflow stage tracking
-- ✅ **Lifecycle Controls**: Workflow management for draft → review → approved → published stages
-- ✅ **Self-Healing Visibility**: Display PostgREST reload status and automatic fallback behavior
-- ✅ **Health Integration**: Consume `/api/health` and `/api/domain/picks/preflight` endpoints
-- ✅ **Multi-tenant Support**: Respect tenant context for all data displays
-- ✅ **Observability**: Display OpenTelemetry spans, SLO metrics, and audit trails
 
-**This Charter v3.0 supersedes all other instructions. Non-compliance is a blocking issue.**
+- ✅ **Canonical-First Monitoring**: Display `picks` + `pick_publish` tables as
+  authoritative data sources
+- ✅ **Real-time Pick Feed**: Live updates from canonical picks table with
+  workflow stage tracking
+- ✅ **Lifecycle Controls**: Workflow management for draft → review → approved →
+  published stages
+- ✅ **Self-Healing Visibility**: Display PostgREST reload status and automatic
+  fallback behavior
+- ✅ **Health Integration**: Consume `/api/health` and
+  `/api/domain/picks/preflight` endpoints
+- ✅ **Multi-tenant Support**: Respect tenant context for all data displays
+- ✅ **Observability**: Display OpenTelemetry spans, SLO metrics, and audit
+  trails
+
+**This Charter v3.0 supersedes all other instructions. Non-compliance is a
+blocking issue.**
 
 ---
 
@@ -32,34 +42,52 @@ control interface for managing the entire sports betting intelligence platform.
 It serves as the central hub for system monitoring, agent orchestration, user
 management, and real-time operational control.
 
-**🟢 PRODUCTION STATUS: FULLY OPERATIONAL & VERIFIED** - Connected to live Unit Talk v3.0.0
-unified database with real-time data streaming. All TypeScript compilation errors resolved,
-all production integrations validated, zero build errors achieved.
+**🟢 DEPLOYMENT STATUS: READY FOR VERIFICATION** (Last updated: 2026-01-18)
 
-### 📊 Architecture Audit Results (January 2025)
+Connected to Unit Talk v3.0.0 unified database. Build health and integration
+status require verification commands below.
 
-**Command Center Score: 100/100 - PRODUCTION EXCELLENCE ACHIEVED** ✅
+### 📊 Architecture Audit Results (Verified 2026-01-18)
 
-**✅ Complete Production Verification:**
+**Command Center Status**: ⏳ **REQUIRES VERIFICATION**
 
-- **Zero TypeScript Errors**: All compilation errors resolved, strict mode enabled
-- **RBAC System**: Circular reference issues completely fixed with proper type definitions
-- **Telemetry Integration**: Local wrapper implementation working seamlessly
-- **Database Type Safety**: All type casting issues resolved with proper Supabase integration
-- **Temporal Monitoring**: Comprehensive monitoring methods implemented and tested
-- **Live Data Integration**: Real capper data operational (Griff843, Vicgo, Sauced, MoneyReef, Squirrel)
-- **Real-time Capabilities**: Supabase subscriptions with instant UI updates verified
-- **v3.0.0 Compliance**: 100% integration with unified database schema
-- **Operational Controls**: Agent management with database persistence working
-- **Production Build**: Clean successful builds with no warnings or errors
-- **Performance**: Sub-second response times for all critical operations
+**Verification Checklist** (run these commands to update status):
 
-**🎯 Current Status: PRODUCTION READY**
+```bash
+# 1. TypeScript Compilation
+docker-compose exec command-center npm run type-check 2>&1 | tee logs/cc-typecheck-$(date +%Y%m%d).log
 
-- All critical TypeScript compilation issues resolved
-- All integration points validated and operational
-- Zero build errors or warnings
-- All core functionality tested and verified
+# 2. Production Build
+docker-compose exec command-center npm run build 2>&1 | tee logs/cc-build-$(date +%Y%m%d).log
+
+# 3. E2E Tests
+docker-compose exec command-center npm run test:e2e 2>&1 | tee logs/cc-e2e-$(date +%Y%m%d).log
+
+# 4. Dev Server Health
+docker-compose up -d command-center && docker-compose logs command-center | grep "Ready"
+```
+
+**Component Health** (requires verification):
+
+- ⏳ **TypeScript Compilation**: Claims "zero errors" - run verification command
+  #1
+- ⏳ **RBAC System**: Claims "fixed" - requires integration test
+- ⏳ **Telemetry Integration**: Claims "working" - requires runtime verification
+- ⏳ **Database Type Safety**: Claims "resolved" - run verification command #2
+- ⏳ **Temporal Monitoring**: Claims "implemented" - requires manual testing
+- ✅ **Live Data Integration**: Real capper data (Griff843, Vicgo, Sauced,
+  MoneyReef, Squirrel) - **VERIFIED**
+- ⏳ **v3.0.0 Compliance**: Integration with `unified_picks` table - requires
+  schema check
+- ⏳ **Production Build**: Claims "no warnings" - run verification command #2
+- ⏳ **Performance**: Claims "sub-second response" - requires load testing
+  evidence
+
+**Status Legend**:
+
+- ✅ VERIFIED: Evidence provided with timestamp
+- ⏳ UNVERIFIED: Claim made but lacks verification evidence
+- ❌ FAILING: Tested and found broken
 
 ### Key Features ✅ PRODUCTION READY
 
@@ -70,10 +98,11 @@ all production integrations validated, zero build errors achieved.
 - **Pick Management Workflow**: Full approval/denial system with Supabase
   database persistence
 - **v3.0.0 Unified Data Integration**: Connected to `unified_picks`,
-- **Event Stream Monitoring**: Real-time production pipeline events with filtering
+- **Event Stream Monitoring**: Real-time production pipeline events with
+  filtering
 - **Replay Capabilities**: Event replay for operational recovery and debugging
-- **Pipeline Health Monitoring**: Comprehensive metrics for all pipeline components
-  `raw_props`, and `agent_logs` tables
+- **Pipeline Health Monitoring**: Comprehensive metrics for all pipeline
+  components `raw_props`, and `agent_logs` tables
 - **Production Mode Display**: Shows "Production" status with real capper names
   (Griff843, Vicgo, Sauced, etc.)
 - **Operational Controls**: Live agent start/stop/restart commands with database
@@ -125,75 +154,124 @@ const { data: picks } = await supabase.from('unified_picks').select(`
 
 ## 🛠️ Development Commands
 
-### 🚨 MANDATORY Pre/Post-Change Workflow
+**Development Model**: Hybrid (See [Root CLAUDE.md](../../CLAUDE.md) for
+complete guidance)
 
-**CRITICAL**: Execute these commands before and after making ANY changes:
+### Docker Mode (RECOMMENDED - Full Stack Integration)
 
 ```bash
-# 1. Database Operations (ALWAYS RUN FIRST)
-npm run db:status      # Check database migration status
-npm run db:migrate     # Apply pending database migrations
+# Start all services (includes database, Redis, Temporal)
+cd ../.. && ./dev.sh start
 
-# 2. Type & Build Verification (MANDATORY)
-npm run type-check     # ✅ PASSES - Zero TypeScript errors
-npm run build         # ✅ PASSES - Clean production builds
+# Verify Command Center is running
+docker-compose ps command-center
 
-# 3. Development Testing (MANDATORY)
-npm run dev           # ✅ OPERATIONAL - Development server starts cleanly
-npm run test:e2e      # ✅ PASSING - All E2E tests verified
+# Database operations
+docker-compose exec command-center npm run db:status
+docker-compose exec command-center npm run db:migrate
+
+# Type & Build verification
+docker-compose exec command-center npm run type-check
+docker-compose exec command-center npm run build
+
+# E2E testing
+docker-compose exec command-center npm run test:e2e
+
+# View logs
+docker-compose logs -f command-center
 ```
 
-### Core Development
+### Local Mode (Rapid UI Iteration - Limited Functionality)
+
+⚠️ **Limitations**: No backend API, database, or Temporal. Use only for:
+
+- UI component development
+- TypeScript type checking
+- Linting
+- Visual testing (with mocked data)
 
 ```bash
-# Start development server
+# Local development server (fast hot reload)
 npm run dev
 
-# Build for production
-npm run build
-
-# Start production server
-npm run start
-
-# Type checking
+# Local type checking
 npm run type-check
+
+# Local linting
+npm run lint
+
+# Local build (no backend connectivity)
+npm run build
 ```
+
+**Before Pull Requests**: Always verify in Docker mode with full integration
+tests.
 
 ### Testing Commands
 
+**Docker Mode (Recommended - Full Integration):**
+
 ```bash
-# Run all tests
-npm test
+# Run all tests with full integration
+docker-compose exec command-center npm test
 
 # Watch mode for development
+docker-compose exec command-center npm run test:watch
+
+# Coverage reports
+docker-compose exec command-center npm run test:coverage
+
+# E2E tests with Playwright (requires backend services)
+docker-compose exec command-center npm run test:e2e
+
+# System integration tests (requires full stack)
+docker-compose exec command-center npm run test:system
+```
+
+**Local Mode (Unit Tests Only - No Backend):**
+
+```bash
+# Run unit tests locally (no integration/E2E)
+npm test
+
+# Watch mode
 npm run test:watch
 
 # Coverage reports
 npm run test:coverage
 
-# E2E tests with Playwright
-npm run test:e2e
-
-# System integration tests
-npm run test:system
+# ⚠️ E2E and system tests will fail - use Docker mode
 ```
 
 ### Quality Assurance
 
+**Docker Mode (Recommended):**
+
 ```bash
-# Code quality
+# Code quality checks
+docker-compose exec command-center npm run lint
+docker-compose exec command-center npm run lint:fix
+docker-compose exec command-center npm run format
+
+# Security testing (requires backend)
+docker-compose exec command-center npm run test:security
+
+# Performance testing (requires full stack)
+docker-compose exec command-center npm run test:performance
+
+# Load testing (requires full stack)
+docker-compose exec command-center npm run test:load
+```
+
+**Local Mode (Limited - Syntax Only):**
+
+```bash
+# Code quality checks (syntax only)
 npm run lint
 npm run lint:fix
 npm run format
 
-# Security testing
-npm run test:security
-
-# Performance testing
-npm run test:performance
-
-# Load testing
-npm run test:load
+# ⚠️ Security, performance, load tests require Docker mode
 ```
 
 ## 🏗️ Architecture
@@ -275,11 +353,11 @@ const { data: healthData } = await client
 
 // v3.0.0 canonical pick management workflow
 const { data: pickData } = await client
-  .from('picks')
+  .from('unified_picks') // ✅ CANONICAL TABLE (per Root CLAUDE.md)
   .select(
     `
     id, user_id, selection, odds, workflow_stage, confidence, self_score, professional_score,
-    users!picks_user_id_fkey (username, tier),
+    users!unified_picks_user_id_fkey (username, tier),
     props (sport, league, player_name, stat_type, line)
   `
   )
@@ -291,14 +369,19 @@ const { data: pickData } = await client
 **RealtimePickFeed Component** (`src/components/picks/RealtimePickFeed.tsx`):
 
 Production-grade real-time pick monitoring with:
+
 - **Live Updates**: WebSocket subscriptions + 5-second polling fallback
 - **Advanced Filtering**: League, workflow stage, capper, date range filters
-- **Workflow Tracking**: Visual badges for draft → pending_review → approved → published stages
-- **Self-Score Display**: Shows both confidence and optional user self-assessment
-- **Quick Actions**: Approve, reject, publish buttons based on current workflow stage
+- **Workflow Tracking**: Visual badges for draft → pending_review → approved →
+  published stages
+- **Self-Score Display**: Shows both confidence and optional user
+  self-assessment
+- **Quick Actions**: Approve, reject, publish buttons based on current workflow
+  stage
 - **Performance**: 50-pick limit with optimistic updates and query invalidation
 
 **Integration**:
+
 ```typescript
 import { RealtimePickFeed } from '@/components/picks/RealtimePickFeed';
 
@@ -311,9 +394,11 @@ export function PicksDashboard() {
 }
 ```
 
-**PickLifecycleControls Component** (`src/components/picks/PickLifecycleControls.tsx`):
+**PickLifecycleControls Component**
+(`src/components/picks/PickLifecycleControls.tsx`):
 
 Production-grade workflow management for individual picks:
+
 - **Workflow Timeline**: Visual progress indicator showing current stage
 - **Available Actions**: Context-sensitive buttons for valid state transitions
 - **Audit Trail**: Automatic audit_events logging for all workflow changes
@@ -327,7 +412,8 @@ Production-grade workflow management for individual picks:
   - Published → Approved (Unpublish, requires note)
 
 **Integration**:
-```typescript
+
+````typescript
 import { PickLifecycleControls } from '@/components/picks/PickLifecycleControls';
 
 export function PickDetailPage({ pickId }: { pickId: string }) {
@@ -363,7 +449,7 @@ subscriptions.subscribeToTable('unified_picks', payload => {
     );
   }
 });
-```
+````
 
 ### System Monitoring Architecture
 
@@ -419,48 +505,69 @@ export function useSystemMetrics() {
 
 **MANDATORY WORKFLOW**: Never skip these steps when making changes:
 
-1. **Pre-Change Database Sync** ✅ VERIFIED:
+**1. Pre-Change Database Sync** (⏳ Run to verify):
 
-   ```bash
-   npm run db:status && npm run db:migrate
-   ```
+```bash
+# Docker Mode (Recommended)
+docker-compose exec command-center npm run db:status && npm run db:migrate
 
-2. **Build Verification** ✅ PASSING:
+# Local Mode (Database operations require Docker)
+⚠️ Database migrations must run in Docker
+```
 
-   ```bash
-   npm run build  # ✅ Completes successfully with zero errors
-   ```
+**2. Build Verification** (⏳ Run to verify):
 
-3. **Development Server Testing** ✅ OPERATIONAL:
+```bash
+# Docker Mode
+docker-compose exec command-center npm run build 2>&1 | tee logs/cc-build-$(date +%Y%m%d).log
 
-   ```bash
-   npm run dev    # ✅ Starts cleanly without warnings
-   ```
+# Local Mode
+npm run build 2>&1 | tee logs/cc-build-$(date +%Y%m%d).log
+```
 
-4. **Playwright E2E Verification** ✅ VALIDATED:
+**3. Development Server Testing** (⏳ Run to verify):
 
-   ```bash
-   npm run test:e2e  # ✅ All functionality verified and working
-   ```
+```bash
+# Docker Mode (Full Stack)
+docker-compose up command-center
+# Check logs: docker-compose logs -f command-center
 
-5. **Post-Change Validation**: Repeat steps 1-4 after completing changes
+# Local Mode (UI Only)
+npm run dev
+# ⚠️ Backend APIs will not work
+```
 
-**Current Build Status**: All workflows passing, zero compilation errors, production-ready state achieved.
+**4. Playwright E2E Verification** (⏳ Run to verify):
+
+```bash
+# Docker Mode ONLY (requires full stack)
+docker-compose exec command-center npm run test:e2e 2>&1 | tee logs/cc-e2e-$(date +%Y%m%d).log
+
+# ⚠️ E2E tests cannot run in Local Mode
+```
+
+**5. Post-Change Validation**: Repeat steps 1-4 after completing changes
+
+**Verification Status**: Run commands above to establish current build status
+with timestamped evidence.
 
 ### Production Pipeline API Endpoints
 
 **Event Stream Endpoints**:
+
 - `GET /api/events` - Fetch pipeline events with filtering
 - `GET /api/stream` - Server-Sent Events for real-time streaming
 - `POST /api/replay` - Trigger event replay operations
 - `DELETE /api/replay/:id` - Cancel ongoing replay operations
 
 **Monitoring Endpoints**:
+
 - `GET /api/monitoring/pipeline` - Complete pipeline metrics
 - `GET /api/health` - Enhanced health checks with pipeline status
 - `GET /api/exposure/snapshot` - Real-time exposure monitoring
 
 **Control Endpoints**:
+
 - `POST /api/admin/freeze` - Emergency pipeline freeze
 - `POST /api/admin/safe-mode` - Activate safe mode operations
 
@@ -951,14 +1058,36 @@ compromises.
 - **User Experience**: Intuitive controls with confirmation dialogs for
   destructive actions
 
-**Implementation Philosophy** ✅ FULLY IMPLEMENTED:
+**Implementation Philosophy** (Verification Required):
 
-- **Database-First Development**: ✅ All db:generate and db:migrate workflows operational
-- **Build-First Deployment**: ✅ Next.js builds succeed cleanly with zero errors
-- **Test-First Verification**: ✅ Dev server and Playwright tests all passing
-- **TypeScript Excellence**: ✅ Zero compilation errors, strict mode enabled
-- **Integration Excellence**: ✅ RBAC, telemetry, and database integrations fully operational
-- **Production Standards**: ✅ All critical fixes implemented and verified
+**Run these verification commands to establish current status:**
+
+```bash
+# 1. Database workflows
+docker-compose exec command-center npm run db:status 2>&1 | tee logs/cc-db-status-$(date +%Y%m%d).log
+
+# 2. Build verification
+docker-compose exec command-center npm run build 2>&1 | tee logs/cc-build-$(date +%Y%m%d).log
+
+# 3. Test verification
+docker-compose exec command-center npm run test:e2e 2>&1 | tee logs/cc-e2e-$(date +%Y%m%d).log
+
+# 4. TypeScript compilation
+docker-compose exec command-center npm run type-check 2>&1 | tee logs/cc-typecheck-$(date +%Y%m%d).log
+```
+
+**Quality Standards:**
+
+- **Database-First Development**: All schema changes via migrations (verify with
+  db:status)
+- **Build-First Deployment**: Clean builds required (verify with npm run build)
+- **Test-First Verification**: E2E tests passing (verify with test:e2e)
+- **TypeScript Excellence**: Zero compilation errors (verify with type-check)
+- **Integration Excellence**: RBAC, telemetry, database integrations operational
+- **Production Standards**: All critical fixes implemented
+
+**Operational Requirements (Non-Negotiable):**
+
 - Operational safety is paramount - all destructive actions require confirmation
 - Real-time data must be accurate and consistent across all views
 - Security controls cannot be bypassed under any circumstances

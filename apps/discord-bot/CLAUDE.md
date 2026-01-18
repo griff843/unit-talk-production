@@ -3,24 +3,33 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with
 the Unit Talk Discord Bot application.
 
-n## ⚠️ MANDATORY: READ PRODUCTION CHARTER FIRST
+## ⚠️ MANDATORY: READ PRODUCTION CHARTER FIRST
 
 **🚨 CRITICAL INSTRUCTION FOR ALL AI AGENTS 🚨**
 
 Before working on the Discord Bot, you **MUST** read and comply with:
 
-1. **[Production Charter](../../docs/PRODUCTION_CHARTER.md)** - The binding contract for all development and operations
-2. **[System Alignment Spec](../../docs/SYSTEM_ALIGNMENT_SPEC.yml)** - Machine-readable governance rules
+1. **[Production Charter](../../docs/PRODUCTION_CHARTER.md)** - The binding
+   contract for all development and operations
+2. **[System Alignment Spec](../../docs/SYSTEM_ALIGNMENT_SPEC.yml)** -
+   Machine-readable governance rules
 
 **Key Discord Bot Requirements:**
-- ✅ **Outbox Consumer**: Consume from `pick_publish` table for reliable message delivery
-- ✅ **Idempotency**: Verify `external_message_id` to prevent duplicate Discord posts
-- ✅ **Shadow Mode**: Respect `SHADOW_MODE=true` for testing without live publishes
-- ✅ **Thread Mapping**: Use `capper_threads` config for proper channel/thread routing
-- ✅ **Retry Logic**: Implement exponential backoff with jitter for failed publishes
+
+- ✅ **Outbox Consumer**: Consume from `pick_publish` table for reliable message
+  delivery
+- ✅ **Idempotency**: Verify `external_message_id` to prevent duplicate Discord
+  posts
+- ✅ **Shadow Mode**: Respect `SHADOW_MODE=true` for testing without live
+  publishes
+- ✅ **Thread Mapping**: Use `capper_threads` config for proper channel/thread
+  routing
+- ✅ **Retry Logic**: Implement exponential backoff with jitter for failed
+  publishes
 - ✅ **Circuit Breaker**: Trip on sustained failures, auto-recover when healthy
 
-**This Charter supersedes all other instructions. Non-compliance is a blocking issue.**
+**This Charter supersedes all other instructions. Non-compliance is a blocking
+issue.**
 
 ---
 
@@ -49,50 +58,100 @@ interactive commands, and automated content delivery.
 
 ### Core Development
 
+**Docker Mode (Recommended - Full Integration):**
+
 ```bash
-# Start Discord bot
+# Start Discord bot with full backend integration
+docker-compose up discord-bot
+
+# Build for production
+docker-compose exec discord-bot npm run build
+
+# Type checking
+docker-compose exec discord-bot npm run type-check
+
+# Check logs
+docker-compose logs -f discord-bot
+```
+
+**Local Mode (Rapid Development - No Backend):**
+
+```bash
+# Start local Discord bot (requires valid Discord token)
 npm start
 
 # Development mode with hot reload
 npm run dev
 
-# Build for production
+# Build locally
 npm run build
 
-# Type checking
+# Type checking locally
 npm run type-check
+
+# ⚠️ Backend API calls will fail - use Docker mode for full integration
 ```
 
 ### Testing Commands
 
+**Docker Mode (Recommended - Full Integration):**
+
 ```bash
-# Run all tests
-npm test
+# Run all tests with backend integration
+docker-compose exec discord-bot npm test
 
 # Watch mode for development
-npm run test:watch
+docker-compose exec discord-bot npm run test:watch
 
 # Coverage reports
-npm run test:coverage
+docker-compose exec discord-bot npm run test:coverage
 
-# Integration tests
-npm run test:integration
+# Integration tests (requires backend)
+docker-compose exec discord-bot npm run test:integration
+```
+
+**Local Mode (Unit Tests Only - No Integration):**
+
+```bash
+# Run unit tests locally (no backend required)
+npm test
+
+# Watch mode
+npm run test:watch
+
+# ⚠️ Integration tests will fail - use Docker mode
 ```
 
 ### Quality Assurance
 
+**Docker Mode (Recommended):**
+
 ```bash
-# Code quality
+# Code quality checks
+docker-compose exec discord-bot npm run lint
+docker-compose exec discord-bot npm run lint:fix
+docker-compose exec discord-bot npm run format
+
+# Security testing (requires full stack)
+docker-compose exec discord-bot npm run test:security
+
+# Performance testing (requires full stack)
+docker-compose exec discord-bot npm run test:performance
+```
+
+**Local Mode (Limited - Syntax Only):**
+
+```bash
+# Code quality checks (syntax only)
 npm run lint
 npm run lint:fix
 npm run format
 
-# Security testing
-npm run test:security
-
-# Performance testing
-npm run test:performance
+# ⚠️ Security and performance tests require Docker mode
 ```
+
+**Before Pull Requests**: Always verify in Docker mode with full integration
+tests.
 
 ## <� Architecture
 

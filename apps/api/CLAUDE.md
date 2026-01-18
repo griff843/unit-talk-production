@@ -9,18 +9,29 @@ the Unit Talk Platform API application.
 
 Before working on the API, you **MUST** read and comply with:
 
-1. **[Production Charter](../../docs/PRODUCTION_CHARTER.md)** - The binding contract for all development and operations
-2. **[System Alignment Spec](../../docs/SYSTEM_ALIGNMENT_SPEC.yml)** - Machine-readable governance rules
+1. **[Production Charter](../../docs/PRODUCTION_CHARTER.md)** - The binding
+   contract for all development and operations
+2. **[System Alignment Spec](../../docs/SYSTEM_ALIGNMENT_SPEC.yml)** -
+   Machine-readable governance rules
 
 **Key API-Specific Requirements:**
-- ✅ **Canonical-first**: Use `picks` + `pick_publish` tables (not `unified_picks`)
+
+- ✅ **Canonical-first**: Use `unified_picks` table (authoritative per Root
+  CLAUDE.md)
+  - **Note**: Production Charter references `picks` + `pick_publish`. See
+    [DOCUMENTATION_AUTHORITY.md](../../docs/ops/DOCUMENTATION_AUTHORITY.md) for
+    conflict resolution.
+  - **Resolution**: Root CLAUDE.md declares `unified_picks` as canonical
+    (updated 2026-01-18)
 - ✅ **Driver probe on boot**: PicksDriverFactory validates schema visibility
 - ✅ **Self-healing**: Auto-retry writes after PostgREST reload
-- ✅ **Preflight endpoint**: `/api/domain/picks/preflight` must return `ok: true`
+- ✅ **Preflight endpoint**: `/api/domain/picks/preflight` must return
+  `ok: true`
 - ✅ **Health endpoint**: `/api/health` includes driver status and pgrest state
 - ✅ **SLO compliance**: API p95 < 150ms, DB p95 < 50ms, Error rate < 0.5%
 
-**This Charter supersedes all other instructions. Non-compliance is a blocking issue.**
+**This Charter supersedes all other instructions. Non-compliance is a blocking
+issue.**
 
 ---
 
@@ -33,18 +44,28 @@ integration with a sophisticated agent-based automation system.
 
 ### 🚀 **Professional Grading System v2025.07.31**
 
-**NEW: 8 Professional Capper Features** - Industry-leading betting intelligence with institutional-grade analytics:
+**NEW: 8 Professional Capper Features** - Industry-leading betting intelligence
+with institutional-grade analytics:
 
-1. **Steam Detection** 🔥 - Real-time steam move detection with volume correlation
-2. **Closing Line Prediction** 📈 - ML-powered line closure forecasting  
+1. **Steam Detection** 🔥 - Real-time steam move detection with volume
+   correlation
+2. **Closing Line Prediction** 📈 - ML-powered line closure forecasting
 3. **Optimal Timing** ⏰ - Hour-to-game edge calculation for maximum value
-4. **Line Shopping Edge** 🛒 - Multi-book best line identification across 15+ sportsbooks
-5. **Public vs Sharp Split** 👥 - Contrarian opportunity detection through betting analysis
+4. **Line Shopping Edge** 🛒 - Multi-book best line identification across 15+
+   sportsbooks
+5. **Public vs Sharp Split** 👥 - Contrarian opportunity detection through
+   betting analysis
 6. **Market Timing Advantage** 📊 - Time-decay edge modeling for optimal entry
 7. **Injury Timing Edge** 🏥 - News break vs line adjustment timing analysis
 8. **Cross Market Discrepancy** 🔄 - Related prop arbitrage detection
 
-**Validation Status**: ✅ **27/27 tests passed (100%)** - Production ready with peak performance of 1,500+ props/hour processing.
+**Validation Status**: ⏳ **REQUIRES VERIFICATION** (Last test run: Not
+documented)
+
+- **Claim**: "27/27 tests passed (100%)"
+- **Verification Command**:
+  `docker-compose exec api npm run test 2>&1 | tee logs/grading-tests-$(date +%Y%m%d).log`
+- **Performance Claim**: "1,500+ props/hour" - requires load testing evidence
 
 ### Key Components
 
@@ -58,27 +79,55 @@ integration with a sophisticated agent-based automation system.
   settlement automation
 - **Discord Integration**: Thread-based discussions, automated alerts, and VIP+
   features
-- **BridgeWorker**: Dual-source event consumption from bridge_outbox and events tables
+- **BridgeWorker**: Dual-source event consumption from bridge_outbox and events
+  tables
 - **Production Pipeline**: Event-driven architecture with idempotent processing
 
 ## =� Development Commands
 
-### Core Development
+**Development Model**: Hybrid (See [Root CLAUDE.md](../../CLAUDE.md) for full
+guidance)
+
+### Docker Mode (RECOMMENDED - Full Integration)
 
 ```bash
-# Development server with hot reload
-npm run start:dev
+# Start all services (API + Database + Redis + Temporal)
+cd ../.. && ./dev.sh start
 
-# Temporal worker with hot reload
-npm run worker:dev
+# Development server in Docker
+docker-compose exec api npm run start:dev
+
+# Temporal worker in Docker
+docker-compose exec api npm run worker:dev
 
 # Build for production
-npm run build
+docker-compose exec api npm run build
 
 # Type checking
+docker-compose exec api npm run type-check
+```
+
+### Local Mode (Rapid Iteration - Limited Functionality)
+
+⚠️ **Limitations**: No database, Redis, or Temporal. Use only for:
+
+- TypeScript type checking
+- Linting
+- Unit tests (mocked dependencies)
+
+```bash
+# Local type checking (fast)
 npm run type-check
 npm run type-check:watch
+
+# Local linting (fast)
+npm run lint
+
+# Local unit tests (no DB required)
+npm run test:unit
 ```
+
+**Before Pull Requests**: Always switch to Docker mode and run full test suite.
 
 ### Testing Commands
 
@@ -496,9 +545,11 @@ for complete documentation.
 ## 🚀 Production Pipeline Architecture
 
 ### BridgeWorker
+
 The BridgeWorker provides reliable event consumption and processing:
 
 **Core Features**:
+
 - Dual-source consumption: `events` table and `bridge_outbox` table
 - Exponential backoff retry logic (1min, 5min, 15min intervals)
 - Idempotent processing keyed by `bet_slip_id`
@@ -506,16 +557,18 @@ The BridgeWorker provides reliable event consumption and processing:
 - Batch processing with configurable size limits
 
 **Configuration**:
+
 ```typescript
 // Environment variables
-BRIDGE_OUTBOX_POLL_INTERVAL=10000  // 10 seconds
-BRIDGE_OUTBOX_BATCH_SIZE=10        // Process 10 events per batch
-ENABLE_BRIDGE_OUTBOX=true          // Enable outbox processing
+BRIDGE_OUTBOX_POLL_INTERVAL = 10000; // 10 seconds
+BRIDGE_OUTBOX_BATCH_SIZE = 10; // Process 10 events per batch
+ENABLE_BRIDGE_OUTBOX = true; // Enable outbox processing
 ```
 
 ### Temporal Workflows
 
 **EventDrivenGradingWorkflow**:
+
 - Idempotent grading with individual leg processing
 - Professional grading features (8 advanced metrics)
 - Circuit breaker protection for external APIs
@@ -523,6 +576,7 @@ ENABLE_BRIDGE_OUTBOX=true          // Enable outbox processing
 - Activity timeout configuration
 
 **Key Activities**:
+
 - `validateEventData` - Input validation and sanitization
 - `processIndividualLeg` - Granular leg-level grading
 - `applyProfessionalGrading` - Advanced feature calculation
@@ -531,6 +585,7 @@ ENABLE_BRIDGE_OUTBOX=true          // Enable outbox processing
 ### AlertAgent Event Subscriptions
 
 **Event-Driven Monitoring**:
+
 - Real-time Supabase subscriptions to critical tables
 - Injury detection with immediate Discord notifications
 - Hedge opportunity identification
@@ -538,15 +593,19 @@ ENABLE_BRIDGE_OUTBOX=true          // Enable outbox processing
 - Settlement tracking and notifications
 
 **Subscription Patterns**:
+
 ```typescript
 // Subscribe to bridge outbox completions
-supabase.channel('bridge_outbox')
-  .on('postgres_changes', {
+supabase.channel('bridge_outbox').on(
+  'postgres_changes',
+  {
     event: 'UPDATE',
     schema: 'public',
     table: 'bridge_outbox',
-    filter: 'status=eq.processed'
-  }, handler)
+    filter: 'status=eq.processed',
+  },
+  handler
+);
 ```
 
 ## <� Excellence Standards
