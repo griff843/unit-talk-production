@@ -243,3 +243,50 @@ bower_components/
 .rts2_cache_es/
 .rts2_cache_umd/
 .wireit/
+
+# Phase artifacts and temp development files
+# ==========================================
+PHASE*.md
+PHASE*.txt
+PHASE*.json
+*_SUMMARY.md
+*_PROOF_*.md
+*_FINAL*.md
+*_COMPLETE*.md
+*_REPORT*.md
+APPLY_MIGRATIONS*.sql
+GO_NO_GO*.md
+CANARY_*.md
+LIVE_FIRE*.md
+smoke-pack*.txt
+canary*.txt
+pgrst_reload_result.json
+temp_token.txt
+nul
+
+# Root-level temp scripts and SQL (keep scripts/ and supabase/migrations/)
+/*.ps1
+/*.sql
+/check-*.js
+/verify-*.js
+/test-*.js
+/apply-*.py
+
+# Generated TypeScript output (outside dist/)
+config/*.d.ts
+config/*.js
+config/*.js.map
+config/*.d.ts.map
+apps/shared/lib/*.d.ts
+apps/shared/lib/*.js
+apps/shared/lib/*.js.map
+apps/shared/lib/*.d.ts.map
+packages/shared-utils/src/*.d.ts
+packages/shared-utils/src/*.js
+packages/shared-utils/src/*.js.map
+packages/shared-utils/src/*.d.ts.map
+
+# App-specific temp outputs
+apps/*/type-check-output.txt
+apps/*/smoke-*.txt
+apps/command-center/tests/screenshots/
