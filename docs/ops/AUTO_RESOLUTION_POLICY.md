@@ -186,8 +186,20 @@ through the standard PR → Review → Merge → Deploy pipeline.
 
 ---
 
+## Implementation
+
+The CI Failure Resolver workflow implements this policy:
+
+- **Workflow**: `.github/workflows/ci-failure-resolver.yml`
+- **Labels Bootstrap**: `scripts/ops/bootstrap-github-labels.ts`
+- **Guide**: [CI_FAILURE_RESOLVER_GUIDE.md](./CI_FAILURE_RESOLVER_GUIDE.md)
+
+---
+
 ## Related Documents
 
+- [CI_FAILURE_RESOLVER_GUIDE.md](./CI_FAILURE_RESOLVER_GUIDE.md) - Setup and
+  usage
 - [CI_FAILURE_CLASSIFICATION.md](./CI_FAILURE_CLASSIFICATION.md)
 - [FORBIDDEN_ACTIONS.md](./FORBIDDEN_ACTIONS.md)
 - [AUTOPILOT_FREEZE_MATRIX.md](./AUTOPILOT_FREEZE_MATRIX.md)
