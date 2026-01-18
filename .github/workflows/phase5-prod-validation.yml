@@ -293,6 +293,12 @@ jobs:
 
           echo "PROD environment configured"
 
+      - name: Build Smart Form for dev server
+        working-directory: apps/smart-form
+        run: |
+          echo "Building Smart Form..."
+          npm run build
+
       - name: Start Smart Form server
         working-directory: apps/smart-form
         run: |
