@@ -45,9 +45,38 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Configure npm for CI
+        run: |
+          npm config set fund false
+          npm config set audit false
+          npm config set progress false
+          npm config set prefer-offline true
+          npm config set fetch-retries 5
+          npm config set fetch-retry-mintimeout 20000
+          npm config set fetch-retry-maxtimeout 120000
+          npm config set registry https://registry.npmjs.org/
+          echo "npm config updated for deterministic CI builds"
 
       - name: Install dependencies (monorepo root)
-        run: npm ci
+        run: |
+          echo "::group::Install dependencies"
+          echo "Started: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          SECONDS=0
+
+          npm ci --no-audit --no-fund --progress=false || {
+            echo "::error::npm ci failed after ${SECONDS}s"
+            echo "::group::npm debug logs"
+            cat ~/.npm/_logs/*-debug*.log 2>/dev/null || echo "No debug logs found"
+            echo "::endgroup::"
+            exit 1
+          }
+
+          echo "Completed: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "Duration: ${SECONDS}s"
+          echo "Packages installed: $(find node_modules -maxdepth 1 -type d | wc -l)"
+          echo "::endgroup::"
 
       - name: Mask PROD secrets
         run: |
@@ -163,9 +192,38 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Configure npm for CI
+        run: |
+          npm config set fund false
+          npm config set audit false
+          npm config set progress false
+          npm config set prefer-offline true
+          npm config set fetch-retries 5
+          npm config set fetch-retry-mintimeout 20000
+          npm config set fetch-retry-maxtimeout 120000
+          npm config set registry https://registry.npmjs.org/
+          echo "npm config updated for deterministic CI builds"
 
       - name: Install dependencies (monorepo root)
-        run: npm ci
+        run: |
+          echo "::group::Install dependencies"
+          echo "Started: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          SECONDS=0
+
+          npm ci --no-audit --no-fund --progress=false || {
+            echo "::error::npm ci failed after ${SECONDS}s"
+            echo "::group::npm debug logs"
+            cat ~/.npm/_logs/*-debug*.log 2>/dev/null || echo "No debug logs found"
+            echo "::endgroup::"
+            exit 1
+          }
+
+          echo "Completed: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "Duration: ${SECONDS}s"
+          echo "Packages installed: $(find node_modules -maxdepth 1 -type d | wc -l)"
+          echo "::endgroup::"
 
       - name: Mask PROD secrets
         run: |
@@ -254,9 +312,38 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Configure npm for CI
+        run: |
+          npm config set fund false
+          npm config set audit false
+          npm config set progress false
+          npm config set prefer-offline true
+          npm config set fetch-retries 5
+          npm config set fetch-retry-mintimeout 20000
+          npm config set fetch-retry-maxtimeout 120000
+          npm config set registry https://registry.npmjs.org/
+          echo "npm config updated for deterministic CI builds"
 
       - name: Install dependencies (monorepo root)
-        run: npm ci
+        run: |
+          echo "::group::Install dependencies"
+          echo "Started: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          SECONDS=0
+
+          npm ci --no-audit --no-fund --progress=false || {
+            echo "::error::npm ci failed after ${SECONDS}s"
+            echo "::group::npm debug logs"
+            cat ~/.npm/_logs/*-debug*.log 2>/dev/null || echo "No debug logs found"
+            echo "::endgroup::"
+            exit 1
+          }
+
+          echo "Completed: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "Duration: ${SECONDS}s"
+          echo "Packages installed: $(find node_modules -maxdepth 1 -type d | wc -l)"
+          echo "::endgroup::"
 
       - name: Install Playwright browsers
         run: |
@@ -380,9 +467,38 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Configure npm for CI
+        run: |
+          npm config set fund false
+          npm config set audit false
+          npm config set progress false
+          npm config set prefer-offline true
+          npm config set fetch-retries 5
+          npm config set fetch-retry-mintimeout 20000
+          npm config set fetch-retry-maxtimeout 120000
+          npm config set registry https://registry.npmjs.org/
+          echo "npm config updated for deterministic CI builds"
 
       - name: Install dependencies (monorepo root)
-        run: npm ci
+        run: |
+          echo "::group::Install dependencies"
+          echo "Started: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          SECONDS=0
+
+          npm ci --no-audit --no-fund --progress=false || {
+            echo "::error::npm ci failed after ${SECONDS}s"
+            echo "::group::npm debug logs"
+            cat ~/.npm/_logs/*-debug*.log 2>/dev/null || echo "No debug logs found"
+            echo "::endgroup::"
+            exit 1
+          }
+
+          echo "Completed: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "Duration: ${SECONDS}s"
+          echo "Packages installed: $(find node_modules -maxdepth 1 -type d | wc -l)"
+          echo "::endgroup::"
 
       - name: Mask PROD secrets
         run: |
@@ -590,9 +706,38 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Configure npm for CI
+        run: |
+          npm config set fund false
+          npm config set audit false
+          npm config set progress false
+          npm config set prefer-offline true
+          npm config set fetch-retries 5
+          npm config set fetch-retry-mintimeout 20000
+          npm config set fetch-retry-maxtimeout 120000
+          npm config set registry https://registry.npmjs.org/
+          echo "npm config updated for deterministic CI builds"
 
       - name: Install dependencies (monorepo root)
-        run: npm ci
+        run: |
+          echo "::group::Install dependencies"
+          echo "Started: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          SECONDS=0
+
+          npm ci --no-audit --no-fund --progress=false || {
+            echo "::error::npm ci failed after ${SECONDS}s"
+            echo "::group::npm debug logs"
+            cat ~/.npm/_logs/*-debug*.log 2>/dev/null || echo "No debug logs found"
+            echo "::endgroup::"
+            exit 1
+          }
+
+          echo "Completed: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "Duration: ${SECONDS}s"
+          echo "Packages installed: $(find node_modules -maxdepth 1 -type d | wc -l)"
+          echo "::endgroup::"
 
       - name: Mask PROD secrets
         run: |
