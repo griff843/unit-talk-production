@@ -64,5 +64,6 @@ export interface WorkspaceApp {
 }
 
 export * from './agent';
+export * from './agent-control';
 export * from './api';
 export * from './database';
