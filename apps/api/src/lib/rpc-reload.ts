@@ -15,6 +15,7 @@
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+// @ts-ignore - Import from outside rootDir (shared utility)
 import { rootLogger as logger } from '../../../shared/lib/logger';
 
 // ============================================================================

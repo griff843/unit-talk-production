@@ -222,7 +222,6 @@ jobs:
                   username: 'phase5-test-user',
                   discord_id: 'phase5-test-' + Date.now(),
                   tier: validTier,
-                  status: 'active',
                   is_active: true
                 })
                 .select()

@@ -1,0 +1,43 @@
+# Dockerfile for Smart Form Monitoring Scripts
+# Date: 2025-10-25
+# Builds container for synthetic monitor, canary dry run, and cache warmers
+
+FROM node:18-alpine
+
+# Install system dependencies
+RUN apk add --no-cache \
+    curl \
+    bash \
+    git \
+    && rm -rf /var/cache/apk/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files (if needed for dependencies)
+COPY package*.json ./
+
+# Install Node.js dependencies
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy monitoring scripts
+COPY scripts/ ./
+
+# Create output directories
+RUN mkdir -p /app/out/ops/cutover/discord /app/out/ops/cutover/metrics
+
+# Create non-root user
+RUN addgroup -g 1001 -S monitor && \
+    adduser -S monitor -u 1001 && \
+    chown -R monitor:monitor /app
+
+# Switch to non-root user
+USER monitor
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "console.log('healthy')" || exit 1
+
+# Default command (can be overridden)
+CMD ["node", "synthetic-monitor.js"]
+

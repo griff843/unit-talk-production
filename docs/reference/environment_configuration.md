@@ -50,8 +50,8 @@ SUPABASE_URL=https://lxqmuzmqtnnlpfapvief.supabase.co
 SUPABASE_ANON_KEY=eyJ...
 
 # Data Provider API Keys (CRITICAL FOR MONITORING)
-OPTIMAL_API_KEY=optimalbet_LZsTNl2SGX0o9Bz9GhLurvSTQuAMQapp
-ODDS_API_KEY=8014c48eb8a05f289de049c0961ac4cf
+OPTIMAL_API_KEY=your-optimal-api-key
+ODDS_API_KEY=your-odds-api-key
 
 # Discord Bot Configuration
 DISCORD_BOT_TOKEN=MTM4NTk3NjI1...
@@ -197,10 +197,10 @@ All API keys are stored in the central `.env` file:
 # DATA PROVIDER API KEYS (CRITICAL FOR MONITORING)
 # =============================================================================
 # Optimal API - Primary player props source (NFL/NBA/MLB/NHL)
-OPTIMAL_API_KEY=optimalbet_LZsTNl2SGX0o9Bz9GhLurvSTQuAMQapp
+OPTIMAL_API_KEY=your-optimal-api-key
 
-# Odds API - NCAAF exclusive + settlement data  
-ODDS_API_KEY=8014c48eb8a05f289de049c0961ac4cf
+# Odds API - NCAAF exclusive + settlement data
+ODDS_API_KEY=your-odds-api-key
 ```
 
 ### API Key Access Patterns

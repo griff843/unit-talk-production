@@ -1,0 +1,396 @@
+name: Foundation CI/CD Pipeline
+# Phase 11A - Enhanced pipeline with integration tests, lint gates, and ArgoCD promotion
+# Target: Deploy to staging in < 20 min
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+env:
+  REGISTRY: registry.digitalocean.com/unit-talk
+  IMAGE_NAME: unit-talk-api
+  STAGING_NAMESPACE: unit-talk-staging
+  PRODUCTION_NAMESPACE: unit-talk
+
+jobs:
+  # Stage 1: Code Quality & Linting
+  lint-and-validate:
+    name: Lint & Validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+        continue-on-error: false
+
+      - name: Run Prettier
+        run: npm run format:check
+        continue-on-error: false
+
+      - name: TypeScript type check
+        run: npm run type-check
+
+      - name: Terraform validate
+        working-directory: infrastructure/doks
+        run: |
+          terraform init -backend=false
+          terraform validate
+
+      - name: Validate Kubernetes manifests
+        run: |
+          # Install kubeconform for validation
+          curl -L https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz
+          sudo mv kubeconform /usr/local/bin/
+
+          # Validate all Kubernetes YAML files
+          find infrastructure/kubernetes -name '*.yaml' -exec kubeconform {} \;
+
+  # Stage 2: Unit & Integration Tests
+  test:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: lint-and-validate
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: unit_talk_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test:unit
+        env:
+          NODE_ENV: test
+
+      - name: Run integration tests
+        run: npm run test:integration
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:test_password@localhost:5432/unit_talk_test
+          REDIS_URL: redis://localhost:6379
+
+      - name: Generate coverage report
+        run: npm run test:coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-unit-talk
+
+  # Stage 3: Build & Push Docker Image
+  build:
+    name: Build & Push Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: test
+    if: github.event_name == 'push'
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+      image_digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to DigitalOcean Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.digitalocean.com
+          username: ${{ secrets.DOCR_TOKEN }}
+          password: ${{ secrets.DOCR_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix={{branch}}-
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+          build-args: |
+            BUILD_DATE=${{ steps.meta.outputs.created }}
+            VCS_REF=${{ github.sha }}
+
+      - name: Image vulnerability scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # Stage 4: Deploy to Staging
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: build
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
+    environment:
+      name: staging
+      url: https://staging-api.unit-talk.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Save kubeconfig
+        run: doctl kubernetes cluster kubeconfig save ${{ secrets.DOKS_CLUSTER_NAME }}
+
+      - name: Install ArgoCD CLI
+        run: |
+          curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          chmod +x argocd
+          sudo mv argocd /usr/local/bin/
+
+      - name: Login to ArgoCD
+        run: |
+          argocd login ${{ secrets.ARGOCD_SERVER }} \
+            --username ${{ secrets.ARGOCD_USERNAME }} \
+            --password ${{ secrets.ARGOCD_PASSWORD }} \
+            --insecure
+
+      - name: Update image tag in ArgoCD
+        run: |
+          argocd app set unit-talk-api-staging \
+            --kustomize-image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Sync ArgoCD application
+        run: |
+          argocd app sync unit-talk-api-staging --prune --timeout 600
+
+      - name: Wait for rollout
+        run: |
+          argocd app wait unit-talk-api-staging \
+            --health \
+            --timeout 600
+
+  # Stage 5: Integration Tests on Staging
+  integration-test-staging:
+    name: E2E Tests on Staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: deploy-staging
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run E2E tests against staging
+        run: npm run test:e2e
+        env:
+          API_URL: https://staging-api.unit-talk.com
+          E2E_USERNAME: ${{ secrets.E2E_TEST_USER }}
+          E2E_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+
+      - name: Upload E2E test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: e2e-test-results
+          path: test-results/
+
+  # Stage 6: Promote to Production (Manual)
+  promote-production:
+    name: Promote to Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: integration-test-staging
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://api.unit-talk.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Save kubeconfig
+        run: doctl kubernetes cluster kubeconfig save ${{ secrets.DOKS_CLUSTER_NAME }}
+
+      - name: Install ArgoCD CLI
+        run: |
+          curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          chmod +x argocd
+          sudo mv argocd /usr/local/bin/
+
+      - name: Login to ArgoCD
+        run: |
+          argocd login ${{ secrets.ARGOCD_SERVER }} \
+            --username ${{ secrets.ARGOCD_USERNAME }} \
+            --password ${{ secrets.ARGOCD_PASSWORD }} \
+            --insecure
+
+      - name: Blue-Green Deployment - Update Green
+        run: |
+          # Update green deployment with new image
+          argocd app set unit-talk-api-green \
+            --kustomize-image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+          argocd app sync unit-talk-api-green --prune --timeout 600
+          argocd app wait unit-talk-api-green --health --timeout 600
+
+      - name: Run smoke tests on green
+        run: |
+          # Run smoke tests against green deployment
+          curl -f https://api-green.unit-talk.com/health || exit 1
+
+      - name: Switch traffic to green (canary 10%)
+        run: |
+          kubectl patch ingress unit-talk-api-ingress-canary \
+            -n ${{ env.PRODUCTION_NAMESPACE }} \
+            -p '{"metadata":{"annotations":{"nginx.ingress.kubernetes.io/canary-weight":"10"}}}'
+
+      - name: Monitor canary metrics (5 min)
+        run: |
+          sleep 300
+          # Query Prometheus for error rates and latency
+          # If metrics look good, proceed; otherwise, rollback
+
+      - name: Full traffic cutover to green
+        run: |
+          kubectl patch ingress unit-talk-api-ingress-canary \
+            -n ${{ env.PRODUCTION_NAMESPACE }} \
+            -p '{"metadata":{"annotations":{"nginx.ingress.kubernetes.io/canary-weight":"100"}}}'
+
+      - name: Swap blue and green labels
+        run: |
+          # Swap the stable traffic to the new deployment
+          kubectl patch ingress unit-talk-api-ingress \
+            -n ${{ env.PRODUCTION_NAMESPACE }} \
+            -p '{"spec":{"rules":[{"host":"api.unit-talk.com","http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"unit-talk-api-green","port":{"number":80}}}}]}}]}}'
+
+  # Stage 7: Post-Deployment Verification
+  verify-production:
+    name: Verify Production Deployment
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: promote-production
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Health check
+        run: |
+          curl -f https://api.unit-talk.com/health || exit 1
+
+      - name: Verify SLO metrics
+        run: |
+          # Query Prometheus to verify SLOs are met
+          # p95 latency < 150ms, error rate < 0.5%, DB latency < 50ms
+          echo "Verifying SLO compliance..."
+          # TODO: Add Prometheus queries via API
+
+      - name: Notify deployment success
+        uses: 8398a7/action-slack@v3
+        if: success()
+        with:
+          status: ${{ job.status }}
+          text: 'Production deployment successful: ${{ github.sha }}'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Notify deployment failure
+        uses: 8398a7/action-slack@v3
+        if: failure()
+        with:
+          status: ${{ job.status }}
+          text: 'Production deployment failed: ${{ github.sha }}'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}

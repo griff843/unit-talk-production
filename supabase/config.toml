@@ -1,0 +1,85 @@
+# Supabase CLI Configuration
+# Documentation: https://supabase.com/docs/guides/cli/config
+
+# This file configures the Supabase CLI for local development and CI/CD
+# DO NOT commit actual project_id - use environment variable SUPABASE_PROJECT_REF
+
+[api]
+# Enable REST API
+enabled = true
+port = 54321
+# Extra search path for schemas
+schemas = ["public", "storage"]
+# Max rows returned by PostgREST
+max_rows = 1000
+# Enable OpenAPI documentation
+openapi_mode = "ignore_routes"
+
+[db]
+# Database port
+port = 54322
+# Shadow database port (for migrations)
+shadow_port = 54320
+# Major version of PostgreSQL
+major_version = 15
+
+[realtime]
+# Enable Realtime API
+enabled = true
+port = 54323
+
+[studio]
+# Enable Supabase Studio (web UI)
+enabled = true
+port = 54324
+# Open browser on start
+# open_browser = false
+
+[inbucket]
+# Email testing (local only)
+enabled = true
+port = 54325
+smtp_port = 54326
+pop3_port = 54327
+
+[storage]
+# Enable Storage API
+enabled = true
+port = 54328
+file_size_limit = "50MiB"
+
+[auth]
+# Enable Auth API
+enabled = true
+port = 54329
+# Site URL for redirects
+site_url = "http://localhost:3000"
+# Additional redirect URLs (comma-separated)
+additional_redirect_urls = ["http://localhost:3000"]
+# JWT expiry
+jwt_expiry = 3600
+# Enable anonymous sign-ins
+enable_signup = true
+
+[auth.email]
+# Enable email auth
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+# ============================================================================
+# EXPERIMENTAL FEATURES
+# ============================================================================
+
+[experimental]
+# Enable experimental features
+# orioledb_version = ""
+
+# ============================================================================
+# NOTES
+# ============================================================================
+# 1. To link to a remote project: supabase link --project-ref $SUPABASE_PROJECT_REF
+# 2. The project_id is NOT stored here for security - use env var instead
+# 3. Local services run on ports 54321-54329 to avoid conflicts
+# 4. Migrations are automatically applied from supabase/migrations/ folder
+# 5. Use `supabase db push` to apply local migrations to remote project

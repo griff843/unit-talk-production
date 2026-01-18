@@ -94,6 +94,7 @@ export interface Pick {
   roi?: number;
   submitted_at: string;
   created_at?: string;
+  updated_at?: string;
   player_name?: string;
   line?: string;
   market_type?: string;

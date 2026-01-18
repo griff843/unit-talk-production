@@ -1,0 +1,301 @@
+name: Schema Drift Detection
+
+# Purpose: Detect unauthorized schema changes between Git migrations and Supabase
+# Fail-Closed: Pipeline fails if drift detected
+# Charter Compliance: Git as single source of truth
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+  workflow_dispatch:        # Manual trigger
+    inputs:
+      environment:
+        description: 'Target environment to check'
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+          - all
+        default: all
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ============================================================================
+  # DRIFT DETECTION - Dev Environment
+  # ============================================================================
+  detect-drift-dev:
+    name: Detect Drift (Dev)
+    runs-on: ubuntu-latest
+    if: github.event.inputs.environment == 'dev' || github.event.inputs.environment == 'all' || github.event_name == 'schedule'
+    timeout-minutes: 10
+    continue-on-error: false  # FAIL-CLOSED: Block pipeline on drift
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for migration parsing
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Mask secrets
+        run: |
+          echo "::add-mask::${{ secrets.SUPABASE_SERVICE_ROLE_KEY_DEV }}"
+
+      - name: Install dependencies
+        run: |
+          npm ci --workspace=apps/api
+
+      - name: Run drift detection
+        id: drift
+        env:
+          SUPABASE_URL_DEV: ${{ secrets.SUPABASE_URL_DEV }}
+          SUPABASE_SERVICE_ROLE_KEY_DEV: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_DEV }}
+          SUPABASE_READONLY_DATABASE_URL_DEV: ${{ secrets.SUPABASE_READONLY_DATABASE_URL_DEV }}
+        run: |
+          echo "Running schema drift detection for DEV..."
+
+          # Run drift detection (exits with 1 if drift detected)
+          npx tsx scripts/ops/detect-schema-drift.ts \
+            --env dev \
+            --report \
+            --alert \
+            --verbose
+
+      - name: Upload drift report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: drift-report-dev-${{ github.run_number }}
+          path: reports/drift-report-*.json
+          retention-days: 90  # Extended retention for audit
+
+      - name: Comment on PR (if applicable)
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🚨 **SCHEMA DRIFT DETECTED IN DEV**\n\nUnauthorized schema changes were detected. Check the workflow artifacts for the drift report.'
+            })
+
+  # ============================================================================
+  # DRIFT DETECTION - Staging Environment
+  # ============================================================================
+  detect-drift-staging:
+    name: Detect Drift (Staging)
+    runs-on: ubuntu-latest
+    if: github.event.inputs.environment == 'staging' || github.event.inputs.environment == 'all' || github.event_name == 'schedule'
+    timeout-minutes: 10
+    continue-on-error: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Mask secrets
+        run: |
+          echo "::add-mask::${{ secrets.SUPABASE_SERVICE_ROLE_KEY_STAGING }}"
+
+      - name: Install dependencies
+        run: npm ci --workspace=apps/api
+
+      - name: Run drift detection
+        env:
+          SUPABASE_URL_STAGING: ${{ secrets.SUPABASE_URL_STAGING }}
+          SUPABASE_SERVICE_ROLE_KEY_STAGING: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_STAGING }}
+          SUPABASE_READONLY_DATABASE_URL_STAGING: ${{ secrets.SUPABASE_READONLY_DATABASE_URL_STAGING }}
+        run: |
+          echo "Running schema drift detection for STAGING..."
+          npx tsx scripts/ops/detect-schema-drift.ts \
+            --env staging \
+            --report \
+            --alert \
+            --verbose
+
+      - name: Upload drift report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: drift-report-staging-${{ github.run_number }}
+          path: reports/drift-report-*.json
+          retention-days: 90
+
+  # ============================================================================
+  # DRIFT DETECTION - Production Environment
+  # ============================================================================
+  detect-drift-prod:
+    name: Detect Drift (Production)
+    runs-on: ubuntu-latest
+    if: github.event.inputs.environment == 'prod' || github.event.inputs.environment == 'all' || github.event_name == 'schedule'
+    timeout-minutes: 10
+    continue-on-error: false  # CRITICAL: Never allow prod drift
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Mask secrets
+        run: |
+          echo "::add-mask::${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}"
+
+      - name: Install dependencies
+        run: npm ci --workspace=apps/api
+
+      - name: Run drift detection
+        env:
+          SUPABASE_URL_PROD: ${{ secrets.SUPABASE_URL_PROD }}
+          SUPABASE_SERVICE_ROLE_KEY_PROD: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
+          SUPABASE_READONLY_DATABASE_URL_PROD: ${{ secrets.SUPABASE_READONLY_DATABASE_URL_PROD }}
+        run: |
+          echo "Running schema drift detection for PRODUCTION..."
+          npx tsx scripts/ops/detect-schema-drift.ts \
+            --env prod \
+            --report \
+            --alert \
+            --verbose
+
+      - name: Upload drift report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: drift-report-prod-${{ github.run_number }}
+          path: reports/drift-report-*.json
+          retention-days: 365  # 1 year retention for production
+
+      - name: Notify Discord on production drift
+        if: failure()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
+        run: |
+          STATUS="failure"
+          COLOR="15158332"  # Red color
+
+          curl -X POST "$DISCORD_WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"🚨 CRITICAL: Production Schema Drift Detected\",
+                \"description\": \"Unauthorized schema changes detected in PRODUCTION Supabase database\",
+                \"color\": $COLOR,
+                \"fields\": [
+                  {\"name\": \"Environment\", \"value\": \"PRODUCTION\", \"inline\": true},
+                  {\"name\": \"Status\", \"value\": \"DRIFT DETECTED\", \"inline\": true},
+                  {\"name\": \"Run\", \"value\": \"#${{ github.run_number }}\", \"inline\": true},
+                  {\"name\": \"Action Required\", \"value\": \"Immediate investigation required. Check workflow artifacts for drift report.\", \"inline\": false}
+                ],
+                \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
+              }]
+            }"
+
+  # ============================================================================
+  # SUMMARY AND ALERTING
+  # ============================================================================
+  summary:
+    name: Drift Detection Summary
+    runs-on: ubuntu-latest
+    needs: [detect-drift-dev, detect-drift-staging, detect-drift-prod]
+    if: always()
+    timeout-minutes: 5
+
+    steps:
+      - name: Generate summary
+        run: |
+          echo "# Schema Drift Detection Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp:** $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
+          echo "**Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Results by Environment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Dev | ${{ needs.detect-drift-dev.result == 'success' && '✅ No Drift' || '❌ DRIFT DETECTED' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Staging | ${{ needs.detect-drift-staging.result == 'success' && '✅ No Drift' || '❌ DRIFT DETECTED' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Production | ${{ needs.detect-drift-prod.result == 'success' && '✅ No Drift' || '🚨 DRIFT DETECTED' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Governance Compliance" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Git as single source of truth: ENFORCED" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Fail-closed detection: ENFORCED" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Scheduled monitoring: ACTIVE (every 6 hours)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Artifact retention: 90 days (365 for prod)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check overall status (FAIL-CLOSED)
+        run: |
+          DEV_STATUS="${{ needs.detect-drift-dev.result }}"
+          STAGING_STATUS="${{ needs.detect-drift-staging.result }}"
+          PROD_STATUS="${{ needs.detect-drift-prod.result }}"
+
+          if [ "$DEV_STATUS" != "success" ] || [ "$STAGING_STATUS" != "success" ] || [ "$PROD_STATUS" != "success" ]; then
+            echo "❌ DRIFT DETECTED - Governance compliance failure"
+            exit 1
+          fi
+
+          echo "✅ No drift detected - All environments clean"
+
+      - name: Create GitHub issue on drift (if scheduled)
+        if: failure() && github.event_name == 'schedule'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = '🚨 Schema Drift Detected - Automated Alert';
+            const body = `## Schema Drift Detection Failed
+
+            **Timestamp:** ${new Date().toISOString()}
+            **Workflow Run:** #${context.runNumber}
+
+            ### Status
+            - Dev: ${{ needs.detect-drift-dev.result }}
+            - Staging: ${{ needs.detect-drift-staging.result }}
+            - Production: ${{ needs.detect-drift-prod.result }}
+
+            ### Action Required
+            1. Download drift report artifacts from workflow
+            2. Investigate unauthorized schema changes
+            3. Choose resolution path:
+               - **Path A:** Revert unauthorized changes via corrective migration
+               - **Path B:** Capture legitimate changes in new migration
+            4. Re-run drift detection to verify
+
+            ### References
+            - [Supabase Governance](../docs/SUPABASE_GOVERNANCE.md)
+            - [Migration Flow](../docs/MIGRATION_FLOW.md)
+            - [Workflow Run](${context.payload.repository.html_url}/actions/runs/${context.runId})
+
+            /cc @tech-lead @cto
+            `;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['governance', 'schema-drift', 'urgent']
+            });

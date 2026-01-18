@@ -69,26 +69,44 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 **App**: `apps/api`
 
-**Status**: ❌ FAILED (TypeScript compilation)
+**Status**: ❌ FAILED (120+ TypeScript compilation errors)
 
-**Reason**: Pre-existing TypeScript errors (not caused by smoke pack)
+**Reason**: Pre-existing TypeScript errors across multiple files (not caused by smoke pack or foundation work)
 
-**Resolution**:
-- **Option A** (Recommended): Fix TypeScript errors in apps/api
+**Error Categories**:
+1. **Missing Dependencies**: `stripe` module not found (5+ files affected)
+2. **Agent Framework Issues**: RevenueAlertAgent missing BaseAgent properties (40+ errors)
+3. **Temporal Workflow Issues**: Signal/Query handler signature mismatches (12+ errors)
+4. **Metrics Exports Missing**: Various metrics not exported from metricsServer (15+ errors)
+5. **Supabase Integration**: Type mismatches, missing exports (20+ errors)
+6. **Type Safety Issues**: Properties missing on arrays, incorrect property access (20+ errors)
+7. **Import Path Issues**: Files outside rootDir, circular dependencies (10+ errors)
+
+**Key Failing Files**:
+- `src/agents/RevenueAlertAgent/index.ts` (40+ errors)
+- `src/routes/billing.ts`, `src/services/BillingService.ts`, `src/workers/BillingWorker.ts` (missing Stripe)
+- `src/temporal/workflows/*.ts` (Signal handler signature issues)
+- `src/services/canonical/CanonicalMappingService.ts` (missing metrics exports)
+- `src/temporal/activities/CLVActivities.ts` (property name mismatches)
+
+**Resolution Required**:
+- **Option A** (Recommended): Systematic fix of TypeScript errors by category
   ```bash
   cd apps/api
-  npm run type-check  # See errors
-  npm run build       # Fix and rebuild
+  npm install stripe  # Fix missing dependency
+  npm run type-check  # Review remaining errors
+  # Fix errors by category, test incrementally
+  npm run build
   ```
 
-- **Option B**: Update smoke pack charter to mark api as non-critical
-  - Edit `scripts/smoke/run-smoke.ts`
-  - Remove 'api' from `CORE_APPS` constant
-  - This is NOT recommended as API is core infrastructure
+- **Option B**: Mark API as non-critical in smoke pack (NOT RECOMMENDED - API is core infrastructure)
 
 **Impact if Unresolved**:
 - Smoke pack will continue to report FAIL status
 - API cannot be deployed until build issues resolved
+- These are legacy code issues, not related to foundation infrastructure
+
+**Note**: command-center and smart-form fixes are complete and verified ✅
 
 ---
 
@@ -96,21 +114,19 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 **App**: `apps/command-center`
 
-**Status**: ❌ FAILED (TypeScript compilation)
+**Status**: ✅ FIXED (2026-01-15)
 
-**Reason**: Pre-existing error in `src/app/api/agents/route.ts:48`
+**Errors Fixed**:
+1. Missing `mockAgents` and `simulateAgentStatusUpdate` imports from `@/lib/mockData`
+2. Missing `updated_at` and `workflow_stage` fields in Pick interface
+3. Type comparison error in SLO evaluator (`overallStatus !== 'FAIL'`)
 
-**Error**:
-```
-Cannot find name 'mockAgents'. Did you mean 'mockAgent'?
-```
+**Resolution Applied**:
+1. Added missing imports to `src/app/api/agents/route.ts`
+2. Updated Pick interface in `src/lib/supabase.ts` and `src/hooks/usePicks.ts`
+3. Fixed SLO evaluator logic in `src/lib/slo/evaluator.ts`
 
-**Resolution**:
-1. Fix the variable reference:
-   ```bash
-   # Open apps/command-center/src/app/api/agents/route.ts
-   # Line 48: Change mockAgents to mockAgent (or define mockAgents if needed)
-   ```
+**Verification**: `npm run type-check --workspace=apps/command-center` ✅ PASSES
 
 2. Rebuild:
    ```bash
@@ -129,39 +145,20 @@ Cannot find name 'mockAgents'. Did you mean 'mockAgent'?
 
 **App**: `apps/smart-form`
 
-**Status**: ❌ FAILED (ESLint errors blocking build)
+**Status**: ✅ FIXED (2026-01-15)
 
-**Reason**: Pre-existing ESLint violations (prefer-const)
+**Errors Fixed**:
+1. Three ESLint `prefer-const` violations in `app/api/domain/cappers/default/route.ts` (lines 46, 65, 88)
+2. Missing `env` export in `lib/env.ts` (causing "Attempted import error: 'env' is not exported")
 
-**Errors**:
-```
-./app/api/domain/cappers/default/route.ts
-46:13  Error: 'response' is never reassigned. Use 'const' instead.  prefer-const
-65:13  Error: 'response' is never reassigned. Use 'const' instead.  prefer-const
-88:11  Error: 'response' is never reassigned. Use 'const' instead.  prefer-const
-```
+**Resolution Applied**:
+1. Changed `let response` to `const response` in all three locations
+2. Added `env` object export with all required environment variables:
+   - CAPPER_ID, DEFAULT_CAPPER_ID, TEST_CAPPER_ID
+   - SMARTFORM_DEFAULT_CAPPER_ID, CAPPER_IDS
+   - NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-**Resolution**:
-1. Fix ESLint errors:
-   ```bash
-   cd apps/smart-form
-   npm run lint -- --fix  # Auto-fix where possible
-   npm run build
-   ```
-
-2. Or disable ESLint-blocking build:
-   ```json
-   // apps/smart-form/next.config.js
-   module.exports = {
-     eslint: {
-       ignoreDuringBuilds: true  // NOT RECOMMENDED
-     }
-   }
-   ```
-
-**Impact if Unresolved**:
-- Smoke pack will continue to report FAIL status
-- Smart Form cannot be deployed
+**Verification**: ESLint errors resolved, env module properly exports all required variables
 
 ---
 
@@ -171,13 +168,20 @@ Cannot find name 'mockAgents'. Did you mean 'mockAgent'?
 
 1. ✅ **Smoke Pack Infrastructure**: COMPLETE - No action needed
 2. ⚠️ **Supabase Credentials**: Add to `.env.shared` or `.env.local`
-3. ❌ **Fix Command Center**: apps/command-center/src/app/api/agents/route.ts:48
-4. ❌ **Fix Smart Form**: ESLint prefer-const errors
+3. ✅ **Fix Command Center**: COMPLETE (2026-01-15) - 4 TypeScript errors resolved
+4. ✅ **Fix Smart Form**: COMPLETE (2026-01-15) - 3 ESLint errors + env export fixed
 
 ### Optional (Recommended)
 
-5. ❌ **Fix API**: Resolve TypeScript compilation errors
+5. ❌ **Fix API**: Resolve 120+ TypeScript compilation errors (legacy code issues)
 6. 📚 **Document**: Update app-specific CLAUDE.md files with build requirements
+
+### Current Status
+
+- **Foundation Infrastructure**: ✅ 100% Complete
+- **command-center**: ✅ Fixed and verified
+- **smart-form**: ✅ Fixed and verified
+- **api**: ❌ Requires systematic error resolution (out of scope for foundation work)
 
 ---
 

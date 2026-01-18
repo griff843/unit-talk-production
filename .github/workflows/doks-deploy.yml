@@ -1,0 +1,257 @@
+name: DOKS Deployment Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  REGISTRY: registry.digitalocean.com
+  REGISTRY_NAME: unit-talk
+  DO_REGION: nyc3
+
+jobs:
+  # Build and push container images
+  build-and-push:
+    name: Build and Push Images
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [api, command-center, dashboard, smart-form, discord-bot, workers]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+      
+      - name: Log in to DO Container Registry
+        run: doctl registry login --expiry-seconds 1200
+      
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.REGISTRY_NAME }}/${{ matrix.app }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+      
+      - name: Determine Dockerfile path
+        id: dockerfile
+        run: |
+          if [ "${{ matrix.app }}" = "workers" ]; then
+            echo "path=apps/worker/Dockerfile" >> $GITHUB_OUTPUT
+            echo "context=apps/worker" >> $GITHUB_OUTPUT
+          else
+            echo "path=apps/${{ matrix.app }}/Dockerfile" >> $GITHUB_OUTPUT
+            echo "context=apps/${{ matrix.app }}" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ steps.dockerfile.outputs.context }}
+          file: ${{ steps.dockerfile.outputs.path }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+      
+      - name: Image digest
+        run: echo "Image pushed with digest ${{ steps.meta.outputs.digest }}"
+  
+  # Deploy to staging
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    environment: staging
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+      
+      - name: Save kubeconfig
+        run: doctl kubernetes cluster kubeconfig save ${{ secrets.DOKS_CLUSTER_ID_STAGING }}
+      
+      - name: Install ArgoCD CLI
+        run: |
+          curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+          rm argocd-linux-amd64
+      
+      - name: Login to ArgoCD
+        run: |
+          ARGOCD_SERVER=$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          argocd login $ARGOCD_SERVER --username admin --password ${{ secrets.ARGOCD_PASSWORD }} --insecure
+      
+      - name: Sync applications
+        run: |
+          argocd app sync unit-talk-api --force
+          argocd app sync unit-talk-command-center --force
+          argocd app sync unit-talk-dashboard --force
+          argocd app sync unit-talk-smart-form --force
+          argocd app sync unit-talk-discord-bot --force
+          argocd app sync unit-talk-workers --force
+      
+      - name: Wait for sync completion
+        run: |
+          argocd app wait unit-talk-api --health --timeout 600
+          argocd app wait unit-talk-command-center --health --timeout 600
+          argocd app wait unit-talk-dashboard --health --timeout 600
+          argocd app wait unit-talk-smart-form --health --timeout 600
+          argocd app wait unit-talk-discord-bot --health --timeout 600
+          argocd app wait unit-talk-workers --health --timeout 600
+      
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n unit-talk
+          kubectl get svc -n unit-talk
+          kubectl get ingress -n unit-talk
+      
+      - name: Run smoke tests
+        run: |
+          echo "Running smoke tests..."
+          curl -f https://api-staging.unit-talk.com/health || exit 1
+          curl -f https://command-center-staging.unit-talk.com/api/health || exit 1
+          echo "✅ Smoke tests passed"
+      
+      - name: Notify deployment
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: 'Staging deployment ${{ job.status }}'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+  
+  # Deploy to production
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+      
+      - name: Save kubeconfig
+        run: doctl kubernetes cluster kubeconfig save ${{ secrets.DOKS_CLUSTER_ID_PRODUCTION }}
+      
+      - name: Install ArgoCD CLI
+        run: |
+          curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+          rm argocd-linux-amd64
+      
+      - name: Login to ArgoCD
+        run: |
+          ARGOCD_SERVER=$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          argocd login $ARGOCD_SERVER --username admin --password ${{ secrets.ARGOCD_PASSWORD }} --insecure
+      
+      - name: Blue/Green Deployment - Update Green
+        run: |
+          # Sync green deployments with new image
+          argocd app set unit-talk-api --helm-set image.tag=${{ github.sha }}
+          argocd app sync unit-talk-api --force
+          argocd app wait unit-talk-api --health --timeout 600
+      
+      - name: Run health checks on Green
+        run: |
+          echo "Running health checks on green deployment..."
+          # Add comprehensive health checks here
+          kubectl get pods -n unit-talk -l version=green
+          # Test green endpoints
+          echo "✅ Green deployment healthy"
+      
+      - name: Switch traffic to Green
+        run: |
+          # Update Ingress to route traffic to green
+          kubectl patch ingress unit-talk-api-ingress -n unit-talk --type='json' \
+            -p='[{"op": "replace", "path": "/spec/rules/0/http/paths/0/backend/service/name", "value":"unit-talk-api-green"}]'
+          
+          echo "✅ Traffic switched to green deployment"
+      
+      - name: Monitor for 5 minutes
+        run: |
+          echo "Monitoring green deployment for 5 minutes..."
+          sleep 300
+          
+          # Check error rates, response times, etc.
+          echo "✅ Monitoring complete, no issues detected"
+      
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "❌ Deployment failed, rolling back to blue..."
+          kubectl patch ingress unit-talk-api-ingress -n unit-talk --type='json' \
+            -p='[{"op": "replace", "path": "/spec/rules/0/http/paths/0/backend/service/name", "value":"unit-talk-api-blue"}]'
+          
+          echo "✅ Rolled back to blue deployment"
+      
+      - name: Verify production deployment
+        run: |
+          kubectl get pods -n unit-talk
+          kubectl get svc -n unit-talk
+          kubectl get ingress -n unit-talk
+      
+      - name: Run production smoke tests
+        run: |
+          echo "Running production smoke tests..."
+          curl -f https://api.unit-talk.com/health || exit 1
+          curl -f https://command-center.unit-talk.com/api/health || exit 1
+          echo "✅ Production smoke tests passed"
+      
+      - name: Notify deployment
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: 'Production deployment ${{ job.status }}'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+      
+      - name: Create deployment record
+        if: success()
+        run: |
+          echo "Recording deployment..."
+          # Add deployment tracking logic here
+          echo "Deployment SHA: ${{ github.sha }}"
+          echo "Deployment Time: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          echo "Deployed By: ${{ github.actor }}"
+

@@ -1,0 +1,272 @@
+# Connection Pool Limits Configuration
+# Phase 13 - Performance and Reliability Hardening
+# Date: 2025-01-25
+#
+# Purpose: Define connection pool limits for Redis and Postgres to prevent
+# resource exhaustion and ensure optimal performance under load
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-connection-pool-config
+  namespace: unit-talk
+data:
+  # Redis Connection Pool Settings
+  REDIS_POOL_MIN: "5"
+  REDIS_POOL_MAX: "50"
+  REDIS_POOL_IDLE_TIMEOUT_MS: "120000"  # 2 minutes
+  REDIS_POOL_ACQUIRE_TIMEOUT_MS: "10000"  # 10 seconds
+  REDIS_POOL_EVICTION_RUN_INTERVAL_MS: "30000"  # 30 seconds
+  REDIS_MAX_RETRIES_PER_REQUEST: "3"
+  REDIS_RETRY_DELAY_ON_FAILOVER_MS: "100"
+  REDIS_ENABLE_OFFLINE_QUEUE: "false"
+  REDIS_CONNECT_TIMEOUT_MS: "10000"
+  REDIS_COMMAND_TIMEOUT_MS: "5000"
+  REDIS_KEEP_ALIVE: "true"
+  REDIS_FAMILY: "4"  # IPv4
+  
+  # Redis Cluster Settings (if using cluster mode)
+  REDIS_CLUSTER_RETRY_ATTEMPTS: "3"
+  REDIS_CLUSTER_RETRY_DELAY_MS: "100"
+  REDIS_CLUSTER_MAX_REDIRECTIONS: "16"
+  
+  # Circuit Breaker Settings for Redis
+  REDIS_CIRCUIT_BREAKER_ENABLED: "true"
+  REDIS_CIRCUIT_BREAKER_THRESHOLD: "5"  # failures before opening
+  REDIS_CIRCUIT_BREAKER_TIMEOUT_MS: "60000"  # 1 minute
+  REDIS_CIRCUIT_BREAKER_RESET_TIMEOUT_MS: "30000"  # 30 seconds
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-connection-pool-config
+  namespace: unit-talk
+data:
+  # Postgres Connection Pool Settings (PgBouncer compatible)
+  POSTGRES_POOL_MIN: "10"
+  POSTGRES_POOL_MAX: "100"
+  POSTGRES_POOL_IDLE_TIMEOUT_MS: "600000"  # 10 minutes
+  POSTGRES_POOL_CONNECTION_TIMEOUT_MS: "10000"  # 10 seconds
+  POSTGRES_POOL_ACQUIRE_TIMEOUT_MS: "30000"  # 30 seconds
+  POSTGRES_POOL_CREATE_TIMEOUT_MS: "30000"  # 30 seconds
+  POSTGRES_POOL_DESTROY_TIMEOUT_MS: "5000"  # 5 seconds
+  POSTGRES_POOL_REAP_INTERVAL_MS: "1000"  # 1 second
+  POSTGRES_POOL_CREATE_RETRY_INTERVAL_MS: "200"
+  
+  # Statement Timeout
+  POSTGRES_STATEMENT_TIMEOUT_MS: "30000"  # 30 seconds
+  
+  # Connection Validation
+  POSTGRES_POOL_VALIDATE_ON_BORROW: "true"
+  POSTGRES_POOL_TEST_ON_BORROW: "true"
+  
+  # PgBouncer Settings (if using PgBouncer)
+  PGBOUNCER_POOL_MODE: "transaction"  # session, transaction, or statement
+  PGBOUNCER_MAX_CLIENT_CONN: "1000"
+  PGBOUNCER_DEFAULT_POOL_SIZE: "25"
+  PGBOUNCER_MIN_POOL_SIZE: "10"
+  PGBOUNCER_RESERVE_POOL_SIZE: "5"
+  PGBOUNCER_RESERVE_POOL_TIMEOUT: "3"
+  PGBOUNCER_MAX_DB_CONNECTIONS: "100"
+  PGBOUNCER_MAX_USER_CONNECTIONS: "100"
+  PGBOUNCER_SERVER_IDLE_TIMEOUT: "600"
+  PGBOUNCER_SERVER_LIFETIME: "3600"
+  PGBOUNCER_SERVER_CONNECT_TIMEOUT: "15"
+  PGBOUNCER_QUERY_TIMEOUT: "30"
+  PGBOUNCER_QUERY_WAIT_TIMEOUT: "120"
+  PGBOUNCER_CLIENT_IDLE_TIMEOUT: "0"
+  PGBOUNCER_IDLE_TRANSACTION_TIMEOUT: "0"
+  
+  # Supabase Specific Settings
+  SUPABASE_POOL_SIZE: "15"
+  SUPABASE_MAX_OVERFLOW: "10"
+  SUPABASE_POOL_TIMEOUT: "30"
+  SUPABASE_POOL_RECYCLE: "3600"  # 1 hour
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: temporal-connection-pool-config
+  namespace: unit-talk
+data:
+  # Temporal Worker Connection Pool
+  TEMPORAL_MAX_CONCURRENT_WORKFLOW_TASK_POLLERS: "5"
+  TEMPORAL_MAX_CONCURRENT_ACTIVITY_TASK_POLLERS: "5"
+  TEMPORAL_MAX_CONCURRENT_WORKFLOW_TASK_EXECUTIONS: "100"
+  TEMPORAL_MAX_CONCURRENT_ACTIVITY_TASK_EXECUTIONS: "100"
+  TEMPORAL_WORKER_TASK_QUEUE_ACTIVITIES_PER_SECOND: "100"
+  TEMPORAL_WORKER_MAX_ACTIVITIES_PER_SECOND: "1000"
+  
+  # Temporal Client Connection Pool
+  TEMPORAL_CLIENT_MAX_CONCURRENT_REQUESTS: "100"
+  TEMPORAL_CLIENT_CONNECTION_TIMEOUT_MS: "10000"
+  TEMPORAL_CLIENT_REQUEST_TIMEOUT_MS: "30000"
+
+---
+# Resource Quotas for Connection Pools
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: connection-pool-quota
+  namespace: unit-talk
+spec:
+  hard:
+    # Limit total connections across all pods
+    requests.cpu: "20"
+    requests.memory: "40Gi"
+    limits.cpu: "40"
+    limits.memory: "80Gi"
+    
+    # Limit number of pods to prevent connection pool exhaustion
+    pods: "100"
+    
+    # Limit services
+    services: "50"
+    
+    # Limit persistent volume claims
+    persistentvolumeclaims: "20"
+
+---
+# Limit Range for Individual Pods
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: connection-pool-limits
+  namespace: unit-talk
+spec:
+  limits:
+    # Pod limits
+    - type: Pod
+      max:
+        cpu: "4"
+        memory: "8Gi"
+      min:
+        cpu: "100m"
+        memory: "128Mi"
+    
+    # Container limits
+    - type: Container
+      max:
+        cpu: "2"
+        memory: "4Gi"
+      min:
+        cpu: "50m"
+        memory: "64Mi"
+      default:
+        cpu: "500m"
+        memory: "512Mi"
+      defaultRequest:
+        cpu: "250m"
+        memory: "256Mi"
+    
+    # PVC limits
+    - type: PersistentVolumeClaim
+      max:
+        storage: "100Gi"
+      min:
+        storage: "1Gi"
+
+---
+# Network Policy for Connection Pool Security
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: connection-pool-network-policy
+  namespace: unit-talk
+spec:
+  podSelector:
+    matchLabels:
+      tier: backend
+  policyTypes:
+    - Ingress
+    - Egress
+  
+  ingress:
+    # Allow from API pods
+    - from:
+      - podSelector:
+          matchLabels:
+            app: unit-talk-api
+      ports:
+      - protocol: TCP
+        port: 6379  # Redis
+      - protocol: TCP
+        port: 5432  # Postgres
+  
+  egress:
+    # Allow to Redis
+    - to:
+      - podSelector:
+          matchLabels:
+            app: redis
+      ports:
+      - protocol: TCP
+        port: 6379
+    
+    # Allow to Postgres
+    - to:
+      - podSelector:
+          matchLabels:
+            app: postgres
+      ports:
+      - protocol: TCP
+        port: 5432
+    
+    # Allow to Temporal
+    - to:
+      - podSelector:
+          matchLabels:
+            app: temporal
+      ports:
+      - protocol: TCP
+        port: 7233
+    
+    # Allow DNS
+    - to:
+      - namespaceSelector:
+          matchLabels:
+            name: kube-system
+      ports:
+      - protocol: UDP
+        port: 53
+
+---
+# PodDisruptionBudget for High Availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: redis-pdb
+  namespace: unit-talk
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: redis
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: postgres-pdb
+  namespace: unit-talk
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: postgres
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api-pdb
+  namespace: unit-talk
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: unit-talk-api
+

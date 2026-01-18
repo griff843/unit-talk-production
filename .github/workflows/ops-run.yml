@@ -1,0 +1,517 @@
+name: Ops Runner - Unified Operations Dispatch
+
+# Purpose: Single unified workflow for all operational tasks
+# Eliminates manual Supabase SQL Editor and provides single execution plane
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+        default: dev
+      action:
+        description: 'Operation to perform'
+        required: true
+        type: choice
+        options:
+          - migrate
+          - verify_schema
+          - safe_query
+          - autopilot_run
+          - proof_pack
+        default: verify_schema
+      dry_run:
+        description: 'Dry run (plan only, no apply)'
+        required: false
+        type: boolean
+        default: false
+      sql:
+        description: 'SQL query (only for safe_query action)'
+        required: false
+        type: string
+        default: 'SELECT COUNT(*) FROM picks'
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ============================================================================
+  # VALIDATION - Check inputs and permissions
+  # ============================================================================
+  validate:
+    name: Validate Inputs
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      env_upper: ${{ steps.setup.outputs.env_upper }}
+      action: ${{ steps.setup.outputs.action }}
+      requires_approval: ${{ steps.setup.outputs.requires_approval }}
+
+    steps:
+      - name: Setup environment variables
+        id: setup
+        run: |
+          ENV_UPPER=$(echo "${{ github.event.inputs.env }}" | tr '[:lower:]' '[:upper:]')
+          echo "env_upper=$ENV_UPPER" >> $GITHUB_OUTPUT
+          echo "action=${{ github.event.inputs.action }}" >> $GITHUB_OUTPUT
+
+          # Check if requires approval (staging/prod)
+          if [ "${{ github.event.inputs.env }}" != "dev" ]; then
+            echo "requires_approval=true" >> $GITHUB_OUTPUT
+          else
+            echo "requires_approval=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Display operation summary
+        run: |
+          echo "=================================="
+          echo "OPERATION SUMMARY"
+          echo "=================================="
+          echo "Environment: ${{ github.event.inputs.env }}"
+          echo "Action: ${{ github.event.inputs.action }}"
+          echo "Dry Run: ${{ github.event.inputs.dry_run }}"
+          echo "Triggered by: ${{ github.actor }}"
+          echo "Requires Approval: ${{ steps.setup.outputs.requires_approval }}"
+          echo "=================================="
+
+  # ============================================================================
+  # ACTION: migrate - Apply database migrations
+  # ============================================================================
+  migrate:
+    name: Apply Migrations
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.event.inputs.action == 'migrate'
+    timeout-minutes: 15
+    environment: ${{ github.event.inputs.env }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Mask secrets
+        run: |
+          echo "::add-mask::${{ secrets.SUPABASE_ACCESS_TOKEN }}"
+          echo "::add-mask::${{ secrets[format('SUPABASE_SERVICE_ROLE_KEY_{0}', needs.validate.outputs.env_upper)] }}"
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link to Supabase project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          PROJECT_REF="${{ secrets[format('SUPABASE_PROJECT_REF_{0}', needs.validate.outputs.env_upper)] }}"
+          echo "Linking to ${{ github.event.inputs.env }} project..."
+          supabase link --project-ref "$PROJECT_REF"
+          echo "✅ Link successful"
+
+      - name: Migration plan (dry run preview)
+        run: |
+          echo "=================================="
+          echo "MIGRATION PLAN"
+          echo "=================================="
+          echo ""
+          echo "Migrations to apply:"
+          find supabase/migrations -name "*.sql" -type f -printf "%f\n" | sort
+          echo ""
+          MIGRATION_COUNT=$(find supabase/migrations -name "*.sql" -type f | wc -l)
+          echo "Total: $MIGRATION_COUNT migrations"
+          echo ""
+
+      - name: Apply migrations (if not dry run)
+        if: github.event.inputs.dry_run != 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "Applying migrations to ${{ github.event.inputs.env }}..."
+
+          n=0
+          max_attempts=3
+
+          until [ $n -ge $max_attempts ]; do
+            if supabase db push --include-all; then
+              echo "✅ Migrations applied successfully"
+              break
+            fi
+
+            n=$((n+1))
+            if [ $n -lt $max_attempts ]; then
+              echo "⚠️  Attempt $n failed, retrying in 10s..."
+              sleep 10
+            else
+              echo "❌ All $max_attempts attempts failed"
+              exit 1
+            fi
+          done
+
+      - name: Verify schema post-migration
+        if: github.event.inputs.dry_run != 'true'
+        env:
+          SUPABASE_URL: ${{ secrets[format('SUPABASE_URL_{0}', needs.validate.outputs.env_upper)] }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets[format('SUPABASE_SERVICE_ROLE_KEY_{0}', needs.validate.outputs.env_upper)] }}
+        run: |
+          npm ci --workspace=apps/api
+          npx tsx scripts/ops/verify-schema-post-migration.ts --env ${{ github.event.inputs.env }}
+          echo "✅ Schema verification passed"
+
+      - name: Upload migration artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-${{ github.event.inputs.env }}-${{ github.run_number }}
+          path: |
+            supabase/.branches/
+            supabase/migrations/
+          retention-days: 30
+
+  # ============================================================================
+  # ACTION: verify_schema - Verify database schema
+  # ============================================================================
+  verify_schema:
+    name: Verify Schema
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.event.inputs.action == 'verify_schema'
+    timeout-minutes: 10
+    environment: ${{ github.event.inputs.env }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Mask secrets
+        run: |
+          echo "::add-mask::${{ secrets[format('SUPABASE_SERVICE_ROLE_KEY_{0}', needs.validate.outputs.env_upper)] }}"
+
+      - name: Run schema verification
+        env:
+          SUPABASE_URL: ${{ secrets[format('SUPABASE_URL_{0}', needs.validate.outputs.env_upper)] }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets[format('SUPABASE_SERVICE_ROLE_KEY_{0}', needs.validate.outputs.env_upper)] }}
+        run: |
+          npm ci --workspace=apps/api
+          npx tsx scripts/ops/verify-schema-post-migration.ts --env ${{ github.event.inputs.env }}
+          echo "✅ Schema verification passed"
+
+      - name: Check autopilot_decisions table
+        env:
+          SUPABASE_URL: ${{ secrets[format('SUPABASE_URL_{0}', needs.validate.outputs.env_upper)] }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets[format('SUPABASE_SERVICE_ROLE_KEY_{0}', needs.validate.outputs.env_upper)] }}
+        run: |
+          echo "Checking autopilot_decisions table..."
+          npx tsx scripts/ops/supabase-query.ts --env ${{ github.event.inputs.env }} \
+            "SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'autopilot_decisions') as exists"
+          echo "✅ Table check complete"
+
+  # ============================================================================
+  # ACTION: safe_query - Execute safe SQL queries
+  # ============================================================================
+  safe_query:
+    name: Safe SQL Query
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.event.inputs.action == 'safe_query'
+    timeout-minutes: 10
+    environment: ${{ github.event.inputs.env }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Mask secrets
+        run: |
+          echo "::add-mask::${{ secrets[format('SUPABASE_SERVICE_ROLE_KEY_{0}', needs.validate.outputs.env_upper)] }}"
+
+      - name: Validate SQL (read-only)
+        run: |
+          SQL="${{ github.event.inputs.sql }}"
+          echo "Validating SQL query..."
+          echo "Query: $SQL"
+
+          # Check if starts with SELECT, EXPLAIN, or SHOW
+          if [[ ! "$SQL" =~ ^(SELECT|EXPLAIN|SHOW|WITH|DESCRIBE) ]]; then
+            echo "❌ Query must start with SELECT, EXPLAIN, SHOW, WITH, or DESCRIBE"
+            exit 1
+          fi
+
+          # Block dangerous keywords
+          if echo "$SQL" | grep -iE "(DROP|TRUNCATE|DELETE|UPDATE|INSERT|GRANT|REVOKE|ALTER)" > /dev/null; then
+            echo "❌ Query contains blocked keywords (DROP, TRUNCATE, DELETE, UPDATE, INSERT, etc.)"
+            exit 1
+          fi
+
+          echo "✅ SQL validation passed (read-only)"
+
+      - name: Execute safe query
+        env:
+          DATABASE_DIRECT_URL_DEV: ${{ secrets.DATABASE_DIRECT_URL_DEV }}
+          DATABASE_DIRECT_URL_STAGING: ${{ secrets.DATABASE_DIRECT_URL_STAGING }}
+          DATABASE_DIRECT_URL_PROD: ${{ secrets.DATABASE_DIRECT_URL_PROD }}
+        run: |
+          npm ci --workspace=apps/api
+
+          echo "Executing query on ${{ github.event.inputs.env }}..."
+          npx tsx scripts/ops/supabase-query.ts \
+            --env ${{ github.event.inputs.env }} \
+            --output json \
+            "${{ github.event.inputs.sql }}"
+
+      - name: Upload query results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: query-results-${{ github.event.inputs.env }}-${{ github.run_number }}
+          path: |
+            query-results.json
+          retention-days: 7
+
+  # ============================================================================
+  # ACTION: autopilot_run - Run autopilot evaluation
+  # ============================================================================
+  autopilot_run:
+    name: Run Autopilot
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.event.inputs.action == 'autopilot_run'
+    timeout-minutes: 15
+    environment: ${{ github.event.inputs.env }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Mask secrets
+        run: |
+          echo "::add-mask::${{ secrets[format('SUPABASE_SERVICE_ROLE_KEY_{0}', needs.validate.outputs.env_upper)] }}"
+
+      - name: Check Command Center availability
+        run: |
+          # For dev, assume localhost:3015
+          # For staging/prod, use environment-specific URLs
+          if [ "${{ github.event.inputs.env }}" = "dev" ]; then
+            COMMAND_CENTER_URL="http://localhost:3015"
+          elif [ "${{ github.event.inputs.env }}" = "staging" ]; then
+            COMMAND_CENTER_URL="${{ secrets.COMMAND_CENTER_URL_STAGING }}"
+          else
+            COMMAND_CENTER_URL="${{ secrets.COMMAND_CENTER_URL_PROD }}"
+          fi
+
+          echo "Command Center URL: $COMMAND_CENTER_URL"
+          echo "COMMAND_CENTER_URL=$COMMAND_CENTER_URL" >> $GITHUB_ENV
+
+      - name: Run autopilot evaluation
+        run: |
+          MODE="log_only"
+          if [ "${{ github.event.inputs.dry_run }}" = "false" ]; then
+            MODE="enabled"
+          fi
+
+          echo "Running autopilot in $MODE mode..."
+
+          RESPONSE=$(curl -s -X POST "$COMMAND_CENTER_URL/api/autopilot/run" \
+            -H "Content-Type: application/json" \
+            -d "{\"mode\": \"$MODE\"}")
+
+          echo "$RESPONSE" | jq '.'
+
+          # Check if successful
+          SUCCESS=$(echo "$RESPONSE" | jq -r '.success')
+          if [ "$SUCCESS" != "true" ]; then
+            echo "❌ Autopilot run failed"
+            exit 1
+          fi
+
+          echo "✅ Autopilot run successful"
+
+          # Save results
+          echo "$RESPONSE" > autopilot-results.json
+
+      - name: Upload autopilot results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: autopilot-results-${{ github.event.inputs.env }}-${{ github.run_number }}
+          path: autopilot-results.json
+          retention-days: 30
+
+  # ============================================================================
+  # ACTION: proof_pack - Run Playwright tests and generate proof pack
+  # ============================================================================
+  proof_pack:
+    name: Proof Pack Generation
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.event.inputs.action == 'proof_pack'
+    timeout-minutes: 30
+    environment: ${{ github.event.inputs.env }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          cd apps/command-center
+          npm ci
+
+      - name: Install Playwright browsers
+        run: |
+          cd apps/command-center
+          npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        env:
+          BASE_URL: http://localhost:3015
+        run: |
+          cd apps/command-center
+
+          # Start Command Center in background
+          npm run dev &
+          SERVER_PID=$!
+
+          # Wait for server to be ready
+          echo "Waiting for Command Center to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:3015/api/health > /dev/null; then
+              echo "✅ Command Center is ready"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+
+          # Run Playwright tests
+          npm run test:e2e
+
+          # Stop server
+          kill $SERVER_PID || true
+
+      - name: Upload Playwright screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-screenshots-${{ github.event.inputs.env }}-${{ github.run_number }}
+          path: apps/command-center/tests/screenshots/
+          retention-days: 30
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.event.inputs.env }}-${{ github.run_number }}
+          path: apps/command-center/playwright-report/
+          retention-days: 30
+
+      - name: Generate proof pack summary
+        if: always()
+        run: |
+          echo "# Proof Pack Summary" > proof-pack-summary.md
+          echo "" >> proof-pack-summary.md
+          echo "**Environment:** ${{ github.event.inputs.env }}" >> proof-pack-summary.md
+          echo "**Triggered by:** ${{ github.actor }}" >> proof-pack-summary.md
+          echo "**Run number:** ${{ github.run_number }}" >> proof-pack-summary.md
+          echo "**Date:** $(date -u +%Y-%m-%d\ %H:%M:%S\ UTC)" >> proof-pack-summary.md
+          echo "" >> proof-pack-summary.md
+          echo "## Test Results" >> proof-pack-summary.md
+          echo "" >> proof-pack-summary.md
+          echo "See uploaded artifacts for:" >> proof-pack-summary.md
+          echo "- Screenshots" >> proof-pack-summary.md
+          echo "- HTML report" >> proof-pack-summary.md
+          echo "" >> proof-pack-summary.md
+
+      - name: Upload proof pack summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: proof-pack-summary-${{ github.event.inputs.env }}-${{ github.run_number }}
+          path: proof-pack-summary.md
+          retention-days: 30
+
+  # ============================================================================
+  # NOTIFICATION - Post summary to Discord/Slack
+  # ============================================================================
+  notify:
+    name: Notify Result
+    runs-on: ubuntu-latest
+    needs: [validate, migrate, verify_schema, safe_query, autopilot_run, proof_pack]
+    if: always() && (github.event.inputs.env == 'staging' || github.event.inputs.env == 'prod')
+    timeout-minutes: 5
+
+    steps:
+      - name: Determine job status
+        id: status
+        run: |
+          # Check status of all jobs
+          if [ "${{ needs.migrate.result }}" = "success" ] || \
+             [ "${{ needs.verify_schema.result }}" = "success" ] || \
+             [ "${{ needs.safe_query.result }}" = "success" ] || \
+             [ "${{ needs.autopilot_run.result }}" = "success" ] || \
+             [ "${{ needs.proof_pack.result }}" = "success" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "color=3066993" >> $GITHUB_OUTPUT  # Green
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "color=15158332" >> $GITHUB_OUTPUT  # Red
+          fi
+
+      - name: Send Discord notification
+        if: secrets.DISCORD_RELEASE_WEBHOOK != ''
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
+        run: |
+          curl -X POST "$DISCORD_WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"Ops Runner: ${{ github.event.inputs.action }}\",
+                \"description\": \"Operation completed on ${{ github.event.inputs.env }}\",
+                \"color\": ${{ steps.status.outputs.color }},
+                \"fields\": [
+                  {\"name\": \"Action\", \"value\": \"${{ github.event.inputs.action }}\", \"inline\": true},
+                  {\"name\": \"Environment\", \"value\": \"${{ github.event.inputs.env }}\", \"inline\": true},
+                  {\"name\": \"Status\", \"value\": \"${{ steps.status.outputs.status }}\", \"inline\": true},
+                  {\"name\": \"Dry Run\", \"value\": \"${{ github.event.inputs.dry_run }}\", \"inline\": true},
+                  {\"name\": \"Triggered by\", \"value\": \"${{ github.actor }}\", \"inline\": true},
+                  {\"name\": \"Run\", \"value\": \"${{ github.run_number }}\", \"inline\": true}
+                ],
+                \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
+              }]
+            }"

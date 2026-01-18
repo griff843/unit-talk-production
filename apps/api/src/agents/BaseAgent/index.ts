@@ -16,7 +16,7 @@ import {
   ErrorHandler
 } from './types';
 
-export type { BaseAgentConfig, BaseAgentDependencies } from './types';
+export type { BaseAgentConfig, BaseAgentDependencies, BaseMetrics } from './types';
 export { createBaseAgentConfig } from './config';
 
 // Define HealthCheckResult interface

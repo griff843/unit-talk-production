@@ -96,184 +96,201 @@ export function RealTimeDataFlow({ className }: RealTimeDataFlowProps) {
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [autoRefresh, setAutoRefresh] = useState(true);
-
-  // Mock real-time data that would come from actual database
-  const mockMetrics: DataFlowMetrics = {
-    feedIngestion: {
-      propsReceived: 1247,
-      propsProcessed: 1201,
-      propsFailed: 46,
-      lastRun: new Date(Date.now() - 120000).toISOString(), // 2 minutes ago
-      processingRate: 145.2,
-      sources: ['Optimal Sports', 'DraftKings', 'FanDuel', 'Caesars'],
-    },
-    gradingResults: {
-      totalGraded: 1156,
-      tierA: 89,
-      tierB: 234,
-      tierC: 833,
-      pending: 91,
-      avgGradingTime: 12.7,
-      successRate: 96.8,
-    },
-    approvalQueue: {
-      awaitingApproval: 23,
-      approved: 156,
-      rejected: 12,
-      avgApprovalTime: 8.4,
-      highPriority: 7,
-    },
-    formSubmissions: {
-      totalSubmissions: 67,
-      validated: 59,
-      processing: 4,
-      errors: 4,
-      lastSubmission: new Date(Date.now() - 300000).toISOString(), // 5 minutes ago
-      submissionRate: 2.3,
-    },
-    agentActivity: {
-      feedAgent: {
-        status: 'healthy',
-        lastRun: new Date(Date.now() - 120000).toISOString(),
-        opsCount: 1247,
-      },
-      gradingAgent: {
-        status: 'healthy',
-        lastRun: new Date(Date.now() - 45000).toISOString(),
-        opsCount: 1156,
-      },
-      alertAgent: {
-        status: 'healthy',
-        lastRun: new Date(Date.now() - 180000).toISOString(),
-        opsCount: 89,
-      },
-      recapAgent: {
-        status: 'idle',
-        lastRun: new Date(Date.now() - 3600000).toISOString(),
-        opsCount: 3,
-      },
-      operatorAgent: {
-        status: 'healthy',
-        lastRun: new Date(Date.now() - 300000).toISOString(),
-        opsCount: 47,
-      },
-      analyticsAgent: {
-        status: 'healthy',
-        lastRun: new Date(Date.now() - 600000).toISOString(),
-        opsCount: 234,
-      },
-      professionalProcessor: {
-        status: 'warning',
-        lastRun: new Date(Date.now() - 240000).toISOString(),
-        opsCount: 1089,
-      },
-    },
-  };
+  const [dataSource, setDataSource] = useState<'real' | 'unknown'>('unknown');
 
   const fetchRealTimeMetrics = async () => {
     try {
       setLoading(true);
 
-      // Try to fetch real data from Supabase
-      if (supabase) {
-        // Fetch raw_props for feed ingestion data
-        const { data: rawProps } = await supabase
-          .from('raw_props')
-          .select('*')
-          .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
-
-        // Fetch unified_picks for grading and approval data
-        const { data: picks } = await supabase
-          .from('unified_picks')
-          .select('*')
-          .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
-
-        // Fetch agent_health for agent status
-        const { data: agentHealth } = await supabase
-          .from('agent_health')
-          .select('*')
-          .order('last_heartbeat', { ascending: false });
-
-        // If we have real data, use it; otherwise use mock data
-        if (rawProps || picks || agentHealth) {
-          // Transform real data into our metrics format
-          const realMetrics: DataFlowMetrics = {
-            feedIngestion: {
-              propsReceived: rawProps?.length || mockMetrics.feedIngestion.propsReceived,
-              propsProcessed:
-                rawProps?.filter(p => p.status === 'processed').length ||
-                mockMetrics.feedIngestion.propsProcessed,
-              propsFailed:
-                rawProps?.filter(p => p.status === 'failed').length ||
-                mockMetrics.feedIngestion.propsFailed,
-              lastRun: String(rawProps?.[0]?.created_at || mockMetrics.feedIngestion.lastRun),
-              processingRate: mockMetrics.feedIngestion.processingRate,
-              sources: ['Optimal Sports', 'DraftKings', 'FanDuel', 'Caesars'],
-            },
-            gradingResults: {
-              totalGraded:
-                picks?.filter(p => p.grade).length || mockMetrics.gradingResults.totalGraded,
-              tierA: picks?.filter(p => p.tier === 'A').length || mockMetrics.gradingResults.tierA,
-              tierB: picks?.filter(p => p.tier === 'B').length || mockMetrics.gradingResults.tierB,
-              tierC: picks?.filter(p => p.tier === 'C').length || mockMetrics.gradingResults.tierC,
-              pending: picks?.filter(p => !p.grade).length || mockMetrics.gradingResults.pending,
-              avgGradingTime: mockMetrics.gradingResults.avgGradingTime,
-              successRate: mockMetrics.gradingResults.successRate,
-            },
-            approvalQueue: {
-              awaitingApproval:
-                picks?.filter(p => p.status === 'pending_approval').length ||
-                mockMetrics.approvalQueue.awaitingApproval,
-              approved:
-                picks?.filter(p => p.status === 'approved').length ||
-                mockMetrics.approvalQueue.approved,
-              rejected:
-                picks?.filter(p => p.status === 'rejected').length ||
-                mockMetrics.approvalQueue.rejected,
-              avgApprovalTime: mockMetrics.approvalQueue.avgApprovalTime,
-              highPriority:
-                picks?.filter(p => p.priority === 'high').length ||
-                mockMetrics.approvalQueue.highPriority,
-            },
-            formSubmissions: mockMetrics.formSubmissions,
-            agentActivity: {
-              feedAgent:
-                transformAgentHealth(agentHealth?.find(a => a.agent_name === 'FeedAgent')) ||
-                mockMetrics.agentActivity.feedAgent,
-              gradingAgent:
-                transformAgentHealth(agentHealth?.find(a => a.agent_name === 'GradingAgent')) ||
-                mockMetrics.agentActivity.gradingAgent,
-              alertAgent:
-                transformAgentHealth(agentHealth?.find(a => a.agent_name === 'AlertAgent')) ||
-                mockMetrics.agentActivity.alertAgent,
-              recapAgent:
-                transformAgentHealth(agentHealth?.find(a => a.agent_name === 'RecapAgent')) ||
-                mockMetrics.agentActivity.recapAgent,
-              operatorAgent:
-                transformAgentHealth(agentHealth?.find(a => a.agent_name === 'OperatorAgent')) ||
-                mockMetrics.agentActivity.operatorAgent,
-              analyticsAgent:
-                transformAgentHealth(agentHealth?.find(a => a.agent_name === 'AnalyticsAgent')) ||
-                mockMetrics.agentActivity.analyticsAgent,
-              professionalProcessor:
-                transformAgentHealth(
-                  agentHealth?.find(a => a.agent_name === 'ProfessionalPropProcessor')
-                ) || mockMetrics.agentActivity.professionalProcessor,
-            },
-          };
-
-          setMetrics(realMetrics);
-        } else {
-          setMetrics(mockMetrics);
-        }
-      } else {
-        setMetrics(mockMetrics);
+      if (!supabase) {
+        console.error('Supabase client not available');
+        setDataSource('unknown');
+        setMetrics(null);
+        toast.error('Database connection unavailable');
+        return;
       }
 
+      // Fetch raw_props for feed ingestion data (last 24 hours)
+      const { data: rawProps, error: rawPropsError } = await supabase
+        .from('raw_props')
+        .select('id, status, created_at')
+        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+        .order('created_at', { ascending: false });
+
+      if (rawPropsError) {
+        console.error('Error fetching raw_props:', rawPropsError);
+      }
+
+      // Fetch unified_picks for grading and approval data (last 24 hours)
+      const { data: picks, error: picksError } = await supabase
+        .from('unified_picks')
+        .select('id, grade, tier, status, workflow_stage, priority, created_at, updated_at')
+        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+
+      if (picksError) {
+        console.error('Error fetching unified_picks:', picksError);
+      }
+
+      // Fetch agent_health for agent status
+      const { data: agentHealth, error: agentError } = await supabase
+        .from('agent_health')
+        .select('agent_name, status, last_heartbeat, created_at, total_operations')
+        .order('last_heartbeat', { ascending: false })
+        .limit(20);
+
+      if (agentError) {
+        console.error('Error fetching agent_health:', agentError);
+      }
+
+      // Calculate processing rate if we have enough data
+      let processingRate: number | null = null;
+      if (rawProps && rawProps.length > 1) {
+        const sortedProps = [...rawProps].sort(
+          (a, b) =>
+            new Date(String(a.created_at || 0)).getTime() -
+            new Date(String(b.created_at || 0)).getTime()
+        );
+        const firstTime = new Date(String(sortedProps[0]?.created_at || 0)).getTime();
+        const lastTime = new Date(
+          String(sortedProps[sortedProps.length - 1]?.created_at || 0)
+        ).getTime();
+        const minutesElapsed = Math.max(1, (lastTime - firstTime) / (1000 * 60));
+        processingRate = rawProps.length / minutesElapsed;
+      }
+
+      // Calculate grading metrics from picks with timestamps
+      let avgGradingTime: number | null = null;
+      let successRate: number | null = null;
+      if (picks && picks.length > 0) {
+        const gradedPicks = picks.filter(
+          p => p.grade && p.created_at && p.updated_at
+        );
+        if (gradedPicks.length > 0) {
+          const gradingTimes = gradedPicks.map(
+            p =>
+              (new Date(String(p.updated_at || 0)).getTime() -
+                new Date(String(p.created_at || 0)).getTime()) /
+              1000
+          );
+          avgGradingTime =
+            gradingTimes.reduce((sum, time) => sum + time, 0) / gradingTimes.length;
+
+          const successfulGrades = gradedPicks.filter(p => p.grade !== 'failed' && p.grade !== 'error').length;
+          successRate = (successfulGrades / gradedPicks.length) * 100;
+        }
+      }
+
+      // Calculate approval metrics
+      let avgApprovalTime: number | null = null;
+      if (picks && picks.length > 0) {
+        const approvedPicks = picks.filter(
+          p => p.status === 'approved' && p.created_at && p.updated_at
+        );
+        if (approvedPicks.length > 0) {
+          const approvalTimes = approvedPicks.map(
+            p =>
+              (new Date(String(p.updated_at || 0)).getTime() -
+                new Date(String(p.created_at || 0)).getTime()) /
+              (1000 * 60)
+          );
+          avgApprovalTime =
+            approvalTimes.reduce((sum, time) => sum + time, 0) / approvalTimes.length;
+        }
+      }
+
+      // Build metrics from real data only
+      const realMetrics: DataFlowMetrics = {
+        feedIngestion: {
+          propsReceived: rawProps?.length || 0,
+          propsProcessed: rawProps?.filter(p => p.status === 'processed').length || 0,
+          propsFailed: rawProps?.filter(p => p.status === 'failed').length || 0,
+          lastRun: rawProps?.[0]?.created_at
+            ? String(rawProps[0].created_at)
+            : new Date(0).toISOString(),
+          processingRate: processingRate || 0,
+          sources: ['Optimal Sports', 'DraftKings', 'FanDuel', 'Caesars'], // TODO: Get from config
+        },
+        gradingResults: {
+          totalGraded: picks?.filter(p => p.grade).length || 0,
+          tierA: picks?.filter(p => p.tier === 'A').length || 0,
+          tierB: picks?.filter(p => p.tier === 'B').length || 0,
+          tierC: picks?.filter(p => p.tier === 'C').length || 0,
+          pending: picks?.filter(p => !p.grade || p.workflow_stage === 'pending_review').length || 0,
+          avgGradingTime: avgGradingTime || 0,
+          successRate: successRate || 0,
+        },
+        approvalQueue: {
+          awaitingApproval:
+            picks?.filter(p => p.status === 'pending_approval' || p.workflow_stage === 'pending_review').length || 0,
+          approved: picks?.filter(p => p.status === 'approved').length || 0,
+          rejected: picks?.filter(p => p.status === 'rejected').length || 0,
+          avgApprovalTime: avgApprovalTime || 0,
+          highPriority: picks?.filter(p => p.priority === 'high').length || 0,
+        },
+        formSubmissions: {
+          totalSubmissions: 0, // NO DATA - smart form submissions not tracked in database
+          validated: 0,
+          processing: 0,
+          errors: 0,
+          lastSubmission: new Date(0).toISOString(),
+          submissionRate: 0,
+        },
+        agentActivity: {
+          feedAgent:
+            transformAgentHealth(agentHealth?.find(a => a.agent_name === 'FeedAgent')) || {
+              status: 'unknown',
+              lastRun: new Date(0).toISOString(),
+              opsCount: 0,
+            },
+          gradingAgent:
+            transformAgentHealth(agentHealth?.find(a => a.agent_name === 'GradingAgent')) || {
+              status: 'unknown',
+              lastRun: new Date(0).toISOString(),
+              opsCount: 0,
+            },
+          alertAgent:
+            transformAgentHealth(agentHealth?.find(a => a.agent_name === 'AlertAgent')) || {
+              status: 'unknown',
+              lastRun: new Date(0).toISOString(),
+              opsCount: 0,
+            },
+          recapAgent:
+            transformAgentHealth(agentHealth?.find(a => a.agent_name === 'RecapAgent')) || {
+              status: 'unknown',
+              lastRun: new Date(0).toISOString(),
+              opsCount: 0,
+            },
+          operatorAgent:
+            transformAgentHealth(agentHealth?.find(a => a.agent_name === 'OperatorAgent')) || {
+              status: 'unknown',
+              lastRun: new Date(0).toISOString(),
+              opsCount: 0,
+            },
+          analyticsAgent:
+            transformAgentHealth(agentHealth?.find(a => a.agent_name === 'AnalyticsAgent')) || {
+              status: 'unknown',
+              lastRun: new Date(0).toISOString(),
+              opsCount: 0,
+            },
+          professionalProcessor:
+            transformAgentHealth(
+              agentHealth?.find(a => a.agent_name === 'ProfessionalPropProcessor')
+            ) || {
+              status: 'unknown',
+              lastRun: new Date(0).toISOString(),
+              opsCount: 0,
+            },
+        },
+      };
+
+      setMetrics(realMetrics);
+      setDataSource('real');
       setLastUpdate(new Date());
     } catch (error) {
       console.error('Failed to fetch real-time metrics:', error);
-      setMetrics(mockMetrics); // Fallback to mock data
+      setDataSource('unknown');
+      setMetrics(null);
+      toast.error(`Failed to load metrics: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -383,8 +400,17 @@ export function RealTimeDataFlow({ className }: RealTimeDataFlowProps) {
               Real-Time Data Flow Monitor
             </div>
             <div className="flex items-center space-x-2">
+              <Badge
+                className={
+                  dataSource === 'real'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-gray-100 text-gray-800'
+                }
+              >
+                {dataSource === 'real' ? '✓ REAL DATA' : '? UNKNOWN'}
+              </Badge>
               <Badge className="bg-blue-100 text-blue-800">
-                Live Data • Updated {lastUpdate.toLocaleTimeString()}
+                Updated {lastUpdate.toLocaleTimeString()}
               </Badge>
               <Button variant="outline" size="sm" onClick={() => setAutoRefresh(!autoRefresh)}>
                 {autoRefresh ? (
@@ -649,64 +675,14 @@ export function RealTimeDataFlow({ className }: RealTimeDataFlowProps) {
           <CardDescription>Form submission tracking and validation status</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <div className="p-4 rounded-lg border bg-blue-50">
-              <div className="flex items-center justify-between">
-                <FileText className="w-5 h-5 text-blue-600" />
-                <Badge className="bg-blue-100 text-blue-800">
-                  +{metrics.formSubmissions.submissionRate}/hr
-                </Badge>
-              </div>
-              <div className="text-2xl font-bold text-blue-900 mt-2">
-                {metrics.formSubmissions.totalSubmissions}
-              </div>
-              <div className="text-sm text-blue-700">Total Submissions</div>
-            </div>
-
-            <div className="p-4 rounded-lg border bg-green-50">
-              <div className="flex items-center justify-between">
-                <CheckCircle className="w-5 h-5 text-green-600" />
-                <Badge className="bg-green-100 text-green-800">
-                  {Math.round(
-                    (metrics.formSubmissions.validated / metrics.formSubmissions.totalSubmissions) *
-                      100
-                  )}
-                  %
-                </Badge>
-              </div>
-              <div className="text-2xl font-bold text-green-900 mt-2">
-                {metrics.formSubmissions.validated}
-              </div>
-              <div className="text-sm text-green-700">Validated</div>
-            </div>
-
-            <div className="p-4 rounded-lg border bg-yellow-50">
-              <div className="flex items-center justify-between">
-                <Clock className="w-5 h-5 text-yellow-600" />
-                <Badge className="bg-yellow-100 text-yellow-800">Active</Badge>
-              </div>
-              <div className="text-2xl font-bold text-yellow-900 mt-2">
-                {metrics.formSubmissions.processing}
-              </div>
-              <div className="text-sm text-yellow-700">Processing</div>
-            </div>
-
-            <div className="p-4 rounded-lg border bg-red-50">
-              <div className="flex items-center justify-between">
-                <AlertCircle className="w-5 h-5 text-red-600" />
-                <Badge className="bg-red-100 text-red-800">Errors</Badge>
-              </div>
-              <div className="text-2xl font-bold text-red-900 mt-2">
-                {metrics.formSubmissions.errors}
-              </div>
-              <div className="text-sm text-red-700">Validation Errors</div>
-            </div>
-          </div>
-
-          <div className="mt-4 p-3 rounded-lg border bg-muted/20">
-            <div className="text-sm text-muted-foreground">Last Submission</div>
-            <div className="text-lg font-medium">
-              {new Date(metrics.formSubmissions.lastSubmission).toLocaleString()}
+          <div className="flex items-center justify-center h-32 text-center">
+            <div>
+              <AlertCircle className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+              <p className="text-lg font-semibold text-gray-600">NO DATA AVAILABLE</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Smart form submissions are not tracked in the database
+              </p>
+              <Badge className="mt-2 bg-gray-100 text-gray-800">Feature Not Implemented</Badge>
             </div>
           </div>
         </CardContent>

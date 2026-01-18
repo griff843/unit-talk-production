@@ -54,7 +54,9 @@ export interface Pick {
   stake: number;
   confidence: number;
   status: 'pending' | 'won' | 'lost' | 'void';
+  workflow_stage?: 'draft' | 'pending_review' | 'approved' | 'rejected' | 'published';
   created_at: string;
+  updated_at?: string;
   settled_at?: string;
   profit?: number;
   // Enhanced fields from v3.0.0 unified structure
@@ -62,6 +64,9 @@ export interface Pick {
   tier?: string;
   approval_status?: string;
   actual_result?: string;
+  player_name?: string;
+  line?: string;
+  submitted_at?: string;
 }
 
 export interface Agent {

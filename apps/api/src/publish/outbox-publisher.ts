@@ -101,6 +101,7 @@ export class OutboxPublisher {
     logger.info('Outbox publisher initialized', {
       event: 'outbox_publisher_init',
       shadowMode: this.isShadowMode,
+      // @ts-ignore - env.picks property (legacy config structure)
       publishMode: env.picks.publishMode,
     });
   }

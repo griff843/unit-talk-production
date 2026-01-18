@@ -1,0 +1,254 @@
+# Billing & Analytics Alert Rules
+# Phase 15: Analytics & Monetization Layer
+# Date: 2025-01-25
+#
+# Alert Conditions:
+# - Failed billing runs
+# - Cost variance > 5%
+# - Billing job duration > 5 minutes
+# - High error rates in usage tracking
+
+groups:
+  - name: billing_alerts
+    interval: 30s
+    rules:
+      # ========================================================================
+      # CRITICAL ALERTS - Immediate action required
+      # ========================================================================
+
+      - alert: BillingJobFailed
+        expr: increase(billing_job_failures_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: billing
+          team: platform
+        annotations:
+          summary: "Billing job failed"
+          description: "Billing job {{ $labels.job_type }} failed with error {{ $labels.error_type }}. Immediate investigation required."
+          runbook: "https://docs.unit-talk.com/runbooks/billing-job-failure"
+          dashboard: "https://grafana.unit-talk.com/d/billing/billing-overview"
+
+      - alert: BillingJobTimeout
+        expr: billing_job_duration_seconds{status="running"} > 300
+        for: 2m
+        labels:
+          severity: critical
+          component: billing
+          team: platform
+        annotations:
+          summary: "Billing job timeout"
+          description: "Billing job {{ $labels.job_type }} has been running for more than 5 minutes. May be stuck."
+          runbook: "https://docs.unit-talk.com/runbooks/billing-job-timeout"
+
+      - alert: TenantCostVarianceHigh
+        expr: abs(tenant_cost_variance) > 5
+        for: 5m
+        labels:
+          severity: critical
+          component: billing
+          team: finance
+        annotations:
+          summary: "High cost variance detected"
+          description: "Tenant {{ $labels.tenant_id }} has {{ $value }}% cost variance for {{ $labels.billing_month }}. Expected vs actual billing mismatch."
+          runbook: "https://docs.unit-talk.com/runbooks/cost-variance"
+          dashboard: "https://grafana.unit-talk.com/d/tenant-analytics/tenant-{{ $labels.tenant_id }}"
+
+      # ========================================================================
+      # WARNING ALERTS - Attention needed
+      # ========================================================================
+
+      - alert: BillingJobSlowExecution
+        expr: histogram_quantile(0.95, rate(billing_job_duration_seconds_bucket[10m])) > 120
+        for: 5m
+        labels:
+          severity: warning
+          component: billing
+          team: platform
+        annotations:
+          summary: "Billing job slow execution"
+          description: "P95 billing job duration is {{ $value }}s (> 2 minutes). Performance degradation detected."
+          runbook: "https://docs.unit-talk.com/runbooks/billing-performance"
+
+      - alert: TenantCostVarianceModerate
+        expr: abs(tenant_cost_variance) > 2 and abs(tenant_cost_variance) <= 5
+        for: 10m
+        labels:
+          severity: warning
+          component: billing
+          team: finance
+        annotations:
+          summary: "Moderate cost variance detected"
+          description: "Tenant {{ $labels.tenant_id }} has {{ $value }}% cost variance for {{ $labels.billing_month }}."
+          runbook: "https://docs.unit-talk.com/runbooks/cost-variance"
+
+      - alert: UsageTrackingErrorRateHigh
+        expr: |
+          (
+            sum(rate(tenant_usage_events_total{status="failed"}[5m]))
+            /
+            sum(rate(tenant_usage_events_total[5m]))
+          ) * 100 > 1
+        for: 5m
+        labels:
+          severity: warning
+          component: analytics
+          team: platform
+        annotations:
+          summary: "High usage tracking error rate"
+          description: "Usage tracking error rate is {{ $value }}% (> 1%). Events may not be billed correctly."
+          runbook: "https://docs.unit-talk.com/runbooks/usage-tracking-errors"
+
+      # ========================================================================
+      # INFO ALERTS - Informational
+      # ========================================================================
+
+      - alert: BillingJobCompleted
+        expr: increase(billing_job_duration_seconds_count{status="completed"}[1h]) > 0
+        for: 1m
+        labels:
+          severity: info
+          component: billing
+          team: platform
+        annotations:
+          summary: "Billing job completed successfully"
+          description: "Billing job {{ $labels.job_type }} completed in {{ $value }}s."
+
+      - alert: HighRevenueMonth
+        expr: monthly_revenue_cents > 100000000  # $1M
+        for: 1h
+        labels:
+          severity: info
+          component: billing
+          team: finance
+        annotations:
+          summary: "High revenue month"
+          description: "Monthly revenue for {{ $labels.billing_month }} is ${{ $value | humanize }}. Congratulations!"
+
+      # ========================================================================
+      # TENANT-SPECIFIC ALERTS
+      # ========================================================================
+
+      - alert: TenantUsageSpike
+        expr: |
+          (
+            rate(tenant_usage_total[5m])
+            /
+            rate(tenant_usage_total[1h] offset 1h)
+          ) > 5
+        for: 10m
+        labels:
+          severity: warning
+          component: analytics
+          team: platform
+        annotations:
+          summary: "Tenant usage spike detected"
+          description: "Tenant {{ $labels.tenant_id }} usage increased by {{ $value }}x in the last 5 minutes."
+          runbook: "https://docs.unit-talk.com/runbooks/usage-spike"
+
+      - alert: TenantInactive
+        expr: |
+          time() - max(tenant_usage_total) by (tenant_id) > 86400 * 7  # 7 days
+        for: 1h
+        labels:
+          severity: info
+          component: analytics
+          team: customer_success
+        annotations:
+          summary: "Tenant inactive"
+          description: "Tenant {{ $labels.tenant_id }} has been inactive for 7+ days. Potential churn risk."
+          runbook: "https://docs.unit-talk.com/runbooks/tenant-churn"
+
+      # ========================================================================
+      # STRIPE INTEGRATION ALERTS
+      # ========================================================================
+
+      - alert: StripeInvoiceGenerationFailed
+        expr: increase(billing_job_failures_total{job_type="invoice_generation"}[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: billing
+          team: platform
+        annotations:
+          summary: "Stripe invoice generation failed"
+          description: "Failed to generate Stripe invoice. Revenue may be impacted."
+          runbook: "https://docs.unit-talk.com/runbooks/stripe-invoice-failure"
+
+      - alert: StripeSyncDelayed
+        expr: billing_job_duration_seconds{job_type="stripe_sync"} > 60
+        for: 5m
+        labels:
+          severity: warning
+          component: billing
+          team: platform
+        annotations:
+          summary: "Stripe sync delayed"
+          description: "Stripe sync taking longer than expected ({{ $value }}s > 60s)."
+          runbook: "https://docs.unit-talk.com/runbooks/stripe-sync-delay"
+
+      # ========================================================================
+      # DATA QUALITY ALERTS
+      # ========================================================================
+
+      - alert: MissingUsageData
+        expr: |
+          absent(tenant_usage_total{event_type="api_call"}) == 1
+          and
+          hour() >= 9 and hour() <= 17  # Business hours
+        for: 30m
+        labels:
+          severity: warning
+          component: analytics
+          team: platform
+        annotations:
+          summary: "Missing usage data"
+          description: "No API call usage data received in the last 30 minutes during business hours."
+          runbook: "https://docs.unit-talk.com/runbooks/missing-usage-data"
+
+      - alert: BillingDataInconsistency
+        expr: |
+          abs(
+            sum(tenant_billing_amount_cents) by (billing_month)
+            -
+            sum(tenant_usage_total) by (billing_month)
+          ) > 1000000  # $10k variance
+        for: 15m
+        labels:
+          severity: warning
+          component: billing
+          team: finance
+        annotations:
+          summary: "Billing data inconsistency"
+          description: "Billing amount and usage totals don't match for {{ $labels.billing_month }}. Variance: ${{ $value | humanize }}."
+          runbook: "https://docs.unit-talk.com/runbooks/billing-inconsistency"
+
+      # ========================================================================
+      # PERFORMANCE ALERTS
+      # ========================================================================
+
+      - alert: AnalyticsQuerySlow
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{endpoint=~"/api/analytics.*"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          component: analytics
+          team: platform
+        annotations:
+          summary: "Analytics queries slow"
+          description: "P95 analytics query latency is {{ $value }}s (> 2s). Dashboard performance degraded."
+          runbook: "https://docs.unit-talk.com/runbooks/analytics-performance"
+
+      - alert: MaterializedViewStale
+        expr: |
+          time() - max(mv_tenant_usage_monthly_last_refresh) > 3600  # 1 hour
+        for: 15m
+        labels:
+          severity: warning
+          component: analytics
+          team: platform
+        annotations:
+          summary: "Materialized view stale"
+          description: "Materialized views haven't been refreshed in over 1 hour. Analytics may be outdated."
+          runbook: "https://docs.unit-talk.com/runbooks/mv-refresh"
+

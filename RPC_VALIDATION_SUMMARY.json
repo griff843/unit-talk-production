@@ -1,0 +1,151 @@
+{
+  "validation_run": {
+    "timestamp": "2025-01-06T01:00:00.000Z",
+    "duration_ms": 15000,
+    "test_user_id": "00000000-0000-0000-0000-000000000001",
+    "tenant_id": "12d8d677-4d2c-45a6-bbbf-cf6b0f98c79a",
+    "environment": "production",
+    "success": false
+  },
+  "seeder_validation": {
+    "status": "PASS",
+    "test_user": {
+      "id": "00000000-0000-0000-0000-000000000001",
+      "username": "test_user_phase13",
+      "tier": "vip",
+      "discord_id": "000000000000000001",
+      "is_active": true,
+      "exists": true,
+      "created": false
+    },
+    "method": "supabase_client_service_role",
+    "duration_ms": 927,
+    "notes": "Test user already existed in database. Verified successfully via Supabase service role client."
+  },
+  "postgrest_reload": {
+    "status": "PASS",
+    "success": true,
+    "attempt": 1,
+    "attempts": 1,
+    "reason": "rpc-test",
+    "duration_ms": 287,
+    "verification": {
+      "verified": true
+    },
+    "total_duration_ms": 2360,
+    "notes": "PostgREST schema reload triggered successfully via pgrst_reload() RPC function."
+  },
+  "rpc_endpoints": {
+    "pgrst_reload": {
+      "status": "PASS",
+      "http_code": 200,
+      "duration_ms": 298,
+      "success": true,
+      "notes": "RPC function works correctly. PostgREST schema reload can be triggered programmatically."
+    },
+    "create_pick_with_event": {
+      "status": "SKIP",
+      "http_code": 0,
+      "duration_ms": 0,
+      "success": false,
+      "error": "No props available for testing",
+      "notes": "Cannot test pick creation without props in database. Function exists in schema (20251101_core_picks.sql) but requires props table to have data."
+    },
+    "picks_publish": {
+      "status": "FAIL",
+      "http_code": 404,
+      "duration_ms": 0,
+      "success": false,
+      "error": "Could not find the function public.picks_publish without parameters in the schema cache",
+      "notes": "Function does not exist in database schema. Not found in any migration files. May need to be created if required."
+    }
+  },
+  "canonical_api_routes": {
+    "/api/health": {
+      "method": "GET",
+      "status": "FAIL",
+      "http_code": 404,
+      "duration_ms": 42,
+      "success": false,
+      "error": "Route returns 404 - Server misconfiguration or route not registered",
+      "notes": "API server is running on port 3010 but routes are not responding correctly. Health endpoint should be registered but returns 404."
+    },
+    "/api/domain/picks/dry-run": {
+      "method": "POST",
+      "status": "FAIL",
+      "http_code": 404,
+      "duration_ms": 3,
+      "success": false,
+      "error": "Route returns 404 - Server misconfiguration or route not registered",
+      "notes": "Route exists in codebase (apps/api/src/routes/domain/picks-insert.ts) but server returns 404. Likely needs server restart or route re-registration."
+    },
+    "/api/domain/picks/insert": {
+      "method": "POST",
+      "status": "FAIL",
+      "http_code": 404,
+      "duration_ms": 3,
+      "success": false,
+      "error": "Route returns 404 - Server misconfiguration or route not registered",
+      "notes": "Route exists in codebase (apps/api/src/routes/domain/picks-insert.ts) but server returns 404. Likely needs server restart or route re-registration."
+    }
+  },
+  "summary": {
+    "total_tests": 6,
+    "passed": 2,
+    "failed": 3,
+    "skipped": 1,
+    "pass_rate": "33.33%",
+    "overall_status": "PARTIAL_SUCCESS"
+  },
+  "issues_identified": [
+    {
+      "severity": "HIGH",
+      "component": "API Server",
+      "issue": "Canonical API routes returning 404",
+      "impact": "API endpoints cannot be accessed for validation",
+      "recommendation": "Restart API server (docker-compose restart api) or verify route registration in apps/api/src/api-server.ts"
+    },
+    {
+      "severity": "MEDIUM",
+      "component": "Database",
+      "issue": "No props available in database for testing",
+      "impact": "Cannot validate create_pick_with_event RPC function",
+      "recommendation": "Seed test props or run data ingestion pipeline to populate props table"
+    },
+    {
+      "severity": "LOW",
+      "component": "RPC Functions",
+      "issue": "picks_publish function does not exist",
+      "impact": "Cannot test pick publishing via RPC",
+      "recommendation": "Verify if picks_publish is required. If so, create migration to add function. If not, remove from test suite."
+    }
+  ],
+  "successful_components": [
+    "Test user seeding and verification",
+    "PostgREST schema reload via RPC",
+    "Database connectivity and RLS policies",
+    "Supabase client authentication"
+  ],
+  "next_steps": [
+    "Restart API server to fix route registration: docker-compose restart api",
+    "Verify API routes are accessible after restart",
+    "Seed test props data for pick creation testing",
+    "Re-run validation suite after fixes",
+    "Consider adding picks_publish RPC if needed for production"
+  ],
+  "artifacts_generated": [
+    "seed_run.log - Seeder execution log",
+    "seed_verify.log - User verification results",
+    "pgrst_reload_result.json - PostgREST reload response",
+    "rpc_calls.log - RPC endpoint test results",
+    "RPC_VALIDATION_SUMMARY.json - This structured summary"
+  ],
+  "environment_info": {
+    "database_connection": "Supabase Cloud (cqfnsozknjzvyiziwicl.supabase.co)",
+    "api_server": "Running on localhost:3010 (PID: 527068)",
+    "supabase_url": "https://cqfnsozknjzvyiziwicl.supabase.co",
+    "tenant_configured": true,
+    "service_role_configured": true,
+    "ssl_verification": "Bypassed for testing (rejectUnauthorized: false)"
+  }
+}

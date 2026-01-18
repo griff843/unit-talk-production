@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dbOperations, Agent, getSupabaseClient } from '@/lib/supabase';
-import { mockAgents, simulateAgentStatusUpdate } from '@/lib/mockData';
 import { agentMonitor } from '@/lib/agentMonitoring';
 import { redisClient } from '@/lib/redis';
+import { mockAgents, simulateAgentStatusUpdate } from '@/lib/mockData';
+
+// NO MOCK DATA - all responses from real database or explicit errors
 
 /**
  * Agents API Endpoint

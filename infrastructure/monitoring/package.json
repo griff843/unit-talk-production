@@ -1,0 +1,21 @@
+{
+  "name": "smart-form-monitoring",
+  "version": "1.0.0",
+  "description": "Smart Form production monitoring scripts",
+  "private": true,
+  "scripts": {
+    "synthetic": "node scripts/synthetic-monitor.js",
+    "canary": "node scripts/canary-dry-run.js",
+    "warm-players": "node scripts/warm-popular-players.js",
+    "build": "docker build -t unit-talk/monitoring:latest -f Dockerfile.monitoring .",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "dependencies": {},
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "Unit Talk Engineering",
+  "license": "PRIVATE"
+}
+

@@ -1,0 +1,227 @@
+# Prometheus Alert Rules for Smart Form Production Cutover
+# Date: 2025-10-25
+# SLO-based alerting: 5xx>0.5%, p95>150ms, lag>60s
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: smart-form-alert-rules
+  namespace: monitoring
+data:
+  smart-form-alerts.yaml: |
+    groups:
+      # =========================================================================
+      # SMART FORM SLO ALERTS
+      # =========================================================================
+      - name: smart-form-slo-alerts
+        interval: 30s
+        rules:
+          # ===================================================================
+          # ALERT 1: API Latency SLO Violation (p95 > 150ms)
+          # ===================================================================
+          - alert: SmartFormAPILatencySLOViolation
+            expr: |
+              histogram_quantile(0.95, 
+                sum(rate(http_request_duration_seconds_bucket{
+                  job="smart-form",
+                  route="/api/domain/picks/insert"
+                }[5m])) by (le)
+              ) * 1000 > 150
+            for: 5m
+            labels:
+              severity: critical
+              slo: latency
+              component: smart-form
+              team: platform
+            annotations:
+              summary: "Smart Form API p95 latency exceeds 150ms SLO"
+              description: "Smart Form API p95 latency is {{ $value | humanize }}ms, exceeding the 150ms SLO target for 5 minutes"
+              runbook_url: "https://docs.unit-talk.com/runbooks/smart-form-latency-slo"
+              dashboard_url: "https://grafana.unit-talk.com/d/smart-form-dashboard"
+              impact: "Users experiencing slow form submissions"
+              action: "1. Check database query performance\n2. Review API logs for slow endpoints\n3. Check Redis cache hit rate\n4. Consider scaling pods"
+
+          # ===================================================================
+          # ALERT 2: Error Rate SLO Violation (5xx > 0.5%)
+          # ===================================================================
+          - alert: SmartFormErrorRateSLOViolation
+            expr: |
+              (
+                sum(rate(http_requests_total{
+                  job="smart-form",
+                  status=~"5.."
+                }[5m]))
+                /
+                sum(rate(http_requests_total{
+                  job="smart-form"
+                }[5m]))
+              ) * 100 > 0.5
+            for: 2m
+            labels:
+              severity: critical
+              slo: error-rate
+              component: smart-form
+              team: platform
+            annotations:
+              summary: "Smart Form 5xx error rate exceeds 0.5% SLO"
+              description: "Smart Form 5xx error rate is {{ $value | humanizePercentage }}, exceeding the 0.5% SLO target"
+              runbook_url: "https://docs.unit-talk.com/runbooks/smart-form-error-rate"
+              dashboard_url: "https://grafana.unit-talk.com/d/smart-form-dashboard"
+              impact: "Pick submissions failing for users"
+              action: "1. Check application logs immediately\n2. Review recent deployments\n3. Check database connectivity\n4. Consider rollback if error rate continues"
+
+          # ===================================================================
+          # ALERT 3: Discord Publish Lag SLO Violation (lag > 60s)
+          # ===================================================================
+          - alert: SmartFormDiscordLagSLOViolation
+            expr: |
+              max(
+                time() - max_over_time(
+                  bridge_outbox_last_processed_timestamp{
+                    job="smart-form"
+                  }[5m]
+                )
+              ) > 60
+            for: 3m
+            labels:
+              severity: warning
+              slo: discord-lag
+              component: smart-form
+              team: platform
+            annotations:
+              summary: "Smart Form Discord publish lag exceeds 60s SLO"
+              description: "Smart Form Discord publish lag is {{ $value | humanize }}s, exceeding the 60s SLO target"
+              runbook_url: "https://docs.unit-talk.com/runbooks/smart-form-discord-lag"
+              dashboard_url: "https://grafana.unit-talk.com/d/smart-form-dashboard"
+              impact: "Picks not appearing in Discord channels promptly"
+              action: "1. Check BridgeWorker health\n2. Review bridge_outbox table for stuck events\n3. Check Discord API rate limits\n4. Verify Discord webhook connectivity"
+
+          # ===================================================================
+          # ALERT 4: Database Query Latency (p95 > 50ms)
+          # ===================================================================
+          - alert: SmartFormDatabaseLatencySLOViolation
+            expr: |
+              histogram_quantile(0.95,
+                sum(rate(database_query_duration_seconds_bucket{
+                  job="smart-form"
+                }[5m])) by (le)
+              ) * 1000 > 50
+            for: 5m
+            labels:
+              severity: warning
+              slo: db-latency
+              component: smart-form
+              team: platform
+            annotations:
+              summary: "Smart Form database p95 latency exceeds 50ms SLO"
+              description: "Smart Form database p95 latency is {{ $value | humanize }}ms, exceeding the 50ms SLO target"
+              runbook_url: "https://docs.unit-talk.com/runbooks/smart-form-db-latency"
+              dashboard_url: "https://grafana.unit-talk.com/d/smart-form-dashboard"
+              impact: "Slow database queries affecting form performance"
+              action: "1. Check database connection pool\n2. Review slow query logs\n3. Check for missing indexes\n4. Consider query optimization"
+
+      # =========================================================================
+      # SMART FORM OPERATIONAL ALERTS
+      # =========================================================================
+      - name: smart-form-operational-alerts
+        interval: 30s
+        rules:
+          # ===================================================================
+          # ALERT 5: Pick Insert Failures
+          # ===================================================================
+          - alert: SmartFormPickInsertFailures
+            expr: |
+              rate(pick_insert_failures_total{
+                job="smart-form"
+              }[5m]) > 0
+            for: 2m
+            labels:
+              severity: critical
+              component: smart-form
+              team: platform
+            annotations:
+              summary: "Smart Form pick insert failures detected"
+              description: "Smart Form is experiencing pick insert failures at {{ $value | humanize }} failures/sec"
+              runbook_url: "https://docs.unit-talk.com/runbooks/smart-form-pick-failures"
+              dashboard_url: "https://grafana.unit-talk.com/d/smart-form-dashboard"
+              impact: "Users unable to submit picks"
+              action: "1. Check database connectivity\n2. Review application logs\n3. Verify schema compatibility\n4. Check for constraint violations"
+
+          # ===================================================================
+          # ALERT 6: High Memory Usage
+          # ===================================================================
+          - alert: SmartFormHighMemoryUsage
+            expr: |
+              (
+                container_memory_working_set_bytes{
+                  pod=~"smart-form-.*",
+                  namespace="unit-talk"
+                }
+                /
+                container_spec_memory_limit_bytes{
+                  pod=~"smart-form-.*",
+                  namespace="unit-talk"
+                }
+              ) * 100 > 85
+            for: 5m
+            labels:
+              severity: warning
+              component: smart-form
+              team: platform
+            annotations:
+              summary: "Smart Form pod memory usage exceeds 85%"
+              description: "Smart Form pod {{ $labels.pod }} memory usage is {{ $value | humanizePercentage }}"
+              runbook_url: "https://docs.unit-talk.com/runbooks/smart-form-memory"
+              dashboard_url: "https://grafana.unit-talk.com/d/smart-form-dashboard"
+              impact: "Potential OOM kills and service disruption"
+              action: "1. Check for memory leaks\n2. Review cache size\n3. Consider increasing memory limits\n4. Check for runaway processes"
+
+          # ===================================================================
+          # ALERT 7: Pod Restart Loop
+          # ===================================================================
+          - alert: SmartFormPodRestartLoop
+            expr: |
+              rate(kube_pod_container_status_restarts_total{
+                pod=~"smart-form-.*",
+                namespace="unit-talk"
+              }[15m]) > 0
+            for: 5m
+            labels:
+              severity: critical
+              component: smart-form
+              team: platform
+            annotations:
+              summary: "Smart Form pod in restart loop"
+              description: "Smart Form pod {{ $labels.pod }} is restarting frequently"
+              runbook_url: "https://docs.unit-talk.com/runbooks/smart-form-restart-loop"
+              dashboard_url: "https://grafana.unit-talk.com/d/smart-form-dashboard"
+              impact: "Service instability and potential downtime"
+              action: "1. Check pod logs for crash reasons\n2. Review recent deployments\n3. Check resource limits\n4. Verify configuration and secrets"
+
+          # ===================================================================
+          # ALERT 8: Cache Miss Rate High
+          # ===================================================================
+          - alert: SmartFormHighCacheMissRate
+            expr: |
+              (
+                rate(redis_cache_misses_total{
+                  job="smart-form"
+                }[5m])
+                /
+                rate(redis_cache_requests_total{
+                  job="smart-form"
+                }[5m])
+              ) * 100 > 30
+            for: 10m
+            labels:
+              severity: warning
+              component: smart-form
+              team: platform
+            annotations:
+              summary: "Smart Form Redis cache miss rate exceeds 30%"
+              description: "Smart Form cache miss rate is {{ $value | humanizePercentage }}"
+              runbook_url: "https://docs.unit-talk.com/runbooks/smart-form-cache-miss"
+              dashboard_url: "https://grafana.unit-talk.com/d/smart-form-dashboard"
+              impact: "Increased database load and slower response times"
+              action: "1. Check cache warming jobs\n2. Review cache TTL settings\n3. Verify Redis connectivity\n4. Consider increasing cache size"
+

@@ -1,16 +1,19 @@
 import pino from 'pino';
 
 const isDevelopment = process.env.NODE_ENV === 'development';
+const isTest = process.env.NODE_ENV === 'test';
+const disableLogWorkers = process.env.DISABLE_LOG_WORKERS === '1' || isTest;
 const logLevel = process.env.LOG_LEVEL || (isDevelopment ? 'debug' : 'info');
 
 // Create base logger configuration
+// In test mode or when DISABLE_LOG_WORKERS=1, use synchronous logging to avoid worker thread issues
 const logger = pino({
   level: logLevel,
   formatters: {
     level: (label) => ({ level: label.toUpperCase() }),
   },
   timestamp: pino.stdTimeFunctions.isoTime,
-  ...(isDevelopment && {
+  ...(isDevelopment && !disableLogWorkers && {
     transport: {
       target: 'pino-pretty',
       options: {

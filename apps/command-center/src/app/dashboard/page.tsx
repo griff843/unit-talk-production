@@ -16,6 +16,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { PublishingMetrics } from '@/components/monitoring/PublishingMetrics';
 
 type PipelineHealthData = {
   total_picks_24h: number;
@@ -351,6 +352,15 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Publishing Metrics - Phase 2: Canonical pick_publish monitoring */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold">Publishing Status</h2>
+          <Badge className="bg-purple-100 text-purple-800">Canonical Source: pick_publish</Badge>
+        </div>
+        <PublishingMetrics compact />
+      </div>
 
       {/* System Info */}
       <Card>

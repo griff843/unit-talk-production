@@ -90,6 +90,122 @@ export const providerCircuitBreakerState = new Gauge({
   registers: [register],
 });
 
+// Canonical Mapping Metrics
+export const canonicalMappingTotal = new Counter({
+  name: 'canonical_mapping_total',
+  help: 'Total number of canonical mappings',
+  labelNames: ['entity_type', 'source', 'status'],
+  registers: [register],
+});
+
+export const canonicalMappingConfidenceHistogram = new Histogram({
+  name: 'canonical_mapping_confidence',
+  help: 'Confidence distribution for canonical mappings',
+  buckets: [0.1, 0.3, 0.5, 0.7, 0.9, 1.0],
+  registers: [register],
+});
+
+export const canonicalMappingMethodTotal = new Counter({
+  name: 'canonical_mapping_method_total',
+  help: 'Total mappings by method',
+  labelNames: ['entity_type', 'method'],
+  registers: [register],
+});
+
+export const canonicalMappingConflictsTotal = new Counter({
+  name: 'canonical_mapping_conflicts_total',
+  help: 'Total number of mapping conflicts',
+  registers: [register],
+});
+
+export const canonicalEntityTotal = new Counter({
+  name: 'canonical_entity_total',
+  help: 'Total number of canonical entities',
+  labelNames: ['entity_type'],
+  registers: [register],
+});
+
+export const canonicalMappingDuration = new Histogram({
+  name: 'canonical_mapping_duration_seconds',
+  help: 'Duration of canonical mapping operations',
+  buckets: [0.01, 0.05, 0.1, 0.5, 1, 2],
+  registers: [register],
+});
+
+// CLV (Closing Line Value) Metrics
+export const clvCoveragePercent = new Gauge({
+  name: 'clv_coverage_percent',
+  help: 'Percentage of picks with CLV tracking',
+  registers: [register],
+});
+
+export const clvDistributionHistogram = new Histogram({
+  name: 'clv_distribution',
+  help: 'Distribution of CLV percentages',
+  buckets: [-10, -5, -2, -1, 0, 1, 2, 5, 10],
+  registers: [register],
+});
+
+export const clvBeatingClosingLineTotal = new Counter({
+  name: 'clv_beating_closing_line_total',
+  help: 'Total picks that beat the closing line',
+  registers: [register],
+});
+
+export const clvClosingLineFetchTotal = new Counter({
+  name: 'clv_closing_line_fetch_total',
+  help: 'Total closing line fetch operations',
+  labelNames: ['source', 'status'],
+  registers: [register],
+});
+
+export const clvClosingLineFreshness = new Histogram({
+  name: 'clv_closing_line_freshness_seconds',
+  help: 'Freshness of closing line data (seconds since game end)',
+  buckets: [60, 300, 600, 1800, 3600, 7200],
+  registers: [register],
+});
+
+export const clvPendingUpdatesGauge = new Gauge({
+  name: 'clv_pending_updates',
+  help: 'Number of picks pending CLV updates',
+  registers: [register],
+});
+
+export const clvAvgPercentage = new Gauge({
+  name: 'clv_avg_percentage',
+  help: 'Average CLV percentage across all picks',
+  registers: [register],
+});
+
+// Dead Letter Queue Metrics
+export const dlqMetrics = {
+  enqueued: new Counter({
+    name: 'dlq_enqueued_total',
+    help: 'Total number of messages sent to DLQ',
+    labelNames: ['queue', 'reason'],
+    registers: [register],
+  }),
+  processed: new Counter({
+    name: 'dlq_processed_total',
+    help: 'Total number of DLQ messages processed',
+    labelNames: ['queue', 'status'],
+    registers: [register],
+  }),
+  retried: new Counter({
+    name: 'dlq_retried_total',
+    help: 'Total number of DLQ messages retried',
+    labelNames: ['queue'],
+    registers: [register],
+  }),
+  depth: new Gauge({
+    name: 'dlq_depth',
+    help: 'Current depth of DLQ',
+    labelNames: ['queue'],
+    registers: [register],
+  }),
+};
+
 // Start the HTTP server for Prometheus scraping
 export function startMetricsServer(port = 9000) {
   http.createServer(async (req, res) => {

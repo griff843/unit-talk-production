@@ -1,0 +1,14 @@
+{
+  "userId": "95144cfe-3b1d-4e2e-a0b6-da152edc7022",
+  "side": "over",
+  "odds": -110,
+  "stake": 1.0,
+  "userScore": 7,
+  "betSlipId": "test-smoke-1737148800",
+  "league": "NFL",
+  "marketType": "player_props",
+  "line": 250.5,
+  "playerName": "Patrick Mahomes",
+  "gameId": "00000000-0000-0000-0000-000000000001",
+  "gameDate": "2026-01-17T16:00:00Z"
+}

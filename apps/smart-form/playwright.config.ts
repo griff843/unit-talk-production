@@ -1,8 +1,16 @@
 import { defineConfig, devices } from '@playwright/test';
 import * as dotenv from 'dotenv';
+import * as path from 'path';
 
-// Load environment variables
-dotenv.config();
+// Load environment variables from .env in this directory
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+
+// DIAGNOSTICS: Verify environment loaded correctly
+console.log('🔍 PLAYWRIGHT CONFIG DIAGNOSTICS:');
+console.log('  CWD:', process.cwd());
+console.log('  __dirname:', __dirname);
+console.log('  SMART_FORM_URL:', process.env.SMART_FORM_URL);
+console.log('  PLAYWRIGHT_BASE_URL:', process.env.PLAYWRIGHT_BASE_URL);
 
 /**
  * @see https://playwright.dev/docs/test-configuration

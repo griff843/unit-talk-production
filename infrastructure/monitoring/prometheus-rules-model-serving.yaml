@@ -1,0 +1,254 @@
+# ===============================================================================
+# MODEL SERVING ALERT RULES - Charter v4.0
+# ===============================================================================
+# Date: 2025-11-01
+# Purpose: SLO-based alerting for model serving infrastructure
+# SLO Targets:
+#   - p95 inference latency < 150ms
+#   - Drift score < 0.05
+#   - Accuracy ≥ baseline - 2%
+# ===============================================================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-model-serving-rules
+  namespace: monitoring
+data:
+  model-serving-rules.yaml: |
+    groups:
+      # =========================================================================
+      # MODEL SERVING SLO ALERTS
+      # =========================================================================
+      - name: model-serving-slo-alerts
+        interval: 30s
+        rules:
+          # -------------------------------------------------------------------
+          # SLO: Inference Latency p95 < 150ms
+          # -------------------------------------------------------------------
+          - alert: ModelServingLatencySLOViolation
+            expr: |
+              histogram_quantile(0.95, 
+                sum(rate(model_serving_inference_latency_seconds_bucket{environment="prod"}[5m])) by (le, model_id)
+              ) * 1000 > 150
+            for: 5m
+            labels:
+              severity: critical
+              slo: inference_latency
+              component: model_serving
+              charter: v4.0
+            annotations:
+              summary: "Model serving p95 latency exceeds 150ms SLO"
+              description: "Model {{$labels.model_id}} p95 latency is {{ $value | humanize }}ms, exceeding the 150ms SLO target for 5 minutes"
+              impact: "Predictions are taking too long, affecting user experience"
+              action: "1. Check model execution time breakdown\n2. Review feature extraction performance\n3. Consider model optimization or scaling\n4. Check for resource constraints"
+              runbook_url: "https://docs.unit-talk.com/runbooks/model-serving-latency-slo"
+              dashboard_url: "https://grafana.unit-talk.com/d/model-serving"
+              query: 'histogram_quantile(0.95, sum(rate(model_serving_inference_latency_seconds_bucket{environment="prod",model_id="{{$labels.model_id}}"}[5m])) by (le)) * 1000'
+
+          - alert: ModelServingLatencySLOWarning
+            expr: |
+              histogram_quantile(0.95, 
+                sum(rate(model_serving_inference_latency_seconds_bucket{environment="prod"}[5m])) by (le, model_id)
+              ) * 1000 > 120
+            for: 10m
+            labels:
+              severity: warning
+              slo: inference_latency
+              component: model_serving
+              charter: v4.0
+            annotations:
+              summary: "Model serving p95 latency approaching SLO threshold"
+              description: "Model {{$labels.model_id}} p95 latency is {{ $value | humanize }}ms, approaching the 150ms SLO threshold"
+              action: "Monitor closely and prepare to investigate if latency continues to increase"
+
+          # -------------------------------------------------------------------
+          # SLO: Drift Score < 0.05
+          # -------------------------------------------------------------------
+          - alert: ModelServingDriftSLOViolation
+            expr: |
+              model_serving_current_drift_score{environment="prod"} > 0.05
+            for: 5m
+            labels:
+              severity: critical
+              slo: drift_score
+              component: model_serving
+              charter: v4.0
+            annotations:
+              summary: "Model drift score exceeds 0.05 SLO threshold"
+              description: "Model {{$labels.model_id}} drift score is {{ $value | humanizeDuration }}, exceeding the 0.05 SLO threshold"
+              impact: "Model predictions may be degrading due to data drift"
+              action: "1. Review recent data distribution changes\n2. Check feature drift breakdown\n3. Trigger model retraining\n4. Consider rolling back to previous model version"
+              runbook_url: "https://docs.unit-talk.com/runbooks/model-drift-slo"
+              dashboard_url: "https://grafana.unit-talk.com/d/model-serving"
+              query: 'model_serving_current_drift_score{environment="prod",model_id="{{$labels.model_id}}"}'
+
+          - alert: ModelServingDriftCritical
+            expr: |
+              model_serving_current_drift_score{environment="prod"} > 0.1
+            for: 2m
+            labels:
+              severity: critical
+              slo: drift_score
+              component: model_serving
+              charter: v4.0
+              page: "true"
+            annotations:
+              summary: "CRITICAL: Model drift score exceeds 0.1"
+              description: "Model {{$labels.model_id}} drift score is {{ $value | humanizeDuration }}, CRITICAL threshold exceeded"
+              impact: "Model predictions are likely severely degraded"
+              action: "IMMEDIATE ACTION REQUIRED:\n1. Roll back to previous model version\n2. Disable affected model\n3. Trigger emergency retraining\n4. Notify ML team"
+
+          # -------------------------------------------------------------------
+          # SLO: Accuracy ≥ Baseline - 2%
+          # -------------------------------------------------------------------
+          - alert: ModelServingAccuracyDropSLOViolation
+            expr: |
+              model_serving_accuracy_delta_from_baseline{environment="prod"} < -0.02
+            for: 15m
+            labels:
+              severity: critical
+              slo: accuracy
+              component: model_serving
+              charter: v4.0
+            annotations:
+              summary: "Model accuracy dropped more than 2% below baseline"
+              description: "Model {{$labels.model_id}} accuracy delta is {{ $value | humanizePercentage }}%, exceeding the -2% SLO threshold"
+              impact: "Model performance has degraded significantly"
+              action: "1. Review recent predictions and errors\n2. Check for data quality issues\n3. Analyze feature importance changes\n4. Consider model rollback\n5. Trigger retraining with recent data"
+              runbook_url: "https://docs.unit-talk.com/runbooks/model-accuracy-slo"
+              dashboard_url: "https://grafana.unit-talk.com/d/model-serving"
+              query: 'model_serving_accuracy_delta_from_baseline{environment="prod",model_id="{{$labels.model_id}}"}'
+
+          - alert: ModelServingAccuracyDropCritical
+            expr: |
+              model_serving_accuracy_delta_from_baseline{environment="prod"} < -0.05
+            for: 5m
+            labels:
+              severity: critical
+              slo: accuracy
+              component: model_serving
+              charter: v4.0
+              page: "true"
+            annotations:
+              summary: "CRITICAL: Model accuracy dropped more than 5% below baseline"
+              description: "Model {{$labels.model_id}} accuracy delta is {{ $value | humanizePercentage }}%, CRITICAL threshold exceeded"
+              impact: "Model is performing significantly worse than baseline"
+              action: "IMMEDIATE ACTION REQUIRED:\n1. Disable affected model\n2. Roll back to previous version\n3. Investigate root cause\n4. Notify ML team and stakeholders"
+
+      # =========================================================================
+      # MODEL SERVING OPERATIONAL ALERTS
+      # =========================================================================
+      - name: model-serving-operational-alerts
+        interval: 30s
+        rules:
+          # -------------------------------------------------------------------
+          # High Error Rate
+          # -------------------------------------------------------------------
+          - alert: ModelServingHighErrorRate
+            expr: |
+              sum(rate(model_serving_inference_errors_total{environment="prod"}[5m])) by (model_id)
+              /
+              sum(rate(model_serving_inference_requests_total{environment="prod"}[5m])) by (model_id)
+              > 0.05
+            for: 5m
+            labels:
+              severity: warning
+              component: model_serving
+            annotations:
+              summary: "High error rate in model serving"
+              description: "Model {{$labels.model_id}} error rate is {{ $value | humanizePercentage }}%, exceeding 5% threshold"
+              action: "1. Check error logs for patterns\n2. Review recent deployments\n3. Verify model health\n4. Check resource availability"
+
+          - alert: ModelServingCriticalErrorRate
+            expr: |
+              sum(rate(model_serving_inference_errors_total{environment="prod"}[5m])) by (model_id)
+              /
+              sum(rate(model_serving_inference_requests_total{environment="prod"}[5m])) by (model_id)
+              > 0.2
+            for: 2m
+            labels:
+              severity: critical
+              component: model_serving
+              page: "true"
+            annotations:
+              summary: "CRITICAL: Very high error rate in model serving"
+              description: "Model {{$labels.model_id}} error rate is {{ $value | humanizePercentage }}%, exceeding 20% threshold"
+              action: "IMMEDIATE ACTION: Disable model and investigate"
+
+          # -------------------------------------------------------------------
+          # Low Confidence Predictions
+          # -------------------------------------------------------------------
+          - alert: ModelServingLowConfidencePredictions
+            expr: |
+              histogram_quantile(0.5, 
+                sum(rate(model_serving_ensemble_confidence_score_bucket{environment="prod"}[10m])) by (le, model_id)
+              ) < 0.5
+            for: 15m
+            labels:
+              severity: warning
+              component: model_serving
+            annotations:
+              summary: "Model producing low confidence predictions"
+              description: "Model {{$labels.model_id}} median confidence is {{ $value | humanizeDuration }}, below 0.5 threshold"
+              action: "1. Review ensemble configuration\n2. Check model agreement scores\n3. Investigate feature quality\n4. Consider ensemble reweighting"
+
+          # -------------------------------------------------------------------
+          # Canary Deployment Issues
+          # -------------------------------------------------------------------
+          - alert: ModelServingCanaryLatencyRegression
+            expr: |
+              (
+                histogram_quantile(0.95, 
+                  sum(rate(model_serving_inference_latency_seconds_bucket{deployment_mode="canary"}[5m])) by (le, model_id)
+                )
+                /
+                histogram_quantile(0.95, 
+                  sum(rate(model_serving_inference_latency_seconds_bucket{deployment_mode="replace"}[5m])) by (le, model_id)
+                )
+              ) > 1.2
+            for: 5m
+            labels:
+              severity: warning
+              component: model_serving
+              deployment: canary
+            annotations:
+              summary: "Canary deployment showing latency regression"
+              description: "Canary model {{$labels.model_id}} is 20% slower than production model"
+              action: "1. Halt canary rollout\n2. Investigate performance regression\n3. Consider rollback"
+
+          # -------------------------------------------------------------------
+          # No Recent Predictions
+          # -------------------------------------------------------------------
+          - alert: ModelServingNoPredictions
+            expr: |
+              sum(rate(model_serving_predictions_total{environment="prod"}[10m])) by (model_id) == 0
+            for: 15m
+            labels:
+              severity: warning
+              component: model_serving
+            annotations:
+              summary: "Model not producing predictions"
+              description: "Model {{$labels.model_id}} has not produced any predictions in the last 15 minutes"
+              action: "1. Check if model is receiving requests\n2. Verify model health\n3. Check for deployment issues\n4. Review logs for errors"
+
+      # =========================================================================
+      # MODEL SERVING CAPACITY ALERTS
+      # =========================================================================
+      - name: model-serving-capacity-alerts
+        interval: 1m
+        rules:
+          - alert: ModelServingHighLatencyP99
+            expr: |
+              histogram_quantile(0.99, 
+                sum(rate(model_serving_inference_latency_seconds_bucket{environment="prod"}[5m])) by (le, model_id)
+              ) * 1000 > 300
+            for: 10m
+            labels:
+              severity: warning
+              component: model_serving
+            annotations:
+              summary: "Model serving p99 latency is high"
+              description: "Model {{$labels.model_id}} p99 latency is {{ $value | humanize }}ms"
+              action: "Consider scaling model serving infrastructure or optimizing model"
+

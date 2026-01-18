@@ -1,0 +1,434 @@
+name: Supabase Migrations CI/CD
+
+# Purpose: Automatically apply Supabase migrations to dev/staging/prod
+# following Production Charter requirements for Git-driven schema changes
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'supabase/migrations/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+        default: dev
+      dry_run:
+        description: 'Dry run (plan only, no apply)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ============================================================================
+  # MIGRATION PLAN - Show what will be applied (no secrets)
+  # ============================================================================
+  migration-plan:
+    name: Migration Plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      has_migrations: ${{ steps.check.outputs.has_migrations }}
+      migration_count: ${{ steps.check.outputs.count }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need history for diff
+
+      - name: Check for pending migrations
+        id: check
+        run: |
+          # Count migration files
+          COUNT=$(find supabase/migrations -name "*.sql" -type f | wc -l)
+          echo "count=$COUNT" >> $GITHUB_OUTPUT
+
+          if [ "$COUNT" -gt 0 ]; then
+            echo "has_migrations=true" >> $GITHUB_OUTPUT
+            echo "Found $COUNT migration files"
+          else
+            echo "has_migrations=false" >> $GITHUB_OUTPUT
+            echo "No migrations found"
+          fi
+
+      - name: Display migration plan
+        if: steps.check.outputs.has_migrations == 'true'
+        run: |
+          echo "=================================="
+          echo "MIGRATION PLAN"
+          echo "=================================="
+          echo ""
+          echo "Environment: ${{ github.event.inputs.environment || 'dev' }}"
+          echo "Dry Run: ${{ github.event.inputs.dry_run || 'false' }}"
+          echo ""
+          echo "Migrations to apply:"
+          find supabase/migrations -name "*.sql" -type f -printf "%f\n" | sort
+          echo ""
+          echo "Total: ${{ steps.check.outputs.count }} migrations"
+
+  # ============================================================================
+  # APPLY MIGRATIONS - Dev Environment (Auto on main merge)
+  # ============================================================================
+  migrate-dev:
+    name: Apply to Dev
+    runs-on: ubuntu-latest
+    needs: migration-plan
+    if: |
+      needs.migration-plan.outputs.has_migrations == 'true' &&
+      (github.ref == 'refs/heads/main' || github.event.inputs.environment == 'dev') &&
+      github.event.inputs.dry_run != 'true'
+    timeout-minutes: 15
+    environment: dev
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Mask secrets
+        run: |
+          echo "::add-mask::${{ secrets.SUPABASE_ACCESS_TOKEN }}"
+          echo "::add-mask::${{ secrets.SUPABASE_SERVICE_ROLE_KEY_DEV }}"
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Verify CLI installation
+        run: |
+          supabase --version
+          echo "Supabase CLI ready"
+
+      - name: Link to dev project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "Linking to dev project..."
+          supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF_DEV }}"
+          echo "Link successful"
+
+      - name: Apply migrations with retry
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "Applying migrations to dev..."
+
+          # Retry logic (up to 3 attempts)
+          n=0
+          max_attempts=3
+
+          until [ $n -ge $max_attempts ]; do
+            if supabase db push --include-all; then
+              echo "Migrations applied successfully"
+              break
+            fi
+
+            n=$((n+1))
+            if [ $n -lt $max_attempts ]; then
+              echo "Attempt $n failed, retrying in 10s..."
+              sleep 10
+            else
+              echo "All $max_attempts attempts failed"
+              exit 1
+            fi
+          done
+
+      - name: Verify schema
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL_DEV }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_DEV }}
+        run: |
+          echo "Verifying schema..."
+
+          # Install dependencies for verification script
+          npm ci --workspace=apps/api
+
+          # Run schema verification
+          npx tsx scripts/ops/verify-schema-post-migration.ts --env dev
+
+          echo "Schema verification complete"
+
+      - name: Reload PostgREST schema
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL_DEV }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_DEV }}
+        run: |
+          echo "Reloading PostgREST schema cache..."
+
+          # Trigger schema reload
+          curl -X POST "$SUPABASE_URL/rest/v1/rpc/reload_schema" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            || echo "Note: reload_schema RPC may not exist, continuing..."
+
+          echo "Schema reload complete"
+
+      - name: Run smoke tests
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL_DEV }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_DEV }}
+        run: |
+          echo "Running post-migration smoke tests..."
+
+          # Basic connectivity test
+          npx tsx scripts/ops/smoke-test-db.ts --env dev
+
+          echo "Smoke tests passed"
+
+      - name: Upload migration artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-dev-${{ github.run_number }}
+          path: |
+            supabase/.branches/
+            supabase/migrations/
+          retention-days: 30
+
+  # ============================================================================
+  # APPLY MIGRATIONS - Staging Environment (Manual dispatch only)
+  # ============================================================================
+  migrate-staging:
+    name: Apply to Staging
+    runs-on: ubuntu-latest
+    needs: migration-plan
+    if: |
+      needs.migration-plan.outputs.has_migrations == 'true' &&
+      github.event.inputs.environment == 'staging' &&
+      github.event.inputs.dry_run != 'true'
+    timeout-minutes: 15
+    environment: staging
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Mask secrets
+        run: |
+          echo "::add-mask::${{ secrets.SUPABASE_ACCESS_TOKEN }}"
+          echo "::add-mask::${{ secrets.SUPABASE_SERVICE_ROLE_KEY_STAGING }}"
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link to staging project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "Linking to staging project..."
+          supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF_STAGING }}"
+          echo "Link successful"
+
+      - name: Apply migrations with retry
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "Applying migrations to staging..."
+
+          n=0
+          max_attempts=3
+
+          until [ $n -ge $max_attempts ]; do
+            if supabase db push --include-all; then
+              echo "Migrations applied successfully"
+              break
+            fi
+
+            n=$((n+1))
+            if [ $n -lt $max_attempts ]; then
+              echo "Attempt $n failed, retrying in 10s..."
+              sleep 10
+            else
+              echo "All $max_attempts attempts failed"
+              exit 1
+            fi
+          done
+
+      - name: Verify schema
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL_STAGING }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_STAGING }}
+        run: |
+          npm ci --workspace=apps/api
+          npx tsx scripts/ops/verify-schema-post-migration.ts --env staging
+
+      - name: Run smoke tests
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL_STAGING }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_STAGING }}
+        run: |
+          npx tsx scripts/ops/smoke-test-db.ts --env staging
+
+  # ============================================================================
+  # APPLY MIGRATIONS - Production Environment (Manual dispatch with approval)
+  # ============================================================================
+  migrate-prod:
+    name: Apply to Production
+    runs-on: ubuntu-latest
+    needs: migration-plan
+    if: |
+      needs.migration-plan.outputs.has_migrations == 'true' &&
+      github.event.inputs.environment == 'prod' &&
+      github.event.inputs.dry_run != 'true'
+    timeout-minutes: 20
+    environment: production  # Requires manual approval in GitHub settings
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Mask secrets
+        run: |
+          echo "::add-mask::${{ secrets.SUPABASE_ACCESS_TOKEN }}"
+          echo "::add-mask::${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}"
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link to production project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "Linking to PRODUCTION project..."
+          supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF_PROD }}"
+          echo "Link successful"
+
+      - name: Apply migrations with retry
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "Applying migrations to PRODUCTION..."
+
+          n=0
+          max_attempts=3
+
+          until [ $n -ge $max_attempts ]; do
+            if supabase db push --include-all; then
+              echo "Migrations applied successfully to PRODUCTION"
+              break
+            fi
+
+            n=$((n+1))
+            if [ $n -lt $max_attempts ]; then
+              echo "Attempt $n failed, retrying in 15s..."
+              sleep 15
+            else
+              echo "All $max_attempts attempts failed"
+              exit 1
+            fi
+          done
+
+      - name: Verify schema
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL_PROD }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
+        run: |
+          npm ci --workspace=apps/api
+          npx tsx scripts/ops/verify-schema-post-migration.ts --env prod
+
+      - name: Run comprehensive smoke tests
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL_PROD }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
+        run: |
+          npx tsx scripts/ops/smoke-test-db.ts --env prod --comprehensive
+
+      - name: Notify Discord
+        if: always()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
+        run: |
+          STATUS="${{ job.status }}"
+          COLOR=$([ "$STATUS" == "success" ] && echo "3066993" || echo "15158332")
+
+          curl -X POST "$DISCORD_WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"Production Migration\",
+                \"description\": \"Supabase schema migration to PRODUCTION\",
+                \"color\": $COLOR,
+                \"fields\": [
+                  {\"name\": \"Status\", \"value\": \"$STATUS\", \"inline\": true},
+                  {\"name\": \"Migrations\", \"value\": \"${{ needs.migration-plan.outputs.migration_count }}\", \"inline\": true},
+                  {\"name\": \"Actor\", \"value\": \"${{ github.actor }}\", \"inline\": true},
+                  {\"name\": \"Commit\", \"value\": \"${{ github.sha }}\", \"inline\": false}
+                ],
+                \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
+              }]
+            }"
+
+  # ============================================================================
+  # DRY RUN - Show plan without applying
+  # ============================================================================
+  dry-run:
+    name: Dry Run (Plan Only)
+    runs-on: ubuntu-latest
+    needs: migration-plan
+    if: |
+      needs.migration-plan.outputs.has_migrations == 'true' &&
+      github.event.inputs.dry_run == 'true'
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Display dry run plan
+        run: |
+          echo "=================================="
+          echo "DRY RUN MODE - NO CHANGES APPLIED"
+          echo "=================================="
+          echo ""
+          echo "Target: ${{ github.event.inputs.environment }}"
+          echo ""
+          echo "Migrations that WOULD be applied:"
+          echo ""
+
+          for file in supabase/migrations/*.sql; do
+            if [ -f "$file" ]; then
+              echo "----------------------------------------"
+              echo "File: $(basename "$file")"
+              echo "----------------------------------------"
+              head -20 "$file"
+              echo "..."
+              echo ""
+            fi
+          done
+
+          echo "=================================="
+          echo "DRY RUN COMPLETE - NO CHANGES MADE"
+          echo "=================================="

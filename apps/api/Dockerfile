@@ -31,7 +31,7 @@ FROM base AS development
 
 # Install all dependencies (including dev)
 COPY package*.json ./
-RUN npm ci && npm cache clean --force
+RUN npm install && npm cache clean --force
 
 # Copy centralized configuration (CRITICAL for v3.0.0)
 COPY ../../config/ ./config/
@@ -64,7 +64,7 @@ FROM base AS builder
 COPY package*.json ./
 
 # Install all dependencies for building
-RUN npm ci
+RUN npm install
 
 # Copy source code
 COPY . .
@@ -79,7 +79,7 @@ FROM base AS production
 
 # Install only production dependencies
 COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+RUN npm install --only=production && npm cache clean --force
 
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist

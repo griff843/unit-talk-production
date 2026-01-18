@@ -1,0 +1,243 @@
+# Prometheus Alert Rules for SLO Monitoring
+# Enforces API latency < 150ms, DB latency < 50ms, Error rate < 0.5%
+# Date: 2025-01-24
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-slo-rules
+  namespace: monitoring
+data:
+  slo-rules.yaml: |
+    groups:
+      # API Performance SLO Rules
+      - name: api-slo-rules
+        interval: 30s
+        rules:
+          # API p95 Latency SLO: < 150ms
+          - alert: APILatencySLOViolation
+            expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job="unit-talk-api"}[5m])) by (le)) * 1000 > 150
+            for: 5m
+            labels:
+              severity: critical
+              slo: latency
+              component: api
+            annotations:
+              summary: "API p95 latency exceeds 150ms SLO"
+              description: "API p95 latency is {{ $value | humanize }}ms, exceeding the 150ms SLO target for 5 minutes"
+              runbook_url: "https://docs.unit-talk.com/runbooks/api-latency-slo"
+              dashboard_url: "https://grafana.unit-talk.com/d/slo-dashboard"
+
+          # API p95 Latency Warning
+          - alert: APILatencySLOWarning
+            expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job="unit-talk-api"}[5m])) by (le)) * 1000 > 130
+            for: 3m
+            labels:
+              severity: warning
+              slo: latency
+              component: api
+            annotations:
+              summary: "API p95 latency approaching 150ms SLO threshold"
+              description: "API p95 latency is {{ $value | humanize }}ms, approaching the 150ms SLO target (>130ms)"
+              runbook_url: "https://docs.unit-talk.com/runbooks/api-latency-slo"
+
+          # API p99 Latency
+          - alert: APILatencyP99High
+            expr: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job="unit-talk-api"}[5m])) by (le)) * 1000 > 500
+            for: 5m
+            labels:
+              severity: warning
+              component: api
+            annotations:
+              summary: "API p99 latency is high"
+              description: "API p99 latency is {{ $value | humanize }}ms"
+
+      # Error Rate SLO Rules
+      - name: error-rate-slo-rules
+        interval: 30s
+        rules:
+          # Error Rate SLO: < 0.5%
+          - alert: ErrorRateSLOViolation
+            expr: (sum(rate(http_requests_total{job="unit-talk-api",status=~"5.."}[5m])) / sum(rate(http_requests_total{job="unit-talk-api"}[5m]))) * 100 > 0.5
+            for: 5m
+            labels:
+              severity: critical
+              slo: error-rate
+              component: api
+            annotations:
+              summary: "Error rate exceeds 0.5% SLO"
+              description: "Current error rate is {{ $value | humanizeDuration }}%, exceeding the 0.5% SLO target"
+              runbook_url: "https://docs.unit-talk.com/runbooks/error-rate-slo"
+              dashboard_url: "https://grafana.unit-talk.com/d/slo-dashboard"
+
+          # Error Rate Warning
+          - alert: ErrorRateSLOWarning
+            expr: (sum(rate(http_requests_total{job="unit-talk-api",status=~"5.."}[5m])) / sum(rate(http_requests_total{job="unit-talk-api"}[5m]))) * 100 > 0.3
+            for: 3m
+            labels:
+              severity: warning
+              slo: error-rate
+              component: api
+            annotations:
+              summary: "Error rate approaching 0.5% SLO threshold"
+              description: "Current error rate is {{ $value | humanizeDuration }}%, approaching the 0.5% SLO target"
+
+          # 4xx Error Rate
+          - alert: ClientErrorRateHigh
+            expr: (sum(rate(http_requests_total{job="unit-talk-api",status=~"4.."}[5m])) / sum(rate(http_requests_total{job="unit-talk-api"}[5m]))) * 100 > 5
+            for: 10m
+            labels:
+              severity: warning
+              component: api
+            annotations:
+              summary: "High 4xx client error rate"
+              description: "4xx error rate is {{ $value | humanizeDuration }}%"
+
+      # Database SLO Rules
+      - name: database-slo-rules
+        interval: 30s
+        rules:
+          # Database p95 Latency SLO: < 50ms
+          - alert: DatabaseLatencySLOViolation
+            expr: histogram_quantile(0.95, sum(rate(database_query_duration_seconds_bucket{job="unit-talk-api"}[5m])) by (le)) * 1000 > 50
+            for: 5m
+            labels:
+              severity: critical
+              slo: db-latency
+              component: database
+            annotations:
+              summary: "Database p95 latency exceeds 50ms SLO"
+              description: "Database p95 latency is {{ $value | humanize }}ms, exceeding the 50ms SLO target"
+              runbook_url: "https://docs.unit-talk.com/runbooks/db-latency-slo"
+              dashboard_url: "https://grafana.unit-talk.com/d/slo-dashboard"
+
+          # Database p95 Latency Warning
+          - alert: DatabaseLatencySLOWarning
+            expr: histogram_quantile(0.95, sum(rate(database_query_duration_seconds_bucket{job="unit-talk-api"}[5m])) by (le)) * 1000 > 40
+            for: 3m
+            labels:
+              severity: warning
+              slo: db-latency
+              component: database
+            annotations:
+              summary: "Database p95 latency approaching 50ms SLO threshold"
+              description: "Database p95 latency is {{ $value | humanize }}ms, approaching the 50ms SLO target"
+
+          # Database Connection Pool Saturation
+          - alert: DatabaseConnectionPoolSaturation
+            expr: (database_connections_active{job="unit-talk-api"} / database_connections_max{job="unit-talk-api"}) * 100 > 90
+            for: 5m
+            labels:
+              severity: critical
+              component: database
+            annotations:
+              summary: "Database connection pool near saturation"
+              description: "Connection pool utilization is {{ $value | humanize }}%"
+              runbook_url: "https://docs.unit-talk.com/runbooks/db-connection-pool"
+
+      # Availability SLO Rules
+      - name: availability-slo-rules
+        interval: 1m
+        rules:
+          # Availability SLO: 99.5%
+          - alert: AvailabilitySLOViolation
+            expr: (1 - (sum(increase(http_requests_total{job="unit-talk-api",status=~"5.."}[30d])) / sum(increase(http_requests_total{job="unit-talk-api"}[30d])))) * 100 < 99.5
+            for: 5m
+            labels:
+              severity: critical
+              slo: availability
+              component: api
+            annotations:
+              summary: "30-day availability below 99.5% SLO"
+              description: "Current availability is {{ $value | humanizeDuration }}%, below the 99.5% SLO target"
+              runbook_url: "https://docs.unit-talk.com/runbooks/availability-slo"
+
+          # Service Down
+          - alert: ServiceDown
+            expr: up{job="unit-talk-api"} == 0
+            for: 1m
+            labels:
+              severity: critical
+              component: api
+            annotations:
+              summary: "Service is down"
+              description: "{{ $labels.instance }} is down"
+              runbook_url: "https://docs.unit-talk.com/runbooks/service-down"
+
+      # Resource Utilization Rules
+      - name: resource-utilization-rules
+        interval: 30s
+        rules:
+          # CPU Utilization
+          - alert: HighCPUUtilization
+            expr: (sum(rate(container_cpu_usage_seconds_total{namespace="unit-talk",pod=~"unit-talk-api-.*"}[5m])) by (pod) / sum(container_spec_cpu_quota{namespace="unit-talk",pod=~"unit-talk-api-.*"}/container_spec_cpu_period{namespace="unit-talk",pod=~"unit-talk-api-.*"}) by (pod)) * 100 > 80
+            for: 10m
+            labels:
+              severity: warning
+              component: api
+            annotations:
+              summary: "High CPU utilization"
+              description: "CPU utilization is {{ $value | humanize }}% on {{ $labels.pod }}"
+
+          # Memory Utilization
+          - alert: HighMemoryUtilization
+            expr: (sum(container_memory_working_set_bytes{namespace="unit-talk",pod=~"unit-talk-api-.*"}) by (pod) / sum(container_spec_memory_limit_bytes{namespace="unit-talk",pod=~"unit-talk-api-.*"}) by (pod)) * 100 > 90
+            for: 10m
+            labels:
+              severity: warning
+              component: api
+            annotations:
+              summary: "High memory utilization"
+              description: "Memory utilization is {{ $value | humanize }}% on {{ $labels.pod }}"
+
+          # Pod Restart Rate
+          - alert: PodRestartRateHigh
+            expr: rate(kube_pod_container_status_restarts_total{namespace="unit-talk"}[15m]) > 0.05
+            for: 5m
+            labels:
+              severity: warning
+              component: kubernetes
+            annotations:
+              summary: "High pod restart rate"
+              description: "Pod {{ $labels.pod }} is restarting frequently"
+
+      # Error Budget Rules
+      - name: error-budget-rules
+        interval: 1h
+        rules:
+          # Error Budget Burn Rate (Fast: 1 hour)
+          - alert: ErrorBudgetBurnRateFast
+            expr: (1 - (sum(increase(http_requests_total{job="unit-talk-api",status=~"5.."}[1h])) / sum(increase(http_requests_total{job="unit-talk-api"}[1h])))) / 0.005 < 0.02
+            for: 5m
+            labels:
+              severity: critical
+              slo: error-budget
+              component: api
+            annotations:
+              summary: "Fast error budget burn rate detected"
+              description: "Error budget will be exhausted in < 2 days at current rate"
+              runbook_url: "https://docs.unit-talk.com/runbooks/error-budget"
+
+          # Error Budget Burn Rate (Slow: 6 hours)
+          - alert: ErrorBudgetBurnRateSlow
+            expr: (1 - (sum(increase(http_requests_total{job="unit-talk-api",status=~"5.."}[6h])) / sum(increase(http_requests_total{job="unit-talk-api"}[6h])))) / 0.005 < 0.1
+            for: 30m
+            labels:
+              severity: warning
+              slo: error-budget
+              component: api
+            annotations:
+              summary: "Slow error budget burn rate detected"
+              description: "Error budget will be exhausted in < 10 days at current rate"
+
+          # Error Budget Exhaustion Warning
+          - alert: ErrorBudgetLow
+            expr: (1 - (sum(increase(http_requests_total{job="unit-talk-api",status=~"5.."}[30d])) / sum(increase(http_requests_total{job="unit-talk-api"}[30d])))) / 0.005 < 0.2
+            for: 1h
+            labels:
+              severity: warning
+              slo: error-budget
+              component: api
+            annotations:
+              summary: "Error budget is running low"
+              description: "Only {{ $value | humanize }}% of error budget remaining for the 30-day window"

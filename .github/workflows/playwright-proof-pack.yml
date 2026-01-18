@@ -1,0 +1,386 @@
+name: Playwright Proof Pack
+
+# Purpose: Run Playwright E2E tests and upload screenshots/reports as proof pack artifacts
+# Triggered on: PRs to main, manual dispatch, or scheduled runs
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'apps/command-center/**'
+      - 'apps/smart-form/**'
+      - 'apps/dashboard/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+        default: dev
+      test_pattern:
+        description: 'Test pattern (leave empty for all tests)'
+        required: false
+        type: string
+        default: ''
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ============================================================================
+  # PLAYWRIGHT TESTS - Command Center
+  # ============================================================================
+  command-center-tests:
+    name: Command Center E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          cd apps/command-center
+          npm ci
+
+      - name: Install Playwright browsers
+        run: |
+          cd apps/command-center
+          npx playwright install --with-deps chromium
+
+      - name: Create screenshots directory
+        run: |
+          mkdir -p apps/command-center/tests/screenshots
+
+      - name: Start Command Center server
+        run: |
+          cd apps/command-center
+          npm run dev &
+          echo "SERVER_PID=$!" >> $GITHUB_ENV
+
+          # Wait for server to be ready
+          echo "Waiting for Command Center to start..."
+          for i in {1..60}; do
+            if curl -s http://localhost:3015/api/health > /dev/null 2>&1; then
+              echo "✅ Command Center is ready"
+              break
+            fi
+            echo "Waiting... ($i/60)"
+            sleep 2
+          done
+
+          # Verify server is responding
+          curl -f http://localhost:3015/api/health || exit 1
+
+      - name: Run Playwright tests
+        env:
+          BASE_URL: http://localhost:3015
+        run: |
+          cd apps/command-center
+
+          # Run tests based on input pattern or all tests
+          if [ -n "${{ github.event.inputs.test_pattern }}" ]; then
+            npm run test:e2e -- "${{ github.event.inputs.test_pattern }}"
+          else
+            npm run test:e2e
+          fi
+
+      - name: Stop Command Center server
+        if: always()
+        run: |
+          if [ -n "$SERVER_PID" ]; then
+            kill $SERVER_PID || true
+          fi
+          pkill -f "next dev" || true
+
+      - name: Upload Playwright screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: command-center-screenshots-${{ github.run_number }}
+          path: apps/command-center/tests/screenshots/
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: command-center-report-${{ github.run_number }}
+          path: apps/command-center/playwright-report/
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Upload Playwright test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: command-center-test-results-${{ github.run_number }}
+          path: apps/command-center/test-results/
+          retention-days: 30
+          if-no-files-found: ignore
+
+  # ============================================================================
+  # PLAYWRIGHT TESTS - Smart Form
+  # ============================================================================
+  smart-form-tests:
+    name: Smart Form E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          cd apps/smart-form
+          npm ci
+
+      - name: Install Playwright browsers
+        run: |
+          cd apps/smart-form
+          npx playwright install --with-deps chromium
+
+      - name: Create screenshots directory
+        run: |
+          mkdir -p apps/smart-form/tests/screenshots
+
+      - name: Start Smart Form server
+        run: |
+          cd apps/smart-form
+          npm run dev &
+          echo "SERVER_PID=$!" >> $GITHUB_ENV
+
+          # Wait for server to be ready
+          echo "Waiting for Smart Form to start..."
+          for i in {1..60}; do
+            if curl -s http://localhost:3000 > /dev/null 2>&1; then
+              echo "✅ Smart Form is ready"
+              break
+            fi
+            echo "Waiting... ($i/60)"
+            sleep 2
+          done
+
+          # Verify server is responding
+          curl -f http://localhost:3000 || exit 1
+
+      - name: Run Playwright tests
+        env:
+          BASE_URL: http://localhost:3000
+        run: |
+          cd apps/smart-form
+
+          # Run tests based on input pattern or all tests
+          if [ -n "${{ github.event.inputs.test_pattern }}" ]; then
+            npm run test:e2e -- "${{ github.event.inputs.test_pattern }}"
+          else
+            npm run test:e2e
+          fi
+
+      - name: Stop Smart Form server
+        if: always()
+        run: |
+          if [ -n "$SERVER_PID" ]; then
+            kill $SERVER_PID || true
+          fi
+          pkill -f "next dev" || true
+
+      - name: Upload Playwright screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smart-form-screenshots-${{ github.run_number }}
+          path: apps/smart-form/tests/screenshots/
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smart-form-report-${{ github.run_number }}
+          path: apps/smart-form/playwright-report/
+          retention-days: 30
+          if-no-files-found: warn
+
+  # ============================================================================
+  # GENERATE PROOF PACK SUMMARY
+  # ============================================================================
+  proof-pack-summary:
+    name: Generate Proof Pack Summary
+    runs-on: ubuntu-latest
+    needs: [command-center-tests, smart-form-tests]
+    if: always()
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Generate proof pack summary
+        run: |
+          mkdir -p proof-pack
+
+          # Create summary markdown
+          cat > proof-pack/SUMMARY.md <<'EOF'
+          # Playwright Proof Pack Summary
+
+          **Generated:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          **Workflow Run:** ${{ github.run_number }}
+          **Triggered by:** ${{ github.actor }}
+          **Repository:** ${{ github.repository }}
+          **Commit:** ${{ github.sha }}
+
+          ---
+
+          ## Test Execution
+
+          ### Command Center Tests
+          **Status:** ${{ needs.command-center-tests.result }}
+          **Artifacts:**
+          - Screenshots: `command-center-screenshots-${{ github.run_number }}`
+          - HTML Report: `command-center-report-${{ github.run_number }}`
+
+          ### Smart Form Tests
+          **Status:** ${{ needs.smart-form-tests.result }}
+          **Artifacts:**
+          - Screenshots: `smart-form-screenshots-${{ github.run_number }}`
+          - HTML Report: `smart-form-report-${{ github.run_number }}`
+
+          ---
+
+          ## Artifact Inventory
+
+          EOF
+
+          # List all artifacts
+          echo "**Total Artifacts:**" >> proof-pack/SUMMARY.md
+          echo "" >> proof-pack/SUMMARY.md
+          find artifacts -type f -name "*.png" -o -name "*.html" | while read -r file; do
+            echo "- \`${file#artifacts/}\`" >> proof-pack/SUMMARY.md
+          done
+
+          # Create JSON metadata
+          cat > proof-pack/metadata.json <<EOF
+          {
+            "generated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "workflow_run": ${{ github.run_number }},
+            "triggered_by": "${{ github.actor }}",
+            "repository": "${{ github.repository }}",
+            "commit": "${{ github.sha }}",
+            "tests": {
+              "command_center": {
+                "status": "${{ needs.command-center-tests.result }}",
+                "artifacts": [
+                  "command-center-screenshots-${{ github.run_number }}",
+                  "command-center-report-${{ github.run_number }}"
+                ]
+              },
+              "smart_form": {
+                "status": "${{ needs.smart-form-tests.result }}",
+                "artifacts": [
+                  "smart-form-screenshots-${{ github.run_number }}",
+                  "smart-form-report-${{ github.run_number }}"
+                ]
+              }
+            }
+          }
+          EOF
+
+      - name: Upload proof pack summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: proof-pack-summary-${{ github.run_number }}
+          path: proof-pack/
+          retention-days: 90
+
+      - name: Comment PR with proof pack link
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('proof-pack/SUMMARY.md', 'utf8');
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 📸 Playwright Proof Pack Generated\n\n${summary}\n\n**Artifacts:** See the [Actions run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for downloadable artifacts.`
+            });
+
+  # ============================================================================
+  # NOTIFICATION
+  # ============================================================================
+  notify:
+    name: Notify Results
+    runs-on: ubuntu-latest
+    needs: [command-center-tests, smart-form-tests, proof-pack-summary]
+    if: always() && (github.event_name == 'schedule' || github.event.inputs.environment != 'dev')
+    timeout-minutes: 5
+
+    steps:
+      - name: Determine overall status
+        id: status
+        run: |
+          if [ "${{ needs.command-center-tests.result }}" = "success" ] && \
+             [ "${{ needs.smart-form-tests.result }}" = "success" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "color=3066993" >> $GITHUB_OUTPUT  # Green
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "color=15158332" >> $GITHUB_OUTPUT  # Red
+          fi
+
+      - name: Send Discord notification
+        if: secrets.DISCORD_RELEASE_WEBHOOK != ''
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
+        run: |
+          curl -X POST "$DISCORD_WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"Playwright Proof Pack - ${{ steps.status.outputs.status }}\",
+                \"description\": \"E2E tests completed\",
+                \"color\": ${{ steps.status.outputs.color }},
+                \"fields\": [
+                  {\"name\": \"Command Center\", \"value\": \"${{ needs.command-center-tests.result }}\", \"inline\": true},
+                  {\"name\": \"Smart Form\", \"value\": \"${{ needs.smart-form-tests.result }}\", \"inline\": true},
+                  {\"name\": \"Run\", \"value\": \"${{ github.run_number }}\", \"inline\": true},
+                  {\"name\": \"Triggered by\", \"value\": \"${{ github.actor }}\", \"inline\": true}
+                ],
+                \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
+                \"footer\": {
+                  \"text\": \"Artifacts available in GitHub Actions\"
+                }
+              }]
+            }"

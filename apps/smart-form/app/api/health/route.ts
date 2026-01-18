@@ -53,7 +53,7 @@ export async function GET(_request: NextRequest): Promise<NextResponse> {
   // Check 1: Database Connectivity
   const dbStartTime = Date.now();
   try {
-    const { error } = await supabaseServer.from('unified_picks').select('count').limit(1).single();
+    const { error } = await supabaseServer.from('picks').select('count').limit(1).single();
     
     const dbResponseTime = Date.now() - dbStartTime;
     
@@ -118,7 +118,7 @@ export async function GET(_request: NextRequest): Promise<NextResponse> {
 // HEAD request for simple health checks (load balancers)
 export async function HEAD(): Promise<NextResponse> {
   try {
-    const { error } = await supabaseServer.from('unified_picks').select('count').limit(1).single();
+    const { error } = await supabaseServer.from('picks').select('count').limit(1).single();
     
     if (error) {
       return new NextResponse(null, { status: 503 });

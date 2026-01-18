@@ -53,11 +53,36 @@ export function GradingQueue({ className }: GradingQueueProps) {
   const { agents, loading: agentsLoading } = useAgentMonitoring();
   const [queueItems, setQueueItems] = useState<GradingQueueItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(true);
-  const [processingSpeed, setProcessingSpeed] = useState(2.3); // picks per minute
+  const [processingSpeed, setProcessingSpeed] = useState<number | null>(null); // REAL: calculated from database
 
-  // Transform picks into grading queue items
+  // Transform picks into grading queue items and calculate real processing speed
   useEffect(() => {
     if (!picks) return;
+
+    // Calculate real processing speed from completed picks
+    const completedPicks = picks.filter(
+      pick =>
+        (pick.workflow_stage === 'approved' || pick.workflow_stage === 'published') &&
+        pick.created_at &&
+        pick.updated_at
+    );
+
+    if (completedPicks.length > 1) {
+      // Calculate average processing time in minutes
+      const processingTimes = completedPicks.map(pick => {
+        const created = new Date(String(pick.created_at || 0)).getTime();
+        const updated = new Date(String(pick.updated_at || 0)).getTime();
+        return (updated - created) / (1000 * 60); // convert to minutes
+      });
+
+      const avgProcessingTimeMinutes =
+        processingTimes.reduce((sum, time) => sum + time, 0) / processingTimes.length;
+
+      // Processing speed is picks per minute (inverse of avg time)
+      if (avgProcessingTimeMinutes > 0) {
+        setProcessingSpeed(1 / avgProcessingTimeMinutes);
+      }
+    }
 
     const pendingPicks = picks
       .filter(pick => pick.status === 'pending' || pick.workflow_stage === 'pending_review')
@@ -71,7 +96,7 @@ export function GradingQueue({ className }: GradingQueueProps) {
         tier: pick.tier,
         submittedAt: pick.submitted_at || pick.created_at || new Date().toISOString(),
         priority: determinePriority(pick),
-        estimatedProcessingTime: estimateProcessingTime(pick),
+        estimatedProcessingTime: 0, // NO ESTIMATE - real processing time varies
         status: determineStatus(pick),
         agentAssigned: 'GradingAgent-01',
         processingStartedAt:
@@ -104,35 +129,25 @@ export function GradingQueue({ className }: GradingQueueProps) {
     return 'pending';
   }
 
-  function estimateProcessingTime(pick: any): number {
-    // Estimate in seconds based on complexity
-    let baseTime = 30; // 30 seconds base
-    if (pick.tier === 'S') baseTime += 60; // S tier takes longer
-    if (pick.tier === 'A') baseTime += 30;
-    if (pick.confidence && pick.confidence < 60) baseTime += 45; // Low confidence requires more analysis
-    return baseTime;
-  }
-
   const queueMetrics = useMemo(() => {
     const pending = queueItems.filter(item => item.status === 'pending').length;
     const processing = queueItems.filter(item => item.status === 'processing').length;
     const totalItems = queueItems.length;
     const highPriority = queueItems.filter(item => item.priority === 'high').length;
 
-    const avgProcessingTime =
-      queueItems
-        .filter(item => item.estimatedProcessingTime)
-        .reduce((sum, item) => sum + item.estimatedProcessingTime, 0) / (totalItems || 1);
-
-    const estimatedWaitTime = (pending * (avgProcessingTime / 60)) / processingSpeed; // in minutes
+    // Calculate estimated wait time only if we have real processing speed data
+    let estimatedWaitTime: number | null = null;
+    if (processingSpeed !== null && processingSpeed > 0 && pending > 0) {
+      estimatedWaitTime = pending / processingSpeed; // in minutes
+    }
 
     return {
       pending,
       processing,
       totalItems,
       highPriority,
-      avgProcessingTime: Math.round(avgProcessingTime),
-      estimatedWaitTime: Math.round(estimatedWaitTime * 10) / 10,
+      avgProcessingTime: null, // NO ESTIMATE - removed hardcoded values
+      estimatedWaitTime: estimatedWaitTime !== null ? Math.round(estimatedWaitTime * 10) / 10 : null,
     };
   }, [queueItems, processingSpeed]);
 
@@ -204,7 +219,9 @@ export function GradingQueue({ className }: GradingQueueProps) {
               </div>
               <div className="text-2xl font-bold mt-1">{queueMetrics.pending}</div>
               <div className="text-xs text-muted-foreground">
-                Est. {queueMetrics.estimatedWaitTime}min wait
+                {queueMetrics.estimatedWaitTime !== null
+                  ? `Est. ${queueMetrics.estimatedWaitTime}min wait`
+                  : 'Wait time: UNKNOWN'}
               </div>
             </div>
 
@@ -215,7 +232,7 @@ export function GradingQueue({ className }: GradingQueueProps) {
               </div>
               <div className="text-2xl font-bold mt-1">{queueMetrics.processing}</div>
               <div className="text-xs text-muted-foreground">
-                Avg {queueMetrics.avgProcessingTime}s each
+                Processing time: UNKNOWN
               </div>
             </div>
 
@@ -233,8 +250,12 @@ export function GradingQueue({ className }: GradingQueueProps) {
                 <TrendingUp className="w-4 h-4 text-green-500" />
                 <span className="text-xs text-muted-foreground">THROUGHPUT</span>
               </div>
-              <div className="text-2xl font-bold mt-1">{processingSpeed}</div>
-              <div className="text-xs text-muted-foreground">picks/minute</div>
+              <div className="text-2xl font-bold mt-1">
+                {processingSpeed !== null ? processingSpeed.toFixed(2) : '?'}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {processingSpeed !== null ? 'picks/minute' : 'UNKNOWN'}
+              </div>
             </div>
           </div>
 
@@ -315,9 +336,6 @@ export function GradingQueue({ className }: GradingQueueProps) {
                       >
                         {item.status}
                       </Badge>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {item.estimatedProcessingTime}s est.
-                      </div>
                     </div>
 
                     <div className="flex items-center space-x-1">

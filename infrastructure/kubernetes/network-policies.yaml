@@ -1,0 +1,210 @@
+# Network Policies for Unit Talk Platform
+# Implements zero-trust networking with default deny-all
+# Date: 2025-01-24
+
+---
+# Default deny all ingress and egress traffic
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: unit-talk
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+
+---
+# Allow ingress from NGINX Ingress Controller
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-from-ingress
+  namespace: unit-talk
+spec:
+  podSelector:
+    matchLabels:
+      tier: frontend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 3000
+        - protocol: TCP
+          port: 8080
+
+---
+# Allow API to access database
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api-to-database
+  namespace: unit-talk
+spec:
+  podSelector:
+    matchLabels:
+      app: unit-talk-api
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+
+    # Allow external database (DO Managed PostgreSQL)
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 5432
+
+    # Allow external Redis
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 6379
+
+    # Allow HTTPS for external APIs
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+
+---
+# Allow API pods to communicate with each other
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api-internal
+  namespace: unit-talk
+spec:
+  podSelector:
+    matchLabels:
+      app: unit-talk-api
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: unit-talk-api
+      ports:
+        - protocol: TCP
+          port: 3000
+
+---
+# Allow Prometheus scraping
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scraping
+  namespace: unit-talk
+spec:
+  podSelector:
+    matchLabels:
+      monitoring: enabled
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - protocol: TCP
+          port: 9090
+        - protocol: TCP
+          port: 3000
+
+---
+# Allow Discord bot egress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-discord-bot-egress
+  namespace: unit-talk
+spec:
+  podSelector:
+    matchLabels:
+      app: discord-bot
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+
+    # Allow Discord API (HTTPS)
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+
+    # Allow database access
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 5432
+
+---
+# Allow Command Center egress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-command-center-egress
+  namespace: unit-talk
+spec:
+  podSelector:
+    matchLabels:
+      app: command-center
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+
+    # Allow HTTPS for external APIs
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+
+    # Allow Supabase access
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 443
