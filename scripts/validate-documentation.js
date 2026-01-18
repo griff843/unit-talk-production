@@ -60,12 +60,19 @@ class DocumentationValidator {
       this.validateClaudeMdContent(rootClaudemd, 'workspace');
     }
 
-    // Check app-specific CLAUDE.md files
+    // Only check CLAUDE.md for maintained applications
+    // Skip generated directories and shared utilities
+    const maintainedApps = ['api', 'discord-bot', 'dashboard', 'smart-form', 'command-center'];
     const appsDir = path.join(this.workspaceRoot, 'apps');
+
     if (fs.existsSync(appsDir)) {
-      const apps = fs.readdirSync(appsDir);
-      for (const app of apps) {
-        const appClaudemd = path.join(appsDir, app, 'CLAUDE.md');
+      for (const app of maintainedApps) {
+        const appPath = path.join(appsDir, app);
+        if (!fs.existsSync(appPath)) {
+          continue; // Skip if app doesn't exist
+        }
+
+        const appClaudemd = path.join(appPath, 'CLAUDE.md');
         if (!fs.existsSync(appClaudemd)) {
           this.warnings.push(`Missing CLAUDE.md in apps/${app}/`);
         } else {

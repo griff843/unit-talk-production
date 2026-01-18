@@ -243,3 +243,173 @@ bower_components/
 .rts2_cache_es/
 .rts2_cache_umd/
 .wireit/
+
+# ==============================================================================
+# ARTIFACT QUARANTINE - Generated outputs should NEVER be committed
+# ==============================================================================
+
+# Generated artifacts and proof bundles
+out/
+artifacts/
+_quarantine/
+analytics/
+
+# Proof bundles and phase artifacts (root level only)
+/*_SUMMARY.md
+/*_PROOF_BUNDLE.md
+/*_REPORT.md
+/*_FINDINGS.md
+/*_VERDICT.md
+/*_STATUS.md
+/*_SPEC.md
+/*_EVIDENCE.md
+/*_PLAN.md
+/*_GUIDE.md
+/*_CHECKLIST.md
+/*_COMPLETE.md
+/*_README.md
+/*_READY.md
+/*_DECISION.json
+/*_TEMPLATE.json
+PHASE*.md
+PHASE*.txt
+PHASE*.json
+CANARY*.md
+SMOKE*.txt
+RUN*.md
+EXECUTE*.md
+GO_NO_GO*.md
+LIVE_FIRE*.md
+APPLY_MIGRATIONS*.sql
+
+# Test output files (root level)
+/*.txt
+/*.log
+smoke-pack*.txt
+canary_e2e*.txt
+test-*.txt
+nul
+
+# Migration and validation scripts (root level)
+apply-*.ps1
+apply-*.py
+apply_migrations*.py
+verify-*.ps1
+verify-*.js
+check-*.js
+create-*.ps1
+promote-*.ps1
+execute-*.ps1
+test-*.ps1
+phase*-*.sql
+
+# PowerShell and Python scripts (root level - generated)
+/*.ps1
+/*.py
+!scripts/**/*.ps1
+!scripts/**/*.py
+!infrastructure/**/*.ps1
+
+# Generated SQL at root
+/*.sql
+!supabase/migrations/*.sql
+
+# JSON artifacts at root
+pgrst_reload_result.json
+temp_token.txt
+
+# Pre-commit configs (if not intentional)
+.pre-commit-config.yaml
+
+# App-level generated artifacts
+apps/*/PHASE*.md
+apps/*/APPLY*.md
+apps/*/EXECUTE*.md
+apps/*/*-output.txt
+apps/*/smoke-*.txt
+apps/*/audit-*.ps1
+apps/*/verify-*.ps1
+apps/*/apply-*.ps1
+apps/*/run-*.ps1
+apps/*/execute-*.ps1
+apps/*/phase*-evidence/
+apps/*/config/
+apps/*/supabase/migrations/
+
+# App-specific SQL/migration files (unless intentional)
+apps/*/CONSOLIDATED_MIGRATION*.sql
+apps/*/MIGRATION*.sql
+apps/*/*.sql
+!apps/*/src/**/*.sql
+
+# App-specific test outputs
+apps/*/smoke-pack*.txt
+apps/*/test-results/
+apps/*/playwright-report/
+apps/*/tests/screenshots/
+apps/*/tests/*-output.txt
+
+# Shared package generated files
+apps/shared/
+packages/*/src/**/*.d.ts
+packages/*/src/**/*.d.ts.map
+packages/*/src/**/*.js
+packages/*/src/**/*.js.map
+!packages/*/src/**/*.test.js
+!packages/*/src/**/*.spec.js
+
+# Infrastructure generated configs
+infra/
+infrastructure/argocd/apps/
+infrastructure/argocd/bootstrap/
+infrastructure/argocd/projects/
+infrastructure/dashboards/
+infrastructure/doks/
+infrastructure/kubernetes/apps/*/
+!infrastructure/kubernetes/apps/.gitkeep
+
+# Monitoring data
+monitoring/alertmanager/
+monitoring/grafana/dashboards/
+monitoring/grafana/provisioning/
+monitoring/prometheus/
+
+# Scripts generated outputs
+scripts/ops/windows/
+scripts/audit/
+scripts/burn-in/
+scripts/chaos/
+scripts/load/
+scripts/perf/
+scripts/migrations/
+scripts/production-cutover/
+
+# Docs generated files (proof packs, not actual docs)
+docs/*/PHASE*.md
+docs/*/PROOF*.md
+docs/*/APPLY*.md
+docs/*/EXECUTE*.md
+docs/ai/
+docs/analytics/
+docs/audit/
+docs/modernization/
+docs/partners/
+
+# Keep intentional docs/ops files, exclude generated ones
+!docs/ops/*.md
+docs/ops/phase*-*.ps1
+docs/ops/verify-*.ps1
+docs/ops/apply-*.ps1
+
+# Test and E2E artifacts
+tests/e2e/
+canary_e2e_output.txt
+test-env-loading.js
+verify-env-phase*.js
+
+# Config generated files
+config/*.d.ts
+config/*.d.ts.map
+config/*.js
+config/*.js.map
+!config/**/*.config.js
