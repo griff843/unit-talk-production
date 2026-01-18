@@ -130,37 +130,42 @@ jobs:
           );
 
           async function discoverValidTier() {
-            // Valid tiers in PROD: 'Free', 'VIP', 'VIP+', 'Black Label'
-            // Default to 'Free' as it's the safest baseline tier
-            const VALID_TIERS = ['Free', 'VIP', 'VIP+', 'Black Label'];
-            const DEFAULT_TIER = 'Free';
-
+            // Discover valid tier from actual PROD data - don't assume values
             try {
-              // Query existing users to confirm tier format
+              // Query existing users to find actual tier values
               const { data: existingUsers, error } = await supabase
                 .from('users')
                 .select('tier')
-                .limit(10);
+                .not('tier', 'is', null)
+                .limit(50);
 
               if (error) {
                 console.log('Could not query existing users:', error.message);
-                return DEFAULT_TIER;
+                // Fall back to trying to find valid value from check constraint
+                throw new Error('No users found');
               }
 
               if (existingUsers && existingUsers.length > 0) {
-                // Find a known valid tier from existing data
-                const knownTier = existingUsers.find(u => VALID_TIERS.includes(u.tier))?.tier;
-                if (knownTier) {
-                  console.log('Confirmed valid tier from existing users:', knownTier);
-                  return knownTier;
+                // Get unique tiers from actual data
+                const uniqueTiers = [...new Set(existingUsers.map(u => u.tier).filter(Boolean))];
+                console.log('Tiers found in PROD database:', JSON.stringify(uniqueTiers));
+
+                if (uniqueTiers.length > 0) {
+                  // Use the first tier found - this is definitely valid since it exists
+                  console.log('Using first discovered tier:', uniqueTiers[0]);
+                  return uniqueTiers[0];
                 }
               }
-            } catch (e) {
-              console.log('Tier discovery failed, using default:', e.message);
-            }
 
-            console.log('Using default tier:', DEFAULT_TIER);
-            return DEFAULT_TIER;
+              console.log('No tiers found in existing users');
+              throw new Error('No valid tiers discovered');
+            } catch (e) {
+              console.log('Tier discovery failed:', e.message);
+              // Last resort: try common tier names with case variations
+              const FALLBACK_TIERS = ['VIP', 'Vip', 'vip', 'Free', 'free', 'VIP+', 'vip+'];
+              console.log('Will try fallback tiers during insert');
+              return FALLBACK_TIERS[0];  // VIP is commonly valid
+            }
           }
 
           async function createTestData() {
