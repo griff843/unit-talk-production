@@ -1,0 +1,603 @@
+name: CI Failure Resolver
+
+# Phase A: Classification + Safe Autofix + Issue Creation
+# NO auto-merge, NO branch protection changes
+# See: docs/ops/AUTO_RESOLUTION_POLICY.md
+
+on:
+  workflow_run:
+    workflows:
+      - "CI Pipeline"
+      - "Compile Green Gate"
+      - "Charter Guards"
+      - "Schema Drift Check"
+      - "E2E CI"
+      - "Playwright Proof Pack"
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: read
+
+env:
+  NODE_VERSION: "18"
+  EVIDENCE_DIR: out/ci
+
+jobs:
+  # ==========================================================================
+  # Job 1: Collect Context and Classify Failure
+  # ==========================================================================
+  collect-and-classify:
+    name: Collect Context & Classify
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    outputs:
+      failure_class: ${{ steps.classify.outputs.failure_class }}
+      severity: ${{ steps.classify.outputs.severity }}
+      is_safe_autofix: ${{ steps.classify.outputs.is_safe_autofix }}
+      pr_number: ${{ steps.context.outputs.pr_number }}
+      branch_name: ${{ steps.context.outputs.branch_name }}
+      run_url: ${{ steps.context.outputs.run_url }}
+      workflow_name: ${{ steps.context.outputs.workflow_name }}
+      commit_sha: ${{ steps.context.outputs.commit_sha }}
+      failed_jobs: ${{ steps.context.outputs.failed_jobs }}
+      error_summary: ${{ steps.classify.outputs.error_summary }}
+      evidence_file: ${{ steps.evidence.outputs.evidence_file }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check autopilot freeze state
+        id: freeze-check
+        run: |
+          if [ -f "runtime_config/autopilot_state.json" ]; then
+            FROZEN=$(jq -r '.frozen' runtime_config/autopilot_state.json)
+            if [ "$FROZEN" = "true" ]; then
+              SCOPE=$(jq -r '.scope' runtime_config/autopilot_state.json)
+              REASON=$(jq -r '.reason' runtime_config/autopilot_state.json)
+              echo "::warning::Autopilot frozen (scope: $SCOPE). Reason: $REASON"
+              echo "frozen=true" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          fi
+          echo "frozen=false" >> $GITHUB_OUTPUT
+
+      - name: Check feature flags
+        id: flags
+        run: |
+          if [ -f "runtime_config/ci_automation.json" ]; then
+            CLASSIFICATION_ENABLED=$(jq -r '.features.FAILURE_CLASSIFICATION_ENABLED' runtime_config/ci_automation.json)
+            AUTOFIX_ENABLED=$(jq -r '.features.AUTO_FIX_PR_ENABLED' runtime_config/ci_automation.json)
+            echo "classification_enabled=$CLASSIFICATION_ENABLED" >> $GITHUB_OUTPUT
+            echo "autofix_enabled=$AUTOFIX_ENABLED" >> $GITHUB_OUTPUT
+          else
+            echo "classification_enabled=true" >> $GITHUB_OUTPUT
+            echo "autofix_enabled=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Collect workflow context
+        id: context
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Basic context from event
+          WORKFLOW_NAME="${{ github.event.workflow_run.name }}"
+          RUN_ID="${{ github.event.workflow_run.id }}"
+          RUN_URL="${{ github.event.workflow_run.html_url }}"
+          COMMIT_SHA="${{ github.event.workflow_run.head_sha }}"
+          BRANCH="${{ github.event.workflow_run.head_branch }}"
+
+          echo "workflow_name=$WORKFLOW_NAME" >> $GITHUB_OUTPUT
+          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+          echo "run_url=$RUN_URL" >> $GITHUB_OUTPUT
+          echo "commit_sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
+          echo "branch_name=$BRANCH" >> $GITHUB_OUTPUT
+
+          # Try to find associated PR
+          PR_NUMBER=""
+          if [ -n "$BRANCH" ] && [ "$BRANCH" != "main" ]; then
+            PR_NUMBER=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number' 2>/dev/null || echo "")
+          fi
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+
+          # Get failed jobs
+          FAILED_JOBS=$(gh api \
+            "/repos/${{ github.repository }}/actions/runs/$RUN_ID/jobs" \
+            --jq '[.jobs[] | select(.conclusion == "failure") | .name] | join(", ")' \
+            2>/dev/null || echo "Unknown")
+          echo "failed_jobs=$FAILED_JOBS" >> $GITHUB_OUTPUT
+
+          echo "::notice::Workflow: $WORKFLOW_NAME | Run: $RUN_ID | Branch: $BRANCH | Failed Jobs: $FAILED_JOBS"
+
+      - name: Download workflow logs
+        id: logs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p ${{ env.EVIDENCE_DIR }}
+          RUN_ID="${{ github.event.workflow_run.id }}"
+
+          # Download logs
+          gh api \
+            "/repos/${{ github.repository }}/actions/runs/$RUN_ID/logs" \
+            > "${{ env.EVIDENCE_DIR }}/workflow-logs.zip" 2>/dev/null || true
+
+          if [ -f "${{ env.EVIDENCE_DIR }}/workflow-logs.zip" ]; then
+            unzip -o "${{ env.EVIDENCE_DIR }}/workflow-logs.zip" -d "${{ env.EVIDENCE_DIR }}/logs" 2>/dev/null || true
+            # Extract last 500 lines of error context
+            find "${{ env.EVIDENCE_DIR }}/logs" -name "*.txt" -exec tail -100 {} \; > "${{ env.EVIDENCE_DIR }}/error-context.txt" 2>/dev/null || true
+            echo "logs_downloaded=true" >> $GITHUB_OUTPUT
+          else
+            echo "Could not download logs" > "${{ env.EVIDENCE_DIR }}/error-context.txt"
+            echo "logs_downloaded=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Classify failure
+        id: classify
+        run: |
+          LOG_FILE="${{ env.EVIDENCE_DIR }}/error-context.txt"
+
+          # Initialize
+          FAILURE_CLASS="UNKNOWN"
+          SEVERITY="P2"
+          IS_SAFE_AUTOFIX="false"
+          ERROR_SUMMARY="Failure requires investigation"
+
+          if [ -f "$LOG_FILE" ]; then
+            LOG_CONTENT=$(cat "$LOG_FILE" | head -1000)
+
+            # =================================================================
+            # Classification Rules (order matters - first match wins)
+            # =================================================================
+
+            # FLAKE: Transient failures
+            if echo "$LOG_CONTENT" | grep -qiE "(ECONNRESET|ETIMEDOUT|ECONNREFUSED|socket hang up|network timeout|rate limit|429|503|504)"; then
+              FAILURE_CLASS="FLAKE"
+              SEVERITY="P3"
+              ERROR_SUMMARY="Transient network/service failure detected"
+
+            # MIGRATION: Schema/migration issues
+            elif echo "$LOG_CONTENT" | grep -qiE "(migration.*fail|schema.*drift|column.*not.*exist|relation.*does not exist|constraint.*violation|duplicate key)"; then
+              FAILURE_CLASS="MIGRATION"
+              SEVERITY="P0"
+              ERROR_SUMMARY="Database migration or schema issue"
+
+            # SECURITY: Security scan failures
+            elif echo "$LOG_CONTENT" | grep -qiE "(vulnerability|CVE-|security.*fail|secret.*detect|credential.*expos|trivy|audit.*high|audit.*critical)"; then
+              FAILURE_CLASS="SECURITY"
+              SEVERITY="P0"
+              ERROR_SUMMARY="Security vulnerability or policy violation"
+
+            # POLICY: Charter/gate violations
+            elif echo "$LOG_CONTENT" | grep -qiE "(charter.*violation|gate.*fail|required check|branch protection|forbidden|policy.*fail)"; then
+              FAILURE_CLASS="POLICY"
+              SEVERITY="P1"
+              ERROR_SUMMARY="Policy or governance gate failure"
+
+            # CONFIG: Environment/configuration issues (SAFE AUTOFIX candidate)
+            elif echo "$LOG_CONTENT" | grep -qiE "(env.*not.*set|missing.*env|config.*error|\.env|environment variable|secret.*missing)"; then
+              FAILURE_CLASS="CONFIG"
+              SEVERITY="P2"
+              ERROR_SUMMARY="Configuration or environment issue"
+
+            # LINT: Linting failures (SAFE AUTOFIX)
+            elif echo "$LOG_CONTENT" | grep -qiE "(eslint|prettier|lint.*error|formatting.*error|style.*violation)"; then
+              FAILURE_CLASS="LINT"
+              SEVERITY="P3"
+              IS_SAFE_AUTOFIX="true"
+              ERROR_SUMMARY="Linting or formatting error - auto-fixable"
+
+            # TYPESCRIPT: Type errors (sometimes auto-fixable)
+            elif echo "$LOG_CONTENT" | grep -qiE "(TS[0-9]+:|type.*error|typescript|tsc.*error|cannot find.*module|has no exported member)"; then
+              FAILURE_CLASS="TYPESCRIPT"
+              SEVERITY="P2"
+              ERROR_SUMMARY="TypeScript compilation error"
+
+            # TEST: Test failures
+            elif echo "$LOG_CONTENT" | grep -qiE "(test.*fail|expect.*received|assertion.*fail|jest|vitest|playwright.*fail|FAIL.*spec)"; then
+              FAILURE_CLASS="TEST"
+              SEVERITY="P1"
+              ERROR_SUMMARY="Test suite failure"
+
+            # BUILD: Build failures
+            elif echo "$LOG_CONTENT" | grep -qiE "(build.*fail|compile.*error|webpack.*error|esbuild.*error|rollup.*error|next.*build.*fail)"; then
+              FAILURE_CLASS="BUILD"
+              SEVERITY="P1"
+              ERROR_SUMMARY="Build process failure"
+
+            # DEPENDENCY: Dependency issues (sometimes auto-fixable)
+            elif echo "$LOG_CONTENT" | grep -qiE "(npm.*err|package.*not found|peer.*depend|ERESOLVE|lockfile|node_modules)"; then
+              FAILURE_CLASS="DEPENDENCY"
+              SEVERITY="P2"
+              ERROR_SUMMARY="Dependency resolution error"
+
+            # REGRESSION: General regression (catch-all for repeated failures)
+            else
+              FAILURE_CLASS="REGRESSION"
+              SEVERITY="P1"
+              ERROR_SUMMARY="Unclassified failure - requires investigation"
+            fi
+          fi
+
+          echo "failure_class=$FAILURE_CLASS" >> $GITHUB_OUTPUT
+          echo "severity=$SEVERITY" >> $GITHUB_OUTPUT
+          echo "is_safe_autofix=$IS_SAFE_AUTOFIX" >> $GITHUB_OUTPUT
+          echo "error_summary=$ERROR_SUMMARY" >> $GITHUB_OUTPUT
+
+          echo "::notice::Classification: $FAILURE_CLASS (Severity: $SEVERITY, Safe Autofix: $IS_SAFE_AUTOFIX)"
+
+      - name: Generate evidence report
+        id: evidence
+        run: |
+          EVIDENCE_FILE="${{ env.EVIDENCE_DIR }}/failure-report-${{ github.event.workflow_run.id }}.md"
+
+          cat > "$EVIDENCE_FILE" << 'EVIDENCE_EOF'
+          # CI Failure Report
+
+          **Generated**: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          **Run ID**: ${{ github.event.workflow_run.id }}
+
+          ## Summary
+
+          | Field | Value |
+          |-------|-------|
+          | **Workflow** | ${{ steps.context.outputs.workflow_name }} |
+          | **Classification** | ${{ steps.classify.outputs.failure_class }} |
+          | **Severity** | ${{ steps.classify.outputs.severity }} |
+          | **Branch** | ${{ steps.context.outputs.branch_name }} |
+          | **Commit** | ${{ steps.context.outputs.commit_sha }} |
+          | **PR** | ${{ steps.context.outputs.pr_number || 'N/A' }} |
+          | **Failed Jobs** | ${{ steps.context.outputs.failed_jobs }} |
+
+          ## Error Summary
+
+          ${{ steps.classify.outputs.error_summary }}
+
+          ## Evidence Links
+
+          - [Failed Run](${{ steps.context.outputs.run_url }})
+          - [Commit](https://github.com/${{ github.repository }}/commit/${{ steps.context.outputs.commit_sha }})
+
+          ## Error Context (Last 100 lines)
+
+          ```
+          EVIDENCE_EOF
+
+          if [ -f "${{ env.EVIDENCE_DIR }}/error-context.txt" ]; then
+            tail -100 "${{ env.EVIDENCE_DIR }}/error-context.txt" >> "$EVIDENCE_FILE"
+          fi
+
+          echo '```' >> "$EVIDENCE_FILE"
+
+          echo "evidence_file=$EVIDENCE_FILE" >> $GITHUB_OUTPUT
+
+      - name: Upload evidence artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-failure-evidence-${{ github.event.workflow_run.id }}
+          path: ${{ env.EVIDENCE_DIR }}/
+          retention-days: 30
+
+  # ==========================================================================
+  # Job 2: Safe Autofix (LINT/FORMAT only)
+  # ==========================================================================
+  safe-autofix:
+    name: Safe Autofix
+    runs-on: ubuntu-latest
+    needs: collect-and-classify
+    if: |
+      needs.collect-and-classify.outputs.is_safe_autofix == 'true' &&
+      needs.collect-and-classify.outputs.branch_name != 'main' &&
+      needs.collect-and-classify.outputs.branch_name != ''
+    steps:
+      - name: Checkout failing branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.collect-and-classify.outputs.branch_name }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create fix branch
+        id: fix-branch
+        run: |
+          FIX_BRANCH="autofix/${{ needs.collect-and-classify.outputs.branch_name }}-${{ github.event.workflow_run.id }}"
+          git checkout -b "$FIX_BRANCH"
+          echo "fix_branch=$FIX_BRANCH" >> $GITHUB_OUTPUT
+
+      - name: Apply lint fixes
+        id: lint-fix
+        continue-on-error: true
+        run: |
+          # Run ESLint with autofix
+          npm run lint:fix 2>&1 | tee lint-output.txt || true
+
+          # Run Prettier
+          npm run format 2>&1 | tee -a lint-output.txt || true
+
+          # Check if there are changes
+          if git diff --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit fixes
+        if: steps.lint-fix.outputs.has_changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+          git commit -m "fix(ci): auto-fix lint/format errors
+
+          Automated fix for CI failure in workflow run #${{ github.event.workflow_run.id }}
+
+          Classification: ${{ needs.collect-and-classify.outputs.failure_class }}
+          Original branch: ${{ needs.collect-and-classify.outputs.branch_name }}
+
+          Co-Authored-By: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+
+      - name: Push fix branch
+        if: steps.lint-fix.outputs.has_changes == 'true'
+        run: |
+          git push origin "${{ steps.fix-branch.outputs.fix_branch }}"
+
+      - name: Create autofix PR
+        if: steps.lint-fix.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create \
+            --title "fix(ci): Auto-fix ${{ needs.collect-and-classify.outputs.failure_class }} errors" \
+            --body "$(cat <<'PR_BODY_EOF'
+          ## CI Auto-Fix: ${{ needs.collect-and-classify.outputs.failure_class }}
+
+          **Generated by**: CI Failure Resolver (Phase A)
+          **Run ID**: ${{ github.event.workflow_run.id }}
+          **Classification**: ${{ needs.collect-and-classify.outputs.failure_class }} (Severity: ${{ needs.collect-and-classify.outputs.severity }})
+
+          ---
+
+          ### Summary
+
+          ${{ needs.collect-and-classify.outputs.error_summary }}
+
+          ### Root Cause
+
+          Automated linting/formatting detected fixable issues in the codebase.
+
+          ### Changes Applied
+
+          - ESLint auto-fix (`npm run lint:fix`)
+          - Prettier formatting (`npm run format`)
+
+          ### Prevention
+
+          - Run `npm run lint:fix && npm run format` before committing
+          - Enable pre-commit hooks: `npm run prepare`
+
+          ### Evidence
+
+          - **Failed Run**: [${{ github.event.workflow_run.id }}](${{ needs.collect-and-classify.outputs.run_url }})
+          - **Original Branch**: `${{ needs.collect-and-classify.outputs.branch_name }}`
+          - **Commit**: `${{ needs.collect-and-classify.outputs.commit_sha }}`
+
+          ### Verification
+
+          - [ ] Fix addresses root cause
+          - [ ] No unintended side effects
+          - [ ] CI passes on this PR
+          - [ ] Reviewed by human
+
+          ---
+
+          > **Note**: This PR was auto-generated. Human review and approval required before merge.
+          > See [AUTO_RESOLUTION_POLICY.md](docs/ops/AUTO_RESOLUTION_POLICY.md) for details.
+          PR_BODY_EOF
+          )" \
+            --base "${{ needs.collect-and-classify.outputs.branch_name }}" \
+            --head "${{ steps.fix-branch.outputs.fix_branch }}" \
+            --label "auto-fix" \
+            --label "ci-failed" \
+            --label "ci:${{ needs.collect-and-classify.outputs.failure_class }}"
+
+      - name: No changes detected
+        if: steps.lint-fix.outputs.has_changes != 'true'
+        run: |
+          echo "::notice::No auto-fixable changes detected. Manual intervention required."
+
+  # ==========================================================================
+  # Job 3: Create Issue/Comment for Non-Autofix Failures
+  # ==========================================================================
+  create-issue-or-comment:
+    name: Create Issue/Comment
+    runs-on: ubuntu-latest
+    needs: collect-and-classify
+    if: |
+      needs.collect-and-classify.outputs.is_safe_autofix != 'true' &&
+      needs.collect-and-classify.outputs.failure_class != 'FLAKE'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Comment on existing PR
+        if: needs.collect-and-classify.outputs.pr_number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr comment ${{ needs.collect-and-classify.outputs.pr_number }} --body "$(cat <<'COMMENT_EOF'
+          ## CI Failure Summary
+
+          | Field | Value |
+          |-------|-------|
+          | **Classification** | ${{ needs.collect-and-classify.outputs.failure_class }} |
+          | **Severity** | ${{ needs.collect-and-classify.outputs.severity }} |
+          | **Run** | [${{ github.event.workflow_run.id }}](${{ needs.collect-and-classify.outputs.run_url }}) |
+          | **Failed Jobs** | ${{ needs.collect-and-classify.outputs.failed_jobs }} |
+
+          ### What Failed
+
+          ${{ needs.collect-and-classify.outputs.error_summary }}
+
+          ### Classification Rationale
+
+          Based on log analysis, this failure was classified as **${{ needs.collect-and-classify.outputs.failure_class }}**.
+
+          ### Recommended Action
+
+          $(case "${{ needs.collect-and-classify.outputs.failure_class }}" in
+            MIGRATION) echo "Review database migrations. Check for schema drift. See [MIGRATION_RUNBOOK.md](docs/ops/MIGRATION_RUNBOOK.md)." ;;
+            SECURITY) echo "Address security vulnerabilities immediately. This is a **P0** issue. See [incident_response_playbook.md](docs/ops/incident_response_playbook.md)." ;;
+            POLICY) echo "Review policy violation. Ensure compliance with [PRODUCTION_CHARTER.md](docs/PRODUCTION_CHARTER.md)." ;;
+            TYPESCRIPT) echo "Fix TypeScript errors. Run \`npm run type-check\` locally." ;;
+            TEST) echo "Fix failing tests. Run \`npm test\` locally to reproduce." ;;
+            BUILD) echo "Fix build errors. Run \`npm run build\` locally." ;;
+            CONFIG) echo "Check environment configuration. Ensure all required env vars are set." ;;
+            DEPENDENCY) echo "Resolve dependency issues. Try \`rm -rf node_modules && npm ci\`." ;;
+            *) echo "Investigate the failure manually. Check logs for details." ;;
+          esac)
+
+          ### Evidence
+
+          - [Failure logs](${{ needs.collect-and-classify.outputs.run_url }})
+          - [Classification guide](docs/ops/CI_FAILURE_CLASSIFICATION.md)
+
+          ---
+
+          <details>
+          <summary>Labels to add</summary>
+
+          - \`needs-human\`
+          - \`ci-failed\`
+          - \`ci:${{ needs.collect-and-classify.outputs.failure_class }}\`
+          - \`severity:${{ needs.collect-and-classify.outputs.severity }}\`
+
+          </details>
+          COMMENT_EOF
+          )"
+
+          # Add labels to PR
+          gh pr edit ${{ needs.collect-and-classify.outputs.pr_number }} \
+            --add-label "needs-human" \
+            --add-label "ci-failed" \
+            --add-label "ci:${{ needs.collect-and-classify.outputs.failure_class }}" \
+            --add-label "severity:${{ needs.collect-and-classify.outputs.severity }}" 2>/dev/null || true
+
+      - name: Create issue for main branch failures
+        if: |
+          needs.collect-and-classify.outputs.pr_number == '' &&
+          needs.collect-and-classify.outputs.branch_name == 'main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --title "CI Incident: ${{ needs.collect-and-classify.outputs.failure_class }} - ${{ needs.collect-and-classify.outputs.workflow_name }}" \
+            --body "$(cat <<'ISSUE_EOF'
+          ## CI Incident: ${{ needs.collect-and-classify.outputs.failure_class }}
+
+          **Severity**: ${{ needs.collect-and-classify.outputs.severity }}
+          **Classification**: ${{ needs.collect-and-classify.outputs.failure_class }}
+          **Status**: Open
+
+          ---
+
+          ### Timeline
+
+          | Time | Event |
+          |------|-------|
+          | $(date -u +"%Y-%m-%dT%H:%M:%SZ") | Failure detected |
+          | $(date -u +"%Y-%m-%dT%H:%M:%SZ") | Classified as ${{ needs.collect-and-classify.outputs.failure_class }} |
+
+          ### Failure Details
+
+          - **Workflow**: ${{ needs.collect-and-classify.outputs.workflow_name }}
+          - **Run ID**: [${{ github.event.workflow_run.id }}](${{ needs.collect-and-classify.outputs.run_url }})
+          - **Branch**: ${{ needs.collect-and-classify.outputs.branch_name }}
+          - **Commit**: ${{ needs.collect-and-classify.outputs.commit_sha }}
+          - **Failed Jobs**: ${{ needs.collect-and-classify.outputs.failed_jobs }}
+
+          ### Error Summary
+
+          ${{ needs.collect-and-classify.outputs.error_summary }}
+
+          ### Recommended Actions
+
+          $(case "${{ needs.collect-and-classify.outputs.failure_class }}" in
+            MIGRATION) echo "1. Check migration logs\n2. Verify schema state\n3. Consider rollback if P0" ;;
+            SECURITY) echo "1. IMMEDIATE: Review security findings\n2. Patch vulnerabilities\n3. Update dependencies" ;;
+            POLICY) echo "1. Review policy violation details\n2. Check PRODUCTION_CHARTER.md\n3. Remediate compliance gap" ;;
+            *) echo "1. Review failure logs\n2. Reproduce locally\n3. Fix and verify" ;;
+          esac)
+
+          ### Affected Components
+
+          - Workflow: ${{ needs.collect-and-classify.outputs.workflow_name }}
+          - Jobs: ${{ needs.collect-and-classify.outputs.failed_jobs }}
+
+          ---
+
+          > Auto-generated by CI Failure Resolver. See [CI_FAILURE_CLASSIFICATION.md](docs/ops/CI_FAILURE_CLASSIFICATION.md).
+          ISSUE_EOF
+          )" \
+            --label "needs-human" \
+            --label "ci-failed" \
+            --label "ci:${{ needs.collect-and-classify.outputs.failure_class }}" \
+            --label "severity:${{ needs.collect-and-classify.outputs.severity }}"
+
+  # ==========================================================================
+  # Job 4: Handle Flakes (Retry suggestion only in Phase A)
+  # ==========================================================================
+  handle-flake:
+    name: Handle Flake
+    runs-on: ubuntu-latest
+    needs: collect-and-classify
+    if: needs.collect-and-classify.outputs.failure_class == 'FLAKE'
+    steps:
+      - name: Log flake detection
+        run: |
+          echo "::notice::Flake detected in ${{ needs.collect-and-classify.outputs.workflow_name }}"
+          echo "Run URL: ${{ needs.collect-and-classify.outputs.run_url }}"
+          echo "Consider re-running the workflow manually."
+
+      - name: Comment on PR if exists
+        if: needs.collect-and-classify.outputs.pr_number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr comment ${{ needs.collect-and-classify.outputs.pr_number }} --body "$(cat <<'FLAKE_EOF'
+          ## Flaky CI Failure Detected
+
+          | Field | Value |
+          |-------|-------|
+          | **Classification** | FLAKE |
+          | **Severity** | P3 |
+          | **Run** | [${{ github.event.workflow_run.id }}](${{ needs.collect-and-classify.outputs.run_url }}) |
+
+          ### What Happened
+
+          ${{ needs.collect-and-classify.outputs.error_summary }}
+
+          ### Recommended Action
+
+          This appears to be a transient failure (network timeout, rate limit, etc.).
+
+          **Options:**
+          1. Re-run the failed workflow: [Re-run jobs](${{ needs.collect-and-classify.outputs.run_url }})
+          2. If this persists, investigate infrastructure stability
+
+          ---
+
+          > This is an informational comment. No action required unless failure persists.
+          FLAKE_EOF
+          )"
