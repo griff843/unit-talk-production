@@ -92,23 +92,26 @@ Tier 2. They represent goals, not current reality.
 
 **CANONICAL PICK TABLE**: **`unified_picks`**
 
-**Authoritative Declaration** (Root CLAUDE.md): All applications MUST use
-`unified_picks` as the single source of truth for pick data.
+**Authoritative Declaration** (Operator ruling 2026-01-18):
+
+- `unified_picks` is the single source of truth for all pick data
+- `pick_publish` is the outbox for Discord delivery
+- `picks` table references in Production Charter v3.0 are superseded by this
+  ruling
 
 **Known Conflicts**:
 
-- Production Charter (v3.0) references `picks` + `pick_publish` tables
+- Production Charter v3.0 references `picks` + `pick_publish` as canonical
 - Legacy docs reference `daily_picks` (deprecated)
 
 **Resolution**:
 
-- **Winner**: `unified_picks` (declared canonical in Root CLAUDE.md as of
-  2026-01-18)
-- **Action**: Apps should query `unified_picks` for pick data
-- **Verification Required**: Confirm `unified_picks` table exists via schema
-  introspection
-- **Note**: If Production Charter conflicts persist, escalate to human operator
-  for authoritative ruling
+- **Winner**: `unified_picks` (Operator ruling supersedes Charter on this point)
+- **Action**: All apps MUST query `unified_picks` for pick data
+- **Publish Outbox**: Use `pick_publish` for Discord delivery (unchanged)
+- **Verification**: Confirm `unified_picks` table exists via `\dt unified_picks`
+- **Charter Update**: Production Charter v3.0 should be updated to reflect this
+  ruling
 
 ### Development Model
 

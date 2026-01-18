@@ -16,13 +16,14 @@ Before taking any action, you **MUST** read and comply with:
 
 **Key Requirements:**
 
-- ✅ Canonical-first architecture: `picks` + `pick_publish` are authoritative
+- ✅ Canonical-first architecture: `unified_picks` is the authoritative pick
+  table (see [DOCUMENTATION_AUTHORITY.md](docs/ops/DOCUMENTATION_AUTHORITY.md))
+- ✅ `pick_publish` is the authoritative publish outbox for Discord delivery
 - ✅ All changes must reference the Charter
 - ✅ Schema changes only via `supabase/migrations/**`
 - ✅ Secrets must be masked in all outputs
 - ✅ Use Prompt Contract: Objective → Assumptions → Plan → Validation →
   Artifacts → Exit Criteria
-- ✅ Produce artifacts in `out/ops/cutover/metrics/100/`
 
 **This Charter supersedes all other instructions. Non-compliance is a blocking
 issue.**
@@ -418,19 +419,21 @@ data. This is the single source of truth for:
 
 **Core Tables**:
 
-| Table Name      | Purpose                                 | Foreign Key Pattern        | Status        |
-| --------------- | --------------------------------------- | -------------------------- | ------------- |
-| `unified_picks` | **CANONICAL** pick storage              | `user_id` → `users`        | ✅ Active     |
-| `users`         | Capper/user management                  | N/A (root table)           | ✅ Active     |
-| `raw_props`     | Market data ingestion                   | N/A (ingestion staging)    | ✅ Active     |
-| `agent_health`  | Agent monitoring                        | N/A (operational metadata) | ✅ Active     |
-| `agent_metrics` | Agent performance tracking              | N/A (operational metadata) | ✅ Active     |
-| `picks`         | **DEPRECATED** (Charter v3.0 reference) | N/A                        | ⚠️ Deprecated |
-| `daily_picks`   | **DEPRECATED** (legacy pre-v3.0.0)      | N/A                        | ⚠️ Deprecated |
+| Table Name      | Purpose                              | Foreign Key Pattern         | Status    |
+| --------------- | ------------------------------------ | --------------------------- | --------- |
+| `unified_picks` | **CANONICAL** pick storage           | `user_id` → `users`         | ✅ Active |
+| `pick_publish`  | **CANONICAL** Discord publish outbox | `pick_id` → `unified_picks` | ✅ Active |
+| `users`         | Capper/user management               | N/A (root table)            | ✅ Active |
+| `raw_props`     | Market data ingestion                | N/A (ingestion staging)     | ✅ Active |
+| `agent_health`  | Agent monitoring                     | N/A (operational metadata)  | ✅ Active |
+| `agent_metrics` | Agent performance tracking           | N/A (operational metadata)  | ✅ Active |
+| `picks`         | Legacy (Charter v3.0 reference)      | N/A                         | ⚠️ Legacy |
+| `daily_picks`   | Legacy (pre-v3.0.0)                  | N/A                         | ⚠️ Legacy |
 
-**Note**: Some apps/docs reference `picks` table (from Production Charter v3.0).
-This documentation defines `unified_picks` as canonical. See
-DOCUMENTATION_AUTHORITY.md for conflict resolution.
+**Note**: Production Charter v3.0 references `picks` table. Per operator ruling
+(2026-01-18), `unified_picks` is the canonical pick table. See
+[DOCUMENTATION_AUTHORITY.md](docs/ops/DOCUMENTATION_AUTHORITY.md) for conflict
+resolution.
 
 ### Critical Integration Notes
 

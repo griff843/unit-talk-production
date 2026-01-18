@@ -16,10 +16,11 @@ Before working on the Command Center, you **MUST** read and comply with:
 
 **Key Command Center Requirements (Charter v3.0 Compliance):**
 
-- ✅ **Canonical-First Monitoring**: Display `picks` + `pick_publish` tables as
-  authoritative data sources
-- ✅ **Real-time Pick Feed**: Live updates from canonical picks table with
-  workflow stage tracking
+- ✅ **Canonical-First Monitoring**: Display `unified_picks` + `pick_publish`
+  tables as authoritative data sources (see
+  [DOCUMENTATION_AUTHORITY.md](../../docs/ops/DOCUMENTATION_AUTHORITY.md))
+- ✅ **Real-time Pick Feed**: Live updates from canonical `unified_picks` table
+  with workflow stage tracking
 - ✅ **Lifecycle Controls**: Workflow management for draft → review → approved →
   published stages
 - ✅ **Self-Healing Visibility**: Display PostgREST reload status and automatic
