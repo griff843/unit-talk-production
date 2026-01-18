@@ -45,12 +45,34 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
-          # retry push to tolerate transient network hiccups
-          n=0
-          until [ $n -ge 3 ]; do
-            supabase db push && break
-            n=$((n+1)); echo "retry $n/3"; sleep 5
+
+          # Repair migration history to handle preview drift
+          # This marks phantom migrations as reverted so db push can proceed
+          echo "Checking for migration history drift..."
+          supabase migration list 2>&1 | grep -E "^[0-9]+" | while read migration_id rest; do
+            if [ ! -f "supabase/migrations/${migration_id}"*.sql ]; then
+              echo "Repairing phantom migration: $migration_id"
+              supabase migration repair --status reverted "$migration_id" || true
+            fi
           done
+
+          # Push migrations with proper failure handling
+          echo "Pushing migrations..."
+          push_success=false
+          for attempt in 1 2 3; do
+            if supabase db push 2>&1; then
+              echo "Migration push succeeded on attempt $attempt"
+              push_success=true
+              break
+            fi
+            echo "Push attempt $attempt failed, retrying..."
+            sleep 5
+          done
+
+          if [ "$push_success" = "false" ]; then
+            echo "ERROR: Migration push failed after 3 attempts"
+            exit 1
+          fi
 
       - name: Run admin RPCs (backfill → score loop → refresh)
         env:
