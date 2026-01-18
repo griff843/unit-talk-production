@@ -1,0 +1,161 @@
+name: Agent Control Plane Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment to verify"
+        required: true
+        type: choice
+        options:
+          - staging
+          - prod-canary
+          - production
+        default: staging
+      smoke_only:
+        description: "Run smoke tests only (quick verification)"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  verify:
+    name: Verify Agent Control Plane - ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment == 'staging' && 'staging' || 'production' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Mask secrets
+        run: |
+          echo "::add-mask::${{ secrets.SUPABASE_SERVICE_ROLE_KEY_STAGING }}"
+          echo "::add-mask::${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install TypeScript runner
+        run: npm install -g tsx
+
+      - name: Set environment variables
+        id: env
+        run: |
+          if [ "${{ inputs.environment }}" == "staging" ]; then
+            echo "SUPABASE_URL=${{ secrets.SUPABASE_URL_STAGING }}" >> $GITHUB_ENV
+            echo "SUPABASE_SERVICE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY_STAGING }}" >> $GITHUB_ENV
+            echo "API_BASE_URL=${{ secrets.STAGING_API_BASE_URL || 'https://staging-api.unittalk.com' }}" >> $GITHUB_ENV
+            echo "ENV_NAME=staging" >> $GITHUB_ENV
+          elif [ "${{ inputs.environment }}" == "prod-canary" ]; then
+            echo "SUPABASE_URL=${{ secrets.SUPABASE_URL_PROD }}" >> $GITHUB_ENV
+            echo "SUPABASE_SERVICE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}" >> $GITHUB_ENV
+            echo "API_BASE_URL=${{ secrets.PROD_API_BASE_URL || 'https://api.unittalk.com' }}" >> $GITHUB_ENV
+            echo "ENV_NAME=prod-canary" >> $GITHUB_ENV
+          else
+            echo "SUPABASE_URL=${{ secrets.SUPABASE_URL_PROD }}" >> $GITHUB_ENV
+            echo "SUPABASE_SERVICE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}" >> $GITHUB_ENV
+            echo "API_BASE_URL=${{ secrets.PROD_API_BASE_URL || 'https://api.unittalk.com' }}" >> $GITHUB_ENV
+            echo "ENV_NAME=production" >> $GITHUB_ENV
+          fi
+
+      - name: Verify Agent Control Plane tables exist
+        run: |
+          echo "🔍 Verifying Agent Control Plane database schema..."
+
+          # Create a simple verification SQL runner
+          cat > /tmp/verify-schema.js << 'EOF'
+          const { createClient } = require('@supabase/supabase-js');
+
+          async function verifySchema() {
+            const supabase = createClient(
+              process.env.SUPABASE_URL,
+              process.env.SUPABASE_SERVICE_KEY
+            );
+
+            const requiredTables = [
+              'agent_registry',
+              'agent_lifecycle_events',
+              'agent_metrics_snapshots',
+              'kill_confirmations',
+              'system_status'
+            ];
+
+            console.log('Checking required tables...');
+
+            for (const table of requiredTables) {
+              const { error } = await supabase
+                .from(table)
+                .select('*')
+                .limit(1);
+
+              if (error && error.code === '42P01') {
+                console.error(`❌ Table missing: ${table}`);
+                process.exit(1);
+              } else if (error) {
+                console.error(`❌ Error checking ${table}: ${error.message}`);
+                process.exit(1);
+              }
+              console.log(`✅ Table exists: ${table}`);
+            }
+
+            console.log('\n✅ All required tables exist');
+          }
+
+          verifySchema().catch(err => {
+            console.error('Schema verification failed:', err);
+            process.exit(1);
+          });
+          EOF
+
+          node /tmp/verify-schema.js
+
+      - name: Run Agent Control Plane verification
+        run: |
+          echo "🧪 Running Agent Control Plane verification..."
+
+          SMOKE_FLAG=""
+          if [ "${{ inputs.smoke_only }}" == "true" ]; then
+            SMOKE_FLAG="--smoke"
+          fi
+
+          npx tsx scripts/verify-agent-control-plane.ts --env=${{ env.ENV_NAME }} $SMOKE_FLAG
+
+      - name: Upload verification reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acp-verification-${{ inputs.environment }}-${{ github.run_number }}
+          path: |
+            out/release/phase1_controlplane/*.md
+            out/release/phase1_controlplane/*.json
+          retention-days: 30
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Agent Control Plane Verification Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Smoke Only**: ${{ inputs.smoke_only }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Workflow Run**: [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f "out/release/phase1_controlplane/${{ env.ENV_NAME }}_verification.md" ]; then
+            echo "### Verification Report" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            cat "out/release/phase1_controlplane/${{ env.ENV_NAME }}_verification.md" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Agent Control Plane verification FAILED for ${{ inputs.environment }}"
+          echo "Please check the workflow logs and verification reports"
+          exit 1

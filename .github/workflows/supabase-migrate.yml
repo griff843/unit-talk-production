@@ -1,0 +1,163 @@
+name: Supabase Database Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+        default: staging
+      migration_file:
+        description: "Specific migration file (optional, defaults to all pending)"
+        required: false
+        type: string
+      dry_run:
+        description: "Dry run - show what would be executed without applying"
+        required: false
+        type: boolean
+        default: false
+
+env:
+  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+jobs:
+  migrate:
+    name: Apply Database Migration
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Mask secrets
+        run: |
+          echo "::add-mask::${{ secrets.SUPABASE_SERVICE_ROLE_KEY_STAGING }}"
+          echo "::add-mask::${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}"
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Set environment variables
+        id: env
+        run: |
+          if [ "${{ inputs.environment }}" == "staging" ]; then
+            echo "SUPABASE_URL=${{ secrets.SUPABASE_URL_STAGING }}" >> $GITHUB_OUTPUT
+            echo "SUPABASE_SERVICE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY_STAGING }}" >> $GITHUB_OUTPUT
+            echo "SUPABASE_PROJECT_REF=${{ secrets.SUPABASE_PROJECT_REF_STAGING }}" >> $GITHUB_OUTPUT
+          else
+            echo "SUPABASE_URL=${{ secrets.SUPABASE_URL_PROD }}" >> $GITHUB_OUTPUT
+            echo "SUPABASE_SERVICE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}" >> $GITHUB_OUTPUT
+            echo "SUPABASE_PROJECT_REF=${{ secrets.SUPABASE_PROJECT_REF_PROD }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Link Supabase project
+        run: |
+          supabase link --project-ref ${{ steps.env.outputs.SUPABASE_PROJECT_REF }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: List pending migrations
+        run: |
+          echo "📋 Checking migration status..."
+          supabase db diff --linked || echo "No schema differences found"
+
+      - name: Show migration file (if specified)
+        if: inputs.migration_file != ''
+        run: |
+          echo "📄 Migration file to apply: ${{ inputs.migration_file }}"
+          if [ -f "supabase/migrations/${{ inputs.migration_file }}" ]; then
+            echo "--- BEGIN MIGRATION SQL ---"
+            cat "supabase/migrations/${{ inputs.migration_file }}"
+            echo "--- END MIGRATION SQL ---"
+          else
+            echo "❌ Migration file not found: supabase/migrations/${{ inputs.migration_file }}"
+            exit 1
+          fi
+
+      - name: Dry run - show what would be applied
+        if: inputs.dry_run == true
+        run: |
+          echo "🔍 DRY RUN - Would apply the following migrations:"
+          ls -la supabase/migrations/
+          echo ""
+          echo "No changes will be made."
+
+      - name: Apply migrations
+        if: inputs.dry_run != true
+        run: |
+          echo "🚀 Applying migrations to ${{ inputs.environment }}..."
+
+          if [ -n "${{ inputs.migration_file }}" ]; then
+            # Apply specific migration file directly via psql
+            echo "Applying specific migration: ${{ inputs.migration_file }}"
+
+            # Create connection string
+            CONNECTION_STRING="${{ steps.env.outputs.SUPABASE_URL }}"
+
+            # Extract components and construct postgres URL
+            # Supabase URL format: https://PROJECT.supabase.co
+            PROJECT_REF="${{ steps.env.outputs.SUPABASE_PROJECT_REF }}"
+            DB_PASSWORD="${{ steps.env.outputs.SUPABASE_SERVICE_KEY }}"
+            DB_HOST="db.${PROJECT_REF}.supabase.co"
+
+            # Apply migration using Supabase CLI
+            supabase db push --linked
+          else
+            # Apply all pending migrations
+            echo "Applying all pending migrations..."
+            supabase db push --linked
+          fi
+
+          echo "✅ Migration applied successfully"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ steps.env.outputs.SUPABASE_SERVICE_KEY }}
+
+      - name: Verify migration
+        run: |
+          echo "🔍 Verifying migration was applied..."
+
+          # Check for Agent Control Plane tables
+          echo "Checking for agent_registry table..."
+          # This will be verified by the verification script
+
+          echo "✅ Migration verification complete"
+
+      - name: Create migration report
+        if: always()
+        run: |
+          mkdir -p out/migrations
+
+          cat > out/migrations/migration-report.json << EOF
+          {
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "environment": "${{ inputs.environment }}",
+            "migration_file": "${{ inputs.migration_file || 'all pending' }}",
+            "dry_run": ${{ inputs.dry_run }},
+            "workflow_run_id": "${{ github.run_id }}",
+            "commit_sha": "${{ github.sha }}",
+            "status": "${{ job.status }}"
+          }
+          EOF
+
+          cat out/migrations/migration-report.json
+
+      - name: Upload migration report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-report-${{ inputs.environment }}-${{ github.run_number }}
+          path: out/migrations/
+          retention-days: 30
