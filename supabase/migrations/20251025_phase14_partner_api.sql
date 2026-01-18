@@ -491,3 +491,10 @@ INSERT INTO public.partner_organizations (
 -- ===============================================================================
 
 COMMENT ON SCHEMA public IS 'Phase 14: Partner API & Developer SDK - Database schema ready';
+
+-- ============================================================================
+-- FORCE POSTGREST SCHEMA RELOAD (Charter-mandated)
+-- ============================================================================
+-- Trigger PostgREST to reload its schema cache
+-- This ensures canonical tables are immediately visible via REST API
+SELECT pg_notify('pgrst', 'reload schema');

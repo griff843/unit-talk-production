@@ -546,3 +546,9 @@ COMMENT ON FUNCTION create_pick_with_event IS 'Create pick with automatic event 
 -- END OF MIGRATION
 -- ===============================================================================
 
+-- ============================================================================
+-- FORCE POSTGREST SCHEMA RELOAD (Charter-mandated)
+-- ============================================================================
+-- Trigger PostgREST to reload its schema cache
+-- This ensures canonical tables are immediately visible via REST API
+SELECT pg_notify('pgrst', 'reload schema');

@@ -94,3 +94,10 @@ COMMENT ON COLUMN pick_publish.next_retry_at IS 'Timestamp for next retry attemp
 -- ===============================================================================
 -- END OF MIGRATION
 -- ===============================================================================
+
+-- ============================================================================
+-- FORCE POSTGREST SCHEMA RELOAD (Charter-mandated)
+-- ============================================================================
+-- Trigger PostgREST to reload its schema cache
+-- This ensures canonical tables are immediately visible via REST API
+SELECT pg_notify('pgrst', 'reload schema');

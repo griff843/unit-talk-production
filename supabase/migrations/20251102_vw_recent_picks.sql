@@ -64,3 +64,10 @@ GRANT SELECT ON vw_recent_picks TO service_role;
 -- ===============================================================================
 -- END OF MIGRATION
 -- ===============================================================================
+
+-- ============================================================================
+-- FORCE POSTGREST SCHEMA RELOAD (Charter-mandated)
+-- ============================================================================
+-- Trigger PostgREST to reload its schema cache
+-- This ensures canonical tables are immediately visible via REST API
+SELECT pg_notify('pgrst', 'reload schema');

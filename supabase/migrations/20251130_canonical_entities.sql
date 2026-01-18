@@ -405,3 +405,10 @@ COMMENT ON FUNCTION get_mapping_conflicts IS 'Returns all mapping conflicts for 
 -- =====================================================
 -- Migration Complete
 -- =====================================================
+
+-- ============================================================================
+-- FORCE POSTGREST SCHEMA RELOAD (Charter-mandated)
+-- ============================================================================
+-- Trigger PostgREST to reload its schema cache
+-- This ensures canonical tables are immediately visible via REST API
+SELECT pg_notify('pgrst', 'reload schema');

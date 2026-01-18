@@ -105,3 +105,10 @@ COMMIT;
 --    GROUP BY cp.id, cp.full_name
 --    ORDER BY avg_clv_pct DESC NULLS LAST
 --    LIMIT 20;
+
+-- ============================================================================
+-- FORCE POSTGREST SCHEMA RELOAD (Charter-mandated)
+-- ============================================================================
+-- Trigger PostgREST to reload its schema cache
+-- This ensures canonical tables are immediately visible via REST API
+SELECT pg_notify('pgrst', 'reload schema');
