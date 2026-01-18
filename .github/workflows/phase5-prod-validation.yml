@@ -128,7 +128,7 @@ jobs:
                 tenant_id: tenant.id,
                 username: 'phase5-test-user',
                 discord_id: 'test-' + Date.now(),
-                tier: 'premium',
+                tier: 'Premium',
                 is_active: true
               })
               .select()
@@ -379,6 +379,13 @@ jobs:
           EOF
 
           echo "PROD environment configured"
+
+      - name: Clean install Smart Form dependencies
+        working-directory: apps/smart-form
+        run: |
+          echo "Forcing clean install to fix @next/swc version..."
+          rm -rf node_modules .next
+          npm install --force
 
       - name: Build Smart Form for dev server
         working-directory: apps/smart-form
