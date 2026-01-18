@@ -1,0 +1,14 @@
+# Build outputs
+dist/
+build/
+coverage/
+
+# Dependencies
+node_modules/
+
+# Utility scripts (migration, deployment, testing utilities)
+# These are not production code and have relaxed linting requirements
+scripts/
+
+# QA test files
+qa/
