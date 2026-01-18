@@ -143,12 +143,13 @@ ALTER ROLE readonly_user SET statement_timeout = '30s';
 ALTER ROLE readonly_user SET idle_in_transaction_session_timeout = '60s';
 
 -- ===============================================================================
--- 11. DISABLE DANGEROUS FUNCTIONS
+-- 11. DANGEROUS FUNCTIONS (Already Restricted)
 -- ===============================================================================
 
--- Prevent execution of file system functions
-ALTER ROLE readonly_user SET pg_read_file = off;
-ALTER ROLE readonly_user SET pg_ls_dir = off;
+-- Note: pg_read_file and pg_ls_dir are server-side functions that require
+-- superuser or pg_read_server_files role. The readonly_user role created
+-- above does not have these privileges, so these functions are already
+-- inaccessible. No additional configuration is needed.
 
 -- ===============================================================================
 -- 12. CREATE MONITORING VIEW FOR READONLY_USER PERMISSIONS
