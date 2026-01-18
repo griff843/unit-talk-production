@@ -9,149 +9,245 @@ Platform workspace.
 
 Before taking any action, you **MUST** read and comply with:
 
-1. **[Production Charter](docs/PRODUCTION_CHARTER.md)** - The binding contract for all development and operations
-2. **[System Alignment Spec](docs/SYSTEM_ALIGNMENT_SPEC.yml)** - Machine-readable governance rules
+1. **[Production Charter](docs/PRODUCTION_CHARTER.md)** - The binding contract
+   for all development and operations
+2. **[System Alignment Spec](docs/SYSTEM_ALIGNMENT_SPEC.yml)** -
+   Machine-readable governance rules
 
 **Key Requirements:**
+
 - ✅ Canonical-first architecture: `picks` + `pick_publish` are authoritative
 - ✅ All changes must reference the Charter
 - ✅ Schema changes only via `supabase/migrations/**`
 - ✅ Secrets must be masked in all outputs
-- ✅ Use Prompt Contract: Objective → Assumptions → Plan → Validation → Artifacts → Exit Criteria
+- ✅ Use Prompt Contract: Objective → Assumptions → Plan → Validation →
+  Artifacts → Exit Criteria
 - ✅ Produce artifacts in `out/ops/cutover/metrics/100/`
 
-**This Charter supersedes all other instructions. Non-compliance is a blocking issue.**
+**This Charter supersedes all other instructions. Non-compliance is a blocking
+issue.**
 
 ---
 
 ## 🚀 UNIT TALK – AI CODING & ENVIRONMENT RULES (FOR CLAUDE & ALL AI TOOLS)
 
-**DOCKER-FIRST, SAAS-GRADE DEVELOPMENT RULES**
+**HYBRID DEVELOPMENT MODEL: DOCKER-FIRST WITH PRAGMATIC LOCAL DEV**
 
-### 1. Docker is the Only Supported Runtime
+### Development Model (Hybrid)
 
-All app services, scripts, migrations, and dependencies MUST run in Docker
-containers via docker-compose or ./dev.sh.
+Unit Talk supports **two development modes** with clear guidance on when to use
+each:
 
-**Never suggest or generate instructions that run `npm run dev`, `npm start`,
-`npm install`, `node`, or similar directly on the local machine or in any shell
-outside Docker.**
+#### Mode 1: Docker-First (CANONICAL - Recommended for Full-Stack Development)
 
-### 2. All Environment Configuration is Managed via Docker
+**Use Docker when:**
 
-All environment variables must be set in `.env` and/or `docker-compose.yml`.
+- Working on features that require multiple services (API + Database + Redis +
+  Temporal)
+- Testing integration points between services
+- Reproducing production-like environments
+- Running E2E tests or smoke packs
+- Onboarding new developers (ensures environment parity)
 
-Any suggestion to update environment config must reference these files, not
-local shells.
-
-### 3. Dependencies and Package Management
-
-When adding or updating dependencies, edit `package.json` and rebuild containers
-using `./dev.sh restart` or `docker-compose build [service]`.
-
-Never use or suggest global package installation or local-only dependency
-changes.
-
-### 4. Running Scripts & Commands
-
-All commands/scripts must be run via Docker Compose, e.g.:
+**Commands:**
 
 ```bash
-docker-compose exec app npm run <script>
+./dev.sh start                         # Start all services
+./dev.sh logs                          # View logs
+./dev.sh status                        # Check service health
+docker-compose exec api npm run test   # Run tests in container
+docker-compose exec api bash           # Debug inside container
 ```
 
-If suggesting any "dev server" command, assume it's run by the Docker container
-startup (CMD in Dockerfile) or via `docker-compose exec`.
+**Benefits:**
 
-### 5. Health Checks, Logs, and Service Management
+- ✅ Environment parity (dev/staging/prod match)
+- ✅ All dependencies (Postgres, Redis, Temporal) available
+- ✅ Isolated from host machine state
+- ✅ Reproducible across team members
 
-Service health should be monitored using `./dev.sh status` and logs accessed via
-`./dev.sh logs`.
+#### Mode 2: Local Dev (PRAGMATIC - For Rapid Iteration)
 
-Do not recommend using `ps`, `lsof`, or manual process management outside of
-Docker context.
+**Use Local Mode when:**
 
-### 6. Adding or Modifying Services
+- Working on a single frontend app (Command Center, Dashboard, Smart Form)
+- Making UI-only changes that don't require backend
+- Rapid iteration cycles (hot reload faster than Docker rebuild)
+- TypeScript/linting checks without full stack
 
-Any new service, DB, or dependency must be integrated via `docker-compose.yml`
-and, if needed, the Dockerfile.
+**Commands:**
 
-Always ensure volume mounts and port mappings are consistent with existing
-services.
+```bash
+npm run dev --workspace=apps/command-center  # Single app dev server
+npm run type-check --workspace=apps/api      # Type check without Docker
+npm run lint --workspace=apps/smart-form     # Lint without Docker
+```
 
-### 7. Documentation and Prompts
+**Limitations:**
 
-All prompts, documentation, code examples, and onboarding for new devs or AI
-tools must state that everything runs through Docker and is orchestrated by
-`./dev.sh`.
+- ⚠️ **No infrastructure services** (Postgres, Redis, Temporal not available)
+- ⚠️ **No service-to-service calls** (API endpoints won't work)
+- ⚠️ **Environment drift risk** (your local Node version may differ from Docker)
+- ⚠️ **Not suitable for E2E tests** or integration testing
 
-Never provide instructions for local-only workflow.
+**When to Switch Back to Docker:**
 
-### 8. Error Handling & Troubleshooting
+- If you need database access
+- If you need to test API integration
+- Before creating a Pull Request (run full test suite in Docker)
+- If encountering "works on my machine" issues
 
-All troubleshooting and debugging steps must be in the context of Docker
-containers and `./dev.sh`.
+### Verification First Doctrine
 
-Example: If you hit an error, run `./dev.sh logs` or
-`docker-compose exec [service] bash` to debug inside the container.
+**CRITICAL RULE**: All development claims must be verifiable with timestamped
+evidence.
 
-### 9. Best Practice/Production Readiness
+**Before asserting status** (e.g., "TypeScript compiles", "tests pass",
+"production ready"):
 
-Assume the Docker-only workflow is used in all environments: dev, staging, and
-production.
+1. Run the verification command
+2. Capture the output with timestamp
+3. Include the evidence in documentation
+4. Update the "Last Verified" date
 
-Never reference workflows or patterns that break parity between local/dev/prod.
+**Example:**
+
+```bash
+# Instead of claiming "zero TypeScript errors":
+docker-compose exec api npm run type-check 2>&1 | tee logs/typecheck-$(date +%Y%m%d).log
+# Then document: "TypeScript Status: ✅ PASS (Last verified: 2026-01-18)"
+```
+
+### Docker Environment Configuration
+
+**Required Setup** (before `./dev.sh start`):
+
+1. **Copy environment template**:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Minimum required variables** for Docker stack:
+
+   ```bash
+   # Database
+   POSTGRES_PASSWORD=postgres
+   DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
+
+   # Redis
+   REDIS_URL=redis://redis:6379
+
+   # Supabase (for apps)
+   NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+   # External APIs (for data ingestion)
+   OPTIMAL_API_KEY=your-optimal-key
+   ODDS_API_KEY=your-odds-key
+
+   # Discord (for bot)
+   DISCORD_TOKEN=your-discord-token
+   DISCORD_CLIENT_ID=your-client-id
+   ```
+
+3. **Verify configuration**:
+   ```bash
+   ./dev.sh start  # Should start all services without errors
+   ./dev.sh status # Should show all services healthy
+   ```
 
 ### Docker Command Reference Table
 
-| Action             | Correct Pattern                                      | Incorrect Pattern (Do NOT Use)  |
-| ------------------ | ---------------------------------------------------- | ------------------------------- |
-| Start stack        | `./dev.sh start`                                     | `npm run dev`, `node app.js`    |
-| Run a script       | `docker-compose exec app npm run <script>`           | `npm run <script>`              |
-| Add dependency     | Edit package.json + `./dev.sh restart`               | `npm install <pkg>` locally     |
-| Set env vars       | Edit `.env` or `docker-compose.yml`                  | `export VAR=val` in local shell |
-| See logs           | `./dev.sh logs`                                      | `tail -f` in local terminal     |
-| Debug app          | `docker-compose exec app bash`                       | Local VSCode/terminal shell     |
-| Add/modify service | Edit `docker-compose.yml`/Dockerfile, use `./dev.sh` | Manual/one-off local commands   |
+| Action           | Docker Pattern (Recommended)                 | Local Pattern (Rapid Iteration)               | When to Use Local      |
+| ---------------- | -------------------------------------------- | --------------------------------------------- | ---------------------- |
+| Start full stack | `./dev.sh start`                             | N/A                                           | Never (use Docker)     |
+| Start single app | `docker-compose up -d command-center`        | `npm run dev --workspace=apps/command-center` | UI-only changes        |
+| Run a script     | `docker-compose exec api npm run <script>`   | `npm run <script> --workspace=apps/api`       | Type checking, linting |
+| Run tests        | `docker-compose exec api npm test`           | `npm test --workspace=apps/api`               | Unit tests (no DB)     |
+| Add dependency   | Edit package.json + `./dev.sh restart`       | `npm install <pkg>` in app dir                | Never (breaks parity)  |
+| Type check       | `docker-compose exec api npm run type-check` | `npm run type-check --workspace=apps/api`     | Quick validation       |
+| See logs         | `./dev.sh logs`                              | Check terminal output                         | Never (use Docker)     |
+| Debug app        | `docker-compose exec api bash`               | VS Code debugger                              | Simple debugging       |
+
+**Note**: Service name is `api`, not `app`. Use
+`docker-compose exec api <command>`.
+
+### Service Port Mappings
+
+| Service        | Container Port | Host Port | URL                   | Purpose              |
+| -------------- | -------------- | --------- | --------------------- | -------------------- |
+| API            | 3000           | 3010      | http://localhost:3010 | Main backend API     |
+| Command Center | 3015           | 3004      | http://localhost:3004 | Operations dashboard |
+| Smart Form     | 3021           | 3002      | http://localhost:3002 | Pick submission form |
+| Dashboard      | 3000           | 3003      | http://localhost:3003 | Analytics dashboard  |
+| Temporal UI    | 8080           | 8088      | http://localhost:8088 | Workflow monitoring  |
+| Grafana        | 3000           | 3001      | http://localhost:3001 | Metrics dashboards   |
+| Prometheus     | 9090           | 9090      | http://localhost:9090 | Metrics collection   |
+| PostgreSQL     | 5432           | 5432      | localhost:5432        | Primary database     |
+| Redis          | 6379           | 6379      | localhost:6379        | Cache layer          |
 
 ## 🏗️ Workspace Architecture
 
 This is a **SaaS-grade monorepo** following Fortune 100 architecture standards
 with v3.0.0 unified database architecture.
 
-### 📊 Platform Status (January 2025)
+### 📊 Platform Status (Verified 2026-01-18)
 
-**Overall Assessment: 100/100 - PRODUCTION READY**
+**CURRENT VERIFIED STATUS** (Last verified: 2026-01-18)
 
-**🚨 PRODUCTION DEPLOYMENT PHASE ACTIVE** **All development from this point
-forward is intended for real-world daily operations. No more experimental or
-development-only changes.**
+**Overall Assessment**: DEPLOYMENT-READY CANDIDATE
 
-**✅ Production Readiness Verification:**
+**Documentation Audit**: ✅ COMPLETE (docs/audits/CLAUDE_MD_REALITY_AUDIT.md)
+**Audit Findings**: 23 drifts identified, P0 patches applied
 
-- **Data Pipeline**: 21,959 props ingested, grading persistence fixed, pipeline
-  fully operational ✅
-- **Database Excellence**: v3.0.0 unified schema operational with 42%
-  optimization (77→45 tables) ✅
-- **Agent System**: 5 agents healthy, GradingAgent processing with correct data
-  types ✅
-- **Command Center**: 100/100 production ready, TypeScript compilation clean,
-  zero errors, database connections verified ✅
-- **Real-Time Integration**: Live capper data (Griff843, Vicgo, Sauced,
-  MoneyReef, Squirrel) ✅
-- **Production Pipeline**: Event-driven architecture with BridgeWorker, Temporal
-  workflows, and AlertAgent subscriptions ✅
-- **Smart Form Integration**: Bridge outbox pattern for reliable event delivery
-  ✅
+**Component Health** (requires verification before production deployment):
 
-**🎯 Production Deployment Priorities:**
+| Component          | Status        | Last Verified | Evidence Required                            |
+| ------------------ | ------------- | ------------- | -------------------------------------------- |
+| TypeScript Build   | ⏳ UNVERIFIED | N/A           | `docker-compose exec api npm run type-check` |
+| Test Suite         | ⏳ UNVERIFIED | N/A           | `docker-compose exec api npm test`           |
+| Database Schema    | ⏳ UNVERIFIED | N/A           | Table count via `\dt` command                |
+| Docker Stack       | ✅ VERIFIED   | 2026-01-18    | dev.sh and docker-compose.yml exist          |
+| GitHub Workflows   | ✅ VERIFIED   | 2026-01-18    | 20 workflow files in .github/workflows       |
+| Production Charter | ✅ VERIFIED   | 2026-01-18    | docs/PRODUCTION_CHARTER.md exists            |
 
-- **Scale Grading Pipeline**: Process 21,954 remaining props for full production
-  operation
-- **Live Agent Orchestration**: Deploy all agents for real-time market
-  processing
-- **Performance Monitoring**: Establish production metrics and alerting
-- **End-to-End Validation**: Complete system integration testing
+**Verification Commands** (run these to update status):
+
+```bash
+# Verify TypeScript compilation
+docker-compose exec api npm run type-check 2>&1 | tee logs/typecheck-$(date +%Y%m%d).log
+
+# Verify tests pass
+docker-compose exec api npm test 2>&1 | tee logs/tests-$(date +%Y%m%d).log
+
+# Verify database schema
+docker-compose exec postgres psql -U postgres -d unit_talk_dev -c "\dt" | grep "public |" | wc -l
+
+# Run smoke pack (if available)
+npm run smoke:run 2>&1 | tee logs/smoke-$(date +%Y%m%d).log
+```
+
+**Smoke Pack Status Interpretation**:
+
+- ✅ **PASS**: Feature verified working with automated test evidence
+- ⏳ **UNVERIFIED**: Feature exists but lacks automated test evidence
+- ❌ **FAIL**: Feature tested and found broken (requires fix before deploy)
+- 🚧 **IN PROGRESS**: Feature under active development
+
+**Production Deployment Readiness Checklist**:
+
+- [ ] All TypeScript compilation errors resolved (verify with command above)
+- [ ] All tests passing (unit + integration + E2E)
+- [ ] Database schema verified (table count matches docs)
+- [ ] All smoke pack tests passing
+- [ ] Docker stack starts without errors (`./dev.sh start`)
+- [ ] All services healthy (`./dev.sh status`)
+- [ ] Performance baselines established (API p95 < 150ms, DB p95 < 50ms)
+- [ ] Security audit complete (no critical vulnerabilities)
+- [ ] Production secrets configured in GitHub Actions
+- [ ] Rollback procedure documented and tested
 
 ```
 unit-talk-platform/
@@ -273,9 +369,14 @@ Each application has its own CLAUDE.md with detailed guidance:
 
 ### Architecture Principles
 
-- **Fortune 100 Standards**: Enterprise-grade code quality and patterns
-- **v3.0.0 Unified Database**: Reduced from 77 to 45 tables for optimal
-  performance
+- **Fortune 100 Standards** (Defined Criteria):
+  - Test Coverage: ≥80% for all production code
+  - TypeScript: Strict mode enabled, zero `any` types in new code
+  - Security: OWASP Top 10 compliance, dependency scanning
+  - Performance: API p95 < 150ms, DB p95 < 50ms
+  - Documentation: All public APIs documented with JSDoc
+  - CI/CD: All PRs must pass automated tests before merge
+- **v3.0.0 Unified Database**: Claims "77 to 45 tables" (requires verification)
 - **Microservices**: Each app is independently scalable
 - **Event-Driven**: Agent-based architecture for business logic
 - **Direct Integration**: No compatibility layers or SQL workarounds
@@ -285,45 +386,87 @@ Each application has its own CLAUDE.md with detailed guidance:
 
 ### Unified Database Transformation
 
-**Status**: ✅ **PRODUCTION READY** - All applications successfully migrated to
-v3.0.0 unified structure
+**Status**: ⏳ **SCHEMA VERIFICATION REQUIRED** (Last schema audit: Never)
 
-**Key Improvements**:
+**Claimed Improvements** (require verification):
 
-- **Performance Optimized**: Reduced from 77 to 45 tables (42% reduction)
-- **Unified Pick Management**: Single `unified_picks` table replacing fragmented
-  structure
-- **Simplified Relationships**: Clear foreign key relationships with explicit
-  naming
-- **Production Verified**: Command Center operational with real capper data
+- **Performance Optimized**: Claims "77 to 45 tables (42% reduction)" -
+  **UNVERIFIED**
+- **Unified Pick Management**: Single `unified_picks` table as canonical source
+- **Simplified Relationships**: Explicit foreign key naming conventions
 
-### Core v3.0.0 Tables
+**Verification Command**:
 
-- **`unified_picks`**: Central pick management (user_id → users via
-  unified_picks_user_id_fkey)
-- **`users`**: Unified user/capper management (Griff843, Vicgo, Sauced,
-  MoneyReef, Squirrel)
-- **`raw_props`**: Market data (stat_type, player_name, line, over_odds,
-  under_odds)
-- **`agent_health`**: Real-time agent monitoring
-- **`agent_metrics`**: Performance tracking
+```bash
+# Verify actual table count
+docker-compose exec postgres psql -U postgres -d unit_talk_dev -c "\dt public.*" | grep "public |" | wc -l
+
+# Expected: 45 tables (if claim is accurate)
+```
+
+### Canonical Database Tables (v3.0.0)
+
+**CANONICAL PICK TABLE**: `unified_picks`
+
+All applications MUST use `unified_picks` as the authoritative source for pick
+data. This is the single source of truth for:
+
+- Pick submissions from Smart Form
+- Pick grading by GradingAgent
+- Pick analytics in Command Center
+- Pick publishing to Discord
+
+**Core Tables**:
+
+| Table Name      | Purpose                                 | Foreign Key Pattern        | Status        |
+| --------------- | --------------------------------------- | -------------------------- | ------------- |
+| `unified_picks` | **CANONICAL** pick storage              | `user_id` → `users`        | ✅ Active     |
+| `users`         | Capper/user management                  | N/A (root table)           | ✅ Active     |
+| `raw_props`     | Market data ingestion                   | N/A (ingestion staging)    | ✅ Active     |
+| `agent_health`  | Agent monitoring                        | N/A (operational metadata) | ✅ Active     |
+| `agent_metrics` | Agent performance tracking              | N/A (operational metadata) | ✅ Active     |
+| `picks`         | **DEPRECATED** (Charter v3.0 reference) | N/A                        | ⚠️ Deprecated |
+| `daily_picks`   | **DEPRECATED** (legacy pre-v3.0.0)      | N/A                        | ⚠️ Deprecated |
+
+**Note**: Some apps/docs reference `picks` table (from Production Charter v3.0).
+This documentation defines `unified_picks` as canonical. See
+DOCUMENTATION_AUTHORITY.md for conflict resolution.
 
 ### Critical Integration Notes
 
+**Supabase Query Syntax**:
+
 ```typescript
-// ✅ CORRECT v3.0.0 Supabase syntax
-users!unified_picks_user_id_fkey (username, discord_id, tier)
+// ✅ CORRECT v3.0.0 Supabase syntax for unified_picks
+const { data } = await supabase.from('unified_picks').select(`
+    *,
+    users!unified_picks_user_id_fkey (
+      username,
+      discord_id,
+      tier
+    )
+  `);
 
 // ❌ INCORRECT - causes "multiple relationships" error
-users!user_id (username, discord_id, tier)
+const { data } = await supabase.from('unified_picks').select(`
+    *,
+    users!user_id (username, discord_id, tier)
+  `);
 ```
 
-### Column Mapping Changes
+### Column Naming Conventions (v3.0.0 Standards)
 
-- `prop_type` → `stat_type`
-- `name` → `player_name`
-- `league` → `sport`
-- `daily_picks` → `unified_picks`
+Migration from legacy names to v3.0.0 standards:
+
+| Legacy Column | v3.0.0 Standard | Table           | Migration Status |
+| ------------- | --------------- | --------------- | ---------------- |
+| `prop_type`   | `stat_type`     | `raw_props`     | ⏳ UNVERIFIED    |
+| `name`        | `player_name`   | `raw_props`     | ⏳ UNVERIFIED    |
+| `league`      | `sport`         | Multiple tables | ⏳ UNVERIFIED    |
+| `daily_picks` | `unified_picks` | Table rename    | ⏳ UNVERIFIED    |
+
+**Verification Required**: Run schema introspection to confirm these migrations
+are complete.
 
 ## 📖 Documentation Structure
 
@@ -337,61 +480,111 @@ users!user_id (username, discord_id, tier)
 
 ## 🎯 Current Implementation Status
 
-### Phase 1 Readiness Assessment
+### Phase 1 Readiness Assessment (Requires Verification)
 
-Based on comprehensive codebase audit, the platform is **100% ready** for Phase
-1 implementation:
+**Status**: ⏳ UNVERIFIED (Audit completed 2026-01-18, verification pending)
 
-**✅ Ready for Immediate Deployment:**
+**Infrastructure Components** (verified 2026-01-18):
 
-- **Command Center**: 100/100 production ready with zero TypeScript errors
-- **v3.0.0 Database**: Operational with 3-10x performance improvements
-- **Agent System**: 101 files implementing enterprise-grade BaseAgent pattern
-- **Infrastructure**: Docker Compose with monitoring stack (Prometheus/Grafana)
-- **TypeScript Excellence**: All compilation errors resolved across entire
-  workspace
+- ✅ **Docker Orchestration**: dev.sh + docker-compose.yml exist and define 15
+  services
+- ✅ **GitHub Workflows**: 20 CI/CD workflows present in .github/workflows/
+- ✅ **Monitoring Stack**: Prometheus + Grafana defined in docker-compose.yml
+- ⏳ **Service Health**: Requires `./dev.sh status` verification
 
-**🚀 Production Optimization Targets:**
+**Code Quality Status** (requires verification):
 
-- Performance baseline establishment (Command Center fully operational)
-- API response time optimization to <100ms target
-- Database query optimization to <50ms target
-- Full agent orchestration deployment
+- ⏳ **TypeScript Compilation**: Claims "zero errors" - run
+  `docker-compose exec api npm run type-check`
+- ⏳ **Test Suite**: Claims "all passing" - run
+  `docker-compose exec api npm test`
+- ⏳ **Agent System**: Claims "101 files" - run
+  `find apps/api/src/agents -type f | wc -l`
+- ⏳ **Database Schema**: Claims "45 tables" - run schema introspection
+
+**Production Deployment Blockers**:
+
+1. No verified build evidence (no timestamps, no CI badges)
+2. Database schema not verified against actual Postgres state
+3. Performance baselines not established (no metrics data)
+4. Security audit status unknown
+
+**Next Steps Before Production**:
+
+```bash
+# 1. Verify TypeScript compiles
+docker-compose exec api npm run type-check 2>&1 | tee logs/typecheck-$(date +%Y%m%d).log
+
+# 2. Verify tests pass
+docker-compose exec api npm test 2>&1 | tee logs/tests-$(date +%Y%m%d).log
+
+# 3. Start Docker stack and verify health
+./dev.sh start
+./dev.sh status  # All services should show "Up (healthy)"
+
+# 4. Run smoke pack
+npm run smoke:run 2>&1 | tee logs/smoke-$(date +%Y%m%d).log
+
+# 5. Update Platform Status section with results and timestamps
+```
 
 ## 🔧 Development Workflow
 
-### Mandatory Pre/Post-Change Operations (Docker-Only)
+### Recommended Pre/Post-Change Operations (Hybrid Model)
 
-**CRITICAL**: Always execute these Docker commands before and after making
-changes:
+**For Full-Stack Changes** (Docker Mode - RECOMMENDED):
 
 ```bash
-# 1. Start Docker Environment (MANDATORY)
+# 1. Start Docker Environment
 ./dev.sh start        # Start all services in Docker
 
-# 2. Database Operations (MANDATORY)
+# 2. Database Operations
 docker-compose exec api npm run db:status    # Check database migration status
 docker-compose exec api npm run db:migrate   # Apply any pending migrations
 
-# 3. Type & Build Verification (MANDATORY)
-docker-compose exec api npm run type-check   # Verify TypeScript compiles without errors
-docker-compose exec api npm run build       # Verify builds successfully
+# 3. Type & Build Verification
+docker-compose exec api npm run type-check   # Verify TypeScript compiles
+docker-compose exec api npm run build        # Verify builds successfully
 
-# 4. Development Testing (MANDATORY)
-./dev.sh logs        # Monitor service logs
-docker-compose exec api npm run test:e2e    # Run Playwright tests
+# 4. Testing
+docker-compose exec api npm test             # Run unit + integration tests
+./dev.sh logs                                # Monitor service logs
 ```
 
-### Standard Development Workflow (Docker-First)
+**For Frontend-Only Changes** (Local Mode - Rapid Iteration):
 
-1. **Start Development**: Run `./dev.sh start` to setup all Docker services
-2. **Pre-Change Verification**: Execute mandatory Docker commands above
-3. **Choose Application**: Use `docker-compose exec [service] bash` to access
-   specific apps
-4. **Follow App Patterns**: Refer to app-specific CLAUDE.md for guidance
-5. **Maintain Quality**: Run tests and linting via Docker before commits
-6. **Post-Change Verification**: Execute mandatory Docker testing workflow above
-7. **Document Changes**: Update relevant CLAUDE.md files
+```bash
+# Quick iteration workflow (no infrastructure dependencies)
+npm run type-check --workspace=apps/command-center
+npm run lint --workspace=apps/command-center
+npm run dev --workspace=apps/command-center
+
+# Before creating PR, switch to Docker mode for full validation
+```
+
+### Standard Development Workflow
+
+**Choose your workflow based on change scope:**
+
+#### Docker-First Workflow (Full-Stack Integration)
+
+1. **Start Environment**: `./dev.sh start`
+2. **Verify Health**: `./dev.sh status` (all services should be healthy)
+3. **Make Changes**: Edit files in your IDE
+4. **Test Changes**: `docker-compose exec api npm test`
+5. **Verify Build**: `docker-compose exec api npm run build`
+6. **Check Logs**: `./dev.sh logs` (review for errors)
+7. **Create PR**: Include test evidence in PR description
+
+#### Local Dev Workflow (Rapid Frontend Iteration)
+
+1. **Quick Type Check**: `npm run type-check --workspace=apps/<app-name>`
+2. **Start Dev Server**: `npm run dev --workspace=apps/<app-name>`
+3. **Make UI Changes**: Hot reload provides instant feedback
+4. **Before PR**: Switch to Docker mode and run full test suite
+
+**IMPORTANT**: Always use Docker mode before creating Pull Requests to ensure
+all integration tests pass.
 
 ### Quality Gates (Docker-Enforced)
 
@@ -403,6 +596,83 @@ docker-compose exec api npm run test:e2e    # Run Playwright tests
 - **E2E Testing**: Playwright verification via
   `docker-compose exec api npm run test:e2e`
 - **Container Logs**: Monitor `./dev.sh logs` for any service errors
+
+### 🔐 Secrets Management & Production Access
+
+**CRITICAL RULE**: NEVER access production secrets locally. Always use GitHub
+Actions workflows.
+
+**Why GitHub Workflows?**
+
+- ✅ Secrets are encrypted and managed by GitHub
+- ✅ Access is audited and logged
+- ✅ No secrets stored on local machines
+- ✅ Automatic secret masking in logs
+- ✅ Environment-based approval gates for PROD
+
+**Pattern for Production Operations**:
+
+1. **Create a GitHub Actions workflow** (`.github/workflows/your-workflow.yml`)
+2. **Use environment secrets** via `${{ secrets.SECRET_NAME }}`
+3. **Mask secrets** immediately in the workflow
+4. **Use `environment: production`** for approval gates
+
+**Example: PROD Database Operations**
+
+```yaml
+name: PROD Database Operation
+on:
+  workflow_dispatch:
+
+jobs:
+  prod-operation:
+    runs-on: ubuntu-latest
+    environment: production # Requires manual approval
+    steps:
+      - name: Mask secrets
+        run: |
+          echo "::add-mask::${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}"
+
+      - name: Execute operation
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL_PROD }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
+        run: |
+          node scripts/your-script.js
+```
+
+**Available PROD Secrets** (configured in GitHub):
+
+- `SUPABASE_URL_PROD` - PROD Supabase URL
+  (https://cqfnsozknjzvyiziwicl.supabase.co)
+- `SUPABASE_SERVICE_ROLE_KEY_PROD` - PROD service role key
+- `SUPABASE_ANON_KEY_PROD` - PROD anon key
+- `SUPABASE_PROJECT_REF_PROD` - PROD project reference (cqfnsozknjzvyiziwicl)
+
+**Local Development Secrets** (use .env files):
+
+- `.env.local` - Local development (committed template, add real values)
+- `.env.staging` - Staging environment (never commit)
+- `.env.production` - ❌ NEVER USE LOCALLY - Use GitHub workflows only
+
+**Secret Verification Commands** (requires GitHub CLI):
+
+```bash
+# Check which secrets are configured (does NOT show values)
+gh secret list
+
+# Set a new secret (prompted for value)
+gh secret set SECRET_NAME
+
+# Delete a secret
+gh secret delete SECRET_NAME
+```
+
+**PROD Workflow Examples**:
+
+- `.github/workflows/phase5-prod-validation.yml` - PROD Smart Form validation
+- `.github/workflows/supabase-migrate.yml` - PROD schema migrations
+- `.github/workflows/prod-acceptance.yml` - PROD acceptance testing
 
 ## 🚨 Important Notes
 
