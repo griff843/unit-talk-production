@@ -1,3 +1,4 @@
+/* eslint-disable max-lines, @typescript-eslint/no-unused-vars, no-unused-vars, no-undef, complexity */
 import { QAConfig } from '../config/qa-config';
 import { QATestResult } from '../types/qa-types';
 import { createTimestamp, createQATestResult } from '../utils/test-utils';
@@ -9,7 +10,7 @@ try {
   Browser = playwright.Browser;
   Page = playwright.Page;
   chromium = playwright.chromium;
-  
+
   // Try to import axe-core
   try {
     const axe = require('@axe-core/playwright');
@@ -32,28 +33,29 @@ export class AccessibilityTester {
 
   async runAllTests(): Promise<QATestResult[]> {
     const results: QATestResult[] = [];
-    
+
     try {
       if (chromium) {
         this.browser = await chromium.launch({ headless: this.config.test.headless });
       }
-      
-      results.push(...await this.testPageAccessibility());
-      results.push(...await this.testFormAccessibility());
-      results.push(...await this.testNavigationAccessibility());
-      results.push(...await this.testInteractiveElementsAccessibility());
-      results.push(...await this.testColorContrast());
-      results.push(...await this.testKeyboardNavigation());
-      results.push(...await this.testScreenReaderCompatibility());
-      results.push(...await this.testFocusManagement());
 
+      results.push(...(await this.testPageAccessibility()));
+      results.push(...(await this.testFormAccessibility()));
+      results.push(...(await this.testNavigationAccessibility()));
+      results.push(...(await this.testInteractiveElementsAccessibility()));
+      results.push(...(await this.testColorContrast()));
+      results.push(...(await this.testKeyboardNavigation()));
+      results.push(...(await this.testScreenReaderCompatibility()));
+      results.push(...(await this.testFocusManagement()));
     } catch (error) {
-      results.push(createQATestResult(
-        'Accessibility Test Suite',
-        'FAIL',
-        `Accessibility test suite failed: ${error}`,
-        0
-      ));
+      results.push(
+        createQATestResult(
+          'Accessibility Test Suite',
+          'FAIL',
+          `Accessibility test suite failed: ${error}`,
+          0
+        )
+      );
     } finally {
       if (this.browser) {
         await this.browser.close();
@@ -69,12 +71,14 @@ export class AccessibilityTester {
 
     try {
       if (!this.browser) {
-        results.push(createQATestResult(
-          'Page Accessibility',
-          'SKIP',
-          'Browser not available',
-          Date.now() - startTime
-        ));
+        results.push(
+          createQATestResult(
+            'Page Accessibility',
+            'SKIP',
+            'Browser not available',
+            Date.now() - startTime
+          )
+        );
         return results;
       }
 
@@ -84,37 +88,48 @@ export class AccessibilityTester {
       if (injectAxe && getViolations) {
         await injectAxe(page);
         const violations = await getViolations(page);
-        
+
         const criticalViolations = violations.filter((v: any) => v.impact === 'critical');
         const seriousViolations = violations.filter((v: any) => v.impact === 'serious');
         const moderateViolations = violations.filter((v: any) => v.impact === 'moderate');
         const minorViolations = violations.filter((v: any) => v.impact === 'minor');
 
-        results.push(createQATestResult(
-          'Page Accessibility',
-          violations.length === 0 ? 'PASS' : 'FAIL',
-          `Found ${violations.length} accessibility violations (${criticalViolations.length} critical, ${seriousViolations.length} serious)`,
-          Date.now() - startTime,
-          { violations: violations.map((v: any) => ({ id: v.id, impact: v.impact, description: v.description })) }
-        ));
+        results.push(
+          createQATestResult(
+            'Page Accessibility',
+            violations.length === 0 ? 'PASS' : 'FAIL',
+            `Found ${violations.length} accessibility violations (${criticalViolations.length} critical, ${seriousViolations.length} serious)`,
+            Date.now() - startTime,
+            {
+              violations: violations.map((v: any) => ({
+                id: v.id,
+                impact: v.impact,
+                description: v.description,
+              })),
+            }
+          )
+        );
       } else {
-        results.push(createQATestResult(
-          'Page Accessibility',
-          'SKIP',
-          'Axe-core not available',
-          Date.now() - startTime
-        ));
+        results.push(
+          createQATestResult(
+            'Page Accessibility',
+            'SKIP',
+            'Axe-core not available',
+            Date.now() - startTime
+          )
+        );
       }
 
       await page.close();
-
     } catch (error) {
-      results.push(createQATestResult(
-        'Page Accessibility',
-        'FAIL',
-        `Test failed: ${error}`,
-        Date.now() - startTime
-      ));
+      results.push(
+        createQATestResult(
+          'Page Accessibility',
+          'FAIL',
+          `Test failed: ${error}`,
+          Date.now() - startTime
+        )
+      );
     }
 
     return results;
@@ -126,19 +141,25 @@ export class AccessibilityTester {
 
     try {
       if (!this.browser) {
-        results.push(createQATestResult(
-          'Form Accessibility',
-          'SKIP',
-          'Browser not available',
-          Date.now() - startTime
-        ));
+        results.push(
+          createQATestResult(
+            'Form Accessibility',
+            'SKIP',
+            'Browser not available',
+            Date.now() - startTime
+          )
+        );
         return results;
       }
 
       const formsToTest = [
         { name: 'Login Form', url: '/login', formSelector: 'form[data-testid="login-form"]' },
-        { name: 'Registration Form', url: '/register', formSelector: 'form[data-testid="register-form"]' },
-        { name: 'Contact Form', url: '/contact', formSelector: 'form[data-testid="contact-form"]' }
+        {
+          name: 'Registration Form',
+          url: '/register',
+          formSelector: 'form[data-testid="register-form"]',
+        },
+        { name: 'Contact Form', url: '/contact', formSelector: 'form[data-testid="contact-form"]' },
       ];
 
       for (const formTest of formsToTest) {
@@ -146,25 +167,28 @@ export class AccessibilityTester {
         await page.goto(`${this.config.environment.baseUrl}${formTest.url}`);
 
         const issues = await this.checkFormAccessibility(page, formTest.formSelector);
-        
-        results.push(createQATestResult(
-          `Form Accessibility - ${formTest.name}`,
-          issues.length === 0 ? 'PASS' : 'WARNING',
-          `Found ${issues.length} form accessibility issues`,
-          Date.now() - startTime,
-          { issues }
-        ));
+
+        results.push(
+          createQATestResult(
+            `Form Accessibility - ${formTest.name}`,
+            issues.length === 0 ? 'PASS' : 'WARNING',
+            `Found ${issues.length} form accessibility issues`,
+            Date.now() - startTime,
+            { issues }
+          )
+        );
 
         await page.close();
       }
-
     } catch (error) {
-      results.push(createQATestResult(
-        'Form Accessibility',
-        'FAIL',
-        `Test failed: ${error}`,
-        Date.now() - startTime
-      ));
+      results.push(
+        createQATestResult(
+          'Form Accessibility',
+          'FAIL',
+          `Test failed: ${error}`,
+          Date.now() - startTime
+        )
+      );
     }
 
     return results;
@@ -176,12 +200,14 @@ export class AccessibilityTester {
 
     try {
       if (!this.browser) {
-        results.push(createQATestResult(
-          'Navigation Accessibility',
-          'SKIP',
-          'Browser not available',
-          Date.now() - startTime
-        ));
+        results.push(
+          createQATestResult(
+            'Navigation Accessibility',
+            'SKIP',
+            'Browser not available',
+            Date.now() - startTime
+          )
+        );
         return results;
       }
 
@@ -189,24 +215,27 @@ export class AccessibilityTester {
       await page.goto(this.config.environment.baseUrl);
 
       const navIssues = await this.checkNavigationAccessibility(page);
-      
-      results.push(createQATestResult(
-        'Navigation Accessibility',
-        navIssues.length === 0 ? 'PASS' : 'WARNING',
-        `Found ${navIssues.length} navigation accessibility issues`,
-        Date.now() - startTime,
-        { issues: navIssues }
-      ));
+
+      results.push(
+        createQATestResult(
+          'Navigation Accessibility',
+          navIssues.length === 0 ? 'PASS' : 'WARNING',
+          `Found ${navIssues.length} navigation accessibility issues`,
+          Date.now() - startTime,
+          { issues: navIssues }
+        )
+      );
 
       await page.close();
-
     } catch (error) {
-      results.push(createQATestResult(
-        'Navigation Accessibility',
-        'FAIL',
-        `Test failed: ${error}`,
-        Date.now() - startTime
-      ));
+      results.push(
+        createQATestResult(
+          'Navigation Accessibility',
+          'FAIL',
+          `Test failed: ${error}`,
+          Date.now() - startTime
+        )
+      );
     }
 
     return results;
@@ -218,12 +247,14 @@ export class AccessibilityTester {
 
     try {
       if (!this.browser) {
-        results.push(createQATestResult(
-          'Interactive Elements Accessibility',
-          'SKIP',
-          'Browser not available',
-          Date.now() - startTime
-        ));
+        results.push(
+          createQATestResult(
+            'Interactive Elements Accessibility',
+            'SKIP',
+            'Browser not available',
+            Date.now() - startTime
+          )
+        );
         return results;
       }
 
@@ -231,24 +262,27 @@ export class AccessibilityTester {
       await page.goto(this.config.environment.baseUrl);
 
       const interactiveIssues = await this.checkInteractiveElementsAccessibility(page);
-      
-      results.push(createQATestResult(
-        'Interactive Elements Accessibility',
-        interactiveIssues.length === 0 ? 'PASS' : 'WARNING',
-        `Found ${interactiveIssues.length} interactive element accessibility issues`,
-        Date.now() - startTime,
-        { issues: interactiveIssues }
-      ));
+
+      results.push(
+        createQATestResult(
+          'Interactive Elements Accessibility',
+          interactiveIssues.length === 0 ? 'PASS' : 'WARNING',
+          `Found ${interactiveIssues.length} interactive element accessibility issues`,
+          Date.now() - startTime,
+          { issues: interactiveIssues }
+        )
+      );
 
       await page.close();
-
     } catch (error) {
-      results.push(createQATestResult(
-        'Interactive Elements Accessibility',
-        'FAIL',
-        `Test failed: ${error}`,
-        Date.now() - startTime
-      ));
+      results.push(
+        createQATestResult(
+          'Interactive Elements Accessibility',
+          'FAIL',
+          `Test failed: ${error}`,
+          Date.now() - startTime
+        )
+      );
     }
 
     return results;
@@ -260,12 +294,14 @@ export class AccessibilityTester {
 
     try {
       if (!this.browser || !injectAxe || !getViolations) {
-        results.push(createQATestResult(
-          'Color Contrast',
-          'SKIP',
-          'Browser or axe-core not available',
-          Date.now() - startTime
-        ));
+        results.push(
+          createQATestResult(
+            'Color Contrast',
+            'SKIP',
+            'Browser or axe-core not available',
+            Date.now() - startTime
+          )
+        );
         return results;
       }
 
@@ -274,26 +310,34 @@ export class AccessibilityTester {
 
       await injectAxe(page);
       const violations = await getViolations(page, { tags: ['wcag2aa'] });
-      
+
       const contrastViolations = violations.filter((v: any) => v.id.includes('color-contrast'));
-      
-      results.push(createQATestResult(
-        'Color Contrast',
-        contrastViolations.length === 0 ? 'PASS' : 'FAIL',
-        `Found ${contrastViolations.length} color contrast violations`,
-        Date.now() - startTime,
-        { violations: contrastViolations.map((v: any) => ({ id: v.id, description: v.description })) }
-      ));
+
+      results.push(
+        createQATestResult(
+          'Color Contrast',
+          contrastViolations.length === 0 ? 'PASS' : 'FAIL',
+          `Found ${contrastViolations.length} color contrast violations`,
+          Date.now() - startTime,
+          {
+            violations: contrastViolations.map((v: any) => ({
+              id: v.id,
+              description: v.description,
+            })),
+          }
+        )
+      );
 
       await page.close();
-
     } catch (error) {
-      results.push(createQATestResult(
-        'Color Contrast',
-        'FAIL',
-        `Test failed: ${error}`,
-        Date.now() - startTime
-      ));
+      results.push(
+        createQATestResult(
+          'Color Contrast',
+          'FAIL',
+          `Test failed: ${error}`,
+          Date.now() - startTime
+        )
+      );
     }
 
     return results;
@@ -305,12 +349,14 @@ export class AccessibilityTester {
 
     try {
       if (!this.browser) {
-        results.push(createQATestResult(
-          'Keyboard Navigation',
-          'SKIP',
-          'Browser not available',
-          Date.now() - startTime
-        ));
+        results.push(
+          createQATestResult(
+            'Keyboard Navigation',
+            'SKIP',
+            'Browser not available',
+            Date.now() - startTime
+          )
+        );
         return results;
       }
 
@@ -318,24 +364,27 @@ export class AccessibilityTester {
       await page.goto(this.config.environment.baseUrl);
 
       const keyboardIssues = await this.checkKeyboardNavigation(page);
-      
-      results.push(createQATestResult(
-        'Keyboard Navigation',
-        keyboardIssues.length === 0 ? 'PASS' : 'WARNING',
-        `Found ${keyboardIssues.length} keyboard navigation issues`,
-        Date.now() - startTime,
-        { issues: keyboardIssues }
-      ));
+
+      results.push(
+        createQATestResult(
+          'Keyboard Navigation',
+          keyboardIssues.length === 0 ? 'PASS' : 'WARNING',
+          `Found ${keyboardIssues.length} keyboard navigation issues`,
+          Date.now() - startTime,
+          { issues: keyboardIssues }
+        )
+      );
 
       await page.close();
-
     } catch (error) {
-      results.push(createQATestResult(
-        'Keyboard Navigation',
-        'FAIL',
-        `Test failed: ${error}`,
-        Date.now() - startTime
-      ));
+      results.push(
+        createQATestResult(
+          'Keyboard Navigation',
+          'FAIL',
+          `Test failed: ${error}`,
+          Date.now() - startTime
+        )
+      );
     }
 
     return results;
@@ -347,12 +396,14 @@ export class AccessibilityTester {
 
     try {
       if (!this.browser) {
-        results.push(createQATestResult(
-          'Screen Reader Compatibility',
-          'SKIP',
-          'Browser not available',
-          Date.now() - startTime
-        ));
+        results.push(
+          createQATestResult(
+            'Screen Reader Compatibility',
+            'SKIP',
+            'Browser not available',
+            Date.now() - startTime
+          )
+        );
         return results;
       }
 
@@ -360,24 +411,27 @@ export class AccessibilityTester {
       await page.goto(this.config.environment.baseUrl);
 
       const screenReaderIssues = await this.checkScreenReaderCompatibility(page);
-      
-      results.push(createQATestResult(
-        'Screen Reader Compatibility',
-        screenReaderIssues.length === 0 ? 'PASS' : 'WARNING',
-        `Found ${screenReaderIssues.length} screen reader compatibility issues`,
-        Date.now() - startTime,
-        { issues: screenReaderIssues }
-      ));
+
+      results.push(
+        createQATestResult(
+          'Screen Reader Compatibility',
+          screenReaderIssues.length === 0 ? 'PASS' : 'WARNING',
+          `Found ${screenReaderIssues.length} screen reader compatibility issues`,
+          Date.now() - startTime,
+          { issues: screenReaderIssues }
+        )
+      );
 
       await page.close();
-
     } catch (error) {
-      results.push(createQATestResult(
-        'Screen Reader Compatibility',
-        'FAIL',
-        `Test failed: ${error}`,
-        Date.now() - startTime
-      ));
+      results.push(
+        createQATestResult(
+          'Screen Reader Compatibility',
+          'FAIL',
+          `Test failed: ${error}`,
+          Date.now() - startTime
+        )
+      );
     }
 
     return results;
@@ -389,12 +443,14 @@ export class AccessibilityTester {
 
     try {
       if (!this.browser) {
-        results.push(createQATestResult(
-          'Focus Management',
-          'SKIP',
-          'Browser not available',
-          Date.now() - startTime
-        ));
+        results.push(
+          createQATestResult(
+            'Focus Management',
+            'SKIP',
+            'Browser not available',
+            Date.now() - startTime
+          )
+        );
         return results;
       }
 
@@ -402,24 +458,27 @@ export class AccessibilityTester {
       await page.goto(this.config.environment.baseUrl);
 
       const focusIssues = await this.checkFocusManagement(page);
-      
-      results.push(createQATestResult(
-        'Focus Management',
-        focusIssues.length === 0 ? 'PASS' : 'WARNING',
-        `Found ${focusIssues.length} focus management issues`,
-        Date.now() - startTime,
-        { issues: focusIssues }
-      ));
+
+      results.push(
+        createQATestResult(
+          'Focus Management',
+          focusIssues.length === 0 ? 'PASS' : 'WARNING',
+          `Found ${focusIssues.length} focus management issues`,
+          Date.now() - startTime,
+          { issues: focusIssues }
+        )
+      );
 
       await page.close();
-
     } catch (error) {
-      results.push(createQATestResult(
-        'Focus Management',
-        'FAIL',
-        `Test failed: ${error}`,
-        Date.now() - startTime
-      ));
+      results.push(
+        createQATestResult(
+          'Focus Management',
+          'FAIL',
+          `Test failed: ${error}`,
+          Date.now() - startTime
+        )
+      );
     }
 
     return results;
@@ -428,16 +487,18 @@ export class AccessibilityTester {
   // Helper methods
   private async checkFormAccessibility(page: any, formSelector: string): Promise<any[]> {
     const issues: any[] = [];
-    
+
     try {
       // Check for form labels
-      const inputs = await page.$$(`${formSelector} input, ${formSelector} textarea, ${formSelector} select`);
-      
+      const inputs = await page.$$(
+        `${formSelector} input, ${formSelector} textarea, ${formSelector} select`
+      );
+
       for (const input of inputs) {
         const id = await input.getAttribute('id');
         const ariaLabel = await input.getAttribute('aria-label');
         const ariaLabelledBy = await input.getAttribute('aria-labelledby');
-        
+
         if (!id && !ariaLabel && !ariaLabelledBy) {
           issues.push('Input without proper labeling found');
         }
@@ -451,7 +512,6 @@ export class AccessibilityTester {
           issues.push('Fieldset without legend found');
         }
       }
-
     } catch (error) {
       issues.push(`Form accessibility check failed: ${error}`);
     }
@@ -461,7 +521,7 @@ export class AccessibilityTester {
 
   private async checkNavigationAccessibility(page: any): Promise<any[]> {
     const issues: any[] = [];
-    
+
     try {
       // Check for navigation landmarks
       const nav = await page.$('nav');
@@ -483,7 +543,6 @@ export class AccessibilityTester {
           issues.push('Navigation link without text found');
         }
       }
-
     } catch (error) {
       issues.push(`Navigation accessibility check failed: ${error}`);
     }
@@ -493,7 +552,7 @@ export class AccessibilityTester {
 
   private async checkInteractiveElementsAccessibility(page: any): Promise<any[]> {
     const issues: any[] = [];
-    
+
     try {
       // Check buttons
       const buttons = await page.$$('button');
@@ -514,7 +573,6 @@ export class AccessibilityTester {
           issues.push('Interactive element without proper role or tabindex found');
         }
       }
-
     } catch (error) {
       issues.push(`Interactive elements accessibility check failed: ${error}`);
     }
@@ -524,21 +582,20 @@ export class AccessibilityTester {
 
   private async checkKeyboardNavigation(page: any): Promise<any[]> {
     const issues: any[] = [];
-    
+
     try {
       // Test tab navigation
       await page.keyboard.press('Tab');
       const firstFocused = await page.evaluate(() => document.activeElement?.tagName);
-      
+
       if (!firstFocused || firstFocused === 'BODY') {
         issues.push('No focusable element found on first tab');
       }
 
       // Test escape key functionality
       await page.keyboard.press('Escape');
-      
-      // Additional keyboard navigation tests would go here
 
+      // Additional keyboard navigation tests would go here
     } catch (error) {
       issues.push(`Keyboard navigation check failed: ${error}`);
     }
@@ -548,12 +605,12 @@ export class AccessibilityTester {
 
   private async checkScreenReaderCompatibility(page: any): Promise<any[]> {
     const issues: any[] = [];
-    
+
     try {
       // Check heading structure
       const headings = await page.$$('h1, h2, h3, h4, h5, h6');
       let previousLevel = 0;
-      
+
       for (const heading of headings) {
         const level = parseInt(await heading.evaluate((el: any) => el.tagName.charAt(1)));
         if (level > previousLevel + 1) {
@@ -577,19 +634,18 @@ export class AccessibilityTester {
       for (const element of ariaElements) {
         const ariaLabel = await element.getAttribute('aria-label');
         const ariaLabelledBy = await element.getAttribute('aria-labelledby');
-        
+
         if (ariaLabelledBy) {
           const referencedElement = await page.$(`#${ariaLabelledBy}`);
           if (!referencedElement) {
             issues.push(`aria-labelledby references non-existent element: ${ariaLabelledBy}`);
           }
         }
-        
+
         if (ariaLabel && ariaLabel.trim().length === 0) {
           issues.push('Empty aria-label found');
         }
       }
-
     } catch (error) {
       issues.push(`Screen reader compatibility check failed: ${error}`);
     }
@@ -599,20 +655,20 @@ export class AccessibilityTester {
 
   private async checkFocusManagement(page: any): Promise<any[]> {
     const issues: any[] = [];
-    
+
     try {
       // Check modal focus management
       const modalTriggers = await page.$$('[data-toggle="modal"], [aria-haspopup="dialog"]');
-      
+
       for (const trigger of modalTriggers) {
         await trigger.click();
         await page.waitForTimeout(500);
-        
+
         const focusedElement = await page.evaluate(() => document.activeElement?.tagName);
         if (!focusedElement || focusedElement === 'BODY') {
           issues.push('Modal does not manage focus properly');
         }
-        
+
         // Close modal
         await page.keyboard.press('Escape');
       }
@@ -630,7 +686,6 @@ export class AccessibilityTester {
           }
         }
       }
-
     } catch (error) {
       issues.push(`Focus management check failed: ${error}`);
     }

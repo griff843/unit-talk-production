@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars, no-unused-vars */
 /**
  * Integration Testing Module
  * Tests integration between different system components
@@ -28,22 +29,21 @@ export class IntegrationTester {
 
   async runAllTests(): Promise<QATestResult[]> {
     const results: QATestResult[] = [];
-    
+
     try {
       this.browser = await chromium.launch({ headless: this.config.test.headless });
-      
-      results.push(...await this.testAPIIntegration());
-      results.push(...await this.testDatabaseIntegration());
-      results.push(...await this.testExternalServiceIntegration());
-      results.push(...await this.testWorkflowIntegration());
 
+      results.push(...(await this.testAPIIntegration()));
+      results.push(...(await this.testDatabaseIntegration()));
+      results.push(...(await this.testExternalServiceIntegration()));
+      results.push(...(await this.testWorkflowIntegration()));
     } catch (error) {
       results.push({
         testName: 'Integration Test Suite',
         status: 'FAIL',
         message: `Integration test suite failed: ${error}`,
         duration: 0,
-        timestamp: createTimestamp()
+        timestamp: createTimestamp(),
       });
     } finally {
       if (this.browser) {
@@ -60,32 +60,27 @@ export class IntegrationTester {
 
     try {
       // Test API endpoints
-      const endpoints = [
-        '/api/health',
-        '/api/picks',
-        '/api/user/profile'
-      ];
+      const endpoints = ['/api/health', '/api/picks', '/api/user/profile'];
 
       for (const endpoint of endpoints) {
         const response = await fetch(`${this.config.environment.apiUrl}${endpoint}`);
-        
+
         results.push({
           testName: `API Integration - ${endpoint}`,
           status: response.ok ? 'PASS' : 'FAIL',
           message: `${endpoint} returned ${response.status}`,
-          duration: string.now() - startTime,
+          duration: Date.now() - startTime,
           timestamp: createTimestamp(),
-          metrics: { statusCode: response.status }
+          metrics: { statusCode: response.status },
         });
       }
-
     } catch (error) {
       results.push({
         testName: 'API Integration',
         status: 'FAIL',
         message: `Test failed: ${error}`,
-        duration: string.now() - startTime,
-        timestamp: createTimestamp()
+        duration: Date.now() - startTime,
+        timestamp: createTimestamp(),
       });
     }
 
@@ -99,22 +94,21 @@ export class IntegrationTester {
     try {
       // Test database connectivity through API
       const response = await fetch(`${this.config.environment.apiUrl}/api/health/db`);
-      
+
       results.push({
         testName: 'Database Integration',
         status: response.ok ? 'PASS' : 'FAIL',
         message: response.ok ? 'Database connection healthy' : 'Database connection failed',
-        duration: string.now() - startTime,
-        timestamp: createTimestamp()
+        duration: Date.now() - startTime,
+        timestamp: createTimestamp(),
       });
-
     } catch (error) {
       results.push({
         testName: 'Database Integration',
         status: 'FAIL',
         message: `Test failed: ${error}`,
-        duration: string.now() - startTime,
-        timestamp: createTimestamp()
+        duration: Date.now() - startTime,
+        timestamp: createTimestamp(),
       });
     }
 
@@ -128,36 +122,35 @@ export class IntegrationTester {
     try {
       // Test external service integrations
       const services = ['sportsdata', 'odds', 'notifications'];
-      
+
       for (const service of services) {
         try {
           const response = await fetch(`${this.config.environment.apiUrl}/api/health/${service}`);
-          
+
           results.push({
             testName: `External Service - ${service}`,
             status: response.ok ? 'PASS' : 'WARNING',
             message: response.ok ? `${service} service healthy` : `${service} service unavailable`,
-            duration: string.now() - startTime,
-            timestamp: createTimestamp()
+            duration: Date.now() - startTime,
+            timestamp: createTimestamp(),
           });
         } catch (error) {
           results.push({
             testName: `External Service - ${service}`,
             status: 'WARNING',
             message: `${service} service test failed: ${error}`,
-            duration: string.now() - startTime,
-            timestamp: createTimestamp()
+            duration: Date.now() - startTime,
+            timestamp: createTimestamp(),
           });
         }
       }
-
     } catch (error) {
       results.push({
         testName: 'External Service Integration',
         status: 'FAIL',
         message: `Test failed: ${error}`,
-        duration: string.now() - startTime,
-        timestamp: createTimestamp()
+        duration: Date.now() - startTime,
+        timestamp: createTimestamp(),
       });
     }
 
@@ -169,38 +162,39 @@ export class IntegrationTester {
     const startTime = Date.now();
 
     try {
-      if (!this.browser) {throw new Error('Browser not initialized');}
-      
+      if (!this.browser) {
+        throw new Error('Browser not initialized');
+      }
+
       const page = await this.browser.newPage();
       await page.goto(this.config.environment.baseUrl);
-      
+
       // Test end-to-end workflow
       await page.fill('[data-testid="email-input"]', 'test@example.com');
       await page.fill('[data-testid="password-input"]', 'password');
       await page.click('[data-testid="login-button"]');
-      
+
       // Wait for navigation
       await page.waitForTimeout(2000);
-      
-      const isLoggedIn = await page.$('[data-testid="user-menu"]') !== null;
-      
+
+      const isLoggedIn = (await page.$('[data-testid="user-menu"]')) !== null;
+
       results.push({
         testName: 'Workflow Integration - Login',
         status: isLoggedIn ? 'PASS' : 'FAIL',
         message: isLoggedIn ? 'Login workflow completed' : 'Login workflow failed',
-        duration: string.now() - startTime,
-        timestamp: createTimestamp()
+        duration: Date.now() - startTime,
+        timestamp: createTimestamp(),
       });
-      
-      await page.close();
 
+      await page.close();
     } catch (error) {
       results.push({
         testName: 'Workflow Integration',
         status: 'FAIL',
         message: `Test failed: ${error}`,
-        duration: string.now() - startTime,
-        timestamp: createTimestamp()
+        duration: Date.now() - startTime,
+        timestamp: createTimestamp(),
       });
     }
 

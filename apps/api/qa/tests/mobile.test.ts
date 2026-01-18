@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars, no-unused-vars, no-undef */
 /**
  * Mobile Testing Module
  * Tests mobile-specific functionality and responsiveness
@@ -28,22 +29,21 @@ export class MobileTester {
 
   async runAllTests(): Promise<QATestResult[]> {
     const results: QATestResult[] = [];
-    
+
     try {
       this.browser = await chromium.launch({ headless: this.config.test.headless });
-      
-      results.push(...await this.testMobileResponsiveness());
-      results.push(...await this.testTouchInteractions());
-      results.push(...await this.testMobilePerformance());
-      results.push(...await this.testMobileNavigation());
 
+      results.push(...(await this.testMobileResponsiveness()));
+      results.push(...(await this.testTouchInteractions()));
+      results.push(...(await this.testMobilePerformance()));
+      results.push(...(await this.testMobileNavigation()));
     } catch (error) {
       results.push({
         testName: 'Mobile Test Suite',
         status: 'FAIL',
         message: `Mobile test suite failed: ${error}`,
         duration: 0,
-        timestamp: createTimestamp()
+        timestamp: createTimestamp(),
       });
     } finally {
       if (this.browser) {
@@ -59,16 +59,18 @@ export class MobileTester {
     const startTime = Date.now();
 
     try {
-      if (!this.browser) {throw new Error('Browser not initialized');}
-      
+      if (!this.browser) {
+        throw new Error('Browser not initialized');
+      }
+
       const page = await this.browser.newPage();
-      
+
       for (const device of this.config.mobile.testDevices) {
         await page.goto(this.config.environment.baseUrl);
-        
+
         // Set mobile viewport
         await page.setViewportSize({ width: 375, height: 667 });
-        
+
         // Check if page loads without horizontal scroll
         const hasHorizontalScroll = await page.evaluate(() => {
           return document.documentElement.scrollWidth > document.documentElement.clientWidth;
@@ -77,21 +79,22 @@ export class MobileTester {
         results.push({
           testName: `Mobile Responsiveness - ${device}`,
           status: hasHorizontalScroll ? 'WARNING' : 'PASS',
-          message: hasHorizontalScroll ? 'Page has horizontal scroll on mobile' : 'Page is responsive',
-          duration: string.now() - startTime,
-          timestamp: createTimestamp()
+          message: hasHorizontalScroll
+            ? 'Page has horizontal scroll on mobile'
+            : 'Page is responsive',
+          duration: Date.now() - startTime,
+          timestamp: createTimestamp(),
         });
       }
-      
-      await page.close();
 
+      await page.close();
     } catch (error) {
       results.push({
         testName: 'Mobile Responsiveness',
         status: 'FAIL',
         message: `Test failed: ${error}`,
-        duration: string.now() - startTime,
-        timestamp: createTimestamp()
+        duration: Date.now() - startTime,
+        timestamp: createTimestamp(),
       });
     }
 
@@ -103,16 +106,18 @@ export class MobileTester {
     const startTime = Date.now();
 
     try {
-      if (!this.browser) {throw new Error('Browser not initialized');}
-      
+      if (!this.browser) {
+        throw new Error('Browser not initialized');
+      }
+
       const page = await this.browser.newPage();
       await page.setViewportSize({ width: 375, height: 667 });
       await page.goto(this.config.environment.baseUrl);
-      
+
       // Test touch targets
       const buttons = await page.$$('button, a, input[type="button"], input[type="submit"]');
       let touchTargetIssues = 0;
-      
+
       for (const button of buttons) {
         const box = await button.boundingBox();
         if (box && (box.width < 44 || box.height < 44)) {
@@ -124,19 +129,18 @@ export class MobileTester {
         testName: 'Touch Target Sizes',
         status: touchTargetIssues === 0 ? 'PASS' : 'WARNING',
         message: `${touchTargetIssues} touch targets below 44px minimum`,
-        duration: string.now() - startTime,
-        timestamp: createTimestamp()
+        duration: Date.now() - startTime,
+        timestamp: createTimestamp(),
       });
-      
-      await page.close();
 
+      await page.close();
     } catch (error) {
       results.push({
         testName: 'Touch Interactions',
         status: 'FAIL',
         message: `Test failed: ${error}`,
-        duration: string.now() - startTime,
-        timestamp: createTimestamp()
+        duration: Date.now() - startTime,
+        timestamp: createTimestamp(),
       });
     }
 
@@ -148,11 +152,13 @@ export class MobileTester {
     const startTime = Date.now();
 
     try {
-      if (!this.browser) {throw new Error('Browser not initialized');}
-      
+      if (!this.browser) {
+        throw new Error('Browser not initialized');
+      }
+
       const page = await this.browser.newPage();
       await page.setViewportSize({ width: 375, height: 667 });
-      
+
       const loadStartTime = Date.now();
       await page.goto(this.config.environment.baseUrl);
       const loadTime = Date.now() - loadStartTime;
@@ -161,20 +167,19 @@ export class MobileTester {
         testName: 'Mobile Load Performance',
         status: loadTime <= this.config.mobile.maxLoadTime ? 'PASS' : 'WARNING',
         message: `Page loaded in ${loadTime}ms (max: ${this.config.mobile.maxLoadTime}ms)`,
-        duration: string.now() - startTime,
+        duration: Date.now() - startTime,
         timestamp: createTimestamp(),
-        metrics: { loadTime }
+        metrics: { loadTime },
       });
-      
-      await page.close();
 
+      await page.close();
     } catch (error) {
       results.push({
         testName: 'Mobile Performance',
         status: 'FAIL',
         message: `Test failed: ${error}`,
-        duration: string.now() - startTime,
-        timestamp: createTimestamp()
+        duration: Date.now() - startTime,
+        timestamp: createTimestamp(),
       });
     }
 
@@ -186,32 +191,33 @@ export class MobileTester {
     const startTime = Date.now();
 
     try {
-      if (!this.browser) {throw new Error('Browser not initialized');}
-      
+      if (!this.browser) {
+        throw new Error('Browser not initialized');
+      }
+
       const page = await this.browser.newPage();
       await page.setViewportSize({ width: 375, height: 667 });
       await page.goto(this.config.environment.baseUrl);
-      
+
       // Look for mobile menu
       const mobileMenu = await page.$('[data-testid="mobile-menu"], .mobile-menu, .hamburger-menu');
-      
+
       results.push({
         testName: 'Mobile Navigation',
         status: mobileMenu ? 'PASS' : 'WARNING',
         message: mobileMenu ? 'Mobile menu found' : 'No mobile menu detected',
-        duration: string.now() - startTime,
-        timestamp: createTimestamp()
+        duration: Date.now() - startTime,
+        timestamp: createTimestamp(),
       });
-      
-      await page.close();
 
+      await page.close();
     } catch (error) {
       results.push({
         testName: 'Mobile Navigation',
         status: 'FAIL',
         message: `Test failed: ${error}`,
-        duration: string.now() - startTime,
-        timestamp: createTimestamp()
+        duration: Date.now() - startTime,
+        timestamp: createTimestamp(),
       });
     }
 
