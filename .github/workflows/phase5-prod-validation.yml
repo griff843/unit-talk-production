@@ -102,44 +102,70 @@ jobs:
           );
 
           async function createTestData() {
-            // Create test tenant
-            const { data: tenant, error: tenantError } = await supabase
+            // Try to find existing test tenant first (idempotent)
+            let { data: existingTenant } = await supabase
               .from('tenants')
-              .insert({
-                name: 'PHASE5-TEST-TENANT',
-                slug: 'phase5-test',
-                status: 'active',
-                settings: { test: true }
-              })
-              .select()
+              .select('*')
+              .eq('slug', 'phase5-test')
               .single();
 
-            if (tenantError) {
-              console.error('Tenant creation failed:', tenantError);
-              process.exit(1);
+            let tenant = existingTenant;
+
+            if (!tenant) {
+              // Create test tenant
+              const { data: newTenant, error: tenantError } = await supabase
+                .from('tenants')
+                .insert({
+                  name: 'PHASE5-TEST-TENANT',
+                  slug: 'phase5-test',
+                  status: 'active',
+                  settings: { test: true }
+                })
+                .select()
+                .single();
+
+              if (tenantError) {
+                console.error('Tenant creation failed:', tenantError);
+                process.exit(1);
+              }
+              tenant = newTenant;
+              console.log('Tenant created:', tenant.id);
+            } else {
+              console.log('Tenant already exists:', tenant.id);
             }
 
-            console.log('Tenant created:', tenant.id);
-
-            // Create test user
-            const { data: user, error: userError } = await supabase
+            // Try to find existing test user first (idempotent)
+            let { data: existingUser } = await supabase
               .from('users')
-              .insert({
-                tenant_id: tenant.id,
-                username: 'phase5-test-user',
-                discord_id: 'test-' + Date.now(),
-                tier: 'Premium',
-                is_active: true
-              })
-              .select()
+              .select('*')
+              .eq('username', 'phase5-test-user')
               .single();
 
-            if (userError) {
-              console.error('User creation failed:', userError);
-              process.exit(1);
-            }
+            let user = existingUser;
 
-            console.log('User created:', user.id);
+            if (!user) {
+              // Create test user
+              const { data: newUser, error: userError } = await supabase
+                .from('users')
+                .insert({
+                  tenant_id: tenant.id,
+                  username: 'phase5-test-user',
+                  discord_id: 'test-' + Date.now(),
+                  tier: 'Premium',
+                  is_active: true
+                })
+                .select()
+                .single();
+
+              if (userError) {
+                console.error('User creation failed:', userError);
+                process.exit(1);
+              }
+              user = newUser;
+              console.log('User created:', user.id);
+            } else {
+              console.log('User already exists:', user.id);
+            }
             console.log('TENANT_ID=' + tenant.id);
             console.log('USER_ID=' + user.id);
           }
@@ -380,12 +406,17 @@ jobs:
 
           echo "PROD environment configured"
 
-      - name: Clean install Smart Form dependencies
-        working-directory: apps/smart-form
+      - name: Fix @next/swc version mismatch
         run: |
-          echo "Forcing clean install to fix @next/swc version..."
+          echo "Removing mismatched @next/swc from root node_modules..."
+          rm -rf node_modules/@next/swc* node_modules/.package-lock.json
+          echo "Reinstalling smart-form dependencies..."
+          cd apps/smart-form
           rm -rf node_modules .next
-          npm install --force
+          npm install --prefer-offline --no-audit --no-fund
+          echo "@next/swc version after reinstall:"
+          ls -la node_modules/@next/ || echo "No @next packages in local node_modules"
+          ls -la ../../node_modules/@next/ || echo "No @next packages in root node_modules"
 
       - name: Build Smart Form for dev server
         working-directory: apps/smart-form
