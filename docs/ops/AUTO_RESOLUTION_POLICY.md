@@ -130,12 +130,12 @@ A CI failure is considered **resolved** when ALL of the following are true:
 
 The following features are gated behind runtime flags:
 
-| Feature                 | Flag                             | Default | Phase |
-| ----------------------- | -------------------------------- | ------- | ----- |
-| Auto-revert PR creation | `AUTO_REVERT_ENABLED`            | false   | C     |
-| Autopilot freeze        | `AUTOPILOT_FREEZE_ENABLED`       | false   | C     |
-| Auto-fix PR creation    | `AUTO_FIX_PR_ENABLED`            | true    | A     |
-| Failure classification  | `FAILURE_CLASSIFICATION_ENABLED` | true    | A     |
+| Feature                 | Flag                             | Default | Phase | Status      |
+| ----------------------- | -------------------------------- | ------- | ----- | ----------- |
+| Failure classification  | `FAILURE_CLASSIFICATION_ENABLED` | true    | A     | Active      |
+| Auto-fix PR creation    | `AUTO_FIX_PR_ENABLED`            | true    | A     | Active      |
+| Auto-revert PR creation | `AUTO_REVERT_ENABLED`            | false   | C     | Implemented |
+| Autopilot freeze        | `AUTOPILOT_FREEZE_ENABLED`       | false   | D     | Planned     |
 
 Flags are stored in `runtime_config/ci_automation.json`.
 
@@ -158,11 +158,13 @@ Flags are stored in `runtime_config/ci_automation.json`.
 - Monitor false positive rate
 - Tune classification rules
 
-### Phase C: Auto-Revert + Freeze
+### Phase C: Auto-Revert (Implemented - Feature Flagged)
 
-- Enable auto-revert PR generation (feature-flagged)
-- Enable autopilot freeze triggers (feature-flagged)
-- Still no auto-merge
+- Auto-revert PR generation implemented (`AUTO_REVERT_ENABLED=false` by default)
+- Creates revert PR for protected branch failures (main, release/*)
+- Never auto-merges - human approval required
+- Creates issue with revert command when flag is disabled
+- See [CI_FAILURE_RESOLVER_GUIDE.md](./CI_FAILURE_RESOLVER_GUIDE.md#auto-revert-feature-phase-c)
 
 ### Phase D: Full Automation
 

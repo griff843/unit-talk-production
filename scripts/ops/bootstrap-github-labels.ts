@@ -43,6 +43,16 @@ const LABELS: Label[] = [
     color: '0e8a16', // Green
   },
   {
+    name: 'auto-revert',
+    description: 'Automated revert PR to restore green CI',
+    color: 'ff6b6b', // Coral red
+  },
+  {
+    name: 'ci-restore-green',
+    description: 'PR/issue to restore green CI state',
+    color: '2cbe4e', // Bright green
+  },
+  {
     name: 'needs-human',
     description: 'Requires human review and intervention',
     color: 'fbca04', // Yellow
