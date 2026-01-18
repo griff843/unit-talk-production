@@ -1,8 +1,11 @@
 #!/usr/bin/env tsx
+/* eslint-disable @typescript-eslint/no-unused-vars, no-unused-vars, no-console, max-lines-per-function, import/order, security/detect-non-literal-fs-filename */
 import 'dotenv/config';
-import { Client } from 'pg';
+
 import * as fs from 'fs';
 import * as path from 'path';
+
+import { Client } from 'pg';
 
 async function getConnectionString(): Promise<string> {
   const supabaseUrl = process.env.SUPABASE_URL!;
@@ -16,7 +19,9 @@ async function getConnectionString(): Promise<string> {
 
   console.log('\n⚠️  IMPORTANT: Direct PostgreSQL connection required');
   console.log('Please provide your Supabase database password:');
-  console.log('(You can find this in Supabase Dashboard > Settings > Database > Connection string)\n');
+  console.log(
+    '(You can find this in Supabase Dashboard > Settings > Database > Connection string)\n'
+  );
 
   // For automated execution, try to use DATABASE_URL env var if available
   if (process.env.DATABASE_URL) {
@@ -24,7 +29,9 @@ async function getConnectionString(): Promise<string> {
     return process.env.DATABASE_URL;
   }
 
-  throw new Error('DATABASE_URL environment variable not found. Please set it to your Supabase direct database connection string.');
+  throw new Error(
+    'DATABASE_URL environment variable not found. Please set it to your Supabase direct database connection string.'
+  );
 }
 
 async function executeSqlFile(client: Client, filePath: string, name: string): Promise<boolean> {
@@ -73,7 +80,7 @@ async function applyMigrations() {
     // Migration files in order
     const migrations = [
       { file: '20251130_canonical_entities.sql', name: 'Canonical Entities' },
-      { file: '20251201_raw_props_canonical_ids.sql', name: 'Raw Props Canonical IDs' }
+      { file: '20251201_raw_props_canonical_ids.sql', name: 'Raw Props Canonical IDs' },
     ];
 
     // Apply each migration
@@ -124,7 +131,6 @@ async function applyMigrations() {
     console.log('1. Verify schema: npx tsx apps/api/scripts/verify-supabase-schema.ts');
     console.log('2. Run Phase 1: npx tsx apps/api/scripts/live-fire-phase1-ingestion-simple.ts');
     console.log('3. Verification: npx tsx apps/api/scripts/live-fire-phase1-verification.ts\n');
-
   } catch (err: any) {
     console.log('\n❌ Error:', err.message);
     console.log('\nPlease use Supabase Dashboard SQL Editor instead:');
@@ -132,7 +138,9 @@ async function applyMigrations() {
     console.log('2. Copy and run the SQL from:');
     console.log('   - supabase/migrations/20251130_canonical_entities.sql');
     console.log('   - supabase/migrations/20251201_raw_props_canonical_ids.sql');
-    console.log('3. Then run: ALTER TABLE raw_props ADD COLUMN auto_approved BOOLEAN DEFAULT false;\n');
+    console.log(
+      '3. Then run: ALTER TABLE raw_props ADD COLUMN auto_approved BOOLEAN DEFAULT false;\n'
+    );
   } finally {
     await client.end();
   }

@@ -1,19 +1,21 @@
-import { createClient } from '@supabase/supabase-js';
+/* eslint-disable @typescript-eslint/no-unused-vars, no-unused-vars, no-console, import/order */
 import * as dotenv from 'dotenv';
-import * as path from 'path';
 import * as fs from 'fs';
+import * as path from 'path';
+
+import { createClient } from '@supabase/supabase-js';
 
 dotenv.config({ path: path.resolve(process.cwd(), '../../.env') });
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
 async function applyMigration() {
   console.log('=== APPLYING CORE PICKS MIGRATION ===\n');
 
-  const migrationPath = path.resolve(process.cwd(), '../../supabase/migrations/20251101_core_picks.sql');
+  const migrationPath = path.resolve(
+    process.cwd(),
+    '../../supabase/migrations/20251101_core_picks.sql'
+  );
 
   console.log(`Reading migration from: ${migrationPath}`);
   const migrationSQL = fs.readFileSync(migrationPath, 'utf-8');
@@ -24,7 +26,7 @@ async function applyMigration() {
   try {
     // Execute the migration SQL
     const { data, error } = await supabase.rpc('exec_sql', {
-      sql_string: migrationSQL
+      sql_string: migrationSQL,
     });
 
     if (error) {

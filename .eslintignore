@@ -124,3 +124,8 @@ prometheus_data/
 unit-talk-custom-bot/
 unit-talk-frontend/
 unit-talk-smart form/
+
+# Utility scripts (migration, deployment, testing utilities)
+# These are not production code and have relaxed linting requirements
+apps/api/scripts/
+apps/api/qa/
