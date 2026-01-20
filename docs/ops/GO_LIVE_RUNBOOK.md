@@ -342,26 +342,36 @@ WHERE execution_id = '<EXECUTION_UUID>';
 
 ---
 
-## MV_REFRESH_LAG Playbook Note
+## MV_REFRESH_LAG Playbook
 
-**IMPORTANT**: The `MV_REFRESH_LAG` playbook is `RECOMMENDATION_ONLY` because:
+**STATUS**: The `MV_REFRESH_LAG` playbook is now `EXECUTABLE` (updated in PR9).
 
-1. **No MV refresh infrastructure exists**: The expected functions (`logged_refresh_mv`, `refresh_all_mvs`, `mv_refresh_log`) from PR3/PR4/PR5 were not found in the codebase.
+### Infrastructure Added (PR9)
 
-2. **Manual intervention required**: When this playbook triggers, operators must manually refresh materialized views:
-   ```sql
-   -- Check stale views
-   SELECT schemaname, matviewname, last_refresh
-   FROM pg_matviews_info;  -- If this view exists
+The following MV refresh infrastructure was created:
 
-   -- Refresh specific view
-   REFRESH MATERIALIZED VIEW CONCURRENTLY <view_name>;
-   ```
+1. **`mv_pipeline_lag_24h`**: Materialized view for pipeline lag metrics
+2. **`ops.mv_refresh_log`**: Tracking table for refresh operations
+3. **`ops.logged_refresh_mv()`**: Safe refresh function with audit logging
+4. **`refresh_pipeline_lag_materialized_view()`**: RPC endpoint for Command Center
 
-3. **Future enhancement**: To upgrade this playbook to `EXECUTABLE`, create:
-   - `ops.mv_refresh_log` table for tracking
-   - `ops.logged_refresh_mv(view_name, trigger_source)` function
-   - Update `CONTROL_KNOBS_INVENTORY.md` with new knob
+### Manual Operations
+
+If manual intervention is needed:
+
+```sql
+-- Check MV freshness
+SELECT * FROM ops.v_mv_freshness;
+
+-- Manually trigger refresh
+SELECT * FROM ops.logged_refresh_mv('mv_pipeline_lag_24h', 'manual');
+
+-- Check refresh history
+SELECT * FROM ops.get_mv_refresh_history('mv_pipeline_lag_24h', 10);
+
+-- Direct refresh (if logged function unavailable)
+REFRESH MATERIALIZED VIEW CONCURRENTLY mv_pipeline_lag_24h;
+```
 
 ---
 

@@ -182,7 +182,7 @@ export function RolloutStatusWidget() {
       {
         playbook_id: 'MV_REFRESH_LAG',
         name: 'Materialized View Refresh Lag',
-        execution_type: 'RECOMMENDATION_ONLY',
+        execution_type: 'EXECUTABLE',
         enabled: false,
         dry_run_only: true,
         requires_approval: true,
@@ -540,17 +540,17 @@ export function RolloutStatusWidget() {
               </div>
             </div>
 
-            {/* MV_REFRESH_LAG Notice */}
-            <div className="p-3 rounded-lg border-l-4 border-l-blue-500 bg-blue-50 dark:bg-blue-900/20">
+            {/* MV Infrastructure Notice */}
+            <div className="p-3 rounded-lg border-l-4 border-l-green-500 bg-green-50 dark:bg-green-900/20">
               <div className="flex items-start space-x-2">
-                <AlertTriangle className="w-4 h-4 text-blue-500 mt-0.5" />
+                <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                    MV_REFRESH_LAG is RECOMMENDATION_ONLY
+                  <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                    MV Refresh Infrastructure Active
                   </p>
-                  <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
-                    No MV refresh infrastructure exists (logged_refresh_mv, mv_refresh_log).
-                    This playbook provides manual remediation guidance only.
+                  <p className="text-xs text-green-600 dark:text-green-300 mt-1">
+                    PR9: mv_pipeline_lag_24h, ops.logged_refresh_mv(), ops.mv_refresh_log deployed.
+                    MV_REFRESH_LAG playbook is now EXECUTABLE.
                   </p>
                 </div>
               </div>

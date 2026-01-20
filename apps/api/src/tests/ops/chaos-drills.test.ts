@@ -267,12 +267,13 @@ describe('PR9: Chaos Drills', () => {
   });
 
   // ==========================================================================
-  // DRILL 4: MV_REFRESH_LAG Playbook
+  // DRILL 4: MV_REFRESH_LAG Playbook (PR9 Updated - Now EXECUTABLE)
   // ==========================================================================
   describe('Drill 4: MV_REFRESH_LAG Playbook', () => {
     beforeEach(() => {
       // Override mock to return MV_REFRESH_LAG playbook data
-      (supabase.from as any).mockImplementation((table: string) => ({
+      // Updated in PR9: Now EXECUTABLE with MV refresh infrastructure
+      (supabase.from as any).mockImplementation((_table: string) => ({
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
         neq: vi.fn().mockReturnThis(),
@@ -282,18 +283,18 @@ describe('PR9: Chaos Drills', () => {
           data: {
             playbook_id: 'MV_REFRESH_LAG',
             name: 'Materialized View Refresh Lag',
-            execution_type: 'RECOMMENDATION_ONLY',
+            execution_type: 'EXECUTABLE',
             enabled: false,
             dry_run_only: true,
             requires_approval: true,
-            description: 'RECOMMENDATION_ONLY because no direct MV refresh toggle exists.'
+            description: 'Handles stale materialized views. Uses ops.logged_refresh_mv() for safe, audited refresh.'
           },
           error: null
         }),
       }));
     });
 
-    it('MV_REFRESH_LAG must be RECOMMENDATION_ONLY', async () => {
+    it('MV_REFRESH_LAG should be EXECUTABLE (PR9 update)', async () => {
       const { data: playbook } = await supabase
         .from('remediation_playbooks')
         .select('*')
@@ -302,31 +303,30 @@ describe('PR9: Chaos Drills', () => {
 
       expect(playbook).toBeDefined();
       expect(playbook?.playbook_id).toBe('MV_REFRESH_LAG');
-      expect(playbook?.execution_type).toBe('RECOMMENDATION_ONLY');
+      expect(playbook?.execution_type).toBe('EXECUTABLE');
     });
 
-    it('MV_REFRESH_LAG description should explain why', async () => {
+    it('MV_REFRESH_LAG should use ops.logged_refresh_mv infrastructure', async () => {
       const { data: playbook } = await supabase
         .from('remediation_playbooks')
         .select('*')
         .eq('playbook_id', 'MV_REFRESH_LAG')
         .single();
 
-      expect(playbook?.description).toContain('RECOMMENDATION_ONLY');
-      expect(playbook?.description).toContain('no');
-      expect(playbook?.description?.toLowerCase()).toContain('mv');
+      expect(playbook?.description).toContain('logged_refresh_mv');
     });
 
-    it('MV_REFRESH_LAG should never auto-execute', async () => {
-      // Even if enabled, RECOMMENDATION_ONLY playbooks should not auto-execute
+    it('MV_REFRESH_LAG should still be disabled by default', async () => {
       const { data: playbook } = await supabase
         .from('remediation_playbooks')
         .select('*')
         .eq('playbook_id', 'MV_REFRESH_LAG')
         .single();
 
-      // The execution_type should prevent any actual execution
-      expect(playbook?.execution_type).not.toBe('EXECUTABLE');
+      // Still disabled and dry-run only for safety
+      expect(playbook?.enabled).toBe(false);
+      expect(playbook?.dry_run_only).toBe(true);
+      expect(playbook?.requires_approval).toBe(true);
     });
   });
 
