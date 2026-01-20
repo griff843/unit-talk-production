@@ -1,0 +1,206 @@
+name: Phase 6 E2E Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply_migrations:
+        description: 'Apply database migrations before E2E tests'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      run_playwright:
+        description: 'Run Playwright browser automation tests'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'supabase/migrations/**'
+      - 'scripts/phase6-*.ts'
+      - 'apps/smart-form/**'
+
+env:
+  NODE_VERSION: '20.x'
+
+jobs:
+  schema-validation:
+    name: Schema & Pipeline Validation
+    runs-on: ubuntu-latest
+    environment: staging
+
+    outputs:
+      schema_status: ${{ steps.schema.outputs.status }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply Migrations (if requested)
+        if: ${{ github.event.inputs.apply_migrations == 'true' }}
+        run: |
+          echo "Applying migrations to staging database..."
+          npx supabase db push --db-url "${{ secrets.DATABASE_DIRECT_URL }}"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Run Schema Validation
+        id: schema
+        run: |
+          npx tsx scripts/phase6-e2e-validation.ts 2>&1 | tee schema-validation.log
+          if [ ${PIPESTATUS[0]} -eq 0 ]; then
+            echo "status=PASS" >> $GITHUB_OUTPUT
+          else
+            echo "status=FAIL" >> $GITHUB_OUTPUT
+          fi
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Upload Schema Validation Log
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: schema-validation-log
+          path: schema-validation.log
+
+  playwright-e2e:
+    name: Playwright Browser E2E
+    runs-on: ubuntu-latest
+    environment: staging
+    needs: schema-validation
+    if: ${{ github.event.inputs.run_playwright != 'false' && needs.schema-validation.outputs.schema_status == 'PASS' }}
+
+    outputs:
+      e2e_status: ${{ steps.e2e.outputs.status }}
+      discord_mode: ${{ steps.e2e.outputs.discord_mode }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Start Smart Form (background)
+        run: |
+          cd apps/smart-form
+          npm ci
+          npm run build
+          npm start &
+          sleep 10
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Detect Discord Mode
+        id: discord_mode
+        run: |
+          if [ -n "${{ secrets.DISCORD_WEBHOOK_URL }}" ]; then
+            echo "mode=REAL" >> $GITHUB_OUTPUT
+            echo "Discord mode: REAL (webhook configured)"
+          else
+            echo "mode=SINK" >> $GITHUB_OUTPUT
+            echo "Discord mode: SINK (no webhook, using file sink)"
+          fi
+
+      - name: Run Playwright E2E Tests
+        id: e2e
+        run: |
+          mkdir -p e2e-output
+          npx tsx scripts/phase6-playwright-e2e.ts 2>&1 | tee e2e-output/playwright.log
+          EXIT_CODE=${PIPESTATUS[0]}
+
+          # Determine status based on exit code and Discord mode
+          DISCORD_MODE="${{ steps.discord_mode.outputs.mode }}"
+          if [ $EXIT_CODE -eq 0 ]; then
+            if [ "$DISCORD_MODE" = "REAL" ]; then
+              echo "status=PASS (FULL)" >> $GITHUB_OUTPUT
+            else
+              echo "status=PASS (LOCAL)" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "status=FAIL" >> $GITHUB_OUTPUT
+          fi
+          echo "discord_mode=$DISCORD_MODE" >> $GITHUB_OUTPUT
+        env:
+          SMART_FORM_URL: http://localhost:3000
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          E2E_HEADLESS: 'true'
+          E2E_OUTPUT_DIR: './e2e-output'
+
+      - name: Upload E2E Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-artifacts
+          path: |
+            e2e-output/
+            *.png
+          retention-days: 7
+
+  summary:
+    name: Validation Summary
+    runs-on: ubuntu-latest
+    needs: [schema-validation, playwright-e2e]
+    if: always()
+
+    steps:
+      - name: Generate Summary
+        run: |
+          echo "# Phase 6 E2E Validation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Schema Validation | ${{ needs.schema-validation.outputs.schema_status || 'SKIPPED' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Playwright E2E | ${{ needs.playwright-e2e.outputs.e2e_status || 'SKIPPED' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Discord Mode | ${{ needs.playwright-e2e.outputs.discord_mode || 'N/A' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Determine overall status
+          SCHEMA="${{ needs.schema-validation.outputs.schema_status }}"
+          E2E="${{ needs.playwright-e2e.outputs.e2e_status }}"
+
+          if [[ "$SCHEMA" == "PASS" && ("$E2E" == "PASS (FULL)" || "$E2E" == "PASS (LOCAL)") ]]; then
+            echo "## Overall: PASS" >> $GITHUB_STEP_SUMMARY
+          elif [[ "$SCHEMA" == "PASS" || "$E2E" =~ ^PASS ]]; then
+            echo "## Overall: PARTIAL PASS" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## Overall: FAIL" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Fail if E2E failed
+        if: ${{ needs.playwright-e2e.outputs.e2e_status == 'FAIL' || needs.schema-validation.outputs.schema_status == 'FAIL' }}
+        run: |
+          echo "E2E validation failed"
+          exit 1
