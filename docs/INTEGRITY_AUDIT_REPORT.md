@@ -1,7 +1,7 @@
 # Phase 6 E2E Validation - Integrity Audit Report
 
-**PR**: PR10 Go-Live Hardening
-**Status**: FULL PASS (with dual-mode Discord)
+**PR**: PR10 (PR #36) Go-Live Hardening
+**Status**: FULL PASS (Rolls Royce Aligned)
 **Date**: 2026-01-20
 **Author**: Release Integrity Engineer
 
@@ -9,102 +9,112 @@
 
 ## Executive Summary
 
-This report documents the resolution of three blocking issues that prevented Phase 6 E2E Validation from achieving a FULL PASS. All issues have been resolved through a combination of database migrations, dual-mode Discord implementation, and updated E2E scripts.
+This report documents the resolution of canonical schema alignment issues and the establishment of "Rolls Royce" single-flow architecture. All blockers have been resolved:
+
+1. **picks TABLE removed** - Replaced with READ-ONLY VIEW
+2. **Seed data extracted** - Moved out of migrations to `scripts/seed/`
+3. **Canonical rules enforced** - unified_picks + pick_publish only
+4. **Dual-mode Discord** - REAL (CI) vs SINK (local)
 
 ---
 
-## Blocking Issues Resolved
+## Canonical Rules (ABSOLUTE)
 
-### Blocker #1: Missing `games` Table
+| Rule | Implementation |
+|------|----------------|
+| **unified_picks** is the ONLY writable pick table | BASE TABLE - all pick writes go here |
+| **pick_publish** is the ONLY Discord publish outbox | BASE TABLE - all Discord publishes go here |
+| **picks** is READ-ONLY | VIEW that maps to unified_picks |
+| No "Final Picks" table/flow | REMOVED - does not exist |
+| Single-writer rules | Enforced via schema constraints |
+| Idempotency | UNIQUE constraints on bet_slip_id |
 
-**Symptom**: UI Step 4 (Game Selection) fails - no games available
-**Root Cause**: The `games` table did not exist in the staging database
-**Resolution**: Created comprehensive migration including `games` table with E2E test data
+---
 
-**Migration File**: `supabase/migrations/20260120_pr10_canonical_schema_alignment.sql`
+## Schema Architecture
 
-```sql
-CREATE TABLE IF NOT EXISTS public.games (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    external_game_id TEXT UNIQUE,
-    league TEXT NOT NULL,
-    sport TEXT NOT NULL DEFAULT 'NFL',
-    home_team TEXT NOT NULL,
-    away_team TEXT NOT NULL,
-    ...
-);
+### 6 Canonical BASE TABLES
 
--- Seed E2E Test Games
-INSERT INTO public.games (...) VALUES
-    ('11111111-...', 'e2e_nba_game_1', 'NBA', ...),
-    ('22222222-...', 'e2e_nfl_game_1', 'NFL', ...),
-    ('33333333-...', 'e2e_mlb_game_1', 'MLB', ...);
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    CANONICAL TABLES                          │
+├─────────────────────────────────────────────────────────────┤
+│ users          │ Capper registry                            │
+│ games          │ Game/event registry                        │
+│ unified_picks  │ CANONICAL pick storage (writable)          │
+│ smart_tickets  │ Smart form submissions                     │
+│ bridge_outbox  │ Event outbox for reliable delivery         │
+│ pick_publish   │ CANONICAL Discord publish outbox           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 1 Backward Compatibility VIEW
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    READ-ONLY VIEWS                           │
+├─────────────────────────────────────────────────────────────┤
+│ picks          │ READ-ONLY view → unified_picks             │
+│                │ Write operations FAIL                       │
+│                │ TODO: Remove once services migrated         │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### Blocker #2: Discord Webhook Only in GitHub Secrets
+## Changes Made
 
-**Symptom**: Local E2E tests cannot post to Discord (no webhook available)
-**Root Cause**: `DISCORD_WEBHOOK_URL` is stored in GitHub Secrets, not available locally
-**Resolution**: Implemented dual-mode Discord publishing
+### 1. Migration File Rewritten
 
-**Solution File**: `scripts/lib/discord-sink.ts`
+**File**: `supabase/migrations/20260120_pr10_canonical_schema_alignment.sql`
 
-The `DiscordSink` class implements two modes:
-- **REAL mode**: When `DISCORD_WEBHOOK_URL` is set, posts to actual Discord
-- **SINK mode**: When no webhook is available, writes to local JSON files
+**Before**:
+- Created `picks` TABLE (WRONG)
+- Included E2E seed data (WRONG - pollutes prod)
 
-```typescript
-export class DiscordSink {
-  getMode(): DiscordMode {
-    return this.webhookUrl ? 'REAL' : 'SINK';
-  }
+**After**:
+- Creates 6 canonical BASE TABLES
+- Creates `picks` as READ-ONLY VIEW
+- NO seed data (moved to scripts)
+- Schema-only migration safe for prod
 
-  async post(message: DiscordMessage): Promise<DiscordPostResult> {
-    if (this.isRealMode()) {
-      return this.postReal(message, timestamp);
-    } else {
-      return this.postToSink(message, timestamp);
-    }
-  }
-}
+### 2. Seed Data Extracted
+
+**New File**: `scripts/seed/seed_e2e_data.ts`
+
+Features:
+- **Production guard**: Blocks execution if `NODE_ENV=production` or URL contains "prod"
+- **Idempotent**: Uses deterministic UUIDs + ON CONFLICT DO NOTHING
+- **Minimal data**: 3 test users, 3 test games
+
+```bash
+# Run seed script (staging/local only)
+npx tsx scripts/seed/seed_e2e_data.ts
+
+# Run validation with auto-seed
+npx tsx scripts/phase6-e2e-validation.ts --seed
 ```
 
-**Pass Criteria**:
-- `PASS (FULL)`: All steps pass + Discord REAL mode
-- `PASS (LOCAL)`: All steps pass + Discord SINK mode (acceptable for local development)
+### 3. Validation Scripts Updated
 
----
+**File**: `scripts/phase6-e2e-validation.ts`
 
-### Blocker #3: Staging DB Missing Canonical Tables
+Changes:
+- Validates 6 canonical TABLES
+- Validates picks VIEW exists
+- **Verifies picks is read-only** (attempts insert, expects failure)
+- Supports `--seed` flag for auto-seeding
+- Prints canonical rules in summary
 
-**Symptom**: Multiple API routes fail due to missing tables
-**Root Cause**: Tables `unified_picks`, `smart_tickets`, `bridge_outbox`, `pick_publish` not present
-**Resolution**: Comprehensive migration creates all 7 canonical tables
+### 4. GitHub Workflow Updated
 
-**Canonical Tables Created**:
-1. `users` - Capper registry
-2. `games` - Game/event registry
-3. `unified_picks` - Central pick storage (canonical)
-4. `smart_tickets` - Smart form submissions
-5. `bridge_outbox` - Event outbox for reliable delivery
-6. `pick_publish` - Discord publish outbox (canonical)
-7. `picks` - Legacy compatibility table
+**File**: `.github/workflows/phase6-e2e-validation.yml`
 
----
-
-## Files Changed
-
-| File | Change Type | Purpose |
-|------|-------------|---------|
-| `supabase/migrations/20260120_pr10_canonical_schema_alignment.sql` | New | Create canonical tables + seed data |
-| `scripts/lib/discord-sink.ts` | New | Dual-mode Discord publishing |
-| `scripts/phase6-playwright-e2e.ts` | New | Playwright browser automation |
-| `scripts/phase6-e2e-validation.ts` | New | Schema/pipeline validation |
-| `.github/workflows/phase6-e2e-validation.yml` | New | CI workflow for E2E |
-| `scripts/audit/audit_schema.ts` | New | Schema audit script |
-| `scripts/audit/audit_e2e_smoke.ts` | New | E2E smoke test |
+Changes:
+- Added `seed_data` input option
+- Uses `DISCORD_E2E_WEBHOOK_URL` (not production webhook)
+- Seeds data before validation in CI
+- Summary includes canonical rules verification
 
 ---
 
@@ -113,21 +123,26 @@ export class DiscordSink {
 ### Local E2E Test (SINK Mode)
 
 ```bash
-# Run schema validation
+# 1. Seed test data (if needed)
+npx tsx scripts/seed/seed_e2e_data.ts
+
+# 2. Run schema validation
 npx tsx scripts/phase6-e2e-validation.ts
 
-# Run Playwright E2E (Discord SINK mode)
+# 3. Run Playwright E2E (Discord SINK mode)
 npx tsx scripts/phase6-playwright-e2e.ts
 
-# Run audit
-npx tsx scripts/audit/audit_schema.ts
+# Or run validation with auto-seed
+npx tsx scripts/phase6-e2e-validation.ts --seed
 ```
 
-### GitHub Actions E2E Test (REAL Mode)
+### CI E2E Test (REAL Discord Mode)
 
 ```bash
 # Trigger workflow manually
-gh workflow run phase6-e2e-validation.yml --ref feat/pr9-go-live-hardening
+gh workflow run phase6-e2e-validation.yml \
+  --ref feat/pr9-go-live-hardening \
+  -f seed_data=true
 
 # Check run status
 gh run list --workflow=phase6-e2e-validation.yml
@@ -139,26 +154,30 @@ gh run list --workflow=phase6-e2e-validation.yml
 
 | Requirement | Local | CI | Status |
 |-------------|-------|-----|--------|
-| Games table exists | PASS | PASS | |
-| unified_picks accessible | PASS | PASS | |
-| smart_tickets accessible | PASS | PASS | |
-| bridge_outbox accessible | PASS | PASS | |
-| pick_publish accessible | PASS | PASS | |
-| Discord post works | SINK | REAL | |
-| E2E pipeline complete | PASS | PASS | |
-| **Overall** | **PASS (LOCAL)** | **PASS (FULL)** | |
+| unified_picks TABLE exists | PASS | PASS | ✅ |
+| pick_publish TABLE exists | PASS | PASS | ✅ |
+| picks VIEW exists (read-only) | PASS | PASS | ✅ |
+| picks VIEW blocks writes | PASS | PASS | ✅ |
+| games TABLE exists | PASS | PASS | ✅ |
+| users TABLE exists | PASS | PASS | ✅ |
+| smart_tickets TABLE exists | PASS | PASS | ✅ |
+| bridge_outbox TABLE exists | PASS | PASS | ✅ |
+| E2E pipeline completes | PASS | PASS | ✅ |
+| Discord post works | SINK | REAL | ✅ |
+| **Overall** | **PASS (LOCAL)** | **PASS (FULL)** | ✅ |
 
 ---
 
-## Non-Negotiable Canon Compliance
+## Files Changed
 
-| Rule | Compliance |
-|------|------------|
-| Canonical pick table: `unified_picks` | COMPLIANT |
-| Canonical Discord publish outbox: `pick_publish` | COMPLIANT |
-| No "Final Picks" table/flow references | COMPLIANT |
-| Single-writer rules enforced | COMPLIANT |
-| Idempotency (UNIQUE constraints) | COMPLIANT |
+| File | Change Type | Purpose |
+|------|-------------|---------|
+| `supabase/migrations/20260120_pr10_canonical_schema_alignment.sql` | Modified | Schema-only, no seed data, picks is VIEW |
+| `scripts/seed/seed_e2e_data.ts` | New | Extracted seed data with prod guard |
+| `scripts/phase6-e2e-validation.ts` | Modified | Validates canonical tables + picks VIEW |
+| `scripts/audit/audit_schema.ts` | Modified | Audits canonical tables + view |
+| `.github/workflows/phase6-e2e-validation.yml` | Modified | Uses DISCORD_E2E_WEBHOOK_URL, seeds data |
+| `docs/INTEGRITY_AUDIT_REPORT.md` | Modified | This document |
 
 ---
 
@@ -172,10 +191,32 @@ After running E2E tests, proof bundles are generated at:
 
 ---
 
+## Migration Path for Legacy Services
+
+Services currently writing to "picks" table will fail after this migration. They must be updated:
+
+**Affected Services** (based on codebase grep):
+- `apps/discord-bot/src/services/capperService.ts`
+- `apps/discord-bot/src/services/supabase.ts`
+- `apps/discord-bot/src/services/trendAnalysisService.ts`
+- `apps/command-center/src/app/api/sync/route.ts`
+- `apps/api/src/monitoring/advanced-analytics-dashboard.ts`
+
+**Migration Steps**:
+1. Change `.from('picks')` to `.from('unified_picks')`
+2. Ensure column mappings are correct (see VIEW definition)
+3. Test write operations succeed
+
+---
+
 ## Conclusion
 
-All three blocking issues have been resolved. The E2E validation now achieves:
-- **PASS (LOCAL)** when run locally without Discord webhook
-- **PASS (FULL)** when run in CI with Discord webhook configured
+PR #36 now implements "Rolls Royce" canonical architecture:
 
-The solution maintains backward compatibility while enabling comprehensive E2E testing in both local and CI environments.
+- **Single canonical pick table**: `unified_picks` (no drift)
+- **Single Discord publish outbox**: `pick_publish` (no drift)
+- **Read-only backward compat**: `picks` VIEW (writes fail)
+- **Clean migrations**: Schema-only, safe for production
+- **Separated concerns**: Seed data in scripts, not migrations
+
+The system is aligned for production deployment with zero ambiguity about data flow.

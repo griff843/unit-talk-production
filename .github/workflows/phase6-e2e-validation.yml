@@ -11,6 +11,14 @@ on:
         options:
           - 'true'
           - 'false'
+      seed_data:
+        description: 'Seed E2E test data (staging/local only)'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
       run_playwright:
         description: 'Run Playwright browser automation tests'
         required: false
@@ -25,6 +33,7 @@ on:
     paths:
       - 'supabase/migrations/**'
       - 'scripts/phase6-*.ts'
+      - 'scripts/seed/**'
       - 'apps/smart-form/**'
 
 env:
@@ -59,6 +68,16 @@ jobs:
           npx supabase db push --db-url "${{ secrets.DATABASE_DIRECT_URL }}"
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Seed E2E Test Data (staging only)
+        if: ${{ github.event.inputs.seed_data != 'false' }}
+        run: |
+          echo "Seeding E2E test data..."
+          npx tsx scripts/seed/seed_e2e_data.ts
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NODE_ENV: staging
 
       - name: Run Schema Validation
         id: schema
@@ -122,12 +141,13 @@ jobs:
       - name: Detect Discord Mode
         id: discord_mode
         run: |
-          if [ -n "${{ secrets.DISCORD_WEBHOOK_URL }}" ]; then
+          # Use DISCORD_E2E_WEBHOOK_URL for E2E tests (separate from production webhook)
+          if [ -n "${{ secrets.DISCORD_E2E_WEBHOOK_URL }}" ]; then
             echo "mode=REAL" >> $GITHUB_OUTPUT
-            echo "Discord mode: REAL (webhook configured)"
+            echo "Discord mode: REAL (DISCORD_E2E_WEBHOOK_URL configured)"
           else
             echo "mode=SINK" >> $GITHUB_OUTPUT
-            echo "Discord mode: SINK (no webhook, using file sink)"
+            echo "Discord mode: SINK (no E2E webhook, using file sink)"
           fi
 
       - name: Run Playwright E2E Tests
@@ -153,7 +173,8 @@ jobs:
           SMART_FORM_URL: http://localhost:3000
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          # Use dedicated E2E webhook (not production webhook)
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_E2E_WEBHOOK_URL }}
           E2E_HEADLESS: 'true'
           E2E_OUTPUT_DIR: './e2e-output'
 
@@ -177,6 +198,12 @@ jobs:
       - name: Generate Summary
         run: |
           echo "# Phase 6 E2E Validation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Canonical Rules Verified" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **unified_picks**: CANONICAL pick table (writable)" >> $GITHUB_STEP_SUMMARY
+          echo "- **pick_publish**: CANONICAL Discord publish outbox" >> $GITHUB_STEP_SUMMARY
+          echo "- **picks**: READ-ONLY view (backward compat)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

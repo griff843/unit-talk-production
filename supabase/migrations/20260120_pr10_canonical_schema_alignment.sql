@@ -1,8 +1,17 @@
 -- PR10: Canonical Schema Alignment Migration
--- Purpose: Create all canonical tables required for E2E validation FULL PASS
--- Tables: users, games, unified_picks, smart_tickets, bridge_outbox, pick_publish, picks
+-- Purpose: Create canonical tables required for E2E validation FULL PASS
+-- CANONICAL TABLES: users, games, unified_picks, smart_tickets, bridge_outbox, pick_publish
 -- Author: Release Integrity Engineer
 -- Date: 2026-01-20
+--
+-- IMPORTANT: This migration is SCHEMA-ONLY. No seed data.
+-- Seed data for E2E testing is in scripts/seed/ and must be run separately.
+--
+-- CANONICAL RULES:
+--   - unified_picks is the ONLY canonical pick record table
+--   - pick_publish is the ONLY canonical Discord publish outbox
+--   - NO "picks" table (removed - use unified_picks instead)
+--   - All services must write to unified_picks, not picks
 
 BEGIN;
 
@@ -56,7 +65,7 @@ CREATE INDEX IF NOT EXISTS idx_games_status ON public.games(status);
 CREATE INDEX IF NOT EXISTS idx_games_external_game_id ON public.games(external_game_id);
 
 -- ============================================================================
--- 3. UNIFIED_PICKS TABLE (Canonical Pick Storage)
+-- 3. UNIFIED_PICKS TABLE (Canonical Pick Storage - SINGLE SOURCE OF TRUTH)
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS public.unified_picks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -135,7 +144,7 @@ CREATE INDEX IF NOT EXISTS idx_bridge_outbox_created_at ON public.bridge_outbox(
 CREATE INDEX IF NOT EXISTS idx_bridge_outbox_pending ON public.bridge_outbox(status, created_at) WHERE status = 'pending';
 
 -- ============================================================================
--- 6. PICK_PUBLISH TABLE (Canonical Discord Publish Outbox)
+-- 6. PICK_PUBLISH TABLE (Canonical Discord Publish Outbox - SINGLE SOURCE OF TRUTH)
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS public.pick_publish (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -160,56 +169,45 @@ CREATE INDEX IF NOT EXISTS idx_pick_publish_status ON public.pick_publish(status
 CREATE INDEX IF NOT EXISTS idx_pick_publish_pending ON public.pick_publish(status, created_at) WHERE status = 'pending';
 
 -- ============================================================================
--- 7. PICKS TABLE (Legacy Compatibility - References unified_picks)
+-- 7. PICKS VIEW (READ-ONLY Backward Compatibility Layer)
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS public.picks (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    unified_pick_id UUID REFERENCES public.unified_picks(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
-    game_id UUID REFERENCES public.games(id) ON DELETE SET NULL,
-    bet_slip_id TEXT UNIQUE,
-    pick_type TEXT,
-    selection TEXT,
-    odds NUMERIC(10,2),
-    status TEXT DEFAULT 'pending',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_picks_unified_pick_id ON public.picks(unified_pick_id);
-CREATE INDEX IF NOT EXISTS idx_picks_user_id ON public.picks(user_id);
-
+-- This VIEW provides temporary read-only backward compatibility for services
+-- that still reference "picks". Write operations (INSERT/UPDATE/DELETE) will FAIL.
+-- Services MUST be migrated to use unified_picks directly for writes.
+--
+-- TODO: Remove this view once all services are migrated to unified_picks
 -- ============================================================================
--- 8. SEED DATA FOR E2E TESTING
--- ============================================================================
+DROP VIEW IF EXISTS public.picks;
+CREATE VIEW public.picks AS
+SELECT
+    id,
+    user_id,
+    game_id,
+    bet_slip_id,
+    pick_type,
+    selection,
+    odds,
+    stake,
+    status,
+    created_at,
+    updated_at,
+    -- Map to legacy column names some services might expect
+    user_id AS capper_id,
+    confidence_score AS confidence,
+    metadata->>'sport' AS sport,
+    metadata->>'event' AS event,
+    metadata->>'bet_type' AS bet_type,
+    metadata->>'line' AS line,
+    metadata->>'profit_loss' AS profit_loss
+FROM public.unified_picks;
 
--- Seed E2E Test Users
-INSERT INTO public.users (id, username, email, discord_id, tier, status)
-VALUES
-    ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'griff843', 'griff@unittalk.com', '123456789012345678', 'vip', 'active'),
-    ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'e2e_test_capper', 'e2e@test.com', '987654321098765432', 'premium', 'active'),
-    ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'automation_bot', 'bot@test.com', '111222333444555666', 'admin', 'active')
-ON CONFLICT (username) DO UPDATE SET
-    tier = EXCLUDED.tier,
-    status = EXCLUDED.status,
-    updated_at = NOW();
-
--- Seed E2E Test Games
-INSERT INTO public.games (id, external_game_id, league, sport, home_team, away_team, game_date, commence_time, status)
-VALUES
-    ('11111111-1111-1111-1111-111111111111', 'e2e_nba_game_1', 'NBA', 'NBA', 'LOS_ANGELES_LAKERS_NBA', 'BOSTON_CELTICS_NBA', CURRENT_DATE, NOW() + INTERVAL '3 hours', 'scheduled'),
-    ('22222222-2222-2222-2222-222222222222', 'e2e_nfl_game_1', 'NFL', 'NFL', 'KANSAS_CITY_CHIEFS_NFL', 'BUFFALO_BILLS_NFL', CURRENT_DATE, NOW() + INTERVAL '6 hours', 'scheduled'),
-    ('33333333-3333-3333-3333-333333333333', 'e2e_mlb_game_1', 'MLB', 'MLB', 'NEW_YORK_YANKEES_MLB', 'LOS_ANGELES_DODGERS_MLB', CURRENT_DATE, NOW() + INTERVAL '9 hours', 'scheduled')
-ON CONFLICT (external_game_id) DO UPDATE SET
-    home_team = EXCLUDED.home_team,
-    away_team = EXCLUDED.away_team,
-    game_date = EXCLUDED.game_date,
-    commence_time = EXCLUDED.commence_time,
-    status = EXCLUDED.status,
-    updated_at = NOW();
+COMMENT ON VIEW public.picks IS
+'READ-ONLY backward compatibility view. DO NOT WRITE TO THIS VIEW.
+All pick writes must go to unified_picks. This view will be removed
+once all services are migrated to unified_picks.';
 
 -- ============================================================================
--- 9. UPDATED_AT TRIGGER FUNCTION
+-- 8. UPDATED_AT TRIGGER FUNCTION
 -- ============================================================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -219,12 +217,12 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Apply trigger to all tables
+-- Apply trigger to canonical tables only (NOT the picks view)
 DO $$
 DECLARE
     tbl TEXT;
 BEGIN
-    FOR tbl IN SELECT unnest(ARRAY['users', 'games', 'unified_picks', 'smart_tickets', 'bridge_outbox', 'pick_publish', 'picks'])
+    FOR tbl IN SELECT unnest(ARRAY['users', 'games', 'unified_picks', 'smart_tickets', 'bridge_outbox', 'pick_publish'])
     LOOP
         EXECUTE format('DROP TRIGGER IF EXISTS update_%s_updated_at ON public.%s', tbl, tbl);
         EXECUTE format('CREATE TRIGGER update_%s_updated_at BEFORE UPDATE ON public.%s FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()', tbl, tbl);
@@ -233,24 +231,23 @@ END;
 $$;
 
 -- ============================================================================
--- 10. ROW LEVEL SECURITY (RLS) POLICIES
+-- 9. ROW LEVEL SECURITY (RLS) POLICIES
 -- ============================================================================
 
--- Enable RLS on all tables
+-- Enable RLS on canonical tables only (NOT views)
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.games ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.unified_picks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.smart_tickets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.bridge_outbox ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pick_publish ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.picks ENABLE ROW LEVEL SECURITY;
 
--- Create permissive policies for service role (E2E tests run with service role)
+-- Create permissive policies for service role
 DO $$
 DECLARE
     tbl TEXT;
 BEGIN
-    FOR tbl IN SELECT unnest(ARRAY['users', 'games', 'unified_picks', 'smart_tickets', 'bridge_outbox', 'pick_publish', 'picks'])
+    FOR tbl IN SELECT unnest(ARRAY['users', 'games', 'unified_picks', 'smart_tickets', 'bridge_outbox', 'pick_publish'])
     LOOP
         EXECUTE format('DROP POLICY IF EXISTS service_role_all_%s ON public.%s', tbl, tbl);
         EXECUTE format('CREATE POLICY service_role_all_%s ON public.%s FOR ALL TO service_role USING (true) WITH CHECK (true)', tbl, tbl);
@@ -263,7 +260,16 @@ COMMIT;
 -- ============================================================================
 -- VERIFICATION QUERY (Run after migration)
 -- ============================================================================
--- SELECT table_name FROM information_schema.tables
+-- SELECT table_name, table_type FROM information_schema.tables
 -- WHERE table_schema = 'public'
 -- AND table_name IN ('users', 'games', 'unified_picks', 'smart_tickets', 'bridge_outbox', 'pick_publish', 'picks')
 -- ORDER BY table_name;
+--
+-- Expected output:
+--   users           | BASE TABLE
+--   games           | BASE TABLE
+--   unified_picks   | BASE TABLE
+--   smart_tickets   | BASE TABLE
+--   bridge_outbox   | BASE TABLE
+--   pick_publish    | BASE TABLE
+--   picks           | VIEW  <-- READ-ONLY backward compat
