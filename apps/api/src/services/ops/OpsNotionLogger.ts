@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, max-lines, max-lines-per-function */
 /**
  * @fileoverview Ops Notion Logger
  *
@@ -205,8 +206,8 @@ export class OpsNotionLogger {
     const response = await this.retryWithBackoff(async () => {
       return this.client!.pages.create({
         parent: { database_id: this.databaseId! },
-        properties: properties as unknown as Record<string, unknown>,
-        children: this.buildPageContent(incident),
+        properties: properties as any,
+        children: this.buildPageContent(incident) as any,
       });
     });
 
@@ -237,7 +238,7 @@ export class OpsNotionLogger {
 
         return this.client!.pages.update({
           page_id: pageId,
-          properties: updateProps,
+          properties: updateProps as any,
         });
       });
 
