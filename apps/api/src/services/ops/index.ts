@@ -59,3 +59,13 @@ export {
   getOpsNotificationWorker,
   createOpsNotificationWorker,
 } from './OpsNotificationWorker';
+
+// Remediation Worker (PR8)
+export {
+  OpsRemediationWorker,
+  getOpsRemediationWorker,
+  createOpsRemediationWorker,
+  type OpsRemediationWorkerConfig,
+  type SLOIncident,
+  type RemediationCycleResult,
+} from './OpsRemediationWorker';

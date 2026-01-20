@@ -1,0 +1,457 @@
+name: Go Live - Full Production Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_migrations:
+        description: "Skip migrations (use if already applied)"
+        required: false
+        type: boolean
+        default: false
+      skip_build:
+        description: "Skip Docker build (use existing images)"
+        required: false
+        type: boolean
+        default: false
+      dry_run:
+        description: "Dry run - validate only, no deployment"
+        required: false
+        type: boolean
+        default: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ============================================================================
+  # STAGE 0: Preflight - Verify Required Secrets Exist
+  # ============================================================================
+  preflight:
+    name: 0. Preflight Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify required secrets exist
+        run: |
+          echo "🔍 Verifying required secrets are configured..."
+          errors=0
+
+          # Supabase secrets (required for migrations)
+          if [ -z "${{ secrets.SUPABASE_ACCESS_TOKEN }}" ]; then
+            echo "::error::SUPABASE_ACCESS_TOKEN is not configured"
+            errors=$((errors + 1))
+          else
+            echo "✅ SUPABASE_ACCESS_TOKEN: configured"
+          fi
+
+          if [ -z "${{ secrets.SUPABASE_PROJECT_REF_PROD }}" ]; then
+            echo "::error::SUPABASE_PROJECT_REF_PROD is not configured"
+            errors=$((errors + 1))
+          else
+            echo "✅ SUPABASE_PROJECT_REF_PROD: configured"
+          fi
+
+          if [ -z "${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}" ]; then
+            echo "::error::SUPABASE_SERVICE_ROLE_KEY_PROD is not configured"
+            errors=$((errors + 1))
+          else
+            echo "✅ SUPABASE_SERVICE_ROLE_KEY_PROD: configured"
+          fi
+
+          # AWS secrets (required for EKS deployment)
+          if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
+            echo "::error::AWS_ACCESS_KEY_ID is not configured"
+            errors=$((errors + 1))
+          else
+            echo "✅ AWS_ACCESS_KEY_ID: configured"
+          fi
+
+          if [ -z "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
+            echo "::error::AWS_SECRET_ACCESS_KEY is not configured"
+            errors=$((errors + 1))
+          else
+            echo "✅ AWS_SECRET_ACCESS_KEY: configured"
+          fi
+
+          # Summary
+          echo ""
+          if [ $errors -gt 0 ]; then
+            echo "::error::❌ PREFLIGHT FAILED: $errors required secret(s) missing"
+            echo "Configure missing secrets in GitHub Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+
+          echo "✅ PREFLIGHT PASSED: All required secrets configured"
+
+  # ============================================================================
+  # STAGE 1: Apply Database Migrations
+  # ============================================================================
+  migrations:
+    name: 1. Apply Migrations
+    runs-on: ubuntu-latest
+    needs: [preflight]
+    if: inputs.skip_migrations != true
+    outputs:
+      migration_status: ${{ steps.migrate.outputs.status }}
+      verify_status: ${{ steps.verify.outputs.verify_status }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Mask secrets
+        run: |
+          echo "::add-mask::${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}"
+          echo "::add-mask::${{ secrets.SUPABASE_ACCESS_TOKEN }}"
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link Supabase project
+        run: |
+          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF_PROD }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Apply migrations
+        id: migrate
+        run: |
+          if [ "${{ inputs.dry_run }}" == "true" ]; then
+            echo "🔍 DRY RUN - Would apply migrations"
+            supabase db diff --linked || echo "No schema differences"
+            echo "status=dry_run" >> $GITHUB_OUTPUT
+          else
+            echo "🚀 Applying migrations to production..."
+            supabase db push --linked
+            echo "status=applied" >> $GITHUB_OUTPUT
+          fi
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Run verification queries
+        id: verify
+        run: |
+          mkdir -p out/go_live_artifacts
+
+          PROJECT_REF="${{ secrets.SUPABASE_PROJECT_REF_PROD }}"
+          DB_PASSWORD="${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}"
+          DB_HOST="db.${PROJECT_REF}.supabase.co"
+          DB_URL="postgresql://postgres.${PROJECT_REF}:${DB_PASSWORD}@${DB_HOST}:5432/postgres"
+
+          echo "::add-mask::${DB_URL}"
+
+          echo "🔍 Verifying onboarding tables..."
+          psql "${DB_URL}" -c "
+            SELECT CASE
+              WHEN COUNT(*) = 7 THEN 'PASS'
+              ELSE 'FAIL'
+            END as status
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND table_name IN (
+              'discord_invite_campaigns',
+              'onboarding_sessions',
+              'onboarding_events',
+              'invite_usage_log',
+              'onboarding_dlq',
+              'message_outbox',
+              'onboarding_action_log'
+            );
+          " | tee out/go_live_artifacts/migration-verify.txt
+
+          if grep -q "PASS" out/go_live_artifacts/migration-verify.txt; then
+            echo "verify_status=PASS" >> $GITHUB_OUTPUT
+            echo "✅ Migration verification PASSED"
+          else
+            echo "verify_status=FAIL" >> $GITHUB_OUTPUT
+            echo "❌ Migration verification FAILED"
+            exit 1
+          fi
+
+      - name: Upload migration artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-artifacts
+          path: out/go_live_artifacts/
+          retention-days: 30
+
+  # ============================================================================
+  # STAGE 2: Build Docker Images
+  # ============================================================================
+  build:
+    name: 2. Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [preflight, migrations]
+    if: always() && needs.preflight.result == 'success' && (needs.migrations.result == 'success' || needs.migrations.result == 'skipped') && inputs.skip_build != true
+    strategy:
+      matrix:
+        app: [api, discord-bot, dashboard, command-center]
+    outputs:
+      image_tag: ${{ github.sha }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.app }}
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        if: inputs.dry_run != true
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infrastructure/docker/Dockerfile.${{ matrix.app }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Dry run - show what would be built
+        if: inputs.dry_run == true
+        run: |
+          echo "🔍 DRY RUN - Would build: ${{ matrix.app }}"
+          echo "Tags: ${{ steps.meta.outputs.tags }}"
+
+  # ============================================================================
+  # STAGE 3: Deploy to AWS EKS
+  # ============================================================================
+  deploy:
+    name: 3. Deploy to EKS
+    runs-on: ubuntu-latest
+    needs: [preflight, migrations, build]
+    if: always() && needs.preflight.result == 'success' && (needs.migrations.result == 'success' || needs.migrations.result == 'skipped') && (needs.build.result == 'success' || needs.build.result == 'skipped') && inputs.dry_run != true
+    environment:
+      name: production
+      url: https://unit-talk.com
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --name unit-talk-cluster --region ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      - name: Deploy Discord Bot
+        run: |
+          echo "🚀 Deploying discord-bot with image tag: ${{ github.sha }}"
+
+          # Update image in blue deployment
+          kubectl set image deployment/unit-talk-discord-bot-blue \
+            discord-bot=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/discord-bot:${{ github.sha }} \
+            -n unit-talk
+
+          # Wait for rollout
+          kubectl rollout status deployment/unit-talk-discord-bot-blue -n unit-talk --timeout=300s
+
+          echo "✅ Discord bot deployed"
+
+      - name: Deploy API
+        run: |
+          echo "🚀 Deploying API with image tag: ${{ github.sha }}"
+
+          kubectl set image deployment/unit-talk-api-blue \
+            api=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ github.sha }} \
+            -n unit-talk
+
+          kubectl rollout status deployment/unit-talk-api-blue -n unit-talk --timeout=300s
+
+          echo "✅ API deployed"
+
+      - name: Deploy Command Center
+        run: |
+          echo "🚀 Deploying Command Center with image tag: ${{ github.sha }}"
+
+          kubectl set image deployment/unit-talk-command-center-blue \
+            command-center=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/command-center:${{ github.sha }} \
+            -n unit-talk
+
+          kubectl rollout status deployment/unit-talk-command-center-blue -n unit-talk --timeout=300s
+
+          echo "✅ Command Center deployed"
+
+      - name: Get deployment status
+        id: status
+        run: |
+          echo "📊 Deployment Status:"
+          kubectl get pods -n unit-talk -l version=blue
+
+          # Save deployment info
+          mkdir -p out/go_live_artifacts
+          kubectl get pods -n unit-talk -o wide > out/go_live_artifacts/pod-status.txt
+          kubectl get services -n unit-talk > out/go_live_artifacts/service-status.txt
+
+      - name: Upload deployment artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-artifacts
+          path: out/go_live_artifacts/
+          retention-days: 30
+
+  # ============================================================================
+  # STAGE 4: Health Check - /health/platform
+  # ============================================================================
+  health_check:
+    name: 4. Health Check
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    if: inputs.dry_run != true
+    outputs:
+      health_status: ${{ steps.check.outputs.status }}
+    steps:
+      - name: Wait for services to stabilize
+        run: sleep 30
+
+      - name: Check /health/platform endpoint
+        id: check
+        run: |
+          mkdir -p out/go_live_artifacts
+
+          # Get the Discord bot service URL (adjust based on your ingress setup)
+          BOT_URL="${{ secrets.DISCORD_BOT_URL || 'https://bot.unit-talk.com' }}"
+
+          echo "🏥 Checking health at ${BOT_URL}/health/platform..."
+
+          # Retry logic for health check
+          for i in {1..5}; do
+            RESPONSE=$(curl -s -w "\n%{http_code}" "${BOT_URL}/health/platform" || echo "error")
+            HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+            BODY=$(echo "$RESPONSE" | sed '$d')
+
+            echo "Attempt ${i}: HTTP ${HTTP_CODE}"
+
+            if [ "$HTTP_CODE" == "200" ]; then
+              echo "$BODY" > out/go_live_artifacts/health-response.json
+              echo "$BODY" | jq . || echo "$BODY"
+
+              # Check if status is READY
+              STATUS=$(echo "$BODY" | jq -r '.status // "UNKNOWN"')
+              if [ "$STATUS" == "READY" ]; then
+                echo "status=READY" >> $GITHUB_OUTPUT
+                echo "✅ Health check PASSED - Status: READY"
+                exit 0
+              elif [ "$STATUS" == "DEGRADED" ]; then
+                echo "status=DEGRADED" >> $GITHUB_OUTPUT
+                echo "::warning::Health check returned DEGRADED status"
+                exit 0
+              else
+                echo "status=${STATUS}" >> $GITHUB_OUTPUT
+                echo "❌ Health check returned: ${STATUS}"
+              fi
+            fi
+
+            echo "⏳ Waiting 15 seconds before retry..."
+            sleep 15
+          done
+
+          echo "status=FAILED" >> $GITHUB_OUTPUT
+          echo "❌ Health check failed after 5 attempts"
+          exit 1
+
+      - name: Upload health check artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: health-check-artifacts
+          path: out/go_live_artifacts/
+          retention-days: 30
+
+  # ============================================================================
+  # STAGE 5: Summary Report
+  # ============================================================================
+  summary:
+    name: 6. Summary Report
+    runs-on: ubuntu-latest
+    needs: [preflight, migrations, build, deploy, health_check]
+    if: always()
+    steps:
+      - name: Generate summary report
+        run: |
+          mkdir -p out/go_live_artifacts
+
+          cat > out/go_live_artifacts/go-live-report.json << EOF
+          {
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "workflow_run_id": "${{ github.run_id }}",
+            "commit_sha": "${{ github.sha }}",
+            "dry_run": ${{ inputs.dry_run }},
+            "stages": {
+              "preflight": "${{ needs.preflight.result }}",
+              "migrations": "${{ needs.migrations.result }}",
+              "build": "${{ needs.build.result }}",
+              "deploy": "${{ needs.deploy.result }}",
+              "health_check": "${{ needs.health_check.result }}"
+            },
+            "outputs": {
+              "migration_verify": "${{ needs.migrations.outputs.verify_status || 'skipped' }}",
+              "health_status": "${{ needs.health_check.outputs.health_status || 'not_run' }}"
+            }
+          }
+          EOF
+
+          cat out/go_live_artifacts/go-live-report.json
+
+          # Determine overall status
+          if [ "${{ needs.preflight.result }}" != "success" ]; then
+            echo "## ❌ PREFLIGHT FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Required secrets are missing. Configure them in GitHub Settings." >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.health_check.outputs.health_status }}" == "READY" ]; then
+            echo "## ✅ GO LIVE SUCCESSFUL" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All stages completed successfully. Platform is READY." >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ inputs.dry_run }}" == "true" ]; then
+            echo "## 🔍 DRY RUN COMPLETE" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Dry run completed. No changes were made." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ⚠️ GO LIVE REQUIRES ATTENTION" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Review the workflow logs for details." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Stage Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Stage | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Preflight | ${{ needs.preflight.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Migrations | ${{ needs.migrations.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Deploy | ${{ needs.deploy.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Health Check | ${{ needs.health_check.result }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload summary report
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-live-summary
+          path: out/go_live_artifacts/
+          retention-days: 90

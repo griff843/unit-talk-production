@@ -1,0 +1,93 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: unit-talk-discord-bot-config
+  namespace: unit-talk
+  labels:
+    app: unit-talk-discord-bot
+data:
+  # ============================================================================
+  # FEATURE FLAGS - FAIL-CLOSED DEFAULTS
+  # These defaults ensure safety on first deployment
+  # ============================================================================
+
+  # SAFE_MODE: When true, record evidence only - no Discord side effects
+  # DEFAULT: "true" (fail-closed - safest option)
+  safe-mode: 'true'
+
+  # SHADOW_MODE: When true (and SAFE_MODE=false), create sessions but no messages
+  # DEFAULT: "false"
+  shadow-mode: 'false'
+
+  # ONBOARDING_ENABLED: Master switch for onboarding system
+  # DEFAULT: "true" (enabled but SAFE_MODE prevents side effects)
+  onboarding-enabled: 'true'
+
+  # DISCORD_PUBLISH_ENABLED: Allow publishing messages to Discord
+  # DEFAULT: "false" (fail-closed - no messages sent)
+  discord-publish-enabled: 'false'
+
+  # DM_ENABLED: Allow sending direct messages
+  # DEFAULT: "false" (fail-closed)
+  dm-enabled: 'false'
+
+  # ROLE_ASSIGNMENT_ENABLED: Allow role assignment
+  # DEFAULT: "false" (fail-closed)
+  role-assignment-enabled: 'false'
+
+  # ============================================================================
+  # CHANNEL CONFIGURATION
+  # Set these to your Discord channel IDs
+  # ============================================================================
+
+  # WELCOME_CHANNEL_ID: Default channel for invite generation
+  # REQUIRED when onboarding is enabled
+  welcome-channel-id: ''
+
+  # ADMIN_CHANNEL_ID: Channel for admin notifications (optional)
+  admin-channel-id: ''
+
+  # LOGGING_CHANNEL_ID: Channel for logging (optional)
+  logging-channel-id: ''
+---
+# ============================================================================
+# STAGED CUTOVER CONFIGURATIONS
+# Apply the appropriate ConfigMap for each stage of cutover
+# ============================================================================
+
+# STAGE 1: SAFE MODE (Default - use for first deployment)
+# Already defined above with fail-closed defaults
+
+---
+# STAGE 2: SHADOW MODE
+# Uncomment and apply when ready for shadow testing
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   name: unit-talk-discord-bot-config-shadow
+#   namespace: unit-talk
+# data:
+#   safe-mode: "false"
+#   shadow-mode: "true"
+#   onboarding-enabled: "true"
+#   discord-publish-enabled: "false"
+#   dm-enabled: "false"
+#   role-assignment-enabled: "false"
+#   welcome-channel-id: "<your-channel-id>"
+
+---
+# STAGE 3: LIVE MODE
+# Uncomment and apply when ready for full production
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   name: unit-talk-discord-bot-config-live
+#   namespace: unit-talk
+# data:
+#   safe-mode: "false"
+#   shadow-mode: "false"
+#   onboarding-enabled: "true"
+#   discord-publish-enabled: "true"
+#   dm-enabled: "true"
+#   role-assignment-enabled: "true"
+#   welcome-channel-id: "<your-channel-id>"

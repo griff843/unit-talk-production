@@ -1,3 +1,4 @@
+/* eslint-disable max-lines-per-function */
 /**
  * @fileoverview Ops Notification Worker
  *
@@ -16,11 +17,9 @@ import { makeLogger } from '../../utils/logger';
 import {
   OpsIncidentRouter,
   createOpsIncidentRouter,
-  createDiscordSenderFn,
-  createNotionSenderFn,
 } from './OpsIncidentRouter';
-import { OpsDiscordSender, initializeOpsDiscordSender } from './OpsDiscordSender';
-import { OpsNotionLogger, initializeOpsNotionLogger } from './OpsNotionLogger';
+import { OpsDiscordSender, initializeOpsDiscordSender, createDiscordSenderFn } from './OpsDiscordSender';
+import { OpsNotionLogger, initializeOpsNotionLogger, createNotionSenderFn } from './OpsNotionLogger';
 import { OpsDigestScheduler, createOpsDigestScheduler } from './OpsDigestScheduler';
 
 const logger = makeLogger('OpsNotificationWorker');
@@ -341,12 +340,12 @@ export class OpsNotificationWorker {
    * Get router status (includes config and recent activity)
    */
   async getRouterStatus(): Promise<{
-    config: {
+    config: Partial<{
       discordEnabled: boolean;
       notionEnabled: boolean;
       digestEnabled: boolean;
       environment: string;
-    };
+    }>;
     cursor: { lastProcessedAt: string | null; runCount: number } | null;
     recentNotifications: number;
   } | null> {
