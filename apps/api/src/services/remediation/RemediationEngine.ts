@@ -14,7 +14,7 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
-import crypto from 'crypto';
+import * as crypto from 'crypto';
 import { makeLogger } from '../../utils/logger';
 import { PlaybookRegistry, getPlaybookRegistry } from './PlaybookRegistry';
 import { KnobResolver, getKnobResolver } from './KnobResolver';

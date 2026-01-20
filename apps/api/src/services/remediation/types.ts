@@ -18,7 +18,7 @@ export type PlaybookId =
   | 'SLO_EVALUATOR_STUCK';
 
 export type ExecutionType = 'EXECUTABLE' | 'RECOMMENDATION_ONLY';
-export type ExecutionStatus = 'pending' | 'approved' | 'executed' | 'failed' | 'skipped' | 'rollback';
+export type ExecutionStatus = 'pending' | 'approved' | 'executed' | 'completed' | 'failed' | 'skipped' | 'dry_run' | 'rollback';
 export type PlaybookStatus = 'active' | 'disabled' | 'deprecated';
 
 // ============================================================================
