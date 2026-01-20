@@ -190,8 +190,8 @@ jobs:
       - name: Validate policy specification exists
         run: |
           echo "Checking policy specification..."
-          if [ ! -f "out/release/phase4_autopilot_policy/policy_spec.md" ]; then
-            echo "ERROR: Policy specification not found at out/release/phase4_autopilot_policy/policy_spec.md"
+          if [ ! -f "docs/phase4/policy_spec.md" ]; then
+            echo "ERROR: Policy specification not found at docs/phase4/policy_spec.md"
             exit 1
           fi
           echo "✓ Policy specification exists"
@@ -199,7 +199,7 @@ jobs:
       - name: Validate required sections in policy spec
         run: |
           echo "Validating policy specification content..."
-          SPEC_FILE="out/release/phase4_autopilot_policy/policy_spec.md"
+          SPEC_FILE="docs/phase4/policy_spec.md"
 
           # Check for required sections
           grep -q "DEFAULT = DENY" "$SPEC_FILE" || (echo "ERROR: Missing DEFAULT = DENY principle" && exit 1)
