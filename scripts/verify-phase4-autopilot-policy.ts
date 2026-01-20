@@ -16,10 +16,10 @@
  * @module verify-phase4-autopilot-policy
  */
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 
-// Supabase client type for this verification script
-type VerificationSupabaseClient = SupabaseClient<unknown, 'public', unknown>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type VerificationSupabaseClient = any;
 
 // ============================================================================
 // Types
