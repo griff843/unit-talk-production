@@ -40,7 +40,26 @@ integration with a sophisticated agent-based automation system.
 - **BridgeWorker**: Dual-source event consumption from bridge_outbox and events tables
 - **Production Pipeline**: Event-driven architecture with idempotent processing
 
-## =� Development Commands
+## 🔐 Secrets Management
+
+**CRITICAL**: All sensitive credentials (Supabase keys, API tokens, database passwords)
+are stored in **GitHub Secrets**, NOT in local `.env` files.
+
+- Local `.env` files contain templates/placeholders only
+- Scripts requiring secrets must run via GitHub Actions workflows
+- Never hardcode or commit actual secrets to the repository
+- See the root `CLAUDE.md` for full secrets management documentation
+
+For scripts requiring Supabase credentials:
+```bash
+# CORRECT: Run via GitHub Actions workflow dispatch
+gh workflow run <workflow-name> --ref main
+
+# INCORRECT: Running locally expecting real credentials
+npx tsx script.ts  # Will fail - secrets not available locally
+```
+
+## 📊� Development Commands
 
 ### Core Development
 

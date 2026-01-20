@@ -13,6 +13,15 @@ compromises.
 - **Performance**: Sub-second response times with proper caching
 - **Architectural Integrity**: Maintain proper separation of concerns
 
+## 🔐 Secrets Management
+
+**CRITICAL**: All sensitive credentials are stored in **GitHub Secrets**, NOT local `.env` files.
+
+- Local `.env` files contain templates/placeholders only
+- Scripts requiring secrets must run via GitHub Actions workflows
+- Never hardcode or commit actual secrets to the repository
+- See the root `CLAUDE.md` for comprehensive secrets management documentation
+
 ## 🚀 Quick Command Reference
 
 ## Commands

@@ -24,7 +24,17 @@ interactive commands, and automated content delivery.
 - **Contest Integration**: Seamless integration with contest and leaderboard
   systems
 
-## =� Development Commands
+## 🔐 Secrets Management
+
+**CRITICAL**: All sensitive credentials (Discord tokens, API keys, Supabase keys)
+are stored in **GitHub Secrets**, NOT local `.env` files.
+
+- Local `.env` files contain templates/placeholders only
+- Bot tokens and API keys are injected via GitHub Actions or deployment
+- Never hardcode or commit actual secrets to the repository
+- See the root `CLAUDE.md` for comprehensive secrets management documentation
+
+## 📊� Development Commands
 
 ### Core Development
 

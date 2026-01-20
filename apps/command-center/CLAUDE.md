@@ -58,6 +58,15 @@ all production integrations validated, zero build errors achieved.
   updates
 - **Real-Time Notifications**: Instant toast alerts for agent status changes and
   system events
+
+## 🔐 Secrets Management
+
+**CRITICAL**: All sensitive credentials are stored in **GitHub Secrets**, NOT local `.env` files.
+
+- Local `.env.local` files contain templates/placeholders only
+- Scripts and APIs requiring secrets run via GitHub Actions or in deployed environments
+- Never hardcode or commit actual secrets to the repository
+- See the root `CLAUDE.md` for comprehensive secrets management documentation
 - **Performance Analytics**: Live metrics from production agent systems
 - **Emergency Controls**: System-wide emergency stop and rollback capabilities
 

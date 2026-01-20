@@ -93,6 +93,87 @@ Never reference workflows or patterns that break parity between local/dev/prod.
 | Debug app          | `docker-compose exec app bash`                       | Local VSCode/terminal shell     |
 | Add/modify service | Edit `docker-compose.yml`/Dockerfile, use `./dev.sh` | Manual/one-off local commands   |
 
+## 🔐 SECRETS MANAGEMENT (CRITICAL)
+
+**ALL sensitive credentials are stored in GitHub Secrets, NOT in local .env files.**
+
+### Key Principles
+
+1. **GitHub Secrets are the Source of Truth**: All API keys, service role keys,
+   database credentials, and sensitive tokens are stored in GitHub repository
+   secrets and injected at runtime via CI/CD workflows.
+
+2. **Local .env Files are Templates Only**: The `.env` files in the repository
+   contain placeholder values or non-sensitive defaults. They are NOT the actual
+   credentials used in staging/production.
+
+3. **Never Hardcode Secrets**: Do not commit actual secrets to the repository.
+   All sensitive values must be referenced via `${{ secrets.SECRET_NAME }}` in
+   GitHub Actions workflows.
+
+### Secret Categories
+
+| Category | Examples | Storage Location |
+|----------|----------|------------------|
+| Supabase | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY` | GitHub Secrets |
+| Database | `DATABASE_DIRECT_URL`, `POSTGRES_PASSWORD` | GitHub Secrets |
+| Discord | `DISCORD_BOT_TOKEN`, `DISCORD_WEBHOOK_URL` | GitHub Secrets |
+| APIs | `OPTIMAL_API_KEY`, `ODDS_API_KEY` | GitHub Secrets |
+| Auth | `JWT_SECRET`, `NEXTAUTH_SECRET` | GitHub Secrets |
+
+### Workflow Access Pattern
+
+```yaml
+# In GitHub Actions workflows:
+env:
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+```
+
+### For AI Assistants (Claude, etc.)
+
+**CRITICAL**: When writing scripts that require environment variables:
+
+1. **Do NOT assume local .env has real credentials** - It contains templates only
+2. **Scripts requiring secrets must run in CI/CD** - Use GitHub Actions workflows
+3. **For verification scripts**: Design them to be triggered via workflow dispatch
+   where secrets are injected, not run locally with hardcoded values
+4. **Never ask the user to paste secrets** - Direct them to GitHub Secrets configuration
+
+### Running Scripts That Need Secrets
+
+For scripts requiring Supabase or other credentials:
+
+```bash
+# CORRECT: Run via GitHub Actions workflow dispatch
+gh workflow run <workflow-name> --ref main
+
+# CORRECT: Check workflow run results
+gh run list --workflow=<workflow-name>
+gh run view <run-id>
+
+# INCORRECT: Running locally with inline secrets
+# npx tsx script.ts  # Will fail - no secrets available
+```
+
+### Verification in CI/CD
+
+All verification scripts (e.g., `verify-phase4-autopilot-policy.ts`) are designed
+to run in GitHub Actions where secrets are automatically injected:
+
+```yaml
+# .github/workflows/autopilot-policy-acceptance.yml
+jobs:
+  runtime-verification:
+    runs-on: ubuntu-latest
+    environment: staging  # or production
+    steps:
+      - run: npx tsx scripts/verify-phase4-autopilot-policy.ts --env=staging
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+```
+
 ## 🏗️ Workspace Architecture
 
 This is a **SaaS-grade monorepo** following Fortune 100 architecture standards
