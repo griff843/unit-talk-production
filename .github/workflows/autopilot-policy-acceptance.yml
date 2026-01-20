@@ -76,7 +76,7 @@ jobs:
       - name: Check verification script compilation
         run: |
           echo "Checking verification script compilation..."
-          npx tsc --noEmit scripts/verify-phase4-autopilot-policy.ts --skipLibCheck || exit 1
+          npx tsc --project scripts/tsconfig.json --noEmit || exit 1
           echo "✓ Verification script compiles successfully"
 
   # ============================================================================
