@@ -2,9 +2,9 @@ name: E2E CI Pipeline
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [master, main]
   pull_request:
-    branches: [ master, main ]
+    branches: [master, main]
   workflow_dispatch: {}
 
 jobs:
@@ -29,7 +29,7 @@ jobs:
       - name: Mask secrets
         run: |
           echo "::add-mask::${{ secrets.SUPABASE_ACCESS_TOKEN }}"
-          echo "::add-mask::${{ secrets.SUPABASE_SERVICE_ROLE_KEY_2 }}"
+          echo "::add-mask::${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
 
       # ✅ Reliable CLI install (replaces curl; handles DNS/retries)
       - name: Setup Supabase CLI
@@ -76,20 +76,20 @@ jobs:
 
       - name: Run admin RPCs (backfill → score loop → refresh)
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL_new }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_2 }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: npx tsx apps/api/src/scripts/ci-run-admin-rpcs.ts
 
       - name: Verify gates (must hard-fail on red)
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL_new }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_2 }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: npx tsx apps/api/src/scripts/verify-gates.ts
 
       - name: Verify SLOs (must hard-fail on breach)
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL_new }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_2 }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: npx tsx apps/api/src/scripts/verify-slo.ts
 
       - name: Upload artifacts
