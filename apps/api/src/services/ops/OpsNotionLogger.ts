@@ -205,7 +205,7 @@ export class OpsNotionLogger {
     const response = await this.retryWithBackoff(async () => {
       return this.client!.pages.create({
         parent: { database_id: this.databaseId! },
-        properties: properties as Record<string, unknown>,
+        properties: properties as unknown as Record<string, unknown>,
         children: this.buildPageContent(incident),
       });
     });
