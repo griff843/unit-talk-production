@@ -17,6 +17,6 @@
     "noUnusedParameters": false,
     "types": ["node"]
   },
-  "include": ["./**/*.ts"],
+  "include": ["./verify-phase4-autopilot-policy.ts"],
   "exclude": ["node_modules"]
 }

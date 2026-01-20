@@ -16,7 +16,10 @@
  * @module verify-phase4-autopilot-policy
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
+// Supabase client type for this verification script
+type VerificationSupabaseClient = SupabaseClient<unknown, 'public', unknown>;
 
 // ============================================================================
 // Types
@@ -111,7 +114,7 @@ async function measureAsync<T>(fn: () => Promise<T>): Promise<{ result: T; durat
 /**
  * CHECK 1: Verify database tables exist
  */
-async function verifyDatabaseTables(supabase: ReturnType<typeof createClient>): Promise<VerificationResult> {
+async function verifyDatabaseTables(supabase: VerificationSupabaseClient): Promise<VerificationResult> {
   const start = Date.now();
   const requiredTables = [
     'autopilot_decisions',
@@ -159,7 +162,7 @@ async function verifyDatabaseTables(supabase: ReturnType<typeof createClient>): 
 /**
  * CHECK 2: Verify policy configuration exists
  */
-async function verifyPolicyConfigExists(supabase: ReturnType<typeof createClient>): Promise<VerificationResult> {
+async function verifyPolicyConfigExists(supabase: VerificationSupabaseClient): Promise<VerificationResult> {
   const start = Date.now();
 
   try {
@@ -216,7 +219,7 @@ async function verifyPolicyConfigExists(supabase: ReturnType<typeof createClient
 /**
  * CHECK 3: Verify all action types have policy rules
  */
-async function verifyAllActionsHaveRules(supabase: ReturnType<typeof createClient>): Promise<VerificationResult> {
+async function verifyAllActionsHaveRules(supabase: VerificationSupabaseClient): Promise<VerificationResult> {
   const start = Date.now();
 
   const requiredActionTypes = [
@@ -282,7 +285,7 @@ async function verifyAllActionsHaveRules(supabase: ReturnType<typeof createClien
 /**
  * CHECK 4: Verify default mode is SHADOW (fail-closed)
  */
-async function verifyDefaultModeShadow(supabase: ReturnType<typeof createClient>): Promise<VerificationResult> {
+async function verifyDefaultModeShadow(supabase: VerificationSupabaseClient): Promise<VerificationResult> {
   const start = Date.now();
 
   try {
@@ -331,7 +334,7 @@ async function verifyDefaultModeShadow(supabase: ReturnType<typeof createClient>
 /**
  * CHECK 5: Verify fail_closed flag is true
  */
-async function verifyFailClosedEnabled(supabase: ReturnType<typeof createClient>): Promise<VerificationResult> {
+async function verifyFailClosedEnabled(supabase: VerificationSupabaseClient): Promise<VerificationResult> {
   const start = Date.now();
 
   try {
@@ -378,7 +381,7 @@ async function verifyFailClosedEnabled(supabase: ReturnType<typeof createClient>
 /**
  * CHECK 6: Verify decision ledger is append-only (no updates allowed)
  */
-async function verifyLedgerAppendOnly(supabase: ReturnType<typeof createClient>): Promise<VerificationResult> {
+async function verifyLedgerAppendOnly(supabase: VerificationSupabaseClient): Promise<VerificationResult> {
   const start = Date.now();
 
   try {
@@ -456,7 +459,7 @@ async function verifyLedgerAppendOnly(supabase: ReturnType<typeof createClient>)
 /**
  * CHECK 7: Verify decision ledger is immutable (no deletes allowed)
  */
-async function verifyLedgerImmutable(supabase: ReturnType<typeof createClient>): Promise<VerificationResult> {
+async function verifyLedgerImmutable(supabase: VerificationSupabaseClient): Promise<VerificationResult> {
   const start = Date.now();
 
   try {
@@ -505,7 +508,7 @@ async function verifyLedgerImmutable(supabase: ReturnType<typeof createClient>):
 /**
  * CHECK 8: Verify operator overrides structure exists
  */
-async function verifyOperatorOverridesStructure(supabase: ReturnType<typeof createClient>): Promise<VerificationResult> {
+async function verifyOperatorOverridesStructure(supabase: VerificationSupabaseClient): Promise<VerificationResult> {
   const start = Date.now();
 
   try {
@@ -524,7 +527,16 @@ async function verifyOperatorOverridesStructure(supabase: ReturnType<typeof crea
       };
     }
 
-    const overrides = data.operator_overrides;
+    const overrides = data.operator_overrides as Record<string, unknown> | null;
+    if (!overrides || typeof overrides !== 'object') {
+      return {
+        name: 'operator_overrides_structure',
+        status: 'FAIL',
+        message: 'Operator overrides is not an object',
+        duration_ms: Date.now() - start,
+      };
+    }
+
     const requiredKeys = ['global_freeze', 'agent_freezes', 'action_freezes'];
     const missingKeys = requiredKeys.filter(key => !(key in overrides));
 
@@ -539,11 +551,11 @@ async function verifyOperatorOverridesStructure(supabase: ReturnType<typeof crea
     }
 
     // Verify global_freeze is initially false (not locked down)
-    if (overrides.global_freeze !== false) {
+    if (overrides['global_freeze'] !== false) {
       return {
         name: 'operator_overrides_structure',
         status: 'FAIL',
-        message: `global_freeze should be false by default, is ${overrides.global_freeze}`,
+        message: `global_freeze should be false by default, is ${String(overrides['global_freeze'])}`,
         duration_ms: Date.now() - start,
       };
     }
@@ -568,7 +580,7 @@ async function verifyOperatorOverridesStructure(supabase: ReturnType<typeof crea
 /**
  * CHECK 9: Verify canary percentage is set (between 0-100)
  */
-async function verifyCanaryPercentage(supabase: ReturnType<typeof createClient>): Promise<VerificationResult> {
+async function verifyCanaryPercentage(supabase: VerificationSupabaseClient): Promise<VerificationResult> {
   const start = Date.now();
 
   try {
@@ -617,7 +629,7 @@ async function verifyCanaryPercentage(supabase: ReturnType<typeof createClient>)
 /**
  * CHECK 10: Verify RLS is enabled on all tables
  */
-async function verifyRLSEnabled(supabase: ReturnType<typeof createClient>): Promise<VerificationResult> {
+async function verifyRLSEnabled(supabase: VerificationSupabaseClient): Promise<VerificationResult> {
   const start = Date.now();
 
   try {
@@ -641,12 +653,13 @@ async function verifyRLSEnabled(supabase: ReturnType<typeof createClient>): Prom
       };
     }
 
-    const tablesWithoutRLS = (data || []).filter((row: { rowsecurity: boolean }) => !row.rowsecurity);
+    const rows = (Array.isArray(data) ? data : []) as Array<{ rowsecurity: boolean; tablename: string }>;
+    const tablesWithoutRLS = rows.filter((row) => !row.rowsecurity);
     if (tablesWithoutRLS.length > 0) {
       return {
         name: 'rls_enabled',
         status: 'FAIL',
-        message: `RLS not enabled on: ${tablesWithoutRLS.map((r: { tablename: string }) => r.tablename).join(', ')}`,
+        message: `RLS not enabled on: ${tablesWithoutRLS.map((r) => r.tablename).join(', ')}`,
         duration_ms: Date.now() - start,
       };
     }
@@ -670,7 +683,7 @@ async function verifyRLSEnabled(supabase: ReturnType<typeof createClient>): Prom
 /**
  * CHECK 11: Verify cooldowns table has proper indexes
  */
-async function verifyCooldownsIndexes(supabase: ReturnType<typeof createClient>): Promise<VerificationResult> {
+async function verifyCooldownsIndexes(supabase: VerificationSupabaseClient): Promise<VerificationResult> {
   const start = Date.now();
 
   try {
@@ -709,7 +722,7 @@ async function verifyCooldownsIndexes(supabase: ReturnType<typeof createClient>)
 /**
  * CHECK 12: Verify policy rules have required fields
  */
-async function verifyPolicyRulesSchema(supabase: ReturnType<typeof createClient>): Promise<VerificationResult> {
+async function verifyPolicyRulesSchema(supabase: VerificationSupabaseClient): Promise<VerificationResult> {
   const start = Date.now();
 
   try {
@@ -768,7 +781,7 @@ async function verifyPolicyRulesSchema(supabase: ReturnType<typeof createClient>
 /**
  * CHECK 13: Verify views exist
  */
-async function verifyViewsExist(supabase: ReturnType<typeof createClient>): Promise<VerificationResult> {
+async function verifyViewsExist(supabase: VerificationSupabaseClient): Promise<VerificationResult> {
   const start = Date.now();
 
   const requiredViews = [
@@ -817,7 +830,7 @@ async function verifyViewsExist(supabase: ReturnType<typeof createClient>): Prom
 /**
  * CHECK 14: Verify SHADOW mode rules don't allow execution
  */
-async function verifyShadowModeNoExecution(supabase: ReturnType<typeof createClient>): Promise<VerificationResult> {
+async function verifyShadowModeNoExecution(supabase: VerificationSupabaseClient): Promise<VerificationResult> {
   const start = Date.now();
 
   try {
@@ -867,7 +880,7 @@ async function verifyShadowModeNoExecution(supabase: ReturnType<typeof createCli
 /**
  * CHECK 15: Verify decision statistics function works
  */
-async function verifyDecisionStatsFunction(supabase: ReturnType<typeof createClient>): Promise<VerificationResult> {
+async function verifyDecisionStatsFunction(supabase: VerificationSupabaseClient): Promise<VerificationResult> {
   const start = Date.now();
 
   try {
@@ -896,7 +909,7 @@ async function verifyDecisionStatsFunction(supabase: ReturnType<typeof createCli
       status: 'PASS',
       message: 'Decision statistics function works',
       duration_ms: Date.now() - start,
-      details: data,
+      details: data as Record<string, unknown> | undefined,
     };
   } catch (error) {
     return {
