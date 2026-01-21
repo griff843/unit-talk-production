@@ -22,8 +22,9 @@ export async function publishTicketSubmitted(eventData: TicketSubmissionEvent): 
   try {
     const supabase = supabaseServer();
     
-    const { error } = await supabase
-      .from('bridge_outbox')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase
+      .from('bridge_outbox') as any)
       .insert({
         event_type: 'ticket_submitted',
         payload: eventData,
@@ -86,8 +87,9 @@ export async function publishTicketStatusUpdate(
       ...metadata,
     };
     
-    const { error } = await supabase
-      .from('bridge_outbox')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase
+      .from('bridge_outbox') as any)
       .insert({
         event_type: 'ticket_status_updated',
         payload: eventData,
@@ -141,8 +143,9 @@ export async function simulateBridgeProcessing(betSlipId: string): Promise<{ suc
     const supabase = supabaseServer();
     
     // Mark outbox events as processed
-    const { error } = await supabase
-      .from('bridge_outbox')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase
+      .from('bridge_outbox') as any)
       .update({
         status: 'completed',
         processed_at: new Date().toISOString(),
