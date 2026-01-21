@@ -149,8 +149,9 @@ async function handleApiSubmission(data: ApiSubmissionData, startTime: number, t
 
   try {
     // Insert smart ticket
-    const { data: insertedTicket, error: ticketError } = await supabase
-      .from('smart_tickets')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: insertedTicket, error: ticketError } = await (supabase
+      .from('smart_tickets') as any)
       .insert({
         bet_slip_id: betSlipId,
         capper_id,
@@ -195,13 +196,15 @@ async function handleApiSubmission(data: ApiSubmissionData, startTime: number, t
       trace_id: traceId,
     }));
 
-    const { data: insertedPicks, error: picksError } = await supabase
-      .from('unified_picks')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: insertedPicks, error: picksError } = await (supabase
+      .from('unified_picks') as any)
       .insert(pickInserts)
       .select();
 
     if (picksError) {
-      await supabase.from('smart_tickets').delete().eq('bet_slip_id', betSlipId);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from('smart_tickets') as any).delete().eq('bet_slip_id', betSlipId);
       return NextResponse.json({
         error: 'Failed to save ticket selections',
         message: picksError.message,
@@ -237,7 +240,8 @@ async function handleApiSubmission(data: ApiSubmissionData, startTime: number, t
       },
     }));
 
-    await supabase.from('pick_publish').insert(pickPublishInserts);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase.from('pick_publish') as any).insert(pickPublishInserts);
 
     await publishTicketSubmitted({
       bet_slip_id: betSlipId,
@@ -542,8 +546,9 @@ export async function POST(request: NextRequest) {
 
       // Try to insert into smart_tickets if table exists (backward compatibility)
       try {
-        const { data: ticketData, error: ticketError } = await supabase
-          .from('smart_tickets')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: ticketData, error: ticketError } = await (supabase
+          .from('smart_tickets') as any)
           .insert(smartTicketData)
           .select()
           .single();
@@ -623,8 +628,9 @@ export async function POST(request: NextRequest) {
         };
       });
 
-      const { data: insertedPicks, error: picksError } = await supabase
-        .from('unified_picks')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: insertedPicks, error: picksError } = await (supabase
+        .from('unified_picks') as any)
         .insert(pickInserts)
         .select();
 
@@ -633,8 +639,9 @@ export async function POST(request: NextRequest) {
       if (picksError) {
         // Rollback smart ticket if picks insertion fails (ignore if table doesn't exist)
         try {
-          await supabase
-            .from('smart_tickets')
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (supabase
+            .from('smart_tickets') as any)
             .delete()
             .eq('bet_slip_id', betSlipId);
         } catch {
@@ -680,8 +687,9 @@ export async function POST(request: NextRequest) {
         },
       }));
 
-      const { data: insertedPublish, error: publishError } = await supabase
-        .from('pick_publish')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: insertedPublish, error: publishError } = await (supabase
+        .from('pick_publish') as any)
         .insert(pickPublishInserts)
         .select();
 
