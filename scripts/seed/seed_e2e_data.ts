@@ -70,8 +70,8 @@ async function seedUsers(): Promise<{ success: boolean; count: number }> {
   console.log('Seeding E2E test users...');
 
   // v3.0.0 schema: users table has id, username, discord_id, tier, tenant_id
-  // tenant_id is required (NOT NULL constraint)
-  const E2E_TENANT_ID = 'e2e-test-tenant-00000000-0000';
+  // tenant_id is required (NOT NULL constraint) and must be a valid UUID
+  const E2E_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
   const users = [
     {
