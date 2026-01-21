@@ -4,40 +4,40 @@ on:
   workflow_dispatch:
     inputs:
       apply_migrations:
-        description: 'Apply database migrations before E2E tests'
+        description: "Apply database migrations before E2E tests"
         required: false
-        default: 'false'
+        default: "false"
         type: choice
         options:
-          - 'true'
-          - 'false'
+          - "true"
+          - "false"
       seed_data:
-        description: 'Seed E2E test data (staging/local only)'
+        description: "Seed E2E test data (staging/local only)"
         required: false
-        default: 'true'
+        default: "true"
         type: choice
         options:
-          - 'true'
-          - 'false'
+          - "true"
+          - "false"
       run_playwright:
-        description: 'Run Playwright browser automation tests'
+        description: "Run Playwright browser automation tests"
         required: false
-        default: 'true'
+        default: "true"
         type: choice
         options:
-          - 'true'
-          - 'false'
+          - "true"
+          - "false"
   pull_request:
     branches:
       - main
     paths:
-      - 'supabase/migrations/**'
-      - 'scripts/phase6-*.ts'
-      - 'scripts/seed/**'
-      - 'apps/smart-form/**'
+      - "supabase/migrations/**"
+      - "scripts/phase6-*.ts"
+      - "scripts/seed/**"
+      - "apps/smart-form/**"
 
 env:
-  NODE_VERSION: '20.x'
+  NODE_VERSION: "20.x"
 
 jobs:
   schema-validation:
@@ -56,7 +56,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -118,7 +118,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -150,6 +150,13 @@ jobs:
             echo "Discord mode: SINK (no E2E webhook, using file sink)"
           fi
 
+      - name: Apply pick_publish Agent Columns Migration
+        run: |
+          echo "Applying pick_publish agent columns migration..."
+          npx tsx scripts/apply-migration-direct.ts 2>&1 | tee e2e-output/migration.log
+        env:
+          DATABASE_DIRECT_URL: ${{ secrets.DATABASE_DIRECT_URL }}
+
       - name: Run Playwright E2E Tests
         id: e2e
         run: |
@@ -175,8 +182,39 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           # Use dedicated E2E webhook (not production webhook)
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_E2E_WEBHOOK_URL }}
-          E2E_HEADLESS: 'true'
-          E2E_OUTPUT_DIR: './e2e-output'
+          E2E_HEADLESS: "true"
+          E2E_OUTPUT_DIR: "./e2e-output"
+
+      - name: Run DiscordPromotionAgent (Outbox Consumer)
+        id: discord_agent
+        run: |
+          echo "Running DiscordPromotionAgent to consume pick_publish outbox..."
+          cd apps/api
+          npm ci
+          AUTOPILOT_MODE=prod npx tsx src/agents/DiscordPromotionAgent/index.ts 2>&1 | tee ../../e2e-output/discord-agent.log
+
+          # Extract results from log
+          if grep -q "Successfully posted pick to Discord" ../../e2e-output/discord-agent.log; then
+            echo "discord_posted=true" >> $GITHUB_OUTPUT
+            # Extract external_message_id from log
+            MSG_ID=$(grep -oP 'external_message_id: "\K[^"]+' ../../e2e-output/discord-agent.log || echo "")
+            echo "external_message_id=$MSG_ID" >> $GITHUB_OUTPUT
+          else
+            echo "discord_posted=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_E2E_WEBHOOK_URL }}
+          AUTOPILOT_MODE: prod
+
+      - name: Query Final DB State
+        run: |
+          echo "Querying final database state..."
+          npx tsx scripts/check-pick-status.ts 2>&1 | tee e2e-output/db-state.log
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
       - name: Upload E2E Artifacts
         uses: actions/upload-artifact@v4
