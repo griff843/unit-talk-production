@@ -122,8 +122,9 @@ async function handleApiSubmission(data: ApiSubmissionData, startTime: number, t
   const supabase = supabaseServer();
 
   // Verify capper exists and is active
-  const { data: capperUser, error: capperError } = await supabase
-    .from('users')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: capperUser, error: capperError } = await (supabase
+    .from('users') as any)
     .select('id, username')
     .eq('id', capper_id)
     .single();
@@ -461,8 +462,9 @@ export async function POST(request: NextRequest) {
 
     if (providedCapperId) {
       // API-style: capper_id is UUID
-      const { data, error } = await supabase
-        .from('users')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase
+        .from('users') as any)
         .select('id, username')
         .eq('id', providedCapperId)
         .single();
@@ -478,16 +480,18 @@ export async function POST(request: NextRequest) {
       capper_id = providedCapperId;
     } else if (capper) {
       // Smart Form style: capper is name
-      const { data, error } = await supabase
-        .from('users')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase
+        .from('users') as any)
         .select('id, username')
         .eq('username', capper)
         .single();
 
       if (error || !data) {
         // Try case-insensitive match
-        const { data: iCaseData, error: iCaseError } = await supabase
-          .from('users')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: iCaseData, error: iCaseError } = await (supabase
+          .from('users') as any)
           .select('id, username')
           .ilike('username', capper)
           .single();
