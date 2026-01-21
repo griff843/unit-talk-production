@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { LegCard } from './LegCard';
-import { 
+import {
   apiClient,
   fetchCappers,
   fetchTeams,
@@ -81,7 +81,8 @@ export function SubmitTicketForm() {
   const { toast } = useToast();
 
   const form = useForm<TicketFormData>({
-    resolver: zodResolver(ticketFormSchema),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(ticketFormSchema as any),
     defaultValues: {
       capper: 'Griff',
       ticket_type: 'single',
@@ -99,7 +100,6 @@ export function SubmitTicketForm() {
       status: 'pending',
     },
   });
-
 
   // Fetch cappers with error handling using API client
   useEffect(() => {
@@ -126,7 +126,7 @@ export function SubmitTicketForm() {
         // Use fallback data only if API is completely unavailable
         setCappers([
           { id: 'fallback-1', name: 'Mike Johnson', active: true },
-          { id: 'fallback-2', name: 'Sarah Wilson', active: true }, 
+          { id: 'fallback-2', name: 'Sarah Wilson', active: true },
           { id: 'fallback-3', name: 'David Chen', active: true },
         ]);
 
@@ -267,7 +267,7 @@ export function SubmitTicketForm() {
           line: parseFloat(leg.line || '0') || 0,
           leg_odds: parseFloat(leg.odds || '0') || 0,
           source: 'manual' as const,
-          selection: (leg as any).selection || 'over' as 'over' | 'under' | 'yes' | 'no',
+          selection: (leg as any).selection || ('over' as 'over' | 'under' | 'yes' | 'no'),
           confidence: (data.confidence_level || 7) / 10,
         })),
         total_units: data.unit_size,
@@ -275,10 +275,10 @@ export function SubmitTicketForm() {
       };
 
       try {
-        const result = await apiClient.submitTicket(ticketData) as any;
+        const result = (await apiClient.submitTicket(ticketData)) as any;
 
         toast({
-          title: 'Success', 
+          title: 'Success',
           description: `Ticket submitted successfully. Bet Slip ID: ${result?.bet_slip_id || 'Generated'}`,
           variant: 'default',
         });
@@ -455,7 +455,8 @@ export function SubmitTicketForm() {
                         setSelectedGame(game);
                         // Auto-load props for this game
                         if (game) {
-                          apiClient.fetchProps(sportValue, { gameId: game.id })
+                          apiClient
+                            .fetchProps(sportValue, { gameId: game.id })
                             .then(props => {
                               setAvailableProps(props || []);
                             })
