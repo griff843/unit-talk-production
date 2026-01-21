@@ -125,7 +125,8 @@ export async function GET(request: NextRequest) {
         }, `Found ${dbProps.length} props in database`);
 
         // Transform props with enhanced analytics data
-        const transformedProps = dbProps.map(prop => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const transformedProps = (dbProps as any[]).map(prop => {
           const propType = prop.stat_type || 'Unknown Prop';
           const playerName = prop.player_name || 'Unknown Player';
           const team = prop.team || 'UNK';
