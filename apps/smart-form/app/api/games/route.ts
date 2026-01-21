@@ -252,9 +252,10 @@ export async function GET(request: NextRequest) {
 
           logDatabaseOperation(log, 'DELETE', 'games', null, deleteError);
 
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const { data: insertedGames, error: insertError } = await supabase
             .from('games')
-            .insert(optimalGames)
+            .insert(optimalGames as any[])
             .select();
 
           logDatabaseOperation(log, 'INSERT', 'games', insertedGames, insertError);
