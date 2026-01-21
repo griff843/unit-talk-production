@@ -75,7 +75,8 @@ export const fetchCappers = async () => {
     console.log('🔍 fetchCappers: Found', data?.length || 0, 'users');
 
     // Transform to match expected Capper interface with v3.0.0 fields
-    const transformedData = (data || []).map(user => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const transformedData = ((data || []) as any[]).map(user => ({
       id: user.id,
       name: user.username,
       active: true, // All users from database are considered active cappers
