@@ -129,7 +129,7 @@ jobs:
       - name: Start Smart Form (background)
         run: |
           cd apps/smart-form
-          npm ci
+          npm ci --ignore-scripts
           npm run build
           npm start &
           sleep 10
@@ -152,6 +152,7 @@ jobs:
 
       - name: Apply pick_publish Agent Columns Migration
         run: |
+          mkdir -p e2e-output
           echo "Applying pick_publish agent columns migration..."
           npx tsx scripts/apply-migration-direct.ts 2>&1 | tee e2e-output/migration.log
         env:
@@ -190,7 +191,7 @@ jobs:
         run: |
           echo "Running DiscordPromotionAgent to consume pick_publish outbox..."
           cd apps/api
-          npm ci
+          npm ci --ignore-scripts
           AUTOPILOT_MODE=prod npx tsx src/agents/DiscordPromotionAgent/index.ts 2>&1 | tee ../../e2e-output/discord-agent.log
 
           # Extract results from log
