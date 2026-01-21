@@ -1,10 +1,37 @@
 # UNIT TALK SYSTEM CONTRACT (AUTHORITATIVE)
 
-**Version**: 1.0 **Authority**: Chief Systems Architect (Unit Talk) **Scope**:
-This contract is the single source of truth for the Unit Talk stack. Any code,
-migration, worker, UI, or doc that violates this contract is invalid and must be
-corrected. **Applies to**: DB schema, API, Temporal/workers, Discord publisher,
-Smart Form, Command Center, CI/CD, docs.
+**Version**: 1.1
+**Authority**: Chief Systems Architect (Unit Talk)
+**Last Updated**: 2026-01-21
+**Scope**: This contract is the single source of truth for the Unit Talk stack. Any code, migration, worker, UI, or doc that violates this contract is invalid and must be corrected.
+**Applies to**: DB schema, API, Temporal/workers, Discord publisher, Smart Form, Command Center, CI/CD, docs.
+
+---
+
+## AUTHORITY & PRECEDENCE
+
+This document is the **single authoritative source of truth** for the Unit Talk platform.
+
+### Precedence Order (highest to lowest)
+1. **SYSTEM_CONTRACT.md** (this document) - Canonical data model, lifecycle, invariants
+2. **EXECUTION_PLAN.md** - Gate definitions and verification scripts
+3. **GATE_VERIFICATION.md** - Gate pass/fail criteria
+4. **App-specific CLAUDE.md files** - Implementation guidance per application
+5. **All other documentation** - Non-authoritative, informational only
+
+### What This Contract Governs
+- Database schema (canonical tables, views, columns, constraints)
+- Data lifecycle (submission → publish → Discord)
+- Environment and secrets governance
+- Definition of Done criteria for releases
+
+### What This Contract Does NOT Govern
+- Implementation details within applications (covered by app CLAUDE.md)
+- CI/CD workflow specifics (covered by EXECUTION_PLAN.md)
+- Historical audit artifacts (archived in docs/_archive/)
+
+### Conflict Resolution
+If any document conflicts with this contract, this contract wins. The conflicting document must be corrected or archived.
 
 ---
 

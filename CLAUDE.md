@@ -387,6 +387,14 @@ users!user_id (username, discord_id, tier)
 
 ## 📖 Documentation Structure
 
+### Authoritative Documents (See [docs/DOCUMENTATION_AUTHORITY.md](docs/DOCUMENTATION_AUTHORITY.md))
+
+- **[docs/contracts/SYSTEM_CONTRACT.md](docs/contracts/SYSTEM_CONTRACT.md)** - **SINGLE SOURCE OF TRUTH** for canonical data model, lifecycle, and invariants
+- **[docs/contracts/EXECUTION_PLAN.md](docs/contracts/EXECUTION_PLAN.md)** - Gate definitions and CI verification
+- **[docs/DOCUMENTATION_AUTHORITY.md](docs/DOCUMENTATION_AUTHORITY.md)** - Documentation hierarchy and governance
+
+### Reference Documents
+
 - **[docs/architecture/](docs/architecture/)** - System architecture documents
 - **[docs/api/](docs/api/)** - API documentation and specifications
 - **[docs/deployment/](docs/deployment/)** - Deployment guides and procedures
@@ -394,6 +402,11 @@ users!user_id (username, discord_id, tier)
   Complete 4-phase technical roadmap
 - **[PRODUCT_REQUIREMENTS_DOCUMENT.md](PRODUCT_REQUIREMENTS_DOCUMENT.md)** -
   Product strategy and requirements
+
+### Archived Documents
+
+Non-authoritative documents (audits, debug traces, one-time reports) are archived in:
+- **[docs/_archive/](docs/_archive/)** - Historical documents with ARCHIVE_MANIFEST.md
 
 ## 🎯 Current Implementation Status
 

@@ -37,6 +37,9 @@
     "health:check": "bash scripts/health-check.sh",
     "alerts:test": "bash scripts/test-alerts.sh",
     "db:reset": "bash scripts/reset-database.sh",
+    "audit:canonical-schema": "npx tsx scripts/audit/canonical-schema-audit.ts",
+    "notion:wire": "npx tsx scripts/notion/wire-relations.ts",
+    "notion:wire:dry-run": "npx tsx scripts/notion/wire-relations.ts --dry-run",
     "prepare": "husky"
   },
   "keywords": [
@@ -82,8 +85,10 @@
     ]
   },
   "dependencies": {
+    "@notionhq/client": "^2.2.14",
     "bcryptjs": "^3.0.2",
     "dotenv": "^17.2.1",
+    "tsx": "^4.7.0",
     "zod": "^4.0.15"
   }
 }

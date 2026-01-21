@@ -1,0 +1,71 @@
+# GAP-001 & GAP-002 Resolution Verification Workflow
+# Produces proof block for PR9 go-live validation
+#
+# Run manually: gh workflow run verify-gap-resolution.yml --ref feat/pr9-go-live-hardening
+
+name: Verify GAP Resolution
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to verify'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  verify-gap-resolution:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run GAP Resolution Verification
+        id: verify
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
+        run: |
+          echo "=============================================="
+          echo "GAP-001 & GAP-002 Resolution Verification"
+          echo "Environment: ${{ github.event.inputs.environment }}"
+          echo "=============================================="
+          npx tsx scripts/verify-gap-resolution.ts 2>&1 | tee verification-output.txt
+
+      - name: Upload Evidence Bundle
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gap-resolution-evidence-${{ github.run_number }}
+          path: |
+            out/manual-pick-e2e/
+            verification-output.txt
+          retention-days: 30
+
+      - name: Post Verification Summary
+        if: always()
+        run: |
+          echo "## GAP Resolution Verification Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp:** $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat verification-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

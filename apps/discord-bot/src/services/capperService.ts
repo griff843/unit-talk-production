@@ -467,9 +467,9 @@ export class CapperService {
         units: pickData.units || 1,
       };
 
-      // Insert into picks table
+      // CANONICAL: Write to unified_picks (picks is a read-only view)
       const { data, error } = await databaseService.client
-        .from('picks')
+        .from('unified_picks')
         .insert(enhancedPickData)
         .select()
         .single();
@@ -612,8 +612,9 @@ export class CapperService {
   async updatePick(pickId: string, updates: any): Promise<any | null> {
     try {
       this.performanceMetrics.queryCount++;
+      // CANONICAL: Write to unified_picks (picks is a read-only view)
       const { data, error } = await databaseService.client
-        .from('picks')
+        .from('unified_picks')
         .update({
           ...updates,
           updated_at: toISOString(new Date()),
@@ -638,7 +639,8 @@ export class CapperService {
   async deletePick(pickId: string): Promise<boolean> {
     try {
       this.performanceMetrics.queryCount++;
-      const { error } = await databaseService.client.from('picks').delete().eq('id', pickId);
+      // CANONICAL: Write to unified_picks (picks is a read-only view)
+      const { error } = await databaseService.client.from('unified_picks').delete().eq('id', pickId);
 
       if (error) throw error;
 
@@ -657,8 +659,9 @@ export class CapperService {
   async finalizePicks(pickIds: string[]): Promise<boolean> {
     try {
       this.performanceMetrics.queryCount++;
+      // CANONICAL: Write to unified_picks (picks is a read-only view)
       const { error } = await databaseService.client
-        .from('picks')
+        .from('unified_picks')
         .update({
           status: 'published',
           updated_at: toISOString(new Date()),

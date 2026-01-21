@@ -454,10 +454,30 @@ export class SupabaseService {
 
   async submitPick(pick: Pick): Promise<boolean> {
     try {
-      const { error } = await this.client.from('picks').insert([pick]);
+      // CANONICAL: Write to unified_picks (picks is a read-only view)
+      const unifiedPick = {
+        user_id: pick.user_id,
+        sport: pick.sport || 'NFL',
+        market: pick.pick_type || 'spread',
+        selection: pick.selection,
+        side: pick.selection,
+        odds: pick.odds,
+        stake: pick.stake,
+        confidence: pick.confidence,
+        status: pick.status || 'pending',
+        workflow_stage: 'pending_review',
+        game_date: new Date().toISOString().split('T')[0],
+        line: pick.line || 0,
+        meta: {
+          event: pick.event,
+          pick_type: pick.pick_type,
+          source: 'discord_bot',
+        },
+      };
+      const { error } = await this.client.from('unified_picks').insert([unifiedPick]);
 
       if (error) throw error;
-      logger.info(`Pick submitted for user ${pick.user_id}`);
+      logger.info(`Pick submitted to unified_picks for user ${pick.user_id}`);
       return true;
     } catch (error) {
       logger.error('Error submitting pick:', error);
@@ -467,17 +487,17 @@ export class SupabaseService {
 
   async updatePickStatus(pickId: string, status: string, profitLoss?: number): Promise<boolean> {
     try {
+      // CANONICAL: Update unified_picks (picks is a read-only view)
       const { error } = await this.client
-        .from('picks')
+        .from('unified_picks')
         .update({
           status,
-          profit_loss: profitLoss,
           updated_at: new Date().toISOString(),
         })
         .eq('id', pickId);
 
       if (error) throw error;
-      logger.info(`Pick ${pickId} status updated to ${status}`);
+      logger.info(`Pick ${pickId} status updated to ${status} in unified_picks`);
       return true;
     } catch (error) {
       logger.error('Error updating pick status:', error);

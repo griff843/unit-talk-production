@@ -1,0 +1,162 @@
+name: Daily Canary Proof Run
+
+on:
+  schedule:
+    - cron: '0 14 * * *'  # 2 PM UTC daily (peak US sports hours)
+  workflow_dispatch:
+    inputs:
+      skip_cleanup:
+        description: 'Skip cleanup of canary records (for debugging)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+env:
+  NODE_VERSION: '20.x'
+
+jobs:
+  canary-proof:
+    name: Smart Form → Discord E2E Proof
+    runs-on: ubuntu-latest
+    environment: staging
+
+    outputs:
+      trace_id: ${{ steps.trace.outputs.trace_id }}
+      bet_slip_id: ${{ steps.submit.outputs.bet_slip_id }}
+      proof_status: ${{ steps.verify.outputs.status }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Canary Trace ID
+        id: trace
+        run: |
+          TRACE_ID="canary-$(date +%Y%m%d-%H%M%S)-$(head /dev/urandom | tr -dc 'a-z0-9' | head -c 8)"
+          echo "trace_id=$TRACE_ID" >> $GITHUB_OUTPUT
+          echo "Generated trace_id: $TRACE_ID"
+
+      - name: Submit Canary Pick
+        id: submit
+        run: |
+          mkdir -p canary-output
+
+          npx tsx scripts/canary/submit-canary-pick.ts \
+            --trace-id="${{ steps.trace.outputs.trace_id }}" \
+            --output=canary-output/submission.json
+
+          BET_SLIP_ID=$(jq -r '.bet_slip_id' canary-output/submission.json)
+          echo "bet_slip_id=$BET_SLIP_ID" >> $GITHUB_OUTPUT
+
+          echo "## Canary Submission" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Trace ID | \`${{ steps.trace.outputs.trace_id }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Bet Slip ID | \`$BET_SLIP_ID\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Pick ID | \`$(jq -r '.pick_id' canary-output/submission.json)\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Publish ID | \`$(jq -r '.pick_publish_id' canary-output/submission.json)\` |" >> $GITHUB_STEP_SUMMARY
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DISCORD_CANARY_CHANNEL_ID: ${{ secrets.DISCORD_CANARY_CHANNEL_ID }}
+
+      - name: Wait for Pipeline Processing
+        run: |
+          echo "Waiting 30 seconds for pipeline processing..."
+          sleep 30
+
+      - name: Verify Invariants
+        id: verify
+        run: |
+          SKIP_CLEANUP_FLAG=""
+          if [ "${{ github.event.inputs.skip_cleanup }}" == "true" ]; then
+            SKIP_CLEANUP_FLAG="--skip-cleanup"
+          fi
+
+          npx tsx scripts/canary/verify-canary-invariants.ts \
+            --trace-id="${{ steps.trace.outputs.trace_id }}" \
+            --bet-slip-id="${{ steps.submit.outputs.bet_slip_id }}" \
+            --output=canary-output/verification.json \
+            $SKIP_CLEANUP_FLAG
+
+          STATUS=$(jq -r '.overall_status' canary-output/verification.json)
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+
+          # Generate summary
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Invariant Verification Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Invariant | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          jq -r '.invariants[] | "| \(.name) | \(if .status == "PASS" then "✅" elif .status == "FAIL" then "❌" else "⚠️" end) \(.status) |"' canary-output/verification.json >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Overall Status: $STATUS" >> $GITHUB_STEP_SUMMARY
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Upload Artifact Bundle
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: canary-proof-${{ steps.trace.outputs.trace_id }}
+          path: canary-output/
+          retention-days: 30
+
+      - name: Fail on Invariant Violation
+        if: steps.verify.outputs.status != 'PASS'
+        run: |
+          echo "❌ Canary proof failed!"
+          echo ""
+          echo "Trace ID: ${{ steps.trace.outputs.trace_id }}"
+          echo "Bet Slip ID: ${{ steps.submit.outputs.bet_slip_id }}"
+          echo ""
+          echo "Check the artifact bundle for full details."
+          echo ""
+          echo "Invariants checked:"
+          echo "  - I2: Smart Form origin proof (form_source)"
+          echo "  - I3: Outbox lifecycle (pick_publish status)"
+          echo "  - I5: Observability (trace_id propagation)"
+          exit 1
+
+      - name: Success Summary
+        if: steps.verify.outputs.status == 'PASS'
+        run: |
+          echo "## ✅ Canary Proof Passed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All invariants verified successfully." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Trace ID:** \`${{ steps.trace.outputs.trace_id }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The full pipeline (Smart Form → unified_picks → pick_publish → Discord) is operational." >> $GITHUB_STEP_SUMMARY
+
+  notify-on-failure:
+    name: Notify on Failure
+    runs-on: ubuntu-latest
+    needs: canary-proof
+    if: failure()
+    steps:
+      - name: Log Failure
+        run: |
+          echo "⚠️ Daily canary proof failed!"
+          echo "Trace ID: ${{ needs.canary-proof.outputs.trace_id }}"
+          echo "This indicates a potential issue in the production pipeline."
+          echo ""
+          echo "Recommended actions:"
+          echo "  1. Check Supabase dashboard for table issues"
+          echo "  2. Verify migrations have been applied"
+          echo "  3. Check Discord bot connectivity"
+          echo "  4. Review the artifact bundle for detailed diagnostics"

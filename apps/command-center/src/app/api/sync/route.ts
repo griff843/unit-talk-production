@@ -176,22 +176,31 @@ async function handleUserUpdate(userData: any) {
 
 async function handlePickCreated(pickData: any) {
   try {
-    const { data, error } = await supabase.from('picks').insert({
+    // CANONICAL: Write to unified_picks (picks is a read-only view)
+    const { data, error } = await supabase.from('unified_picks').insert({
       user_id: pickData.user_id,
       sport: pickData.sport,
-      event: pickData.event,
-      pick_type: pickData.pick_type,
+      market: pickData.pick_type || 'spread',
       selection: pickData.selection,
+      side: pickData.selection,
       odds: pickData.odds,
       stake: pickData.stake,
       confidence: pickData.confidence,
       status: pickData.status,
+      workflow_stage: 'pending_review',
+      game_date: new Date().toISOString().split('T')[0],
+      line: pickData.line || 0,
+      meta: {
+        event: pickData.event,
+        pick_type: pickData.pick_type,
+        source: 'command_center_sync',
+      },
     });
 
     if (error) {
       console.error('Pick sync error:', error);
     } else {
-      console.log(`✅ Pick synced: ${pickData.selection}`);
+      console.log(`✅ Pick synced to unified_picks: ${pickData.selection}`);
     }
   } catch (err) {
     console.error('Pick sync failed:', err);

@@ -1,0 +1,172 @@
+name: Schema Parity Check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 6 AM UTC
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20.x'
+
+jobs:
+  verify-canonical-schema:
+    name: Verify Canonical Tables Exist
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify Staging Schema
+        id: staging
+        run: |
+          echo "## Staging Schema Verification" >> $GITHUB_STEP_SUMMARY
+          npx tsx scripts/phase6-e2e-validation.ts 2>&1 | tee staging-validation.log
+
+          if [ ${PIPESTATUS[0]} -eq 0 ]; then
+            echo "status=PASS" >> $GITHUB_OUTPUT
+            echo "### ✅ Staging: PASS" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "status=FAIL" >> $GITHUB_OUTPUT
+            echo "### ❌ Staging: FAIL" >> $GITHUB_STEP_SUMMARY
+          fi
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Extract Schema Info
+        id: schema_info
+        run: |
+          npx tsx -e "
+          const { createClient } = require('@supabase/supabase-js');
+          const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+          async function main() {
+            const canonicalTables = ['users', 'games', 'unified_picks', 'smart_tickets', 'bridge_outbox', 'pick_publish'];
+            const results = {};
+
+            for (const table of canonicalTables) {
+              const { count, error } = await supabase.from(table).select('*', { count: 'exact', head: true });
+              results[table] = { exists: !error, count: count || 0 };
+            }
+
+            console.log(JSON.stringify(results, null, 2));
+          }
+          main();
+          " > schema-info.json
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Upload Validation Log
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: schema-validation-${{ github.run_number }}
+          path: |
+            staging-validation.log
+            schema-info.json
+          retention-days: 14
+
+      - name: Fail on Missing Tables
+        if: steps.staging.outputs.status == 'FAIL'
+        run: |
+          echo "❌ Canonical schema verification failed!"
+          echo "Missing tables must be created via migration."
+          echo ""
+          echo "Required tables:"
+          echo "  - users"
+          echo "  - games"
+          echo "  - unified_picks"
+          echo "  - smart_tickets"
+          echo "  - bridge_outbox"
+          echo "  - pick_publish"
+          echo ""
+          echo "Run: npx supabase db push --linked"
+          exit 1
+
+  check-canonical-rules:
+    name: Verify Canonical Rules
+    runs-on: ubuntu-latest
+    needs: verify-canonical-schema
+    environment: staging
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify picks is READ-ONLY VIEW
+        run: |
+          echo "## Canonical Rules Verification" >> $GITHUB_STEP_SUMMARY
+
+          # Test that picks VIEW rejects writes
+          npx tsx -e "
+          const { createClient } = require('@supabase/supabase-js');
+          const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+          async function main() {
+            const testId = 'ci-test-' + Date.now();
+
+            // Attempt to write to picks VIEW (should fail)
+            const { error } = await supabase.from('picks').insert({
+              bet_slip_id: testId,
+              pick_type: 'test',
+              selection: 'test',
+              odds: 100
+            });
+
+            if (error) {
+              console.log('✅ picks VIEW correctly rejects writes');
+              console.log('Error:', error.message);
+              process.exit(0);
+            } else {
+              console.log('❌ picks VIEW accepted write - THIS IS A BUG!');
+              // Cleanup
+              await supabase.from('unified_picks').delete().eq('bet_slip_id', testId);
+              process.exit(1);
+            }
+          }
+          main();
+          "
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Generate Summary
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Canonical Rules Verified" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Rule | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| unified_picks is CANONICAL pick table | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| pick_publish is CANONICAL Discord outbox | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| picks is READ-ONLY VIEW | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| No writes to picks allowed | ✅ |" >> $GITHUB_STEP_SUMMARY
