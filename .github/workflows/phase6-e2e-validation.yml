@@ -128,11 +128,10 @@ jobs:
 
       - name: Start Smart Form (background)
         run: |
-          cd apps/smart-form
-          npm ci --ignore-scripts
-          npm run build
-          npm start &
-          sleep 10
+          # Build and start smart-form using npm workspace from root (dependencies already installed)
+          npm run --workspace=apps/smart-form build
+          npm run --workspace=apps/smart-form start &
+          sleep 15
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
@@ -190,15 +189,14 @@ jobs:
         id: discord_agent
         run: |
           echo "Running DiscordPromotionAgent to consume pick_publish outbox..."
-          cd apps/api
-          npm ci --ignore-scripts
-          AUTOPILOT_MODE=prod npx tsx src/agents/DiscordPromotionAgent/index.ts 2>&1 | tee ../../e2e-output/discord-agent.log
+          # Run agent from root using full path (dependencies already installed at root)
+          AUTOPILOT_MODE=prod npx tsx apps/api/src/agents/DiscordPromotionAgent/index.ts 2>&1 | tee e2e-output/discord-agent.log
 
           # Extract results from log
-          if grep -q "Successfully posted pick to Discord" ../../e2e-output/discord-agent.log; then
+          if grep -q "Successfully posted pick to Discord" e2e-output/discord-agent.log; then
             echo "discord_posted=true" >> $GITHUB_OUTPUT
             # Extract external_message_id from log
-            MSG_ID=$(grep -oP 'external_message_id: "\K[^"]+' ../../e2e-output/discord-agent.log || echo "")
+            MSG_ID=$(grep -oP 'external_message_id: "\K[^"]+' e2e-output/discord-agent.log || echo "")
             echo "external_message_id=$MSG_ID" >> $GITHUB_OUTPUT
           else
             echo "discord_posted=false" >> $GITHUB_OUTPUT
