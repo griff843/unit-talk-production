@@ -311,7 +311,8 @@ export const fetchGames = async (sport: string, startDate: string, endDate: stri
     }
 
     // Transform the data to standardize team names, times, odds, and live status
-    const transformedData = data
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const transformedData = (data as any[])
       ?.map(game => {
         // Standardize team names - use consistent format with proper team name mapping
         const getTeamName = (teamCode: string) => {
