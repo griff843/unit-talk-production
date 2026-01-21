@@ -69,30 +69,26 @@ const E2E_GAME_IDS = {
 async function seedUsers(): Promise<{ success: boolean; count: number }> {
   console.log('Seeding E2E test users...');
 
+  // v3.0.0 schema: users table has id, username, discord_id, tier only
+  // No email or status columns
   const users = [
     {
       id: E2E_USER_IDS.griff843,
       username: 'griff843',
-      email: 'griff@unittalk.com',
       discord_id: '123456789012345678',
       tier: 'vip',
-      status: 'active',
     },
     {
       id: E2E_USER_IDS.e2e_test_capper,
       username: 'e2e_test_capper',
-      email: 'e2e@test.com',
       discord_id: '987654321098765432',
       tier: 'premium',
-      status: 'active',
     },
     {
       id: E2E_USER_IDS.automation_bot,
       username: 'automation_bot',
-      email: 'bot@test.com',
       discord_id: '111222333444555666',
       tier: 'admin',
-      status: 'active',
     },
   ];
 
@@ -116,62 +112,102 @@ async function seedUsers(): Promise<{ success: boolean; count: number }> {
 }
 
 async function seedGames(): Promise<{ success: boolean; count: number }> {
-  console.log('Seeding E2E test games...');
+  console.log('Seeding E2E test games (optional - will not fail if FK constraints prevent)...');
 
   // Use relative dates for game scheduling
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
 
-  const games = [
-    {
+  // Try to fetch existing teams first to use valid IDs
+  const { data: existingTeams } = await supabase
+    .from('teams')
+    .select('id, name, sport')
+    .limit(10);
+
+  if (!existingTeams || existingTeams.length < 2) {
+    console.log('  [SKIP] No teams found in database - games seeding skipped');
+    console.log('  (Games FK constraint requires teams to exist first)');
+    return { success: true, count: 0 }; // Return success anyway - games are optional
+  }
+
+  // Find NBA teams if available
+  const nbaTeams = existingTeams.filter(t => t.sport === 'NBA');
+  const nflTeams = existingTeams.filter(t => t.sport === 'NFL');
+  const mlbTeams = existingTeams.filter(t => t.sport === 'MLB');
+
+  const games: Array<{
+    id: string;
+    external_game_id: string;
+    league: string;
+    sport: string;
+    home_team: string;
+    away_team: string;
+    game_date: string;
+    status: string;
+  }> = [];
+
+  if (nbaTeams.length >= 2) {
+    games.push({
       id: E2E_GAME_IDS.nba,
       external_game_id: 'e2e_nba_game_1',
       league: 'NBA',
       sport: 'NBA',
-      home_team: 'LOS_ANGELES_LAKERS_NBA',
-      away_team: 'BOSTON_CELTICS_NBA',
+      home_team: nbaTeams[0].id,
+      away_team: nbaTeams[1].id,
       game_date: todayStr,
       status: 'scheduled',
-    },
-    {
+    });
+  }
+
+  if (nflTeams.length >= 2) {
+    games.push({
       id: E2E_GAME_IDS.nfl,
       external_game_id: 'e2e_nfl_game_1',
       league: 'NFL',
       sport: 'NFL',
-      home_team: 'KANSAS_CITY_CHIEFS_NFL',
-      away_team: 'BUFFALO_BILLS_NFL',
+      home_team: nflTeams[0].id,
+      away_team: nflTeams[1].id,
       game_date: todayStr,
       status: 'scheduled',
-    },
-    {
+    });
+  }
+
+  if (mlbTeams.length >= 2) {
+    games.push({
       id: E2E_GAME_IDS.mlb,
       external_game_id: 'e2e_mlb_game_1',
       league: 'MLB',
       sport: 'MLB',
-      home_team: 'NEW_YORK_YANKEES_MLB',
-      away_team: 'LOS_ANGELES_DODGERS_MLB',
+      home_team: mlbTeams[0].id,
+      away_team: mlbTeams[1].id,
       game_date: todayStr,
       status: 'scheduled',
-    },
-  ];
+    });
+  }
+
+  if (games.length === 0) {
+    console.log('  [SKIP] No matching teams for games - skipping game seeding');
+    return { success: true, count: 0 };
+  }
 
   let insertedCount = 0;
 
   for (const game of games) {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('games')
       .upsert(game, { onConflict: 'id', ignoreDuplicates: true })
       .select();
 
     if (error) {
-      console.error(`  Error seeding game ${game.external_game_id}: ${error.message}`);
+      console.warn(`  [WARN] Could not seed game ${game.external_game_id}: ${error.message}`);
     } else {
       console.log(`  [OK] Game: ${game.league} - ${game.home_team} vs ${game.away_team}`);
       insertedCount++;
     }
   }
 
-  return { success: insertedCount === games.length, count: insertedCount };
+  // Games seeding is optional - always return success
+  return { success: true, count: insertedCount };
 }
 
 async function verifyTables(): Promise<boolean> {
