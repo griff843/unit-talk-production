@@ -69,26 +69,31 @@ const E2E_GAME_IDS = {
 async function seedUsers(): Promise<{ success: boolean; count: number }> {
   console.log('Seeding E2E test users...');
 
-  // v3.0.0 schema: users table has id, username, discord_id, tier only
-  // No email or status columns
+  // v3.0.0 schema: users table has id, username, discord_id, tier, tenant_id
+  // tenant_id is required (NOT NULL constraint)
+  const E2E_TENANT_ID = 'e2e-test-tenant-00000000-0000';
+
   const users = [
     {
       id: E2E_USER_IDS.griff843,
       username: 'griff843',
       discord_id: '123456789012345678',
       tier: 'vip',
+      tenant_id: E2E_TENANT_ID,
     },
     {
       id: E2E_USER_IDS.e2e_test_capper,
       username: 'e2e_test_capper',
       discord_id: '987654321098765432',
       tier: 'premium',
+      tenant_id: E2E_TENANT_ID,
     },
     {
       id: E2E_USER_IDS.automation_bot,
       username: 'automation_bot',
       discord_id: '111222333444555666',
       tier: 'admin',
+      tenant_id: E2E_TENANT_ID,
     },
   ];
 
