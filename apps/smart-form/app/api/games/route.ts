@@ -326,9 +326,10 @@ export async function GET(request: NextRequest) {
     );
 
     // Transform games for frontend consumption with proper time and odds handling
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const transformedGames =
-      games
-        ?.map(game => {
+      ((games || []) as any[])
+        .map(game => {
           let gameTime, display_time, formatted_time;
           let isLive = false;
 
@@ -455,7 +456,7 @@ export async function GET(request: NextRequest) {
             matchup_short: `${game.away_team_meta?.names?.short || game.away_team} @ ${game.home_team_meta?.names?.short || game.home_team}`,
           };
         })
-        .filter(game => game !== null) || []; // Filter out games that ended too long ago
+        .filter(game => game !== null); // Filter out games that ended too long ago
 
     logApiPerformance(log, 'fetch-games', startTime, {
       game_count: transformedGames.length,
