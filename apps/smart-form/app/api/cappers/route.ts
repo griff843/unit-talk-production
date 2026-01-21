@@ -44,17 +44,12 @@ export async function GET(request: Request) {
     const sb = supabaseServer();
     
     // Query v3 users table for all non-System users (all are cappers)
-    let query = sb
+    // Note: capper_tier and active removed as they don't exist in v3 schema
+    const query = sb
       .from('users')
-      .select('id, username, discord_id, tier, capper_tier, active')
-      .neq('username', 'System');
-    
-    if (active !== undefined) {
-      // Filter by active status if column exists, otherwise assume all are active
-      query = query.eq('active', active);
-    }
-    
-    query = query.order('username', { ascending: true });
+      .select('id, username, discord_id, tier')
+      .neq('username', 'System')
+      .order('username', { ascending: true });
 
     const { data, error } = await query;
 
@@ -75,11 +70,12 @@ export async function GET(request: Request) {
     }
 
     // Transform to match expected interface
-    const cappers = (data || []).map(user => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cappers = ((data || []) as any[]).map(user => ({
       id: user.id,
       name: user.username,
-      active: user.active ?? true, // Default to true if column doesn't exist
-      tier: user.tier || user.capper_tier || 'VIP',
+      active: true, // All cappers assumed active in v3 schema
+      tier: user.tier || 'VIP',
       discordId: user.discord_id,
     }));
 
