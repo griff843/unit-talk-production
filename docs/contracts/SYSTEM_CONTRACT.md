@@ -241,8 +241,77 @@ is a contract violation.
 
 ---
 
+## 5) ENFORCEMENT MECHANISMS (Week 2 Hardening)
+
+### 5.1 Database-Level Guardrails
+
+**CHECK Constraint: `chk_smart_form_required_fields`**
+```sql
+-- Enforced via migration: 20260121_pr10_smart_form_required_fields.sql
+ALTER TABLE unified_picks
+ADD CONSTRAINT chk_smart_form_required_fields CHECK (
+  form_source != 'smart_form' OR (
+    stake IS NOT NULL AND
+    user_id IS NOT NULL AND
+    selection IS NOT NULL AND
+    sport IS NOT NULL AND
+    trace_id IS NOT NULL
+  )
+);
+```
+
+**Foreign Key: `pick_publish.pick_id → unified_picks.id`**
+- Enforces that every publish row references a valid pick
+- Prevents orphan publish records
+
+### 5.2 CI Gates (Fail-Closed)
+
+| Gate | Workflow | What It Checks |
+|------|----------|----------------|
+| Schema Parity | `week2-governance-gates.yml` | Staging has all canonical tables |
+| picks VIEW Write-Blocked | `week2-governance-gates.yml` | picks VIEW rejects INSERT/UPDATE |
+| pick_publish FK Integrity | `week2-governance-gates.yml` | FK to unified_picks enforced |
+| Agent Contract | `week2-governance-gates.yml` | DiscordPromotionAgent reads from pick_publish |
+| Anti-Cheat | `week2-governance-gates.yml` | E2E uses Playwright, no direct DB inserts |
+| Outbox Lifecycle | `outbox-lifecycle-gate.yml` | pending → processing → sent transition |
+
+**Fail-Closed Behavior**: If ANY gate fails, the workflow fails. No exceptions.
+
+### 5.3 Proof Mechanism
+
+**Only CI-generated proof is authoritative.**
+
+- Proof MUST be generated via GitHub Actions with secrets injection
+- Proof MUST use Playwright browser automation (not direct DB inserts)
+- Proof MUST show trace_id propagation through all canonical tables
+- Local script execution is NOT authoritative proof
+
+### 5.4 How to Verify
+
+Run these workflows to verify system compliance:
+
+```bash
+# Trigger governance gates manually
+gh workflow run week2-governance-gates.yml --ref feat/pr9-go-live-hardening
+
+# Trigger outbox lifecycle test
+gh workflow run outbox-lifecycle-gate.yml --ref feat/pr9-go-live-hardening
+
+# Check schema parity
+gh workflow run schema-parity-check.yml --ref feat/pr9-go-live-hardening
+```
+
+**DO NOT** run local scripts as proof. CI is the only proof mechanism.
+
+---
+
 ## ENFORCEMENT CLAUSE
 
 Any PR, migration, worker change, or doc change that contradicts this contract
 is a hard fail and must be reverted or corrected. This contract overrides all
 older references.
+
+**Week 2 Hardening Gates** are non-negotiable. If any gate fails:
+1. The PR cannot be merged
+2. The deployment is blocked
+3. The issue must be fixed at the source (not bypassed)

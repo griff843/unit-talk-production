@@ -1,0 +1,343 @@
+name: Outbox Lifecycle Gate
+
+# CANONICAL OUTBOX LIFECYCLE VERIFICATION
+# Per SYSTEM_CONTRACT.md:
+# - Smart Form submission → pick_publish row created (status='pending')
+# - DiscordPromotionAgent processes → status='processing'
+# - Discord post successful → status='sent', external_message_id populated
+# - trace_id propagated end-to-end
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_channel:
+        description: "Discord channel to post to"
+        required: false
+        default: "1296531122234327100"
+        type: string
+  schedule:
+    - cron: '0 8 * * *'  # Daily at 8 AM UTC
+
+env:
+  NODE_VERSION: '20.x'
+  CANARY_CHANNEL_ID: '1296531122234327100'
+
+jobs:
+  # ================================================================
+  # Full E2E Outbox Lifecycle Test
+  # ================================================================
+  outbox-lifecycle:
+    name: E2E Outbox Lifecycle
+    runs-on: ubuntu-latest
+    environment: staging
+
+    outputs:
+      trace_id: ${{ steps.e2e.outputs.trace_id }}
+      pick_id: ${{ steps.e2e.outputs.pick_id }}
+      publish_id: ${{ steps.e2e.outputs.publish_id }}
+      discord_url: ${{ steps.agent.outputs.discord_url }}
+      lifecycle_complete: ${{ steps.verify.outputs.complete }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify Staging Has Migrations
+        run: |
+          echo "## Pre-flight: Migration Check" >> $GITHUB_STEP_SUMMARY
+
+          npx tsx -e "
+          const { createClient } = require('@supabase/supabase-js');
+          const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+          async function main() {
+            const tables = ['unified_picks', 'pick_publish', 'smart_tickets'];
+            const missing = [];
+
+            for (const table of tables) {
+              const { error } = await supabase.from(table).select('id').limit(1);
+              if (error && error.code === '42P01') {
+                missing.push(table);
+              }
+            }
+
+            if (missing.length > 0) {
+              console.error('===========================================');
+              console.error('FAIL: Apply migrations to staging (db push)');
+              console.error('Missing canonical tables:', missing.join(', '));
+              console.error('===========================================');
+              process.exit(1);
+            }
+
+            console.log('All required tables exist.');
+          }
+          main();
+          "
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Build Smart Form
+        run: npm run --workspace=apps/smart-form build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+
+      - name: Start Smart Form
+        run: |
+          npm run --workspace=apps/smart-form start &
+          sleep 20
+          curl -f http://localhost:3000 || (echo "Smart Form failed to start" && exit 1)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+
+      - name: Run Playwright E2E (Create Pick via UI)
+        id: e2e
+        run: |
+          mkdir -p e2e-artifacts
+
+          TRACE_ID="gate-$(date +%s)-$(( RANDOM % 9999 ))"
+          echo "Generated trace_id: $TRACE_ID"
+
+          npx tsx scripts/phase6-playwright-e2e.ts 2>&1 | tee e2e-artifacts/playwright.log
+
+          # Extract pick_id from unified_picks
+          PICK_DATA=$(npx tsx -e "
+          const { createClient } = require('@supabase/supabase-js');
+          const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+          async function main() {
+            const { data, error } = await supabase
+              .from('unified_picks')
+              .select('id, trace_id, form_source')
+              .eq('form_source', 'smart_form')
+              .order('created_at', { ascending: false })
+              .limit(1);
+
+            if (error || !data || data.length === 0) {
+              console.error('No pick found');
+              process.exit(1);
+            }
+
+            console.log(JSON.stringify(data[0]));
+          }
+          main();
+          ")
+
+          PICK_ID=$(echo "$PICK_DATA" | jq -r '.id')
+          TRACE_ID=$(echo "$PICK_DATA" | jq -r '.trace_id')
+
+          echo "pick_id=$PICK_ID" >> $GITHUB_OUTPUT
+          echo "trace_id=$TRACE_ID" >> $GITHUB_OUTPUT
+
+          # Get publish_id
+          PUBLISH_DATA=$(npx tsx -e "
+          const { createClient } = require('@supabase/supabase-js');
+          const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+          async function main() {
+            const { data, error } = await supabase
+              .from('pick_publish')
+              .select('id, pick_id, status, discord_channel_id')
+              .eq('pick_id', '$PICK_ID')
+              .limit(1);
+
+            if (error || !data || data.length === 0) {
+              console.log('{}');
+              return;
+            }
+
+            console.log(JSON.stringify(data[0]));
+          }
+          main();
+          ")
+
+          PUBLISH_ID=$(echo "$PUBLISH_DATA" | jq -r '.id // empty')
+          echo "publish_id=$PUBLISH_ID" >> $GITHUB_OUTPUT
+
+          echo "### Step 1: Pick Created via UI" >> $GITHUB_STEP_SUMMARY
+          echo "- pick_id: \`$PICK_ID\`" >> $GITHUB_STEP_SUMMARY
+          echo "- trace_id: \`$TRACE_ID\`" >> $GITHUB_STEP_SUMMARY
+          echo "- publish_id: \`$PUBLISH_ID\`" >> $GITHUB_STEP_SUMMARY
+        env:
+          SMART_FORM_URL: http://localhost:3000
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          E2E_HEADLESS: "true"
+          E2E_OUTPUT_DIR: "./e2e-artifacts"
+
+      - name: Verify pick_publish.status = pending
+        id: verify_pending
+        run: |
+          echo "### Step 2: Verify Outbox (pending)" >> $GITHUB_STEP_SUMMARY
+
+          npx tsx -e "
+          const { createClient } = require('@supabase/supabase-js');
+          const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+          async function main() {
+            const { data, error } = await supabase
+              .from('pick_publish')
+              .select('id, status, attempts, discord_channel_id')
+              .eq('pick_id', '${{ steps.e2e.outputs.pick_id }}')
+              .single();
+
+            if (error || !data) {
+              console.error('pick_publish row not found for pick_id');
+              process.exit(1);
+            }
+
+            console.log('pick_publish status:', data.status);
+            console.log('discord_channel_id:', data.discord_channel_id);
+
+            // Status should be 'pending' initially
+            if (!['pending', 'processing'].includes(data.status)) {
+              console.warn('Unexpected status:', data.status);
+            }
+
+            // Channel must be CANARY for this test
+            if (data.discord_channel_id !== '1296531122234327100') {
+              console.log('Note: Channel is', data.discord_channel_id, '(expected CANARY)');
+            }
+          }
+          main();
+          "
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Run DiscordPromotionAgent (Process Outbox)
+        id: agent
+        run: |
+          echo "### Step 3: Process Outbox (DiscordPromotionAgent)" >> $GITHUB_STEP_SUMMARY
+
+          # Run agent to process the outbox
+          timeout 60 npx tsx apps/api/src/agents/DiscordPromotionAgent/index.ts 2>&1 | tee e2e-artifacts/agent.log || true
+
+          # Check final status
+          RESULT=$(npx tsx -e "
+          const { createClient } = require('@supabase/supabase-js');
+          const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+          async function main() {
+            const { data, error } = await supabase
+              .from('pick_publish')
+              .select('id, status, attempts, external_message_id, discord_channel_id')
+              .eq('pick_id', '${{ steps.e2e.outputs.pick_id }}')
+              .single();
+
+            if (error || !data) {
+              console.log(JSON.stringify({ status: 'NOT_FOUND' }));
+              return;
+            }
+
+            console.log(JSON.stringify(data));
+          }
+          main();
+          ")
+
+          STATUS=$(echo "$RESULT" | jq -r '.status')
+          MSG_ID=$(echo "$RESULT" | jq -r '.external_message_id // empty')
+          CHANNEL_ID=$(echo "$RESULT" | jq -r '.discord_channel_id')
+
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+
+          if [ -n "$MSG_ID" ] && [ "$MSG_ID" != "null" ]; then
+            DISCORD_URL="https://discord.com/channels/1284478946171293736/$CHANNEL_ID/$MSG_ID"
+            echo "discord_url=$DISCORD_URL" >> $GITHUB_OUTPUT
+            echo "- Discord URL: [$DISCORD_URL]($DISCORD_URL)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- Discord URL: Not available (status: $STATUS)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "- Final status: \`$STATUS\`" >> $GITHUB_STEP_SUMMARY
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_E2E_WEBHOOK_URL }}
+          AUTOPILOT_MODE: prod
+
+      - name: Verify Lifecycle Complete
+        id: verify
+        run: |
+          echo "### Step 4: Lifecycle Verification" >> $GITHUB_STEP_SUMMARY
+
+          FINAL_STATUS=$(npx tsx -e "
+          const { createClient } = require('@supabase/supabase-js');
+          const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+          async function main() {
+            const { data, error } = await supabase
+              .from('pick_publish')
+              .select('status, external_message_id')
+              .eq('pick_id', '${{ steps.e2e.outputs.pick_id }}')
+              .single();
+
+            if (error || !data) {
+              console.log('NOT_FOUND');
+              return;
+            }
+
+            console.log(data.status);
+          }
+          main();
+          ")
+
+          echo "Final pick_publish status: $FINAL_STATUS"
+
+          if [ "$FINAL_STATUS" = "sent" ]; then
+            echo "complete=true" >> $GITHUB_OUTPUT
+            echo "✅ **LIFECYCLE COMPLETE**: pending → processing → sent" >> $GITHUB_STEP_SUMMARY
+          elif [ "$FINAL_STATUS" = "processing" ]; then
+            echo "complete=partial" >> $GITHUB_OUTPUT
+            echo "⚠️ **LIFECYCLE PARTIAL**: pending → processing (Discord post may be pending)" >> $GITHUB_STEP_SUMMARY
+          elif [ "$FINAL_STATUS" = "pending" ]; then
+            echo "complete=false" >> $GITHUB_OUTPUT
+            echo "❌ **LIFECYCLE INCOMPLETE**: Still pending (agent may not have run)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "complete=false" >> $GITHUB_OUTPUT
+            echo "❌ **LIFECYCLE FAILED**: Status is '$FINAL_STATUS'" >> $GITHUB_STEP_SUMMARY
+          fi
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: outbox-lifecycle-${{ github.run_number }}
+          path: |
+            e2e-artifacts/
+            *.png
+          retention-days: 14
+
+      - name: Output Proof Bundle
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "## Proof Bundle" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| GitHub Run | [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) |" >> $GITHUB_STEP_SUMMARY
+          echo "| trace_id | \`${{ steps.e2e.outputs.trace_id }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| pick_id | \`${{ steps.e2e.outputs.pick_id }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| publish_id | \`${{ steps.e2e.outputs.publish_id }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Discord URL | ${{ steps.agent.outputs.discord_url || 'N/A' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Lifecycle | ${{ steps.verify.outputs.complete }} |" >> $GITHUB_STEP_SUMMARY

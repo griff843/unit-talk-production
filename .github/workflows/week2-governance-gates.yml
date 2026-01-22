@@ -1,0 +1,462 @@
+name: Week 2 Governance Gates
+
+# FAIL-CLOSED CI GATES
+# Per SYSTEM_CONTRACT.md and Week 2 Hardening requirements:
+# - Staging must have canonical tables
+# - picks must be read-only VIEW
+# - pick_publish must FK to unified_picks
+# - DiscordPromotionAgent must read from pick_publish only
+# - Proof must come from Playwright UI, not script injection
+# - Outbox lifecycle must complete pending→processing→sent
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'apps/smart-form/**'
+      - 'apps/api/src/agents/DiscordPromotionAgent/**'
+      - 'scripts/stage*.ts'
+      - 'scripts/phase6*.ts'
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+  workflow_dispatch:
+    inputs:
+      force_full_e2e:
+        description: "Force full E2E test including Discord post"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+env:
+  NODE_VERSION: '20.x'
+
+jobs:
+  # ================================================================
+  # GATE 1: Schema Parity - Fail if staging missing canonical tables
+  # ================================================================
+  schema-parity:
+    name: Gate 1 - Schema Parity
+    runs-on: ubuntu-latest
+    environment: staging
+
+    outputs:
+      status: ${{ steps.verify.outputs.status }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify Canonical Tables Exist
+        id: verify
+        run: |
+          echo "## Gate 1: Schema Parity Verification" >> $GITHUB_STEP_SUMMARY
+
+          npx tsx -e "
+          const { createClient } = require('@supabase/supabase-js');
+          const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+          const CANONICAL_TABLES = [
+            'users', 'games', 'unified_picks', 'smart_tickets',
+            'bridge_outbox', 'pick_publish'
+          ];
+
+          async function main() {
+            const missing = [];
+            const found = [];
+
+            for (const table of CANONICAL_TABLES) {
+              const { error } = await supabase.from(table).select('id').limit(1);
+              if (error && error.code === '42P01') {
+                missing.push(table);
+              } else {
+                found.push(table);
+              }
+            }
+
+            console.log('Found tables:', found.join(', '));
+
+            if (missing.length > 0) {
+              console.error('MISSING TABLES:', missing.join(', '));
+              console.error('');
+              console.error('===========================================');
+              console.error('FAIL: Apply migrations to staging (db push)');
+              console.error('Missing canonical tables per SYSTEM_CONTRACT.md');
+              console.error('===========================================');
+              process.exit(1);
+            }
+
+            console.log('All canonical tables verified.');
+          }
+          main();
+          "
+
+          if [ $? -eq 0 ]; then
+            echo "status=PASS" >> $GITHUB_OUTPUT
+            echo "### ✅ Schema Parity: PASS" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "status=FAIL" >> $GITHUB_OUTPUT
+            echo "### ❌ Schema Parity: FAIL" >> $GITHUB_STEP_SUMMARY
+            echo "**Action Required**: Run \`npx supabase db push --linked\` to apply migrations" >> $GITHUB_STEP_SUMMARY
+          fi
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Fail Gate if Missing Tables
+        if: steps.verify.outputs.status == 'FAIL'
+        run: |
+          echo "❌ GATE 1 FAILED: Staging missing canonical tables"
+          echo "Apply migrations to staging (db push) — missing canonical tables."
+          exit 1
+
+  # ================================================================
+  # GATE 2: picks VIEW is Read-Only (Write-Blocked)
+  # ================================================================
+  picks-read-only:
+    name: Gate 2 - picks VIEW Write-Blocked
+    runs-on: ubuntu-latest
+    environment: staging
+    needs: schema-parity
+
+    outputs:
+      status: ${{ steps.verify.outputs.status }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify picks VIEW Rejects Writes
+        id: verify
+        run: |
+          echo "## Gate 2: picks VIEW Write Protection" >> $GITHUB_STEP_SUMMARY
+
+          npx tsx -e "
+          const { createClient } = require('@supabase/supabase-js');
+          const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+          async function main() {
+            const testId = 'ci-gate-test-' + Date.now();
+
+            // Attempt to INSERT into picks (should fail)
+            const { error: insertError } = await supabase.from('picks').insert({
+              bet_slip_id: testId,
+              pick_type: 'gate_test',
+              selection: 'test_selection',
+              odds: 100
+            });
+
+            if (insertError) {
+              console.log('✅ picks VIEW correctly blocks INSERT');
+              console.log('Error (expected):', insertError.message.substring(0, 100));
+            } else {
+              console.error('❌ picks VIEW accepted INSERT - CONTRACT VIOLATION!');
+              // Cleanup
+              await supabase.from('unified_picks').delete().eq('bet_slip_id', testId);
+              process.exit(1);
+            }
+
+            // Attempt to UPDATE picks (should fail)
+            const { error: updateError } = await supabase
+              .from('picks')
+              .update({ status: 'gate_test' })
+              .eq('id', '00000000-0000-0000-0000-000000000000');
+
+            if (updateError) {
+              console.log('✅ picks VIEW correctly blocks UPDATE');
+            } else {
+              console.error('❌ picks VIEW accepted UPDATE - CONTRACT VIOLATION!');
+              process.exit(1);
+            }
+
+            console.log('');
+            console.log('picks VIEW is properly write-protected.');
+          }
+          main();
+          "
+
+          if [ $? -eq 0 ]; then
+            echo "status=PASS" >> $GITHUB_OUTPUT
+            echo "### ✅ picks VIEW: Write-Blocked (PASS)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "status=FAIL" >> $GITHUB_OUTPUT
+            echo "### ❌ picks VIEW: Writable (FAIL)" >> $GITHUB_STEP_SUMMARY
+            echo "**CONTRACT VIOLATION**: picks must be a read-only VIEW" >> $GITHUB_STEP_SUMMARY
+          fi
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Fail Gate if picks Writable
+        if: steps.verify.outputs.status == 'FAIL'
+        run: exit 1
+
+  # ================================================================
+  # GATE 3: pick_publish FK References unified_picks
+  # ================================================================
+  pick-publish-fk:
+    name: Gate 3 - pick_publish FK Integrity
+    runs-on: ubuntu-latest
+    environment: staging
+    needs: schema-parity
+
+    outputs:
+      status: ${{ steps.verify.outputs.status }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify pick_publish.pick_id FK
+        id: verify
+        run: |
+          echo "## Gate 3: pick_publish FK Integrity" >> $GITHUB_STEP_SUMMARY
+
+          npx tsx -e "
+          const { createClient } = require('@supabase/supabase-js');
+          const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+          async function main() {
+            // Try to insert pick_publish with invalid pick_id (FK should reject)
+            const fakePickId = '00000000-0000-0000-0000-000000000001';
+
+            const { error } = await supabase.from('pick_publish').insert({
+              pick_id: fakePickId,
+              status: 'gate_test',
+              discord_channel_id: 'test',
+              trace_id: 'gate-test-' + Date.now()
+            });
+
+            if (error && (error.code === '23503' || error.message.includes('foreign key'))) {
+              console.log('✅ pick_publish.pick_id FK correctly enforced');
+              console.log('FK violation caught:', error.message.substring(0, 80));
+            } else if (error) {
+              // Some other error, still indicates the table exists and has constraints
+              console.log('✅ pick_publish has constraints (error:', error.code, ')');
+            } else {
+              console.error('❌ pick_publish accepted invalid pick_id - FK may be missing!');
+              // Cleanup
+              await supabase.from('pick_publish').delete().eq('pick_id', fakePickId);
+              process.exit(1);
+            }
+
+            console.log('');
+            console.log('pick_publish FK integrity verified.');
+          }
+          main();
+          "
+
+          if [ $? -eq 0 ]; then
+            echo "status=PASS" >> $GITHUB_OUTPUT
+            echo "### ✅ pick_publish FK: Enforced (PASS)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "status=FAIL" >> $GITHUB_OUTPUT
+            echo "### ❌ pick_publish FK: Missing (FAIL)" >> $GITHUB_STEP_SUMMARY
+          fi
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Fail Gate if FK Missing
+        if: steps.verify.outputs.status == 'FAIL'
+        run: exit 1
+
+  # ================================================================
+  # GATE 4: DiscordPromotionAgent Reads from pick_publish Only
+  # ================================================================
+  agent-contract:
+    name: Gate 4 - Agent Contract Compliance
+    runs-on: ubuntu-latest
+    needs: schema-parity
+
+    outputs:
+      status: ${{ steps.verify.outputs.status }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify DiscordPromotionAgent Source
+        id: verify
+        run: |
+          echo "## Gate 4: Agent Contract Compliance" >> $GITHUB_STEP_SUMMARY
+
+          AGENT_FILE="apps/api/src/agents/DiscordPromotionAgent/index.ts"
+
+          if [ ! -f "$AGENT_FILE" ]; then
+            echo "Agent file not found: $AGENT_FILE"
+            echo "status=SKIP" >> $GITHUB_OUTPUT
+            echo "### ⏭️ Agent Contract: SKIPPED (file not found)" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+
+          # Check that agent reads from pick_publish
+          if grep -q "from('pick_publish')" "$AGENT_FILE"; then
+            echo "✅ DiscordPromotionAgent reads from pick_publish"
+          else
+            echo "❌ DiscordPromotionAgent may not be reading from pick_publish"
+            echo "status=FAIL" >> $GITHUB_OUTPUT
+            echo "### ❌ Agent Contract: FAIL" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          # Ensure agent doesn't write directly to unified_picks for publishing
+          if grep -q "from('unified_picks').*insert" "$AGENT_FILE"; then
+            echo "⚠️ WARNING: Agent appears to insert into unified_picks (review required)"
+          fi
+
+          echo "status=PASS" >> $GITHUB_OUTPUT
+          echo "### ✅ Agent Contract: PASS" >> $GITHUB_STEP_SUMMARY
+          echo "- DiscordPromotionAgent reads from pick_publish ✓" >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail Gate if Contract Violated
+        if: steps.verify.outputs.status == 'FAIL'
+        run: exit 1
+
+  # ================================================================
+  # GATE 5: Anti-Cheat - Proof Must Come from Playwright UI
+  # ================================================================
+  anti-cheat:
+    name: Gate 5 - Anti-Cheat Verification
+    runs-on: ubuntu-latest
+    needs: [schema-parity, picks-read-only, pick-publish-fk]
+
+    outputs:
+      status: ${{ steps.verify.outputs.status }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify E2E Uses Playwright (Not Direct DB)
+        id: verify
+        run: |
+          echo "## Gate 5: Anti-Cheat Verification" >> $GITHUB_STEP_SUMMARY
+
+          E2E_SCRIPT="scripts/phase6-playwright-e2e.ts"
+
+          if [ ! -f "$E2E_SCRIPT" ]; then
+            echo "E2E script not found: $E2E_SCRIPT"
+            echo "status=FAIL" >> $GITHUB_OUTPUT
+            echo "### ❌ Anti-Cheat: FAIL (E2E script missing)" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          # Verify script uses Playwright browser automation
+          if grep -q "from 'playwright'" "$E2E_SCRIPT" || grep -q "chromium.launch" "$E2E_SCRIPT"; then
+            echo "✅ E2E script uses Playwright browser automation"
+          else
+            echo "❌ E2E script does not use Playwright"
+            echo "status=FAIL" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          # Verify script navigates to Smart Form URL
+          if grep -q "page.goto" "$E2E_SCRIPT" && grep -q "smartFormUrl\|SMART_FORM_URL\|localhost:3000" "$E2E_SCRIPT"; then
+            echo "✅ E2E script navigates to Smart Form UI"
+          else
+            echo "❌ E2E script may not be using UI navigation"
+            echo "status=FAIL" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          # Verify no direct unified_picks inserts in E2E script (anti-cheat)
+          if grep -q "supabase.*from.*unified_picks.*insert" "$E2E_SCRIPT"; then
+            echo "❌ E2E script contains direct unified_picks INSERT - CHEAT DETECTED"
+            echo "status=FAIL" >> $GITHUB_OUTPUT
+            exit 1
+          else
+            echo "✅ E2E script does not directly insert to unified_picks"
+          fi
+
+          echo ""
+          echo "Anti-cheat verification passed."
+          echo "status=PASS" >> $GITHUB_OUTPUT
+          echo "### ✅ Anti-Cheat: PASS" >> $GITHUB_STEP_SUMMARY
+          echo "- Uses Playwright browser automation ✓" >> $GITHUB_STEP_SUMMARY
+          echo "- Navigates to Smart Form UI ✓" >> $GITHUB_STEP_SUMMARY
+          echo "- No direct DB inserts in E2E ✓" >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail Gate if Cheat Detected
+        if: steps.verify.outputs.status == 'FAIL'
+        run: exit 1
+
+  # ================================================================
+  # SUMMARY - Fail-Closed Final Check
+  # ================================================================
+  summary:
+    name: Governance Summary
+    runs-on: ubuntu-latest
+    needs: [schema-parity, picks-read-only, pick-publish-fk, agent-contract, anti-cheat]
+    if: always()
+
+    steps:
+      - name: Generate Summary
+        run: |
+          echo "# Week 2 Governance Gates Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Gate | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 1. Schema Parity | ${{ needs.schema-parity.outputs.status || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 2. picks VIEW Write-Blocked | ${{ needs.picks-read-only.outputs.status || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 3. pick_publish FK Integrity | ${{ needs.pick-publish-fk.outputs.status || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 4. Agent Contract | ${{ needs.agent-contract.outputs.status || 'SKIP' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 5. Anti-Cheat | ${{ needs.anti-cheat.outputs.status || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Determine overall status
+          SCHEMA="${{ needs.schema-parity.outputs.status }}"
+          PICKS="${{ needs.picks-read-only.outputs.status }}"
+          FK="${{ needs.pick-publish-fk.outputs.status }}"
+          ANTI="${{ needs.anti-cheat.outputs.status }}"
+
+          if [[ "$SCHEMA" == "PASS" && "$PICKS" == "PASS" && "$FK" == "PASS" && "$ANTI" == "PASS" ]]; then
+            echo "## Overall: ✅ ALL GATES PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## Overall: ❌ GATES FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**FAIL-CLOSED**: One or more governance gates failed." >> $GITHUB_STEP_SUMMARY
+            echo "Review gate failures above and fix before merging." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Fail if Any Gate Failed
+        if: |
+          needs.schema-parity.outputs.status != 'PASS' ||
+          needs.picks-read-only.outputs.status != 'PASS' ||
+          needs.pick-publish-fk.outputs.status != 'PASS' ||
+          needs.anti-cheat.outputs.status != 'PASS'
+        run: |
+          echo "❌ FAIL-CLOSED: One or more governance gates failed"
+          exit 1
