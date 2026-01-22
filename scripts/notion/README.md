@@ -1,262 +1,292 @@
 # Notion Relation Wiring Automation
 
-**Purpose**: Automatically wire relations between Notion databases that have been populated via CSV import.
+**This script wires relations ONLY; it does not create data.**
 
-**What it does**: Reads "wiring fields" (comma-separated IDs) from each page and creates proper Notion relations, eliminating manual linking.
+All operations are idempotent and safe to re-run at any time.
+
+---
+
+## Page ID vs Database ID
+
+Notion IDs can refer to either **pages** or **databases**. This script handles both:
+
+| ID Type | Description | Example URL |
+|---------|-------------|-------------|
+| Database ID | Direct link to a database | `notion.so/workspace/2ef5f8bee34480b59181e4650cf9aa02?v=...` |
+| Page ID | Link to a page containing an inline database | `notion.so/workspace/Feature-Registry-2ef5f8bee34480b59181e4650cf9aa02` |
+
+### Auto-Resolution
+
+The script automatically detects which type of ID you provide:
+
+1. **If it's a database ID** → Uses it directly
+2. **If it's a page ID** → Searches for inline (child) databases within the page
+   - Matches by expected title (e.g., "Feature Registry", "SOP Library")
+   - Falls back to the first database if only one exists
+   - Fails with clear error if multiple databases exist and none match
+
+This means you can use either the page URL or the database URL when configuring IDs.
+
+### Fail-Closed Guard
+
+After resolving database IDs, the script **verifies each database title** before any wiring occurs:
+
+```
+STEP 0b: Verifying database titles (fail-closed guard)
+   ✓ Verified: "Feature Registry"
+   ✓ Verified: "Agent Registry"
+   ✓ Verified: "SOP Library"
+   ✓ Verified: "Playbooks & How-Tos"
+```
+
+**If a title does not match the expected value, the script aborts immediately** with a fatal error—no relations are written. This prevents accidental wiring to the wrong database.
+
+| Expected Title | Matches |
+|----------------|---------|
+| Feature Registry | Exact or partial match |
+| Agent Registry | Exact or partial match |
+| SOP Library | Exact or partial match |
+| Playbooks | Exact or partial match (e.g., "Playbooks & How-Tos") |
+
+---
+
+## What This Script Does
+
+Reads "wiring fields" (comma-separated IDs or names) from each Notion page and creates proper Notion relations.
+
+**Relations wired:**
+| Source | Relation Property | Target | Wiring Field |
+|--------|-------------------|--------|--------------|
+| Feature Registry | Related SOPs | SOP Library | `Wiring: SOP IDs` |
+| Feature Registry | Agent Owner | Agent Registry | `Wiring: Agent Names` |
+| Feature Registry | Dependencies | Feature Registry | `Wiring: Depends On` |
+| Agent Registry | Related SOPs | SOP Library | `Wiring: SOP IDs` |
+| SOP Library | Related Playbooks | Playbooks | `Wiring: Playbook IDs` |
 
 ---
 
 ## Prerequisites
 
-- Notion databases already created and populated with CSV data
-- Relation properties already exist on each database
-- Node.js 18+ installed
+1. **Notion databases exist** and are populated with data
+2. **Relation properties exist** on each database (matching names exactly)
+3. **Notion integration created** and shared with all databases
+4. **NOTION_TOKEN** available (from GitHub Secrets or .env.local)
+5. **Node.js 18+** installed
 
 ---
 
-## Step 1: Create Notion Integration
+## Environment Variables Required
 
-1. Go to [https://www.notion.so/my-integrations](https://www.notion.so/my-integrations)
-2. Click **"+ New integration"**
-3. Configure:
-   - **Name**: `Unit Talk Automation`
-   - **Associated workspace**: Select your workspace
-   - **Capabilities**:
-     - ✅ Read content
-     - ✅ Update content
-     - ✅ Insert content (optional)
-     - ❌ No user information needed
-4. Click **Submit**
-5. Copy the **Internal Integration Token** (starts with `ntn_` or `secret_`)
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `NOTION_TOKEN` | Notion integration token (starts with `ntn_` or `secret_`) | **Yes** |
+| `NOTION_DB_FEATURES` | Feature Registry database ID | No (has default) |
+| `NOTION_DB_AGENTS` | Agent Registry database ID | No (has default) |
+| `NOTION_DB_SOPS` | SOP Library database ID | No (has default) |
+| `NOTION_DB_PLAYBOOKS` | Playbooks database ID | No (has default) |
 
----
-
-## Step 2: Share Integration with Each Database
-
-**CRITICAL**: You must share the integration with EVERY database you want to access.
-
-For each of these databases:
-- **Feature Registry**
-- **Agent Registry**
-- **SOPs**
-- **Playbooks**
-
-Do the following:
-1. Open the database in Notion
-2. Click **"..."** (three dots) in the top right
-3. Click **"Add connections"** (or "Connections" → "Add connections")
-4. Search for **"Unit Talk Automation"** (your integration name)
-5. Click to connect
-
----
-
-## Step 3: Get Database IDs
-
-For each database, extract the ID from the URL:
-
-**URL Format**: `https://www.notion.so/<workspace>/<database_id>?v=...`
-
-**Example**:
+**Default Database IDs (hardcoded):**
 ```
-https://www.notion.so/myworkspace/1234567890abcdef1234567890abcdef?v=...
-                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-                                  This is the database_id
-```
-
-The ID is the 32-character hexadecimal string BEFORE the `?v=` query parameter.
-
----
-
-## Step 4: Configure Environment Variables
-
-Add to your `.env.local` file:
-
-```bash
-# Notion Integration Token
-NOTION_TOKEN=ntn_xxxxxxxxxxxxxxxxxxxx
-
-# Database IDs (32 hex characters each)
-NOTION_DB_FEATURES=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-NOTION_DB_AGENTS=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-NOTION_DB_SOPS=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-NOTION_DB_PLAYBOOKS=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Features:  2ef5f8bee34480b59181e4650cf9aa02
+Agents:    2ef5f8bee34480eba23ce234f46ba192
+SOPs:      2ef5f8bee34480f0855ef08dea2ffe52
+Playbooks: 2ef5f8bee3448082aae2c53e35f69a7c
 ```
 
 ---
 
-## Step 5: Add Wiring Fields to Databases (Manual Step)
+## How to Run
 
-The script reads from "wiring fields" to know what relations to create. Add these **Rich Text** properties to your databases:
-
-### Feature Registry
-
-| Property Name | Type | Example Value |
-|---------------|------|---------------|
-| `Wiring: SOP IDs` | Rich Text | `SOP-001,SOP-002` |
-| `Wiring: Agent Names` | Rich Text | `AlertAgent,GradingAgent` |
-| `Wiring: Depends On` | Rich Text | `FEAT-003,FEAT-010` |
-
-### Agent Registry
-
-| Property Name | Type | Example Value |
-|---------------|------|---------------|
-| `Wiring: SOP IDs` | Rich Text | `SOP-002,SOP-003` |
-
-### SOPs
-
-| Property Name | Type | Example Value |
-|---------------|------|---------------|
-| `Wiring: Playbook IDs` | Rich Text | `PB-001,PB-002` |
-
-**Tip**: You can batch-fill these using the Notion table view and copy-paste from the CSV data.
-
----
-
-## Step 6: Install Dependencies
+### Dry-Run (Preview Changes)
 
 ```bash
 # From repo root
-npm install @notionhq/client dotenv
+npm run notion:wire:dry-run
 
-# Or if using the scripts directory
-cd scripts/notion
-npm install
-```
-
----
-
-## Step 7: Run the Script
-
-### Dry Run (Preview Changes)
-
-```bash
+# Or directly
 npx tsx scripts/notion/wire-relations.ts --dry-run
 ```
 
 This will:
 - Query all databases
 - Show what relations would be created
-- NOT make any changes to Notion
+- **NOT make any changes to Notion**
 
-### Execute Wiring
+### Execute Wiring (Live)
 
 ```bash
+# From repo root
+npm run notion:wire
+
+# Or directly
 npx tsx scripts/notion/wire-relations.ts
 ```
 
 This will:
 - Read wiring fields from each page
-- Create relations to matching pages
-- Log any missing references (e.g., "SOP-999 not found")
-- Skip pages that are already wired (idempotent)
+- **SET** relations to exactly match wiring field values
+- Log any missing references
+- Update Notion in real-time
 
 ---
 
-## Runbook
+## Interpreting Output
 
-### Quick Commands
+### Success Messages
 
-```bash
-# 1. Install dependencies (first time only)
-npm install @notionhq/client dotenv
-
-# 2. Dry run to preview
-npx tsx scripts/notion/wire-relations.ts --dry-run
-
-# 3. Execute wiring
-npx tsx scripts/notion/wire-relations.ts
-
-# 4. Re-run after adding new pages (safe, idempotent)
-npx tsx scripts/notion/wire-relations.ts
 ```
+SET "Smart Form Submission" -> Related SOPs -> [Submission Operations, Error Handling]
+```
+Relation was successfully set.
 
-### Troubleshooting
+### Dry-Run Messages
+
+```
+[DRY-RUN] Would SET "Smart Form Submission" -> Related SOPs -> [Submission Operations]
+```
+Shows what would happen; no changes made.
+
+### Warning Messages
+
+```
+WARNING: "Smart Form Submission" references SOP "SOP-999" -> NOT FOUND
+```
+The referenced ID/name does not exist in the target database.
+
+**What to do:**
+1. Verify the ID exists in the target database
+2. Check for typos (IDs are case-sensitive: `SOP-001` not `sop-001`)
+3. If using names, ensure they match when lowercased and trimmed
+
+### Error Messages
+
+```
+FAILED "Feature Name" -> Related SOPs: API error message
+```
+Notion API call failed. Check:
+- Integration has access to the database
+- Relation property exists with exact name
+- Network connectivity
+
+---
+
+## Property Name Requirements
+
+Property names **MUST** match exactly as listed below.
+
+### Feature Registry
+| Property | Type | Purpose |
+|----------|------|---------|
+| `Feature ID` | Rich Text | Unique identifier (e.g., FEAT-001) |
+| `Feature Name` | Title | Feature display name |
+| `Related SOPs` | Relation | Links to SOP Library |
+| `Agent Owner` | Relation | Links to Agent Registry |
+| `Dependencies` | Relation | Links to other Features |
+| `Wiring: SOP IDs` | Rich Text | e.g., `SOP-001,SOP-002` |
+| `Wiring: Agent Names` | Rich Text | e.g., `AlertAgent,GradingAgent` |
+| `Wiring: Depends On` | Rich Text | e.g., `FEAT-003,FEAT-010` |
+
+### Agent Registry
+| Property | Type | Purpose |
+|----------|------|---------|
+| `Agent ID` | Rich Text | Unique identifier (e.g., AGENT-001) |
+| `Agent Name` | Title | Agent display name |
+| `Related SOPs` | Relation | Links to SOP Library |
+| `Wiring: SOP IDs` | Rich Text | e.g., `SOP-002,SOP-003` |
+
+### SOP Library
+| Property | Type | Purpose |
+|----------|------|---------|
+| `SOP ID` | Rich Text | Unique identifier (e.g., SOP-001) |
+| `SOP Title` | Title | SOP display name |
+| `Related Playbooks` | Relation | Links to Playbooks |
+| `Wiring: Playbook IDs` | Rich Text | e.g., `PB-001,PB-002` |
+
+### Playbooks
+| Property | Type | Purpose |
+|----------|------|---------|
+| `Playbook ID` | Rich Text | Unique identifier (e.g., PB-001) |
+| `Playbook Title` | Title | Playbook display name |
+
+---
+
+## Lookup Behavior
+
+The script resolves references in this order:
+
+1. **Exact ID match** (preferred): `SOP-001` matches page with `SOP ID = "SOP-001"`
+2. **Normalized title match**: `submission operations` matches page with title "Submission Operations" (case-insensitive, trimmed)
+
+**Recommendation:** Always use IDs (e.g., `SOP-001`) for deterministic wiring.
+
+---
+
+## Idempotency
+
+This script uses **SET behavior**:
+- Relations are replaced entirely with wiring field values
+- Running multiple times produces the same result
+- Safe to re-run after adding new pages or updating wiring fields
+
+---
+
+## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
-| "Could not find database" | Check that integration is shared with the database |
-| "Unauthorized" | Verify NOTION_TOKEN is correct and not expired |
-| "Property not found" | Ensure wiring properties exist with exact names |
+| "NOTION_TOKEN is not set" | Set `NOTION_TOKEN` in `.env.local` or as environment variable |
+| "Could not find database" | Verify integration is shared with the database |
+| "Unauthorized" | Check token is valid and not expired |
+| "Property not found" | Ensure property names match exactly (case-sensitive) |
 | "No pages found" | Database is empty or integration not connected |
+| Missing references | Verify IDs exist and match exactly in target database |
+| "is a page, not a database" | The script auto-resolves this; if it fails, see below |
+| "No inline database found" | The page doesn't contain a database. Copy the database link directly |
+| "Multiple inline databases" | Page has multiple DBs; use the specific database ID from the error message |
+
+### Getting the Correct Database ID
+
+If you encounter ID resolution errors:
+
+1. Open the specific database (not the parent page) in Notion
+2. Click the `...` menu in the top-right
+3. Select **"Copy link to view"**
+4. Extract the 32-character hex ID from the URL:
+   ```
+   https://www.notion.so/workspace/2ef5f8bee34480b59181e4650cf9aa02?v=...
+                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                    This is the database ID
+   ```
+5. Update your environment variable with this ID
 
 ---
 
-## Wiring Map Reference
+## Quick Reference
 
-### Relations Created by This Script
+```bash
+# Install dependencies (first time)
+npm install
 
-| Source Database | Relation Property | Target Database | Wiring Field |
-|-----------------|-------------------|-----------------|--------------|
-| Feature Registry | Related SOPs | SOPs | `Wiring: SOP IDs` |
-| Feature Registry | Agent Owner | Agent Registry | `Wiring: Agent Names` |
-| Feature Registry | Dependencies | Feature Registry | `Wiring: Depends On` |
-| Agent Registry | Related SOPs | SOPs | `Wiring: SOP IDs` |
-| SOPs | Related Playbooks | Playbooks | `Wiring: Playbook IDs` |
+# Preview changes
+npm run notion:wire:dry-run
 
-### Property Names (Must Match Exactly)
+# Apply changes
+npm run notion:wire
 
-**Feature Registry**:
-- Title: `Feature Name`
-- ID: `Feature ID`
-- Relations: `Related SOPs`, `Agent Owner`, `Dependencies`
-
-**Agent Registry**:
-- Title: `Agent Name`
-- ID: `Agent ID`
-- Relations: `Related SOPs`
-
-**SOPs**:
-- Title: `SOP Title`
-- ID: `SOP ID`
-- Relations: `Related Playbooks`
-
-**Playbooks**:
-- Title: `Playbook Title`
-- ID: `Playbook ID`
-
----
-
-## Architecture
-
+# Re-run after adding pages (safe, idempotent)
+npm run notion:wire
 ```
-┌─────────────────┐     Wiring: SOP IDs      ┌─────────────┐
-│ Feature Registry│─────────────────────────▶│    SOPs     │
-│                 │                          └─────────────┘
-│                 │     Wiring: Agent Names  ┌─────────────┐
-│                 │─────────────────────────▶│Agent Registry│
-│                 │                          └─────────────┘
-│                 │     Wiring: Depends On
-│                 │─────────────────────────▶│ (self)      │
-└─────────────────┘
-
-┌─────────────────┐     Wiring: SOP IDs      ┌─────────────┐
-│ Agent Registry  │─────────────────────────▶│    SOPs     │
-└─────────────────┘                          └─────────────┘
-
-┌─────────────────┐     Wiring: Playbook IDs ┌─────────────┐
-│      SOPs       │─────────────────────────▶│  Playbooks  │
-└─────────────────┘                          └─────────────┘
-```
-
----
-
-## Maintenance
-
-After adding new pages to any database:
-
-1. Fill in the wiring fields on the new pages
-2. Re-run the script: `npx tsx scripts/notion/wire-relations.ts`
-3. The script is idempotent - it won't duplicate existing relations
 
 ---
 
 ## Security Notes
 
-- **Never commit** `.env.local` to version control
+- NOTION_TOKEN should be stored in GitHub Secrets for CI/CD
+- Never commit real tokens to version control
 - The integration token has limited scope (only databases you share it with)
-- Rotate the token periodically via Notion's integration settings
 
 ---
 
 **Author**: Platform Engineering
+**Version**: 2.2.0
 **Last Updated**: 2026-01-21
