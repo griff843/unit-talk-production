@@ -1,37 +1,44 @@
 # UNIT TALK SYSTEM CONTRACT (AUTHORITATIVE)
 
-**Version**: 1.1
-**Authority**: Chief Systems Architect (Unit Talk)
-**Last Updated**: 2026-01-21
-**Scope**: This contract is the single source of truth for the Unit Talk stack. Any code, migration, worker, UI, or doc that violates this contract is invalid and must be corrected.
-**Applies to**: DB schema, API, Temporal/workers, Discord publisher, Smart Form, Command Center, CI/CD, docs.
+**Version**: 1.1 **Authority**: Chief Systems Architect (Unit Talk) **Last
+Updated**: 2026-01-21 **Scope**: This contract is the single source of truth for
+the Unit Talk stack. Any code, migration, worker, UI, or doc that violates this
+contract is invalid and must be corrected. **Applies to**: DB schema, API,
+Temporal/workers, Discord publisher, Smart Form, Command Center, CI/CD, docs.
 
 ---
 
 ## AUTHORITY & PRECEDENCE
 
-This document is the **single authoritative source of truth** for the Unit Talk platform.
+This document is the **single authoritative source of truth** for the Unit Talk
+platform.
 
 ### Precedence Order (highest to lowest)
-1. **SYSTEM_CONTRACT.md** (this document) - Canonical data model, lifecycle, invariants
+
+1. **SYSTEM_CONTRACT.md** (this document) - Canonical data model, lifecycle,
+   invariants
 2. **EXECUTION_PLAN.md** - Gate definitions and verification scripts
 3. **GATE_VERIFICATION.md** - Gate pass/fail criteria
 4. **App-specific CLAUDE.md files** - Implementation guidance per application
 5. **All other documentation** - Non-authoritative, informational only
 
 ### What This Contract Governs
+
 - Database schema (canonical tables, views, columns, constraints)
 - Data lifecycle (submission → publish → Discord)
 - Environment and secrets governance
 - Definition of Done criteria for releases
 
 ### What This Contract Does NOT Govern
+
 - Implementation details within applications (covered by app CLAUDE.md)
 - CI/CD workflow specifics (covered by EXECUTION_PLAN.md)
-- Historical audit artifacts (archived in docs/_archive/)
+- Historical audit artifacts (archived in docs/\_archive/)
 
 ### Conflict Resolution
-If any document conflicts with this contract, this contract wins. The conflicting document must be corrected or archived.
+
+If any document conflicts with this contract, this contract wins. The
+conflicting document must be corrected or archived.
 
 ---
 
@@ -243,16 +250,29 @@ is a contract violation.
 
 ## 5) ENFORCEMENT MECHANISMS (Week 2 Hardening)
 
-### 5.1 Database-Level Guardrails
+### 5.1 Canonical Column Mapping (Smart Form Requirements)
+
+Per Griff's authoritative directive (2026-01-21):
+
+| Requirement | Canonical Column | Type          | Description                       |
+| ----------- | ---------------- | ------------- | --------------------------------- |
+| **capper**  | `user_id`        | UUID FK→users | The capper who submitted the pick |
+| **units**   | `stake`          | NUMERIC(10,2) | Unit size for the bet             |
+| selection   | `selection`      | TEXT          | Pick selection (over/under/etc.)  |
+| sport       | `sport`          | TEXT          | Sport code (NFL, NBA, etc.)       |
+| trace_id    | `trace_id`       | TEXT          | End-to-end observability ID       |
+
+### 5.2 Database-Level Guardrails
 
 **CHECK Constraint: `chk_smart_form_required_fields`**
+
 ```sql
--- Enforced via migration: 20260121_pr10_smart_form_required_fields.sql
+-- Enforced via migration: 20260121_pr10_week2_smart_form_enforcement.sql
 ALTER TABLE unified_picks
 ADD CONSTRAINT chk_smart_form_required_fields CHECK (
-  form_source != 'smart_form' OR (
-    stake IS NOT NULL AND
-    user_id IS NOT NULL AND
+  form_source IS DISTINCT FROM 'smart_form' OR (
+    user_id IS NOT NULL AND   -- capper
+    stake IS NOT NULL AND     -- units
     selection IS NOT NULL AND
     sport IS NOT NULL AND
     trace_id IS NOT NULL
@@ -261,23 +281,62 @@ ADD CONSTRAINT chk_smart_form_required_fields CHECK (
 ```
 
 **Foreign Key: `pick_publish.pick_id → unified_picks.id`**
+
 - Enforces that every publish row references a valid pick
 - Prevents orphan publish records
 
-### 5.2 CI Gates (Fail-Closed)
+### 5.3 Anti-Cheat Enforcement (DB-Level Audit)
 
-| Gate | Workflow | What It Checks |
-|------|----------|----------------|
-| Schema Parity | `week2-governance-gates.yml` | Staging has all canonical tables |
-| picks VIEW Write-Blocked | `week2-governance-gates.yml` | picks VIEW rejects INSERT/UPDATE |
-| pick_publish FK Integrity | `week2-governance-gates.yml` | FK to unified_picks enforced |
-| Agent Contract | `week2-governance-gates.yml` | DiscordPromotionAgent reads from pick_publish |
-| Anti-Cheat | `week2-governance-gates.yml` | E2E uses Playwright, no direct DB inserts |
-| Outbox Lifecycle | `outbox-lifecycle-gate.yml` | pending → processing → sent transition |
+**Decision**: Trigger-based audit logging (not RLS)
+
+**Rationale**: RLS is bypassed by `service_role` key. Since Smart Form and API
+both use `service_role`, RLS cannot differentiate legitimate vs manual inserts.
+A trigger runs on ALL inserts regardless of role.
+
+**Components** (Migration: `20260121_pr10_week2_anticheat_enforcement.sql`):
+
+1. **Audit Table: `picks_audit_log`**
+   - Logs every insert to `unified_picks`
+   - Captures: `pick_id`, `form_source`, `trace_id`, `pg_role`, `pg_user`,
+     `client_ip`
+   - Enables forensic analysis of unauthorized inserts
+
+2. **Trigger: `trg_audit_picks_insert`**
+   - Fires AFTER INSERT on `unified_picks`
+   - Records metadata for every pick creation
+   - Cannot be bypassed by any role
+
+3. **CHECK Constraint: `chk_valid_form_source`**
+   - Enforces `form_source` must be from known values:
+     - `smart_form`, `api`, `ingestion`, `system`, `migration`, `test`
+   - Rejects unknown form_source values (e.g., 'hacker_script')
+
+**Forensic Query** (for detecting unauthorized inserts):
+
+```sql
+SELECT * FROM picks_audit_log
+WHERE pg_role NOT IN ('service_role', 'authenticated')
+   OR form_source NOT IN ('smart_form', 'api', 'ingestion', 'system')
+ORDER BY created_at DESC;
+```
+
+### 5.4 CI Gates (Fail-Closed)
+
+| Gate                         | Workflow                     | What It Checks                                   |
+| ---------------------------- | ---------------------------- | ------------------------------------------------ |
+| 0. Schema Introspection      | `week2-governance-gates.yml` | Outputs actual column structure                  |
+| 1. Schema Parity             | `week2-governance-gates.yml` | Staging has all canonical tables                 |
+| 2. picks VIEW Write-Blocked  | `week2-governance-gates.yml` | picks VIEW rejects INSERT/UPDATE                 |
+| 3. pick_publish FK Integrity | `week2-governance-gates.yml` | FK to unified_picks enforced                     |
+| 3.5. Smart Form CHECK        | `week2-governance-gates.yml` | Invalid smart_form inserts rejected              |
+| 4. Agent Contract            | `week2-governance-gates.yml` | DiscordPromotionAgent reads from pick_publish    |
+| 5. Anti-Cheat (E2E)          | `week2-governance-gates.yml` | E2E uses Playwright, no direct DB inserts        |
+| 5.5. Anti-Cheat (DB)         | `week2-governance-gates.yml` | Audit trigger exists, form_source CHECK enforced |
+| 6. Outbox Lifecycle          | `outbox-lifecycle-gate.yml`  | pending → processing → sent transition           |
 
 **Fail-Closed Behavior**: If ANY gate fails, the workflow fails. No exceptions.
 
-### 5.3 Proof Mechanism
+### 5.5 Proof Mechanism
 
 **Only CI-generated proof is authoritative.**
 
@@ -286,7 +345,7 @@ ADD CONSTRAINT chk_smart_form_required_fields CHECK (
 - Proof MUST show trace_id propagation through all canonical tables
 - Local script execution is NOT authoritative proof
 
-### 5.4 How to Verify
+### 5.6 How to Verify
 
 Run these workflows to verify system compliance:
 
@@ -312,6 +371,7 @@ is a hard fail and must be reverted or corrected. This contract overrides all
 older references.
 
 **Week 2 Hardening Gates** are non-negotiable. If any gate fails:
+
 1. The PR cannot be merged
 2. The deployment is blocked
 3. The issue must be fixed at the source (not bypassed)
