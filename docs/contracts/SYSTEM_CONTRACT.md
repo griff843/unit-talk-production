@@ -1,7 +1,7 @@
 # UNIT TALK SYSTEM CONTRACT (AUTHORITATIVE)
 
-**Version**: 1.1 **Authority**: Chief Systems Architect (Unit Talk) **Last
-Updated**: 2026-01-21 **Scope**: This contract is the single source of truth for
+**Version**: 1.2 **Authority**: Chief Systems Architect (Unit Talk) **Last
+Updated**: 2026-01-22 **Scope**: This contract is the single source of truth for
 the Unit Talk stack. Any code, migration, worker, UI, or doc that violates this
 contract is invalid and must be corrected. **Applies to**: DB schema, API,
 Temporal/workers, Discord publisher, Smart Form, Command Center, CI/CD, docs.
@@ -224,11 +224,29 @@ is a contract violation.
 
 ## 4) DEFINITION OF DONE (DoD) - ELITE PROOF BUNDLE
 
-### 4.1 E2E UI Proof Bundle
+### 4.1 Live Trace Proof (PRIMARY - Week 3 Mechanism)
 
-- Screenshot/video of Smart Form submission with visible trace_id
-- DB proof showing: smart_tickets, unified_picks, pick_publish rows
-- Discord proof: message link matching discord_message_id
+**The primary proof mechanism is operator-visible Live Trace in Command
+Center.**
+
+1. **Submit via Smart Form**: Operator submits a pick using Smart Form UI
+2. **View trace_id**: Smart Form displays trace_id on successful submission
+3. **Click "View in Command Center"**: Link opens Live Trace detail page
+4. **Verify lifecycle stages**:
+   - `unified_picks` row exists with correct trace_id
+   - `pick_publish` row shows status progression (pending → processing → sent)
+   - `discord_message_id` populated when published
+   - Discord proof link displayed and clickable
+
+**Command Center Live Trace URLs**:
+
+- List view: `/dashboard/ops/traces`
+- Detail view: `/dashboard/ops/traces/[trace_id]`
+
+**API Endpoints**:
+
+- `GET /api/ops/traces?limit=50&status=<pending|processing|sent|failed>`
+- `GET /api/ops/traces/[trace_id]`
 
 ### 4.2 Schema Parity Proof Bundle
 
@@ -240,6 +258,7 @@ is a contract violation.
 
 - Count of pending, processing, sent, failed
 - Stuck definition and enforcement
+- Live Trace UI shows real-time outbox status
 
 ### 4.4 Inventory + Legacy Archive Plan
 
@@ -336,31 +355,55 @@ ORDER BY created_at DESC;
 
 **Fail-Closed Behavior**: If ANY gate fails, the workflow fails. No exceptions.
 
-### 5.5 Proof Mechanism
+### 5.5 Proof Mechanism (Week 3 - Live Trace)
 
-**Only CI-generated proof is authoritative.**
+**Primary proof is OPERATOR-VISIBLE via Command Center Live Trace.**
 
-- Proof MUST be generated via GitHub Actions with secrets injection
-- Proof MUST use Playwright browser automation (not direct DB inserts)
-- Proof MUST show trace_id propagation through all canonical tables
-- Local script execution is NOT authoritative proof
+**Why Live Trace replaces headless Playwright proofs**:
+
+- Headless automation cannot provide real-time operator visibility
+- Operators need to SEE the lifecycle happen, not trust a CI log
+- Live Trace provides clickable Discord proof links
+- Auto-refresh enables watching state changes in real-time
+
+**Live Trace Proof Requirements**:
+
+1. Smart Form submission shows trace_id on success
+2. Smart Form provides "View in Command Center" link
+3. Command Center Live Trace shows:
+   - `unified_picks` row with correct data
+   - `pick_publish` status (pending → processing → sent)
+   - `discord_message_id` when published
+   - Clickable Discord message link
+
+**CI Gates remain for schema/governance enforcement only**:
+
+- CI validates schema parity, constraints, and code compliance
+- CI does NOT perform E2E proof via Playwright (removed)
+- Operator uses Live Trace for E2E lifecycle verification
 
 ### 5.6 How to Verify
 
-Run these workflows to verify system compliance:
+**For Schema/Governance (CI)**:
 
 ```bash
 # Trigger governance gates manually
 gh workflow run week2-governance-gates.yml --ref feat/pr9-go-live-hardening
 
-# Trigger outbox lifecycle test
-gh workflow run outbox-lifecycle-gate.yml --ref feat/pr9-go-live-hardening
-
 # Check schema parity
 gh workflow run schema-parity-check.yml --ref feat/pr9-go-live-hardening
 ```
 
-**DO NOT** run local scripts as proof. CI is the only proof mechanism.
+**For E2E Lifecycle (Operator via Live Trace)**:
+
+1. Open Smart Form: `SMART_FORM_URL/submit-ticket`
+2. Submit a test pick with real capper
+3. On success, click "View in Command Center"
+4. Watch lifecycle stages update (enable auto-refresh)
+5. When `discord_published`, click Discord proof link
+6. Verify message appears in Discord channel
+
+**DO NOT** rely on headless Playwright for E2E proof. Use Live Trace.
 
 ---
 

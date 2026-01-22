@@ -271,13 +271,43 @@ export function SmartTicketForm({ onSubmitSuccess }: SmartTicketFormProps) {
         throw new Error(result.error || 'Submission failed');
       }
 
+      // Build Command Center trace URL
+      const commandCenterUrl =
+        process.env.NEXT_PUBLIC_COMMAND_CENTER_URL || 'http://localhost:3001';
+      const traceUrl = result.trace_id
+        ? `${commandCenterUrl}/dashboard/ops/traces/${result.trace_id}`
+        : null;
+
       toast({
         title: result.isLive ? '🔴 Live Bet Submitted! 🎉' : 'Success! 🎉',
-        description: result.message || `Ticket submitted successfully. ID: ${result.ticketId}`,
+        description: (
+          <div className="space-y-2">
+            <p>{result.message || `Ticket submitted successfully. ID: ${result.ticketId}`}</p>
+            {result.trace_id && (
+              <div className="text-xs">
+                <span className="text-muted-foreground">Trace ID: </span>
+                <code className="bg-muted px-1 py-0.5 rounded">
+                  {result.trace_id.slice(0, 8)}...
+                </code>
+              </div>
+            )}
+            {traceUrl && (
+              <a
+                href={traceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 underline"
+              >
+                View in Command Center →
+              </a>
+            )}
+          </div>
+        ),
         variant: 'default',
+        duration: 10000, // Keep visible longer so user can click the link
       });
 
-      // Call success callback
+      // Call success callback with both ticketId and trace_id
       onSubmitSuccess?.(result.ticketId);
 
       // Reset form
