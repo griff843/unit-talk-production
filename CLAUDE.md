@@ -93,6 +93,210 @@ Never reference workflows or patterns that break parity between local/dev/prod.
 | Debug app          | `docker-compose exec app bash`                       | Local VSCode/terminal shell     |
 | Add/modify service | Edit `docker-compose.yml`/Dockerfile, use `./dev.sh` | Manual/one-off local commands   |
 
+## 🔧 MCP TOOLING CONSTITUTION (AUTHORITATIVE)
+
+**Goal**: Ensure every task is executed with the correct MCP tools
+automatically, producing auditable evidence artifacts, without user babysitting.
+
+### Claude Flow Execution Model (REQUIRED)
+
+**MANDATORY**: All audits, verifications, and multi-stage tasks MUST use the
+Claude Flow execution model with the following structure:
+
+1. **Plan Phase**: Define stages, required MCPs, expected artifacts
+2. **Execution Phase**: Execute with appropriate agents and MCP tools
+3. **Verification Phase**: Validate artifacts and evidence
+4. **PASS/FAIL Decision**: Final verdict with supporting evidence
+
+**Single-pass execution is PROHIBITED for audits.** Every audit must have
+explicit plan → execute → verify → decide phases.
+
+### MCP Usage Order (AUTHORITATIVE)
+
+When executing tasks, MCPs MUST be used in this priority order:
+
+| Priority | MCP                               | Purpose                                              | Violation Consequence            |
+| -------- | --------------------------------- | ---------------------------------------------------- | -------------------------------- |
+| 1        | **Filesystem MCP**                | Repo discovery, search, inventory, grep proofs       | Required for all file operations |
+| 2        | **PostgreSQL MCP / Supabase MCP** | ALL database queries, schema verification            | **Bash psql is FORBIDDEN**       |
+| 3        | **Playwright MCP**                | UI verification, E2E testing, form submissions       | Required for browser automation  |
+| 4        | **GitHub MCP**                    | CI/workflow inspection, PR management                | Required for repo governance     |
+| 5        | **Sequential-Thinking MCP**       | Stage gating, PASS/FAIL decisions, complex reasoning | Required for audits              |
+
+**VIOLATIONS**:
+
+- If an MCP is available and not used → **AUDIT INVALID**
+- If Bash psql is used instead of PostgreSQL/Supabase MCP → **AUDIT INVALID**
+- If file operations use bash cat/grep instead of Filesystem MCP → **AUDIT
+  INVALID**
+
+### Non-Negotiable Rules
+
+| Rule                       | Description                                                                                                      |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| **Evidence-First**         | Any non-trivial claim must be supported by an artifact written to `out/`                                         |
+| **Fail-Closed**            | If a required MCP for a stage is unavailable, STOP and output a `BLOCKED.md` with reason + workaround            |
+| **Single Source of Truth** | The SYSTEM CONTRACT + migrations are authoritative. MCP "memory" or summaries may not override canonical docs/DB |
+| **No Script Sprawl**       | Do not create new scripts unless unavoidable; if created, they must be referenced by CI and documented           |
+| **No Assumptions**         | Discover actual component names, don't assume (e.g., "GradingAgent" not "ScoringAgent")                          |
+| **Fail-Closed Stages**     | If a step cannot be proven, mark FAIL. Do NOT continue to later stages                                           |
+| **No Premature Fixes**     | Do NOT propose improvements before verification is complete                                                      |
+
+### Artifact Discipline (MANDATORY)
+
+Every claim in an audit MUST be backed by an artifact. Verbal summaries without
+artifacts are **INVALID**.
+
+**Required Artifact Location**: `out/<task_name>/<YYYY-MM-DD>/`
+
+**Required Artifacts for Audits**:
+
+- `00_GOVERNANCE_ENFORCEMENT.md` - Rules applied + why
+- `01_COMPONENTS_INVENTORY.md` - Discovered components with file paths
+- `02_CANONICAL_LIFECYCLE_MAP.md` - Actual system behavior mapping
+- `03_E2E_TRACE.md` - End-to-end execution trace with IDs
+- `04_DB_SNAPSHOTS.md` - Database state evidence
+- `05_DISCORD_PROOFS.md` - Discord posting evidence (URLs, message IDs)
+- `06_COMMAND_CENTER_PROOFS.md` - UI verification evidence
+- `07_RECAP_PROOF.md` - Recap generation evidence
+- `08_FEEDBACK_LOOP_AUDIT.md` - Learning signal verification
+- `PASS_FAIL_SCORECARD.md` - Final verdict with all evidence links
+
+### Stop Conditions (FAIL-CLOSED)
+
+The following conditions MUST halt execution and produce a BLOCKED artifact:
+
+| Condition              | Artifact                    | Content                               |
+| ---------------------- | --------------------------- | ------------------------------------- |
+| DB MCP unavailable     | `BLOCKED_DB_ACCESS.md`      | Connection details, error, workaround |
+| Discord egress fails   | `BLOCKED_DISCORD_EGRESS.md` | Channel, error, manual steps          |
+| Recaps cannot run      | `BLOCKED_RECAPS.md`         | Dependencies, error, recovery         |
+| Playwright unavailable | `BLOCKED_E2E.md`            | Browser state, fallback options       |
+
+### Available MCP Servers
+
+The following MCPs are configured in `.mcp.json` and should be used
+automatically based on task requirements:
+
+| MCP                     | Purpose                  | Use Cases                                                  | Status                |
+| ----------------------- | ------------------------ | ---------------------------------------------------------- | --------------------- |
+| **Playwright**          | Browser automation       | E2E testing, UI verification, Smart Form submission proofs | ✅ Active             |
+| **PostgreSQL**          | Database introspection   | Schema verification, constraint checks, query execution    | ✅ Active             |
+| **Filesystem**          | File operations          | Inventory creation, artifact management, grep proofs       | ✅ Active             |
+| **Sequential-Thinking** | Step-by-step reasoning   | Multi-stage tasks, stage gates, complex audits             | ✅ Active             |
+| **Supabase**            | Supabase platform        | RLS policies, RPC verification, real-time subscriptions    | Requires env vars     |
+| **GitHub**              | Repository management    | CI/CD verification, PR management, issue tracking          | Requires GITHUB_TOKEN |
+| **Docker**              | Container management     | Service health, runtime verification, logs                 | Use Bash tool         |
+| **Notion**              | Documentation (optional) | Report posting, scorecard publishing                       | Disabled              |
+
+**Note**: Docker MCP is not available via npm. Use the Bash tool with `docker`
+and `docker-compose` commands for container operations. GitHub and Supabase MCPs
+require environment variables to be set (GITHUB_TOKEN, SUPABASE_URL,
+SUPABASE_SERVICE_ROLE_KEY).
+
+### Stage-Based MCP Requirements
+
+When executing multi-stage tasks (audits, validations, deployments), use the
+appropriate MCPs for each stage:
+
+#### Stage 0 — Authority Sync (Docs + Truth Map)
+
+- **Required**: Filesystem MCP (read/grep)
+- **Optional**: GitHub MCP (confirm contract files)
+- **Artifacts**: `out/<task>/<date>/STAGE0_AUTHORITY_MAP.md`
+
+#### Stage 1 — Inventory & Parity (Repo + DB + Env)
+
+- **Required**: Filesystem, PostgreSQL, Docker, GitHub MCPs
+- **Optional**: Supabase MCP (RLS/policies verification)
+- **Artifacts**:
+  - `STAGE1_REPO_INVENTORY.json` + `.md`
+  - `STAGE1_DB_PROD_INVENTORY.json`
+  - `STAGE1_DB_STAGING_INVENTORY.json`
+  - `STAGE1_DB_PARITY_DIFF.md`
+  - `STAGE1_ENV_AUDIT.md`
+- **Fail-Closed**: If PostgreSQL MCP cannot connect → BLOCKED
+
+#### Stage 2 — Spine Verification (Outbox + E2E)
+
+- **Required**: PostgreSQL, Playwright, Filesystem MCPs + Bash (for Docker)
+- **Artifacts**:
+  - `STAGE2_OUTBOX_CONTRACT_REPORT.md`
+  - `STAGE2_E2E_TRACE.json`
+  - `STAGE2_DISCORD_PROOF.md`
+  - `STAGE2_DB_STATE_SNAPSHOTS.md`
+- **Fail-Closed**: If Playwright MCP unavailable → BLOCKED (cannot prove E2E)
+
+#### Stage 3 — Autonomy Proof (Agents + Temporal + CI Gates)
+
+- **Required**: PostgreSQL, GitHub MCPs + Bash (for Docker/Temporal health)
+- **Optional**: Notion MCP (posting reports)
+- **Artifacts**:
+  - `STAGE3_TEMPORAL_HEALTH.md`
+  - `STAGE3_AGENT_CONTRACT_REPORT.md`
+  - `STAGE3_GOVERNANCE_REPORT.md`
+  - `STAGE3_CI_GATES_REPORT.md`
+
+### Foundation Scorecard (Mandatory for Audits)
+
+Every audit or verification run must generate/update a scorecard:
+
+```markdown
+# FOUNDATION_SCORECARD.md
+
+| #   | Layer                    | Status   | Evidence       | Notes |
+| --- | ------------------------ | -------- | -------------- | ----- |
+| 1   | Product Rules / Contract | 🟢/🟡/🔴 | artifact links |       |
+| 2   | Repo Governance          |          |                |       |
+| 3   | Data Layer               |          |                |       |
+| 4   | Outbox Spine             |          |                |       |
+| 5   | Apps                     |          |                |       |
+| 6   | Agents                   |          |                |       |
+| 7   | Temporal                 |          |                |       |
+| 8   | Infra / Runtime          |          |                |       |
+| 9   | Observability            |          |                |       |
+| 10  | CI/CD                    |          |                |       |
+```
+
+- 🟢 PASS = exceeds or fully meets contract
+- 🟡 PARTIAL = exists but weaker than spec (must be fixed)
+- 🔴 FAIL = missing or broken (must be built)
+- 🟡 or 🔴 automatically triggers remediation and re-verify loop
+
+### Archive Policy (Mandatory)
+
+Conflicting or non-canonical docs/scripts must be moved to `archive/<date>/`:
+
+- Must produce: `ARCHIVE_MANIFEST.md`
+- Must provide grep proof that active references were removed
+
+### Swarm / ClaudeFlow Policy
+
+Use ClaudeFlow/Swarm (multi-agent orchestration) only for discovery and
+verification:
+
+- Stage 0 (authority mapping)
+- Stage 1 (inventory + parity)
+- Stage 2 (E2E verification)
+
+Use a **single Executor agent** for all remediation (code/migrations) to avoid
+conflicts.
+
+All swarm agents must write findings into the same ledger:
+
+- `out/<task>/<date>/FOUNDATION_SCORECARD.md`
+
+### MCP Execution Guidelines
+
+1. **Automatic Tool Selection**: Use the appropriate MCP based on task type
+   without user prompting
+2. **Evidence Generation**: All verification claims must produce artifacts in
+   `out/` directory
+3. **Fail-Closed Execution**: If a required MCP is unavailable, stop and report
+   rather than proceeding with incomplete verification
+4. **Idempotent Operations**: MCP operations should be safe to re-run
+5. **Audit Trail**: All MCP operations should be logged and traceable
+
 ## 🏗️ Workspace Architecture
 
 This is a **SaaS-grade monorepo** following Fortune 100 architecture standards
@@ -118,9 +322,10 @@ development-only changes.**
   zero errors, database connections verified ✅
 - **Real-Time Integration**: Live capper data (Griff843, Vicgo, Sauced,
   MoneyReef, Squirrel) ✅
-- **Production Pipeline**: Event-driven architecture with BridgeWorker,
-  Temporal workflows, and AlertAgent subscriptions ✅
-- **Smart Form Integration**: Bridge outbox pattern for reliable event delivery ✅
+- **Production Pipeline**: Event-driven architecture with BridgeWorker, Temporal
+  workflows, and AlertAgent subscriptions ✅
+- **Smart Form Integration**: Bridge outbox pattern for reliable event delivery
+  ✅
 
 **🎯 Production Deployment Priorities:**
 
@@ -317,8 +522,8 @@ users!user_id (username, discord_id, tier)
 
 ### Phase 1 Readiness Assessment
 
-Based on comprehensive codebase audit, the platform is **100% ready** for Phase 1
-implementation:
+Based on comprehensive codebase audit, the platform is **100% ready** for Phase
+1 implementation:
 
 **✅ Ready for Immediate Deployment:**
 
@@ -326,7 +531,8 @@ implementation:
 - **v3.0.0 Database**: Operational with 3-10x performance improvements
 - **Agent System**: 101 files implementing enterprise-grade BaseAgent pattern
 - **Infrastructure**: Docker Compose with monitoring stack (Prometheus/Grafana)
-- **TypeScript Excellence**: All compilation errors resolved across entire workspace
+- **TypeScript Excellence**: All compilation errors resolved across entire
+  workspace
 
 **🚀 Production Optimization Targets:**
 
@@ -403,11 +609,12 @@ docker-compose exec api npm run test:e2e    # Run Playwright tests
 
 ### 🔥 Current Production Priorities (Based on Audit)
 
-1. **TypeScript Excellence** ✅ **COMPLETED**: All errors resolved in apps/api and
-   apps/command-center - workspace now 100% production ready
+1. **TypeScript Excellence** ✅ **COMPLETED**: All errors resolved in apps/api
+   and apps/command-center - workspace now 100% production ready
 2. **Performance Optimization** (HIGH): Establish baselines for <100ms API,
    <50ms DB targets
-3. **Agent Orchestration** (MEDIUM): Deploy full agent system for live operations
+3. **Agent Orchestration** (MEDIUM): Deploy full agent system for live
+   operations
 4. **Documentation Sync** (LOW): Complete technical implementation plan
    integration
 
@@ -427,23 +634,34 @@ docker-compose exec api npm run test:e2e    # Run Playwright tests
 ## 🚀 Production Pipeline Architecture
 
 ### Event-Driven Architecture
-The Unit Talk platform uses a sophisticated event-driven architecture for reliable, scalable processing:
+
+The Unit Talk platform uses a sophisticated event-driven architecture for
+reliable, scalable processing:
 
 **Core Components:**
-- **BridgeWorker**: Dual-source event consumption from `events` and `bridge_outbox` tables
-- **Temporal Workflows**: Idempotent grading workflows with individual leg processing
-- **AlertAgent**: Event-driven subscriptions for injury, hedge, and middle opportunities
+
+- **BridgeWorker**: Dual-source event consumption from `events` and
+  `bridge_outbox` tables
+- **Temporal Workflows**: Idempotent grading workflows with individual leg
+  processing
+- **AlertAgent**: Event-driven subscriptions for injury, hedge, and middle
+  opportunities
 - **Command Center**: Real-time event stream with replay capabilities
 
 **Key Features:**
-- **Idempotent Processing**: All operations keyed by `bet_slip_id` to prevent duplicates
-- **Circuit Breaker Pattern**: Automatic fallback for external service failures  
+
+- **Idempotent Processing**: All operations keyed by `bet_slip_id` to prevent
+  duplicates
+- **Circuit Breaker Pattern**: Automatic fallback for external service failures
 - **Exponential Backoff**: Retry logic with 1min, 5min, 15min intervals
-- **Professional Grading**: 8 advanced features including steam detection, CLV, timing
-- **Real-Time Monitoring**: Server-Sent Events (SSE) for live pipeline monitoring
+- **Professional Grading**: 8 advanced features including steam detection, CLV,
+  timing
+- **Real-Time Monitoring**: Server-Sent Events (SSE) for live pipeline
+  monitoring
 - **Event Replay**: Full replay capabilities for operational recovery
 
 **Integration Points:**
+
 - Smart Form → `bridge_outbox` → BridgeWorker → Temporal Workflows
 - Supabase Realtime → AlertAgent → Discord Notifications
 - All Events → Command Center Event Stream → Monitoring Dashboard

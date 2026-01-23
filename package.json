@@ -37,6 +37,11 @@
     "health:check": "bash scripts/health-check.sh",
     "alerts:test": "bash scripts/test-alerts.sh",
     "db:reset": "bash scripts/reset-database.sh",
+    "ops:health": "tsx scripts/ops/health-api.ts && tsx scripts/ops/health-db.ts && tsx scripts/ops/health-temporal.ts",
+    "ops:audits": "tsx scripts/ops/rls-audit.ts && tsx scripts/ops/fk-audit.ts && tsx scripts/ops/index-audit.ts",
+    "ops:tier": "tsx scripts/ops/db-tiering.ts",
+    "ops:migrate": "tsx scripts/ops/apply-migrations.ts",
+    "ops:probe-db-host": "tsx scripts/ops/probe-db-host.ts",
     "prepare": "husky"
   },
   "keywords": [
@@ -55,7 +60,7 @@
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
-    "@types/node": "^20.19.9",
+    "@types/node": "^20.19.17",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
     "concurrently": "^8.0.0",
@@ -65,7 +70,9 @@
     "eslint-plugin-security": "^3.0.1",
     "lint-staged": "^16.1.4",
     "prettier": "^3.0.0",
-    "typescript": "^5.0.0"
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
@@ -81,7 +88,10 @@
     ]
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.57.4",
+    "@temporalio/client": "^1.13.0",
     "dotenv": "^17.2.1",
+    "pg": "^8.16.3",
     "zod": "^4.0.15"
   }
 }
