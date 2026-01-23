@@ -65,7 +65,7 @@ services:
       - unit-talk-network
     restart: unless-stopped
     profiles:
-      - ha  # High Availability profile
+      - ha # High Availability profile
 
   # Redis Cache & Session Store
   redis:
@@ -266,12 +266,12 @@ services:
       target: development
     container_name: unit-talk-api
     ports:
-      - "3010:3000"
+      - "3010:3030"
     env_file:
       - .env
     environment:
       - NODE_ENV=development
-      - PORT=3000
+      - PORT=3030
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
       - REDIS_URL=redis://redis:6379
       - TEMPORAL_SERVER_URL=temporal:7233
@@ -291,7 +291,7 @@ services:
       temporal:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3030/api/health"]
       interval: 30s
       timeout: 10s
       retries: 5

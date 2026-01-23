@@ -30,11 +30,11 @@ WORKDIR /app
 FROM base AS development
 
 # Install all dependencies (including dev)
+# NOTE: Using npm install instead of npm ci for workspaces monorepo compatibility
 COPY package*.json ./
-RUN npm ci && npm cache clean --force
+RUN npm install && npm cache clean --force
 
-# Copy centralized configuration (CRITICAL for v3.0.0)
-COPY ../../config/ ./config/
+# NOTE: Centralized config is mounted via docker-compose volumes, not copied during build
 
 # Copy source code and configs
 COPY . .
@@ -48,9 +48,9 @@ RUN npm rebuild @temporalio/core-bridge
 # Expose ports (app, debug, metrics)
 EXPOSE 3000 9229 9464
 
-# Health check
+# Health check (using port 3030 to match API_PORT in .env)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD curl -f http://localhost:3000/api/health || exit 1
+  CMD curl -f http://localhost:3030/api/health || exit 1
 
 # Development start with hot reload
 CMD ["npm", "run", "start:dev"]
@@ -64,7 +64,7 @@ FROM base AS builder
 COPY package*.json ./
 
 # Install all dependencies for building
-RUN npm ci
+RUN npm install
 
 # Copy source code
 COPY . .
@@ -79,7 +79,7 @@ FROM base AS production
 
 # Install only production dependencies
 COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+RUN npm install --only=production && npm cache clean --force
 
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
@@ -91,9 +91,9 @@ COPY --from=builder /app/config ./config
 # Expose port
 EXPOSE 3000
 
-# Health check
+# Health check (using port 3030 to match API_PORT in .env)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/api/health || exit 1
+  CMD curl -f http://localhost:3030/api/health || exit 1
 
 # Production start
 CMD ["npm", "start"]

@@ -22,11 +22,11 @@ WORKDIR /app
 FROM base AS development
 
 # Copy package files
+# NOTE: Using npm install instead of npm ci for workspaces monorepo compatibility
 COPY package*.json ./
-RUN npm ci && npm cache clean --force
+RUN npm install && npm cache clean --force
 
-# Copy centralized configuration (CRITICAL for v3.0.0)
-COPY ../../config/ ./config/
+# NOTE: Centralized config is mounted via docker-compose volumes, not copied during build
 
 # Copy source code
 COPY . .
@@ -56,7 +56,7 @@ FROM base AS builder
 
 # Copy package files
 COPY package*.json ./
-RUN npm ci
+RUN npm install
 
 # Copy source code
 COPY . .
@@ -72,7 +72,7 @@ FROM base AS production
 
 # Install only production dependencies
 COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+RUN npm install --only=production && npm cache clean --force
 
 # Copy built application
 COPY --from=builder /app/.next/standalone ./
