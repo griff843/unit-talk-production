@@ -1,6 +1,7 @@
 # ==============================================
 # Multi-stage Dockerfile for Unit Talk Command Center
 # Next.js operational dashboard with real-time monitoring
+# Reproducible builds with npm ci + lockfile
 # ==============================================
 
 # Base image
@@ -21,19 +22,27 @@ WORKDIR /app
 # ==============================================
 FROM base AS development
 
-# Copy package files
-COPY package*.json ./
-COPY tsconfig*.json ./
-RUN npm install --legacy-peer-deps && npm cache clean --force
+# Copy root package files including lockfile for reproducible builds
+COPY package.json package-lock.json ./
 
-# Copy centralized configuration (CRITICAL for v3.0.0)
-COPY ../../config/ ./config/
+# Copy workspace package files
+COPY apps/command-center/package.json ./apps/command-center/
+COPY apps/command-center/tsconfig*.json ./apps/command-center/
+COPY packages/shared-types/package.json ./packages/shared-types/
+COPY packages/shared-utils/package.json ./packages/shared-utils/
+COPY packages/database/package.json ./packages/database/
+COPY packages/config/package.json ./packages/config/
+
+# Install all dependencies using npm ci for reproducibility
+# Note: Using --legacy-peer-deps for peer dependency conflicts
+RUN npm ci --legacy-peer-deps && npm cache clean --force
 
 # Copy source code
-COPY . .
+COPY apps/command-center/ ./apps/command-center/
+COPY packages/ ./packages/
 
-# Development mode - run as root for simplicity during Docker troubleshooting
-# TODO: Switch back to non-root user once development is stable
+# Set working directory to app
+WORKDIR /app/apps/command-center
 
 # Expose port
 EXPOSE 3000
@@ -50,18 +59,28 @@ CMD ["npm", "run", "dev"]
 # ==============================================
 FROM base AS builder
 
-# Copy package files
-COPY package*.json ./
-COPY tsconfig*.json ./
-RUN npm install --legacy-peer-deps
+WORKDIR /app
 
-# Copy centralized configuration (CRITICAL for v3.0.0)
-COPY ../../config/ ./config/
+# Copy root package files including lockfile
+COPY package.json package-lock.json ./
+
+# Copy workspace package files
+COPY apps/command-center/package.json ./apps/command-center/
+COPY apps/command-center/tsconfig*.json ./apps/command-center/
+COPY packages/shared-types/package.json ./packages/shared-types/
+COPY packages/shared-utils/package.json ./packages/shared-utils/
+COPY packages/database/package.json ./packages/database/
+COPY packages/config/package.json ./packages/config/
+
+# Install all dependencies for building
+RUN npm ci --legacy-peer-deps
 
 # Copy source code
-COPY . .
+COPY apps/command-center/ ./apps/command-center/
+COPY packages/ ./packages/
 
 # Build Next.js application
+WORKDIR /app/apps/command-center
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
@@ -73,10 +92,15 @@ FROM base AS production
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Copy built application
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
+WORKDIR /app
+
+# Copy built application from builder (standalone output)
+COPY --from=builder /app/apps/command-center/.next/standalone ./
+COPY --from=builder /app/apps/command-center/.next/static ./apps/command-center/.next/static
+COPY --from=builder /app/apps/command-center/public ./apps/command-center/public
+
+# Set working directory to app
+WORKDIR /app/apps/command-center
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \

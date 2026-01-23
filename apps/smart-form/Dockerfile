@@ -1,6 +1,7 @@
 # ==============================================
 # Multi-stage Dockerfile for Unit Talk Smart Form
 # Next.js application with development support
+# Reproducible builds with npm ci + lockfile
 # ==============================================
 
 # Base image
@@ -21,15 +22,25 @@ WORKDIR /app
 # ==============================================
 FROM base AS development
 
-# Copy package files
-# NOTE: Using npm install instead of npm ci for workspaces monorepo compatibility
-COPY package*.json ./
-RUN npm install && npm cache clean --force
+# Copy root package files including lockfile for reproducible builds
+COPY package.json package-lock.json ./
 
-# NOTE: Centralized config is mounted via docker-compose volumes, not copied during build
+# Copy workspace package files
+COPY apps/smart-form/package.json ./apps/smart-form/
+COPY packages/shared-types/package.json ./packages/shared-types/
+COPY packages/shared-utils/package.json ./packages/shared-utils/
+COPY packages/database/package.json ./packages/database/
+COPY packages/config/package.json ./packages/config/
+
+# Install all dependencies using npm ci for reproducibility
+RUN npm ci && npm cache clean --force
 
 # Copy source code
-COPY . .
+COPY apps/smart-form/ ./apps/smart-form/
+COPY packages/ ./packages/
+
+# Set working directory to app
+WORKDIR /app/apps/smart-form
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
@@ -54,14 +65,27 @@ CMD ["npm", "run", "dev"]
 # ==============================================
 FROM base AS builder
 
-# Copy package files
-COPY package*.json ./
-RUN npm install
+WORKDIR /app
+
+# Copy root package files including lockfile
+COPY package.json package-lock.json ./
+
+# Copy workspace package files
+COPY apps/smart-form/package.json ./apps/smart-form/
+COPY packages/shared-types/package.json ./packages/shared-types/
+COPY packages/shared-utils/package.json ./packages/shared-utils/
+COPY packages/database/package.json ./packages/database/
+COPY packages/config/package.json ./packages/config/
+
+# Install all dependencies for building
+RUN npm ci
 
 # Copy source code
-COPY . .
+COPY apps/smart-form/ ./apps/smart-form/
+COPY packages/ ./packages/
 
 # Build Next.js application
+WORKDIR /app/apps/smart-form
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
@@ -70,14 +94,28 @@ RUN npm run build
 # ==============================================
 FROM base AS production
 
-# Install only production dependencies
-COPY package*.json ./
-RUN npm install --only=production && npm cache clean --force
+WORKDIR /app
+
+# Copy root package files including lockfile
+COPY package.json package-lock.json ./
+
+# Copy workspace package files
+COPY apps/smart-form/package.json ./apps/smart-form/
+COPY packages/shared-types/package.json ./packages/shared-types/
+COPY packages/shared-utils/package.json ./packages/shared-utils/
+COPY packages/database/package.json ./packages/database/
+COPY packages/config/package.json ./packages/config/
+
+# Install only production dependencies using npm ci
+RUN npm ci --omit=dev && npm cache clean --force
 
 # Copy built application
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
+COPY --from=builder /app/apps/smart-form/.next/standalone ./
+COPY --from=builder /app/apps/smart-form/.next/static ./apps/smart-form/.next/static
+COPY --from=builder /app/apps/smart-form/public ./apps/smart-form/public
+
+# Set working directory to app
+WORKDIR /app/apps/smart-form
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \

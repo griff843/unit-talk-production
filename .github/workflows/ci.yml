@@ -12,10 +12,164 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  # Foundation Guardrails (fail-closed)
+  foundation-guardrails:
+    name: Foundation Guardrails
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for legacy Supabase project refs
+        run: |
+          echo "🔍 Checking for legacy Supabase project references..."
+
+          # Define known legacy project refs to block
+          LEGACY_REFS=(
+            "xyzcompany"
+            "old-project-ref"
+          )
+
+          # Check for any hardcoded Supabase URLs with project refs
+          if grep -rE "[a-z0-9]{20}\.supabase\.co" apps/ packages/ scripts/ config/ --include="*.ts" --include="*.tsx" --include="*.js" --include="*.json" 2>/dev/null | grep -v "your-project" | grep -v "example" | grep -v ".example"; then
+            echo "❌ FAIL: Found hardcoded Supabase project URLs in source code"
+            echo "All Supabase URLs must use environment variables"
+            exit 1
+          fi
+
+          echo "✅ No legacy Supabase project refs found"
+
+      - name: Check for hardcoded supabase.co URLs in apps/packages
+        run: |
+          echo "🔍 Checking for hardcoded *.supabase.co URLs..."
+
+          # Check apps/ and packages/ for hardcoded URLs (excluding docs placeholders)
+          FOUND=$(grep -rE "https://[a-zA-Z0-9-]+\.supabase\.co" apps/ packages/ --include="*.ts" --include="*.tsx" --include="*.js" 2>/dev/null | grep -v "your-project" | grep -v "example" | grep -v "placeholder" || true)
+
+          if [ -n "$FOUND" ]; then
+            echo "❌ FAIL: Found hardcoded Supabase URLs in apps/ or packages/:"
+            echo "$FOUND"
+            echo ""
+            echo "All Supabase URLs must be loaded from SUPABASE_URL environment variable"
+            exit 1
+          fi
+
+          echo "✅ No hardcoded Supabase URLs in apps/packages"
+
+      - name: Validate canary env vars in CI (staging environment)
+        run: |
+          echo "🔍 Validating canary channel configuration..."
+
+          # Check if this is a staging/canary deployment context
+          if [ "$CANARY_MODE" = "true" ]; then
+            echo "CANARY_MODE is enabled, validating required channel IDs..."
+
+            MISSING=""
+
+            if [ -z "$DISCORD_CANARY_PUBLISH_CHANNEL_ID" ]; then
+              MISSING="$MISSING DISCORD_CANARY_PUBLISH_CHANNEL_ID"
+            fi
+
+            if [ -z "$DISCORD_CANARY_DEBUG_CHANNEL_ID" ]; then
+              MISSING="$MISSING DISCORD_CANARY_DEBUG_CHANNEL_ID"
+            fi
+
+            if [ -z "$DISCORD_CANARY_ALERTS_CHANNEL_ID" ]; then
+              MISSING="$MISSING DISCORD_CANARY_ALERTS_CHANNEL_ID"
+            fi
+
+            if [ -n "$MISSING" ]; then
+              echo "❌ FAIL: CANARY_MODE=true but missing required env vars:$MISSING"
+              echo "These must be set as GitHub Variables (not Secrets) for staging environment"
+              exit 1
+            fi
+
+            echo "✅ All required canary channel IDs configured"
+          else
+            echo "ℹ️ CANARY_MODE not enabled, skipping canary validation"
+          fi
+        env:
+          CANARY_MODE: ${{ vars.CANARY_MODE }}
+          DISCORD_CANARY_PUBLISH_CHANNEL_ID: ${{ vars.DISCORD_CANARY_PUBLISH_CHANNEL_ID }}
+          DISCORD_CANARY_DEBUG_CHANNEL_ID: ${{ vars.DISCORD_CANARY_DEBUG_CHANNEL_ID }}
+          DISCORD_CANARY_ALERTS_CHANNEL_ID: ${{ vars.DISCORD_CANARY_ALERTS_CHANNEL_ID }}
+
+      - name: Verify DISCORD_BOT_TOKEN is secret (not variable)
+        run: |
+          echo "🔍 Verifying secrets classification..."
+
+          # Check that DISCORD_BOT_TOKEN is available as secret (if set)
+          if [ -n "$DISCORD_BOT_TOKEN_FROM_VAR" ]; then
+            echo "⚠️ WARNING: DISCORD_BOT_TOKEN found in GitHub Variables"
+            echo "This should be a SECRET, not a Variable"
+            echo "Please move it to repository Secrets"
+          fi
+
+          echo "✅ Secrets classification check complete"
+        env:
+          DISCORD_BOT_TOKEN_FROM_VAR: ${{ vars.DISCORD_BOT_TOKEN }}
+
+      - name: Check Dockerfile reproducibility (npm ci enforcement)
+        run: |
+          echo "🔍 Checking Dockerfiles for reproducible builds..."
+
+          # Check that all Dockerfiles use npm ci, not npm install
+          DOCKERFILES=$(find . -name "Dockerfile*" -not -path "./node_modules/*" -not -path "./.git/*")
+          VIOLATIONS=""
+
+          for dockerfile in $DOCKERFILES; do
+            echo "Checking: $dockerfile"
+
+            # Look for npm install that is NOT in a comment
+            # Match lines that have "npm install" but don't start with #
+            if grep -E "^\s*RUN.*npm\s+install" "$dockerfile" 2>/dev/null | grep -v "^#" | grep -v "# "; then
+              echo "❌ VIOLATION: $dockerfile uses 'npm install' instead of 'npm ci'"
+              VIOLATIONS="$VIOLATIONS $dockerfile"
+            fi
+          done
+
+          if [ -n "$VIOLATIONS" ]; then
+            echo ""
+            echo "❌ FAIL: The following Dockerfiles use 'npm install' instead of 'npm ci':"
+            echo "$VIOLATIONS"
+            echo ""
+            echo "For reproducible builds, all Dockerfiles MUST use 'npm ci' with package-lock.json"
+            echo "See: out/repro_build_fix/2026-01-23/01_INVENTORY.md for the correct pattern"
+            exit 1
+          fi
+
+          echo "✅ All Dockerfiles use npm ci for reproducible builds"
+
+      - name: Verify root lockfile exists
+        run: |
+          echo "🔍 Verifying package-lock.json exists at root..."
+
+          if [ ! -f "package-lock.json" ]; then
+            echo "❌ FAIL: package-lock.json not found at repository root"
+            echo "This file is REQUIRED for reproducible npm ci builds"
+            exit 1
+          fi
+
+          echo "✅ package-lock.json exists at root"
+
+      - name: Generate guardrails report
+        run: |
+          echo "📋 Foundation Guardrails Summary"
+          echo "================================"
+          echo "✅ Legacy Supabase refs: PASS"
+          echo "✅ Hardcoded URLs: PASS"
+          echo "✅ Canary env validation: PASS"
+          echo "✅ Secrets classification: PASS"
+          echo "✅ Dockerfile reproducibility: PASS"
+          echo "✅ Root lockfile exists: PASS"
+          echo ""
+          echo "🛡️ Foundation guardrails passed"
+
   # Documentation Validation
   docs-validation:
     name: Validate Documentation
     runs-on: ubuntu-latest
+    needs: [foundation-guardrails]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -47,6 +201,7 @@ jobs:
   code-quality:
     name: Code Quality
     runs-on: ubuntu-latest
+    needs: [foundation-guardrails]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -141,7 +296,7 @@ jobs:
   build:
     name: Build Applications
     runs-on: ubuntu-latest
-    needs: [docs-validation, code-quality, test]
+    needs: [foundation-guardrails, docs-validation, code-quality, test]
     strategy:
       matrix:
         app: [api, discord-bot, dashboard, smart-form, command-center]

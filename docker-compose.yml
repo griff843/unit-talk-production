@@ -261,8 +261,8 @@ services:
   # Main API Platform
   api:
     build:
-      context: ./apps/api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/api/Dockerfile
       target: development
     container_name: unit-talk-api
     ports:
@@ -338,8 +338,8 @@ services:
   # Discord Bot
   discord-bot:
     build:
-      context: ./apps/discord-bot
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/discord-bot/Dockerfile
       target: development
     container_name: unit-talk-discord-bot
     environment:
@@ -367,8 +367,8 @@ services:
   # Smart Form Application
   smart-form:
     build:
-      context: ./apps/smart-form
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/smart-form/Dockerfile
       target: development
     container_name: unit-talk-smart-form
     ports:
@@ -399,8 +399,8 @@ services:
   # Dashboard Application
   dashboard:
     build:
-      context: ./apps/dashboard
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/dashboard/Dockerfile
       target: development
     container_name: unit-talk-dashboard
     ports:
@@ -429,8 +429,8 @@ services:
   # Command Center
   command-center:
     build:
-      context: ./apps/command-center
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/command-center/Dockerfile
       target: development
     container_name: unit-talk-command-center
     ports:

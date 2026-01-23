@@ -1,0 +1,70 @@
+# ==============================================
+# Docker Build Ignore - Unit Talk Platform
+# Ensures reproducible builds with npm ci
+# ==============================================
+
+# Dependencies - CRITICAL: Must be excluded for npm ci to work
+node_modules
+**/node_modules
+
+# Build outputs
+dist
+**/dist
+.next
+**/.next
+build
+**/build
+coverage
+**/coverage
+
+# Version control
+.git
+.gitignore
+
+# Development files
+.env
+.env.*
+!.env.example
+*.log
+logs
+**/logs
+
+# IDE and editor
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test files (not needed in production builds)
+**/*.test.ts
+**/*.test.js
+**/*.spec.ts
+**/*.spec.js
+__tests__
+**/__tests__
+__mocks__
+**/__mocks__
+
+# Documentation (not needed in container)
+*.md
+!README.md
+docs
+
+# Output directories
+out
+archive
+
+# Temporary files
+tmp
+temp
+*.tmp
+
+# Docker-specific
+Dockerfile*
+docker-compose*.yml
+.dockerignore

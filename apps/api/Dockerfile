@@ -1,6 +1,7 @@
 # ==============================================
 # Multi-stage Dockerfile for Unit Talk API
 # Fortune 100-grade production & development
+# Reproducible builds with npm ci + lockfile
 # ==============================================
 
 # Base image with build tools (using Debian-based image for glibc compatibility)
@@ -29,21 +30,28 @@ WORKDIR /app
 # ==============================================
 FROM base AS development
 
-# Install all dependencies (including dev)
-# NOTE: Using npm install instead of npm ci for workspaces monorepo compatibility
-COPY package*.json ./
-RUN npm install && npm cache clean --force
+# Copy root package files including lockfile for reproducible builds
+COPY package.json package-lock.json ./
 
-# NOTE: Centralized config is mounted via docker-compose volumes, not copied during build
+# Copy workspace package files
+COPY apps/api/package.json ./apps/api/
+COPY packages/shared-types/package.json ./packages/shared-types/
+COPY packages/shared-utils/package.json ./packages/shared-utils/
+COPY packages/database/package.json ./packages/database/
+COPY packages/config/package.json ./packages/config/
 
-# Copy source code and configs
-COPY . .
+# Install all dependencies using npm ci for reproducibility
+RUN npm ci && npm cache clean --force
+
+# Copy source code
+COPY apps/api/ ./apps/api/
+COPY packages/ ./packages/
+
+# Set working directory to app
+WORKDIR /app/apps/api
 
 # Rebuild native modules for Temporal SDK
 RUN npm rebuild @temporalio/core-bridge
-
-# Development mode - run as root for simplicity during Docker build issues
-# TODO: Switch back to non-root user once build is stable
 
 # Expose ports (app, debug, metrics)
 EXPOSE 3000 9229 9464
@@ -60,16 +68,27 @@ CMD ["npm", "run", "start:dev"]
 # ==============================================
 FROM base AS builder
 
-# Copy package files
-COPY package*.json ./
+WORKDIR /app
+
+# Copy root package files including lockfile
+COPY package.json package-lock.json ./
+
+# Copy workspace package files
+COPY apps/api/package.json ./apps/api/
+COPY packages/shared-types/package.json ./packages/shared-types/
+COPY packages/shared-utils/package.json ./packages/shared-utils/
+COPY packages/database/package.json ./packages/database/
+COPY packages/config/package.json ./packages/config/
 
 # Install all dependencies for building
-RUN npm install
+RUN npm ci
 
 # Copy source code
-COPY . .
+COPY apps/api/ ./apps/api/
+COPY packages/ ./packages/
 
 # Build TypeScript
+WORKDIR /app/apps/api
 RUN npm run build
 
 # ==============================================
@@ -77,16 +96,28 @@ RUN npm run build
 # ==============================================
 FROM base AS production
 
-# Install only production dependencies
-COPY package*.json ./
-RUN npm install --only=production && npm cache clean --force
+WORKDIR /app
+
+# Copy root package files including lockfile
+COPY package.json package-lock.json ./
+
+# Copy workspace package files
+COPY apps/api/package.json ./apps/api/
+COPY packages/shared-types/package.json ./packages/shared-types/
+COPY packages/shared-utils/package.json ./packages/shared-utils/
+COPY packages/database/package.json ./packages/database/
+COPY packages/config/package.json ./packages/config/
+
+# Install only production dependencies using npm ci
+RUN npm ci --omit=dev && npm cache clean --force
 
 # Copy built application from builder stage
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/migrations ./migrations
-COPY --from=builder /app/config ./config
+COPY --from=builder /app/apps/api/dist ./apps/api/dist
+COPY --from=builder /app/apps/api/migrations ./apps/api/migrations
+COPY --from=builder /app/apps/api/config ./apps/api/config
 
-# Production mode - TODO: Add non-root user back after development testing
+# Set working directory to app
+WORKDIR /app/apps/api
 
 # Expose port
 EXPOSE 3000

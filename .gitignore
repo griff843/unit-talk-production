@@ -101,7 +101,6 @@ desktop.ini
 migrations/backup/
 
 # Docker and containerization
-.dockerignore
 docker-compose.override.yml
 .docker/
 

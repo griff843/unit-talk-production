@@ -1,6 +1,7 @@
 # ==============================================
 # Multi-stage Dockerfile for Unit Talk Dashboard
 # Next.js application with development support
+# Reproducible builds with npm ci + lockfile
 # ==============================================
 
 # Base image
@@ -21,15 +22,25 @@ WORKDIR /app
 # ==============================================
 FROM base AS development
 
-# Copy package files
-COPY package*.json ./
-RUN npm install && npm cache clean --force
+# Copy root package files including lockfile for reproducible builds
+COPY package.json package-lock.json ./
 
-# Copy centralized configuration (CRITICAL for v3.0.0)
-COPY ../../config/ ./config/
+# Copy workspace package files
+COPY apps/dashboard/package.json ./apps/dashboard/
+COPY packages/shared-types/package.json ./packages/shared-types/
+COPY packages/shared-utils/package.json ./packages/shared-utils/
+COPY packages/database/package.json ./packages/database/
+COPY packages/config/package.json ./packages/config/
+
+# Install all dependencies using npm ci for reproducibility
+RUN npm ci && npm cache clean --force
 
 # Copy source code
-COPY . .
+COPY apps/dashboard/ ./apps/dashboard/
+COPY packages/ ./packages/
+
+# Set working directory to app
+WORKDIR /app/apps/dashboard
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
@@ -54,14 +65,27 @@ CMD ["npm", "run", "dev"]
 # ==============================================
 FROM base AS builder
 
-# Copy package files
-COPY package*.json ./
-RUN npm install
+WORKDIR /app
+
+# Copy root package files including lockfile
+COPY package.json package-lock.json ./
+
+# Copy workspace package files
+COPY apps/dashboard/package.json ./apps/dashboard/
+COPY packages/shared-types/package.json ./packages/shared-types/
+COPY packages/shared-utils/package.json ./packages/shared-utils/
+COPY packages/database/package.json ./packages/database/
+COPY packages/config/package.json ./packages/config/
+
+# Install all dependencies for building
+RUN npm ci
 
 # Copy source code
-COPY . .
+COPY apps/dashboard/ ./apps/dashboard/
+COPY packages/ ./packages/
 
 # Build Next.js application
+WORKDIR /app/apps/dashboard
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
@@ -70,14 +94,18 @@ RUN npm run build
 # ==============================================
 FROM base AS production
 
-# Install only production dependencies
-COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Copy built application
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
+WORKDIR /app
+
+# Copy built application from builder (standalone output)
+COPY --from=builder /app/apps/dashboard/.next/standalone ./
+COPY --from=builder /app/apps/dashboard/.next/static ./apps/dashboard/.next/static
+COPY --from=builder /app/apps/dashboard/public ./apps/dashboard/public
+
+# Set working directory to app
+WORKDIR /app/apps/dashboard
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
