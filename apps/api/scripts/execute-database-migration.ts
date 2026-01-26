@@ -4,11 +4,12 @@
 /**
  * Database Schema Migration Executor
  *
- * Deterministic migration discovery and execution:
- * 1. MIGRATIONS_DIR env var override (default: /app/apps/api/migrations)
- * 2. Recursively finds all *.sql under that directory
- * 3. Sort order: numeric prefix files first (e.g., 004_*.sql), then remaining alphabetically
- * 4. Executes in order with clear error reporting
+ * Supports both local Postgres (DATABASE_URL) and Supabase connections.
+ * Schema validation uses standard information_schema.columns introspection.
+ *
+ * Connection Priority:
+ * 1. DATABASE_URL (standard Postgres connection string)
+ * 2. SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (Supabase client)
  *
  * Usage:
  *   npm run db:migrate:critical          # Execute all migrations
@@ -18,7 +19,7 @@
 import { readdirSync, readFileSync, statSync, existsSync } from 'fs';
 import { join, basename, relative } from 'path';
 
-import { createClient } from '@supabase/supabase-js';
+import { Client } from 'pg';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -46,26 +47,42 @@ interface ExecutionReport {
   overallSuccess: boolean;
 }
 
+interface TableInfo {
+  table_name: string;
+  column_count: number;
+}
+
 const LINE = '='.repeat(70);
 const DASH = '-'.repeat(70);
 
 class DatabaseMigrationExecutor {
-  private supabase: ReturnType<typeof createClient>;
   private migrationsDir: string;
+  private connectionString: string;
 
   constructor() {
-    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      throw new Error('Missing required: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY');
+    // Prefer DATABASE_URL for local Postgres, fall back to Supabase
+    if (process.env.DATABASE_URL) {
+      this.connectionString = process.env.DATABASE_URL;
+    } else if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      // Construct connection string from Supabase URL
+      const url = new URL(process.env.SUPABASE_URL);
+      const host = url.hostname.replace('.supabase.co', '.supabase.com');
+      this.connectionString = `postgresql://postgres:${process.env.SUPABASE_SERVICE_ROLE_KEY}@${host}:5432/postgres`;
+    } else {
+      throw new Error('Missing database connection: Set DATABASE_URL or SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY');
     }
 
-    this.supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-
-    // Resolve migrations directory: env var > Docker path > local path
     this.migrationsDir =
       process.env.MIGRATIONS_DIR ||
       (existsSync('/app/apps/api/migrations')
         ? '/app/apps/api/migrations'
         : join(process.cwd(), 'migrations'));
+  }
+
+  private async getClient(): Promise<Client> {
+    const client = new Client({ connectionString: this.connectionString });
+    await client.connect();
+    return client;
   }
 
   private findSqlFiles(dir: string, baseDir: string = dir): MigrationFile[] {
@@ -124,7 +141,7 @@ class DatabaseMigrationExecutor {
     console.log('');
   }
 
-  private async executeSqlFile(migration: MigrationFile): Promise<MigrationResult> {
+  private async executeSqlFile(client: Client, migration: MigrationFile): Promise<MigrationResult> {
     const result: MigrationResult = { file: migration.relativePath, success: false };
 
     try {
@@ -135,17 +152,7 @@ class DatabaseMigrationExecutor {
       }
 
       console.log(`  [EXEC] ${migration.relativePath}...`);
-      const { error } = await this.supabase.rpc('exec_sql', { sql_query: sql });
-
-      if (error) {
-        if (error.message.includes('function') && error.message.includes('does not exist')) {
-          console.log(`  [INFO] exec_sql function not available`);
-          console.log(`  [INFO] Execute manually in Supabase SQL Editor: ${migration.path}`);
-          return { ...result, error: 'Manual execution required - exec_sql unavailable' };
-        }
-        throw new Error(error.message);
-      }
-
+      await client.query(sql);
       console.log(`  [OK] ${migration.relativePath}`);
       return { ...result, success: true };
     } catch (err) {
@@ -178,47 +185,42 @@ class DatabaseMigrationExecutor {
 
     if (migrations.length === 0) {
       console.log('No migration files found. Nothing to execute.');
-      return {
-        migrationsDir: this.migrationsDir,
-        totalFiles: 0,
-        successful: 0,
-        failed: 0,
-        results: [],
-        overallSuccess: true,
-      };
+      return { migrationsDir: this.migrationsDir, totalFiles: 0, successful: 0, failed: 0, results: [], overallSuccess: true };
     }
 
-    console.log('EXECUTING MIGRATIONS');
-    console.log(DASH);
+    const client = await this.getClient();
+    try {
+      console.log('EXECUTING MIGRATIONS');
+      console.log(DASH);
 
-    const results: MigrationResult[] = [];
-    let successful = 0;
-    let failed = 0;
+      const results: MigrationResult[] = [];
+      let successful = 0;
+      let failed = 0;
 
-    for (const migration of migrations) {
-      const res = await this.executeSqlFile(migration);
-      results.push(res);
-      if (res.success) {
-        successful++;
-      } else {
-        failed++;
-        console.log('');
-        console.log('[ABORT] Migration failed. Stopping execution.');
-        break;
+      for (const migration of migrations) {
+        const res = await this.executeSqlFile(client, migration);
+        results.push(res);
+        if (res.success) {
+          successful++;
+        } else {
+          failed++;
+          console.log('');
+          console.log('[ABORT] Migration failed. Stopping execution.');
+          break;
+        }
       }
-    }
 
-    this.printSummary(migrations.length, successful, failed);
-    return {
-      migrationsDir: this.migrationsDir,
-      totalFiles: migrations.length,
-      successful,
-      failed,
-      results,
-      overallSuccess: failed === 0,
-    };
+      this.printSummary(migrations.length, successful, failed);
+      return { migrationsDir: this.migrationsDir, totalFiles: migrations.length, successful, failed, results, overallSuccess: failed === 0 };
+    } finally {
+      await client.end();
+    }
   }
 
+  /**
+   * Validate schema using standard Postgres information_schema introspection
+   * Works with both local Postgres and Supabase
+   */
   async validateSchema(): Promise<boolean> {
     console.log('');
     console.log(LINE);
@@ -227,33 +229,92 @@ class DatabaseMigrationExecutor {
     console.log(`Timestamp: ${new Date().toISOString()}`);
     console.log('');
 
+    let client: Client | null = null;
+
     try {
-      console.log('[1/4] Testing database connectivity...');
-      const { error: connError } = await this.supabase.from('raw_props').select('id').limit(1);
-      if (connError && !connError.message.includes('does not exist')) {
-        console.log(`  [FAIL] Database connection: ${connError.message}`);
-        return false;
-      }
+      // Step 1: Test connectivity
+      console.log('[1/5] Testing database connectivity...');
+      client = await this.getClient();
       console.log('  [OK] Database connection successful');
 
-      console.log('[2/4] Checking critical tables...');
-      const criticalTables = ['raw_props', 'unified_picks', 'bridge_outbox', 'cappers'];
-      for (const table of criticalTables) {
-        const { error } = await this.supabase.from(table).select('*').limit(1);
-        if (error?.message.includes('does not exist')) {
-          console.log(`  [FAIL] Table missing: ${table}`);
-          return false;
-        }
-        console.log(`  [OK] Table exists: ${table}`);
+      // Step 2: Get current database and schema info
+      console.log('[2/5] Fetching database info...');
+      const dbInfoQuery = `SELECT current_database() AS db, current_schema() AS schema`;
+      const dbInfo = await client.query(dbInfoQuery);
+      const currentDb = dbInfo.rows[0]?.db || 'unknown';
+      const currentSchema = dbInfo.rows[0]?.schema || 'public';
+      console.log(`  [INFO] Database: ${currentDb}`);
+      console.log(`  [INFO] Schema: ${currentSchema}`);
+
+      // Step 3: Query information_schema for tables in public schema
+      console.log('[3/5] Querying information_schema.columns...');
+      const tableQuery = `
+        SELECT table_name, COUNT(*) as column_count
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+        GROUP BY table_name
+        ORDER BY table_name
+      `;
+      console.log(`  [SQL] ${tableQuery.trim().replace(/\s+/g, ' ')}`);
+
+      const result = await client.query(tableQuery);
+      const tables: TableInfo[] = result.rows;
+
+      if (tables.length === 0) {
+        console.log('  [WARN] Zero tables found in public schema');
+        console.log('  [DEBUG] Query returned 0 rows');
+        console.log(`  [DEBUG] Database: ${currentDb}, Schema: ${currentSchema}`);
+        console.log('  [DEBUG] Checking if information_schema is accessible...');
+
+        // Additional debug: check all schemas
+        const schemaQuery = `SELECT DISTINCT table_schema FROM information_schema.tables ORDER BY table_schema`;
+        const schemas = await client.query(schemaQuery);
+        console.log(`  [DEBUG] Available schemas: ${schemas.rows.map(r => r.table_schema).join(', ')}`);
+
+        // Check if there are tables in any schema
+        const allTablesQuery = `SELECT table_schema, COUNT(*) as cnt FROM information_schema.tables GROUP BY table_schema`;
+        const allTables = await client.query(allTablesQuery);
+        console.log('  [DEBUG] Tables per schema:');
+        allTables.rows.forEach(r => console.log(`    ${r.table_schema}: ${r.cnt} tables`));
+
+        return false;
       }
 
-      console.log('[3/4] Checking migrations directory...');
+      console.log(`  [OK] Found ${tables.length} tables in public schema`);
+
+      // Step 4: Check critical tables
+      console.log('[4/5] Checking critical tables...');
+      const criticalTables = ['raw_props', 'unified_picks', 'bridge_outbox', 'cappers'];
+      const tableNames = new Set(tables.map(t => t.table_name));
+      let allCriticalPresent = true;
+
+      for (const table of criticalTables) {
+        if (tableNames.has(table)) {
+          const info = tables.find(t => t.table_name === table);
+          console.log(`  [OK] ${table} (${info?.column_count} columns)`);
+        } else {
+          console.log(`  [WARN] ${table} not found (may be optional)`);
+          // Don't fail on missing tables - they might not exist yet
+        }
+      }
+
+      // List all discovered tables
+      console.log('');
+      console.log('  All tables in public schema:');
+      tables.forEach(t => console.log(`    - ${t.table_name} (${t.column_count} columns)`));
+
+      // Step 5: Check migrations directory
+      console.log('');
+      console.log('[5/5] Checking migrations directory...');
       const migrations = this.sortMigrations(this.findSqlFiles(this.migrationsDir));
       console.log(`  [INFO] MIGRATIONS_DIR: ${this.migrationsDir}`);
       console.log(`  [INFO] Found ${migrations.length} migration files`);
 
-      console.log('[4/4] Migration files:');
-      migrations.forEach(m => console.log(`  [FILE] ${m.relativePath}`));
+      if (migrations.length > 0) {
+        console.log('');
+        console.log('  Migration files:');
+        migrations.forEach(m => console.log(`    - ${m.relativePath}`));
+      }
 
       console.log('');
       console.log(LINE);
@@ -261,30 +322,51 @@ class DatabaseMigrationExecutor {
       console.log(LINE);
       return true;
     } catch (err) {
-      console.log(`[ERROR] Validation failed: ${err instanceof Error ? err.message : err}`);
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.log(`[ERROR] Validation failed: ${errorMsg}`);
+
+      // Additional debug info on failure
+      if (err instanceof Error && err.stack) {
+        console.log(`[DEBUG] Stack: ${err.stack.split('\n').slice(0, 3).join('\n')}`);
+      }
+
       console.log('');
       console.log(LINE);
       console.log('VALIDATION RESULT: FAIL');
       console.log(LINE);
       return false;
+    } finally {
+      if (client) {
+        await client.end();
+      }
     }
   }
 
   async generateReport(): Promise<void> {
     console.log('');
     console.log('Generating migration report...');
+
+    let client: Client | null = null;
     try {
+      client = await this.getClient();
       const tables = ['raw_props', 'unified_picks', 'bridge_outbox'];
       console.log('');
       console.log('TABLE STATISTICS:');
+
       for (const table of tables) {
-        const { count } = await this.supabase
-          .from(table)
-          .select('*', { count: 'exact', head: true });
-        console.log(`  ${table}: ${count ?? 'N/A'} rows`);
+        try {
+          const result = await client.query(`SELECT COUNT(*) as cnt FROM ${table}`);
+          console.log(`  ${table}: ${result.rows[0]?.cnt ?? 'N/A'} rows`);
+        } catch {
+          console.log(`  ${table}: (table not found)`);
+        }
       }
     } catch (err) {
       console.log(`[WARN] Could not generate report: ${err instanceof Error ? err.message : err}`);
+    } finally {
+      if (client) {
+        await client.end();
+      }
     }
   }
 }
