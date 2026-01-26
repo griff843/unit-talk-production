@@ -1,376 +1,324 @@
 #!/usr/bin/env tsx
+/* eslint-disable no-console, security/detect-non-literal-fs-filename, max-lines */
 
 /**
  * Database Schema Migration Executor
- * Executes the critical schema alignment migration to fix grading agent issues
+ *
+ * Deterministic migration discovery and execution:
+ * 1. MIGRATIONS_DIR env var override (default: /app/apps/api/migrations)
+ * 2. Recursively finds all *.sql under that directory
+ * 3. Sort order: numeric prefix files first (e.g., 004_*.sql), then remaining alphabetically
+ * 4. Executes in order with clear error reporting
+ *
+ * Usage:
+ *   npm run db:migrate:critical          # Execute all migrations
+ *   npm run db:validate:schema           # Validate schema only (--validate-only)
  */
 
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { readdirSync, readFileSync, statSync, existsSync } from 'fs';
+import { join, basename, relative } from 'path';
 
 import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 
-// Load environment variables
 dotenv.config();
 
-interface MigrationResult {
-  success: boolean;
-  error?: string;
-  details?: any;
+interface MigrationFile {
+  path: string;
+  relativePath: string;
+  name: string;
+  hasNumericPrefix: boolean;
+  numericPrefix: number | null;
 }
 
+interface MigrationResult {
+  file: string;
+  success: boolean;
+  error?: string;
+}
+
+interface ExecutionReport {
+  migrationsDir: string;
+  totalFiles: number;
+  successful: number;
+  failed: number;
+  results: MigrationResult[];
+  overallSuccess: boolean;
+}
+
+const LINE = '='.repeat(70);
+const DASH = '-'.repeat(70);
+
 class DatabaseMigrationExecutor {
-  private supabase: any;
+  private supabase: ReturnType<typeof createClient>;
+  private migrationsDir: string;
 
   constructor() {
     if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      throw new Error('Missing required environment variables: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY');
+      throw new Error('Missing required: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY');
     }
 
-    this.supabase = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
+    this.supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+    // Resolve migrations directory: env var > Docker path > local path
+    this.migrationsDir =
+      process.env.MIGRATIONS_DIR ||
+      (existsSync('/app/apps/api/migrations')
+        ? '/app/apps/api/migrations'
+        : join(process.cwd(), 'migrations'));
   }
 
-  /**
-   * Execute the critical schema alignment migration
-   */
-  async executeMigration(): Promise<MigrationResult> {
-    try {
-      console.log('🚀 Starting database schema migration...');
-      
-      // Read the migration SQL file from the root migrations directory
-      const migrationPath = join(process.cwd(), '..', '..', 'migrations', '001_critical_schema_alignment.sql');
-      const migrationSQL = readFileSync(migrationPath, 'utf-8');
+  private findSqlFiles(dir: string, baseDir: string = dir): MigrationFile[] {
+    if (!existsSync(dir)) return [];
 
-      console.log('📄 Migration SQL loaded, executing...');
-
-      console.log('📝 Executing migration using SQL Editor pattern...');
-
-      // Since Supabase doesn't allow direct SQL execution via client, 
-      // we'll need to manually execute the SQL in the Supabase SQL Editor
-      // For now, let's test if we can read the file properly and check existing schema
-      
-      console.log('⚠️ MANUAL MIGRATION REQUIRED:');
-      console.log('1. Open Supabase SQL Editor at: https://lxqmuzmqtnnlpfapvief.supabase.co/project/lxqmuzmqtnnlpfapvief/sql');
-      console.log('2. Copy the SQL from: migrations/001_critical_schema_alignment.sql');
-      console.log('3. Execute the SQL in the editor');
-      console.log('4. Run validation: npm run db:validate:schema');
-      
-      // Let's check the current schema to see what we need to do
-      console.log('\n📊 Current schema analysis:');
-      
-      // Check if outcome column exists
-      try {
-        const { data: testQuery, error: testError } = await this.supabase
-          .from('raw_props')
-          .select('outcome')
-          .limit(1);
-          
-        if (testError && testError.message.includes('column "outcome" does not exist')) {
-          console.log('❌ Missing outcome column - migration needed');
-          return { 
-            success: false, 
-            error: 'Migration required: outcome column missing from raw_props table',
-            details: { 
-              migration_file: 'migrations/001_critical_schema_alignment.sql',
-              manual_steps: [
-                'Open Supabase SQL Editor',
-                'Execute migration SQL',
-                'Run validation script'
-              ]
-            }
-          };
-        } else if (testError) {
-          console.log('❌ Database connection issue:', testError);
-          return { success: false, error: testError.message, details: testError };
-        } else {
-          console.log('✅ Database connection successful');
-          console.log('✅ outcome column already exists');
-        }
-      } catch (error) {
-        console.log('❌ Schema check failed:', error);
-        return { 
-          success: false, 
-          error: 'Schema validation failed',
-          details: error 
-        };
+    const files: MigrationFile[] = [];
+    for (const entry of readdirSync(dir)) {
+      const fullPath = join(dir, entry);
+      if (statSync(fullPath).isDirectory()) {
+        files.push(...this.findSqlFiles(fullPath, baseDir));
+      } else if (entry.endsWith('.sql')) {
+        const name = basename(entry, '.sql');
+        const numericMatch = name.match(/^(\d+)_/);
+        files.push({
+          path: fullPath,
+          relativePath: relative(baseDir, fullPath),
+          name,
+          hasNumericPrefix: numericMatch !== null,
+          numericPrefix: numericMatch ? parseInt(numericMatch[1], 10) : null,
+        });
       }
-
-      console.log('✅ Migration executed successfully!');
-      return { success: true };
-
-    } catch (error) {
-      console.error('❌ Migration execution failed:', error);
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error',
-        details: error 
-      };
     }
+    return files;
   }
 
-  /**
-   * Validate the migration was successful
-   */
-  async validateMigration(): Promise<MigrationResult> {
-    try {
-      console.log('🔍 Validating migration results...');
+  private sortMigrations(files: MigrationFile[]): MigrationFile[] {
+    return files.sort((a, b) => {
+      if (a.hasNumericPrefix && b.hasNumericPrefix) return a.numericPrefix! - b.numericPrefix!;
+      if (a.hasNumericPrefix) return -1;
+      if (b.hasNumericPrefix) return 1;
+      return a.relativePath.localeCompare(b.relativePath);
+    });
+  }
 
-      // Check that critical columns exist by querying the information schema
-      const { data: columns, error: columnsError } = await this.supabase
-        .from('information_schema.columns')
-        .select('column_name')
-        .eq('table_name', 'raw_props')
-        .eq('table_schema', 'public');
+  private printPreflight(migrations: MigrationFile[]): void {
+    console.log(LINE);
+    console.log('DATABASE MIGRATION EXECUTOR - PREFLIGHT');
+    console.log(LINE);
+    console.log(`Timestamp: ${new Date().toISOString()}`);
+    console.log(`MIGRATIONS_DIR: ${this.migrationsDir}`);
+    console.log(`Directory exists: ${existsSync(this.migrationsDir) ? 'YES' : 'NO'}`);
+    console.log(`Total migration files: ${migrations.length}`);
+    console.log('');
+    console.log('Migration files to be executed (in order):');
+    console.log(DASH);
 
-      if (columnsError) {
-        return { success: false, error: 'Failed to fetch table columns', details: columnsError };
-      }
-
-      const requiredColumns = [
-        'outcome',
-        'promoted_to_picks',
-        'trend_confidence',
-        'edge_score',
-        'matchup_quality',
-        'expected_value',
-        'sharp_money'
-      ];
-
-      const existingColumns = columns.map((col: any) => col.column_name);
-      const missingColumns = requiredColumns.filter(col => !existingColumns.includes(col));
-
-      if (missingColumns.length > 0) {
-        return { 
-          success: false, 
-          error: `Missing required columns: ${missingColumns.join(', ')}`,
-          details: { missingColumns, existingColumns }
-        };
-      }
-
-      // Check that new tables exist
-      const { data: tables, error: tablesError } = await this.supabase
-        .from('information_schema.tables')
-        .select('table_name')
-        .eq('table_schema', 'public');
-
-      if (tablesError) {
-        return { success: false, error: 'Failed to fetch tables', details: tablesError };
-      }
-
-      const requiredTables = ['grading_results', 'capper_profiles', 'ml_features', 'settlement_tracking'];
-      const existingTables = tables.map((table: any) => table.table_name);
-      const missingTables = requiredTables.filter(table => !existingTables.includes(table));
-
-      if (missingTables.length > 0) {
-        return { 
-          success: false, 
-          error: `Missing required tables: ${missingTables.join(', ')}`,
-          details: { missingTables, existingTables }
-        };
-      }
-
-      console.log('✅ Migration validation successful!');
-      return { success: true };
-
-    } catch (error) {
-      console.error('❌ Migration validation failed:', error);
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown validation error',
-        details: error 
-      };
+    if (migrations.length === 0) {
+      console.log('  (no migration files found)');
+    } else {
+      migrations.forEach((m, i) => {
+        const prefix = m.hasNumericPrefix ? `[${m.numericPrefix}]` : '[alpha]';
+        console.log(`  ${(i + 1).toString().padStart(3)}. ${prefix} ${m.relativePath}`);
+      });
     }
+    console.log(DASH);
+    console.log('');
   }
 
-  /**
-   * Test that the grading agent can now query the database correctly
-   */
-  async testGradingAgentQuery(): Promise<MigrationResult> {
-    try {
-      console.log('🧪 Testing grading agent database queries...');
+  private async executeSqlFile(migration: MigrationFile): Promise<MigrationResult> {
+    const result: MigrationResult = { file: migration.relativePath, success: false };
 
-      // Test the exact query that was failing
-      const { data, error } = await this.supabase
-        .from('raw_props')
-        .select('*')
-        .is('outcome', null)
-        .is('promoted_to_picks', false)
-        .limit(5);
+    try {
+      const sql = readFileSync(migration.path, 'utf-8');
+      if (!sql.trim()) {
+        console.log(`  [SKIP] ${migration.relativePath} (empty file)`);
+        return { ...result, success: true };
+      }
+
+      console.log(`  [EXEC] ${migration.relativePath}...`);
+      const { error } = await this.supabase.rpc('exec_sql', { sql_query: sql });
 
       if (error) {
-        return { 
-          success: false, 
-          error: 'Grading agent query test failed', 
-          details: error 
-        };
-      }
-
-      console.log(`✅ Grading agent query test successful! Found ${data.length} unprocessed props`);
-      
-      // Test inserting a grading result if we have props
-      if (data.length > 0) {
-        const testResult = {
-          prop_id: data[0].id,
-          final_score: 75.5,
-          confidence: 0.85,
-          tier: 'A' as const,
-          edge_score: 12.3,
-          model_version: 'test-migration',
-          config_used: 'test'
-        };
-
-        const { data: insertData, error: insertError } = await this.supabase
-          .from('grading_results')
-          .insert(testResult)
-          .select()
-          .single();
-
-        if (insertError) {
-          console.warn('⚠️ Grading results insert test failed:', insertError.message);
-        } else {
-          console.log('✅ Grading results insert test successful!');
-          
-          // Clean up test record
-          await this.supabase
-            .from('grading_results')
-            .delete()
-            .eq('id', insertData.id);
+        if (error.message.includes('function') && error.message.includes('does not exist')) {
+          console.log(`  [INFO] exec_sql function not available`);
+          console.log(`  [INFO] Execute manually in Supabase SQL Editor: ${migration.path}`);
+          return { ...result, error: 'Manual execution required - exec_sql unavailable' };
         }
+        throw new Error(error.message);
       }
 
-      return { success: true };
-
-    } catch (error) {
-      console.error('❌ Grading agent query test failed:', error);
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown test error',
-        details: error 
-      };
+      console.log(`  [OK] ${migration.relativePath}`);
+      return { ...result, success: true };
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.log(`  [FAIL] ${migration.relativePath}: ${errorMsg}`);
+      return { ...result, error: errorMsg };
     }
   }
 
-  /**
-   * Generate migration report
-   */
-  async generateMigrationReport(): Promise<void> {
-    try {
-      console.log('\n📊 Generating migration report...');
+  private printSummary(total: number, successful: number, failed: number): void {
+    console.log('');
+    console.log(LINE);
+    console.log('EXECUTION SUMMARY');
+    console.log(LINE);
+    console.log(`Total files: ${total}`);
+    console.log(`Successful: ${successful}`);
+    console.log(`Failed: ${failed}`);
+    console.log(`Overall: ${failed === 0 ? 'SUCCESS' : 'FAILED'}`);
+    console.log(LINE);
+  }
 
-      // Get table statistics
-      const { count: rawPropsCount } = await this.supabase
-        .from('raw_props')
-        .select('*', { count: 'exact', head: true });
+  async executeMigrations(): Promise<ExecutionReport> {
+    console.log('');
+    console.log(LINE);
+    console.log('DATABASE MIGRATION EXECUTOR');
+    console.log(LINE);
 
-      const { count: ungradedCount } = await this.supabase
-        .from('raw_props')
-        .select('*', { count: 'exact', head: true })
-        .is('outcome', null)
-        .is('promoted_to_picks', false);
+    const migrations = this.sortMigrations(this.findSqlFiles(this.migrationsDir));
+    this.printPreflight(migrations);
 
-      const { count: finalPicksCount } = await this.supabase
-        .from('unified_picks')
-        .select('*', { count: 'exact', head: true });
-
-      const { count: gradingResultsCount } = await this.supabase
-        .from('grading_results')
-        .select('*', { count: 'exact', head: true });
-
-      const report = {
-        migration_completed_at: new Date().toISOString(),
-        tables: {
-          raw_props: {
-            total_count: rawPropsCount || 0,
-            ungraded_count: ungradedCount || 0
-          },
-          unified_picks: {
-            total_count: finalPicksCount || 0
-          },
-          grading_results: {
-            total_count: gradingResultsCount || 0
-          }
-        },
-        status: 'SUCCESS',
-        message: 'Database schema migration completed successfully. Grading agent should now function properly.'
+    if (migrations.length === 0) {
+      console.log('No migration files found. Nothing to execute.');
+      return {
+        migrationsDir: this.migrationsDir,
+        totalFiles: 0,
+        successful: 0,
+        failed: 0,
+        results: [],
+        overallSuccess: true,
       };
+    }
 
-      console.log('\n📋 MIGRATION REPORT');
-      console.log('===================');
-      console.log(JSON.stringify(report, null, 2));
+    console.log('EXECUTING MIGRATIONS');
+    console.log(DASH);
 
-    } catch (error) {
-      console.error('❌ Failed to generate migration report:', error);
+    const results: MigrationResult[] = [];
+    let successful = 0;
+    let failed = 0;
+
+    for (const migration of migrations) {
+      const res = await this.executeSqlFile(migration);
+      results.push(res);
+      if (res.success) {
+        successful++;
+      } else {
+        failed++;
+        console.log('');
+        console.log('[ABORT] Migration failed. Stopping execution.');
+        break;
+      }
+    }
+
+    this.printSummary(migrations.length, successful, failed);
+    return {
+      migrationsDir: this.migrationsDir,
+      totalFiles: migrations.length,
+      successful,
+      failed,
+      results,
+      overallSuccess: failed === 0,
+    };
+  }
+
+  async validateSchema(): Promise<boolean> {
+    console.log('');
+    console.log(LINE);
+    console.log('DATABASE SCHEMA VALIDATION');
+    console.log(LINE);
+    console.log(`Timestamp: ${new Date().toISOString()}`);
+    console.log('');
+
+    try {
+      console.log('[1/4] Testing database connectivity...');
+      const { error: connError } = await this.supabase.from('raw_props').select('id').limit(1);
+      if (connError && !connError.message.includes('does not exist')) {
+        console.log(`  [FAIL] Database connection: ${connError.message}`);
+        return false;
+      }
+      console.log('  [OK] Database connection successful');
+
+      console.log('[2/4] Checking critical tables...');
+      const criticalTables = ['raw_props', 'unified_picks', 'bridge_outbox', 'cappers'];
+      for (const table of criticalTables) {
+        const { error } = await this.supabase.from(table).select('*').limit(1);
+        if (error?.message.includes('does not exist')) {
+          console.log(`  [FAIL] Table missing: ${table}`);
+          return false;
+        }
+        console.log(`  [OK] Table exists: ${table}`);
+      }
+
+      console.log('[3/4] Checking migrations directory...');
+      const migrations = this.sortMigrations(this.findSqlFiles(this.migrationsDir));
+      console.log(`  [INFO] MIGRATIONS_DIR: ${this.migrationsDir}`);
+      console.log(`  [INFO] Found ${migrations.length} migration files`);
+
+      console.log('[4/4] Migration files:');
+      migrations.forEach(m => console.log(`  [FILE] ${m.relativePath}`));
+
+      console.log('');
+      console.log(LINE);
+      console.log('VALIDATION RESULT: PASS');
+      console.log(LINE);
+      return true;
+    } catch (err) {
+      console.log(`[ERROR] Validation failed: ${err instanceof Error ? err.message : err}`);
+      console.log('');
+      console.log(LINE);
+      console.log('VALIDATION RESULT: FAIL');
+      console.log(LINE);
+      return false;
+    }
+  }
+
+  async generateReport(): Promise<void> {
+    console.log('');
+    console.log('Generating migration report...');
+    try {
+      const tables = ['raw_props', 'unified_picks', 'bridge_outbox'];
+      console.log('');
+      console.log('TABLE STATISTICS:');
+      for (const table of tables) {
+        const { count } = await this.supabase
+          .from(table)
+          .select('*', { count: 'exact', head: true });
+        console.log(`  ${table}: ${count ?? 'N/A'} rows`);
+      }
+    } catch (err) {
+      console.log(`[WARN] Could not generate report: ${err instanceof Error ? err.message : err}`);
     }
   }
 }
 
-/**
- * Main execution function
- */
-async function main() {
+async function main(): Promise<void> {
   try {
-    console.log('🎯 Unit Talk Database Schema Migration');
-    console.log('=====================================');
-    
-    const migrator = new DatabaseMigrationExecutor();
+    const executor = new DatabaseMigrationExecutor();
 
-    // Check if validation-only mode
     if (process.argv.includes('--validate-only')) {
-      console.log('🔍 Running validation-only mode...');
-      const validationResult = await migrator.validateMigration();
-      if (!validationResult.success) {
-        console.error('❌ Validation failed:', validationResult.error);
-        process.exit(1);
-      }
-      console.log('✅ Validation successful!');
-      return;
+      const valid = await executor.validateSchema();
+      process.exit(valid ? 0 : 1);
     }
 
-    // Step 1: Execute migration
-    const migrationResult = await migrator.executeMigration();
-    if (!migrationResult.success) {
-      console.error('❌ Migration failed, aborting...');
+    const report = await executor.executeMigrations();
+    await executor.generateReport();
+
+    if (!report.overallSuccess) {
+      console.log('');
+      console.log('[FAIL] Migration execution failed. See errors above.');
       process.exit(1);
     }
 
-    // Step 2: Validate migration
-    const validationResult = await migrator.validateMigration();
-    if (!validationResult.success) {
-      console.error('❌ Migration validation failed, manual review required...');
-      console.error('Error:', validationResult.error);
-      process.exit(1);
-    }
-
-    // Step 3: Test grading agent queries
-    const testResult = await migrator.testGradingAgentQuery();
-    if (!testResult.success) {
-      console.error('❌ Grading agent query test failed, manual review required...');
-      console.error('Error:', testResult.error);
-    }
-
-    // Step 4: Generate report
-    await migrator.generateMigrationReport();
-
-    console.log('\n🎉 DATABASE MIGRATION COMPLETED SUCCESSFULLY!');
-    console.log('The grading agent should now be able to process props properly.');
-    console.log('Next steps:');
-    console.log('1. Restart the grading agent');
-    console.log('2. Test prop processing end-to-end');
-    console.log('3. Verify enhanced scoring metrics are populated');
-
-  } catch (error) {
-    console.error('❌ Migration script failed:', error);
+    console.log('');
+    console.log('[SUCCESS] All migrations executed successfully.');
+    process.exit(0);
+  } catch (err) {
+    console.error('');
+    console.error('[FATAL]', err instanceof Error ? err.message : err);
     process.exit(1);
   }
 }
 
-// Execute if run directly
 if (require.main === module) {
-  main().catch(console.error);
+  main();
 }
 
 export { DatabaseMigrationExecutor };
