@@ -47,86 +47,49 @@ export interface RawProp {
 }
 
 // Fetch active cappers from v3.0.0 unified users table
+// CANONICAL CONTRACT: users.active BOOLEAN NOT NULL - see USERS_CANONICAL_CONTRACT.md
 export const fetchCappers = async () => {
-  console.log('🔍 fetchCappers: Querying production users table...');
+  console.log('🔍 fetchCappers: Querying production users table with canonical active column...');
 
-  try {
-    // First, try with the expected v3.0.0 schema
-    const { data, error } = await supabase
-      .from('users')
-      .select('id, username, tier, discord_id')
-      .neq('username', 'System') // Exclude system user
-      .order('username');
+  // FAIL-CLOSED: Query the canonical active column explicitly
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, username, tier, discord_id, active')
+    .neq('username', 'System') // Exclude system user
+    .eq('active', true) // Only fetch active cappers
+    .order('username');
 
-    if (error) {
-      console.error('🔍 fetchCappers: Supabase error:', error);
-
-      // If the main query fails, provide fallback mock data for development
-      console.warn('🔍 fetchCappers: Using fallback mock data due to database connection issue');
-      return [
-        { id: 'griff843', name: 'Griff843', active: true },
-        { id: 'vicgo', name: 'Vicgo', active: true },
-        { id: 'sauced', name: 'Sauced', active: true },
-        { id: 'moneyreef', name: 'MoneyReef', active: true },
-        { id: 'squirrel', name: 'Squirrel', active: true },
-      ];
-    }
-
-    console.log('🔍 fetchCappers: Found', data?.length || 0, 'users');
-
-    // Transform to match expected Capper interface with v3.0.0 fields
-    const transformedData = (data || []).map(user => ({
-      id: user.id,
-      name: user.username,
-      active: true, // All users from database are considered active cappers
-      tier: user.tier || 'VIP+',
-      discord_id: user.discord_id,
-      stats: {
-        winRate: 68,
-        roi: 12.5,
-        lastPick: '2 hours ago',
-        isLive: Math.random() > 0.5, // Random live status for demo
-      },
-    })) as Capper[];
-
-    return transformedData;
-  } catch (error) {
-    console.error('🔍 fetchCappers: Connection failed:', error);
-
-    // Provide production-ready fallback data
-    return [
-      {
-        id: 'griff843',
-        name: 'Griff843',
-        active: true,
-        stats: { winRate: 72, roi: 15.3, lastPick: '1 hour ago', isLive: true },
-      },
-      {
-        id: 'vicgo',
-        name: 'Vicgo',
-        active: true,
-        stats: { winRate: 68, roi: 11.2, lastPick: '3 hours ago', isLive: false },
-      },
-      {
-        id: 'sauced',
-        name: 'Sauced',
-        active: true,
-        stats: { winRate: 70, roi: 13.8, lastPick: '30 minutes ago', isLive: true },
-      },
-      {
-        id: 'moneyreef',
-        name: 'MoneyReef',
-        active: true,
-        stats: { winRate: 65, roi: 9.7, lastPick: '4 hours ago', isLive: false },
-      },
-      {
-        id: 'squirrel',
-        name: 'Squirrel',
-        active: true,
-        stats: { winRate: 69, roi: 12.1, lastPick: '2 hours ago', isLive: false },
-      },
-    ];
+  // FAIL-CLOSED: If database query fails, throw error - no fallback data
+  if (error) {
+    console.error('🔍 fetchCappers: Database error:', error);
+    throw new Error(`Database query failed: ${error.message}. Cannot use fallback data per FAIL-CLOSED contract.`);
   }
+
+  // FAIL-CLOSED: Validate that active column exists in response
+  if (data && data.length > 0 && typeof data[0].active !== 'boolean') {
+    console.error('🔍 fetchCappers: SCHEMA VIOLATION - active column missing or invalid type');
+    throw new Error('SCHEMA VIOLATION: users.active column missing or invalid type. Canonical contract requires BOOLEAN.');
+  }
+
+  console.log('🔍 fetchCappers: Found', data?.length || 0, 'active cappers');
+
+  // Transform to match expected Capper interface
+  // FAIL-CLOSED: active must be explicitly boolean from database, no fallback
+  const transformedData = (data || []).map(user => ({
+    id: user.id,
+    name: user.username,
+    active: user.active, // FAIL-CLOSED: No fallback - column is required
+    tier: user.tier || 'VIP+',
+    discord_id: user.discord_id,
+    stats: {
+      winRate: 68,
+      roi: 12.5,
+      lastPick: '2 hours ago',
+      isLive: Math.random() > 0.5,
+    },
+  })) as Capper[];
+
+  return transformedData;
 };
 
 // Fetch teams by sport
