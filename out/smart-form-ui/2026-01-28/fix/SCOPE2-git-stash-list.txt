@@ -1,0 +1,5 @@
+stash@{0}: On fix/smart-form-ui-step1: park-all-non-ui-step1
+stash@{1}: On fix/smart-form-500-health: park-tracked-for-hotfix
+stash@{2}: On fix/smart-form-500-health: park-all-for-hotfix
+stash@{3}: On fix/smart-form-500-health: WIP: all changes before hotfix/smart-form-500 branch creation
+stash@{4}: On fix/smart-form-500-health: WIP: claude generated changes (parked)

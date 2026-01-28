@@ -1,0 +1,90 @@
+diff --git a/apps/smart-form/.dockerignore b/apps/smart-form/.dockerignore
+new file mode 100644
+index 0000000..09a2a65
+--- /dev/null
++++ b/apps/smart-form/.dockerignore
+@@ -0,0 +1,45 @@
++# Docker build context exclusions for smart-form
++# Created to fix circular symlink issue: node_modules/unit-talk-smart-form
++
++# Node modules - contains workspace symlinks that cause circular references
++node_modules
++**/node_modules
++
++# Specific problematic symlink (redundant but explicit)
++node_modules/unit-talk-smart-form
++
++# Build artifacts
++.next
++out
++dist
++build
++
++# Development files
++.env.local
++.env.development.local
++.env.test.local
++.env.production.local
++
++# Test artifacts
++coverage
++.nyc_output
++
++# IDE and editor files
++.idea
++.vscode
++*.swp
++*.swo
++
++# OS files
++.DS_Store
++Thumbs.db
++
++# Git
++.git
++.gitignore
++
++# Logs
++*.log
++npm-debug.log*
++yarn-debug.log*
++yarn-error.log*
+diff --git a/apps/smart-form/Dockerfile b/apps/smart-form/Dockerfile
+index 811021a..038efe7 100644
+--- a/apps/smart-form/Dockerfile
++++ b/apps/smart-form/Dockerfile
+@@ -23,28 +23,20 @@ FROM base AS development
+ 
+ # Copy package files
+ COPY package*.json ./
+-RUN npm ci && npm cache clean --force
+-
+-# Copy centralized configuration (CRITICAL for v3.0.0)
+-COPY ../../config/ ./config/
++RUN npm install && npm cache clean --force
+ 
+ # Copy source code
+ COPY . .
+ 
+-# Create non-root user
+-RUN addgroup -g 1001 -S nodejs && \
+-    adduser -S nodejs -u 1001 && \
+-    chown -R nodejs:nodejs /app
+-
+-# Switch to non-root user
+-USER nodejs
++# Note: Development stage runs as root for volume mount compatibility
++# Production stage uses non-root user (see below)
+ 
+ # Expose port
+-EXPOSE 3000
++EXPOSE 3021
+ 
+ # Health check
+-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+-  CMD curl -f http://localhost:3000/api/health || exit 1
++HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
++  CMD curl -f http://localhost:3021/api/health || exit 1
+ 
+ # Development start
+ CMD ["npm", "run", "dev"]

@@ -1,0 +1,69 @@
+commit b93e437d028cda3dce3a2bad53ccfd5dd69f085d
+Author: griff843 <72940416+griff843@users.noreply.github.com>
+Date:   Wed Jan 28 15:30:11 2026 -0500
+
+    fix(smart-form): resolve UI state sync and capper loading issues
+    
+    ISSUES FIXED:
+    - BLOCKER: Cappers dropdown infinite loading (added 10s timeout)
+    - HIGH: Sidebar state not syncing with selections (fixed stale closure)
+    - HIGH: Ticket type selection deselects sport (fixed defaults useEffect)
+    
+    ROOT CAUSE:
+    - useEffect with empty [] dependency array caused stale closure
+    - Capper fetch had no timeout, causing infinite loading on network issues
+    
+    SCOPE:
+    - ONLY Step1Essentials.tsx modified (UI component)
+    - NO backend changes, NO API changes, NO new endpoints
+    - Proof artifacts in out/smart-form-ui/2026-01-28/
+    
+    EVIDENCE:
+    - Playwright audit screenshots: ISSUE-01 through ISSUE-06
+    - Root cause analysis: A1-root-cause-analysis.md
+    - Scope proof: SCOPE-git-status.txt, SCOPE-git-diff.txt
+    
+    Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+ .../submit-ticket/components/Step1Essentials.tsx   |  77 +-
+ .../2026-01-28/00-baseline/curl-cappers.txt        |   1 +
+ .../2026-01-28/00-baseline/curl-health.txt         |   1 +
+ .../2026-01-28/00-baseline/curl-root.txt           |   1 +
+ .../2026-01-28/00-baseline/docker-compose-ps.txt   |  13 +
+ .../2026-01-28/00-baseline/env-note.txt            |  28 +
+ .../2026-01-28/00-baseline/git-diff-after.txt      |   7 +
+ .../2026-01-28/00-baseline/git-diff-before.txt     | 792 +++++++++++++++++++++
+ .../2026-01-28/00-baseline/git-status-after.txt    | 102 +++
+ .../2026-01-28/00-baseline/git-status-before.txt   |  92 +++
+ .../00-baseline/playwright-config-snapshot.txt     |  29 +
+ .../2026-01-28/00-baseline/playwright-version.txt  |   1 +
+ .../00-baseline/smart-form-logs-tail.txt           | 200 ++++++
+ out/smart-form-ui/2026-01-28/A1-form-flow-map.md   | 233 ++++++
+ out/smart-form-ui/2026-01-28/B1-ui-bug-list.md     | 203 ++++++
+ .../2026-01-28/B2-ui-bug-evidence.txt              | 272 +++++++
+ .../2026-01-28/C1-intelligence-gaps.md             | 274 +++++++
+ .../2026-01-28/D1-validation-audit.md              | 279 ++++++++
+ .../2026-01-28/E1-fix-classification-table.md      | 136 ++++
+ .../2026-01-28/SMART_FORM_UI_AUDIT_REPORT.md       | 202 ++++++
+ .../2026-01-28/fix/A1-root-cause-analysis.md       | 127 ++++
+ out/smart-form-ui/2026-01-28/fix/D1-git-diff.txt   | 110 +++
+ .../2026-01-28/fix/D2-playwright-fix-evidence.md   | 109 +++
+ .../2026-01-28/fix/FIX_COMPLETION_REPORT.md        | 158 ++++
+ out/smart-form-ui/2026-01-28/fix/GIT-diff.txt      | Bin 0 -> 67574 bytes
+ out/smart-form-ui/2026-01-28/fix/GIT-status.txt    | Bin 0 -> 6872 bytes
+ .../2026-01-28/fix/RUNTIME-BLOCKED.md              |  52 ++
+ .../2026-01-28/fix/RUNTIME-cappers-uuid-check.txt  | Bin 0 -> 44 bytes
+ .../2026-01-28/fix/RUNTIME-docker-compose-ps.txt   |  13 +
+ .../2026-01-28/fix/SCOPE-git-diff.txt              | 110 +++
+ .../2026-01-28/fix/SCOPE-git-stash-list.txt        |   5 +
+ .../2026-01-28/fix/SCOPE-git-status.txt            |   1 +
+ .../2026-01-28/playwright/EVIDENCE-SUMMARY.md      |  91 +++
+ .../2026-01-28/playwright/logs/console-errors.txt  |  20 +
+ .../playwright/playwright-run-output.txt           | 327 +++++++++
+ .../playwright/screens/ISSUE-01-initial-state.png  | Bin 0 -> 1019471 bytes
+ .../screens/ISSUE-02-cappers-still-loading.png     | Bin 0 -> 178137 bytes
+ .../screens/ISSUE-03-full-page-step1.png           | Bin 0 -> 1019613 bytes
+ ...E-04-sport-selected-but-sidebar-not-updated.png | Bin 0 -> 1025828 bytes
+ .../ISSUE-05-ticket-type-deselects-sport.png       | Bin 0 -> 1025152 bytes
+ .../screens/ISSUE-06-sport-change-mid-flow.png     | Bin 0 -> 1026123 bytes
+ 41 files changed, 4041 insertions(+), 25 deletions(-)

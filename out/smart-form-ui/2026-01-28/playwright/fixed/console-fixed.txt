@@ -1,0 +1,11 @@
+[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3002/favicon.ico:0
+[ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:3002/api/games?sport=MLB:0
+[ERROR] {component: api-client, service: smart-form} {error: column games.commence_time does not exist, url: /api/games?sport=MLB, method: GET} API request failed @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[ERROR] Error fetching games: Error: column games.commence_time does not exist
+    at ApiClient.fetchGames (webpack-internal:///(app-pages-browser)/./lib/api-client.ts:71:19)
+    at async loadAvailableGames (webpack-internal:///(app-pages-browser)/./app/submit-ticket/components/Step1Essentials.tsx:1334:35) @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:3002/api/games?sport=NBA:0
+[ERROR] {component: api-client, service: smart-form} {error: column games.commence_time does not exist, url: /api/games?sport=NBA, method: GET} API request failed @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
+[ERROR] Error fetching games: Error: column games.commence_time does not exist
+    at ApiClient.fetchGames (webpack-internal:///(app-pages-browser)/./lib/api-client.ts:71:19)
+    at async loadAvailableGames (webpack-internal:///(app-pages-browser)/./app/submit-ticket/components/Step1Essentials.tsx:1334:35) @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/app-index.js:32
