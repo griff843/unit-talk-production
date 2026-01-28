@@ -1,0 +1,29 @@
+Playwright Configuration Snapshot
+==================================
+Config Path: apps/smart-form/playwright.config.ts
+Version: 1.54.1
+
+Key Settings:
+- testDir: ./tests
+- baseURL: http://localhost:3002
+- timeout: 60000ms (per test)
+- actionTimeout: 30000ms
+- navigationTimeout: 30000ms
+- screenshot: only-on-failure
+- trace: on-first-retry
+- video: retain-on-failure
+- outputDir: test-results/
+
+Projects Configured:
+- chromium
+- firefox
+- webkit
+- Mobile Chrome (Pixel 5)
+- Mobile Safari (iPhone 12)
+- Microsoft Edge
+- Google Chrome
+
+Reporter:
+- html
+- json (test-results/results.json)
+- junit (test-results/results.xml)

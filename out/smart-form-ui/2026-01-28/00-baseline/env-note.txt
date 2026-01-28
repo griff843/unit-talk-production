@@ -1,0 +1,28 @@
+Smart Form UI Audit - Environment Notes
+========================================
+Date: 2026-01-28
+
+Service Access:
+- Smart Form URL: http://localhost:3002
+- Submit Ticket Page: http://localhost:3002/submit-ticket
+- Container: unit-talk-smart-form (port 3002 -> 3021)
+- Status: Up 3 hours (healthy)
+
+Endpoint Status:
+- GET / : 200 OK (landing page)
+- GET /api/health : 404 (endpoint doesn't exist)
+- GET /api/cappers : 200 OK (returns 7 cappers)
+
+Note: /api/health is not implemented but the service is responding.
+The cappers endpoint works which is needed for Step 1 testing.
+
+Docker Stack Running:
+- unit-talk-smart-form (healthy)
+- unit-talk-api (healthy)
+- unit-talk-postgres (healthy)
+- unit-talk-redis (healthy)
+
+Git State Before Audit:
+- 6 modified files (pre-existing changes)
+- Multiple untracked files (.claude/, docs/, scripts/)
+- These are pre-existing and will NOT be changed during this audit

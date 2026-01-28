@@ -1,0 +1,272 @@
+================================================================================
+PHASE B: UI BUG EVIDENCE
+================================================================================
+Date: 2026-01-28
+Scope: apps/smart-form/app/submit-ticket/
+Method: Static code analysis with direct source evidence
+
+================================================================================
+BUG-001 & BUG-002: FORM-TO-API DATA CONTRACT MISMATCH
+================================================================================
+
+--- FORM SIDE (SmartTicketForm.tsx:237-257) ---
+
+const ticketData = {
+  capper: formState.data.capper!,           // <-- SENDS NAME
+  ticket_type: formState.data.ticket_type!,
+  unit_size: formState.data.unit_size!,     // <-- DIFFERENT NAME
+  odds_format: formState.data.odds_format!,
+  auto_parlay: formState.data.auto_parlay || false,
+  sport: formState.data.sport!,
+  game_date: formState.data.game_date!,     // <-- NOT IN API SCHEMA
+  confidence_level: formState.data.confidence_level!,
+  user_tier: formState.data.user_tier!,     // <-- NOT IN API SCHEMA
+  bet_type: formState.data.bet_type!,       // <-- NOT IN API SCHEMA
+  market_type: formState.data.market_type!,  // <-- NOT IN API SCHEMA
+  legs: legs,                                // <-- WRONG ARRAY NAME
+  game_selections: formState.data.game_selections,
+  notes: formState.data.notes,
+  timestamp: new Date().toISOString(),
+  timezone: getTimezoneOffset(),
+  status: 'submitted' as const,
+  bet_slip_id: crypto.randomUUID(),
+};
+
+--- API SIDE (route.ts:29-37) ---
+
+const SubmitTicketSchema = z.object({
+  capper_id: z.string().uuid('Capper ID must be a valid UUID'),  // <-- EXPECTS UUID
+  sport: z.enum(['NFL', 'NBA', 'MLB', 'NHL', 'NCAAF']),
+  ticket_type: z.enum(['single', 'parlay', 'round_robin']),
+  selections: z.array(GameSelectionSchema).min(1),               // <-- EXPECTS 'selections'
+  parlay_odds: z.number().int().optional(),
+  total_units: z.number().min(0.5).max(10).default(1.0),         // <-- DIFFERENT NAME
+  notes: z.string().optional(),
+});
+
+--- API GameSelectionSchema (route.ts:16-27) ---
+
+const GameSelectionSchema = z.object({
+  sport: z.enum(['NFL', 'NBA', 'MLB', 'NHL', 'NCAAF']),
+  team_id: z.string().uuid().optional(),
+  player_id: z.string().uuid().optional(),
+  stat_type: z.string().min(1),
+  line: z.number(),
+  leg_odds: z.number().int(),
+  source: z.enum(['api', 'manual']).default('api'),
+  is_live: z.boolean().optional().default(false),
+  selection: z.enum(['over', 'under', 'yes', 'no']),
+  confidence: z.number().min(0).max(1).optional().default(0),
+});
+
+VERDICT: Form payload structure is INCOMPATIBLE with API schema. Submission will fail.
+
+================================================================================
+BUG-003: CAPPER SELECTION STORES NAME INSTEAD OF ID
+================================================================================
+
+--- Step1Essentials.tsx:481-483 ---
+
+const handleCapperSelect = (capperId: string) => {
+  const selectedCapper = cappers.find(c => c.id === capperId);
+  onUpdate({ capper: selectedCapper?.name || capperId });  // <-- STORES NAME
+};
+
+EXPECTED: onUpdate({ capper_id: capperId })
+ACTUAL: onUpdate({ capper: selectedCapper?.name || capperId })
+
+================================================================================
+BUG-004: LOCAL STATE DUPLICATION IN STEP 2
+================================================================================
+
+--- Step2Configuration.tsx:53-54 ---
+
+const [unitSize, setUnitSize] = useState([data.unit_size || 2.0]);
+const [confidence, setConfidence] = useState(data.confidence_level || 7);
+
+PROBLEM: These local states mirror parent state but can diverge on:
+- Component remount
+- Back navigation
+- Parent state updates from other sources
+
+================================================================================
+BUG-005: useEffect MISSING DEPENDENCY
+================================================================================
+
+--- Step1Essentials.tsx:421-439 ---
+
+useEffect(() => {
+  // Set defaults for production readiness
+  const updates: any = {};
+  if (!data.sport) {
+    updates.sport = 'MLB';
+  }
+  if (!data.game_date) {
+    // Set default to today...
+    updates.game_date = `${year}-${month}-${day}`;
+  }
+
+  if (Object.keys(updates).length > 0) {
+    onUpdate(updates);  // <-- USED HERE
+  }
+}, []); // <-- EMPTY DEPS, onUpdate NOT INCLUDED
+
+ESLINT WARNING: React Hook useEffect has a missing dependency: 'onUpdate'
+
+================================================================================
+BUG-006: NO STATE RESET ON SPORT CHANGE
+================================================================================
+
+--- Step1Essentials.tsx:490-492 ---
+
+const handleSportSelect = (sport: Sport) => {
+  onUpdate({ sport });  // <-- ONLY UPDATES SPORT
+  // Does NOT clear: game_selections, bet_type, etc.
+};
+
+--- SmartTicketForm.tsx:49 (initial state) ---
+
+game_selections: [],
+
+PROBLEM: If user reaches Step 4, adds NFL selections, then goes back to Step 1
+and changes sport to NBA, the NFL selections remain in game_selections array.
+
+================================================================================
+BUG-007: FRAGILE VALIDATION CHECK
+================================================================================
+
+--- Step2Configuration.tsx:107 ---
+
+const isValid = data.unit_size && data.odds_format !== undefined && data.confidence_level;
+
+PROBLEM: `data.odds_format !== undefined` will pass for:
+- '' (empty string) - truthy check fails but !== undefined passes
+- null - passes !== undefined
+- 0 - would fail for numeric but this is a string enum
+
+BETTER: `data.odds_format && ODDS_FORMAT.includes(data.odds_format)`
+
+================================================================================
+BUG-008: CONSOLE.LOG IN PRODUCTION CODE
+================================================================================
+
+--- Step1Essentials.tsx:467-469 ---
+
+console.log('Loading games for sport:', data.sport, 'date:', data.game_date);
+// ... API call ...
+console.log('Received games count:', games?.length || 0);
+
+--- Step1Essentials.tsx:504-511 ---
+
+console.log('Step1 Validation Debug:', {
+  capper: data.capper,
+  ticket_type: data.ticket_type,
+  sport: data.sport,
+  game_date: data.game_date,
+  isValid,
+  timestamp: new Date().toISOString(),
+});
+
+--- SmartTicketForm.tsx:317 ---
+
+console.error('Submission error:', error);
+
+================================================================================
+BUG-009: DATEPICKER ALLOWS PAST DATES
+================================================================================
+
+--- Step1Essentials.tsx:692-698 ---
+
+<DatePicker
+  selected={data.game_date ? new Date(data.game_date + 'T00:00:00') : new Date()}
+  onChange={handleDateChange}
+  className="..."
+  dateFormat="MMMM d, yyyy"
+  placeholderText="Select game date"
+  // NO minDate PROP!
+/>
+
+--- SmartTicketForm.tsx:86-95 (validation happens later) ---
+
+if (selectedDate < today) {
+  errors.game_date = 'Cannot select past dates';
+  isValid = false;
+}
+
+PROBLEM: User can select past date in picker, error only shows on "Next" click.
+
+================================================================================
+BUG-010: AUTO-DEFAULT TO MLB WITHOUT INDICATION
+================================================================================
+
+--- Step1Essentials.tsx:424-425 ---
+
+if (!data.sport) {
+  updates.sport = 'MLB';  // <-- SILENT DEFAULT
+}
+
+PROBLEM: User opening form during NFL season might not notice MLB auto-selected.
+
+================================================================================
+BUG-011: MARKET TYPES MISMATCH
+================================================================================
+
+--- types.ts:43-50 ---
+
+export const MARKET_TYPES = [
+  'pre_game',
+  'live',
+  'player_prop',
+  'team_prop',
+  'game_prop',
+  'futures',
+] as const;
+
+--- Step3BetDetails.tsx:81-100 ---
+
+const MARKET_TYPE_CONFIG = {
+  pre_game: { icon: '🕐', title: 'Pre-Game', ... },
+  live: { icon: '🔴', title: 'Live Betting', ... },
+  futures: { icon: '🔮', title: 'Futures', ... },
+  // MISSING: player_prop, team_prop, game_prop
+} as const;
+
+VERDICT: UI shows 3 options, type system allows 6.
+
+================================================================================
+BUG-012: COMPLETED STEPS NOT INVALIDATED ON BACK-EDIT
+================================================================================
+
+--- SmartTicketForm.tsx:170-185 ---
+
+const handleNext = () => {
+  const { isValid } = validateStep(formState.currentStep, formState.data);
+
+  if (isValid) {
+    // Mark current step as completed
+    const newCompletedSteps = [...formState.completedSteps];
+    if (!newCompletedSteps.includes(formState.currentStep)) {
+      newCompletedSteps.push(formState.currentStep);
+    }
+    // ... advance step
+  }
+};
+
+--- SmartTicketForm.tsx:196-204 ---
+
+const handleBack = () => {
+  if (formState.currentStep > 1) {
+    setFormState(prev => ({
+      ...prev,
+      currentStep: prev.currentStep - 1,
+      // completedSteps NOT MODIFIED
+    }));
+  }
+};
+
+PROBLEM: Going back and changing data doesn't remove step from completedSteps.
+Subsequent steps might contain stale data based on old values.
+
+================================================================================
+END OF EVIDENCE
+================================================================================

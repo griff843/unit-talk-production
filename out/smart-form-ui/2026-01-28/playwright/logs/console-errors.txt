@@ -1,0 +1,20 @@
+Smart Form UI Audit - Console Errors
+=====================================
+Date: 2026-01-28
+URL: http://localhost:3002/submit-ticket
+
+Console Errors Captured During Testing:
+--------------------------------------
+[ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:3002/_next/static/chunks/main-app.js?v=1769627700447:0
+[ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:3002/_next/static/css/app/submit-ticket/page.css?v=1769627700447:0
+[ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:3002/_next/static/chunks/app/submit-ticket/page.js:0
+[ERROR] Failed to load resource: net::ERR_CONNECTION_RESET @ http://localhost:3002/_next/static/chunks/webpack.js?v=1769627700447:0
+
+Analysis:
+---------
+- Multiple Next.js static chunks failed to load with ERR_CONNECTION_RESET
+- These errors may explain why cappers never loaded ("Loading cappers..." stuck)
+- Form is partially functional but has network/loading issues
+- No debug console.log statements were observed in the console output
+
+Note: The form rendered but with degraded functionality due to these loading errors.

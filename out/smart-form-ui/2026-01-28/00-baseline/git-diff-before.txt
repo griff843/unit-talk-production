@@ -1,0 +1,792 @@
+diff --git a/apps/api/src/agents/AlertAgent/embedBuilder.ts b/apps/api/src/agents/AlertAgent/embedBuilder.ts
+index e7888a4..507cfc6 100644
+--- a/apps/api/src/agents/AlertAgent/embedBuilder.ts
++++ b/apps/api/src/agents/AlertAgent/embedBuilder.ts
+@@ -1,4 +1,5 @@
+ import { EmbedBuilder } from 'discord.js';
++import { randomUUID } from 'crypto';
+ 
+ import { UnifiedPick } from '../../types/picks';
+ 
+@@ -10,6 +11,29 @@ interface AlertPriority {
+   emoji: string;
+ }
+ 
++// Extended pick type with enrichment data
++interface EnrichedPick extends UnifiedPick {
++  sport?: string;
++  headshot_url?: string;
++  team_abbr?: string;
++  team_logo_url?: string;
++  provider_player_id?: string;
++}
++
++// Asset resolution logging
++function logAssetMissing(
++  type: 'headshot' | 'team_logo',
++  context: { player_name?: string; team_abbr?: string; sport?: string },
++  traceId: string
++): void {
++  console.warn('[ASSET_MISSING]', {
++    type,
++    ...context,
++    trace_id: traceId,
++    timestamp: new Date().toISOString(),
++  });
++}
++
+ function getPickTypeEmoji(_marketType: string, isLive: boolean = false): string {
+   if (isLive) return '🔴';
+   return '📊';
+@@ -65,32 +89,54 @@ function formatAdvice(advice: string): string {
+ }
+ 
+ export function buildAlertEmbed(pick: UnifiedPick, advice: string, playerImageUrl?: string): EmbedBuilder {
++  const enrichedPick = pick as EnrichedPick;
++  const traceId = randomUUID();
+   const priority = getAlertPriority(pick);
+   const isLive = pick.market_type === 'live';
+   const pickTypeEmoji = getPickTypeEmoji(pick.market_type || 'pregame', isLive);
+   const systemGradeEmoji = getSystemGradeEmoji(pick.tier);
+-  
++
+   // Standardized title format
+   const pickType = 'SINGLE'; // Default since ticket_type is not in interface
+   const title = `${pickTypeEmoji} ${isLive ? 'LIVE' : 'PREGAME'} • ${pickType} PICK`;
+-  
++
+   const embed = new EmbedBuilder()
+     .setTitle(title)
+     .setColor(priority.color)
+     .setTimestamp(new Date(pick.created_at));
+ 
+-  // Add player headshot - use provided URL or get from player enrichment
++  // ASSET RESOLUTION: Player headshot
++  // Priority: 1. Provided URL, 2. Pre-enriched headshot_url, 3. Construct from sport + provider_player_id
+   let headshotUrl = playerImageUrl;
+-  if (!headshotUrl && pick.player_name) {
+-    headshotUrl = getPlayerHeadshotUrl('', '', pick.player_name) || undefined;
++  if (!headshotUrl && enrichedPick.headshot_url) {
++    // Use pre-enriched headshot from database
++    headshotUrl = enrichedPick.headshot_url;
+   }
+-  
++  if (!headshotUrl && enrichedPick.sport && enrichedPick.provider_player_id) {
++    // Construct URL from sport + provider_player_id
++    headshotUrl = getPlayerHeadshotUrl(enrichedPick.sport, enrichedPick.provider_player_id, pick.player_name) || undefined;
++  }
++
+   if (headshotUrl) {
+     embed.setThumbnail(headshotUrl);
++  } else if (pick.player_name) {
++    logAssetMissing('headshot', { player_name: pick.player_name, sport: enrichedPick.sport }, traceId);
++  }
++
++  // ASSET RESOLUTION: Team logo (author icon)
++  const teamLogoUrl = enrichedPick.team_logo_url;
++  if (teamLogoUrl) {
++    embed.setAuthor({
++      name: enrichedPick.team_abbr || 'Team',
++      iconURL: teamLogoUrl,
++    });
++  } else if (enrichedPick.team_abbr) {
++    logAssetMissing('team_logo', { team_abbr: enrichedPick.team_abbr, sport: enrichedPick.sport }, traceId);
+   }
+ 
+   // Header info: Capper • League
+-  const headerInfo = `**${pick.capper || 'System'}** • Unknown League`;
++  const sport = enrichedPick.sport || 'Unknown League';
++  const headerInfo = `**${pick.capper || 'System'}** • ${sport}`;
+   embed.setDescription(headerInfo);
+ 
+   // Main pick details - standardized format
+diff --git a/apps/smart-form/app/api/cappers/route.ts b/apps/smart-form/app/api/cappers/route.ts
+index 43facc6..f06ef83 100644
+--- a/apps/smart-form/app/api/cappers/route.ts
++++ b/apps/smart-form/app/api/cappers/route.ts
+@@ -6,8 +6,9 @@ import { createRouteLogger, logDatabaseOperation, logApiPerformance } from '@/li
+ const log = createRouteLogger('GET /api/cappers', 'GET');
+ 
+ // Validation schema for query parameters
++// FIX: Default to true when no 'active' param provided (was returning false due to transform)
+ const QuerySchema = z.object({
+-  active: z.string().nullish().transform(val => val === 'true'),
++  active: z.string().nullish().transform(val => val === null || val === undefined ? true : val === 'true'),
+   sport: z.enum(['NFL', 'NBA', 'MLB', 'NHL', 'NCAAF']).nullish(),
+ });
+ 
+@@ -42,21 +43,15 @@ export async function GET(request: Request) {
+     }, 'Fetching cappers from v3 users table');
+ 
+     const sb = supabaseServer();
+-    
+-    // Query v3 users table for all non-System users (all are cappers)
+-    let query = sb
++
++    // CANONICAL CONTRACT: Query v3 users table with required 'active' column
++    // NO FALLBACK: Dual-column fallback removed per operator mandate
++    // FAIL-CLOSED: If 'active' column missing, return 500 SCHEMA_CONTRACT_VIOLATION
++    const { data, error } = await sb
+       .from('users')
+       .select('id, username, discord_id, tier, capper_tier, active')
+-      .neq('username', 'System');
+-    
+-    if (active !== undefined) {
+-      // Filter by active status if column exists, otherwise assume all are active
+-      query = query.eq('active', active);
+-    }
+-    
+-    query = query.order('username', { ascending: true });
+-
+-    const { data, error } = await query;
++      .neq('username', 'System')
++      .order('username', { ascending: true });
+ 
+     logDatabaseOperation(log, 'SELECT', 'users', data, error);
+ 
+@@ -66,7 +61,7 @@ export async function GET(request: Request) {
+         code: error.code,
+         details: error.details,
+       }, 'Failed to fetch cappers from users table');
+-      
++
+       return NextResponse.json({
+         error: 'Database error',
+         message: 'Unable to fetch cappers at this time',
+@@ -74,30 +69,40 @@ export async function GET(request: Request) {
+       }, { status: 500 });
+     }
+ 
+-    // FAIL-CLOSED: Validate that active column exists in response
+-    // Per USERS_CANONICAL_CONTRACT.md - never assume active=true if missing
+-    if (data && data.length > 0 && typeof data[0].active !== 'boolean') {
+-      log.error({
+-        sample_user: data[0],
+-        active_type: typeof data[0].active,
+-      }, 'SCHEMA VIOLATION: users.active column missing or invalid type. Canonical contract requires BOOLEAN.');
+-
+-      return NextResponse.json({
+-        error: 'Schema violation',
+-        message: 'Database schema does not match canonical contract. users.active column is required.',
+-        code: 'SCHEMA_CONTRACT_VIOLATION',
+-      }, { status: 500 });
++    // FAIL-CLOSED: Validate that the canonical 'active' column exists and has correct type
++    if (data && data.length > 0) {
++      const activeValue = data[0].active;
++
++      if (typeof activeValue !== 'boolean') {
++        log.error({
++          sample_user: data[0],
++          value_type: typeof activeValue,
++          actual_value: activeValue,
++        }, 'SCHEMA CONTRACT VIOLATION: users.active column missing or invalid type');
++
++        return NextResponse.json({
++          error: 'Schema contract violation',
++          message: 'Database schema does not match canonical contract. users.active BOOLEAN column is required.',
++          code: 'SCHEMA_CONTRACT_VIOLATION',
++        }, { status: 500 });
++      }
++
++      log.info({
++        column: 'active',
++        type: 'boolean',
++      }, 'Canonical active column verified');
+     }
+ 
+-    // Transform to match expected interface
+-    // FAIL-CLOSED: active must be explicitly boolean, no fallback
+-    const cappers = (data || []).map(user => ({
+-      id: user.id,
+-      name: user.username,
+-      active: user.active, // FAIL-CLOSED: No fallback - column is required
+-      tier: user.tier || user.capper_tier || 'VIP',
+-      discordId: user.discord_id,
+-    }));
++    // Transform to match expected interface using canonical 'active' column
++    const cappers = (data || [])
++      .map(user => ({
++        id: user.id,
++        name: user.username,
++        active: user.active,
++        tier: user.tier || user.capper_tier || 'VIP',
++        discordId: user.discord_id,
++      }))
++      .filter(user => user.active === active);
+ 
+     log.info({
+       capper_count: cappers.length,
+diff --git a/apps/smart-form/app/api/players/route.ts b/apps/smart-form/app/api/players/route.ts
+index f93483d..27a2c26 100644
+--- a/apps/smart-form/app/api/players/route.ts
++++ b/apps/smart-form/app/api/players/route.ts
+@@ -1,66 +1,288 @@
+ import { NextRequest, NextResponse } from 'next/server';
+-import { createClient } from '@supabase/supabase-js';
++import { z } from 'zod';
++import { supabaseServer } from '@/lib/supabase';
++import { createRouteLogger, logDatabaseOperation, logApiPerformance } from '@/lib/logger';
+ 
+-const supabaseUrl = 'https://lxqmuzmqtnnlpfapvief.supabase.co';
+-const supabaseKey =
+-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cW11em1xdG5ubHBmYXB2aWVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUwOTY4NDUsImV4cCI6MjA2MDY3Mjg0NX0.PkJJDTPo8WVpGWaAQ-gdzvyGH9WEjcxcwCDi8z0g93o';
++// Type for canonical player row from actual DB schema
++interface CanonicalPlayerRow {
++  id: string;
++  full_name: string;
++  normalized_name: string | null;
++  sport: string;
++  team_id: string | null;
++  team_abbr: string | null;
++  position: string | null;
++  headshot_url: string | null;
++  photo_url: string | null;
++  active: boolean;
++}
++
++// Type for raw_props player search result
++interface RawPropsPlayerRow {
++  player_name: string;
++  team: string;
++  sport: string;
++  player_id: string | null;
++  team_id: string | null;
++}
++
++// Type for team row
++interface TeamRow {
++  id: string;
++  name: string;
++  abbr: string;
++  sport: string;
++  logo_url: string | null;
++}
+ 
+-const supabase = createClient(supabaseUrl, supabaseKey);
++const log = createRouteLogger('GET /api/players', 'GET');
+ 
++// Validation schema for query parameters
++const QuerySchema = z.object({
++  q: z.string().min(2, 'Search query must be at least 2 characters').optional(),
++  sport: z.enum(['NFL', 'NBA', 'MLB', 'NHL', 'NCAAF']).optional(),
++});
++
++/**
++ * GET /api/players
++ *
++ * Smart Form Intelligence Contract - Player Search:
++ * - When sport is selected, filters players by sport
++ * - Returns players with team context for auto-defaults
++ * - Uses canonical `players` table with fallback to `raw_props`
++ * - DB-backed inference enables auto-filling team/sport when player is selected
++ *
++ * Query params:
++ * - q: Search query for player name (min 2 chars)
++ * - sport: Filter by sport (NFL, NBA, MLB, NHL, NCAAF)
++ *
++ * Response includes:
++ * - player.id: UUID for fetching full player details via /api/players/[id]
++ * - player.sport: For sport auto-default
++ * - player.team_id: For team auto-default
++ * - player.team: Team details for display
++ */
+ export async function GET(request: NextRequest) {
++  const startTime = Date.now();
++
+   try {
+     const { searchParams } = new URL(request.url);
+-    const query = searchParams.get('q') || '';
+-    const sport = searchParams.get('sport') || '';
++    const rawQuery = {
++      q: searchParams.get('q') || undefined,
++      sport: (searchParams.get('sport')?.toUpperCase() as any) || undefined,
++    };
++
++    // Validate query parameters
++    const queryValidation = QuerySchema.safeParse(rawQuery);
++    if (!queryValidation.success) {
++      return NextResponse.json(
++        {
++          error: 'Invalid query parameters',
++          details: queryValidation.error.issues,
++        },
++        { status: 400 }
++      );
++    }
++
++    const { q: query, sport } = queryValidation.data;
+ 
+-    if (query.length < 2) {
+-      return NextResponse.json({ players: [] });
++    // Require search query
++    if (!query || query.length < 2) {
++      return NextResponse.json({ players: [], count: 0 });
+     }
+ 
+-    console.log(`[Players API] Searching for "${query}" in ${sport}`);
++    log.info({ query, sport }, `Searching players`);
+ 
+-    // Search in raw_props table for player names
+-    let dbQuery = supabase
+-      .from('raw_props')
+-      .select('player_name, team')
+-      .ilike('player_name', `%${query}%`)
+-      .limit(10);
++    const supabase = supabaseServer();
++    let players: any[] = [];
++    let source = 'canonical';
+ 
+-    if (sport) {
+-      // Add sport filter if available
+-      dbQuery = dbQuery.eq('sport', sport.toUpperCase());
++    // PHASE 1: Try canonical `players` table first (has team_id for auto-defaults)
++    try {
++      let canonicalQuery = supabase
++        .from('players')
++        .select(
++          `
++          id,
++          full_name,
++          normalized_name,
++          sport,
++          team_id,
++          team_abbr,
++          position,
++          headshot_url,
++          photo_url,
++          active
++        `
++        )
++        .ilike('full_name', `%${query}%`)
++        .eq('active', true)
++        .order('full_name', { ascending: true })
++        .limit(15);
++
++      if (sport) {
++        canonicalQuery = canonicalQuery.eq('sport', sport);
++      }
++
++      const { data: canonicalPlayersRaw, error: canonicalError } = await canonicalQuery;
++      const canonicalPlayers = canonicalPlayersRaw as CanonicalPlayerRow[] | null;
++
++      logDatabaseOperation(log, 'SELECT', 'players', canonicalPlayers, canonicalError);
++
++      if (!canonicalError && canonicalPlayers && canonicalPlayers.length > 0) {
++        // Fetch team details for all players in one query
++        const teamIds = [...new Set(canonicalPlayers.map(p => p.team_id).filter(Boolean))];
++
++        let teamsMap: Record<string, TeamRow> = {};
++        if (teamIds.length > 0) {
++          const { data: teamsRaw } = await supabase
++            .from('teams')
++            .select('id, name, abbr, sport, logo_url')
++            .in('id', teamIds);
++
++          const teams = teamsRaw as TeamRow[] | null;
++          if (teams) {
++            teamsMap = Object.fromEntries(teams.map(t => [t.id, t]));
++          }
++        }
++
++        // Transform canonical players with team context for auto-defaults
++        players = canonicalPlayers.map(p => {
++          const team = p.team_id ? teamsMap[p.team_id] : null;
++          return {
++            id: p.id, // UUID - can be used with /api/players/[id] for full details
++            name: p.full_name,
++            full_name: p.full_name,
++            position: p.position,
++            headshot_url: p.headshot_url || p.photo_url,
++            // AUTO-DEFAULT CONTEXT - Core intelligence for Smart Form
++            sport: p.sport,
++            team_id: p.team_id,
++            team_abbr: p.team_abbr || team?.abbr,
++            team: team
++              ? {
++                  id: team.id,
++                  name: team.name,
++                  abbr: team.abbr,
++                  sport: team.sport,
++                  logo_url: team.logo_url,
++                }
++              : null,
++            // Display helpers
++            display: `${p.full_name}${team ? ` (${team.abbr})` : p.team_abbr ? ` (${p.team_abbr})` : ''}`,
++            team_display: team ? team.name : p.team_abbr || 'Unknown',
++            // Flag indicating this player has full auto-default context
++            has_context: true,
++          };
++        });
++
++        log.info({ count: players.length, source: 'canonical' }, `Found players in canonical table`);
++      }
++    } catch (canonicalError) {
++      log.warn({ error: canonicalError }, 'Canonical players query failed, trying raw_props');
+     }
+ 
+-    const { data: players, error } = await dbQuery;
++    // PHASE 2: Fallback to raw_props if canonical search returned no results
++    if (players.length === 0) {
++      source = 'raw_props';
++
++      let rawPropsQuery = supabase
++        .from('raw_props')
++        .select('player_name, team, sport, player_id, team_id')
++        .ilike('player_name', `%${query}%`)
++        .limit(20);
+ 
+-    if (error) {
+-      console.error('[Players API] Database error:', error);
+-      return NextResponse.json({ players: [] });
++      if (sport) {
++        rawPropsQuery = rawPropsQuery.eq('sport', sport);
++      }
++
++      const { data: rawPlayersRaw, error: rawError } = await rawPropsQuery;
++      const rawPlayers = rawPlayersRaw as RawPropsPlayerRow[] | null;
++
++      logDatabaseOperation(log, 'SELECT', 'raw_props', rawPlayers, rawError);
++
++      if (!rawError && rawPlayers) {
++        // Deduplicate by player name
++        const uniquePlayersMap = new Map<
++          string,
++          { name: string; team: string; sport: string; player_id: string | null; team_id: string | null }
++        >();
++
++        for (const p of rawPlayers) {
++          const key = p.player_name?.toLowerCase();
++          if (key && !uniquePlayersMap.has(key)) {
++            uniquePlayersMap.set(key, {
++              name: p.player_name,
++              team: p.team,
++              sport: p.sport,
++              player_id: p.player_id,
++              team_id: p.team_id,
++            });
++          }
++        }
++
++        players = Array.from(uniquePlayersMap.values()).map(p => ({
++          id: p.player_id || null, // May not have UUID
++          name: p.name,
++          full_name: p.name,
++          sport: p.sport,
++          team_id: p.team_id,
++          team_abbr: p.team,
++          team: null, // No full team context from raw_props
++          display: `${p.name} (${p.team})`,
++          team_display: p.team || 'Unknown',
++          // Flag indicating limited context
++          has_context: !!p.player_id, // Only has context if linked to canonical player
++        }));
++
++        log.info({ count: players.length, source: 'raw_props' }, `Found players in raw_props fallback`);
++      }
+     }
+ 
+-    // Remove duplicates and format
+-    const uniquePlayers = Array.from(
+-      new Map(
+-        players?.map(p => [
+-          p.player_name?.toLowerCase(),
+-          {
+-            name: p.player_name,
+-            team: p.team,
+-            display: `${p.player_name} (${p.team})`,
+-          },
+-        ]) || []
+-      ).values()
++    log.info(
++      {
++        query,
++        sport,
++        count: players.length,
++        source,
++      },
++      `Returning ${players.length} players`
+     );
+ 
+-    console.log(`[Players API] Found ${uniquePlayers.length} unique players`);
+-
+-    return NextResponse.json({
+-      success: true,
+-      players: uniquePlayers,
+-      count: uniquePlayers.length,
++    logApiPerformance(log, 'search-players', startTime, {
++      players_count: players.length,
++      sport,
++      source,
+     });
++
++    return NextResponse.json(
++      {
++        success: true,
++        players,
++        count: players.length,
++        meta: {
++          source,
++          sport: sport || 'all',
++          query,
++          timestamp: new Date().toISOString(),
++        },
++      },
++      {
++        status: 200,
++        headers: {
++          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
++        },
++      }
++    );
+   } catch (error) {
+-    console.error('[Players API] Error:', error);
++    log.error(
++      {
++        error: error instanceof Error ? error.message : 'Unknown error',
++        stack: error instanceof Error ? error.stack : undefined,
++      },
++      'Unexpected error in players search endpoint'
++    );
++
+     return NextResponse.json(
+       {
+         error: 'Failed to search players',
+diff --git a/apps/smart-form/app/api/submit-ticket/route.ts b/apps/smart-form/app/api/submit-ticket/route.ts
+index d8279aa..48371ff 100644
+--- a/apps/smart-form/app/api/submit-ticket/route.ts
++++ b/apps/smart-form/app/api/submit-ticket/route.ts
+@@ -133,7 +133,9 @@ export async function POST(request: NextRequest) {
+     const betSlipId = uuidv4();
+     const supabase = supabaseServer();
+ 
+-    // Verify capper exists and is active
++    // CANONICAL CONTRACT: Verify capper exists and is active using canonical 'active' column
++    // NO FALLBACK: Dual-column fallback removed per operator mandate
++    // FAIL-CLOSED: If 'active' column missing, return 500 SCHEMA_CONTRACT_VIOLATION
+     const { data: capperUser, error: capperError } = await supabase
+       .from('users')
+       .select('id, username, active')
+@@ -152,18 +154,17 @@ export async function POST(request: NextRequest) {
+       }, { status: 400 });
+     }
+ 
+-    // FAIL-CLOSED: Validate that active column exists in response
+-    // Per USERS_CANONICAL_CONTRACT.md - never assume active=true if missing
++    // FAIL-CLOSED: Validate that the canonical 'active' column exists and has correct type
+     if (typeof capperUser.active !== 'boolean') {
+       log.error({
+         capper_id,
+-        active_type: typeof capperUser.active,
+-        active_value: capperUser.active,
+-      }, 'SCHEMA VIOLATION: users.active column missing or invalid type. Canonical contract requires BOOLEAN.');
++        value_type: typeof capperUser.active,
++        actual_value: capperUser.active,
++      }, 'SCHEMA CONTRACT VIOLATION: users.active column missing or invalid type');
+ 
+       return NextResponse.json({
+-        error: 'Schema violation',
+-        message: 'Database schema does not match canonical contract. users.active column is required.',
++        error: 'Schema contract violation',
++        message: 'Database schema does not match canonical contract. users.active BOOLEAN column is required.',
+         code: 'SCHEMA_CONTRACT_VIOLATION',
+       }, { status: 500 });
+     }
+diff --git a/apps/smart-form/lib/api-client.ts b/apps/smart-form/lib/api-client.ts
+index 1f4ab67..539810b 100644
+--- a/apps/smart-form/lib/api-client.ts
++++ b/apps/smart-form/lib/api-client.ts
+@@ -222,23 +222,99 @@ export const fetchProps = (gameId: string, marketType?: string) => {
+   return apiClient.fetchProps('NFL', { gameId }); // Default sport for compatibility
+ };
+ 
+-// Mock functions for components that still expect them
+-export const fetchTeams = async (sport: string) => {
+-  // Teams are now embedded in games - return empty for compatibility
+-  log.warn('fetchTeams called - teams are now embedded in games data');
+-  return [];
++// INTELLIGENCE ENDPOINTS - Wired to actual API routes
++
++/**
++ * Fetch teams filtered by sport from /api/teams
++ * Smart Form Intelligence Contract: Returns teams with logo URLs for display
++ */
++export const fetchTeams = async (sport: string): Promise<DBTeam[]> => {
++  try {
++    const response = await fetch(`/api/teams?sport=${encodeURIComponent(sport)}`);
++    const data = await response.json();
++
++    if (data.teams) {
++      log.info({ sport, count: data.teams.length }, 'Fetched teams from intelligence endpoint');
++      return data.teams.map((t: any) => ({
++        id: t.id,
++        name: t.name,
++        sport: t.sport,
++        abbreviation: t.abbreviation || t.abbr,
++        logo_url: t.logo_url,
++      }));
++    }
++    return [];
++  } catch (error) {
++    log.error({ error, sport }, 'Failed to fetch teams');
++    return [];
++  }
++};
++
++/**
++ * Search teams by query from /api/teams
++ */
++export const searchTeams = async (sport: string, query: string): Promise<DBTeam[]> => {
++  try {
++    const response = await fetch(`/api/teams?sport=${encodeURIComponent(sport)}&q=${encodeURIComponent(query)}`);
++    const data = await response.json();
++
++    if (data.teams) {
++      return data.teams.map((t: any) => ({
++        id: t.id,
++        name: t.name,
++        sport: t.sport,
++        abbreviation: t.abbreviation || t.abbr,
++        logo_url: t.logo_url,
++      }));
++    }
++    return [];
++  } catch (error) {
++    log.error({ error, sport, query }, 'Failed to search teams');
++    return [];
++  }
+ };
+ 
+-export const searchTeams = async (sport: string, query: string) => {
+-  // Deprecated - return empty for compatibility
+-  log.warn('searchTeams called - function is deprecated');
+-  return [];
++/**
++ * Search players by query from /api/players
++ * Smart Form Intelligence Contract: Returns players with team context for auto-defaults
++ */
++export const searchPlayers = async (sport: string, query: string) => {
++  try {
++    const response = await fetch(`/api/players?sport=${encodeURIComponent(sport)}&q=${encodeURIComponent(query)}`);
++    const data = await response.json();
++
++    if (data.players) {
++      log.info({ sport, query, count: data.players.length }, 'Fetched players from intelligence endpoint');
++      return data.players;
++    }
++    return [];
++  } catch (error) {
++    log.error({ error, sport, query }, 'Failed to search players');
++    return [];
++  }
+ };
+ 
+-export const searchPlayers = async (teamId: string, query: string) => {
+-  // Deprecated - return empty for compatibility
+-  log.warn('searchPlayers called - function is deprecated');
+-  return [];
++/**
++ * Fetch player details by ID from /api/players/[id]
++ * Smart Form Intelligence Contract: Returns player with auto-default context (sport, team)
++ */
++export const fetchPlayerById = async (playerId: string) => {
++  try {
++    const response = await fetch(`/api/players/${encodeURIComponent(playerId)}`);
++    const data = await response.json();
++
++    if (data.player) {
++      log.info({ playerId, player: data.player.name }, 'Fetched player details for auto-defaults');
++      return {
++        player: data.player,
++        autoDefaults: data.autoDefaults,
++      };
++    }
++    return null;
++  } catch (error) {
++    log.error({ error, playerId }, 'Failed to fetch player details');
++    return null;
++  }
+ };
+ 
+ // Types for backward compatibility
+diff --git a/apps/smart-form/lib/supabase-queries.ts b/apps/smart-form/lib/supabase-queries.ts
+index 0b3d944..6c37ca5 100644
+--- a/apps/smart-form/lib/supabase-queries.ts
++++ b/apps/smart-form/lib/supabase-queries.ts
+@@ -48,46 +48,52 @@ export interface RawProp {
+ 
+ // Fetch active cappers from v3.0.0 unified users table
+ // CANONICAL CONTRACT: users.active BOOLEAN NOT NULL - see USERS_CANONICAL_CONTRACT.md
++// NO FALLBACK: Dual-column fallback removed per operator mandate
++// FAIL-CLOSED: If 'active' column missing, throw SCHEMA_CONTRACT_VIOLATION
+ export const fetchCappers = async () => {
+   console.log('🔍 fetchCappers: Querying production users table with canonical active column...');
+ 
+-  // FAIL-CLOSED: Query the canonical active column explicitly
++  // CANONICAL: Query only with 'active' column - no is_active fallback
+   const { data, error } = await supabase
+     .from('users')
+     .select('id, username, tier, discord_id, active')
+-    .neq('username', 'System') // Exclude system user
+-    .eq('active', true) // Only fetch active cappers
++    .neq('username', 'System')
+     .order('username');
+ 
+   // FAIL-CLOSED: If database query fails, throw error - no fallback data
+   if (error) {
+     console.error('🔍 fetchCappers: Database error:', error);
+-    throw new Error(`Database query failed: ${error.message}. Cannot use fallback data per FAIL-CLOSED contract.`);
++    throw new Error(`Database query failed: ${error.message}. FAIL-CLOSED per contract.`);
+   }
+ 
+-  // FAIL-CLOSED: Validate that active column exists in response
+-  if (data && data.length > 0 && typeof data[0].active !== 'boolean') {
+-    console.error('🔍 fetchCappers: SCHEMA VIOLATION - active column missing or invalid type');
+-    throw new Error('SCHEMA VIOLATION: users.active column missing or invalid type. Canonical contract requires BOOLEAN.');
++  // FAIL-CLOSED: Validate that the canonical 'active' column exists and has correct type
++  if (data && data.length > 0) {
++    if (typeof data[0].active !== 'boolean') {
++      console.error('🔍 fetchCappers: SCHEMA CONTRACT VIOLATION - users.active column missing or invalid type');
++      throw new Error('SCHEMA_CONTRACT_VIOLATION: users.active BOOLEAN column is required.');
++    }
++
++    console.log('🔍 fetchCappers: Canonical active column verified (boolean type)');
+   }
+ 
+-  console.log('🔍 fetchCappers: Found', data?.length || 0, 'active cappers');
+-
+-  // Transform to match expected Capper interface
+-  // FAIL-CLOSED: active must be explicitly boolean from database, no fallback
+-  const transformedData = (data || []).map(user => ({
+-    id: user.id,
+-    name: user.username,
+-    active: user.active, // FAIL-CLOSED: No fallback - column is required
+-    tier: user.tier || 'VIP+',
+-    discord_id: user.discord_id,
+-    stats: {
+-      winRate: 68,
+-      roi: 12.5,
+-      lastPick: '2 hours ago',
+-      isLive: Math.random() > 0.5,
+-    },
+-  })) as Capper[];
++  // Transform to match expected Capper interface using canonical 'active' column
++  const transformedData = (data || [])
++    .map(user => ({
++      id: user.id,
++      name: user.username,
++      active: user.active,
++      tier: user.tier || 'VIP+',
++      discord_id: user.discord_id,
++      stats: {
++        winRate: 68,
++        roi: 12.5,
++        lastPick: '2 hours ago',
++        isLive: Math.random() > 0.5,
++      },
++    }))
++    .filter(user => user.active === true) as Capper[]; // Only return active cappers
++
++  console.log('🔍 fetchCappers: Found', transformedData.length, 'active cappers');
+ 
+   return transformedData;
+ };

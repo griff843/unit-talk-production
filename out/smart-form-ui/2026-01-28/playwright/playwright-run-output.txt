@@ -1,0 +1,327 @@
+[dotenv@17.2.1] injecting env (0) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+
+Running 12 tests using 6 workers
+
+[dotenv@17.2.1] injecting env (0) from .env -- tip: 📡 observe env with Radar: https://dotenvx.com/radar
+[dotenv@17.2.1] injecting env (0) from .env -- tip: 📡 auto-backup env with Radar: https://dotenvx.com/radar
+[dotenv@17.2.1] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.2.1] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.2.1] injecting env (0) from .env -- tip: 📡 observe env with Radar: https://dotenvx.com/radar
+[dotenv@17.2.1] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+  ✘  1 [chromium] › tests\ui-audit-evidence.spec.ts:300:9 › UI Audit Evidence Capture › ISSUE-07: Validation Behavior › Validation only on Next click, not inline (VAL-004) (37.0s)
+  ✘  3 [chromium] › tests\ui-audit-evidence.spec.ts:50:9 › UI Audit Evidence Capture › ISSUE-01: Form Initial State › Capture initial form state showing auto-defaults (37.0s)
+  ✘  4 [chromium] › tests\ui-audit-evidence.spec.ts:479:9 › UI Audit Evidence Capture › ISSUE-11: Zero Games Handling › Zero games available message (INTEL-010) (37.0s)
+  ✘  2 [chromium] › tests\ui-audit-evidence.spec.ts:96:9 › UI Audit Evidence Capture › ISSUE-03: Capper Selection Stores Name Not ID › Capper selection behavior (BUG-003) (37.1s)
+[dotenv@17.2.1] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.2.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.2.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.2.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+  ✘  5 [chromium] › tests\ui-audit-evidence.spec.ts:181:9 › UI Audit Evidence Capture › ISSUE-05: Step 2 Local State › Step 2 shows local state duplication evidence (BUG-004) (41.7s)
+  ✘  6 [chromium] › tests\ui-audit-evidence.spec.ts:374:9 › UI Audit Evidence Capture › ISSUE-09: Full Form Flow › Complete form flow showing all steps (41.9s)
+[dotenv@17.2.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.2.1] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+  ✘  10 [chromium] › tests\ui-audit-evidence.spec.ts:129:9 › UI Audit Evidence Capture › ISSUE-04: Sport Change Mid-Flow › Sport change does not reset downstream selections (BUG-006/INTEL-001) (36.0s)
+  ✘  9 [chromium] › tests\ui-audit-evidence.spec.ts:509:9 › UI Audit Evidence Capture › ISSUE-12: Submit Button State › Submit attempt with incomplete data (36.4s)
+  ✘  8 [chromium] › tests\ui-audit-evidence.spec.ts:74:9 › UI Audit Evidence Capture › ISSUE-02: DatePicker Past Date Selection › DatePicker allows past date selection (BUG-009) (36.8s)
+  ✘  7 [chromium] › tests\ui-audit-evidence.spec.ts:333:9 › UI Audit Evidence Capture › ISSUE-08: Console Logs in Production › Console.log statements visible (BUG-008) (37.0s)
+  ✘  11 [chromium] › tests\ui-audit-evidence.spec.ts:248:9 › UI Audit Evidence Capture › ISSUE-06: Step 3 Market Types › Market types shown vs defined mismatch (BUG-011) (35.3s)
+  ✘  12 [chromium] › tests\ui-audit-evidence.spec.ts:452:9 › UI Audit Evidence Capture › ISSUE-10: Ticket Type Selection Limits › Single ticket allows multiple selections (INTEL-002) (35.2s)
+
+
+  1) [chromium] › tests\ui-audit-evidence.spec.ts:50:9 › UI Audit Evidence Capture › ISSUE-01: Form Initial State › Capture initial form state showing auto-defaults 
+
+    TimeoutError: page.goto: Timeout 30000ms exceeded.
+    Call log:
+    [2m  - navigating to "http://localhost:3002/submit-ticket", waiting until "load"[22m
+
+
+      52 |       page.on('console', msg => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
+      53 |
+    > 54 |       await page.goto('/submit-ticket');
+         |                  ^
+      55 |       await page.waitForLoadState('networkidle');
+      56 |
+      57 |       // Wait for form to initialize
+        at C:\Users\griff\OneDrive\Desktop\unit-talk-production\apps\smart-form\tests\ui-audit-evidence.spec.ts:54:18
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\ui-audit-evidence-UI-Audit-0971f-state-showing-auto-defaults-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\ui-audit-evidence-UI-Audit-0971f-state-showing-auto-defaults-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [chromium] › tests\ui-audit-evidence.spec.ts:74:9 › UI Audit Evidence Capture › ISSUE-02: DatePicker Past Date Selection › DatePicker allows past date selection (BUG-009) 
+
+    TimeoutError: page.goto: Timeout 30000ms exceeded.
+    Call log:
+    [2m  - navigating to "http://localhost:3002/submit-ticket", waiting until "load"[22m
+
+
+      73 |   test.describe('ISSUE-02: DatePicker Past Date Selection', () => {
+      74 |     test('DatePicker allows past date selection (BUG-009)', async ({ page }) => {
+    > 75 |       await page.goto('/submit-ticket');
+         |                  ^
+      76 |       await page.waitForLoadState('networkidle');
+      77 |       await page.waitForTimeout(1000);
+      78 |
+        at C:\Users\griff\OneDrive\Desktop\unit-talk-production\apps\smart-form\tests\ui-audit-evidence.spec.ts:75:18
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\ui-audit-evidence-UI-Audit-ac378-ast-date-selection-BUG-009--chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\ui-audit-evidence-UI-Audit-ac378-ast-date-selection-BUG-009--chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\ui-audit-evidence-UI-Audit-ac378-ast-date-selection-BUG-009--chromium\error-context.md
+
+  3) [chromium] › tests\ui-audit-evidence.spec.ts:96:9 › UI Audit Evidence Capture › ISSUE-03: Capper Selection Stores Name Not ID › Capper selection behavior (BUG-003) 
+
+    TimeoutError: page.goto: Timeout 30000ms exceeded.
+    Call log:
+    [2m  - navigating to "http://localhost:3002/submit-ticket", waiting until "load"[22m
+
+
+       98 |       page.on('console', msg => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
+       99 |
+    > 100 |       await page.goto('/submit-ticket');
+          |                  ^
+      101 |       await page.waitForLoadState('networkidle');
+      102 |       await page.waitForTimeout(2000);
+      103 |
+        at C:\Users\griff\OneDrive\Desktop\unit-talk-production\apps\smart-form\tests\ui-audit-evidence.spec.ts:100:18
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\ui-audit-evidence-UI-Audit-6b560-selection-behavior-BUG-003--chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\ui-audit-evidence-UI-Audit-6b560-selection-behavior-BUG-003--chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [chromium] › tests\ui-audit-evidence.spec.ts:129:9 › UI Audit Evidence Capture › ISSUE-04: Sport Change Mid-Flow › Sport change does not reset downstream selections (BUG-006/INTEL-001) 
+
+    TimeoutError: page.goto: Timeout 30000ms exceeded.
+    Call log:
+    [2m  - navigating to "http://localhost:3002/submit-ticket", waiting until "load"[22m
+
+
+      131 |       page.on('console', msg => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
+      132 |
+    > 133 |       await page.goto('/submit-ticket');
+          |                  ^
+      134 |       await page.waitForLoadState('networkidle');
+      135 |       await page.waitForTimeout(2000);
+      136 |
+        at C:\Users\griff\OneDrive\Desktop\unit-talk-production\apps\smart-form\tests\ui-audit-evidence.spec.ts:133:18
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\ui-audit-evidence-UI-Audit-4c581-lections-BUG-006-INTEL-001--chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\ui-audit-evidence-UI-Audit-4c581-lections-BUG-006-INTEL-001--chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5) [chromium] › tests\ui-audit-evidence.spec.ts:181:9 › UI Audit Evidence Capture › ISSUE-05: Step 2 Local State › Step 2 shows local state duplication evidence (BUG-004) 
+
+    TimeoutError: page.goto: Timeout 30000ms exceeded.
+    Call log:
+    [2m  - navigating to "http://localhost:3002/submit-ticket", waiting until "load"[22m
+
+
+      183 |       page.on('console', msg => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
+      184 |
+    > 185 |       await page.goto('/submit-ticket');
+          |                  ^
+      186 |       await page.waitForLoadState('networkidle');
+      187 |       await page.waitForTimeout(2000);
+      188 |
+        at C:\Users\griff\OneDrive\Desktop\unit-talk-production\apps\smart-form\tests\ui-audit-evidence.spec.ts:185:18
+
+    attachment #1: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\ui-audit-evidence-UI-Audit-540ed-plication-evidence-BUG-004--chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  6) [chromium] › tests\ui-audit-evidence.spec.ts:248:9 › UI Audit Evidence Capture › ISSUE-06: Step 3 Market Types › Market types shown vs defined mismatch (BUG-011) 
+
+    TimeoutError: page.goto: Timeout 30000ms exceeded.
+    Call log:
+    [2m  - navigating to "http://localhost:3002/submit-ticket", waiting until "load"[22m
+
+
+      247 |   test.describe('ISSUE-06: Step 3 Market Types', () => {
+      248 |     test('Market types shown vs defined mismatch (BUG-011)', async ({ page }) => {
+    > 249 |       await page.goto('/submit-ticket');
+          |                  ^
+      250 |       await page.waitForLoadState('networkidle');
+      251 |       await page.waitForTimeout(2000);
+      252 |
+        at C:\Users\griff\OneDrive\Desktop\unit-talk-production\apps\smart-form\tests\ui-audit-evidence.spec.ts:249:18
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\ui-audit-evidence-UI-Audit-091e0-s-defined-mismatch-BUG-011--chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\ui-audit-evidence-UI-Audit-091e0-s-defined-mismatch-BUG-011--chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  7) [chromium] › tests\ui-audit-evidence.spec.ts:300:9 › UI Audit Evidence Capture › ISSUE-07: Validation Behavior › Validation only on Next click, not inline (VAL-004) 
+
+    TimeoutError: page.goto: Timeout 30000ms exceeded.
+    Call log:
+    [2m  - navigating to "http://localhost:3002/submit-ticket", waiting until "load"[22m
+
+
+      302 |       page.on('console', msg => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
+      303 |
+    > 304 |       await page.goto('/submit-ticket');
+          |                  ^
+      305 |       await page.waitForLoadState('networkidle');
+      306 |       await page.waitForTimeout(2000);
+      307 |
+        at C:\Users\griff\OneDrive\Desktop\unit-talk-production\apps\smart-form\tests\ui-audit-evidence.spec.ts:304:18
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\ui-audit-evidence-UI-Audit-d2100-t-click-not-inline-VAL-004--chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\ui-audit-evidence-UI-Audit-d2100-t-click-not-inline-VAL-004--chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  8) [chromium] › tests\ui-audit-evidence.spec.ts:333:9 › UI Audit Evidence Capture › ISSUE-08: Console Logs in Production › Console.log statements visible (BUG-008) 
+
+    TimeoutError: page.goto: Timeout 30000ms exceeded.
+    Call log:
+    [2m  - navigating to "http://localhost:3002/submit-ticket", waiting until "load"[22m
+
+
+      337 |       });
+      338 |
+    > 339 |       await page.goto('/submit-ticket');
+          |                  ^
+      340 |       await page.waitForLoadState('networkidle');
+      341 |       await page.waitForTimeout(3000);
+      342 |
+        at C:\Users\griff\OneDrive\Desktop\unit-talk-production\apps\smart-form\tests\ui-audit-evidence.spec.ts:339:18
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\ui-audit-evidence-UI-Audit-c01bd-statements-visible-BUG-008--chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\ui-audit-evidence-UI-Audit-c01bd-statements-visible-BUG-008--chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\ui-audit-evidence-UI-Audit-c01bd-statements-visible-BUG-008--chromium\error-context.md
+
+  9) [chromium] › tests\ui-audit-evidence.spec.ts:374:9 › UI Audit Evidence Capture › ISSUE-09: Full Form Flow › Complete form flow showing all steps 
+
+    TimeoutError: page.goto: Timeout 30000ms exceeded.
+    Call log:
+    [2m  - navigating to "http://localhost:3002/submit-ticket", waiting until "load"[22m
+
+
+      376 |       page.on('console', msg => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
+      377 |
+    > 378 |       await page.goto('/submit-ticket');
+          |                  ^
+      379 |       await page.waitForLoadState('networkidle');
+      380 |       await page.waitForTimeout(2000);
+      381 |
+        at C:\Users\griff\OneDrive\Desktop\unit-talk-production\apps\smart-form\tests\ui-audit-evidence.spec.ts:378:18
+
+    attachment #1: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\ui-audit-evidence-UI-Audit-3072d-form-flow-showing-all-steps-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  10) [chromium] › tests\ui-audit-evidence.spec.ts:452:9 › UI Audit Evidence Capture › ISSUE-10: Ticket Type Selection Limits › Single ticket allows multiple selections (INTEL-002) 
+
+    TimeoutError: page.goto: Timeout 30000ms exceeded.
+    Call log:
+    [2m  - navigating to "http://localhost:3002/submit-ticket", waiting until "load"[22m
+
+
+      451 |   test.describe('ISSUE-10: Ticket Type Selection Limits', () => {
+      452 |     test('Single ticket allows multiple selections (INTEL-002)', async ({ page }) => {
+    > 453 |       await page.goto('/submit-ticket');
+          |                  ^
+      454 |       await page.waitForLoadState('networkidle');
+      455 |       await page.waitForTimeout(2000);
+      456 |
+        at C:\Users\griff\OneDrive\Desktop\unit-talk-production\apps\smart-form\tests\ui-audit-evidence.spec.ts:453:18
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\ui-audit-evidence-UI-Audit-420dd-tiple-selections-INTEL-002--chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\ui-audit-evidence-UI-Audit-420dd-tiple-selections-INTEL-002--chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  11) [chromium] › tests\ui-audit-evidence.spec.ts:479:9 › UI Audit Evidence Capture › ISSUE-11: Zero Games Handling › Zero games available message (INTEL-010) 
+
+    TimeoutError: page.goto: Timeout 30000ms exceeded.
+    Call log:
+    [2m  - navigating to "http://localhost:3002/submit-ticket", waiting until "load"[22m
+
+
+      478 |   test.describe('ISSUE-11: Zero Games Handling', () => {
+      479 |     test('Zero games available message (INTEL-010)', async ({ page }) => {
+    > 480 |       await page.goto('/submit-ticket');
+          |                  ^
+      481 |       await page.waitForLoadState('networkidle');
+      482 |       await page.waitForTimeout(2000);
+      483 |
+        at C:\Users\griff\OneDrive\Desktop\unit-talk-production\apps\smart-form\tests\ui-audit-evidence.spec.ts:480:18
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\ui-audit-evidence-UI-Audit-a8a56-vailable-message-INTEL-010--chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\ui-audit-evidence-UI-Audit-a8a56-vailable-message-INTEL-010--chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  12) [chromium] › tests\ui-audit-evidence.spec.ts:509:9 › UI Audit Evidence Capture › ISSUE-12: Submit Button State › Submit attempt with incomplete data 
+
+    TimeoutError: page.goto: Timeout 30000ms exceeded.
+    Call log:
+    [2m  - navigating to "http://localhost:3002/submit-ticket", waiting until "load"[22m
+
+
+      512 |
+      513 |       // Navigate directly to submit-ticket
+    > 514 |       await page.goto('/submit-ticket');
+          |                  ^
+      515 |       await page.waitForLoadState('networkidle');
+      516 |       await page.waitForTimeout(2000);
+      517 |
+        at C:\Users\griff\OneDrive\Desktop\unit-talk-production\apps\smart-form\tests\ui-audit-evidence.spec.ts:514:18
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\ui-audit-evidence-UI-Audit-6a0d0-ttempt-with-incomplete-data-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\ui-audit-evidence-UI-Audit-6a0d0-ttempt-with-incomplete-data-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  12 failed
+    [chromium] › tests\ui-audit-evidence.spec.ts:50:9 › UI Audit Evidence Capture › ISSUE-01: Form Initial State › Capture initial form state showing auto-defaults 
+    [chromium] › tests\ui-audit-evidence.spec.ts:74:9 › UI Audit Evidence Capture › ISSUE-02: DatePicker Past Date Selection › DatePicker allows past date selection (BUG-009) 
+    [chromium] › tests\ui-audit-evidence.spec.ts:96:9 › UI Audit Evidence Capture › ISSUE-03: Capper Selection Stores Name Not ID › Capper selection behavior (BUG-003) 
+    [chromium] › tests\ui-audit-evidence.spec.ts:129:9 › UI Audit Evidence Capture › ISSUE-04: Sport Change Mid-Flow › Sport change does not reset downstream selections (BUG-006/INTEL-001) 
+    [chromium] › tests\ui-audit-evidence.spec.ts:181:9 › UI Audit Evidence Capture › ISSUE-05: Step 2 Local State › Step 2 shows local state duplication evidence (BUG-004) 
+    [chromium] › tests\ui-audit-evidence.spec.ts:248:9 › UI Audit Evidence Capture › ISSUE-06: Step 3 Market Types › Market types shown vs defined mismatch (BUG-011) 
+    [chromium] › tests\ui-audit-evidence.spec.ts:300:9 › UI Audit Evidence Capture › ISSUE-07: Validation Behavior › Validation only on Next click, not inline (VAL-004) 
+    [chromium] › tests\ui-audit-evidence.spec.ts:333:9 › UI Audit Evidence Capture › ISSUE-08: Console Logs in Production › Console.log statements visible (BUG-008) 
+    [chromium] › tests\ui-audit-evidence.spec.ts:374:9 › UI Audit Evidence Capture › ISSUE-09: Full Form Flow › Complete form flow showing all steps 
+    [chromium] › tests\ui-audit-evidence.spec.ts:452:9 › UI Audit Evidence Capture › ISSUE-10: Ticket Type Selection Limits › Single ticket allows multiple selections (INTEL-002) 
+    [chromium] › tests\ui-audit-evidence.spec.ts:479:9 › UI Audit Evidence Capture › ISSUE-11: Zero Games Handling › Zero games available message (INTEL-010) 
+    [chromium] › tests\ui-audit-evidence.spec.ts:509:9 › UI Audit Evidence Capture › ISSUE-12: Submit Button State › Submit attempt with incomplete data 
