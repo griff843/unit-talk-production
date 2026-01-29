@@ -1,5 +1,5 @@
 /**
- * canaryRouter.test.ts — Unit tests for Tranche 6 canary router
+ * canaryRouter.test.ts — Unit tests for Tranche 6+9 canary router
  *
  * Tests:
  * 1. Stable hashing produces deterministic results
@@ -9,6 +9,7 @@
  * 5. Shadow mode takes precedence over canary
  * 6. V2 disabled means always V1
  * 7. parseCanaryConfig reads env correctly
+ * 8. V2 primary mode takes precedence over shadow and canary (Tranche 9)
  */
 
 import {
@@ -63,6 +64,7 @@ describe('canaryRouter', () => {
       const config = parseCanaryConfig({});
       expect(config.v2Enabled).toBe(false);
       expect(config.killSwitch).toBe(false);
+      expect(config.v2Primary).toBe(false);
       expect(config.shadowEnabled).toBe(false);
       expect(config.canarySports).toEqual([]);
       expect(config.canaryPercent).toBe(0);
@@ -72,12 +74,14 @@ describe('canaryRouter', () => {
       const config = parseCanaryConfig({
         SCORING_ENGINE_V2: 'true',
         SCORING_KILL_SWITCH: 'true',
+        SCORING_V2_PRIMARY: 'true',
         SCORING_SHADOW: 'true',
         SCORING_CANARY_SPORTS: 'NBA,MLB',
         SCORING_CANARY_PERCENT: '25',
       });
       expect(config.v2Enabled).toBe(true);
       expect(config.killSwitch).toBe(true);
+      expect(config.v2Primary).toBe(true);
       expect(config.shadowEnabled).toBe(true);
       expect(config.canarySports).toEqual(['NBA', 'MLB']);
       expect(config.canaryPercent).toBe(25);
@@ -102,6 +106,7 @@ describe('canaryRouter', () => {
       const config: CanaryConfig = {
         v2Enabled: false,
         killSwitch: false,
+        v2Primary: false,
         shadowEnabled: false,
         canarySports: [],
         canaryPercent: 0,
@@ -115,6 +120,7 @@ describe('canaryRouter', () => {
       const config: CanaryConfig = {
         v2Enabled: true,
         killSwitch: true,
+        v2Primary: false,
         shadowEnabled: true,
         canarySports: ['NBA'],
         canaryPercent: 100,
@@ -128,6 +134,7 @@ describe('canaryRouter', () => {
       const config: CanaryConfig = {
         v2Enabled: true,
         killSwitch: false,
+        v2Primary: false,
         shadowEnabled: true,
         canarySports: ['NBA'],
         canaryPercent: 100,
@@ -142,6 +149,7 @@ describe('canaryRouter', () => {
       const config: CanaryConfig = {
         v2Enabled: true,
         killSwitch: false,
+        v2Primary: false,
         shadowEnabled: false,
         canarySports: ['NBA'],
         canaryPercent: 100, // 100% so all NBA picks get V2
@@ -155,6 +163,7 @@ describe('canaryRouter', () => {
       const config: CanaryConfig = {
         v2Enabled: true,
         killSwitch: false,
+        v2Primary: false,
         shadowEnabled: false,
         canarySports: ['NBA'],
         canaryPercent: 100,
@@ -168,6 +177,7 @@ describe('canaryRouter', () => {
       const config: CanaryConfig = {
         v2Enabled: true,
         killSwitch: false,
+        v2Primary: false,
         shadowEnabled: false,
         canarySports: ['NBA'],
         canaryPercent: 0,
@@ -180,6 +190,7 @@ describe('canaryRouter', () => {
       const config: CanaryConfig = {
         v2Enabled: true,
         killSwitch: false,
+        v2Primary: false,
         shadowEnabled: false,
         canarySports: [], // empty = all sports allowed
         canaryPercent: 50,
@@ -200,6 +211,7 @@ describe('canaryRouter', () => {
       const config: CanaryConfig = {
         v2Enabled: true,
         killSwitch: false,
+        v2Primary: false,
         shadowEnabled: false,
         canarySports: ['NBA'],
         canaryPercent: 50,
@@ -215,6 +227,7 @@ describe('canaryRouter', () => {
       const config: CanaryConfig = {
         v2Enabled: true,
         killSwitch: false,
+        v2Primary: false,
         shadowEnabled: false,
         canarySports: [], // empty = all sports
         canaryPercent: 100,
@@ -224,6 +237,79 @@ describe('canaryRouter', () => {
       expect(canaryDecide('MLB', 'p1', config).mode).toBe('v2');
       expect(canaryDecide('NFL', 'p1', config).mode).toBe('v2');
       expect(canaryDecide('NHL', 'p1', config).mode).toBe('v2');
+    });
+
+    // Tranche 9: V2 Primary mode tests
+    it('v2_primary mode returns v2_primary when enabled', () => {
+      const config: CanaryConfig = {
+        v2Enabled: true,
+        killSwitch: false,
+        v2Primary: true,
+        shadowEnabled: false,
+        canarySports: [],
+        canaryPercent: 0,
+      };
+      const decision = canaryDecide('NBA', 'pick-1', config);
+      expect(decision.mode).toBe('v2_primary');
+      expect(decision.reason).toBe('v2_primary_launch');
+    });
+
+    it('v2_primary takes precedence over shadow mode', () => {
+      const config: CanaryConfig = {
+        v2Enabled: true,
+        killSwitch: false,
+        v2Primary: true,
+        shadowEnabled: true,
+        canarySports: ['NBA'],
+        canaryPercent: 100,
+      };
+      const decision = canaryDecide('NBA', 'pick-1', config);
+      expect(decision.mode).toBe('v2_primary');
+      expect(decision.reason).toBe('v2_primary_launch');
+    });
+
+    it('kill switch overrides v2_primary', () => {
+      const config: CanaryConfig = {
+        v2Enabled: true,
+        killSwitch: true,
+        v2Primary: true,
+        shadowEnabled: false,
+        canarySports: [],
+        canaryPercent: 0,
+      };
+      const decision = canaryDecide('NBA', 'pick-1', config);
+      expect(decision.mode).toBe('v1');
+      expect(decision.reason).toBe('kill_switch');
+    });
+
+    it('v2_disabled overrides v2_primary', () => {
+      const config: CanaryConfig = {
+        v2Enabled: false,
+        killSwitch: false,
+        v2Primary: true,
+        shadowEnabled: false,
+        canarySports: [],
+        canaryPercent: 0,
+      };
+      const decision = canaryDecide('NBA', 'pick-1', config);
+      expect(decision.mode).toBe('v1');
+      expect(decision.reason).toBe('v2_disabled');
+    });
+
+    it('v2_primary works for all sports without sport gating', () => {
+      const config: CanaryConfig = {
+        v2Enabled: true,
+        killSwitch: false,
+        v2Primary: true,
+        shadowEnabled: false,
+        canarySports: ['NBA'], // sport gate is irrelevant when v2_primary is ON
+        canaryPercent: 0,
+      };
+      // v2_primary should apply regardless of sport or percent
+      expect(canaryDecide('NBA', 'p1', config).mode).toBe('v2_primary');
+      expect(canaryDecide('MLB', 'p1', config).mode).toBe('v2_primary');
+      expect(canaryDecide('NFL', 'p1', config).mode).toBe('v2_primary');
+      expect(canaryDecide('NHL', 'p1', config).mode).toBe('v2_primary');
     });
   });
 });

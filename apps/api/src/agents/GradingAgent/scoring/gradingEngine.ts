@@ -17,6 +17,7 @@ import { RiskManager } from './riskManager';
 import { type Tier, canonicalTier } from './TierScale';
 // Tranche 3, Stage 4 (2026-01-29): Unified V2 scoring pipeline
 // Tranche 6 (2026-01-29): Canary routing + drift logging
+// Tranche 9 (2026-01-29): V2 Primary mode — first-launch cutover
 
 export interface ScoringWeights {
   // Core Scoring Components
@@ -636,6 +637,56 @@ export class SyndicateGradingEngine {
           }
         } catch (e) {
           console.error('V2 shadow scoring failed:', e);
+        }
+      }
+
+      // Tranche 9: V2 Primary mode (V2 output with real V1 drift comparison)
+      if (canary.mode === 'v2_primary') {
+        try {
+          const v2Result = computeScoreV2(features);
+          logDrift({
+            pickId: features.propId || 'unknown',
+            sport: features.sport || 'NBA',
+            mode: 'v2_primary',
+            v1Score: result.finalScore,
+            v1Tier: result.tier,
+            v1Ev: result.edgeScore,
+            v2Result: v2Result,
+          });
+          const promoCfg = parsePromotionPolicyConfig();
+          if (promoCfg.policyEnabled) {
+            const pd = evaluatePromotion(v2Result, features.sport || 'NBA', features.propId || 'unknown', promoCfg);
+            // eslint-disable-next-line no-console
+            console.log(JSON.stringify({ type: 'promotion_decision_v2_primary', pick_id: features.propId, ...pd }));
+          }
+          return {
+            propId: features.propId,
+            finalScore: v2Result.score,
+            confidence: v2Result.score / 100,
+            tier: v2Result.tier,
+            edgeScore: v2Result.ev,
+            featureContributions: Object.fromEntries(
+              Object.entries(v2Result.breakdown).map(([k, b]) => [k, b.contribution])
+            ),
+            modelContributions: result.modelContributions,
+            kellyFraction: result.kellyFraction,
+            positionSize: result.positionSize,
+            riskScore: result.riskScore,
+            correlationRisk: result.correlationRisk,
+            scenarioAnalysis: result.scenarioAnalysis,
+            professionalInsights: result.professionalInsights,
+            enhancedCapperAnalysis: result.enhancedCapperAnalysis,
+            deviggingResult: result.deviggingResult,
+            dataQuality: result.dataQuality,
+            modelAgreement: result.modelAgreement,
+            historicalAccuracy: result.historicalAccuracy,
+            timestamp: new Date().toISOString(),
+            modelVersion: 'v2-primary',
+            configUsed: 'computeScoreV2',
+          };
+        } catch (e) {
+          console.error('V2 primary scoring failed, falling back to V1:', e);
+          // Fall through to V1 return below
         }
       }
 

@@ -4,6 +4,7 @@
 // Tranche 3, Stage 4 (2026-01-29): Unified V2 scoring pipeline
 // Tranche 6 (2026-01-29): Canary routing + drift logging
 // Tranche 7 (2026-01-29): Promotion policy governance
+// Tranche 9 (2026-01-29): V2 Primary mode — first-launch cutover
 import { canaryDecide } from '../../agents/GradingAgent/scoring/canaryRouter';
 import { computeScoreV2 } from '../../agents/GradingAgent/scoring/computeScoreV2';
 import { logDrift } from '../../agents/GradingAgent/scoring/driftLogger';
@@ -318,6 +319,50 @@ export function unifiedEdgeScore(
       });
     } catch (e) {
       console.error('V2 shadow scoring failed:', e);
+    }
+  }
+
+  // Tranche 9: V2 Primary mode (V2 output with real V1 drift comparison)
+  if (canary.mode === 'v2_primary') {
+    try {
+      const features = mapPropToMinimalFeatures(prop);
+      const v2Result = computeScoreV2(features);
+      logDrift({
+        pickId: canaryPickId,
+        sport: canarySport,
+        mode: 'v2_primary',
+        v1Score: professional_score,
+        v1Tier: tier,
+        v1Ev: 0,
+        v2Result: v2Result,
+      });
+      const promoCfg = parsePromotionPolicyConfig();
+      let v2Postable: boolean;
+      if (promoCfg.policyEnabled) {
+        const promoDecision = evaluatePromotion(v2Result, canarySport, canaryPickId, promoCfg);
+        v2Postable = promoDecision.promote;
+        // eslint-disable-next-line no-console
+        console.log(JSON.stringify({ type: 'promotion_decision_v2_primary', pick_id: canaryPickId, ...promoDecision }));
+      } else {
+        v2Postable = ['S', 'A'].includes(v2Result.tier);
+      }
+      const v2Breakdown: ScoreBreakdown = {};
+      for (const [k, b] of Object.entries(v2Result.breakdown)) {
+        v2Breakdown[k] = b.contribution;
+      }
+      v2Breakdown['total'] = v2Result.score;
+      return {
+        score: v2Result.score,
+        tier: v2Result.tier,
+        tags: [],
+        breakdown: v2Breakdown,
+        postable: v2Postable,
+        solo_lock: v2Result.tier === 'S',
+        version: EDGE_SCORING_VERSION.CURRENT,
+      };
+    } catch (e) {
+      console.error('V2 primary scoring failed, falling back to V1:', e);
+      // Fall through to V1 return below
     }
   }
 

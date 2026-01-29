@@ -1,23 +1,25 @@
 /**
  * canaryRouter.ts — Canary Routing for ScoringEngine V2
  *
- * Decides whether a scoring request should use V1, V2, or shadow mode.
+ * Decides whether a scoring request should use V1, V2, shadow, or V2 primary mode.
  * Pure function: deterministic, no side effects, no DB calls.
  *
  * Priority order:
- * 1. Kill switch ON  → always V1
- * 2. V2 master OFF   → always V1
- * 3. Shadow ON        → shadow (compute both, return V1)
- * 4. Sport-gated      → V2 if sport in allowed list
- * 5. Percent-gated    → V2 if stable hash(pick_id) falls within percent
- * 6. Otherwise        → V1
+ * 1. Kill switch ON   → always V1
+ * 2. V2 master OFF    → always V1
+ * 3. V2 primary ON    → v2_primary (V2 output, V1 drift comparison)
+ * 4. Shadow ON        → shadow (compute both, return V1)
+ * 5. Sport-gated      → V2 if sport in allowed list
+ * 6. Percent-gated    → V2 if stable hash(pick_id) falls within percent
+ * 7. Otherwise        → V1
  *
  * Created: 2026-01-29 (Tranche 6 — Canary Routing)
+ * Updated: 2026-01-29 (Tranche 9 — First-Launch Cutover)
  */
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-export type CanaryMode = 'v1' | 'v2' | 'shadow';
+export type CanaryMode = 'v1' | 'v2' | 'shadow' | 'v2_primary';
 
 export interface CanaryDecision {
   mode: CanaryMode;
@@ -29,6 +31,8 @@ export interface CanaryConfig {
   v2Enabled: boolean;
   /** Force V1 regardless of all other flags (SCORING_KILL_SWITCH) */
   killSwitch: boolean;
+  /** V2 is the primary/default scoring engine (SCORING_V2_PRIMARY) */
+  v2Primary: boolean;
   /** Compute both, return V1, log drift (SCORING_SHADOW) */
   shadowEnabled: boolean;
   /** CSV of sports allowed for V2 canary (SCORING_CANARY_SPORTS) */
@@ -48,6 +52,7 @@ export function parseCanaryConfig(
 ): CanaryConfig {
   const v2Enabled = env.SCORING_ENGINE_V2 === 'true';
   const killSwitch = env.SCORING_KILL_SWITCH === 'true';
+  const v2Primary = env.SCORING_V2_PRIMARY === 'true';
   const shadowEnabled = env.SCORING_SHADOW === 'true';
 
   const canarySportsRaw = env.SCORING_CANARY_SPORTS || '';
@@ -61,7 +66,7 @@ export function parseCanaryConfig(
     ? 0
     : Math.max(0, Math.min(100, canaryPercentRaw));
 
-  return { v2Enabled, killSwitch, shadowEnabled, canarySports, canaryPercent };
+  return { v2Enabled, killSwitch, v2Primary, shadowEnabled, canarySports, canaryPercent };
 }
 
 // ─── Stable Hash ────────────────────────────────────────────────────────────
@@ -102,16 +107,21 @@ export function canaryDecide(sport: string, pickId: string, config?: CanaryConfi
     return { mode: 'v1', reason: 'v2_disabled' };
   }
 
-  // 3. Shadow mode: compute both, return V1
+  // 3. V2 primary: V2 is default output, V1 computed for drift comparison
+  if (cfg.v2Primary) {
+    return { mode: 'v2_primary', reason: 'v2_primary_launch' };
+  }
+
+  // 4. Shadow mode: compute both, return V1
   if (cfg.shadowEnabled) {
     return { mode: 'shadow', reason: 'shadow_mode' };
   }
 
-  // 4. Sport-gated canary
+  // 5. Sport-gated canary
   const sportUpper = (sport || '').toUpperCase();
   const sportAllowed = cfg.canarySports.length === 0 || cfg.canarySports.includes(sportUpper);
 
-  // 5. Percent-gated canary
+  // 6. Percent-gated canary
   const bucket = stableHash(pickId);
   const percentAllowed = cfg.canaryPercent > 0 && bucket < cfg.canaryPercent;
 
