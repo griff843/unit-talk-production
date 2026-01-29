@@ -4,7 +4,7 @@
  * Eliminates magic numbers and provides type safety
  */
 
-import { ScoringConfig, SportSpecificWeights, validateWeights } from './types';
+import { ScoringConfig, SportSpecificWeights, validateWeights, validateWeightsV2 } from './types';
 import { NBA_CONFIG } from './nba';
 import { MLB_CONFIG } from './mlb';
 import { NFL_CONFIG } from './nfl';
@@ -33,19 +33,29 @@ const DEFAULT_CONFIG: ScoringConfig = NBA_CONFIG; // Use NBA as default
 export function getScoringConfig(sport: string): ScoringConfig {
   const normalizedSport = sport.toUpperCase();
   const config = SPORT_CONFIGS[normalizedSport];
-  
+
   if (!config) {
     console.warn(`⚠️ No specific config for sport: ${sport}, using default (NBA)`);
     return DEFAULT_CONFIG;
   }
-  
-  // Validate weights sum to 1.0 (with tolerance)
+
+  // V2: use corrected validation with explicit key enumeration
+  // computeScoreV2 normalizes by total weight, so sum != 1.0 is fine
+  if (process.env.SCORING_ENGINE_V2 === 'true') {
+    const result = validateWeightsV2(config.weights);
+    if (!result.valid) {
+      console.error(`❌ Invalid V2 weights for ${sport}:`, result.issues);
+      return DEFAULT_CONFIG;
+    }
+    return config;
+  }
+
+  // Legacy: keep existing broken validation behavior (always fails → NBA fallback)
   if (!validateWeights(config.weights)) {
     console.error(`❌ Invalid weights for sport: ${sport}, weights don't sum to 1.0`);
-    // Return default but log the error
     return DEFAULT_CONFIG;
   }
-  
+
   return config;
 }
 
@@ -138,17 +148,28 @@ export function getFeatureWeight(sport: string, featureName: string): number {
  * Validate all sport configurations at startup
  */
 export function validateAllConfigurations(): boolean {
+  const useV2 = process.env.SCORING_ENGINE_V2 === 'true';
   let allValid = true;
-  
+
   for (const [sport, config] of Object.entries(SPORT_CONFIGS)) {
-    if (!validateWeights(config.weights)) {
-      console.error(`❌ Invalid configuration for ${sport}`);
-      allValid = false;
+    if (useV2) {
+      const result = validateWeightsV2(config.weights);
+      if (!result.valid) {
+        console.error(`❌ Invalid V2 configuration for ${sport}:`, result.issues);
+        allValid = false;
+      } else {
+        console.log(`✅ Valid V2 configuration for ${sport} (total: ${result.total.toFixed(4)})`);
+      }
     } else {
-      console.log(`✅ Valid configuration for ${sport}`);
+      if (!validateWeights(config.weights)) {
+        console.error(`❌ Invalid configuration for ${sport}`);
+        allValid = false;
+      } else {
+        console.log(`✅ Valid configuration for ${sport}`);
+      }
     }
   }
-  
+
   return allValid;
 }
 
