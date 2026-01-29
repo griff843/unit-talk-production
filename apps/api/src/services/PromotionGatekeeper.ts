@@ -269,6 +269,13 @@ class PromotionGatekeeper {
     // Store decision for audit trail
     await this.storePromotionDecision(pick, decision);
 
+    // PROMOTION_SHADOW_MODE: skip publish guard entirely (decisions still stored above)
+    const promotionShadow = process.env['PROMOTION_SHADOW_MODE'] !== 'false';
+    if (promotionShadow) {
+      this.logger.info('Promotion shadow mode — skipping PublishGuard (decision stored)', { pickId: pick.id });
+      return decision;
+    }
+
     // Handle promotion decision through publish guard (shadow mode aware)
     const publishResult = await publishGuard.handlePromotionDecision(
       {
@@ -447,11 +454,23 @@ class PromotionGatekeeper {
     }));
 
     // Triggered rules: one entry per gate
-    const triggeredRules = gateResults.map(r => ({
+    const triggeredRules: Array<{ gate: string; passed: boolean; reason: string }> = gateResults.map(r => ({
       gate: r.gateId,
       passed: r.passed,
       reason: r.message,
     }));
+
+    // Stage 5 — Guardrail rules appended to triggered_rules for audit
+    const minEdgePct = Number(process.env['PROMO_GUARD_MIN_EDGE_PCT']) || 1;
+    const evPct = pick.expectedValue * 100;
+    const edgePassed = evPct >= minEdgePct;
+    triggeredRules.push({
+      gate: 'G-06:min_edge',
+      passed: edgePassed,
+      reason: edgePassed
+        ? `EV ${evPct.toFixed(1)}% meets minimum ${minEdgePct}%`
+        : `EV ${evPct.toFixed(1)}% below guardrail minimum ${minEdgePct}%`,
+    });
 
     // Edge snapshot at decision time
     const edgeAtDecision = {

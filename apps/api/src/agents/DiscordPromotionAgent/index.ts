@@ -9,6 +9,8 @@ import { supabase } from '../../services/supabaseClient';
 
 // ---- CONFIG ----
 const DISCORD_WEBHOOK_URL = process.env['DISCORD_WEBHOOK_URL'] || '';
+/** Promotion-specific shadow mode: blocks Discord publishing while keeping claims idempotent. Fail-closed. */
+const PROMOTION_SHADOW_MODE = process.env['PROMOTION_SHADOW_MODE'] !== 'false'; // default: true (safe)
 
 function formatOdds(odds: number) {
   return odds > 0 ? `+${odds}` : odds;
@@ -139,8 +141,12 @@ export async function promoteToDiscord() {
       continue;
     }
 
-    await postEliteCardToDiscord(pick);
-    logger.info({ id: pick.id }, 'Posted pick to Discord with image-card');
+    if (PROMOTION_SHADOW_MODE) {
+      logger.info({ id: pick.id, tier: pick.tier }, 'Shadow mode — skipped Discord post (claim retained)');
+    } else {
+      await postEliteCardToDiscord(pick);
+      logger.info({ id: pick.id }, 'Posted pick to Discord with image-card');
+    }
   }
 }
 

@@ -1,6 +1,7 @@
 import { logger } from '../../services/logging';
 import { supabase } from '../../services/supabaseClient';
 import { applyScoringLogic } from '../GradingAgent/scoring/applyScoringLogic';
+import { runPreScoreGuardrails, runPostScoreGuardrails, hasRejection } from './PromotionGuardrails';
 
 const REQUIRED_PROMOTION_FIELDS = ['player_name', 'sport', 'stat_type', 'line', 'odds'] as const;
 
@@ -71,7 +72,27 @@ export async function promoteToDailyPicks() {
       continue;
     }
 
+    // Stage 5 — Pre-score guardrails (G-01 through G-05)
+    const preGuardrails = runPreScoreGuardrails(prop);
+    if (hasRejection(preGuardrails)) {
+      logger.warn(
+        { id: prop.id, player: prop.player_name, guardrails: preGuardrails.filter(g => !g.passed) },
+        'Blocked by pre-score guardrail'
+      );
+      continue;
+    }
+
     const scored = applyScoringLogic(prop);
+
+    // Stage 5 — Post-score guardrails (G-06: minimum edge)
+    const postGuardrails = runPostScoreGuardrails(scored);
+    if (hasRejection(postGuardrails)) {
+      logger.warn(
+        { id: prop.id, player: prop.player_name, tier: scored.tier, guardrails: postGuardrails.filter(g => !g.passed) },
+        'Blocked by post-score guardrail'
+      );
+      continue;
+    }
 
     if (['S', 'A', 'B'].includes(scored.tier)) {
       const ok = await claimAndInsert(prop, scored);
