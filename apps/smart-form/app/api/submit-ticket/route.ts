@@ -145,11 +145,27 @@ export async function POST(request: NextRequest) {
         capper_id,
         error: capperError?.message,
       }, 'Invalid capper_id provided');
-      
+
       return NextResponse.json({
         error: 'Invalid capper ID',
         message: 'The specified capper was not found or is inactive',
       }, { status: 400 });
+    }
+
+    // FAIL-CLOSED: Validate that active column exists in response
+    // Per USERS_CANONICAL_CONTRACT.md - never assume active=true if missing
+    if (typeof capperUser.active !== 'boolean') {
+      log.error({
+        capper_id,
+        active_type: typeof capperUser.active,
+        active_value: capperUser.active,
+      }, 'SCHEMA VIOLATION: users.active column missing or invalid type. Canonical contract requires BOOLEAN.');
+
+      return NextResponse.json({
+        error: 'Schema violation',
+        message: 'Database schema does not match canonical contract. users.active column is required.',
+        code: 'SCHEMA_CONTRACT_VIOLATION',
+      }, { status: 500 });
     }
 
     if (!capperUser.active) {

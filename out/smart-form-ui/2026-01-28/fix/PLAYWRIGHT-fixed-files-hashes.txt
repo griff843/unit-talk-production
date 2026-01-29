@@ -1,0 +1,8 @@
+File Hashes for Playwright FIXED Screenshots
+Date: Wed, Jan 28, 2026  6:07:34 PM
+
+d867a5ce7e7e0b34f6c942162753a3e7 *out/smart-form-ui/2026-01-28/playwright/fixed/console-fixed.txt
+4cadc6516d744a955ab648a122825ad5 *out/smart-form-ui/2026-01-28/playwright/fixed/FIX-01-cappers-loaded.png
+0724e0e1ec7096dddca2a4a132b44728 *out/smart-form-ui/2026-01-28/playwright/fixed/FIX-02-sidebar-synced.png
+33b75b0890df249b3b0472068b8dbbd5 *out/smart-form-ui/2026-01-28/playwright/fixed/FIX-03-ticket-type-keeps-sport.png
+e7fb5504963f57cf9c91c1e20d9edfab *out/smart-form-ui/2026-01-28/playwright/fixed/REPRO.md

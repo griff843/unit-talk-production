@@ -1,0 +1,7 @@
+ apps/api/src/agents/AlertAgent/embedBuilder.ts |  60 ++++-
+ apps/smart-form/app/api/cappers/route.ts       |  79 ++++---
+ apps/smart-form/app/api/players/route.ts       | 306 +++++++++++++++++++++----
+ apps/smart-form/app/api/submit-ticket/route.ts |  17 +-
+ apps/smart-form/lib/api-client.ts              | 102 +++++++--
+ apps/smart-form/lib/supabase-queries.ts        |  56 +++--
+ 6 files changed, 488 insertions(+), 132 deletions(-)

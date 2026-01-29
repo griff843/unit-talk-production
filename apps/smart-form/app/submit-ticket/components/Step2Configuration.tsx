@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -50,8 +50,24 @@ export function Step2Configuration({
   onBack,
   errors,
 }: Step2ConfigurationProps) {
-  const [unitSize, setUnitSize] = useState([data.unit_size || 2.0]);
-  const [confidence, setConfidence] = useState(data.confidence_level || 7);
+  // R-01: Derive display values from canonical state (no shadow state)
+  const unitSize = data.unit_size ?? 2.0;
+  const confidence = data.confidence_level ?? 7;
+
+  // Sync default values to form state on mount
+  useEffect(() => {
+    const defaults: Record<string, number> = {};
+    if (data.unit_size === undefined) {
+      defaults.unit_size = 2.0;
+    }
+    if (data.confidence_level === undefined) {
+      defaults.confidence_level = 7;
+    }
+    if (Object.keys(defaults).length > 0) {
+      onUpdate(defaults);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Unit size recommendations based on ticket type
   const getUnitRecommendation = () => {
@@ -87,7 +103,6 @@ export function Step2Configuration({
   };
 
   const handleUnitSizeChange = (value: number[]) => {
-    setUnitSize(value);
     onUpdate({ unit_size: value[0] });
   };
 
@@ -100,7 +115,6 @@ export function Step2Configuration({
   };
 
   const handleConfidenceChange = (level: number) => {
-    setConfidence(level);
     onUpdate({ confidence_level: level });
   };
 
@@ -121,7 +135,7 @@ export function Step2Configuration({
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900">💰 Unit Size</h3>
             <Badge variant="outline" className="text-sm bg-white text-gray-700 border-gray-300">
-              Current: {unitSize[0]} units
+              Current: {unitSize} units
             </Badge>
           </div>
 
@@ -132,7 +146,7 @@ export function Step2Configuration({
                 min={0.5}
                 max={5}
                 step={0.5}
-                value={unitSize[0]}
+                value={unitSize}
                 onChange={e => handleUnitSizeChange([parseFloat(e.target.value)])}
                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
               />

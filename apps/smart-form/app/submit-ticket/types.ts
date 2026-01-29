@@ -267,10 +267,14 @@ export const smartTicketFormSchema = z.object({
   game_date: z
     .string()
     .min(1, 'Game date is required')
-    .refine(
-      date => new Date(date) >= new Date(new Date().setHours(0, 0, 0, 0)),
-      'Cannot select past dates'
-    ),
+    .refine(date => {
+      // Parse YYYY-MM-DD as local date (not UTC) to avoid timezone mismatch
+      const [y, m, d] = date.split('-').map(Number);
+      const gameDate = new Date(y, m - 1, d);
+      const todayLocal = new Date();
+      todayLocal.setHours(0, 0, 0, 0);
+      return gameDate >= todayLocal;
+    }, 'Cannot select past dates'),
   user_tier: z.enum(USER_TIERS),
 
   // Step 2: Configuration - all required

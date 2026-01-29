@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import {
   Select,
@@ -417,46 +417,70 @@ export function Step1Essentials({ data, onUpdate, onNext, errors }: Step1Essenti
   const [isLoadingCappers, setIsLoadingCappers] = useState(true);
   const [availableGames, setAvailableGames] = useState(0);
 
-  // Set defaults immediately if not set
+  // FIX: Set defaults using a ref to track initialization, avoiding stale closure issues
+  const hasInitializedDefaults = useRef(false);
   useEffect(() => {
-    // Set defaults for production readiness
-    const updates: any = {};
-    if (!data.sport) {
-      updates.sport = 'MLB';
-    }
-    if (!data.game_date) {
-      // Set default to today in local timezone YYYY-MM-DD format
-      const today = new Date();
-      const year = today.getFullYear();
-      const month = String(today.getMonth() + 1).padStart(2, '0');
-      const day = String(today.getDate()).padStart(2, '0');
-      updates.game_date = `${year}-${month}-${day}`;
-    }
+    if (!hasInitializedDefaults.current) {
+      hasInitializedDefaults.current = true;
 
-    if (Object.keys(updates).length > 0) {
-      onUpdate(updates);
-    }
-  }, []); // Run immediately on mount
+      const updates: Partial<typeof data> = {};
 
-  // Fetch cappers on mount
+      // Only set defaults if values are truly undefined
+      if (data.sport === undefined) {
+        updates.sport = 'MLB';
+      }
+      if (data.game_date === undefined) {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        updates.game_date = `${year}-${month}-${day}`;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        onUpdate(updates);
+      }
+    }
+  }, [onUpdate]);
+
+  // FIX: Fetch cappers with timeout to prevent infinite loading state
   useEffect(() => {
+    let isMounted = true;
+    let timeoutId: NodeJS.Timeout;
+
     const loadCappers = async () => {
       try {
         setIsLoadingCappers(true);
-        const cappersData = await fetchCappers();
 
-        // Production: Use real data from database without mock stats
-        setCappers(cappersData);
+        // Add timeout to prevent infinite loading
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('Capper fetch timeout')), 10000);
+        });
+
+        const cappersData = await Promise.race([fetchCappers(), timeoutPromise]);
+
+        if (isMounted) {
+          setCappers(cappersData as Capper[]);
+        }
       } catch (error) {
         console.error('Error loading cappers:', error);
-        // Production: Show empty state when database is unavailable
-        setCappers([]);
+        if (isMounted) {
+          setCappers([]);
+        }
       } finally {
-        setIsLoadingCappers(false);
+        clearTimeout(timeoutId);
+        if (isMounted) {
+          setIsLoadingCappers(false);
+        }
       }
     };
 
     loadCappers();
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   // Fetch real available games count based on sport and date
@@ -543,31 +567,39 @@ export function Step1Essentials({ data, onUpdate, onNext, errors }: Step1Essenti
             )}
           </div>
 
-          <Select
-            value={cappers.find(c => c.name === data.capper)?.id || ''}
-            onValueChange={handleCapperSelect}
-            disabled={isLoadingCappers}
-          >
-            <SelectTrigger className="bg-white">
-              <SelectValue
-                placeholder={isLoadingCappers ? 'Loading cappers...' : 'Choose your capper'}
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {cappers.map(capper => (
-                <SelectItem key={capper.id} value={capper.id}>
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{capper.name}</span>
-                      {capper.stats?.isLive && (
-                        <Badge className="bg-green-500 text-white text-xs">LIVE</Badge>
-                      )}
+          {!isLoadingCappers && cappers.length === 0 ? (
+            <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
+              <p className="text-sm text-red-800 font-medium">
+                No cappers available. Please try refreshing the page or contact support.
+              </p>
+            </div>
+          ) : (
+            <Select
+              value={cappers.find(c => c.name === data.capper)?.id || ''}
+              onValueChange={handleCapperSelect}
+              disabled={isLoadingCappers}
+            >
+              <SelectTrigger className="bg-white">
+                <SelectValue
+                  placeholder={isLoadingCappers ? 'Loading cappers...' : 'Choose your capper'}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {cappers.map(capper => (
+                  <SelectItem key={capper.id} value={capper.id}>
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{capper.name}</span>
+                        {capper.stats?.isLive && (
+                          <Badge className="bg-green-500 text-white text-xs">LIVE</Badge>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
 
           {/* Capper Stats */}
           {data.capper && cappers.find(c => c.name === data.capper)?.stats && (

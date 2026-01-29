@@ -74,11 +74,27 @@ export async function GET(request: Request) {
       }, { status: 500 });
     }
 
+    // FAIL-CLOSED: Validate that active column exists in response
+    // Per USERS_CANONICAL_CONTRACT.md - never assume active=true if missing
+    if (data && data.length > 0 && typeof data[0].active !== 'boolean') {
+      log.error({
+        sample_user: data[0],
+        active_type: typeof data[0].active,
+      }, 'SCHEMA VIOLATION: users.active column missing or invalid type. Canonical contract requires BOOLEAN.');
+
+      return NextResponse.json({
+        error: 'Schema violation',
+        message: 'Database schema does not match canonical contract. users.active column is required.',
+        code: 'SCHEMA_CONTRACT_VIOLATION',
+      }, { status: 500 });
+    }
+
     // Transform to match expected interface
+    // FAIL-CLOSED: active must be explicitly boolean, no fallback
     const cappers = (data || []).map(user => ({
       id: user.id,
       name: user.username,
-      active: user.active ?? true, // Default to true if column doesn't exist
+      active: user.active, // FAIL-CLOSED: No fallback - column is required
       tier: user.tier || user.capper_tier || 'VIP',
       discordId: user.discord_id,
     }));

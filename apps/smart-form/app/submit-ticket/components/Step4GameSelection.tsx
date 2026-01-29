@@ -156,7 +156,8 @@ export function Step4GameSelection({
             homeTeamShort: game.home_team_short || 'HOME',
             awayTeamShort: game.away_team_short || 'AWAY',
             matchup:
-              game.matchup || `${game.away_team_name || game.awayTeam || 'Away'} @ ${game.home_team_name || game.homeTeam || 'Home'}`,
+              game.matchup ||
+              `${game.away_team_name || game.awayTeam || 'Away'} @ ${game.home_team_name || game.homeTeam || 'Home'}`,
             sport: data.sport,
             spread: {
               home: game.spread_clean || game.spread?.home,
@@ -365,7 +366,11 @@ export function Step4GameSelection({
       line: line,
     };
 
-    const updatedSelections = [...(data.game_selections || []), newSelection];
+    // R-06: Single ticket enforces exactly one selection (replace, don't append)
+    const updatedSelections =
+      data.ticket_type === 'single'
+        ? [newSelection]
+        : [...(data.game_selections || []), newSelection];
     onUpdate({ game_selections: updatedSelections, notes });
 
     // Reset form

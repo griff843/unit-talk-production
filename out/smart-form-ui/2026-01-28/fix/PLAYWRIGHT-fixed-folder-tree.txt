@@ -1,0 +1,9 @@
+out/smart-form-ui/2026-01-28/playwright/fixed/:
+total 3080
+drwxr-xr-x 1 griff 197609       0 Jan 28 18:07 .
+drwxr-xr-x 1 griff 197609       0 Jan 28 15:28 ..
+-rw-r--r-- 1 griff 197609    1716 Jan 28 18:07 console-fixed.txt
+-rw-r--r-- 1 griff 197609 1039926 Jan 28 18:07 FIX-01-cappers-loaded.png
+-rw-r--r-- 1 griff 197609 1045735 Jan 28 18:07 FIX-02-sidebar-synced.png
+-rw-r--r-- 1 griff 197609 1045241 Jan 28 18:07 FIX-03-ticket-type-keeps-sport.png
+-rw-r--r-- 1 griff 197609    2484 Jan 28 18:07 REPRO.md

@@ -23,28 +23,20 @@ FROM base AS development
 
 # Copy package files
 COPY package*.json ./
-RUN npm ci && npm cache clean --force
-
-# Copy centralized configuration (CRITICAL for v3.0.0)
-COPY ../../config/ ./config/
+RUN npm install && npm cache clean --force
 
 # Copy source code
 COPY . .
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001 && \
-    chown -R nodejs:nodejs /app
-
-# Switch to non-root user
-USER nodejs
+# Note: Development stage runs as root for volume mount compatibility
+# Production stage uses non-root user (see below)
 
 # Expose port
-EXPOSE 3000
+EXPOSE 3021
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD curl -f http://localhost:3000/api/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost:3021/api/health || exit 1
 
 # Development start
 CMD ["npm", "run", "dev"]

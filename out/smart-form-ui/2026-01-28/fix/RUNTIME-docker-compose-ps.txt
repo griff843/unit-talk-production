@@ -1,0 +1,13 @@
+NAME                       IMAGE                                 COMMAND                  SERVICE             CREATED         STATUS                   PORTS
+unit-talk-api              unit-talk-production-api              "docker-entrypoint.s…"   api                 3 hours ago     Up 3 hours (unhealthy)   0.0.0.0:3010->3000/tcp, [::]:3010->3000/tcp
+unit-talk-command-center   unit-talk-production-command-center   "docker-entrypoint.s…"   command-center      26 hours ago    Up 26 hours (healthy)    0.0.0.0:3004->3015/tcp, [::]:3004->3015/tcp
+unit-talk-dashboard        unit-talk-production-dashboard        "docker-entrypoint.s…"   dashboard           26 hours ago    Up 26 hours (healthy)    0.0.0.0:3003->3000/tcp, [::]:3003->3000/tcp
+unit-talk-discord-bot      unit-talk-production-discord-bot      "docker-entrypoint.s…"   discord-bot         2 days ago      Up 2 days (healthy)      3000/tcp
+unit-talk-grafana          grafana/grafana:latest                "/run.sh"                grafana             4 days ago      Up 3 days (healthy)      0.0.0.0:3001->3000/tcp, [::]:3001->3000/tcp
+unit-talk-postgres         postgres:15-alpine                    "docker-entrypoint.s…"   postgres            5 days ago      Up 3 days (healthy)      0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+unit-talk-prometheus       prom/prometheus:latest                "/bin/prometheus --c…"   prometheus          4 days ago      Up 3 days (healthy)      0.0.0.0:9090->9090/tcp, [::]:9090->9090/tcp
+unit-talk-redis            redis:7-alpine                        "docker-entrypoint.s…"   redis               5 days ago      Up 3 days (healthy)      0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp
+unit-talk-smart-form       unit-talk-production-smart-form       "docker-entrypoint.s…"   smart-form          2 minutes ago   Up 2 minutes (healthy)   0.0.0.0:3002->3021/tcp, [::]:3002->3021/tcp
+unit-talk-temporal         temporalio/auto-setup:1.20.0          "/etc/temporal/entry…"   temporal            5 days ago      Up 3 days (healthy)      0.0.0.0:7233->7233/tcp, [::]:7233->7233/tcp
+unit-talk-temporal-db      postgres:13                           "docker-entrypoint.s…"   temporal-postgres   5 days ago      Up 3 days (healthy)      5432/tcp
+unit-talk-workers          unit-talk-production-workers          "docker-entrypoint.s…"   workers             27 hours ago    Up 26 hours (healthy)    3000/tcp, 9229/tcp, 9464/tcp

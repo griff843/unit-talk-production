@@ -1,0 +1,62 @@
+# Docker build context exclusions for smart-form
+# Created to fix circular symlink issue: node_modules/unit-talk-smart-form
+
+# Node modules - contains workspace symlinks that cause circular references
+node_modules
+**/node_modules
+
+# Specific problematic symlink (redundant but explicit)
+node_modules/unit-talk-smart-form
+
+# Build artifacts
+.next
+out
+dist
+build
+
+# Development files
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Test artifacts
+coverage
+.nyc_output
+
+# IDE and editor files
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+--- Dockerfile changes (diff) ---
+diff --git a/apps/smart-form/Dockerfile b/apps/smart-form/Dockerfile
+index 811021a..9802e4a 100644
+--- a/apps/smart-form/Dockerfile
++++ b/apps/smart-form/Dockerfile
+@@ -23,10 +23,7 @@ FROM base AS development
+ 
+ # Copy package files
+ COPY package*.json ./
+-RUN npm ci && npm cache clean --force
+-
+-# Copy centralized configuration (CRITICAL for v3.0.0)
+-COPY ../../config/ ./config/
++RUN npm install && npm cache clean --force
+ 
+ # Copy source code
+ COPY . .

@@ -1,0 +1,39 @@
+ Image unit-talk-production-smart-form Building 
+ Image unit-talk-production-api Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 1.21kB done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 2.33kB 0.0s done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/node:18-alpine
+#3 DONE 0.1s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 2B done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 DONE 0.0s
+
+#6 [base 1/3] FROM docker.io/library/node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e
+#6 resolve docker.io/library/node:18-alpine@sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e 0.0s done
+#6 DONE 0.1s
+
+#5 [internal] load build context
+#5 transferring context: 82.80MB 5.0s
+#5 transferring context: 186.80MB 10.0s
+#5 transferring context: 235.62MB 15.1s
+#5 transferring context: 345.61MB 20.1s
+#5 transferring context: 370.91MB 25.2s
+#5 transferring context: 380.55MB 30.3s
+#5 transferring context: 382.69MB 35.3s
+#5 transferring context: 386.71MB 40.4s done
+#5 ERROR: error from sender: open C:\Users\griff\OneDrive\Desktop\unit-talk-production\apps\smart-form\node_modules\unit-talk-smart-form: The file cannot be accessed by the system.
+------
+ > [internal] load build context:
+------
+failed to solve: error from sender: open C:\Users\griff\OneDrive\Desktop\unit-talk-production\apps\smart-form\node_modules\unit-talk-smart-form: The file cannot be accessed by the system.
+
