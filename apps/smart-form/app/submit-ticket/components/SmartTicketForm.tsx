@@ -5,7 +5,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { SmartTicketFormData, FormState, FORM_STEPS } from '../types';
+import { SmartTicketFormData, FormState, FORM_STEPS, smartTicketFormSchema } from '../types';
 import { StepProgress } from './StepProgress';
 import { Step1Essentials } from './Step1Essentials';
 import { Step2Configuration } from './Step2Configuration';
@@ -16,6 +16,16 @@ import { getTimezoneOffset } from '@/lib/betting-utils';
 interface SmartTicketFormProps {
   onSubmitSuccess?: (ticketId: string) => void;
 }
+
+// Declarative reset cascades — when a trigger field changes, clear downstream fields
+const RESET_CASCADES: {
+  trigger: keyof SmartTicketFormData;
+  clears: (keyof SmartTicketFormData)[];
+}[] = [
+  { trigger: 'sport', clears: ['bet_type', 'market_type', 'game_selections'] },
+  { trigger: 'bet_type', clears: ['game_selections'] },
+  { trigger: 'game_date', clears: ['game_selections'] },
+];
 
 export function SmartTicketForm({ onSubmitSuccess }: SmartTicketFormProps) {
   const { toast } = useToast();
@@ -52,12 +62,28 @@ export function SmartTicketForm({ onSubmitSuccess }: SmartTicketFormProps) {
     isSubmitting: false,
   });
 
-  // Update form data
+  // R-12: Key to force child component remount on post-submit reset
+  const [resetKey, setResetKey] = useState(0);
+
+  // Update form data with declarative reset cascades (R-03, R-04, R-05)
   const updateFormData = (updates: Partial<SmartTicketFormData>) => {
-    setFormState(prev => ({
-      ...prev,
-      data: { ...prev.data, ...updates },
-    }));
+    setFormState(prev => {
+      const merged = { ...prev.data, ...updates };
+
+      // Apply declarative cascades — if trigger changed, clear downstream
+      for (const { trigger, clears } of RESET_CASCADES) {
+        if (updates[trigger] !== undefined && updates[trigger] !== prev.data[trigger]) {
+          for (const field of clears) {
+            (merged as any)[field] = Array.isArray(prev.data[field]) ? [] : undefined;
+          }
+        }
+      }
+
+      return {
+        ...prev,
+        data: merged,
+      };
+    });
   };
 
   // Validate current step
@@ -208,7 +234,20 @@ export function SmartTicketForm({ onSubmitSuccess }: SmartTicketFormProps) {
     try {
       setFormState(prev => ({ ...prev, isSubmitting: true }));
 
-      // Final validation
+      // R-10: Zod schema validation gate on canonical state
+      const zodResult = smartTicketFormSchema.safeParse(formState.data);
+      if (!zodResult.success) {
+        const firstError = zodResult.error.issues[0]?.message || 'Validation failed';
+        console.error('Zod validation failed:', zodResult.error.issues);
+        toast({
+          title: 'Validation Error',
+          description: firstError,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Final step-level validation
       const { isValid } = validateStep(4, formState.data);
       if (!isValid) {
         toast({
@@ -313,6 +352,8 @@ export function SmartTicketForm({ onSubmitSuccess }: SmartTicketFormProps) {
         validation: {},
         isSubmitting: false,
       });
+      // R-12: Force child component remount to clear local state
+      setResetKey(k => k + 1);
     } catch (error: any) {
       console.error('Submission error:', error);
       toast({
@@ -333,6 +374,7 @@ export function SmartTicketForm({ onSubmitSuccess }: SmartTicketFormProps) {
       case 1:
         return (
           <Step1Essentials
+            key={resetKey}
             data={formState.data}
             onUpdate={updateFormData}
             onNext={handleNext}
@@ -342,6 +384,7 @@ export function SmartTicketForm({ onSubmitSuccess }: SmartTicketFormProps) {
       case 2:
         return (
           <Step2Configuration
+            key={resetKey}
             data={formState.data}
             onUpdate={updateFormData}
             onNext={handleNext}
@@ -352,6 +395,7 @@ export function SmartTicketForm({ onSubmitSuccess }: SmartTicketFormProps) {
       case 3:
         return (
           <Step3BetDetails
+            key={resetKey}
             data={formState.data}
             onUpdate={updateFormData}
             onNext={handleNext}
@@ -362,6 +406,7 @@ export function SmartTicketForm({ onSubmitSuccess }: SmartTicketFormProps) {
       case 4:
         return (
           <Step4GameSelection
+            key={resetKey}
             data={formState.data}
             onUpdate={updateFormData}
             onSubmit={handleSubmit}

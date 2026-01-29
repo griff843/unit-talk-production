@@ -457,10 +457,7 @@ export function Step1Essentials({ data, onUpdate, onNext, errors }: Step1Essenti
           timeoutId = setTimeout(() => reject(new Error('Capper fetch timeout')), 10000);
         });
 
-        const cappersData = await Promise.race([
-          fetchCappers(),
-          timeoutPromise
-        ]);
+        const cappersData = await Promise.race([fetchCappers(), timeoutPromise]);
 
         if (isMounted) {
           setCappers(cappersData as Capper[]);
@@ -570,31 +567,39 @@ export function Step1Essentials({ data, onUpdate, onNext, errors }: Step1Essenti
             )}
           </div>
 
-          <Select
-            value={cappers.find(c => c.name === data.capper)?.id || ''}
-            onValueChange={handleCapperSelect}
-            disabled={isLoadingCappers}
-          >
-            <SelectTrigger className="bg-white">
-              <SelectValue
-                placeholder={isLoadingCappers ? 'Loading cappers...' : 'Choose your capper'}
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {cappers.map(capper => (
-                <SelectItem key={capper.id} value={capper.id}>
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{capper.name}</span>
-                      {capper.stats?.isLive && (
-                        <Badge className="bg-green-500 text-white text-xs">LIVE</Badge>
-                      )}
+          {!isLoadingCappers && cappers.length === 0 ? (
+            <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
+              <p className="text-sm text-red-800 font-medium">
+                No cappers available. Please try refreshing the page or contact support.
+              </p>
+            </div>
+          ) : (
+            <Select
+              value={cappers.find(c => c.name === data.capper)?.id || ''}
+              onValueChange={handleCapperSelect}
+              disabled={isLoadingCappers}
+            >
+              <SelectTrigger className="bg-white">
+                <SelectValue
+                  placeholder={isLoadingCappers ? 'Loading cappers...' : 'Choose your capper'}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {cappers.map(capper => (
+                  <SelectItem key={capper.id} value={capper.id}>
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{capper.name}</span>
+                        {capper.stats?.isLive && (
+                          <Badge className="bg-green-500 text-white text-xs">LIVE</Badge>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
 
           {/* Capper Stats */}
           {data.capper && cappers.find(c => c.name === data.capper)?.stats && (
