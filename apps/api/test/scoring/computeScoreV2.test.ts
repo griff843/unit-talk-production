@@ -9,8 +9,8 @@
  * 5. Snapshot test: full output for 3 reference fixtures
  */
 
-import { computeScoreV2, type ComputeScoreV2Result } from '@/agents/GradingAgent/scoring/computeScoreV2';
-import type { GradingFeatureSet } from '@/types/GradingFeatureSet';
+import { computeScoreV2, ComputeScoreV2Result } from '@/agents/GradingAgent/scoring/computeScoreV2';
+import { GradingFeatureSet } from '@/types/GradingFeatureSet';
 import { SCORING_FIXTURES } from '@/agents/GradingAgent/scoring/__fixtures__/scoringFixtures';
 
 // Reference feature set for determinism testing

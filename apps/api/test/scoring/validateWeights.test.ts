@@ -25,7 +25,7 @@ import {
   NHL_CONFIG,
 } from '@/scoring/config/weights';
 import { computeScoreV2 } from '@/agents/GradingAgent/scoring/computeScoreV2';
-import type { GradingFeatureSet } from '@/types/GradingFeatureSet';
+import { GradingFeatureSet } from '@/types/GradingFeatureSet';
 
 // Reference feature set for consistent testing
 const REFERENCE_FEATURES: GradingFeatureSet = {

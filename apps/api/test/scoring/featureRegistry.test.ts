@@ -13,9 +13,9 @@ import {
   extractFeatureVector,
   getRegistryByGroup,
   getRegistryEntry,
-  type FeatureGroup,
+  FeatureGroup,
 } from '@/agents/GradingAgent/scoring/featureRegistry';
-import type { GradingFeatureSet } from '@/types/GradingFeatureSet';
+import { GradingFeatureSet } from '@/types/GradingFeatureSet';
 
 // Minimal valid GradingFeatureSet for testing
 const MINIMAL_FEATURES: GradingFeatureSet = {
