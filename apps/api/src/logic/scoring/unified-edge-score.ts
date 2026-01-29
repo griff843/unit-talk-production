@@ -1,10 +1,12 @@
 /* eslint-disable max-lines, max-lines-per-function, complexity, no-unused-vars */
 // src/logic/scoring/unified-edge-score.ts
 // Tranche 2, Stage 1 (2026-01-29): Tier determination now delegates to canonical TierScale.
-import { type Tier, scoreOnlyTier } from '../../agents/GradingAgent/scoring/TierScale';
 // Tranche 3, Stage 4 (2026-01-29): Unified V2 scoring pipeline
+// Tranche 6 (2026-01-29): Canary routing + drift logging
+import { canaryDecide } from '../../agents/GradingAgent/scoring/canaryRouter';
 import { computeScoreV2 } from '../../agents/GradingAgent/scoring/computeScoreV2';
-import type { GradingFeatureSet } from '../../types/GradingFeatureSet';
+import { logDrift } from '../../agents/GradingAgent/scoring/driftLogger';
+import { type Tier, scoreOnlyTier } from '../../agents/GradingAgent/scoring/TierScale';
 import { professionalScoreOf } from '../../types/compat';
 import { PropObject } from '../../types/propTypes';
 import { RawProp } from '../../types/rawProps';
@@ -14,6 +16,8 @@ import { mlbCoreStats, mlbSynergy } from './rules/mlb';
 import { nbaCoreStats, nbaSynergy } from './rules/nba';
 import { nflCoreStats, nflSynergy } from './rules/nfl';
 import { nhlCoreStats, nhlSynergy } from './rules/nhl';
+
+import type { GradingFeatureSet } from '../../types/GradingFeatureSet';
 
 // Version tracking for scoring algorithm
 export const EDGE_SCORING_VERSION = {
@@ -135,10 +139,24 @@ export function unifiedEdgeScore(
     useLegacyScoring?: boolean;
   } = {}
 ): EdgeScoreResult {
-  // Tranche 3, Stage 4 (2026-01-29): V2 short-circuit via Feature Registry
-  if (process.env.SCORING_ENGINE_V2 === 'true') {
+  // Tranche 6 (2026-01-29): Canary-routed V2 with shadow + drift logging
+  const propAny = prop as any;
+  const canarySport = propAny.league || propAny.sport || 'NBA';
+  const canaryPickId = propAny.id || propAny.prop_id || 'unknown';
+  const canary = canaryDecide(canarySport, canaryPickId);
+
+  if (canary.mode === 'v2') {
     const features = mapPropToMinimalFeatures(prop);
     const v2 = computeScoreV2(features);
+    logDrift({
+      pickId: canaryPickId,
+      sport: canarySport,
+      mode: 'v2',
+      v1Score: 0,
+      v1Tier: 'unknown',
+      v1Ev: 0,
+      v2Result: v2,
+    });
     const v2Breakdown: ScoreBreakdown = {};
     for (const [k, b] of Object.entries(v2.breakdown)) {
       v2Breakdown[k] = b.contribution;
@@ -271,6 +289,25 @@ export function unifiedEdgeScore(
   // Postable + Solo Lock Logic
   const postable = ['S', 'A'].includes(tier);
   const solo_lock = tier === 'S';
+
+  // Tranche 6: Shadow mode drift logging (compute V2 alongside V1, return V1)
+  if (canary.mode === 'shadow') {
+    try {
+      const features = mapPropToMinimalFeatures(prop);
+      const v2Shadow = computeScoreV2(features);
+      logDrift({
+        pickId: canaryPickId,
+        sport: canarySport,
+        mode: 'shadow',
+        v1Score: professional_score,
+        v1Tier: tier,
+        v1Ev: 0,
+        v2Result: v2Shadow,
+      });
+    } catch (e) {
+      console.error('V2 shadow scoring failed:', e);
+    }
+  }
 
   return {
     score: professional_score,

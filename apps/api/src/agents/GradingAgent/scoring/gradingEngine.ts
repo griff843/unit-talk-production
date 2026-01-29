@@ -4,6 +4,9 @@ import { clvTrackingService } from '../../../services/clv/CLVTrackingService';
 import { deviggingService } from '../../../services/devigging/DeviggingService';
 import { GradingFeatureSet } from '../../../types/GradingFeatureSet';
 
+import { canaryDecide } from './canaryRouter';
+import { computeScoreV2 } from './computeScoreV2';
+import { logDrift } from './driftLogger';
 import { enhancedScoringEngine, EnhancedScoringResult } from './enhancedScoringEngine';
 import { FeatureEngineer } from './featureEngineer';
 import { MLModelManager } from './mlModelManager';
@@ -12,7 +15,7 @@ import { RiskManager } from './riskManager';
 // Tranche 2, Stage 1 (2026-01-29): Canonical tier determination
 import { type Tier, canonicalTier } from './TierScale';
 // Tranche 3, Stage 4 (2026-01-29): Unified V2 scoring pipeline
-import { computeScoreV2 } from './computeScoreV2';
+// Tranche 6 (2026-01-29): Canary routing + drift logging
 
 export interface ScoringWeights {
   // Core Scoring Components
@@ -302,9 +305,20 @@ export class SyndicateGradingEngine {
   async gradeProp(features: GradingFeatureSet): Promise<GradingResult> {
     const startTime = Date.now();
 
-    // Tranche 3, Stage 4 (2026-01-29): V2 short-circuit via Feature Registry
-    if (process.env.SCORING_ENGINE_V2 === 'true') {
+    // Tranche 6 (2026-01-29): Canary-routed V2 with shadow + drift logging
+    const canary = canaryDecide(features.sport || 'NBA', features.propId || 'unknown');
+
+    if (canary.mode === 'v2') {
       const v2 = computeScoreV2(features);
+      logDrift({
+        pickId: features.propId || 'unknown',
+        sport: features.sport || 'NBA',
+        mode: 'v2',
+        v1Score: 0,
+        v1Tier: 'unknown',
+        v1Ev: 0, // V1 not computed in V2 mode
+        v2Result: v2,
+      });
       return {
         propId: features.propId,
         finalScore: v2.score,
@@ -590,6 +604,24 @@ export class SyndicateGradingEngine {
         console.log(`   Score Breakdown:`, compositeScore.breakdown);
         console.log(`   ML Predictions:`, mlPredictions);
         console.log(`   Risk Assessment:`, riskAssessment);
+      }
+
+      // Tranche 6: Shadow mode drift logging (compute V2 alongside V1, return V1)
+      if (canary.mode === 'shadow') {
+        try {
+          const v2Shadow = computeScoreV2(features);
+          logDrift({
+            pickId: features.propId || 'unknown',
+            sport: features.sport || 'NBA',
+            mode: 'shadow',
+            v1Score: result.finalScore,
+            v1Tier: result.tier,
+            v1Ev: result.edgeScore,
+            v2Result: v2Shadow,
+          });
+        } catch (e) {
+          console.error('V2 shadow scoring failed:', e);
+        }
       }
 
       return result;
