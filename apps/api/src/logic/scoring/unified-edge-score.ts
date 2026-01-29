@@ -3,9 +3,11 @@
 // Tranche 2, Stage 1 (2026-01-29): Tier determination now delegates to canonical TierScale.
 // Tranche 3, Stage 4 (2026-01-29): Unified V2 scoring pipeline
 // Tranche 6 (2026-01-29): Canary routing + drift logging
+// Tranche 7 (2026-01-29): Promotion policy governance
 import { canaryDecide } from '../../agents/GradingAgent/scoring/canaryRouter';
 import { computeScoreV2 } from '../../agents/GradingAgent/scoring/computeScoreV2';
 import { logDrift } from '../../agents/GradingAgent/scoring/driftLogger';
+import { evaluatePromotion, parsePromotionPolicyConfig } from '../../agents/GradingAgent/scoring/promotionPolicy';
 import { type Tier, scoreOnlyTier } from '../../agents/GradingAgent/scoring/TierScale';
 import { professionalScoreOf } from '../../types/compat';
 import { PropObject } from '../../types/propTypes';
@@ -162,12 +164,22 @@ export function unifiedEdgeScore(
       v2Breakdown[k] = b.contribution;
     }
     v2Breakdown['total'] = v2.score;
+    // Tranche 7: Promotion policy governance (flag-gated)
+    // When policy enabled, use policy decision; otherwise use legacy tier-based
+    const promoCfg = parsePromotionPolicyConfig();
+    let postable: boolean;
+    if (promoCfg.policyEnabled) {
+      const promoDecision = evaluatePromotion(v2, canarySport, canaryPickId, promoCfg);
+      postable = promoDecision.promote;
+    } else {
+      postable = ['S', 'A'].includes(v2.tier);
+    }
     return {
       score: v2.score,
       tier: v2.tier,
       tags: [],
       breakdown: v2Breakdown,
-      postable: ['S', 'A'].includes(v2.tier),
+      postable,
       solo_lock: v2.tier === 'S',
       version: EDGE_SCORING_VERSION.CURRENT,
     };

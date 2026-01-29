@@ -7,6 +7,7 @@ import { GradingFeatureSet } from '../../../types/GradingFeatureSet';
 import { canaryDecide } from './canaryRouter';
 import { computeScoreV2 } from './computeScoreV2';
 import { logDrift } from './driftLogger';
+import { evaluatePromotion, parsePromotionPolicyConfig } from './promotionPolicy';
 import { enhancedScoringEngine, EnhancedScoringResult } from './enhancedScoringEngine';
 import { FeatureEngineer } from './featureEngineer';
 import { MLModelManager } from './mlModelManager';
@@ -319,6 +320,13 @@ export class SyndicateGradingEngine {
         v1Ev: 0, // V1 not computed in V2 mode
         v2Result: v2,
       });
+      // Tranche 7: Evaluate promotion policy for V2 result (logging only at this gate)
+      const promoCfg = parsePromotionPolicyConfig();
+      if (promoCfg.policyEnabled) {
+        const pd = evaluatePromotion(v2, features.sport || 'NBA', features.propId || 'unknown', promoCfg);
+        // eslint-disable-next-line no-console
+        console.log(JSON.stringify({ type: 'promotion_decision', pick_id: features.propId, ...pd }));
+      }
       return {
         propId: features.propId,
         finalScore: v2.score,
@@ -619,6 +627,13 @@ export class SyndicateGradingEngine {
             v1Ev: result.edgeScore,
             v2Result: v2Shadow,
           });
+          // Tranche 7: Shadow promotion policy evaluation (log only, never promotes in shadow)
+          const promoCfg = parsePromotionPolicyConfig();
+          if (promoCfg.policyEnabled) {
+            const pd = evaluatePromotion(v2Shadow, features.sport || 'NBA', features.propId || 'unknown', promoCfg);
+            // eslint-disable-next-line no-console
+            console.log(JSON.stringify({ type: 'promotion_decision_shadow', pick_id: features.propId, ...pd }));
+          }
         } catch (e) {
           console.error('V2 shadow scoring failed:', e);
         }
