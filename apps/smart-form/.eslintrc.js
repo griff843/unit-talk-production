@@ -7,13 +7,8 @@ module.exports = {
       jsx: true,
     },
   },
-  plugins: ['@typescript-eslint', 'react', 'react-hooks'],
-  extends: [
-    'eslint:recommended',
-    'next/core-web-vitals',
-    'plugin:react/recommended',
-    'plugin:react-hooks/recommended',
-  ],
+  plugins: ['@typescript-eslint'],
+  extends: ['eslint:recommended', 'next/core-web-vitals'],
   root: true,
   env: {
     browser: true,
@@ -61,6 +56,7 @@ module.exports = {
     'react-hooks/exhaustive-deps': 'off', // Disable exhaustive deps for now
 
     // General rules
+    'no-undef': 'off', // TypeScript handles this; prevents false positives on NodeJS.Timeout etc.
     'no-console': 'off', // Allow console for development
     'no-debugger': 'error',
     'no-unused-vars': 'off', // Use TypeScript version instead
