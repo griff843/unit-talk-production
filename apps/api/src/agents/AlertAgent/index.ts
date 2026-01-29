@@ -560,12 +560,43 @@ export class AlertAgent extends BaseAgent {
   }
 
   /**
+   * Stage 6 — Claim-first idempotency for Discord posting.
+   * Atomically sets posted_to_discord=true WHERE posted_to_discord=false.
+   * Returns true if this agent won the claim, false if another agent already claimed it.
+   */
+  private async claimPickForDiscord(pickId: string): Promise<boolean> {
+    if (!this.hasSupabase()) return false;
+
+    const { data: claimed, error: claimErr } = await this.requireSupabase()
+      .from('unified_picks')
+      .update({ posted_to_discord: true, updated_at: new Date().toISOString() })
+      .eq('id', pickId)
+      .eq('posted_to_discord', false)
+      .select('id');
+
+    if (claimErr || !claimed || claimed.length === 0) {
+      this.logger.info(
+        { id: pickId },
+        'Pick already claimed by another agent — skipping (idempotent)'
+      );
+      return false;
+    }
+    return true;
+  }
+
+  /**
    * Post individual live pick to Discord immediately
    */
   public async postLivePick(pickData: any): Promise<void> {
     const startTime = Date.now();
-    
+
     try {
+      // Stage 6: Claim-first — prevents races with DiscordPromotionAgent
+      if (!(await this.claimPickForDiscord(pickData.id))) {
+        this.alertMetrics.duplicatesSkipped++;
+        return;
+      }
+
       this.logger.info('🚨 Posting live pick to Discord', {
         pickId: pickData.id,
         capper: pickData.capper_username,
@@ -575,10 +606,10 @@ export class AlertAgent extends BaseAgent {
 
       // Route to appropriate Discord thread
       const threadId = await this.routeToThread(pickData);
-      
+
       // Format Discord embed for live pick
       const embed = await this.formatLivePickEmbed(pickData);
-      
+
       // Post to Discord with circuit breaker protection
       const messageId = await withCircuitBreaker.discord(async () => {
         await sendDiscordAlert(embed);
@@ -590,12 +621,12 @@ export class AlertAgent extends BaseAgent {
         await this.logPickForManualPosting(pickData);
         return null;
       });
-      
-      // Update database with Discord message info
+
+      // Update discord_post_id (posted_to_discord already set by claim)
       if (messageId) {
-        await this.updatePickWithDiscordInfo(pickData.id, threadId, messageId, 'posted');
+        await this.updatePickDiscordPostId(pickData.id, messageId);
       }
-      
+
       // Notify VIP users if high-tier pick
       if (pickData.tier === 'S-tier' || pickData.tier === 'A-tier') {
         await this.notifyVIPUsers(pickData);
@@ -626,10 +657,8 @@ export class AlertAgent extends BaseAgent {
         processingTimeMs: Date.now() - startTime
       });
 
-      // Update pick status to error
-      await this.updatePickWithDiscordInfo(pickData.id, null, null, 'error');
-      
-      // Log for manual review
+      // Claim retained on error — prevents duplicate retry spam.
+      // Log for manual review instead.
       if (this.hasSupabase()) {
         await logAlertRecord(this.requireSupabase(), pickData, error instanceof Error ? error.message : String(error));
       }
@@ -679,11 +708,12 @@ export class AlertAgent extends BaseAgent {
 
   /**
    * Update pick with Discord posting information
+   * @deprecated Stage 6 — prefer claimPickForDiscord() + updatePickDiscordPostId()
    */
   private async updatePickWithDiscordInfo(
-    pickId: string, 
-    _threadId: string | null, 
-    messageId: string | null, 
+    pickId: string,
+    _threadId: string | null,
+    messageId: string | null,
     status: string = 'posted'
   ): Promise<void> {
     if (!this.hasSupabase()) {
@@ -708,6 +738,23 @@ export class AlertAgent extends BaseAgent {
         pickId,
         error: error.message
       });
+    }
+  }
+
+  /**
+   * Stage 6 — Update discord_post_id after successful claim + post.
+   * Does NOT touch posted_to_discord (already set by claimPickForDiscord).
+   */
+  private async updatePickDiscordPostId(pickId: string, messageId: string): Promise<void> {
+    if (!this.hasSupabase()) return;
+
+    const { error } = await this.requireSupabase()
+      .from('unified_picks')
+      .update({ discord_post_id: messageId, updated_at: new Date().toISOString() })
+      .eq('id', pickId);
+
+    if (error) {
+      this.logger.error('Failed to update discord_post_id', { pickId, error: error.message });
     }
   }
 
@@ -805,8 +852,14 @@ export class AlertAgent extends BaseAgent {
    */
   private async postScheduledPick(pickData: any): Promise<void> {
     const startTime = Date.now();
-    
+
     try {
+      // Stage 6: Claim-first — prevents races with DiscordPromotionAgent
+      if (!(await this.claimPickForDiscord(pickData.id))) {
+        this.alertMetrics.duplicatesSkipped++;
+        return;
+      }
+
       this.logger.info('📅 Posting scheduled pick to Discord', {
         pickId: pickData.id,
         capper: pickData.capper_username,
@@ -815,10 +868,10 @@ export class AlertAgent extends BaseAgent {
 
       // Route to appropriate Discord thread
       const threadId = await this.routeToThread(pickData);
-      
+
       // Format Discord embed for scheduled pick (less urgent than live)
       const embed = await this.formatScheduledPickEmbed(pickData);
-      
+
       // Post to Discord with circuit breaker protection
       const messageId = await withCircuitBreaker.discord(async () => {
         await sendDiscordAlert(embed);
@@ -829,10 +882,10 @@ export class AlertAgent extends BaseAgent {
         await this.logPickForManualPosting(pickData);
         return null;
       });
-      
-      // Update database with Discord message info
+
+      // Update discord_post_id (posted_to_discord already set by claim)
       if (messageId) {
-        await this.updatePickWithDiscordInfo(pickData.id, threadId, messageId, 'posted');
+        await this.updatePickDiscordPostId(pickData.id, messageId);
       }
 
       // Update metrics
@@ -860,10 +913,8 @@ export class AlertAgent extends BaseAgent {
         processingTimeMs: Date.now() - startTime
       });
 
-      // Update pick status to error
-      await this.updatePickWithDiscordInfo(pickData.id, null, null, 'error');
-      
-      // Log for manual review
+      // Claim retained on error — prevents duplicate retry spam.
+      // Log for manual review instead.
       if (this.hasSupabase()) {
         await logAlertRecord(this.requireSupabase(), pickData, error instanceof Error ? error.message : String(error));
       }
