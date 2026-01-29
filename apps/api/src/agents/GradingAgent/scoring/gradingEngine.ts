@@ -11,6 +11,8 @@ import { PerformanceAnalyzer } from './performanceAnalyzer';
 import { RiskManager } from './riskManager';
 // Tranche 2, Stage 1 (2026-01-29): Canonical tier determination
 import { type Tier, canonicalTier } from './TierScale';
+// Tranche 3, Stage 4 (2026-01-29): Unified V2 scoring pipeline
+import { computeScoreV2 } from './computeScoreV2';
 
 export interface ScoringWeights {
   // Core Scoring Components
@@ -299,6 +301,49 @@ export class SyndicateGradingEngine {
    */
   async gradeProp(features: GradingFeatureSet): Promise<GradingResult> {
     const startTime = Date.now();
+
+    // Tranche 3, Stage 4 (2026-01-29): V2 short-circuit via Feature Registry
+    if (process.env.SCORING_ENGINE_V2 === 'true') {
+      const v2 = computeScoreV2(features);
+      return {
+        propId: features.propId,
+        finalScore: v2.score,
+        confidence: v2.score / 100,
+        tier: v2.tier,
+        edgeScore: v2.ev,
+        featureContributions: Object.fromEntries(
+          Object.entries(v2.breakdown).map(([k, b]) => [k, b.contribution])
+        ),
+        modelContributions: {},
+        kellyFraction: 0,
+        positionSize: 0,
+        riskScore: 0,
+        correlationRisk: features.correlationRisk || 0,
+        scenarioAnalysis: {
+          bullCase: { score: Math.min(100, v2.score * 1.2), probability: 0.25 },
+          baseCase: { score: v2.score, probability: 0.5 },
+          bearCase: { score: v2.score * 0.8, probability: 0.25 },
+        },
+        professionalInsights: {
+          steamMoveDetected: false,
+          predictedClosingLine: features.market?.line || 0,
+          optimalBettingTime: 'V2',
+          bestAvailableLine: features.market?.line || 0,
+          bestBook: features.book || 'Unknown',
+          publicBettingPercentage: 50,
+          sharpBettingPercentage: 50,
+          contrarianOpportunity: false,
+          injuryTimingAdvantage: 0,
+          crossMarketArbitrage: 0,
+        },
+        dataQuality: features.dataQuality?.dataValidationScore || 0.95,
+        modelAgreement: 1.0,
+        historicalAccuracy: 0,
+        timestamp: new Date().toISOString(),
+        modelVersion: 'v2-registry',
+        configUsed: 'computeScoreV2',
+      };
+    }
 
     // 🆕 STEP -1: GET SPORT-SPECIFIC CONFIGURATION
     const sportConfig = getScoringConfig(features.sport || 'NBA');

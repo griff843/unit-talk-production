@@ -2,6 +2,9 @@
 // src/logic/scoring/unified-edge-score.ts
 // Tranche 2, Stage 1 (2026-01-29): Tier determination now delegates to canonical TierScale.
 import { type Tier, scoreOnlyTier } from '../../agents/GradingAgent/scoring/TierScale';
+// Tranche 3, Stage 4 (2026-01-29): Unified V2 scoring pipeline
+import { computeScoreV2 } from '../../agents/GradingAgent/scoring/computeScoreV2';
+import type { GradingFeatureSet } from '../../types/GradingFeatureSet';
 import { professionalScoreOf } from '../../types/compat';
 import { PropObject } from '../../types/propTypes';
 import { RawProp } from '../../types/rawProps';
@@ -132,6 +135,26 @@ export function unifiedEdgeScore(
     useLegacyScoring?: boolean;
   } = {}
 ): EdgeScoreResult {
+  // Tranche 3, Stage 4 (2026-01-29): V2 short-circuit via Feature Registry
+  if (process.env.SCORING_ENGINE_V2 === 'true') {
+    const features = mapPropToMinimalFeatures(prop);
+    const v2 = computeScoreV2(features);
+    const v2Breakdown: ScoreBreakdown = {};
+    for (const [k, b] of Object.entries(v2.breakdown)) {
+      v2Breakdown[k] = b.contribution;
+    }
+    v2Breakdown['total'] = v2.score;
+    return {
+      score: v2.score,
+      tier: v2.tier,
+      tags: [],
+      breakdown: v2Breakdown,
+      postable: ['S', 'A'].includes(v2.tier),
+      solo_lock: v2.tier === 'S',
+      version: EDGE_SCORING_VERSION.CURRENT,
+    };
+  }
+
   // Use requested version or default to current
   const version = options.useLegacyScoring
     ? EDGE_SCORING_VERSION.LEGACY
@@ -433,5 +456,55 @@ export function scorePropEdge(prop: PropObject): {
     tier: result.tier,
     context_tags: result.tags,
     edge_breakdown: result.breakdown,
+  };
+}
+
+/**
+ * Map PropObject/RawProp to minimal GradingFeatureSet for computeScoreV2.
+ * Extracts available fields; registry fallbacks handle missing values.
+ * Tranche 3, Stage 4 (2026-01-29).
+ */
+function mapPropToMinimalFeatures(prop: PropObject | RawProp): GradingFeatureSet {
+  const p = prop as any;
+  return {
+    propId: p.id || p.prop_id || 'unknown',
+    date: p.game_date || p.date || new Date().toISOString(),
+    sport: p.league || p.sport || 'NBA',
+    league: p.league || p.sport || 'NBA',
+    player: p.player_name || p.player || '',
+    odds: p.odds,
+    market: {
+      type: p.market_type || p.stat_type || 'unknown',
+      odds: p.odds || -110,
+      line: p.line || 0,
+    },
+    expectedValue: p.expected_value ?? p.ev ?? 0,
+    lineMovement: p.line_movement ?? 0,
+    matchupRating: p.matchup_score ?? p.dvp_score ?? 50,
+    playerForm: p.player_form ?? 50,
+    injuryImpact: p.injury_impact ?? 0,
+    weatherImpact: p.weather_impact ?? 0,
+    marketIntelligence: p.market_intelligence ?? 50,
+    sharpMoney: p.sharp_money ?? 50,
+    volumeProfile: p.volume_profile ?? 50,
+    closingLineValue: p.closing_line_value ?? 0,
+    playerFatigue: p.player_fatigue ?? 50,
+    venueAdvantage: p.venue_advantage ?? 10,
+    refereeImpact: p.referee_impact ?? 0,
+    paceImpact: p.pace_impact ?? 10,
+    motivationalFactors: p.motivational_factors ?? 15,
+    correlationRisk: p.correlation_risk ?? 0.2,
+    volatility: p.volatility ?? 5,
+    portfolioImpact: p.portfolio_impact ?? 0.1,
+    dataQuality: {
+      dataValidationScore: 0.95,
+      outlierScore: 0.95,
+      consistencyScore: 0.95,
+      completeness: 0.8,
+    },
+    timestamp: new Date().toISOString(),
+    version: 'v2-mapped',
+    source: 'unified-edge-score',
+    confidence: 0.5,
   };
 }
