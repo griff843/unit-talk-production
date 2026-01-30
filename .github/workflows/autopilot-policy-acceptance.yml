@@ -15,21 +15,17 @@ name: autopilot-policy-acceptance
 on:
   pull_request:
     branches: [main, develop]
-    paths:
-      - 'apps/api/src/lib/AutopilotPolicyEngine.ts'
-      - 'apps/api/src/lib/AutopilotEnforcement.ts'
-      - 'apps/command-center/src/app/api/admin/autopilot/**'
-      - 'scripts/db/phase4_autopilot_policy.sql'
-      - 'scripts/verify-phase4-autopilot-policy.ts'
-      - '.github/workflows/autopilot-policy-acceptance.yml'
+    # No paths filter — this is a required status check for branch protection.
+    # Previous paths filter caused autopilot-policy-acceptance-summary to be
+    # "missing" on PRs that don't touch autopilot files, blocking merges.
   push:
     branches: [main]
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Target environment for verification'
+        description: "Target environment for verification"
         required: true
-        default: 'staging'
+        default: "staging"
         type: choice
         options:
           - local
@@ -38,7 +34,7 @@ on:
           - production
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: "20"
   VERIFICATION_ENV: ${{ github.event.inputs.environment || 'staging' }}
 
 jobs:
@@ -56,7 +52,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -94,7 +90,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -232,7 +228,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -245,8 +241,8 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           VERIFICATION_ENV: ${{ env.VERIFICATION_ENV }}
-          OUTPUT_JSON: 'true'
-          VERBOSE: 'true'
+          OUTPUT_JSON: "true"
+          VERBOSE: "true"
 
       - name: Upload verification report
         uses: actions/upload-artifact@v4
