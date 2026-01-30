@@ -6,6 +6,7 @@ import FormData from 'form-data';
 import { autopilotGuard } from '../../lib/AutopilotGuard';
 import { logger } from '../../services/logging';
 import { supabase } from '../../services/supabaseClient';
+import { parsePromotionPolicyConfig } from '../GradingAgent/scoring/promotionPolicy';
 
 // ---- CONFIG ----
 const DISCORD_WEBHOOK_URL = process.env['DISCORD_WEBHOOK_URL'] || '';
@@ -106,12 +107,20 @@ async function postEliteCardToDiscord(pick: any) {
 
 // ---- AGENT ----
 export async function promoteToDiscord() {
+  // Tranche 10: Runtime kill switch — blocks ALL promotions instantly
+  const promoCfg = parsePromotionPolicyConfig();
+  if (promoCfg.killSwitch) {
+    logger.info('Promotion kill switch active — skipping all Discord promotions');
+    return;
+  }
+
+  // Tranche 10: Query only picks with HARD promotion band (set by promotionPolicy.ts at scoring time).
+  // This replaces the old auto_approved + tier filter that was independent of the promotion policy.
   const { data: picks, error } = await supabase
     .from('unified_picks')
     .select('*')
     .eq('posted_to_discord', false)
-    .eq('auto_approved', true)
-    .or('tier.in.("{S,A}"),bet_type.in.("{parlay,teaser,rr}")')
+    .eq('promotion_band', 'HARD')
     .order('created_at', { ascending: false })
     .limit(10);
 
@@ -142,10 +151,16 @@ export async function promoteToDiscord() {
     }
 
     if (PROMOTION_SHADOW_MODE) {
-      logger.info({ id: pick.id, tier: pick.tier }, 'Shadow mode — skipped Discord post (claim retained)');
+      logger.info(
+        { id: pick.id, tier: pick.tier, band: pick.promotion_band },
+        'Shadow mode — skipped Discord post (claim retained)'
+      );
     } else {
       await postEliteCardToDiscord(pick);
-      logger.info({ id: pick.id }, 'Posted pick to Discord with image-card');
+      logger.info(
+        { id: pick.id, band: pick.promotion_band },
+        'Posted pick to Discord with image-card'
+      );
     }
   }
 }

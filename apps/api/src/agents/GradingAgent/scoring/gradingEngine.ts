@@ -7,11 +7,11 @@ import { GradingFeatureSet } from '../../../types/GradingFeatureSet';
 import { canaryDecide } from './canaryRouter';
 import { computeScoreV2 } from './computeScoreV2';
 import { logDrift } from './driftLogger';
-import { evaluatePromotion, parsePromotionPolicyConfig } from './promotionPolicy';
 import { enhancedScoringEngine, EnhancedScoringResult } from './enhancedScoringEngine';
 import { FeatureEngineer } from './featureEngineer';
 import { MLModelManager } from './mlModelManager';
 import { PerformanceAnalyzer } from './performanceAnalyzer';
+import { evaluatePromotion, parsePromotionPolicyConfig } from './promotionPolicy';
 import { RiskManager } from './riskManager';
 // Tranche 2, Stage 1 (2026-01-29): Canonical tier determination
 import { type Tier, canonicalTier } from './TierScale';
@@ -129,6 +129,10 @@ export interface GradingResult {
   dataQuality: number;
   modelAgreement: number;
   historicalAccuracy: number;
+
+  // Promotion Policy (Tranche 10 — Posting Governance)
+  /** HARD / SOFT / NONE band from evaluatePromotion(). Null when V1 scoring or policy disabled. */
+  promotionBand?: string;
 
   // Metadata
   timestamp: string;
@@ -321,12 +325,21 @@ export class SyndicateGradingEngine {
         v1Ev: 0, // V1 not computed in V2 mode
         v2Result: v2,
       });
-      // Tranche 7: Evaluate promotion policy for V2 result (logging only at this gate)
+      // Tranche 7→10: Evaluate promotion policy for V2 result and persist band
       const promoCfg = parsePromotionPolicyConfig();
+      let promotionBand: string | undefined;
       if (promoCfg.policyEnabled) {
-        const pd = evaluatePromotion(v2, features.sport || 'NBA', features.propId || 'unknown', promoCfg);
+        const pd = evaluatePromotion(
+          v2,
+          features.sport || 'NBA',
+          features.propId || 'unknown',
+          promoCfg
+        );
+        promotionBand = pd.band;
         // eslint-disable-next-line no-console
-        console.log(JSON.stringify({ type: 'promotion_decision', pick_id: features.propId, ...pd }));
+        console.log(
+          JSON.stringify({ type: 'promotion_decision', pick_id: features.propId, ...pd })
+        );
       }
       return {
         propId: features.propId,
@@ -334,6 +347,7 @@ export class SyndicateGradingEngine {
         confidence: v2.score / 100,
         tier: v2.tier,
         edgeScore: v2.ev,
+        promotionBand,
         featureContributions: Object.fromEntries(
           Object.entries(v2.breakdown).map(([k, b]) => [k, b.contribution])
         ),
@@ -631,9 +645,16 @@ export class SyndicateGradingEngine {
           // Tranche 7: Shadow promotion policy evaluation (log only, never promotes in shadow)
           const promoCfg = parsePromotionPolicyConfig();
           if (promoCfg.policyEnabled) {
-            const pd = evaluatePromotion(v2Shadow, features.sport || 'NBA', features.propId || 'unknown', promoCfg);
+            const pd = evaluatePromotion(
+              v2Shadow,
+              features.sport || 'NBA',
+              features.propId || 'unknown',
+              promoCfg
+            );
             // eslint-disable-next-line no-console
-            console.log(JSON.stringify({ type: 'promotion_decision_shadow', pick_id: features.propId, ...pd }));
+            console.log(
+              JSON.stringify({ type: 'promotion_decision_shadow', pick_id: features.propId, ...pd })
+            );
           }
         } catch (e) {
           console.error('V2 shadow scoring failed:', e);
@@ -655,9 +676,20 @@ export class SyndicateGradingEngine {
           });
           const promoCfg = parsePromotionPolicyConfig();
           if (promoCfg.policyEnabled) {
-            const pd = evaluatePromotion(v2Result, features.sport || 'NBA', features.propId || 'unknown', promoCfg);
+            const pd = evaluatePromotion(
+              v2Result,
+              features.sport || 'NBA',
+              features.propId || 'unknown',
+              promoCfg
+            );
             // eslint-disable-next-line no-console
-            console.log(JSON.stringify({ type: 'promotion_decision_v2_primary', pick_id: features.propId, ...pd }));
+            console.log(
+              JSON.stringify({
+                type: 'promotion_decision_v2_primary',
+                pick_id: features.propId,
+                ...pd,
+              })
+            );
           }
           return {
             propId: features.propId,
