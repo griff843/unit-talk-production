@@ -1,5 +1,5 @@
 /**
- * promotionPolicy.test.ts — Unit tests for Tranche 7 promotion policy
+ * promotionPolicy.test.ts — Unit tests for Tranche 7+10 promotion policy
  *
  * Tests:
  * 1. HARD band classification rules
@@ -12,6 +12,7 @@
  * 8. Confidence and EV mapping
  * 9. Fail-closed behavior
  * 10. SOFT auto-promote toggle
+ * 11. HARD-only enforcement (Tranche 10)
  */
 
 import {
@@ -55,6 +56,7 @@ function makePolicyConfig(overrides: Partial<PromotionPolicyConfig> = {}): Promo
     policyEnabled: true,
     killSwitch: false,
     softEnable: false,
+    hardOnly: false,
     hardMinEv: 0.01,
     hardMinConf: 7,
     canaryPercent: 100,
@@ -104,6 +106,7 @@ describe('promotionPolicy', () => {
       expect(config.policyEnabled).toBe(false);
       expect(config.killSwitch).toBe(false);
       expect(config.softEnable).toBe(false);
+      expect(config.hardOnly).toBe(false);
       expect(config.hardMinEv).toBe(0.01);
       expect(config.hardMinConf).toBe(7);
       expect(config.canaryPercent).toBe(0);
@@ -115,6 +118,7 @@ describe('promotionPolicy', () => {
         PROMOTION_POLICY_V2: 'true',
         PROMOTION_KILL_SWITCH: 'true',
         PROMOTION_SOFT_ENABLE: 'true',
+        PROMOTION_HARD_ONLY: 'true',
         PROMOTION_HARD_MIN_EV: '0.02',
         PROMOTION_HARD_MIN_CONF: '8',
         PROMOTION_CANARY_PERCENT: '25',
@@ -123,6 +127,7 @@ describe('promotionPolicy', () => {
       expect(config.policyEnabled).toBe(true);
       expect(config.killSwitch).toBe(true);
       expect(config.softEnable).toBe(true);
+      expect(config.hardOnly).toBe(true);
       expect(config.hardMinEv).toBe(0.02);
       expect(config.hardMinConf).toBe(8);
       expect(config.canaryPercent).toBe(25);
@@ -329,6 +334,42 @@ describe('promotionPolicy', () => {
       const decision = evaluatePromotion(result, 'NBA', 'pick-1', config);
       expect(decision.promote).toBe(false);
       expect(decision.reason_codes).toContain('policy_disabled');
+    });
+
+    // ─── Tranche 10: HARD-only enforcement ─────────────────────────────
+
+    it('hardOnly=true blocks SOFT even when softEnable=true', () => {
+      const result = makeV2Result({ score: 65, tier: 'A' as any, ev: 0.5 });
+      const config = makePolicyConfig({ hardOnly: true, softEnable: true });
+      const decision = evaluatePromotion(result, 'NBA', 'pick-1', config);
+      expect(decision.promote).toBe(false);
+      expect(decision.band).toBe('SOFT');
+      expect(decision.reason_codes).toContain('hard_only_enforced');
+    });
+
+    it('hardOnly=true still allows HARD promotion', () => {
+      const result = makeV2Result({ score: 78, tier: 'S' as any, ev: 8 });
+      const config = makePolicyConfig({ hardOnly: true });
+      const decision = evaluatePromotion(result, 'NBA', 'pick-1', config);
+      expect(decision.promote).toBe(true);
+      expect(decision.band).toBe('HARD');
+    });
+
+    it('hardOnly=true blocks NONE band', () => {
+      const result = makeV2Result({ score: 30, tier: 'D' as any, ev: -10 });
+      const config = makePolicyConfig({ hardOnly: true });
+      const decision = evaluatePromotion(result, 'NBA', 'pick-1', config);
+      expect(decision.promote).toBe(false);
+      expect(decision.band).toBe('NONE');
+      expect(decision.reason_codes).toContain('hard_only_enforced');
+    });
+
+    it('hardOnly=false has no effect on existing SOFT behavior', () => {
+      const result = makeV2Result({ score: 65, tier: 'A' as any, ev: 0.5 });
+      const config = makePolicyConfig({ hardOnly: false, softEnable: true });
+      const decision = evaluatePromotion(result, 'NBA', 'pick-1', config);
+      expect(decision.promote).toBe(true);
+      expect(decision.band).toBe('SOFT');
     });
   });
 });

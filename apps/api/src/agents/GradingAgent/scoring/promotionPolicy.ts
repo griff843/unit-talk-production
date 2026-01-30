@@ -12,6 +12,7 @@
  * Fail-closed: missing required fields → NONE band, promote=false.
  *
  * Created: 2026-01-29 (Tranche 7 — Promotion Governance)
+ * Updated: 2026-01-29 (Tranche 10 — Controlled Promotion Enablement)
  */
 
 import type { ComputeScoreV2Result, FeatureAuditEntry } from './computeScoreV2';
@@ -40,6 +41,8 @@ export interface PromotionPolicyConfig {
   killSwitch: boolean;
   /** Allow SOFT band to auto-promote (PROMOTION_SOFT_ENABLE) */
   softEnable: boolean;
+  /** Only allow HARD band to promote — blocks SOFT even if softEnable=true (PROMOTION_HARD_ONLY) */
+  hardOnly: boolean;
   /** Minimum EV for HARD band as decimal (0.01 = 1%) (PROMOTION_HARD_MIN_EV) */
   hardMinEv: number;
   /** Minimum confidence for HARD band on 0-10 scale (PROMOTION_HARD_MIN_CONF) */
@@ -62,6 +65,7 @@ export function parsePromotionPolicyConfig(
   const policyEnabled = env.PROMOTION_POLICY_V2 === 'true';
   const killSwitch = env.PROMOTION_KILL_SWITCH === 'true';
   const softEnable = env.PROMOTION_SOFT_ENABLE === 'true';
+  const hardOnly = env.PROMOTION_HARD_ONLY === 'true';
 
   const hardMinEvRaw = parseFloat(env.PROMOTION_HARD_MIN_EV || '0.01');
   const hardMinEv = Number.isNaN(hardMinEvRaw) ? 0.01 : Math.max(0, hardMinEvRaw);
@@ -82,6 +86,7 @@ export function parsePromotionPolicyConfig(
     policyEnabled,
     killSwitch,
     softEnable,
+    hardOnly,
     hardMinEv,
     hardMinConf,
     canaryPercent,
@@ -269,6 +274,13 @@ export function evaluatePromotion(
   notes.push(
     `score=${result.score},tier=${result.tier},ev=${evDecimal.toFixed(4)},conf=${confidence.toFixed(1)}`
   );
+
+  // Gate 6: Hard-only enforcement (Tranche 10)
+  if (cfg.hardOnly && band !== 'HARD') {
+    reasons.push('hard_only_enforced');
+    notes.push(`PROMOTION_HARD_ONLY=true — only HARD band can promote (got: ${band})`);
+    return { promote: false, band, reason_codes: reasons, notes };
+  }
 
   // Decision based on band
   if (band === 'HARD') {
