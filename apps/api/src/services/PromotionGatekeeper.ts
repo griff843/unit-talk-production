@@ -11,6 +11,42 @@ import { Logger } from '../shared/logger';
 
 import { supabaseClient } from './supabaseClient';
 
+// ─── V2 Gate Recalibration (Tranche 7, Stage 1) ────────────────────────────
+// When SCORING_ENGINE_V2=true, V2 produces scores in 38-62 range (mean ~53,
+// stddev ~7). Legacy gates (85/75/70) are structurally unreachable.
+// V2 overrides recalibrate minProfessionalScore and minTier to the V2
+// distribution so shadow promotion decisions become non-zero and controllable.
+// V1 behavior is completely unchanged (USE_V2_GATES=false).
+const USE_V2_GATES = process.env['SCORING_ENGINE_V2'] === 'true';
+
+interface V2GateOverride {
+  minProfessionalScore: number;
+  minTier?: 'S' | 'A' | 'B' | 'C';
+}
+
+/**
+ * V2-calibrated gate thresholds derived from fixture analysis (40 picks):
+ *   instant-s-tier: 62 → 5.0% pass (target 5-15%)
+ *   10am-premium:   58 → 22.5% pass (target 15-30%)
+ *   steam-hunter:   55 → 45.0% score-pass (further filtered by steam requirement)
+ *
+ * Override via env vars for runtime tuning without code changes.
+ */
+const V2_GATE_OVERRIDES: Record<string, V2GateOverride> = {
+  'instant-s-tier': {
+    minProfessionalScore: Number(process.env['V2_GATE_INSTANT_S_TIER']) || 62,
+    minTier: 'A', // V2 max tier is A (score ≤ 62 < S-threshold 70)
+  },
+  '10am-premium': {
+    minProfessionalScore: Number(process.env['V2_GATE_10AM_PREMIUM']) || 58,
+    // minTier stays 'A' — already reachable under V2
+  },
+  'steam-hunter': {
+    minProfessionalScore: Number(process.env['V2_GATE_STEAM_HUNTER']) || 55,
+    // minTier stays 'A' — already reachable under V2
+  },
+};
+
 export interface PromotionGate {
   gateId: string;
   name: string;
@@ -272,7 +308,9 @@ class PromotionGatekeeper {
     // PROMOTION_SHADOW_MODE: skip publish guard entirely (decisions still stored above)
     const promotionShadow = process.env['PROMOTION_SHADOW_MODE'] !== 'false';
     if (promotionShadow) {
-      this.logger.info('Promotion shadow mode — skipping PublishGuard (decision stored)', { pickId: pick.id });
+      this.logger.info('Promotion shadow mode — skipping PublishGuard (decision stored)', {
+        pickId: pick.id,
+      });
       return decision;
     }
 
@@ -321,9 +359,13 @@ class PromotionGatekeeper {
       weight: number;
     }> = [];
 
-    // Tier check
+    // V2 gate override (Tranche 7): use recalibrated thresholds when V2 active
+    const v2Override = USE_V2_GATES ? V2_GATE_OVERRIDES[gate.gateId] : undefined;
+
+    // Tier check — V2 may relax minTier (e.g. S→A for instant-s-tier)
+    const effectiveMinTier = v2Override?.minTier ?? req.minTier;
     const tierScore = this.getTierScore(pick.tier);
-    const minTierScore = this.getTierScore(req.minTier);
+    const minTierScore = this.getTierScore(effectiveMinTier);
     results.push({
       test: 'tier',
       passed: tierScore >= minTierScore,
@@ -341,12 +383,13 @@ class PromotionGatekeeper {
       weight: 15,
     });
 
-    // Professional professional_score check
+    // Professional score check — V2 uses distribution-calibrated thresholds
+    const effectiveMinScore = v2Override?.minProfessionalScore ?? req.minProfessionalScore;
     results.push({
       test: 'professional_score',
-      passed: pick.professionalScore >= req.minProfessionalScore,
+      passed: pick.professionalScore >= effectiveMinScore,
       score: pick.professionalScore,
-      threshold: req.minProfessionalScore,
+      threshold: effectiveMinScore,
       weight: 15,
     });
 
@@ -454,11 +497,12 @@ class PromotionGatekeeper {
     }));
 
     // Triggered rules: one entry per gate
-    const triggeredRules: Array<{ gate: string; passed: boolean; reason: string }> = gateResults.map(r => ({
-      gate: r.gateId,
-      passed: r.passed,
-      reason: r.message,
-    }));
+    const triggeredRules: Array<{ gate: string; passed: boolean; reason: string }> =
+      gateResults.map(r => ({
+        gate: r.gateId,
+        passed: r.passed,
+        reason: r.message,
+      }));
 
     // Stage 5 — Guardrail rules appended to triggered_rules for audit
     const minEdgePct = Number(process.env['PROMO_GUARD_MIN_EDGE_PCT']) || 1;
