@@ -4,24 +4,24 @@
  * Eliminates magic numbers and provides type safety
  */
 
-import { ScoringConfig, SportSpecificWeights, validateWeights, validateWeightsV2 } from './types';
-import { NBA_CONFIG } from './nba';
+import * as fs from 'fs';
+
 import { MLB_CONFIG } from './mlb';
+import { NBA_CONFIG } from './nba';
 import { NFL_CONFIG } from './nfl';
 import { NHL_CONFIG } from './nhl';
-import * as fs from 'fs';
-import * as path from 'path';
+import { ScoringConfig, SportSpecificWeights, validateWeightsV2 } from './types';
 
 // Sport configuration registry
 const SPORT_CONFIGS: Record<string, ScoringConfig> = {
-  'NBA': NBA_CONFIG,
-  'MLB': MLB_CONFIG,
-  'NFL': NFL_CONFIG,
-  'NHL': NHL_CONFIG,
+  NBA: NBA_CONFIG,
+  MLB: MLB_CONFIG,
+  NFL: NFL_CONFIG,
+  NHL: NHL_CONFIG,
   // Additional sports can be added here
-  'NCAAF': NFL_CONFIG, // Use NFL config as base for college football
-  'NCAAB': NBA_CONFIG, // Use NBA config as base for college basketball
-  'WNBA': NBA_CONFIG,  // Use NBA config for WNBA
+  NCAAF: NFL_CONFIG, // Use NFL config as base for college football
+  NCAAB: NBA_CONFIG, // Use NBA config as base for college basketball
+  WNBA: NBA_CONFIG, // Use NBA config for WNBA
 };
 
 // Default configuration for unknown sports
@@ -39,23 +39,15 @@ export function getScoringConfig(sport: string): ScoringConfig {
     return DEFAULT_CONFIG;
   }
 
-  // V2: use corrected validation with explicit key enumeration
-  // computeScoreV2 normalizes by total weight, so sum != 1.0 is fine
-  if (process.env.SCORING_ENGINE_V2 === 'true') {
-    const result = validateWeightsV2(config.weights);
-    if (!result.valid) {
-      console.error(`❌ Invalid V2 weights for ${sport}:`, result.issues);
-      return DEFAULT_CONFIG;
-    }
-    return config;
-  }
-
-  // Legacy: keep existing broken validation behavior (always fails → NBA fallback)
-  if (!validateWeights(config.weights)) {
-    console.error(`❌ Invalid weights for sport: ${sport}, weights don't sum to 1.0`);
+  // Always use V2 validation — the legacy validateWeights() has a double-counting
+  // bug (types.ts:142-155) that causes ALL sport configs to fail, silently falling
+  // back to NBA weights. Fixed in Tranche 6: validateWeightsV2 uses explicit key
+  // lists and does not require sum=1.0 (computeScoreV2 normalizes by total weight).
+  const result = validateWeightsV2(config.weights);
+  if (!result.valid) {
+    console.error(`❌ Invalid weights for ${sport}:`, result.issues);
     return DEFAULT_CONFIG;
   }
-
   return config;
 }
 
@@ -85,28 +77,29 @@ export function getSupportedSports(): string[] {
  */
 export function loadCustomWeights(): Record<string, ScoringConfig> | null {
   const customPath = process.env.SCORING_WEIGHTS_PATH;
-  
+
   if (!customPath) {
     return null;
   }
-  
+
   try {
     if (!fs.existsSync(customPath)) {
       console.warn(`⚠️ Custom weights file not found: ${customPath}`);
       return null;
     }
-    
+
     const customWeights = JSON.parse(fs.readFileSync(customPath, 'utf8'));
     console.log(`✅ Loaded custom weights from: ${customPath}`);
-    
-    // Validate custom weights
+
+    // Validate custom weights (using V2 validator — legacy has double-counting bug)
     for (const [sport, config] of Object.entries(customWeights as Record<string, any>)) {
-      if (!validateWeights(config.weights)) {
-        console.error(`❌ Invalid custom weights for sport: ${sport}`);
+      const result = validateWeightsV2(config.weights);
+      if (!result.valid) {
+        console.error(`❌ Invalid custom weights for sport: ${sport}`, result.issues);
         delete customWeights[sport];
       }
     }
-    
+
     return customWeights as Record<string, ScoringConfig>;
   } catch (error) {
     console.error(`❌ Failed to load custom weights: ${error}`);
@@ -119,12 +112,12 @@ export function loadCustomWeights(): Record<string, ScoringConfig> | null {
  */
 export function initializeWeights(): Record<string, ScoringConfig> {
   const customWeights = loadCustomWeights();
-  
+
   if (customWeights) {
     // Merge custom weights with defaults
     return { ...SPORT_CONFIGS, ...customWeights };
   }
-  
+
   return SPORT_CONFIGS;
 }
 
@@ -135,12 +128,12 @@ export function initializeWeights(): Record<string, ScoringConfig> {
 export function getFeatureWeight(sport: string, featureName: string): number {
   const config = getScoringConfig(sport);
   const weights = config.weights as any;
-  
+
   if (!(featureName in weights)) {
     console.warn(`⚠️ Feature '${featureName}' not found in ${sport} weights, defaulting to 0`);
     return 0;
   }
-  
+
   return weights[featureName];
 }
 
@@ -148,25 +141,17 @@ export function getFeatureWeight(sport: string, featureName: string): number {
  * Validate all sport configurations at startup
  */
 export function validateAllConfigurations(): boolean {
-  const useV2 = process.env.SCORING_ENGINE_V2 === 'true';
   let allValid = true;
 
   for (const [sport, config] of Object.entries(SPORT_CONFIGS)) {
-    if (useV2) {
-      const result = validateWeightsV2(config.weights);
-      if (!result.valid) {
-        console.error(`❌ Invalid V2 configuration for ${sport}:`, result.issues);
-        allValid = false;
-      } else {
-        console.log(`✅ Valid V2 configuration for ${sport} (total: ${result.total.toFixed(4)})`);
-      }
+    // Always use V2 validation — legacy validateWeights() has double-counting bug.
+    // See getScoringConfig() comment for details.
+    const result = validateWeightsV2(config.weights);
+    if (!result.valid) {
+      console.error(`❌ Invalid configuration for ${sport}:`, result.issues);
+      allValid = false;
     } else {
-      if (!validateWeights(config.weights)) {
-        console.error(`❌ Invalid configuration for ${sport}`);
-        allValid = false;
-      } else {
-        console.log(`✅ Valid configuration for ${sport}`);
-      }
+      console.log(`✅ Valid configuration for ${sport} (total: ${result.total.toFixed(4)})`);
     }
   }
 
