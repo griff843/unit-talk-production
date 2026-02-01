@@ -70,7 +70,7 @@ interface OutcomeMetrics {
 async function querySettlementCounts(): Promise<OutcomeMetrics['settlement_counts']> {
   const { data, error } = await supabase
     .from('prop_settlements')
-    .select('settlement_status');
+    .select('settlement_method, disputed');
 
   if (error) {
     console.warn('prop_settlements query failed (table may not exist):', error.message);
@@ -80,26 +80,28 @@ async function querySettlementCounts(): Promise<OutcomeMetrics['settlement_count
   const rows = data ?? [];
   return {
     total: rows.length,
-    pending: rows.filter(r => r.settlement_status === 'pending').length,
-    verified: rows.filter(r => r.settlement_status === 'verified').length,
-    disputed: rows.filter(r => r.settlement_status === 'disputed').length,
+    pending: 0, // prop_settlements rows are already settled
+    verified: rows.filter(r => !r.disputed).length,
+    disputed: rows.filter(r => r.disputed).length,
   };
 }
 
 async function queryOutcomeBreakdown(): Promise<OutcomeMetrics['outcome_breakdown']> {
+  // prop_settlements doesn't have sport — join via game_result_id → game_results.sport
   const { data, error } = await supabase
     .from('prop_settlements')
-    .select('settlement_result, sport')
-    .eq('settlement_status', 'verified');
+    .select('settlement_result, game_result_id(sport)');
 
   if (error || !data || data.length === 0) {
+    if (error) console.warn('queryOutcomeBreakdown failed:', error.message);
     return {};
   }
 
   const bySport: Record<string, { win: number; loss: number; push: number; void: number; total: number }> = {};
 
   for (const row of data) {
-    const sport = row.sport || 'UNKNOWN';
+    const gameResult = row.game_result_id as unknown as { sport: string } | null;
+    const sport = gameResult?.sport || 'UNKNOWN';
     if (!bySport[sport]) {
       bySport[sport] = { win: 0, loss: 0, push: 0, void: 0, total: 0 };
     }
@@ -126,7 +128,6 @@ async function querySettlementLatency(): Promise<OutcomeMetrics['settlement_late
   const { data, error } = await supabase
     .from('prop_settlements')
     .select('created_at, settled_at')
-    .eq('settlement_status', 'verified')
     .not('settled_at', 'is', null);
 
   if (error || !data || data.length === 0) {

@@ -15,6 +15,7 @@ import {
   Shield,
   Eye,
 } from 'lucide-react';
+import SettlementConsole from '@/components/dashboard/SettlementConsole';
 import { useState, useEffect } from 'react';
 
 type PipelineHealthData = {
@@ -142,17 +143,16 @@ export default function DashboardPage() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-64 text-red-400">
-        <AlertCircle className="w-8 h-8 mr-2" />
-        Error loading dashboard data: {error}
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
+      {/* Pipeline health error — non-blocking warning */}
+      {error && (
+        <div className="flex items-center p-3 rounded-lg border border-yellow-200 bg-yellow-50 text-yellow-800 text-sm">
+          <AlertCircle className="w-4 h-4 mr-2 shrink-0" />
+          Pipeline health unavailable: {error}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -230,6 +230,9 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Settlement Console — UNIFIED-OPS-002 Step 2 (top 3 slot) */}
+      <SettlementConsole />
 
       {/* Pipeline Health Metrics */}
       {pipelineHealth && (

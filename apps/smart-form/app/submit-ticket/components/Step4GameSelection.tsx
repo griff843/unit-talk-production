@@ -105,6 +105,11 @@ interface Step4GameSelectionProps {
 
 // PRODUCTION MODE: No mock data - real database only
 
+// PARITY-GATE-001 Stage 7: Dual-mode flag (fail-closed, default OFF)
+const MANUAL_MODE_ENABLED =
+  typeof process !== 'undefined' &&
+  process.env.NEXT_PUBLIC_ENABLE_SMARTFORM_MANUAL_STEP4 === 'true';
+
 export function Step4GameSelection({
   data,
   onUpdate,
@@ -126,6 +131,15 @@ export function Step4GameSelection({
   const [selectedProp, setSelectedProp] = useState<any>(null);
   const [showManualPropCreator, setShowManualPropCreator] = useState(false);
   const [manualProps, setManualProps] = useState<any[]>([]);
+
+  // PARITY-GATE-001 Stage 7: Dual-mode state
+  const [entryMode, setEntryMode] = useState<'games' | 'manual'>('games');
+  const [manualHomeTeam, setManualHomeTeam] = useState('');
+  const [manualAwayTeam, setManualAwayTeam] = useState('');
+  const [manualGameDate, setManualGameDate] = useState(data.game_date || '');
+  const [manualSelection, setManualSelection] = useState('');
+  const [manualOdds, setManualOdds] = useState('');
+  const [manualLine, setManualLine] = useState('');
 
   // Load games from database or use mock data
   useEffect(() => {
@@ -446,6 +460,111 @@ export function Step4GameSelection({
     return selections;
   };
 
+  // PARITY-GATE-001 Stage 7: Manual mode selection options
+  const getManualSelections = () => {
+    if (!manualHomeTeam || !manualAwayTeam || !data.bet_type) return [];
+
+    switch (data.bet_type) {
+      case 'spread':
+        return [
+          {
+            value: 'home',
+            label: `${manualHomeTeam} ${manualLine ? (parseFloat(manualLine) > 0 ? '+' : '') + manualLine : ''}`.trim(),
+          },
+          {
+            value: 'away',
+            label: `${manualAwayTeam} ${manualLine ? (parseFloat(manualLine) > 0 ? '' : '+') + (manualLine ? -parseFloat(manualLine) : '') : ''}`.trim(),
+          },
+        ];
+      case 'moneyline':
+        return [
+          { value: 'home', label: `${manualHomeTeam} ML` },
+          { value: 'away', label: `${manualAwayTeam} ML` },
+        ];
+      case 'total':
+        return [
+          { value: 'over', label: `Over ${manualLine || ''}`.trim() },
+          { value: 'under', label: `Under ${manualLine || ''}`.trim() },
+        ];
+      case 'team_total':
+        return [
+          { value: 'home_over', label: `${manualHomeTeam} Over` },
+          { value: 'home_under', label: `${manualHomeTeam} Under` },
+          { value: 'away_over', label: `${manualAwayTeam} Over` },
+          { value: 'away_under', label: `${manualAwayTeam} Under` },
+        ];
+      default:
+        return [
+          { value: 'home', label: manualHomeTeam },
+          { value: 'away', label: manualAwayTeam },
+        ];
+    }
+  };
+
+  // PARITY-GATE-001 Stage 7: Add manual selection
+  const handleAddManualSelection = () => {
+    if (!manualHomeTeam || !manualAwayTeam || !manualSelection || !manualOdds) return;
+
+    const matchup = `${manualAwayTeam} @ ${manualHomeTeam}`;
+    const selectedOption = getManualSelections().find(o => o.value === manualSelection);
+    const displaySelection = selectedOption?.label || manualSelection;
+
+    const newSelection: GameSelection = {
+      id: crypto.randomUUID(),
+      game_id: `manual-${crypto.randomUUID()}`,
+      game: matchup,
+      selection: displaySelection,
+      odds: manualOdds,
+      line: manualLine || undefined,
+      source: 'manual',
+      manual_home_team: manualHomeTeam,
+      manual_away_team: manualAwayTeam,
+      manual_game_date: manualGameDate || data.game_date,
+    };
+
+    // R-06: Single ticket enforces exactly one selection
+    const updatedSelections =
+      data.ticket_type === 'single'
+        ? [newSelection]
+        : [...(data.game_selections || []), newSelection];
+    onUpdate({ game_selections: updatedSelections, notes });
+
+    // Reset manual entry fields (keep teams for convenience)
+    setManualSelection('');
+    setManualOdds('');
+    setManualLine('');
+  };
+
+  // PARITY-GATE-001 Stage 7: Handle manual prop creation in manual mode
+  const handleManualModePropCreated = (prop: any) => {
+    const matchup = `${manualAwayTeam} @ ${manualHomeTeam}`;
+    const transformedProp = {
+      id: prop.id,
+      game_id: `manual-${crypto.randomUUID()}`,
+      player_name: prop.player_name,
+      team: prop.team,
+      prop_type: prop.prop_type,
+      market_type: 'player_props',
+      line: prop.line,
+      over_odds: prop.over_odds,
+      under_odds: prop.under_odds,
+      display_name: `${prop.player_name} ${prop.prop_type}${prop.line ? ` ${prop.line}` : ''}`,
+      selection_options: prop.line
+        ? [
+            { value: 'over', label: `Over ${prop.line}`, odds: prop.over_odds },
+            { value: 'under', label: `Under ${prop.line}`, odds: prop.under_odds },
+          ]
+        : [
+            { value: 'over', label: 'Over', odds: prop.over_odds },
+            { value: 'under', label: 'Under', odds: prop.under_odds },
+          ],
+    };
+
+    setManualProps(prev => [...prev, transformedProp]);
+    setProps(prev => [...prev, transformedProp]);
+    setShowManualPropCreator(false);
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -455,27 +574,70 @@ export function Step4GameSelection({
         </p>
       </div>
 
-      {error && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <p className="text-yellow-800">{error}</p>
+      {/* PARITY-GATE-001 Stage 7: Dual-mode toggle */}
+      {MANUAL_MODE_ENABLED && (
+        <div className="flex gap-1 p-1 bg-muted rounded-lg w-fit">
+          <button
+            type="button"
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              entryMode === 'games'
+                ? 'bg-white text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+            onClick={() => setEntryMode('games')}
+          >
+            Select from Games
+          </button>
+          <button
+            type="button"
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              entryMode === 'manual'
+                ? 'bg-white text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+            onClick={() => setEntryMode('manual')}
+          >
+            Manual Entry
+          </button>
         </div>
       )}
 
-      {loading && (
-        <div className="text-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2 text-muted-foreground">Loading games...</p>
-        </div>
+      {/* === GAMES MODE === */}
+      {entryMode === 'games' && (
+        <>
+          {error && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <p className="text-yellow-800">{error}</p>
+            </div>
+          )}
+
+          {loading && (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+              <p className="mt-2 text-muted-foreground">Loading games...</p>
+            </div>
+          )}
+
+          {!loading && games.length === 0 && (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground mb-4">No games found</p>
+              {MANUAL_MODE_ENABLED ? (
+                <button
+                  type="button"
+                  className="text-primary underline text-sm hover:text-primary/80"
+                  onClick={() => setEntryMode('manual')}
+                >
+                  Switch to Manual Entry to submit without games data
+                </button>
+              ) : (
+                <p className="text-sm text-muted-foreground">Try selecting a different date or sport</p>
+              )}
+            </div>
+          )}
+        </>
       )}
 
-      {!loading && games.length === 0 && (
-        <div className="text-center py-8">
-          <p className="text-muted-foreground mb-4">No games found</p>
-          <p className="text-sm text-muted-foreground">Try selecting a different date or sport</p>
-        </div>
-      )}
-
-      {!loading && games.length > 0 && (
+      {entryMode === 'games' && !loading && games.length > 0 && (
         <>
           {/* Game Selection */}
           <Card className="p-6">
@@ -761,54 +923,268 @@ export function Step4GameSelection({
             </Card>
           )}
 
-          {/* Current Selections */}
-          {data.game_selections && data.game_selections.length > 0 && (
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Current Selections</h3>
-              <div className="space-y-3">
-                {data.game_selections.map(selection => (
-                  <div
-                    key={selection.id}
-                    className="flex justify-between items-center p-3 border rounded-lg"
-                  >
-                    <div>
-                      <div className="font-medium">{selection.game}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {selection.selection} @ {Number(selection.odds) > 0 ? '+' : ''}
-                        {selection.odds}
-                        {selection.line && ` (${selection.line})`}
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveSelection(selection.id!)}
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          {/* Notes */}
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Additional Notes</h3>
-            <Textarea
-              placeholder="Add any additional analysis or notes..."
-              value={notes}
-              onChange={e => {
-                setNotes(e.target.value);
-                onUpdate({ notes: e.target.value });
-              }}
-              rows={4}
-            />
-          </Card>
         </>
       )}
 
-      {/* Navigation */}
+      {/* === MANUAL ENTRY MODE (PARITY-GATE-001 Stage 7) === */}
+      {entryMode === 'manual' && MANUAL_MODE_ENABLED && (
+        <>
+          {data.bet_type === 'player_prop' ? (
+            /* Manual player prop: reuse ManualPropCreator with virtual game */
+            <Card className="p-6 border-2 border-dashed border-blue-300">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Manual Player Prop</h3>
+                <Badge variant="outline" className="bg-blue-50 text-blue-700">Manual Mode</Badge>
+              </div>
+              <div className="space-y-4 mb-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Away Team</label>
+                    <Input
+                      placeholder="e.g., Lakers"
+                      value={manualAwayTeam}
+                      onChange={e => setManualAwayTeam(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Home Team</label>
+                    <Input
+                      placeholder="e.g., Celtics"
+                      value={manualHomeTeam}
+                      onChange={e => setManualHomeTeam(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+              {manualHomeTeam && manualAwayTeam ? (
+                <ManualPropCreator
+                  gameId={`manual-${Date.now()}`}
+                  gameMatchup={`${manualAwayTeam} @ ${manualHomeTeam}`}
+                  sport={data.sport || 'NBA'}
+                  onPropCreated={handleManualModePropCreated}
+                  onCancel={() => setEntryMode('games')}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Enter both team names above to create a player prop
+                </p>
+              )}
+
+              {/* Manual mode player prop selection */}
+              {props.length > 0 && (
+                <div className="mt-4 space-y-3">
+                  <h4 className="text-sm font-semibold">Created Props</h4>
+                  {props.map(prop => (
+                    <div key={prop.id} className="p-3 border rounded-lg">
+                      <div className="font-medium text-sm mb-2">{prop.display_name}</div>
+                      <div className="flex gap-2">
+                        {prop.selection_options?.map((option: any) => (
+                          <Button
+                            key={option.value}
+                            variant={
+                              selectedProp?.id === prop.id && selection.includes(option.label)
+                                ? 'default'
+                                : 'outline'
+                            }
+                            size="sm"
+                            onClick={() => handlePropSelectionChange(prop.id, option.value)}
+                            className="flex-1"
+                          >
+                            {option.label} ({option.odds > 0 ? '+' : ''}{option.odds})
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  {selectedProp && selection && (
+                    <Button
+                      onClick={() => {
+                        const matchup = `${manualAwayTeam} @ ${manualHomeTeam}`;
+                        const newSel: GameSelection = {
+                          id: crypto.randomUUID(),
+                          game_id: `manual-${crypto.randomUUID()}`,
+                          game: matchup,
+                          selection: selection,
+                          odds: odds,
+                          line: line || undefined,
+                          source: 'manual',
+                          manual_home_team: manualHomeTeam,
+                          manual_away_team: manualAwayTeam,
+                          manual_game_date: manualGameDate || data.game_date,
+                        };
+                        const updated =
+                          data.ticket_type === 'single'
+                            ? [newSel]
+                            : [...(data.game_selections || []), newSel];
+                        onUpdate({ game_selections: updated, notes });
+                        setSelection('');
+                        setOdds('');
+                        setLine('');
+                        setSelectedProp(null);
+                      }}
+                      disabled={!selection || !odds}
+                      className="w-full"
+                    >
+                      Add Selection
+                    </Button>
+                  )}
+                </div>
+              )}
+            </Card>
+          ) : (
+            /* Manual game entry for spread/moneyline/total */
+            <Card className="p-6 border-2 border-dashed border-blue-300">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Manual Game Entry</h3>
+                <Badge variant="outline" className="bg-blue-50 text-blue-700">Manual Mode</Badge>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Away Team</label>
+                    <Input
+                      placeholder="e.g., Lakers"
+                      value={manualAwayTeam}
+                      onChange={e => setManualAwayTeam(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Home Team</label>
+                    <Input
+                      placeholder="e.g., Celtics"
+                      value={manualHomeTeam}
+                      onChange={e => setManualHomeTeam(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Game Date</label>
+                  <Input
+                    type="date"
+                    value={manualGameDate}
+                    onChange={e => setManualGameDate(e.target.value)}
+                  />
+                </div>
+
+                {manualHomeTeam && manualAwayTeam && (
+                  <>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Selection</label>
+                      <Select value={manualSelection} onValueChange={setManualSelection}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose your pick" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getManualSelections().map(option => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Odds</label>
+                        <Input
+                          type="number"
+                          placeholder="-110"
+                          value={manualOdds}
+                          onChange={e => setManualOdds(e.target.value)}
+                        />
+                      </div>
+
+                      {(data.bet_type === 'spread' ||
+                        data.bet_type === 'total' ||
+                        data.bet_type === 'team_total') && (
+                        <div>
+                          <label className="text-sm font-medium mb-2 block">Line</label>
+                          <Input
+                            type="number"
+                            step="0.5"
+                            placeholder="e.g., 3.5"
+                            value={manualLine}
+                            onChange={e => setManualLine(e.target.value)}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <Button
+                      onClick={handleAddManualSelection}
+                      disabled={!manualSelection || !manualOdds}
+                      className="w-full"
+                    >
+                      Add Selection
+                    </Button>
+                  </>
+                )}
+
+                {!manualHomeTeam || !manualAwayTeam ? (
+                  <p className="text-sm text-muted-foreground text-center py-2">
+                    Enter both team names to see pick options
+                  </p>
+                ) : null}
+              </div>
+            </Card>
+          )}
+        </>
+      )}
+
+      {/* === SHARED: Current Selections (both modes) === */}
+      {data.game_selections && data.game_selections.length > 0 && (
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4">Current Selections</h3>
+          <div className="space-y-3">
+            {data.game_selections.map(sel => (
+              <div
+                key={sel.id}
+                className="flex justify-between items-center p-3 border rounded-lg"
+              >
+                <div>
+                  <div className="font-medium">
+                    {sel.game}
+                    {sel.source === 'manual' && (
+                      <Badge variant="secondary" className="ml-2 text-xs">Manual</Badge>
+                    )}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {sel.selection} @ {Number(sel.odds) > 0 ? '+' : ''}
+                    {sel.odds}
+                    {sel.line && ` (${sel.line})`}
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleRemoveSelection(sel.id!)}
+                >
+                  Remove
+                </Button>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* === SHARED: Notes (both modes) === */}
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold mb-4">Additional Notes</h3>
+        <Textarea
+          placeholder="Add any additional analysis or notes..."
+          value={notes}
+          onChange={e => {
+            setNotes(e.target.value);
+            onUpdate({ notes: e.target.value });
+          }}
+          rows={4}
+        />
+      </Card>
+
+      {/* === SHARED: Navigation (both modes) === */}
       <div className="flex justify-between">
         <Button variant="outline" onClick={onBack}>
           Back

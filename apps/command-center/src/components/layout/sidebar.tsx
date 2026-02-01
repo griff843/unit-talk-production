@@ -23,6 +23,7 @@ import {
   Database,
   Wifi,
   Layers,
+  Gavel,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,12 @@ const navigation = [
     href: '/dashboard',
     icon: BarChart3,
     description: 'System overview and key metrics',
+  },
+  {
+    name: 'Settlement',
+    href: '/dashboard#settlement',
+    icon: Gavel,
+    description: 'Operator settlement console',
   },
   {
     name: 'PicksHQ',

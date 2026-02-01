@@ -337,4 +337,261 @@ router.delete('/cleanup/:runId', async (req, res) => {
   }
 });
 
+// ============================================================================
+// UNIFIED-OPS-002: Operator Manual Settlement Endpoint
+// ============================================================================
+
+/**
+ * POST /ops/settle - Operator-safe manual settlement
+ *
+ * Body:
+ * {
+ *   "pick_id": "uuid",
+ *   "result": "win" | "loss" | "push" | "void",
+ *   "actual_value": 25.5,          // optional
+ *   "notes": "Game ended 28-21",   // optional
+ *   "operator": "griff843"         // optional, defaults to 'operator'
+ * }
+ *
+ * Calls the manual_settle_pick Supabase RPC which:
+ * - Validates pick exists and is not already settled
+ * - Inserts into prop_settlements
+ * - Updates unified_picks (settlement_status, settled_at, settlement_result)
+ * - Inserts settlement_log audit entry
+ * - Inserts audit_log operator action entry
+ * - Returns structured success/error JSON
+ */
+router.post('/settle', async (req, res) => {
+  const correlationId = `ops-settle-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+
+  try {
+    const { pick_id, result, actual_value, notes, operator } = req.body;
+
+    // Input validation
+    if (!pick_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'pick_id is required',
+        correlationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (!result || !['win', 'loss', 'push'].includes(result)) {
+      return res.status(400).json({
+        success: false,
+        error: 'result must be one of: win, loss, push',
+        correlationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    logger.info('Manual settlement requested', {
+      correlationId,
+      pick_id,
+      result,
+      actual_value,
+      operator: operator || 'operator'
+    });
+
+    // Call Supabase RPC (new signature: p_pick_id, p_result, p_settled_at, p_meta)
+    // RPC also emits PICK_SETTLED event into events table for downstream consumers
+    const { supabaseClient } = await import('../services/supabaseClient');
+
+    const { data, error } = await supabaseClient.rpc('manual_settle_pick', {
+      p_pick_id: pick_id,
+      p_result: result,
+      p_settled_at: new Date().toISOString(),
+      p_meta: {
+        actual_value: actual_value ?? null,
+        operator: operator || 'operator',
+        notes: notes || null,
+        trace_id: correlationId
+      }
+    });
+
+    if (error) {
+      logger.error('Settlement RPC error', {
+        correlationId,
+        pick_id,
+        error: error.message,
+        details: error.details
+      });
+
+      return res.status(500).json({
+        success: false,
+        error: 'Settlement RPC failed',
+        details: error.message,
+        correlationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // RPC returns JSONB — check its success field
+    const rpcResult = data as any;
+
+    if (!rpcResult?.success) {
+      logger.warn('Settlement rejected by RPC', {
+        correlationId,
+        pick_id,
+        rpcError: rpcResult?.error
+      });
+
+      return res.status(422).json({
+        success: false,
+        error: rpcResult?.error || 'Settlement rejected',
+        details: rpcResult,
+        correlationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    logger.info('Settlement completed successfully', {
+      correlationId,
+      pick_id,
+      result,
+      settlement_id: rpcResult.settlement_id,
+      trace_id: rpcResult.trace_id
+    });
+
+    res.json({
+      success: true,
+      ...rpcResult,
+      correlationId,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    logger.error('Settlement endpoint error', {
+      correlationId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error during settlement',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      correlationId,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+/**
+ * GET /ops/unsettled - List unsettled picks for operator review
+ */
+router.get('/unsettled', async (req, res) => {
+  const correlationId = `ops-unsettled-${Date.now()}`;
+
+  try {
+    const { supabaseClient } = await import('../services/supabaseClient');
+
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+    const sport = req.query.sport as string;
+
+    let query = supabaseClient
+      .from('unified_picks')
+      .select('id, player_name, stat_type, line, side, sport, odds, confidence, professional_score, promotion_band, bet_type, market, capper_id, created_at')
+      .or('settlement_status.is.null,settlement_status.eq.pending')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (sport) {
+      query = query.eq('sport', sport);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to fetch unsettled picks',
+        details: error.message,
+        correlationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    res.json({
+      success: true,
+      count: data?.length || 0,
+      picks: data || [],
+      correlationId,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch unsettled picks',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      correlationId,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+/**
+ * POST /ops/recap - Trigger recap generation
+ *
+ * Body:
+ * {
+ *   "mode": "daily" | "weekly" | "monthly",
+ *   "date": "2026-01-29",         // optional, for daily
+ *   "week_ending": "2026-02-02"   // optional, for weekly
+ * }
+ */
+router.post('/recap', async (req, res) => {
+  const correlationId = `ops-recap-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+
+  try {
+    const { mode = 'daily', date, week_ending } = req.body;
+
+    if (!['daily', 'weekly', 'monthly'].includes(mode)) {
+      return res.status(400).json({
+        success: false,
+        error: 'mode must be one of: daily, weekly, monthly',
+        correlationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    logger.info('Recap generation requested', { correlationId, mode, date, week_ending });
+
+    // Use the generateRecap script directly for providerless execution
+    const { generateRecapReport } = await import('../scripts/recap/generateRecap');
+
+    const result = await generateRecapReport({
+      mode: mode as 'daily' | 'weekly' | 'monthly',
+      date,
+      weekEnding: week_ending
+    });
+
+    logger.info('Recap generation completed', { correlationId, mode });
+
+    res.json({
+      success: true,
+      mode,
+      ...result,
+      correlationId,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    logger.error('Recap generation failed', {
+      correlationId,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+
+    res.status(500).json({
+      success: false,
+      error: 'Recap generation failed',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      correlationId,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 export default router;

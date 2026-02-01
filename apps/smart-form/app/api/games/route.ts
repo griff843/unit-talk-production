@@ -135,49 +135,50 @@ function convertOptimalEventToGame(event: OptimalEvent, gameLines: OptimalGameLi
   const eventGameLines = gameLines.filter(line => line.game_id === event.id);
   const bestLine = eventGameLines.length > 0 ? eventGameLines[0] : null; // Take first available line
 
-  // Convert Optimal event format to our game format
+  // ACTIVATION-P1-FIXES-001: Use cloud-canonical schema
+  // Cloud games table: id, sport, league, home_team, away_team, game_date,
+  //   start_time, status, external_game_id, meta, created_at, updated_at
+  // Odds, matchup, venue, team_meta all stored in `meta` JSONB.
   const game = {
     sport: 'BASEBALL',
     league: event.league,
     away_team: `${event.away.toUpperCase().replace(/\s+/g, '_')}_${event.league}`,
     home_team: `${event.home.toUpperCase().replace(/\s+/g, '_')}_${event.league}`,
     game_date: today,
-    commence_time: event.commence_time,
+    start_time: event.commence_time, // canonical column (was commence_time)
     status: event.status || 'scheduled',
-
-    // Real odds from Optimal API
-    spread: bestLine ? bestLine.spread_home.toString() : '-1.5',
-    total: bestLine ? bestLine.total.toString() : '8.5',
-    moneyline_home: bestLine ? bestLine.moneyline_home.toString() : '-140',
-    moneyline_away: bestLine ? bestLine.moneyline_away.toString() : '+120',
-    spread_odds: bestLine ? bestLine.spread_home_odds.toString() : '-110',
-    total_over_odds: bestLine ? bestLine.over_odds.toString() : '-110',
-    total_under_odds: bestLine ? bestLine.under_odds.toString() : '-110',
-
-    venue: `${event.home} Stadium`, // Generic venue name
-    source: 'optimal_api',
-    matchup: `${event.away_display} @ ${event.home_display}`,
-
-    // Team metadata for display
-    home_team_meta: {
-      names: {
-        long: event.home_display,
-        short: event.home,
-        medium: event.home,
-        location: event.home.split(' ').slice(0, -1).join(' '),
-        nickname: event.home.split(' ').slice(-1)[0],
+    external_game_id: event.id,
+    meta: {
+      source: 'optimal_api',
+      matchup: `${event.away_display} @ ${event.home_display}`,
+      venue: `${event.home} Stadium`,
+      spread: bestLine ? bestLine.spread_home.toString() : null,
+      total: bestLine ? bestLine.total.toString() : null,
+      moneyline_home: bestLine ? bestLine.moneyline_home.toString() : null,
+      moneyline_away: bestLine ? bestLine.moneyline_away.toString() : null,
+      spread_odds: bestLine ? bestLine.spread_home_odds.toString() : null,
+      total_over_odds: bestLine ? bestLine.over_odds.toString() : null,
+      total_under_odds: bestLine ? bestLine.under_odds.toString() : null,
+      home_team_meta: {
+        names: {
+          long: event.home_display,
+          short: event.home,
+          medium: event.home,
+          location: event.home.split(' ').slice(0, -1).join(' '),
+          nickname: event.home.split(' ').slice(-1)[0],
+        },
+        teamID: `${event.home.toUpperCase().replace(/\s+/g, '_')}_${event.league}`,
       },
-      teamID: `${event.home.toUpperCase().replace(/\s+/g, '_')}_${event.league}`,
-    },
-    away_team_meta: {
-      names: {
-        long: event.away_display,
-        short: event.away,
-        medium: event.away,
-        location: event.away.split(' ').slice(0, -1).join(' '),
-        nickname: event.away.split(' ').slice(-1)[0],
+      away_team_meta: {
+        names: {
+          long: event.away_display,
+          short: event.away,
+          medium: event.away,
+          location: event.away.split(' ').slice(0, -1).join(' '),
+          nickname: event.away.split(' ').slice(-1)[0],
+        },
+        teamID: `${event.away.toUpperCase().replace(/\s+/g, '_')}_${event.league}`,
       },
-      teamID: `${event.away.toUpperCase().replace(/\s+/g, '_')}_${event.league}`,
     },
   };
 
@@ -288,7 +289,8 @@ export async function GET(request: NextRequest) {
       query = query.or(`home_team_id.eq.${team_id},away_team_id.eq.${team_id}`);
     }
     
-    query = query.order('commence_time');
+    // ACTIVATION-P1-FIXES-001: Use canonical start_time (commence_time doesn't exist in cloud)
+    query = query.order('start_time');
 
     const { data: games, error } = await query;
 
@@ -324,18 +326,19 @@ export async function GET(request: NextRequest) {
           let isLive = false;
 
           try {
-            // Prefer commence_time as it has correct times, fallback to start_time
-            let gameTimeStr = game.commence_time || game.start_time;
+            // ACTIVATION-P1-FIXES-001: Use canonical start_time (cloud schema)
+            let gameTimeStr = game.start_time || game.commence_time;
 
             // Handle timezone conversion properly
             if (
-              game.commence_time &&
-              !game.commence_time.includes('Z') &&
-              !game.commence_time.includes('+') &&
-              !game.commence_time.includes('-')
+              gameTimeStr &&
+              typeof gameTimeStr === 'string' &&
+              !gameTimeStr.includes('Z') &&
+              !gameTimeStr.includes('+') &&
+              !/\d{2}-\d{2}/.test(gameTimeStr.slice(-5))
             ) {
               // If no timezone info, treat as UTC (which is what the database stores)
-              gameTimeStr = game.commence_time + 'Z';
+              gameTimeStr = gameTimeStr + 'Z';
             }
 
             gameTime = new Date(gameTimeStr);
@@ -398,14 +401,15 @@ export async function GET(request: NextRequest) {
             return !isNaN(parsed) ? parsed : null;
           };
 
-          // Real odds from database/API - NO HARDCODED FALLBACKS
-          const moneylineHome = parseOdds(game.moneyline_home);
-          const moneylineAway = parseOdds(game.moneyline_away);
-          const spreadValue = parseFloatValue(game.spread);
-          const totalValue = parseFloatValue(game.total);
-          const spreadOdds = parseOdds(game.spread_odds);
-          const totalOverOdds = parseOdds(game.total_over_odds);
-          const totalUnderOdds = parseOdds(game.total_under_odds);
+          // ACTIVATION-P1-FIXES-001: Read odds from top-level columns (local) or meta JSONB (cloud)
+          const meta = (game.meta && typeof game.meta === 'object') ? game.meta as Record<string, any> : {};
+          const moneylineHome = parseOdds(game.moneyline_home ?? meta.moneyline_home);
+          const moneylineAway = parseOdds(game.moneyline_away ?? meta.moneyline_away);
+          const spreadValue = parseFloatValue(game.spread ?? meta.spread);
+          const totalValue = parseFloatValue(game.total ?? meta.total);
+          const spreadOdds = parseOdds(game.spread_odds ?? meta.spread_odds);
+          const totalOverOdds = parseOdds(game.total_over_odds ?? meta.total_over_odds);
+          const totalUnderOdds = parseOdds(game.total_under_odds ?? meta.total_under_odds);
 
           console.log(`[Games API] ${game.away_team} @ ${game.home_team}:`, {
             display_time,
@@ -439,11 +443,11 @@ export async function GET(request: NextRequest) {
             has_spread: !!(spreadValue && spreadOdds),
             has_total: !!(totalValue && (totalOverOdds || totalUnderOdds)),
 
-            // Enhanced matchup display
+            // ACTIVATION-P1-FIXES-001: Read matchup/team_meta from top-level or meta JSONB
             matchup:
-              game.matchup ||
-              `${game.away_team_meta?.names?.long || game.away_team} @ ${game.home_team_meta?.names?.long || game.home_team}`,
-            matchup_short: `${game.away_team_meta?.names?.short || game.away_team} @ ${game.home_team_meta?.names?.short || game.home_team}`,
+              game.matchup || meta.matchup ||
+              `${(game.away_team_meta || meta.away_team_meta)?.names?.long || game.away_team} @ ${(game.home_team_meta || meta.home_team_meta)?.names?.long || game.home_team}`,
+            matchup_short: `${(game.away_team_meta || meta.away_team_meta)?.names?.short || game.away_team} @ ${(game.home_team_meta || meta.home_team_meta)?.names?.short || game.home_team}`,
           };
         })
         .filter(game => game !== null) || []; // Filter out games that ended too long ago

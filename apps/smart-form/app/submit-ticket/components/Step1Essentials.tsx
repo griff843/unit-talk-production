@@ -504,7 +504,8 @@ export function Step1Essentials({ data, onUpdate, onNext, errors }: Step1Essenti
 
   const handleCapperSelect = (capperId: string) => {
     const selectedCapper = cappers.find(c => c.id === capperId);
-    onUpdate({ capper: selectedCapper?.name || capperId });
+    // ACTIVATION-P1-FIXES-001: Store both name and UUID for API submission
+    onUpdate({ capper: selectedCapper?.name || capperId, capper_id: capperId });
   };
 
   const handleTicketTypeSelect = (type: TicketType) => {

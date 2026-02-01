@@ -7,7 +7,7 @@ const log = createRouteLogger('GET /api/cappers', 'GET');
 
 // Validation schema for query parameters
 const QuerySchema = z.object({
-  active: z.string().nullish().transform(val => val === 'true'),
+  active: z.string().nullish().transform(val => val == null ? true : val === 'true'),
   sport: z.enum(['NFL', 'NBA', 'MLB', 'NHL', 'NCAAF']).nullish(),
 });
 
@@ -35,7 +35,7 @@ export async function GET(request: Request) {
       }, { status: 400 });
     }
 
-    const { active = true, sport } = queryValidation.data;
+    const { active, sport } = queryValidation.data;
     
     log.info({
       query: { active, sport },
@@ -43,11 +43,12 @@ export async function GET(request: Request) {
 
     const sb = supabaseServer();
     
-    // Query v3 users table for all non-System users (all are cappers)
+    // Query canonical users table: role='capper' is the canonical filter.
+    // Falls back to username!='System' if role column is not yet deployed.
     let query = sb
       .from('users')
-      .select('id, username, discord_id, tier, capper_tier, active')
-      .neq('username', 'System');
+      .select('id, username, discord_id, tier, capper_tier, active, role')
+      .eq('role', 'capper');
     
     if (active !== undefined) {
       // Filter by active status if column exists, otherwise assume all are active

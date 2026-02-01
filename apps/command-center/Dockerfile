@@ -26,9 +26,6 @@ COPY package*.json ./
 COPY tsconfig*.json ./
 RUN npm install --legacy-peer-deps && npm cache clean --force
 
-# Copy centralized configuration (CRITICAL for v3.0.0)
-COPY ../../config/ ./config/
-
 # Copy source code
 COPY . .
 
@@ -54,9 +51,6 @@ FROM base AS builder
 COPY package*.json ./
 COPY tsconfig*.json ./
 RUN npm install --legacy-peer-deps
-
-# Copy centralized configuration (CRITICAL for v3.0.0)
-COPY ../../config/ ./config/
 
 # Copy source code
 COPY . .

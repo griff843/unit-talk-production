@@ -429,10 +429,6 @@ export class BridgeWorker extends BaseAgent {
           .select('*')
           .is('processed_at', null)
           .is('failed_at', null)
-          .lt(
-            'retry_count',
-            this.requireSupabase().from('events').select('max_retries')
-          )
           .order('created_at', { ascending: true })
           .limit(this.eventBatchSize);
 

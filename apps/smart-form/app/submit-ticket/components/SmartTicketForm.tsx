@@ -258,42 +258,46 @@ export function SmartTicketForm({ onSubmitSuccess }: SmartTicketFormProps) {
         return;
       }
 
-      // Convert game_selections to legs format for database
-      const legs =
-        formState.data.game_selections?.map(selection => ({
-          id: crypto.randomUUID(),
-          sport: formState.data.sport!,
-          bet_category: formState.data.bet_type,
-          market_type: formState.data.market_type!,
-          bet_type: formState.data.bet_type!,
-          game_id: selection.game_id,
-          selection: selection.selection,
-          odds: selection.odds,
-          line: selection.line,
-          status: 'open' as const,
-        })) || [];
+      // ACTIVATION-P1-FIXES-001: Transform front-end format → API canonical schema
+      // API expects: capper_id (UUID), selections (transformed), total_units
+      // Front-end has: capper (name), capper_id (UUID), game_selections, unit_size
 
-      // Prepare ticket data for submission
-      const ticketData = {
-        capper: formState.data.capper!,
-        ticket_type: formState.data.ticket_type!,
-        unit_size: formState.data.unit_size!,
-        odds_format: formState.data.odds_format!,
-        auto_parlay: formState.data.auto_parlay || false,
+      if (!formState.data.capper_id) {
+        toast({
+          title: 'Submission Error',
+          description: 'Capper ID not found. Please re-select your capper.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const selections = (formState.data.game_selections || []).map(gs => ({
         sport: formState.data.sport!,
-        game_date: formState.data.game_date!,
-        confidence_level: formState.data.confidence_level!,
-        user_tier: formState.data.user_tier!,
-        bet_type: formState.data.bet_type!,
-        market_type: formState.data.market_type!,
-        legs: legs,
-        game_selections: formState.data.game_selections,
+        stat_type: formState.data.bet_type || 'spread',
+        line: gs.line ? parseFloat(gs.line) : 0,
+        leg_odds: gs.odds ? parseInt(gs.odds, 10) : -110,
+        source: gs.source || ('api' as const),
+        is_live: false,
+        selection: gs.selection,
+        confidence: formState.data.confidence_level || 5,
+        // Manual entry fields (pass through when present)
+        ...(gs.source === 'manual' && {
+          manual_matchup_home: gs.manual_home_team,
+          manual_matchup_away: gs.manual_away_team,
+          manual_game_date: gs.manual_game_date,
+        }),
+      }));
+
+      const ticketData = {
+        capper_id: formState.data.capper_id,
+        sport: formState.data.sport!,
+        ticket_type: formState.data.ticket_type!,
+        selections,
+        total_units: formState.data.unit_size || 1.0,
         notes: formState.data.notes,
-        timestamp: new Date().toISOString(),
-        timezone: getTimezoneOffset(),
-        status: 'submitted' as const,
-        bet_slip_id: crypto.randomUUID(),
       };
+
+      console.log('[SmartTicketForm] Submitting canonical payload:', JSON.stringify(ticketData, null, 2));
 
       // Submit to API endpoint
       const response = await fetch('/api/submit-ticket', {

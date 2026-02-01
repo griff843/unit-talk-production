@@ -226,9 +226,88 @@ async function main() {
   console.error('\n' + renderMarkdown(summary, mode === 'weekly'));
 }
 
-main().catch(err => {
-  console.error('generateRecap failed:', err);
-  process.exit(1);
-});
+// ─── Callable API for operator endpoints (UNIFIED-OPS-002) ───────────────────
+
+export interface RecapReportOptions {
+  mode: 'daily' | 'weekly' | 'monthly';
+  date?: string;
+  weekEnding?: string;
+}
+
+/**
+ * Generate recap report programmatically (no CLI args needed).
+ * Used by /ops/recap endpoint and RecapAgent activities.
+ */
+export async function generateRecapReport(options: RecapReportOptions): Promise<{
+  summary: DailySummary;
+  markdown: string;
+  picks_count: number;
+  date_range: { start: string; end: string };
+}> {
+  const { mode } = options;
+
+  // Determine date range
+  let date = options.date || '';
+  let weekEnding = options.weekEnding || '';
+
+  if (!date) {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    date = d.toISOString().split('T')[0];
+  }
+  if (!weekEnding) {
+    const d = new Date();
+    d.setDate(d.getDate() - d.getDay());
+    weekEnding = d.toISOString().split('T')[0];
+  }
+
+  // Monthly: use 1st to last day of previous month
+  let dateStart: string;
+  let dateEnd: string;
+
+  if (mode === 'monthly') {
+    const now = new Date();
+    const firstOfPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastOfPrevMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+    dateStart = firstOfPrevMonth.toISOString().split('T')[0];
+    dateEnd = lastOfPrevMonth.toISOString().split('T')[0];
+  } else {
+    const range = computeDateRange(mode, date, weekEnding);
+    dateStart = range.dateStart;
+    dateEnd = range.dateEnd;
+  }
+
+  const picks = await fetchSettledPicks(dateStart, dateEnd);
+
+  if (picks.length === 0) {
+    const summary = emptySummary(dateStart, dateEnd);
+    return {
+      summary,
+      markdown: renderMarkdown(summary, mode === 'weekly'),
+      picks_count: 0,
+      date_range: { start: dateStart, end: dateEnd }
+    };
+  }
+
+  const integrity = await fetchIntegrity(dateStart, dateEnd);
+  const summary = buildSummary(picks, integrity, dateStart, dateEnd);
+  const markdown = renderMarkdown(summary, mode === 'weekly');
+
+  return {
+    summary,
+    markdown,
+    picks_count: picks.length,
+    date_range: { start: dateStart, end: dateEnd }
+  };
+}
+
+// ─── CLI entrypoint ─────────────────────────────────────────────────────────
+
+if (require.main === module) {
+  main().catch(err => {
+    console.error('generateRecap failed:', err);
+    process.exit(1);
+  });
+}
 
 export { main as runRecap, buildSummary, renderMarkdown };

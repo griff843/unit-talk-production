@@ -12,24 +12,35 @@ import {
 
 const log = createRouteLogger('POST /api/submit-ticket', 'POST');
 
+// ACTIVATION-P1-FIXES-001: Extended sport list matching Smart Form SPORTS constant
+const SUPPORTED_SPORTS = [
+  'NFL', 'NBA', 'WNBA', 'MLB', 'NHL', 'NCAAF', 'NCAAB',
+  'UFC/MMA', 'Boxing', 'Soccer', 'Tennis', 'Golf', 'NASCAR', 'F1',
+] as const;
+
 // Validation schemas
 const GameSelectionSchema = z.object({
-  sport: z.enum(['NFL', 'NBA', 'MLB', 'NHL', 'NCAAF']),
+  sport: z.enum(SUPPORTED_SPORTS),
   team_id: z.string().uuid().optional(),
   player_id: z.string().uuid().optional(),
   stat_type: z.string().min(1),
-  line: z.number(),
+  line: z.number().optional().default(0), // optional — moneyline bets have no line
   leg_odds: z.number().int(),
   source: z.enum(['api', 'manual']).default('api'),
   is_live: z.boolean().optional().default(false),
-  selection: z.enum(['over', 'under', 'yes', 'no']),
-  confidence: z.number().min(0).max(1).optional().default(0),
+  // ACTIVATION-P1-FIXES-001: Accept any string (spread: "Celtics -3.5", ML: "Celtics", total: "over")
+  selection: z.string().min(1),
+  confidence: z.number().int().min(0).max(10).optional().default(0),
+  // PARITY-GATE-001 Stage 7: Manual entry fields for dual-mode
+  manual_matchup_home: z.string().optional(),
+  manual_matchup_away: z.string().optional(),
+  manual_game_date: z.string().optional(),
 });
 
 const SubmitTicketSchema = z.object({
   capper_id: z.string().uuid('Capper ID must be a valid UUID'),
-  sport: z.enum(['NFL', 'NBA', 'MLB', 'NHL', 'NCAAF']),
-  ticket_type: z.enum(['single', 'parlay', 'round_robin']),
+  sport: z.enum(SUPPORTED_SPORTS),
+  ticket_type: z.enum(['single', 'parlay', 'teaser', 'round_robin']),
   selections: z.array(GameSelectionSchema).min(1, 'At least one selection is required'),
   parlay_odds: z.number().int().optional(),
   total_units: z.number().min(0.5).max(10).default(1.0),
@@ -46,12 +57,13 @@ async function publishTicketSubmitted(ticketData: {
     const sb = supabaseServer();
     
     // Write to bridge outbox for idempotent processing
+    // PARITY-GATE-001: Use cloud-canonical column names (event_data, bet_slip_id)
     const { error } = await sb
       .from('bridge_outbox')
       .insert({
         event_type: 'ticket_submitted',
-        payload: ticketData,
-        unique_key: ticketData.bet_slip_id,
+        event_data: ticketData,
+        bet_slip_id: ticketData.bet_slip_id,
         status: 'pending',
       });
 
@@ -208,6 +220,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Insert individual legs into unified_picks
+      // PARITY-GATE-001 Stage 7: Include manual fields when source='manual'
       const pickInserts = selections.map(selection => ({
         bet_slip_id: betSlipId,
         user_id: capper_id,
@@ -221,6 +234,16 @@ export async function POST(request: NextRequest) {
         player_id: selection.player_id,
         source: selection.source,
         is_live: selection.is_live || false,
+        // Manual entry fields (populated only when source='manual')
+        ...(selection.source === 'manual' && {
+          manual_matchup_home: selection.manual_matchup_home,
+          manual_matchup_away: selection.manual_matchup_away,
+          manual_game_date: selection.manual_game_date,
+          manual_fields_blob: {
+            entered_at: new Date().toISOString(),
+            matchup: `${selection.manual_matchup_away} @ ${selection.manual_matchup_home}`,
+          },
+        }),
       }));
 
       const { data: insertedPicks, error: picksError } = await supabase

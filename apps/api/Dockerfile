@@ -31,10 +31,10 @@ FROM base AS development
 
 # Install all dependencies (including dev)
 COPY package*.json ./
-RUN npm ci && npm cache clean --force
+RUN npm install && npm cache clean --force
 
-# Copy centralized configuration (CRITICAL for v3.0.0)
-COPY ../../config/ ./config/
+# Config is mounted at runtime via docker-compose volumes or lives in build context
+# Skip explicit COPY for config — handled by compose volume mounts
 
 # Copy source code and configs
 COPY . .
