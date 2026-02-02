@@ -247,7 +247,7 @@ export class BlackLabelAnnouncementService {
     const baseEV = announcement.confidence * 2.5;
     const oddsMultiplier = announcement.odds.includes('-') ? 0.9 : 1.1;
     const devigged_edge = (baseEV * oddsMultiplier).toFixed(1);
-    return ev;
+    return devigged_edge;
   }
 
   private getRiskLevel(confidence: number): string {

@@ -346,7 +346,7 @@ export class PickGradingService {
   /**
    * Analyze odds value and return professional_score with description
    */
-  private analyzeOdds(odds: number): { score: number; description: string } {
+  private analyzeOdds(odds: number): { professional_score: number; description: string } {
     // Convert American odds to implied probability
     let impliedProb: number;
     if (odds > 0) {
@@ -356,7 +356,7 @@ export class PickGradingService {
     }
 
     // Score based on value (lower implied probability = better value for positive odds)
-    let score: number;
+    let professional_score: number;
     let description: string;
 
     if (odds > 200) {
@@ -395,7 +395,7 @@ export class PickGradingService {
   /**
    * Analyze pick timing factors
    */
-  public analyzePickTiming(pick: UserPickSubmission): { score: number; timing: string } {
+  public analyzePickTiming(pick: UserPickSubmission): { score: number; professional_score: number; timing: string } {
     // Simple timing analysis - in a real implementation, this would analyze
     // when the pick was made relative to game time, line movements, etc.
     const now = toISOString(new Date());
@@ -404,6 +404,7 @@ export class PickGradingService {
     // For now, return a default analysis
     return {
       score: 0.7, // Default professional_score
+      professional_score: 0.7,
       timing: 'Pick submitted at optimal timing window',
     };
   }
@@ -411,7 +412,7 @@ export class PickGradingService {
   /**
    * Assess pick risk factors
    */
-  public assessPickRisk(pick: UserPickSubmission): { score: number; description: string } {
+  public assessPickRisk(pick: UserPickSubmission): { score: number; professional_score: number; description: string } {
     // Simple risk assessment based on units and confidence
     const units = pick.units || 1;
     const confidence = pick.confidence || 50;
@@ -429,6 +430,7 @@ export class PickGradingService {
 
     return {
       score: riskScore,
+      professional_score: riskScore,
       description,
     };
   }
@@ -466,7 +468,7 @@ export class PickGradingService {
    */
   private async analyzeContextualFactors(
     description: string
-  ): Promise<{ score: number; description: string }> {
+  ): Promise<{ professional_score: number; description: string }> {
     // This would analyze injuries, weather, etc.
     // Placeholder implementation
     const factors = ['No significant injuries', 'Weather favorable', 'Rest advantage'];
@@ -484,7 +486,7 @@ export class PickGradingService {
   private async getUserHistoricalPerformance(
     userId: string,
     description: string
-  ): Promise<{ score: number; description: string }> {
+  ): Promise<{ professional_score: number; description: string }> {
     try {
       const { data: userPicks } = await this.supabaseService.client
         .from('user_picks')
@@ -495,7 +497,7 @@ export class PickGradingService {
 
       if (!userPicks || userPicks.length === 0) {
         return {
-          score: 50,
+          professional_score: 50,
           description: 'No historical data available',
         };
       }
@@ -510,7 +512,7 @@ export class PickGradingService {
       };
     } catch (error) {
       return {
-        score: 50,
+        professional_score: 50,
         description: 'Unable to analyze historical performance',
       };
     }
