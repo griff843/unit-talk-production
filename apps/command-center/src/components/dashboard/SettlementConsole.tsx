@@ -1,120 +1,161 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { AlertTriangle, Gavel, RefreshCw } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { toast } from 'sonner';
+
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { RefreshCw, AlertTriangle, CheckCircle, XCircle, MinusCircle, Gavel } from 'lucide-react';
+  ConfirmDialog,
+  SettlementToolbar,
+  type ConfirmState,
+  type SettleOutcome,
+  type SortDir,
+  type SortField,
+  type UnsettledPick,
+} from './SettlementParts';
+import { Pagination, SettlementTable } from './SettlementTableView';
 
-interface UnsettledPick {
-  id: string;
-  player_name: string;
-  stat_type: string;
-  line: number;
-  side: string;
-  sport: string;
-  odds: number;
-  confidence: number;
-  professional_score: number | null;
-  promotion_band: string | null;
-  bet_type: string | null;
-  market: string | null;
-  capper_id: string | null;
-  created_at: string;
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+// ---------------------------------------------------------------------------
+// Data hooks
+// ---------------------------------------------------------------------------
+
+function useUnsettledPicks() {
+  return useQuery({
+    queryKey: ['settlement', 'unsettled'],
+    queryFn: async (): Promise<UnsettledPick[]> => {
+      const res = await fetch('/api/settlement?limit=200');
+      if (!res.ok) throw new Error(`Settlement fetch: ${res.status}`);
+      const json = await res.json();
+      return json.picks ?? [];
+    },
+    refetchInterval: 30_000,
+  });
 }
 
-interface SettleResult {
-  success: boolean;
-  pick_id?: string;
-  result?: string;
-  error?: string;
-}
-
-const SettlementConsole: React.FC = () => {
-  const [picks, setPicks] = useState<UnsettledPick[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [settling, setSettling] = useState<Record<string, string>>({});
-  const [settled, setSettled] = useState<Record<string, SettleResult>>({});
-
-  const fetchUnsettled = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/settlement?limit=50');
-      if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
-      const data = await res.json();
-      setPicks(data.picks || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchUnsettled();
-    const interval = setInterval(fetchUnsettled, 30000);
-    return () => clearInterval(interval);
-  }, [fetchUnsettled]);
-
-  const handleSettle = async (pickId: string, result: 'win' | 'loss' | 'push') => {
-    setSettling(prev => ({ ...prev, [pickId]: result }));
-    try {
+function useSettleMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ pickId, outcome }: { pickId: string; outcome: SettleOutcome }) => {
       const res = await fetch('/api/settlement', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          pick_id: pickId,
-          result,
-          operator: 'command-center',
-        }),
+        body: JSON.stringify({ pick_id: pickId, result: outcome, operator: 'command-center' }),
       });
       const data = await res.json();
-      setSettled(prev => ({ ...prev, [pickId]: data }));
-      if (data.success) {
-        setPicks(prev => prev.filter(p => p.id !== pickId));
-      }
-    } catch (err) {
-      setSettled(prev => ({
-        ...prev,
-        [pickId]: { success: false, error: err instanceof Error ? err.message : 'Unknown error' },
-      }));
-    } finally {
-      setSettling(prev => {
-        const next = { ...prev };
-        delete next[pickId];
-        return next;
-      });
-    }
+      if (!data.success) throw new Error(data.error || 'Settlement failed');
+      return data;
+    },
+    onSuccess: (_data, { outcome }) => {
+      toast.success(`Pick settled as ${outcome.toUpperCase()}`);
+      qc.invalidateQueries({ queryKey: ['settlement'] });
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Sorting & filtering helpers
+// ---------------------------------------------------------------------------
+
+const PAGE_SIZE = 25;
+
+function sortPicks(picks: UnsettledPick[], field: SortField, dir: SortDir) {
+  return [...picks].sort((a, b) => {
+    // eslint-disable-next-line security/detect-object-injection
+    const av = a[field] ?? '';
+    // eslint-disable-next-line security/detect-object-injection
+    const bv = b[field] ?? '';
+    const cmp = String(av).localeCompare(String(bv), undefined, { numeric: true });
+    return dir === 'asc' ? cmp : -cmp;
+  });
+}
+
+function filterPicks(picks: UnsettledPick[], search: string, sport: string) {
+  return picks.filter(p => {
+    if (sport && sport !== 'all' && p.sport !== sport) return false;
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (
+      (p.player_name || '').toLowerCase().includes(q) ||
+      (p.stat_type || '').toLowerCase().includes(q)
+    );
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
+
+// eslint-disable-next-line max-lines-per-function
+export default function SettlementConsole() {
+  const { data: picks = [], isLoading, isError, error, refetch } = useUnsettledPicks();
+  const settleMut = useSettleMutation();
+
+  const [search, setSearch] = useState('');
+  const [sportFilter, setSportFilter] = useState('all');
+  const [sortField, setSortField] = useState<SortField>('created_at');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [page, setPage] = useState(0);
+  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
+
+  const sports = useMemo(
+    () => [...new Set(picks.map(p => p.sport).filter(Boolean))].sort(),
+    [picks]
+  );
+
+  const filtered = useMemo(
+    () => filterPicks(picks, search, sportFilter),
+    [picks, search, sportFilter]
+  );
+  const sorted = useMemo(
+    () => sortPicks(filtered, sortField, sortDir),
+    [filtered, sortField, sortDir]
+  );
+  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const paged = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  const toggleSort = useCallback(
+    (field: SortField) => {
+      setSortDir(d => (sortField === field ? (d === 'asc' ? 'desc' : 'asc') : 'desc'));
+      setSortField(field);
+    },
+    [sortField]
+  );
+
+  const requestSettle = (pick: UnsettledPick, outcome: SettleOutcome) => {
+    setConfirm({ pick, outcome });
   };
 
-  const unsettledCount = picks.length;
+  const confirmSettle = () => {
+    if (!confirm) return;
+    settleMut.mutate(
+      { pickId: confirm.pick.id, outcome: confirm.outcome },
+      { onSettled: () => setConfirm(null) }
+    );
+  };
 
-  if (error) {
+  if (isError) {
     return (
-      <Card className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950">
+      <Card className="border-red-500/30 bg-red-500/5">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium flex items-center">
-            <Gavel className="h-5 w-5 mr-2" />
+            <Gavel className="h-4 w-4 mr-2" />
             Settlement Console
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={fetchUnsettled} className="h-8 w-8 p-0">
+          <Button variant="ghost" size="sm" onClick={() => refetch()} className="h-7 w-7 p-0">
             <RefreshCw className="h-4 w-4" />
           </Button>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center space-x-2 text-red-600">
+          <div className="flex items-center gap-2 text-red-400 text-sm">
             <AlertTriangle className="h-4 w-4" />
-            <span className="text-sm">{error}</span>
+            <span>{(error as Error)?.message || 'Failed to load'}</span>
           </div>
         </CardContent>
       </Card>
@@ -122,125 +163,50 @@ const SettlementConsole: React.FC = () => {
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium flex items-center">
-          <Gavel className="h-5 w-5 mr-2" />
-          Settlement Console
-        </CardTitle>
-        <div className="flex items-center space-x-2">
-          <Badge
-            variant={unsettledCount > 10 ? 'destructive' : unsettledCount > 0 ? 'secondary' : 'default'}
-            className="text-xs"
-          >
-            {unsettledCount} unsettled
-          </Badge>
+    <>
+      <ConfirmDialog
+        state={confirm}
+        onConfirm={confirmSettle}
+        onCancel={() => setConfirm(null)}
+        isPending={settleMut.isPending}
+      />
+      <Card id="settlement">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium flex items-center">
+            <Gavel className="h-4 w-4 mr-2" />
+            Settlement Console
+          </CardTitle>
           <Button
             variant="ghost"
             size="sm"
-            onClick={fetchUnsettled}
-            disabled={loading}
-            className="h-8 w-8 p-0"
+            onClick={() => refetch()}
+            disabled={isLoading}
+            className="h-7 w-7 p-0"
           >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {loading && picks.length === 0 ? (
-          <div className="space-y-2">
-            <div className="h-4 w-32 animate-pulse rounded bg-muted" />
-            <div className="h-20 animate-pulse rounded bg-muted" />
-          </div>
-        ) : picks.length === 0 ? (
-          <div className="text-center py-4 text-sm text-muted-foreground">
-            No unsettled picks found
-          </div>
-        ) : (
-          <div className="max-h-[400px] overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Player</TableHead>
-                  <TableHead>Prop</TableHead>
-                  <TableHead>Line</TableHead>
-                  <TableHead>Side</TableHead>
-                  <TableHead>Sport</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {picks.map(pick => {
-                  const isSettling = !!settling[pick.id];
-                  const settleResult = settled[pick.id];
-
-                  return (
-                    <TableRow key={pick.id}>
-                      <TableCell className="font-medium text-xs">
-                        {pick.player_name || 'Unknown'}
-                      </TableCell>
-                      <TableCell className="text-xs">{pick.stat_type || '-'}</TableCell>
-                      <TableCell className="text-xs">{pick.line ?? '-'}</TableCell>
-                      <TableCell className="text-xs">
-                        <Badge variant="outline" className="text-xs">
-                          {pick.side || '-'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs">{pick.sport || '-'}</TableCell>
-                      <TableCell className="text-xs">
-                        {new Date(pick.created_at).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {settleResult?.success ? (
-                          <Badge className="bg-green-100 text-green-800 text-xs">Settled</Badge>
-                        ) : settleResult?.error ? (
-                          <span className="text-xs text-red-500">{settleResult.error}</span>
-                        ) : (
-                          <div className="flex items-center justify-end space-x-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-7 px-2 text-xs text-green-700 border-green-300 hover:bg-green-50"
-                              disabled={isSettling}
-                              onClick={() => handleSettle(pick.id, 'win')}
-                            >
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              {settling[pick.id] === 'win' ? '...' : 'WIN'}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-7 px-2 text-xs text-red-700 border-red-300 hover:bg-red-50"
-                              disabled={isSettling}
-                              onClick={() => handleSettle(pick.id, 'loss')}
-                            >
-                              <XCircle className="h-3 w-3 mr-1" />
-                              {settling[pick.id] === 'loss' ? '...' : 'LOSS'}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-7 px-2 text-xs text-gray-700 border-gray-300 hover:bg-gray-50"
-                              disabled={isSettling}
-                              onClick={() => handleSettle(pick.id, 'push')}
-                            >
-                              <MinusCircle className="h-3 w-3 mr-1" />
-                              {settling[pick.id] === 'push' ? '...' : 'PUSH'}
-                            </Button>
-                          </div>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+        </CardHeader>
+        <CardContent>
+          <SettlementToolbar
+            search={search}
+            setSearch={setSearch}
+            sportFilter={sportFilter}
+            setSportFilter={setSportFilter}
+            sports={sports}
+            count={picks.length}
+          />
+          <SettlementTable
+            picks={paged}
+            sortField={sortField}
+            sortDir={sortDir}
+            onSort={toggleSort}
+            onSettle={requestSettle}
+            isPending={settleMut.isPending}
+            isLoading={isLoading}
+          />
+          <Pagination page={page} pageCount={pageCount} setPage={setPage} total={sorted.length} />
+        </CardContent>
+      </Card>
+    </>
   );
-};
-
-export default SettlementConsole;
+}
