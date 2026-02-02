@@ -10,8 +10,10 @@ import { usePipelineDashboard } from '@/hooks/useDashboardData';
 
 /** 4-up metric cards for 24h pipeline stats. */
 export function PipelineHealthCards() {
-  const { data } = usePipelineDashboard();
-  if (!data) return null;
+  const { data, isLoading, isError } = usePipelineDashboard();
+
+  if (isLoading) return <HealthCardsLoading />;
+  if (isError || !data) return <HealthCardsError />;
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -77,5 +79,59 @@ function StatusCard({ status }: { status: string }) {
         <p className="text-xs text-muted-foreground mt-1">Overall pipeline status</p>
       </CardContent>
     </Card>
+  );
+}
+
+function HealthCardsLoading() {
+  return (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <Card key={i}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Loading...</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-8 w-16 rounded bg-muted animate-pulse" />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function HealthCardsError() {
+  return (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <MetricCard
+        title="Total Picks (24h)"
+        value="—"
+        description="Backend unavailable"
+        icon={<Target className="h-4 w-4 text-muted-foreground" />}
+      />
+      <MetricCard
+        title="System Picks"
+        value="—"
+        description="Backend unavailable"
+        icon={<Bot className="h-4 w-4 text-muted-foreground" />}
+      />
+      <MetricCard
+        title="Manual Picks"
+        value="—"
+        description="Backend unavailable"
+        icon={<Eye className="h-4 w-4 text-muted-foreground" />}
+      />
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">System Health</CardTitle>
+          <Activity className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <Badge variant="destructive" className="text-sm">
+            DISCONNECTED
+          </Badge>
+          <p className="text-xs text-muted-foreground mt-1">Pipeline API unreachable</p>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

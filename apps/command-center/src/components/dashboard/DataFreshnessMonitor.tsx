@@ -20,10 +20,43 @@ const STATUS_LABELS: Record<DataFreshness['status'], string> = {
   critical: 'CRITICAL',
 };
 
+function FreshnessLoading() {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">Data Freshness</CardTitle>
+        <Clock className="h-4 w-4 text-muted-foreground animate-pulse" />
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-muted-foreground">Loading provider data...</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function FreshnessUnavailable() {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">Data Freshness</CardTitle>
+        <Clock className="h-4 w-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        <Badge className="bg-yellow-500/15 text-yellow-400 border-yellow-500/25">UNAVAILABLE</Badge>
+        <p className="text-xs text-muted-foreground mt-2">
+          Backend not connected — freshness data will appear when Supabase is available.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function DataFreshnessMonitor() {
-  const { data } = useProviderFreshness();
+  const { data, isLoading, isError } = useProviderFreshness();
   const freshness = data?.dataFreshness;
-  if (!freshness) return null;
+
+  if (isLoading) return <FreshnessLoading />;
+  if (isError || !freshness) return <FreshnessUnavailable />;
 
   return (
     <Card>

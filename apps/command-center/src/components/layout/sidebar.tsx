@@ -115,7 +115,7 @@ function useSystemStatus(): SystemStatus {
 const STATUS_META: Record<SystemStatus, { color: string; label: string }> = {
   healthy: { color: 'bg-emerald-500', label: 'System Healthy' },
   degraded: { color: 'bg-yellow-500', label: 'Degraded' },
-  down: { color: 'bg-red-500', label: 'Unreachable' },
+  down: { color: 'bg-red-500', label: 'Disconnected' },
 };
 
 // ---------------------------------------------------------------------------
@@ -218,7 +218,11 @@ export function Sidebar({ className }: SidebarProps) {
                   key={item.href}
                   item={item}
                   collapsed={collapsed}
-                  isActive={pathname === item.href || pathname.startsWith(`${item.href}/`)}
+                  isActive={
+                    item.href === '/dashboard'
+                      ? pathname === '/dashboard'
+                      : pathname === item.href || pathname.startsWith(`${item.href}/`)
+                  }
                 />
               ))}
             </div>
