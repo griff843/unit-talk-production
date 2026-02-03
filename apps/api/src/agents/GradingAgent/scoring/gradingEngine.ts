@@ -314,7 +314,7 @@ export class SyndicateGradingEngine {
     // Tranche 6 (2026-01-29): Canary-routed V2 with shadow + drift logging
     const canary = canaryDecide(features.sport || 'NBA', features.propId || 'unknown');
 
-    if (canary.mode === 'v2') {
+    if (canary.mode === 'v2' || canary.mode === 'v2_primary') {
       const v2 = computeScoreV2(features);
       logDrift({
         pickId: features.propId || 'unknown',
@@ -661,66 +661,9 @@ export class SyndicateGradingEngine {
         }
       }
 
-      // Tranche 9: V2 Primary mode (V2 output with real V1 drift comparison)
-      if (canary.mode === 'v2_primary') {
-        try {
-          const v2Result = computeScoreV2(features);
-          logDrift({
-            pickId: features.propId || 'unknown',
-            sport: features.sport || 'NBA',
-            mode: 'v2_primary',
-            v1Score: result.finalScore,
-            v1Tier: result.tier,
-            v1Ev: result.edgeScore,
-            v2Result: v2Result,
-          });
-          const promoCfg = parsePromotionPolicyConfig();
-          if (promoCfg.policyEnabled) {
-            const pd = evaluatePromotion(
-              v2Result,
-              features.sport || 'NBA',
-              features.propId || 'unknown',
-              promoCfg
-            );
-            // eslint-disable-next-line no-console
-            console.log(
-              JSON.stringify({
-                type: 'promotion_decision_v2_primary',
-                pick_id: features.propId,
-                ...pd,
-              })
-            );
-          }
-          return {
-            propId: features.propId,
-            finalScore: v2Result.score,
-            confidence: v2Result.score / 100,
-            tier: v2Result.tier,
-            edgeScore: v2Result.ev,
-            featureContributions: Object.fromEntries(
-              Object.entries(v2Result.breakdown).map(([k, b]) => [k, b.contribution])
-            ),
-            modelContributions: result.modelContributions,
-            kellyFraction: result.kellyFraction,
-            positionSize: result.positionSize,
-            riskScore: result.riskScore,
-            correlationRisk: result.correlationRisk,
-            scenarioAnalysis: result.scenarioAnalysis,
-            professionalInsights: result.professionalInsights,
-            enhancedCapperAnalysis: result.enhancedCapperAnalysis,
-            deviggingResult: result.deviggingResult,
-            dataQuality: result.dataQuality,
-            modelAgreement: result.modelAgreement,
-            historicalAccuracy: result.historicalAccuracy,
-            timestamp: new Date().toISOString(),
-            modelVersion: 'v2-primary',
-            configUsed: 'computeScoreV2',
-          };
-        } catch (e) {
-          console.error('V2 primary scoring failed, falling back to V1:', e);
-          // Fall through to V1 return below
-        }
-      }
+      // Tranche 9→Unblock-001: v2_primary now handled at top of gradeProp() alongside 'v2'.
+      // Previously this block ran V1 first, then overrode with V2 output for drift comparison.
+      // Now v2_primary is caught at the top-level canary check and returns V2 directly.
 
       return result;
     } finally {

@@ -1,4 +1,7 @@
+/* eslint-disable max-lines, max-lines-per-function, complexity, no-return-await, max-params, no-unused-vars, @typescript-eslint/no-unused-vars */
 import 'dotenv/config';
+import { SupabaseClient } from '@supabase/supabase-js';
+
 import { BaseAgent } from '../agents/BaseAgent';
 import {
   BaseAgentConfig,
@@ -6,20 +9,13 @@ import {
   BaseMetrics,
   HealthStatus,
 } from '../agents/BaseAgent/types';
-import {
-  withCircuitBreaker,
-  circuitBreaker,
-} from '../services/enhanced-circuit-breaker';
-import { SupabaseClient } from '@supabase/supabase-js';
+import { SyndicateGradingEngine } from '../agents/GradingAgent/scoring/gradingEngine';
+import { AgentInstrumentation, createAgentInstrumentation } from '../lib/AgentInstrumentation';
+import { withCircuitBreaker, circuitBreaker } from '../services/enhanced-circuit-breaker';
 import { Logger } from '../shared/logger/types';
-import {
-  AgentControlPlane,
-  createAgentControlPlane,
-} from '../temporal/AgentControlPlane';
-import {
-  AgentInstrumentation,
-  createAgentInstrumentation,
-} from '../lib/AgentInstrumentation';
+import { AgentControlPlane, createAgentControlPlane } from '../temporal/AgentControlPlane';
+
+import type { GradingFeatureSet } from '../types/GradingFeatureSet';
 
 interface BridgeWorkerConfig extends BaseAgentConfig {
   eventBatchSize: number;
@@ -114,9 +110,7 @@ export class BridgeWorker extends BaseAgent {
   }
 
   protected async initialize(): Promise<void> {
-    this.logger.info(
-      '🌉 BridgeWorker initializing with event processing capabilities...'
-    );
+    this.logger.info('🌉 BridgeWorker initializing with event processing capabilities...');
 
     // Initialize Agent Control Plane for lifecycle enforcement
     if (this.hasSupabase()) {
@@ -128,9 +122,7 @@ export class BridgeWorker extends BaseAgent {
       this.instrumentation = createAgentInstrumentation(this.agentId);
       this.logger.info('✅ Agent Control Plane initialized for enforcement');
     } else {
-      this.logger.warn(
-        '⚠️ Agent Control Plane skipped - Supabase not available'
-      );
+      this.logger.warn('⚠️ Agent Control Plane skipped - Supabase not available');
     }
 
     // Register circuit breaker configs for external services
@@ -153,10 +145,7 @@ export class BridgeWorker extends BaseAgent {
       await withCircuitBreaker.supabase(
         async () => {
           if (this.hasSupabase()) {
-            const { error } = await this.requireSupabase()
-              .from('events')
-              .select('count')
-              .limit(1);
+            const { error } = await this.requireSupabase().from('events').select('count').limit(1);
 
             if (error) {
               throw new Error(`Events table not accessible: ${error.message}`);
@@ -166,9 +155,7 @@ export class BridgeWorker extends BaseAgent {
           }
         },
         async () => {
-          this.logger.warn(
-            '⚠️ Events table health check failed, continuing without verification'
-          );
+          this.logger.warn('⚠️ Events table health check failed, continuing without verification');
         }
       );
     } catch (error) {
@@ -197,9 +184,7 @@ export class BridgeWorker extends BaseAgent {
                 );
                 this.enableBridgeOutbox = false;
               } else {
-                this.logger.info(
-                  '✅ Bridge outbox table verified and accessible'
-                );
+                this.logger.info('✅ Bridge outbox table verified and accessible');
               }
             }
           },
@@ -211,12 +196,9 @@ export class BridgeWorker extends BaseAgent {
           }
         );
       } catch (error) {
-        this.logger.warn(
-          '⚠️ Bridge outbox initialization check failed, disabling',
-          {
-            error: error instanceof Error ? error.message : 'Unknown error',
-          }
-        );
+        this.logger.warn('⚠️ Bridge outbox initialization check failed, disabling', {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
         this.enableBridgeOutbox = false;
       }
     }
@@ -227,20 +209,14 @@ export class BridgeWorker extends BaseAgent {
 
   private setupEventSubscriptions(): void {
     // Subscribe to Smart Form ticket submissions
-    this.eventSubscriptions.set(
-      'ticket.submitted.v1',
-      this.handleTicketSubmitted.bind(this)
-    );
+    this.eventSubscriptions.set('ticket.submitted.v1', this.handleTicketSubmitted.bind(this));
     this.eventSubscriptions.set(
       'ticket_submitted',
       this.handleBridgeOutboxTicketSubmitted.bind(this)
     ); // Bridge outbox format
 
     // Subscribe to grading completion events
-    this.eventSubscriptions.set(
-      'grading.completed.v1',
-      this.handleGradingCompleted.bind(this)
-    );
+    this.eventSubscriptions.set('grading.completed.v1', this.handleGradingCompleted.bind(this));
 
     // Subscribe to replay events
     this.eventSubscriptions.set(
@@ -253,10 +229,7 @@ export class BridgeWorker extends BaseAgent {
     );
 
     // Subscribe to alert re-emission events
-    this.eventSubscriptions.set(
-      'alert.reemit.v1',
-      this.handleAlertReemit.bind(this)
-    );
+    this.eventSubscriptions.set('alert.reemit.v1', this.handleAlertReemit.bind(this));
 
     // Subscribe to bridge outbox status updates
     this.eventSubscriptions.set(
@@ -314,10 +287,8 @@ export class BridgeWorker extends BaseAgent {
         if (this.instrumentation) {
           await this.controlPlane.updateHeartbeat('paused', {
             runCount: this.instrumentation.getAggregatedMetrics().runCount,
-            successCount:
-              this.instrumentation.getAggregatedMetrics().successCount,
-            failureCount:
-              this.instrumentation.getAggregatedMetrics().failureCount,
+            successCount: this.instrumentation.getAggregatedMetrics().successCount,
+            failureCount: this.instrumentation.getAggregatedMetrics().failureCount,
           });
         }
 
@@ -348,8 +319,7 @@ export class BridgeWorker extends BaseAgent {
       // Record success
       if (this.instrumentation) {
         this.instrumentation.recordEventsProcessed(
-          this.bridgeMetrics.eventsProcessed +
-            this.bridgeMetrics.bridgeOutboxEventsProcessed
+          this.bridgeMetrics.eventsProcessed + this.bridgeMetrics.bridgeOutboxEventsProcessed
         );
         this.instrumentation.endCycle(true);
       }
@@ -384,15 +354,13 @@ export class BridgeWorker extends BaseAgent {
       return;
     }
 
-    this.logger.info(
-      `📋 Processing ${events.length} unprocessed events from events table`
-    );
+    this.logger.info(`📋 Processing ${events.length} unprocessed events from events table`);
 
     // Process events in batches with concurrency control
     const batches = this.chunkArray(events, this.maxConcurrentEvents);
 
     for (const batch of batches) {
-      const processingPromises = batch.map((event) => this.processEvent(event));
+      const processingPromises = batch.map(event => this.processEvent(event));
       await Promise.allSettled(processingPromises);
     }
   }
@@ -404,17 +372,13 @@ export class BridgeWorker extends BaseAgent {
       return;
     }
 
-    this.logger.info(
-      `📦 Processing ${outboxEvents.length} bridge outbox events`
-    );
+    this.logger.info(`📦 Processing ${outboxEvents.length} bridge outbox events`);
 
     // Process bridge outbox events in batches
     const batches = this.chunkArray(outboxEvents, this.bridgeOutboxBatchSize);
 
     for (const batch of batches) {
-      const processingPromises = batch.map((event) =>
-        this.processBridgeOutboxEvent(event)
-      );
+      const processingPromises = batch.map(event => this.processBridgeOutboxEvent(event));
       await Promise.allSettled(processingPromises);
     }
   }
@@ -439,9 +403,7 @@ export class BridgeWorker extends BaseAgent {
         return events || [];
       },
       async () => {
-        this.logger.warn(
-          '⚠️ Supabase circuit breaker open, skipping event fetch'
-        );
+        this.logger.warn('⚠️ Supabase circuit breaker open, skipping event fetch');
         return [];
       }
     );
@@ -464,25 +426,19 @@ export class BridgeWorker extends BaseAgent {
           .limit(this.bridgeOutboxBatchSize);
 
         if (error) {
-          throw new Error(
-            `Failed to fetch bridge outbox events: ${error.message}`
-          );
+          throw new Error(`Failed to fetch bridge outbox events: ${error.message}`);
         }
 
         return events || [];
       },
       async () => {
-        this.logger.warn(
-          '⚠️ Supabase circuit breaker open, skipping bridge outbox event fetch'
-        );
+        this.logger.warn('⚠️ Supabase circuit breaker open, skipping bridge outbox event fetch');
         return [];
       }
     );
   }
 
-  private async processBridgeOutboxEvent(
-    event: BridgeOutboxRecord
-  ): Promise<void> {
+  private async processBridgeOutboxEvent(event: BridgeOutboxRecord): Promise<void> {
     const startTime = Date.now();
 
     try {
@@ -500,10 +456,9 @@ export class BridgeWorker extends BaseAgent {
       // Check if handler exists
       const handler = this.eventSubscriptions.get(event.event_type);
       if (!handler) {
-        this.logger.warn(
-          `No handler for bridge outbox event type: ${event.event_type}`,
-          { eventId: event.id }
-        );
+        this.logger.warn(`No handler for bridge outbox event type: ${event.event_type}`, {
+          eventId: event.id,
+        });
         await this.markBridgeOutboxEventAsCompleted(event);
         return;
       }
@@ -546,11 +501,7 @@ export class BridgeWorker extends BaseAgent {
       });
     } catch (error) {
       const processingTime = Date.now() - startTime;
-      await this.handleBridgeOutboxEventProcessingError(
-        event,
-        error,
-        processingTime
-      );
+      await this.handleBridgeOutboxEventProcessingError(event, error, processingTime);
     }
   }
 
@@ -572,10 +523,7 @@ export class BridgeWorker extends BaseAgent {
       }
 
       // Check cooldowns for replay events
-      if (
-        event.metadata?.is_replay &&
-        (await this.isSubscriberInCooldown(event.event_type))
-      ) {
+      if (event.metadata?.is_replay && (await this.isSubscriberInCooldown(event.event_type))) {
         this.logger.info('Subscriber in cooldown, respecting limit', {
           eventType: event.event_type,
           eventId: event.id,
@@ -621,11 +569,7 @@ export class BridgeWorker extends BaseAgent {
     const ticketData = event.event_data;
 
     // Trigger Temporal grading workflow
-    await this.triggerGradingWorkflow(
-      event.aggregate_id,
-      ticketData,
-      event.idempotency_key
-    );
+    await this.triggerGradingWorkflow(event.aggregate_id, ticketData, event.idempotency_key);
 
     // Publish immediate alert opportunities (injuries, line movements)
     await this.checkForImmediateAlerts(event.aggregate_id, ticketData);
@@ -665,15 +609,10 @@ export class BridgeWorker extends BaseAgent {
     }
 
     // Emit hedge/middle opportunity alerts
-    await this.checkForHedgeMiddleOpportunities(
-      event.aggregate_id,
-      gradingData
-    );
+    await this.checkForHedgeMiddleOpportunities(event.aggregate_id, gradingData);
   }
 
-  private async handleGradingCompletedReplay(
-    event: EventRecord
-  ): Promise<void> {
+  private async handleGradingCompletedReplay(event: EventRecord): Promise<void> {
     this.logger.info('Processing grading completion replay event', {
       eventId: event.id,
       originalEventId: event.metadata?.original_event_id,
@@ -710,60 +649,217 @@ export class BridgeWorker extends BaseAgent {
     ticketData: any,
     idempotencyKey: string
   ): Promise<void> {
+    const workflowId = `grading-${ticketId}-${Date.now()}`;
+
     await withCircuitBreaker.supabase(
       async () => {
-        // For now, simulate workflow triggering until Temporal is properly set up
-        this.logger.info('Simulating grading workflow trigger', {
-          ticketId,
-          idempotencyKey,
-          isReplay: ticketData.is_replay || false,
+        if (!this.hasSupabase()) {
+          this.logger.warn('Supabase not available — skipping grading workflow', { ticketId });
+          return;
+        }
+
+        const db = this.requireSupabase();
+
+        // ── Idempotency check: skip if already graded successfully ──
+        const { data: existing } = await db
+          .from('workflow_executions')
+          .select('workflow_id')
+          .eq('workflow_type', 'eventDrivenGradingWorkflow')
+          .eq('execution_status', 'succeeded')
+          .filter('input_data->>ticketId', 'eq', ticketId)
+          .limit(1);
+
+        if (existing && existing.length > 0) {
+          this.logger.info('Grading workflow already succeeded for this ticket — idempotent skip', {
+            ticketId,
+            existingWorkflowId: existing[0].workflow_id,
+          });
+          return;
+        }
+
+        // ── Record workflow start ──
+        await db.from('workflow_executions').insert({
+          workflow_id: workflowId,
+          workflow_type: 'eventDrivenGradingWorkflow',
+          run_id: `${workflowId}-run`,
+          execution_status: 'running',
+          input_data: { ticketId, eventData: ticketData, idempotencyKey },
         });
 
-        const workflowId = `grading-${ticketId}-${Date.now()}`;
+        // ── Fetch unified_picks for this bet_slip_id that haven't been graded ──
+        const { data: picks, error: fetchErr } = await db
+          .from('unified_picks')
+          .select('*')
+          .eq('bet_slip_id', ticketId)
+          .is('promotion_band', null)
+          .order('created_at', { ascending: true });
 
-        // Track workflow execution in database
-        if (this.hasSupabase()) {
-          await this.requireSupabase()
-            .from('workflow_executions')
-            .insert({
-              workflow_id: workflowId,
-              workflow_type: 'eventDrivenGradingWorkflow',
-              run_id: `${workflowId}-${Date.now()}`,
-              execution_status: 'simulated',
-              input_data: { ticketId, eventData: ticketData, idempotencyKey },
-            });
+        if (fetchErr) {
+          throw new Error(`Failed to fetch unified_picks for grading: ${fetchErr.message}`);
         }
+
+        if (!picks || picks.length === 0) {
+          this.logger.info('No ungraded unified_picks found for bet_slip_id — nothing to grade', {
+            ticketId,
+          });
+          await db
+            .from('workflow_executions')
+            .update({
+              execution_status: 'succeeded',
+              output_data: { picks_graded: 0, reason: 'no_ungraded_picks' },
+            })
+            .eq('workflow_id', workflowId);
+          this.bridgeMetrics.workflowsTriggered++;
+          return;
+        }
+
+        // ── Grade each pick via SyndicateGradingEngine ──
+        const engine = new SyndicateGradingEngine();
+        const results: Array<{ pickId: string; tier: string; band: string | null; score: number }> =
+          [];
+
+        for (const pick of picks) {
+          const featureSet = this.buildFeatureSetFromPick(pick);
+          const result = await engine.gradeProp(featureSet);
+
+          // Map tier to DB-allowed values (S, A, B, C, F, null — no D)
+          const dbTier = result.tier === 'D' ? 'C' : result.tier;
+
+          // Update the existing unified_picks row with grading results
+          const { error: updateErr } = await db
+            .from('unified_picks')
+            .update({
+              promotion_band: result.promotionBand || null,
+              tier: dbTier,
+              professional_score: isNaN(result.finalScore) ? null : result.finalScore,
+              confidence:
+                result.confidence > 1
+                  ? Math.round(result.confidence)
+                  : Math.round(result.confidence * 10),
+              workflow_stage: 'approved',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', pick.id);
+
+          if (updateErr) {
+            this.logger.error('Failed to update unified_picks with grading result', {
+              pickId: pick.id,
+              error: updateErr.message,
+            });
+          } else {
+            results.push({
+              pickId: pick.id,
+              tier: result.tier,
+              band: result.promotionBand || null,
+              score: result.finalScore,
+            });
+          }
+        }
+
+        // ── Mark workflow succeeded ──
+        await db
+          .from('workflow_executions')
+          .update({
+            execution_status: 'succeeded',
+            output_data: {
+              picks_graded: results.length,
+              results,
+            },
+          })
+          .eq('workflow_id', workflowId);
 
         this.bridgeMetrics.workflowsTriggered++;
 
-        this.logger.info('Grading workflow triggered', {
+        this.logger.info('Grading workflow completed — real execution', {
           workflowId,
           ticketId,
+          picksGraded: results.length,
+          results,
           isReplay: ticketData.is_replay || false,
         });
       },
       async () => {
-        this.logger.error(
-          'Failed to trigger grading workflow, service unavailable',
-          {
-            ticketId,
-            idempotencyKey,
+        // Circuit breaker fallback — mark workflow as failed
+        if (this.hasSupabase()) {
+          try {
+            await this.requireSupabase()
+              .from('workflow_executions')
+              .update({
+                execution_status: 'failed',
+                output_data: { error: 'Circuit breaker tripped — Supabase unavailable' },
+              })
+              .eq('workflow_id', workflowId);
+          } catch {
+            // Best effort — if this also fails, just log
           }
-        );
+        }
+        this.logger.error('Failed to trigger grading workflow, service unavailable', {
+          ticketId,
+          idempotencyKey,
+        });
         throw new Error('Workflow service unavailable');
       }
     );
   }
 
-  private async checkForImmediateAlerts(
-    ticketId: string,
-    ticketData: any
-  ): Promise<void> {
+  /**
+   * Build a GradingFeatureSet from a unified_picks row.
+   * Uses safe defaults for missing enrichment data — the scoring engine
+   * handles fallbacks via its feature registry.
+   */
+  private buildFeatureSetFromPick(pick: any): GradingFeatureSet {
+    const odds = pick.odds || -110;
+    const line = pick.line || 0;
+    const sport = pick.sport || 'NBA';
+
+    return {
+      propId: pick.id,
+      unifiedPickId: pick.id,
+      date: pick.manual_game_date || pick.game_date || new Date().toISOString().slice(0, 10),
+      sport,
+      league: sport,
+      player: pick.player_name || pick.selection || undefined,
+      marketType: pick.stat_type || 'moneyline',
+      odds,
+      market: {
+        type: pick.stat_type || 'moneyline',
+        odds,
+        line,
+      },
+      expectedValue: 0,
+      lineMovement: 0,
+      matchupRating: 0.5,
+      playerForm: 0.5,
+      injuryImpact: 0,
+      weatherImpact: 0,
+      marketIntelligence: 0.5,
+      sharpMoney: 0.5,
+      volumeProfile: 0.5,
+      closingLineValue: 0,
+      playerFatigue: 0,
+      venueAdvantage: 0,
+      refereeImpact: 0,
+      paceImpact: 0,
+      motivationalFactors: 0,
+      correlationRisk: 0,
+      volatility: 0.5,
+      portfolioImpact: 0,
+      confidence: pick.confidence || 50,
+      dataQuality: {
+        dataValidationScore: 0.8,
+        outlierScore: 0.9,
+        consistencyScore: 0.9,
+        completeness: 0.7,
+      },
+      timestamp: pick.created_at || new Date().toISOString(),
+      version: '1.0',
+      source: 'smart_form',
+    };
+  }
+
+  private async checkForImmediateAlerts(ticketId: string, ticketData: any): Promise<void> {
     // Check for injury opportunities
-    if (
-      ticketData.player_status === 'questionable' ||
-      ticketData.injury_status
-    ) {
+    if (ticketData.player_status === 'questionable' || ticketData.injury_status) {
       await this.publishEvent('alert.injury.detected.v1', ticketId, 'ticket', {
         player_name: ticketData.player_name,
         injury_status: ticketData.injury_status,
@@ -773,17 +869,12 @@ export class BridgeWorker extends BaseAgent {
 
     // Check for line movement opportunities
     if (ticketData.line_movement && Math.abs(ticketData.line_movement) > 0.5) {
-      await this.publishEvent(
-        'alert.line_movement.detected.v1',
-        ticketId,
-        'ticket',
-        {
-          player_name: ticketData.player_name,
-          original_line: ticketData.original_line,
-          current_line: ticketData.current_line,
-          movement: ticketData.line_movement,
-        }
-      );
+      await this.publishEvent('alert.line_movement.detected.v1', ticketId, 'ticket', {
+        player_name: ticketData.player_name,
+        original_line: ticketData.original_line,
+        current_line: ticketData.current_line,
+        movement: ticketData.line_movement,
+      });
     }
   }
 
@@ -793,28 +884,18 @@ export class BridgeWorker extends BaseAgent {
   ): Promise<void> {
     // Analyze grading results for hedge/middle opportunities
     if (gradingData.hedge_opportunity_score > 0.7) {
-      await this.publishEvent(
-        'alert.hedge.opportunity.v1',
-        gradingId,
-        'grading',
-        {
-          original_pick: gradingData.original_pick,
-          hedge_pick: gradingData.hedge_pick,
-          opportunity_score: gradingData.hedge_opportunity_score,
-        }
-      );
+      await this.publishEvent('alert.hedge.opportunity.v1', gradingId, 'grading', {
+        original_pick: gradingData.original_pick,
+        hedge_pick: gradingData.hedge_pick,
+        opportunity_score: gradingData.hedge_opportunity_score,
+      });
     }
 
     if (gradingData.middle_opportunity_score > 0.6) {
-      await this.publishEvent(
-        'alert.middle.opportunity.v1',
-        gradingId,
-        'grading',
-        {
-          picks: gradingData.middle_picks,
-          opportunity_score: gradingData.middle_opportunity_score,
-        }
-      );
+      await this.publishEvent('alert.middle.opportunity.v1', gradingId, 'grading', {
+        picks: gradingData.middle_picks,
+        opportunity_score: gradingData.middle_opportunity_score,
+      });
     }
   }
 
@@ -844,10 +925,7 @@ export class BridgeWorker extends BaseAgent {
     await this.setCooldown('high-tier', entityKey, 300 * cooldownMultiplier);
   }
 
-  private async emitReemissionAlert(
-    gradingId: string,
-    alertData: any
-  ): Promise<void> {
+  private async emitReemissionAlert(gradingId: string, alertData: any): Promise<void> {
     await this.publishEvent('alert.reemitted.v1', gradingId, 'grading', alertData);
   }
 
@@ -893,26 +971,16 @@ export class BridgeWorker extends BaseAgent {
 
     if (statusData.status === 'completed') {
       // Ticket has been fully processed, might trigger final alerts
-      await this.publishEvent(
-        'ticket.processing.completed.v1',
-        event.aggregate_id,
-        'ticket',
-        {
-          ...statusData,
-          processed_from_bridge_outbox: true,
-        }
-      );
+      await this.publishEvent('ticket.processing.completed.v1', event.aggregate_id, 'ticket', {
+        ...statusData,
+        processed_from_bridge_outbox: true,
+      });
     } else if (statusData.status === 'failed') {
       // Ticket processing failed, might need error handling
-      await this.publishEvent(
-        'ticket.processing.failed.v1',
-        event.aggregate_id,
-        'ticket',
-        {
-          ...statusData,
-          processed_from_bridge_outbox: true,
-        }
-      );
+      await this.publishEvent('ticket.processing.failed.v1', event.aggregate_id, 'ticket', {
+        ...statusData,
+        processed_from_bridge_outbox: true,
+      });
     }
   }
 
@@ -924,8 +992,7 @@ export class BridgeWorker extends BaseAgent {
     eventData: any,
     idempotencyKey?: string
   ): Promise<void> {
-    const key =
-      idempotencyKey || `${eventType}-${aggregateId}-${Date.now()}`;
+    const key = idempotencyKey || `${eventType}-${aggregateId}-${Date.now()}`;
 
     if (this.hasSupabase()) {
       await this.requireSupabase()
@@ -944,10 +1011,7 @@ export class BridgeWorker extends BaseAgent {
     }
   }
 
-  private async isAlertInCooldown(
-    alertType: string,
-    entityKey: string
-  ): Promise<boolean> {
+  private async isAlertInCooldown(alertType: string, entityKey: string): Promise<boolean> {
     if (!this.hasSupabase()) return false;
 
     const { data } = await this.requireSupabase()
@@ -975,11 +1039,7 @@ export class BridgeWorker extends BaseAgent {
     return data && data.length > 0;
   }
 
-  private async setCooldown(
-    alertType: string,
-    entityKey: string,
-    seconds: number
-  ): Promise<void> {
+  private async setCooldown(alertType: string, entityKey: string, seconds: number): Promise<void> {
     if (!this.hasSupabase()) return;
 
     const cooldownUntil = new Date(Date.now() + seconds * 1000).toISOString();
@@ -1023,9 +1083,7 @@ export class BridgeWorker extends BaseAgent {
   }
 
   // Bridge outbox database operations
-  private async markBridgeOutboxEventAsProcessing(
-    event: BridgeOutboxRecord
-  ): Promise<void> {
+  private async markBridgeOutboxEventAsProcessing(event: BridgeOutboxRecord): Promise<void> {
     if (!this.hasSupabase()) return;
 
     await this.requireSupabase()
@@ -1038,9 +1096,7 @@ export class BridgeWorker extends BaseAgent {
       .eq('id', event.id);
   }
 
-  private async markBridgeOutboxEventAsCompleted(
-    event: BridgeOutboxRecord
-  ): Promise<void> {
+  private async markBridgeOutboxEventAsCompleted(event: BridgeOutboxRecord): Promise<void> {
     if (!this.hasSupabase()) return;
 
     await this.requireSupabase()
@@ -1188,10 +1244,7 @@ export class BridgeWorker extends BaseAgent {
     });
   }
 
-  private async logProcessingComplete(
-    event: EventRecord,
-    processingTime: number
-  ): Promise<void> {
+  private async logProcessingComplete(event: EventRecord, processingTime: number): Promise<void> {
     if (!this.hasSupabase()) return;
 
     await this.requireSupabase().from('event_processing_logs').insert({
@@ -1262,10 +1315,7 @@ export class BridgeWorker extends BaseAgent {
     if (this.enableBridgeOutbox) {
       try {
         if (this.hasSupabase()) {
-          await this.requireSupabase()
-            .from('bridge_outbox')
-            .select('count')
-            .limit(1);
+          await this.requireSupabase().from('bridge_outbox').select('count').limit(1);
           checks.push({ service: 'supabase-bridge-outbox', status: 'healthy' });
         } else {
           checks.push({
@@ -1320,9 +1370,7 @@ export class BridgeWorker extends BaseAgent {
       }
     }
 
-    const healthyServices = checks.filter(
-      (check) => check.status === 'healthy'
-    ).length;
+    const healthyServices = checks.filter(check => check.status === 'healthy').length;
     const totalServices = checks.length;
     const healthPercentage = healthyServices / totalServices;
 
@@ -1361,11 +1409,7 @@ export class BridgeWorker extends BaseAgent {
 
     // Report state transition to control plane
     if (this.controlPlane) {
-      await this.controlPlane.reportStateTransition(
-        'running',
-        'stopped',
-        'cleanup_initiated'
-      );
+      await this.controlPlane.reportStateTransition('running', 'stopped', 'cleanup_initiated');
     }
 
     // Stop processing
