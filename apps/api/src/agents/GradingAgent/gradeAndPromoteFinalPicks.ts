@@ -49,6 +49,7 @@ async function processMultiLeg(pick: any): Promise<boolean> {
   const ticketScore = Math.round(
     legResults.reduce((sum: number, r: any) => sum + r.professional_score, 0) / legResults.length
   );
+  // POSTING-AUTHORITY-001: System-generated picks tagged with pick_origin='system'
   await supabase.from('unified_picks').insert([
     {
       ...pick,
@@ -56,6 +57,10 @@ async function processMultiLeg(pick: any): Promise<boolean> {
       leg_results: legResults,
       ticket_score: ticketScore,
       promoted_at: new Date().toISOString(),
+      meta: {
+        ...(pick.meta || {}),
+        pick_origin: 'system',
+      },
     },
   ]);
 
@@ -75,6 +80,7 @@ async function processSingleLeg(pick: any): Promise<boolean> {
   }
   if (!(await claimDailyPick(pick.id))) return false;
 
+  // POSTING-AUTHORITY-001: System-generated picks tagged with pick_origin='system'
   await supabase.from('unified_picks').insert([
     {
       ...pick,
@@ -82,6 +88,10 @@ async function processSingleLeg(pick: any): Promise<boolean> {
       tier,
       score_breakdown: grade.breakdown || null,
       promoted_at: new Date().toISOString(),
+      meta: {
+        ...(pick.meta || {}),
+        pick_origin: 'system',
+      },
     },
   ]);
 
