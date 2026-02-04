@@ -52,18 +52,21 @@ interface EventRecord {
   max_retries: number;
 }
 
+// Cloud-canonical columns per parity-gate-001 + COLUMN-DRIFT-001 discovery
+const BRIDGE_OUTBOX_MAX_RETRIES = 3;
+
 interface BridgeOutboxRecord {
   id: string;
   event_type: string;
-  payload: any;
-  unique_key: string;
+  event_data: any;
+  bet_slip_id: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
-  attempts: number;
-  max_attempts: number;
-  next_attempt_at: string;
+  retry_count: number;
   created_at: string;
+  updated_at?: string;
   processed_at?: string;
   error_message?: string;
+  trace_id?: string;
 }
 
 export class BridgeWorker extends BaseAgent {
@@ -420,8 +423,7 @@ export class BridgeWorker extends BaseAgent {
           .from('bridge_outbox')
           .select('*')
           .eq('status', 'pending')
-          .lte('next_attempt_at', new Date().toISOString())
-          .filter('attempts', 'lt', 'max_attempts')
+          .lt('retry_count', BRIDGE_OUTBOX_MAX_RETRIES)
           .order('created_at', { ascending: true })
           .limit(this.bridgeOutboxBatchSize);
 
@@ -449,8 +451,8 @@ export class BridgeWorker extends BaseAgent {
       this.logger.info('🎫 Processing bridge outbox event', {
         eventId: event.id,
         eventType: event.event_type,
-        uniqueKey: event.unique_key,
-        attempts: event.attempts,
+        betSlipId: event.bet_slip_id,
+        retryCount: event.retry_count,
       });
 
       // Check if handler exists
@@ -467,15 +469,15 @@ export class BridgeWorker extends BaseAgent {
       const standardizedEvent = {
         id: event.id,
         event_type: event.event_type,
-        aggregate_id: event.payload.bet_slip_id || event.unique_key,
+        aggregate_id: event.event_data?.bet_slip_id || event.bet_slip_id,
         aggregate_type: 'ticket',
-        event_data: event.payload,
+        event_data: event.event_data,
         metadata: {
           source: 'bridge_outbox',
-          unique_key: event.unique_key,
-          attempts: event.attempts,
+          bet_slip_id: event.bet_slip_id,
+          retry_count: event.retry_count,
         },
-        idempotency_key: event.unique_key,
+        idempotency_key: event.bet_slip_id,
         created_at: event.created_at,
       };
 
@@ -496,7 +498,7 @@ export class BridgeWorker extends BaseAgent {
       this.logger.info(`✅ Bridge outbox event processed successfully`, {
         eventId: event.id,
         eventType: event.event_type,
-        uniqueKey: event.unique_key,
+        betSlipId: event.bet_slip_id,
         processingTimeMs: processingTime,
       });
     } catch (error) {
@@ -934,10 +936,10 @@ export class BridgeWorker extends BaseAgent {
     this.logger.info('Processing bridge outbox ticket submission event', {
       eventId: event.id,
       betSlipId: event.aggregate_id,
-      uniqueKey: event.metadata?.unique_key,
+      betSlipIdMeta: event.metadata?.bet_slip_id,
     });
 
-    // Extract ticket data from payload
+    // Extract ticket data from event_data
     const ticketData = event.event_data;
 
     // Add bridge outbox metadata for tracking
@@ -945,7 +947,7 @@ export class BridgeWorker extends BaseAgent {
       ...ticketData,
       source: 'bridge_outbox',
       processed_from_outbox: true,
-      original_unique_key: event.metadata?.unique_key,
+      original_bet_slip_id: event.metadata?.bet_slip_id,
     };
 
     // Trigger Temporal grading workflow with bridge outbox context
@@ -1090,8 +1092,8 @@ export class BridgeWorker extends BaseAgent {
       .from('bridge_outbox')
       .update({
         status: 'processing',
-        attempts: event.attempts + 1,
-        next_attempt_at: new Date(Date.now() + 60000).toISOString(), // 1 minute retry
+        retry_count: event.retry_count + 1,
+        updated_at: new Date().toISOString(),
       })
       .eq('id', event.id);
   }
@@ -1104,7 +1106,8 @@ export class BridgeWorker extends BaseAgent {
       .update({
         status: 'completed',
         processed_at: new Date().toISOString(),
-        attempts: event.attempts + 1,
+        retry_count: event.retry_count + 1,
+        updated_at: new Date().toISOString(),
       })
       .eq('id', event.id);
   }
@@ -1115,25 +1118,24 @@ export class BridgeWorker extends BaseAgent {
     processingTime: number
   ): Promise<void> {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const shouldRetry = event.attempts + 1 < event.max_attempts;
+    const shouldRetry = event.retry_count + 1 < BRIDGE_OUTBOX_MAX_RETRIES;
 
     this.bridgeMetrics.bridgeOutboxEventsFailed++;
     this.bridgeMetrics.errorCount++;
 
     if (shouldRetry) {
-      // Calculate exponential backoff: 1min, 5min, 15min
-      const backoffMinutes = Math.pow(3, event.attempts + 1);
-      const nextAttempt = new Date(Date.now() + backoffMinutes * 60 * 1000);
+      // Calculate exponential backoff: 3min, 9min, 27min
+      const backoffMinutes = Math.pow(3, event.retry_count + 1);
 
-      // Update retry count and schedule next attempt
+      // Update retry count and set back to pending for next poll cycle
       if (this.hasSupabase()) {
         await this.requireSupabase()
           .from('bridge_outbox')
           .update({
             status: 'pending',
-            attempts: event.attempts + 1,
-            next_attempt_at: nextAttempt.toISOString(),
+            retry_count: event.retry_count + 1,
             error_message: errorMessage,
+            updated_at: new Date(Date.now() + backoffMinutes * 60 * 1000).toISOString(),
           })
           .eq('id', event.id);
       }
@@ -1141,10 +1143,9 @@ export class BridgeWorker extends BaseAgent {
       this.logger.warn(`Bridge outbox event processing failed, will retry`, {
         eventId: event.id,
         eventType: event.event_type,
-        uniqueKey: event.unique_key,
-        attempts: event.attempts + 1,
-        maxAttempts: event.max_attempts,
-        nextAttempt: nextAttempt.toISOString(),
+        betSlipId: event.bet_slip_id,
+        retryCount: event.retry_count + 1,
+        maxRetries: BRIDGE_OUTBOX_MAX_RETRIES,
         error: errorMessage,
       });
     } else {
@@ -1155,8 +1156,9 @@ export class BridgeWorker extends BaseAgent {
           .update({
             status: 'failed',
             processed_at: new Date().toISOString(),
-            attempts: event.attempts + 1,
+            retry_count: event.retry_count + 1,
             error_message: errorMessage,
+            updated_at: new Date().toISOString(),
           })
           .eq('id', event.id);
       }
@@ -1164,8 +1166,8 @@ export class BridgeWorker extends BaseAgent {
       this.logger.error(`Bridge outbox event processing permanently failed`, {
         eventId: event.id,
         eventType: event.event_type,
-        uniqueKey: event.unique_key,
-        attempts: event.attempts + 1,
+        betSlipId: event.bet_slip_id,
+        retryCount: event.retry_count + 1,
         error: errorMessage,
       });
     }
