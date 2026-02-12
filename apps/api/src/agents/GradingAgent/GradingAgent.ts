@@ -15,6 +15,7 @@ import {
 } from '../BaseAgent/types';
 
 import { SyndicateGradingEngine, GradingResult, ScoringConfig } from './scoring/gradingEngine';
+import { ProjectionEngine, getProjectionEngine } from '../../services/projections';
 // import { Pick, GradeResult } from './types';
 // import { PerformanceAnalyzer } from './scoring/performanceAnalyzer';
 // import { RiskManager } from './scoring/riskManager';
@@ -34,6 +35,7 @@ interface GradingMetrics extends BaseMetrics {
 export class GradingAgent extends BaseAgent {
   private gradingEngine: SyndicateGradingEngine;
   private professionalProcessor: ProfessionalPropProcessor;
+  private projectionEngine: ProjectionEngine;
   // private performanceAnalyzer: PerformanceAnalyzer;
   // private riskManager: RiskManager;
   private gradingMetrics: GradingMetrics;
@@ -45,6 +47,7 @@ export class GradingAgent extends BaseAgent {
   // Feature flags
   private readonly USE_PRO_SCORER: boolean;
   private readonly SCORING_DEBUG: boolean;
+  private readonly USE_PROJECTIONS: boolean;
 
   constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
     super(config, deps);
@@ -52,9 +55,11 @@ export class GradingAgent extends BaseAgent {
     // Initialize feature flags from environment
     this.USE_PRO_SCORER = process.env.USE_PRO_SCORER === 'true';
     this.SCORING_DEBUG = process.env.SCORING_DEBUG === 'true';
+    this.USE_PROJECTIONS = process.env.USE_PROJECTIONS !== 'false'; // Enabled by default
 
     this.gradingEngine = new SyndicateGradingEngine();
     this.professionalProcessor = ProfessionalPropProcessor.getInstance();
+    this.projectionEngine = getProjectionEngine(deps.supabase);
     // this.performanceAnalyzer = new PerformanceAnalyzer();
     // this.riskManager = new RiskManager({
     //   maxPositionSize: 0.05,
@@ -93,6 +98,9 @@ export class GradingAgent extends BaseAgent {
     );
     this.logger.info(
       `📊 Debug logging: ${this.SCORING_DEBUG ? 'ENABLED' : 'DISABLED'} (SCORING_DEBUG=${this.SCORING_DEBUG})`
+    );
+    this.logger.info(
+      `📈 Projection Engine: ${this.USE_PROJECTIONS ? 'ENABLED' : 'DISABLED'} (USE_PROJECTIONS=${this.USE_PROJECTIONS})`
     );
 
     // Verify database access
@@ -243,6 +251,44 @@ export class GradingAgent extends BaseAgent {
     try {
       let result: GradingResult;
 
+      // Phase 2: Get projection edge BEFORE grading for independent fair value comparison
+      let projectionEdge: number | null = null;
+      let projectionConfidence: number | null = null;
+
+      if (this.USE_PROJECTIONS && features.player && features.marketType && features.date) {
+        try {
+          const projection = await this.projectionEngine.getProjection(
+            features.player,
+            features.marketType,
+            new Date(features.date)
+          );
+
+          if (projection) {
+            // Calculate edge: (our projection - market line) / market line
+            const marketLine = features.market?.line || 0;
+            if (marketLine > 0) {
+              projectionEdge = (projection.projectedValue - marketLine) / marketLine;
+              projectionConfidence = projection.confidence;
+
+              this.logger.debug('📈 Projection edge calculated', {
+                propId: features.propId,
+                player: features.player,
+                statType: features.marketType,
+                ourProjection: projection.projectedValue,
+                marketLine: marketLine,
+                projectionEdge: Math.round(projectionEdge * 1000) / 10 + '%',
+                confidence: projection.confidence,
+              });
+            }
+          }
+        } catch (projError) {
+          this.logger.debug('⚠️ Projection lookup failed (non-critical)', {
+            propId: features.propId,
+            error: projError instanceof Error ? projError.message : 'Unknown error',
+          });
+        }
+      }
+
       if (this.USE_PRO_SCORER) {
         // PROFESSIONAL PATH: Route through ProfessionalPropProcessor
         this.logger.debug('🎯 Using Professional Scoring Path', {
@@ -262,6 +308,34 @@ export class GradingAgent extends BaseAgent {
         });
 
         result = await this.gradingEngine.gradeProp(features);
+      }
+
+      // Phase 2: Apply projection edge adjustment to final score
+      if (projectionEdge !== null && projectionConfidence !== null) {
+        // Store projection data in result
+        result.projectionEdge = projectionEdge;
+        result.projectionConfidence = projectionConfidence;
+
+        // Significant edge adjustment (>5% edge with >60% confidence)
+        if (Math.abs(projectionEdge) > 0.05 && projectionConfidence > 0.6) {
+          const edgeAdjustment = projectionEdge > 0 ? 10 : -10;
+          result.finalScore += edgeAdjustment;
+
+          // Recalculate tier if score changed significantly
+          if (edgeAdjustment > 0 && result.tier === 'B') {
+            result.tier = 'A';
+          } else if (edgeAdjustment < 0 && result.tier === 'A') {
+            result.tier = 'B';
+          }
+
+          this.logger.info('📈 Projection edge applied to grading', {
+            propId: features.propId,
+            projectionEdge: Math.round(projectionEdge * 100) + '%',
+            scoreAdjustment: edgeAdjustment,
+            newScore: result.finalScore,
+            newTier: result.tier,
+          });
+        }
       }
 
       // Update metrics
