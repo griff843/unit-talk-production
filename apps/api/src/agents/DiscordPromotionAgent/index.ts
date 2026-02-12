@@ -108,7 +108,33 @@ function getCapperFromPick(pick: any): string {
   return meta.capper || pick.capper_username || pick.capper || 'Unit Talk';
 }
 
+// PARLAY-PRESENTATION-REFINE-001: Get short market label for parlay leg
+// eslint-disable-next-line complexity
+function getParlayLegMarketLabel(leg: any): string {
+  const statType = (leg.stat_type || '').toLowerCase();
+  const betType = (leg.bet_type || '').toLowerCase();
+
+  if (statType.includes('moneyline') || betType.includes('ml') || statType === 'ml') return 'ML';
+  if (statType.includes('spread') || betType.includes('spread')) {
+    const line = leg.line !== null && leg.line !== undefined ? ` ${leg.line > 0 ? '+' : ''}${leg.line}` : '';
+    return `Spread${line}`;
+  }
+  if (statType.includes('total') || betType.includes('total') || statType.includes('over') || statType.includes('under')) {
+    const direction = (leg.direction || leg.side || '').toUpperCase();
+    const line = leg.line !== null && leg.line !== undefined ? ` ${leg.line}` : '';
+    return direction ? `${direction}${line}` : `Total${line}`;
+  }
+  // Player prop: show stat type
+  if (statType) {
+    const direction = (leg.direction || leg.side || '').toUpperCase();
+    const line = leg.line !== null && leg.line !== undefined ? ` ${leg.line}` : '';
+    return `${statType.charAt(0).toUpperCase() + statType.slice(1).replace(/_/g, ' ')}${direction ? ' ' + direction : ''}${line}`;
+  }
+  return '';
+}
+
 // PARLAY-DISCORD-FIX-001: Build parlay embed from multiple legs
+// PARLAY-PRESENTATION-REFINE-001: Clean block format without "Leg X:" labels
 function buildParlayEmbed(legs: any[]) {
   const capper = getCapperFromPick(legs[0]);
   const sports = [...new Set(legs.map(l => l.sport || 'Sports'))].join('/');
@@ -122,11 +148,24 @@ function buildParlayEmbed(legs: any[]) {
     return legIdx < bestIdx ? legTier : best;
   }, 'D');
 
-  // Format each leg
-  const legsText = legs.map((leg, i) => {
+  // PARLAY-PRESENTATION-REFINE-001: Format each leg with clean block format
+  // Format: Selection + Market Label (Odds)
+  //         Matchup
+  const legsText = legs.map((leg) => {
     const matchup = getMatchupFromPick(leg);
-    const legSport = leg.sport || 'Sports';
-    return `**Leg ${i + 1}:** ${legSport} • ${matchup || 'TBD'}\n${leg.selection || leg.player_name || 'Unknown'} @ ${formatOdds(leg.odds)}`;
+    const selection = leg.selection || leg.player_name || 'Unknown';
+    const marketLabel = getParlayLegMarketLabel(leg);
+    const oddsStr = formatOdds(leg.odds);
+
+    // Line 1: Selection + Market Label + (Odds)
+    const line1 = marketLabel
+      ? `**${selection} ${marketLabel}** (${oddsStr})`
+      : `**${selection}** (${oddsStr})`;
+
+    // Line 2: Matchup
+    const line2 = matchup || '';
+
+    return line2 ? `${line1}\n${line2}` : line1;
   }).join('\n\n');
 
   return {
