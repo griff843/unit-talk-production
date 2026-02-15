@@ -1,0 +1,6 @@
+# pnpm workspace configuration
+# Mirrors the "workspaces" field from package.json for pnpm compatibility
+
+packages:
+  - "apps/*"
+  - "packages/*"
