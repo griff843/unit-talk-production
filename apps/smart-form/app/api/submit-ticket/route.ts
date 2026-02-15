@@ -14,6 +14,12 @@ import {
   calculateParlayOdds,
   OddsValidationErrorCode,
 } from '@/lib/odds-validator';
+import {
+  validateMarket,
+  isSport,
+  VALID_STAT_TYPES,
+  type Sport,
+} from '@unit-talk/contracts';
 
 const log = createRouteLogger('POST /api/submit-ticket', 'POST');
 
@@ -26,7 +32,17 @@ const validateOddsForSchema = (odds: number): boolean => {
   return result.valid;
 };
 
-// Validation schemas with enhanced odds validation
+/**
+ * MARKET_TAXONOMY_UNIFICATION_009
+ * Custom Zod refinement to validate stat_type against canonical registry
+ */
+const validateStatTypeForSport = (sport: string, statType: string): boolean => {
+  if (!isSport(sport)) return false;
+  const result = validateMarket(sport, statType);
+  return result.valid;
+};
+
+// Validation schemas with enhanced odds validation + market registry validation
 const GameSelectionSchema = z.object({
   sport: z.enum(['NFL', 'NBA', 'MLB', 'NHL', 'NCAAF']),
   team_id: z.string().uuid().optional(),
@@ -152,6 +168,44 @@ export async function POST(request: NextRequest) {
         error: 'Round robin tickets require at least 2 selections',
       }, { status: 400 });
     }
+
+    // MARKET_TAXONOMY_UNIFICATION_009: Validate all stat_types against canonical registry
+    const marketValidationErrors: Array<{ index: number; stat_type: string; error: string }> = [];
+    for (let i = 0; i < selections.length; i++) {
+      const selection = selections[i];
+      const selectionSport = selection.sport || sport; // Use leg sport or ticket sport
+      const result = validateMarket(selectionSport, selection.stat_type);
+
+      if (!result.valid) {
+        marketValidationErrors.push({
+          index: i,
+          stat_type: selection.stat_type,
+          error: result.error || `Invalid stat_type "${selection.stat_type}" for sport "${selectionSport}"`,
+        });
+      }
+    }
+
+    if (marketValidationErrors.length > 0) {
+      log.error({
+        capper_id,
+        sport,
+        validation_errors: marketValidationErrors,
+      }, 'MARKET_TAXONOMY: Invalid stat_type values detected');
+
+      return NextResponse.json({
+        error: 'Invalid market selection',
+        code: 'INVALID_STAT_TYPE',
+        message: 'One or more selections have invalid stat_type values',
+        details: marketValidationErrors,
+        valid_stat_types: Array.from(VALID_STAT_TYPES),
+      }, { status: 400 });
+    }
+
+    log.info({
+      capper_id,
+      selection_count: selections.length,
+      stat_types: selections.map(s => s.stat_type),
+    }, 'MARKET_TAXONOMY: All stat_types validated against canonical registry');
 
     // SMARTFORM-ODDS-FIELD-INTEGRITY-007: Validate parlay odds calculation
     if (ticket_type === 'parlay' && selections.length >= 2) {
@@ -284,28 +338,70 @@ export async function POST(request: NextRequest) {
         }, { status: 500 });
       }
 
-      // Insert individual legs into unified_picks
-      const pickInserts = selections.map(selection => ({
-        bet_slip_id: betSlipId,
-        user_id: capper_id,
-        sport,
-        stat_type: selection.stat_type,
-        line: selection.line,
-        odds: selection.leg_odds,
-        selection: selection.selection,
-        confidence: selection.confidence || 0,
-        team_id: selection.team_id,
-        player_id: selection.player_id,
-        source: selection.source,
-        is_live: selection.is_live || false,
-      }));
+      // SINGLE-WRITER-SEAL-011: Insert individual legs via authoritative RPC
+      // All unified_picks inserts MUST go through create_unified_pick_idempotent
+      const insertedPicks = [];
+      let picksError = null;
 
-      const { data: insertedPicks, error: picksError } = await supabase
-        .from('unified_picks')
-        .insert(pickInserts)
-        .select();
+      for (let legIndex = 0; legIndex < selections.length; legIndex++) {
+        const selection = selections[legIndex];
+        // Each leg gets a unique bet_slip_id suffix for parlay legs
+        const legBetSlipId = selections.length > 1
+          ? `${betSlipId}-leg-${legIndex + 1}`
+          : betSlipId;
 
-      logDatabaseOperation(log, 'INSERT', 'unified_picks', insertedPicks, picksError);
+        const pickPayload = {
+          bet_slip_id: legBetSlipId,
+          user_id: capper_id,
+          capper_id: capper_id,
+          sport,
+          stat_type: selection.stat_type,
+          line: selection.line,
+          odds: selection.leg_odds,
+          selection: selection.selection,
+          confidence: selection.confidence || 0,
+          team_id: selection.team_id,
+          player_id: selection.player_id,
+          player_name: selection.player_name,
+          team_name: selection.team_name,
+          source: selection.source,
+          is_live: selection.is_live || false,
+          ticket_type: ticket_type,
+          leg_index: selections.length > 1 ? legIndex + 1 : null,
+          total_units: total_units,
+          trace_id: `smartform-${betSlipId}-${legIndex}`,
+        };
+
+        const { data: rpcResult, error: rpcError } = await supabase
+          .rpc('create_unified_pick_idempotent', { p_payload: pickPayload });
+
+        if (rpcError) {
+          picksError = rpcError;
+          log.error({
+            bet_slip_id: legBetSlipId,
+            error: rpcError.message,
+          }, 'RPC create_unified_pick_idempotent failed');
+          break;
+        }
+
+        if (rpcResult && rpcResult.success) {
+          insertedPicks.push({
+            id: rpcResult.pick_id,
+            bet_slip_id: legBetSlipId,
+            idempotent: rpcResult.idempotent,
+          });
+          log.info({
+            pick_id: rpcResult.pick_id,
+            bet_slip_id: legBetSlipId,
+            idempotent: rpcResult.idempotent,
+          }, 'Pick created via RPC');
+        } else {
+          picksError = { message: rpcResult?.error || 'Unknown RPC error' };
+          break;
+        }
+      }
+
+      logDatabaseOperation(log, 'RPC:create_unified_pick_idempotent', 'unified_picks', insertedPicks, picksError);
 
       if (picksError) {
         // Rollback smart ticket if picks insertion fails

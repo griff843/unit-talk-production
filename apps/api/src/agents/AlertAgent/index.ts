@@ -679,11 +679,12 @@ export class AlertAgent extends BaseAgent {
 
   /**
    * Update pick with Discord posting information
+   * SINGLE-WRITER-SEAL-011: Uses mark_pick_posted_to_discord RPC
    */
   private async updatePickWithDiscordInfo(
-    pickId: string, 
-    _threadId: string | null, 
-    messageId: string | null, 
+    pickId: string,
+    _threadId: string | null,
+    messageId: string | null,
     status: string = 'posted'
   ): Promise<void> {
     if (!this.hasSupabase()) {
@@ -691,22 +692,37 @@ export class AlertAgent extends BaseAgent {
       return;
     }
 
-    const updateData: any = {
-      posted_to_discord: status === 'posted',
-      updated_at: new Date().toISOString()
-    };
+    // Only mark as posted if status is 'posted'
+    if (status !== 'posted') {
+      this.logger.info('Skipping RPC call - status is not posted', { pickId, status });
+      return;
+    }
 
-    if (messageId) updateData.discord_post_id = messageId;
+    const { data: rpcResult, error: rpcError } = await this.requireSupabase()
+      .rpc('mark_pick_posted_to_discord', {
+        p_pick_id: pickId,
+        p_message_id: messageId,
+        p_meta: { agent: 'AlertAgent', posted_at: new Date().toISOString() }
+      });
 
-    const { error } = await this.requireSupabase()
-      .from('unified_picks')
-      .update(updateData)
-      .eq('id', pickId);
-
-    if (error) {
-      this.logger.error('Failed to update pick Discord info', {
+    if (rpcError) {
+      this.logger.error('RPC mark_pick_posted_to_discord failed', {
         pickId,
-        error: error.message
+        error: rpcError.message
+      });
+      return;
+    }
+
+    if (rpcResult?.success) {
+      this.logger.info('Pick marked as posted via RPC', {
+        pickId,
+        idempotent: rpcResult.idempotent,
+        messageId
+      });
+    } else {
+      this.logger.error('Failed to mark pick as posted via RPC', {
+        pickId,
+        error: rpcResult?.error
       });
     }
   }

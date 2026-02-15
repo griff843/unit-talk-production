@@ -119,8 +119,20 @@ export async function promoteToDiscord() {
   for (const pick of picks) {
     await postEliteCardToDiscord(pick);
     try {
-      await supabase.from('unified_picks').update({ posted_to_discord: true }).eq('id', pick.id);
-      logger.info({ id: pick.id }, 'Posted pick to Discord with image-card');
+      // SINGLE-WRITER-SEAL-011: Use RPC for posted_to_discord flag
+      const { data: rpcResult, error: rpcError } = await supabase.rpc('mark_pick_posted_to_discord', {
+        p_pick_id: pick.id,
+        p_message_id: null,
+        p_meta: { agent: 'DiscordPromotionAgent', posted_at: new Date().toISOString() }
+      });
+
+      if (rpcError) {
+        logger.error({ id: pick.id, error: rpcError.message }, 'RPC mark_pick_posted_to_discord failed');
+      } else if (rpcResult?.success) {
+        logger.info({ id: pick.id, idempotent: rpcResult.idempotent }, 'Posted pick to Discord with image-card via RPC');
+      } else {
+        logger.error({ id: pick.id, error: rpcResult?.error }, 'Failed to mark pick as posted via RPC');
+      }
     } catch (err: any) {
       logger.error({ id: pick.id, error: err?.message || err }, 'Failed to update posted_to_discord flag');
     }
