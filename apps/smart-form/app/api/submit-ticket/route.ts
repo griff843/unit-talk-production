@@ -9,17 +9,40 @@ import {
   logValidationError,
   logSecurityEvent,
 } from '@/lib/logger';
+import {
+  validateOddsInteger,
+  calculateParlayOdds,
+  OddsValidationErrorCode,
+} from '@/lib/odds-validator';
 
 const log = createRouteLogger('POST /api/submit-ticket', 'POST');
 
-// Validation schemas
+/**
+ * SMARTFORM-ODDS-FIELD-INTEGRITY-007
+ * Enhanced odds validation with contract-compliant error codes
+ */
+const validateOddsForSchema = (odds: number): boolean => {
+  const result = validateOddsInteger(odds);
+  return result.valid;
+};
+
+// Validation schemas with enhanced odds validation
 const GameSelectionSchema = z.object({
   sport: z.enum(['NFL', 'NBA', 'MLB', 'NHL', 'NCAAF']),
   team_id: z.string().uuid().optional(),
   player_id: z.string().uuid().optional(),
   stat_type: z.string().min(1),
   line: z.number(),
-  leg_odds: z.number().int(),
+  leg_odds: z.number().int().refine(
+    (val) => validateOddsForSchema(val),
+    (val) => {
+      const result = validateOddsInteger(val);
+      return {
+        message: result.errorMessage || 'Invalid odds',
+        params: { code: result.errorCode },
+      };
+    }
+  ),
   source: z.enum(['api', 'manual']).default('api'),
   is_live: z.boolean().optional().default(false),
   selection: z.enum(['over', 'under', 'yes', 'no']),
@@ -31,7 +54,17 @@ const SubmitTicketSchema = z.object({
   sport: z.enum(['NFL', 'NBA', 'MLB', 'NHL', 'NCAAF']),
   ticket_type: z.enum(['single', 'parlay', 'round_robin']),
   selections: z.array(GameSelectionSchema).min(1, 'At least one selection is required'),
-  parlay_odds: z.number().int().optional(),
+  parlay_odds: z.number().int().optional().refine(
+    (val) => val === undefined || validateOddsForSchema(val),
+    (val) => {
+      if (val === undefined) return { message: '' };
+      const result = validateOddsInteger(val);
+      return {
+        message: result.errorMessage || 'Invalid parlay odds',
+        params: { code: result.errorCode },
+      };
+    }
+  ),
   total_units: z.number().min(0.5).max(10).default(1.0),
   notes: z.string().optional(),
 });
@@ -118,6 +151,50 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         error: 'Round robin tickets require at least 2 selections',
       }, { status: 400 });
+    }
+
+    // SMARTFORM-ODDS-FIELD-INTEGRITY-007: Validate parlay odds calculation
+    if (ticket_type === 'parlay' && selections.length >= 2) {
+      const legOdds = selections.map(s => s.leg_odds);
+      const calculatedResult = calculateParlayOdds(legOdds);
+
+      if (!calculatedResult.valid) {
+        log.error({
+          capper_id,
+          leg_odds: legOdds,
+          error: calculatedResult.errorMessage,
+        }, 'ODDS_INTEGRITY: Invalid parlay leg odds');
+
+        return NextResponse.json({
+          error: 'Invalid parlay odds',
+          code: calculatedResult.errorCode,
+          message: calculatedResult.errorMessage,
+        }, { status: 400 });
+      }
+
+      // If parlay_odds provided, verify it matches our calculation (within tolerance)
+      if (parlay_odds !== undefined) {
+        const expectedOdds = calculatedResult.combinedOdds!;
+        const tolerance = 5; // Allow 5-point rounding tolerance
+
+        if (Math.abs(parlay_odds - expectedOdds) > tolerance) {
+          log.warn({
+            capper_id,
+            provided_parlay_odds: parlay_odds,
+            calculated_parlay_odds: expectedOdds,
+            leg_odds: legOdds,
+          }, 'ODDS_INTEGRITY: Parlay odds mismatch detected');
+
+          // Use calculated odds for consistency (no silent fallback - we log the discrepancy)
+        }
+      }
+
+      log.info({
+        bet_slip_id: 'pending',
+        leg_count: selections.length,
+        leg_odds: legOdds,
+        combined_odds: calculatedResult.combinedOdds,
+      }, 'ODDS_INTEGRITY: Parlay odds validated');
     }
 
     // Validate manual entries

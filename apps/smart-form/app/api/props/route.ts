@@ -131,11 +131,12 @@ export async function GET(request: NextRequest) {
           const team = prop.team || 'UNK';
           const line = prop.line || 0;
 
-          // Handle different odds field structures
-          const overOdds = prop.over_odds || prop.odds || -110;
-          const underOdds =
-            prop.under_odds ||
-            (overOdds > 0 ? -(Math.abs(overOdds) + 20) : Math.abs(overOdds) - 20);
+          // Handle different odds field structures - NO FALLBACK TO -110
+          // Props without valid odds should be marked explicitly
+          const overOdds = prop.over_odds || prop.odds || null;
+          const underOdds = prop.under_odds || null;
+          // Flag props missing odds for UI filtering
+          const hasValidOdds = overOdds !== null;
 
           return {
             id: prop.id,
@@ -190,6 +191,8 @@ export async function GET(request: NextRequest) {
                     expected_value: prop.expected_value || 0,
                   },
                 ],
+            // SMARTFORM-ODDS-FIELD-INTEGRITY-007: Explicit flag for UI filtering
+            has_valid_odds: hasValidOdds,
           };
         });
 

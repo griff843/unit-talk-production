@@ -162,7 +162,8 @@ export function Step4GameSelection({
             spread: {
               home: game.spread_clean || game.spread?.home,
               away: game.spread_clean ? -game.spread_clean : game.spread?.away,
-              odds: game.spread_odds_clean || game.spread?.odds || -110,
+              // SMARTFORM-ODDS-FIELD-INTEGRITY-007: No silent -110 fallback, use null for missing odds
+              odds: game.spread_odds_clean || game.spread?.odds || null,
             },
             total: game.total_clean || game.total,
             moneyline: {

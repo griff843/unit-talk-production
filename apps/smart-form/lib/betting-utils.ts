@@ -72,7 +72,12 @@ function calculateTeaserPayout(risk: number, legs: TicketLeg[]): number {
   };
 
   const numLegs = legs.length;
-  const odds = teaserOdds[numLegs as keyof typeof teaserOdds] || -110;
+  const odds = teaserOdds[numLegs as keyof typeof teaserOdds];
+  // SMARTFORM-ODDS-FIELD-INTEGRITY-007: No silent -110 fallback for unsupported leg counts
+  // Valid teaser leg counts are 2-6; return 0 for invalid configurations
+  if (odds === undefined) {
+    return 0;
+  }
   return calculateSinglePayout(risk, odds.toString());
 }
 

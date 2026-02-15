@@ -107,14 +107,16 @@ export function ManualPropCreator({
       return;
     }
 
+    // SMARTFORM-ODDS-FIELD-INTEGRITY-007: Require explicit odds, no silent -110 fallback
+    // Default of -110 is set in form state initialization, user must explicitly confirm
     const newProp: ManualProp = {
       id: `manual-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       player_name: currentProp.player_name!,
       team: currentProp.team!,
       prop_type: currentProp.prop_type!,
       line: currentProp.line,
-      over_odds: currentProp.over_odds || -110,
-      under_odds: currentProp.under_odds || -110,
+      over_odds: currentProp.over_odds!, // Required - form initializes with -110 default
+      under_odds: currentProp.under_odds!, // Required - form initializes with -110 default
       notes: currentProp.notes,
     };
 
