@@ -23,6 +23,7 @@ import { ErrorHandler } from './utils/errorHandling';
 import { getEnv } from './utils/getEnv';
 import { createLogger } from './utils/logger';
 import startAllWorkflows from './scripts/start-all-workflows';
+import { agentHealthHeartbeat } from './services/agentHealthHeartbeat';
 
 const env = getEnv();
 const logger = createLogger('Worker');
@@ -71,6 +72,11 @@ export default async function startWorker() {
 
     logger.info('Worker started successfully');
 
+    // Start agent health heartbeats
+    await agentHealthHeartbeat.startHeartbeat({ agentName: 'temporal-worker' });
+    await agentHealthHeartbeat.startHeartbeat({ agentName: 'bridge-worker' });
+    logger.info('Agent health heartbeats started');
+
     // Auto-start workflows after worker is ready
     logger.info('🚀 Auto-starting Unit Talk workflows...');
     
@@ -90,6 +96,7 @@ export default async function startWorker() {
     // Handle graceful shutdown
     process.on('SIGINT', async () => {
       logger.info('Shutting down worker...');
+      agentHealthHeartbeat.stopAll();
       await worker.shutdown();
       await connection.close();
       process.exit(0);

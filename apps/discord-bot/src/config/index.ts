@@ -7,7 +7,7 @@
  * application-specific interfaces.
  */
 
-import { env } from '../../../../config/environment';
+import { env } from './environment';
 import { BotConfig } from '../types/index';
 
 // =============================================================================

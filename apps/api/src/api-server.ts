@@ -2,10 +2,12 @@ import 'dotenv/config';
 import cors from 'cors';
 import express from 'express';
 
+import { agentHealthHeartbeat } from './services/agentHealthHeartbeat';
 import healthRouter from './routes/health';
 import { smartFormRouter } from './routes/smart-form';
 import opsRouter from './routes/ops';
 import picksRouter from './routes/picks';
+import versionRouter from './routes/version';
 import { ErrorHandler } from './utils/errorHandling';
 import { getEnv } from './utils/getEnv';
 import { createLogger } from './utils/logger';
@@ -68,6 +70,8 @@ app.use('/api/smart-form', smartFormRouter);
 app.use('/api/health', healthRouter);
 app.use('/api/picks', picksRouter);
 app.use('/ops', opsRouter);
+app.use('/version', versionRouter);
+app.use('/api/version', versionRouter);
 
 // Provider health endpoint
 app.get('/health/provider', async (req, res) => {
@@ -162,6 +166,8 @@ app.get('/', (_req, res) => {
     timestamp: new Date().toISOString(),
     endpoints: [
       'GET /api/health',
+      'GET /api/version',
+      'GET /version',
       'POST /api/smart-form/process',
       'GET /api/smart-form/health',
       'GET /api/picks/recent',
@@ -239,7 +245,7 @@ async function startServer() {
     logger.info('Environment variables validated successfully');
 
     // Start server
-    const server = app.listen(PORT, () => {
+    const server = app.listen(PORT, async () => {
       logger.info(`🚀 Unit Talk Platform API Server started successfully`, {
         port: PORT,
         environment: process.env.NODE_ENV || 'development',
@@ -251,11 +257,16 @@ async function startServer() {
           `http://localhost:${PORT}/api/smart-form/process`
         ]
       });
+
+      // Start API server heartbeat
+      await agentHealthHeartbeat.startHeartbeat({ agentName: 'api-server' });
+      logger.info('API server heartbeat started');
     });
 
     // Graceful shutdown handling
     const shutdown = (signal: string) => {
       logger.info(`Received ${signal}, shutting down API server gracefully...`);
+      agentHealthHeartbeat.stopAll();
       server.close((err) => {
         if (err) {
           logger.error('Error during server shutdown', { error: err.message });

@@ -26,10 +26,7 @@ COPY package*.json ./
 COPY tsconfig*.json ./
 RUN npm install --legacy-peer-deps && npm cache clean --force
 
-# Copy centralized configuration (CRITICAL for v3.0.0)
-COPY ../../config/ ./config/
-
-# Copy source code
+# Copy source code (config provided via env vars and volumes)
 COPY . .
 
 # Development mode - run as root for simplicity during Docker troubleshooting
@@ -55,10 +52,7 @@ COPY package*.json ./
 COPY tsconfig*.json ./
 RUN npm install --legacy-peer-deps
 
-# Copy centralized configuration (CRITICAL for v3.0.0)
-COPY ../../config/ ./config/
-
-# Copy source code
+# Copy source code (config provided via env vars)
 COPY . .
 
 # Build Next.js application

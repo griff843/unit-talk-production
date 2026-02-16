@@ -15,10 +15,7 @@ FROM base AS development
 # Install all dependencies (including dev dependencies)
 RUN npm install && npm cache clean --force
 
-# Copy centralized configuration (CRITICAL for v3.0.0)
-COPY ../../config/ ./config/
-
-# Copy source code
+# Copy source code (config provided via env vars)
 COPY . .
 
 # Create non-root user for security

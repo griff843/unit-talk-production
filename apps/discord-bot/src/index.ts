@@ -525,9 +525,10 @@ export class UnitTalkBot {
    */
   async start(): Promise<void> {
     try {
-      const token = process.env['DISCORD_BOT_TOKEN'];
+      // Use DISCORD_BOT_TOKEN or fallback to DISCORD_TOKEN
+      const token = process.env['DISCORD_BOT_TOKEN'] || process.env['DISCORD_TOKEN'];
       if (!token) {
-        throw new Error('DISCORD_BOT_TOKEN environment variable is not set');
+        throw new Error('DISCORD_BOT_TOKEN or DISCORD_TOKEN environment variable is not set');
       }
 
       logger.info('Logging into Discord...');

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { BuildInfo } from '@/components/BuildInfo';
 
 export const metadata: Metadata = {
   title: 'Unit Talk Command Center',
@@ -11,7 +12,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="dark">
       <body className="dark bg-background text-foreground">
-        <div className="min-h-screen">{children}</div>
+        <div className="min-h-screen pb-8">{children}</div>
+        <BuildInfo />
       </body>
     </html>
   );

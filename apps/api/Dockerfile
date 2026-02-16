@@ -31,12 +31,9 @@ FROM base AS development
 
 # Install all dependencies (including dev)
 COPY package*.json ./
-RUN npm ci && npm cache clean --force
+RUN npm install && npm cache clean --force
 
-# Copy centralized configuration (CRITICAL for v3.0.0)
-COPY ../../config/ ./config/
-
-# Copy source code and configs
+# Copy source code and configs (config provided via env vars)
 COPY . .
 
 # Rebuild native modules for Temporal SDK

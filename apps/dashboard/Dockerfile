@@ -25,15 +25,13 @@ FROM base AS development
 COPY package*.json ./
 RUN npm install && npm cache clean --force
 
-# Copy centralized configuration (CRITICAL for v3.0.0)
-COPY ../../config/ ./config/
-
-# Copy source code
+# Copy source code (config provided via env vars)
 COPY . .
 
-# Create non-root user
+# Create non-root user and ensure .next directory permissions
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001 && \
+    mkdir -p /app/.next && \
     chown -R nodejs:nodejs /app
 
 # Switch to non-root user

@@ -342,6 +342,8 @@ services:
       dockerfile: Dockerfile
       target: development
     container_name: unit-talk-discord-bot
+    env_file:
+      - .env
     environment:
       - NODE_ENV=development
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
