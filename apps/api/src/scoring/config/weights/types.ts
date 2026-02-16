@@ -102,18 +102,105 @@ export interface ScoringConfig {
   risk: RiskManagementConfig;
 }
 
-// Validation function to ensure weights sum correctly
+// ─── Explicit key lists for proper field enumeration ─────────────────────────
+
+/** All 30 scoring weight keys from CoreScoringWeights */
+export const CORE_WEIGHT_KEYS: (keyof CoreScoringWeights)[] = [
+  // Core (6)
+  'expectedValue', 'lineMovement', 'matchupRating', 'playerForm', 'injuryImpact', 'weatherImpact',
+  // Market (4)
+  'marketIntelligence', 'sharpMoney', 'volumeProfile', 'closingLineValue',
+  // Capper (8)
+  'steamDetection', 'closingLinePrediction', 'optimalTiming', 'lineShoppingEdge',
+  'publicVsSharpSplit', 'marketTimingAdvantage', 'injuryTimingEdge', 'crossMarketDiscrepancy',
+  // Context (5)
+  'playerFatigue', 'venueAdvantage', 'refereeImpact', 'paceImpact', 'motivationalFactors',
+  // Risk (3)
+  'correlationRisk', 'volatility', 'portfolioImpact',
+  // ML (4)
+  'neuralNetwork', 'gradientBoosting', 'randomForest', 'ensemble',
+];
+
+/** Enhanced feature keys (scoring weights, NOT time-based recency weights) */
+export const ENHANCED_FEATURE_KEYS: (keyof EnhancedScoringWeights)[] = [
+  'handednessSplits', 'recentTrendAnalysis', 'headToHeadHistory',
+  'rosterStabilityScore', 'bullpenQualityScore', 'advancedSplitAnalysis',
+];
+
+/** Time-based recency weights — separate from scoring weights */
+export const TIME_WEIGHT_KEYS: (keyof EnhancedScoringWeights)[] = [
+  'last3Weight', 'last7Weight', 'last15Weight', 'last30Weight', 'enhancedWeight',
+];
+
+// ─── Validation ──────────────────────────────────────────────────────────────
+
+/**
+ * Legacy validation — BROKEN: `as` casts are compile-time only, so both
+ * Object.values() calls enumerate ALL numeric fields, double-counting.
+ * Preserved for backward compatibility when SCORING_ENGINE_V2=false.
+ */
 export function validateWeights(weights: CoreScoringWeights & EnhancedScoringWeights): boolean {
   const coreTotal = Object.values(weights as CoreScoringWeights)
     .filter(v => typeof v === 'number')
     .reduce((sum, weight) => sum + weight, 0);
-    
+
   const enhancedTotal = Object.values(weights as EnhancedScoringWeights)
     .filter(v => typeof v === 'number')
     .reduce((sum, weight) => sum + weight, 0);
-    
+
   const total = coreTotal + enhancedTotal;
-  
+
   // Allow some tolerance for floating point arithmetic
   return Math.abs(total - 1.0) < 0.001;
+}
+
+/**
+ * V2 validation — uses explicit key lists to avoid double-counting.
+ * Checks that all scoring weights are non-negative and total > 0.
+ * Does NOT require sum = 1.0 because computeScoreV2 normalizes by total weight.
+ */
+export interface WeightValidationResult {
+  valid: boolean;
+  coreTotal: number;
+  enhancedTotal: number;
+  total: number;
+  issues: string[];
+}
+
+export function validateWeightsV2(weights: SportSpecificWeights): WeightValidationResult {
+  const issues: string[] = [];
+  let coreTotal = 0;
+  let enhancedTotal = 0;
+
+  for (const key of CORE_WEIGHT_KEYS) {
+    const v = weights[key];
+    if (typeof v !== 'number' || isNaN(v)) {
+      issues.push(`Missing or non-number core weight: ${key}`);
+      continue;
+    }
+    if (v < 0) {
+      issues.push(`Negative core weight: ${key} = ${v}`);
+    }
+    coreTotal += v;
+  }
+
+  for (const key of ENHANCED_FEATURE_KEYS) {
+    const v = weights[key];
+    if (typeof v !== 'number' || isNaN(v)) {
+      issues.push(`Missing or non-number enhanced weight: ${key}`);
+      continue;
+    }
+    if (v < 0) {
+      issues.push(`Negative enhanced weight: ${key} = ${v}`);
+    }
+    enhancedTotal += v;
+  }
+
+  const total = coreTotal + enhancedTotal;
+
+  if (total <= 0) {
+    issues.push(`Total scoring weight is ${total}, must be > 0`);
+  }
+
+  return { valid: issues.length === 0, coreTotal, enhancedTotal, total, issues };
 }

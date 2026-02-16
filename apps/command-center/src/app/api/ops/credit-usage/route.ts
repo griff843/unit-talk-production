@@ -87,18 +87,39 @@ export async function GET(request: NextRequest) {
     const providers: ProviderUsage[] = [];
     const alerts: CreditUsageResponse['alerts'] = [];
 
+    interface ApiHealthRow {
+      provider: string;
+      last_checked: string;
+      is_healthy: boolean;
+      credits_remaining: number | null;
+      [key: string]: unknown;
+    }
+
+    interface IngestionLogRow {
+      provider: string;
+      status: string;
+      duration_ms: number | null;
+      created_at: string;
+      credits_used: number | null;
+      cost_usd: number | null;
+    }
+
     // Try to get data from api_health_status table
-    const { data: apiHealth } = await client
+    const { data: apiHealthRaw } = await client
       .from('api_health_status')
       .select('*')
       .order('last_checked', { ascending: false });
 
+    const apiHealth = (apiHealthRaw || []) as unknown as ApiHealthRow[];
+
     // Try to get data from data_ingestion_log for request counts
-    const { data: ingestionLogs } = await client
+    const { data: ingestionLogsRaw } = await client
       .from('data_ingestion_log')
       .select('provider, status, duration_ms, created_at, credits_used, cost_usd')
       .gte('created_at', lookbackDate)
       .order('created_at', { ascending: false });
+
+    const ingestionLogs = (ingestionLogsRaw || []) as unknown as IngestionLogRow[];
 
     // Process provider data from ingestion logs
     const providerMap = new Map<string, {
@@ -111,24 +132,22 @@ export async function GET(request: NextRequest) {
     }>();
 
     // Initialize from known providers in api_health_status
-    if (apiHealth) {
-      for (const health of apiHealth) {
-        const provider = health.provider;
-        if (!providerMap.has(provider)) {
-          providerMap.set(provider, {
-            requests24h: 0,
-            creditsUsed24h: 0,
-            costUsd24h: 0,
-            errors24h: 0,
-            totalLatency: 0,
-            lastRequest: health.last_checked,
-          });
-        }
+    for (const health of apiHealth) {
+      const provider = health.provider;
+      if (!providerMap.has(provider)) {
+        providerMap.set(provider, {
+          requests24h: 0,
+          creditsUsed24h: 0,
+          costUsd24h: 0,
+          errors24h: 0,
+          totalLatency: 0,
+          lastRequest: health.last_checked,
+        });
       }
     }
 
     // Process ingestion logs
-    const logsArray = ingestionLogs || [];
+    const logsArray = ingestionLogs;
     for (const log of logsArray) {
       const provider = log.provider || 'unknown';
       const isRecent = new Date(log.created_at).getTime() > new Date(twentyFourHoursAgo).getTime();
@@ -164,7 +183,7 @@ export async function GET(request: NextRequest) {
 
     // Build provider usage array
     for (const [providerName, data] of providerMap.entries()) {
-      const healthRecord = apiHealth?.find((h: any) => h.provider === providerName);
+      const healthRecord = apiHealth.find(h => h.provider === providerName);
       const errorRate = data.requests24h > 0 ? (data.errors24h / data.requests24h) * 100 : 0;
       const avgLatency = data.requests24h > 0 ? Math.round(data.totalLatency / data.requests24h) : null;
 

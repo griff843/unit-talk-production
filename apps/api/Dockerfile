@@ -33,7 +33,8 @@ FROM base AS development
 COPY package*.json ./
 RUN npm install && npm cache clean --force
 
-# Copy source code and configs (config provided via env vars)
+# Config is mounted at runtime via docker-compose volumes or provided via env vars
+# Copy source code and configs
 COPY . .
 
 # Rebuild native modules for Temporal SDK

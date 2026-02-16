@@ -19,6 +19,7 @@ import * as gradingActivities from './agents/GradingAgent/activities';
 import * as notificationActivities from './agents/NotificationAgent/activities';
 import * as operatorActivities from './agents/OperatorAgent/activities';
 import * as playerEnrichmentActivities from './agents/PlayerEnrichmentAgent/activities';
+import * as recapActivities from './agents/RecapAgent/activities/index';
 import { ErrorHandler } from './utils/errorHandling';
 import { getEnv } from './utils/getEnv';
 import { createLogger } from './utils/logger';
@@ -59,7 +60,8 @@ export default async function startWorker() {
         ...campaignActivities,
         ...contestActivities,
         ...operatorActivities,
-        ...playerEnrichmentActivities
+        ...playerEnrichmentActivities,
+        ...recapActivities
       },
       taskQueue: env.TEMPORAL_TASK_QUEUE,
       // Add worker-specific configuration for stability

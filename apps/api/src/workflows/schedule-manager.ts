@@ -171,6 +171,77 @@ export class SyndicateScheduleManager {
         });
       }
 
+      // ================================================================
+      // RECAP SCHEDULES (UNIFIED-OPS-002)
+      // Only registered when ENABLE_RECAP_SCHEDULES=true (fail-closed)
+      // ================================================================
+      if (process.env.ENABLE_RECAP_SCHEDULES === 'true') {
+        logger.info('📋 Registering recap schedules (ENABLE_RECAP_SCHEDULES=true)...');
+
+        // 8. DAILY RECAP - 9 AM every day
+        await this.createSchedule({
+          scheduleId: 'recap-daily',
+          workflowType: 'dailyRecapWorkflow',
+          args: [],
+          spec: {
+            calendars: [{
+              comment: 'Daily recap at 9 AM',
+              hour: 9,
+              minute: 0
+            }]
+          },
+          policies: {
+            overlap: 'SKIP',
+            catchupWindow: '1m',
+            pauseOnFailure: false
+          }
+        });
+
+        // 9. WEEKLY RECAP - Monday 10 AM
+        await this.createSchedule({
+          scheduleId: 'recap-weekly',
+          workflowType: 'weeklyRecapWorkflow',
+          args: [],
+          spec: {
+            calendars: [{
+              comment: 'Weekly recap on Monday at 10 AM',
+              dayOfWeek: 'MONDAY',
+              hour: 10,
+              minute: 0
+            }]
+          },
+          policies: {
+            overlap: 'SKIP',
+            catchupWindow: '1m',
+            pauseOnFailure: false
+          }
+        });
+
+        // 10. MONTHLY RECAP - 1st of month at 11 AM
+        await this.createSchedule({
+          scheduleId: 'recap-monthly',
+          workflowType: 'monthlyRecapWorkflow',
+          args: [],
+          spec: {
+            calendars: [{
+              comment: 'Monthly recap on 1st at 11 AM',
+              dayOfMonth: 1,
+              hour: 11,
+              minute: 0
+            }]
+          },
+          policies: {
+            overlap: 'SKIP',
+            catchupWindow: '1m',
+            pauseOnFailure: true
+          }
+        });
+
+        logger.info('✅ Recap schedules registered (daily, weekly, monthly)');
+      } else {
+        logger.info('⏭️ Recap schedules SKIPPED (ENABLE_RECAP_SCHEDULES not set to true)');
+      }
+
       logger.info('✅ All syndicate schedules initialized successfully');
 
     } catch (error) {

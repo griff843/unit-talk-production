@@ -79,6 +79,8 @@
     "dev:stop": "docker compose down",
     "dev:logs": "docker compose logs -f",
     "dev:status": "docker compose ps",
+    "recap:daily": "tsx src/scripts/recap/generateRecap.ts --mode=daily",
+    "recap:weekly": "tsx src/scripts/recap/generateRecap.ts --mode=weekly",
     "clean": "rimraf dist"
   },
   "dependencies": {

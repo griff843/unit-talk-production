@@ -278,7 +278,7 @@ class PolicyService {
         return [];
       }
 
-      return (data || []) as DecisionEntry[];
+      return (data || []) as unknown as DecisionEntry[];
     } catch (error) {
       console.error('Error in getDecisions:', error);
       return [];
@@ -321,15 +321,16 @@ class PolicyService {
         };
       }
 
-      const total = data.length;
-      const allow = data.filter(d => d.evaluation_result === 'ALLOW').length;
-      const deny = data.filter(d => d.evaluation_result === 'DENY').length;
-      const shadow = data.filter(d => d.evaluation_result === 'SHADOW_ONLY').length;
-      const executed = data.filter(d => d.executed).length;
+      const rows = data as { action_type: string; mode: string; evaluation_result: string; executed: boolean }[];
+      const total = rows.length;
+      const allow = rows.filter(d => d.evaluation_result === 'ALLOW').length;
+      const deny = rows.filter(d => d.evaluation_result === 'DENY').length;
+      const shadow = rows.filter(d => d.evaluation_result === 'SHADOW_ONLY').length;
+      const executed = rows.filter(d => d.executed).length;
 
       // Group by action type
       const byAction: Record<string, { allow: number; deny: number }> = {};
-      data.forEach(d => {
+      rows.forEach(d => {
         if (!byAction[d.action_type]) {
           byAction[d.action_type] = { allow: 0, deny: 0 };
         }
@@ -342,7 +343,7 @@ class PolicyService {
 
       // Group by mode
       const byMode: Record<string, number> = {};
-      data.forEach(d => {
+      rows.forEach(d => {
         byMode[d.mode] = (byMode[d.mode] || 0) + 1;
       });
 

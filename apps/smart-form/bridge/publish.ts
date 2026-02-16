@@ -15,55 +15,62 @@ export interface TicketSubmissionEvent {
 /**
  * Publishes a ticket submission event to the bridge outbox for processing
  * by external Bridge worker systems.
- * 
+ *
  * Uses idempotency key (bet_slip_id) to prevent duplicate processing.
  */
 export async function publishTicketSubmitted(eventData: TicketSubmissionEvent): Promise<boolean> {
   try {
     const supabase = supabaseServer();
-    
-    const { error } = await supabase
-      .from('bridge_outbox')
-      .insert({
-        event_type: 'ticket_submitted',
-        payload: eventData,
-        unique_key: eventData.bet_slip_id, // Idempotency key
-        status: 'pending',
-        attempts: 0,
-        max_attempts: 3,
-        next_attempt_at: new Date(Date.now() + 5000), // Try in 5 seconds
-      });
+
+    // Cloud-canonical columns per parity-gate-001 / COLUMN-DRIFT-001
+    const { error } = await supabase.from('bridge_outbox').insert({
+      event_type: 'ticket_submitted',
+      event_data: eventData,
+      bet_slip_id: eventData.bet_slip_id,
+      status: 'pending',
+    });
 
     if (error) {
       // Check if it's a duplicate key error (already exists)
       if (error.code === '23505') {
-        log.info({
-          bet_slip_id: eventData.bet_slip_id,
-        }, 'Ticket submission event already exists (idempotent)');
+        log.info(
+          {
+            bet_slip_id: eventData.bet_slip_id,
+          },
+          'Ticket submission event already exists (idempotent)'
+        );
         return true;
       }
 
-      log.error({
-        error: error.message,
-        code: error.code,
-        bet_slip_id: eventData.bet_slip_id,
-      }, 'Failed to publish ticket submission event');
+      log.error(
+        {
+          error: error.message,
+          code: error.code,
+          bet_slip_id: eventData.bet_slip_id,
+        },
+        'Failed to publish ticket submission event'
+      );
       return false;
     }
 
-    log.info({
-      bet_slip_id: eventData.bet_slip_id,
-      capper_id: eventData.capper_id,
-      selection_count: eventData.selection_count,
-    }, 'Ticket submission event published successfully');
+    log.info(
+      {
+        bet_slip_id: eventData.bet_slip_id,
+        capper_id: eventData.capper_id,
+        selection_count: eventData.selection_count,
+      },
+      'Ticket submission event published successfully'
+    );
 
     return true;
-
   } catch (error) {
-    log.error({
-      error: error instanceof Error ? error.message : 'Unknown error',
-      bet_slip_id: eventData.bet_slip_id,
-    }, 'Error publishing ticket submission event');
+    log.error(
+      {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        bet_slip_id: eventData.bet_slip_id,
+      },
+      'Error publishing ticket submission event'
+    );
     return false;
   }
 }
@@ -72,54 +79,58 @@ export async function publishTicketSubmitted(eventData: TicketSubmissionEvent): 
  * Publishes a ticket status update event to the bridge outbox.
  */
 export async function publishTicketStatusUpdate(
-  betSlipId: string, 
-  status: string, 
+  betSlipId: string,
+  status: string,
   metadata?: Record<string, any>
 ): Promise<boolean> {
   try {
     const supabase = supabaseServer();
-    
+
     const eventData = {
       bet_slip_id: betSlipId,
       status,
       updated_at: new Date().toISOString(),
       ...metadata,
     };
-    
-    const { error } = await supabase
-      .from('bridge_outbox')
-      .insert({
-        event_type: 'ticket_status_updated',
-        payload: eventData,
-        unique_key: `${betSlipId}_status_${status}_${Date.now()}`, // Allow multiple status updates
-        status: 'pending',
-        attempts: 0,
-        max_attempts: 3,
-        next_attempt_at: new Date(Date.now() + 1000), // Try in 1 second
-      });
+
+    // Cloud-canonical columns per parity-gate-001 / COLUMN-DRIFT-001
+    const { error } = await supabase.from('bridge_outbox').insert({
+      event_type: 'ticket_status_updated',
+      event_data: eventData,
+      bet_slip_id: betSlipId,
+      status: 'pending',
+    });
 
     if (error) {
-      log.error({
-        error: error.message,
-        bet_slip_id: betSlipId,
-        status,
-      }, 'Failed to publish ticket status update event');
+      log.error(
+        {
+          error: error.message,
+          bet_slip_id: betSlipId,
+          status,
+        },
+        'Failed to publish ticket status update event'
+      );
       return false;
     }
 
-    log.info({
-      bet_slip_id: betSlipId,
-      status,
-    }, 'Ticket status update event published successfully');
+    log.info(
+      {
+        bet_slip_id: betSlipId,
+        status,
+      },
+      'Ticket status update event published successfully'
+    );
 
     return true;
-
   } catch (error) {
-    log.error({
-      error: error instanceof Error ? error.message : 'Unknown error',
-      bet_slip_id: betSlipId,
-      status,
-    }, 'Error publishing ticket status update event');
+    log.error(
+      {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        bet_slip_id: betSlipId,
+        status,
+      },
+      'Error publishing ticket status update event'
+    );
     return false;
   }
 }
@@ -127,9 +138,11 @@ export async function publishTicketStatusUpdate(
 /**
  * Development/Testing helper to simulate bridge event processing
  */
-export async function simulateBridgeProcessing(betSlipId: string): Promise<{ success: boolean; message: string }> {
+export async function simulateBridgeProcessing(
+  betSlipId: string
+): Promise<{ success: boolean; message: string }> {
   const isDev = process.env.NODE_ENV === 'development';
-  
+
   if (!isDev) {
     return {
       success: false,
@@ -139,16 +152,17 @@ export async function simulateBridgeProcessing(betSlipId: string): Promise<{ suc
 
   try {
     const supabase = supabaseServer();
-    
-    // Mark outbox events as processed
+
+    // Mark outbox events as processed (cloud-canonical columns)
     const { error } = await supabase
       .from('bridge_outbox')
       .update({
         status: 'completed',
         processed_at: new Date().toISOString(),
-        attempts: 1,
+        retry_count: 1,
+        updated_at: new Date().toISOString(),
       })
-      .eq('unique_key', betSlipId)
+      .eq('bet_slip_id', betSlipId)
       .eq('status', 'pending');
 
     if (error) {
@@ -158,15 +172,17 @@ export async function simulateBridgeProcessing(betSlipId: string): Promise<{ suc
       };
     }
 
-    log.info({
-      bet_slip_id: betSlipId,
-    }, 'Bridge processing simulated successfully');
+    log.info(
+      {
+        bet_slip_id: betSlipId,
+      },
+      'Bridge processing simulated successfully'
+    );
 
     return {
       success: true,
       message: 'Bridge processing simulated successfully',
     };
-
   } catch (error) {
     return {
       success: false,

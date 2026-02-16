@@ -177,7 +177,10 @@ app.get('/', (_req, res) => {
       'POST /admin/invalidate-cache',
       'POST /ops/ingest-now',
       'GET /ops/status/:runId',
-      'GET /ops/health'
+      'GET /ops/health',
+      'POST /ops/settle',
+      'GET /ops/unsettled',
+      'POST /ops/recap'
     ]
   });
 });

@@ -208,6 +208,7 @@ export interface TicketLeg {
 export interface SmartTicketFormData {
   // Step 1: Essentials
   capper: string;
+  capper_id?: string; // ACTIVATION-P1-FIXES-001: Store UUID for API submission
   ticket_type: TicketType;
   sport: Sport;
   game_date: string;
@@ -479,6 +480,11 @@ export interface GameSelection {
   line?: string;
   confidence?: number;
   game?: string; // Optional game description
+  // PARITY-GATE-001 Stage 7: Manual entry fields for dual-mode
+  source?: 'api' | 'manual';
+  manual_home_team?: string;
+  manual_away_team?: string;
+  manual_game_date?: string;
 }
 
 // Step validation interface
