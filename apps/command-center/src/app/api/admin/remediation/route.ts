@@ -240,7 +240,7 @@ class RemediationService {
         };
       }
 
-      return data?.config_value || null;
+      return (data?.config_value as Record<string, unknown>) || null;
     } catch (error) {
       console.error('Error in getConfig:', error);
       return null;

@@ -444,7 +444,7 @@ export function RolloutStatusWidget() {
                           </Badge>
                         )}
                         {flag.safe && (
-                          <Shield className="w-4 h-4 text-green-500" title="Safe setting" />
+                          <Shield className="w-4 h-4 text-green-500" />
                         )}
                       </div>
                     </div>

@@ -72,8 +72,8 @@ export async function testSupabaseConnection() {
     console.log('🔍 Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
     console.log('🔍 Supabase Key exists:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
-    // Test basic connection with cappers table
-    const { data, error } = await supabase.from('cappers').select('count').single();
+    // Test basic connection with canonical users table (CAPPER-OS-INTEGRATION-001)
+    const { data, error } = await supabase.from('users').select('count').limit(1).single();
 
     console.log('🔍 Connection test result:', { data, error });
 

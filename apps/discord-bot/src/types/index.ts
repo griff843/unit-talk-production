@@ -380,6 +380,7 @@ export interface GradingFactor {
   weight: number;
   description?: string;
   score?: number;
+  professional_score?: number;
   category?: string;
 }
 

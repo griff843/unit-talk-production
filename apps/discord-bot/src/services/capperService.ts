@@ -25,9 +25,9 @@ export interface CapperStats {
   winRate: number;
   totalUnits: number;
   roi: number;
-  currentStreak: number;
-  bestStreak: number;
-  worstStreak: number;
+  currentStreak: number | string;
+  bestStreak: number | string;
+  worstStreak: number | string;
 }
 
 export interface CapperWithStats extends CappersRow {
@@ -293,6 +293,8 @@ export class CapperService {
 
   /**
    * Get capper statistics
+   * CAPPER-OS-INTEGRATION-001: Uses canonical users table + analytics views
+   * instead of deprecated cappers table.
    */
   async getCapperStats(capperId: string): Promise<CapperStats | null> {
     const cacheKey = this.getCacheKey('getCapperStats', { capperId });
@@ -301,27 +303,62 @@ export class CapperService {
 
     try {
       this.performanceMetrics.queryCount++;
+
+      // Verify capper exists in canonical users table
       const capper = await databaseService.client
-        .from('cappers')
-        .select('*')
+        .from('users')
+        .select('id, username, role, active')
         .eq('id', capperId)
+        .eq('role', 'capper')
         .single();
 
       if (capper.error || !capper.data) {
         return null;
       }
 
+      // Fetch rolling stats from analytics view (10-day window)
+      const { data: rollup } = await databaseService.client
+        .from('mv_capper_daily_rollup')
+        .select('picks, wins, losses, pushes, units_wagered, units_profit, roi')
+        .eq('capper_id', capperId);
+
+      // Aggregate totals from daily rollup rows
+      let totalPicks = 0, wins = 0, losses = 0, pushes = 0, totalUnits = 0, roi = 0;
+      if (rollup && rollup.length > 0) {
+        for (const row of rollup) {
+          totalPicks += row.picks || 0;
+          wins += row.wins || 0;
+          losses += row.losses || 0;
+          pushes += row.pushes || 0;
+          totalUnits += Number(row.units_profit) || 0;
+        }
+        const wagered = rollup.reduce((s, r) => s + (Number(r.units_wagered) || 0), 0);
+        roi = wagered > 0 ? Number(((totalUnits / wagered) * 100).toFixed(2)) : 0;
+      }
+
+      // Fetch streak from analytics view
+      const { data: streak } = await databaseService.client
+        .from('v_capper_streaks')
+        .select('current_streak_type, current_streak_len')
+        .eq('capper_id', capperId)
+        .limit(1)
+        .maybeSingle();
+
+      const currentStreak = streak
+        ? `${streak.current_streak_len}${streak.current_streak_type?.[0]?.toUpperCase() || ''}`
+        : '0';
+
       const stats: CapperStats = {
-        totalPicks: capper.data.total_picks,
-        wins: capper.data.wins,
-        losses: capper.data.losses,
-        pushes: capper.data.pushes,
-        winRate: capper.data.win_rate,
-        totalUnits: capper.data.total_units,
-        roi: capper.data.roi,
-        currentStreak: capper.data.current_streak,
-        bestStreak: capper.data.best_streak,
-        worstStreak: capper.data.worst_streak,
+        totalPicks,
+        wins,
+        losses,
+        pushes,
+        winRate: totalPicks > 0 ? Number(((wins / totalPicks) * 100).toFixed(1)) : 0,
+        totalUnits,
+        roi,
+        currentStreak,
+        bestStreak: currentStreak,
+        worstStreak: '0',
       };
 
       this.setCache(cacheKey, stats);

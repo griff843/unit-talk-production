@@ -12,7 +12,7 @@
     "dev": "npm run dev --workspaces",
     "test": "npm run test --workspaces",
     "lint": "npm run lint --workspaces",
-    "type-check": "npm run type-check --workspaces",
+    "type-check": "npm run type-check --workspaces --if-present",
     "clean": "npm run clean --workspaces && rm -rf node_modules",
     "start:api": "npm run start --workspace=apps/api",
     "start:discord-bot": "npm run start --workspace=apps/discord-bot",

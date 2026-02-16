@@ -178,7 +178,15 @@ class AutopilotIntelligenceService {
         }
       >();
 
-      for (const row of data || []) {
+      for (const rawRow of data || []) {
+        const row = rawRow as {
+          agent_name: string;
+          total_settled: number;
+          wins: number;
+          losses: number;
+          true_accuracy_rate: number | null;
+          approved_accuracy_rate: number | null;
+        };
         const existing = agentMap.get(row.agent_name) || {
           agent_name: row.agent_name,
           total_settled: 0,

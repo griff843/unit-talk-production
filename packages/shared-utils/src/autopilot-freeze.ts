@@ -107,9 +107,10 @@ export function getAutopilotState(): AutopilotFreezeState {
     if (fs.existsSync(STATE_FILE)) {
       const content = fs.readFileSync(STATE_FILE, 'utf-8');
       const parsed = JSON.parse(content);
-      cachedState = { ...DEFAULT_STATE, ...parsed };
+      const state: AutopilotFreezeState = { ...DEFAULT_STATE, ...parsed };
+      cachedState = state;
       lastReadTime = now;
-      return cachedState;
+      return state;
     }
   } catch {
     // Silently fall back to default state

@@ -1,10 +1,15 @@
+/* eslint-disable max-lines */
 /**
  * Professional-Grade Devigging Service
  * Removes bookmaker margin (vig/juice) from all odds sources
  * This is THE fundamental requirement for sharp betting systems
- * 
+ *
+ * Phase 4 Enhancement: Book-specific vig patterns and favorite-longshot bias correction
+ *
  * @module DeviggingService
  */
+
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 export interface DeviggingResult {
   trueProb: number;          // True probability after vig removal
@@ -23,20 +28,298 @@ export interface MultiWayMarket {
   odds: number[]; // Array of American odds for all outcomes
 }
 
+export interface BookVigPattern {
+  sportsbookId: string;
+  sport: string;
+  marketType: string;
+  avgVig: number;
+  favoriteOverround: number;
+  longshotOverround: number;
+  flbCoefficient: number; // Favorite-longshot bias coefficient
+  recommendedMethod: 'multiplicative' | 'additive' | 'power' | 'shin' | 'wpo';
+}
+
+export interface BookContextDeviggingParams {
+  overOdds: number;
+  underOdds: number;
+  sportsbook: string;
+  sport: string;
+  marketType?: string;
+}
+
 /**
  * Professional devigging service implementing multiple methods
  * Used by all sharp betting services (Unabated, OddsJam, etc.)
+ *
+ * Phase 4 Enhancement: Supports book-specific vig patterns and FLB correction
  */
 export class DeviggingService {
   private static instance: DeviggingService;
+  private supabase: SupabaseClient | null = null;
 
-  private constructor() {}
+  // Cache for book vig patterns (refresh every 15 minutes)
+  private vigPatternCache: Map<string, { pattern: BookVigPattern; cachedAt: number }> = new Map();
+  private readonly VIG_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+
+  // Default vig patterns by book type
+  private readonly DEFAULT_VIG_PATTERNS: Record<string, Partial<BookVigPattern>> = {
+    // Sharp books - low vig, minimal FLB
+    pinnacle: { avgVig: 0.025, favoriteOverround: 0.001, longshotOverround: 0.001, flbCoefficient: 0.01, recommendedMethod: 'multiplicative' },
+    circa: { avgVig: 0.035, favoriteOverround: 0.002, longshotOverround: 0.002, flbCoefficient: 0.015, recommendedMethod: 'multiplicative' },
+    bookmaker: { avgVig: 0.030, favoriteOverround: 0.002, longshotOverround: 0.002, flbCoefficient: 0.015, recommendedMethod: 'multiplicative' },
+    superbook: { avgVig: 0.035, favoriteOverround: 0.003, longshotOverround: 0.003, flbCoefficient: 0.02, recommendedMethod: 'multiplicative' },
+
+    // Soft books - higher vig, more FLB
+    draftkings: { avgVig: 0.0455, favoriteOverround: 0.015, longshotOverround: 0.020, flbCoefficient: 0.05, recommendedMethod: 'power' },
+    fanduel: { avgVig: 0.0455, favoriteOverround: 0.015, longshotOverround: 0.020, flbCoefficient: 0.05, recommendedMethod: 'power' },
+    betmgm: { avgVig: 0.0455, favoriteOverround: 0.018, longshotOverround: 0.025, flbCoefficient: 0.06, recommendedMethod: 'power' },
+    caesars: { avgVig: 0.0455, favoriteOverround: 0.015, longshotOverround: 0.020, flbCoefficient: 0.05, recommendedMethod: 'power' },
+    pointsbet: { avgVig: 0.050, favoriteOverround: 0.020, longshotOverround: 0.025, flbCoefficient: 0.06, recommendedMethod: 'power' },
+    bovada: { avgVig: 0.050, favoriteOverround: 0.020, longshotOverround: 0.030, flbCoefficient: 0.07, recommendedMethod: 'power' },
+
+    // Default for unknown books
+    default: { avgVig: 0.0455, favoriteOverround: 0.015, longshotOverround: 0.020, flbCoefficient: 0.05, recommendedMethod: 'power' },
+  };
+
+  private constructor() {
+    // Initialize Supabase client if credentials available
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+    if (supabaseUrl && supabaseKey) {
+      this.supabase = createClient(supabaseUrl, supabaseKey);
+    }
+  }
 
   public static getInstance(): DeviggingService {
     if (!DeviggingService.instance) {
       DeviggingService.instance = new DeviggingService();
     }
     return DeviggingService.instance;
+  }
+
+  /**
+   * Devig with book-specific adjustments (Phase 4)
+   * Uses book-specific vig patterns and favorite-longshot bias correction
+   */
+  public async devigWithBookContext(params: BookContextDeviggingParams): Promise<{
+    outcome1: DeviggingResult;
+    outcome2: DeviggingResult;
+    totalVig: number;
+    deviggedEdge?: number;
+    bookPattern?: BookVigPattern;
+  }> {
+    // Get book-specific vig pattern
+    const vigPattern = await this.getBookVigPattern(
+      params.sportsbook,
+      params.sport,
+      params.marketType || 'player_props'
+    );
+
+    // Apply book-specific devigging based on FLB characteristics
+    if (vigPattern.flbCoefficient > 0.03) {
+      // Significant FLB - use power method with correction
+      return this.devigWithFLBCorrection(params, vigPattern);
+    }
+
+    // Low FLB (sharp books) - use standard multiplicative
+    // Filter method to supported types (shin/wpo fall back to power)
+    const method = ['multiplicative', 'additive', 'power'].includes(vigPattern.recommendedMethod)
+      ? (vigPattern.recommendedMethod as 'multiplicative' | 'additive' | 'power')
+      : 'power';
+    const result = this.devigTwoWay(
+      { odds1: params.overOdds, odds2: params.underOdds },
+      method
+    );
+
+    return {
+      ...result,
+      bookPattern: vigPattern,
+    };
+  }
+
+  /**
+   * Devig with favorite-longshot bias correction
+   * More accurate for soft books with significant FLB
+   */
+  // eslint-disable-next-line max-lines-per-function
+  private devigWithFLBCorrection(
+    params: BookContextDeviggingParams,
+    vigPattern: BookVigPattern
+  ): {
+    outcome1: DeviggingResult;
+    outcome2: DeviggingResult;
+    totalVig: number;
+    deviggedEdge?: number;
+    bookPattern?: BookVigPattern;
+  } {
+    const prob1 = this.americanToImpliedProb(params.overOdds);
+    const prob2 = this.americanToImpliedProb(params.underOdds);
+    const totalImplied = prob1 + prob2;
+    const vig = totalImplied - 1;
+
+    // Determine which is the favorite (higher implied probability)
+    const isFavorite1 = prob1 > prob2;
+
+    // Calculate FLB-adjusted vig distribution
+    // Favorites have more vig added, longshots have less
+    const flbFactor = vigPattern.flbCoefficient;
+    let vigAllocation1: number;
+    let vigAllocation2: number;
+
+    if (isFavorite1) {
+      // Outcome 1 is favorite - gets more vig
+      vigAllocation1 = (vig / 2) * (1 + flbFactor);
+      vigAllocation2 = (vig / 2) * (1 - flbFactor);
+    } else {
+      // Outcome 2 is favorite - gets more vig
+      vigAllocation1 = (vig / 2) * (1 - flbFactor);
+      vigAllocation2 = (vig / 2) * (1 + flbFactor);
+    }
+
+    // Apply FLB-adjusted devigging
+    let trueProb1 = prob1 - vigAllocation1;
+    let trueProb2 = prob2 - vigAllocation2;
+
+    // Ensure probabilities sum to 1 and are valid
+    const sum = trueProb1 + trueProb2;
+    trueProb1 = trueProb1 / sum;
+    trueProb2 = trueProb2 / sum;
+
+    // Clamp to valid range
+    trueProb1 = Math.max(0.01, Math.min(0.99, trueProb1));
+    trueProb2 = Math.max(0.01, Math.min(0.99, trueProb2));
+
+    return {
+      outcome1: {
+        trueProb: trueProb1,
+        fairOdds: this.probToAmericanOdds(trueProb1),
+        totalVig: vig * 100,
+        edge: 0,
+        impliedProbability: prob1
+      },
+      outcome2: {
+        trueProb: trueProb2,
+        fairOdds: this.probToAmericanOdds(trueProb2),
+        totalVig: vig * 100,
+        edge: 0,
+        impliedProbability: prob2
+      },
+      totalVig: vig * 100,
+      deviggedEdge: Math.max(0, trueProb1 - 0.5),
+      bookPattern: vigPattern,
+    };
+  }
+
+  /**
+   * Pinnacle-specific devigging (most accurate)
+   * Pinnacle has lowest vig (~2.5%) and minimal FLB
+   */
+  public devigPinnacle(overOdds: number, underOdds: number): {
+    trueOverProb: number;
+    trueUnderProb: number;
+    vig: number;
+  } {
+    const prob1 = this.americanToImpliedProb(overOdds);
+    const prob2 = this.americanToImpliedProb(underOdds);
+    const totalImplied = prob1 + prob2;
+    const vig = totalImplied - 1;
+
+    // Pinnacle has minimal FLB, use pure multiplicative
+    const trueOverProb = prob1 / totalImplied;
+    const trueUnderProb = prob2 / totalImplied;
+
+    return {
+      trueOverProb,
+      trueUnderProb,
+      vig,
+    };
+  }
+
+  /**
+   * Get book-specific vig pattern
+   * Checks database first, falls back to defaults
+   */
+  public async getBookVigPattern(
+    sportsbookId: string,
+    sport: string,
+    marketType: string = 'player_props'
+  ): Promise<BookVigPattern> {
+    const cacheKey = `${sportsbookId}:${sport}:${marketType}`;
+    const cached = this.vigPatternCache.get(cacheKey);
+
+    // Return cached if still valid
+    if (cached && Date.now() - cached.cachedAt < this.VIG_CACHE_TTL) {
+      return cached.pattern;
+    }
+
+    // Try to fetch from database
+    if (this.supabase) {
+      try {
+        const { data } = await this.supabase
+          .from('book_vig_analysis')
+          .select('*')
+          .eq('sportsbook_id', sportsbookId.toLowerCase())
+          .eq('sport', sport)
+          .eq('market_type', marketType)
+          .order('calculated_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (data) {
+          const pattern: BookVigPattern = {
+            sportsbookId: data.sportsbook_id,
+            sport: data.sport,
+            marketType: data.market_type,
+            avgVig: data.avg_vig,
+            favoriteOverround: data.favorite_overround || 0,
+            longshotOverround: data.longshot_overround || 0,
+            flbCoefficient: data.flb_coefficient || 0,
+            recommendedMethod: data.recommended_method || 'multiplicative',
+          };
+
+          this.vigPatternCache.set(cacheKey, { pattern, cachedAt: Date.now() });
+          return pattern;
+        }
+      } catch {
+        // Fall through to default
+      }
+    }
+
+    // Use default pattern
+    const defaultPattern = this.getDefaultVigPatternSync(sportsbookId, sport, marketType);
+    this.vigPatternCache.set(cacheKey, { pattern: defaultPattern, cachedAt: Date.now() });
+    return defaultPattern;
+  }
+
+  /**
+   * Get default vig pattern synchronously
+   */
+  private getDefaultVigPatternSync(
+    sportsbookId: string,
+    sport: string,
+    marketType: string
+  ): BookVigPattern {
+    const bookKey = sportsbookId.toLowerCase();
+    const defaultConfig = this.DEFAULT_VIG_PATTERNS[bookKey] || this.DEFAULT_VIG_PATTERNS.default;
+
+    return {
+      sportsbookId: bookKey,
+      sport,
+      marketType,
+      avgVig: defaultConfig.avgVig || 0.0455,
+      favoriteOverround: defaultConfig.favoriteOverround || 0.015,
+      longshotOverround: defaultConfig.longshotOverround || 0.020,
+      flbCoefficient: defaultConfig.flbCoefficient || 0.05,
+      recommendedMethod: defaultConfig.recommendedMethod || 'multiplicative',
+    };
+  }
+
+  /**
+   * Clear vig pattern cache
+   */
+  public clearVigPatternCache(): void {
+    this.vigPatternCache.clear();
   }
 
   /**
@@ -80,25 +363,28 @@ export class DeviggingService {
     let trueProb2: number;
 
     switch (method) {
-      case 'multiplicative':
+      case 'multiplicative': {
         // Most common method - proportionally reduce probabilities
         trueProb1 = prob1 / totalImplied;
         trueProb2 = prob2 / totalImplied;
         break;
+      }
 
-      case 'additive':
+      case 'additive': {
         // Alternative method - subtract vig equally
         const vigPerOutcome = vig / 2;
         trueProb1 = prob1 - vigPerOutcome;
         trueProb2 = prob2 - vigPerOutcome;
         break;
+      }
 
-      case 'power':
+      case 'power': {
         // Advanced method - uses power function (more accurate for favorites)
         const k = Math.log(totalImplied) / Math.log(2);
         trueProb1 = Math.pow(prob1, 1/k) / (Math.pow(prob1, 1/k) + Math.pow(prob2, 1/k));
         trueProb2 = 1 - trueProb1;
         break;
+      }
     }
 
     return {
@@ -181,7 +467,7 @@ export class DeviggingService {
     });
   }
 
-  private shinFunction(z: number, probs: number[], totalImplied: number): number {
+  private shinFunction(z: number, probs: number[], _totalImplied: number): number {
     const sum = probs.reduce((acc, p) => {
       const discriminant = Math.pow(z, 2) + 4 * (1 - z) * p;
       return acc + (Math.sqrt(discriminant) - z) / (2 * (1 - z));

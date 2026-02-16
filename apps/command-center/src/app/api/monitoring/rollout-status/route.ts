@@ -104,7 +104,8 @@ class RolloutStatusService {
       const flags: FeatureFlag[] = [];
 
       // Map config to feature flags
-      for (const row of data || []) {
+      for (const rawRow of data || []) {
+        const row = rawRow as { config_key: string; config_value: unknown; description: string | null };
         const flag = this.mapConfigToFeatureFlag(row);
         if (flag) {
           flags.push(flag);
@@ -189,14 +190,17 @@ class RolloutStatusService {
         }];
       }
 
-      return data.map(row => ({
-        id: `notification_${row.destination}`,
-        name: `${row.destination.charAt(0).toUpperCase() + row.destination.slice(1)} Notifications`,
-        description: `Send alerts to ${row.destination}`,
-        enabled: row.enabled || false,
-        safe: true, // Notifications are safe either way
-        category: 'notification' as const,
-      }));
+      return data.map(rawRow => {
+        const row = rawRow as { environment: string; destination: string; enabled: boolean };
+        return {
+          id: `notification_${row.destination}`,
+          name: `${row.destination.charAt(0).toUpperCase() + row.destination.slice(1)} Notifications`,
+          description: `Send alerts to ${row.destination}`,
+          enabled: row.enabled || false,
+          safe: true, // Notifications are safe either way
+          category: 'notification' as const,
+        };
+      });
     } catch {
       return [];
     }
@@ -234,7 +238,7 @@ class RolloutStatusService {
         .order('evaluated_at', { ascending: false })
         .limit(1)
         .single();
-      return data?.evaluated_at || null;
+      return (data?.evaluated_at as string) || null;
     } catch {
       return null;
     }
@@ -248,7 +252,7 @@ class RolloutStatusService {
         .order('opened_at', { ascending: false })
         .limit(1)
         .single();
-      return data?.opened_at || null;
+      return (data?.opened_at as string) || null;
     } catch {
       return null;
     }
@@ -262,7 +266,7 @@ class RolloutStatusService {
         .order('sent_at', { ascending: false })
         .limit(1)
         .single();
-      return data?.sent_at || null;
+      return (data?.sent_at as string) || null;
     } catch {
       return null;
     }
@@ -276,7 +280,7 @@ class RolloutStatusService {
         .order('completed_at', { ascending: false })
         .limit(1)
         .single();
-      return data?.completed_at || null;
+      return (data?.completed_at as string) || null;
     } catch {
       return null;
     }
@@ -297,14 +301,24 @@ class RolloutStatusService {
         return [];
       }
 
-      return (data || []).map(row => ({
-        playbook_id: row.playbook_id,
-        name: row.name,
-        execution_type: row.execution_type as 'EXECUTABLE' | 'RECOMMENDATION_ONLY',
-        enabled: row.enabled || false,
-        dry_run_only: row.dry_run_only !== false, // Default true
-        requires_approval: row.requires_approval !== false, // Default true
-      }));
+      return (data || []).map(rawRow => {
+        const row = rawRow as {
+          playbook_id: string;
+          name: string;
+          execution_type: string;
+          enabled: boolean;
+          dry_run_only: boolean;
+          requires_approval: boolean;
+        };
+        return {
+          playbook_id: row.playbook_id,
+          name: row.name,
+          execution_type: row.execution_type as 'EXECUTABLE' | 'RECOMMENDATION_ONLY',
+          enabled: row.enabled || false,
+          dry_run_only: row.dry_run_only !== false, // Default true
+          requires_approval: row.requires_approval !== false, // Default true
+        };
+      });
     } catch (error) {
       console.error('Error in getPlaybooks:', error);
       return [];

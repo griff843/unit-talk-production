@@ -1,13 +1,13 @@
 /**
  * Production Agent Orchestration Starter
- * 
+ *
  * Starts the core 5 agents for real-time production market processing:
  * - GradingAgent: Real-time prop grading and scoring
- * - FeedAgent: Live market data ingestion 
+ * - FeedAgent: Live market data ingestion
  * - AlertAgent: Real-time Discord notifications
  * - RecapAgent: Daily/weekly performance summaries
  * - NotificationAgent: User alerts and updates
- * 
+ *
  * Usage: npx tsx src/runner/startProductionAgents.ts
  */
 
@@ -16,11 +16,11 @@ import { FeedAgent } from '../agents/FeedAgent';
 import { GradingAgent } from '../agents/GradingAgent';
 import { NotificationAgent } from '../agents/NotificationAgent';
 import { RecapAgent } from '../agents/RecapAgent';
+import { SettlementAgent } from '../agents/SettlementAgent';
 import { supabase } from '../services/supabaseClient';
 import { createLogger } from '../utils/logger';
 
 import type { BaseAgentConfig, BaseAgentDependencies } from '../agents/BaseAgent/types';
-
 
 const logger = createLogger('ProductionAgentOrchestration');
 
@@ -43,7 +43,7 @@ class ProductionAgentOrchestrator {
   private setupGracefulShutdown(): void {
     process.on('SIGINT', () => this.shutdown('SIGINT'));
     process.on('SIGTERM', () => this.shutdown('SIGTERM'));
-    process.on('uncaughtException', (error) => {
+    process.on('uncaughtException', error => {
       logger.error('Uncaught exception', error);
       this.shutdown('uncaughtException');
     });
@@ -88,29 +88,28 @@ class ProductionAgentOrchestrator {
   async startAgent(agentName: string, AgentClass: any): Promise<void> {
     try {
       logger.info(`🚀 Starting ${agentName}...`);
-      
+
       const config = this.createAgentConfig(agentName);
       const dependencies = this.createAgentDependencies();
-      
+
       const agentInstance = new AgentClass(config, dependencies);
-      
+
       const agentData: AgentInstance = {
         name: agentName,
         agent: agentInstance,
         status: 'starting',
         startTime: Date.now(),
       };
-      
+
       this.agents.set(agentName, agentData);
-      
+
       // Start the agent (if it has a start method)
       if (typeof agentInstance.start === 'function') {
         await agentInstance.start();
       }
-      
+
       agentData.status = 'running';
       logger.info(`✅ ${agentName} started successfully`);
-      
     } catch (error) {
       logger.error(`❌ Failed to start ${agentName}`, error);
       const agentData = this.agents.get(agentName);
@@ -126,15 +125,36 @@ class ProductionAgentOrchestrator {
     console.log('\n' + '='.repeat(80));
     console.log('🚀 PRODUCTION AGENT ORCHESTRATION STARTUP');
     console.log('='.repeat(80));
-    console.log('🎯 Starting 5 core agents for real-time market processing...\n');
+    const settlementEnabled = process.env.SETTLEMENT_AGENT_ENABLED === 'true';
+    const agentCount = settlementEnabled ? 6 : 5;
+    console.log(`🎯 Starting ${agentCount} core agents for real-time market processing...\n`);
 
-    const agentConfigs = [
-      { name: 'GradingAgent', class: GradingAgent, description: 'Real-time prop grading and scoring' },
+    const agentConfigs: Array<{ name: string; class: any; description: string }> = [
+      {
+        name: 'GradingAgent',
+        class: GradingAgent,
+        description: 'Real-time prop grading and scoring',
+      },
       { name: 'FeedAgent', class: FeedAgent, description: 'Live market data ingestion' },
       { name: 'AlertAgent', class: AlertAgent, description: 'Real-time Discord notifications' },
       { name: 'RecapAgent', class: RecapAgent, description: 'Daily/weekly performance summaries' },
-      { name: 'NotificationAgent', class: NotificationAgent, description: 'User alerts and updates' },
+      {
+        name: 'NotificationAgent',
+        class: NotificationAgent,
+        description: 'User alerts and updates',
+      },
     ];
+
+    // SettlementAgent: opt-in via SETTLEMENT_AGENT_ENABLED=true
+    if (settlementEnabled) {
+      agentConfigs.push({
+        name: 'SettlementAgent',
+        class: SettlementAgent,
+        description: 'Automated settlement processing and outcome tracking',
+      });
+    } else {
+      console.log('ℹ️  SettlementAgent disabled (set SETTLEMENT_AGENT_ENABLED=true to activate)\n');
+    }
 
     // Start agents sequentially with health checks
     for (const { name, class: AgentClass, description } of agentConfigs) {
@@ -142,10 +162,9 @@ class ProductionAgentOrchestrator {
         console.log(`🔄 ${name}: ${description}`);
         await this.startAgent(name, AgentClass);
         console.log(`✅ ${name}: Online and operational\n`);
-        
+
         // Small delay between agents
         await new Promise(resolve => setTimeout(resolve, 1000));
-        
       } catch (error) {
         console.error(`❌ ${name}: Failed to start -`, error);
         // Continue with other agents even if one fails
@@ -161,41 +180,48 @@ class ProductionAgentOrchestrator {
     console.log('='.repeat(80));
     console.log('📊 PRODUCTION AGENT STATUS');
     console.log('='.repeat(80));
-    
+
     for (const [name, instance] of this.agents) {
-      const status = instance.status === 'running' ? '✅ RUNNING' : 
-                    instance.status === 'error' ? '❌ ERROR' : 
-                    instance.status === 'starting' ? '🔄 STARTING' : '⏹️ STOPPED';
-      
+      const status =
+        instance.status === 'running'
+          ? '✅ RUNNING'
+          : instance.status === 'error'
+            ? '❌ ERROR'
+            : instance.status === 'starting'
+              ? '🔄 STARTING'
+              : '⏹️ STOPPED';
+
       const uptime = instance.startTime ? Math.floor((Date.now() - instance.startTime) / 1000) : 0;
-      
+
       console.log(`${status} ${name.padEnd(20)} | Uptime: ${uptime}s`);
-      
+
       if (instance.error) {
         console.log(`   Error: ${instance.error.message}`);
       }
     }
-    
-    const runningCount = Array.from(this.agents.values()).filter(a => a.status === 'running').length;
+
+    const runningCount = Array.from(this.agents.values()).filter(
+      a => a.status === 'running'
+    ).length;
     console.log('='.repeat(80));
     console.log(`🎯 Operational Agents: ${runningCount}/${this.agents.size}`);
-    
+
     if (runningCount === this.agents.size) {
       console.log('🎉 ALL AGENTS OPERATIONAL - PRODUCTION READY!');
     } else {
       console.log('⚠️  Some agents are not running - check logs for details');
     }
-    
+
     console.log('='.repeat(80) + '\n');
   }
 
   startHealthMonitoring(): void {
     logger.info('🏥 Starting agent health monitoring...');
-    
+
     setInterval(() => {
       this.performHealthChecks();
     }, 30000); // Health check every 30 seconds
-    
+
     // Status report every 5 minutes
     setInterval(() => {
       this.showStatus();
@@ -204,21 +230,21 @@ class ProductionAgentOrchestrator {
 
   private async performHealthChecks(): Promise<void> {
     for (const [name, instance] of this.agents) {
-      if (instance.status === 'running' && instance.agent) {
-        try {
-          // Perform health check if the agent supports it
-          if (typeof instance.agent.healthCheck === 'function') {
-            const isHealthy = await instance.agent.healthCheck();
-            if (!isHealthy) {
-              logger.warn(`⚠️ ${name} health check failed`);
-              instance.status = 'error';
-            }
+      if (instance.status !== 'running' || !instance.agent) continue;
+
+      try {
+        // Perform health check if the agent supports it
+        if (typeof instance.agent.healthCheck === 'function') {
+          const isHealthy = await instance.agent.healthCheck();
+          if (!isHealthy) {
+            logger.warn(`⚠️ ${name} health check failed`);
+            instance.status = 'error';
           }
-        } catch (error) {
-          logger.error(`❌ ${name} health check error`, error);
-          instance.status = 'error';
-          instance.error = error as Error;
         }
+      } catch (error) {
+        logger.error(`❌ ${name} health check error`, error);
+        instance.status = 'error';
+        instance.error = error as Error;
       }
     }
   }
@@ -226,24 +252,23 @@ class ProductionAgentOrchestrator {
   async shutdown(reason: string): Promise<void> {
     console.log(`\n🛑 Shutting down production agents (${reason})...`);
     this.isRunning = false;
-    
+
     // Stop all agents
     for (const [name, instance] of this.agents) {
       try {
         console.log(`⏹️ Stopping ${name}...`);
-        
+
         if (instance.agent && typeof instance.agent.stop === 'function') {
           await instance.agent.stop();
         }
-        
+
         instance.status = 'stopped';
         console.log(`✅ ${name} stopped`);
-        
       } catch (error) {
         console.error(`❌ Error stopping ${name}:`, error);
       }
     }
-    
+
     console.log('🎯 All agents stopped. Production orchestration terminated.');
     process.exit(0);
   }
@@ -266,17 +291,16 @@ async function main() {
   try {
     const orchestrator = new ProductionAgentOrchestrator();
     await orchestrator.startAllAgents();
-    
+
     // Keep the process running
     console.log('🔄 Production agent orchestration is running...');
     console.log('💡 Press Ctrl+C to gracefully shutdown all agents\n');
-    
+
     // Keep alive
     const keepAlive = () => {
       setTimeout(keepAlive, 60000); // Check every minute
     };
     keepAlive();
-    
   } catch (error) {
     console.error('❌ Production agent orchestration failed:', error);
     logger.error('Orchestration startup failed', error);

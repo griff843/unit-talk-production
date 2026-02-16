@@ -51,6 +51,41 @@ function formatOdds(odds: number): string {
   return odds.toString();
 }
 
+function getMatchupFromPick(pick: UnifiedPick): string | null {
+  if (pick.matchup) return pick.matchup;
+  const meta = (pick as any).meta || {};
+  if (meta.matchup) return meta.matchup;
+  if ((pick as any).manual_fields_blob?.matchup) return (pick as any).manual_fields_blob.matchup;
+  return null;
+}
+
+function formatGameTime(pick: UnifiedPick): string | null {
+  const gameTime = (pick as any).game_time || (pick as any).game_date || ((pick as any).meta as any)?.game_time;
+  if (!gameTime) return null;
+
+  try {
+    const date = new Date(gameTime);
+    const month = date.toLocaleString('en-US', { month: 'short' });
+    const day = date.getDate();
+    const year = date.getFullYear();
+    const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
+    return `(${month} ${day}, ${year}, ${time})`;
+  } catch {
+    return null;
+  }
+}
+
+function getMarketTypeLabel(pick: UnifiedPick): string {
+  const statType = String(pick.stat_type || '').toLowerCase();
+  const marketType = String(pick.market_type || '').toLowerCase();
+
+  if (statType.includes('points') || marketType.includes('total')) return 'Total Points';
+  if (statType.includes('moneyline') || marketType.includes('ml')) return 'Money Line';
+  if (statType.includes('spread') || marketType.includes('spread')) return 'Spread';
+  if (statType) return statType.charAt(0).toUpperCase() + statType.slice(1).replace(/_/g, ' ');
+  return 'Player Prop';
+}
+
 
 function formatAdvice(advice: string): string {
   // Extract recommendation and reasoning
@@ -64,11 +99,12 @@ function formatAdvice(advice: string): string {
   return advice;
 }
 
+// eslint-disable-next-line max-lines-per-function, complexity
 export function buildAlertEmbed(pick: UnifiedPick, advice: string, playerImageUrl?: string): EmbedBuilder {
   const priority = getAlertPriority(pick);
   const isLive = pick.market_type === 'live';
   const pickTypeEmoji = getPickTypeEmoji(pick.market_type || 'pregame', isLive);
-  const systemGradeEmoji = getSystemGradeEmoji(pick.tier);
+  const _systemGradeEmoji = getSystemGradeEmoji(pick.tier);
   
   // Standardized title format
   const pickType = 'SINGLE'; // Default since ticket_type is not in interface
@@ -89,26 +125,46 @@ export function buildAlertEmbed(pick: UnifiedPick, advice: string, playerImageUr
     embed.setThumbnail(headshotUrl);
   }
 
-  // Header info: Capper • League
-  const headerInfo = `**${pick.capper || 'System'}** • Unknown League`;
+  // Build context line: Sport • Matchup • (Date, Time)
+  const sport = (pick as any).sport || (pick as any).league || 'Sports';
+  const matchup = getMatchupFromPick(pick);
+  const gameTime = formatGameTime(pick);
+  const marketType = getMarketTypeLabel(pick);
+  const contextParts = [sport];
+  if (matchup) contextParts.push(matchup);
+  if (gameTime) contextParts.push(gameTime);
+  const contextLine = contextParts.join(' • ');
+
+  // Header info: Capper
+  const headerInfo = `**${pick.capper || 'System'}** • ${contextLine}`;
   embed.setDescription(headerInfo);
 
-  // Main pick details - standardized format
+  // Main pick details - standardized format per PICK_PRESENTATION_STANDARD
   embed.addFields(
-    { 
-      name: '🎯 Selection', 
-      value: `**${pick.player_name || 'Unknown Player'}**${pick.outcome ? `\n${pick.outcome}` : ''}`, 
-      inline: false 
+    {
+      name: 'Selection',
+      value: `**${pick.player_name || 'Unknown Player'}**${pick.outcome ? `\n${pick.outcome}` : ''}`,
+      inline: false
     },
-    { 
-      name: `${systemGradeEmoji} System Grade • 🎯 Units`, 
-      value: `**${pick.tier}**-tier • **${pick.units || 1}** ${(pick.units || 1) === 1 ? 'unit' : 'units'}`, 
-      inline: true 
+    {
+      name: 'Odds',
+      value: `${formatOdds(pick.odds || 0)}`,
+      inline: true
     },
-    { 
-      name: '📈 Line & Odds', 
-      value: `**${pick.line || 'N/A'}** @ **${formatOdds(pick.odds || 0)}**`, 
-      inline: true 
+    {
+      name: 'Market',
+      value: marketType,
+      inline: true
+    },
+    {
+      name: 'Units',
+      value: `${pick.units || 1}U`,
+      inline: true
+    },
+    {
+      name: 'Tier',
+      value: `${pick.tier}-Tier`,
+      inline: true
     }
   );
 
@@ -129,9 +185,8 @@ export function buildAlertEmbed(pick: UnifiedPick, advice: string, playerImageUr
   });
 
   // Footer with branding
-  embed.setFooter({ 
-    text: 'Unit Talk Intelligence System • Fortune 100 Analytics',
-    iconURL: 'https://i.imgur.com/unit-talk-logo.png' // You can add logo URL here
+  embed.setFooter({
+    text: 'Unit Talk'
   });
 
   return embed;
