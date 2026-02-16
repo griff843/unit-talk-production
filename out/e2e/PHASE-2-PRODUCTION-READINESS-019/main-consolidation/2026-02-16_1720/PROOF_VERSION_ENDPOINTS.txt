@@ -1,0 +1,10 @@
+=== PROOF_VERSION_ENDPOINTS.txt ===
+Generated: 2026-02-16T18:06:15-05:00
+Expected HEAD: 3868f5aeca9fc19f547a9d4c3c2f4417bdcd3490
+Note: Tested via internal container network due to Windows port forwarding issues
+
+=== API Health Endpoint (via internal network) ===
+{"status":"healthy","timestamp":"2026-02-16T23:06:16.211Z","services":{"database":{"status":"up","responseTime":1,"lastCheck":"2026-02-16T23:06:16.214Z"},"redis":{"status":"up","responseTime":1,"lastCheck":"2026-02-16T23:06:16.215Z"},"agents":{"status":"up","lastCheck":"2026-02-16T23:06:16.215Z"},"external_apis":{"status":"up","lastCheck":"2026-02-16T23:06:16.215Z"}},"version":"1.0.0","uptime":445.210335354,"memory":{"used":90094416,"total":120946688,"percentage":74.4910154133365},"system":{"loadAverage":[2.77,2.77,2.79],"cpuUsage":453.040994}}
+=== API Version from Health ===
+"version":"1.0.0"
+

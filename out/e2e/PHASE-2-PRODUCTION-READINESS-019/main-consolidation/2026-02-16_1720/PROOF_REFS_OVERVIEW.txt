@@ -1,0 +1,376 @@
+=== ALL BRANCHES ===
+Generated: 2026-02-16T17:21:07-05:00
+
+  canonical/users-active-contract
+  chore/ci-hygiene-001
+  chore/ci-hygiene-002
+  chore/ci-upload-artifact-v4
+  chore/ops-contracts
+  dx-ops-pack-002
+  feat/alert-agent-v2
+  feat/alert-agent-v2-clean
+  feat/posting-authority-implement-001
+  feat/scoring-tranche-10-hard-promotion-canary
+  feat/scoring-tranche-2-only
+  feat/scoring-tranche-2-tier-ev-v2
+  feat/scoring-tranche-3-registry-v2
+  feat/scoring-tranche-4-validate-weights
+  feat/scoring-tranche-4-weights-fix
+  feat/scoring-tranche-6-canary-routing
+  feat/scoring-tranche-7-promotion-policy
+  feat/scoring-tranche-8-prod-shadow-ops
+  feat/scoring-tranche-9-first-launch
+  feat/single-writer-seal-011
+  fix/column-drift-001
+  fix/docker-e2e-unblock
+  fix/local-contract-drift-health-and-users-active
+  fix/required-checks-always-run
+  fix/smart-form-500-health
+  fix/smart-form-docker-build
+  fix/smart-form-eslint-precommit
+  fix/smart-form-ui-step1
+  fix/tranche-6-v2-unblock
+  governance/mcp-tooling-constitution-2026-01-23
+  hotfix/smart-form-500
+* main
+  release/canary-rollout
+  scoring/tranche-split-t1-v2-foundation
+  scoring/tranche-split-t2-promotion-safety
+  scoring/tranche-split-t3-canary-v2-wiring
+  scoring/tranche-split-t4-production-enablement
+  remotes/origin/HEAD -> origin/main
+  remotes/origin/chore/ci-hygiene-001
+  remotes/origin/chore/ci-hygiene-002
+  remotes/origin/chore/ci-upload-artifact-v4
+  remotes/origin/chore/db-audit-fixes
+  remotes/origin/chore/lint-reduction-pass-1
+  remotes/origin/chore/lock-main-for-migration
+  remotes/origin/chore/ops-contracts
+  remotes/origin/chore/repo-quality-rails
+  remotes/origin/ci/lockfile-sync
+  remotes/origin/cmd-center-toggles/2025-08-12
+  remotes/origin/cursor/restore-feedagent-business-logic-9ef4
+  remotes/origin/develop
+  remotes/origin/droid/agent-standardization
+  remotes/origin/feat/alert-agent-v2
+  remotes/origin/feat/alert-agent-v2-clean
+  remotes/origin/feat/charter-guards-postgrest-alignment
+  remotes/origin/feat/git-fortune100-auto-resolution
+  remotes/origin/feat/phase15-orchestrator
+  remotes/origin/feat/posting-authority-implement-001
+  remotes/origin/feat/pr7-incident-routing
+  remotes/origin/feat/pr9-go-live-hardening
+  remotes/origin/feat/scoring-tranche-10-hard-promotion-canary
+  remotes/origin/feat/scoring-tranche-2-only
+  remotes/origin/feat/scoring-tranche-2-tier-ev-v2
+  remotes/origin/feat/scoring-tranche-3-registry-v2
+  remotes/origin/feat/scoring-tranche-4-validate-weights
+  remotes/origin/feat/scoring-tranche-4-weights-fix
+  remotes/origin/feat/scoring-tranche-6-canary-routing
+  remotes/origin/feat/scoring-tranche-7-promotion-policy
+  remotes/origin/feat/scoring-tranche-8-prod-shadow-ops
+  remotes/origin/feat/scoring-tranche-9-first-launch
+  remotes/origin/feat/single-writer-seal-011
+  remotes/origin/feature/mlb-settlement-pipeline
+  remotes/origin/fix/add-missing-ci-scripts
+  remotes/origin/fix/ci-admin-rpcs-fault-tolerant
+  remotes/origin/fix/column-drift-001
+  remotes/origin/fix/compile-green-api
+  remotes/origin/fix/docker-e2e-unblock
+  remotes/origin/fix/fully-fault-tolerant-backfill
+  remotes/origin/fix/required-checks-always-run
+  remotes/origin/fix/smart-form-docker-build
+  remotes/origin/fix/smart-form-eslint-precommit
+  remotes/origin/fix/supabase-migration-history-repair
+  remotes/origin/fix/supabase-preview-idempotency
+  remotes/origin/fix/supabase-repair-specific
+  remotes/origin/governance/mcp-tooling-constitution-2026-01-23
+  remotes/origin/hotfix/phase4-finalization
+  remotes/origin/main
+  remotes/origin/master
+  remotes/origin/phase-10b-workflow-wiring
+  remotes/origin/phase-smart-form-stabilization
+  remotes/origin/phase10-app-tenancy
+  remotes/origin/phase10-infra-global
+  remotes/origin/phase6-performance-execution
+  remotes/origin/pr/phase4-agent-watchdog
+  remotes/origin/pr/phase4-build-hygiene
+  remotes/origin/pr/phase4-db-hygiene
+  remotes/origin/pr/phase4-dependency-plan
+  remotes/origin/pr/phase4-docs-runbook
+  remotes/origin/pr/phase4-index-optimization
+  remotes/origin/pr/phase4-nightly-baseline
+  remotes/origin/pr/phase4-secrets-policy
+  remotes/origin/pr/phase4-weekly-cleanup
+  remotes/origin/qa/pre-launch-documentation
+  remotes/origin/release/canary-rollout
+  remotes/origin/scoring/tranche-split-t1-v2-foundation
+  remotes/origin/scoring/tranche-split-t2-promotion-safety
+  remotes/origin/scoring/tranche-split-t3-canary-v2-wiring
+  remotes/origin/scoring/tranche-split-t4-production-enablement
+  remotes/origin/split/auto-revert
+  remotes/origin/split/autopilot-freeze
+  remotes/origin/split/ci-resolver
+  remotes/origin/split/policy-docs
+  remotes/origin/split/required-checks-rollout
+  remotes/origin/workspace-cleanup-backup
+
+=== GIT LOG GRAPH (last 200 commits) ===
+* c3767b0e (HEAD -> main) feat(runtime): PHASE-2-PRODUCTION-READINESS-019 system reconciliation
+* a9061199 (tag: CLAUDE-GOVERNANCE-LOCK-2026.1, origin/main, origin/HEAD) chore(governance): align CLAUDE contracts to repo truth (v2026)
+| *-.   93ebc6f5 (refs/stash) On feat/single-writer-seal-011: PHASE-2-PRODUCTION-READINESS-019: Stashing dirty tree before main checkout
+| |\ \  
+| | | * a472a6a2 untracked files on feat/single-writer-seal-011: b66912f9 feat(db): SINGLE-WRITER-SEAL-011 - bet_slip_id uniqueness + unified_picks RPC
+| | * 375d1850 index on feat/single-writer-seal-011: b66912f9 feat(db): SINGLE-WRITER-SEAL-011 - bet_slip_id uniqueness + unified_picks RPC
+| |/  
+| * b66912f9 (origin/feat/single-writer-seal-011, feat/single-writer-seal-011) feat(db): SINGLE-WRITER-SEAL-011 - bet_slip_id uniqueness + unified_picks RPC
+|/  
+* 7282d5d6 fix(smart-form): SMARTFORM-ODDS-FIELD-INTEGRITY-007 odds integrity
+* 7234b0aa (tag: DX_OPS_PACK_COMPLETE, dx-ops-pack-002) feat(dx): DX_OPS_PACK_002 - ops tooling scripts
+| * 74067dcf (origin/feat/posting-authority-implement-001, feat/posting-authority-implement-001) fix(settlement): SETTLEMENT-GUARD-SEAL-PATCH-010 complete trigger coverage + context reset
+| * 9fd0cc56 feat(presentation): PARLAY-PRESENTATION-REFINE-001 clean block format
+| * 1ab430f2 fix(discord): PARLAY-DISCORD-GROUPING-001 - parlays post as single message
+| * 888bd6ec feat(posting-authority): implement POSTING-AUTHORITY-001 origin-gated posting
+| * 3658a71b (origin/fix/column-drift-001, fix/column-drift-001) fix(worker): align BridgeWorker + publish.ts columns with cloud DB
+| * 394c980d (feat/scoring-tranche-10-hard-promotion-canary) fix(grading): replace BridgeWorker simulation stub with real SyndicateGradingEngine execution
+| * c3e044ef fix(workspace): resolve pre-existing TypeScript errors across three workspaces
+| * a27c7649 fix(command-center): graceful fallback states for Pipeline tab, PicksHQ, and sidebar
+| * 96deee29 cc(ux-overhaul): enterprise-grade Command Center UX/UI rewrite
+| * d99cd353 smart-form(checkpoint): pre-UX-overhaul snapshot — ACTIVATION-P1-FIXES-001 complete
+| * 2acc6b9a (origin/feat/scoring-tranche-10-hard-promotion-canary) recap(v1): operator-grade daily/weekly recap agent with decision rules
+| * 6bdcb652 scoring(tranche-10): posting governance — DiscordPromotionAgent obeys promotion policy
+| * 79aa473f (origin/scoring/tranche-split-t4-production-enablement, scoring/tranche-split-t4-production-enablement) scoring(tranche-7-recal): settlement scripts + proof artifacts
+| * 640d0f33 scoring(tranche-7-recal): V2 gate recalibration with distribution-aware thresholds
+| * bc5906b6 scoring(tranche-10): enable HARD-only promotion (NBA canary)
+| | * 93736381 (origin/fix/required-checks-always-run, fix/required-checks-always-run) fix(ci): ensure required status checks always trigger on PRs
+| |/  
+|/|   
+| | * 0490deb5 (origin/chore/ci-upload-artifact-v4, chore/ci-upload-artifact-v4) chore(ci): upgrade deprecated actions to latest versions
+| | * 6bcb1631 (origin/chore/ci-hygiene-002, chore/ci-hygiene-002) chore(ci): split api tests from legacy test debt
+| | * c9b7351b (origin/chore/ci-hygiene-001, chore/ci-hygiene-001) chore(ci): scope CI to api-only checks for api PRs
+| |/  
+|/|   
+| | * d454f874 (origin/feat/alert-agent-v2-clean, feat/alert-agent-v2-clean) feat(alert-agent): AlertAgent V2 — idempotent + cooldown + elite embeds (flag-gated)
+| |/  
+|/|   
+| | * 9153a81e (origin/feat/alert-agent-v2, feat/alert-agent-v2) feat(outcomes): add idempotent outcome metrics script
+| | * bc83a7ce fix(scoring): fix V2 weight validation + capper fallback compression
+| | * d15b15a8 (fix/tranche-6-v2-unblock) fix(scoring): fix V2 weight validation + capper fallback compression
+| |/  
+| * 8940d00a (origin/scoring/tranche-split-t3-canary-v2-wiring, origin/feat/scoring-tranche-9-first-launch, scoring/tranche-split-t3-canary-v2-wiring, feat/scoring-tranche-9-first-launch) scoring(tranche-9): first-launch cutover (v2 default, promotion off)
+| * 1b92774f (origin/feat/scoring-tranche-8-prod-shadow-ops, feat/scoring-tranche-8-prod-shadow-ops) scoring(tranche-8): prod shadow monitoring + ops summaries (no exposure)
+| * 9443a0e9 (origin/feat/scoring-tranche-7-promotion-policy, feat/scoring-tranche-7-promotion-policy) Tranche 4: normalize scoring, continuous confidence, V2 pipeline wiring, SettlementAgent activation
+| * 84c15194 scoring(tranche-7): promotion policy bands + canary controls (flagged)
+| * 37e6cd59 (origin/feat/scoring-tranche-6-canary-routing, feat/scoring-tranche-6-canary-routing) scoring(tranche-6): canary routing + shadow drift logging + kill switch (flagged)
+| * cc68bb62 (origin/scoring/tranche-split-t2-promotion-safety, origin/feat/scoring-tranche-4-weights-fix, scoring/tranche-split-t2-promotion-safety, feat/scoring-tranche-4-weights-fix) Promotion: shadow mode, replay proof, calibration report, guardrails
+| * c0839457 AlertAgent: claim-first idempotency for concurrent publish safety
+| * 0b15392b (tag: promotion-agent-tranche1) Promotion Agent Tranche 1: deterministic + idempotent + decision factors
+| * 0d38c48f (origin/scoring/tranche-split-t1-v2-foundation, scoring/tranche-split-t1-v2-foundation) fix(tests): remove `import type` syntax for Babel/Jest compatibility
+| * 60487d67 (origin/feat/scoring-tranche-4-validate-weights, feat/scoring-tranche-4-validate-weights) scoring(tranche-4): fix validateWeights double-counting bug (flagged)
+| * 295d6de4 (origin/feat/scoring-tranche-3-registry-v2, feat/scoring-tranche-3-registry-v2) scoring(tranche-3): feature registry + unified V2 pipeline + drift report (flagged)
+| * 3eb1fc6c (origin/feat/scoring-tranche-2-tier-ev-v2, feat/scoring-tranche-2-tier-ev-v2) scoring(tranche-2): canonical TierScale + devig EV (flagged)
+|/  
+| * a033e0c3 (origin/feat/scoring-tranche-2-only, feat/scoring-tranche-2-only) scoring(tranche-2): canonical TierScale + devig EV (flagged)
+|/  
+*   0b6e21b9 Merge pull request #40 from griff843/fix/smart-form-docker-build
+|\  
+| * c202e6eb (origin/fix/smart-form-docker-build, fix/smart-form-docker-build) feat(smart-form): Smart Form UI perfection pass
+| * 63fcc37a fix(smart-form): resolve ESLint @next/next pre-commit failure
+| * 7abcfb1f fix(smart-form): parse game_date as local YYYY-MM-DD for zod refine
+| * 74817894 fix(smart-form): unblock Docker build and add runtime verification
+| * b93e437d (fix/smart-form-ui-step1) fix(smart-form): resolve UI state sync and capper loading issues
+| * 9ca44e41 (canonical/users-active-contract) feat(users): enforce canonical users.active BOOLEAN contract
+|/  
+| * 6b7f5723 (origin/fix/smart-form-eslint-precommit, fix/smart-form-eslint-precommit) fix(smart-form): resolve ESLint @next/next pre-commit failure
+|/  
+| * cbaf969e (fix/local-contract-drift-health-and-users-active) fix(contract): remove active/status dependency + smart-form health endpoint
+|/  
+*   f887d3f7 feat(ops): PR9 go-live hardening + MV refresh infra + executable MV playbook
+|\  
+| | * d64c8339 (origin/chore/ops-contracts, chore/ops-contracts) chore(types): resolve TypeScript errors across all workspaces
+| | * 6569e871 chore(ops): add execution governance docs
+| | | * 7ea4d566 (fix/smart-form-500-health) fix(smart-form): resolve 500/unhealthy container (ENOMEM + EACCES)
+| | |/  
+| | | * eb6c3205 (hotfix/smart-form-500) fix(smart-form): resolve 500/unhealthy container (ENOMEM + EACCES)
+| | |/  
+| | | * 57a4da57 (fix/docker-e2e-unblock) fix(settlement): Canonical realignment to unified_picks, remove raw_props
+| | | * 10ecf293 (origin/fix/docker-e2e-unblock) fix: Replace Supabase introspection with standard Postgres information_schema
+| | | * de0d1b54 fix: Make db:migrate:critical deterministic with MIGRATIONS_DIR env var
+| | | * 80978c14 fix: Restore reproducible Docker builds with npm ci + lockfile
+| | | * c14001d0 fix: Docker build and runtime issues for E2E tests
+| | | * bc3b3b49 (origin/governance/mcp-tooling-constitution-2026-01-23, governance/mcp-tooling-constitution-2026-01-23) feat(governance): Add MCP Tooling Constitution to CLAUDE.md
+| | |/  
+| | | * 1441f941 (origin/feat/pr9-go-live-hardening) feat(week3): Live Trace - operator-visible proof via Command Center
+| | | * cb483007 feat(hardening): finalize week2 enforcement + anti-cheat
+| | | * 5abd9131 fix(notion): robust db id resolution + wiring reliability
+| | | * 42d58521 feat(hardening): week2 governance — db enforcement + fail-closed CI gates
+| | | * 52616d69 chore(hygiene): week1 cleanup — archive legacy scripts/docs, establish contract authority
+| | | * 4bace440 fix(smart-form): add type cast for games data transformation
+| | | * 22cf5f8a fix(smart-form): add type cast in supabase-queries fetchCappers
+| | | * a8ba45ab fix(smart-form): add Supabase type casts in bridge/publish.ts
+| | | * 2406e636 fix(seed): dynamically fetch tenant_id and tier from existing data
+| | | * 270970ae fix(seed): use valid UUID format for tenant_id
+| | | * e72f212e fix(seed): add tenant_id to users (required NOT NULL constraint)
+| | | * 38c3d63a fix(seed): align users schema with v3.0.0, make games seeding optional
+| | | * fae13d2f fix(smart-form): cast ticketFormSchema to any for Zod resolver compatibility
+| | | * b7eb271d fix(types): use optional chaining for capperUser.username
+| | | * e27cd9c4 fix(types): cast all users table queries in submit-ticket route
+| | | * 5c0fbc9f fix(types): cast all Supabase table operations in submit-ticket route
+| | | * ee4c0387 fix(types): cast bridge_outbox insert to bypass Supabase never type
+| | | * c2fa8f26 fix(types): cast dbProps to any[] in props route transformation
+| | | * 6568d8d6 fix(types): cast games query result to any[] for transformation
+| | | * 0ac996e3 fix(types): cast supabase .from() as any to bypass strict never type
+| | | * b0a8f894 fix(types): cast optimalGames insert to bypass Supabase never type
+| | | * a7698216 fix(types): cast cappers query result to bypass Supabase never type
+| | | * da1c50f8 fix(eslint): use const for transformedGames in games route
+| | | * 29b0fe07 fix(deps): Align Next.js versions across workspaces
+| | | * 5d6ae911 fix(ci): Use npm workspaces for smart-form build
+| | | * e3ff6acb fix(ci): Skip husky scripts in subdirectory npm ci
+| | | * dd39b6bc fix(e2e): Make test user/game checks non-blocking warnings
+| | | * 21220b33 feat(e2e): Add DiscordPromotionAgent to Phase 6 E2E workflow
+| | | * 9f043860 docs(audit): Release Integrity Audit - ROLLS_ROYCE_READINESS
+| | | * f2510ad9 feat(contract): System Contract implementation with 4-stage verification
+| | | * c6450baa docs(e2e): Add Smart Form E2E trace and system behavior reports
+| | | * acd14d36 fix(schema): Rolls Royce canonical alignment - picks TABLE → VIEW
+| | | * 936fba29 feat(e2e): PR10 Go-Live Hardening - E2E Full Pass with Dual-Mode Discord
+| | |/  
+| |/|   
+| * | 0fe371d3 fix(types): use any cast for Notion SDK strict types + eslint-disable
+| * | 7937d874 fix(types): resolve TypeScript errors in ops notification services
+| * | 55dbd43b docs(pr9): Add PR summary document with verification and rollout plan
+| * | 8dd9e0b2 fix(types): Add missing ExecutionStatus values and fix crypto import
+| * | fcb3e883 feat(ops): PR9 MV Refresh Infrastructure - Make MV_REFRESH_LAG EXECUTABLE
+| * | 9ebc5097 feat(ops): PR8/PR9 Auto-Remediation and Go-Live Hardening
+| * | e7abd78f fix(ci): standardize secret names and add preflight check
+|/ /  
+* | e8dba036 fix(ci): run autopilot tests in apps/api directory only
+* | 2fba6f85 fix(ci): use any type for Supabase client in verification script
+* | 58df5bab fix(ci): resolve TypeScript errors in verification script
+* | f7646033 fix(ci): add scripts tsconfig for verification script compilation
+* | 418922d3 fix(phase4): Move policy_spec.md to docs directory for CI access
+* | 6fce3ffe (origin/feat/pr7-incident-routing) feat(phase4): Add Autopilot Policy Engine with CI gates
+* | 1e369e56 feat(release): Add Agent Control Plane verification workflows
+* | d50da59d docs: add Production Readiness Release Addendum (#34)
+* | 0b954aa9 fix(ts): resolve TS2393 duplicate function implementation errors (#33)
+* | 87192bce fix(ci): add missing verify-gates.ts and verify-slo.ts scripts (#32)
+| | * e364dafa (origin/fix/add-missing-ci-scripts) fix(ci): add missing verify-gates.ts and verify-slo.ts scripts
+| |/  
+|/|   
+* | 22dcd935 fix(ci): make admin RPC script fault-tolerant for Preview schemas (#31)
+| | * 85427775 (origin/fix/ci-admin-rpcs-fault-tolerant) fix(ci): make admin RPC script fault-tolerant for Preview schemas
+| |/  
+|/|   
+* | 7288b306 fix(db): make admin_backfill_market_props fully fault-tolerant (#30)
+| | * 69b112c0 (origin/fix/fully-fault-tolerant-backfill) fix(db): make admin_backfill_market_props fully fault-tolerant
+| |/  
+|/|   
+* | b439ca2c fix(ci): use direct phantom migration repair and --include-all flag (#29)
+| | * 0c342cf7 (origin/fix/supabase-repair-specific) fix(ci): use direct phantom migration repair and --include-all flag
+| |/  
+|/|   
+* | 7f068858 fix(ci): repair Supabase migration history drift in preview (#28)
+| | * 4d2ffdbb (origin/fix/supabase-migration-history-repair) fix(ci): repair Supabase migration history drift in preview
+| |/  
+|/|   
+* | 1c0f1551 fix(db): make Supabase Preview migrations idempotent (#27)
+| | * ecaf992f (origin/fix/supabase-preview-idempotency) fix(db): make Supabase Preview migrations idempotent
+| |/  
+|/|   
+* | e510bb5e feat(ci): implement Phase D autopilot freeze integration (#26)
+| | * d3df01a6 (origin/split/autopilot-freeze) feat(ci): implement Phase D autopilot freeze integration
+| |/  
+|/|   
+* | 7e1a49f3 feat(ci): implement Phase C auto-revert PR generation (feature-flagged) (#25)
+| | * 97016bd4 (origin/split/auto-revert) feat(ci): implement Phase C auto-revert PR generation (feature-flagged)
+| |/  
+|/|   
+* | dadddee8 docs(ci): add Phase B required checks rollout plan (#24)
+| | * bd92689b (origin/split/required-checks-rollout) docs(ci): add Phase B required checks rollout plan
+| |/  
+|/|   
+* | e97b1f77 feat(ci): implement Phase A CI Failure Resolver (#23)
+| | * 58c44e08 (origin/split/ci-resolver) feat(ci): implement Phase A CI Failure Resolver
+| |/  
+|/|   
+* | f55c2262 docs: add Fortune-100 Git/CI Operating Constitution (#22)
+| | * ea07414f (origin/split/policy-docs) docs: add Fortune-100 Git/CI Operating Constitution
+| |/  
+|/|   
+| | * d0780193 (origin/feat/git-fortune100-auto-resolution) fix(supabase): remove invalid pg_read_file parameter settings
+| | * 46bdabb3 fix(ci): add test:unit script and eslintignore for apps/api
+| | * 21180cba fix(ci): exclude utility scripts from ESLint
+| | * 73512741 fix(ci): resolve ESLint errors and Supabase config issues
+| | * 1a16e79c fix(ci): resolve remaining CI failures
+| | * 07530e12 fix(ci): resolve remaining CI failures
+| | * a7c44797 fix(ts): resolve TypeScript compilation errors across workspace
+| | *   77fe573a chore: resolve conflicts with main for git automation rollout
+| | |\  
+| |_|/  
+|/| |   
+* | | 7cb9d4c8 ci(phase5): add prod smart form validation workflow
+| | * c6a65497 docs(ci): add Phase B required checks rollout plan
+| | * 9768b6b6 feat(ci): implement Phase D autopilot freeze integration
+| | * d0c3f11e feat(ci): implement Phase C auto-revert PR generation (feature-flagged)
+| | * 9a0038f8 feat(ci): implement Phase A CI Failure Resolver
+| | * c423444e docs: add Fortune-100 Git/CI Operating Constitution
+| | * 94c11ae9 (origin/feat/phase15-orchestrator) fix(ci): phase5 - discover actual tier values from PROD database
+| | * f4a49f93 fix(ci): phase5 - sync package-lock.json after Next.js version align
+| | * b8a09c85 fix(ci): phase5 - remove status column (not in PROD) + align Next.js
+| | * c396f40b fix(ci): Phase 5 workflow - correct tier constraint and workspace handling
+| | * 478846c5 fix(ci): eliminate npm install/lock drift in phase5 workflow
+| | * 318bb95a docs: align CLAUDE instructions with verified repo reality
+| | * 3fb02065 fix(phase5): make test data idempotent and fix @next/swc hoisting
+| | * bec3ea18 docs: align app-specific CLAUDE.md with hybrid dev model and canonical schema
+| | * b8a69de0 fix(phase5): correct tier value and Next.js dependency version
+| | * 0c725835 docs: align CLAUDE instructions with verified repo reality
+| | * 59ebaab9 fix(workflow): harden Phase 5 dependency install for deterministic CI
+| | * 3e7b7694 fix(workflow): add Next.js build step before dev server
+| | * 22f3c639 fix(deps): sync package-lock.json with package.json
+| | * d5eb19ec fix(workflow): Phase 5 monorepo install strategy
+| | * d32b98ce chore(repo): establish Fortune-100 grade repository hygiene standards
+| | * 9bf58aaa ci(phase5): add prod smart form validation workflow
+| | * 963539e1 feat(foundation): implement Foundation Smoke Pack infrastructure
+| | * 017e96f6 fix(publish): implement priority-based Discord channel routing
+| | * e3f24d7b feat(ops): phase15 orchestrator + idempotent seeder + resilient pgrst reload + E2E enhancements
+| | * 5a234ba6 chore(ops): phase13 validation artifacts - NO-GO decision due to API route registration failure
+| | * 9d3f7f58 (origin/feat/charter-guards-postgrest-alignment) docs: Add nightly validation implementation summary
+| | * 54111064 feat: Add nightly canonical validation reports for 2025-10-30
+| | * 402569eb feat: App-level canonical UI integration with self-score and realtime feed
+| | * 98e64a4d feat: Dashboard-free self-healing PostgREST + direct SQL fallback
+| | * b7ab88f8 docs: Add Charter Guards summary and Augment quick start
+| | * bd58db01 feat: Charter Guards - PostgREST alignment protection
+| | * b6086d3d feat: Charter v3.0 compliance - canonical picks architecture
+| | * 89e0895e fix(api): startup schema guard + canonical→unified auto-fallback; zero-TS
+| | * 5233a62d feat(smart-form): canonical enhancements
+| | * 82cba803 (origin/phase-smart-form-stabilization) fix(smart-form): Radix TS stabilization + canary wiring (0 TS errors)
+| |/  
+|/|   
+* | 8befcbb3 docs(ops): update executive summary with Phase 10B execution results
+* | 6be5f88d docs(ops): record Phase 10B 5% canary verification results
+* |   b15117aa chore: merge remote main with Phase 10B cutover
+|\ \  
+| * | f372c03b chore(infra): merge Phase 10B production cutover (wired for DOKS)
+| | | * a3499eb2 (origin/phase-10b-workflow-wiring) feat(infra): wire global-deploy workflow for Phase 10B production cutover
+| |_|/  
+|/| |   
+* | | 71d0223d fix(command-center): resolve 360 Radix UI TypeScript errors via type augmentation
+|/ /  
+| | * 3a9eb134 (origin/phase10-app-tenancy) docs: Add Platform Readiness Report v1.0 summary
+| | * 71a04759 (origin/phase10-infra-global) feat(global): Phase 10 multi-region infrastructure
+| | * 4d1618cb feat(ml): Phase 7C ML retraining & lifecycle automation
+| | * ecdfa9e5 fix(ml): TypeScript compilation errors post Phase 7B implementation
+| | * e88a05af feat(ml): Phase 7B Online ML Serving + Shadow Deployment - Complete ML infrastructure with real-time inference, canary pipeline, and comprehensive monitoring
+| | * 34244fe9 feat(ml): Phase 7A Offline ML Prep - Complete ML infrastructure with datasets, training pipeline, evaluation framework, and safety plan. Ready for Phase 7B implementation.
+| | | * 4bb194ca (origin/phase6-performance-execution) feat(ops): Phase 6 performance execution & hardening - production-grade infrastructure
+| | |/  
+| | * faa152a2 feat(opt): Phase 5 Optimization & Scaling - Elite SaaS-Grade Implementation
+| |/  
+|/|   
+* |   98428422 chore: merge PR #17 - achieve compile-green status with zero TypeScript errors
+|\ \  
+| * | fd4f235c (origin/fix/compile-green-api) fix(api): achieve compile-green status - zero TypeScript errors
+| * | fc97fae9 fix(api): low-priority TypeScript errors - Phase 1 quick wins
+| * | 914d2cdd fix(api): medium-priority TypeScript errors - create missing modules
+| * | 66f1d20c fix(api): high-priority TypeScript errors - PostgREST, professional_score, imports
+| * | 7c2a3c03 fix(api): replace Logger instantiation with createLogger factory
+| * | d3dc7e42 fix(api): compile green stabilization

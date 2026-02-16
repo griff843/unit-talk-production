@@ -1,0 +1,212 @@
+=== PHASE C: CONSOLIDATION EXECUTION ===
+Started: 2026-02-16T17:27:44-05:00
+
+Step 1: Checkout main and verify state
+M	docker-compose.yml
+M	scripts/runtime-gauntlet.ts
+Your branch is ahead of 'origin/main' by 1 commit.
+  (use "git push" to publish your local commits)
+Already on 'main'
+From github.com:griff843/unit-talk-production
+ * branch              main       -> FETCH_HEAD
+Already up to date.
+main HEAD: c3767b0e3cb6bb99901e74811c7a7c58d65f4688
+
+Step 2: Create consolidation branch
+Switched to a new branch 'chore/main-consolidation-2026-02-16'
+consolidation branch HEAD: c3767b0e3cb6bb99901e74811c7a7c58d65f4688
+
+Step 3: Merge feat/posting-authority-implement-001
+Command: git merge origin/feat/posting-authority-implement-001 --no-ff
+
+Auto-merging apps/api/Dockerfile
+CONFLICT (content): Merge conflict in apps/api/Dockerfile
+Auto-merging apps/api/src/agents/DiscordPromotionAgent/index.ts
+CONFLICT (content): Merge conflict in apps/api/src/agents/DiscordPromotionAgent/index.ts
+Auto-merging apps/api/src/api-server.ts
+Auto-merging apps/api/src/worker.ts
+Auto-merging apps/command-center/Dockerfile
+CONFLICT (content): Merge conflict in apps/command-center/Dockerfile
+Auto-merging apps/smart-form/app/api/submit-ticket/route.ts
+CONFLICT (content): Merge conflict in apps/smart-form/app/api/submit-ticket/route.ts
+CONFLICT (modify/delete): apps/smart-form/app/submit-ticket/components/Step4GameSelection.tsx deleted in origin/feat/posting-authority-implement-001 and modified in HEAD.  Version HEAD of apps/smart-form/app/submit-ticket/components/Step4GameSelection.tsx left in tree.
+Auto-merging package.json
+Automatic merge failed; fix conflicts and then commit the result.
+
+Merge result status: 0
+🔍 Running pre-commit checks...
+📚 Validating documentation...
+
+> @unit-talk/platform@1.0.0 docs:validate
+> node scripts/validate-documentation.js
+
+🔍 Validating Unit Talk Platform Documentation...
+
+📁 Checking workspace structure...
+📄 Checking CLAUDE.md files...
+🏗️ Checking documentation hierarchy...
+
+📊 Validation Results:
+✅ Errors: 0
+⚠️  Warnings: 16
+
+⚠️  WARNINGS:
+  • C:\Users\griff\OneDrive\Desktop\unit-talk-production\CLAUDE.md: Missing section "Workspace Architecture"
+  • C:\Users\griff\OneDrive\Desktop\unit-talk-production\CLAUDE.md: Missing section "Quick Commands"
+  • C:\Users\griff\OneDrive\Desktop\unit-talk-production\CLAUDE.md: Missing section "Development Guidelines"
+  • C:\Users\griff\OneDrive\Desktop\unit-talk-production\apps\api\CLAUDE.md: Missing section "Project Overview"
+  • C:\Users\griff\OneDrive\Desktop\unit-talk-production\apps\api\CLAUDE.md: Missing section "Architecture"
+  • C:\Users\griff\OneDrive\Desktop\unit-talk-production\apps\command-center\CLAUDE.md: Missing section "Project Overview"
+  • C:\Users\griff\OneDrive\Desktop\unit-talk-production\apps\dashboard\CLAUDE.md: Missing section "Project Overview"
+  • C:\Users\griff\OneDrive\Desktop\unit-talk-production\apps\discord-bot\CLAUDE.md: Missing section "Project Overview"
+  • Missing CLAUDE.md in apps/final-production-readiness/
+  • Missing CLAUDE.md in apps/out/
+  • Missing CLAUDE.md in apps/production-readiness-bundle/
+  • Missing CLAUDE.md in apps/shared/
+  • C:\Users\griff\OneDrive\Desktop\unit-talk-production\apps\smart-form\CLAUDE.md: Missing section "Project Overview"
+  • Missing documentation directory: docs/architecture/
+  • Missing documentation directory: docs/api/
+  • Missing documentation directory: docs/deployment/
+
+🧹 Running lint-staged...
+[33m[STARTED][39m Backing up original state...
+[32m[COMPLETED][39m Backed up original state in git stash (1091c1c7)
+[33m[STARTED][39m Running tasks for staged files...
+[33m[STARTED][39m apps/api/package.json[0;90m — 38 files[0m[0;90m (chunk 1/2)...[0m
+[33m[STARTED][39m apps/api/package.json[0;90m — 37 files[0m[0;90m (chunk 2/2)...[0m
+[33m[STARTED][39m package.json[0;90m — 33 files[0m[0;90m (chunk 1/2)...[0m
+[33m[STARTED][39m package.json[0;90m — 33 files[0m[0;90m (chunk 2/2)...[0m
+[33m[STARTED][39m *.{ts,tsx}[0;90m — 35 files[0m
+[33m[STARTED][39m *.{json,md}[0;90m — 1 file[0m
+[33m[STARTED][39m *.{ts,tsx}[0;90m — 35 files[0m
+[33m[STARTED][39m *.{json,md}[0;90m — 0 files[0m
+[33m[STARTED][39m *.{ts,tsx}[0;90m — 32 files[0m
+[33m[STARTED][39m *.{js,jsx}[0;90m — 1 file[0m
+[33m[STARTED][39m *.{json,md,yml,yaml}[0;90m — 0 files[0m
+[33m[STARTED][39m *.{ts,tsx}[0;90m — 24 files[0m
+[33m[STARTED][39m *.{js,jsx}[0;90m — 1 file[0m
+[33m[STARTED][39m *.{json,md,yml,yaml}[0;90m — 3 files[0m
+[33m[SKIPPED][39m *.{json,md}[0;90m — no files[0m
+[33m[SKIPPED][39m *.{json,md,yml,yaml}[0;90m — no files[0m
+[33m[STARTED][39m eslint --fix
+[33m[STARTED][39m prettier --write
+[33m[STARTED][39m eslint --fix
+[33m[STARTED][39m prettier --write
+[33m[STARTED][39m prettier --write
+[33m[STARTED][39m prettier --write
+[33m[STARTED][39m prettier --write
+[33m[STARTED][39m prettier --write
+[32m[COMPLETED][39m prettier --write
+[32m[COMPLETED][39m *.{json,md}[0;90m — 1 file[0m
+[32m[COMPLETED][39m prettier --write
+[33m[STARTED][39m eslint --fix
+[32m[COMPLETED][39m prettier --write
+[33m[STARTED][39m eslint --fix
+[32m[COMPLETED][39m prettier --write
+[32m[COMPLETED][39m *.{json,md,yml,yaml}[0;90m — 3 files[0m
+[32m[COMPLETED][39m prettier --write
+[33m[STARTED][39m eslint --fix
+[32m[COMPLETED][39m prettier --write
+[33m[STARTED][39m eslint --fix
+[31m[FAILED][39m [0;31meslint --fix[0m [0;90m[FAILED][0m
+[31m[FAILED][39m [0;31meslint --fix[0m [0;90m[FAILED][0m
+[31m[FAILED][39m [0;31meslint --fix[0m [0;90m[SIGKILL][0m
+[31m[FAILED][39m [0;31meslint --fix[0m [0;90m[SIGKILL][0m
+[31m[FAILED][39m [0;31meslint --fix[0m [0;90m[SIGKILL][0m
+[31m[FAILED][39m [0;31meslint --fix[0m [0;90m[SIGKILL][0m
+[31m[FAILED][39m [0;31meslint --fix[0m [0;90m[SIGKILL][0m
+[31m[FAILED][39m [0;31meslint --fix[0m [0;90m[SIGKILL][0m
+[31m[FAILED][39m [0;31meslint --fix[0m [0;90m[SIGKILL][0m
+[31m[FAILED][39m [0;31meslint --fix[0m [0;90m[SIGKILL][0m
+[31m[FAILED][39m [0;31meslint --fix[0m [0;90m[SIGKILL][0m
+[31m[FAILED][39m [0;31meslint --fix[0m [0;90m[SIGKILL][0m
+[32m[COMPLETED][39m Running tasks for staged files...
+[33m[STARTED][39m Applying modifications from tasks...
+[33m[SKIPPED][39m Skipped because of errors from tasks.
+[33m[STARTED][39m Reverting to original state because of errors...
+[32m[COMPLETED][39m Reverting to original state because of errors...
+[33m[STARTED][39m Cleaning up temporary files...
+[32m[COMPLETED][39m Cleaning up temporary files...
+
+[0;31m[0;31m✖[0m eslint --fix:[0m
+[0m[0m
+[0m[4mC:\Users\griff\OneDrive\Desktop\unit-talk-production\apps\discord-bot\.eslintrc.js[24m[0m
+[0m  [2m0:0[22m  [31merror[39m  Parsing error: Cannot read file 'c:\users\griff\onedrive\desktop\unit-talk-production\tsconfig.json'[0m
+[0m[0m
+[0m[31m[1m✖ 1 problem (1 error, 0 warnings)[22m[39m[0m
+[0m[31m[1m[22m[39m[0m
+[0;31m
+[0;31m✖[0m eslint --fix failed to spawn:[0m
+Command was terminated with SIGKILL: eslint --fix 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/discord-bot/src/services/enterpriseCache.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/discord-bot/src/services/gradingService.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/discord-bot/src/types/global.d.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/discord-bot/src/types/index.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/smart-form/app/api/cappers/route.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/smart-form/app/api/games/route.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/smart-form/app/api/submit-ticket/route.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/smart-form/app/submit-ticket/components/SmartTicketForm.tsx' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/smart-form/app/submit-ticket/types.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/smart-form/bridge/publish.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/smart-form/lib/supabase.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/packages/shared-utils/src/autopilot-freeze.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/scripts/promotion-calibration-report.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/scripts/promotion-concurrency-test.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/scripts/promotion-guardrail-test.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/scripts/promotion-replay-test.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/scripts/promotion-tranche3-analysis.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/scripts/scoring/run-canary-harness.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/scripts/scoring/run-promotion-policy-harness.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/scripts/scoring/run-shadow-ops-harness.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/scripts/scoring/shadow-ops-aggregator.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/scripts/scoring/verify-promotion-ops.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/scripts/scoring/verify-promotion-rollback.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/scripts/scoring/verify-promotion-routing.ts'
+undefined
+[0;31m
+[0;31m✖[0m eslint --fix failed to spawn:[0m
+Command was terminated with SIGKILL: eslint --fix 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/scripts/check-parlay-origin.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/scripts/check-parlay-status.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/scripts/espn-v3-structure-test.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/scripts/golden-proof-snapshot.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/scripts/import-season-baselines.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/scripts/measure-coverage.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/scripts/outcomeMetrics.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/scripts/prove-posting-authority.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/scripts/recap/decisionRules.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/scripts/recap/generateRecap.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/scripts/recap/reportBuilder.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/scripts/recap/types.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/scripts/test-embed-headshot.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/scripts/tranche7Stage0Reproof.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/scripts/tranche7Stage1GateRecal.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/scripts/tranche7Stage2Settlement.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/scripts/tranche7Stage3ShadowRun.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/scripts/verify-parlay-grouping.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/services/PromotionGatekeeper.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/services/SmartFormBridge.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/services/devigging/DeviggingService.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/services/ticketPresentationBuilder.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/types/ticketPresentation.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/worker.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/workers/BridgeWorker.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/workflows/schedule-manager.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/test/scoring/canaryRouter.test.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/test/scoring/computeScoreV2.test.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/test/scoring/featureRegistry.test.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/test/scoring/postingAuthority.test.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/test/scoring/postingGovernance.test.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/test/scoring/promotionPolicy.test.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/test/scoring/shadowOpsAggregator.test.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/test/scoring/validateWeights.test.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/test/scripts/recap/decisionRules.test.ts'
+undefined
+[0;31m
+[0;31m✖[0m eslint --fix failed to spawn:[0m
+Command was terminated with SIGKILL: eslint --fix 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/app/api/admin/autopilot/intelligence/route.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/app/api/admin/autopilot/policy/route.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/app/api/admin/remediation/route.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/app/api/capper-performance/route.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/app/api/monitoring/rollout-status/route.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/app/api/ops-confidence/route.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/app/api/ops-recap/route.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/app/api/ops/credit-usage/route.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/app/api/settlement/route.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/app/dashboard/page.tsx' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/app/dashboard/picks/PicksFilterCard.tsx' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/app/dashboard/picks/PicksTableCard.tsx' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/app/dashboard/picks/page.tsx' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/app/dashboard/picks/usePicksPage.tsx' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/app/dashboard/settlement/page.tsx' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/components/dashboard/CapperPerformanceWidget.tsx' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/components/dashboard/ConnectionStatus.tsx' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/components/dashboard/DashboardHeader.tsx' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/components/dashboard/DataFreshnessMonitor.tsx' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/components/dashboard/OpsConfidenceWidget.tsx' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/components/dashboard/PipelineHealthCards.tsx' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/components/dashboard/RecapStatusWidget.tsx' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/components/dashboard/RolloutStatusWidget.tsx' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/components/dashboard/SettlementConsole.tsx' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/components/dashboard/SettlementParts.tsx' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/components/dashboard/SettlementTableView.tsx' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/components/dashboard/UnsettledSummaryWidget.tsx' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/components/layout/sidebar.tsx' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/hooks/useDashboardData.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/command-center/src/hooks/useKeyboardShortcuts.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/discord-bot/src/services/blackLabelAnnouncementService.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/discord-bot/src/services/capperService.ts'
+undefined
+
+[0;31m[0;31m✖[0m eslint --fix:[0m
+Pages directory cannot be found at C:\Users\griff\OneDrive\Desktop\unit-talk-production\pages or C:\Users\griff\OneDrive\Desktop\unit-talk-production\src\pages. If using a custom path, please configure with the `no-html-link-for-pages` rule in your eslint config file.
+[0;31m
+[0;31m✖[0m eslint --fix failed to spawn:[0m
+Command was terminated with SIGKILL: eslint --fix 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/agents/AlertAgent/embedBuilder.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/agents/AlertAgent/index.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/agents/DiscordPromotionAgent/index.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/agents/EligibilityAgent/PromotionGuardrails.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/agents/EligibilityAgent/promoteToDailyPicks.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/agents/GradingAgent/GradingAgent.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/agents/GradingAgent/gradeAndPromoteFinalPicks.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/agents/GradingAgent/scoring/TierScale.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/agents/GradingAgent/scoring/__fixtures__/scoringFixtures.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/agents/GradingAgent/scoring/__fixtures__/shadowCompare.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/agents/GradingAgent/scoring/__fixtures__/tranche5BaselineAnalysis.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/agents/GradingAgent/scoring/__fixtures__/tranche5Harness.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/agents/GradingAgent/scoring/applyScoringLogic.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/agents/GradingAgent/scoring/canaryRouter.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/agents/GradingAgent/scoring/computeScoreV2.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/agents/GradingAgent/scoring/determineTier.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/agents/GradingAgent/scoring/driftLogger.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/agents/GradingAgent/scoring/edgeScore.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/agents/GradingAgent/scoring/expectedValue.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/agents/GradingAgent/scoring/featureEngineer.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/agents/GradingAgent/scoring/featureRegistry.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/agents/GradingAgent/scoring/gradingEngine.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/agents/GradingAgent/scoring/normalizedConfidence.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/agents/GradingAgent/scoring/promotionPolicy.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/agents/RecapAgent/activities/index.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/api-server.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/consumers/OpsEventConsumer.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/index.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/logic/scoring/unified-edge-score.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/routes/ops.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/runner/gradeProps.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/runner/startProductionAgents.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/scoring/config/weights/index.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/scoring/config/weights/types.ts' 'C:/Users/griff/OneDrive/Desktop/unit-talk-production/apps/api/src/scripts/backfill-feature-contributions.ts'
+undefined
+husky - pre-commit script failed (code 1)
+[chore/main-consolidation-2026-02-16 6e4eb503] merge: consolidate feat/posting-authority-implement-001 into main
+
+Step 4: Cherry-pick AlertAgent V2 (d454f874)
+Command: git cherry-pick d454f874
+
+[chore/main-consolidation-2026-02-16 c6ea91de] feat(alert-agent): AlertAgent V2 — idempotent + cooldown + elite embeds (flag-gated)
+ Date: Thu Jan 29 19:46:09 2026 -0500
+ 12 files changed, 2012 insertions(+), 263 deletions(-)
+ create mode 100644 apps/api/src/agents/AlertAgent/v2/alertEngineV2.ts
+ create mode 100644 apps/api/src/agents/AlertAgent/v2/alertKey.ts
+ create mode 100644 apps/api/src/agents/AlertAgent/v2/consensusAdvice.ts
+ create mode 100644 apps/api/src/agents/AlertAgent/v2/cooldownManager.ts
+ create mode 100644 apps/api/src/agents/AlertAgent/v2/embedBuilderV2.ts
+ create mode 100644 apps/api/src/agents/AlertAgent/v2/index.ts
+ create mode 100644 apps/api/src/agents/AlertAgent/v2/types.ts
+ create mode 100644 apps/api/test/agents/AlertAgent/alertAgentV2.test.ts
+ create mode 100644 apps/api/test/agents/AlertAgent/generateEmbedSnapshots.ts
+ create mode 100644 apps/api/test/agents/AlertAgent/smokeV2Off.ts
+ create mode 100644 apps/api/test/agents/AlertAgent/smokeV2OnDryRun.ts
+
+Cherry-pick status: 0
+
+=== PHASE C COMPLETE ===
+Finished: 2026-02-16T17:32:32-05:00
+
+Consolidation branch commits:
+c6ea91de feat(alert-agent): AlertAgent V2 — idempotent + cooldown + elite embeds (flag-gated)
+6e4eb503 merge: consolidate feat/posting-authority-implement-001 into main
+74067dcf fix(settlement): SETTLEMENT-GUARD-SEAL-PATCH-010 complete trigger coverage + context reset
+9fd0cc56 feat(presentation): PARLAY-PRESENTATION-REFINE-001 clean block format
+1ab430f2 fix(discord): PARLAY-DISCORD-GROUPING-001 - parlays post as single message
+888bd6ec feat(posting-authority): implement POSTING-AUTHORITY-001 origin-gated posting
+3658a71b fix(worker): align BridgeWorker + publish.ts columns with cloud DB
+394c980d fix(grading): replace BridgeWorker simulation stub with real SyndicateGradingEngine execution
+c3e044ef fix(workspace): resolve pre-existing TypeScript errors across three workspaces
+a27c7649 fix(command-center): graceful fallback states for Pipeline tab, PicksHQ, and sidebar
+96deee29 cc(ux-overhaul): enterprise-grade Command Center UX/UI rewrite
+d99cd353 smart-form(checkpoint): pre-UX-overhaul snapshot — ACTIVATION-P1-FIXES-001 complete
+2acc6b9a recap(v1): operator-grade daily/weekly recap agent with decision rules
+6bdcb652 scoring(tranche-10): posting governance — DiscordPromotionAgent obeys promotion policy
+79aa473f scoring(tranche-7-recal): settlement scripts + proof artifacts
+640d0f33 scoring(tranche-7-recal): V2 gate recalibration with distribution-aware thresholds
+bc5906b6 scoring(tranche-10): enable HARD-only promotion (NBA canary)
+8940d00a scoring(tranche-9): first-launch cutover (v2 default, promotion off)
+1b92774f scoring(tranche-8): prod shadow monitoring + ops summaries (no exposure)
+9443a0e9 Tranche 4: normalize scoring, continuous confidence, V2 pipeline wiring, SettlementAgent activation
+84c15194 scoring(tranche-7): promotion policy bands + canary controls (flagged)
+37e6cd59 scoring(tranche-6): canary routing + shadow drift logging + kill switch (flagged)
+cc68bb62 Promotion: shadow mode, replay proof, calibration report, guardrails
+c0839457 AlertAgent: claim-first idempotency for concurrent publish safety
+0b15392b Promotion Agent Tranche 1: deterministic + idempotent + decision factors
+0d38c48f fix(tests): remove `import type` syntax for Babel/Jest compatibility
+60487d67 scoring(tranche-4): fix validateWeights double-counting bug (flagged)
+295d6de4 scoring(tranche-3): feature registry + unified V2 pipeline + drift report (flagged)
+3eb1fc6c scoring(tranche-2): canonical TierScale + devig EV (flagged)

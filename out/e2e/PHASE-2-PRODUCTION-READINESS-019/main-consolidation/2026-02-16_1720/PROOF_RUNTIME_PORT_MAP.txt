@@ -1,0 +1,35 @@
+=== PROOF_RUNTIME_PORT_MAP.txt ===
+Generated: 2026-02-16T17:59:56-05:00
+Consolidation Branch: chore/main-consolidation-2026-02-16
+HEAD: 3868f5aeca9fc19f547a9d4c3c2f4417bdcd3490
+
+=== docker compose ps ===
+NAME                       IMAGE                                 COMMAND                  SERVICE             CREATED              STATUS                        PORTS
+unit-talk-api              unit-talk-production-api              "docker-entrypoint.s…"   api                 About a minute ago   Up About a minute (healthy)   0.0.0.0:3010->3000/tcp, [::]:3010->3000/tcp
+unit-talk-command-center   unit-talk-production-command-center   "docker-entrypoint.s…"   command-center      7 minutes ago        Up 51 seconds (healthy)       0.0.0.0:3004->3015/tcp, [::]:3004->3015/tcp
+unit-talk-postgres         postgres:15-alpine                    "docker-entrypoint.s…"   postgres            7 minutes ago        Up 6 minutes (healthy)        0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+unit-talk-prometheus       prom/prometheus:latest                "/bin/prometheus --c…"   prometheus          7 minutes ago        Up 6 minutes (healthy)        0.0.0.0:9090->9090/tcp, [::]:9090->9090/tcp
+unit-talk-redis            redis:7-alpine                        "docker-entrypoint.s…"   redis               7 minutes ago        Up 6 minutes (healthy)        0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp
+unit-talk-smart-form       unit-talk-production-smart-form       "docker-entrypoint.s…"   smart-form          7 minutes ago        Up 51 seconds (healthy)       0.0.0.0:3002->3021/tcp, [::]:3002->3021/tcp
+unit-talk-temporal         temporalio/auto-setup:1.20.0          "/etc/temporal/entry…"   temporal            7 minutes ago        Up 5 minutes (healthy)        0.0.0.0:7233->7233/tcp, [::]:7233->7233/tcp
+unit-talk-temporal-db      postgres:13                           "docker-entrypoint.s…"   temporal-postgres   7 minutes ago        Up 6 minutes (healthy)        5432/tcp
+
+=== docker ps with ports ===
+NAMES                      STATUS                        PORTS
+unit-talk-api              Up About a minute (healthy)   0.0.0.0:3010->3000/tcp, [::]:3010->3000/tcp
+unit-talk-command-center   Up 52 seconds (healthy)       0.0.0.0:3004->3015/tcp, [::]:3004->3015/tcp
+unit-talk-smart-form       Up 52 seconds (healthy)       0.0.0.0:3002->3021/tcp, [::]:3002->3021/tcp
+unit-talk-temporal         Up 5 minutes (healthy)        0.0.0.0:7233->7233/tcp, [::]:7233->7233/tcp
+unit-talk-redis            Up 6 minutes (healthy)        0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp
+unit-talk-postgres         Up 6 minutes (healthy)        0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+unit-talk-temporal-db      Up 6 minutes (healthy)        5432/tcp
+unit-talk-prometheus       Up 6 minutes (healthy)        0.0.0.0:9090->9090/tcp, [::]:9090->9090/tcp
+
+=== Port Bindings Summary ===
+API: 3010 -> 3000
+Smart Form: 3002 -> 3021
+Command Center: 3004 -> 3015
+Temporal: 7233 -> 7233
+Postgres: 5432 -> 5432
+Redis: 6379 -> 6379
+Prometheus: 9090 -> 9090
