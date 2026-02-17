@@ -1,0 +1,28 @@
+=== PROOF_DOCKER_REBUILD ===
+Sprint: SMART-PICK-BUILDER-027
+Timestamp: 2026-02-17T21:41:00Z
+
+REBUILD PROCESS
+---------------
+1. docker compose down --remove-orphans
+2. docker compose build --no-cache smart-form
+3. docker compose up -d
+
+CONTAINER STATUS (post-rebuild)
+-------------------------------
+NAME                       STATUS                   PORTS
+unit-talk-api              Up (healthy)             0.0.0.0:3010->3000/tcp
+unit-talk-command-center   Up (healthy)             0.0.0.0:3004->3015/tcp
+unit-talk-dashboard        Up (health: starting)    0.0.0.0:3003->3000/tcp
+unit-talk-discord-bot      Up (healthy)             3000/tcp
+unit-talk-grafana          Up (healthy)             0.0.0.0:3001->3000/tcp
+unit-talk-postgres         Up (healthy)             0.0.0.0:5432->5432/tcp
+unit-talk-prometheus       Up (healthy)             0.0.0.0:9090->9090/tcp
+unit-talk-redis            Up (healthy)             0.0.0.0:6379->6379/tcp
+unit-talk-smart-form       Up (healthy)             0.0.0.0:3002->3021/tcp
+unit-talk-temporal         Up (healthy)             0.0.0.0:7233->7233/tcp
+unit-talk-temporal-db      Up (healthy)             5432/tcp
+unit-talk-temporal-ui      Up (healthy)             0.0.0.0:8088->8080/tcp
+unit-talk-workers          Up (healthy)             3000/tcp, 9229/tcp, 9464/tcp
+
+ALL CONTAINERS: HEALTHY

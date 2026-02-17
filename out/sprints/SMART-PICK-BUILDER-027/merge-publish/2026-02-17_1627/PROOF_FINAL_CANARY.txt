@@ -1,0 +1,41 @@
+=== PROOF_FINAL_CANARY ===
+Sprint: SMART-PICK-BUILDER-027
+Timestamp: 2026-02-17T21:42:56.993Z
+
+CANARY DETAILS
+--------------
+Capper: Vicgo
+bet_slip_id: 44864ada-613b-4af1-8693-440b63ddb50c
+Pick ID: 6926f976-7009-4e2e-81cd-fca4aeeae3c0
+Commit SHA: 37c066d3
+
+PICK DATA
+---------
+Sport: NBA
+Stat Type: moneyline
+Selection: Warriors ML
+Odds: -135
+leg_index: 0
+
+DISCORD POST
+------------
+Message ID: 1473434581108527306
+Username: Unit Talk FINAL CANARY
+Title: FINAL CANARY: SMART-PICK-BUILDER-027
+Status: SUCCESS
+
+META FIELDS
+-----------
+pick_origin: capper
+final_canary: true
+commit_sha: 37c066d3
+gauntlet: SMART-PICK-BUILDER-027
+discord_receipt.message_id: 1473434581108527306
+discord_receipt.posted_at: 2026-02-17T21:42:57Z
+discord_receipt.commit_sha: 37c066d3
+
+BRIDGE_OUTBOX EVENT
+-------------------
+event_type: final_canary
+status: completed
+bet_slip_id: 44864ada-613b-4af1-8693-440b63ddb50c

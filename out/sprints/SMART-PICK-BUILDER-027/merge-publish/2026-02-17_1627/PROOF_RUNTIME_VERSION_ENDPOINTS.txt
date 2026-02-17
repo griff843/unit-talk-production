@@ -1,0 +1,37 @@
+=== PROOF_RUNTIME_VERSION_ENDPOINTS ===
+Sprint: SMART-PICK-BUILDER-027
+Timestamp: 2026-02-17T21:41:43Z
+
+API HEALTH (http://localhost:3010/api/health)
+---------------------------------------------
+{
+  "status": "healthy",
+  "timestamp": "2026-02-17T21:41:43.514Z",
+  "services": {
+    "database": {"status": "up", "responseTime": 0},
+    "redis": {"status": "up", "responseTime": 7},
+    "agents": {"status": "up"},
+    "external_apis": {"status": "up"}
+  },
+  "version": "1.0.0",
+  "uptime": 180.47s,
+  "memory": {"used": 83MB, "total": 123MB, "percentage": 67.6%}
+}
+
+SMART-FORM HEALTH (http://localhost:3002/api/health)
+----------------------------------------------------
+{
+  "status": "healthy",
+  "service": "smart-form",
+  "timestamp": "2026-02-17T21:41:43.946Z",
+  "responseTimeMs": 24,
+  "checks": [
+    {"component": "supabase", "status": "healthy"}
+  ]
+}
+
+VERIFICATION
+------------
+- API: HEALTHY (all services up)
+- Smart-Form: HEALTHY (supabase connected)
+- Both services responding correctly after no-cache rebuild

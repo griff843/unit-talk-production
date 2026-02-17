@@ -1,0 +1,48 @@
+=== PROOF_COMMIT ===
+Sprint: SMART-PICK-BUILDER-027
+Timestamp: 2026-02-17T19:30:00Z
+
+COMMIT DETAILS
+--------------
+SHA: 37c066d3
+Branch: main
+Files Changed: 32
+Insertions: 1510
+Deletions: 1149
+
+COMMIT MESSAGE
+--------------
+fix(smart-form): GAUNTLET-CLOSEOUT-028 + PARLAY-SCHEMA-FIX-029 (runtime gauntlet proven)
+
+GAUNTLET-CLOSEOUT-028:
+- Fixed 14 Radix UI type inference issues via cast pattern
+- Fixed Supabase PromiseLike handling (clv-canary, exposure-gate)
+- All 4 bet types verified: Moneyline, Spread, Total, Player Prop
+- Discord webhook canary verified
+
+PARLAY-SCHEMA-FIX-029:
+- Dropped blocking idx_unified_picks_bet_slip_id_unique
+- Created composite idx_unified_picks_bet_slip_leg_unique (bet_slip_id, leg_index)
+- 2-leg parlay insert verified end-to-end
+- Discord parlay canary message ID: 1473399984375333078
+
+Proof artifacts:
+- out/sprints/PARLAY-SCHEMA-FIX-029/PROOF_*.txt
+- out/sprints/SMART-PICK-BUILDER-027/merge-publish/
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+NEW FILES CREATED
+-----------------
+- apps/api/src/scripts/discord-canary-webhook.ts
+- out/sprints/PARLAY-SCHEMA-FIX-029/PROOF_DISCORD_PARLAY_CANARY.txt
+- out/sprints/PARLAY-SCHEMA-FIX-029/PROOF_INDEX_AFTER.txt
+- out/sprints/PARLAY-SCHEMA-FIX-029/PROOF_INDEX_BEFORE.txt
+- out/sprints/PARLAY-SCHEMA-FIX-029/PROOF_PARLAY_2_LEGS_SUCCESS.txt
+- out/sprints/SMART-PICK-BUILDER-027/merge-publish/2026-02-17_1627/PROOF_PRECOMMIT_TRUTH.txt
+- scripts/apply-parlay-schema-fix.mjs
+- supabase/migrations/20260217190000_parlay_schema_fix_029.sql
+
+DELETED FILES
+-------------
+- apps/smart-form/app/submit-ticket/components/SmartTicketForm.tsx
