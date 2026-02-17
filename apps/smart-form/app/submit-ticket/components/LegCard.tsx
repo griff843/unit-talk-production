@@ -12,7 +12,14 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TicketLeg, MARKET_TYPES, BET_CATEGORIES, SPORT_PROP_TYPES, SPORTS } from '../types';
+import {
+  TicketLeg,
+  MARKET_TYPES,
+  BET_CATEGORIES,
+  SPORT_PROP_TYPES,
+  SPORTS,
+  DIRECTIONS,
+} from '../types';
 import { apiClient } from '@/lib/api-client';
 import { useToast } from '@/components/ui/use-toast';
 import { Spinner } from '@/components/ui/spinner';
@@ -37,6 +44,15 @@ export function LegCard({ leg, onRemove, onUpdate }: LegCardProps) {
   });
   const { toast } = useToast();
 
+  // SMARTFORM-UX-CRITICAL-FIXPACK-025: Get teams from selected game for spread/total
+  const selectedGame = games.find(g => g.id === leg.game_id);
+  const gameTeams = selectedGame
+    ? [
+        { value: selectedGame.home_team, label: `${selectedGame.home_team} (Home)` },
+        { value: selectedGame.away_team, label: `${selectedGame.away_team} (Away)` },
+      ]
+    : [];
+
   // Get sport-specific prop types
   const getSportPropTypes = (sport: string) => {
     return SPORT_PROP_TYPES[sport as keyof typeof SPORT_PROP_TYPES] || [];
@@ -50,12 +66,14 @@ export function LegCard({ leg, onRemove, onUpdate }: LegCardProps) {
           sport: value,
           market_type: undefined,
           bet_type: undefined,
+          bet_category: undefined,
           team: '',
           opponent: '',
           player_name: '',
           prop_type: '',
           line: '',
           odds: '',
+          direction: undefined,
         });
         // Fetch new data for the selected sport
         fetchGamesForSport(value);
@@ -71,6 +89,18 @@ export function LegCard({ leg, onRemove, onUpdate }: LegCardProps) {
           prop_type: '',
           line: '',
           odds: '',
+          direction: undefined,
+        });
+      } else if (field === 'bet_category') {
+        // SMARTFORM-UX-CRITICAL-FIXPACK-025: Reset fields when bet category changes
+        onUpdate({
+          bet_category: value,
+          team: '',
+          player_name: '',
+          prop_type: '',
+          line: '',
+          odds: '',
+          direction: undefined,
         });
       } else {
         onUpdate({ [field]: value });
@@ -97,14 +127,14 @@ export function LegCard({ leg, onRemove, onUpdate }: LegCardProps) {
   const fetchTeamsForSport = async (sport: string) => {
     try {
       setLoading(prev => ({ ...prev, teams: true }));
-      
+
       // Use the API client - teams are now embedded in games data
       const games = await apiClient.fetchGames(sport);
-      
+
       // Extract unique teams from games data
       const uniqueTeams = new Set();
       const teamsData = [];
-      
+
       for (const game of games) {
         if (game.home_team && !uniqueTeams.has(game.home_team)) {
           uniqueTeams.add(game.home_team);
@@ -125,7 +155,7 @@ export function LegCard({ leg, onRemove, onUpdate }: LegCardProps) {
           });
         }
       }
-      
+
       setTeams(teamsData.length > 0 ? teamsData : getMockTeamsForSport(sport));
     } catch (error: any) {
       // Failed to fetch teams, using mock data
@@ -292,18 +322,101 @@ export function LegCard({ leg, onRemove, onUpdate }: LegCardProps) {
             </div>
           )}
 
-          {/* Team Selection */}
-          {leg.sport && leg.market_type === 'team_prop' && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Team</label>
-              <SmartSearch
-                searchType="teams"
-                sport={leg.sport}
-                placeholder="Type team name (min 3 chars for search)..."
-                disabled={loading.teams}
-                onSelect={item => handleChange('team', item.name)}
-              />
-              {leg.team && <div className="text-xs text-green-600">Selected: {leg.team}</div>}
+          {/* SMARTFORM-UX-CRITICAL-FIXPACK-025: Team Prop fully functional */}
+          {leg.sport && leg.bet_category === 'team_prop' && (
+            <div className="space-y-4">
+              {/* Team Selection - REQUIRED */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Team <span className="text-red-500">*</span>
+                </label>
+                <Select value={leg.team || ''} onValueChange={value => handleChange('team', value)}>
+                  <SelectTrigger className={!leg.team ? 'border-red-300' : ''}>
+                    <SelectValue placeholder="Select Team" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {gameTeams.length > 0 ? (
+                      gameTeams.map(team => (
+                        <SelectItem key={team.value} value={team.value}>
+                          {team.label}
+                        </SelectItem>
+                      ))
+                    ) : teams.length > 0 ? (
+                      teams.map(team => (
+                        <SelectItem key={team.id} value={team.name}>
+                          {team.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="manual_team">Enter Team Manually</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                {!leg.team && (
+                  <p className="text-xs text-red-500">Team selection required for team props</p>
+                )}
+              </div>
+              {/* Team Prop Type - team_total is the primary supported type */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Prop Type <span className="text-red-500">*</span>
+                </label>
+                <Select
+                  value={leg.prop_type || ''}
+                  onValueChange={value => handleChange('prop_type', value)}
+                >
+                  <SelectTrigger className={!leg.prop_type ? 'border-red-300' : ''}>
+                    <SelectValue placeholder="Select Team Prop Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="team_total">Team Total</SelectItem>
+                    <SelectItem value="first_to_score">First to Score</SelectItem>
+                    <SelectItem value="win_margin">Win Margin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {/* Line for Team Total - REQUIRED */}
+              {leg.prop_type === 'team_total' && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Team Total Line <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    type="number"
+                    step="0.5"
+                    value={leg.line || ''}
+                    onChange={e => handleChange('line', e.target.value)}
+                    placeholder="e.g. 115.5"
+                    className={!leg.line ? 'border-red-300' : ''}
+                  />
+                </div>
+              )}
+              {/* Direction for Team Total - REQUIRED */}
+              {leg.prop_type === 'team_total' && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Direction <span className="text-red-500">*</span>
+                  </label>
+                  <Select
+                    value={leg.direction || ''}
+                    onValueChange={value => handleChange('direction', value)}
+                  >
+                    <SelectTrigger className={!leg.direction ? 'border-red-300' : ''}>
+                      <SelectValue placeholder="Select Over/Under" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DIRECTIONS.map(dir => (
+                        <SelectItem key={dir} value={dir}>
+                          {dir.charAt(0).toUpperCase() + dir.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {!leg.direction && (
+                    <p className="text-xs text-red-500">Direction required for team total</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -345,19 +458,89 @@ export function LegCard({ leg, onRemove, onUpdate }: LegCardProps) {
             </div>
           )}
 
-          {/* Spread/Total specific fields */}
-          {leg.sport && (leg.bet_category === 'spread' || leg.bet_category === 'total') && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">
-                {leg.bet_category === 'spread' ? 'Point Spread' : 'Total Points'}
-              </label>
-              <Input
-                type="number"
-                step="0.5"
-                value={leg.line || ''}
-                onChange={e => handleChange('line', e.target.value)}
-                placeholder={leg.bet_category === 'spread' ? 'e.g. -3.5' : 'e.g. 225.5'}
-              />
+          {/* SMARTFORM-UX-CRITICAL-FIXPACK-025: Spread with Team Selection */}
+          {leg.sport && leg.bet_category === 'spread' && (
+            <div className="space-y-4">
+              {/* Team Selection for Spread - REQUIRED */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Team Selection <span className="text-red-500">*</span>
+                </label>
+                <Select value={leg.team || ''} onValueChange={value => handleChange('team', value)}>
+                  <SelectTrigger className={!leg.team ? 'border-red-300' : ''}>
+                    <SelectValue placeholder="Select Team for Spread" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {gameTeams.length > 0 ? (
+                      gameTeams.map(team => (
+                        <SelectItem key={team.value} value={team.value}>
+                          {team.label}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <>
+                        <SelectItem value="home_team">Home Team</SelectItem>
+                        <SelectItem value="away_team">Away Team</SelectItem>
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
+                {!leg.team && (
+                  <p className="text-xs text-red-500">Team selection required for spread bets</p>
+                )}
+              </div>
+              {/* Point Spread */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Point Spread</label>
+                <Input
+                  type="number"
+                  step="0.5"
+                  value={leg.line || ''}
+                  onChange={e => handleChange('line', e.target.value)}
+                  placeholder="e.g. -3.5"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* SMARTFORM-UX-CRITICAL-FIXPACK-025: Total with Direction */}
+          {leg.sport && leg.bet_category === 'total' && (
+            <div className="space-y-4">
+              {/* Total Points Line */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Total Points</label>
+                <Input
+                  type="number"
+                  step="0.5"
+                  value={leg.line || ''}
+                  onChange={e => handleChange('line', e.target.value)}
+                  placeholder="e.g. 225.5"
+                />
+              </div>
+              {/* Direction for Total - REQUIRED */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Direction <span className="text-red-500">*</span>
+                </label>
+                <Select
+                  value={leg.direction || ''}
+                  onValueChange={value => handleChange('direction', value)}
+                >
+                  <SelectTrigger className={!leg.direction ? 'border-red-300' : ''}>
+                    <SelectValue placeholder="Select Over/Under" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DIRECTIONS.map(dir => (
+                      <SelectItem key={dir} value={dir}>
+                        {dir.charAt(0).toUpperCase() + dir.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {!leg.direction && (
+                  <p className="text-xs text-red-500">Direction required for total bets</p>
+                )}
+              </div>
             </div>
           )}
 
@@ -391,21 +574,48 @@ export function LegCard({ leg, onRemove, onUpdate }: LegCardProps) {
             </div>
           )}
 
-          {/* Additional Line field for player props */}
+          {/* SMARTFORM-UX-CRITICAL-FIXPACK-025: Player Prop Line + Direction */}
           {leg.bet_category === 'player_prop' && leg.prop_type && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">
-                {leg.prop_type.charAt(0).toUpperCase() + leg.prop_type.slice(1).replace('_', ' ')}{' '}
-                Line
-              </label>
-              <Input
-                type="number"
-                step="0.5"
-                value={leg.line || ''}
-                onChange={e => handleChange('line', e.target.value)}
-                placeholder="e.g. 25.5"
-                className="text-gray-900 bg-white"
-              />
+            <div className="space-y-4">
+              {/* Line field */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  {leg.prop_type.charAt(0).toUpperCase() + leg.prop_type.slice(1).replace('_', ' ')}{' '}
+                  Line
+                </label>
+                <Input
+                  type="number"
+                  step="0.5"
+                  value={leg.line || ''}
+                  onChange={e => handleChange('line', e.target.value)}
+                  placeholder="e.g. 25.5"
+                  className="text-gray-900 bg-white"
+                />
+              </div>
+              {/* Direction for Player Prop - REQUIRED */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Direction <span className="text-red-500">*</span>
+                </label>
+                <Select
+                  value={leg.direction || ''}
+                  onValueChange={value => handleChange('direction', value)}
+                >
+                  <SelectTrigger className={!leg.direction ? 'border-red-300' : ''}>
+                    <SelectValue placeholder="Select Over/Under" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DIRECTIONS.map(dir => (
+                      <SelectItem key={dir} value={dir}>
+                        {dir.charAt(0).toUpperCase() + dir.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {!leg.direction && (
+                  <p className="text-xs text-red-500">Direction required for player props</p>
+                )}
+              </div>
             </div>
           )}
         </TabsContent>
