@@ -65,7 +65,7 @@ services:
       - unit-talk-network
     restart: unless-stopped
     profiles:
-      - ha  # High Availability profile
+      - ha # High Availability profile
 
   # Redis Cache & Session Store
   redis:
@@ -259,6 +259,7 @@ services:
   # ==============================================
 
   # Main API Platform
+  # External 3010 -> Internal 3000 (CANONICAL)
   api:
     build:
       context: ./apps/api
@@ -279,6 +280,10 @@ services:
       - PROMETHEUS_PORT=9464
       - LOG_LEVEL=debug
       - HEALTH_CHECK_INTERVAL=30000
+      # Version provenance (ui/surface-reset-020)
+      - GIT_COMMIT=${GIT_COMMIT:-unknown}
+      - GIT_COMMIT_SHORT=${GIT_COMMIT_SHORT:-unknown}
+      - GIT_BRANCH=${GIT_BRANCH:-unknown}
     volumes:
       - ./apps/api/src:/app/src
       - ./apps/api/logs:/app/logs
@@ -367,6 +372,7 @@ services:
     restart: unless-stopped
 
   # Smart Form Application
+  # CANONICAL UI SURFACE: /submit-ticket (ui/surface-reset-020)
   smart-form:
     build:
       context: ./apps/smart-form
@@ -374,7 +380,7 @@ services:
       target: development
     container_name: unit-talk-smart-form
     ports:
-      - "3002:3021"
+      - "3002:3021" # External 3002 -> Internal 3021 (CANONICAL)
     environment:
       - NODE_ENV=development
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
@@ -382,6 +388,10 @@ services:
       - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      # Version provenance (ui/surface-reset-020)
+      - GIT_COMMIT=${GIT_COMMIT:-unknown}
+      - GIT_COMMIT_SHORT=${GIT_COMMIT_SHORT:-unknown}
+      - GIT_BRANCH=${GIT_BRANCH:-unknown}
     volumes:
       - ./apps/smart-form:/app
       - /app/node_modules
@@ -429,6 +439,7 @@ services:
     restart: unless-stopped
 
   # Command Center
+  # CANONICAL UI SURFACE: /dashboard/* (ui/surface-reset-020)
   command-center:
     build:
       context: ./apps/command-center
@@ -436,7 +447,7 @@ services:
       target: development
     container_name: unit-talk-command-center
     ports:
-      - "3004:3015"
+      - "3004:3015" # External 3004 -> Internal 3015 (CANONICAL)
     environment:
       - NODE_ENV=development
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
@@ -445,6 +456,10 @@ services:
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       - PROMETHEUS_URL=http://prometheus:9090
       - TEMPORAL_UI_URL=http://localhost:8088
+      # Version provenance (ui/surface-reset-020)
+      - GIT_COMMIT=${GIT_COMMIT:-unknown}
+      - GIT_COMMIT_SHORT=${GIT_COMMIT_SHORT:-unknown}
+      - GIT_BRANCH=${GIT_BRANCH:-unknown}
     volumes:
       - ./apps/command-center:/app
       - /app/node_modules
