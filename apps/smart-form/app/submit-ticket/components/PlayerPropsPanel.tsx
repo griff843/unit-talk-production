@@ -264,10 +264,6 @@ export function PlayerPropsPanel({
         gameId={game.id}
         gameMatchup={game.matchup || `${game.awayTeam} @ ${game.homeTeam}`}
         sport={sport || 'MLB'}
-        // SMARTFORM-GAME-LOCK-003: Pass ONLY game teams - hard lock
-        teamItems={gameTeamItems}
-        // SMARTFORM-GAME-LOCK-003: Pass valid team UUIDs for validation
-        validTeamUuids={[homeTeamUuid, awayTeamUuid].filter(Boolean)}
         onPropCreated={handleManualPropCreated}
         onCancel={() => setShowManualPropCreator(false)}
       />

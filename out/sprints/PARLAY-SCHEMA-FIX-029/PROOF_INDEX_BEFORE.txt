@@ -1,0 +1,34 @@
+=== PROOF_INDEX_BEFORE ===
+Sprint: PARLAY-SCHEMA-FIX-029
+Timestamp: 2026-02-17T19:19:36.751Z
+
+CONSTRAINT IDENTIFICATION
+-------------------------
+Name: idx_unified_picks_bet_slip_id_unique
+Type: UNIQUE INDEX
+Table: unified_picks
+Column(s): bet_slip_id ONLY
+
+BLOCKING BEHAVIOR EVIDENCE
+--------------------------
+Test: Insert 2-leg parlay with same bet_slip_id
+
+Leg 1: bet_slip_id=5d67ea49-0378-4c4c-b87b-f05173756c8f, leg_index=0
+Result: SUCCESS (id: d9310741-b97b-43de-ac9e-3e41b91c570d)
+
+Leg 2: bet_slip_id=5d67ea49-0378-4c4c-b87b-f05173756c8f, leg_index=1
+Result: FAILURE
+Error Code: 23505 (unique_violation)
+Error Message: duplicate key value violates unique constraint "idx_unified_picks_bet_slip_id_unique"
+
+DIAGNOSIS
+---------
+The unique constraint is on bet_slip_id alone, preventing multiple legs
+with the same bet_slip_id even when leg_index differs.
+
+REQUIRED FIX
+------------
+1. Drop: idx_unified_picks_bet_slip_id_unique
+2. Create: idx_unified_picks_bet_slip_leg_unique ON (bet_slip_id, leg_index)
+
+This allows multiple rows per bet_slip_id as long as leg_index is unique within that bet_slip.

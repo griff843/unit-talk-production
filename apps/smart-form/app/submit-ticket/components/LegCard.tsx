@@ -53,6 +53,11 @@ export function LegCard({ leg, onRemove, onUpdate }: LegCardProps) {
       ]
     : [];
 
+  // SMART-PICK-BUILDER-027: Extract team names for player filtering
+  const gameTeamNames = selectedGame
+    ? [selectedGame.home_team, selectedGame.away_team].filter(Boolean)
+    : [];
+
   // Get sport-specific prop types
   const getSportPropTypes = (sport: string) => {
     return SPORT_PROP_TYPES[sport as keyof typeof SPORT_PROP_TYPES] || [];
@@ -425,17 +430,45 @@ export function LegCard({ leg, onRemove, onUpdate }: LegCardProps) {
             <div className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Player</label>
+                {/* SMART-PICK-BUILDER-027: Pass teamFilter for cascading UX */}
                 <SmartSearch
                   searchType="players"
                   sport={leg.sport}
-                  placeholder="Type player name (min 3 chars for search)..."
+                  placeholder={
+                    gameTeamNames.length > 0
+                      ? `Search ${gameTeamNames.join(' / ')} players...`
+                      : 'Type player name (min 3 chars)...'
+                  }
                   disabled={loading.props}
-                  onSelect={item => handleChange('player_name', item.name)}
+                  teamFilter={gameTeamNames}
+                  onSelect={item => {
+                    // SMART-PICK-BUILDER-027: Auto-fill team when player selected
+                    if (onUpdate) {
+                      onUpdate({
+                        player_name: item.name,
+                        // Auto-fill team from player's team if available
+                        ...(item.team ? { team: item.team } : {}),
+                      });
+                    }
+                  }}
                 />
                 {leg.player_name && (
                   <div className="text-xs text-green-600">Selected: {leg.player_name}</div>
                 )}
               </div>
+
+              {/* SMART-PICK-BUILDER-027: Show auto-filled team (locked) */}
+              {leg.team && leg.player_name && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    Team <span className="text-xs text-gray-400">(auto-filled)</span>
+                  </label>
+                  <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-md border border-gray-200">
+                    <span className="text-gray-700">{leg.team}</span>
+                    <span className="text-xs text-gray-400">🔒</span>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Prop Type</label>

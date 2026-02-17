@@ -1,0 +1,74 @@
+=== PROOF_PRECOMMIT_TRUTH ===
+Sprint: SMART-PICK-BUILDER-027
+Timestamp: 2026-02-17T19:27:00Z
+
+GIT STATUS
+----------
+Branch: main
+Tracking: origin/main (up to date)
+
+MODIFIED FILES (24 total)
+-------------------------
+apps/smart-form/app/api/cappers/route.ts
+apps/smart-form/app/api/games/route.ts
+apps/smart-form/app/submit-ticket/components/LegCard.tsx
+apps/smart-form/app/submit-ticket/components/ManualEntryForm.tsx
+apps/smart-form/app/submit-ticket/components/PlayerPropsPanel.tsx
+apps/smart-form/app/submit-ticket/components/SmartTicketForm.tsx (DELETED)
+apps/smart-form/app/submit-ticket/components/SubmitTicketForm.tsx
+apps/smart-form/app/submit-ticket/types.ts
+apps/smart-form/components/ui/avatar.tsx
+apps/smart-form/components/ui/combobox.tsx
+apps/smart-form/components/ui/form.tsx
+apps/smart-form/components/ui/label.tsx
+apps/smart-form/components/ui/popover.tsx
+apps/smart-form/components/ui/progress.tsx
+apps/smart-form/components/ui/select.tsx
+apps/smart-form/components/ui/separator.tsx
+apps/smart-form/components/ui/slider.tsx
+apps/smart-form/components/ui/smart-search.tsx
+apps/smart-form/components/ui/tabs.tsx
+apps/smart-form/components/ui/toast.tsx
+apps/smart-form/lib/clv-canary.ts
+apps/smart-form/lib/exposure-gate.ts
+apps/smart-form/scripts/test-unified-picks-insert.ts
+apps/smart-form/scripts/verify-cloud-odds-integrity.ts
+
+UNTRACKED FILES (to be added)
+-----------------------------
+apps/api/src/scripts/discord-canary-webhook.ts
+scripts/apply-parlay-schema-fix.mjs
+supabase/migrations/20260217190000_parlay_schema_fix_029.sql
+
+EXCLUDED (screenshots - not committed)
+--------------------------------------
+smart-form-audit-parlay-bug.png
+smart-form-audit-player-prop-with-line.png
+smart-form-desktop-v1.png
+smart-form-error.png
+smart-form-player-prop.png
+smart-form-stripped-full.png
+smart-form-stripped-v1.png
+smart-form-team-autofill-proof.png
+
+GIT DIFF SUMMARY
+----------------
+24 files changed, 861 insertions(+), 1149 deletions(-)
+
+RECENT COMMITS (HEAD~10)
+------------------------
+349e4a2e chore(smart-form): merge SMARTFORM-UX-CRITICAL-FIXPACK-025
+b403fbfc feat(smart-form): close 4 critical UX gaps
+3b7a1f17 chore(release): UI surface reset 020
+5f3299f4 fix(smart-form): use SubmitTicketForm instead of broken SmartTicketForm
+a7dcc8df feat(ui): UI Surface Reset (ui/surface-reset-020)
+0ee62d1c docs: add PHASE-2-PRODUCTION-READINESS-019 consolidation proof
+d87d8239 merge: PHASE-2-PRODUCTION-READINESS-019 main consolidation complete
+3868f5ae fix(api): add projections service stub for GradingAgent
+c6ea91de feat(alert-agent): AlertAgent V2
+6e4eb503 merge: consolidate feat/posting-authority-implement-001
+
+SPRINTS INCLUDED
+----------------
+- GAUNTLET-CLOSEOUT-028: Radix UI type inference fixes
+- PARLAY-SCHEMA-FIX-029: Multi-leg parlay support

@@ -1,0 +1,46 @@
+=== PROOF_DISCORD_PARLAY_CANARY ===
+Sprint: PARLAY-SCHEMA-FIX-029
+Timestamp: 2026-02-17T19:25:29.499Z
+
+DISCORD POST DETAILS
+--------------------
+Discord Message ID: 1473399984375333078
+Webhook: DISCORD_WEBHOOK_URL (configured)
+Username: Unit Talk PARLAY CANARY
+
+EMBED CONTENT
+-------------
+Title: PARLAY-SCHEMA-FIX-029 CANARY
+Description: 2-Leg Parlay Test - Verifying multi-leg insert and Discord posting
+
+Fields:
+  - Leg 1: Lakers -3.5 (-110)
+  - Leg 2: Celtics ML (-150)
+  - bet_slip_id: 533d6bfa
+  - Parlay Odds: +237 (calculated)
+  - Status: DB INSERT VERIFIED
+  - Index Fix: idx_unified_picks_bet_slip_leg_unique
+
+Footer: PARLAY-SCHEMA-FIX-029 | Unit Talk Gauntlet
+
+FULL LIFECYCLE VERIFICATION
+---------------------------
+1. Schema migration applied: SUCCESS
+   - idx_unified_picks_bet_slip_id_unique DROPPED
+   - idx_unified_picks_bet_slip_leg_unique CREATED
+
+2. Multi-leg insert: SUCCESS
+   - Leg 1 inserted with leg_index=0
+   - Leg 2 inserted with leg_index=1
+   - Same bet_slip_id for both
+
+3. Discord webhook: SUCCESS
+   - Message ID: 1473399984375333078
+   - Parlay details posted correctly
+
+CONCLUSION
+----------
+The PARLAY-SCHEMA-FIX-029 sprint is COMPLETE.
+Multi-leg parlays are now fully supported end-to-end:
+- Database schema allows multiple legs per bet_slip
+- Discord webhook correctly posts parlay information

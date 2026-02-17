@@ -335,11 +335,14 @@ export class CLVCanaryService {
           credits_used: creditsUsed,
           timestamp: new Date().toISOString(),
         })
-        .then(() => {})
-        .catch(() => {
-          // Table may not exist - that's OK
-          console.log('[CLV-CANARY] Credit log: table not available, logging to console');
-        });
+        .then(
+          () => {},
+          () => {
+            // GAUNTLET-CLOSEOUT-028: Use .then(resolve, reject) pattern for PromiseLike
+            // Table may not exist - that's OK
+            console.log('[CLV-CANARY] Credit log: table not available, logging to console');
+          }
+        );
 
       console.log('[CLV-CANARY] Credit usage:', {
         operation,

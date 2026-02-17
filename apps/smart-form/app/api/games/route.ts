@@ -11,6 +11,46 @@ import {
 
 const log = createRouteLogger('GET /api/games', 'GET');
 
+// GAUNTLET-CLOSEOUT-028: Explicit type for Supabase game row
+interface GameRow {
+  id: string;
+  sport: string;
+  league: string;
+  home_team: string;
+  away_team: string;
+  game_date: string;
+  start_time: string | null;
+  commence_time?: string | null;
+  status: string;
+  external_game_id: string | null;
+  meta: Record<string, any> | null;
+  moneyline_home?: number | null;
+  moneyline_away?: number | null;
+  spread?: number | null;
+  total?: number | null;
+  spread_odds?: number | null;
+  total_over_odds?: number | null;
+  total_under_odds?: number | null;
+  home_team_meta?: Record<string, any> | null;
+  away_team_meta?: Record<string, any> | null;
+  matchup?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// GAUNTLET-CLOSEOUT-028: Type for game insert payload
+interface GameInsertPayload {
+  sport: string;
+  league: string;
+  away_team: string;
+  home_team: string;
+  game_date: string;
+  start_time: string;
+  status: string;
+  external_game_id: string;
+  meta: Record<string, any>;
+}
+
 // Validation schema for query parameters
 const QuerySchema = z.object({
   sport: z.enum(['NFL', 'NBA', 'MLB', 'NHL', 'NCAAF']),
@@ -253,10 +293,11 @@ export async function GET(request: NextRequest) {
 
           logDatabaseOperation(log, 'DELETE', 'games', null, deleteError);
 
+          // GAUNTLET-CLOSEOUT-028: Type assertion for Supabase insert
           const { data: insertedGames, error: insertError } = await supabase
             .from('games')
-            .insert(optimalGames)
-            .select();
+            .insert(optimalGames as GameInsertPayload[])
+            .select() as { data: GameRow[] | null; error: any };
 
           logDatabaseOperation(log, 'INSERT', 'games', insertedGames, insertError);
 
@@ -291,7 +332,8 @@ export async function GET(request: NextRequest) {
     // ACTIVATION-P1-FIXES-001: Use canonical start_time (commence_time doesn't exist in cloud)
     query = query.order('start_time');
 
-    const { data: games, error } = await query;
+    // GAUNTLET-CLOSEOUT-028: Type assertion for Supabase query result
+    const { data: games, error } = await query as { data: GameRow[] | null; error: any };
 
     logDatabaseOperation(log, 'SELECT', 'games', games, error);
 
@@ -349,7 +391,8 @@ export async function GET(request: NextRequest) {
               gameTimeStr = gameTimeStr + 'Z';
             }
 
-            gameTime = new Date(gameTimeStr);
+            // GAUNTLET-CLOSEOUT-028: Guard against null/undefined gameTimeStr
+            gameTime = gameTimeStr ? new Date(gameTimeStr) : new Date();
 
             // Format time - let client handle timezone conversion for capper's local time
             if (!isNaN(gameTime.getTime())) {

@@ -79,8 +79,9 @@ async function validateOddsField(value: unknown, fieldName: string): Promise<{ v
   return { valid: true, issue: null };
 }
 
+// GAUNTLET-CLOSEOUT-028: Use any for Supabase client type to avoid inference issues
 async function validateTable(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   tableName: string,
   oddsColumns: string[],
   idColumn: string = 'id'
@@ -116,7 +117,8 @@ async function validateTable(
 
     result.totalRows = data.length;
 
-    for (const row of data) {
+    // GAUNTLET-CLOSEOUT-028: Type assertion for dynamic column access
+    for (const row of data as Record<string, any>[]) {
       let rowHasViolation = false;
 
       for (const col of oddsColumns) {

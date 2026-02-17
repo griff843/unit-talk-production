@@ -407,17 +407,15 @@ export function SubmitTicketForm() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0a183d] to-[#1b2a4e] flex flex-col items-center py-10 px-4">
       {/* Header Section */}
-      <div className="w-full max-w-7xl flex flex-col md:flex-row md:items-center md:justify-between mb-8">
-        <div>
-          <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight drop-shadow-lg">
-            Submit Sports Betting Ticket
-          </h1>
-        </div>
-        <div className="mt-4 md:mt-0 flex items-center gap-4">
-          <div className="h-12 w-12 rounded-full shadow-lg border-2 border-blue-400 bg-white flex items-center justify-center">
-            <span className="text-blue-600 font-bold text-lg">UT</span>
+      <div className="w-full max-w-7xl flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+        <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
+          Submit Pick
+        </h1>
+        <div className="mt-3 md:mt-0 flex items-center gap-3">
+          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+            <span className="text-white font-bold text-sm">UT</span>
           </div>
-          <span className="text-xl font-bold text-blue-100 tracking-wide">Unit Talk</span>
+          <span className="text-lg font-semibold text-slate-300">Unit Talk</span>
         </div>
       </div>
 
@@ -425,9 +423,9 @@ export function SubmitTicketForm() {
       <div className="w-full max-w-7xl flex flex-col lg:flex-row gap-8">
         {/* Main Form Section */}
         <div className="flex-1 space-y-8">
-          {/* Ticket Configuration Card */}
-          <Card className="p-6 bg-white/95 shadow-2xl rounded-2xl border-0">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Ticket Configuration</h2>
+          {/* Pick Details Card */}
+          <Card className="p-6 bg-white shadow-xl rounded-2xl border-0">
+            <h2 className="text-lg font-semibold text-gray-900 mb-5">Pick Details</h2>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                 {/* Capper & Type Section */}
@@ -562,116 +560,46 @@ export function SubmitTicketForm() {
                   </div>
                 )}
 
-                {/* Risk & Unit Size Section */}
+                {/* Unit Size & Auto Parlay */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Risk Amount ($)</label>
-                    <Input
-                      type="number"
-                      min={LIMITS.MIN_BET}
-                      max={LIMITS.MAX_BET}
-                      step="0.01"
-                      className="bg-white text-gray-900"
-                      {...form.register('risk_amount', { valueAsNumber: true })}
-                    />
-                    <p className="text-xs text-gray-500">
-                      Min: ${LIMITS.MIN_BET} | Max: ${LIMITS.MAX_BET}
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Unit Size</label>
-                    <Input
-                      type="number"
-                      min={0.5}
-                      max={5}
-                      step={0.5}
-                      className="bg-white text-gray-900 w-24"
-                      {...form.register('unit_size', { valueAsNumber: true })}
-                    />
-                    <p className="text-xs text-gray-500">Min: 0.5 | Max: 5 | Step: 0.5</p>
-                  </div>
-                </div>
-
-                {/* Odds Format & Auto Parlay */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Odds Format</label>
+                    <label className="text-sm font-medium text-gray-700">Units</label>
                     <Select
-                      name="odds_format"
-                      onValueChange={value => form.setValue('odds_format', value as OddsFormat)}
-                      value={form.watch('odds_format')}
+                      name="unit_size"
+                      onValueChange={value => form.setValue('unit_size', parseFloat(value))}
+                      value={form.watch('unit_size').toString()}
                     >
-                      <SelectTrigger className="bg-white text-gray-900">
-                        <SelectValue placeholder="Select Format" />
+                      <SelectTrigger className="bg-white text-gray-900 w-32">
+                        <SelectValue placeholder="Units" />
                       </SelectTrigger>
                       <SelectContent>
-                        {ODDS_FORMAT.map(format => (
-                          <SelectItem key={format} value={format} className="text-gray-900">
-                            {format}
+                        {[0.5, 1, 1.5, 2, 2.5, 3, 4, 5].map(u => (
+                          <SelectItem key={u} value={u.toString()} className="text-gray-900">
+                            {u}U
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="flex items-center space-x-2 h-full">
+                  <div className="flex items-center space-x-3 h-full pt-6">
                     <Switch
                       id="auto_parlay"
                       checked={form.watch('auto_parlay')}
-                      onCheckedChange={checked => form.setValue('auto_parlay', checked)}
+                      onCheckedChange={(checked: boolean) => form.setValue('auto_parlay', checked)}
                     />
                     <label htmlFor="auto_parlay" className="text-sm font-medium text-gray-700">
                       Auto Parlay
                     </label>
                   </div>
                 </div>
-
-                {/* Confidence & Tier Section */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Confidence Level</label>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={10}
-                      className="bg-white text-gray-900"
-                      {...form.register('confidence_level', { valueAsNumber: true })}
-                    />
-                    <p className="text-xs text-gray-500">Rate from 1-10</p>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">User Tier</label>
-                    <Select
-                      name="user_tier"
-                      onValueChange={value =>
-                        form.setValue('user_tier', value as 'standard' | 'vip' | 'elite')
-                      }
-                      value={form.watch('user_tier')}
-                    >
-                      <SelectTrigger className="bg-white text-gray-900">
-                        <SelectValue placeholder="Select Tier" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="free" className="text-gray-900">
-                          Free
-                        </SelectItem>
-                        <SelectItem value="vip" className="text-gray-900">
-                          VIP
-                        </SelectItem>
-                        <SelectItem value="vip_plus" className="text-gray-900">
-                          VIP+
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
               </form>
             </Form>
           </Card>
 
-          {/* Ticket Legs Card */}
-          <Card className="p-6 bg-white/95 shadow-2xl rounded-2xl border-0">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Ticket Legs</h2>
+          {/* Legs Card */}
+          <Card className="p-6 bg-white shadow-xl rounded-2xl border-0">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-semibold text-gray-900">Legs</h2>
               <Button
                 type="button"
                 variant="outline"
@@ -727,7 +655,7 @@ export function SubmitTicketForm() {
             {/* Submit Button */}
             <Button
               type="submit"
-              className="w-full py-4 text-lg font-bold bg-blue-700 hover:bg-blue-800 text-white rounded-xl shadow-lg mt-6"
+              className="w-full py-3 text-base font-semibold bg-green-600 hover:bg-green-700 text-white rounded-lg shadow-md mt-6 transition-colors"
               disabled={isSubmitting || legs.length === 0}
               onClick={form.handleSubmit(onSubmit)}
             >
@@ -737,9 +665,9 @@ export function SubmitTicketForm() {
                   Submitting...
                 </>
               ) : legs.length === 0 ? (
-                'Add Legs to Submit'
+                'Add Leg to Submit'
               ) : (
-                'Submit Ticket'
+                `Submit ${legs.length === 1 ? 'Pick' : `${legs.length}-Leg Parlay`}`
               )}
             </Button>
           </Card>
@@ -747,86 +675,46 @@ export function SubmitTicketForm() {
 
         {/* Sticky Summary Sidebar */}
         <div className="w-full lg:w-96 lg:sticky lg:top-10 space-y-6">
-          {/* Ticket Summary Card */}
-          <Card className="p-6 bg-gradient-to-br from-blue-800 to-blue-600 text-white shadow-xl rounded-2xl border-0">
+          {/* Ticket Summary Card - Streamlined */}
+          <Card className="p-6 bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-xl rounded-2xl border border-slate-700">
             <h3 className="text-lg font-bold mb-4 tracking-wide">Ticket Summary</h3>
             <div className="space-y-3">
-              <div className="flex justify-between border-b border-blue-500/30 pb-2">
-                <span className="font-medium">Type:</span>
-                <span className="capitalize">{form.watch('ticket_type')}</span>
+              <div className="flex justify-between border-b border-slate-600/50 pb-2">
+                <span className="text-slate-400">Capper</span>
+                <span className="font-semibold">{form.watch('capper') || '—'}</span>
               </div>
-              <div className="flex justify-between border-b border-blue-500/30 pb-2">
-                <span className="font-medium">Sport:</span>
-                <span>{form.watch('sport')}</span>
+              <div className="flex justify-between border-b border-slate-600/50 pb-2">
+                <span className="text-slate-400">Sport</span>
+                <span className="font-semibold">{form.watch('sport')}</span>
               </div>
-              <div className="flex justify-between border-b border-blue-500/30 pb-2">
-                <span className="font-medium">Risk:</span>
-                <span>{formatCurrency(form.watch('risk_amount'))}</span>
+              <div className="flex justify-between border-b border-slate-600/50 pb-2">
+                <span className="text-slate-400">Type</span>
+                <span className="font-semibold capitalize">{form.watch('ticket_type')}</span>
               </div>
-              <div className="flex justify-between border-b border-blue-500/30 pb-2">
-                <span className="font-medium">To Win:</span>
-                <span>{formatCurrency(form.watch('potential_payout'))}</span>
-              </div>
-              <div className="flex justify-between border-b border-blue-500/30 pb-2">
-                <span className="font-medium">Legs:</span>
-                <span>{legs.length}</span>
+              <div className="flex justify-between border-b border-slate-600/50 pb-2">
+                <span className="text-slate-400">Units</span>
+                <span className="font-semibold text-green-400">{form.watch('unit_size')}U</span>
               </div>
               <div className="flex justify-between pb-2">
-                <span className="font-medium">Confidence:</span>
-                <span>{form.watch('confidence_level')}/10</span>
+                <span className="text-slate-400">Legs</span>
+                <span className="font-semibold text-blue-400">{legs.length}</span>
               </div>
-            </div>
-
-            {/* Betting Limits Section */}
-            <div className="mt-6 pt-4 border-t border-blue-500">
-              <h4 className="text-sm font-semibold mb-3">Betting Limits</h4>
-              <div className="text-sm text-blue-200 space-y-2">
-                <div className="flex justify-between">
-                  <span>Min Bet:</span>
-                  <span>{formatCurrency(LIMITS.MIN_BET)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Max Bet:</span>
-                  <span>{formatCurrency(LIMITS.MAX_BET)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Max Payout:</span>
-                  <span>{formatCurrency(LIMITS.MAX_PAYOUT)}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 text-center">
-              <span className="text-xs text-blue-200">
-                All tickets are securely processed via API
-              </span>
             </div>
           </Card>
 
           {/* Quick Actions Card */}
-          <Card className="p-6 bg-white shadow-xl rounded-2xl border-0">
-            <h3 className="text-lg font-bold mb-4 text-gray-900">Quick Actions</h3>
-            <div className="space-y-3">
+          <Card className="p-4 bg-slate-800/50 shadow-xl rounded-2xl border border-slate-700">
+            <div className="space-y-2">
               <Button
-                variant="outline"
-                className="w-full justify-start"
+                variant="ghost"
+                className="w-full justify-start text-slate-300 hover:text-white hover:bg-slate-700"
                 disabled={legs.length === 0}
+                onClick={() => {
+                  setLegs([]);
+                  form.reset();
+                }}
               >
-                💾 Save as Template
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                disabled={legs.length === 0}
-              >
-                📋 Copy Ticket
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                disabled={legs.length === 0}
-              >
-                🔄 Clear All
+                Clear All
               </Button>
             </div>
           </Card>

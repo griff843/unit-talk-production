@@ -16,6 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 export interface ComboboxItem {
   value: string;
   label: string;
+  team_id?: string; // GAUNTLET-CLOSEOUT-028: Optional team_id for player items
 }
 
 interface ComboboxProps {

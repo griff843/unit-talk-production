@@ -1,0 +1,45 @@
+=== PROOF_INDEX_AFTER ===
+Sprint: PARLAY-SCHEMA-FIX-029
+Timestamp: 2026-02-17T19:24:02.429Z
+Migration Script: scripts/apply-parlay-schema-fix.mjs
+
+MIGRATION STEPS COMPLETED
+-------------------------
+Step 1: Backfilled 0 rows (no NULL leg_index values)
+Step 2: Set leg_index DEFAULT 0 and NOT NULL
+Step 3: Dropped idx_unified_picks_bet_slip_id_unique
+Step 4: Created idx_unified_picks_bet_slip_leg_unique (composite unique)
+Step 5: Created idx_unified_picks_bet_slip_id (non-unique for queries)
+
+CURRENT INDEXES ON unified_picks (bet_slip related)
+---------------------------------------------------
+Index: idx_unified_picks_bet_slip_id
+  DDL: CREATE INDEX idx_unified_picks_bet_slip_id ON public.unified_picks
+       USING btree (bet_slip_id) WHERE (bet_slip_id IS NOT NULL)
+  Type: NON-UNIQUE (query performance)
+
+Index: idx_unified_picks_bet_slip_id_v2
+  DDL: CREATE INDEX idx_unified_picks_bet_slip_id_v2 ON public.unified_picks
+       USING btree (bet_slip_id)
+  Type: NON-UNIQUE (legacy)
+
+Index: idx_unified_picks_bet_slip_leg_unique
+  DDL: CREATE UNIQUE INDEX idx_unified_picks_bet_slip_leg_unique ON public.unified_picks
+       USING btree (bet_slip_id, leg_index) WHERE (bet_slip_id IS NOT NULL)
+  Type: UNIQUE (composite key)
+
+BLOCKING INDEX REMOVED
+----------------------
+Name: idx_unified_picks_bet_slip_id_unique
+Status: DROPPED
+Previous Behavior: Blocked multiple rows with same bet_slip_id
+New Behavior: Multiple rows allowed when leg_index differs
+
+PARLAY SUPPORT ENABLED
+----------------------
+The composite unique constraint (bet_slip_id, leg_index) now allows:
+- Single picks: bet_slip_id='abc', leg_index=0
+- Parlay leg 1: bet_slip_id='xyz', leg_index=0
+- Parlay leg 2: bet_slip_id='xyz', leg_index=1
+- Parlay leg 3: bet_slip_id='xyz', leg_index=2
+- etc.

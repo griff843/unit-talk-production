@@ -5,6 +5,17 @@ import { createRouteLogger, logDatabaseOperation, logApiPerformance } from '@/li
 
 const log = createRouteLogger('GET /api/cappers', 'GET');
 
+// GAUNTLET-CLOSEOUT-028: Explicit type for Supabase query result
+interface UserRow {
+  id: string;
+  username: string;
+  discord_id: string | null;
+  tier: string | null;
+  capper_tier: string | null;
+  active: boolean;
+  role: string | null;
+}
+
 // Validation schema for query parameters
 const QuerySchema = z.object({
   active: z
@@ -69,7 +80,8 @@ export async function GET(request: Request) {
 
     query = query.order('username', { ascending: true });
 
-    const { data, error } = await query;
+    // GAUNTLET-CLOSEOUT-028: Type assertion for Supabase query result
+    const { data, error } = await query as { data: UserRow[] | null; error: any };
 
     logDatabaseOperation(log, 'SELECT', 'users', data, error);
 

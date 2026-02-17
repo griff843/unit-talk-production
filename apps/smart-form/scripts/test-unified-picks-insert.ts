@@ -100,8 +100,14 @@ async function testInsert() {
     console.error('Error hint:', insertError.hint);
 
     // Try to identify which column is causing the issue
+    // GAUNTLET-CLOSEOUT-028: Use then() with error handler instead of catch() for Supabase
     console.log('\n=== Checking table schema ===');
-    const { data: columns } = await supabase.rpc('get_table_columns', { table_name: 'unified_picks' }).catch(() => ({ data: null }));
+    const { data: columns } = await supabase
+      .rpc('get_table_columns', { table_name: 'unified_picks' })
+      .then(
+        (result) => result,
+        () => ({ data: null, error: null })
+      );
     if (columns) {
       console.log('Columns:', columns);
     }

@@ -164,12 +164,23 @@ export class ExposureGate {
     // Query today's unsettled picks
     // REMEDIATION-001: Removed 'units' from select - column does not exist in cloud schema
     // The code already has fallback (p.units || 1) at lines 168, 170, 196 for null units
-    const { data: picks, error } = await this.supabase
+    // GAUNTLET-CLOSEOUT-028: Type assertion for Supabase inference issue
+    interface ExposurePick {
+      id: string;
+      odds: number;
+      game_id: string | null;
+      player_id: string | null;
+      player_name: string | null;
+      sport: string | null;
+      units?: number; // Optional since not in cloud schema
+    }
+
+    const { data: picks, error } = (await this.supabase
       .from('unified_picks')
       .select('id, odds, game_id, player_id, player_name, sport')
       .eq('user_id', capperId)
       .gte('created_at', todayStart.toISOString())
-      .is('settlement_status', null);
+      .is('settlement_status', null)) as { data: ExposurePick[] | null; error: any };
 
     if (error) {
       throw new Error(`Failed to query current exposure: ${error.message}`);

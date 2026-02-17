@@ -61,6 +61,26 @@ export const BET_CATEGORIES = [
   'futures',
 ] as const;
 
+// GAUNTLET-CLOSEOUT-028: Display labels for bet types and ticket types
+export const DISPLAY_LABELS: Record<string, string> = {
+  // Ticket types
+  single: 'Single',
+  parlay: 'Parlay',
+  teaser: 'Teaser',
+  round_robin: 'Round Robin',
+  // Bet categories
+  spread: 'Spread',
+  total: 'Total',
+  moneyline: 'Moneyline',
+  player_prop: 'Player Prop',
+  team_prop: 'Team Prop',
+  futures: 'Futures',
+  // Market types
+  pre_game: 'Pre-Game',
+  live: 'Live',
+  game_prop: 'Game Prop',
+};
+
 // Sport-specific prop types
 export const SPORT_PROP_TYPES = {
   NBA: [
@@ -480,7 +500,7 @@ export interface GameSearchResult {
 // Game selection interface for step 4
 export interface GameSelection {
   id?: string; // Optional unique identifier for the selection
-  game_id: string;
+  game_id?: string; // GAUNTLET-CLOSEOUT-028: Optional for manual entries
   selection: string; // What user picked (team, over/under, etc)
   odds: string;
   line?: string;
@@ -495,6 +515,8 @@ export interface GameSelection {
   bet_type?: string;
   sport?: string;
   team_id?: string;
+  player_id?: string; // GAUNTLET-CLOSEOUT-028: For player prop entries
+  player_name?: string; // GAUNTLET-CLOSEOUT-028: For player prop entries
 }
 
 // Step validation interface

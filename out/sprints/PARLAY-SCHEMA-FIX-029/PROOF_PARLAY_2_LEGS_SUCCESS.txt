@@ -1,0 +1,48 @@
+=== PROOF_PARLAY_2_LEGS_SUCCESS ===
+Sprint: PARLAY-SCHEMA-FIX-029
+Timestamp: 2026-02-17T19:24:51.919Z
+
+TEST PARAMETERS
+---------------
+Capper: Vicgo
+bet_slip_id: 533d6bfa-7c7b-4314-a78d-19c307abbe39
+
+LEG 1 INSERT
+------------
+ID: 4bb3db9c-bf7d-4479-8d9b-faf63dcbbfe8
+leg_index: 0
+sport: NBA
+stat_type: spread
+selection: Lakers -3.5
+odds: -110
+Result: SUCCESS
+
+LEG 2 INSERT
+------------
+ID: 751bff48-e056-456f-9153-df4aa01d89e6
+leg_index: 1
+sport: NBA
+stat_type: moneyline
+selection: Celtics ML
+odds: -150
+Result: SUCCESS
+
+DB VERIFICATION
+---------------
+Query: SELECT * FROM unified_picks WHERE bet_slip_id = '533d6bfa-7c7b-4314-a78d-19c307abbe39' ORDER BY leg_index
+Result:
+  Leg 0: Lakers -3.5 | odds: -110
+  Leg 1: Celtics ML | odds: -150
+
+COMPOSITE UNIQUE INDEX PROOF
+----------------------------
+Index: idx_unified_picks_bet_slip_leg_unique
+Constraint: UNIQUE (bet_slip_id, leg_index) WHERE bet_slip_id IS NOT NULL
+Test: Two rows with same bet_slip_id but different leg_index values
+Result: BOTH INSERTED SUCCESSFULLY
+
+CONCLUSION
+----------
+The PARLAY-SCHEMA-FIX-029 migration successfully enables multi-leg parlay inserts.
+The composite unique constraint (bet_slip_id, leg_index) allows multiple legs
+per bet_slip while still preventing duplicate leg_index values within a parlay.

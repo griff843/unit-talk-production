@@ -489,7 +489,6 @@ export function ManualEntryForm({
                 gameId={`manual-${Date.now()}`}
                 gameMatchup={`${awayDisplay} @ ${homeDisplay}`}
                 sport={sport || 'NBA'}
-                teamItems={teamItems}
                 onPropCreated={handleManualPropCreated}
                 onCancel={() => setShowManualPropCreator(false)}
               />
