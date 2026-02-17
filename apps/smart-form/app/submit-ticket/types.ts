@@ -186,6 +186,10 @@ export type SportPropType<T extends Sport = Sport> = T extends keyof typeof SPOR
   ? (typeof SPORT_PROP_TYPES)[T][number]
   : string;
 
+// Direction for props and totals
+export const DIRECTIONS = ['over', 'under'] as const;
+export type Direction = (typeof DIRECTIONS)[number];
+
 export interface TicketLeg {
   id: string;
   sport: Sport;
@@ -202,6 +206,8 @@ export interface TicketLeg {
   game_date?: string;
   game_time?: string;
   status: 'open' | 'pending' | 'settled' | 'cancelled';
+  // SMARTFORM-UX-CRITICAL-FIXPACK-025: Direction field for props/totals
+  direction?: Direction;
 }
 
 // Smart form data structure (without risk_amount)
@@ -485,6 +491,10 @@ export interface GameSelection {
   manual_home_team?: string;
   manual_away_team?: string;
   manual_game_date?: string;
+  // Pre-existing fields used by GamePickForm
+  bet_type?: string;
+  sport?: string;
+  team_id?: string;
 }
 
 // Step validation interface

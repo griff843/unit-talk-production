@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { LegCard } from './LegCard';
-import { 
+import {
   apiClient,
   fetchCappers,
   fetchTeams,
@@ -100,7 +100,6 @@ export function SubmitTicketForm() {
     },
   });
 
-
   // Fetch cappers with error handling using API client
   useEffect(() => {
     const loadCappers = async () => {
@@ -126,7 +125,7 @@ export function SubmitTicketForm() {
         // Use fallback data only if API is completely unavailable
         setCappers([
           { id: 'fallback-1', name: 'Mike Johnson', active: true },
-          { id: 'fallback-2', name: 'Sarah Wilson', active: true }, 
+          { id: 'fallback-2', name: 'Sarah Wilson', active: true },
           { id: 'fallback-3', name: 'David Chen', active: true },
         ]);
 
@@ -202,6 +201,64 @@ export function SubmitTicketForm() {
     form.setValue('potential_payout', payout);
   }, [watchRiskAmount, legs, watchTicketType, form]);
 
+  // SMARTFORM-UX-CRITICAL-FIXPACK-025: Auto Parlay - switch to parlay when auto_parlay ON and >= 2 legs
+  const watchAutoParlay = form.watch('auto_parlay');
+  useEffect(() => {
+    if (watchAutoParlay && legs.length >= 2) {
+      // Auto-switch to parlay
+      if (watchTicketType !== 'parlay') {
+        form.setValue('ticket_type', 'parlay');
+      }
+    } else if (legs.length <= 1 && watchTicketType === 'parlay' && watchAutoParlay) {
+      // Switch back to single when only 1 leg
+      form.setValue('ticket_type', 'single');
+    }
+  }, [watchAutoParlay, legs.length, watchTicketType, form]);
+
+  // SMARTFORM-UX-CRITICAL-FIXPACK-025: Validate required fields for legs
+  const validateLegs = (): { valid: boolean; message: string } => {
+    for (let i = 0; i < legs.length; i++) {
+      const leg = legs[i];
+
+      // Player Prop requires direction
+      if (leg.bet_category === 'player_prop' && leg.prop_type && !leg.direction) {
+        return {
+          valid: false,
+          message: `Leg ${i + 1}: Direction (Over/Under) required for player props`,
+        };
+      }
+
+      // Total requires direction
+      if (leg.bet_category === 'total' && !leg.direction) {
+        return {
+          valid: false,
+          message: `Leg ${i + 1}: Direction (Over/Under) required for total bets`,
+        };
+      }
+
+      // Spread requires team selection
+      if (leg.bet_category === 'spread' && !leg.team) {
+        return { valid: false, message: `Leg ${i + 1}: Team selection required for spread bets` };
+      }
+
+      // Team Prop (team_total) requires team, line, and direction
+      if (leg.bet_category === 'team_prop') {
+        if (!leg.team) {
+          return { valid: false, message: `Leg ${i + 1}: Team selection required for team props` };
+        }
+        if (leg.prop_type === 'team_total') {
+          if (!leg.line) {
+            return { valid: false, message: `Leg ${i + 1}: Line required for team total` };
+          }
+          if (!leg.direction) {
+            return { valid: false, message: `Leg ${i + 1}: Direction required for team total` };
+          }
+        }
+      }
+    }
+    return { valid: true, message: '' };
+  };
+
   const onSubmit = async (data: TicketFormData) => {
     try {
       setIsSubmitting(true);
@@ -222,6 +279,17 @@ export function SubmitTicketForm() {
         toast({
           title: 'Validation Error',
           description: `Maximum ${maxLegs} legs allowed for ${data.ticket_type} tickets`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // SMARTFORM-UX-CRITICAL-FIXPACK-025: Validate leg required fields
+      const legValidation = validateLegs();
+      if (!legValidation.valid) {
+        toast({
+          title: 'Validation Error',
+          description: legValidation.message,
           variant: 'destructive',
         });
         return;
@@ -257,28 +325,34 @@ export function SubmitTicketForm() {
         return;
       }
 
+      // SMARTFORM-UX-CRITICAL-FIXPACK-025: Updated payload with direction and team
       const ticketData = {
         capper_id: selectedCapper.id,
         sport: data.sport as string,
         ticket_type: data.ticket_type as string,
         selections: legs.map(leg => ({
           sport: leg.sport,
-          stat_type: leg.prop_type || 'unknown',
+          bet_category: leg.bet_category,
+          stat_type: leg.prop_type || leg.bet_category || 'unknown',
           line: parseFloat(leg.line || '0') || 0,
           leg_odds: parseFloat(leg.odds || '0') || 0,
           source: 'manual' as const,
-          selection: (leg as any).selection || 'over' as 'over' | 'under' | 'yes' | 'no',
+          // SMARTFORM-UX-CRITICAL-FIXPACK-025: Use leg.direction for proper Over/Under mapping
+          selection: leg.direction || ('over' as 'over' | 'under' | 'yes' | 'no'),
+          // SMARTFORM-UX-CRITICAL-FIXPACK-025: Include team for spread/team_prop
+          team: leg.team || undefined,
+          player_name: leg.player_name || undefined,
           confidence: (data.confidence_level || 7) / 10,
         })),
         total_units: data.unit_size,
-        notes: `Risk: $${data.risk_amount}, Confidence: ${data.confidence_level}/10`,
+        notes: `Units: ${data.unit_size}U, Confidence: ${data.confidence_level}/10`,
       };
 
       try {
-        const result = await apiClient.submitTicket(ticketData) as any;
+        const result = (await apiClient.submitTicket(ticketData)) as any;
 
         toast({
-          title: 'Success', 
+          title: 'Success',
           description: `Ticket submitted successfully. Bet Slip ID: ${result?.bet_slip_id || 'Generated'}`,
           variant: 'default',
         });
@@ -455,7 +529,8 @@ export function SubmitTicketForm() {
                         setSelectedGame(game);
                         // Auto-load props for this game
                         if (game) {
-                          apiClient.fetchProps(sportValue, { gameId: game.id })
+                          apiClient
+                            .fetchProps(sportValue, { gameId: game.id })
                             .then(props => {
                               setAvailableProps(props || []);
                             })
@@ -609,13 +684,15 @@ export function SubmitTicketForm() {
                     market_type: 'pre_game',
                     prop_type: '',
                     player_name: '',
-                    team: selectedGame?.home_team?.name || '',
+                    team: '',
                     opponent: selectedGame?.away_team?.name || '',
                     line: '',
                     odds: '',
                     game_date: form.watch('game_date') || new Date().toISOString().split('T')[0],
                     status: 'open',
                     game_id: selectedGame?.id || '',
+                    // SMARTFORM-UX-CRITICAL-FIXPACK-025: Initialize direction
+                    direction: undefined,
                   })
                 }
               >
