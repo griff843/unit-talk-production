@@ -2,11 +2,13 @@
  * Embed Presentation Contract
  *
  * PHASE-2-PRODUCTION-READINESS-019: System Reconciliation
+ * EMBED-PRODUCTION-CONTRACT-030: Production embed format
  *
  * Enforces:
  * - No forbidden phrases in embeds
+ * - No dev/technical metadata in user-facing embeds
  * - Required fields present
- * - Footer contains build/env stamp
+ * - Footer contains build/env stamp + "Not Financial Advice"
  */
 
 import { getBuildInfo, formatEmbedFooter } from './buildInfo';
@@ -27,6 +29,36 @@ export const FORBIDDEN_PHRASES = [
   'MONEY LOCK',
   'SLAM DUNK',
   'STONE COLD LOCK',
+] as const;
+
+/**
+ * EMBED-PRODUCTION-CONTRACT-030: Forbidden field patterns
+ * Technical/dev metadata that MUST NOT appear in user-facing embed fields
+ */
+export const FORBIDDEN_FIELD_PATTERNS = [
+  // Dev-only field names from canary scripts
+  'DIRECTION FIELD',
+  'TEAM FIELD',
+  // Technical metadata
+  'DB INSERT',
+  'DB VERIFIED',
+  'VERIFIED',
+  'INDEX',
+  'Index Fix',
+  'LEG_INDEX',
+  'CONSTRAINT',
+  'SCHEMA',
+  // Internal identifiers that should not be displayed
+  'bet_slip_id',
+  'uuid',
+  'pick_id',
+  // Database error codes
+  '23505',
+  '23503',
+  // Other technical terms
+  'CANARY',
+  'DEBUG',
+  'TEST',
 ] as const;
 
 /**
@@ -57,6 +89,19 @@ export function containsForbiddenPhrase(text: string): string | null {
   for (const phrase of FORBIDDEN_PHRASES) {
     if (upperText.includes(phrase.toUpperCase())) {
       return phrase;
+    }
+  }
+  return null;
+}
+
+/**
+ * EMBED-PRODUCTION-CONTRACT-030: Check if text contains forbidden technical patterns
+ */
+export function containsForbiddenFieldPattern(text: string): string | null {
+  const upperText = text.toUpperCase();
+  for (const pattern of FORBIDDEN_FIELD_PATTERNS) {
+    if (upperText.includes(pattern.toUpperCase())) {
+      return pattern;
     }
   }
   return null;
@@ -106,6 +151,141 @@ export function validateEmbedContract(embed: any): ContractValidationResult {
     violations,
     warnings,
   };
+}
+
+/**
+ * EMBED-PRODUCTION-CONTRACT-030: Production embed validation result
+ */
+export interface ProductionValidationResult {
+  valid: boolean;
+  violations: string[];
+  field: string | null;
+}
+
+/**
+ * EMBED-PRODUCTION-CONTRACT-030: Validate embed for production compliance
+ *
+ * Checks ALL embed content:
+ * - title
+ * - description
+ * - fields[].name
+ * - fields[].value
+ * - footer.text
+ *
+ * Enforces:
+ * - No forbidden phrases (marketing)
+ * - No forbidden field patterns (technical/dev metadata)
+ * - Footer must be EXACTLY: "build:<sha> | env:<env> | Not Financial Advice"
+ */
+export function validateProductionEmbed(embed: any): ProductionValidationResult {
+  const violations: string[] = [];
+
+  // Check title
+  if (embed.title) {
+    const forbiddenPhrase = containsForbiddenPhrase(embed.title);
+    if (forbiddenPhrase) {
+      violations.push(`Title contains forbidden phrase: "${forbiddenPhrase}"`);
+    }
+    const forbiddenPattern = containsForbiddenFieldPattern(embed.title);
+    if (forbiddenPattern) {
+      violations.push(`Title contains forbidden pattern: "${forbiddenPattern}"`);
+    }
+  }
+
+  // Check description
+  if (embed.description) {
+    const forbiddenPhrase = containsForbiddenPhrase(embed.description);
+    if (forbiddenPhrase) {
+      violations.push(`Description contains forbidden phrase: "${forbiddenPhrase}"`);
+    }
+    const forbiddenPattern = containsForbiddenFieldPattern(embed.description);
+    if (forbiddenPattern) {
+      violations.push(`Description contains forbidden pattern: "${forbiddenPattern}"`);
+    }
+  }
+
+  // Check all fields
+  if (embed.fields && Array.isArray(embed.fields)) {
+    for (let i = 0; i < embed.fields.length; i++) {
+      const field = embed.fields[i];
+
+      // Check field name
+      if (field.name) {
+        const forbiddenPhrase = containsForbiddenPhrase(field.name);
+        if (forbiddenPhrase) {
+          violations.push(`Field[${i}].name contains forbidden phrase: "${forbiddenPhrase}"`);
+        }
+        const forbiddenPattern = containsForbiddenFieldPattern(field.name);
+        if (forbiddenPattern) {
+          violations.push(`Field[${i}].name "${field.name}" contains forbidden pattern: "${forbiddenPattern}"`);
+        }
+      }
+
+      // Check field value
+      if (field.value) {
+        const forbiddenPhrase = containsForbiddenPhrase(field.value);
+        if (forbiddenPhrase) {
+          violations.push(`Field[${i}].value contains forbidden phrase: "${forbiddenPhrase}"`);
+        }
+        const forbiddenPattern = containsForbiddenFieldPattern(field.value);
+        if (forbiddenPattern) {
+          violations.push(`Field[${i}].value contains forbidden pattern: "${forbiddenPattern}"`);
+        }
+      }
+    }
+  }
+
+  // Check footer format
+  if (embed.footer?.text) {
+    const footerText = embed.footer.text;
+
+    // Must contain build stamp
+    if (!footerText.includes('build:')) {
+      violations.push('Footer missing required build stamp (build:<sha>)');
+    }
+
+    // Must contain env stamp
+    if (!footerText.includes('env:')) {
+      violations.push('Footer missing required env stamp (env:<env>)');
+    }
+
+    // Must contain disclaimer
+    if (!footerText.includes('Not Financial Advice')) {
+      violations.push('Footer missing required disclaimer (Not Financial Advice)');
+    }
+
+    // Footer should not contain forbidden patterns
+    const forbiddenPattern = containsForbiddenFieldPattern(footerText);
+    if (forbiddenPattern) {
+      violations.push(`Footer contains forbidden pattern: "${forbiddenPattern}"`);
+    }
+  } else {
+    violations.push('Embed missing required footer');
+  }
+
+  return {
+    valid: violations.length === 0,
+    violations,
+    field: violations.length > 0 ? violations[0] : null,
+  };
+}
+
+/**
+ * EMBED-PRODUCTION-CONTRACT-030: Build production-compliant footer
+ */
+export function buildProductionFooter(gauntletRunId?: string): string {
+  const buildInfo = getBuildInfo('embed-builder');
+  const parts = [
+    `build:${buildInfo.commitShort}`,
+    `env:${buildInfo.environment}`,
+  ];
+
+  if (gauntletRunId) {
+    parts.push(`run:${gauntletRunId}`);
+  }
+
+  parts.push('Not Financial Advice');
+  return parts.join(' | ');
 }
 
 /**
@@ -216,11 +396,398 @@ export function getTierColor(tier: string): number {
   }
 }
 
+/**
+ * EMBED-FIX-031: Market label validation
+ * Ensures market labels match expected patterns for each market type
+ */
+export const VALID_MARKET_LABELS: Record<string, string[]> = {
+  player_prop: ['PTS', 'AST', 'REB', '3PM', 'STL', 'BLK', 'TO', 'PRA', 'P+R', 'P+A', 'R+A', 'DD', 'TD', 'Player Prop'],
+  spread: ['Spread'],
+  moneyline: ['Moneyline', 'ML'],
+  total: ['Game Total', 'Total'],
+  team_total: ['Team Total'],
+};
+
+/**
+ * EMBED-FIX-031: Validate that market label matches market type
+ */
+export function validateMarketLabel(
+  marketType: string,
+  marketLabel: string
+): { valid: boolean; error?: string } {
+  const validLabels = VALID_MARKET_LABELS[marketType];
+
+  if (!validLabels) {
+    // Unknown market type - allow any label that's not empty
+    return marketLabel ? { valid: true } : { valid: false, error: 'Empty market label' };
+  }
+
+  // Check if the label matches any valid pattern (case-insensitive)
+  const isValid = validLabels.some(
+    (valid) => marketLabel.toUpperCase().includes(valid.toUpperCase())
+  );
+
+  if (!isValid) {
+    return {
+      valid: false,
+      error: `Market label "${marketLabel}" invalid for type "${marketType}". Expected one of: ${validLabels.join(', ')}`,
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * EMBED-FIX-031: Thumbnail URL validation
+ * Ensures thumbnails follow the expected URL patterns
+ */
+const VALID_THUMBNAIL_PATTERNS = [
+  // ESPN CDN patterns
+  /^https:\/\/a\.espncdn\.com\/i\/teamlogos\//,
+  /^https:\/\/a\.espncdn\.com\/combiner\//,
+  /^https:\/\/a\.espncdn\.com\/i\/headshots\//,
+  // NBA CDN patterns
+  /^https:\/\/ak-static\.cms\.nba\.com\//,
+  // MLB CDN patterns
+  /^https:\/\/img\.mlbstatic\.com\//,
+  // NHL CDN patterns
+  /^https:\/\/assets\.nhle\.com\//,
+  // Unit Talk logo
+  /^https:\/\/i\.imgur\.com\/YQKdYUn\.png$/,
+];
+
+/**
+ * EMBED-FIX-031: Validate thumbnail URL matches expected patterns
+ */
+export function validateThumbnailUrl(
+  thumbnailUrl: string | undefined | null
+): { valid: boolean; warning?: string } {
+  if (!thumbnailUrl) {
+    return { valid: true, warning: 'No thumbnail URL provided' };
+  }
+
+  const matchesPattern = VALID_THUMBNAIL_PATTERNS.some((pattern) =>
+    pattern.test(thumbnailUrl)
+  );
+
+  if (!matchesPattern) {
+    return {
+      valid: false,
+      warning: `Thumbnail URL "${thumbnailUrl}" does not match expected CDN patterns`,
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * EMBED-FIX-031: Full presentation validation
+ * Validates all aspects of a pick presentation
+ */
+export interface PresentationValidationResult {
+  valid: boolean;
+  violations: string[];
+  warnings: string[];
+}
+
+export function validatePickPresentation(presentation: {
+  title: string;
+  market_label: string;
+  market_type: string;
+  thumbnail_url?: string;
+  context_line?: string;
+}): PresentationValidationResult {
+  const violations: string[] = [];
+  const warnings: string[] = [];
+
+  // Check title for forbidden phrases
+  if (presentation.title) {
+    const forbiddenPhrase = containsForbiddenPhrase(presentation.title);
+    if (forbiddenPhrase) {
+      violations.push(`Title contains forbidden phrase: "${forbiddenPhrase}"`);
+    }
+    const forbiddenPattern = containsForbiddenFieldPattern(presentation.title);
+    if (forbiddenPattern) {
+      violations.push(`Title contains forbidden pattern: "${forbiddenPattern}"`);
+    }
+  } else {
+    violations.push('Missing required title');
+  }
+
+  // Validate market label
+  const marketLabelResult = validateMarketLabel(
+    presentation.market_type,
+    presentation.market_label
+  );
+  if (!marketLabelResult.valid) {
+    warnings.push(marketLabelResult.error || 'Invalid market label');
+  }
+
+  // Validate thumbnail URL
+  const thumbnailResult = validateThumbnailUrl(presentation.thumbnail_url);
+  if (!thumbnailResult.valid) {
+    warnings.push(thumbnailResult.warning || 'Invalid thumbnail URL');
+  }
+
+  // Check context line for forbidden patterns
+  if (presentation.context_line) {
+    const forbiddenPattern = containsForbiddenFieldPattern(presentation.context_line);
+    if (forbiddenPattern) {
+      violations.push(`Context line contains forbidden pattern: "${forbiddenPattern}"`);
+    }
+  }
+
+  return {
+    valid: violations.length === 0,
+    violations,
+    warnings,
+  };
+}
+
+/**
+ * EMBED-TRUTH-FIX-031: Required fields validation for posting gate
+ * This validation REFUSES to post if critical fields are missing
+ *
+ * Rules:
+ * - Player Props MUST have: player_name (or parseable from selection), direction, line
+ * - Spreads MUST have: team (or parseable from selection), line
+ * - Totals MUST have: direction, line
+ * - Team Totals MUST have: team, direction, line
+ * - Build SHA MUST NOT be "unknown" in production
+ */
+export interface PostingGateResult {
+  canPost: boolean;
+  violations: string[];
+  warnings: string[];
+  marketType: string;
+  parsedFields: {
+    player_name?: string | null;
+    team?: string | null;
+    direction?: string | null;
+    line?: number | null;
+    bet_type?: string | null;
+  };
+}
+
+/**
+ * EMBED-TRUTH-FIX-031: Parse player name from selection string
+ */
+function parsePlayerNameFromSelection(selection: string | undefined): string | null {
+  if (!selection) return null;
+  // Pattern: "Player Name Over/Under Line Stat" e.g., "LeBron James Over 27.5 PTS"
+  const playerPropPattern = /^([A-Za-z\s\.\-']+)\s+(over|under)\s+[\d\.]+/i;
+  const match = selection.match(playerPropPattern);
+  if (match && match[1]) {
+    return match[1].trim();
+  }
+  return null;
+}
+
+/**
+ * EMBED-TRUTH-FIX-031: Parse direction from selection string
+ */
+function parseDirectionFromSelection(selection: string | undefined): string | null {
+  if (!selection) return null;
+  const lower = selection.toLowerCase();
+  if (lower.includes('over')) return 'over';
+  if (lower.includes('under')) return 'under';
+  return null;
+}
+
+/**
+ * EMBED-TRUTH-FIX-031: Parse team from selection string
+ */
+function parseTeamFromSelection(selection: string | undefined): string | null {
+  if (!selection) return null;
+  // Spread pattern: "Lakers -3.5" or "Celtics +5.5"
+  const spreadPattern = /^([A-Za-z\s]+)\s+[\-\+]\d+\.?\d*$/;
+  const match = selection.match(spreadPattern);
+  if (match && match[1]) {
+    return match[1].trim();
+  }
+  // ML pattern: just team name
+  if (!selection.match(/\s+(over|under)\s+/i) && !selection.match(/^(over|under)\s+/i)) {
+    return selection.trim();
+  }
+  return null;
+}
+
+/**
+ * EMBED-TRUTH-FIX-031: Detect bet type from pick data
+ */
+function detectBetType(pick: {
+  selection?: string;
+  stat_type?: string;
+  bet_type?: string;
+  player_name?: string;
+}): string {
+  const selection = (pick.selection || '').toLowerCase();
+  const statType = (pick.stat_type || '').toLowerCase();
+  const betType = (pick.bet_type || '').toLowerCase();
+
+  // Explicit bet_type takes precedence
+  if (betType && betType !== 'moneyline') {
+    return betType;
+  }
+
+  // Player prop detection
+  const playerPropPattern = /^[a-z\s\.\-']+\s+(over|under)\s+[\d\.]+/i;
+  if (playerPropPattern.test(selection)) return 'player_prop';
+
+  const propStats = ['pts', 'ast', 'reb', '3pm', 'stl', 'blk', 'to', 'pra'];
+  if (propStats.includes(statType)) return 'player_prop';
+  if (pick.player_name) return 'player_prop';
+
+  // Spread pattern
+  if (selection.match(/[\-\+]\d+\.?\d*$/) || statType === 'spread') return 'spread';
+
+  // Total pattern
+  if (selection.match(/^(over|under)\s+\d+\.?\d*$/i) || statType === 'total') return 'total';
+
+  // Team total
+  if (statType === 'team_total') return 'team_total';
+
+  return 'moneyline';
+}
+
+/**
+ * EMBED-TRUTH-FIX-031: Posting Gate Validation
+ *
+ * This is the HARD GATE that prevents posting if critical fields are missing.
+ * Called before any Discord embed is sent.
+ */
+export function validatePostingGate(pick: {
+  player_name?: string | null;
+  team?: string | null;
+  selection?: string;
+  stat_type?: string;
+  bet_type?: string;
+  line?: number | null;
+  direction?: string | null;
+  side?: string | null;
+}): PostingGateResult {
+  const violations: string[] = [];
+  const warnings: string[] = [];
+
+  // Parse fields from selection as fallback
+  const parsedPlayerName = parsePlayerNameFromSelection(pick.selection);
+  const parsedDirection = parseDirectionFromSelection(pick.selection);
+  const parsedTeam = parseTeamFromSelection(pick.selection);
+  const detectedBetType = detectBetType(pick);
+
+  const effectivePlayerName = pick.player_name || parsedPlayerName;
+  const effectiveDirection = pick.direction || pick.side || parsedDirection;
+  const effectiveTeam = pick.team || parsedTeam;
+  const effectiveLine = pick.line;
+
+  const parsedFields = {
+    player_name: effectivePlayerName,
+    team: effectiveTeam,
+    direction: effectiveDirection,
+    line: effectiveLine,
+    bet_type: detectedBetType,
+  };
+
+  // Validate based on bet type
+  switch (detectedBetType) {
+    case 'player_prop':
+      if (!effectivePlayerName) {
+        violations.push('PLAYER_PROP_MISSING_PLAYER: Player name required for player prop bets');
+      }
+      if (!effectiveDirection) {
+        violations.push('PLAYER_PROP_MISSING_DIRECTION: Direction (over/under) required for player prop bets');
+      }
+      if (effectiveLine === null || effectiveLine === undefined) {
+        violations.push('PLAYER_PROP_MISSING_LINE: Line required for player prop bets');
+      }
+      break;
+
+    case 'spread':
+      if (!effectiveTeam) {
+        violations.push('SPREAD_MISSING_TEAM: Team name required for spread bets');
+      }
+      if (effectiveLine === null || effectiveLine === undefined) {
+        violations.push('SPREAD_MISSING_LINE: Line required for spread bets');
+      }
+      break;
+
+    case 'total':
+      if (!effectiveDirection) {
+        violations.push('TOTAL_MISSING_DIRECTION: Direction (over/under) required for total bets');
+      }
+      if (effectiveLine === null || effectiveLine === undefined) {
+        violations.push('TOTAL_MISSING_LINE: Line required for total bets');
+      }
+      break;
+
+    case 'team_total':
+      if (!effectiveTeam) {
+        violations.push('TEAM_TOTAL_MISSING_TEAM: Team name required for team total bets');
+      }
+      if (!effectiveDirection) {
+        violations.push('TEAM_TOTAL_MISSING_DIRECTION: Direction (over/under) required for team total bets');
+      }
+      if (effectiveLine === null || effectiveLine === undefined) {
+        violations.push('TEAM_TOTAL_MISSING_LINE: Line required for team total bets');
+      }
+      break;
+
+    case 'moneyline':
+      if (!effectiveTeam) {
+        warnings.push('MONEYLINE_MISSING_TEAM: Team name recommended for moneyline bets');
+      }
+      break;
+  }
+
+  return {
+    canPost: violations.length === 0,
+    violations,
+    warnings,
+    marketType: detectedBetType,
+    parsedFields,
+  };
+}
+
+/**
+ * EMBED-TRUTH-FIX-031: Validate build provenance
+ * Returns false if build SHA is "unknown" in production environment
+ */
+export function validateBuildProvenance(commitShort: string, environment: string): {
+  valid: boolean;
+  error?: string;
+} {
+  // In production, we MUST have a valid build SHA
+  if (environment === 'production' && (commitShort === 'unknown' || !commitShort)) {
+    return {
+      valid: false,
+      error: 'BUILD_SHA_UNKNOWN: Build provenance required in production. Set GIT_COMMIT_SHORT env var.',
+    };
+  }
+
+  // In development, warn but allow
+  if (environment !== 'production' && (commitShort === 'unknown' || !commitShort)) {
+    // This is a warning, not a failure
+    return { valid: true };
+  }
+
+  return { valid: true };
+}
+
 export default {
   FORBIDDEN_PHRASES,
+  FORBIDDEN_FIELD_PATTERNS,
+  VALID_MARKET_LABELS,
   containsForbiddenPhrase,
+  containsForbiddenFieldPattern,
   validateEmbedContract,
+  validateProductionEmbed,
+  validateMarketLabel,
+  validateThumbnailUrl,
+  validatePickPresentation,
+  validatePostingGate,
+  validateBuildProvenance,
   buildCompliantEmbed,
+  buildProductionFooter,
   getCompliantPickTitle,
   getTierColor,
 };

@@ -108,6 +108,24 @@ show_service_urls() {
     echo -e "${NC}"
 }
 
+# EMBED-FIX-031: Function to set git provenance environment variables
+set_git_provenance() {
+    print_status "Setting git provenance for build tracking..."
+
+    # Get git commit info
+    if command -v git > /dev/null 2>&1 && git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
+        export GIT_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+        export GIT_COMMIT_SHORT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+        export GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+        print_success "Git provenance set: ${GIT_COMMIT_SHORT} on ${GIT_BRANCH}"
+    else
+        export GIT_COMMIT="unknown"
+        export GIT_COMMIT_SHORT="unknown"
+        export GIT_BRANCH="unknown"
+        print_warning "Not in a git repository - using 'unknown' for provenance"
+    fi
+}
+
 # Function to check prerequisites
 check_prerequisites() {
     print_status "Checking prerequisites..."
@@ -353,11 +371,12 @@ main() {
         "start")
             show_banner
             check_prerequisites
+            set_git_provenance  # EMBED-FIX-031: Set git provenance before starting Docker
             setup_workspace
             create_monitoring_config
-            
+
             print_status "Starting Unit Talk development environment..."
-            
+
             start_infrastructure
             start_applications
             start_dev_tools

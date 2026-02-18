@@ -4,6 +4,13 @@ import axios from 'axios';
 import FormData from 'form-data';
 
 import { autopilotGuard } from '../../lib/AutopilotGuard';
+import { getBuildInfo } from '../../lib/buildInfo';
+import {
+  buildProductionFooter,
+  validatePickPresentation,
+  validatePostingGate,
+  validateBuildProvenance,
+} from '../../lib/embedPresentationContract';
 import { logger } from '../../services/logging';
 import { supabase } from '../../services/supabaseClient';
 import { buildPickPresentation } from '../../services/pickPresentationBuilder';
@@ -135,9 +142,9 @@ function getParlayLegMarketLabel(leg: any): string {
 
 // PARLAY-DISCORD-FIX-001: Build parlay embed from multiple legs
 // PARLAY-PRESENTATION-REFINE-001: Clean block format without "Leg X:" labels
+// EMBED-FIX-031: Removed "Sports" field per production contract
 function buildParlayEmbed(legs: any[]) {
   const capper = getCapperFromPick(legs[0]);
-  const sports = [...new Set(legs.map(l => l.sport || 'Sports'))].join('/');
   const totalOdds = calculateParlayOdds(legs.map(l => l.odds || -110));
   const totalUnits = legs[0].unit_size || legs[0].units || 1;
   const highestTier = legs.reduce((best, leg) => {
@@ -168,18 +175,21 @@ function buildParlayEmbed(legs: any[]) {
     return line2 ? `${line1}\n${line2}` : line1;
   }).join('\n\n');
 
+  // EMBED-PRODUCTION-CONTRACT-030: Production footer with build info
+  const footer = buildProductionFooter();
+
+  // EMBED-FIX-031: Removed "Sports" field - redundant with matchup info
   return {
-    title: `🎯 PARLAY ALERT • ${legs.length} Legs`,
+    title: `🔥 ${legs.length}-Leg Parlay`,
     color: highestTier === 'S' ? 0xff5252 : highestTier === 'A' ? 0x66bb6a : 0xfbc02d,
     fields: [
-      { name: '🎯 Parlay Legs', value: legsText, inline: false },
+      { name: 'Legs', value: legsText, inline: false },
       { name: 'Total Odds', value: `${formatOdds(totalOdds)}`, inline: true },
       { name: 'Units', value: formatUnit(totalUnits), inline: true },
       { name: 'Tier', value: `${highestTier}-Tier`, inline: true },
       { name: 'Capper', value: capper, inline: true },
-      { name: 'Sports', value: sports, inline: true },
     ],
-    footer: { text: 'Unit Talk' },
+    footer: { text: footer },
   };
 }
 
@@ -211,6 +221,9 @@ function buildEmbedFromPresentation(presentation: PickPresentation) {
     fields.push({ name: 'Capper', value: presentation.capper_name, inline: true });
   }
 
+  // EMBED-PRODUCTION-CONTRACT-030: Production footer with build info
+  const footer = buildProductionFooter();
+
   const embed: any = {
     // DISCORD-UX-OVERHAUL-001: Title is now the actual pick (e.g., "Texas Tech", "Furman -3.5", "Over 220.5")
     title: `🎯 ${presentation.title}`,
@@ -218,7 +231,7 @@ function buildEmbedFromPresentation(presentation: PickPresentation) {
     // Market label as description line 1, context as line 2
     description: `**${presentation.market_label}**\n${presentation.context_line}`,
     fields,
-    footer: { text: 'Unit Talk' },
+    footer: { text: footer },
   };
 
   // Add thumbnail if available (team logo or player headshot)
@@ -242,11 +255,14 @@ function buildEliteEmbed(pick: any) {
   const capper = getCapperFromPick(pick);
   const sport = pick.sport || pick.league || 'Sports';
 
+  // EMBED-PRODUCTION-CONTRACT-030: Production footer with build info
+  const footer = buildProductionFooter();
+
   // PARLAY-DISCORD-FIX-001: Legacy parlay detection (now handled upstream)
   if (Array.isArray(pick.legs) && pick.legs.length > 1) {
     const contextLine = [sport, matchup, gameTime].filter(Boolean).join(' • ');
     return {
-      title: `🎯 PARLAY ALERT • ${pick.legs.length} Legs`,
+      title: `🔥 ${pick.legs.length}-Leg Parlay`,
       color: 0xff5252,
       image: { url: 'attachment://pick.png' },
       fields: [
@@ -256,7 +272,7 @@ function buildEliteEmbed(pick: any) {
         { name: 'Capper', value: capper, inline: true },
       ],
       description: contextLine ? `${contextLine}` : undefined,
-      footer: { text: 'Unit Talk' },
+      footer: { text: footer },
     };
   }
 
@@ -283,7 +299,7 @@ function buildEliteEmbed(pick: any) {
       { name: 'Tier', value: `${pick.tier || 'N/A'}-Tier`, inline: true },
     ],
     description: contextLine,
-    footer: { text: 'Unit Talk' },
+    footer: { text: footer },
   };
 }
 
@@ -314,9 +330,93 @@ async function postEliteCardToDiscord(pick: any): Promise<string | null> {
     return null;
   }
 
+  // EMBED-TRUTH-FIX-031: Posting gate validation - refuse to post if critical fields missing
+  const postingGate = validatePostingGate({
+    player_name: pick.player_name,
+    team: pick.team,
+    selection: pick.selection,
+    stat_type: pick.stat_type,
+    bet_type: pick.bet_type,
+    line: pick.line,
+    direction: pick.direction || pick.side,
+  });
+
+  if (!postingGate.canPost) {
+    logger.error(
+      {
+        pickId: pick.id,
+        violations: postingGate.violations,
+        marketType: postingGate.marketType,
+        parsedFields: postingGate.parsedFields,
+      },
+      'EMBED-TRUTH-FIX-031: Posting gate BLOCKED - missing required fields'
+    );
+    return null;
+  }
+
+  if (postingGate.warnings.length > 0) {
+    logger.warn(
+      {
+        pickId: pick.id,
+        warnings: postingGate.warnings,
+        marketType: postingGate.marketType,
+      },
+      'EMBED-TRUTH-FIX-031: Posting gate warnings'
+    );
+  }
+
+  // EMBED-TRUTH-FIX-031: Build provenance validation
+  const buildInfo = getBuildInfo('DiscordPromotionAgent');
+  const provenanceCheck = validateBuildProvenance(buildInfo.commitShort, buildInfo.environment);
+  if (!provenanceCheck.valid) {
+    logger.error(
+      {
+        pickId: pick.id,
+        commitShort: buildInfo.commitShort,
+        environment: buildInfo.environment,
+        error: provenanceCheck.error,
+      },
+      'EMBED-TRUTH-FIX-031: Build provenance validation FAILED'
+    );
+    // In production, this is a hard block. In dev, we allow it.
+    if (buildInfo.environment === 'production') {
+      return null;
+    }
+  }
+
   try {
     // DISCORD-UX-OVERHAUL-001: Build presentation-ready format
     const presentation = await buildPickPresentation(pick);
+
+    // EMBED-FIX-031: Validate presentation before posting
+    const presentationValidation = validatePickPresentation({
+      title: presentation.title,
+      market_label: presentation.market_label,
+      market_type: presentation.market_type,
+      thumbnail_url: presentation.thumbnail_url,
+      context_line: presentation.context_line,
+    });
+
+    if (!presentationValidation.valid) {
+      logger.error(
+        {
+          pickId: pick.id,
+          violations: presentationValidation.violations,
+        },
+        'EMBED-FIX-031: Presentation validation failed - blocking post'
+      );
+      return null;
+    }
+
+    if (presentationValidation.warnings.length > 0) {
+      logger.warn(
+        {
+          pickId: pick.id,
+          warnings: presentationValidation.warnings,
+        },
+        'EMBED-FIX-031: Presentation validation warnings'
+      );
+    }
 
     logger.info(
       {
@@ -396,6 +496,50 @@ async function postParlayToDiscord(legs: any[]): Promise<string | null> {
     return null;
   }
 
+  // EMBED-TRUTH-FIX-031: Validate ALL legs pass posting gate
+  for (const leg of legs) {
+    const postingGate = validatePostingGate({
+      player_name: leg.player_name,
+      team: leg.team,
+      selection: leg.selection,
+      stat_type: leg.stat_type,
+      bet_type: leg.bet_type,
+      line: leg.line,
+      direction: leg.direction || leg.side,
+    });
+
+    if (!postingGate.canPost) {
+      logger.error(
+        {
+          betSlipId: primaryLeg.bet_slip_id,
+          legId: leg.id,
+          legIndex: leg.leg_index,
+          violations: postingGate.violations,
+          marketType: postingGate.marketType,
+          parsedFields: postingGate.parsedFields,
+        },
+        'EMBED-TRUTH-FIX-031: Parlay leg BLOCKED by posting gate - missing required fields'
+      );
+      return null;
+    }
+  }
+
+  // EMBED-TRUTH-FIX-031: Build provenance validation for parlays
+  const buildInfo = getBuildInfo('DiscordPromotionAgent');
+  const provenanceCheck = validateBuildProvenance(buildInfo.commitShort, buildInfo.environment);
+  if (!provenanceCheck.valid && buildInfo.environment === 'production') {
+    logger.error(
+      {
+        betSlipId: primaryLeg.bet_slip_id,
+        commitShort: buildInfo.commitShort,
+        environment: buildInfo.environment,
+        error: provenanceCheck.error,
+      },
+      'EMBED-TRUTH-FIX-031: Parlay build provenance validation FAILED'
+    );
+    return null;
+  }
+
   try {
     // PARLAY-DISCORD-GROUPING-001: Use ?wait=true to get message_id back
     const response = await axios.post(`${DISCORD_WEBHOOK_URL}?wait=true`, {
@@ -456,6 +600,7 @@ async function claimParlayLegs(pickIds: string[]): Promise<boolean> {
 }
 
 // PARLAY-DISCORD-GROUPING-001: Added message_id, ticket_type, leg_count params
+// EMBED-PRODUCTION-CONTRACT-030: Added commit_sha to discord receipt
 async function persistDiscordReceipt(
   pickId: string,
   receipt: {
@@ -467,6 +612,7 @@ async function persistDiscordReceipt(
   }
 ) {
   try {
+    const buildInfo = getBuildInfo('DiscordPromotionAgent');
     const { data: cur } = await supabase
       .from('unified_picks')
       .select('meta')
@@ -474,7 +620,13 @@ async function persistDiscordReceipt(
       .single();
     const meta = {
       ...((cur?.meta as Record<string, any>) || {}),
-      discord_receipt: { ...receipt, posted_at: new Date().toISOString() },
+      discord_receipt: {
+        ...receipt,
+        posted_at: new Date().toISOString(),
+        commit_sha: buildInfo.commit,
+        commit_short: buildInfo.commitShort,
+        environment: buildInfo.environment,
+      },
     };
     await supabase.from('unified_picks').update({ meta }).eq('id', pickId);
   } catch (err) {
