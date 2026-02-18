@@ -11,6 +11,8 @@ import 'dotenv/config';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { createClient } from '@supabase/supabase-js';
+import { buildProductionFooter } from '../lib/embedPresentationContract';
+import { getBuildInfo } from '../lib/buildInfo';
 
 // ---- CONFIG ----
 const DISCORD_WEBHOOK_URL = process.env['DISCORD_WEBHOOK_URL'] || '';
@@ -72,8 +74,11 @@ function buildCanaryEmbed(pick: CanaryPick) {
 
   const contextLine = `${pick.sport} ${pick.matchup ? '• ' + pick.matchup : ''}`;
 
+  // EMBED-PRODUCTION-CONTRACT-030: Use production-compliant footer
+  const footer = buildProductionFooter();
+
   return {
-    title: `CANARY ${title}`,
+    title: `🎯 ${title}`,
     color: 0x00ff00, // Green for canary
     description: `**${marketLabel}**\n${contextLine}`,
     fields: [
@@ -81,11 +86,9 @@ function buildCanaryEmbed(pick: CanaryPick) {
       { name: 'Units', value: `${pick.unit_size}U`, inline: true },
       { name: 'Tier', value: `${pick.tier}-Tier`, inline: true },
       { name: 'Capper', value: pick.capper_username, inline: true },
-      // CANARY PROOF FIELDS - These prove the direction fix works
-      { name: ' DIRECTION FIELD', value: direction || 'NOT SET', inline: true },
-      { name: ' TEAM FIELD', value: pick.team || 'NOT SET', inline: true },
+      // EMBED-PRODUCTION-CONTRACT-030: Dev-only fields REMOVED
     ],
-    footer: { text: 'DISCORD-WEBHOOK-CANARY-PROOF-026 | Unit Talk' },
+    footer: { text: footer },
     timestamp: new Date().toISOString(),
   };
 }
@@ -181,6 +184,9 @@ async function main() {
     console.log(` Posted to Discord!`);
     console.log(`Message ID: ${messageId}`);
 
+    // EMBED-PRODUCTION-CONTRACT-030: Include commit SHA in discord receipt
+    const buildInfo = getBuildInfo('discord-canary-webhook');
+
     // Insert canary pick into unified_picks for record
     const pickInsert = {
       id: pickId,
@@ -202,7 +208,9 @@ async function main() {
           message_id: messageId,
           posted_at: new Date().toISOString(),
           poster: 'discord-canary-webhook.ts',
-          canary_verified: true,
+          commit_sha: buildInfo.commit,
+          commit_short: buildInfo.commitShort,
+          environment: buildInfo.environment,
         },
       },
     };

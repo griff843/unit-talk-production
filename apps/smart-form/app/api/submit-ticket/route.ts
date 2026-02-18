@@ -12,7 +12,6 @@ import {
 import {
   validateOddsInteger,
   calculateParlayOdds,
-  OddsValidationErrorCode,
 } from '@/lib/odds-validator';
 
 const log = createRouteLogger('POST /api/submit-ticket', 'POST');
@@ -44,11 +43,27 @@ const SUPPORTED_SPORTS = [
   'F1',
 ] as const;
 
+// EMBED-TRUTH-FIX-031: Valid bet types
+const VALID_BET_TYPES = [
+  'player_prop',
+  'spread',
+  'moneyline',
+  'total',
+  'team_total',
+] as const;
+
 // Validation schemas with enhanced odds validation
+// EMBED-TRUTH-FIX-031: Added player_name and bet_type fields
 const GameSelectionSchema = z.object({
   sport: z.enum(SUPPORTED_SPORTS),
   team_id: z.string().uuid().optional(),
   player_id: z.string().uuid().optional(),
+  // EMBED-TRUTH-FIX-031: player_name is REQUIRED for player props
+  player_name: z.string().optional(),
+  // EMBED-TRUTH-FIX-031: bet_type is REQUIRED for correct market labeling
+  bet_type: z.enum(VALID_BET_TYPES).default('moneyline'),
+  // EMBED-TRUTH-FIX-031: team name for team bets
+  team: z.string().optional(),
   stat_type: z.string().min(1),
   line: z.number().optional().default(0), // optional — moneyline bets have no line
   leg_odds: z.number().int().refine(
@@ -65,6 +80,8 @@ const GameSelectionSchema = z.object({
   is_live: z.boolean().optional().default(false),
   // ACTIVATION-P1-FIXES-001: Accept any string (spread: "Celtics -3.5", ML: "Celtics", total: "over")
   selection: z.string().min(1),
+  // EMBED-TRUTH-FIX-031: direction for over/under bets
+  direction: z.enum(['over', 'under', 'OVER', 'UNDER']).optional(),
   confidence: z.number().int().min(0).max(10).optional().default(0),
   // PARITY-GATE-001 Stage 7: Manual entry fields for dual-mode
   manual_matchup_home: z.string().optional(),
@@ -339,10 +356,15 @@ export async function POST(request: NextRequest) {
       // Insert individual legs into unified_picks
       // PARITY-GATE-001 Stage 7: Include manual fields when source='manual'
       // POSTING-AUTHORITY-001: Tag capper origin in meta JSONB
-      const pickInserts = selections.map(selection => ({
+      // PARLAY-SCHEMA-FIX-029: Include leg_index for parlay unique constraint
+      // EMBED-PRODUCTION-CONTRACT-030: Include ticket_type for parlay grouping
+      // EMBED-TRUTH-FIX-031: Include player_name, bet_type, direction for correct embed labeling
+      const pickInserts = selections.map((selection, index) => ({
         bet_slip_id: betSlipId,
         user_id: capper_id,
         sport,
+        leg_index: index,
+        ticket_type: ticket_type,
         stat_type: selection.stat_type,
         line: selection.line,
         odds: selection.leg_odds,
@@ -352,6 +374,10 @@ export async function POST(request: NextRequest) {
         player_id: selection.player_id,
         source: selection.source,
         is_live: selection.is_live || false,
+        // EMBED-TRUTH-FIX-031: Required fields for correct embed labeling
+        player_name: selection.player_name || null,
+        bet_type: selection.bet_type || 'moneyline',
+        side: selection.direction?.toLowerCase() || null,
         // POSTING-AUTHORITY-001: Origin tagging for posting authority router
         meta: {
           pick_origin: 'capper' as const,

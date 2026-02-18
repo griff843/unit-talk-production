@@ -44,9 +44,9 @@ const LEAGUE_LOGOS: Record<string, string> = {
  * Get capper name from pick data
  */
 function getCapperName(pick: UnifiedPickRow): string {
-  return pick.meta?.capper
-    || pick.meta?.capper_name
-    || pick.meta?.capper_username
+  return (pick.meta?.capper as string)
+    || (pick.meta?.capper_name as string)
+    || (pick.meta?.capper_username as string)
     || 'Unit Talk';
 }
 
@@ -59,7 +59,7 @@ function getMatchupFromPick(pick: UnifiedPickRow): string | null {
   if (pick.manual_matchup_home && pick.manual_matchup_away) {
     return `${pick.manual_matchup_away} @ ${pick.manual_matchup_home}`;
   }
-  if (pick.meta?.matchup) return pick.meta.matchup;
+  if (pick.meta?.matchup) return pick.meta.matchup as string;
   return null;
 }
 
