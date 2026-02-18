@@ -538,15 +538,29 @@ export class AlertAgent extends BaseAgent {
 
   /**
    * Monitor both live and scheduled picks for posting
+   * @deprecated POSTING-AUTHORITY-LOCKDOWN-033: AlertAgent MUST NOT post picks
    */
   public async monitorPicksForPosting(): Promise<void> {
-    await Promise.all([this.monitorLivePicks(), this.monitorScheduledPicks()]);
+    // POSTING-AUTHORITY-LOCKDOWN-033: Hard lock — AlertAgent may NOT post picks
+    // Only DiscordPromotionAgent has authority to post picks and set posted_to_discord=true
+    this.logger.info(
+      'POSTING-AUTHORITY-LOCKDOWN-033: AlertAgent pick posting DISABLED — only DiscordPromotionAgent may post picks'
+    );
+    return;
   }
 
   /**
    * Monitor unified_picks table for live picks and post immediately
+   * @deprecated POSTING-AUTHORITY-LOCKDOWN-033: AlertAgent MUST NOT post picks
    */
   public async monitorLivePicks(): Promise<void> {
+    // POSTING-AUTHORITY-LOCKDOWN-033: Hard lock — AlertAgent may NOT post picks
+    this.logger.info(
+      'POSTING-AUTHORITY-LOCKDOWN-033: monitorLivePicks DISABLED — only DiscordPromotionAgent may post picks'
+    );
+    return;
+
+    // === DEAD CODE BELOW (preserved for rollback reference) ===
     if (!this.hasSupabase()) {
       this.logger.warn('⚠️ Supabase not available, skipping live pick monitoring');
       return;
@@ -593,10 +607,19 @@ export class AlertAgent extends BaseAgent {
 
   /**
    * Stage 6 — Claim-first idempotency for Discord posting.
-   * Atomically sets posted_to_discord=true WHERE posted_to_discord=false.
-   * Returns true if this agent won the claim, false if another agent already claimed it.
+   * @deprecated POSTING-AUTHORITY-LOCKDOWN-033: AlertAgent MUST NOT set posted_to_discord=true
+   * Only DiscordPromotionAgent has authority to claim picks for Discord posting.
    */
   private async claimPickForDiscord(pickId: string): Promise<boolean> {
+    // POSTING-AUTHORITY-LOCKDOWN-033: HARD LOCK — AlertAgent may NEVER set posted_to_discord=true
+    // This is the ultimate safeguard. Even if the caller bypasses early returns, this blocks.
+    this.logger.error(
+      { pickId },
+      'POSTING-AUTHORITY-LOCKDOWN-033: BLOCKED — AlertAgent attempted to claim pick for Discord. Only DiscordPromotionAgent may do this.'
+    );
+    return false;
+
+    // === DEAD CODE BELOW (preserved for rollback reference) ===
     if (!this.hasSupabase()) return false;
 
     const { data: claimed, error: claimErr } = await this.requireSupabase()
@@ -843,8 +866,16 @@ export class AlertAgent extends BaseAgent {
 
   /**
    * Monitor for scheduled picks (10 AM EST batch posting)
+   * @deprecated POSTING-AUTHORITY-LOCKDOWN-033: AlertAgent MUST NOT post picks
    */
   public async monitorScheduledPicks(): Promise<void> {
+    // POSTING-AUTHORITY-LOCKDOWN-033: Hard lock — AlertAgent may NOT post picks
+    this.logger.info(
+      'POSTING-AUTHORITY-LOCKDOWN-033: monitorScheduledPicks DISABLED — only DiscordPromotionAgent may post picks'
+    );
+    return;
+
+    // === DEAD CODE BELOW (preserved for rollback reference) ===
     if (!this.hasSupabase()) {
       this.logger.warn('⚠️ Supabase not available, skipping scheduled pick monitoring');
       return;

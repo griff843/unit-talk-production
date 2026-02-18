@@ -190,7 +190,7 @@ services:
       - "8088:8080"
     environment:
       - TEMPORAL_ADDRESS=temporal:7233
-      - TEMPORAL_CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003,http://localhost:3004
+      - TEMPORAL_CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://localhost:3021,http://localhost:3003,http://localhost:3004
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080"]
       interval: 30s
@@ -380,7 +380,7 @@ services:
       target: development
     container_name: unit-talk-smart-form
     ports:
-      - "3002:3021" # External 3002 -> Internal 3021 (CANONICAL)
+      - "3021:3021" # POSTING-AUTHORITY-LOCKDOWN-033: External 3021 = Internal 3021 (CANONICAL)
     environment:
       - NODE_ENV=development
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
