@@ -926,11 +926,14 @@ router.post('/gauntlet/inject-pick', gauntletGate, async (req, res) => {
       // Parlay support
       ticket_type: is_parlay ? 'parlay' : 'single',
       parlay_id: parlay_id || null,
-      leg_index: leg_index ?? null,
+      leg_index: leg_index ?? 0, // Default to 0 for single picks
     };
 
+    // SPRINT-DISCORD-POSTING-WRITER-AUTHORITY-FIX-048: Use operator_override for gauntlet
+    // Gauntlet is an admin test tool that sets fields spanning multiple roles
+    // (side, status, promotion_status, settlement_status, posted_to_discord, source)
     const result = await lifecycleInsert(supabaseClient, pick, {
-      writerRole: 'submitter',
+      writerRole: 'operator_override',
       traceId: correlationId,
     });
 

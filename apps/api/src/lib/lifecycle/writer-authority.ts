@@ -19,24 +19,29 @@ import { InvalidWriterError } from './errors';
  */
 const FIELD_AUTHORITIES: FieldAuthority[] = [
   // Submission fields (immutable after creation)
-  { field: 'id', allowedWriters: ['submitter'], immutableAfterSet: true },
-  { field: 'bet_slip_id', allowedWriters: ['submitter'], immutableAfterSet: true },
-  { field: 'leg_index', allowedWriters: ['submitter'], immutableAfterSet: true },
-  { field: 'user_id', allowedWriters: ['submitter'], immutableAfterSet: true },
-  { field: 'selection', allowedWriters: ['submitter'], immutableAfterSet: true },
-  { field: 'line', allowedWriters: ['submitter'], immutableAfterSet: true },
-  { field: 'odds', allowedWriters: ['submitter'], immutableAfterSet: true },
-  { field: 'stake', allowedWriters: ['submitter'], immutableAfterSet: true },
-  { field: 'sport', allowedWriters: ['submitter'], immutableAfterSet: true },
-  { field: 'bet_type', allowedWriters: ['submitter'], immutableAfterSet: true },
-  { field: 'stat_type', allowedWriters: ['submitter'], immutableAfterSet: true },
-  { field: 'player_name', allowedWriters: ['submitter'], immutableAfterSet: true },
-  { field: 'team', allowedWriters: ['submitter'], immutableAfterSet: true },
-  { field: 'direction', allowedWriters: ['submitter'], immutableAfterSet: true },
+  // SPRINT-DISCORD-POSTING-WRITER-AUTHORITY-FIX-048: Add operator_override for admin tools (gauntlet)
+  { field: 'id', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
+  { field: 'bet_slip_id', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
+  { field: 'leg_index', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
+  { field: 'user_id', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
+  { field: 'selection', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
+  { field: 'line', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
+  { field: 'odds', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
+  { field: 'stake', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
+  { field: 'sport', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
+  { field: 'bet_type', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
+  { field: 'stat_type', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
+  { field: 'player_name', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
+  { field: 'team', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
+  { field: 'direction', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
+  { field: 'side', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
+  { field: 'source', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
+  { field: 'ticket_type', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
+  { field: 'parlay_id', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
 
   // Timestamp fields (set by appropriate writers)
-  { field: 'created_at', allowedWriters: ['submitter'], immutableAfterSet: true },
-  { field: 'placed_at', allowedWriters: ['submitter'], immutableAfterSet: true },
+  { field: 'created_at', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
+  { field: 'placed_at', allowedWriters: ['submitter', 'operator_override'], immutableAfterSet: true },
   { field: 'promotion_queued_at', allowedWriters: ['promoter', 'operator_override'], immutableAfterSet: false },
   { field: 'promotion_posted_at', allowedWriters: ['poster'], immutableAfterSet: true },
   { field: 'blocked_at', allowedWriters: ['promoter', 'operator_override'], immutableAfterSet: false },
@@ -51,9 +56,9 @@ const FIELD_AUTHORITIES: FieldAuthority[] = [
   { field: 'failed_reason', allowedWriters: ['promoter', 'poster', 'settler', 'operator_override'], immutableAfterSet: false },
 
   // Discord posting fields
-  { field: 'posted_to_discord', allowedWriters: ['poster'], immutableAfterSet: true },
-  { field: 'discord_message_id', allowedWriters: ['poster'], immutableAfterSet: true },
-  { field: 'discord_thread_id', allowedWriters: ['poster'], immutableAfterSet: true },
+  { field: 'posted_to_discord', allowedWriters: ['poster', 'operator_override'], immutableAfterSet: true },
+  { field: 'discord_message_id', allowedWriters: ['poster', 'operator_override'], immutableAfterSet: true },
+  { field: 'discord_thread_id', allowedWriters: ['poster', 'operator_override'], immutableAfterSet: true },
 
   // Settlement fields (protected by DB trigger + RPC)
   { field: 'settlement_status', allowedWriters: ['settler', 'operator_override'], immutableAfterSet: false },
