@@ -1,0 +1,136 @@
+
+> unit-talk-command-center@1.0.0 build
+> cross-env NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production next build
+
+   ▲ Next.js 14.0.4
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+   Skipping linting
+   Checking validity of types ...
+   Collecting page data ...
+🔧 Using server-side configuration from process.env
+🔗 Connecting to Redis: redis://unit-talk-redis:6379
+🔗 Connecting to Redis: redis://unit-talk-redis:6379
+🔗 Connecting to Redis: redis://unit-talk-redis:6379
+🔗 Connecting to Redis: redis://unit-talk-redis:6379
+🔗 Connecting to Redis: redis://unit-talk-redis:6379
+🔍 Starting agent monitoring (interval: 15000ms)
+🏥 Checking health of all agents...
+✅ Health check completed for 5 agents
+   Generating static pages (0/76) ...
+🔧 Using server-side configuration from process.env
+   Generating static pages (19/76) 
+Error fetching grading agent metrics: {
+  code: '42703',
+  details: null,
+  hint: 'Perhaps you meant to reference the column "agent_metrics.agent".',
+  message: 'column agent_metrics.agent_id does not exist'
+}
+Error fetching pick stats: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column unified_picks.tier_when_placed does not exist'
+}
+   Generating static pages (38/76) 
+LLM requests table not found, returning mock data
+LLM models table not found, returning mock data
+   Generating static pages (57/76) 
+🔗 Connecting to Redis: redis://unit-talk-redis:6379
+🔧 Using server-side configuration from process.env
+🔗 Connecting to Redis: redis://unit-talk-redis:6379
+🔗 Connecting to Redis: redis://unit-talk-redis:6379
+🔍 Starting agent monitoring (interval: 15000ms)
+🏥 Checking health of all agents...
+✅ Health check completed for 5 agents
+ ✓ Generating static pages (76/76) 
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                              Size     First Load JS
+┌ ○ /                                    324 B           126 kB
+├ ○ /_not-found                          0 B                0 B
+├ λ /api/admin/autopilot                 0 B                0 B
+├ λ /api/admin/autopilot/actions         0 B                0 B
+├ λ /api/admin/autopilot/intelligence    0 B                0 B
+├ λ /api/admin/autopilot/policy          0 B                0 B
+├ λ /api/admin/freeze                    0 B                0 B
+├ λ /api/admin/remediation               0 B                0 B
+├ λ /api/admin/safe-mode                 0 B                0 B
+├ λ /api/agents                          0 B                0 B
+├ λ /api/agents/control                  0 B                0 B
+├ λ /api/agents/health                   0 B                0 B
+├ λ /api/agents/status                   0 B                0 B
+├ λ /api/alerts                          0 B                0 B
+├ λ /api/analytics                       0 B                0 B
+├ λ /api/audit                           0 B                0 B
+├ λ /api/capper-performance              0 B                0 B
+├ λ /api/events                          0 B                0 B
+├ λ /api/exposure/snapshot               0 B                0 B
+├ ○ /api/grading/agents                  0 B                0 B
+├ λ /api/grading/picks                   0 B                0 B
+├ λ /api/health                          0 B                0 B
+├ λ /api/lifecycle/picks                 0 B                0 B
+├ λ /api/lifecycle/picks/[id]/timeline   0 B                0 B
+├ λ /api/lifecycle/retry                 0 B                0 B
+├ ○ /api/lifecycle/stuck                 0 B                0 B
+├ ○ /api/llm/models                      0 B                0 B
+├ ○ /api/llm/requests                    0 B                0 B
+├ λ /api/llm/test                        0 B                0 B
+├ λ /api/monitoring                      0 B                0 B
+├ λ /api/monitoring/pipeline             0 B                0 B
+├ ○ /api/monitoring/rollout-status       0 B                0 B
+├ λ /api/operations                      0 B                0 B
+├ ○ /api/ops-confidence                  0 B                0 B
+├ λ /api/ops-recap                       0 B                0 B
+├ λ /api/ops/credit-usage                0 B                0 B
+├ λ /api/pipeline/health                 0 B                0 B
+├ λ /api/pipeline/lag                    0 B                0 B
+├ λ /api/pipeline/lag/refresh            0 B                0 B
+├ λ /api/pipeline/promo-backlog          0 B                0 B
+├ λ /api/pipeline/recent-promotions      0 B                0 B
+├ λ /api/redis                           0 B                0 B
+├ λ /api/replay                          0 B                0 B
+├ λ /api/security                        0 B                0 B
+├ λ /api/services                        0 B                0 B
+├ λ /api/settlement                      0 B                0 B
+├ λ /api/stream                          0 B                0 B
+├ λ /api/sync                            0 B                0 B
+├ λ /api/system                          0 B                0 B
+├ λ /api/system/metrics                  0 B                0 B
+├ ○ /api/temporal/health                 0 B                0 B
+├ λ /api/temporal/missed-schedules       0 B                0 B
+├ λ /api/temporal/summary                0 B                0 B
+├ λ /api/temporal/workflows              0 B                0 B
+├ λ /api/users                           0 B                0 B
+├ ○ /api/version                         0 B                0 B
+├ λ /api/websocket                       0 B                0 B
+├ ○ /dashboard                           18.4 kB         348 kB
+├ ○ /dashboard/agents                    28.6 kB         303 kB
+├ ○ /dashboard/analytics                 13.2 kB         149 kB
+├ ○ /dashboard/api-health                22.6 kB         159 kB
+├ ○ /dashboard/audit                     24.3 kB         421 kB
+├ ○ /dashboard/data-flow                 7.88 kB         230 kB
+├ ○ /dashboard/events                    33.2 kB         326 kB
+├ ○ /dashboard/grading                   16.6 kB         264 kB
+├ ○ /dashboard/llm                       14.7 kB         332 kB
+├ ○ /dashboard/phase-d                   13.9 kB         150 kB
+├ ○ /dashboard/picks                     240 kB          652 kB
+├ ○ /dashboard/remediation               12.6 kB         174 kB
+├ ○ /dashboard/security                  12 kB           245 kB
+├ ○ /dashboard/settlement                5.39 kB         335 kB
+├ ○ /dashboard/smartform                 10.1 kB         173 kB
+├ ○ /dashboard/tasks                     19.1 kB         312 kB
+├ ○ /dashboard/users                     5.81 kB         134 kB
+└ ○ /emergency                           266 B           111 kB
++ First Load JS shared by all            111 kB
+  ├ chunks/4938-17bfd14ffee41de7.js      52 kB
+  ├ chunks/fd9d1056-f2accd7fb01a92b5.js  55 kB
+  ├ chunks/main-app-dd82492135320fa9.js  364 B
+  └ chunks/webpack-842b0be1cd087bc9.js   3.79 kB
+
+
+○  (Static)   prerendered as static content
+λ  (Dynamic)  server-rendered on demand using Node.js
+

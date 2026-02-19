@@ -1,0 +1,4 @@
+
+> unit-talk-platform@1.0.0 build
+> tsc --project tsconfig.prod.json
+

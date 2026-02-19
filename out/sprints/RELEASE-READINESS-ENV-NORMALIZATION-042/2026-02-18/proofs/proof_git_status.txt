@@ -1,0 +1,21 @@
+On branch sprint/release-readiness-env-normalization-042
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   apps/command-center/next.config.js
+	modified:   apps/smart-form/next.config.js
+	modified:   package.json
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	scripts/check-dev-env.ts
+	smart-form-audit-parlay-bug.png
+	smart-form-audit-player-prop-with-line.png
+	smart-form-desktop-v1.png
+	smart-form-error.png
+	smart-form-player-prop.png
+	smart-form-stripped-full.png
+	smart-form-stripped-v1.png
+	smart-form-team-autofill-proof.png
+
+no changes added to commit (use "git add" and/or "git commit -a")

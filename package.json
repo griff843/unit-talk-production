@@ -8,6 +8,9 @@
     "packages/*"
   ],
   "scripts": {
+    "check-env": "npx tsx scripts/check-dev-env.ts",
+    "clean:next": "rm -rf apps/command-center/.next apps/smart-form/.next apps/dashboard/.next",
+    "prebuild": "npm run check-env",
     "build": "npm run build --workspaces",
     "dev": "npm run dev --workspaces",
     "test": "npm run test --workspaces",

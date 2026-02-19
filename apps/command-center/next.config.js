@@ -24,17 +24,18 @@ const nextConfig = {
       // Disable filesystem cache on Windows production builds
       config.cache = false;
     }
-    
+
     // Disable Terser minification to prevent syntax errors
     if (config.optimization && config.optimization.minimizer) {
       config.optimization.minimizer = [];
     }
-    
+
     return config;
   },
 
-  // Output configuration for Windows compatibility
-  output: 'standalone',
+  // NOTE: Removed 'output: standalone' - causes symlink EINVAL errors
+  // on Windows when repo is inside OneDrive/cloud-synced folders.
+  // Use standard build output for local development.
 
   // Simple compression
   compress: true,

@@ -2,8 +2,33 @@ require('dotenv').config();
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Removed standalone output for development
   staticPageGenerationTimeout: 300, // 5 minutes
+
+  // Windows build optimization (Sprint: RELEASE-READINESS-ENV-NORMALIZATION-042)
+  swcMinify: false,
+  poweredByHeader: false,
+
+  typescript: {
+    ignoreBuildErrors: false,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+
+  // Windows-specific optimizations
+  experimental: {
+    instrumentationHook: false,
+  },
+
+  // Disable webpack cache on Windows to prevent EINVAL errors
+  webpack: (config, { dev, isServer }) => {
+    if (!dev && process.platform === 'win32') {
+      config.cache = false;
+    }
+    return config;
+  },
+
+  compress: true,
 };
 
 module.exports = nextConfig;
