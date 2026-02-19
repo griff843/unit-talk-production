@@ -6,14 +6,24 @@ dotenv.config();
 
 /**
  * SPRINT-SMARTFORM-CONTRACT-EXECUTION-PROOF-060
+ * SPRINT-SMARTFORM-BETSLIP-SPORTSBOOK-MANUAL-061
  *
  * Playwright Configuration for Smart Form E2E Tests
  *
  * IMPORTANT: This config targets tests in ./tests/e2e/*.spec.ts
  * Run with: pnpm -C apps/smart-form test:e2e
  *
+ * Features:
+ * - Auto-starts dev server via webServer config
+ * - Uses 127.0.0.1 to avoid Windows IPv6 issues
+ * - Reuses existing server in dev, fresh server in CI
+ *
  * @see https://playwright.dev/docs/test-configuration
  */
+
+// Use 127.0.0.1 to avoid Windows IPv6 resolution issues with localhost/::1
+const BASE_URL = process.env.SMARTFORM_URL || 'http://127.0.0.1:3021';
+
 export default defineConfig({
   // Test directory - relative to this config file
   testDir: './tests/e2e',
@@ -41,8 +51,8 @@ export default defineConfig({
 
   // Global settings
   use: {
-    // Base URL for API tests
-    baseURL: process.env.SMARTFORM_URL || 'http://localhost:3021',
+    // Base URL for API tests - use 127.0.0.1 to avoid IPv6 issues
+    baseURL: BASE_URL,
 
     // Trace on retry
     trace: 'on-first-retry',
@@ -53,6 +63,21 @@ export default defineConfig({
     // Longer timeouts for API operations
     actionTimeout: 30000,
     navigationTimeout: 30000,
+  },
+
+  // SPRINT-061: Auto-start dev server for E2E tests
+  // Uses 127.0.0.1 binding to avoid Windows IPv6 ECONNREFUSED issues
+  webServer: {
+    // Start Next.js dev server bound to 127.0.0.1
+    command: 'npx next dev -p 3021 -H 127.0.0.1',
+    url: BASE_URL,
+    // Reuse existing server in dev mode, fresh server in CI
+    reuseExistingServer: !process.env.CI,
+    // Allow up to 2 minutes for server startup (Next.js can be slow on first compile)
+    timeout: 120000,
+    // Show server output for debugging
+    stdout: 'pipe',
+    stderr: 'pipe',
   },
 
   // Single project for contract tests (API tests don't need multiple browsers)
