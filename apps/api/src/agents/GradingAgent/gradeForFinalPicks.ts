@@ -1,3 +1,4 @@
+import { lifecycleInsert } from '../../lib/lifecycle';
 import { logger } from '../../services/logging';
 import { supabase } from '../../services/supabaseClient';
 
@@ -37,13 +38,23 @@ export async function gradeAndPromoteUnifiedPicks() {
           );
 
           if (allLegsQualified) {
-            await supabase.from('unified_picks').insert([{
+            // LIFECYCLE-WRITE-SURFACE-MIGRATION-038: Use lifecycle adapter for insert
+            const multiLegPick = {
+              id: pick.id,
               ...pick,
               legs: pick.legs,
               legResults,
               ticketScore,
               promoted_at: new Date().toISOString(),
-            }]);
+            };
+            const multiResult = await lifecycleInsert(supabase, multiLegPick, {
+              writerRole: 'promoter',
+              traceId: `gradefor-multi-${pick.id}`,
+            });
+            if (!multiResult.success) {
+              logger.error({ id: pick.id, error: multiResult.error }, 'Failed to insert multi-leg');
+              continue;
+            }
             await supabase.from('daily_picks').update({
               promoted_to_final: true,
               promoted_final_at: new Date().toISOString()
@@ -63,11 +74,21 @@ export async function gradeAndPromoteUnifiedPicks() {
       // --- Single bet logic ---
       const grade = await gradePick(pick);
       if (['S', 'A'].includes(grade.tier)) {
-        await supabase.from('unified_picks').insert([{
+        // LIFECYCLE-WRITE-SURFACE-MIGRATION-038: Use lifecycle adapter for insert
+        const singlePick = {
+          id: pick.id,
           ...pick,
           ...grade,
           promoted_at: new Date().toISOString(),
-        }]);
+        };
+        const singleResult = await lifecycleInsert(supabase, singlePick, {
+          writerRole: 'promoter',
+          traceId: `gradefor-single-${pick.id}`,
+        });
+        if (!singleResult.success) {
+          logger.error({ id: pick.id, error: singleResult.error }, 'Failed to insert single pick');
+          continue;
+        }
         await supabase.from('daily_picks').update({
           promoted_to_final: true,
           promoted_final_at: new Date().toISOString()

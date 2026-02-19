@@ -6,6 +6,11 @@ import FormData from 'form-data';
 import { autopilotGuard } from '../../lib/AutopilotGuard';
 import { getBuildInfo } from '../../lib/buildInfo';
 import {
+  atomicClaimForPost,
+  atomicClaimParlayForPost,
+  lifecycleUpdate,
+} from '../../lib/lifecycle';
+import {
   buildProductionFooter,
   validatePickPresentation,
   validatePostingGate,
@@ -562,15 +567,11 @@ async function postParlayToDiscord(legs: any[]): Promise<string | null> {
 }
 
 // ---- CLAIM + RECEIPT ----
+// LIFECYCLE-WRITE-SURFACE-MIGRATION-038: Use lifecycle idempotency adapter
 
 async function claimPick(pickId: string): Promise<boolean> {
-  const { data, error } = await supabase
-    .from('unified_picks')
-    .update({ posted_to_discord: true })
-    .eq('id', pickId)
-    .eq('posted_to_discord', false)
-    .select('id');
-  if (error || !data || data.length === 0) {
+  const result = await atomicClaimForPost(supabase, pickId);
+  if (!result.claimed) {
     logger.info({ id: pickId }, 'Pick already claimed — skipping (idempotent)');
     return false;
   }
@@ -578,29 +579,20 @@ async function claimPick(pickId: string): Promise<boolean> {
 }
 
 // PARLAY-DISCORD-FIX-001: Claim all parlay legs atomically
+// LIFECYCLE-WRITE-SURFACE-MIGRATION-038: Use lifecycle idempotency adapter
 async function claimParlayLegs(pickIds: string[]): Promise<boolean> {
-  const { data, error } = await supabase
-    .from('unified_picks')
-    .update({ posted_to_discord: true })
-    .in('id', pickIds)
-    .eq('posted_to_discord', false)
-    .select('id');
-  if (error || !data || data.length === 0) {
+  const result = await atomicClaimParlayForPost(supabase, pickIds);
+  if (!result.claimed) {
     logger.info({ pickIds }, 'Parlay legs already claimed — skipping (idempotent)');
     return false;
   }
-  // Ensure all legs were claimed
-  if (data.length !== pickIds.length) {
-    logger.warn(
-      { expected: pickIds.length, claimed: data.length },
-      'Partial parlay claim — some legs already posted'
-    );
-  }
-  return data.length > 0;
+  // Lifecycle adapter already logs partial claims
+  return result.claimedCount > 0;
 }
 
 // PARLAY-DISCORD-GROUPING-001: Added message_id, ticket_type, leg_count params
 // EMBED-PRODUCTION-CONTRACT-030: Added commit_sha to discord receipt
+// LIFECYCLE-WRITE-SURFACE-MIGRATION-038: Use lifecycle adapter for meta update
 async function persistDiscordReceipt(
   pickId: string,
   receipt: {
@@ -628,7 +620,14 @@ async function persistDiscordReceipt(
         environment: buildInfo.environment,
       },
     };
-    await supabase.from('unified_picks').update({ meta }).eq('id', pickId);
+    const result = await lifecycleUpdate(supabase, pickId, { meta }, {
+      writerRole: 'poster',
+      traceId: `discord-receipt-${pickId}`,
+      skipTransitionValidation: true, // Meta update doesn't change stage
+    });
+    if (!result.success) {
+      logger.warn({ pickId, error: result.error }, 'Failed to persist discord receipt');
+    }
   } catch (err) {
     logger.warn({ pickId }, 'Failed to persist discord receipt (non-fatal)');
   }

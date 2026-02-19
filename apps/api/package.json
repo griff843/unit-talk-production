@@ -66,6 +66,9 @@
     "qa:mobile": "tsx qa/tests/mobile.test.ts",
     "qa:performance": "tsx qa/tests/performance.test.ts",
     "qa:full": "npm run qa:e2e && npm run qa:accessibility && npm run qa:security && npm run qa:mobile && npm run qa:performance && npm run qa:report",
+    "lifecycle:gate": "tsx src/lib/lifecycle/ci-gate.ts",
+    "lifecycle:test": "npx vitest run src/lib/lifecycle/__tests__/lifecycle.test.ts",
+    "lifecycle:single-writer": "tsx src/lib/lifecycle/single-writer-gate.ts src",
     "db:migrate:critical": "tsx scripts/execute-database-migration.ts",
     "db:validate:schema": "tsx scripts/execute-database-migration.ts --validate-only",
     "syndicate:start": "tsx src/scripts/start-syndicate.ts",
@@ -81,7 +84,8 @@
     "dev:status": "docker compose ps",
     "recap:daily": "tsx src/scripts/recap/generateRecap.ts --mode=daily",
     "recap:weekly": "tsx src/scripts/recap/generateRecap.ts --mode=weekly",
-    "clean": "rimraf dist"
+    "clean": "rimraf dist",
+    "ops:db:preflight": "tsx src/scripts/ops/supabase-migration-preflight.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.56.0",

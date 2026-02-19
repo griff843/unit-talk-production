@@ -1,5 +1,6 @@
 // src/agents/GradingAgent/gradeAndPromoteUnifiedPicks.ts
 
+import { lifecycleInsert } from '../../lib/lifecycle';
 import { logger } from '../../services/logging';
 import { supabase } from '../../services/supabaseClient';
 
@@ -50,19 +51,27 @@ async function processMultiLeg(pick: any): Promise<boolean> {
     legResults.reduce((sum: number, r: any) => sum + r.professional_score, 0) / legResults.length
   );
   // POSTING-AUTHORITY-001: System-generated picks tagged with pick_origin='system'
-  await supabase.from('unified_picks').insert([
-    {
-      ...pick,
-      legs: pick.legs,
-      leg_results: legResults,
-      ticket_score: ticketScore,
-      promoted_at: new Date().toISOString(),
-      meta: {
-        ...(pick.meta || {}),
-        pick_origin: 'system',
-      },
+  // LIFECYCLE-WRITE-SURFACE-MIGRATION-038: Use lifecycle adapter for insert
+  const multiLegPick = {
+    id: pick.id,
+    ...pick,
+    legs: pick.legs,
+    leg_results: legResults,
+    ticket_score: ticketScore,
+    promoted_at: new Date().toISOString(),
+    meta: {
+      ...(pick.meta || {}),
+      pick_origin: 'system',
     },
-  ]);
+  };
+  const multiResult = await lifecycleInsert(supabase, multiLegPick, {
+    writerRole: 'promoter',
+    traceId: `grading-multi-${pick.id}`,
+  });
+  if (!multiResult.success) {
+    logger.error({ id: pick.id, error: multiResult.error }, 'Failed to insert multi-leg pick');
+    return false;
+  }
 
   logger.info({ id: pick.id, type: pick.bet_type }, 'Promoted multi-leg ticket');
   return true;
@@ -81,19 +90,27 @@ async function processSingleLeg(pick: any): Promise<boolean> {
   if (!(await claimDailyPick(pick.id))) return false;
 
   // POSTING-AUTHORITY-001: System-generated picks tagged with pick_origin='system'
-  await supabase.from('unified_picks').insert([
-    {
-      ...pick,
-      score: grade.score,
-      tier,
-      score_breakdown: grade.breakdown || null,
-      promoted_at: new Date().toISOString(),
-      meta: {
-        ...(pick.meta || {}),
-        pick_origin: 'system',
-      },
+  // LIFECYCLE-WRITE-SURFACE-MIGRATION-038: Use lifecycle adapter for insert
+  const singleLegPick = {
+    id: pick.id,
+    ...pick,
+    score: grade.score,
+    tier,
+    score_breakdown: grade.breakdown || null,
+    promoted_at: new Date().toISOString(),
+    meta: {
+      ...(pick.meta || {}),
+      pick_origin: 'system',
     },
-  ]);
+  };
+  const singleResult = await lifecycleInsert(supabase, singleLegPick, {
+    writerRole: 'promoter',
+    traceId: `grading-single-${pick.id}`,
+  });
+  if (!singleResult.success) {
+    logger.error({ id: pick.id, error: singleResult.error }, 'Failed to insert single pick');
+    return false;
+  }
 
   logger.info({ id: pick.id, tier: grade.tier }, 'Promoted single pick');
   return true;

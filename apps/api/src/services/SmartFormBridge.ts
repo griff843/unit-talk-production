@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 
 import { GradingAgent } from '../agents/GradingAgent';
 import { env } from '../config/env';
+import { lifecycleInsert } from '../lib/lifecycle';
 import { logger } from '../shared/logger';
 // import { Pick } from '../types/pick';
 import { SmartTicket } from '../types/smartForm';
@@ -613,11 +614,15 @@ export class SmartFormBridge {
         created_at: new Date().toISOString(),
       };
 
-      // Insert into unified_picks table
-      const { error } = await this.supabase.from('unified_picks').insert(finalPick);
+      // LIFECYCLE-WRITE-SURFACE-MIGRATION-038: Use lifecycle adapter for insert
+      const result = await lifecycleInsert(
+        this.supabase,
+        finalPick,
+        { writerRole: 'submitter', traceId: `smartform-promote-${pickId}` }
+      );
 
-      if (error) {
-        throw new Error(`Failed to promote to unified_picks: ${error.message}`);
+      if (!result.success) {
+        throw new Error(`Failed to promote to unified_picks: ${result.error}`);
       }
 
       // Update daily_picks to mark as promoted

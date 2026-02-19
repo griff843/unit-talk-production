@@ -478,6 +478,253 @@ router.post('/settle', async (req, res) => {
   }
 });
 
+// ============================================================================
+// POSTING-SETTLEMENT-EXACTNESS-040: Retry Endpoints
+// ============================================================================
+
+/**
+ * POST /ops/retry-posting - Retry posting for stuck/drifted picks
+ *
+ * Body:
+ * {
+ *   "pick_id": "uuid",
+ *   "reason": "P1 drift - claimed but no receipt",
+ *   "drift_mode": "P1" | "P3" | "P5",
+ *   "operator": "griff843"  // optional, from auth
+ * }
+ *
+ * Calls resetPostingClaim() lifecycle adapter which:
+ * - Validates pick is retry-eligible (not settled, not valid post)
+ * - Resets posted_to_discord and promotion_posted_at
+ * - Handles parlay legs atomically
+ * - Inserts audit_log entry
+ */
+router.post('/retry-posting', async (req, res) => {
+  const correlationId = `ops-retry-posting-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+
+  try {
+    const { pick_id, reason, drift_mode, operator } = req.body;
+
+    // Input validation
+    if (!pick_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'pick_id is required',
+        correlationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (!reason || reason.length < 10) {
+      return res.status(400).json({
+        success: false,
+        error: 'reason is required (min 10 characters)',
+        correlationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (!drift_mode || !['P1', 'P3', 'P5'].includes(drift_mode)) {
+      return res.status(400).json({
+        success: false,
+        error: 'drift_mode must be one of: P1, P3, P5',
+        correlationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    logger.info('Posting retry requested', {
+      correlationId,
+      pick_id,
+      drift_mode,
+      operator: operator || 'operator'
+    });
+
+    // Import lifecycle adapter
+    const { resetPostingClaim } = await import('../lib/lifecycle');
+    const { supabaseClient } = await import('../services/supabaseClient');
+
+    // Call the adapter function (single writer pattern)
+    const result = await resetPostingClaim(supabaseClient, pick_id, {
+      writerRole: 'operator_override',
+      reason,
+      traceId: correlationId,
+      operatorId: operator || 'operator',
+      driftMode: drift_mode
+    });
+
+    if (!result.reset) {
+      logger.warn('Posting retry rejected', {
+        correlationId,
+        pick_id,
+        message: result.message
+      });
+
+      return res.status(422).json({
+        success: false,
+        error: result.message,
+        pick_id,
+        prev_state: result.prevState,
+        correlationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    logger.info('Posting retry completed', {
+      correlationId,
+      pick_id,
+      audit_id: result.auditId
+    });
+
+    res.json({
+      success: true,
+      action: 'reset',
+      pick_id: result.pickId,
+      audit_id: result.auditId,
+      message: result.message,
+      prev_state: result.prevState,
+      correlationId,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    logger.error('Posting retry error', {
+      correlationId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error during posting retry',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      correlationId,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+/**
+ * POST /ops/retry-settlement - Retry settlement for drifted picks
+ *
+ * Body:
+ * {
+ *   "pick_id": "uuid",
+ *   "reason": "S1 drift - settled without timestamp",
+ *   "drift_mode": "S1" | "S2" | "S3",
+ *   "operator": "griff843"  // optional
+ * }
+ *
+ * Calls resetSettlementForRetry() lifecycle adapter which:
+ * - Validates pick is retry-eligible (not frozen, has drift)
+ * - Resets settlement_status to pending
+ * - Inserts audit_log entry
+ */
+router.post('/retry-settlement', async (req, res) => {
+  const correlationId = `ops-retry-settlement-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+
+  try {
+    const { pick_id, reason, drift_mode, operator } = req.body;
+
+    // Input validation
+    if (!pick_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'pick_id is required',
+        correlationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (!reason || reason.length < 10) {
+      return res.status(400).json({
+        success: false,
+        error: 'reason is required (min 10 characters)',
+        correlationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (!drift_mode || !['S1', 'S2', 'S3'].includes(drift_mode)) {
+      return res.status(400).json({
+        success: false,
+        error: 'drift_mode must be one of: S1, S2, S3',
+        correlationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    logger.info('Settlement retry requested', {
+      correlationId,
+      pick_id,
+      drift_mode,
+      operator: operator || 'operator'
+    });
+
+    // Import lifecycle adapter
+    const { resetSettlementForRetry } = await import('../lib/lifecycle');
+    const { supabaseClient } = await import('../services/supabaseClient');
+
+    // Call the adapter function (single writer pattern)
+    const result = await resetSettlementForRetry(supabaseClient, pick_id, {
+      writerRole: 'operator_override',
+      reason,
+      traceId: correlationId,
+      operatorId: operator || 'operator',
+      driftMode: drift_mode
+    });
+
+    if (!result.reset) {
+      logger.warn('Settlement retry rejected', {
+        correlationId,
+        pick_id,
+        message: result.message
+      });
+
+      return res.status(422).json({
+        success: false,
+        error: result.message,
+        pick_id,
+        prev_state: result.prevState,
+        correlationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    logger.info('Settlement retry completed', {
+      correlationId,
+      pick_id,
+      audit_id: result.auditId
+    });
+
+    res.json({
+      success: true,
+      action: 'reset',
+      pick_id: result.pickId,
+      audit_id: result.auditId,
+      message: result.message,
+      prev_state: result.prevState,
+      correlationId,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    logger.error('Settlement retry error', {
+      correlationId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error during settlement retry',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      correlationId,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 /**
  * GET /ops/unsettled - List unsettled picks for operator review
  */
