@@ -26,23 +26,23 @@ const networkRequests: { url: string; method: string }[] = [];
 
 // HARDENED: Spec-true approved endpoint patterns only
 const APPROVED_ENDPOINTS = [
-  '/api/catalog/',      // All catalog endpoints (teams, players, props, games, leagues)
-  '/api/registry/',     // Registry endpoints (stat-types, sports)
-  '/api/search',        // Unified search
-  '/api/normalize',     // Normalization
-  '/api/cappers',       // Capper selection
+  '/api/catalog/', // All catalog endpoints (teams, players, props, games, leagues)
+  '/api/registry/', // Registry endpoints (stat-types, sports)
+  '/api/search', // Unified search
+  '/api/normalize', // Normalization
+  '/api/cappers', // Capper selection
   '/api/submit-ticket', // Core submission
-  '/api/version',       // Build integrity
-  '/api/health',        // Health check
+  '/api/version', // Build integrity
+  '/api/health', // Health check
 ];
 
 // HARDENED: Explicitly prohibited endpoints
 const PROHIBITED_ENDPOINTS = [
-  '/api/dev/',          // Dev routes not in spec
-  '/api/teams',         // Use /api/catalog/teams
-  '/api/players',       // Use /api/catalog/players
-  '/api/props',         // Use /api/catalog/props
-  '/api/games',         // Use /api/catalog/games
+  '/api/dev/', // Dev routes not in spec
+  '/api/teams', // Use /api/catalog/teams
+  '/api/players', // Use /api/catalog/players
+  '/api/props', // Use /api/catalog/props
+  '/api/games', // Use /api/catalog/games
 ];
 
 // Ensure HAR output directory exists
@@ -52,21 +52,19 @@ test.beforeAll(async () => {
   }
 });
 
-test.describe('PickWizard V1.1 Compliance', () => {
-  // Use HAR recording for runtime audit
-  test.use({
-    // Record HAR for all tests in this suite
-    launchOptions: {
-      // Ensure we capture all network traffic
-    },
-  });
+// FIXED: test.use() must be at file level, not inside describe
+// (launchOptions forces a new worker)
+test.use({
+  // Configuration for all tests in this file
+});
 
+test.describe('PickWizard V1.1 Compliance', () => {
   test.beforeEach(async ({ page, context }) => {
     // Clear network requests
     networkRequests.length = 0;
 
     // Monitor all network requests
-    page.on('request', (request) => {
+    page.on('request', request => {
       const url = request.url();
       if (url.includes('/api/')) {
         networkRequests.push({
@@ -143,9 +141,13 @@ test.describe('PickWizard V1.1 Compliance', () => {
       const betTypeSection = page.locator('text=Bet Type').first();
       if (await betTypeSection.isVisible()) {
         // The bet type section should indicate sport is required
-        await expect(page.locator('text=Select sport first').or(page.locator('text=Please select a sport'))).toBeVisible().catch(() => {
-          // Alternative: bet type dropdown is disabled
-        });
+        await expect(
+          page.locator('text=Select sport first').or(page.locator('text=Please select a sport'))
+        )
+          .toBeVisible()
+          .catch(() => {
+            // Alternative: bet type dropdown is disabled
+          });
       }
     });
 
@@ -171,11 +173,15 @@ test.describe('PickWizard V1.1 Compliance', () => {
       }
 
       // Bet type should be reset (shows "Select bet type" again)
-      await expect(page.locator('button:has-text("Select bet type")').or(
-        page.locator('[placeholder*="bet type"]')
-      )).toBeVisible().catch(() => {
-        // Alternative validation
-      });
+      await expect(
+        page
+          .locator('button:has-text("Select bet type")')
+          .or(page.locator('[placeholder*="bet type"]'))
+      )
+        .toBeVisible()
+        .catch(() => {
+          // Alternative validation
+        });
     });
   });
 
@@ -201,22 +207,23 @@ test.describe('PickWizard V1.1 Compliance', () => {
       }
 
       // Look for manual mode toggle
-      const manualToggle = page.locator('button:has-text("Manual")').or(
-        page.locator('[data-testid="manual-mode-toggle"]')
-      ).or(
-        page.locator('text=Manual Entry')
-      );
+      const manualToggle = page
+        .locator('button:has-text("Manual")')
+        .or(page.locator('[data-testid="manual-mode-toggle"]'))
+        .or(page.locator('text=Manual Entry'));
 
       if (await manualToggle.isVisible()) {
         await manualToggle.click();
 
         // Manual input fields should appear
-        const playerInput = page.locator('input[placeholder*="player"]').or(
-          page.locator('[data-testid="manual-player-input"]')
-        );
-        await expect(playerInput).toBeVisible({ timeout: 5000 }).catch(() => {
-          // May have different structure
-        });
+        const playerInput = page
+          .locator('input[placeholder*="player"]')
+          .or(page.locator('[data-testid="manual-player-input"]'));
+        await expect(playerInput)
+          .toBeVisible({ timeout: 5000 })
+          .catch(() => {
+            // May have different structure
+          });
       }
     });
 
@@ -232,9 +239,10 @@ test.describe('PickWizard V1.1 Compliance', () => {
       const betTypeSelector = page.locator('button:has-text("Select bet type")').first();
       if (await betTypeSelector.isVisible()) {
         await betTypeSelector.click();
-        await page.locator('[role="option"]:has-text("Spread")').or(
-          page.locator('[role="option"]').first()
-        ).click();
+        await page
+          .locator('[role="option"]:has-text("Spread")')
+          .or(page.locator('[role="option"]').first())
+          .click();
       }
 
       // Go to step 2
@@ -244,18 +252,19 @@ test.describe('PickWizard V1.1 Compliance', () => {
       }
 
       // In manual mode, team should be a dropdown/select, not free text
-      const teamDropdown = page.locator('button:has-text("Select team")').or(
-        page.locator('[data-testid="team-dropdown"]')
-      ).or(
-        page.locator('select[name="team"]')
-      );
+      const teamDropdown = page
+        .locator('button:has-text("Select team")')
+        .or(page.locator('[data-testid="team-dropdown"]'))
+        .or(page.locator('select[name="team"]'));
 
       // Should not have a plain text input for team
       const freeTextTeamInput = page.locator('input[name="team"]');
       // Either dropdown exists or free text doesn't exist
-      await expect(teamDropdown.or(freeTextTeamInput.first())).toBeVisible().catch(() => {
-        // Accept if structure is different
-      });
+      await expect(teamDropdown.or(freeTextTeamInput.first()))
+        .toBeVisible()
+        .catch(() => {
+          // Accept if structure is different
+        });
     });
   });
 
@@ -277,14 +286,12 @@ test.describe('PickWizard V1.1 Compliance', () => {
         const reqPath = url.pathname;
 
         // Check if path is explicitly prohibited
-        const isProhibited = PROHIBITED_ENDPOINTS.some(prohibited =>
-          reqPath.includes(prohibited) && !reqPath.includes('/api/catalog/')
+        const isProhibited = PROHIBITED_ENDPOINTS.some(
+          prohibited => reqPath.includes(prohibited) && !reqPath.includes('/api/catalog/')
         );
 
         // Check if path matches any approved pattern
-        const isApproved = APPROVED_ENDPOINTS.some(approved =>
-          reqPath.includes(approved)
-        );
+        const isApproved = APPROVED_ENDPOINTS.some(approved => reqPath.includes(approved));
 
         // Flag as forbidden if prohibited OR (not approved and is /api/)
         return isProhibited || (reqPath.includes('/api/') && !isApproved);
@@ -294,16 +301,17 @@ test.describe('PickWizard V1.1 Compliance', () => {
       expect(forbiddenEndpoints).toHaveLength(0);
 
       // Log all endpoints for audit trail
-      console.log('API Endpoints Called:', networkRequests.map(r => r.url));
+      console.log(
+        'API Endpoints Called:',
+        networkRequests.map(r => r.url)
+      );
     });
 
     test('should call cappers endpoint on page load', async ({ page }) => {
       // Cappers should be fetched on initial load
       await page.waitForLoadState('networkidle');
 
-      const cappersRequest = networkRequests.find(r =>
-        r.url.includes('/api/cappers')
-      );
+      const cappersRequest = networkRequests.find(r => r.url.includes('/api/cappers'));
 
       // Cappers endpoint should have been called
       expect(cappersRequest).toBeDefined();
@@ -320,8 +328,8 @@ test.describe('PickWizard V1.1 Compliance', () => {
       await page.waitForLoadState('networkidle');
 
       // Check for catalog teams or teams endpoint
-      const teamsRequest = networkRequests.find(r =>
-        r.url.includes('/api/catalog/teams') || r.url.includes('/api/teams')
+      const teamsRequest = networkRequests.find(
+        r => r.url.includes('/api/catalog/teams') || r.url.includes('/api/teams')
       );
 
       // Teams endpoint should have been called
@@ -332,15 +340,17 @@ test.describe('PickWizard V1.1 Compliance', () => {
   test.describe('UI Validation', () => {
     test('should show skeleton loading states', async ({ page }) => {
       // Look for skeleton elements during load
-      const skeleton = page.locator('[class*="skeleton"]').or(
-        page.locator('[class*="animate-pulse"]')
-      );
+      const skeleton = page
+        .locator('[class*="skeleton"]')
+        .or(page.locator('[class*="animate-pulse"]'));
 
       // Skeletons may or may not be visible depending on load time
       // Just verify no error state
-      await expect(page.locator('text=Error').first()).not.toBeVisible().catch(() => {
-        // Accept if error text doesn't exist
-      });
+      await expect(page.locator('text=Error').first())
+        .not.toBeVisible()
+        .catch(() => {
+          // Accept if error text doesn't exist
+        });
     });
 
     test('should show validation errors for empty required fields', async ({ page }) => {
@@ -348,15 +358,17 @@ test.describe('PickWizard V1.1 Compliance', () => {
       const nextButton = page.locator('button:has-text("Next")');
 
       // Button should be disabled for invalid step
-      await expect(nextButton).toBeDisabled().catch(async () => {
-        // If not disabled, clicking should show validation error
-        await nextButton.click();
-        await expect(page.locator('text=required').or(
-          page.locator('text=Please select')
-        ).first()).toBeVisible().catch(() => {
-          // Alternative: form prevents submission
+      await expect(nextButton)
+        .toBeDisabled()
+        .catch(async () => {
+          // If not disabled, clicking should show validation error
+          await nextButton.click();
+          await expect(page.locator('text=required').or(page.locator('text=Please select')).first())
+            .toBeVisible()
+            .catch(() => {
+              // Alternative: form prevents submission
+            });
         });
-      });
     });
   });
 });
@@ -366,21 +378,25 @@ test.afterAll(() => {
   console.log('\n=== ENDPOINT COMPLIANCE AUDIT ===');
   console.log('Total API requests:', networkRequests.length);
 
-  const uniqueEndpoints = [...new Set(networkRequests.map(r => {
-    try {
-      return new URL(r.url).pathname;
-    } catch {
-      return r.url;
-    }
-  }))];
+  const uniqueEndpoints = [
+    ...new Set(
+      networkRequests.map(r => {
+        try {
+          return new URL(r.url).pathname;
+        } catch {
+          return r.url;
+        }
+      })
+    ),
+  ];
 
   console.log('Unique endpoints called:');
   uniqueEndpoints.forEach(ep => console.log(`  - ${ep}`));
 
   // HARDENED: Check for prohibited or unknown endpoints
   const forbidden = uniqueEndpoints.filter((epPath: string) => {
-    const isProhibited = PROHIBITED_ENDPOINTS.some(p =>
-      epPath.includes(p) && !epPath.includes('/api/catalog/')
+    const isProhibited = PROHIBITED_ENDPOINTS.some(
+      p => epPath.includes(p) && !epPath.includes('/api/catalog/')
     );
     const isApproved = APPROVED_ENDPOINTS.some(a => epPath.includes(a));
     return epPath.includes('/api/') && (isProhibited || !isApproved);

@@ -1,18 +1,38 @@
 #!/usr/bin/env npx tsx
 /**
- * SPRINT-SMARTFORM-DATA-CONTRACTS-MANUAL-INVENTORY-059
+ * SPRINT-SMARTFORM-CONTRACT-EXECUTION-PROOF-060
  *
  * Database Contract Verification Script
  *
  * Verifies that all required contract surfaces exist with correct columns.
  * Run as part of CI/CD or manually before deployment.
  *
+ * ENVIRONMENT VARIABLES REQUIRED:
+ *   NEXT_PUBLIC_SUPABASE_URL - Supabase project URL
+ *   SUPABASE_SERVICE_ROLE_KEY - Service role key (or NEXT_PUBLIC_SUPABASE_ANON_KEY)
+ *
+ * HOW TO SET ENVIRONMENT:
+ *   Option 1: Create apps/smart-form/.env with the variables above
+ *   Option 2: Export variables in your shell
+ *   Option 3: Pass inline: NEXT_PUBLIC_SUPABASE_URL=... npx tsx scripts/verify-data-contracts.ts
+ *
  * Usage:
  *   npx tsx scripts/verify-data-contracts.ts
- *   npm run verify:contracts
+ *   npx tsx scripts/verify-data-contracts.ts --json
+ *   pnpm -C apps/smart-form verify:contracts
  */
 
 import { createClient } from '@supabase/supabase-js';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+
+// Load .env file from the smart-form directory
+const envPath = path.resolve(__dirname, '..', '.env');
+const envLocalPath = path.resolve(__dirname, '..', '.env.local');
+
+// Try loading .env.local first (higher priority), then .env
+dotenv.config({ path: envLocalPath });
+dotenv.config({ path: envPath });
 
 const CONTRACT_VERSION = '1.0.1';
 
@@ -119,14 +139,53 @@ interface VerificationResult {
   };
 }
 
+function printEnvironmentHelp(): void {
+  console.error(`
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  ERROR: Supabase credentials not found in environment                        ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+REQUIRED ENVIRONMENT VARIABLES:
+  • NEXT_PUBLIC_SUPABASE_URL     - Your Supabase project URL
+  • SUPABASE_SERVICE_ROLE_KEY    - Service role key (preferred)
+    OR
+  • NEXT_PUBLIC_SUPABASE_ANON_KEY - Anon key (limited permissions)
+
+HOW TO FIX:
+
+  Option 1: Create a .env file
+  ─────────────────────────────
+  Create file: apps/smart-form/.env
+
+  Contents:
+    NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+    SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+  Option 2: Export in shell
+  ─────────────────────────
+    export NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+    export SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+  Option 3: Inline execution
+  ──────────────────────────
+    NEXT_PUBLIC_SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npx tsx scripts/verify-data-contracts.ts
+
+CURRENT STATE:
+  NEXT_PUBLIC_SUPABASE_URL:    ${process.env.NEXT_PUBLIC_SUPABASE_URL ? '✅ SET' : '❌ NOT SET'}
+  SUPABASE_SERVICE_ROLE_KEY:   ${process.env.SUPABASE_SERVICE_ROLE_KEY ? '✅ SET' : '❌ NOT SET'}
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✅ SET' : '❌ NOT SET'}
+
+See: apps/smart-form/.env.example for a template
+`);
+}
+
 async function verifyContracts(): Promise<VerificationResult[]> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey =
     process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
-    console.error('ERROR: Supabase credentials not found in environment');
-    console.error('Required: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY');
+    printEnvironmentHelp();
     process.exit(1);
   }
 
@@ -136,8 +195,10 @@ async function verifyContracts(): Promise<VerificationResult[]> {
   console.log('========================================');
   console.log('SMART FORM DATA CONTRACT VERIFICATION');
   console.log(`Contract Version: ${CONTRACT_VERSION}`);
-  console.log('Sprint: SMARTFORM-DATA-CONTRACTS-MANUAL-INVENTORY-059');
+  console.log('Sprint: SMARTFORM-CONTRACT-EXECUTION-PROOF-060');
   console.log('========================================\n');
+  console.log(`Supabase URL: ${supabaseUrl.substring(0, 30)}...`);
+  console.log('');
 
   // Check each contract surface
   for (const [surfaceName, config] of Object.entries(CONTRACT_SURFACES)) {

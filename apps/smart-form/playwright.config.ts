@@ -1,96 +1,87 @@
 import { defineConfig, devices } from '@playwright/test';
 import * as dotenv from 'dotenv';
 
-// Load environment variables
+// Load environment variables from .env file
 dotenv.config();
 
 /**
+ * SPRINT-SMARTFORM-CONTRACT-EXECUTION-PROOF-060
+ *
+ * Playwright Configuration for Smart Form E2E Tests
+ *
+ * IMPORTANT: This config targets tests in ./tests/e2e/*.spec.ts
+ * Run with: pnpm -C apps/smart-form test:e2e
+ *
  * @see https://playwright.dev/docs/test-configuration
  */
 export default defineConfig({
-  testDir: './tests',
-  /* Run tests in files in parallel */
-  fullyParallel: true,
-  /* Fail the build on CI if you accidentally left test.only in the source code. */
-  forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
-  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: [
-    ['html'],
-    ['json', { outputFile: 'test-results/results.json' }],
-    ['junit', { outputFile: 'test-results/results.xml' }],
-  ],
-  /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
-  use: {
-    /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3021',
+  // Test directory - relative to this config file
+  testDir: './tests/e2e',
 
-    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
+  // Match .spec.ts files (not .e2e.spec.ts to avoid root config confusion)
+  testMatch: '**/*.spec.ts',
+
+  // Run tests sequentially for API contract tests
+  fullyParallel: false,
+
+  // Fail on CI if test.only is left in code
+  forbidOnly: !!process.env.CI,
+
+  // Retry failed tests on CI
+  retries: process.env.CI ? 2 : 0,
+
+  // Single worker for contract tests (sequential)
+  workers: 1,
+
+  // Reporters
+  reporter: [
+    ['list'], // Console output
+    ['json', { outputFile: 'test-results/results.json' }],
+  ],
+
+  // Global settings
+  use: {
+    // Base URL for API tests
+    baseURL: process.env.SMARTFORM_URL || 'http://localhost:3021',
+
+    // Trace on retry
     trace: 'on-first-retry',
 
-    /* Take screenshot on failure */
+    // Screenshot on failure
     screenshot: 'only-on-failure',
 
-    /* Record video on failure */
-    video: 'retain-on-failure',
-
-    /* Set longer timeout for live data operations */
+    // Longer timeouts for API operations
     actionTimeout: 30000,
     navigationTimeout: 30000,
   },
 
-  /* Configure projects for major browsers */
+  // Single project for contract tests (API tests don't need multiple browsers)
   projects: [
     {
+      name: 'contracts',
+      testMatch: '**/smartform-data-contracts.spec.ts',
+      use: {
+        ...devices['Desktop Chrome'],
+      },
+    },
+    {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
-
-    /* Test against mobile viewports. */
-    {
-      name: 'Mobile Chrome',
-      use: { ...devices['Pixel 5'] },
-    },
-    {
-      name: 'Mobile Safari',
-      use: { ...devices['iPhone 12'] },
-    },
-
-    /* Test against branded browsers. */
-    {
-      name: 'Microsoft Edge',
-      use: { ...devices['Desktop Edge'], channel: 'msedge' },
-    },
-    {
-      name: 'Google Chrome',
-      use: { ...devices['Desktop Chrome'], channel: 'chrome' },
+      testMatch: '**/*.spec.ts',
+      testIgnore: '**/smartform-data-contracts.spec.ts',
+      use: {
+        ...devices['Desktop Chrome'],
+      },
     },
   ],
 
-  /* Global test timeout */
-  timeout: 60000, // 60 seconds per test
+  // Test timeout: 60 seconds
+  timeout: 60000,
 
-  /* Expect timeout */
+  // Assertion timeout: 10 seconds
   expect: {
-    timeout: 10000, // 10 seconds for assertions
+    timeout: 10000,
   },
 
-  /* Test output directory */
+  // Output directory
   outputDir: 'test-results/',
-
-  // Use existing dev server on port 3004
-  // webServer configuration disabled - assuming dev server is already running
 });
