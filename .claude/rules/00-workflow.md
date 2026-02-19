@@ -1,6 +1,6 @@
 # Rule 00: Workflow
 
-> Reference: `CLAUDE_EXECUTION_CONTRACT.md` Section IV
+> Reference: `CLAUDE_EXECUTION_CONTRACT.md` Section IV, VII
 
 ## Sprint Workflow
 
@@ -21,12 +21,61 @@ Phase 6: Closeout   → Write closeout report + merge to main
 ### ⚠️ HARD RULE: Commit + Tag + Merge
 
 **A sprint is NOT complete until:**
+
 1. Changes are committed with sprint reference
 2. Sprint tag is created (`SPRINT-<NAME>-###-COMPLETE`)
 3. Merged to main (fast-forward preferred)
 4. Working tree is clean
 
 **Skip this = Sprint incomplete = Must be done before next sprint.**
+
+---
+
+## Definition of Done (MERGE GATES)
+
+> Reference: `CLAUDE_EXECUTION_CONTRACT.md` Section VII
+
+### ALL Gates Must Pass
+
+| Gate                 | Command                                         | Status       |
+| -------------------- | ----------------------------------------------- | ------------ |
+| Type Check           | `npm run type-check`                            | ✅ MUST PASS |
+| API Build            | `npm run build --workspace=apps/api`            | ✅ MUST PASS |
+| Command Center Build | `npm run build --workspace=apps/command-center` | ✅ MUST PASS |
+| Smart Form Build     | `npm run build --workspace=apps/smart-form`     | ✅ MUST PASS |
+| Required Tests       | `npm run test`                                  | ✅ MUST PASS |
+| Lifecycle Gate       | `npm run lifecycle:single-writer -- --strict`   | ✅ MUST PASS |
+| Git Status           | Clean working tree                              | ✅ MUST PASS |
+
+### Verification Script
+
+```bash
+# Run full merge readiness check
+npm run verify:merge
+```
+
+### Forbidden Actions
+
+- **NO** `--no-verify` on commits
+- **NO** force-push to main
+- **NO** bypass of CI checks
+- **NO** merge without proof artifacts
+
+### Sprint Completion Checklist
+
+- [ ] Type check passes
+- [ ] All required builds pass
+- [ ] All required tests pass
+- [ ] Lifecycle gate passes
+- [ ] Git status is clean
+- [ ] Proof artifacts generated
+- [ ] Sprint tag created (`SPRINT-<NAME>-###-COMPLETE`)
+- [ ] Merged to main
+- [ ] Tags pushed to remote
+
+**If ANY gate fails: Sprint status = FAIL. Fix and re-verify.**
+
+---
 
 ### Sprint Naming
 
@@ -35,6 +84,7 @@ Pattern: SPRINT-<NAME>-###
 ```
 
 Examples:
+
 - `SPRINT-LIFECYCLE-MIGRATION-038`
 - `SPRINT-POSTING-FIX-039`
 - `SPRINT-SETTLEMENT-AUDIT-040`
@@ -52,6 +102,7 @@ out/sprints/<SPRINT>/<YYYY-MM-DD>/
 ## Task Tracking
 
 Use TodoWrite tool to track progress:
+
 - Mark tasks `in_progress` before starting
 - Mark tasks `completed` immediately after finishing
 - Never batch completions
@@ -59,6 +110,7 @@ Use TodoWrite tool to track progress:
 ## Stop Conditions
 
 **STOP and ask if:**
+
 1. Phase prerequisites not met
 2. Unclear requirements
 3. Blocking issue encountered
@@ -67,6 +119,7 @@ Use TodoWrite tool to track progress:
 ## First-Try Correctness
 
 Minimize back-and-forth by:
+
 1. Reading all relevant context before implementing
 2. Planning the full change set before coding
 3. Running verification before claiming done

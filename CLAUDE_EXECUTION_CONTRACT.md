@@ -1,7 +1,7 @@
 # CLAUDE EXECUTION CONTRACT
 
-> **HARD LAW**: This document contains non-negotiable invariants.
-> Violations trigger immediate STOP and escalation.
+> **HARD LAW**: This document contains non-negotiable invariants. Violations
+> trigger immediate STOP and escalation.
 
 ---
 
@@ -16,6 +16,7 @@ VIOLATION: Immediate STOP. Do not proceed.
 ```
 
 **Allowed Adapters:**
+
 - `lifecycleInsert(supabase, pick, context)`
 - `lifecycleUpdate(supabase, pickId, updates, context)`
 - `lifecycleClaimForPosting(supabase, pickId, context)`
@@ -24,6 +25,7 @@ VIOLATION: Immediate STOP. Do not proceed.
 - `atomicClaimParlayForPost(supabase, pickIds)`
 
 **Forbidden:**
+
 ```typescript
 // NEVER DO THIS:
 supabase.from('unified_picks').insert(...)
@@ -39,6 +41,7 @@ VIOLATION: Statement is invalid. Retract and generate proofs.
 ```
 
 **Minimum Proof Bundle:**
+
 1. `proof_git_status.txt` - Output of `git status`
 2. `proof_tests.txt` - Test run output
 3. `proof_typecheck.txt` - TypeScript check output
@@ -72,23 +75,23 @@ VIOLATION: Data integrity compromised. Immediate STOP and audit.
 
 ### Absolute Prohibitions
 
-| Action | Reason | Alternative |
-|--------|--------|-------------|
-| Direct `unified_picks` writes | Bypasses lifecycle validation | Use lifecycle adapters |
-| Hardcoded status claims | Unverifiable | Query CI/CD or database |
-| Modifying settlement fields | Immutability violation | Use operator_override role |
-| Using `daily_picks` | Deprecated table | Use `unified_picks` |
-| Skipping proof generation | Unverifiable completion | Always generate proofs |
-| Force-pushing to main | History destruction | Use standard PR flow |
-| Running migrations without backup | Irreversible changes | Always have rollback plan |
+| Action                            | Reason                        | Alternative                |
+| --------------------------------- | ----------------------------- | -------------------------- |
+| Direct `unified_picks` writes     | Bypasses lifecycle validation | Use lifecycle adapters     |
+| Hardcoded status claims           | Unverifiable                  | Query CI/CD or database    |
+| Modifying settlement fields       | Immutability violation        | Use operator_override role |
+| Using `daily_picks`               | Deprecated table              | Use `unified_picks`        |
+| Skipping proof generation         | Unverifiable completion       | Always generate proofs     |
+| Force-pushing to main             | History destruction           | Use standard PR flow       |
+| Running migrations without backup | Irreversible changes          | Always have rollback plan  |
 
 ### Conditional Prohibitions
 
-| Action | Condition | Resolution |
-|--------|-----------|------------|
-| Schema changes | Without migration file | Create reversible migration |
-| Production writes | Without staging test | Test in staging first |
-| Agent changes | Without health check | Add agent_health updates |
+| Action            | Condition              | Resolution                  |
+| ----------------- | ---------------------- | --------------------------- |
+| Schema changes    | Without migration file | Create reversible migration |
+| Production writes | Without staging test   | Test in staging first       |
+| Agent changes     | Without health check   | Add agent_health updates    |
 
 ---
 
@@ -166,15 +169,15 @@ out/sprints/<SPRINT>/<YYYY-MM-DD>/
 
 ### Phase Requirements
 
-| Phase | Must Complete | Proof Required |
-|-------|---------------|----------------|
-| 0. Context | Read relevant files, understand scope | None |
-| 1. Plan | Document approach, no code changes | Plan in notes/ |
-| 2. Implement | Smallest working change set | Code diffs |
-| 3. Verify | Run tests, gates, checks | Test outputs |
-| 4. Proof | Generate all proof artifacts | Full bundle |
-| 5. Closeout | Write closeout report | SPRINT_CLOSEOUT_REPORT.md |
-| 6. Merge | PR or commit | Git status |
+| Phase        | Must Complete                         | Proof Required            |
+| ------------ | ------------------------------------- | ------------------------- |
+| 0. Context   | Read relevant files, understand scope | None                      |
+| 1. Plan      | Document approach, no code changes    | Plan in notes/            |
+| 2. Implement | Smallest working change set           | Code diffs                |
+| 3. Verify    | Run tests, gates, checks              | Test outputs              |
+| 4. Proof     | Generate all proof artifacts          | Full bundle               |
+| 5. Closeout  | Write closeout report                 | SPRINT_CLOSEOUT_REPORT.md |
+| 6. Merge     | PR or commit                          | Git status                |
 
 ---
 
@@ -182,25 +185,25 @@ out/sprints/<SPRINT>/<YYYY-MM-DD>/
 
 ### By Role
 
-| Role | Can Write | Cannot Write |
-|------|-----------|--------------|
-| `submitter` | id, bet_slip_id, selection, line, odds, stake | posted_to_discord, settlement_* |
-| `promoter` | promotion_status, promotion_queued_at, tier | posted_to_discord, settlement_* |
-| `poster` | posted_to_discord, discord_message_id, meta | settlement_*, selection, line |
-| `settler` | settlement_status, settlement_result, settled_at | posted_to_discord, selection |
-| `operator_override` | ALL (emergency use only) | N/A |
+| Role                | Can Write                                        | Cannot Write                     |
+| ------------------- | ------------------------------------------------ | -------------------------------- |
+| `submitter`         | id, bet_slip_id, selection, line, odds, stake    | posted*to_discord, settlement*\* |
+| `promoter`          | promotion_status, promotion_queued_at, tier      | posted*to_discord, settlement*\* |
+| `poster`            | posted_to_discord, discord_message_id, meta      | settlement\_\*, selection, line  |
+| `settler`           | settlement_status, settlement_result, settled_at | posted_to_discord, selection     |
+| `operator_override` | ALL (emergency use only)                         | N/A                              |
 
 ### By Field (Immutability)
 
-| Field | Immutable After Set | Allowed Writers |
-|-------|---------------------|-----------------|
-| `id` | YES | submitter |
-| `bet_slip_id` | YES | submitter |
-| `selection` | YES | submitter |
-| `posted_to_discord` | YES (once true) | poster |
-| `discord_message_id` | YES | poster |
-| `settlement_result` | YES | settler, operator_override |
-| `settlement_hash` | YES | settler |
+| Field                | Immutable After Set | Allowed Writers            |
+| -------------------- | ------------------- | -------------------------- |
+| `id`                 | YES                 | submitter                  |
+| `bet_slip_id`        | YES                 | submitter                  |
+| `selection`          | YES                 | submitter                  |
+| `posted_to_discord`  | YES (once true)     | poster                     |
+| `discord_message_id` | YES                 | poster                     |
+| `settlement_result`  | YES                 | settler, operator_override |
+| `settlement_hash`    | YES                 | settler                    |
 
 ---
 
@@ -226,7 +229,83 @@ out/sprints/<SPRINT>/<YYYY-MM-DD>/
 
 ---
 
-## VII. EMERGENCY PROCEDURES
+## VII. MERGE GATE – HARD REQUIREMENTS
+
+> **HARD LAW**: No merge to main without ALL of the following.
+
+### Pre-Merge Checklist (ALL REQUIRED)
+
+```
+INVARIANT: EVERY merge to main MUST pass ALL gates.
+ENFORCED BY: verify:merge script + CI pipeline
+VIOLATION: Merge blocked. Sprint outcome = FAIL.
+```
+
+| Gate                 | Command                                         | Must Pass   |
+| -------------------- | ----------------------------------------------- | ----------- |
+| Type Check           | `npm run type-check`                            | ✅ REQUIRED |
+| API Build            | `npm run build --workspace=apps/api`            | ✅ REQUIRED |
+| Command Center Build | `npm run build --workspace=apps/command-center` | ✅ REQUIRED |
+| Smart Form Build     | `npm run build --workspace=apps/smart-form`     | ✅ REQUIRED |
+| Lifecycle Gate       | `npm run lifecycle:single-writer -- --strict`   | ✅ REQUIRED |
+| Unit Tests           | `npm run test`                                  | ✅ REQUIRED |
+| Git Status           | Clean working tree                              | ✅ REQUIRED |
+
+### Forbidden Merge Patterns
+
+```
+FORBIDDEN: Using --no-verify on commits
+FORBIDDEN: Force-pushing to main
+FORBIDDEN: Merging without proof artifacts
+FORBIDDEN: Bypassing CI checks
+```
+
+**Violation of any forbidden pattern = Sprint FAIL.**
+
+### Required Proof Artifacts
+
+Before any merge, these MUST exist:
+
+```
+out/sprints/<SPRINT>/<DATE>/proofs/
+├── proof_typecheck.txt        # npm run type-check output
+├── proof_build_api.txt        # pnpm --filter api build output
+├── proof_build_command_center.txt
+├── proof_build_smart_form.txt
+├── proof_required_tests.txt   # npm run test output
+├── proof_git_status_clean.txt # git status showing clean tree
+└── SPRINT_CLOSEOUT_REPORT.md  # Sprint summary
+```
+
+### Verification Script
+
+```bash
+# Run all merge gates
+npm run verify:merge
+
+# Expected output on success:
+# ✅ Type check: PASS
+# ✅ API build: PASS
+# ✅ Command Center build: PASS
+# ✅ Smart Form build: PASS
+# ✅ Tests: PASS
+# ✅ Git status: CLEAN
+# ✅ No --no-verify commits: VERIFIED
+# ✅ MERGE READY
+```
+
+### Merge Failure Consequences
+
+If verification fails:
+
+1. **Sprint Status**: FAIL (not COMPLETE)
+2. **Action Required**: Fix issues, re-verify
+3. **No Bypass**: Cannot skip gates
+4. **Documentation**: Failure documented in sprint notes
+
+---
+
+## VIII. EMERGENCY PROCEDURES
 
 ### Single-Writer Violation in Production
 
@@ -246,11 +325,12 @@ out/sprints/<SPRINT>/<YYYY-MM-DD>/
 
 ---
 
-## VIII. CONTRACT VERSIONING
+## IX. CONTRACT VERSIONING
 
-| Version | Date | Changes |
-|---------|------|---------|
-| 1.0.0 | 2026-02-18 | Initial contract |
+| Version | Date       | Changes                                            |
+| ------- | ---------- | -------------------------------------------------- |
+| 1.0.0   | 2026-02-18 | Initial contract                                   |
+| 1.1.0   | 2026-02-19 | Added MERGE GATE – HARD REQUIREMENTS (Section VII) |
 
 ---
 
