@@ -841,4 +841,472 @@ router.post('/recap', async (req, res) => {
   }
 });
 
+// ============================================================================
+// GAUNTLET ENDPOINTS — GATED BY GAUNTLET_MODE=true
+// Sprint: FULL-CHAIN-STAGING-GAUNTLET-041
+// ============================================================================
+
+/**
+ * Gauntlet mode gate - refuses all gauntlet operations unless env is set
+ */
+const gauntletGate = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (process.env.GAUNTLET_MODE !== 'true') {
+    logger.warn('Gauntlet endpoint blocked - GAUNTLET_MODE not enabled');
+    return res.status(403).json({
+      success: false,
+      error: 'GAUNTLET_MODE not enabled',
+      hint: 'Set GAUNTLET_MODE=true in environment to enable gauntlet endpoints',
+      timestamp: new Date().toISOString()
+    });
+  }
+  next();
+};
+
+/**
+ * POST /ops/gauntlet/inject-pick - Create a test pick for gauntlet scenarios
+ *
+ * Body: {
+ *   bet_slip_id: string (required, must start with GAUNTLET-041-)
+ *   player_name?: string
+ *   stat_type?: string
+ *   line?: number
+ *   side?: string
+ *   sport?: string
+ *   odds?: number
+ * }
+ */
+router.post('/gauntlet/inject-pick', gauntletGate, async (req, res) => {
+  const correlationId = `gauntlet-inject-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+
+  try {
+    const { bet_slip_id, player_name, stat_type, line, side, sport, odds, is_parlay, parlay_id, leg_index } = req.body;
+
+    if (!bet_slip_id || !bet_slip_id.startsWith('GAUNTLET-041-')) {
+      return res.status(400).json({
+        success: false,
+        error: 'bet_slip_id must start with GAUNTLET-041-',
+        correlationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    const { supabaseClient } = await import('../services/supabaseClient');
+    const { checkSubmitIdempotency, lifecycleInsert } = await import('../lib/lifecycle');
+
+    // Check idempotency first
+    const idempotencyCheck = await checkSubmitIdempotency(supabaseClient, bet_slip_id);
+    if (idempotencyCheck.isDuplicate) {
+      return res.status(409).json({
+        success: false,
+        error: 'Duplicate bet_slip_id',
+        existing_id: idempotencyCheck.existingId,
+        reason: idempotencyCheck.reason,
+        correlationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Create pick via lifecycle adapter
+    const pickId = crypto.randomUUID();
+    const pick = {
+      id: pickId,
+      bet_slip_id,
+      player_name: player_name || 'Gauntlet Test Player',
+      stat_type: stat_type || 'points',
+      line: line || 25.5,
+      side: side || 'over',
+      sport: sport || 'NBA',
+      odds: odds || -110,
+      status: 'pending' as const,
+      promotion_status: 'not_promoted' as const,
+      settlement_status: 'pending' as const,
+      posted_to_discord: false,
+      source: 'GAUNTLET_TEST',
+      created_at: new Date().toISOString(),
+      // Parlay support
+      ticket_type: is_parlay ? 'parlay' : 'single',
+      parlay_id: parlay_id || null,
+      leg_index: leg_index ?? null,
+    };
+
+    const result = await lifecycleInsert(supabaseClient, pick, {
+      writerRole: 'submitter',
+      traceId: correlationId,
+    });
+
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        error: result.error,
+        correlationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    logger.info({ correlationId, pickId, bet_slip_id }, 'GAUNTLET: Pick injected');
+
+    res.status(201).json({
+      success: true,
+      pick_id: pickId,
+      bet_slip_id,
+      correlationId,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    logger.error({ correlationId, error: error instanceof Error ? error.message : 'Unknown error' }, 'GAUNTLET: Inject failed');
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      correlationId,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+/**
+ * POST /ops/gauntlet/queue-pick - Move pick to QUEUED status (simulate promotion)
+ */
+router.post('/gauntlet/queue-pick', gauntletGate, async (req, res) => {
+  const correlationId = `gauntlet-queue-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+
+  try {
+    const { pick_id } = req.body;
+
+    if (!pick_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'pick_id is required',
+        correlationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    const { supabaseClient } = await import('../services/supabaseClient');
+    const { lifecycleUpdate } = await import('../lib/lifecycle');
+
+    const result = await lifecycleUpdate(supabaseClient, pick_id, {
+      promotion_status: 'queued',
+      promotion_queued_at: new Date().toISOString(),
+    }, {
+      writerRole: 'promoter',
+      traceId: correlationId,
+    });
+
+    if (!result.success) {
+      return res.status(422).json({
+        success: false,
+        error: result.error,
+        correlationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    logger.info({ correlationId, pick_id }, 'GAUNTLET: Pick queued');
+
+    res.json({
+      success: true,
+      pick_id,
+      new_status: 'queued',
+      correlationId,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    logger.error({ correlationId, error: error instanceof Error ? error.message : 'Unknown error' }, 'GAUNTLET: Queue failed');
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      correlationId,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+/**
+ * POST /ops/gauntlet/post-pick - Atomic claim and mark as posted
+ */
+router.post('/gauntlet/post-pick', gauntletGate, async (req, res) => {
+  const correlationId = `gauntlet-post-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+
+  try {
+    const { pick_id, simulate_discord_id } = req.body;
+
+    if (!pick_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'pick_id is required',
+        correlationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    const { supabaseClient } = await import('../services/supabaseClient');
+    const { atomicClaimForPost, lifecycleUpdate } = await import('../lib/lifecycle');
+
+    // Use atomic claim for idempotency
+    const claim = await atomicClaimForPost(supabaseClient, pick_id);
+
+    if (!claim.claimed) {
+      return res.status(409).json({
+        success: false,
+        error: 'Pick already posted (idempotent skip)',
+        already_claimed: true,
+        correlationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Simulate Discord message ID
+    const discordMessageId = simulate_discord_id || `GAUNTLET-MSG-${Date.now()}`;
+
+    // Update with Discord receipt
+    await lifecycleUpdate(supabaseClient, pick_id, {
+      discord_message_id: discordMessageId,
+      promotion_status: 'promoted',
+      meta: { discord_receipt: { message_id: discordMessageId, channel_id: 'GAUNTLET_CHANNEL' } },
+    }, {
+      writerRole: 'poster',
+      traceId: correlationId,
+    });
+
+    logger.info({ correlationId, pick_id, discordMessageId }, 'GAUNTLET: Pick posted');
+
+    res.json({
+      success: true,
+      pick_id,
+      discord_message_id: discordMessageId,
+      correlationId,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    logger.error({ correlationId, error: error instanceof Error ? error.message : 'Unknown error' }, 'GAUNTLET: Post failed');
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      correlationId,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+/**
+ * POST /ops/gauntlet/settle-pick - Settle a pick (idempotent)
+ */
+router.post('/gauntlet/settle-pick', gauntletGate, async (req, res) => {
+  const correlationId = `gauntlet-settle-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+
+  try {
+    const { pick_id, result, actual_value } = req.body;
+
+    if (!pick_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'pick_id is required',
+        correlationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (!result || !['win', 'loss', 'push'].includes(result)) {
+      return res.status(400).json({
+        success: false,
+        error: 'result must be one of: win, loss, push',
+        correlationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    const { supabaseClient } = await import('../services/supabaseClient');
+    const { atomicClaimForSettle, lifecycleSettle } = await import('../lib/lifecycle');
+
+    // Use atomic claim for idempotency
+    const claim = await atomicClaimForSettle(supabaseClient, pick_id, {
+      settlement_status: 'settled',
+      settlement_result: result,
+      settlement_source: 'GAUNTLET_TEST',
+    });
+
+    if (!claim.claimed) {
+      return res.status(409).json({
+        success: false,
+        error: 'Pick already settled (idempotent skip)',
+        already_settled: true,
+        correlationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    logger.info({ correlationId, pick_id, result }, 'GAUNTLET: Pick settled');
+
+    res.json({
+      success: true,
+      pick_id,
+      settlement_result: result,
+      actual_value: actual_value || null,
+      correlationId,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    logger.error({ correlationId, error: error instanceof Error ? error.message : 'Unknown error' }, 'GAUNTLET: Settle failed');
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      correlationId,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+/**
+ * GET /ops/gauntlet/pick/:id - Get current pick state
+ */
+router.get('/gauntlet/pick/:id', gauntletGate, async (req, res) => {
+  const correlationId = `gauntlet-get-${Date.now()}`;
+
+  try {
+    const { id } = req.params;
+
+    const { supabaseClient } = await import('../services/supabaseClient');
+
+    const { data, error } = await supabaseClient
+      .from('unified_picks')
+      .select('id, bet_slip_id, status, promotion_status, settlement_status, posted_to_discord, discord_message_id, settlement_result, settled_at, promotion_posted_at, meta, source')
+      .eq('id', id)
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({
+        success: false,
+        error: 'Pick not found',
+        correlationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    res.json({
+      success: true,
+      pick: data,
+      correlationId,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      correlationId,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+/**
+ * DELETE /ops/gauntlet/cleanup - Clean up all GAUNTLET_TEST picks
+ */
+router.delete('/gauntlet/cleanup', gauntletGate, async (req, res) => {
+  const correlationId = `gauntlet-cleanup-${Date.now()}`;
+
+  try {
+    const { supabaseClient } = await import('../services/supabaseClient');
+
+    const { data, error } = await supabaseClient
+      .from('unified_picks')
+      .delete()
+      .eq('source', 'GAUNTLET_TEST')
+      .select('id');
+
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        error: error.message,
+        correlationId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    const deletedCount = data?.length || 0;
+    logger.info({ correlationId, deletedCount }, 'GAUNTLET: Cleanup completed');
+
+    res.json({
+      success: true,
+      deleted_count: deletedCount,
+      correlationId,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      correlationId,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+/**
+ * GET /ops/gauntlet/reconciliation - Check for drift conditions
+ */
+router.get('/gauntlet/reconciliation', gauntletGate, async (req, res) => {
+  const correlationId = `gauntlet-recon-${Date.now()}`;
+
+  try {
+    const { supabaseClient } = await import('../services/supabaseClient');
+
+    // Query 1: POSTED without discord_message_id
+    const { data: postedNoReceipt } = await supabaseClient
+      .from('unified_picks')
+      .select('id, bet_slip_id')
+      .eq('source', 'GAUNTLET_TEST')
+      .eq('posted_to_discord', true)
+      .is('discord_message_id', null);
+
+    // Query 2: SETTLED without settled_at
+    const { data: settledNoTimestamp } = await supabaseClient
+      .from('unified_picks')
+      .select('id, bet_slip_id')
+      .eq('source', 'GAUNTLET_TEST')
+      .eq('settlement_status', 'settled')
+      .is('settled_at', null);
+
+    // Query 3: settlement_result without settlement_status = settled
+    const { data: resultNoStatus } = await supabaseClient
+      .from('unified_picks')
+      .select('id, bet_slip_id')
+      .eq('source', 'GAUNTLET_TEST')
+      .not('settlement_result', 'is', null)
+      .neq('settlement_status', 'settled');
+
+    const driftConditions = {
+      posted_without_receipt: postedNoReceipt || [],
+      settled_without_timestamp: settledNoTimestamp || [],
+      result_without_settled_status: resultNoStatus || [],
+    };
+
+    const hasDrift =
+      driftConditions.posted_without_receipt.length > 0 ||
+      driftConditions.settled_without_timestamp.length > 0 ||
+      driftConditions.result_without_settled_status.length > 0;
+
+    res.json({
+      success: true,
+      has_drift: hasDrift,
+      drift_conditions: driftConditions,
+      correlationId,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      correlationId,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 export default router;

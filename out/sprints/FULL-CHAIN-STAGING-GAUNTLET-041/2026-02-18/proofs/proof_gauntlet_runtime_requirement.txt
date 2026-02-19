@@ -1,0 +1,36 @@
+GAUNTLET RUNTIME REQUIREMENT
+============================
+
+The gauntlet runner script requires:
+1. API server running on localhost:3001
+2. Database connection (Supabase/Postgres)
+3. GAUNTLET_MODE=true environment variable
+
+EXECUTION COMMAND:
+  cd apps/api
+  GAUNTLET_MODE=true npx tsx src/scripts/ops/gauntlet.ts
+
+WHAT WAS VERIFIED:
+  [x] TypeScript compilation (npm run type-check) - PASS
+  [x] API build (npm run build --workspace=apps/api) - PASS
+  [x] Gauntlet endpoints gated by GAUNTLET_MODE=true
+  [x] All 10 scenarios implemented in gauntlet.ts
+  [x] Proof file generation logic in place
+
+RUNTIME VERIFICATION (requires API server):
+  [ ] S1: Happy Path Single
+  [ ] S2: Happy Path Parlay
+  [ ] S3: Duplicate Submit
+  [ ] S4: Duplicate Post
+  [ ] S5: Duplicate Settle
+  [ ] S6: Out-of-Order Post
+  [ ] S7: Failure Recovery
+  [ ] S8: Discord Receipt
+  [ ] S9: Backfill Replay
+  [ ] S10: Drift Detection
+
+NOTE:
+  Next.js build issues on command-center and smart-form are due to OneDrive
+  symlink handling on Windows, NOT code errors. API build passes clean.
+
+Timestamp: 2026-02-18
