@@ -773,10 +773,226 @@ export function validateBuildProvenance(commitShort: string, environment: string
   return { valid: true };
 }
 
+// ---- SPRINT-EMBED-MIN-REQ-GATE-ENFORCEMENT-051: Embed Readiness Gate ----
+
+/**
+ * EMBED_STRICT_MODE environment variable
+ * - true (strict): Block posting if required fields missing, set blocked_reason
+ * - false (soft): Allow posting with fallbacks ("TBD"), log warnings
+ */
+export const EMBED_STRICT_MODE = process.env['EMBED_STRICT_MODE'] !== 'false';
+
+/**
+ * SPRINT-EMBED-MIN-REQ-GATE-ENFORCEMENT-051: Embed readiness result
+ */
+export interface EmbedReadinessResult {
+  ready: boolean;
+  mode: 'strict' | 'soft';
+  missingFields: string[];
+  violations: string[];
+  warnings: string[];
+  sanitizedValues: {
+    league: string;
+    matchup: string;
+    eventTime: string;
+  };
+}
+
+/**
+ * SPRINT-EMBED-MIN-REQ-GATE-ENFORCEMENT-051: Check for "undefined" strings
+ * Returns field names that contain literal "undefined" text
+ */
+function findUndefinedStrings(values: Record<string, any>): string[] {
+  const violations: string[] = [];
+  for (const [key, value] of Object.entries(values)) {
+    if (typeof value === 'string') {
+      if (value.toLowerCase().includes('undefined')) {
+        violations.push(key);
+      }
+    }
+  }
+  return violations;
+}
+
+/**
+ * SPRINT-EMBED-MIN-REQ-GATE-ENFORCEMENT-051: Check for duplicate line formatting
+ * e.g., "Over 27.5 Over 27.5" or "Line: 27.5 Line: 27.5"
+ */
+function findDuplicateLineFormatting(text: string | undefined | null): boolean {
+  if (!text) return false;
+  // Pattern: same numeric line appears twice with over/under
+  const duplicatePattern = /(over|under)\s+[\d\.]+.*\1\s+[\d\.]+/i;
+  // Pattern: same line value appears twice
+  const linePattern = /(\d+\.?\d*)/g;
+  const matches = text.match(linePattern);
+  if (matches && matches.length >= 2) {
+    // Check if consecutive matches are identical
+    for (let i = 0; i < matches.length - 1; i++) {
+      if (matches[i] === matches[i + 1]) {
+        return true;
+      }
+    }
+  }
+  return duplicatePattern.test(text);
+}
+
+/**
+ * SPRINT-EMBED-MIN-REQ-GATE-ENFORCEMENT-051: Format event time for display
+ */
+function formatEventTime(
+  gameDate: string | Date | undefined | null,
+  gameTime: string | undefined | null,
+  placedAt: string | Date | undefined | null
+): string | null {
+  // Priority 1: game_date + game_time
+  if (gameDate) {
+    try {
+      const date = new Date(gameDate);
+      if (!isNaN(date.getTime())) {
+        const timeStr = gameTime || '';
+        return `${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}${timeStr ? ' ' + timeStr : ''}`;
+      }
+    } catch {
+      // Fall through
+    }
+  }
+
+  // Priority 2: Use placed_at date (shows when bet was placed, not event time)
+  if (placedAt) {
+    try {
+      const date = new Date(placedAt);
+      if (!isNaN(date.getTime())) {
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      }
+    } catch {
+      // Fall through
+    }
+  }
+
+  return null;
+}
+
+// Pick type for embed readiness validation
+type EmbedReadinessPick = {
+  id?: string;
+  sport?: string | null;
+  league?: string | null;
+  matchup?: string | null;
+  manual_matchup_home?: string | null;
+  manual_matchup_away?: string | null;
+  manual_fields_blob?: { matchup?: string } | null;
+  meta?: { matchup?: string; game_time?: string } | null;
+  game_date?: string | Date | null;
+  manual_game_date?: string | null;
+  game_time?: string | null;
+  game_start_time?: string | null;
+  placed_at?: string | Date | null;
+  selection?: string | null;
+  title?: string | null;
+  line?: number | null;
+  direction?: string | null;
+};
+
+/**
+ * SPRINT-EMBED-MIN-REQ-051: Resolve matchup from multiple sources
+ */
+function resolveMatchup(pick: EmbedReadinessPick): string | null {
+  if (pick.matchup) return pick.matchup;
+  if (pick.manual_fields_blob?.matchup) return pick.manual_fields_blob.matchup;
+  if (pick.manual_matchup_home && pick.manual_matchup_away) {
+    return `${pick.manual_matchup_away} @ ${pick.manual_matchup_home}`;
+  }
+  if (pick.meta?.matchup) return pick.meta.matchup;
+  return null;
+}
+
+/**
+ * SPRINT-EMBED-MIN-REQ-051: Check for missing required fields
+ */
+function checkMissingFields(
+  league: string | null | undefined,
+  matchup: string | null,
+  eventTime: string | null
+): string[] {
+  const missing: string[] = [];
+  if (!league || league.trim() === '') missing.push('league');
+  if (!matchup || matchup.trim() === '') missing.push('matchup');
+  if (!eventTime) missing.push('event_start_time');
+  return missing;
+}
+
+/**
+ * SPRINT-EMBED-MIN-REQ-051: Check for content violations
+ */
+function checkContentViolations(pick: EmbedReadinessPick, league: string | null | undefined, matchup: string | null): string[] {
+  const violations: string[] = [];
+  const fieldsToCheck = { league, matchup, selection: pick.selection, title: pick.title };
+  const undefinedFields = findUndefinedStrings(fieldsToCheck);
+  if (undefinedFields.length > 0) {
+    violations.push(`Contains literal "undefined" in: ${undefinedFields.join(', ')}`);
+  }
+  const textsToCheck = [pick.selection, pick.title].filter(Boolean);
+  for (const text of textsToCheck) {
+    if (findDuplicateLineFormatting(text)) {
+      violations.push(`Duplicate line formatting detected in: "${text?.substring(0, 50)}..."`);
+    }
+  }
+  return violations;
+}
+
+/**
+ * SPRINT-EMBED-MIN-REQ-051: Determine readiness based on mode
+ */
+function determineReadiness(
+  mode: 'strict' | 'soft',
+  missingFields: string[],
+  violations: string[]
+): { ready: boolean; warnings: string[] } {
+  const hasBlockingIssues = missingFields.length > 0 || violations.length > 0;
+  const ready = mode === 'strict' ? !hasBlockingIssues : violations.length === 0;
+  const warnings: string[] = [];
+  if (mode === 'soft' && missingFields.length > 0) {
+    warnings.push(`Missing fields (using TBD fallback): ${missingFields.join(', ')}`);
+  }
+  return { ready, warnings };
+}
+
+/**
+ * SPRINT-EMBED-MIN-REQ-GATE-ENFORCEMENT-051: Assert embed readiness
+ *
+ * Validates minimum required fields for Discord embeds.
+ */
+export function assertEmbedReadiness(pick: EmbedReadinessPick): EmbedReadinessResult {
+  const mode: 'strict' | 'soft' = EMBED_STRICT_MODE ? 'strict' : 'soft';
+  const league = pick.sport || pick.league;
+  const matchup = resolveMatchup(pick);
+  const effectiveGameDate = pick.game_date || pick.manual_game_date;
+  const effectiveTime = pick.game_time || pick.game_start_time || pick.meta?.game_time;
+  const eventTime = formatEventTime(effectiveGameDate, effectiveTime, pick.placed_at);
+
+  const missingFields = checkMissingFields(league, matchup, eventTime);
+  const violations = checkContentViolations(pick, league, matchup);
+  const { ready, warnings } = determineReadiness(mode, missingFields, violations);
+
+  return {
+    ready,
+    mode,
+    missingFields,
+    violations,
+    warnings,
+    sanitizedValues: {
+      league: league?.trim() || 'TBD',
+      matchup: matchup?.trim() || 'TBD',
+      eventTime: eventTime || 'TBD',
+    },
+  };
+}
+
 export default {
   FORBIDDEN_PHRASES,
   FORBIDDEN_FIELD_PATTERNS,
   VALID_MARKET_LABELS,
+  EMBED_STRICT_MODE,
   containsForbiddenPhrase,
   containsForbiddenFieldPattern,
   validateEmbedContract,
@@ -786,6 +1002,7 @@ export default {
   validatePickPresentation,
   validatePostingGate,
   validateBuildProvenance,
+  assertEmbedReadiness,
   buildCompliantEmbed,
   buildProductionFooter,
   getCompliantPickTitle,

@@ -15,6 +15,8 @@ import {
   validatePickPresentation,
   validatePostingGate,
   validateBuildProvenance,
+  assertEmbedReadiness,
+  EMBED_STRICT_MODE,
 } from '../../lib/embedPresentationContract';
 import { logger } from '../../services/logging';
 import { supabase } from '../../services/supabaseClient';
@@ -370,6 +372,95 @@ async function postEliteCardToDiscord(pick: any): Promise<string | null> {
     );
   }
 
+  // SPRINT-EMBED-MIN-REQ-GATE-ENFORCEMENT-051: Embed readiness gate
+  const embedReadiness = assertEmbedReadiness({
+    id: pick.id,
+    sport: pick.sport,
+    league: pick.league,
+    matchup: pick.matchup,
+    manual_matchup_home: pick.manual_matchup_home,
+    manual_matchup_away: pick.manual_matchup_away,
+    manual_fields_blob: pick.manual_fields_blob,
+    meta: pick.meta,
+    game_date: pick.game_date,
+    manual_game_date: pick.manual_game_date,
+    game_time: pick.game_time,
+    game_start_time: pick.game_start_time,
+    placed_at: pick.placed_at,
+    selection: pick.selection,
+    title: pick.title,
+    line: pick.line,
+    direction: pick.direction,
+  });
+
+  if (!embedReadiness.ready) {
+    logger.error(
+      {
+        pickId: pick.id,
+        mode: embedReadiness.mode,
+        missingFields: embedReadiness.missingFields,
+        violations: embedReadiness.violations,
+      },
+      'EMBED-MIN-REQ-051: Embed readiness gate BLOCKED'
+    );
+
+    // In strict mode, write audit log and set blocked_reason
+    if (EMBED_STRICT_MODE) {
+      await supabase.from('audit_log').insert({
+        actor: 'DiscordPromotionAgent',
+        action: 'EMBED_READINESS_BLOCKED',
+        entity_type: 'unified_picks',
+        entity_id: pick.id,
+        details: {
+          mode: embedReadiness.mode,
+          missing_fields: embedReadiness.missingFields,
+          violations: embedReadiness.violations,
+          timestamp: new Date().toISOString(),
+        },
+        created_at: new Date().toISOString(),
+      });
+
+      // Set blocked_reason on pick
+      await lifecycleUpdate(supabase, pick.id, {
+        blocked_reason: `EMBED_READINESS: ${embedReadiness.missingFields.join(', ')}`,
+      }, {
+        writerRole: 'poster',
+        traceId: `embed-readiness-${pick.id}`,
+        skipTransitionValidation: true,
+      });
+    }
+
+    return null;
+  }
+
+  // Log warnings for soft mode fallbacks
+  if (embedReadiness.warnings.length > 0) {
+    logger.warn(
+      {
+        pickId: pick.id,
+        mode: embedReadiness.mode,
+        warnings: embedReadiness.warnings,
+        sanitizedValues: embedReadiness.sanitizedValues,
+      },
+      'EMBED-MIN-REQ-051: Embed readiness warnings (using fallbacks)'
+    );
+
+    // Audit log for soft mode fallbacks
+    await supabase.from('audit_log').insert({
+      actor: 'DiscordPromotionAgent',
+      action: 'EMBED_READINESS_FALLBACK',
+      entity_type: 'unified_picks',
+      entity_id: pick.id,
+      details: {
+        mode: embedReadiness.mode,
+        warnings: embedReadiness.warnings,
+        sanitized_values: embedReadiness.sanitizedValues,
+        timestamp: new Date().toISOString(),
+      },
+      created_at: new Date().toISOString(),
+    });
+  }
+
   // EMBED-TRUTH-FIX-031: Build provenance validation
   const buildInfo = getBuildInfo('DiscordPromotionAgent');
   const provenanceCheck = validateBuildProvenance(buildInfo.commitShort, buildInfo.environment);
@@ -526,6 +617,85 @@ async function postParlayToDiscord(legs: any[]): Promise<string | null> {
         'EMBED-TRUTH-FIX-031: Parlay leg BLOCKED by posting gate - missing required fields'
       );
       return null;
+    }
+  }
+
+  // SPRINT-EMBED-MIN-REQ-GATE-ENFORCEMENT-051: Embed readiness gate for ALL parlay legs
+  for (const leg of legs) {
+    const embedReadiness = assertEmbedReadiness({
+      id: leg.id,
+      sport: leg.sport,
+      league: leg.league,
+      matchup: leg.matchup,
+      manual_matchup_home: leg.manual_matchup_home,
+      manual_matchup_away: leg.manual_matchup_away,
+      manual_fields_blob: leg.manual_fields_blob,
+      meta: leg.meta,
+      game_date: leg.game_date,
+      manual_game_date: leg.manual_game_date,
+      game_time: leg.game_time,
+      game_start_time: leg.game_start_time,
+      placed_at: leg.placed_at,
+      selection: leg.selection,
+      title: leg.title,
+      line: leg.line,
+      direction: leg.direction,
+    });
+
+    if (!embedReadiness.ready) {
+      logger.error(
+        {
+          betSlipId: primaryLeg.bet_slip_id,
+          legId: leg.id,
+          legIndex: leg.leg_index,
+          mode: embedReadiness.mode,
+          missingFields: embedReadiness.missingFields,
+          violations: embedReadiness.violations,
+        },
+        'EMBED-MIN-REQ-051: Parlay leg BLOCKED by embed readiness gate'
+      );
+
+      if (EMBED_STRICT_MODE) {
+        await supabase.from('audit_log').insert({
+          actor: 'DiscordPromotionAgent',
+          action: 'EMBED_READINESS_BLOCKED',
+          entity_type: 'unified_picks',
+          entity_id: leg.id,
+          details: {
+            mode: embedReadiness.mode,
+            parlay_bet_slip_id: primaryLeg.bet_slip_id,
+            leg_index: leg.leg_index,
+            missing_fields: embedReadiness.missingFields,
+            violations: embedReadiness.violations,
+            timestamp: new Date().toISOString(),
+          },
+          created_at: new Date().toISOString(),
+        });
+
+        await lifecycleUpdate(supabase, leg.id, {
+          blocked_reason: `EMBED_READINESS: ${embedReadiness.missingFields.join(', ')}`,
+        }, {
+          writerRole: 'poster',
+          traceId: `embed-readiness-parlay-${leg.id}`,
+          skipTransitionValidation: true,
+        });
+      }
+
+      return null;
+    }
+
+    if (embedReadiness.warnings.length > 0) {
+      logger.warn(
+        {
+          betSlipId: primaryLeg.bet_slip_id,
+          legId: leg.id,
+          legIndex: leg.leg_index,
+          mode: embedReadiness.mode,
+          warnings: embedReadiness.warnings,
+          sanitizedValues: embedReadiness.sanitizedValues,
+        },
+        'EMBED-MIN-REQ-051: Parlay leg readiness warnings (using fallbacks)'
+      );
     }
   }
 
