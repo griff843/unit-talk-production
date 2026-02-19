@@ -16,14 +16,17 @@ RUN apk add --no-cache \
 # Set working directory
 WORKDIR /app
 
+# Enable corepack for pnpm
+RUN corepack enable && corepack prepare pnpm@10.29.3 --activate
+
 # ==============================================
 # DEVELOPMENT STAGE
 # ==============================================
 FROM base AS development
 
 # Copy package files
-COPY package*.json ./
-RUN npm install && npm cache clean --force
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 
 # Copy source code
 COPY . .
@@ -47,15 +50,15 @@ CMD ["npm", "run", "dev"]
 FROM base AS builder
 
 # Copy package files
-COPY package*.json ./
-RUN npm ci
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 
 # Copy source code
 COPY . .
 
 # Build Next.js application
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
+RUN pnpm run build
 
 # ==============================================
 # PRODUCTION STAGE
@@ -63,8 +66,8 @@ RUN npm run build
 FROM base AS production
 
 # Install only production dependencies
-COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --prod
 
 # Copy built application
 COPY --from=builder /app/.next/standalone ./

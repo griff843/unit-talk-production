@@ -40,6 +40,7 @@
     "dist",
     "src/tests/**",
     "src/runner/**",
+    "src/scripts/**",
     "**/*.test.ts",
     "**/*.test.tsx",
     "**/*.spec.ts",

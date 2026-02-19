@@ -13,6 +13,7 @@
     "**/*.test.ts",
     "**/*.spec.ts",
     "qa/**/*",
-    "src/runner/**/*"
+    "src/runner/**/*",
+    "src/scripts/**/*"
   ]
 }

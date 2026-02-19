@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Unit Talk - Fortune 100-grade sports betting intelligence platform",
   "private": true,
+  "packageManager": "pnpm@10.29.3",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -44,7 +45,8 @@
     "ops:health": "node tools/run-ops.mjs health",
     "ops:restart": "node tools/run-ops.mjs restart",
     "ops:bootstrap": "node tools/run-ops.mjs bootstrap",
-    "verify:merge": "npx tsx scripts/verify-merge-readiness.ts"
+    "verify:merge": "npx tsx scripts/verify-merge-readiness.ts",
+    "guard:lockfiles": "npx tsx scripts/guard-no-npm-lock.ts"
   },
   "keywords": [
     "sports-betting",

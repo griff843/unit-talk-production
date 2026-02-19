@@ -19,8 +19,8 @@
   "author": "Unit Talk Team",
   "license": "PROPRIETARY",
   "dependencies": {
-    "@unit-talk/shared-types": "^1.0.0",
-    "@unit-talk/shared-utils": "^1.0.0",
+    "@unit-talk/shared-types": "workspace:*",
+    "@unit-talk/shared-utils": "workspace:*",
     "zod": "^3.0.0"
   },
   "devDependencies": {

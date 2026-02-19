@@ -24,21 +24,24 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /app
 
+# Enable corepack for pnpm
+RUN corepack enable && corepack prepare pnpm@10.29.3 --activate
+
 # ==============================================
 # DEVELOPMENT STAGE
 # ==============================================
 FROM base AS development
 
 # Install all dependencies (including dev)
-COPY package*.json ./
-RUN npm install && npm cache clean --force
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 
 # Config is mounted at runtime via docker-compose volumes or provided via env vars
 # Copy source code and configs
 COPY . .
 
 # Rebuild native modules for Temporal SDK
-RUN npm rebuild @temporalio/core-bridge
+RUN pnpm rebuild @temporalio/core-bridge
 
 # Development mode - run as root for simplicity during Docker build issues
 # TODO: Switch back to non-root user once build is stable
@@ -59,16 +62,16 @@ CMD ["npm", "run", "start:dev"]
 FROM base AS builder
 
 # Copy package files
-COPY package*.json ./
+COPY package.json pnpm-lock.yaml ./
 
 # Install all dependencies for building
-RUN npm ci
+RUN pnpm install --frozen-lockfile
 
 # Copy source code
 COPY . .
 
 # Build TypeScript
-RUN npm run build
+RUN pnpm run build
 
 # ==============================================
 # PRODUCTION STAGE
@@ -76,8 +79,8 @@ RUN npm run build
 FROM base AS production
 
 # Install only production dependencies
-COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --prod
 
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist

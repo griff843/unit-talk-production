@@ -19,7 +19,7 @@
   "author": "Unit Talk Team",
   "license": "PROPRIETARY",
   "dependencies": {
-    "@unit-talk/shared-types": "^1.0.0"
+    "@unit-talk/shared-types": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.0.0",
