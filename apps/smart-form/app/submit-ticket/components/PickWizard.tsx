@@ -41,6 +41,7 @@ import {
   Search,
   Edit3,
   Zap,
+  Plus,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import {
@@ -52,6 +53,9 @@ import {
   Direction,
   TicketLeg,
 } from '../types';
+import { BetSlipPanel } from './BetSlipPanel';
+import { QuickAddSuggestions } from './QuickAddSuggestions';
+import { cn } from '@/lib/utils';
 
 // Step configuration for the wizard
 const WIZARD_STEPS = [
@@ -299,36 +303,39 @@ export function PickWizard() {
   // VALIDATION
   // ═══════════════════════════════════════════════════════════════
 
-  const validateStep = useCallback((step: number): boolean => {
-    const newErrors: Record<string, string> = {};
+  const validateStep = useCallback(
+    (step: number): boolean => {
+      const newErrors: Record<string, string> = {};
 
-    switch (step) {
-      case 1:
-        if (!pick.sport) newErrors.sport = 'Sport is required';
-        if (!pick.betCategory) newErrors.betCategory = 'Bet type is required';
-        break;
-      case 2:
-        if (pick.betCategory === 'player_prop') {
-          if (!pick.player) newErrors.player = 'Player is required';
-          if (!pick.statType) newErrors.statType = 'Stat type is required';
-        } else if (['spread', 'moneyline', 'team_prop'].includes(pick.betCategory)) {
-          if (!pick.team) newErrors.team = 'Team is required';
-        }
-        break;
-      case 3:
-        if (!pick.odds) newErrors.odds = 'Odds are required';
-        if (['spread', 'total', 'player_prop', 'team_prop'].includes(pick.betCategory)) {
-          if (!pick.line) newErrors.line = 'Line is required';
-        }
-        if (['total', 'player_prop'].includes(pick.betCategory)) {
-          if (!pick.direction) newErrors.direction = 'Direction (Over/Under) is required';
-        }
-        break;
-    }
+      switch (step) {
+        case 1:
+          if (!pick.sport) newErrors.sport = 'Sport is required';
+          if (!pick.betCategory) newErrors.betCategory = 'Bet type is required';
+          break;
+        case 2:
+          if (pick.betCategory === 'player_prop') {
+            if (!pick.player) newErrors.player = 'Player is required';
+            if (!pick.statType) newErrors.statType = 'Stat type is required';
+          } else if (['spread', 'moneyline', 'team_prop'].includes(pick.betCategory)) {
+            if (!pick.team) newErrors.team = 'Team is required';
+          }
+          break;
+        case 3:
+          if (!pick.odds) newErrors.odds = 'Odds are required';
+          if (['spread', 'total', 'player_prop', 'team_prop'].includes(pick.betCategory)) {
+            if (!pick.line) newErrors.line = 'Line is required';
+          }
+          if (['total', 'player_prop'].includes(pick.betCategory)) {
+            if (!pick.direction) newErrors.direction = 'Direction (Over/Under) is required';
+          }
+          break;
+      }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  }, [pick]);
+      setErrors(newErrors);
+      return Object.keys(newErrors).length === 0;
+    },
+    [pick]
+  );
 
   // ═══════════════════════════════════════════════════════════════
   // NAVIGATION
@@ -348,7 +355,9 @@ export function PickWizard() {
         return true;
       case 3: {
         const hasOdds = !!pick.odds;
-        const needsLine = ['spread', 'total', 'player_prop', 'team_prop'].includes(pick.betCategory);
+        const needsLine = ['spread', 'total', 'player_prop', 'team_prop'].includes(
+          pick.betCategory
+        );
         const hasLine = !needsLine || !!pick.line;
         const needsDirection = ['total', 'player_prop'].includes(pick.betCategory);
         const hasDirection = !needsDirection || !!pick.direction;
@@ -375,6 +384,8 @@ export function PickWizard() {
   // LEG MANAGEMENT
   // ═══════════════════════════════════════════════════════════════
 
+  // SPRINT-SMARTFORM-BETSLIP-SPORTSBOOK-MANUAL-061: Keep sport/betCategory after addLeg
+  // Stay on Step 2 for rapid multi-leg building
   const addLeg = useCallback(() => {
     if (!validateStep(3)) return;
 
@@ -386,18 +397,25 @@ export function PickWizard() {
       player_name: pick.player || undefined,
       prop_type: pick.statType || undefined,
       line: pick.line || undefined,
-      direction: pick.direction as Direction || undefined,
+      direction: (pick.direction as Direction) || undefined,
       odds: pick.odds,
       game_id: pick.gameId || undefined,
       status: 'open',
     };
 
+    // Keep sport and betCategory, only reset participant/details
+    // Stay on Step 2 for rapid multi-leg building
     setState(prev => ({
       ...prev,
       legs: [...prev.legs, newLeg],
-      pick: initialPickState, // Reset for next leg
-      currentStep: 1,
-      completedSteps: [],
+      pick: {
+        ...initialPickState,
+        sport: prev.pick.sport, // Keep sport
+        betCategory: prev.pick.betCategory, // Keep bet type
+        source: prev.pick.source, // Keep entry mode
+      },
+      currentStep: 2, // Stay on Step 2 for rapid entry
+      completedSteps: [1], // Step 1 remains complete
     }));
 
     toast({
@@ -405,6 +423,40 @@ export function PickWizard() {
       description: `${pick.betCategory === 'player_prop' ? pick.player : pick.team} added to ticket`,
     });
   }, [pick, validateStep, toast]);
+
+  // SPRINT-SMARTFORM-BETSLIP-SPORTSBOOK-MANUAL-061: Quick add from suggestions
+  const handleQuickAdd = useCallback(
+    (legData: Omit<TicketLeg, 'id'>) => {
+      const newLeg: TicketLeg = {
+        ...legData,
+        id: crypto.randomUUID(),
+      };
+
+      setState(prev => ({
+        ...prev,
+        legs: [...prev.legs, newLeg],
+      }));
+
+      toast({
+        title: 'Quick add',
+        description: `${legData.player_name} ${legData.prop_type} added`,
+      });
+    },
+    [toast]
+  );
+
+  // SPRINT-SMARTFORM-BETSLIP-SPORTSBOOK-MANUAL-061: Update leg from bet slip
+  const updateLeg = useCallback((legId: string, updates: Partial<TicketLeg>) => {
+    setState(prev => ({
+      ...prev,
+      legs: prev.legs.map(leg => (leg.id === legId ? { ...leg, ...updates } : leg)),
+    }));
+  }, []);
+
+  // SPRINT-SMARTFORM-BETSLIP-SPORTSBOOK-MANUAL-061: Go to review step
+  const goToReview = useCallback(() => {
+    setCurrentStep(4);
+  }, [setCurrentStep]);
 
   const removeLeg = useCallback((legId: string) => {
     setState(prev => ({
@@ -443,7 +495,7 @@ export function PickWizard() {
         capper_id: selectedCapper,
         sport: legs[0].sport,
         ticket_type: legs.length > 1 ? 'parlay' : 'single',
-        selections: legs.map((leg) => ({
+        selections: legs.map(leg => ({
           sport: leg.sport,
           bet_type: leg.bet_category || 'moneyline',
           stat_type: leg.prop_type || leg.bet_category || 'unknown',
@@ -532,7 +584,7 @@ export function PickWizard() {
         </Label>
         <Select
           value={pick.sport}
-          onValueChange={(value) => {
+          onValueChange={value => {
             updatePick({
               sport: value as Sport,
               // Reset downstream on sport change
@@ -550,11 +602,13 @@ export function PickWizard() {
             <SelectValue placeholder="Select a sport" />
           </SelectTrigger>
           <SelectContent>
-            {SPORTS.filter(s => ['NBA', 'NFL', 'MLB', 'NHL', 'NCAAF', 'NCAAB'].includes(s)).map(sport => (
-              <SelectItem key={sport} value={sport}>
-                {sport}
-              </SelectItem>
-            ))}
+            {SPORTS.filter(s => ['NBA', 'NFL', 'MLB', 'NHL', 'NCAAF', 'NCAAB'].includes(s)).map(
+              sport => (
+                <SelectItem key={sport} value={sport}>
+                  {sport}
+                </SelectItem>
+              )
+            )}
           </SelectContent>
         </Select>
         {errors.sport && (
@@ -572,7 +626,7 @@ export function PickWizard() {
           </Label>
           <Select
             value={pick.betCategory}
-            onValueChange={(value) => {
+            onValueChange={value => {
               updatePick({
                 betCategory: value as BetCategory,
                 // Reset participant fields on bet type change
@@ -662,7 +716,7 @@ export function PickWizard() {
                     sport={pick.sport}
                     value={pick.player}
                     placeholder="Search for a player..."
-                    onSelect={(item) => {
+                    onSelect={item => {
                       // V1.1: Players API returns team name, not team_id
                       // Team ID is not available from raw_props player search
                       updatePick({
@@ -684,7 +738,7 @@ export function PickWizard() {
               ) : (
                 <Input
                   value={pick.player}
-                  onChange={(e) => updatePick({ player: e.target.value })}
+                  onChange={e => updatePick({ player: e.target.value })}
                   placeholder="e.g., LeBron James"
                   className={errors.player ? 'border-red-500' : ''}
                 />
@@ -694,9 +748,7 @@ export function PickWizard() {
                   <AlertCircle className="h-3 w-3" /> {errors.player}
                 </p>
               )}
-              {pick.team && (
-                <p className="text-xs text-green-600">Team: {pick.team}</p>
-              )}
+              {pick.team && <p className="text-xs text-green-600">Team: {pick.team}</p>}
             </div>
 
             {/* Stat Type */}
@@ -709,21 +761,23 @@ export function PickWizard() {
               ) : statTypes.length > 0 ? (
                 <Select
                   value={pick.statType}
-                  onValueChange={(value) => updatePick({ statType: value })}
+                  onValueChange={value => updatePick({ statType: value })}
                 >
                   <SelectTrigger className={errors.statType ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Select stat type" />
                   </SelectTrigger>
                   <SelectContent>
                     {statTypes.map(st => (
-                      <SelectItem key={st} value={st}>{st}</SelectItem>
+                      <SelectItem key={st} value={st}>
+                        {st}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               ) : (
                 <Input
                   value={pick.statType}
-                  onChange={(e) => updatePick({ statType: e.target.value.toUpperCase() })}
+                  onChange={e => updatePick({ statType: e.target.value.toUpperCase() })}
                   placeholder="e.g., PTS, REB, AST"
                   className={errors.statType ? 'border-red-500' : ''}
                 />
@@ -749,7 +803,7 @@ export function PickWizard() {
               ) : teams.length > 0 ? (
                 <Select
                   value={pick.team}
-                  onValueChange={(value) => {
+                  onValueChange={value => {
                     const team = teams.find(t => t.name === value);
                     updatePick({
                       team: value,
@@ -776,7 +830,7 @@ export function PickWizard() {
             ) : (
               <Input
                 value={pick.team}
-                onChange={(e) => updatePick({ team: e.target.value })}
+                onChange={e => updatePick({ team: e.target.value })}
                 placeholder="e.g., Los Angeles Lakers"
                 className={errors.team ? 'border-red-500' : ''}
               />
@@ -808,7 +862,7 @@ export function PickWizard() {
             ) : (
               <Select
                 value={pick.gameId}
-                onValueChange={(value) => {
+                onValueChange={value => {
                   const game = games.find(g => g.id === value);
                   updatePick({
                     gameId: value,
@@ -828,6 +882,18 @@ export function PickWizard() {
                 </SelectContent>
               </Select>
             )}
+          </div>
+        )}
+
+        {/* SPRINT-SMARTFORM-BETSLIP-SPORTSBOOK-MANUAL-061: Quick Add Suggestions */}
+        {isPlayerProp && pick.player && (
+          <div className="pt-4 border-t">
+            <QuickAddSuggestions
+              sport={pick.sport}
+              playerName={pick.player}
+              playerId={pick.playerId}
+              onQuickAdd={handleQuickAdd}
+            />
           </div>
         )}
       </div>
@@ -861,7 +927,7 @@ export function PickWizard() {
               type="number"
               step="0.5"
               value={pick.line}
-              onChange={(e) => updatePick({ line: e.target.value })}
+              onChange={e => updatePick({ line: e.target.value })}
               placeholder={pick.betCategory === 'spread' ? 'e.g., -3.5' : 'e.g., 24.5'}
               className={errors.line ? 'border-red-500' : ''}
             />
@@ -908,7 +974,7 @@ export function PickWizard() {
           <Input
             type="text"
             value={pick.odds}
-            onChange={(e) => updatePick({ odds: e.target.value })}
+            onChange={e => updatePick({ odds: e.target.value })}
             placeholder="e.g., -110, +150"
             className={errors.odds ? 'border-red-500' : ''}
           />
@@ -954,7 +1020,9 @@ export function PickWizard() {
             </SelectTrigger>
             <SelectContent>
               {cappers.map(c => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -967,24 +1035,17 @@ export function PickWizard() {
 
       {/* Legs summary */}
       <div className="space-y-2">
-        <Label className="text-sm font-medium">
-          Legs ({legs.length})
-        </Label>
+        <Label className="text-sm font-medium">Legs ({legs.length})</Label>
         {legs.length === 0 ? (
           <div className="p-4 border-2 border-dashed rounded-md text-center text-gray-400">
             No legs added yet. Go back to add legs.
           </div>
         ) : (
           <div className="space-y-2">
-            {legs.map((leg) => (
-              <div
-                key={leg.id}
-                className="p-3 border rounded-md flex justify-between items-center"
-              >
+            {legs.map(leg => (
+              <div key={leg.id} className="p-3 border rounded-md flex justify-between items-center">
                 <div>
-                  <p className="font-medium text-sm">
-                    {buildSelectionString(leg)}
-                  </p>
+                  <p className="font-medium text-sm">{buildSelectionString(leg)}</p>
                   <p className="text-xs text-gray-500">
                     {leg.sport} • {leg.bet_category} • {leg.odds}
                   </p>
@@ -1028,86 +1089,115 @@ export function PickWizard() {
 
   // ═══════════════════════════════════════════════════════════════
   // MAIN RENDER
+  // SPRINT-SMARTFORM-BETSLIP-SPORTSBOOK-MANUAL-061: Side-by-side layout
   // ═══════════════════════════════════════════════════════════════
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 py-8 px-4">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-white mb-2">Submit Pick</h1>
           <p className="text-slate-400">Build your bet step by step</p>
         </div>
 
-        {/* Stepper */}
-        <div className="mb-8">
-          <Stepper
-            steps={WIZARD_STEPS}
-            currentStep={currentStep}
-            completedSteps={completedSteps}
-            onStepClick={(stepId) => {
-              if (completedSteps.includes(stepId) || stepId <= currentStep) {
-                setCurrentStep(stepId);
-              }
-            }}
-          />
-        </div>
-
-        {/* Main Card */}
-        <Card className="p-6 bg-white shadow-xl rounded-xl">
-          {/* Step title */}
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-gray-900">
-              {WIZARD_STEPS[currentStep - 1]?.title}
-            </h2>
-            <p className="text-sm text-gray-500">
-              {WIZARD_STEPS[currentStep - 1]?.description}
-            </p>
-          </div>
-
-          {/* Step content */}
-          {renderStepContent()}
-
-          {/* Navigation */}
-          <div className="flex justify-between mt-8 pt-4 border-t">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={goBack}
-              disabled={currentStep === 1}
-            >
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              Back
-            </Button>
-
-            {currentStep < 4 && (
-              <Button
-                type="button"
-                onClick={goNext}
-                disabled={!canProceed}
-              >
-                {currentStep === 3 ? 'Review' : 'Next'}
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            )}
-          </div>
-        </Card>
-
-        {/* Legs sidebar preview */}
-        {legs.length > 0 && (
-          <Card className="mt-4 p-4 bg-slate-800 border-slate-700">
-            <p className="text-sm text-slate-400 mb-2">
-              Current ticket: {legs.length} leg{legs.length > 1 ? 's' : ''}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {legs.map(leg => (
-                <Badge key={leg.id} variant="secondary" className="text-xs">
-                  {leg.player_name || leg.team || 'Leg'}
-                </Badge>
-              ))}
+        {/* Main Layout: Wizard + Sticky Bet Slip */}
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Left: Wizard */}
+          <div className="flex-1 lg:max-w-2xl">
+            {/* Stepper */}
+            <div className="mb-8">
+              <Stepper
+                steps={WIZARD_STEPS}
+                currentStep={currentStep}
+                completedSteps={completedSteps}
+                onStepClick={stepId => {
+                  if (completedSteps.includes(stepId) || stepId <= currentStep) {
+                    setCurrentStep(stepId);
+                  }
+                }}
+              />
             </div>
-          </Card>
-        )}
+
+            {/* Main Card */}
+            <Card className="p-6 bg-white shadow-xl rounded-xl">
+              {/* Step title */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      {WIZARD_STEPS[currentStep - 1]?.title}
+                    </h2>
+                    <p className="text-sm text-gray-500">
+                      {WIZARD_STEPS[currentStep - 1]?.description}
+                    </p>
+                  </div>
+                  {/* Leg count badge in header */}
+                  {legs.length > 0 && currentStep !== 4 && (
+                    <Badge
+                      variant="secondary"
+                      className="bg-green-100 text-green-800 cursor-pointer hover:bg-green-200 transition-colors"
+                      onClick={goToReview}
+                    >
+                      {legs.length} leg{legs.length > 1 ? 's' : ''} - Review
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              {/* Step content */}
+              {renderStepContent()}
+
+              {/* Navigation */}
+              <div className="flex justify-between mt-8 pt-4 border-t">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={goBack}
+                  disabled={currentStep === 1}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Back
+                </Button>
+
+                <div className="flex gap-2">
+                  {/* Add Another Leg button (shown on Step 3 when legs exist) */}
+                  {currentStep === 3 && legs.length > 0 && canProceed && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={addLeg}
+                      className="border-green-500 text-green-600 hover:bg-green-50"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add & Continue
+                    </Button>
+                  )}
+
+                  {currentStep < 4 && (
+                    <Button type="button" onClick={goNext} disabled={!canProceed}>
+                      {currentStep === 3 ? 'Review' : 'Next'}
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Right: Sticky Bet Slip */}
+          <div className="lg:w-80 lg:flex-shrink-0">
+            <div className="lg:sticky lg:top-8">
+              <BetSlipPanel
+                legs={legs}
+                onRemoveLeg={removeLeg}
+                onUpdateLeg={updateLeg}
+                onGoToReview={goToReview}
+                className="w-full"
+              />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
