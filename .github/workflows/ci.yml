@@ -43,10 +43,81 @@ jobs:
             fi
           done
 
+  # Smart Form Compliance Gates (HARDENED)
+  # PHASE 1: Run static gates (no HAR required)
+  # PHASE 2: Run E2E tests to generate HAR
+  # PHASE 3: Run runtime-audit gate with HAR
+  smart-form-gates:
+    name: Smart Form V1.1 Compliance Gates (HARDENED)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+        working-directory: apps/smart-form
+
+      # PHASE 1: Run static gates (7 gates that don't require HAR)
+      - name: Run Static Gates (7/8)
+        run: npm run smartform:gates:static --workspace=apps/smart-form
+        env:
+          NODE_ENV: test
+
+      # PHASE 2: Run E2E tests with HAR capture
+      - name: Start dev server for E2E
+        run: npm run dev --workspace=apps/smart-form &
+        env:
+          NODE_ENV: test
+
+      - name: Wait for dev server
+        run: npx wait-on http://localhost:3021 --timeout 60000
+
+      - name: Run E2E Runtime Audit (HAR capture)
+        run: npx playwright test tests/e2e/runtime-audit.spec.ts --project=chromium
+        working-directory: apps/smart-form
+        env:
+          NODE_ENV: test
+
+      # PHASE 3: Run runtime-audit gate with HAR
+      - name: Run Runtime Audit Gate (HAR-derived)
+        run: npm run smartform:gate:runtime-audit --workspace=apps/smart-form
+        env:
+          NODE_ENV: test
+
+      - name: Upload HAR + request log + proof artifacts
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: smart-form-runtime-audit
+          path: |
+            apps/smart-form/test-results/runtime-audit.har
+            apps/smart-form/test-results/runtime-audit.requests.jsonl
+            apps/smart-form/out/sprints/**/proofs/proof_runtime_*.txt
+          retention-days: 7
+
+      - name: Upload gate results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: smart-form-gate-results
+          path: apps/smart-form/gate-results/
+          retention-days: 7
+
   # Quality Checks
   code-quality:
     name: Code Quality
     runs-on: ubuntu-latest
+    needs: [smart-form-gates]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -72,10 +143,47 @@ jobs:
       - name: Security audit
         run: npm audit --audit-level high
 
+  # Lifecycle Contract Gate
+  # LIFECYCLE-WRITE-SURFACE-MIGRATION-038: Enforce single-writer discipline
+  lifecycle-gate:
+    name: Lifecycle Contract Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Lifecycle Single-Writer Gate (STRICT)
+        run: npm run lifecycle:single-writer -- --strict
+        working-directory: apps/api
+        env:
+          NODE_ENV: test
+
+      - name: Run Lifecycle Contract Tests
+        run: npm run lifecycle:test
+        working-directory: apps/api
+        env:
+          NODE_ENV: test
+
+      - name: Run Lifecycle Idempotency Tests
+        run: npx vitest run src/lib/lifecycle/__tests__/idempotency.test.ts --reporter=verbose
+        working-directory: apps/api
+        env:
+          NODE_ENV: test
+
   # Test Suite
   test:
     name: Test Suite
     runs-on: ubuntu-latest
+    needs: [lifecycle-gate]
     services:
       postgres:
         image: postgres:15
@@ -141,7 +249,7 @@ jobs:
   build:
     name: Build Applications
     runs-on: ubuntu-latest
-    needs: [docs-validation, code-quality, test]
+    needs: [docs-validation, code-quality, test, lifecycle-gate]
     strategy:
       matrix:
         app: [api, discord-bot, dashboard, smart-form, command-center]

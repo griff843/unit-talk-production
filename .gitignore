@@ -290,3 +290,12 @@ packages/shared-utils/src/*.d.ts.map
 apps/*/type-check-output.txt
 apps/*/smoke-*.txt
 apps/command-center/tests/screenshots/
+
+# Claude Code configuration
+# =========================
+.claude/settings.local.json
+!.claude/settings.local.json.example
+
+# Sprint proofs (uncommitted by default, override if needed)
+# out/sprints/ is covered by out/ above
+# To commit proofs, use: git add -f out/sprints/<SPRINT>/

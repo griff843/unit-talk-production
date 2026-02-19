@@ -1,13 +1,17 @@
-import { SubmitTicketForm } from './components/SubmitTicketForm';
+import { PickWizard } from './components/PickWizard';
 
 /**
  * Canonical ticket submission page
- * PHASE: ui/surface-reset-020
+ *
+ * SPRINT: SMARTFORM-V1.1-ENTERPRISE-COMPLIANCE-036
+ *
+ * Uses the new PickWizard component which implements:
+ * - Guided step-by-step flow
+ * - Progressive disclosure
+ * - First-class manual mode
+ * - No mock data (fail-closed)
+ * - Skeleton loading states
  */
 export default function SubmitTicketPage() {
-  return (
-    <div className="container mx-auto py-8">
-      <SubmitTicketForm />
-    </div>
-  );
+  return <PickWizard />;
 }

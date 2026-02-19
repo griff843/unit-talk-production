@@ -223,54 +223,13 @@ export const fetchGames = async (sport: string, startDate: string, endDate: stri
       }
     }
 
+    // V1.1 COMPLIANCE: No mock fallback - return empty array on error
     if (error && !data) {
-      console.error('🔍 fetchGames: All queries failed, using fallback data:', error);
-
-      // Provide realistic fallback data for development
-      const mockGames = [
-        {
-          id: 'game-1',
-          sport: league,
-          league: league,
-          home_team: 'Home Team 1',
-          away_team: 'Away Team 1',
-          game_date: startDate,
-          start_time: '19:05:00',
-          commence_time: new Date().toISOString(),
-          status: 'scheduled',
-          moneyline_home: -110,
-          moneyline_away: -110,
-          spread: -1.5,
-          spread_odds: -110,
-          total: 8.5,
-          total_over_odds: -110,
-          total_under_odds: -110,
-        },
-        {
-          id: 'game-2',
-          sport: league,
-          league: league,
-          home_team: 'Home Team 2',
-          away_team: 'Away Team 2',
-          game_date: startDate,
-          start_time: '19:10:00',
-          commence_time: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
-          status: 'scheduled',
-          moneyline_home: -120,
-          moneyline_away: 100,
-          spread: -2.5,
-          spread_odds: -110,
-          total: 9.0,
-          total_over_odds: -105,
-          total_under_odds: -115,
-        },
-      ];
-
-      console.log('🔍 fetchGames: Using', mockGames.length, 'mock games for development');
-      data = mockGames;
-    } else {
-      console.log('🔍 fetchGames: Found', data?.length || 0, 'games for', sport, 'on', startDate);
+      console.error('🔍 fetchGames: All queries failed, no mock fallback per V1.1 spec:', error);
+      return [];
     }
+
+    console.log('🔍 fetchGames: Found', data?.length || 0, 'games for', sport, 'on', startDate);
 
     // Transform the data to standardize team names, times, odds, and live status
     const transformedData = data

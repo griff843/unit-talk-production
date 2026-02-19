@@ -32,12 +32,14 @@ export const FORM_STEPS = [
 
 export const ODDS_FORMAT = ['AMERICAN', 'DECIMAL', 'FRACTIONAL'] as const;
 
+/**
+ * @deprecated SMARTFORM-V1.1-ENTERPRISE-COMPLIANCE-036
+ * Cappers must be fetched from /api/cappers endpoint.
+ * This constant is preserved only for type backward compatibility.
+ * DO NOT use for runtime data - will be removed in next major version.
+ */
 export const CAPPER_OPTIONS = [
-  'Select a capper',
-  'Mike Johnson',
-  'Sarah Wilson',
-  'David Chen',
-  'Lisa Martinez',
+  'Select a capper', // Placeholder only
 ] as const;
 
 export const MARKET_TYPES = [

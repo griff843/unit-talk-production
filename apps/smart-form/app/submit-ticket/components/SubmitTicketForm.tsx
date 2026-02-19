@@ -19,7 +19,7 @@ import {
   Game as DBGame,
 } from '@/lib/api-client';
 import {
-  CAPPER_OPTIONS,
+  // CAPPER_OPTIONS removed - V1.1 COMPLIANCE: cappers from API only
   SPORTS,
   TICKET_TYPES,
   ODDS_FORMAT,
@@ -122,14 +122,10 @@ export function SubmitTicketForm() {
       } catch (err: any) {
         console.error('❌ Error fetching cappers:', err);
 
-        // Use fallback data only if API is completely unavailable
-        setCappers([
-          { id: 'fallback-1', name: 'Mike Johnson', active: true },
-          { id: 'fallback-2', name: 'Sarah Wilson', active: true },
-          { id: 'fallback-3', name: 'David Chen', active: true },
-        ]);
-
-        setError(`API error: ${err.message} (using fallback data)`);
+        // V1.1 COMPLIANCE: NO FALLBACK DATA - Fail closed
+        // SMARTFORM-V1.1-ENTERPRISE-COMPLIANCE-036: Mock data removed
+        setCappers([]);
+        setError(`Failed to load cappers: ${err.message}. Please refresh or contact support.`);
       } finally {
         setIsLoadingCappers(false);
       }
@@ -214,6 +210,28 @@ export function SubmitTicketForm() {
       form.setValue('ticket_type', 'single');
     }
   }, [watchAutoParlay, legs.length, watchTicketType, form]);
+
+  // V1.1 COMPLIANCE: Sync legs state with form field for validation
+  useEffect(() => {
+    // Convert legs state to form-compatible format
+    const formLegs = legs.map(leg => ({
+      id: leg.id,
+      sport: leg.sport || 'NBA',
+      market_type: leg.market_type || 'main',
+      bet_type: leg.bet_category || leg.bet_type || 'spread',
+      game_id: leg.game_id,
+      team: leg.team,
+      opponent: leg.opponent,
+      player_name: leg.player_name,
+      prop_type: leg.prop_type,
+      line: leg.line,
+      odds: leg.odds,
+      game_date: leg.game_date,
+      game_time: leg.game_time,
+      status: leg.status || 'open',
+    }));
+    form.setValue('legs', formLegs as any);
+  }, [legs, form]);
 
   // SMARTFORM-UX-CRITICAL-FIXPACK-025: Validate required fields for legs
   const validateLegs = (): { valid: boolean; message: string } => {
@@ -325,25 +343,51 @@ export function SubmitTicketForm() {
         return;
       }
 
-      // SMARTFORM-UX-CRITICAL-FIXPACK-025: Updated payload with direction and team
+      // V1.1 COMPLIANCE: Updated payload with all required fields per EMBED-TRUTH-FIX-031
       const ticketData = {
         capper_id: selectedCapper.id,
         sport: data.sport as string,
         ticket_type: data.ticket_type as string,
-        selections: legs.map(leg => ({
-          sport: leg.sport,
-          bet_category: leg.bet_category,
-          stat_type: leg.prop_type || leg.bet_category || 'unknown',
-          line: parseFloat(leg.line || '0') || 0,
-          leg_odds: parseFloat(leg.odds || '0') || 0,
-          source: 'manual' as const,
-          // SMARTFORM-UX-CRITICAL-FIXPACK-025: Use leg.direction for proper Over/Under mapping
-          selection: leg.direction || ('over' as 'over' | 'under' | 'yes' | 'no'),
-          // SMARTFORM-UX-CRITICAL-FIXPACK-025: Include team for spread/team_prop
-          team: leg.team || undefined,
-          player_name: leg.player_name || undefined,
-          confidence: (data.confidence_level || 7) / 10,
-        })),
+        selections: legs.map(leg => {
+          // V1.1: Build selection string based on bet type
+          let selectionStr = '';
+          if (leg.bet_category === 'player_prop') {
+            // Player prop: "Jaylen Brown over 24.5 PTS"
+            selectionStr = `${leg.player_name || 'Unknown'} ${leg.direction || 'over'} ${leg.line || '0'} ${leg.prop_type || 'PTS'}`;
+          } else if (leg.bet_category === 'spread') {
+            // Spread: "Celtics -3.5"
+            const lineValue = parseFloat(leg.line || '0');
+            selectionStr = `${leg.team || 'Team'} ${lineValue >= 0 ? '+' : ''}${lineValue}`;
+          } else if (leg.bet_category === 'total') {
+            // Total: "over 225.5"
+            selectionStr = `${leg.direction || 'over'} ${leg.line || '0'}`;
+          } else if (leg.bet_category === 'moneyline') {
+            // Moneyline: "Celtics"
+            selectionStr = leg.team || 'Team';
+          } else {
+            // Fallback
+            selectionStr = leg.team || leg.player_name || 'Selection';
+          }
+
+          return {
+            sport: leg.sport,
+            // V1.1: bet_type is REQUIRED per EMBED-TRUTH-FIX-031
+            bet_type: leg.bet_category || 'moneyline',
+            stat_type: leg.prop_type || leg.bet_category || 'unknown',
+            line: parseFloat(leg.line || '0') || 0,
+            leg_odds: parseInt(leg.odds?.replace(/[^-\d]/g, '') || '0', 10) || -110,
+            source: 'manual' as const,
+            // V1.1: selection is the readable bet description
+            selection: selectionStr,
+            // V1.1: direction for over/under bets
+            direction: leg.direction?.toLowerCase() as 'over' | 'under' | undefined,
+            // V1.1: team for spread/team_prop
+            team: leg.team || undefined,
+            // V1.1: player_name for player props
+            player_name: leg.player_name || undefined,
+            confidence: Math.round((data.confidence_level || 7)),
+          };
+        }),
         total_units: data.unit_size,
         notes: `Units: ${data.unit_size}U, Confidence: ${data.confidence_level}/10`,
       };
@@ -640,6 +684,7 @@ export function SubmitTicketForm() {
                     <LegCard
                       key={leg.id}
                       leg={leg}
+                      legIndex={index}
                       onRemove={() => removeLeg(index)}
                       onUpdate={updates => {
                         const newLegs = [...legs];

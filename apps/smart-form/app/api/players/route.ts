@@ -1,72 +1,68 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createRouteLogger } from '@/lib/logger';
 
-const supabaseUrl = 'https://lxqmuzmqtnnlpfapvief.supabase.co';
-const supabaseKey =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cW11em1xdG5ubHBmYXB2aWVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUwOTY4NDUsImV4cCI6MjA2MDY3Mjg0NX0.PkJJDTPo8WVpGWaAQ-gdzvyGH9WEjcxcwCDi8z0g93o';
+const log = createRouteLogger('GET /api/players', 'GET');
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+/**
+ * DEPRECATED: Legacy player search endpoint
+ * SEARCH-CATALOG-CONTRACT-035: Redirects to unified search API
+ *
+ * Use /api/search?q=...&sport=...&type=player instead
+ * This endpoint is maintained for backwards compatibility only.
+ */
 
 export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const query = searchParams.get('q') || '';
+  const sport = searchParams.get('sport') || '';
+
+  log.warn(
+    { query, sport },
+    'DEPRECATED: /api/players called - use /api/search or /api/catalog/players instead'
+  );
+
+  if (query.length < 2) {
+    return NextResponse.json({ success: true, players: [], count: 0 });
+  }
+
   try {
-    const { searchParams } = new URL(request.url);
-    const query = searchParams.get('q') || '';
-    const sport = searchParams.get('sport') || '';
+    // Proxy to the new unified search endpoint
+    const searchUrl = new URL('/api/search', request.url);
+    searchUrl.searchParams.set('q', query);
+    if (sport) searchUrl.searchParams.set('sport', sport);
+    searchUrl.searchParams.set('type', 'player');
+    searchUrl.searchParams.set('limit', '15');
 
-    if (query.length < 2) {
-      return NextResponse.json({ players: [] });
-    }
+    const response = await fetch(searchUrl.toString());
+    const data = await response.json();
 
-    console.log(`[Players API] Searching for "${query}" in ${sport}`);
-
-    // Search in raw_props table for player names
-    let dbQuery = supabase
-      .from('raw_props')
-      .select('player_name, team')
-      .ilike('player_name', `%${query}%`)
-      .limit(10);
-
-    if (sport) {
-      // Add sport filter if available
-      dbQuery = dbQuery.eq('sport', sport.toUpperCase());
-    }
-
-    const { data: players, error } = await dbQuery;
-
-    if (error) {
-      console.error('[Players API] Database error:', error);
-      return NextResponse.json({ players: [] });
-    }
-
-    // Remove duplicates and format
-    const uniquePlayers = Array.from(
-      new Map(
-        players?.map(p => [
-          p.player_name?.toLowerCase(),
-          {
-            name: p.player_name,
-            team: p.team,
-            display: `${p.player_name} (${p.team})`,
-          },
-        ]) || []
-      ).values()
-    );
-
-    console.log(`[Players API] Found ${uniquePlayers.length} unique players`);
+    // Transform to legacy format for backwards compatibility
+    const players = (data.results || []).map((r: any) => ({
+      name: r.name,
+      team: r.team || '',
+      display: r.display_label || `${r.name} (${r.team || r.sport})`,
+      // Include new fields for consumers that support them
+      value: r.id,
+      label: r.display_label || `${r.name} (${r.team || r.sport})`,
+      team_id: r.team_id,
+    }));
 
     return NextResponse.json({
       success: true,
-      players: uniquePlayers,
-      count: uniquePlayers.length,
+      players,
+      count: players.length,
+      _deprecated: true,
+      _migration: 'Use /api/search?type=player or /api/catalog/players instead',
     });
   } catch (error) {
-    console.error('[Players API] Error:', error);
+    log.error(
+      { error: error instanceof Error ? error.message : 'Unknown' },
+      'Legacy player search proxy failed'
+    );
+
     return NextResponse.json(
-      {
-        error: 'Failed to search players',
-        details: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 }
+      { success: false, players: [], error: 'Search unavailable' },
+      { status: 503 }
     );
   }
 }

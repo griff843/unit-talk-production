@@ -7,16 +7,20 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Search, User } from 'lucide-react';
 
+// SEARCH-CATALOG-CONTRACT-035: Player type from unified search
 interface Player {
+  id: string;
   name: string;
   team: string;
+  team_id?: string;
   display: string;
 }
 
 interface SmartPlayerInputProps {
   value: string;
   sport: string;
-  onChange: (playerName: string, team?: string) => void;
+  // SEARCH-CATALOG-CONTRACT-035: Include player_id and team_id for entity resolution
+  onChange: (playerName: string, team?: string, playerId?: string, teamId?: string) => void;
   placeholder?: string;
 }
 
@@ -34,7 +38,7 @@ export function SmartPlayerInput({
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
-  // Search for players when query changes
+  // SEARCH-CATALOG-CONTRACT-035: Search players via unified search endpoint
   useEffect(() => {
     const searchPlayers = async () => {
       if (query.length < 2) {
@@ -45,11 +49,22 @@ export function SmartPlayerInput({
 
       setLoading(true);
       try {
-        const response = await fetch(`/api/players?q=${encodeURIComponent(query)}&sport=${sport}`);
+        // Use the unified search API with type=player filter
+        const response = await fetch(
+          `/api/search?q=${encodeURIComponent(query)}&sport=${sport}&type=player&limit=15`
+        );
         const result = await response.json();
 
-        if (result.success) {
-          setPlayers(result.players || []);
+        if (result.results) {
+          // Transform search results to player format
+          const playerResults: Player[] = result.results.map((r: any) => ({
+            id: r.id,
+            name: r.name,
+            team: r.team || '',
+            team_id: r.team_id,
+            display: r.display_label || `${r.name} (${r.team || r.sport})`,
+          }));
+          setPlayers(playerResults);
           setShowSuggestions(true);
           setSelectedIndex(-1);
         }
@@ -72,10 +87,10 @@ export function SmartPlayerInput({
     onChange(newValue);
   };
 
-  // Handle player selection
+  // SEARCH-CATALOG-CONTRACT-035: Handle player selection with entity IDs
   const handlePlayerSelect = (player: Player) => {
     setQuery(player.name);
-    onChange(player.name, player.team);
+    onChange(player.name, player.team, player.id, player.team_id);
     setShowSuggestions(false);
     setSelectedIndex(-1);
   };

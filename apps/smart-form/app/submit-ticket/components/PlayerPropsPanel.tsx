@@ -40,8 +40,8 @@ export function PlayerPropsPanel({
   const [selectedPlayerData, setSelectedPlayerData] = useState<ComboboxItem | null>(null);
   const playerDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  // SMARTFORM-ENTITY-RESOLUTION-001: Player search with team UUID scoping
-  // FanDuel-style: Search players on either team in the selected game
+  // SEARCH-CATALOG-CONTRACT-035: Player search via unified search API
+  // SMARTFORM-ENTITY-RESOLUTION-001: Includes team_id for entity resolution
   const searchPlayers = useCallback(
     async (q: string) => {
       if (q.length < 3) {
@@ -51,41 +51,20 @@ export function PlayerPropsPanel({
       setPlayersLoading(true);
       setPlayersError(null);
       try {
-        // Build base URL with query and sport
-        let url = `/api/players?q=${encodeURIComponent(q)}&sport=${sport || ''}`;
-
-        // SMARTFORM-ENTITY-RESOLUTION-001: Prefer team UUIDs over text hints
-        // If we have team UUIDs from the game, use them for scoped queries
-        const homeTeamUuid = (game as any).home_team_uuid;
-        const awayTeamUuid = (game as any).away_team_uuid;
-
-        if (homeTeamUuid || awayTeamUuid) {
-          // For now, query without team_id filter to get all matching players,
-          // but we'll enhance the results to show team context
-          // The API already supports team_id filter if we want single-team scoping
-          console.log('[ENTITY-RESOLUTION] Game teams:', {
-            home: game.homeTeam,
-            home_uuid: homeTeamUuid,
-            away: game.awayTeam,
-            away_uuid: awayTeamUuid,
-          });
-        } else {
-          // Fallback: use display name as search hint
-          const teamHint = game.homeTeam || game.awayTeam || '';
-          if (teamHint) url += `&team=${encodeURIComponent(teamHint)}`;
-        }
+        // SEARCH-CATALOG-CONTRACT-035: Use unified search endpoint
+        const url = `/api/search?q=${encodeURIComponent(q)}&sport=${sport || ''}&type=player&limit=20`;
 
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (data.error) throw new Error(data.message || data.error);
 
-        // SMARTFORM-ENTITY-RESOLUTION-001: Include team_id in item for auto-fill
-        // Canonical shape: { value, label, team_id, sport }
-        const items: ComboboxItem[] = (data.players || []).map((p: any) => ({
-          value: p.value,
-          label: p.label,
-          // Store team_id for player->team auto-fill (available on p.team_id)
+        // SEARCH-CATALOG-CONTRACT-035: Transform search results to ComboboxItem format
+        // SMARTFORM-ENTITY-RESOLUTION-001: Include team_id for auto-fill
+        const items: ComboboxItem[] = (data.results || []).map((p: any) => ({
+          value: p.id,
+          label: p.display_label || `${p.name} (${p.team || p.sport})`,
+          // Store team_id for player->team auto-fill
           team_id: p.team_id,
         }));
         setPlayerItems(items);
@@ -97,7 +76,7 @@ export function PlayerPropsPanel({
         setPlayersLoading(false);
       }
     },
-    [sport, game.homeTeam, game.awayTeam, game]
+    [sport]
   );
 
   const handlePlayerSearch = useCallback(
@@ -109,18 +88,39 @@ export function PlayerPropsPanel({
     [searchPlayers]
   );
 
+  // SEARCH-CATALOG-CONTRACT-035: Load props from catalog endpoint
   useEffect(() => {
     const loadProps = async () => {
       setLoading(true);
       try {
+        // Try the catalog props endpoint first (optimized MVs)
+        // For game-specific props, we query by sport and let the MV handle it
         const response = await fetch(
-          `/api/props?game_id=${game.id}&sport=${sport}&prop_type=player_props`
+          `/api/catalog/props?sport=${sport}&limit=50`
         );
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const result = await response.json();
-        if (result.success && result.props?.length > 0) {
-          setProps(result.props);
+
+        // V1.1 HARDENED: NO FALLBACK - only catalog endpoint is spec-compliant
+        if (result.props?.length > 0) {
+          // Transform catalog props to component format
+          const transformedProps = result.props.map((p: any) => ({
+            id: p.id,
+            display_name: p.display_label || `${p.player_name} ${p.stat_type} ${p.line}`,
+            player_name: p.player_name,
+            player_id: p.player_id,
+            team: p.team,
+            team_id: p.team_id,
+            line: p.line,
+            stat_type: p.stat_type,
+            selection_options: [
+              { value: 'over', label: `Over ${p.line}`, odds: p.over_odds },
+              { value: 'under', label: `Under ${p.line}`, odds: p.under_odds },
+            ],
+          }));
+          setProps(transformedProps);
         } else {
+          // V1.1 HARDENED: No props available - user can create manual prop
           setProps([]);
         }
       } catch (err) {

@@ -1,6 +1,6 @@
 /**
  * Client-side API utilities for Smart Form
- * Replaces direct Supabase calls with API route calls
+ * SEARCH-CATALOG-CONTRACT-035: Uses canonical catalog endpoints
  */
 
 import { createComponentLogger } from './logger';
@@ -26,6 +26,69 @@ export interface Game {
   status: string;
   matchup?: string;
   is_live?: boolean;
+}
+
+// SEARCH-CATALOG-CONTRACT-035: Catalog types
+export interface CatalogTeam {
+  id: string;
+  name: string;
+  abbr: string | null;
+  sport: string;
+  team_uuid: string | null;
+  logo_url: string | null;
+}
+
+export interface CatalogPlayer {
+  id: string;
+  name: string;
+  sport: string;
+  team_id: string | null;
+  team_name: string | null;
+  team_abbr: string | null;
+  position: string | null;
+}
+
+export interface CatalogGame {
+  id: string;
+  sport: string;
+  league: string;
+  game_date: string;
+  start_time: string | null;
+  status: string;
+  home_team: { id: string | null; name: string; abbr: string | null };
+  away_team: { id: string | null; name: string; abbr: string | null };
+  display_label: string;
+  odds?: {
+    spread: number | null;
+    total: number | null;
+    moneyline_home: number | null;
+    moneyline_away: number | null;
+  };
+}
+
+export interface CatalogProp {
+  id: string;
+  sport: string;
+  player_name: string;
+  team: string | null;
+  stat_type: string;
+  line: number;
+  over_odds: number | null;
+  under_odds: number | null;
+  game_id: string | null;
+  game_date: string | null;
+  display_label: string;
+}
+
+export interface SearchResult {
+  type: 'player' | 'team' | 'game';
+  id: string;
+  name: string;
+  sport: string;
+  team?: string;
+  team_id?: string;
+  abbr?: string;
+  display_label?: string;
 }
 
 export interface Prop {
@@ -90,6 +153,135 @@ class ApiClient {
       };
     }
   }
+
+  // ============================================
+  // SEARCH-CATALOG-CONTRACT-035: Catalog Methods
+  // ============================================
+
+  /**
+   * Unified search across teams, players, and games
+   */
+  async searchUnified(query: string, options: {
+    sport?: string;
+    type?: 'player' | 'team' | 'game' | 'all';
+    limit?: number;
+  } = {}): Promise<SearchResult[]> {
+    const params = new URLSearchParams({ q: query });
+    if (options.sport) params.set('sport', options.sport);
+    if (options.type) params.set('type', options.type);
+    if (options.limit) params.set('limit', options.limit.toString());
+
+    const result = await this.makeRequest<{ results: SearchResult[] }>(
+      `/api/search?${params.toString()}`
+    );
+
+    if (result.error) {
+      log.warn({ error: result.error, query }, 'Unified search failed');
+      return [];
+    }
+
+    return result.data?.results || [];
+  }
+
+  /**
+   * Fetch teams from catalog
+   */
+  async fetchCatalogTeams(sport: string, query?: string): Promise<CatalogTeam[]> {
+    const params = new URLSearchParams({ sport });
+    if (query) params.set('q', query);
+
+    const result = await this.makeRequest<{ teams: CatalogTeam[] }>(
+      `/api/catalog/teams?${params.toString()}`
+    );
+
+    if (result.error) {
+      log.warn({ error: result.error, sport }, 'Catalog teams fetch failed');
+      return [];
+    }
+
+    return result.data?.teams || [];
+  }
+
+  /**
+   * Fetch players from catalog
+   */
+  async fetchCatalogPlayers(sport: string, options: {
+    teamId?: string;
+    query?: string;
+    limit?: number;
+  } = {}): Promise<CatalogPlayer[]> {
+    const params = new URLSearchParams({ sport });
+    if (options.teamId) params.set('team_id', options.teamId);
+    if (options.query) params.set('q', options.query);
+    if (options.limit) params.set('limit', options.limit.toString());
+
+    const result = await this.makeRequest<{ players: CatalogPlayer[] }>(
+      `/api/catalog/players?${params.toString()}`
+    );
+
+    if (result.error) {
+      log.warn({ error: result.error, sport }, 'Catalog players fetch failed');
+      return [];
+    }
+
+    return result.data?.players || [];
+  }
+
+  /**
+   * Fetch games from catalog
+   */
+  async fetchCatalogGames(sport: string, options: {
+    date?: string;
+    teamId?: string;
+    status?: 'scheduled' | 'in_progress' | 'final' | 'all';
+  } = {}): Promise<CatalogGame[]> {
+    const params = new URLSearchParams({ sport });
+    if (options.date) params.set('date', options.date);
+    if (options.teamId) params.set('team_id', options.teamId);
+    if (options.status) params.set('status', options.status);
+
+    const result = await this.makeRequest<{ games: CatalogGame[] }>(
+      `/api/catalog/games?${params.toString()}`
+    );
+
+    if (result.error) {
+      log.warn({ error: result.error, sport }, 'Catalog games fetch failed');
+      return [];
+    }
+
+    return result.data?.games || [];
+  }
+
+  /**
+   * Fetch props from catalog
+   */
+  async fetchCatalogProps(sport: string, options: {
+    playerName?: string;
+    statType?: string;
+    team?: string;
+    limit?: number;
+  } = {}): Promise<CatalogProp[]> {
+    const params = new URLSearchParams({ sport });
+    if (options.playerName) params.set('player_name', options.playerName);
+    if (options.statType) params.set('stat_type', options.statType);
+    if (options.team) params.set('team', options.team);
+    if (options.limit) params.set('limit', options.limit.toString());
+
+    const result = await this.makeRequest<{ props: CatalogProp[]; stat_types: string[] }>(
+      `/api/catalog/props?${params.toString()}`
+    );
+
+    if (result.error) {
+      log.warn({ error: result.error, sport }, 'Catalog props fetch failed');
+      return [];
+    }
+
+    return result.data?.props || [];
+  }
+
+  // ============================================
+  // Legacy Methods (maintained for compatibility)
+  // ============================================
 
   /**
    * Fetch active cappers
@@ -166,11 +358,16 @@ class ApiClient {
       sport: string;
       team_id?: string;
       player_id?: string;
+      player_name?: string;
+      team?: string;
+      bet_type?: string;
       stat_type: string;
       line: number;
       leg_odds: number;
       source: 'api' | 'manual';
-      selection: 'over' | 'under' | 'yes' | 'no';
+      // V1.1 COMPLIANCE: selection is any string (API validates with z.string().min(1))
+      selection: string;
+      direction?: 'over' | 'under';
       confidence?: number;
     }>;
     parlay_odds?: number;
@@ -194,8 +391,14 @@ class ApiClient {
 
   /**
    * Development: Simulate bridge processing
+   * HARDENED: Only available in development mode
    */
   async simulateBridge(betSlipId: string) {
+    // V1.1 HARDENED: Dev routes guarded behind NODE_ENV
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Dev routes are not available in production');
+    }
+
     const result = await this.makeRequest(
       `/api/dev/simulate-bridge?id=${betSlipId}`
     );
@@ -222,23 +425,18 @@ export const fetchProps = (gameId: string, marketType?: string) => {
   return apiClient.fetchProps('NFL', { gameId }); // Default sport for compatibility
 };
 
-// Mock functions for components that still expect them
+// SEARCH-CATALOG-CONTRACT-035: Updated functions using catalog endpoints
 export const fetchTeams = async (sport: string) => {
-  // Teams are now embedded in games - return empty for compatibility
-  log.warn('fetchTeams called - teams are now embedded in games data');
-  return [];
+  return apiClient.fetchCatalogTeams(sport);
 };
 
 export const searchTeams = async (sport: string, query: string) => {
-  // Deprecated - return empty for compatibility
-  log.warn('searchTeams called - function is deprecated');
-  return [];
+  return apiClient.fetchCatalogTeams(sport, query);
 };
 
-export const searchPlayers = async (teamId: string, query: string) => {
-  // Deprecated - return empty for compatibility
-  log.warn('searchPlayers called - function is deprecated');
-  return [];
+export const searchPlayers = async (sport: string, query: string) => {
+  // Now uses the unified search endpoint
+  return apiClient.searchUnified(query, { sport, type: 'player' });
 };
 
 // Types for backward compatibility

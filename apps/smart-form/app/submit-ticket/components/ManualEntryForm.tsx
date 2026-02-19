@@ -108,7 +108,8 @@ export function ManualEntryForm({
     setTeamsLoading(true);
     setTeamsError(null);
     try {
-      const res = await fetch(`/api/teams?sport=${sport}`);
+      // V1.1 HARDENED: Use SPEC-TRUE /api/catalog/teams endpoint
+      const res = await fetch(`/api/catalog/teams?sport=${sport}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (data.error) throw new Error(data.message || data.error);
@@ -157,7 +158,8 @@ export function ManualEntryForm({
       setPlayersLoading(true);
       setPlayersError(null);
       try {
-        let url = `/api/players?q=${encodeURIComponent(q)}&sport=${sport || ''}`;
+        // V1.1 HARDENED: Use SPEC-TRUE /api/catalog/players endpoint
+        let url = `/api/catalog/players?q=${encodeURIComponent(q)}&sport=${sport || ''}`;
         // Filter by selected team (canonical team_id) if one is picked
         const activeTeamId = homeTeam || awayTeam;
         if (activeTeamId) {

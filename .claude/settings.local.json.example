@@ -1,0 +1,52 @@
+{
+  "$schema": "https://claude.ai/schemas/settings.json",
+  "_comment": "Copy this file to settings.local.json and customize",
+
+  "model": "claude-sonnet-4-20250514",
+
+  "permissions": {
+    "allow_edit": true,
+    "allow_write": true,
+    "allow_bash": true,
+    "allow_mcp": true
+  },
+
+  "context": {
+    "include": [
+      "CLAUDE.md",
+      "CLAUDE_EXECUTION_CONTRACT.md",
+      ".claude/rules/*.md"
+    ],
+    "exclude": [
+      "node_modules/**",
+      "dist/**",
+      ".next/**",
+      "out/sprints/**/*.txt"
+    ]
+  },
+
+  "behavior": {
+    "auto_verify": true,
+    "require_proof": true,
+    "strict_single_writer": true
+  },
+
+  "sprint": {
+    "default_category": "FEATURE",
+    "proof_location": "out/sprints",
+    "require_closeout": true
+  },
+
+  "hooks": {
+    "pre_commit": ".claude/hooks/pre-commit.sh",
+    "post_sprint": ".claude/hooks/post-sprint.sh"
+  },
+
+  "_notes": {
+    "model_options": [
+      "claude-sonnet-4-20250514",
+      "claude-opus-4-20250514"
+    ],
+    "usage": "This file configures Claude Code behavior for the Unit Talk repo"
+  }
+}
