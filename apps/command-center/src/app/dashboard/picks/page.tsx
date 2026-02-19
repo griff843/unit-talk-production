@@ -9,6 +9,7 @@ import { usePicksPage } from './usePicksPage';
 import type { DynamicStat } from './usePicksPage';
 
 import { PickDetailsModal } from '@/components/PickDetailsModal';
+import { StuckPicksPanel } from '@/components/StuckPicksPanel';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -35,6 +36,7 @@ export default function PicksHQPage() {
       <PageHeader onRefresh={page.refreshPicks} onExport={page.handleExport} />
       <StatsGrid stats={page.dynamicStats} />
       <PicksFilterCard filters={page.filters} />
+      <StuckPicksPanel />
       <PicksTableCard
         picks={page.picks}
         filteredPicks={page.filteredPicks}

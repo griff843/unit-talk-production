@@ -25,11 +25,15 @@ export function PicksFilterCard({ filters }: { filters: PicksPageFilters }) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
           <SearchInput value={filters.searchTerm} onChange={filters.setSearchTerm} />
           <SportFilter value={filters.selectedSport} onChange={filters.setSelectedSport} />
           <TierFilter value={filters.selectedTier} onChange={filters.setSelectedTier} />
           <StatusFilter value={filters.selectedStatus} onChange={filters.setSelectedStatus} />
+          <LifecycleStageFilter
+            value={filters.selectedLifecycleStage || 'all'}
+            onChange={filters.setSelectedLifecycleStage || (() => {})}
+          />
           <Button variant="outline" onClick={filters.clearAll}>
             Clear Filters
           </Button>
@@ -100,6 +104,28 @@ function StatusFilter({ value, onChange }: { value: string; onChange: (v: string
         <SelectItem value="pending">Pending</SelectItem>
         <SelectItem value="approved">Approved</SelectItem>
         <SelectItem value="rejected">Rejected</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+}
+
+function LifecycleStageFilter({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger>
+        <SelectValue placeholder="Lifecycle Stage" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">All Stages</SelectItem>
+        <SelectItem value="SUBMITTED">Submitted</SelectItem>
+        <SelectItem value="QUEUED">Queued</SelectItem>
+        <SelectItem value="POSTED">Posted</SelectItem>
+        <SelectItem value="SETTLING">Settling</SelectItem>
+        <SelectItem value="SETTLED">Settled</SelectItem>
+        <SelectItem value="BLOCKED">Blocked</SelectItem>
+        <SelectItem value="FAILED">Failed</SelectItem>
+        <SelectItem value="needs_attention">Needs Attention</SelectItem>
+        <SelectItem value="stuck">Stuck</SelectItem>
       </SelectContent>
     </Select>
   );

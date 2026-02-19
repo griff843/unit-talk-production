@@ -25,6 +25,8 @@ export interface PicksPageFilters {
   setSelectedTier: (v: string) => void;
   selectedStatus: string;
   setSelectedStatus: (v: string) => void;
+  selectedLifecycleStage: string;
+  setSelectedLifecycleStage: (v: string) => void;
   clearAll: () => void;
 }
 
@@ -162,11 +164,13 @@ function usePicksFilters(): PicksPageFilters {
   const [selectedSport, setSelectedSport] = useState('all');
   const [selectedTier, setSelectedTier] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
+  const [selectedLifecycleStage, setSelectedLifecycleStage] = useState('all');
   const clearAll = useCallback(() => {
     setSearchTerm('');
     setSelectedSport('all');
     setSelectedTier('all');
     setSelectedStatus('all');
+    setSelectedLifecycleStage('all');
     setSelectedTab('all');
   }, []);
   return {
@@ -180,6 +184,8 @@ function usePicksFilters(): PicksPageFilters {
     setSelectedTier,
     selectedStatus,
     setSelectedStatus,
+    selectedLifecycleStage,
+    setSelectedLifecycleStage,
     clearAll,
   };
 }

@@ -8,6 +8,7 @@ import type { Pick } from '@/hooks/usePicks';
 import { CLVChart } from '@/components/charts/CLVChart';
 import { ComboPlayBuilder } from '@/components/charts/ComboPlayBuilder';
 import { Badge } from '@/components/ui/badge';
+import { LifecycleBadge } from '@/components/ui/LifecycleBadge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -205,7 +206,14 @@ function PickTableRow({ pick, actionLoading, onApprove, onReject, onShowDetails 
         <span className="font-mono">{pick.confidence || 50}%</span>
       </TableCell>
       <TableCell>
-        <StatusBadge status={pick.status} />
+        <LifecycleBadge
+          pick={{
+            status: pick.status === 'approved' ? 'pending' : pick.status === 'rejected' ? 'cancelled' : 'pending',
+            promotion_status: pick.status === 'approved' ? 'promoted' : 'not_promoted',
+            blocked_reason: pick.status === 'rejected' ? 'BLOCKED_PROMOTION_INELIGIBLE' : undefined,
+          }}
+          size="sm"
+        />
       </TableCell>
       <TableCell>
         <RoiCell roi={pick.roi} />

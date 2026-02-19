@@ -26,10 +26,15 @@ import {
   Activity,
   Shield,
   Zap,
+  History,
 } from 'lucide-react';
 import { Pick } from '@/hooks/usePicks';
 import { getTierColor, formatCurrency, formatPercentage } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { LifecycleBadge } from '@/components/ui/LifecycleBadge';
+import { LifecycleTimeline } from '@/components/LifecycleTimeline';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { buildTimeline, deriveLifecycleStage } from '@/lib/lifecycleDisplay';
 
 interface PickDetailsModalProps {
   pick: Pick | null;
@@ -101,12 +106,14 @@ export function PickDetailsModal({
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="text-2xl font-bold">Pick Details</DialogTitle>
-            <Badge className={cn('ml-2', getStatusColor(pick.status))}>
-              <span className="flex items-center gap-1">
-                {getStatusIcon(pick.status)}
-                {pick.status}
-              </span>
-            </Badge>
+            <LifecycleBadge
+              pick={{
+                status: pick.status === 'approved' ? 'pending' : pick.status === 'rejected' ? 'cancelled' : 'pending',
+                promotion_status: pick.status === 'approved' ? 'promoted' : 'not_promoted',
+                blocked_reason: pick.status === 'rejected' ? 'BLOCKED_PROMOTION_INELIGIBLE' : undefined,
+              }}
+              size="md"
+            />
           </div>
           <DialogDescription>
             Complete analysis and management for pick #{pick.id.slice(0, 8)}
@@ -205,28 +212,23 @@ export function PickDetailsModal({
               </div>
             </div>
 
-            {/* Timestamps */}
+            {/* Lifecycle Timeline */}
             <div className="bg-muted/50 rounded-lg p-4">
               <h3 className="font-semibold flex items-center gap-2 mb-3">
-                <Clock className="w-4 h-4" />
-                Timeline
+                <History className="w-4 h-4" />
+                Lifecycle Timeline
               </h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Created:</span>
-                  <span className="font-medium">
-                    {new Date(pick.created_at || pick.submitted_at).toLocaleString()}
-                  </span>
-                </div>
-                {pick.status === 'approved' && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Status Updated:</span>
-                    <span className="font-medium">
-                      {new Date(pick.created_at || pick.submitted_at).toLocaleString()}
-                    </span>
-                  </div>
-                )}
-              </div>
+              <LifecycleTimeline
+                events={buildTimeline({
+                  created_at: pick.created_at || pick.submitted_at,
+                })}
+                currentStage={deriveLifecycleStage({
+                  status: pick.status === 'approved' ? 'pending' : pick.status === 'rejected' ? 'cancelled' : 'pending',
+                  promotion_status: pick.status === 'approved' ? 'promoted' : 'not_promoted',
+                  blocked_reason: pick.status === 'rejected' ? 'BLOCKED_PROMOTION_INELIGIBLE' : undefined,
+                })}
+                blockedReason={pick.status === 'rejected' ? 'Pick was rejected' : undefined}
+              />
             </div>
 
             {/* Notes/Reasoning */}
