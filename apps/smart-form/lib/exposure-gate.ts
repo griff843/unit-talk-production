@@ -92,7 +92,7 @@ export class ExposureGate {
   private logger: { info: (...args: any[]) => void; error: (...args: any[]) => void; warn: (...args: any[]) => void };
 
   // Configurable limits (can be overridden by operator)
-  private limits = { ...EXPOSURE_LIMITS };
+  private limits: { [K in keyof typeof EXPOSURE_LIMITS]: number } = { ...EXPOSURE_LIMITS };
 
   constructor(supabase: SupabaseClient, logger?: any) {
     this.supabase = supabase;
@@ -410,7 +410,7 @@ export class ExposureGate {
    * Returns a disposable that restores original limits
    */
   withOverride(
-    overrides: Partial<typeof EXPOSURE_LIMITS>,
+    overrides: Partial<{ [K in keyof typeof EXPOSURE_LIMITS]: number }>,
     options: {
       operatorId: string;
       reason: string;
@@ -477,7 +477,7 @@ export class ExposureGate {
   /**
    * Get current limits (for operator visibility)
    */
-  getCurrentLimits(): typeof EXPOSURE_LIMITS {
+  getCurrentLimits(): { [K in keyof typeof EXPOSURE_LIMITS]: number } {
     return { ...this.limits };
   }
 

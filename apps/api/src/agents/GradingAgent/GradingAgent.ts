@@ -260,21 +260,21 @@ export class GradingAgent extends BaseAgent {
           const projection = await this.projectionEngine.getProjection(
             features.player,
             features.marketType,
-            new Date(features.date)
+            { date: features.date }
           );
 
           if (projection) {
             // Calculate edge: (our projection - market line) / market line
             const marketLine = features.market?.line || 0;
             if (marketLine > 0) {
-              projectionEdge = (projection.projectedValue - marketLine) / marketLine;
+              projectionEdge = ((projection.projectedLine ?? 0) - marketLine) / marketLine;
               projectionConfidence = projection.confidence;
 
               this.logger.debug('📈 Projection edge calculated', {
                 propId: features.propId,
                 player: features.player,
                 statType: features.marketType,
-                ourProjection: projection.projectedValue,
+                ourProjection: projection.projectedLine,
                 marketLine: marketLine,
                 projectionEdge: Math.round(projectionEdge * 1000) / 10 + '%',
                 confidence: projection.confidence,

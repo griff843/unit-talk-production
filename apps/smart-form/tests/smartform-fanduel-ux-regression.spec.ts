@@ -13,7 +13,7 @@
  * @see docs/contracts/SMART_FORM_DATA_CONTRACT.md
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
+// Uses Jest globals (describe, it, expect, beforeAll) - no import needed
 import { createClient } from '@supabase/supabase-js';
 
 // Test configuration

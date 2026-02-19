@@ -134,6 +134,10 @@ export interface GradingResult {
   /** HARD / SOFT / NONE band from evaluatePromotion(). Null when V1 scoring or policy disabled. */
   promotionBand?: string;
 
+  // Projection data (optional)
+  projectionEdge?: number;
+  projectionConfidence?: number;
+
   // Metadata
   timestamp: string;
   modelVersion: string;
