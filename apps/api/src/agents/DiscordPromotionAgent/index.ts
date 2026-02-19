@@ -569,6 +569,109 @@ async function postParlayToDiscord(legs: any[]): Promise<string | null> {
 // ---- CLAIM + RECEIPT ----
 // LIFECYCLE-WRITE-SURFACE-MIGRATION-038: Use lifecycle idempotency adapter
 
+/**
+ * SPRINT-REAL-DISCORD-RECEIPT-PROOF-049: Validate Discord snowflake ID
+ * Discord message IDs are numeric snowflakes (17-20 digits).
+ * Reject stub IDs like "GAUNTLET-MSG-*" or "webhook-receipt-*".
+ */
+function isValidDiscordSnowflake(messageId: string | null | undefined): boolean {
+  if (!messageId) return false;
+  // Discord snowflakes are 17-20 digit numeric strings
+  return /^\d{17,20}$/.test(messageId);
+}
+
+/**
+ * SPRINT-REAL-DISCORD-RECEIPT-PROOF-049: Confirm post with real Discord ID
+ * Sets discord_message_id column ONLY if we have a valid numeric snowflake.
+ * This enforces fail-closed: no stub IDs allowed.
+ */
+async function confirmPostWithReceipt(
+  pickId: string,
+  messageId: string | null
+): Promise<{ success: boolean; error?: string }> {
+  if (!isValidDiscordSnowflake(messageId)) {
+    logger.error(
+      { pickId, messageId },
+      'REAL-DISCORD-RECEIPT-049: Invalid Discord message ID (not a numeric snowflake)'
+    );
+    return { success: false, error: `Invalid Discord ID: ${messageId}` };
+  }
+
+  // Update discord_message_id column with validated snowflake
+  const result = await lifecycleUpdate(supabase, pickId, {
+    discord_message_id: messageId,
+  }, {
+    writerRole: 'poster',
+    traceId: `confirm-post-${pickId}`,
+    skipTransitionValidation: true,
+  });
+
+  if (!result.success) {
+    logger.error(
+      { pickId, messageId, error: result.error },
+      'REAL-DISCORD-RECEIPT-049: Failed to save discord_message_id'
+    );
+    return { success: false, error: result.error };
+  }
+
+  logger.info(
+    { pickId, messageId },
+    'REAL-DISCORD-RECEIPT-049: Confirmed post with valid Discord snowflake'
+  );
+  return { success: true };
+}
+
+/**
+ * SPRINT-REAL-DISCORD-RECEIPT-PROOF-049: Reset posting claim on failure
+ * If Discord call fails, we must reset posted_to_discord to false
+ * so the pick can be retried.
+ */
+async function resetPostingOnFailure(
+  pickId: string,
+  reason: string
+): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from('unified_picks')
+      .update({
+        posted_to_discord: false,
+        promotion_posted_at: null,
+      })
+      .eq('id', pickId);
+
+    if (error) {
+      logger.error(
+        { pickId, error: error.message },
+        'REAL-DISCORD-RECEIPT-049: Failed to reset posting claim'
+      );
+    } else {
+      logger.warn(
+        { pickId, reason },
+        'REAL-DISCORD-RECEIPT-049: Reset posting claim (Discord call failed)'
+      );
+    }
+
+    // Write audit log entry
+    await supabase.from('audit_log').insert({
+      actor: 'DiscordPromotionAgent',
+      action: 'DISCORD_POST_FAILED',
+      entity_type: 'unified_picks',
+      entity_id: pickId,
+      details: {
+        reason,
+        reset_posted_to_discord: true,
+        timestamp: new Date().toISOString(),
+      },
+      created_at: new Date().toISOString(),
+    });
+  } catch (err) {
+    logger.error(
+      { pickId, error: err instanceof Error ? err.message : String(err) },
+      'REAL-DISCORD-RECEIPT-049: Error in resetPostingOnFailure'
+    );
+  }
+}
+
 async function claimPick(pickId: string): Promise<boolean> {
   const result = await atomicClaimForPost(supabase, pickId);
   if (!result.claimed) {
@@ -712,12 +815,26 @@ async function processCapperPicks(): Promise<number> {
       } else {
         const messageId = await postParlayToDiscord(allLegs);
 
-        // Persist SAME message_id on ALL legs
+        // SPRINT-REAL-DISCORD-RECEIPT-PROOF-049: Validate and confirm with real snowflake
+        if (!isValidDiscordSnowflake(messageId)) {
+          logger.error(
+            { betSlipId, messageId, legCount: allLegs.length },
+            'REAL-DISCORD-RECEIPT-049: Parlay post failed - invalid Discord ID'
+          );
+          // Reset all legs since Discord call failed
+          for (const leg of allLegs) {
+            await resetPostingOnFailure(leg.id, `Parlay post returned invalid ID: ${messageId}`);
+          }
+          continue;
+        }
+
+        // Confirm post and persist receipt on ALL legs with valid snowflake
         for (const leg of allLegs) {
+          await confirmPostWithReceipt(leg.id, messageId);
           await persistDiscordReceipt(leg.id, {
             poster: 'DiscordPromotionAgent',
             channel_id: `capper-thread:${capper}`,
-            message_id: messageId || undefined,
+            message_id: messageId,
             ticket_type: 'parlay',
             leg_count: allLegs.length,
           });
@@ -732,10 +849,22 @@ async function processCapperPicks(): Promise<number> {
         logger.info({ id: pick.id, capper, origin: 'capper' }, 'Shadow mode — skipped capper post');
       } else {
         const messageId = await postEliteCardToDiscord(pick);
+
+        // SPRINT-REAL-DISCORD-RECEIPT-PROOF-049: Validate and confirm with real snowflake
+        if (!isValidDiscordSnowflake(messageId)) {
+          logger.error(
+            { pickId: pick.id, messageId },
+            'REAL-DISCORD-RECEIPT-049: Single pick post failed - invalid Discord ID'
+          );
+          await resetPostingOnFailure(pick.id, `Post returned invalid ID: ${messageId}`);
+          continue;
+        }
+
+        await confirmPostWithReceipt(pick.id, messageId);
         await persistDiscordReceipt(pick.id, {
           poster: 'DiscordPromotionAgent',
           channel_id: `capper-thread:${capper}`,
-          message_id: messageId || undefined,
+          message_id: messageId,
           ticket_type: 'single',
           leg_count: 1,
         });
@@ -769,19 +898,34 @@ async function processSystemPicks(): Promise<number> {
   if (!picks?.length) return 0;
 
   logger.info({ count: picks.length }, 'POSTING-AUTHORITY: Processing approved system picks');
+  let processedCount = 0;
   for (const pick of picks) {
     if (!(await claimPick(pick.id))) continue;
     if (PROMOTION_SHADOW_MODE) {
       logger.info({ id: pick.id, origin: 'system' }, 'Shadow mode — skipped system post');
     } else {
-      await postEliteCardToDiscord(pick);
+      const messageId = await postEliteCardToDiscord(pick);
+
+      // SPRINT-REAL-DISCORD-RECEIPT-PROOF-049: Validate and confirm with real snowflake
+      if (!isValidDiscordSnowflake(messageId)) {
+        logger.error(
+          { pickId: pick.id, messageId },
+          'REAL-DISCORD-RECEIPT-049: System pick post failed - invalid Discord ID'
+        );
+        await resetPostingOnFailure(pick.id, `Post returned invalid ID: ${messageId}`);
+        continue;
+      }
+
+      await confirmPostWithReceipt(pick.id, messageId);
       await persistDiscordReceipt(pick.id, {
         poster: 'DiscordPromotionAgent',
         channel_id: 'system-picks',
+        message_id: messageId,
       });
     }
+    processedCount += 1;
   }
-  return picks.length;
+  return processedCount;
 }
 
 /** Legacy fallback: picks without origin tag use promotion_band='HARD' */
@@ -801,15 +945,34 @@ async function processLegacyPicks(): Promise<number> {
   if (!picks?.length) return 0;
 
   logger.info({ count: picks.length }, 'POSTING-AUTHORITY: Processing legacy HARD-band picks');
+  let processedCount = 0;
   for (const pick of picks) {
     if (!(await claimPick(pick.id))) continue;
     if (PROMOTION_SHADOW_MODE) {
       logger.info({ id: pick.id, band: pick.promotion_band }, 'Shadow mode — skipped legacy post');
     } else {
-      await postEliteCardToDiscord(pick);
+      const messageId = await postEliteCardToDiscord(pick);
+
+      // SPRINT-REAL-DISCORD-RECEIPT-PROOF-049: Validate and confirm with real snowflake
+      if (!isValidDiscordSnowflake(messageId)) {
+        logger.error(
+          { pickId: pick.id, messageId },
+          'REAL-DISCORD-RECEIPT-049: Legacy pick post failed - invalid Discord ID'
+        );
+        await resetPostingOnFailure(pick.id, `Post returned invalid ID: ${messageId}`);
+        continue;
+      }
+
+      await confirmPostWithReceipt(pick.id, messageId);
+      await persistDiscordReceipt(pick.id, {
+        poster: 'DiscordPromotionAgent',
+        channel_id: 'legacy-picks',
+        message_id: messageId,
+      });
     }
+    processedCount += 1;
   }
-  return picks.length;
+  return processedCount;
 }
 
 // ---- MAIN AGENT ----
