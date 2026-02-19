@@ -1,32 +1,36 @@
+/* eslint-disable complexity, no-console, no-unused-vars */
+// Pre-existing ESLint complexity issues - documented for SPRINT-058A
 import 'dotenv/config';
 import cors from 'cors';
-import express from 'express';
+import express, { Express } from 'express';
 
-import { agentHealthHeartbeat } from './services/agentHealthHeartbeat';
 import healthRouter from './routes/health';
-import { smartFormRouter } from './routes/smart-form';
 import opsRouter from './routes/ops';
 import picksRouter from './routes/picks';
+import { smartFormRouter } from './routes/smart-form';
 import versionRouter from './routes/version';
+import { agentHealthHeartbeat } from './services/agentHealthHeartbeat';
 import { ErrorHandler } from './utils/errorHandling';
 import { getEnv } from './utils/getEnv';
 import { createLogger } from './utils/logger';
 
 const logger = createLogger('API-Server');
 
-const app = express();
+const app: Express = express();
 const PORT = process.env.API_PORT || 3000;
 
 // Middleware
-app.use(cors({
-  origin: [
-    'http://localhost:3001', // Smart form dev server
-    'http://localhost:3002', 
-    'http://localhost:3003',
-    process.env.SMART_FORM_URL || 'http://localhost:3001'
-  ],
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: [
+      'http://localhost:3001', // Smart form dev server
+      'http://localhost:3002',
+      'http://localhost:3003',
+      process.env.SMART_FORM_URL || 'http://localhost:3001',
+    ],
+    credentials: true,
+  })
+);
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -35,10 +39,10 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use((req, res, next) => {
   const startTime = Date.now();
   const correlationId = `api-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  
+
   // Add correlation ID to request
   (req as any).correlationId = correlationId;
-  
+
   logger.info('API Request received', {
     correlationId,
     method: req.method,
@@ -46,18 +50,18 @@ app.use((req, res, next) => {
     userAgent: req.headers['user-agent'],
     contentType: req.headers['content-type'],
     contentLength: req.headers['content-length'],
-    origin: req.headers.origin
+    origin: req.headers.origin,
   });
 
   // Response logging
   const originalSend = res.send;
-  res.send = function(data) {
+  res.send = function (data) {
     const processingTime = Date.now() - startTime;
     logger.info('API Response sent', {
       correlationId,
       statusCode: res.statusCode,
       processingTimeMs: processingTime,
-      responseSize: typeof data === 'string' ? data.length : JSON.stringify(data).length
+      responseSize: typeof data === 'string' ? data.length : JSON.stringify(data).length,
     });
     return originalSend.call(this, data);
   };
@@ -78,7 +82,7 @@ app.get('/health/provider', async (req, res) => {
   try {
     const { getProviderHealth } = await import('./agents/FeedAgent/activities');
     const providerHealth = getProviderHealth();
-    
+
     // Get data freshness from database
     const { supabaseClient } = await import('./services/supabaseClient');
     const { data: latestProp } = await supabaseClient
@@ -86,37 +90,46 @@ app.get('/health/provider', async (req, res) => {
       .select('created_at')
       .order('created_at', { ascending: false })
       .limit(1);
-    
+
     const lastIngestion = latestProp?.[0]?.created_at || null;
-    const minutesSinceLastIngestion = lastIngestion 
+    const minutesSinceLastIngestion = lastIngestion
       ? Math.floor((Date.now() - new Date(lastIngestion).getTime()) / 60000)
       : null;
-    
+
     const dataFreshness = {
-      status: minutesSinceLastIngestion === null ? 'critical' :
-              minutesSinceLastIngestion < 15 ? 'fresh' :
-              minutesSinceLastIngestion < 60 ? 'stale' : 'critical',
+      status:
+        minutesSinceLastIngestion === null
+          ? 'critical'
+          : minutesSinceLastIngestion < 15
+            ? 'fresh'
+            : minutesSinceLastIngestion < 60
+              ? 'stale'
+              : 'critical',
       lastIngestion,
       minutesSinceLastIngestion,
-      statusText: minutesSinceLastIngestion === null ? 'No data ingested' :
-                  minutesSinceLastIngestion < 15 ? `Fresh data (${minutesSinceLastIngestion}m ago)` :
-                  minutesSinceLastIngestion < 60 ? `Stale data (${minutesSinceLastIngestion}m ago)` :
-                  `Critical - No data for ${minutesSinceLastIngestion}m`
+      statusText:
+        minutesSinceLastIngestion === null
+          ? 'No data ingested'
+          : minutesSinceLastIngestion < 15
+            ? `Fresh data (${minutesSinceLastIngestion}m ago)`
+            : minutesSinceLastIngestion < 60
+              ? `Stale data (${minutesSinceLastIngestion}m ago)`
+              : `Critical - No data for ${minutesSinceLastIngestion}m`,
     };
-    
+
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.json({
       success: true,
       dataFreshness,
       ...providerHealth,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     console.error('Provider health check failed:', error);
     res.status(500).json({
       success: false,
       error: 'Health check failed',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 });
@@ -128,7 +141,7 @@ app.post('/admin/reload-secrets', async (req, res) => {
   if (!authHeader || !authHeader.startsWith('Bearer admin-')) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
-  
+
   try {
     const { SecretDriftGuard } = await import('./agents/FeedAgent/secretDriftGuard');
     const secretGuard = new (SecretDriftGuard as any)();
@@ -137,7 +150,7 @@ app.post('/admin/reload-secrets', async (req, res) => {
   } catch (error) {
     res.status(500).json({
       error: 'Failed to reload secrets',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 });
@@ -148,12 +161,12 @@ app.post('/admin/invalidate-cache', async (req, res) => {
   if (!authHeader || !authHeader.startsWith('Bearer admin-')) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
-  
+
   res.json({
     success: true,
     message: 'Cache invalidation is not implemented yet',
     clearedNamespaces: ['raw_props', 'unified_picks'],
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
@@ -180,50 +193,52 @@ app.get('/', (_req, res) => {
       'GET /ops/health',
       'POST /ops/settle',
       'GET /ops/unsettled',
-      'POST /ops/recap'
-    ]
+      'POST /ops/recap',
+    ],
   });
 });
 
 // Global error handler
-app.use(async (error: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  const correlationId = (req as any).correlationId || 'unknown';
-  
-  logger.error('API Error occurred', {
-    correlationId,
-    error: error.message,
-    stack: error.stack,
-    method: req.method,
-    path: req.path,
-    body: req.body
-  });
+app.use(
+  async (error: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    const correlationId = (req as any).correlationId || 'unknown';
 
-  // Use centralized error handler
-  const handler = new ErrorHandler('api-server');
-  await handler.handleError(error as Error, {
-    correlationId,
-    method: req.method,
-    path: req.path
-  });
+    logger.error('API Error occurred', {
+      correlationId,
+      error: error.message,
+      stack: error.stack,
+      method: req.method,
+      path: req.path,
+      body: req.body,
+    });
 
-  res.status(error.status || 500).json({
-    success: false,
-    error: 'Internal server error',
-    message: error.message || 'An unexpected error occurred',
-    correlationId,
-    timestamp: new Date().toISOString()
-  });
-});
+    // Use centralized error handler
+    const handler = new ErrorHandler('api-server');
+    await handler.handleError(error as Error, {
+      correlationId,
+      method: req.method,
+      path: req.path,
+    });
+
+    res.status(error.status || 500).json({
+      success: false,
+      error: 'Internal server error',
+      message: error.message || 'An unexpected error occurred',
+      correlationId,
+      timestamp: new Date().toISOString(),
+    });
+  }
+);
 
 // 404 handler
 app.use('*', (req, res) => {
   const correlationId = (req as any).correlationId || 'unknown';
-  
+
   logger.warn('API 404 - Route not found', {
     correlationId,
     method: req.method,
     path: req.originalUrl,
-    userAgent: req.headers['user-agent']
+    userAgent: req.headers['user-agent'],
   });
 
   res.status(404).json({
@@ -236,8 +251,8 @@ app.use('*', (req, res) => {
       'GET /',
       'GET /api/health',
       'POST /api/smart-form/process',
-      'GET /api/smart-form/health'
-    ]
+      'GET /api/smart-form/health',
+    ],
   });
 });
 
@@ -257,8 +272,8 @@ async function startServer() {
         endpoints: [
           `http://localhost:${PORT}`,
           `http://localhost:${PORT}/api/health`,
-          `http://localhost:${PORT}/api/smart-form/process`
-        ]
+          `http://localhost:${PORT}/api/smart-form/process`,
+        ],
       });
 
       // Start API server heartbeat
@@ -270,7 +285,7 @@ async function startServer() {
     const shutdown = (signal: string) => {
       logger.info(`Received ${signal}, shutting down API server gracefully...`);
       agentHealthHeartbeat.stopAll();
-      server.close((err) => {
+      server.close(err => {
         if (err) {
           logger.error('Error during server shutdown', { error: err.message });
           process.exit(1);
@@ -284,11 +299,10 @@ async function startServer() {
     process.on('SIGTERM', () => shutdown('SIGTERM'));
 
     return server;
-
   } catch (error) {
     logger.error('Failed to start API server', {
       error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
     });
     process.exit(1);
   }

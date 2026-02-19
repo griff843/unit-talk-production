@@ -2,7 +2,7 @@ import { Router } from 'express';
 
 import { smartFormWebhookHandler } from '../api/webhooks/smartFormWebhook';
 
-const router = Router();
+const router: Router = Router();
 
 /**
  * Smart Form Webhook Routes

@@ -1,38 +1,42 @@
+/* eslint-disable complexity, no-console, no-unused-vars, max-lines-per-function, max-lines, @typescript-eslint/no-unused-vars */
+// Pre-existing ESLint complexity issues - documented for SPRINT-058A
 /**
  * Operations API Routes - Admin endpoints for triggering business flows
- * 
+ *
  * CRITICAL: These endpoints are for E2E testing and operational control.
  * Authentication required for production use.
  */
 
-import express from 'express';
-import { Connection, Client } from '@temporalio/client';
-import { createLogger } from '../utils/logger';
-import { getEnv } from '../utils/getEnv';
 import crypto from 'crypto';
 
+import { Connection, Client } from '@temporalio/client';
+import express, { Router } from 'express';
+
+import { getEnv } from '../utils/getEnv';
+import { createLogger } from '../utils/logger';
+
 const logger = createLogger('OpsRouter');
-const router = express.Router();
+const router: Router = express.Router();
 const env = getEnv();
 
 // Simple admin auth middleware
 const adminAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const authHeader = req.headers.authorization;
-  
+
   // For E2E testing, allow bypass with specific header
   if (req.headers['x-e2e-test'] === 'true') {
     logger.info('E2E test bypass enabled');
     return next();
   }
-  
+
   if (!authHeader || !authHeader.startsWith('Bearer admin-')) {
     return res.status(401).json({
       success: false,
       error: 'Unauthorized - Admin access required',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
-  
+
   next();
 };
 
@@ -43,19 +47,19 @@ router.use(adminAuth);
 router.use((req, res, next) => {
   res.set({
     'Cache-Control': 'no-store, no-cache, must-revalidate',
-    'Pragma': 'no-cache',
-    'Expires': '0'
+    Pragma: 'no-cache',
+    Expires: '0',
   });
   next();
 });
 
 /**
  * POST /ops/ingest-now - Trigger immediate data ingestion
- * 
+ *
  * Body:
  * {
  *   "sport": "MLB",
- *   "window": "next-3h", 
+ *   "window": "next-3h",
  *   "books": ["FD", "DK"],
  *   "testMode": true
  * }
@@ -63,14 +67,9 @@ router.use((req, res, next) => {
 router.post('/ingest-now', async (req, res) => {
   const runId = `ingest-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
   const correlationId = `ops-${runId}`;
-  
+
   try {
-    const {
-      sport = 'MLB',
-      window = 'next-3h', 
-      books = ['FD', 'DK'],
-      testMode = false
-    } = req.body;
+    const { sport = 'MLB', window = 'next-3h', books = ['FD', 'DK'], testMode = false } = req.body;
 
     logger.info('🚀 Manual ingestion triggered', {
       correlationId,
@@ -79,39 +78,41 @@ router.post('/ingest-now', async (req, res) => {
       window,
       books,
       testMode,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
 
     // Connect to Temporal and start ingestion workflow
-    const connection = await Connection.connect({ 
-      address: env.TEMPORAL_SERVER_URL 
+    const connection = await Connection.connect({
+      address: env.TEMPORAL_SERVER_URL,
     });
-    
+
     const client = new Client({ connection });
-    
+
     // Start the FeedAgent workflow with specific parameters
     const workflowId = `feed-agent-manual-${runId}`;
-    
+
     const handle = await client.workflow.start('feedAgentWorkflow', {
-      args: [{
-        sport: sport.toLowerCase(),
-        batchSize: 100,
-        timeout: 300000, // 5 minutes
-        includeSettlement: false,
-        testMode,
-        books,
-        window,
-        runId,
-        correlationId
-      }],
+      args: [
+        {
+          sport: sport.toLowerCase(),
+          batchSize: 100,
+          timeout: 300000, // 5 minutes
+          includeSettlement: false,
+          testMode,
+          books,
+          window,
+          runId,
+          correlationId,
+        },
+      ],
       taskQueue: env.TEMPORAL_TASK_QUEUE,
       workflowId,
       memo: {
         triggeredBy: 'manual-ops',
         sport,
         runId,
-        testMode: testMode.toString()
-      }
+        testMode: testMode.toString(),
+      },
     });
 
     const response = {
@@ -123,7 +124,7 @@ router.post('/ingest-now', async (req, res) => {
         sport,
         window,
         books,
-        testMode
+        testMode,
       },
       status: 'started',
       estimatedDuration: '2-5 minutes',
@@ -131,25 +132,24 @@ router.post('/ingest-now', async (req, res) => {
       timestamp: new Date().toISOString(),
       endpoints: {
         status: `/ops/status/${runId}`,
-        logs: `/ops/logs/${runId}`
-      }
+        logs: `/ops/logs/${runId}`,
+      },
     };
 
     logger.info('✅ Ingestion workflow started', {
       correlationId,
       workflowId,
       runId,
-      sport
+      sport,
     });
 
     res.status(202).json(response);
-
   } catch (error) {
     logger.error('❌ Failed to trigger ingestion', {
       correlationId,
       runId,
       error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
     });
 
     res.status(500).json({
@@ -158,7 +158,7 @@ router.post('/ingest-now', async (req, res) => {
       correlationId,
       error: 'Failed to trigger ingestion workflow',
       details: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -169,22 +169,22 @@ router.post('/ingest-now', async (req, res) => {
 router.get('/status/:runId', async (req, res) => {
   const { runId } = req.params;
   const correlationId = `ops-status-${Date.now()}`;
-  
+
   try {
     logger.info('📊 Status check requested', { correlationId, runId });
-    
+
     // Connect to Temporal to check workflow status
-    const connection = await Connection.connect({ 
-      address: env.TEMPORAL_SERVER_URL 
+    const connection = await Connection.connect({
+      address: env.TEMPORAL_SERVER_URL,
     });
-    
+
     const client = new Client({ connection });
     const workflowId = `feed-agent-manual-${runId}`;
-    
+
     try {
       const handle = client.workflow.getHandle(workflowId);
       const description = await handle.describe();
-      
+
       const response: {
         success: boolean;
         runId: string;
@@ -207,7 +207,7 @@ router.get('/status/:runId', async (req, res) => {
         runTime: (description as any).runTime, // Property may not exist on all workflow types
         historyLength: description.historyLength,
         memo: description.memo,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
       // If workflow is completed, try to get result
@@ -216,16 +216,15 @@ router.get('/status/:runId', async (req, res) => {
           const result = await handle.result();
           response.result = result;
         } catch (resultError) {
-          logger.warn('Could not fetch workflow result', { 
-            correlationId, 
-            runId, 
-            error: resultError instanceof Error ? resultError.message : 'Unknown error' 
+          logger.warn('Could not fetch workflow result', {
+            correlationId,
+            runId,
+            error: resultError instanceof Error ? resultError.message : 'Unknown error',
           });
         }
       }
-      
+
       res.json(response);
-      
     } catch (workflowError) {
       // Workflow not found or other Temporal error
       res.status(404).json({
@@ -234,15 +233,14 @@ router.get('/status/:runId', async (req, res) => {
         workflowId,
         error: 'Workflow not found or inaccessible',
         details: workflowError instanceof Error ? workflowError.message : 'Unknown error',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
-    
   } catch (error) {
     logger.error('❌ Status check failed', {
       correlationId,
       runId,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
 
     res.status(500).json({
@@ -251,7 +249,7 @@ router.get('/status/:runId', async (req, res) => {
       correlationId,
       error: 'Failed to check workflow status',
       details: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -262,17 +260,17 @@ router.get('/status/:runId', async (req, res) => {
 router.get('/health', async (req, res) => {
   try {
     // Check Temporal connectivity
-    const connection = await Connection.connect({ 
-      address: env.TEMPORAL_SERVER_URL 
+    const connection = await Connection.connect({
+      address: env.TEMPORAL_SERVER_URL,
     });
-    
+
     const client = new Client({ connection });
-    
+
     // Basic health check - try to describe a system workflow
     const systemHealth = {
       temporal: 'connected',
       timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'development'
+      environment: process.env.NODE_ENV || 'development',
     };
 
     res.json({
@@ -280,13 +278,8 @@ router.get('/health', async (req, res) => {
       service: 'Unit Talk Operations API',
       status: 'healthy',
       ...systemHealth,
-      endpoints: [
-        'POST /ops/ingest-now',
-        'GET /ops/status/:runId', 
-        'GET /ops/health'
-      ]
+      endpoints: ['POST /ops/ingest-now', 'GET /ops/status/:runId', 'GET /ops/health'],
     });
-
   } catch (error) {
     res.status(503).json({
       success: false,
@@ -294,7 +287,7 @@ router.get('/health', async (req, res) => {
       status: 'degraded',
       error: 'Temporal connection failed',
       details: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -305,25 +298,24 @@ router.get('/health', async (req, res) => {
 router.delete('/cleanup/:runId', async (req, res) => {
   const { runId } = req.params;
   const correlationId = `ops-cleanup-${Date.now()}`;
-  
+
   try {
     // This would cleanup test data associated with a run
     // For now, just acknowledge the request
     logger.info('🧹 Cleanup requested', { correlationId, runId });
-    
+
     res.json({
       success: true,
       runId,
       correlationId,
       message: 'Cleanup completed',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-    
   } catch (error) {
     logger.error('❌ Cleanup failed', {
       correlationId,
       runId,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
 
     res.status(500).json({
@@ -332,7 +324,7 @@ router.delete('/cleanup/:runId', async (req, res) => {
       correlationId,
       error: 'Cleanup failed',
       details: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -373,7 +365,7 @@ router.post('/settle', async (req, res) => {
         success: false,
         error: 'pick_id is required',
         correlationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
@@ -382,7 +374,7 @@ router.post('/settle', async (req, res) => {
         success: false,
         error: 'result must be one of: win, loss, push',
         correlationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
@@ -391,7 +383,7 @@ router.post('/settle', async (req, res) => {
       pick_id,
       result,
       actual_value,
-      operator: operator || 'operator'
+      operator: operator || 'operator',
     });
 
     // Call Supabase RPC (new signature: p_pick_id, p_result, p_settled_at, p_meta)
@@ -406,8 +398,8 @@ router.post('/settle', async (req, res) => {
         actual_value: actual_value ?? null,
         operator: operator || 'operator',
         notes: notes || null,
-        trace_id: correlationId
-      }
+        trace_id: correlationId,
+      },
     });
 
     if (error) {
@@ -415,7 +407,7 @@ router.post('/settle', async (req, res) => {
         correlationId,
         pick_id,
         error: error.message,
-        details: error.details
+        details: error.details,
       });
 
       return res.status(500).json({
@@ -423,7 +415,7 @@ router.post('/settle', async (req, res) => {
         error: 'Settlement RPC failed',
         details: error.message,
         correlationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
@@ -434,7 +426,7 @@ router.post('/settle', async (req, res) => {
       logger.warn('Settlement rejected by RPC', {
         correlationId,
         pick_id,
-        rpcError: rpcResult?.error
+        rpcError: rpcResult?.error,
       });
 
       return res.status(422).json({
@@ -442,7 +434,7 @@ router.post('/settle', async (req, res) => {
         error: rpcResult?.error || 'Settlement rejected',
         details: rpcResult,
         correlationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
@@ -451,21 +443,20 @@ router.post('/settle', async (req, res) => {
       pick_id,
       result,
       settlement_id: rpcResult.settlement_id,
-      trace_id: rpcResult.trace_id
+      trace_id: rpcResult.trace_id,
     });
 
     res.json({
       success: true,
       ...rpcResult,
       correlationId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-
   } catch (error) {
     logger.error('Settlement endpoint error', {
       correlationId,
       error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
     });
 
     res.status(500).json({
@@ -473,7 +464,7 @@ router.post('/settle', async (req, res) => {
       error: 'Internal server error during settlement',
       details: error instanceof Error ? error.message : 'Unknown error',
       correlationId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -511,7 +502,7 @@ router.post('/retry-posting', async (req, res) => {
         success: false,
         error: 'pick_id is required',
         correlationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
@@ -520,7 +511,7 @@ router.post('/retry-posting', async (req, res) => {
         success: false,
         error: 'reason is required (min 10 characters)',
         correlationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
@@ -529,7 +520,7 @@ router.post('/retry-posting', async (req, res) => {
         success: false,
         error: 'drift_mode must be one of: P1, P3, P5',
         correlationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
@@ -537,7 +528,7 @@ router.post('/retry-posting', async (req, res) => {
       correlationId,
       pick_id,
       drift_mode,
-      operator: operator || 'operator'
+      operator: operator || 'operator',
     });
 
     // Import lifecycle adapter
@@ -550,14 +541,14 @@ router.post('/retry-posting', async (req, res) => {
       reason,
       traceId: correlationId,
       operatorId: operator || 'operator',
-      driftMode: drift_mode
+      driftMode: drift_mode,
     });
 
     if (!result.reset) {
       logger.warn('Posting retry rejected', {
         correlationId,
         pick_id,
-        message: result.message
+        message: result.message,
       });
 
       return res.status(422).json({
@@ -566,14 +557,14 @@ router.post('/retry-posting', async (req, res) => {
         pick_id,
         prev_state: result.prevState,
         correlationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
     logger.info('Posting retry completed', {
       correlationId,
       pick_id,
-      audit_id: result.auditId
+      audit_id: result.auditId,
     });
 
     res.json({
@@ -584,14 +575,13 @@ router.post('/retry-posting', async (req, res) => {
       message: result.message,
       prev_state: result.prevState,
       correlationId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-
   } catch (error) {
     logger.error('Posting retry error', {
       correlationId,
       error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
     });
 
     res.status(500).json({
@@ -599,7 +589,7 @@ router.post('/retry-posting', async (req, res) => {
       error: 'Internal server error during posting retry',
       details: error instanceof Error ? error.message : 'Unknown error',
       correlationId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -632,7 +622,7 @@ router.post('/retry-settlement', async (req, res) => {
         success: false,
         error: 'pick_id is required',
         correlationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
@@ -641,7 +631,7 @@ router.post('/retry-settlement', async (req, res) => {
         success: false,
         error: 'reason is required (min 10 characters)',
         correlationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
@@ -650,7 +640,7 @@ router.post('/retry-settlement', async (req, res) => {
         success: false,
         error: 'drift_mode must be one of: S1, S2, S3',
         correlationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
@@ -658,7 +648,7 @@ router.post('/retry-settlement', async (req, res) => {
       correlationId,
       pick_id,
       drift_mode,
-      operator: operator || 'operator'
+      operator: operator || 'operator',
     });
 
     // Import lifecycle adapter
@@ -671,14 +661,14 @@ router.post('/retry-settlement', async (req, res) => {
       reason,
       traceId: correlationId,
       operatorId: operator || 'operator',
-      driftMode: drift_mode
+      driftMode: drift_mode,
     });
 
     if (!result.reset) {
       logger.warn('Settlement retry rejected', {
         correlationId,
         pick_id,
-        message: result.message
+        message: result.message,
       });
 
       return res.status(422).json({
@@ -687,14 +677,14 @@ router.post('/retry-settlement', async (req, res) => {
         pick_id,
         prev_state: result.prevState,
         correlationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
     logger.info('Settlement retry completed', {
       correlationId,
       pick_id,
-      audit_id: result.auditId
+      audit_id: result.auditId,
     });
 
     res.json({
@@ -705,14 +695,13 @@ router.post('/retry-settlement', async (req, res) => {
       message: result.message,
       prev_state: result.prevState,
       correlationId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-
   } catch (error) {
     logger.error('Settlement retry error', {
       correlationId,
       error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
     });
 
     res.status(500).json({
@@ -720,7 +709,7 @@ router.post('/retry-settlement', async (req, res) => {
       error: 'Internal server error during settlement retry',
       details: error instanceof Error ? error.message : 'Unknown error',
       correlationId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -739,7 +728,9 @@ router.get('/unsettled', async (req, res) => {
 
     let query = supabaseClient
       .from('unified_picks')
-      .select('id, player_name, stat_type, line, side, sport, odds, confidence, professional_score, promotion_band, bet_type, market, capper_id, created_at')
+      .select(
+        'id, player_name, stat_type, line, side, sport, odds, confidence, professional_score, promotion_band, bet_type, market, capper_id, created_at'
+      )
       .or('settlement_status.is.null,settlement_status.eq.pending')
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -756,7 +747,7 @@ router.get('/unsettled', async (req, res) => {
         error: 'Failed to fetch unsettled picks',
         details: error.message,
         correlationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
@@ -765,16 +756,15 @@ router.get('/unsettled', async (req, res) => {
       count: data?.length || 0,
       picks: data || [],
       correlationId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-
   } catch (error) {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch unsettled picks',
       details: error instanceof Error ? error.message : 'Unknown error',
       correlationId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -800,7 +790,7 @@ router.post('/recap', async (req, res) => {
         success: false,
         error: 'mode must be one of: daily, weekly, monthly',
         correlationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
@@ -812,7 +802,7 @@ router.post('/recap', async (req, res) => {
     const result = await generateRecapReport({
       mode: mode as 'daily' | 'weekly' | 'monthly',
       date,
-      weekEnding: week_ending
+      weekEnding: week_ending,
     });
 
     logger.info('Recap generation completed', { correlationId, mode });
@@ -822,13 +812,12 @@ router.post('/recap', async (req, res) => {
       mode,
       ...result,
       correlationId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-
   } catch (error) {
     logger.error('Recap generation failed', {
       correlationId,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
 
     res.status(500).json({
@@ -836,7 +825,7 @@ router.post('/recap', async (req, res) => {
       error: 'Recap generation failed',
       details: error instanceof Error ? error.message : 'Unknown error',
       correlationId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -856,7 +845,7 @@ const gauntletGate = (req: express.Request, res: express.Response, next: express
       success: false,
       error: 'GAUNTLET_MODE not enabled',
       hint: 'Set GAUNTLET_MODE=true in environment to enable gauntlet endpoints',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
   next();
@@ -879,14 +868,25 @@ router.post('/gauntlet/inject-pick', gauntletGate, async (req, res) => {
   const correlationId = `gauntlet-inject-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
 
   try {
-    const { bet_slip_id, player_name, stat_type, line, side, sport, odds, is_parlay, parlay_id, leg_index } = req.body;
+    const {
+      bet_slip_id,
+      player_name,
+      stat_type,
+      line,
+      side,
+      sport,
+      odds,
+      is_parlay,
+      parlay_id,
+      leg_index,
+    } = req.body;
 
     if (!bet_slip_id || !bet_slip_id.startsWith('GAUNTLET-041-')) {
       return res.status(400).json({
         success: false,
         error: 'bet_slip_id must start with GAUNTLET-041-',
         correlationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
@@ -902,7 +902,7 @@ router.post('/gauntlet/inject-pick', gauntletGate, async (req, res) => {
         existing_id: idempotencyCheck.existingId,
         reason: idempotencyCheck.reason,
         correlationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
@@ -942,7 +942,7 @@ router.post('/gauntlet/inject-pick', gauntletGate, async (req, res) => {
         success: false,
         error: result.error,
         correlationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
@@ -953,16 +953,18 @@ router.post('/gauntlet/inject-pick', gauntletGate, async (req, res) => {
       pick_id: pickId,
       bet_slip_id,
       correlationId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-
   } catch (error) {
-    logger.error({ correlationId, error: error instanceof Error ? error.message : 'Unknown error' }, 'GAUNTLET: Inject failed');
+    logger.error(
+      { correlationId, error: error instanceof Error ? error.message : 'Unknown error' },
+      'GAUNTLET: Inject failed'
+    );
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
       correlationId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -981,27 +983,32 @@ router.post('/gauntlet/queue-pick', gauntletGate, async (req, res) => {
         success: false,
         error: 'pick_id is required',
         correlationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
     const { supabaseClient } = await import('../services/supabaseClient');
     const { lifecycleUpdate } = await import('../lib/lifecycle');
 
-    const result = await lifecycleUpdate(supabaseClient, pick_id, {
-      promotion_status: 'queued',
-      promotion_queued_at: new Date().toISOString(),
-    }, {
-      writerRole: 'promoter',
-      traceId: correlationId,
-    });
+    const result = await lifecycleUpdate(
+      supabaseClient,
+      pick_id,
+      {
+        promotion_status: 'queued',
+        promotion_queued_at: new Date().toISOString(),
+      },
+      {
+        writerRole: 'promoter',
+        traceId: correlationId,
+      }
+    );
 
     if (!result.success) {
       return res.status(422).json({
         success: false,
         error: result.error,
         correlationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
@@ -1012,16 +1019,18 @@ router.post('/gauntlet/queue-pick', gauntletGate, async (req, res) => {
       pick_id,
       new_status: 'queued',
       correlationId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-
   } catch (error) {
-    logger.error({ correlationId, error: error instanceof Error ? error.message : 'Unknown error' }, 'GAUNTLET: Queue failed');
+    logger.error(
+      { correlationId, error: error instanceof Error ? error.message : 'Unknown error' },
+      'GAUNTLET: Queue failed'
+    );
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
       correlationId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -1040,7 +1049,7 @@ router.post('/gauntlet/post-pick', gauntletGate, async (req, res) => {
         success: false,
         error: 'pick_id is required',
         correlationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
@@ -1056,7 +1065,7 @@ router.post('/gauntlet/post-pick', gauntletGate, async (req, res) => {
         error: 'Pick already posted (idempotent skip)',
         already_claimed: true,
         correlationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
@@ -1064,14 +1073,19 @@ router.post('/gauntlet/post-pick', gauntletGate, async (req, res) => {
     const discordMessageId = simulate_discord_id || `GAUNTLET-MSG-${Date.now()}`;
 
     // Update with Discord receipt
-    await lifecycleUpdate(supabaseClient, pick_id, {
-      discord_message_id: discordMessageId,
-      promotion_status: 'promoted',
-      meta: { discord_receipt: { message_id: discordMessageId, channel_id: 'GAUNTLET_CHANNEL' } },
-    }, {
-      writerRole: 'poster',
-      traceId: correlationId,
-    });
+    await lifecycleUpdate(
+      supabaseClient,
+      pick_id,
+      {
+        discord_message_id: discordMessageId,
+        promotion_status: 'promoted',
+        meta: { discord_receipt: { message_id: discordMessageId, channel_id: 'GAUNTLET_CHANNEL' } },
+      },
+      {
+        writerRole: 'poster',
+        traceId: correlationId,
+      }
+    );
 
     logger.info({ correlationId, pick_id, discordMessageId }, 'GAUNTLET: Pick posted');
 
@@ -1080,16 +1094,18 @@ router.post('/gauntlet/post-pick', gauntletGate, async (req, res) => {
       pick_id,
       discord_message_id: discordMessageId,
       correlationId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-
   } catch (error) {
-    logger.error({ correlationId, error: error instanceof Error ? error.message : 'Unknown error' }, 'GAUNTLET: Post failed');
+    logger.error(
+      { correlationId, error: error instanceof Error ? error.message : 'Unknown error' },
+      'GAUNTLET: Post failed'
+    );
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
       correlationId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -1108,7 +1124,7 @@ router.post('/gauntlet/settle-pick', gauntletGate, async (req, res) => {
         success: false,
         error: 'pick_id is required',
         correlationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
@@ -1117,7 +1133,7 @@ router.post('/gauntlet/settle-pick', gauntletGate, async (req, res) => {
         success: false,
         error: 'result must be one of: win, loss, push',
         correlationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
@@ -1137,7 +1153,7 @@ router.post('/gauntlet/settle-pick', gauntletGate, async (req, res) => {
         error: 'Pick already settled (idempotent skip)',
         already_settled: true,
         correlationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
@@ -1149,16 +1165,18 @@ router.post('/gauntlet/settle-pick', gauntletGate, async (req, res) => {
       settlement_result: result,
       actual_value: actual_value || null,
       correlationId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-
   } catch (error) {
-    logger.error({ correlationId, error: error instanceof Error ? error.message : 'Unknown error' }, 'GAUNTLET: Settle failed');
+    logger.error(
+      { correlationId, error: error instanceof Error ? error.message : 'Unknown error' },
+      'GAUNTLET: Settle failed'
+    );
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
       correlationId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -1176,7 +1194,9 @@ router.get('/gauntlet/pick/:id', gauntletGate, async (req, res) => {
 
     const { data, error } = await supabaseClient
       .from('unified_picks')
-      .select('id, bet_slip_id, status, promotion_status, settlement_status, posted_to_discord, discord_message_id, settlement_result, settled_at, promotion_posted_at, meta, source')
+      .select(
+        'id, bet_slip_id, status, promotion_status, settlement_status, posted_to_discord, discord_message_id, settlement_result, settled_at, promotion_posted_at, meta, source'
+      )
       .eq('id', id)
       .single();
 
@@ -1185,7 +1205,7 @@ router.get('/gauntlet/pick/:id', gauntletGate, async (req, res) => {
         success: false,
         error: 'Pick not found',
         correlationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
@@ -1193,15 +1213,14 @@ router.get('/gauntlet/pick/:id', gauntletGate, async (req, res) => {
       success: true,
       pick: data,
       correlationId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-
   } catch (error) {
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
       correlationId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -1226,7 +1245,7 @@ router.delete('/gauntlet/cleanup', gauntletGate, async (req, res) => {
         success: false,
         error: error.message,
         correlationId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
 
@@ -1237,15 +1256,14 @@ router.delete('/gauntlet/cleanup', gauntletGate, async (req, res) => {
       success: true,
       deleted_count: deletedCount,
       correlationId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-
   } catch (error) {
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
       correlationId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -1299,15 +1317,14 @@ router.get('/gauntlet/reconciliation', gauntletGate, async (req, res) => {
       has_drift: hasDrift,
       drift_conditions: driftConditions,
       correlationId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-
   } catch (error) {
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
       correlationId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });

@@ -6,9 +6,10 @@
  */
 
 import { Router } from 'express';
+
 import { getBuildInfo } from '../lib/buildInfo';
 
-const router = Router();
+const router: Router = Router();
 
 /**
  * GET /version

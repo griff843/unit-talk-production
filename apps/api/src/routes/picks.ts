@@ -1,20 +1,23 @@
+/* eslint-disable complexity, max-lines-per-function */
+// Pre-existing ESLint complexity issues - documented for SPRINT-058A
 /**
  * Picks API Routes - For E2E testing and Command Center integration
  */
 
-import express from 'express';
+import express, { Router } from 'express';
+
 import { supabaseClient } from '../services/supabaseClient';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('PicksRouter');
-const router = express.Router();
+const router: Router = express.Router();
 
 // Add cache control for E2E testing
 router.use((req, res, next) => {
   res.set({
     'Cache-Control': 'no-store, no-cache, must-revalidate',
-    'Pragma': 'no-cache',
-    'Expires': '0'
+    Pragma: 'no-cache',
+    Expires: '0',
   });
   next();
 });
@@ -24,26 +27,23 @@ router.use((req, res, next) => {
  */
 router.get('/recent', async (req, res) => {
   const correlationId = `picks-recent-${Date.now()}`;
-  
+
   try {
-    const { 
-      sport, 
-      limit = 10,
-      hours = 24 
-    } = req.query;
+    const { sport, limit = 10, hours = 24 } = req.query;
 
     logger.info('Fetching recent picks', {
       correlationId,
       sport,
       limit: Number(limit),
-      hours: Number(hours)
+      hours: Number(hours),
     });
 
     const hoursAgo = new Date(Date.now() - Number(hours) * 60 * 60 * 1000).toISOString();
 
     let query = supabaseClient
       .from('unified_picks')
-      .select(`
+      .select(
+        `
         id,
         user_id,
         selection,
@@ -53,7 +53,8 @@ router.get('/recent', async (req, res) => {
         created_at,
         sport,
         users!unified_picks_user_id_fkey (username, discord_id, tier, capper_tier)
-      `)
+      `
+      )
       .gte('created_at', hoursAgo)
       .order('created_at', { ascending: false })
       .limit(Number(limit));
@@ -77,23 +78,22 @@ router.get('/recent', async (req, res) => {
         sport: sport || 'all',
         hours: Number(hours),
         timestamp: new Date().toISOString(),
-        correlationId
-      }
+        correlationId,
+      },
     };
 
     logger.info('Recent picks fetched successfully', {
       correlationId,
       count: picks?.length || 0,
-      sport: sport || 'all'
+      sport: sport || 'all',
     });
 
     res.json(response);
-
   } catch (error) {
     logger.error('Failed to fetch recent picks', {
       correlationId,
       error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
     });
 
     res.status(500).json({
@@ -101,7 +101,7 @@ router.get('/recent', async (req, res) => {
       error: 'Failed to fetch recent picks',
       details: error instanceof Error ? error.message : 'Unknown error',
       correlationId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
@@ -111,17 +111,14 @@ router.get('/recent', async (req, res) => {
  */
 router.get('/stats', async (req, res) => {
   const correlationId = `picks-stats-${Date.now()}`;
-  
+
   try {
-    const { 
-      sport,
-      hours = 24 
-    } = req.query;
+    const { sport, hours = 24 } = req.query;
 
     logger.info('Fetching pick statistics', {
       correlationId,
       sport,
-      hours: Number(hours)
+      hours: Number(hours),
     });
 
     const hoursAgo = new Date(Date.now() - Number(hours) * 60 * 60 * 1000).toISOString();
@@ -144,10 +141,14 @@ router.get('/stats', async (req, res) => {
 
     // Calculate statistics
     const total = picks?.length || 0;
-    const byStage = picks?.reduce((acc, pick) => {
-      acc[pick.workflow_stage] = (acc[pick.workflow_stage] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>) || {};
+    const byStage =
+      picks?.reduce(
+        (acc, pick) => {
+          acc[pick.workflow_stage] = (acc[pick.workflow_stage] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>
+      ) || {};
 
     const stats = {
       total,
@@ -155,7 +156,7 @@ router.get('/stats', async (req, res) => {
       pending: byStage['pending_review'] || 0,
       rejected: byStage['rejected'] || 0,
       draft: byStage['draft'] || 0,
-      published: byStage['published'] || 0
+      published: byStage['published'] || 0,
     };
 
     const response = {
@@ -165,23 +166,22 @@ router.get('/stats', async (req, res) => {
         sport: sport || 'all',
         hours: Number(hours),
         timestamp: new Date().toISOString(),
-        correlationId
-      }
+        correlationId,
+      },
     };
 
     logger.info('Pick statistics calculated', {
       correlationId,
       stats,
-      sport: sport || 'all'
+      sport: sport || 'all',
     });
 
     res.json(response);
-
   } catch (error) {
     logger.error('Failed to fetch pick statistics', {
       correlationId,
       error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
     });
 
     res.status(500).json({
@@ -189,7 +189,7 @@ router.get('/stats', async (req, res) => {
       error: 'Failed to fetch pick statistics',
       details: error instanceof Error ? error.message : 'Unknown error',
       correlationId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
