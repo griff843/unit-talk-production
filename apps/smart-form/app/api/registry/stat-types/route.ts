@@ -4,7 +4,6 @@ import { supabaseServer } from '@/lib/supabase';
 import { createRouteLogger, logDatabaseOperation, logApiPerformance } from '@/lib/logger';
 import {
   CONTRACT_VERSION,
-  StatTypesResponseSchema,
   buildContractMeta,
   buildContractError,
 } from '@/lib/contracts/smartform-data-contract-v1';
@@ -12,15 +11,18 @@ import {
 const log = createRouteLogger('GET /api/registry/stat-types', 'GET');
 
 /**
- * SPRINT-SMARTFORM-DATA-CONTRACTS-INVENTORY-SURFACE-059
+ * SPRINT-SMARTFORM-DATA-CONTRACTS-MANUAL-INVENTORY-059
  *
- * Stat Types Registry Endpoint - Contract Surface V1
+ * Stat Types Registry Endpoint - Contract Surface V1.0.1
  *
- * STRATEGY: Inventory-First with Taxonomy Fallback
+ * STRATEGY: Manual-Usage-First with Taxonomy Fallback
  *
- * 1. Query inventory_props_for_form_v1 for distinct market_keys with live data
- * 2. Intersect with market_taxonomy_v1 to get display names and metadata
- * 3. If inventory is empty, return taxonomy as fallback (clearly marked)
+ * 1. Query market_usage_stats_v1 for markets used in manual submissions
+ * 2. Query market_taxonomy_v1 for display names and all valid markets
+ * 3. Sort by usage_count (most used first), then taxonomy sort_order
+ * 4. If no usage data, return full taxonomy (allows form to work without historical data)
+ *
+ * This endpoint works WITHOUT dependency on live prop feeds.
  *
  * Contract: docs/contracts/SMARTFORM_DATA_CONTRACT_V1.md
  */
@@ -31,7 +33,7 @@ const QuerySchema = z.object({
 });
 
 // Contract surface names - the ONLY allowed sources
-const INVENTORY_SURFACE = 'inventory_props_for_form_v1';
+const USAGE_STATS_SURFACE = 'market_usage_stats_v1';
 const TAXONOMY_SURFACE = 'market_taxonomy_v1';
 
 export async function GET(request: NextRequest) {
@@ -61,49 +63,61 @@ export async function GET(request: NextRequest) {
     const sportUpper = sport.toUpperCase();
 
     log.info(
-      { sport: sportUpper, bet_type, surfaces: [INVENTORY_SURFACE, TAXONOMY_SURFACE] },
+      { sport: sportUpper, bet_type, surfaces: [USAGE_STATS_SURFACE, TAXONOMY_SURFACE] },
       'Fetching stat types from contract surfaces'
     );
 
     const sb = supabaseServer();
 
     // =========================================================================
-    // STEP 1: Query inventory for distinct market_keys with live data
+    // STEP 1: Query market usage stats from manual submissions
     // =========================================================================
-    const { data: inventoryData, error: inventoryError } = await sb
-      .from(INVENTORY_SURFACE)
-      .select('market_key')
-      .eq('sport', sportUpper)
-      .not('market_key', 'is', null);
+    const { data: usageData, error: usageError } = await sb
+      .from(USAGE_STATS_SURFACE)
+      .select('market_key, usage_count, unique_players, last_used_at')
+      .eq('sport', sportUpper);
 
-    logDatabaseOperation(log, 'SELECT DISTINCT', INVENTORY_SURFACE, inventoryData, inventoryError);
+    logDatabaseOperation(log, 'SELECT', USAGE_STATS_SURFACE, usageData, usageError);
 
-    // Extract unique market keys from inventory
-    const inventoryMarketKeys = new Set<string>();
-    const inventoryCounts = new Map<string, number>();
+    // Build usage lookup
+    interface UsageRow {
+      market_key: string;
+      usage_count: number;
+      unique_players: number;
+      last_used_at: string | null;
+    }
 
-    if (!inventoryError && inventoryData) {
-      for (const row of inventoryData as Array<{ market_key: string | null }>) {
-        if (row.market_key) {
-          const key = row.market_key.toUpperCase();
-          inventoryMarketKeys.add(key);
-          inventoryCounts.set(key, (inventoryCounts.get(key) || 0) + 1);
-        }
+    const usageMap = new Map<
+      string,
+      {
+        usage_count: number;
+        unique_players: number;
+        last_used_at: string | null;
+      }
+    >();
+
+    if (!usageError && usageData) {
+      for (const row of usageData as UsageRow[]) {
+        usageMap.set(row.market_key.toUpperCase(), {
+          usage_count: row.usage_count,
+          unique_players: row.unique_players,
+          last_used_at: row.last_used_at,
+        });
       }
     }
 
-    const hasInventory = inventoryMarketKeys.size > 0;
+    const hasUsageData = usageMap.size > 0;
 
     log.info(
       {
-        inventory_market_count: inventoryMarketKeys.size,
-        has_inventory: hasInventory,
+        usage_market_count: usageMap.size,
+        has_usage_data: hasUsageData,
       },
-      'Inventory query complete'
+      'Usage stats query complete'
     );
 
     // =========================================================================
-    // STEP 2: Query taxonomy for display names and metadata
+    // STEP 2: Query taxonomy for display names and all valid markets
     // =========================================================================
     let taxonomyQuery = sb
       .from(TAXONOMY_SURFACE)
@@ -170,50 +184,51 @@ export async function GET(request: NextRequest) {
       code: string;
       display_name: string;
       category: string;
-      source: 'inventory' | 'taxonomy';
+      source: 'manual_inventory' | 'taxonomy';
       has_inventory: boolean;
       inventory_count?: number;
+      usage_count?: number;
+      last_used_at?: string | null;
     }
 
     const statTypes: StatTypeResult[] = [];
 
-    if (hasInventory) {
-      // INVENTORY-FIRST: Only include markets that exist in inventory
-      // but enrich with taxonomy metadata
-      for (const marketKey of inventoryMarketKeys) {
-        const taxonomy = taxonomyMap.get(marketKey);
-        statTypes.push({
-          code: marketKey,
-          display_name: taxonomy?.display_name || marketKey,
-          category: taxonomy?.category || 'other',
-          source: 'inventory',
-          has_inventory: true,
-          inventory_count: inventoryCounts.get(marketKey) || 0,
-        });
-      }
+    // Add all markets from taxonomy, enriched with usage data
+    for (const row of (taxonomyData || []) as TaxonomyRow[]) {
+      const marketKey = row.market_key.toUpperCase();
+      const usage = usageMap.get(marketKey);
 
-      // Sort by taxonomy sort_order (if available) or alphabetically
-      statTypes.sort((a, b) => {
-        const sortA = taxonomyMap.get(a.code)?.sort_order ?? 999;
-        const sortB = taxonomyMap.get(b.code)?.sort_order ?? 999;
-        if (sortA !== sortB) return sortA - sortB;
-        return a.code.localeCompare(b.code);
+      statTypes.push({
+        code: marketKey,
+        display_name: row.display_name,
+        category: row.category,
+        source: usage ? 'manual_inventory' : 'taxonomy',
+        has_inventory: !!usage,
+        inventory_count: usage?.usage_count || 0,
+        usage_count: usage?.usage_count || 0,
+        last_used_at: usage?.last_used_at || null,
       });
-    } else {
-      // TAXONOMY FALLBACK: No inventory data, return full taxonomy
-      // This allows form to work even without live props
-      log.warn({ sport: sportUpper }, 'No inventory data, using taxonomy fallback');
-
-      for (const row of (taxonomyData || []) as TaxonomyRow[]) {
-        statTypes.push({
-          code: row.market_key,
-          display_name: row.display_name,
-          category: row.category,
-          source: 'taxonomy',
-          has_inventory: false,
-        });
-      }
     }
+
+    // Sort: markets with usage first (by usage_count desc), then by taxonomy sort_order
+    statTypes.sort((a, b) => {
+      // Markets with usage data come first
+      if (a.has_inventory && !b.has_inventory) return -1;
+      if (!a.has_inventory && b.has_inventory) return 1;
+
+      // If both have usage, sort by usage_count descending
+      if (a.has_inventory && b.has_inventory) {
+        const usageDiff = (b.usage_count || 0) - (a.usage_count || 0);
+        if (usageDiff !== 0) return usageDiff;
+      }
+
+      // Fall back to taxonomy sort_order
+      const sortA = taxonomyMap.get(a.code)?.sort_order ?? 999;
+      const sortB = taxonomyMap.get(b.code)?.sort_order ?? 999;
+      if (sortA !== sortB) return sortA - sortB;
+
+      return a.code.localeCompare(b.code);
+    });
 
     // Build response
     const response = {
@@ -222,26 +237,27 @@ export async function GET(request: NextRequest) {
         ...buildContractMeta(sportUpper, statTypes.length),
         bet_type: bet_type || null,
         inventory_first: true,
-        taxonomy_fallback: !hasInventory,
+        taxonomy_fallback: !hasUsageData,
+        manual_usage_enabled: true,
       },
     };
 
-    logApiPerformance(log, 'registry-stat-types-v1', startTime, {
+    logApiPerformance(log, 'registry-stat-types-v1.0.1', startTime, {
       stat_types_count: statTypes.length,
       sport: sportUpper,
-      has_inventory: hasInventory,
-      taxonomy_fallback: !hasInventory,
+      has_usage_data: hasUsageData,
+      markets_with_usage: usageMap.size,
     });
 
     return NextResponse.json(response, {
       status: 200,
       headers: {
-        'Cache-Control': hasInventory
-          ? 'public, s-maxage=120, stale-while-revalidate=300' // 2 min if live data
+        'Cache-Control': hasUsageData
+          ? 'public, s-maxage=300, stale-while-revalidate=600' // 5 min if usage data
           : 'public, s-maxage=3600, stale-while-revalidate=7200', // 1 hour for taxonomy-only
         'X-Contract-Version': CONTRACT_VERSION,
-        'X-Inventory-First': 'true',
-        'X-Taxonomy-Fallback': String(!hasInventory),
+        'X-Manual-Usage-Enabled': 'true',
+        'X-Taxonomy-Fallback': String(!hasUsageData),
       },
     });
   } catch (error) {
@@ -272,7 +288,7 @@ export async function HEAD() {
       status: error ? 503 : 200,
       headers: {
         'X-Contract-Version': CONTRACT_VERSION,
-        'X-Contract-Surfaces': `${INVENTORY_SURFACE},${TAXONOMY_SURFACE}`,
+        'X-Contract-Surfaces': `${USAGE_STATS_SURFACE},${TAXONOMY_SURFACE}`,
       },
     });
   } catch {

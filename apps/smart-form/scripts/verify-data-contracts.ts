@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * SPRINT-SMARTFORM-DATA-CONTRACTS-INVENTORY-SURFACE-059
+ * SPRINT-SMARTFORM-DATA-CONTRACTS-MANUAL-INVENTORY-059
  *
  * Database Contract Verification Script
  *
@@ -14,7 +14,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const CONTRACT_VERSION = '1.0.0';
+const CONTRACT_VERSION = '1.0.1';
 
 // Contract surface definitions
 const CONTRACT_SURFACES = {
@@ -43,25 +43,6 @@ const CONTRACT_SURFACES = {
     ],
     description: 'Team catalog surface',
   },
-  inventory_props_for_form_v1: {
-    required_columns: [
-      'prop_id',
-      'sport',
-      'game_id',
-      'start_time',
-      'matchup',
-      'player_name',
-      'team_abbr',
-      'market_key',
-      'line',
-      'over_odds',
-      'under_odds',
-      'book',
-      'prop_key',
-      'contract_version',
-    ],
-    description: 'Props inventory surface - stable columns for Smart Form',
-  },
   market_taxonomy_v1: {
     required_columns: [
       'sport',
@@ -74,6 +55,31 @@ const CONTRACT_SURFACES = {
     ],
     description: 'Market taxonomy reference - allowed markets by sport',
   },
+  manual_inventory_for_form_v1: {
+    required_columns: [
+      'sport',
+      'player_id',
+      'player_name',
+      'team_abbr',
+      'market_key',
+      'avg_line',
+      'count_recent',
+      'last_seen_at',
+      'contract_version',
+    ],
+    description: 'Manual inventory surface - prop suggestions from unified_picks',
+  },
+  market_usage_stats_v1: {
+    required_columns: [
+      'sport',
+      'market_key',
+      'usage_count',
+      'unique_players',
+      'last_used_at',
+      'contract_version',
+    ],
+    description: 'Market usage statistics - for sorting stat types by popularity',
+  },
 };
 
 // Forbidden sources - routes should NOT query these directly
@@ -81,9 +87,25 @@ const FORBIDDEN_SOURCES = [
   'players',
   'teams',
   'raw_props',
+  'unified_picks',
   'mv_search_players',
   'mv_search_teams',
   'mv_props_for_form',
+];
+
+// Required NBA markets (per sprint spec)
+const REQUIRED_NBA_MARKETS = [
+  'PTS',
+  'REB',
+  'AST',
+  '3PM',
+  'PRA',
+  'PR',
+  'PA',
+  'RA',
+  'BLK',
+  'STL',
+  'TO',
 ];
 
 interface VerificationResult {
@@ -114,6 +136,7 @@ async function verifyContracts(): Promise<VerificationResult[]> {
   console.log('========================================');
   console.log('SMART FORM DATA CONTRACT VERIFICATION');
   console.log(`Contract Version: ${CONTRACT_VERSION}`);
+  console.log('Sprint: SMARTFORM-DATA-CONTRACTS-MANUAL-INVENTORY-059');
   console.log('========================================\n');
 
   // Check each contract surface
@@ -142,7 +165,7 @@ async function verifyContracts(): Promise<VerificationResult[]> {
       }
 
       // Count total rows
-      const { count, error: countError } = await supabase
+      const { count } = await supabase
         .from(surfaceName)
         .select('*', { count: 'exact', head: true });
 
@@ -180,19 +203,31 @@ async function verifyContracts(): Promise<VerificationResult[]> {
   }
 
   // Check for market_taxonomy seed data
-  console.log('\nChecking market_taxonomy seed data...');
+  console.log('\n========================================');
+  console.log('CHECKING REQUIRED NBA MARKETS');
+  console.log('========================================');
   try {
     const { data: nbaMarkets } = await supabase
       .from('market_taxonomy_v1')
       .select('market_key')
       .eq('sport', 'NBA');
 
-    const nbaCount = nbaMarkets?.length || 0;
+    const nbaMarketKeys = new Set(
+      (nbaMarkets || []).map((m: { market_key: string }) => m.market_key)
+    );
+    const missingMarkets = REQUIRED_NBA_MARKETS.filter(m => !nbaMarketKeys.has(m));
 
-    if (nbaCount >= 10) {
-      console.log(`  ✅ NBA markets: ${nbaCount}`);
+    if (missingMarkets.length === 0) {
+      console.log(`  ✅ All ${REQUIRED_NBA_MARKETS.length} required NBA markets present`);
+      console.log(`     Markets: ${REQUIRED_NBA_MARKETS.join(', ')}`);
     } else {
-      console.log(`  ⚠️ NBA markets: ${nbaCount} (expected 10+)`);
+      console.log(`  ❌ FAIL: Missing NBA markets: ${missingMarkets.join(', ')}`);
+      results.push({
+        surface: 'market_taxonomy_v1',
+        status: 'FAIL',
+        message: `Missing required NBA markets: ${missingMarkets.join(', ')}`,
+        details: { missing_columns: missingMarkets },
+      });
     }
 
     const { data: nflMarkets } = await supabase
@@ -229,7 +264,7 @@ async function verifyContracts(): Promise<VerificationResult[]> {
     console.log('   Fix the above issues before deploying.');
   } else if (warned > 0) {
     console.log('\n⚠️ CONTRACT VERIFICATION PASSED WITH WARNINGS');
-    console.log('   Some surfaces may have no data.');
+    console.log('   Some surfaces may have no data (expected if no manual submissions yet).');
   } else {
     console.log('\n✅ CONTRACT VERIFICATION PASSED');
     console.log('   All surfaces exist with required columns.');
@@ -240,6 +275,13 @@ async function verifyContracts(): Promise<VerificationResult[]> {
   console.log('========================================');
   for (const source of FORBIDDEN_SOURCES) {
     console.log(`  - ${source}`);
+  }
+
+  console.log('\n========================================');
+  console.log('CONTRACT SURFACES');
+  console.log('========================================');
+  for (const [name, config] of Object.entries(CONTRACT_SURFACES)) {
+    console.log(`  - ${name}: ${config.description}`);
   }
 
   return results;

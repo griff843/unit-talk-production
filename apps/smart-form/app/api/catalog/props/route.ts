@@ -4,7 +4,6 @@ import { supabaseServer } from '@/lib/supabase';
 import { createRouteLogger, logDatabaseOperation, logApiPerformance } from '@/lib/logger';
 import {
   CONTRACT_VERSION,
-  PropsResponseSchema,
   buildContractMeta,
   buildContractError,
 } from '@/lib/contracts/smartform-data-contract-v1';
@@ -13,12 +12,22 @@ import { getRedisClient } from '@/lib/redis';
 const log = createRouteLogger('GET /api/catalog/props', 'GET');
 
 /**
- * SPRINT-SMARTFORM-DATA-CONTRACTS-INVENTORY-SURFACE-059
+ * SPRINT-SMARTFORM-DATA-CONTRACTS-MANUAL-INVENTORY-059
  *
- * Props Catalog Endpoint - Contract Surface V1
+ * Props Catalog Endpoint - Contract Surface V1.0.1
  *
- * CRITICAL: This route queries ONLY inventory_props_for_form_v1.
- *           Direct queries to 'raw_props' or 'mv_props_for_form' are FORBIDDEN.
+ * STRATEGY: Manual Inventory Suggestions
+ *
+ * This route queries manual_inventory_for_form_v1 for prop SUGGESTIONS
+ * derived from previous manual submissions. It does NOT depend on live prop feeds.
+ *
+ * CRITICAL: This route queries ONLY manual_inventory_for_form_v1.
+ *           Direct queries to 'unified_picks', 'raw_props', or 'mv_props_for_form' are FORBIDDEN.
+ *
+ * Use cases:
+ * - Show previously used player/market combinations as suggestions
+ * - Pre-fill common lines based on historical submissions
+ * - Enable manual entry even without live props
  *
  * Contract: docs/contracts/SMARTFORM_DATA_CONTRACT_V1.md
  */
@@ -30,15 +39,14 @@ const QuerySchema = z.object({
   market_key: z.string().nullish(),
   stat_type: z.string().nullish(), // Alias for market_key
   team: z.string().nullish(),
-  game_id: z.string().uuid().nullish(),
   limit: z.coerce.number().min(1).max(100).default(50),
 });
 
-// Cache TTL in seconds (2 minutes per contract - props change frequently)
-const CACHE_TTL = 120;
+// Cache TTL in seconds (5 minutes - manual inventory changes less frequently)
+const CACHE_TTL = 300;
 
 // Contract surface name - the ONLY allowed source
-const CONTRACT_SURFACE = 'inventory_props_for_form_v1';
+const CONTRACT_SURFACE = 'manual_inventory_for_form_v1';
 
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
@@ -53,7 +61,6 @@ export async function GET(request: NextRequest) {
       market_key: searchParams.get('market_key'),
       stat_type: searchParams.get('stat_type'),
       team: searchParams.get('team'),
-      game_id: searchParams.get('game_id'),
       limit: searchParams.get('limit') || '50',
     };
 
@@ -74,14 +81,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { sport, player_id, player_name, market_key, stat_type, team, game_id, limit } =
+    const { sport, player_id, player_name, market_key, stat_type, team, limit } =
       queryValidation.data;
     const sportUpper = sport.toUpperCase();
 
     // stat_type is an alias for market_key
     const effectiveMarketKey = market_key || stat_type;
 
-    const cacheKey = `contract:props:v1:${sportUpper}${player_name ? `:${player_name}` : ''}${effectiveMarketKey ? `:${effectiveMarketKey}` : ''}`;
+    const cacheKey = `contract:manual-props:v1:${sportUpper}${player_name ? `:${player_name}` : ''}${effectiveMarketKey ? `:${effectiveMarketKey}` : ''}`;
 
     log.info(
       {
@@ -89,11 +96,10 @@ export async function GET(request: NextRequest) {
         player_name,
         market_key: effectiveMarketKey,
         team,
-        game_id,
         limit,
         surface: CONTRACT_SURFACE,
       },
-      'Fetching props from contract surface'
+      'Fetching prop suggestions from manual inventory surface'
     );
 
     // Try cache first for specific player queries
@@ -104,8 +110,8 @@ export async function GET(request: NextRequest) {
         if (cached) {
           const parsedCache = JSON.parse(cached);
           log.info(
-            { prop_count: parsedCache.props.length, cache_hit: true },
-            'Returning cached props'
+            { suggestion_count: parsedCache.suggestions.length, cache_hit: true },
+            'Returning cached suggestions'
           );
           return NextResponse.json(
             {
@@ -127,32 +133,25 @@ export async function GET(request: NextRequest) {
     const sb = supabaseServer();
 
     // =========================================================================
-    // CRITICAL: Query ONLY the contract surface inventory_props_for_form_v1
+    // CRITICAL: Query ONLY the contract surface manual_inventory_for_form_v1
     // NO fallback to raw tables. Contract surface is authoritative.
     // =========================================================================
     let query = sb
       .from(CONTRACT_SURFACE)
       .select(
         `
-        prop_id,
         sport,
-        game_id,
-        start_time,
-        game_date,
-        matchup,
-        home_team,
-        away_team,
+        player_id,
         player_name,
         team_abbr,
         market_key,
-        line,
-        over_odds,
-        under_odds,
-        book,
-        prop_key,
-        display_label,
-        contract_version,
-        last_updated
+        avg_line,
+        min_line,
+        max_line,
+        avg_odds,
+        count_recent,
+        last_seen_at,
+        contract_version
       `
       )
       .eq('sport', sportUpper);
@@ -160,6 +159,10 @@ export async function GET(request: NextRequest) {
     // Apply filters
     if (player_name) {
       query = query.ilike('player_name', `%${player_name}%`);
+    }
+
+    if (player_id) {
+      query = query.eq('player_id', player_id);
     }
 
     if (effectiveMarketKey) {
@@ -170,12 +173,11 @@ export async function GET(request: NextRequest) {
       query = query.ilike('team_abbr', `%${team}%`);
     }
 
-    if (game_id) {
-      query = query.eq('game_id', game_id);
-    }
-
-    // Order by player, then market, then line
-    query = query.order('player_name').order('market_key').order('line').limit(limit);
+    // Order by usage count (most used first), then recent
+    query = query
+      .order('count_recent', { ascending: false })
+      .order('last_seen_at', { ascending: false })
+      .limit(limit);
 
     const { data, error } = await query;
 
@@ -191,53 +193,70 @@ export async function GET(request: NextRequest) {
         buildContractError(
           `Contract surface unavailable: ${error.message}`,
           'CONTRACT_SURFACE_ERROR',
-          { surface: CONTRACT_SURFACE, pg_code: error.code }
+          {
+            surface: CONTRACT_SURFACE,
+            pg_code: error.code,
+          }
         ),
         { status: 503 }
       );
     }
 
     // Transform to contract response shape
-    const props = (data || []).map((p: any) => ({
-      prop_id: p.prop_id,
+    interface ManualInventoryRow {
+      sport: string;
+      player_id: string | null;
+      player_name: string;
+      team_abbr: string | null;
+      market_key: string;
+      avg_line: number | null;
+      min_line: number | null;
+      max_line: number | null;
+      avg_odds: number | null;
+      count_recent: number;
+      last_seen_at: string | null;
+      contract_version: string;
+    }
+
+    const suggestions = ((data || []) as ManualInventoryRow[]).map(p => ({
       sport: p.sport,
-      game_id: p.game_id,
-      start_time: p.start_time,
-      game_date: p.game_date,
-      matchup: p.matchup,
-      home_team: p.home_team,
-      away_team: p.away_team,
+      player_id: p.player_id,
       player_name: p.player_name,
       team_abbr: p.team_abbr,
       market_key: p.market_key,
-      line: parseFloat(p.line) || 0,
-      over_odds: p.over_odds ? parseInt(p.over_odds) : null,
-      under_odds: p.under_odds ? parseInt(p.under_odds) : null,
-      book: p.book,
-      prop_key: p.prop_key,
-      display_label: p.display_label,
+      // Line suggestions
+      avg_line: p.avg_line !== null ? parseFloat(String(p.avg_line)) : null,
+      min_line: p.min_line !== null ? parseFloat(String(p.min_line)) : null,
+      max_line: p.max_line !== null ? parseFloat(String(p.max_line)) : null,
+      suggested_line: p.avg_line !== null ? parseFloat(String(p.avg_line)) : null,
+      // Odds suggestion
+      avg_odds: p.avg_odds !== null ? parseInt(String(p.avg_odds)) : null,
+      // Usage metrics
+      count_recent: p.count_recent,
+      last_seen_at: p.last_seen_at,
+      // Contract metadata
       contract_version: p.contract_version || CONTRACT_VERSION,
-      last_updated: p.last_updated,
     }));
 
     // Extract unique market keys for dropdown population
-    const availableMarkets = [...new Set(props.map(p => p.market_key))].sort();
+    const availableMarkets = [...new Set(suggestions.map(p => p.market_key))].sort();
 
     // Build response
     const response = {
-      props,
+      suggestions,
       available_markets: availableMarkets,
       meta: {
-        ...buildContractMeta(sportUpper, props.length),
+        ...buildContractMeta(sportUpper, suggestions.length),
         player_name: player_name || null,
         market_key: effectiveMarketKey || null,
-        game_id: game_id || null,
+        days_lookback: 30,
         cache_hit: false,
+        manual_inventory: true,
       },
     };
 
     // Cache the result for player-specific queries
-    if (player_name && props.length > 0) {
+    if (player_name && suggestions.length > 0) {
       try {
         const redis = getRedisClient();
         await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(response));
@@ -246,8 +265,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    logApiPerformance(log, 'catalog-props-v1', startTime, {
-      prop_count: props.length,
+    logApiPerformance(log, 'catalog-props-manual-v1.0.1', startTime, {
+      suggestion_count: suggestions.length,
       available_markets: availableMarkets.length,
       sport: sportUpper,
       player_name,
@@ -258,9 +277,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(response, {
       status: 200,
       headers: {
-        'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=300',
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
         'X-Contract-Version': CONTRACT_VERSION,
         'X-Contract-Surface': CONTRACT_SURFACE,
+        'X-Manual-Inventory': 'true',
       },
     });
   } catch (error) {
@@ -285,13 +305,14 @@ export async function GET(request: NextRequest) {
 export async function HEAD() {
   try {
     const sb = supabaseServer();
-    const { error } = await sb.from(CONTRACT_SURFACE).select('prop_id').limit(1);
+    const { error } = await sb.from(CONTRACT_SURFACE).select('sport').limit(1);
 
     return NextResponse.json(null, {
       status: error ? 503 : 200,
       headers: {
         'X-Contract-Version': CONTRACT_VERSION,
         'X-Contract-Surface': CONTRACT_SURFACE,
+        'X-Manual-Inventory': 'true',
       },
     });
   } catch {

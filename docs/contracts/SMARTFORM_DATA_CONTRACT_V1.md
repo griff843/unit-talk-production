@@ -3,8 +3,8 @@
 > **Authority**: This contract governs ALL data access for Smart Form API
 > routes. Routes MUST query ONLY the versioned contract surfaces defined here.
 
-**Version**: 1.0.0 **Created**: 2026-02-19 **Sprint**:
-SMARTFORM-DATA-CONTRACTS-INVENTORY-SURFACE-059
+**Version**: 1.0.1 **Created**: 2026-02-19 **Sprint**:
+SMARTFORM-DATA-CONTRACTS-MANUAL-INVENTORY-059
 
 ---
 
@@ -15,6 +15,16 @@ patterns. It eliminates drift between database schema, API routes, and frontend
 expectations.
 
 **Core Principle**: If it's not a contract surface, Smart Form cannot query it.
+
+**V1.0.1 Changes**:
+
+- Added `manual_inventory_for_form_v1` for prop suggestions from manual
+  submissions
+- Added `market_usage_stats_v1` for sorting stat types by usage popularity
+- Changed stat-types strategy from inventory-first to **manual-usage-first**
+- Props route now returns suggestions (not live props), no dependency on live
+  feeds
+- Added combo markets: PR, PA, RA to NBA taxonomy
 
 ---
 
@@ -35,10 +45,12 @@ expectations.
 | position         | text        | Player position                              |
 | headshot_url     | text        | Player photo URL                             |
 | search_text      | text        | Pre-computed search field                    |
-| contract_version | text        | Always '1.0.0'                               |
+| contract_version | text        | Always '1.0.1'                               |
 | last_updated     | timestamptz | Last modification                            |
 
-**API Route**: `GET /api/catalog/players` **Query Example**:
+**API Route**: `GET /api/catalog/players`
+
+**Query Example**:
 
 ```sql
 SELECT player_id, player_name, sport, team_name
@@ -62,49 +74,65 @@ LIMIT 50;
 | external_team_id | uuid        | External reference        |
 | logo_url         | text        | Team logo URL             |
 | search_text      | text        | Pre-computed search field |
-| contract_version | text        | Always '1.0.0'            |
+| contract_version | text        | Always '1.0.1'            |
 | last_updated     | timestamptz | Last modification         |
 
 **API Route**: `GET /api/catalog/teams`
 
-### 2.C. inventory_props_for_form_v1
+### 2.C. manual_inventory_for_form_v1 (NEW in V1.0.1)
 
-**Type**: View **Purpose**: Props inventory for Smart Form selection
+**Type**: View **Purpose**: Prop suggestions derived from manual submissions
+(unified_picks)
 
-| Column           | Type        | Description               |
-| ---------------- | ----------- | ------------------------- |
-| prop_id          | uuid        | Primary key               |
-| sport            | text        | Sport code                |
-| game_id          | uuid        | FK to games               |
-| start_time       | timestamptz | Game start time           |
-| game_date        | date        | Game date                 |
-| matchup          | text        | "Away @ Home" display     |
-| home_team        | text        | Home team                 |
-| away_team        | text        | Away team                 |
-| player_name      | text        | Player full name          |
-| team_abbr        | text        | Player's team             |
-| market_key       | text        | Stat type code (PTS, AST) |
-| line             | numeric     | Prop line value           |
-| over_odds        | integer     | Over odds                 |
-| under_odds       | integer     | Under odds                |
-| book             | text        | Sportsbook source         |
-| prop_key         | text        | Unique dedup key          |
-| display_label    | text        | "Player Stat Line"        |
-| contract_version | text        | Always '1.0.0'            |
-| last_updated     | timestamptz | Last modification         |
+This surface enables the Smart Form to work **without dependency on live prop
+feeds**. It aggregates historical manual submissions to provide line
+suggestions.
 
-**API Route**: `GET /api/catalog/props` **Query Example**:
+| Column           | Type        | Description                          |
+| ---------------- | ----------- | ------------------------------------ |
+| sport            | text        | Sport code                           |
+| player_id        | text        | Player ID (nullable for manual only) |
+| player_name      | text        | Player full name                     |
+| team_abbr        | text        | Player's team abbreviation           |
+| market_key       | text        | Stat type code (PTS, AST)            |
+| avg_line         | numeric     | Average line from recent submissions |
+| min_line         | numeric     | Minimum line seen                    |
+| max_line         | numeric     | Maximum line seen                    |
+| avg_odds         | integer     | Average odds from submissions        |
+| count_recent     | integer     | Number of recent submissions         |
+| last_seen_at     | timestamptz | Most recent submission timestamp     |
+| contract_version | text        | Always '1.0.1'                       |
+
+**API Route**: `GET /api/catalog/props`
+
+**Query Example**:
 
 ```sql
-SELECT prop_id, player_name, market_key, line, over_odds, under_odds
-FROM inventory_props_for_form_v1
+SELECT player_name, market_key, avg_line, count_recent
+FROM manual_inventory_for_form_v1
 WHERE sport = 'NBA'
   AND player_name ILIKE '%brown%'
-ORDER BY player_name, market_key
+ORDER BY count_recent DESC, last_seen_at DESC
 LIMIT 50;
 ```
 
-### 2.D. market_taxonomy_v1
+### 2.D. market_usage_stats_v1 (NEW in V1.0.1)
+
+**Type**: View **Purpose**: Market usage statistics for sorting stat types by
+popularity
+
+| Column           | Type        | Description                         |
+| ---------------- | ----------- | ----------------------------------- |
+| sport            | text        | Sport code                          |
+| market_key       | text        | Market code (PTS, AST)              |
+| usage_count      | integer     | Total submissions using this market |
+| unique_players   | integer     | Distinct players for this market    |
+| last_used_at     | timestamptz | Most recent submission              |
+| contract_version | text        | Always '1.0.1'                      |
+
+**Used by**: `GET /api/registry/stat-types` for manual-usage-first sorting
+
+### 2.E. market_taxonomy_v1
 
 **Type**: View (backed by `market_taxonomy` table) **Purpose**: Authoritative
 list of allowed markets by sport
@@ -119,19 +147,43 @@ list of allowed markets by sport
 | bet_type         | text        | player_prop, team_prop, game |
 | sort_order       | integer     | Display order                |
 | aliases          | text[]      | Alternative names            |
-| contract_version | text        | Always '1.0.0'               |
+| contract_version | text        | Always '1.0.1'               |
 | last_updated     | timestamptz | Last modification            |
 
 **API Route**: `GET /api/registry/stat-types`
 
-**Seed Data**:
+**Required NBA Markets (11 total)**:
+
+| Code | Display Name    | Category |
+| ---- | --------------- | -------- |
+| PTS  | Points          | scoring  |
+| REB  | Rebounds        | rebounds |
+| AST  | Assists         | assists  |
+| 3PM  | 3-Pointers Made | scoring  |
+| PRA  | Pts + Reb + Ast | combo    |
+| PR   | Pts + Reb       | combo    |
+| PA   | Pts + Ast       | combo    |
+| RA   | Reb + Ast       | combo    |
+| BLK  | Blocks          | defense  |
+| STL  | Steals          | defense  |
+| TO   | Turnovers       | misc     |
+
+**Seed Data by Sport**:
 
 | Sport | Markets                                                                                                 |
 | ----- | ------------------------------------------------------------------------------------------------------- |
-| NBA   | PTS, REB, AST, PRA, 3PM, STL, BLK, TO, DD, TD, FGM, FTM                                                 |
+| NBA   | PTS, REB, AST, PRA, PR, PA, RA, 3PM, STL, BLK, TO, DD, TD, FGM, FTM                                     |
 | NFL   | PASS_YDS, PASS_TD, PASS_ATT, PASS_COMP, INT, RUSH_YDS, RUSH_ATT, RUSH_TD, REC, REC_YDS, REC_TD, TARGETS |
 | MLB   | H, HR, RBI, R, TB, SB, BB, K_BATTER, K, ER, OUTS, HITS_ALLOWED                                          |
 | NHL   | G, A, PTS, SOG, SAVES, GAA, BLOCKED, HITS                                                               |
+
+### 2.F. inventory_props_for_form_v1 (DEPRECATED in V1.0.1)
+
+> **Note**: This surface is still available but `GET /api/catalog/props` now
+> uses `manual_inventory_for_form_v1` instead. This removes dependency on live
+> prop feeds.
+
+**Type**: View **Purpose**: Live props inventory from raw_props (external feeds)
 
 ---
 
@@ -146,39 +198,111 @@ interface ContractResponse<T> {
     total: number;
     sport: string;
     source: 'contract_surface';
-    contract_version: '1.0.0';
+    contract_version: '1.0.1';
     timestamp: string; // ISO 8601
     cache_hit?: boolean;
   };
 }
 ```
 
-### 3.B. Response Headers
+### 3.B. Props Response (V1.0.1 - Suggestions)
+
+```typescript
+interface PropsResponse {
+  suggestions: ManualInventorySuggestion[];
+  available_markets: string[];
+  meta: {
+    total: number;
+    sport: string;
+    source: 'contract_surface';
+    contract_version: '1.0.1';
+    timestamp: string;
+    player_name?: string;
+    market_key?: string;
+    days_lookback: number;
+    cache_hit: boolean;
+    manual_inventory: true; // V1.0.1 indicator
+  };
+}
+
+interface ManualInventorySuggestion {
+  sport: string;
+  player_id: string | null;
+  player_name: string;
+  team_abbr: string | null;
+  market_key: string;
+  avg_line: number | null;
+  min_line: number | null;
+  max_line: number | null;
+  suggested_line: number | null;
+  avg_odds: number | null;
+  count_recent: number;
+  last_seen_at: string | null;
+  contract_version: string;
+}
+```
+
+### 3.C. Stat Types Response (V1.0.1 - Manual Usage)
+
+```typescript
+interface StatTypesResponse {
+  stat_types: StatTypeItem[];
+  meta: {
+    total: number;
+    sport: string;
+    source: 'contract_surface';
+    contract_version: '1.0.1';
+    timestamp: string;
+    bet_type?: string;
+    inventory_first: true;
+    taxonomy_fallback: boolean;
+    manual_usage_enabled: true; // V1.0.1 indicator
+  };
+}
+
+interface StatTypeItem {
+  code: string;
+  display_name: string;
+  category: string;
+  source: 'manual_inventory' | 'taxonomy';
+  has_inventory: boolean;
+  inventory_count?: number;
+  usage_count?: number; // V1.0.1: from manual submissions
+  last_used_at?: string | null;
+}
+```
+
+### 3.D. Response Headers
 
 All contract routes MUST include these headers:
 
-| Header              | Value        | Description               |
-| ------------------- | ------------ | ------------------------- |
-| X-Contract-Version  | 1.0.0        | Contract version          |
-| X-Contract-Surface  | surface_name | Which surface was queried |
-| X-Inventory-First   | true/false   | (stat-types only)         |
-| X-Taxonomy-Fallback | true/false   | (stat-types only)         |
+| Header                 | Value        | Description                        |
+| ---------------------- | ------------ | ---------------------------------- |
+| X-Contract-Version     | 1.0.1        | Contract version                   |
+| X-Contract-Surface     | surface_name | Which surface was queried          |
+| X-Manual-Inventory     | true         | (props only) V1.0.1 indicator      |
+| X-Manual-Usage-Enabled | true         | (stat-types only) V1.0.1 indicator |
+| X-Taxonomy-Fallback    | true/false   | (stat-types only) No usage data    |
 
-### 3.C. Error Response
+### 3.E. Error Response
 
 ```typescript
 interface ContractError {
   error: string;
   code: string;
-  contract_version: '1.0.0';
+  contract_version: '1.0.1';
   timestamp: string;
   details?: unknown;
 }
 ```
 
-**Error Codes**: | Code | Description | |------|-------------| | INVALID_PARAMS
-| Query parameter validation failed | | CONTRACT_SURFACE_ERROR | Database query
-failed | | INTERNAL_ERROR | Unexpected error |
+**Error Codes**:
+
+| Code                   | Description                       |
+| ---------------------- | --------------------------------- |
+| INVALID_PARAMS         | Query parameter validation failed |
+| CONTRACT_SURFACE_ERROR | Database query failed             |
+| INTERNAL_ERROR         | Unexpected error                  |
 
 ---
 
@@ -186,14 +310,15 @@ failed | | INTERNAL_ERROR | Unexpected error |
 
 **Routes MUST NOT query these tables/views directly:**
 
-| Forbidden           | Use Instead                   |
-| ------------------- | ----------------------------- |
-| `players`           | `catalog_players_v1`          |
-| `teams`             | `catalog_teams_v1`            |
-| `raw_props`         | `inventory_props_for_form_v1` |
-| `mv_search_players` | `catalog_players_v1`          |
-| `mv_search_teams`   | `catalog_teams_v1`            |
-| `mv_props_for_form` | `inventory_props_for_form_v1` |
+| Forbidden           | Use Instead                    |
+| ------------------- | ------------------------------ |
+| `players`           | `catalog_players_v1`           |
+| `teams`             | `catalog_teams_v1`             |
+| `raw_props`         | `manual_inventory_for_form_v1` |
+| `unified_picks`     | `manual_inventory_for_form_v1` |
+| `mv_search_players` | `catalog_players_v1`           |
+| `mv_search_teams`   | `catalog_teams_v1`             |
+| `mv_props_for_form` | `manual_inventory_for_form_v1` |
 
 **Enforcement**:
 
@@ -204,27 +329,35 @@ failed | | INTERNAL_ERROR | Unexpected error |
 
 ---
 
-## 5. Stat Types Strategy
+## 5. Stat Types Strategy (V1.0.1)
 
-### Inventory-First with Taxonomy Fallback
+### Manual-Usage-First with Taxonomy Fallback
 
 ```
-1. Query inventory_props_for_form_v1 for distinct market_keys
+1. Query market_usage_stats_v1 for markets used in manual submissions
    ↓
-2. If inventory has data:
-   → Return inventory markets + taxonomy display names
-   → Set X-Inventory-First: true, X-Taxonomy-Fallback: false
+2. Query market_taxonomy_v1 for display names and all valid markets
    ↓
-3. If inventory is empty:
-   → Return full taxonomy for sport
-   → Set X-Inventory-First: true, X-Taxonomy-Fallback: true
+3. Merge data:
+   - Add usage_count to taxonomy entries
+   - Flag markets with has_inventory: true/false
+   ↓
+4. Sort results:
+   - Markets with usage first (by usage_count DESC)
+   - Then by taxonomy sort_order
+   ↓
+5. Return with headers:
+   - X-Manual-Usage-Enabled: true
+   - X-Taxonomy-Fallback: true/false (based on whether usage data exists)
 ```
 
-**Why Inventory-First?**
+**Why Manual-Usage-First?**
 
-- Shows only markets with actual available props
-- Prevents users from selecting unavailable markets
-- Taxonomy fallback ensures form works even without live data
+- Works without live prop feeds
+- Shows markets users actually pick
+- More popular markets appear first
+- Taxonomy fallback ensures form always works
+- Enables fully manual workflow
 
 ---
 
@@ -234,12 +367,22 @@ failed | | INTERNAL_ERROR | Unexpected error |
 
 ```
 MAJOR.MINOR.PATCH
-1.0.0
+1.0.1
 ```
 
 - **MAJOR**: Breaking changes (column removal, type changes)
 - **MINOR**: Additive changes (new columns, new surfaces)
 - **PATCH**: Bug fixes, performance improvements
+
+### V1.0.0 → V1.0.1 Changes
+
+| Change                       | Type        | Description                         |
+| ---------------------------- | ----------- | ----------------------------------- |
+| manual_inventory_for_form_v1 | NEW SURFACE | Suggestions from unified_picks      |
+| market_usage_stats_v1        | NEW SURFACE | Usage statistics for sorting        |
+| PR, PA, RA markets           | NEW DATA    | NBA combo markets added             |
+| props route                  | BEHAVIOR    | Returns suggestions, not live props |
+| stat-types route             | BEHAVIOR    | Sorts by manual usage first         |
 
 ### Migration Path
 
@@ -250,7 +393,7 @@ When upgrading contract version:
 3. Keep old surface for deprecation period (30 days)
 4. Remove old surface after deprecation
 
-### Deprecation
+### Deprecation Headers
 
 ```
 X-Contract-Deprecated: true
@@ -274,10 +417,11 @@ apps/smart-form/lib/contracts/smartform-data-contract-v1.ts
 import {
   CatalogPlayerSchema,
   CatalogTeamSchema,
-  InventoryPropSchema,
+  ManualInventoryItemSchema, // V1.0.1
+  ManualInventoryResponseSchema, // V1.0.1
+  MarketUsageStatsSchema, // V1.0.1
   MarketTaxonomyItemSchema,
   PlayersResponseSchema,
-  PropsResponseSchema,
   StatTypesResponseSchema,
   validateContractResponse,
 } from '@/lib/contracts/smartform-data-contract-v1';
@@ -315,12 +459,15 @@ npx playwright test smartform-data-contracts.spec.ts
 
 ### What Tests Verify
 
-- [ ] Contract surfaces exist
-- [ ] Required columns present
-- [ ] API returns X-Contract-Version header
-- [ ] API returns X-Contract-Surface header
-- [ ] Response matches Zod schema
-- [ ] Error responses include contract_version
+- [x] Contract surfaces exist (including manual_inventory_for_form_v1)
+- [x] Required columns present
+- [x] API returns X-Contract-Version: 1.0.1 header
+- [x] API returns X-Contract-Surface header
+- [x] API returns X-Manual-Inventory: true (props route)
+- [x] Response matches Zod schema
+- [x] Error responses include contract_version
+- [x] All 11 required NBA markets present (including PR, PA, RA)
+- [x] Manual flow works without live prop dependency
 
 ---
 
@@ -347,22 +494,24 @@ SELECT refresh_search_mvs();
 ### Monitoring
 
 - Track `X-Taxonomy-Fallback: true` rate
-- Alert if > 50% of requests use taxonomy fallback (means no live props)
+- Track `X-Manual-Inventory: true` (should always be true in V1.0.1)
+- Alert if manual_inventory_for_form_v1 has no data for 24+ hours
 - Monitor 503 errors (contract surface unavailable)
 
 ---
 
 ## 10. References
 
-| Document            | Location                                                             |
-| ------------------- | -------------------------------------------------------------------- |
-| Migration SQL       | `supabase/migrations/20260219150000_smartform_data_contracts_v1.sql` |
-| Zod Schemas         | `apps/smart-form/lib/contracts/smartform-data-contract-v1.ts`        |
-| Verification Script | `apps/smart-form/scripts/verify-data-contracts.ts`                   |
-| E2E Tests           | `apps/smart-form/tests/e2e/smartform-data-contracts.spec.ts`         |
-| Players Route       | `apps/smart-form/app/api/catalog/players/route.ts`                   |
-| Stat Types Route    | `apps/smart-form/app/api/registry/stat-types/route.ts`               |
-| Props Route         | `apps/smart-form/app/api/catalog/props/route.ts`                     |
+| Document             | Location                                                               |
+| -------------------- | ---------------------------------------------------------------------- |
+| V1.0.1 Migration SQL | `supabase/migrations/20260219160000_smartform_manual_inventory_v1.sql` |
+| V1.0.0 Migration SQL | `supabase/migrations/20260219150000_smartform_data_contracts_v1.sql`   |
+| Zod Schemas          | `apps/smart-form/lib/contracts/smartform-data-contract-v1.ts`          |
+| Verification Script  | `apps/smart-form/scripts/verify-data-contracts.ts`                     |
+| E2E Tests            | `apps/smart-form/tests/e2e/smartform-data-contracts.spec.ts`           |
+| Players Route        | `apps/smart-form/app/api/catalog/players/route.ts`                     |
+| Stat Types Route     | `apps/smart-form/app/api/registry/stat-types/route.ts`                 |
+| Props Route          | `apps/smart-form/app/api/catalog/props/route.ts`                       |
 
 ---
 

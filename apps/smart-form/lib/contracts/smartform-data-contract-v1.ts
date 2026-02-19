@@ -1,12 +1,12 @@
 /**
- * SPRINT-SMARTFORM-DATA-CONTRACTS-INVENTORY-SURFACE-059
+ * SPRINT-SMARTFORM-DATA-CONTRACTS-MANUAL-INVENTORY-059
  *
  * Smart Form Data Contract V1 - Zod Schemas
  *
  * PRINCIPLE: These schemas define the ONLY valid shapes for Smart Form API responses.
  * All routes MUST validate responses against these schemas (fail-closed).
  *
- * Contract Version: 1.0.0
+ * Contract Version: 1.0.1
  * @see docs/contracts/SMARTFORM_DATA_CONTRACT_V1.md
  */
 
@@ -16,7 +16,7 @@ import { z } from 'zod';
 // CONTRACT VERSION
 // =============================================================================
 
-export const CONTRACT_VERSION = '1.0.0' as const;
+export const CONTRACT_VERSION = '1.0.1' as const;
 
 // =============================================================================
 // COMMON SCHEMAS
@@ -157,16 +157,72 @@ export type InventoryProp = z.infer<typeof InventoryPropSchema>;
 export type PropsResponse = z.infer<typeof PropsResponseSchema>;
 
 // =============================================================================
-// STAT TYPES RESPONSE (Combines taxonomy + inventory)
+// MANUAL_INVENTORY_FOR_FORM_V1 SCHEMA
+// =============================================================================
+// Derives prop suggestions from internal manual submissions (unified_picks).
+// No dependency on live prop feeds.
+
+export const ManualInventoryItemSchema = z.object({
+  sport: SportCodeSchema,
+  player_id: z.string().nullable(),
+  player_name: z.string().min(1),
+  team_abbr: z.string().nullable(),
+  market_key: z.string().min(1),
+  // Line statistics
+  avg_line: z.number().nullable(),
+  min_line: z.number().nullable(),
+  max_line: z.number().nullable(),
+  // Odds statistics
+  avg_odds: z.number().int().nullable(),
+  // Usage metrics
+  count_recent: z.number().int().min(0),
+  last_seen_at: z.string().datetime().nullable(),
+  // Contract metadata
+  contract_version: z.string(),
+});
+
+export const ManualInventoryResponseSchema = z.object({
+  suggestions: z.array(ManualInventoryItemSchema),
+  meta: ContractMetaSchema.extend({
+    player_name: z.string().nullable().optional(),
+    market_key: z.string().nullable().optional(),
+    days_lookback: z.number().int().optional(),
+  }),
+});
+
+export type ManualInventoryItem = z.infer<typeof ManualInventoryItemSchema>;
+export type ManualInventoryResponse = z.infer<typeof ManualInventoryResponseSchema>;
+
+// =============================================================================
+// MARKET_USAGE_STATS_V1 SCHEMA
+// =============================================================================
+// Tracks market usage for sorting stat types by popularity.
+
+export const MarketUsageStatsSchema = z.object({
+  sport: SportCodeSchema,
+  market_key: z.string().min(1),
+  usage_count: z.number().int().min(0),
+  unique_players: z.number().int().min(0),
+  last_used_at: z.string().datetime().nullable(),
+  contract_version: z.string(),
+});
+
+export type MarketUsageStats = z.infer<typeof MarketUsageStatsSchema>;
+
+// =============================================================================
+// STAT TYPES RESPONSE (Combines taxonomy + manual inventory)
 // =============================================================================
 
 export const StatTypeItemSchema = z.object({
   code: z.string().min(1), // market_key
   display_name: z.string().min(1),
   category: z.string().min(1),
-  source: z.enum(['inventory', 'taxonomy']),
+  source: z.enum(['inventory', 'taxonomy', 'manual_inventory']),
   has_inventory: z.boolean(),
   inventory_count: z.number().int().min(0).optional(),
+  // Manual usage stats (when source is manual_inventory or taxonomy with usage data)
+  usage_count: z.number().int().min(0).optional(),
+  last_used_at: z.string().datetime().nullable().optional(),
 });
 
 export const StatTypesResponseSchema = z.object({
@@ -287,10 +343,11 @@ export function buildContractError(error: string, code: string, details?: unknow
 export const FORBIDDEN_DIRECT_SOURCES = [
   'players', // Use catalog_players_v1
   'teams', // Use catalog_teams_v1
-  'raw_props', // Use inventory_props_for_form_v1
+  'raw_props', // Use inventory_props_for_form_v1 or manual_inventory_for_form_v1
+  'unified_picks', // Use manual_inventory_for_form_v1
   'mv_search_players', // Use catalog_players_v1
   'mv_search_teams', // Use catalog_teams_v1
-  'mv_props_for_form', // Use inventory_props_for_form_v1
+  'mv_props_for_form', // Use inventory_props_for_form_v1 or manual_inventory_for_form_v1
 ] as const;
 
 export type ForbiddenSource = (typeof FORBIDDEN_DIRECT_SOURCES)[number];
