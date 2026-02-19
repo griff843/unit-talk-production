@@ -2,44 +2,43 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseServer } from '@/lib/supabase';
 import { createRouteLogger, logDatabaseOperation, logApiPerformance } from '@/lib/logger';
-import { metadataError } from '@/lib/metadata-helpers';
+import {
+  CONTRACT_VERSION,
+  PropsResponseSchema,
+  buildContractMeta,
+  buildContractError,
+} from '@/lib/contracts/smartform-data-contract-v1';
 import { getRedisClient } from '@/lib/redis';
 
 const log = createRouteLogger('GET /api/catalog/props', 'GET');
 
 /**
- * SEARCH-CATALOG-CONTRACT-035: Props Catalog Endpoint
+ * SPRINT-SMARTFORM-DATA-CONTRACTS-INVENTORY-SURFACE-059
  *
- * Returns props filtered by sport, player, and stat_type.
+ * Props Catalog Endpoint - Contract Surface V1
  *
- * Contract: docs/contracts/SEARCH_CATALOG_CONTRACT_V1.md Section 3.E
+ * CRITICAL: This route queries ONLY inventory_props_for_form_v1.
+ *           Direct queries to 'raw_props' or 'mv_props_for_form' are FORBIDDEN.
+ *
+ * Contract: docs/contracts/SMARTFORM_DATA_CONTRACT_V1.md
  */
 
 const QuerySchema = z.object({
   sport: z.string().min(1, 'sport parameter is required'),
   player_id: z.string().uuid().nullish(),
   player_name: z.string().min(2).nullish(),
-  stat_type: z.string().nullish(),
+  market_key: z.string().nullish(),
+  stat_type: z.string().nullish(), // Alias for market_key
   team: z.string().nullish(),
+  game_id: z.string().uuid().nullish(),
   limit: z.coerce.number().min(1).max(100).default(50),
 });
 
-// Cache TTL in seconds (2 minutes per contract)
+// Cache TTL in seconds (2 minutes per contract - props change frequently)
 const CACHE_TTL = 120;
 
-interface PropResult {
-  id: string;
-  sport: string;
-  player_name: string;
-  team: string | null;
-  stat_type: string;
-  line: number;
-  over_odds: number | null;
-  under_odds: number | null;
-  game_id: string | null;
-  game_date: string | null;
-  display_label: string;
-}
+// Contract surface name - the ONLY allowed source
+const CONTRACT_SURFACE = 'inventory_props_for_form_v1';
 
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
@@ -51,8 +50,10 @@ export async function GET(request: NextRequest) {
       sport: searchParams.get('sport'),
       player_id: searchParams.get('player_id'),
       player_name: searchParams.get('player_name'),
+      market_key: searchParams.get('market_key'),
       stat_type: searchParams.get('stat_type'),
       team: searchParams.get('team'),
+      game_id: searchParams.get('game_id'),
       limit: searchParams.get('limit') || '50',
     };
 
@@ -64,18 +65,39 @@ export async function GET(request: NextRequest) {
         'Invalid query parameters'
       );
       return NextResponse.json(
-        { error: 'Invalid query parameters', details: queryValidation.error.errors },
+        buildContractError(
+          'Invalid query parameters',
+          'INVALID_PARAMS',
+          queryValidation.error.errors
+        ),
         { status: 400 }
       );
     }
 
-    const { sport, player_id, player_name, stat_type, team, limit } = queryValidation.data;
-    const cacheKey = `catalog:props:${sport}${player_name ? `:${player_name}` : ''}${stat_type ? `:${stat_type}` : ''}`;
+    const { sport, player_id, player_name, market_key, stat_type, team, game_id, limit } =
+      queryValidation.data;
+    const sportUpper = sport.toUpperCase();
 
-    log.info({ sport, player_name, stat_type, team, limit }, 'Fetching props from catalog');
+    // stat_type is an alias for market_key
+    const effectiveMarketKey = market_key || stat_type;
+
+    const cacheKey = `contract:props:v1:${sportUpper}${player_name ? `:${player_name}` : ''}${effectiveMarketKey ? `:${effectiveMarketKey}` : ''}`;
+
+    log.info(
+      {
+        sport: sportUpper,
+        player_name,
+        market_key: effectiveMarketKey,
+        team,
+        game_id,
+        limit,
+        surface: CONTRACT_SURFACE,
+      },
+      'Fetching props from contract surface'
+    );
 
     // Try cache first for specific player queries
-    if (player_name && !stat_type) {
+    if (player_name && !effectiveMarketKey) {
       try {
         const redis = getRedisClient();
         const cached = await redis.get(cacheKey);
@@ -98,162 +120,180 @@ export async function GET(request: NextRequest) {
           );
         }
       } catch (cacheError) {
-        log.warn({ error: cacheError }, 'Cache read failed, continuing with DB');
+        log.warn({ error: cacheError }, 'Cache read failed, continuing with contract surface');
       }
     }
 
     const sb = supabaseServer();
 
-    // Try materialized view first
+    // =========================================================================
+    // CRITICAL: Query ONLY the contract surface inventory_props_for_form_v1
+    // NO fallback to raw tables. Contract surface is authoritative.
+    // =========================================================================
     let query = sb
-      .from('mv_props_for_form')
-      .select('*')
-      .eq('sport', sport.toUpperCase());
+      .from(CONTRACT_SURFACE)
+      .select(
+        `
+        prop_id,
+        sport,
+        game_id,
+        start_time,
+        game_date,
+        matchup,
+        home_team,
+        away_team,
+        player_name,
+        team_abbr,
+        market_key,
+        line,
+        over_odds,
+        under_odds,
+        book,
+        prop_key,
+        display_label,
+        contract_version,
+        last_updated
+      `
+      )
+      .eq('sport', sportUpper);
 
+    // Apply filters
     if (player_name) {
       query = query.ilike('player_name', `%${player_name}%`);
     }
 
-    if (stat_type) {
-      query = query.eq('stat_type', stat_type.toUpperCase());
+    if (effectiveMarketKey) {
+      query = query.eq('market_key', effectiveMarketKey.toUpperCase());
     }
 
     if (team) {
-      query = query.ilike('team', `%${team}%`);
+      query = query.ilike('team_abbr', `%${team}%`);
     }
 
-    query = query.order('player_name').order('stat_type').limit(limit);
+    if (game_id) {
+      query = query.eq('game_id', game_id);
+    }
 
-    const queryResult = await query;
-    let data = queryResult.data;
-    const error = queryResult.error;
+    // Order by player, then market, then line
+    query = query.order('player_name').order('market_key').order('line').limit(limit);
 
-    logDatabaseOperation(log, 'SELECT', 'mv_props_for_form', data, error);
+    const { data, error } = await query;
+
+    logDatabaseOperation(log, 'SELECT', CONTRACT_SURFACE, data, error);
 
     if (error) {
-      // Fallback to direct raw_props query
-      log.warn({ error: error.message }, 'MV query failed, falling back to direct query');
-
-      const today = new Date().toISOString().split('T')[0];
-      let fallbackQuery = sb
-        .from('raw_props')
-        .select('id, sport, player_name, team, stat_type, line, over_odds, under_odds, game_id, game_date')
-        .eq('sport', sport.toUpperCase())
-        .gte('game_date', today);
-
-      if (player_name) {
-        fallbackQuery = fallbackQuery.ilike('player_name', `%${player_name}%`);
-      }
-
-      if (stat_type) {
-        fallbackQuery = fallbackQuery.eq('stat_type', stat_type.toUpperCase());
-      }
-
-      if (team) {
-        fallbackQuery = fallbackQuery.ilike('team', `%${team}%`);
-      }
-
-      fallbackQuery = fallbackQuery.order('player_name').order('stat_type').limit(limit);
-
-      const { data: fallbackData, error: fallbackError } = await fallbackQuery;
-
-      if (fallbackError) {
-        const body = metadataError(
-          'PROPS_CATALOG_UNAVAILABLE',
-          `Props query failed: ${fallbackError.message}`
-        );
-        log.error({ ...body }, body.message);
-        return NextResponse.json(body, { status: 503 });
-      }
-
-      data = fallbackData;
+      // FAIL-CLOSED: Contract surface query failed
+      log.error(
+        { error: error.message, code: error.code, surface: CONTRACT_SURFACE },
+        'Contract surface query failed'
+      );
+      return NextResponse.json(
+        buildContractError(
+          `Contract surface unavailable: ${error.message}`,
+          'CONTRACT_SURFACE_ERROR',
+          { surface: CONTRACT_SURFACE, pg_code: error.code }
+        ),
+        { status: 503 }
+      );
     }
 
-    // Transform to contract shape
-    const props: PropResult[] = (data || []).map((p: any) => ({
-      id: p.id,
+    // Transform to contract response shape
+    const props = (data || []).map((p: any) => ({
+      prop_id: p.prop_id,
       sport: p.sport,
+      game_id: p.game_id,
+      start_time: p.start_time,
+      game_date: p.game_date,
+      matchup: p.matchup,
+      home_team: p.home_team,
+      away_team: p.away_team,
       player_name: p.player_name,
-      team: p.team,
-      stat_type: p.stat_type,
+      team_abbr: p.team_abbr,
+      market_key: p.market_key,
       line: parseFloat(p.line) || 0,
       over_odds: p.over_odds ? parseInt(p.over_odds) : null,
       under_odds: p.under_odds ? parseInt(p.under_odds) : null,
-      game_id: p.game_id,
-      game_date: p.game_date,
-      display_label: p.display_label || `${p.player_name} ${p.stat_type} ${p.line}`,
+      book: p.book,
+      prop_key: p.prop_key,
+      display_label: p.display_label,
+      contract_version: p.contract_version || CONTRACT_VERSION,
+      last_updated: p.last_updated,
     }));
+
+    // Extract unique market keys for dropdown population
+    const availableMarkets = [...new Set(props.map(p => p.market_key))].sort();
+
+    // Build response
+    const response = {
+      props,
+      available_markets: availableMarkets,
+      meta: {
+        ...buildContractMeta(sportUpper, props.length),
+        player_name: player_name || null,
+        market_key: effectiveMarketKey || null,
+        game_id: game_id || null,
+        cache_hit: false,
+      },
+    };
 
     // Cache the result for player-specific queries
     if (player_name && props.length > 0) {
       try {
         const redis = getRedisClient();
-        const cacheData = {
-          props,
-          meta: {
-            total: props.length,
-            sport: sport.toUpperCase(),
-            player_name,
-            source: 'database',
-          },
-        };
-        await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(cacheData));
+        await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(response));
       } catch (cacheError) {
         log.warn({ error: cacheError }, 'Cache write failed');
       }
     }
 
-    // Extract unique stat types for dropdown (Array.from for ES5 compatibility)
-    const statTypes = Array.from(new Set(props.map(p => p.stat_type))).sort();
-
-    logApiPerformance(log, 'catalog-props', startTime, {
+    logApiPerformance(log, 'catalog-props-v1', startTime, {
       prop_count: props.length,
-      sport,
+      available_markets: availableMarkets.length,
+      sport: sportUpper,
       player_name,
-      stat_type,
+      market_key: effectiveMarketKey,
+      surface: CONTRACT_SURFACE,
     });
 
-    return NextResponse.json(
-      {
-        props,
-        stat_types: statTypes,
-        meta: {
-          total: props.length,
-          sport: sport.toUpperCase(),
-          player_name: player_name || null,
-          stat_type: stat_type || null,
-          team: team || null,
-          source: 'database',
-          cache_hit: false,
-          timestamp: new Date().toISOString(),
-        },
+    return NextResponse.json(response, {
+      status: 200,
+      headers: {
+        'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=300',
+        'X-Contract-Version': CONTRACT_VERSION,
+        'X-Contract-Surface': CONTRACT_SURFACE,
       },
-      {
-        status: 200,
-        headers: {
-          'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=300',
-        },
-      }
-    );
+    });
   } catch (error) {
-    const body = metadataError(
-      'PROPS_CATALOG_UNAVAILABLE',
-      error instanceof Error ? error.message : 'Unknown error'
-    );
     log.error(
-      { ...body, stack: error instanceof Error ? error.stack : undefined },
+      {
+        error: error instanceof Error ? error.message : 'Unknown',
+        stack: error instanceof Error ? error.stack : undefined,
+      },
       'Unexpected error in props catalog endpoint'
     );
-    return NextResponse.json(body, { status: 500 });
+    return NextResponse.json(
+      buildContractError(
+        error instanceof Error ? error.message : 'Unknown error',
+        'INTERNAL_ERROR'
+      ),
+      { status: 500 }
+    );
   }
 }
 
-// Health check
+// Health check - verifies contract surface is accessible
 export async function HEAD() {
   try {
     const sb = supabaseServer();
-    const { error } = await sb.from('raw_props').select('count').limit(1).single();
-    return NextResponse.json(null, { status: error ? 503 : 200 });
+    const { error } = await sb.from(CONTRACT_SURFACE).select('prop_id').limit(1);
+
+    return NextResponse.json(null, {
+      status: error ? 503 : 200,
+      headers: {
+        'X-Contract-Version': CONTRACT_VERSION,
+        'X-Contract-Surface': CONTRACT_SURFACE,
+      },
+    });
   } catch {
     return NextResponse.json(null, { status: 503 });
   }
