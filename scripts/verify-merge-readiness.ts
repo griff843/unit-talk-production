@@ -11,13 +11,14 @@
  *   npx tsx scripts/verify-merge-readiness.ts
  *
  * Gates:
- *   1. Type check (npm run type-check)
- *   2. API build (pnpm --filter api build)
- *   3. Command Center build (pnpm --filter command-center build)
- *   4. Smart Form build (pnpm --filter smart-form build)
- *   5. Required tests (npm run test)
- *   6. Git status clean
- *   7. No --no-verify commits
+ *   1. Lockfile guard (pnpm-only)
+ *   2. Type check (npm run type-check)
+ *   3. API build (pnpm --filter api build)
+ *   4. Command Center build (pnpm --filter command-center build)
+ *   5. Smart Form build (pnpm --filter smart-form build)
+ *   6. Required tests (npm run test)
+ *   7. Git status clean
+ *   8. No --no-verify commits
  *
  * Exit Codes:
  *   0 - All gates passed, merge ready
@@ -140,7 +141,10 @@ async function main(): Promise<void> {
 
   const results: GateResult[] = [];
 
-  // Gate 1: Type check
+  // Gate 1: Lockfile guard (pnpm-only)
+  results.push(runCommand('npx tsx scripts/guard-no-npm-lock.ts', 'Lockfile guard (pnpm-only)'));
+
+  // Gate 2: Type check
   results.push(runCommand('npm run type-check', 'Type check'));
 
   // Gate 2: API build

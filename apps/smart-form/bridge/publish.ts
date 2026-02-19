@@ -23,7 +23,7 @@ export async function publishTicketSubmitted(eventData: TicketSubmissionEvent): 
     const supabase = supabaseServer();
 
     // Cloud-canonical columns per parity-gate-001 / COLUMN-DRIFT-001
-    const { error } = await supabase.from('bridge_outbox').insert({
+    const { error } = await (supabase.from('bridge_outbox') as any).insert({
       event_type: 'ticket_submitted',
       event_data: eventData,
       bet_slip_id: eventData.bet_slip_id,
@@ -94,7 +94,7 @@ export async function publishTicketStatusUpdate(
     };
 
     // Cloud-canonical columns per parity-gate-001 / COLUMN-DRIFT-001
-    const { error } = await supabase.from('bridge_outbox').insert({
+    const { error } = await (supabase.from('bridge_outbox') as any).insert({
       event_type: 'ticket_status_updated',
       event_data: eventData,
       bet_slip_id: betSlipId,
@@ -154,8 +154,7 @@ export async function simulateBridgeProcessing(
     const supabase = supabaseServer();
 
     // Mark outbox events as processed (cloud-canonical columns)
-    const { error } = await supabase
-      .from('bridge_outbox')
+    const { error } = await (supabase.from('bridge_outbox') as any)
       .update({
         status: 'completed',
         processed_at: new Date().toISOString(),

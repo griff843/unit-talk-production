@@ -46,29 +46,41 @@ export interface RawProp {
   status: string;
 }
 
+// Type for user row data
+interface UserRow {
+  id: string;
+  username: string;
+  tier: string | null;
+  discord_id: string | null;
+  active: boolean;
+}
+
 // Fetch active cappers from v3.0.0 unified users table
 // CANONICAL CONTRACT: users.active BOOLEAN NOT NULL - see USERS_CANONICAL_CONTRACT.md
 export const fetchCappers = async () => {
   console.log('🔍 fetchCappers: Querying production users table with canonical active column...');
 
   // FAIL-CLOSED: Query the canonical active column explicitly
-  const { data, error } = await supabase
-    .from('users')
+  const { data, error } = (await (supabase.from('users') as any)
     .select('id, username, tier, discord_id, active')
     .neq('username', 'System') // Exclude system user
     .eq('active', true) // Only fetch active cappers
-    .order('username');
+    .order('username')) as { data: UserRow[] | null; error: any };
 
   // FAIL-CLOSED: If database query fails, throw error - no fallback data
   if (error) {
     console.error('🔍 fetchCappers: Database error:', error);
-    throw new Error(`Database query failed: ${error.message}. Cannot use fallback data per FAIL-CLOSED contract.`);
+    throw new Error(
+      `Database query failed: ${error.message}. Cannot use fallback data per FAIL-CLOSED contract.`
+    );
   }
 
   // FAIL-CLOSED: Validate that active column exists in response
   if (data && data.length > 0 && typeof data[0].active !== 'boolean') {
     console.error('🔍 fetchCappers: SCHEMA VIOLATION - active column missing or invalid type');
-    throw new Error('SCHEMA VIOLATION: users.active column missing or invalid type. Canonical contract requires BOOLEAN.');
+    throw new Error(
+      'SCHEMA VIOLATION: users.active column missing or invalid type. Canonical contract requires BOOLEAN.'
+    );
   }
 
   console.log('🔍 fetchCappers: Found', data?.length || 0, 'active cappers');

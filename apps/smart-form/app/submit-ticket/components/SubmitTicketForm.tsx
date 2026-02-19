@@ -81,7 +81,8 @@ export function SubmitTicketForm() {
   const { toast } = useToast();
 
   const form = useForm<TicketFormData>({
-    resolver: zodResolver(ticketFormSchema),
+    // Type assertion needed due to zod version compatibility
+    resolver: zodResolver(ticketFormSchema as any),
     defaultValues: {
       capper: 'Griff',
       ticket_type: 'single',
@@ -385,7 +386,7 @@ export function SubmitTicketForm() {
             team: leg.team || undefined,
             // V1.1: player_name for player props
             player_name: leg.player_name || undefined,
-            confidence: Math.round((data.confidence_level || 7)),
+            confidence: Math.round(data.confidence_level || 7),
           };
         }),
         total_units: data.unit_size,
@@ -452,9 +453,7 @@ export function SubmitTicketForm() {
     <div className="min-h-screen bg-gradient-to-br from-[#0a183d] to-[#1b2a4e] flex flex-col items-center py-10 px-4">
       {/* Header Section */}
       <div className="w-full max-w-7xl flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
-          Submit Pick
-        </h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">Submit Pick</h1>
         <div className="mt-3 md:mt-0 flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
             <span className="text-white font-bold text-sm">UT</span>

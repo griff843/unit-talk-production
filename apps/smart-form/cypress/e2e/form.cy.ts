@@ -4,7 +4,7 @@ describe('Smart Form', () => {
   beforeEach(() => {
     cy.visit('/submit-ticket');
     // Reset Supabase mock data
-    cy.window().then(win => {
+    cy.window().then((win: any) => {
       win.Cypress = win.Cypress || {};
       win.Cypress.supabase = supabase;
     });

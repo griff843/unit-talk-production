@@ -294,10 +294,9 @@ export async function GET(request: NextRequest) {
           logDatabaseOperation(log, 'DELETE', 'games', null, deleteError);
 
           // GAUNTLET-CLOSEOUT-028: Type assertion for Supabase insert
-          const { data: insertedGames, error: insertError } = await supabase
-            .from('games')
-            .insert(optimalGames as GameInsertPayload[])
-            .select() as { data: GameRow[] | null; error: any };
+          const { data: insertedGames, error: insertError } = (await (supabase.from('games') as any)
+            .insert(optimalGames)
+            .select()) as { data: GameRow[] | null; error: any };
 
           logDatabaseOperation(log, 'INSERT', 'games', insertedGames, insertError);
 
@@ -333,7 +332,7 @@ export async function GET(request: NextRequest) {
     query = query.order('start_time');
 
     // GAUNTLET-CLOSEOUT-028: Type assertion for Supabase query result
-    const { data: games, error } = await query as { data: GameRow[] | null; error: any };
+    const { data: games, error } = (await query) as { data: GameRow[] | null; error: any };
 
     logDatabaseOperation(log, 'SELECT', 'games', games, error);
 

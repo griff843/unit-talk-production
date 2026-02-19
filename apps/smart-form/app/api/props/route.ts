@@ -1,16 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseServer } from '@/lib/supabase';
-import { 
-  createRouteLogger, 
-  logDatabaseOperation, 
+import {
+  createRouteLogger,
+  logDatabaseOperation,
   logApiPerformance,
-  logValidationError 
+  logValidationError,
 } from '@/lib/logger';
 
 const log = createRouteLogger('GET /api/props', 'GET');
 
 // Validation schema for query parameters
+// Type for raw_props row data
+interface RawPropRow {
+  id: string;
+  game_id: string | null;
+  external_game_id: string | null;
+  player_name: string | null;
+  team_id: string | null;
+  player_id: string | null;
+  team: string | null;
+  opponent: string | null;
+  stat_type: string;
+  market_type: string;
+  line: number | null;
+  odds: number | null;
+  over_odds: number | null;
+  under_odds: number | null;
+  confidence: number | null;
+  expected_value: number | null;
+  provider: string | null;
+  sport: string | null;
+  game_time: string | null;
+}
+
 const QuerySchema = z.object({
   sport: z.enum(['NFL', 'NBA', 'MLB', 'NHL', 'NCAAF']),
   team_id: z.string().uuid().nullish(),
@@ -18,10 +41,9 @@ const QuerySchema = z.object({
   game_id: z.string().uuid().nullish(),
 });
 
-
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
-  
+
   try {
     const { searchParams } = new URL(request.url);
     const rawQuery = {
@@ -35,26 +57,32 @@ export async function GET(request: NextRequest) {
     const queryValidation = QuerySchema.safeParse(rawQuery);
     if (!queryValidation.success) {
       logValidationError(log, queryValidation.error.errors, rawQuery);
-      
-      return NextResponse.json({
-        error: 'Invalid query parameters',
-        details: queryValidation.error.errors,
-      }, { status: 400 });
+
+      return NextResponse.json(
+        {
+          error: 'Invalid query parameters',
+          details: queryValidation.error.errors,
+        },
+        { status: 400 }
+      );
     }
 
     const { sport, team_id, player_id, game_id } = queryValidation.data;
 
-    log.info({
-      query: { sport, team_id, player_id, game_id },
-    }, `Fetching ${sport} props`);
+    log.info(
+      {
+        query: { sport, team_id, player_id, game_id },
+      },
+      `Fetching ${sport} props`
+    );
 
     const supabase = supabaseServer();
 
     try {
       // Build query with sport-scoped filtering
-      let query = supabase
-        .from('raw_props')
-        .select(`
+      let query = (supabase.from('raw_props') as any)
+        .select(
+          `
           id,
           game_id,
           external_game_id,
@@ -74,7 +102,8 @@ export async function GET(request: NextRequest) {
           provider,
           sport,
           game_time
-        `)
+        `
+        )
         .eq('sport', sport)
         .not('odds', 'is', null)
         .not('line', 'is', null);
@@ -83,11 +112,11 @@ export async function GET(request: NextRequest) {
       if (team_id) {
         query = query.eq('team_id', team_id);
       }
-      
+
       if (player_id) {
         query = query.eq('player_id', player_id);
       }
-      
+
       if (game_id) {
         query = query.or(`game_id.eq.${game_id},external_game_id.eq.${game_id}`);
       }
@@ -98,31 +127,40 @@ export async function GET(request: NextRequest) {
         .order('stat_type')
         .limit(100); // Prevent excessive results
 
-      const { data: dbProps, error } = await query;
+      const { data: dbProps, error } = (await query) as { data: RawPropRow[] | null; error: any };
 
       logDatabaseOperation(log, 'SELECT', 'raw_props', dbProps, error);
 
       if (error && error.code !== '42P01') {
         // Real error, not just missing table
-        log.error({
-          error: error.message,
-          code: error.code,
-          sport,
-          filters: { team_id, player_id, game_id },
-        }, 'Database error fetching props');
-        
-        return NextResponse.json({
-          error: 'Failed to fetch props',
-          message: error.message,
-        }, { status: 500 });
+        log.error(
+          {
+            error: error.message,
+            code: error.code,
+            sport,
+            filters: { team_id, player_id, game_id },
+          },
+          'Database error fetching props'
+        );
+
+        return NextResponse.json(
+          {
+            error: 'Failed to fetch props',
+            message: error.message,
+          },
+          { status: 500 }
+        );
       }
 
       if (dbProps && dbProps.length > 0) {
-        log.info({
-          props_found: dbProps.length,
-          sport,
-          filters: { team_id, player_id, game_id },
-        }, `Found ${dbProps.length} props in database`);
+        log.info(
+          {
+            props_found: dbProps.length,
+            sport,
+            filters: { team_id, player_id, game_id },
+          },
+          `Found ${dbProps.length} props in database`
+        );
 
         // Transform props with enhanced analytics data
         const transformedProps = dbProps.map(prop => {
@@ -216,40 +254,52 @@ export async function GET(request: NextRequest) {
           filters_applied: [team_id, player_id, game_id].filter(Boolean).length,
         });
 
-        return NextResponse.json({
-          props: transformedProps,
-          meta: {
-            count: transformedProps.length,
-            sport,
-            filters: { team_id, player_id, game_id },
-            source: 'database',
-            timestamp: new Date().toISOString(),
+        return NextResponse.json(
+          {
+            props: transformedProps,
+            meta: {
+              count: transformedProps.length,
+              sport,
+              filters: { team_id, player_id, game_id },
+              source: 'database',
+              timestamp: new Date().toISOString(),
+            },
+            analytics,
           },
-          analytics,
-        }, {
-          status: 200,
-          headers: {
-            'Cache-Control': 'public, s-maxage=180, stale-while-revalidate=300', // 3min cache
-          },
-        });
+          {
+            status: 200,
+            headers: {
+              'Cache-Control': 'public, s-maxage=180, stale-while-revalidate=300', // 3min cache
+            },
+          }
+        );
       }
     } catch (dbError) {
-      log.error({
-        error: dbError instanceof Error ? dbError.message : 'Unknown error',
-        sport,
-      }, 'Database error fetching props');
-      
-      return NextResponse.json({
-        error: 'Database unavailable',
-        message: 'Unable to fetch props at this time',
-      }, { status: 503 });
+      log.error(
+        {
+          error: dbError instanceof Error ? dbError.message : 'Unknown error',
+          sport,
+        },
+        'Database error fetching props'
+      );
+
+      return NextResponse.json(
+        {
+          error: 'Database unavailable',
+          message: 'Unable to fetch props at this time',
+        },
+        { status: 503 }
+      );
     }
 
     // No props found - return empty result
-    log.info({
-      sport,
-      filters: { team_id, player_id, game_id },
-    }, 'No props found for query');
+    log.info(
+      {
+        sport,
+        filters: { team_id, player_id, game_id },
+      },
+      'No props found for query'
+    );
 
     logApiPerformance(log, 'fetch-props', startTime, {
       props_count: 0,
@@ -257,28 +307,36 @@ export async function GET(request: NextRequest) {
       no_results: true,
     });
 
-    return NextResponse.json({
-      props: [],
-      meta: {
-        count: 0,
-        sport,
-        filters: { team_id, player_id, game_id },
-        source: 'database',
-        message: 'No props available for the specified criteria',
-        timestamp: new Date().toISOString(),
+    return NextResponse.json(
+      {
+        props: [],
+        meta: {
+          count: 0,
+          sport,
+          filters: { team_id, player_id, game_id },
+          source: 'database',
+          message: 'No props available for the specified criteria',
+          timestamp: new Date().toISOString(),
+        },
       },
-    }, { status: 200 });
-
+      { status: 200 }
+    );
   } catch (error) {
-    log.error({
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-    }, 'Unexpected error in props endpoint');
-    
-    return NextResponse.json({
-      error: 'Internal server error',
-      message: 'An unexpected error occurred while fetching props',
-    }, { status: 500 });
+    log.error(
+      {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      },
+      'Unexpected error in props endpoint'
+    );
+
+    return NextResponse.json(
+      {
+        error: 'Internal server error',
+        message: 'An unexpected error occurred while fetching props',
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -287,11 +345,11 @@ export async function HEAD() {
   try {
     const sb = supabaseServer();
     const { error } = await sb.from('raw_props').select('count').limit(1).single();
-    
+
     if (error) {
       return NextResponse.json(null, { status: 503 });
     }
-    
+
     return NextResponse.json(null, { status: 200 });
   } catch {
     return NextResponse.json(null, { status: 503 });

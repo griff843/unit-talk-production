@@ -9,10 +9,7 @@ import {
   logValidationError,
   logSecurityEvent,
 } from '@/lib/logger';
-import {
-  validateOddsInteger,
-  calculateParlayOdds,
-} from '@/lib/odds-validator';
+import { validateOddsInteger, calculateParlayOdds } from '@/lib/odds-validator';
 
 const log = createRouteLogger('POST /api/submit-ticket', 'POST');
 
@@ -44,13 +41,7 @@ const SUPPORTED_SPORTS = [
 ] as const;
 
 // EMBED-TRUTH-FIX-031: Valid bet types
-const VALID_BET_TYPES = [
-  'player_prop',
-  'spread',
-  'moneyline',
-  'total',
-  'team_total',
-] as const;
+const VALID_BET_TYPES = ['player_prop', 'spread', 'moneyline', 'total', 'team_total'] as const;
 
 // Validation schemas with enhanced odds validation
 // EMBED-TRUTH-FIX-031: Added player_name and bet_type fields
@@ -66,16 +57,19 @@ const GameSelectionSchema = z.object({
   team: z.string().optional(),
   stat_type: z.string().min(1),
   line: z.number().optional().default(0), // optional — moneyline bets have no line
-  leg_odds: z.number().int().refine(
-    (val) => validateOddsForSchema(val),
-    (val) => {
-      const result = validateOddsInteger(val);
-      return {
-        message: result.errorMessage || 'Invalid odds',
-        params: { code: result.errorCode },
-      };
-    }
-  ),
+  leg_odds: z
+    .number()
+    .int()
+    .refine(
+      val => validateOddsForSchema(val),
+      val => {
+        const result = validateOddsInteger(val);
+        return {
+          message: result.errorMessage || 'Invalid odds',
+          params: { code: result.errorCode },
+        };
+      }
+    ),
   source: z.enum(['api', 'manual']).default('api'),
   is_live: z.boolean().optional().default(false),
   // ACTIVATION-P1-FIXES-001: Accept any string (spread: "Celtics -3.5", ML: "Celtics", total: "over")
@@ -94,17 +88,21 @@ const SubmitTicketSchema = z.object({
   sport: z.enum(SUPPORTED_SPORTS),
   ticket_type: z.enum(['single', 'parlay', 'teaser', 'round_robin']),
   selections: z.array(GameSelectionSchema).min(1, 'At least one selection is required'),
-  parlay_odds: z.number().int().optional().refine(
-    (val) => val === undefined || validateOddsForSchema(val),
-    (val) => {
-      if (val === undefined) return { message: '' };
-      const result = validateOddsInteger(val);
-      return {
-        message: result.errorMessage || 'Invalid parlay odds',
-        params: { code: result.errorCode },
-      };
-    }
-  ),
+  parlay_odds: z
+    .number()
+    .int()
+    .optional()
+    .refine(
+      val => val === undefined || validateOddsForSchema(val),
+      val => {
+        if (val === undefined) return { message: '' };
+        const result = validateOddsInteger(val);
+        return {
+          message: result.errorMessage || 'Invalid parlay odds',
+          params: { code: result.errorCode },
+        };
+      }
+    ),
   total_units: z.number().min(0.5).max(10).default(1.0),
   notes: z.string().optional(),
 });
@@ -120,7 +118,7 @@ async function publishTicketSubmitted(ticketData: {
 
     // Write to bridge outbox for idempotent processing
     // PARITY-GATE-001: Use cloud-canonical column names (event_data, bet_slip_id)
-    const { error } = await sb.from('bridge_outbox').insert({
+    const { error } = await (sb.from('bridge_outbox') as any).insert({
       event_type: 'ticket_submitted',
       event_data: ticketData,
       bet_slip_id: ticketData.bet_slip_id,
@@ -209,17 +207,23 @@ export async function POST(request: NextRequest) {
       const calculatedResult = calculateParlayOdds(legOdds);
 
       if (!calculatedResult.valid) {
-        log.error({
-          capper_id,
-          leg_odds: legOdds,
-          error: calculatedResult.errorMessage,
-        }, 'ODDS_INTEGRITY: Invalid parlay leg odds');
+        log.error(
+          {
+            capper_id,
+            leg_odds: legOdds,
+            error: calculatedResult.errorMessage,
+          },
+          'ODDS_INTEGRITY: Invalid parlay leg odds'
+        );
 
-        return NextResponse.json({
-          error: 'Invalid parlay odds',
-          code: calculatedResult.errorCode,
-          message: calculatedResult.errorMessage,
-        }, { status: 400 });
+        return NextResponse.json(
+          {
+            error: 'Invalid parlay odds',
+            code: calculatedResult.errorCode,
+            message: calculatedResult.errorMessage,
+          },
+          { status: 400 }
+        );
       }
 
       // If parlay_odds provided, verify it matches our calculation (within tolerance)
@@ -228,23 +232,29 @@ export async function POST(request: NextRequest) {
         const tolerance = 5; // Allow 5-point rounding tolerance
 
         if (Math.abs(parlay_odds - expectedOdds) > tolerance) {
-          log.warn({
-            capper_id,
-            provided_parlay_odds: parlay_odds,
-            calculated_parlay_odds: expectedOdds,
-            leg_odds: legOdds,
-          }, 'ODDS_INTEGRITY: Parlay odds mismatch detected');
+          log.warn(
+            {
+              capper_id,
+              provided_parlay_odds: parlay_odds,
+              calculated_parlay_odds: expectedOdds,
+              leg_odds: legOdds,
+            },
+            'ODDS_INTEGRITY: Parlay odds mismatch detected'
+          );
 
           // Use calculated odds for consistency (no silent fallback - we log the discrepancy)
         }
       }
 
-      log.info({
-        bet_slip_id: 'pending',
-        leg_count: selections.length,
-        leg_odds: legOdds,
-        combined_odds: calculatedResult.combinedOdds,
-      }, 'ODDS_INTEGRITY: Parlay odds validated');
+      log.info(
+        {
+          bet_slip_id: 'pending',
+          leg_count: selections.length,
+          leg_odds: legOdds,
+          combined_odds: calculatedResult.combinedOdds,
+        },
+        'ODDS_INTEGRITY: Parlay odds validated'
+      );
     }
 
     // Validate manual entries
@@ -261,11 +271,10 @@ export async function POST(request: NextRequest) {
     const supabase = supabaseServer();
 
     // Verify capper exists and is active
-    const { data: capperUser, error: capperError } = await supabase
-      .from('users')
+    const { data: capperUser, error: capperError } = (await (supabase.from('users') as any)
       .select('id, username, active')
       .eq('id', capper_id)
-      .single();
+      .single()) as { data: { id: string; username: string; active: boolean } | null; error: any };
 
     if (capperError || !capperUser) {
       log.warn(
@@ -335,11 +344,12 @@ export async function POST(request: NextRequest) {
     // Start transaction
     try {
       // Insert smart ticket
-      const { data: insertedTicket, error: ticketError } = await supabase
-        .from('smart_tickets')
+      const { data: insertedTicket, error: ticketError } = (await (
+        supabase.from('smart_tickets') as any
+      )
         .insert(smartTicketData)
         .select()
-        .single();
+        .single()) as { data: { bet_slip_id: string } | null; error: any };
 
       logDatabaseOperation(log, 'INSERT', 'smart_tickets', insertedTicket, ticketError);
 
@@ -395,8 +405,9 @@ export async function POST(request: NextRequest) {
         }),
       }));
 
-      const { data: insertedPicks, error: picksError } = await supabase
-        .from('unified_picks')
+      const { data: insertedPicks, error: picksError } = await (
+        supabase.from('unified_picks') as any
+      )
         .insert(pickInserts)
         .select();
 
@@ -452,8 +463,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           bet_slip_id: betSlipId,
-          ticket_id: insertedTicket.bet_slip_id,
-          capper_name: capperUser.username,
+          ticket_id: insertedTicket?.bet_slip_id ?? betSlipId,
+          capper_name: capperUser?.username ?? '',
           sport,
           ticket_type,
           selection_count: selections.length,
