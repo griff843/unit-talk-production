@@ -29,6 +29,23 @@ Phase 6: Closeout   → Write closeout report + merge to main
 
 **Skip this = Sprint incomplete = Must be done before next sprint.**
 
+### CRITICAL: "Ready to Push" is NOT Complete
+
+**A sprint status of "Ready to Push" means:**
+
+- Code is written and verified
+- Proofs are generated
+- BUT commits are NOT pushed to remote
+- AND changes are NOT merged to main
+
+**"Ready to Push" = INCOMPLETE. The sprint must be finished with:**
+
+```bash
+git push origin main --tags
+```
+
+Until `git ls-remote origin` shows the sprint tag, the sprint is NOT done.
+
 ---
 
 ## Definition of Done (MERGE GATES)
