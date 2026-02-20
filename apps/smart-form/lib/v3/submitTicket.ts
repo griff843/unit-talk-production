@@ -106,9 +106,22 @@ export function buildLegPayload(leg: V3TicketLeg): V3LegPayload {
  */
 export async function submitTicketV3(input: V3SubmitTicketInput): Promise<V3SubmitTicketResult> {
   // Build leg payloads
-  const legPayloads = input.legs.map(leg =>
-    leg.event_id ? leg : buildLegPayload(leg as unknown as V3TicketLeg)
-  );
+  // Manual entry legs (with sport/bet_type) are passed through directly
+  // Catalog legs (with event_id) use buildLegPayload for transformation
+  const legPayloads = input.legs.map(leg => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const anyLeg = leg as any;
+    // Manual entry: has sport and bet_type, pass through directly
+    if (anyLeg.sport && anyLeg.bet_type) {
+      return anyLeg;
+    }
+    // Catalog entry: has event_id, use as-is or transform
+    if (leg.event_id) {
+      return leg;
+    }
+    // Fallback to buildLegPayload for structured catalog legs
+    return buildLegPayload(leg as unknown as V3TicketLeg);
+  });
 
   console.log('[V3Submit] Submitting ticket:', {
     bet_slip_id: input.bet_slip_id,
