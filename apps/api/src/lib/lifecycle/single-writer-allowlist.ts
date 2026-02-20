@@ -20,27 +20,134 @@ export interface AllowlistEntry {
 }
 
 /**
- * EMPTY ALLOWLIST - ALL MIGRATIONS COMPLETE
- * Sprint: LIFECYCLE-WRITE-SURFACE-MIGRATION-038 completed 2026-02-18
+ * ALLOWLIST - Files pending migration to lifecycle adapters
+ * Sprint: SPRINT-SINGLE-WRITER-SETTLEMENT-GUARD-071A (2026-02-20)
  *
- * Migration history (for audit trail):
+ * Previous migration history (completed):
  * - LIFECYCLE-MIGRATE-001: DiscordPromotionAgent/index.ts → atomicClaimForPost + lifecycleUpdate
  * - LIFECYCLE-MIGRATE-002: GradingAgent/gradeAndPromoteFinalPicks.ts → lifecycleInsert
  * - LIFECYCLE-MIGRATE-003: GradingAgent/gradeForFinalPicks.ts → lifecycleInsert
  * - LIFECYCLE-MIGRATE-004: runner/fixSchemaCacheIssues.ts → exempt via gate pattern (test utility)
  * - LIFECYCLE-MIGRATE-005: scripts/smoke-capper-thread-routing.ts → exempt via gate pattern (smoke test)
  * - LIFECYCLE-MIGRATE-006: services/SmartFormBridge.ts → lifecycleInsert
+ * - LIFECYCLE-MIGRATE-007: SettlementAgent/index.ts → lifecycleSettle (071A)
+ *
+ * NEW VIOLATIONS DISCOVERED (071A multi-line gate enhancement):
+ * These files were not caught by the original same-line gate pattern.
+ * Each requires migration to lifecycle adapters in future sprints.
  */
-export const SINGLE_WRITER_ALLOWLIST: AllowlistEntry[] = [];
+export const SINGLE_WRITER_ALLOWLIST: AllowlistEntry[] = [
+  // === AGENTS (P0 - high priority) ===
+  {
+    file: 'agents/AlertAgent/index.ts',
+    reason: 'Multi-line writes for Discord posting (dead code at 626, active at 795, 815)',
+    migrationTicket: 'SPRINT-SINGLE-WRITER-AGENT-MIGRATION-072',
+    targetDate: '2026-02-25',
+  },
+  {
+    file: 'agents/DiscordPromotionAgent/index.ts',
+    reason: 'Multi-line write for resetting posted status',
+    migrationTicket: 'SPRINT-SINGLE-WRITER-AGENT-MIGRATION-072',
+    targetDate: '2026-02-25',
+  },
+  {
+    file: 'agents/GradingAgent/GradingAgent.ts',
+    reason: 'Multi-line insert for pick promotion',
+    migrationTicket: 'SPRINT-SINGLE-WRITER-AGENT-MIGRATION-072',
+    targetDate: '2026-02-25',
+  },
+  {
+    file: 'agents/RecapAgent/index.ts',
+    reason: 'Multi-line update for Discord info',
+    migrationTicket: 'SPRINT-SINGLE-WRITER-AGENT-MIGRATION-072',
+    targetDate: '2026-02-25',
+  },
+  // === SERVICES (P1 - medium priority) ===
+  {
+    file: 'services/AutoRecheckService.ts',
+    reason: 'Multi-line updates for recheck operations (3 locations)',
+    migrationTicket: 'SPRINT-SINGLE-WRITER-SERVICES-MIGRATION-073',
+    targetDate: '2026-02-28',
+  },
+  {
+    file: 'services/capperService.ts',
+    reason: 'Multi-line CRUD operations (insert, update, delete)',
+    migrationTicket: 'SPRINT-SINGLE-WRITER-SERVICES-MIGRATION-073',
+    targetDate: '2026-02-28',
+  },
+  {
+    file: 'services/PickMonitoringService.ts',
+    reason: 'Multi-line update for monitoring',
+    migrationTicket: 'SPRINT-SINGLE-WRITER-SERVICES-MIGRATION-073',
+    targetDate: '2026-02-28',
+  },
+  {
+    file: 'services/ProfessionalPropProcessor.ts',
+    reason: 'Multi-line insert for prop promotion',
+    migrationTicket: 'SPRINT-SINGLE-WRITER-SERVICES-MIGRATION-073',
+    targetDate: '2026-02-28',
+  },
+  {
+    file: 'services/STierEnforcer.ts',
+    reason: 'Multi-line update for S-tier enforcement',
+    migrationTicket: 'SPRINT-SINGLE-WRITER-SERVICES-MIGRATION-073',
+    targetDate: '2026-02-28',
+  },
+  // === LIB/PROMOTION (P1) ===
+  {
+    file: 'lib/discordReceiptContract.ts',
+    reason: 'Multi-line update for Discord receipt',
+    migrationTicket: 'SPRINT-SINGLE-WRITER-SERVICES-MIGRATION-073',
+    targetDate: '2026-02-28',
+  },
+  {
+    file: 'promotion/PublishGuard.ts',
+    reason: 'Multi-line updates for publish guard (2 locations)',
+    migrationTicket: 'SPRINT-SINGLE-WRITER-SERVICES-MIGRATION-073',
+    targetDate: '2026-02-28',
+  },
+  // === WORKERS (P1) ===
+  {
+    file: 'workers/BridgeWorker.ts',
+    reason: 'Multi-line update in bridge processing',
+    migrationTicket: 'SPRINT-SINGLE-WRITER-SERVICES-MIGRATION-073',
+    targetDate: '2026-02-28',
+  },
+  // === UTILS (P2 - lower priority) ===
+  {
+    file: 'utils/optimizedInsertions.ts',
+    reason: 'Multi-line insert/update for optimized operations',
+    migrationTicket: 'SPRINT-SINGLE-WRITER-UTILS-MIGRATION-074',
+    targetDate: '2026-03-05',
+  },
+  // === ROUTES (P2 - admin operations) ===
+  {
+    file: 'routes/ops.ts',
+    reason: 'Multi-line delete for admin operations',
+    migrationTicket: 'SPRINT-SINGLE-WRITER-UTILS-MIGRATION-074',
+    targetDate: '2026-03-05',
+  },
+  // === SCRIPTS (P3 - utility scripts) ===
+  {
+    file: 'scripts/backfill-feature-contributions.ts',
+    reason: 'Multi-line update for backfill',
+    migrationTicket: 'SPRINT-SINGLE-WRITER-UTILS-MIGRATION-074',
+    targetDate: '2026-03-05',
+  },
+  {
+    file: 'scripts/discord-canary-webhook.ts',
+    reason: 'Multi-line insert for canary testing',
+    migrationTicket: 'SPRINT-SINGLE-WRITER-UTILS-MIGRATION-074',
+    targetDate: '2026-03-05',
+  },
+];
 
 /**
  * Check if a file is in the allowlist
  */
 export function isFileAllowlisted(filePath: string): boolean {
   const normalizedPath = filePath.replace(/\\/g, '/');
-  return SINGLE_WRITER_ALLOWLIST.some(
-    (entry) => normalizedPath.includes(entry.file)
-  );
+  return SINGLE_WRITER_ALLOWLIST.some(entry => normalizedPath.includes(entry.file));
 }
 
 /**
@@ -48,9 +155,7 @@ export function isFileAllowlisted(filePath: string): boolean {
  */
 export function getAllowlistEntry(filePath: string): AllowlistEntry | undefined {
   const normalizedPath = filePath.replace(/\\/g, '/');
-  return SINGLE_WRITER_ALLOWLIST.find(
-    (entry) => normalizedPath.includes(entry.file)
-  );
+  return SINGLE_WRITER_ALLOWLIST.find(entry => normalizedPath.includes(entry.file));
 }
 
 /**

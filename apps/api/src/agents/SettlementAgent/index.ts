@@ -1,7 +1,14 @@
-import { ErrorHandler } from '../../utils/errorHandling';
+/* eslint-disable max-lines -- pre-existing, refactor in separate sprint */
+import { lifecycleSettle } from '../../lib/lifecycle';
 import { BaseAgent } from '../BaseAgent/index';
-import { BaseAgentConfig, BaseAgentDependencies, BaseMetrics, HealthStatus } from '../BaseAgent/types';
+import {
+  BaseAgentConfig,
+  BaseAgentDependencies,
+  BaseMetrics,
+  HealthStatus,
+} from '../BaseAgent/types';
 import { fetchSettlementData } from '../FeedAgent/oddsApi';
+// SPRINT-SINGLE-WRITER-SETTLEMENT-GUARD-071A: Use lifecycle adapter for settlement
 
 interface SettlementMetrics extends BaseMetrics {
   gamesProcessed: number;
@@ -40,15 +47,15 @@ interface PropSettlement {
 export class SettlementAgent extends BaseAgent {
   private settlementMetrics: SettlementMetrics;
   private readonly SETTLEMENT_INTERVALS = {
-    immediate: 0,      // Process immediately after game completion
-    short: 30 * 60,    // 30 minutes after completion
-    medium: 3 * 60 * 60, // 3 hours after completion  
-    long: 24 * 60 * 60   // 24 hours after completion (final verification)
+    immediate: 0, // Process immediately after game completion
+    short: 30 * 60, // 30 minutes after completion
+    medium: 3 * 60 * 60, // 3 hours after completion
+    long: 24 * 60 * 60, // 24 hours after completion (final verification)
   };
 
   constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
     super(config, deps);
-    
+
     this.settlementMetrics = {
       ...this.metrics,
       gamesProcessed: 0,
@@ -57,13 +64,13 @@ export class SettlementAgent extends BaseAgent {
       avgSettlementTimeMs: 0,
       disputedSettlements: 0,
       manualReviewRequired: 0,
-      dataQualityScore: 0
+      dataQualityScore: 0,
     };
   }
 
   protected async initialize(): Promise<void> {
     this.logger.info('🏁 SettlementAgent initializing...');
-    
+
     // Verify database access
     if (!this.hasSupabase()) {
       throw new Error('Supabase client required for SettlementAgent');
@@ -71,24 +78,21 @@ export class SettlementAgent extends BaseAgent {
 
     // Test access to settlement tables
     const requiredTables = ['game_results', 'prop_settlements', 'raw_props', 'unified_picks'];
-    
+
     for (const table of requiredTables) {
       try {
-        const { error } = await this.requireSupabase()
-          .from(table)
-          .select('id')
-          .limit(1);
-          
+        const { error } = await this.requireSupabase().from(table).select('id').limit(1);
+
         if (error) {
           this.logger.warn(`⚠️ Table ${table} access check failed: ${error.message}`);
         }
       } catch (err) {
         this.logger.error(`❌ Failed to access table ${table}`, {
-          error: err instanceof Error ? err.message : 'Unknown error'
+          error: err instanceof Error ? err.message : 'Unknown error',
         });
       }
     }
-    
+
     this.logger.info('✅ SettlementAgent initialized successfully');
   }
 
@@ -99,7 +103,7 @@ export class SettlementAgent extends BaseAgent {
   protected async collectMetrics(): Promise<BaseMetrics> {
     return {
       ...this.settlementMetrics,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024,
     };
   }
 
@@ -124,24 +128,28 @@ export class SettlementAgent extends BaseAgent {
       // This would test the API connection
       checks.push({ service: 'odds-api', status: 'healthy' });
     } catch (error) {
-      checks.push({ 
-        service: 'odds-api', 
-        status: 'degraded', 
-        error: 'Settlement data source unavailable' 
+      checks.push({
+        service: 'odds-api',
+        status: 'degraded',
+        error: 'Settlement data source unavailable',
       });
     }
 
     const healthyServices = checks.filter(check => check.status === 'healthy').length;
-    const overallStatus = healthyServices === checks.length ? 'healthy' : 
-                         healthyServices > 0 ? 'degraded' : 'unhealthy';
+    const overallStatus =
+      healthyServices === checks.length
+        ? 'healthy'
+        : healthyServices > 0
+          ? 'degraded'
+          : 'unhealthy';
 
     return {
       status: overallStatus,
       timestamp: new Date().toISOString(),
       details: {
         checks,
-        metrics: this.settlementMetrics
-      }
+        metrics: this.settlementMetrics,
+      },
     };
   }
 
@@ -154,20 +162,19 @@ export class SettlementAgent extends BaseAgent {
       await this.processCompletedGames();
       await this.processDelayedSettlements();
       await this.validateExistingSettlements();
-      
+
       const cycleTime = Date.now() - cycleStartTime;
       this.settlementMetrics.processingTimeMs = cycleTime;
-      
+
       this.logger.info('✅ SettlementAgent cycle completed', {
         gamesProcessed: this.settlementMetrics.gamesProcessed,
         propsSettled: this.settlementMetrics.propsSettled,
-        cycleTimeMs: cycleTime
+        cycleTimeMs: cycleTime,
       });
-      
     } catch (error) {
       this.settlementMetrics.errorCount++;
       this.logger.error('❌ SettlementAgent processing failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -178,7 +185,7 @@ export class SettlementAgent extends BaseAgent {
    */
   private async processCompletedGames(): Promise<void> {
     this.logger.info('🔍 Processing recently completed games...');
-    
+
     if (!this.hasSupabase()) {
       this.logger.warn('⚠️ Supabase not available, skipping completed games processing');
       return;
@@ -209,14 +216,13 @@ export class SettlementAgent extends BaseAgent {
       for (const game of pendingGames) {
         await this.processGameSettlement(game);
         this.settlementMetrics.gamesProcessed++;
-        
+
         // Brief pause between games to prevent overwhelming the system
         await new Promise(resolve => setTimeout(resolve, 100));
       }
-
     } catch (error) {
       this.logger.error('❌ Error processing completed games', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -227,13 +233,13 @@ export class SettlementAgent extends BaseAgent {
    */
   private async processGameSettlement(game: GameResult): Promise<void> {
     const startTime = Date.now();
-    
+
     try {
       this.logger.info(`🎯 Processing settlement for game: ${game.external_game_id}`);
 
       // Fetch fresh settlement data from Odds API
       const settlementData = await this.fetchGameSettlementData(game);
-      
+
       if (!settlementData) {
         this.logger.warn(`⚠️ No settlement data available for game: ${game.external_game_id}`);
         return;
@@ -246,14 +252,15 @@ export class SettlementAgent extends BaseAgent {
       await this.processGameProps(game, settlementData);
 
       const processingTime = Date.now() - startTime;
-      this.settlementMetrics.avgSettlementTimeMs = 
+      this.settlementMetrics.avgSettlementTimeMs =
         (this.settlementMetrics.avgSettlementTimeMs + processingTime) / 2;
 
-      this.logger.info(`✅ Game settlement completed: ${game.external_game_id} (${processingTime}ms)`);
-
+      this.logger.info(
+        `✅ Game settlement completed: ${game.external_game_id} (${processingTime}ms)`
+      );
     } catch (error) {
       this.logger.error(`❌ Failed to process game settlement: ${game.external_game_id}`, {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -265,12 +272,12 @@ export class SettlementAgent extends BaseAgent {
     try {
       // Map sport to Odds API format
       const sportMapping: Record<string, string> = {
-        'NFL': 'americanfootball_nfl',
-        'NCAAF': 'americanfootball_ncaaf',
-        'NBA': 'basketball_nba',
-        'NCAAB': 'basketball_ncaab',
-        'MLB': 'baseball_mlb',
-        'NHL': 'icehockey_nhl'
+        NFL: 'americanfootball_nfl',
+        NCAAF: 'americanfootball_ncaaf',
+        NBA: 'basketball_nba',
+        NCAAB: 'basketball_ncaab',
+        MLB: 'baseball_mlb',
+        NHL: 'icehockey_nhl',
       };
 
       const oddsApiSport = sportMapping[game.sport];
@@ -280,18 +287,18 @@ export class SettlementAgent extends BaseAgent {
       }
 
       const settlementData = await fetchSettlementData(oddsApiSport as any, 3); // 3 days back
-      
+
       // Find the specific game in settlement data
       const gameData = settlementData.find(
-        data => data.id === game.external_game_id ||
-                (data.home_team === game.home_team && data.away_team === game.away_team)
+        data =>
+          data.id === game.external_game_id ||
+          (data.home_team === game.home_team && data.away_team === game.away_team)
       );
 
       return gameData;
-
     } catch (error) {
       this.logger.error(`❌ Failed to fetch settlement data for ${game.external_game_id}`, {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return null;
     }
@@ -300,6 +307,7 @@ export class SettlementAgent extends BaseAgent {
   /**
    * Update game result with latest settlement data
    */
+  // eslint-disable-next-line complexity -- pre-existing, refactor in separate sprint
   private async updateGameResult(game: GameResult, settlementData: any): Promise<void> {
     if (!this.hasSupabase()) return;
 
@@ -308,19 +316,27 @@ export class SettlementAgent extends BaseAgent {
         settlement_status: 'verified',
         settlement_timestamp: new Date().toISOString(),
         source_last_update: settlementData.last_update || new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       };
 
       // Update scores if they've changed
       if (settlementData.scores && settlementData.scores.length >= 2) {
-        const homeScore = parseInt(settlementData.scores.find((s: any) => s.name === game.home_team)?.professional_score || '0');
-        const awayScore = parseInt(settlementData.scores.find((s: any) => s.name === game.away_team)?.professional_score || '0');
-        
+        const homeScore = parseInt(
+          settlementData.scores.find((s: any) => s.name === game.home_team)?.professional_score ||
+            '0'
+        );
+        const awayScore = parseInt(
+          settlementData.scores.find((s: any) => s.name === game.away_team)?.professional_score ||
+            '0'
+        );
+
         if (homeScore !== game.home_score || awayScore !== game.away_score) {
           updateData.home_score = homeScore;
           updateData.away_score = awayScore;
-          
-          this.logger.info(`📊 Score updated for ${game.external_game_id}: ${game.away_team} ${awayScore} - ${game.home_team} ${homeScore}`);
+
+          this.logger.info(
+            `📊 Score updated for ${game.external_game_id}: ${game.away_team} ${awayScore} - ${game.home_team} ${homeScore}`
+          );
         }
       }
 
@@ -332,10 +348,9 @@ export class SettlementAgent extends BaseAgent {
       if (error) {
         throw new Error(`Failed to update game result: ${error.message}`);
       }
-
     } catch (error) {
       this.logger.error(`❌ Failed to update game result: ${game.external_game_id}`, {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -369,10 +384,9 @@ export class SettlementAgent extends BaseAgent {
         await this.settleProp(prop, game, settlementData);
         this.settlementMetrics.propsSettled++;
       }
-
     } catch (error) {
       this.logger.error(`❌ Error processing game props for ${game.external_game_id}`, {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -386,7 +400,7 @@ export class SettlementAgent extends BaseAgent {
     try {
       // Determine settlement based on prop type and game result
       const settlement = await this.calculatePropSettlement(prop, game, settlementData);
-      
+
       if (!settlement) {
         this.settlementMetrics.manualReviewRequired++;
         this.logger.warn(`⚠️ Manual review required for prop: ${prop.id}`);
@@ -407,7 +421,7 @@ export class SettlementAgent extends BaseAgent {
           settlement_result: settlement.settlement_result,
           settlement_confidence: settlement.confidence,
           data_source: 'odds-api',
-          settled_at: new Date().toISOString()
+          settled_at: new Date().toISOString(),
         });
 
       if (settlementError) {
@@ -420,7 +434,7 @@ export class SettlementAgent extends BaseAgent {
         .update({
           settlement_status: 'settled',
           settlement_result: settlement.settlement_result,
-          settled_at: new Date().toISOString()
+          settled_at: new Date().toISOString(),
         })
         .eq('id', prop.id);
 
@@ -431,12 +445,13 @@ export class SettlementAgent extends BaseAgent {
       // Update final pick if it exists
       await this.updateUnifiedPickSettlement(prop, settlement);
 
-      this.logger.debug(`✅ Prop settled: ${prop.player_name} ${prop.stat_type} ${settlement.settlement_result}`);
-
+      this.logger.debug(
+        `✅ Prop settled: ${prop.player_name} ${prop.stat_type} ${settlement.settlement_result}`
+      );
     } catch (error) {
       this.settlementMetrics.disputedSettlements++;
       this.logger.error(`❌ Failed to settle prop: ${prop.id}`, {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -444,23 +459,28 @@ export class SettlementAgent extends BaseAgent {
   /**
    * Calculate prop settlement result
    */
-  private async calculatePropSettlement(prop: any, game: GameResult, settlementData: any): Promise<PropSettlement | null> {
+  // eslint-disable-next-line complexity, no-unused-vars -- pre-existing, refactor in separate sprint
+  private async calculatePropSettlement(
+    prop: any,
+    game: GameResult,
+    _settlementData: any
+  ): Promise<PropSettlement | null> {
     // This is a simplified version - in production you'd need more sophisticated logic
     // to handle different prop types, player stats, etc.
-    
+
     try {
       let actual_value: number | undefined;
       let bet_side: 'over' | 'under' | 'home' | 'away';
       let result: 'win' | 'loss' | 'push' | 'void';
-      
+
       // Example logic for team totals (simplified)
       if (prop.stat_type === 'total' || prop.stat_type === 'totals') {
         const totalScore = game.home_score + game.away_score;
         actual_value = totalScore;
-        
+
         // Assume we can determine if this was an over or under bet
         bet_side = prop.over_odds > 0 ? 'over' : 'under';
-        
+
         if (bet_side === 'over') {
           result = totalScore > prop.line ? 'win' : totalScore < prop.line ? 'loss' : 'push';
         } else {
@@ -472,7 +492,7 @@ export class SettlementAgent extends BaseAgent {
         // Require manual review for complex prop types
         return null;
       }
-      
+
       return {
         raw_prop_id: prop.id,
         player_name: prop.player_name,
@@ -481,12 +501,11 @@ export class SettlementAgent extends BaseAgent {
         bet_side,
         actual_value,
         settlement_result: result,
-        confidence: 0.95 // High confidence for simple calculations
+        confidence: 0.95, // High confidence for simple calculations
       };
-
     } catch (error) {
       this.logger.error(`❌ Error calculating prop settlement for ${prop.id}`, {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return null;
     }
@@ -494,12 +513,14 @@ export class SettlementAgent extends BaseAgent {
 
   /**
    * Update final pick settlement status
+   * SPRINT-SINGLE-WRITER-SETTLEMENT-GUARD-071A: Uses lifecycleSettle adapter
+   * to enforce single-writer discipline and transition validation.
    */
   private async updateUnifiedPickSettlement(prop: any, settlement: PropSettlement): Promise<void> {
     if (!this.hasSupabase()) return;
 
     try {
-      // Find corresponding final pick
+      // Find corresponding final pick (READ is allowed)
       const { data: finalPicks, error } = await this.requireSupabase()
         .from('unified_picks')
         .select('*')
@@ -510,26 +531,46 @@ export class SettlementAgent extends BaseAgent {
       }
 
       for (const finalPick of finalPicks) {
-        const { error: updateError } = await this.requireSupabase()
-          .from('unified_picks')
-          .update({
-            settlement_status: 'settled',
-            settlement_result: settlement.settlement_result,
-            actual_outcome: settlement.actual_value,
-            settled_at: new Date().toISOString()
-          })
-          .eq('id', finalPick.id);
+        // SPRINT-071A: Use lifecycle adapter instead of direct write
+        // Handle void case: use settlement_status='void', no settlement_result
+        const isVoid = settlement.settlement_result === 'void';
+        const settlementPayload = isVoid
+          ? {
+              settlement_status: 'void' as const,
+              actual_outcome: settlement.actual_value,
+            }
+          : {
+              settlement_status: 'settled' as const,
+              settlement_result: settlement.settlement_result as
+                | 'win'
+                | 'loss'
+                | 'push'
+                | undefined,
+              actual_outcome: settlement.actual_value,
+            };
 
-        if (updateError) {
-          this.logger.error(`❌ Failed to update final pick settlement: ${finalPick.id}`, {
-            error: updateError.message
+        const result = await lifecycleSettle(
+          this.requireSupabase(),
+          finalPick.id,
+          settlementPayload,
+          {
+            writerRole: 'settler',
+            traceId: `settlement-agent-${finalPick.id}-${Date.now()}`,
+          }
+        );
+
+        if (!result.success) {
+          this.logger.error(`❌ Failed to settle pick via lifecycle adapter: ${finalPick.id}`, {
+            error: result.error,
+            validationPassed: result.validationPassed,
           });
+        } else {
+          this.logger.debug(`✅ Pick settled via lifecycle adapter: ${finalPick.id}`);
         }
       }
-
     } catch (error) {
       this.logger.error(`❌ Error updating final pick settlement for prop ${prop.id}`, {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -556,7 +597,7 @@ export class SettlementAgent extends BaseAgent {
    * Manual settlement override (for disputed cases)
    */
   public async manualSettle(
-    propId: string, 
+    propId: string,
     result: 'win' | 'loss' | 'push' | 'void',
     actualValue?: number,
     notes?: string
@@ -578,7 +619,7 @@ export class SettlementAgent extends BaseAgent {
           settlement_confidence: 1.0,
           disputed: false,
           dispute_resolved_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('raw_prop_id', propId);
 
@@ -596,14 +637,13 @@ export class SettlementAgent extends BaseAgent {
           data_source: 'manual',
           processing_agent: 'SettlementAgent',
           confidence_score: 1.0,
-          notes: notes || 'Manual settlement override'
+          notes: notes || 'Manual settlement override',
         });
 
       this.logger.info(`✅ Manual settlement completed for prop ${propId}`);
-
     } catch (error) {
       this.logger.error(`❌ Manual settlement failed for prop ${propId}`, {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
