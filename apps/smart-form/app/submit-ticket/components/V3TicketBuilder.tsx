@@ -71,6 +71,28 @@ interface LoadingState {
   submitting: boolean;
 }
 
+interface ErrorState {
+  sports: string | null;
+  events: string | null;
+  markets: string | null;
+  participants: string | null;
+  offers: string | null;
+  providers: string | null;
+}
+
+// Timeout for fail-closed UX (5 seconds)
+const FETCH_TIMEOUT_MS = 5000;
+
+/**
+ * Wrapper that adds timeout to a promise
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(errorMessage)), ms)),
+  ]);
+}
+
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
@@ -134,51 +156,93 @@ export function V3TicketBuilder() {
   });
 
   // ========================================
+  // ERROR STATE (fail-closed)
+  // ========================================
+  const [errors, setErrors] = useState<ErrorState>({
+    sports: null,
+    events: null,
+    markets: null,
+    participants: null,
+    offers: null,
+    providers: null,
+  });
+
+  // ========================================
+  // ENV VAR CHECK
+  // ========================================
+  const [envError, setEnvError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      setEnvError('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY');
+    }
+  }, []);
+
+  // ========================================
   // SUBMISSION RESULT
   // ========================================
   const [submitResult, setSubmitResult] = useState<V3SubmitTicketResult | null>(null);
 
   // ========================================
-  // LOAD SPORTS ON MOUNT
+  // LOAD SPORTS ON MOUNT (with timeout)
   // ========================================
-  useEffect(() => {
-    const loadInitial = async () => {
-      try {
-        const [sportsData, providersData] = await Promise.all([fetchSports(), fetchProviders()]);
-        setSports(sportsData);
-        setProviders(providersData.map(p => ({ code: p.code, display_name: p.display_name })));
-      } catch (error: any) {
-        console.error('[V3Builder] Failed to load sports:', error);
-        toast({
-          title: 'Failed to load sports',
-          description: error.message,
-          variant: 'destructive',
-        });
-      } finally {
-        setLoading(prev => ({ ...prev, sports: false, providers: false }));
-      }
-    };
-    loadInitial();
+  const loadSportsAndProviders = useCallback(async () => {
+    setLoading(prev => ({ ...prev, sports: true, providers: true }));
+    setErrors(prev => ({ ...prev, sports: null, providers: null }));
+
+    try {
+      const [sportsData, providersData] = await withTimeout(
+        Promise.all([fetchSports(), fetchProviders()]),
+        FETCH_TIMEOUT_MS,
+        'Request timed out after 5 seconds'
+      );
+      setSports(sportsData);
+      setProviders(providersData.map(p => ({ code: p.code, display_name: p.display_name })));
+    } catch (error: any) {
+      console.error('[V3Builder] Failed to load sports:', error);
+      setErrors(prev => ({ ...prev, sports: error.message }));
+      toast({
+        title: 'Failed to load sports',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(prev => ({ ...prev, sports: false, providers: false }));
+    }
   }, [toast]);
 
+  useEffect(() => {
+    loadSportsAndProviders();
+  }, [loadSportsAndProviders]);
+
   // ========================================
-  // LOAD EVENTS WHEN SPORT CHANGES
+  // LOAD EVENTS WHEN SPORT CHANGES (with timeout)
   // ========================================
   useEffect(() => {
     if (!selectedSport) {
       setEvents([]);
       setFilteredEvents([]);
+      setErrors(prev => ({ ...prev, events: null }));
       return;
     }
 
     const loadEvents = async () => {
       setLoading(prev => ({ ...prev, events: true }));
+      setErrors(prev => ({ ...prev, events: null }));
       try {
-        const data = await fetchEvents(selectedSport);
+        const data = await withTimeout(
+          fetchEvents(selectedSport),
+          FETCH_TIMEOUT_MS,
+          'Events request timed out'
+        );
         setEvents(data);
         setFilteredEvents(data);
       } catch (error: any) {
         console.error('[V3Builder] Failed to load events:', error);
+        setErrors(prev => ({ ...prev, events: error.message }));
         setEvents([]);
         setFilteredEvents([]);
       } finally {
@@ -199,21 +263,28 @@ export function V3TicketBuilder() {
   }, [selectedSport]);
 
   // ========================================
-  // LOAD MARKET TYPES WHEN SPORT CHANGES
+  // LOAD MARKET TYPES WHEN SPORT CHANGES (with timeout)
   // ========================================
   useEffect(() => {
     if (!selectedSport) {
       setMarketTypes([]);
+      setErrors(prev => ({ ...prev, markets: null }));
       return;
     }
 
     const loadMarkets = async () => {
       setLoading(prev => ({ ...prev, markets: true }));
+      setErrors(prev => ({ ...prev, markets: null }));
       try {
-        const data = await fetchMarketTypes(selectedSport);
+        const data = await withTimeout(
+          fetchMarketTypes(selectedSport),
+          FETCH_TIMEOUT_MS,
+          'Markets request timed out'
+        );
         setMarketTypes(data);
       } catch (error: any) {
         console.error('[V3Builder] Failed to load market types:', error);
+        setErrors(prev => ({ ...prev, markets: error.message }));
         setMarketTypes([]);
       } finally {
         setLoading(prev => ({ ...prev, markets: false }));
@@ -239,21 +310,28 @@ export function V3TicketBuilder() {
   }, [eventSearch, events]);
 
   // ========================================
-  // LOAD PARTICIPANTS WHEN EVENT SELECTED
+  // LOAD PARTICIPANTS WHEN EVENT SELECTED (with timeout)
   // ========================================
   useEffect(() => {
     if (!selectedEvent) {
       setParticipants([]);
+      setErrors(prev => ({ ...prev, participants: null }));
       return;
     }
 
     const loadParticipants = async () => {
       setLoading(prev => ({ ...prev, participants: true }));
+      setErrors(prev => ({ ...prev, participants: null }));
       try {
-        const data = await fetchParticipants(selectedEvent.id);
+        const data = await withTimeout(
+          fetchParticipants(selectedEvent.id),
+          FETCH_TIMEOUT_MS,
+          'Participants request timed out'
+        );
         setParticipants(data);
       } catch (error: any) {
         console.error('[V3Builder] Failed to load participants:', error);
+        setErrors(prev => ({ ...prev, participants: error.message }));
         setParticipants([]);
       } finally {
         setLoading(prev => ({ ...prev, participants: false }));
@@ -268,11 +346,12 @@ export function V3TicketBuilder() {
   }, [selectedEvent]);
 
   // ========================================
-  // LOAD OFFERS WHEN MARKET/PARTICIPANT SELECTED
+  // LOAD OFFERS WHEN MARKET/PARTICIPANT SELECTED (with timeout)
   // ========================================
   useEffect(() => {
     if (!selectedEvent || !selectedMarketType) {
       setOffers([]);
+      setErrors(prev => ({ ...prev, offers: null }));
       return;
     }
 
@@ -284,15 +363,21 @@ export function V3TicketBuilder() {
 
     const loadOffers = async () => {
       setLoading(prev => ({ ...prev, offers: true }));
+      setErrors(prev => ({ ...prev, offers: null }));
       try {
-        const data = await fetchOffers({
-          eventId: selectedEvent.id,
-          marketTypeId: selectedMarketType.market_type_id,
-          participantId: selectedParticipant?.participant_id,
-        });
+        const data = await withTimeout(
+          fetchOffers({
+            eventId: selectedEvent.id,
+            marketTypeId: selectedMarketType.market_type_id,
+            participantId: selectedParticipant?.participant_id,
+          }),
+          FETCH_TIMEOUT_MS,
+          'Offers request timed out'
+        );
         setOffers(data);
       } catch (error: any) {
         console.error('[V3Builder] Failed to load offers:', error);
+        setErrors(prev => ({ ...prev, offers: error.message }));
         setOffers([]);
       } finally {
         setLoading(prev => ({ ...prev, offers: false }));
@@ -561,6 +646,17 @@ export function V3TicketBuilder() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 py-6 px-4">
       <div className="max-w-7xl mx-auto">
+        {/* Env Error Banner */}
+        {envError && (
+          <div className="mb-4 p-4 bg-red-900/50 border border-red-500 rounded-lg">
+            <div className="flex items-center gap-2 text-red-200">
+              <AlertCircle className="h-5 w-5" />
+              <span className="font-semibold">Configuration Error</span>
+            </div>
+            <p className="mt-1 text-red-300 text-sm">{envError}</p>
+          </div>
+        )}
+
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-white">V3 Ticket Builder</h1>
@@ -579,6 +675,26 @@ export function V3TicketBuilder() {
               {loading.sports ? (
                 <div className="flex items-center gap-2 text-slate-500">
                   <Spinner className="h-4 w-4" /> Loading sports...
+                </div>
+              ) : errors.sports ? (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-center gap-2 text-red-700">
+                    <AlertCircle className="h-4 w-4" />
+                    <span className="text-sm font-medium">Error loading sports</span>
+                  </div>
+                  <p className="mt-1 text-sm text-red-600">{errors.sports}</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                    onClick={loadSportsAndProviders}
+                  >
+                    <RefreshCw className="h-3 w-3 mr-1" /> Retry
+                  </Button>
+                </div>
+              ) : sports.length === 0 ? (
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700">
+                  No sports available. Check view_sports_active.
                 </div>
               ) : (
                 <Select value={selectedSport} onValueChange={setSelectedSport}>
@@ -613,9 +729,20 @@ export function V3TicketBuilder() {
                   <div className="flex items-center gap-2 text-slate-500">
                     <Spinner className="h-4 w-4" /> Loading events...
                   </div>
+                ) : errors.events ? (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex items-center gap-2 text-red-700">
+                      <AlertCircle className="h-4 w-4" />
+                      <span className="text-sm font-medium">Error loading events</span>
+                    </div>
+                    <p className="mt-1 text-sm text-red-600">{errors.events}</p>
+                  </div>
                 ) : filteredEvents.length === 0 ? (
-                  <div className="text-slate-500 text-sm py-4 text-center border rounded">
-                    No upcoming events found for {selectedSport}
+                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700">
+                    <div className="font-medium">No upcoming events found for {selectedSport}</div>
+                    <div className="mt-1 text-xs">
+                      Query: view_events_for_form WHERE sport = '{selectedSport}'
+                    </div>
                   </div>
                 ) : (
                   <div className="max-h-64 overflow-y-auto border rounded divide-y">
@@ -646,6 +773,18 @@ export function V3TicketBuilder() {
                 {loading.markets ? (
                   <div className="flex items-center gap-2 text-slate-500">
                     <Spinner className="h-4 w-4" /> Loading markets...
+                  </div>
+                ) : errors.markets ? (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex items-center gap-2 text-red-700">
+                      <AlertCircle className="h-4 w-4" />
+                      <span className="text-sm font-medium">Error loading markets</span>
+                    </div>
+                    <p className="mt-1 text-sm text-red-600">{errors.markets}</p>
+                  </div>
+                ) : marketTypes.length === 0 ? (
+                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700">
+                    No market types found for {selectedSport}
                   </div>
                 ) : (
                   <Select
