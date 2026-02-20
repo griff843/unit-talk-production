@@ -831,6 +831,299 @@ router.post('/recap', async (req, res) => {
 });
 
 // ============================================================================
+// SPRINT-OPS-SUBMIT-V2-071B: Operator Submit Endpoint
+// Purpose: Restore pick submission capability for operators
+// Uses atomic_submit_ticket RPC for idempotency and atomicity
+// ============================================================================
+
+/**
+ * POST /ops/submit - Submit a pick/ticket as operator
+ *
+ * Body:
+ * {
+ *   "capper_id": "uuid",
+ *   "capper_username": "griff843",
+ *   "sport": "NFL",
+ *   "ticket_type": "straight" | "parlay",
+ *   "picks": [{
+ *     "selection": "KC -3.5",
+ *     "line": -3.5,
+ *     "odds": -110,
+ *     "stat_type": "spread",
+ *     "side": "favorite",
+ *     "confidence": 80,
+ *     "units": 1.0,
+ *     "player_name": null,
+ *     "bet_type": "spread",
+ *     "notes": "Sharp line move"
+ *   }],
+ *   "manual_matchup_home": "Kansas City Chiefs",
+ *   "manual_matchup_away": "Buffalo Bills",
+ *   "manual_game_date": "2026-02-20",
+ *   "parlay_odds": -110,       // optional, for parlays
+ *   "total_units": 1.0,        // optional
+ *   "notes": "Operator note",  // optional
+ *   "idempotency_key": "ops-xxx" // optional, defaults to generated
+ * }
+ */
+router.post('/submit', async (req, res) => {
+  const correlationId = `ops-submit-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+
+  try {
+    const {
+      capper_id,
+      capper_username,
+      sport,
+      ticket_type = 'straight',
+      picks,
+      manual_matchup_home,
+      manual_matchup_away,
+      manual_game_date,
+      parlay_odds,
+      total_units = 1.0,
+      notes,
+      idempotency_key,
+    } = req.body;
+
+    // Input validation
+    if (!capper_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'capper_id is required',
+        correlationId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    if (!sport) {
+      return res.status(400).json({
+        success: false,
+        error: 'sport is required',
+        correlationId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    if (!picks || !Array.isArray(picks) || picks.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'picks array is required and must have at least one pick',
+        correlationId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Validate each pick has required fields
+    for (let i = 0; i < picks.length; i++) {
+      const pick = picks[i];
+      if (!pick.selection) {
+        return res.status(400).json({
+          success: false,
+          error: `picks[${i}].selection is required`,
+          correlationId,
+          timestamp: new Date().toISOString(),
+        });
+      }
+      if (typeof pick.odds !== 'number') {
+        return res.status(400).json({
+          success: false,
+          error: `picks[${i}].odds is required and must be a number`,
+          correlationId,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    }
+
+    // Generate bet_slip_id (idempotency key)
+    const betSlipId = idempotency_key || `ops-${crypto.randomUUID()}`;
+
+    logger.info('Ops submit requested', {
+      correlationId,
+      betSlipId,
+      capper_id,
+      sport,
+      ticket_type,
+      pick_count: picks.length,
+    });
+
+    const { supabaseClient } = await import('../services/supabaseClient');
+
+    // Build game_selections from manual fields
+    const gameSelections = [
+      {
+        home_team: manual_matchup_home || 'TBD',
+        away_team: manual_matchup_away || 'TBD',
+        game_date: manual_game_date || null,
+        sport,
+      },
+    ];
+
+    // Map picks to RPC format
+    const picksForRpc = picks.map((pick: any, idx: number) => ({
+      selection: pick.selection,
+      line: pick.line ?? null,
+      odds: pick.odds,
+      stat_type: pick.stat_type || 'spread',
+      side: pick.side || null,
+      confidence: pick.confidence ?? 75,
+      units: pick.units ?? 1.0,
+      player_name: pick.player_name || null,
+      bet_type: pick.bet_type || 'spread',
+      notes: pick.notes || null,
+      leg_index: idx,
+      // Manual fields per pick
+      manual_matchup_home: pick.manual_matchup_home || manual_matchup_home || null,
+      manual_matchup_away: pick.manual_matchup_away || manual_matchup_away || null,
+      manual_game_date: pick.manual_game_date || manual_game_date || null,
+    }));
+
+    // Call atomic_submit_ticket RPC
+    const { data: rpcResult, error: rpcError } = await supabaseClient.rpc('atomic_submit_ticket', {
+      p_bet_slip_id: betSlipId,
+      p_capper_id: capper_id,
+      p_capper_username: capper_username || 'operator',
+      p_sport: sport,
+      p_ticket_type: ticket_type,
+      p_game_selections: gameSelections,
+      p_picks: picksForRpc,
+      p_parlay_odds: parlay_odds ?? null,
+      p_total_units: total_units,
+      p_notes: notes || `Submitted via Ops Submit at ${new Date().toISOString()}`,
+    });
+
+    if (rpcError) {
+      logger.error('Ops submit RPC error', {
+        correlationId,
+        betSlipId,
+        error: rpcError.message,
+        details: rpcError.details,
+      });
+
+      return res.status(500).json({
+        success: false,
+        error: 'Submission RPC failed',
+        details: rpcError.message,
+        correlationId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const result = rpcResult as any;
+
+    if (!result?.success) {
+      logger.warn('Ops submit rejected by RPC', {
+        correlationId,
+        betSlipId,
+        rpcError: result?.error,
+      });
+
+      return res.status(422).json({
+        success: false,
+        error: result?.error || 'Submission rejected',
+        details: result,
+        correlationId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Check if duplicate (idempotent)
+    if (result.is_duplicate) {
+      logger.info('Ops submit idempotent duplicate', {
+        correlationId,
+        betSlipId,
+        existing: true,
+      });
+
+      return res.status(200).json({
+        success: true,
+        is_duplicate: true,
+        bet_slip_id: result.bet_slip_id,
+        status: result.status,
+        message: 'Ticket already submitted (idempotent)',
+        correlationId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    logger.info('Ops submit completed', {
+      correlationId,
+      betSlipId,
+      pick_ids: result.pick_ids,
+      ticket_id: result.ticket_id,
+    });
+
+    res.status(201).json({
+      success: true,
+      bet_slip_id: result.bet_slip_id,
+      ticket_id: result.ticket_id,
+      pick_ids: result.pick_ids,
+      status: result.status,
+      selection_count: result.selection_count,
+      correlationId,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    logger.error('Ops submit endpoint error', {
+      correlationId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error during submission',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      correlationId,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+/**
+ * GET /ops/cappers - List available cappers for submit form
+ */
+router.get('/cappers', async (req, res) => {
+  const correlationId = `ops-cappers-${Date.now()}`;
+
+  try {
+    const { supabaseClient } = await import('../services/supabaseClient');
+
+    const { data, error } = await supabaseClient
+      .from('users')
+      .select('id, username, email, role')
+      .eq('is_active', true)
+      .in('role', ['capper', 'admin', 'operator'])
+      .order('username');
+
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to fetch cappers',
+        details: error.message,
+        correlationId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    res.json({
+      success: true,
+      count: data?.length || 0,
+      cappers: data || [],
+      correlationId,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch cappers',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      correlationId,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+// ============================================================================
 // GAUNTLET ENDPOINTS — GATED BY GAUNTLET_MODE=true
 // Sprint: FULL-CHAIN-STAGING-GAUNTLET-041
 // ============================================================================
