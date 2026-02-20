@@ -198,8 +198,8 @@ export interface V3LegOverride {
 }
 
 export interface V3LegPayload {
-  event_id: string;
-  market_type_id: number;
+  event_id?: string | null;
+  market_type_id?: number | null;
   segment_type_id?: number;
   selection: Selection;
   provider_offer_id?: string;
@@ -208,6 +208,21 @@ export interface V3LegPayload {
   odds?: number;
   provider?: string;
   override?: V3LegOverride;
+}
+
+// Manual entry leg payload (no FK references)
+export interface V3ManualLegPayload {
+  sport: string;
+  bet_type: string;
+  home_team: string;
+  away_team: string;
+  matchup_text?: string;
+  player_name?: string;
+  prop_type?: string;
+  selection: Selection;
+  line?: number;
+  odds: number;
+  provider: string;
 }
 
 export interface V3SubmitTicketInput {

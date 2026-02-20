@@ -175,6 +175,22 @@ export async function submitTicketV3(input: V3SubmitTicketInput): Promise<V3Subm
 export function validateLeg(leg: V3TicketLeg): string[] {
   const errors: string[] = [];
 
+  // Manual entry mode: different validation
+  if (leg.isManual) {
+    // Manual mode requires: sport, bet_type, matchup, selection, provider, odds
+    if (!leg.provider) {
+      errors.push('Provider is required for manual entry');
+    }
+    if (leg.odds === undefined || leg.odds === null) {
+      errors.push('Odds are required for manual entry');
+    }
+    if (!leg.selection) {
+      errors.push('Selection is required');
+    }
+    return errors;
+  }
+
+  // Catalog mode validation
   if (!leg.event_id) {
     errors.push('Event is required');
   }
@@ -188,23 +204,13 @@ export function validateLeg(leg: V3TicketLeg): string[] {
   }
 
   // Provider-first path
-  if (!leg.isManual && !leg.provider_offer_id) {
+  if (!leg.provider_offer_id) {
     // If not manual and no offer, we need manual fields
     if (!leg.provider) {
       errors.push('Provider is required');
     }
     if (leg.odds === undefined || leg.odds === null) {
       errors.push('Odds are required');
-    }
-  }
-
-  // Manual path validation
-  if (leg.isManual) {
-    if (!leg.provider) {
-      errors.push('Provider is required for manual entry');
-    }
-    if (leg.odds === undefined || leg.odds === null) {
-      errors.push('Odds are required for manual entry');
     }
   }
 

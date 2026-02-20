@@ -1,17 +1,17 @@
-import { V3TicketBuilder } from './components/V3TicketBuilder';
+import { TrueManualEntryForm } from './components/TrueManualEntryForm';
 
 /**
  * V3 Ticket Submission Page
  *
- * SPRINT: SPRINT-SMARTFORM-UX-REBUILD-080
+ * SPRINT: SPRINT-SMARTFORM-TRUE-MANUAL-ENTRY-084
  *
- * Uses V3TicketBuilder which implements:
- * - Single-page sportsbook-grade UI
- * - Canonical V3 views for data
- * - atomic_submit_ticket_v2 for submission
- * - Provider-first with manual fallback
+ * Uses TrueManualEntryForm which implements:
+ * - 2-step tabs (Ticket Setup / Pick Details)
+ * - True manual entry - NO sentinel events, NULL FK columns
+ * - Manual data stored in provider_value/effective_value JSONB
+ * - atomic_submit_ticket_v2 with entry_mode: 'manual'
  * - Fail-closed error handling
  */
 export default function SubmitTicketPage() {
-  return <V3TicketBuilder />;
+  return <TrueManualEntryForm />;
 }
