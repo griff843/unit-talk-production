@@ -273,9 +273,16 @@ export function SportsbookManualEntry() {
   // Ticket state
   const [legs, setLegs] = useState<ManualLeg[]>([]);
   const [stake, setStake] = useState(1);
-  const [betSlipId, setBetSlipId] = useState(generateBetSlipId());
+  const [betSlipId, setBetSlipId] = useState(''); // Initialize empty to avoid hydration mismatch
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState<V3SubmitTicketResult | null>(null);
+
+  // Generate bet slip ID on client-side only to avoid hydration mismatch
+  useEffect(() => {
+    if (!betSlipId) {
+      setBetSlipId(generateBetSlipId());
+    }
+  }, [betSlipId]);
 
   // Builder state
   const [builder, setBuilder] = useState<BuilderState>({
