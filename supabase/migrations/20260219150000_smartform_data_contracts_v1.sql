@@ -295,9 +295,11 @@ WHERE rp.game_date >= CURRENT_DATE
   AND LOWER(COALESCE(rp.stat_type, '')) NOT IN ('moneyline', 'spread', 'total', 'over', 'under', 'ml', 'pk');
 
 -- Indexes for efficient filtering
+-- Note: Cannot use CURRENT_DATE in partial index (not immutable)
+-- Use simple partial index on line IS NOT NULL instead
 CREATE INDEX IF NOT EXISTS idx_raw_props_contract_sport_player
-  ON raw_props (sport, player_name, stat_type)
-  WHERE game_date >= CURRENT_DATE AND line IS NOT NULL;
+  ON raw_props (sport, player_name, stat_type, game_date)
+  WHERE line IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_raw_props_contract_sport_date
   ON raw_props (sport, game_date)

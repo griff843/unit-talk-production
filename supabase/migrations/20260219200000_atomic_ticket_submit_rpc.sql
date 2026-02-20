@@ -9,8 +9,10 @@
 -- 3. Fail-closed: Transaction rolls back on any failure
 -- 4. Returns existing ticket on duplicate submission (no error, no duplicate)
 --
+-- Note: bet_slip_id is TEXT (not UUID) to match existing schema
+--
 -- Rollback:
---   DROP FUNCTION IF EXISTS atomic_submit_ticket;
+--   DROP FUNCTION IF EXISTS atomic_submit_ticket(TEXT, UUID, TEXT, TEXT, TEXT, JSONB, JSONB, INTEGER, NUMERIC, TEXT);
 -- ============================================================================
 
 -- ========================================================================
@@ -18,7 +20,7 @@
 -- ========================================================================
 
 CREATE OR REPLACE FUNCTION atomic_submit_ticket(
-  p_bet_slip_id UUID,
+  p_bet_slip_id TEXT,
   p_capper_id UUID,
   p_capper_username TEXT,
   p_sport TEXT,
@@ -42,6 +44,8 @@ DECLARE
   v_inserted_pick_ids UUID[] := '{}';
   v_selection_count INTEGER;
   v_result JSONB;
+  v_manual_game_date DATE;
+  v_existing_outbox RECORD;
 BEGIN
   -- ========================================================================
   -- STEP 1: IDEMPOTENCY CHECK
@@ -116,6 +120,13 @@ BEGIN
   LOOP
     v_pick_id := gen_random_uuid();
 
+    -- Parse manual_game_date as DATE (with error handling)
+    BEGIN
+      v_manual_game_date := NULLIF(v_pick->>'manual_game_date', '')::DATE;
+    EXCEPTION WHEN OTHERS THEN
+      v_manual_game_date := NULL;
+    END;
+
     INSERT INTO unified_picks (
       id,
       bet_slip_id,
@@ -170,7 +181,7 @@ BEGIN
       ),
       NULLIF(v_pick->>'manual_matchup_home', '')::TEXT,
       NULLIF(v_pick->>'manual_matchup_away', '')::TEXT,
-      NULLIF(v_pick->>'manual_game_date', '')::TEXT,
+      v_manual_game_date,
       CASE
         WHEN (v_pick->>'source') = 'manual' THEN
           jsonb_build_object(
@@ -189,37 +200,43 @@ BEGIN
   END LOOP;
 
   -- ========================================================================
-  -- STEP 4: ATOMIC INSERT - bridge_outbox
+  -- STEP 4: ATOMIC INSERT - bridge_outbox (idempotent)
   -- Part of the atomic transaction to ensure exactly-once event publishing
   -- ========================================================================
-  INSERT INTO bridge_outbox (
-    id,
-    event_type,
-    event_data,
-    bet_slip_id,
-    status,
-    retry_count,
-    created_at
-  ) VALUES (
-    gen_random_uuid(),
-    'ticket_submitted',
-    jsonb_build_object(
-      'bet_slip_id', p_bet_slip_id,
-      'capper_id', p_capper_id,
-      'capper_username', p_capper_username,
-      'sport', p_sport,
-      'ticket_type', p_ticket_type,
-      'selection_count', v_selection_count,
-      'submitted_via', 'atomic_rpc',
-      'submitted_at', NOW()
-    ),
-    p_bet_slip_id,
-    'pending',
-    0,
-    NOW()
-  )
-  ON CONFLICT (bet_slip_id) WHERE event_type = 'ticket_submitted'
-  DO NOTHING;  -- Idempotent: skip if already exists
+  -- Check if outbox event already exists
+  SELECT id INTO v_existing_outbox
+  FROM bridge_outbox
+  WHERE bet_slip_id = p_bet_slip_id AND event_type = 'ticket_submitted';
+
+  IF NOT FOUND THEN
+    -- Only insert if not exists
+    INSERT INTO bridge_outbox (
+      id,
+      event_type,
+      event_data,
+      bet_slip_id,
+      status,
+      retry_count,
+      created_at
+    ) VALUES (
+      gen_random_uuid(),
+      'ticket_submitted',
+      jsonb_build_object(
+        'bet_slip_id', p_bet_slip_id,
+        'capper_id', p_capper_id,
+        'capper_username', p_capper_username,
+        'sport', p_sport,
+        'ticket_type', p_ticket_type,
+        'selection_count', v_selection_count,
+        'submitted_via', 'atomic_rpc',
+        'submitted_at', NOW()
+      ),
+      p_bet_slip_id,
+      'pending',
+      0,
+      NOW()
+    );
+  END IF;
 
   -- ========================================================================
   -- STEP 5: BUILD RESULT
@@ -303,7 +320,7 @@ ON smart_tickets (bet_slip_id);
 
 COMMENT ON FUNCTION atomic_submit_ticket IS
 'SPRINT-E2E-SUBMIT-LIFECYCLE-HARDENING-062: Atomic, idempotent ticket submission.
-- Uses bet_slip_id as idempotency key
+- Uses bet_slip_id as idempotency key (TEXT type)
 - All writes (smart_tickets, unified_picks, bridge_outbox) in single transaction
 - Returns existing ticket on duplicate (no error, no duplicate)
 - Includes bridge_outbox event for exactly-once downstream processing';
@@ -311,6 +328,3 @@ COMMENT ON FUNCTION atomic_submit_ticket IS
 -- ========================================================================
 -- Complete
 -- ========================================================================
-
-COMMENT ON SCHEMA public IS
-'SPRINT-E2E-SUBMIT-LIFECYCLE-HARDENING-062: Atomic ticket submission RPC added';

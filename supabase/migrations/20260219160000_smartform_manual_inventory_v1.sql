@@ -104,9 +104,11 @@ CREATE INDEX IF NOT EXISTS idx_unified_picks_manual_inventory
   ON unified_picks (sport, player_id, stat_type, created_at DESC)
   WHERE stat_type IS NOT NULL;
 
+-- Note: Cannot use NOW() in partial index (not immutable)
+-- Using regular index on created_at instead
 CREATE INDEX IF NOT EXISTS idx_unified_picks_recent_30d
-  ON unified_picks (created_at)
-  WHERE created_at >= NOW() - INTERVAL '30 days';
+  ON unified_picks (created_at DESC)
+  WHERE created_at IS NOT NULL;
 
 GRANT SELECT ON manual_inventory_for_form_v1 TO authenticated, anon, service_role;
 
