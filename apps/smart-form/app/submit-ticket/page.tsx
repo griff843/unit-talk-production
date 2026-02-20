@@ -1,17 +1,17 @@
-import { PickWizard } from './components/PickWizard';
+import { V3TicketBuilder } from './components/V3TicketBuilder';
 
 /**
- * Canonical ticket submission page
+ * V3 Ticket Submission Page
  *
- * SPRINT: SMARTFORM-V1.1-ENTERPRISE-COMPLIANCE-036
+ * SPRINT: SPRINT-SMARTFORM-UX-REBUILD-080
  *
- * Uses the new PickWizard component which implements:
- * - Guided step-by-step flow
- * - Progressive disclosure
- * - First-class manual mode
- * - No mock data (fail-closed)
- * - Skeleton loading states
+ * Uses V3TicketBuilder which implements:
+ * - Single-page sportsbook-grade UI
+ * - Canonical V3 views for data
+ * - atomic_submit_ticket_v2 for submission
+ * - Provider-first with manual fallback
+ * - Fail-closed error handling
  */
 export default function SubmitTicketPage() {
-  return <PickWizard />;
+  return <V3TicketBuilder />;
 }
