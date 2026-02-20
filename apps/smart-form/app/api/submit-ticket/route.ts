@@ -4,7 +4,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { supabaseServer } from '@/lib/supabase';
 import {
   createRouteLogger,
-  logDatabaseOperation,
   logApiPerformance,
   logValidationError,
   logSecurityEvent,
@@ -83,6 +82,7 @@ const GameSelectionSchema = z.object({
   manual_game_date: z.string().optional(),
 });
 
+// SPRINT-E2E-SUBMIT-LIFECYCLE-HARDENING-062: Add idempotency_key support
 const SubmitTicketSchema = z.object({
   capper_id: z.string().uuid('Capper ID must be a valid UUID'),
   sport: z.enum(SUPPORTED_SPORTS),
@@ -105,46 +105,25 @@ const SubmitTicketSchema = z.object({
     ),
   total_units: z.number().min(0.5).max(10).default(1.0),
   notes: z.string().optional(),
+  // SPRINT-E2E-SUBMIT-LIFECYCLE-HARDENING-062: Idempotency key for retry-safe submissions
+  // If provided, duplicate submissions with same key return the existing ticket
+  idempotency_key: z.string().uuid().optional(),
 });
 
-// SmartFormBridge integration
-async function publishTicketSubmitted(ticketData: {
+// SPRINT-E2E-SUBMIT-LIFECYCLE-HARDENING-062: Atomic submit RPC result type
+interface AtomicSubmitResult {
+  success: boolean;
+  is_duplicate: boolean;
   bet_slip_id: string;
   capper_id: string;
+  sport: string;
+  ticket_type: string;
   selection_count: number;
-}) {
-  try {
-    const sb = supabaseServer();
-
-    // Write to bridge outbox for idempotent processing
-    // PARITY-GATE-001: Use cloud-canonical column names (event_data, bet_slip_id)
-    const { error } = await (sb.from('bridge_outbox') as any).insert({
-      event_type: 'ticket_submitted',
-      event_data: ticketData,
-      bet_slip_id: ticketData.bet_slip_id,
-      status: 'pending',
-    });
-
-    if (error) {
-      log.error({ error: error.message }, 'Failed to publish ticket submission event');
-    } else {
-      log.info(
-        {
-          bet_slip_id: ticketData.bet_slip_id,
-          capper_id: ticketData.capper_id,
-        },
-        'Ticket submission event published to outbox'
-      );
-    }
-  } catch (error) {
-    log.error(
-      {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        bet_slip_id: ticketData.bet_slip_id,
-      },
-      'Error publishing ticket submission event'
-    );
-  }
+  total_units: number;
+  status: string;
+  pick_ids?: string[];
+  created_at: string;
+  message: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -179,8 +158,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { capper_id, sport, ticket_type, selections, parlay_odds, total_units, notes } =
-      validation.data;
+    const {
+      capper_id,
+      sport,
+      ticket_type,
+      selections,
+      parlay_odds,
+      total_units,
+      notes,
+      idempotency_key,
+    } = validation.data;
 
     // Validate ticket type vs selection count
     if (ticket_type === 'parlay' && selections.length < 2) {
@@ -266,9 +253,18 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Generate unique bet slip ID
-    const betSlipId = uuidv4();
+    // SPRINT-E2E-SUBMIT-LIFECYCLE-HARDENING-062: Use idempotency_key or generate UUID
+    // This enables retry-safe submissions - duplicate keys return existing ticket
+    const betSlipId = idempotency_key || uuidv4();
     const supabase = supabaseServer();
+
+    log.info(
+      {
+        bet_slip_id: betSlipId,
+        has_idempotency_key: !!idempotency_key,
+      },
+      'Using bet_slip_id for atomic submit'
+    );
 
     // Verify capper exists and is active
     const { data: capperUser, error: capperError } = (await (supabase.from('users') as any)
@@ -327,151 +323,172 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create smart ticket (authoritative record)
-    const smartTicketData = {
-      bet_slip_id: betSlipId,
-      capper_id,
-      sport,
-      ticket_type,
-      game_selections: selections,
-      parlay_odds,
-      total_units,
-      status: 'submitted',
-      selection_count: selections.length,
-      notes,
-    };
+    // SPRINT-E2E-SUBMIT-LIFECYCLE-HARDENING-062: Build picks array for atomic RPC
+    // Transform selections to the format expected by the RPC
+    const picksForRpc = selections.map(selection => ({
+      stat_type: selection.stat_type,
+      line: selection.line,
+      odds: selection.leg_odds,
+      selection: selection.selection,
+      confidence: selection.confidence || 0,
+      team_id: selection.team_id || null,
+      player_id: selection.player_id || null,
+      player_name: selection.player_name || null,
+      bet_type: selection.bet_type || 'moneyline',
+      side: selection.direction?.toLowerCase() || null,
+      source: selection.source,
+      is_live: selection.is_live || false,
+      manual_matchup_home: selection.manual_matchup_home || null,
+      manual_matchup_away: selection.manual_matchup_away || null,
+      manual_game_date: selection.manual_game_date || null,
+    }));
 
-    // Start transaction
+    // SPRINT-E2E-SUBMIT-LIFECYCLE-HARDENING-062: Call atomic submit RPC
+    // This executes smart_tickets + unified_picks + bridge_outbox in single transaction
     try {
-      // Insert smart ticket
-      const { data: insertedTicket, error: ticketError } = (await (
-        supabase.from('smart_tickets') as any
-      )
-        .insert(smartTicketData)
-        .select()
-        .single()) as { data: { bet_slip_id: string } | null; error: any };
+      // Cast to any since the RPC function isn't in generated types yet
+      const { data: rpcResult, error: rpcError } = await (supabase.rpc as any)(
+        'atomic_submit_ticket',
+        {
+          p_bet_slip_id: betSlipId,
+          p_capper_id: capper_id,
+          p_capper_username: capperUser.username,
+          p_sport: sport,
+          p_ticket_type: ticket_type,
+          p_game_selections: selections,
+          p_picks: picksForRpc,
+          p_parlay_odds: parlay_odds || null,
+          p_total_units: total_units,
+          p_notes: notes || null,
+        }
+      );
 
-      logDatabaseOperation(log, 'INSERT', 'smart_tickets', insertedTicket, ticketError);
+      if (rpcError) {
+        log.error(
+          {
+            error: rpcError.message,
+            code: rpcError.code,
+            bet_slip_id: betSlipId,
+            capper_id,
+          },
+          'Atomic submit RPC failed'
+        );
 
-      if (ticketError) {
         return NextResponse.json(
           {
             error: 'Failed to save ticket',
-            message: ticketError.message,
+            message: rpcError.message,
+            code: 'ATOMIC_SUBMIT_FAILED',
           },
           { status: 500 }
         );
       }
 
-      // Insert individual legs into unified_picks
-      // PARITY-GATE-001 Stage 7: Include manual fields when source='manual'
-      // POSTING-AUTHORITY-001: Tag capper origin in meta JSONB
-      // PARLAY-SCHEMA-FIX-029: Include leg_index for parlay unique constraint
-      // EMBED-PRODUCTION-CONTRACT-030: Include ticket_type for parlay grouping
-      // EMBED-TRUTH-FIX-031: Include player_name, bet_type, direction for correct embed labeling
-      const pickInserts = selections.map((selection, index) => ({
-        bet_slip_id: betSlipId,
-        user_id: capper_id,
-        sport,
-        leg_index: index,
-        ticket_type: ticket_type,
-        stat_type: selection.stat_type,
-        line: selection.line,
-        odds: selection.leg_odds,
-        selection: selection.selection,
-        confidence: selection.confidence || 0,
-        team_id: selection.team_id,
-        player_id: selection.player_id,
-        source: selection.source,
-        is_live: selection.is_live || false,
-        // EMBED-TRUTH-FIX-031: Required fields for correct embed labeling
-        player_name: selection.player_name || null,
-        bet_type: selection.bet_type || 'moneyline',
-        side: selection.direction?.toLowerCase() || null,
-        // POSTING-AUTHORITY-001: Origin tagging for posting authority router
-        meta: {
-          pick_origin: 'capper' as const,
-          capper: capperUser.username,
-        },
-        // Manual entry fields (populated only when source='manual')
-        ...(selection.source === 'manual' && {
-          manual_matchup_home: selection.manual_matchup_home,
-          manual_matchup_away: selection.manual_matchup_away,
-          manual_game_date: selection.manual_game_date,
-          manual_fields_blob: {
-            entered_at: new Date().toISOString(),
-            matchup: `${selection.manual_matchup_away} @ ${selection.manual_matchup_home}`,
+      const result = rpcResult as AtomicSubmitResult;
+
+      if (!result.success) {
+        log.error(
+          {
+            result,
+            bet_slip_id: betSlipId,
+            capper_id,
           },
-        }),
-      }));
-
-      const { data: insertedPicks, error: picksError } = await (
-        supabase.from('unified_picks') as any
-      )
-        .insert(pickInserts)
-        .select();
-
-      logDatabaseOperation(log, 'INSERT', 'unified_picks', insertedPicks, picksError);
-
-      if (picksError) {
-        // Rollback smart ticket if picks insertion fails
-        await supabase.from('smart_tickets').delete().eq('bet_slip_id', betSlipId);
+          'Atomic submit returned failure'
+        );
 
         return NextResponse.json(
           {
-            error: 'Failed to save ticket selections',
-            message: picksError.message,
+            error: 'Failed to save ticket',
+            message: result.message || 'Unknown error during atomic submit',
+            code: 'ATOMIC_SUBMIT_FAILED',
           },
           { status: 500 }
         );
       }
 
-      log.info(
-        {
-          bet_slip_id: betSlipId,
-          capper_id,
-          capper_name: capperUser.username,
-          sport,
-          ticket_type,
-          selection_count: selections.length,
-          total_units,
-          has_manual_entries: hasManualEntries,
-          is_live: selections.some(s => s.is_live),
-        },
-        'Ticket successfully saved'
-      );
-
-      // Publish to bridge for external processing
-      await publishTicketSubmitted({
-        bet_slip_id: betSlipId,
-        capper_id,
-        selection_count: selections.length,
-      });
-
       const isLive = selections.some(s => s.is_live);
 
+      // SPRINT-E2E-SUBMIT-LIFECYCLE-HARDENING-062: Handle idempotent duplicate
+      if (result.is_duplicate) {
+        log.info(
+          {
+            bet_slip_id: result.bet_slip_id,
+            capper_id: result.capper_id,
+            is_duplicate: true,
+            original_created_at: result.created_at,
+          },
+          'Duplicate submission detected (idempotent response)'
+        );
+
+        logApiPerformance(log, 'submit-ticket', startTime, {
+          bet_slip_id: result.bet_slip_id,
+          capper_id: result.capper_id,
+          sport: result.sport,
+          ticket_type: result.ticket_type,
+          selection_count: result.selection_count,
+          is_duplicate: true,
+        });
+
+        // Return 200 for duplicate (not 201) - indicates idempotent replay
+        return NextResponse.json(
+          {
+            bet_slip_id: result.bet_slip_id,
+            ticket_id: result.bet_slip_id,
+            capper_name: capperUser?.username ?? '',
+            sport: result.sport,
+            ticket_type: result.ticket_type,
+            selection_count: result.selection_count,
+            total_units: result.total_units,
+            is_live: isLive,
+            status: result.status,
+            is_duplicate: true,
+            message: 'Ticket already submitted (idempotent)',
+            created_at: result.created_at,
+          },
+          { status: 200 }
+        );
+      }
+
+      // New submission - log success
+      log.info(
+        {
+          bet_slip_id: result.bet_slip_id,
+          capper_id: result.capper_id,
+          capper_name: capperUser.username,
+          sport: result.sport,
+          ticket_type: result.ticket_type,
+          selection_count: result.selection_count,
+          total_units: result.total_units,
+          has_manual_entries: hasManualEntries,
+          is_live: isLive,
+          pick_ids: result.pick_ids,
+        },
+        'Ticket successfully saved via atomic RPC'
+      );
+
       logApiPerformance(log, 'submit-ticket', startTime, {
-        bet_slip_id: betSlipId,
-        capper_id,
-        sport,
-        ticket_type,
-        selection_count: selections.length,
+        bet_slip_id: result.bet_slip_id,
+        capper_id: result.capper_id,
+        sport: result.sport,
+        ticket_type: result.ticket_type,
+        selection_count: result.selection_count,
         is_live: isLive,
         has_manual_entries: hasManualEntries,
       });
 
       return NextResponse.json(
         {
-          bet_slip_id: betSlipId,
-          ticket_id: insertedTicket?.bet_slip_id ?? betSlipId,
+          bet_slip_id: result.bet_slip_id,
+          ticket_id: result.bet_slip_id,
           capper_name: capperUser?.username ?? '',
-          sport,
-          ticket_type,
-          selection_count: selections.length,
-          total_units,
+          sport: result.sport,
+          ticket_type: result.ticket_type,
+          selection_count: result.selection_count,
+          total_units: result.total_units,
           is_live: isLive,
-          status: 'submitted',
+          status: result.status,
           message: isLive ? 'Live bet submitted successfully!' : 'Ticket submitted successfully!',
+          pick_ids: result.pick_ids,
         },
         { status: 201 }
       );
@@ -481,14 +498,16 @@ export async function POST(request: NextRequest) {
           error: dbError instanceof Error ? dbError.message : 'Unknown error',
           capper_id,
           sport,
+          bet_slip_id: betSlipId,
         },
-        'Database error during ticket submission'
+        'Database error during atomic ticket submission'
       );
 
       return NextResponse.json(
         {
           error: 'Failed to save ticket',
           message: 'A database error occurred while saving your ticket',
+          code: 'ATOMIC_SUBMIT_FAILED',
         },
         { status: 500 }
       );
