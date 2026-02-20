@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "next-env.d.ts",
+    "src/app/dashboard/ops-submit/**/*.ts",
+    "src/app/dashboard/ops-submit/**/*.tsx",
+    "src/app/api/ops/submit/**/*.ts",
+    "src/app/api/ops/cappers/**/*.ts",
+    "src/components/ui/**/*.tsx",
+    "src/components/ui/**/*.ts"
+  ],
+  "exclude": ["node_modules", "src/app/api/ops/credit-usage/**/*"]
+}

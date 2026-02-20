@@ -46,6 +46,8 @@
     "ops:restart": "node tools/run-ops.mjs restart",
     "ops:bootstrap": "node tools/run-ops.mjs bootstrap",
     "verify:merge": "npx tsx scripts/verify-merge-readiness.ts",
+    "verify:ops-submit": "npm run type-check --workspace=apps/api && npm run verify:ops-submit --workspace=apps/command-center",
+    "verify:sprint": "npx tsx scripts/verify-sprint.ts",
     "guard:lockfiles": "npx tsx scripts/guard-no-npm-lock.ts"
   },
   "keywords": [
@@ -74,6 +76,7 @@
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-security": "^3.0.1",
     "lint-staged": "^16.1.4",
+    "pg": "^8.18.0",
     "prettier": "^3.0.0",
     "typescript": "^5.0.0"
   },
