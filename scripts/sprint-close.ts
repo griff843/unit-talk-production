@@ -1,0 +1,307 @@
+#!/usr/bin/env npx tsx
+/**
+ * SPRINT CLOSEOUT VALIDATOR
+ * Sprint: SPRINT-CLAUDE-OS-GOVERNANCE-UPGRADE-079
+ *
+ * Provides fail-closed closeout validation for all sprints.
+ * Generates proof inventory and validates required artifacts.
+ *
+ * Usage:
+ *   npm run sprint:close -- <SPRINT-ID>
+ *   npm run sprint:close -- <SPRINT-ID> --date 2026-02-20
+ *   npm run sprint:close -- <SPRINT-ID> --lane ops-submit
+ *   npm run sprint:validate -- <SPRINT-ID>
+ */
+
+/* eslint-disable no-console, security/detect-object-injection, security/detect-non-literal-fs-filename */
+
+import { execSync } from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
+
+const WORKSPACE_ROOT = path.resolve(__dirname, '..');
+const SPRINTS_DIR = path.join(WORKSPACE_ROOT, 'out', 'sprints');
+
+// Required artifacts for every sprint
+const REQUIRED_ARTIFACTS = [
+  'proof_git_status.txt',
+  'proof_fetch_main.txt',
+  'proof_rebase_or_merge_main.txt',
+  'proof_tag_exists.txt',
+  'proof_git_status_clean.txt',
+  'proof_proof_inventory.txt',
+];
+
+// Artifacts that may have variable names (glob patterns)
+const REQUIRED_PATTERNS = [/^proof_typecheck.*\.txt$/, /^proof_verify.*\.txt$/];
+
+interface ValidationResult {
+  artifact: string;
+  required: boolean;
+  found: boolean;
+  path: string | null;
+}
+
+interface ParsedArgs {
+  sprintId: string;
+  date: string | null;
+  lane: string;
+  validateOnly: boolean;
+}
+
+function parseArgs(): ParsedArgs {
+  const args = process.argv.slice(2);
+  let sprintId = '';
+  let date: string | null = null;
+  let lane = 'ops-submit';
+  let validateOnly = false;
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    const nextArg = args[i + 1];
+    if (arg === '--date' && nextArg) {
+      date = nextArg;
+      i++;
+    } else if (arg === '--lane' && nextArg) {
+      lane = nextArg;
+      i++;
+    } else if (arg === '--validate-only') {
+      validateOnly = true;
+    } else if (!arg.startsWith('--')) {
+      sprintId = arg;
+    }
+  }
+
+  return { sprintId, date, lane, validateOnly };
+}
+
+function findLatestDateFolder(sprintDir: string): string | null {
+  if (!fs.existsSync(sprintDir)) {
+    return null;
+  }
+
+  const entries = fs.readdirSync(sprintDir, { withFileTypes: true });
+  const dateFolders = entries
+    .filter(e => e.isDirectory() && /^\d{4}-\d{2}-\d{2}$/.test(e.name))
+    .map(e => e.name)
+    .sort()
+    .reverse();
+
+  return dateFolders[0] || null;
+}
+
+function generateProofInventory(proofsDir: string): string {
+  const inventory: string[] = [];
+  inventory.push('============================================================');
+  inventory.push('PROOF INVENTORY');
+  inventory.push(`Generated: ${new Date().toISOString()}`);
+  inventory.push('============================================================');
+  inventory.push('');
+
+  const sprintDir = path.dirname(proofsDir);
+  listDirectory(sprintDir, '', inventory);
+
+  inventory.push('');
+  inventory.push('============================================================');
+  inventory.push('END PROOF INVENTORY');
+  inventory.push('============================================================');
+
+  return inventory.join('\n');
+}
+
+function listDirectory(dir: string, prefix: string, inventory: string[]): void {
+  if (!fs.existsSync(dir)) return;
+
+  const entries = fs
+    .readdirSync(dir, { withFileTypes: true })
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    const relativePath = prefix + entry.name;
+
+    if (entry.isDirectory()) {
+      inventory.push(`${relativePath}/`);
+      listDirectory(fullPath, relativePath + '/', inventory);
+    } else {
+      const stats = fs.statSync(fullPath);
+      inventory.push(`${relativePath} (${stats.size} bytes)`);
+    }
+  }
+}
+
+function validateArtifacts(proofsDir: string): ValidationResult[] {
+  const results: ValidationResult[] = [];
+  const existingFiles = fs.existsSync(proofsDir) ? fs.readdirSync(proofsDir) : [];
+
+  for (const artifact of REQUIRED_ARTIFACTS) {
+    const found = existingFiles.includes(artifact);
+    results.push({
+      artifact,
+      required: true,
+      found,
+      path: found ? `proofs/${artifact}` : null,
+    });
+  }
+
+  for (const pattern of REQUIRED_PATTERNS) {
+    const matches = existingFiles.filter(f => pattern.test(f));
+    const found = matches.length > 0;
+    results.push({
+      artifact: pattern.source.replace(/\^|\$|\.\*/g, '*'),
+      required: true,
+      found,
+      path: found ? `proofs/${matches[0]}` : null,
+    });
+  }
+
+  return results;
+}
+
+function printComplianceTable(
+  sprintId: string,
+  date: string,
+  results: ValidationResult[]
+): boolean {
+  console.log('\n' + '='.repeat(70));
+  console.log('SPRINT CLOSEOUT VALIDATION');
+  console.log('='.repeat(70));
+  console.log(`Sprint: ${sprintId}`);
+  console.log(`Date: ${date}`);
+  console.log('');
+  console.log('COMPLIANCE TABLE:');
+  console.log('-'.repeat(70));
+  console.log('Artifact'.padEnd(35) + '| Required | Found | Path');
+  console.log('-'.repeat(70));
+
+  for (const result of results) {
+    const artifact = result.artifact.padEnd(33);
+    const required = result.required ? 'YES' : 'NO ';
+    const found = result.found ? '✅   ' : '❌   ';
+    const filePath = result.path || '-';
+    console.log(`${artifact} | ${required}      | ${found} | ${filePath}`);
+  }
+
+  console.log('-'.repeat(70));
+
+  const allFound = results.every(r => !r.required || r.found);
+  if (allFound) {
+    console.log('STATUS: ✅ ALL REQUIRED ARTIFACTS PRESENT');
+  } else {
+    console.log('STATUS: ❌ MISSING REQUIRED ARTIFACTS');
+    const missing = results.filter(r => r.required && !r.found);
+    console.log(`Missing: ${missing.map(m => m.artifact).join(', ')}`);
+  }
+  console.log('='.repeat(70));
+
+  return allFound;
+}
+
+function runVerificationLane(lane: string): boolean {
+  console.log('\n' + '='.repeat(60));
+  console.log(`🔧 RUNNING VERIFICATION LANE: ${lane}`);
+  console.log('='.repeat(60));
+
+  try {
+    let cmd: string;
+    switch (lane) {
+      case 'ops-submit':
+        cmd = 'npm run verify:ops-submit';
+        break;
+      case 'api':
+        cmd = 'npm run verify:sprint -- --api';
+        break;
+      case 'full':
+        cmd = 'npm run type-check && npm run test';
+        break;
+      default:
+        cmd = 'npm run verify:ops-submit';
+    }
+
+    console.log(`Running: ${cmd}`);
+    execSync(cmd, { cwd: WORKSPACE_ROOT, stdio: 'inherit' });
+    console.log('✅ VERIFICATION LANE PASSED');
+    return true;
+  } catch {
+    console.log('❌ VERIFICATION LANE FAILED');
+    return false;
+  }
+}
+
+function validateSprintDirectory(sprintId: string): string | null {
+  const sprintDir = path.join(SPRINTS_DIR, sprintId);
+  if (!fs.existsSync(sprintDir)) {
+    console.error(`\n❌ Sprint directory not found: ${sprintDir}`);
+    console.error('   Create the sprint directory first.');
+    return null;
+  }
+  return sprintDir;
+}
+
+function findDateDirectory(sprintDir: string, date: string | null): string | null {
+  const targetDate = date || findLatestDateFolder(sprintDir);
+  if (!targetDate) {
+    console.error(`\n❌ No date folder found in: ${sprintDir}`);
+    console.error('   Create a date folder (YYYY-MM-DD) first.');
+    return null;
+  }
+  return targetDate;
+}
+
+function main(): void {
+  const { sprintId, date, lane, validateOnly } = parseArgs();
+
+  if (!sprintId) {
+    console.error(
+      'Usage: npm run sprint:close -- <SPRINT-ID> [--date YYYY-MM-DD] [--lane ops-submit|api|full]'
+    );
+    process.exit(1);
+  }
+
+  console.log('🛡️  SPRINT CLOSEOUT VALIDATOR');
+  console.log(`   Sprint ID: ${sprintId}`);
+  console.log(`   Mode: ${validateOnly ? 'VALIDATE ONLY' : 'FULL CLOSEOUT'}`);
+
+  const sprintDir = validateSprintDirectory(sprintId);
+  if (!sprintDir) process.exit(1);
+
+  const targetDate = findDateDirectory(sprintDir, date);
+  if (!targetDate) process.exit(1);
+
+  const dateDir = path.join(sprintDir, targetDate);
+  const proofsDir = path.join(dateDir, 'proofs');
+
+  console.log(`   Date: ${targetDate}`);
+  console.log(`   Proofs Dir: ${proofsDir}`);
+
+  if (!fs.existsSync(proofsDir)) {
+    fs.mkdirSync(proofsDir, { recursive: true });
+  }
+
+  if (!validateOnly) {
+    const verifyPassed = runVerificationLane(lane);
+    if (!verifyPassed) {
+      console.error('\n❌ CLOSEOUT FAILED: Verification lane did not pass');
+      process.exit(1);
+    }
+  }
+
+  console.log('\n📋 Generating proof inventory...');
+  const inventory = generateProofInventory(proofsDir);
+  const inventoryPath = path.join(proofsDir, 'proof_proof_inventory.txt');
+  fs.writeFileSync(inventoryPath, inventory);
+  console.log(`   Written: ${inventoryPath}`);
+
+  const results = validateArtifacts(proofsDir);
+  const allFound = printComplianceTable(sprintId, targetDate, results);
+
+  if (!allFound) {
+    console.error('\n❌ CLOSEOUT FAILED: Missing required artifacts');
+    process.exit(1);
+  }
+
+  console.log('\n✅ SPRINT CLOSEOUT VALIDATION PASSED');
+  process.exit(0);
+}
+
+main();

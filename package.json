@@ -48,6 +48,8 @@
     "verify:merge": "npx tsx scripts/verify-merge-readiness.ts",
     "verify:ops-submit": "npm run type-check --workspace=apps/api && npm run verify:ops-submit --workspace=apps/command-center",
     "verify:sprint": "npx tsx scripts/verify-sprint.ts",
+    "sprint:validate": "npx tsx scripts/sprint-close.ts --validate-only",
+    "sprint:close": "npx tsx scripts/sprint-close.ts",
     "guard:lockfiles": "npx tsx scripts/guard-no-npm-lock.ts"
   },
   "keywords": [

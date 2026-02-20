@@ -1,68 +1,83 @@
 # Sprint Verification Runbook
 
-**Document**: SPRINT_VERIFICATION_RUNBOOK.md **Created**: 2026-02-20 **Sprint**:
-SPRINT-OPS-SUBMIT-COMPLIANCE-071C
+**Document**: SPRINT_VERIFICATION_RUNBOOK.md **Updated**: 2026-02-20 **Sprint**:
+SPRINT-CLAUDE-OS-GOVERNANCE-UPGRADE-079 **Authority**: See
+`docs/CLAUDE_OS_GOVERNANCE_CONTRACT.md`
 
 ---
 
-## Purpose
+## The ONE Command to Close Any Sprint
 
-This runbook documents the fail-closed verification process for sprint work. All
-sprint changes MUST pass verification before commit/merge.
+```bash
+npm run sprint:close -- <SPRINT-ID>
+```
+
+This command:
+
+1. Runs verification lane (full or scoped)
+2. Generates proof_proof_inventory.txt
+3. Validates required artifacts exist
+4. Prints compliance table
+5. Exits non-zero if any missing
 
 ---
 
 ## Quick Reference
 
-### Before ANY sprint commit:
+### Sprint Closeout (PREFERRED)
 
 ```bash
-# Run verification for your module
+# Close a sprint with auto-detected date folder
+npm run sprint:close -- SPRINT-MY-SPRINT-001
+
+# Close with explicit date
+npm run sprint:close -- SPRINT-MY-SPRINT-001 --date 2026-02-20
+
+# Close with specific verification lane
+npm run sprint:close -- SPRINT-MY-SPRINT-001 --lane ops-submit
+npm run sprint:close -- SPRINT-MY-SPRINT-001 --lane api
+npm run sprint:close -- SPRINT-MY-SPRINT-001 --lane full
+```
+
+### Validate Only (no verification lane)
+
+```bash
+npm run sprint:validate -- SPRINT-MY-SPRINT-001
+```
+
+### Manual Verification (deprecated - use sprint:close)
+
+```bash
 npm run verify:sprint -- --ops-submit    # For ops-submit changes
 npm run verify:sprint -- --api           # For API changes
 npm run verify:sprint -- --full          # For cross-cutting changes
-```
-
-### The ONE command for ops-submit work:
-
-```bash
-npm run verify:ops-submit
 ```
 
 ---
 
 ## Verification Lanes
 
-### 1. Ops-Submit Verification (`--ops-submit`)
+### 1. Ops-Submit Lane (`--lane ops-submit`)
 
-Verifies:
+For changes to ops-submit module:
 
 - API workspace typecheck (full)
 - Command Center ops-submit targeted typecheck
 - ESLint for ops-submit files
 
-```bash
-npm run verify:sprint -- --ops-submit
-```
+### 2. API Lane (`--lane api`)
 
-### 2. API Verification (`--api`)
-
-Verifies:
+For API-only changes:
 
 - API workspace typecheck
 - API linting
 
-```bash
-npm run verify:sprint -- --api
-```
+### 3. Full Lane (`--lane full`)
 
-### 3. Full Verification (`--full`)
+For cross-cutting changes:
 
-Runs all verification lanes.
-
-```bash
-npm run verify:sprint -- --full
-```
+- Full repo typecheck
+- All tests
 
 ---
 
@@ -80,35 +95,32 @@ Rather than weaken governance globally, we use targeted verification that:
 
 ---
 
-## CI Integration
+## POLICY: No --no-verify
 
-Pre-commit hooks should call the appropriate verification lane based on changed
-files:
+The `--no-verify` flag is **PROHIBITED** for all sprint commits.
 
-```bash
-# In .husky/pre-commit
-if git diff --cached --name-only | grep -q "apps/command-center/src/app/dashboard/ops-submit\|apps/command-center/src/app/api/ops"; then
-  npm run verify:ops-submit || exit 1
-fi
+- Pre-commit hooks MUST run.
+- If hooks fail, fix the issue. Do not bypass.
+- Commits using `--no-verify` invalidate the sprint.
 
-if git diff --cached --name-only | grep -q "apps/api/"; then
-  npm run verify:sprint -- --api || exit 1
-fi
-```
+**Violation consequence**: Sprint marked FAILED.
 
 ---
 
-## Proof Capture
+## Required Proof Artifacts
 
-When closing a sprint, capture verification output:
+Every sprint must have these artifacts (enforced by sprint:close):
 
-```bash
-# Create proof directory
-mkdir -p out/sprints/SPRINT-NAME/$(date +%Y-%m-%d)/proofs
-
-# Capture verification
-npm run verify:sprint -- --ops-submit > out/sprints/SPRINT-NAME/$(date +%Y-%m-%d)/proofs/proof_verify_lane.txt 2>&1
-```
+| Artifact                         | Description              |
+| -------------------------------- | ------------------------ |
+| `proof_git_status.txt`           | Initial git state        |
+| `proof_typecheck*.txt`           | TypeScript verification  |
+| `proof_verify*.txt`              | Verification lane output |
+| `proof_fetch_main.txt`           | Fetch from origin        |
+| `proof_rebase_or_merge_main.txt` | Push/merge output        |
+| `proof_tag_exists.txt`           | Tag creation proof       |
+| `proof_git_status_clean.txt`     | Clean state after merge  |
+| `proof_proof_inventory.txt`      | Auto-generated inventory |
 
 ---
 
@@ -122,13 +134,21 @@ Run from command-center directory:
 cd apps/command-center && npm run typecheck:ops-submit
 ```
 
-### TypeScript errors in ops-submit files
+### "Sprint directory not found"
+
+Create the sprint directory first:
+
+```bash
+mkdir -p out/sprints/SPRINT-MY-SPRINT-001/2026-02-20/proofs
+```
+
+### TypeScript errors in sprint files
 
 Fix the errors - targeted verification is working correctly.
 
 ### TypeScript errors in unrelated files
 
-These are pre-existing and excluded from targeted verification. Do not use
+These are pre-existing and excluded from targeted verification. Do NOT use
 `--no-verify` to bypass them.
 
 ---
