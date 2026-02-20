@@ -1,5 +1,9 @@
 /**
  * SMARTFORM-V1.1-ENTERPRISE-COMPLIANCE-036 (HARDENED)
+ * SPRINT-SMARTFORM-E2E-DETERMINISTIC-MODES-061B
+ *
+ * INTEGRATION TEST - Requires Supabase credentials
+ *
  * E2E Tests: PickWizard Guided Flow + HAR Recording
  *
  * Tests the complete PickWizard user flow including:
@@ -11,11 +15,18 @@
  * RUNTIME AUDIT:
  * This test suite records all network traffic to a HAR file.
  * The HAR file is consumed by smartform:gate:runtime-audit.
+ *
+ * @tag integration
  */
 
 import { test, expect, type Page, type BrowserContext } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
+import { requireSupabaseEnv } from '../fixtures/mocks';
+
+// Skip entire file if Supabase env vars are not set
+const hasSupabase = requireSupabaseEnv();
+test.skip(!hasSupabase, 'Skipping integration tests: Supabase credentials not configured');
 
 // HAR output path - consumed by smartform:gate:runtime-audit
 const HAR_OUTPUT_DIR = path.resolve(__dirname, '../../test-results');

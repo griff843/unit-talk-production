@@ -7,11 +7,18 @@ dotenv.config();
 /**
  * SPRINT-SMARTFORM-CONTRACT-EXECUTION-PROOF-060
  * SPRINT-SMARTFORM-BETSLIP-SPORTSBOOK-MANUAL-061
+ * SPRINT-SMARTFORM-E2E-DETERMINISTIC-MODES-061B
  *
  * Playwright Configuration for Smart Form E2E Tests
  *
- * IMPORTANT: This config targets tests in ./tests/e2e/*.spec.ts
- * Run with: pnpm -C apps/smart-form test:e2e
+ * TEST MODES:
+ * - Contract tests (tests/e2e/contracts/): Use mocked APIs, NO Supabase required
+ * - Integration tests (tests/e2e/integration/): Require Supabase credentials
+ *
+ * RUN COMMANDS:
+ * - pnpm -C apps/smart-form test:e2e           → Contracts only (default, always passes)
+ * - pnpm -C apps/smart-form test:e2e:integration → Integration (requires Supabase)
+ * - pnpm -C apps/smart-form test:e2e:all       → Both modes
  *
  * Features:
  * - Auto-starts dev server via webServer config
@@ -28,7 +35,7 @@ export default defineConfig({
   // Test directory - relative to this config file
   testDir: './tests/e2e',
 
-  // Match .spec.ts files (not .e2e.spec.ts to avoid root config confusion)
+  // Match .spec.ts files
   testMatch: '**/*.spec.ts',
 
   // Run tests sequentially for API contract tests
@@ -40,7 +47,7 @@ export default defineConfig({
   // Retry failed tests on CI
   retries: process.env.CI ? 2 : 0,
 
-  // Single worker for contract tests (sequential)
+  // Single worker for sequential test execution
   workers: 1,
 
   // Reporters
@@ -80,19 +87,24 @@ export default defineConfig({
     stderr: 'pipe',
   },
 
-  // Single project for contract tests (API tests don't need multiple browsers)
+  // SPRINT-061B: Separate projects for contracts vs integration tests
   projects: [
+    // CONTRACT TESTS - Use mocked APIs, NO Supabase required
+    // Run with: pnpm test:e2e or pnpm test:e2e --project=contracts
     {
       name: 'contracts',
-      testMatch: '**/smartform-data-contracts.spec.ts',
+      testDir: './tests/e2e/contracts',
+      testMatch: '**/*.spec.ts',
       use: {
         ...devices['Desktop Chrome'],
       },
     },
+    // INTEGRATION TESTS - Require Supabase credentials
+    // Run with: pnpm test:e2e:integration or pnpm test:e2e --project=integration
     {
-      name: 'chromium',
+      name: 'integration',
+      testDir: './tests/e2e/integration',
       testMatch: '**/*.spec.ts',
-      testIgnore: '**/smartform-data-contracts.spec.ts',
       use: {
         ...devices['Desktop Chrome'],
       },

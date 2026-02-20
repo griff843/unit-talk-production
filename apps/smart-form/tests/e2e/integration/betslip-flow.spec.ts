@@ -1,5 +1,9 @@
 /**
  * SPRINT-SMARTFORM-BETSLIP-SPORTSBOOK-MANUAL-061
+ * SPRINT-SMARTFORM-E2E-DETERMINISTIC-MODES-061B
+ *
+ * INTEGRATION TEST - Requires Supabase credentials
+ *
  * E2E Tests: Sportsbook-style Bet Slip Flow
  *
  * Tests the enhanced bet slip experience:
@@ -7,9 +11,16 @@
  * - Sticky bet slip panel visibility
  * - Quick navigation to Review
  * - Inline edit/delete on bet slip
+ *
+ * @tag integration
  */
 
 import { test, expect, type Page } from '@playwright/test';
+import { requireSupabaseEnv } from '../fixtures/mocks';
+
+// Skip entire file if Supabase env vars are not set
+const hasSupabase = requireSupabaseEnv();
+test.skip(!hasSupabase, 'Skipping integration tests: Supabase credentials not configured');
 
 // Track network requests for debugging
 const networkRequests: { url: string; method: string }[] = [];

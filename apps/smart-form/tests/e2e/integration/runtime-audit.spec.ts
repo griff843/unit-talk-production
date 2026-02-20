@@ -1,5 +1,9 @@
 /**
  * SMARTFORM-V1.1-ENTERPRISE-COMPLIANCE-036 (HARDENED + DETERMINISTIC + FULL COVERAGE)
+ * SPRINT-SMARTFORM-E2E-DETERMINISTIC-MODES-061B
+ *
+ * INTEGRATION TEST - Requires Supabase credentials
+ *
  * Runtime Endpoint Audit Test
  *
  * DUAL-SOURCE VALIDATION:
@@ -24,11 +28,25 @@
  * - /api/players       USE /api/catalog/players
  * - /api/props         USE /api/catalog/props
  * - /api/games         USE /api/catalog/games
+ *
+ * @tag integration
  */
 
-import { test, expect, type BrowserContext, type Page, type Request, type Response } from '@playwright/test';
+import {
+  test,
+  expect,
+  type BrowserContext,
+  type Page,
+  type Request,
+  type Response,
+} from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
+import { requireSupabaseEnv } from '../fixtures/mocks';
+
+// Skip entire file if Supabase env vars are not set
+const hasSupabase = requireSupabaseEnv();
+test.skip(!hasSupabase, 'Skipping integration tests: Supabase credentials not configured');
 
 // Output paths
 const OUTPUT_DIR = path.resolve(__dirname, '../../test-results');
@@ -182,10 +200,10 @@ function validateRequestLog(): void {
 
   uniquePathnames.forEach(pathname => {
     const isApproved = APPROVED_ENDPOINTS.some(a => pathname.startsWith(a));
-    const isProhibited = PROHIBITED_ENDPOINTS.some(p =>
-      pathname.startsWith(p) && !pathname.startsWith('/api/catalog/')
+    const isProhibited = PROHIBITED_ENDPOINTS.some(
+      p => pathname.startsWith(p) && !pathname.startsWith('/api/catalog/')
     );
-    const status = isProhibited ? '[PROHIBITED]' : (isApproved ? '[APPROVED]' : '[UNKNOWN]');
+    const status = isProhibited ? '[PROHIBITED]' : isApproved ? '[APPROVED]' : '[UNKNOWN]';
     console.log(`  ${pathname} ${status}`);
   });
 
@@ -256,7 +274,9 @@ test.describe.serial('Runtime Endpoint Audit - Full Coverage', () => {
   test('BUCKET 2: /api/catalog/teams - should load teams on sport selection', async () => {
     // Use direct API call to avoid triggering prohibited /api/games endpoint
     // The UI path calls both /api/catalog/teams AND /api/games, but /api/games is prohibited
-    console.log('Triggering /api/catalog/teams via direct API call (avoiding prohibited /api/games)');
+    console.log(
+      'Triggering /api/catalog/teams via direct API call (avoiding prohibited /api/games)'
+    );
     await sharedPage.evaluate(async () => {
       await fetch('/api/catalog/teams?sport=NBA');
     });
@@ -334,18 +354,20 @@ test.describe.serial('Runtime Endpoint Audit - Full Coverage', () => {
             capper_id: '00000000-0000-0000-0000-000000000001',
             sport: 'NBA',
             ticket_type: 'single',
-            selections: [{
-              sport: 'NBA',
-              bet_type: 'spread',
-              stat_type: null,
-              team: 'Los Angeles Lakers',
-              line: -5.5,
-              leg_odds: -110,
-              source: 'manual',
-              selection: 'Los Angeles Lakers -5.5',
-              direction: 'over',
-              confidence: 3,
-            }],
+            selections: [
+              {
+                sport: 'NBA',
+                bet_type: 'spread',
+                stat_type: null,
+                team: 'Los Angeles Lakers',
+                line: -5.5,
+                leg_odds: -110,
+                source: 'manual',
+                selection: 'Los Angeles Lakers -5.5',
+                direction: 'over',
+                confidence: 3,
+              },
+            ],
             total_units: 1,
           }),
         });
@@ -387,10 +409,7 @@ test.describe.serial('Runtime Endpoint Audit - Full Coverage', () => {
     }
 
     // ASSERTIONS
-    expect(
-      apiRequests.length,
-      'FAILED: Zero /api/ requests captured'
-    ).toBeGreaterThan(0);
+    expect(apiRequests.length, 'FAILED: Zero /api/ requests captured').toBeGreaterThan(0);
 
     expect(
       uniqueEndpoints.length,

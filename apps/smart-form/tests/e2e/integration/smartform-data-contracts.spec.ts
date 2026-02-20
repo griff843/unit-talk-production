@@ -1,5 +1,8 @@
 /**
  * SPRINT-SMARTFORM-DATA-CONTRACTS-MANUAL-INVENTORY-059
+ * SPRINT-SMARTFORM-E2E-DETERMINISTIC-MODES-061B
+ *
+ * INTEGRATION TESTS - Require Supabase credentials
  *
  * E2E Tests for Smart Form Data Contract Surfaces
  *
@@ -9,12 +12,19 @@
  * Key changes in V1.0.1:
  * - stat-types: Uses market_usage_stats_v1 for sorting by manual usage
  * - props: Uses manual_inventory_for_form_v1 for suggestions (no live feed dependency)
+ *
+ * @tag integration
  */
 
 import { test, expect } from '@playwright/test';
+import { requireSupabaseEnv } from '../fixtures/mocks';
 
-const API_BASE = process.env.SMARTFORM_URL || 'http://localhost:3021';
+const API_BASE = process.env.SMARTFORM_URL || 'http://127.0.0.1:3021';
 const CONTRACT_VERSION = '1.0.1';
+
+// Skip entire file if Supabase env vars are not set
+const hasSupabase = requireSupabaseEnv();
+test.skip(!hasSupabase, 'Skipping integration tests: Supabase credentials not configured');
 
 test.describe('Smart Form Data Contract V1.0.1 - API Routes', () => {
   test.describe('GET /api/catalog/players', () => {
