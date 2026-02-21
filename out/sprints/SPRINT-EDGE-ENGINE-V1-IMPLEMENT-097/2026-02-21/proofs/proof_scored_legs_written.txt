@@ -1,0 +1,12 @@
+            item             | status 
+-----------------------------+--------
+ SCORED_LEGS_TABLE           | EXISTS
+ FEATURE_SNAPSHOTS_TABLE     | EXISTS
+ SCORED_LEGS_ROW_COUNT       | 0
+ FEATURE_SNAPSHOTS_ROW_COUNT | 0
+ MODEL_VERSION_COLUMN        | EXISTS
+ EDGE_SCORE_COLUMN           | EXISTS
+ TIER_COLUMN                 | EXISTS
+ KELLY_FRACTION_COLUMN       | EXISTS
+(8 rows)
+

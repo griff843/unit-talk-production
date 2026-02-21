@@ -1,0 +1,8 @@
+            check_type             |                   status                   
+-----------------------------------+--------------------------------------------
+ TABLES_CREATED                    | 4
+ CLOSING_IMMUTABILITY_TRIGGER      | ACTIVE
+ PROVIDER_OFFERS_IS_CLOSING_COLUMN | EXISTS
+ NO_SCHEMA_MODIFICATIONS           | VERIFIED - Using existing canonical tables
+(4 rows)
+

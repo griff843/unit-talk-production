@@ -1,0 +1,6 @@
+         check_type         | count |  status   
+----------------------------+-------+-----------
+ CANONICAL_CLOSE_SOURCE     |     1 | AVAILABLE
+ UNIFIED_PICKS_WITH_CLOSING |     1 | AVAILABLE
+(2 rows)
+
