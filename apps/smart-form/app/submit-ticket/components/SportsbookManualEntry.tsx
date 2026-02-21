@@ -1,15 +1,15 @@
 'use client';
 
 /**
- * SportsbookManualEntry - Sprint SPRINT-SMARTFORM-Sportsbook-ManualEntry-UX-085
+ * SportsbookManualEntry - SPRINT-SMARTFORM-ENTITY-AUTOFILL-088
  *
- * Sportsbook-grade manual entry UI:
- * - Single page, two-column layout
- * - Bet type selector first (shows only relevant fields)
- * - Sticky bet slip panel with validation summary
- * - Compact leg cards with sport/type badges
- * - Keyboard shortcuts (Enter to add, Esc to clear)
- * - Combined odds and payout preview for parlays
+ * Smart Form with entity autofill:
+ * - Required capper selection (fail-closed if missing)
+ * - Away/Home team dropdowns from teams catalog (no free-text matchup)
+ * - Player search dropdown for player props
+ * - Structured data stored in provider_value for Discord embeds
+ *
+ * Previous: SPRINT-SMARTFORM-Sportsbook-ManualEntry-UX-085
  */
 
 import { useState, useCallback, useMemo, useEffect, useRef, KeyboardEvent } from 'react';
@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { Spinner } from '@/components/ui/spinner';
-import { Plus, Trash2, Check, AlertCircle, Copy, RefreshCw, X, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, Check, AlertCircle, Copy, RefreshCw, X, Search, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 import {
@@ -178,11 +178,37 @@ const PROVIDERS = [
 // TYPES
 // ============================================================================
 
+interface Capper {
+  id: string;
+  display_name: string;
+}
+
+interface Team {
+  id: string;
+  name: string;
+  abbr: string | null;
+  sport: string;
+}
+
+interface Player {
+  player_id: string;
+  player_name: string;
+  team_id: string | null;
+  team_name: string | null;
+  team_abbr: string | null;
+  position: string | null;
+}
+
 interface ManualLeg {
   id: string;
   sport: string;
+  awayTeamId: string | null;
+  awayTeamName: string;
+  homeTeamId: string | null;
+  homeTeamName: string;
   matchup: string;
   team?: string;
+  playerId?: string | null;
   playerName?: string;
   propType?: string;
   betType: string;
@@ -195,8 +221,12 @@ interface ManualLeg {
 interface BuilderState {
   sport: string;
   betType: string;
-  matchup: string;
-  team: string;
+  awayTeamId: string;
+  awayTeamName: string;
+  homeTeamId: string;
+  homeTeamName: string;
+  teamSelection: 'home' | 'away' | '';
+  playerId: string;
   playerName: string;
   propType: string;
   line: string;
@@ -213,7 +243,6 @@ function calculateCombinedOdds(legs: ManualLeg[]): number {
   if (legs.length === 0) return 0;
   if (legs.length === 1) return legs[0].odds;
 
-  // Convert American odds to decimal, multiply, convert back
   const decimalOdds = legs.map(leg => {
     if (leg.odds > 0) return leg.odds / 100 + 1;
     return 100 / Math.abs(leg.odds) + 1;
@@ -221,7 +250,6 @@ function calculateCombinedOdds(legs: ManualLeg[]): number {
 
   const combined = decimalOdds.reduce((acc, odd) => acc * odd, 1);
 
-  // Convert back to American
   if (combined >= 2) return Math.round((combined - 1) * 100);
   return Math.round(-100 / (combined - 1));
 }
@@ -255,7 +283,6 @@ function formatLegCompact(leg: ManualLeg): string {
     return `${leg.team} TT ${lineStr} ${formatOdds(leg.odds)} (${provider?.short || leg.provider})`;
   }
 
-  // Spread, total, puck_line
   const lineStr = leg.line !== undefined ? (leg.line > 0 ? `+${leg.line}` : `${leg.line}`) : '';
   const selStr = leg.selection === 'over' ? 'O' : leg.selection === 'under' ? 'U' : '';
 
@@ -266,30 +293,51 @@ function formatLegCompact(leg: ManualLeg): string {
 // COMPONENT
 // ============================================================================
 
+// eslint-disable-next-line max-lines-per-function, complexity -- Smart form with entity autofill
 export function SportsbookManualEntry() {
   const { toast } = useToast();
   const builderRef = useRef<HTMLDivElement>(null);
 
-  // Ticket state
+  // ---- CAPPER STATE ----
+  const [cappers, setCappers] = useState<Capper[]>([]);
+  const [cappersLoading, setCappersLoading] = useState(true);
+  const [selectedCapperId, setSelectedCapperId] = useState('');
+  const [selectedCapperName, setSelectedCapperName] = useState('');
+
+  // ---- TEAMS STATE ----
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [teamsLoading, setTeamsLoading] = useState(false);
+  const [teamSearchQuery, setTeamSearchQuery] = useState('');
+
+  // ---- PLAYERS STATE ----
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [playersLoading, setPlayersLoading] = useState(false);
+  const [playerSearchQuery, setPlayerSearchQuery] = useState('');
+
+  // ---- TICKET STATE ----
   const [legs, setLegs] = useState<ManualLeg[]>([]);
   const [stake, setStake] = useState(1);
-  const [betSlipId, setBetSlipId] = useState(''); // Initialize empty to avoid hydration mismatch
+  const [betSlipId, setBetSlipId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState<V3SubmitTicketResult | null>(null);
 
-  // Generate bet slip ID on client-side only to avoid hydration mismatch
+  // Generate bet slip ID on client-side only
   useEffect(() => {
     if (!betSlipId) {
       setBetSlipId(generateBetSlipId());
     }
   }, [betSlipId]);
 
-  // Builder state
+  // ---- BUILDER STATE ----
   const [builder, setBuilder] = useState<BuilderState>({
     sport: 'NBA',
     betType: 'moneyline',
-    matchup: '',
-    team: '',
+    awayTeamId: '',
+    awayTeamName: '',
+    homeTeamId: '',
+    homeTeamName: '',
+    teamSelection: '',
+    playerId: '',
     playerName: '',
     propType: '',
     line: '',
@@ -298,35 +346,123 @@ export function SportsbookManualEntry() {
     provider: 'fanduel',
   });
 
-  // Derived state
+  // ---- DERIVED STATE ----
   const ticketType: TicketType = legs.length > 1 ? 'parlay' : 'single';
   const combinedOdds = calculateCombinedOdds(legs);
   const potentialPayout = calculatePayout(stake, combinedOdds);
 
-  // Available bet types for selected sport
   const availableBetTypes = useMemo(() => {
     return BET_TYPES.filter(bt => !bt.sports || bt.sports.includes(builder.sport));
   }, [builder.sport]);
 
-  // Current bet type config
   const currentBetType = useMemo(() => {
     return BET_TYPES.find(bt => bt.key === builder.betType);
   }, [builder.betType]);
 
-  // Prop types for selected sport
   const propTypes = useMemo(() => {
     return PROP_TYPES_BY_SPORT[builder.sport] || [];
   }, [builder.sport]);
 
-  // Validation errors
+  // ---- FETCH CAPPERS ----
+  useEffect(() => {
+    async function fetchCappers() {
+      setCappersLoading(true);
+      try {
+        const res = await fetch('/api/catalog/cappers');
+        if (res.ok) {
+          const data = await res.json();
+          setCappers(data.cappers || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch cappers:', err);
+      } finally {
+        setCappersLoading(false);
+      }
+    }
+    fetchCappers();
+  }, []);
+
+  // ---- FETCH TEAMS BY SPORT ----
+  useEffect(() => {
+    async function fetchTeams() {
+      setTeamsLoading(true);
+      try {
+        const res = await fetch(`/api/catalog/teams?sport=${builder.sport}&limit=100`);
+        if (res.ok) {
+          const data = await res.json();
+          setTeams(data.teams || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch teams:', err);
+      } finally {
+        setTeamsLoading(false);
+      }
+    }
+    fetchTeams();
+  }, [builder.sport]);
+
+  // ---- FETCH PLAYERS BY SPORT (for player props) ----
+  useEffect(() => {
+    async function fetchPlayers() {
+      if (!currentBetType?.requiresPlayer) {
+        setPlayers([]);
+        return;
+      }
+      setPlayersLoading(true);
+      try {
+        let url = `/api/catalog/players?sport=${builder.sport}&limit=100`;
+        // If home team is selected, filter by that team
+        if (builder.homeTeamId) {
+          url += `&team_id=${builder.homeTeamId}`;
+        } else if (builder.awayTeamId) {
+          url += `&team_id=${builder.awayTeamId}`;
+        }
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          setPlayers(data.players || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch players:', err);
+      } finally {
+        setPlayersLoading(false);
+      }
+    }
+    fetchPlayers();
+  }, [builder.sport, builder.homeTeamId, builder.awayTeamId, currentBetType?.requiresPlayer]);
+
+  // ---- FILTERED TEAMS ----
+  const filteredTeams = useMemo(() => {
+    if (!teamSearchQuery) return teams;
+    const q = teamSearchQuery.toLowerCase();
+    return teams.filter(
+      t => t.name.toLowerCase().includes(q) || (t.abbr && t.abbr.toLowerCase().includes(q))
+    );
+  }, [teams, teamSearchQuery]);
+
+  // ---- FILTERED PLAYERS ----
+  const filteredPlayers = useMemo(() => {
+    if (!playerSearchQuery) return players;
+    const q = playerSearchQuery.toLowerCase();
+    return players.filter(p => p.player_name.toLowerCase().includes(q));
+  }, [players, playerSearchQuery]);
+
+  // ---- VALIDATION ERRORS ----
   const validationErrors = useMemo(() => {
     const errors: string[] = [];
 
-    if (!builder.matchup.trim()) errors.push('Matchup required');
+    // Capper required
+    if (!selectedCapperId) errors.push('Capper required');
+
+    // Teams required for matchup
+    if (!builder.awayTeamName.trim() && !builder.homeTeamName.trim()) {
+      errors.push('Teams required');
+    }
+
     if (!builder.odds.trim()) errors.push('Odds required');
 
-    if (currentBetType?.outcomeType === 'team' && !builder.team.trim()) {
-      errors.push('Team required');
+    if (currentBetType?.outcomeType === 'team' && !builder.teamSelection) {
+      errors.push('Team selection required');
     }
 
     if (currentBetType?.requiresLine && !builder.line.trim()) {
@@ -341,10 +477,16 @@ export function SportsbookManualEntry() {
       errors.push('Stat type required');
     }
 
-    if (!builder.selection) errors.push('Selection required');
+    if (currentBetType?.outcomeType === 'over_under' && !builder.selection) {
+      errors.push('Over/Under required');
+    }
+
+    if (currentBetType?.outcomeType === 'yes_no' && !builder.selection) {
+      errors.push('Yes/No required');
+    }
 
     return errors;
-  }, [builder, currentBetType]);
+  }, [builder, currentBetType, selectedCapperId]);
 
   const canAddLeg = validationErrors.length === 0;
 
@@ -354,22 +496,41 @@ export function SportsbookManualEntry() {
     if (!newBetTypes.find(bt => bt.key === builder.betType)) {
       setBuilder(prev => ({ ...prev, betType: 'moneyline', selection: '' }));
     }
-  }, [builder.sport, builder.betType]);
+    // Reset team selections when sport changes
+    setBuilder(prev => ({
+      ...prev,
+      awayTeamId: '',
+      awayTeamName: '',
+      homeTeamId: '',
+      homeTeamName: '',
+      teamSelection: '',
+      playerId: '',
+      playerName: '',
+    }));
+  }, [builder.sport]);
 
   // Reset selection when bet type changes
   useEffect(() => {
-    setBuilder(prev => ({ ...prev, selection: '' }));
+    setBuilder(prev => ({ ...prev, selection: '', playerId: '', playerName: '' }));
   }, [builder.betType]);
 
-  // Add leg
+  // ---- ADD LEG ----
   const addLeg = useCallback(() => {
     if (!canAddLeg) return;
+
+    const matchupText = `${builder.awayTeamName} @ ${builder.homeTeamName}`;
+    const teamName = builder.teamSelection === 'home' ? builder.homeTeamName : builder.awayTeamName;
 
     const newLeg: ManualLeg = {
       id: crypto.randomUUID(),
       sport: builder.sport,
-      matchup: builder.matchup,
-      team: builder.team || undefined,
+      awayTeamId: builder.awayTeamId || null,
+      awayTeamName: builder.awayTeamName,
+      homeTeamId: builder.homeTeamId || null,
+      homeTeamName: builder.homeTeamName,
+      matchup: matchupText,
+      team: teamName || undefined,
+      playerId: builder.playerId || null,
       playerName: builder.playerName || undefined,
       propType: builder.propType || undefined,
       betType: builder.betType,
@@ -381,11 +542,11 @@ export function SportsbookManualEntry() {
 
     setLegs(prev => [...prev, newLeg]);
 
-    // Reset builder (keep sport and provider)
+    // Reset builder (keep sport, provider, and teams for quick add)
     setBuilder(prev => ({
       ...prev,
-      matchup: '',
-      team: '',
+      teamSelection: '',
+      playerId: '',
       playerName: '',
       propType: '',
       line: '',
@@ -396,17 +557,21 @@ export function SportsbookManualEntry() {
     toast({ title: 'Pick added' });
   }, [canAddLeg, builder, toast]);
 
-  // Remove leg
+  // ---- REMOVE LEG ----
   const removeLeg = useCallback((legId: string) => {
     setLegs(prev => prev.filter(l => l.id !== legId));
   }, []);
 
-  // Clear builder
+  // ---- CLEAR BUILDER ----
   const clearBuilder = useCallback(() => {
     setBuilder(prev => ({
       ...prev,
-      matchup: '',
-      team: '',
+      awayTeamId: '',
+      awayTeamName: '',
+      homeTeamId: '',
+      homeTeamName: '',
+      teamSelection: '',
+      playerId: '',
       playerName: '',
       propType: '',
       line: '',
@@ -415,19 +580,19 @@ export function SportsbookManualEntry() {
     }));
   }, []);
 
-  // Copy bet slip ID
+  // ---- COPY BET SLIP ID ----
   const copyBetSlipId = useCallback(() => {
     navigator.clipboard.writeText(betSlipId);
     toast({ title: 'Copied!' });
   }, [betSlipId, toast]);
 
-  // Regenerate bet slip ID
+  // ---- REGENERATE BET SLIP ID ----
   const regenerateBetSlipId = useCallback(() => {
     setBetSlipId(generateBetSlipId());
     toast({ title: 'New ID generated' });
   }, [toast]);
 
-  // Keyboard handler
+  // ---- KEYBOARD HANDLER ----
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === 'Enter' && canAddLeg) {
@@ -441,8 +606,18 @@ export function SportsbookManualEntry() {
     [canAddLeg, addLeg, clearBuilder]
   );
 
-  // Submit ticket
+  // ---- SUBMIT TICKET ----
   const handleSubmit = useCallback(async () => {
+    // FAIL-CLOSED: Capper required
+    if (!selectedCapperId) {
+      toast({
+        title: 'Capper required',
+        description: 'Select a capper before submitting',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (legs.length === 0) {
       toast({ title: 'No picks', description: 'Add at least one pick', variant: 'destructive' });
       return;
@@ -455,10 +630,12 @@ export function SportsbookManualEntry() {
       const legPayloads = legs.map(leg => ({
         sport: leg.sport,
         bet_type: leg.betType,
-        home_team:
-          leg.matchup.split('@')[1]?.trim() || leg.matchup.split('vs')[1]?.trim() || leg.matchup,
-        away_team: leg.matchup.split('@')[0]?.trim() || leg.matchup.split('vs')[0]?.trim() || '',
+        home_team: leg.homeTeamName,
+        away_team: leg.awayTeamName,
+        home_team_id: leg.homeTeamId,
+        away_team_id: leg.awayTeamId,
         matchup_text: leg.matchup,
+        player_id: leg.playerId || null,
         player_name: leg.playerName || null,
         prop_type: leg.propType || null,
         selection: leg.selection,
@@ -476,7 +653,9 @@ export function SportsbookManualEntry() {
         meta: {
           entry_mode: 'manual',
           source: 'sportsbook_manual_entry',
-          form_version: 'v085',
+          form_version: 'v088',
+          capper_id: selectedCapperId,
+          capper_name: selectedCapperName,
         },
       });
 
@@ -501,7 +680,34 @@ export function SportsbookManualEntry() {
     } finally {
       setSubmitting(false);
     }
-  }, [legs, betSlipId, ticketType, stake, toast]);
+  }, [legs, betSlipId, ticketType, stake, selectedCapperId, selectedCapperName, toast]);
+
+  // ---- TEAM SELECT HANDLER ----
+  const handleTeamSelect = useCallback(
+    (type: 'away' | 'home', teamId: string, teamName: string) => {
+      if (type === 'away') {
+        setBuilder(prev => ({ ...prev, awayTeamId: teamId, awayTeamName: teamName }));
+      } else {
+        setBuilder(prev => ({ ...prev, homeTeamId: teamId, homeTeamName: teamName }));
+      }
+    },
+    []
+  );
+
+  // ---- PLAYER SELECT HANDLER ----
+  const handlePlayerSelect = useCallback((playerId: string, playerName: string) => {
+    setBuilder(prev => ({ ...prev, playerId, playerName }));
+  }, []);
+
+  // ---- CAPPER SELECT HANDLER ----
+  const handleCapperSelect = useCallback(
+    (capperId: string) => {
+      const capper = cappers.find(c => c.id === capperId);
+      setSelectedCapperId(capperId);
+      setSelectedCapperName(capper?.display_name || '');
+    },
+    [cappers]
+  );
 
   // ============================================================================
   // RENDER
@@ -512,15 +718,54 @@ export function SportsbookManualEntry() {
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-white">Manual Entry</h1>
+          <h1 className="text-2xl font-bold text-white">Smart Manual Entry</h1>
           <p className="text-slate-400 text-sm mt-1">
-            Build your ticket • Enter to add • Esc to clear
+            Select capper + teams • Enter to add • Esc to clear
           </p>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6">
           {/* LEFT: Builder Panel */}
           <div className="flex-1" ref={builderRef}>
+            {/* Capper Selection Card - REQUIRED */}
+            <Card className="bg-[#252830] border-slate-700 p-5 mb-4">
+              <div className="flex items-center gap-2 mb-3">
+                <User className="h-5 w-5 text-blue-400" />
+                <Label className="text-slate-300 text-sm font-semibold">
+                  Capper <span className="text-red-400">*</span>
+                </Label>
+              </div>
+              {cappersLoading ? (
+                <div className="flex items-center gap-2 text-slate-400">
+                  <Spinner className="h-4 w-4" />
+                  <span>Loading cappers...</span>
+                </div>
+              ) : (
+                <Select value={selectedCapperId} onValueChange={handleCapperSelect}>
+                  <SelectTrigger
+                    className={cn(
+                      'bg-slate-800 border-slate-600 text-white',
+                      !selectedCapperId && 'border-red-500/50'
+                    )}
+                  >
+                    <SelectValue placeholder="Select capper (required)" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-800 border-slate-600">
+                    {cappers.map(c => (
+                      <SelectItem key={c.id} value={c.id} className="text-white hover:bg-slate-700">
+                        {c.display_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {!selectedCapperId && !cappersLoading && (
+                <p className="text-red-400 text-xs mt-2">
+                  Capper is required for ticket submission
+                </p>
+              )}
+            </Card>
+
             <Card className="bg-[#252830] border-slate-700 p-5">
               {/* Sport Selector */}
               <div className="mb-5">
@@ -572,49 +817,226 @@ export function SportsbookManualEntry() {
 
               {/* Dynamic Fields Based on Bet Type */}
               <div className="space-y-4">
-                {/* Matchup */}
-                <div>
-                  <Label className="text-slate-300 text-xs uppercase tracking-wide">
-                    Matchup / Event
-                  </Label>
-                  <Input
-                    value={builder.matchup}
-                    onChange={e => setBuilder(prev => ({ ...prev, matchup: e.target.value }))}
-                    placeholder="e.g., Lakers @ Celtics"
-                    className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
-                  />
-                </div>
-
-                {/* Team (for team-based bets) */}
-                {currentBetType?.outcomeType === 'team' && (
+                {/* Teams Selection - Away @ Home */}
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Away Team */}
                   <div>
                     <Label className="text-slate-300 text-xs uppercase tracking-wide">
-                      Team Selection
+                      Away Team
                     </Label>
-                    <Input
-                      value={builder.team}
-                      onChange={e => setBuilder(prev => ({ ...prev, team: e.target.value }))}
-                      placeholder="e.g., Celtics"
-                      className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
-                    />
+                    <Select
+                      value={builder.awayTeamId}
+                      onValueChange={teamId => {
+                        const team = teams.find(t => t.id === teamId);
+                        handleTeamSelect('away', teamId, team?.name || '');
+                      }}
+                    >
+                      <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white">
+                        <SelectValue placeholder="Select away team" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-800 border-slate-600 max-h-60">
+                        <div className="px-2 py-1.5">
+                          <Input
+                            placeholder="Search teams..."
+                            value={teamSearchQuery}
+                            onChange={e => setTeamSearchQuery(e.target.value)}
+                            className="bg-slate-700 border-slate-600 text-white text-sm"
+                          />
+                        </div>
+                        {teamsLoading ? (
+                          <div className="px-3 py-2 text-slate-400 text-sm">Loading...</div>
+                        ) : filteredTeams.length === 0 ? (
+                          <div className="px-3 py-2 text-slate-400 text-sm">No teams found</div>
+                        ) : (
+                          filteredTeams.slice(0, 20).map(t => (
+                            <SelectItem
+                              key={t.id}
+                              value={t.id}
+                              className="text-white hover:bg-slate-700"
+                            >
+                              {t.name} {t.abbr && `(${t.abbr})`}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {builder.awayTeamName && (
+                      <div className="mt-1 text-xs text-slate-400">{builder.awayTeamName}</div>
+                    )}
+                  </div>
+
+                  {/* Home Team */}
+                  <div>
+                    <Label className="text-slate-300 text-xs uppercase tracking-wide">
+                      Home Team
+                    </Label>
+                    <Select
+                      value={builder.homeTeamId}
+                      onValueChange={teamId => {
+                        const team = teams.find(t => t.id === teamId);
+                        handleTeamSelect('home', teamId, team?.name || '');
+                      }}
+                    >
+                      <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white">
+                        <SelectValue placeholder="Select home team" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-800 border-slate-600 max-h-60">
+                        <div className="px-2 py-1.5">
+                          <Input
+                            placeholder="Search teams..."
+                            value={teamSearchQuery}
+                            onChange={e => setTeamSearchQuery(e.target.value)}
+                            className="bg-slate-700 border-slate-600 text-white text-sm"
+                          />
+                        </div>
+                        {teamsLoading ? (
+                          <div className="px-3 py-2 text-slate-400 text-sm">Loading...</div>
+                        ) : filteredTeams.length === 0 ? (
+                          <div className="px-3 py-2 text-slate-400 text-sm">No teams found</div>
+                        ) : (
+                          filteredTeams.slice(0, 20).map(t => (
+                            <SelectItem
+                              key={t.id}
+                              value={t.id}
+                              className="text-white hover:bg-slate-700"
+                            >
+                              {t.name} {t.abbr && `(${t.abbr})`}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {builder.homeTeamName && (
+                      <div className="mt-1 text-xs text-slate-400">{builder.homeTeamName}</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Auto-generated matchup display */}
+                {builder.awayTeamName && builder.homeTeamName && (
+                  <div className="bg-slate-800 rounded-lg p-3">
+                    <div className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+                      Matchup
+                    </div>
+                    <div className="text-white font-medium">
+                      {builder.awayTeamName} @ {builder.homeTeamName}
+                    </div>
                   </div>
                 )}
 
-                {/* Player (for player props) */}
+                {/* Team Selection (for team-based bets) */}
+                {currentBetType?.outcomeType === 'team' &&
+                  builder.awayTeamName &&
+                  builder.homeTeamName && (
+                    <div>
+                      <Label className="text-slate-300 text-xs uppercase tracking-wide">
+                        Pick Team
+                      </Label>
+                      <div className="flex gap-2 mt-1">
+                        <Button
+                          variant={builder.teamSelection === 'away' ? 'default' : 'outline'}
+                          onClick={() =>
+                            setBuilder(prev => ({
+                              ...prev,
+                              teamSelection: 'away',
+                              selection: 'away',
+                            }))
+                          }
+                          className={cn(
+                            'flex-1',
+                            builder.teamSelection === 'away'
+                              ? 'bg-blue-600'
+                              : 'bg-slate-700 border-slate-600 text-white'
+                          )}
+                        >
+                          {builder.awayTeamName}
+                        </Button>
+                        <Button
+                          variant={builder.teamSelection === 'home' ? 'default' : 'outline'}
+                          onClick={() =>
+                            setBuilder(prev => ({
+                              ...prev,
+                              teamSelection: 'home',
+                              selection: 'home',
+                            }))
+                          }
+                          className={cn(
+                            'flex-1',
+                            builder.teamSelection === 'home'
+                              ? 'bg-blue-600'
+                              : 'bg-slate-700 border-slate-600 text-white'
+                          )}
+                        >
+                          {builder.homeTeamName}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                {/* Player Search (for player props) */}
                 {currentBetType?.requiresPlayer && (
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <Label className="text-slate-300 text-xs uppercase tracking-wide">
                         Player
                       </Label>
-                      <Input
-                        value={builder.playerName}
-                        onChange={e =>
-                          setBuilder(prev => ({ ...prev, playerName: e.target.value }))
-                        }
-                        placeholder="e.g., Donovan Mitchell"
-                        className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
-                      />
+                      {players.length > 0 ? (
+                        <Select
+                          value={builder.playerId}
+                          onValueChange={playerId => {
+                            const player = players.find(p => p.player_id === playerId);
+                            handlePlayerSelect(playerId, player?.player_name || '');
+                          }}
+                        >
+                          <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white">
+                            <SelectValue placeholder="Select player" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-slate-800 border-slate-600 max-h-60">
+                            <div className="px-2 py-1.5">
+                              <Input
+                                placeholder="Search players..."
+                                value={playerSearchQuery}
+                                onChange={e => setPlayerSearchQuery(e.target.value)}
+                                className="bg-slate-700 border-slate-600 text-white text-sm"
+                              />
+                            </div>
+                            {playersLoading ? (
+                              <div className="px-3 py-2 text-slate-400 text-sm">Loading...</div>
+                            ) : filteredPlayers.length === 0 ? (
+                              <div className="px-3 py-2 text-slate-400 text-sm">
+                                No players found
+                              </div>
+                            ) : (
+                              filteredPlayers.slice(0, 20).map(p => (
+                                <SelectItem
+                                  key={p.player_id}
+                                  value={p.player_id}
+                                  className="text-white hover:bg-slate-700"
+                                >
+                                  {p.player_name}
+                                  {p.team_abbr && (
+                                    <span className="text-slate-400 ml-1">({p.team_abbr})</span>
+                                  )}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <>
+                          <Input
+                            value={builder.playerName}
+                            onChange={e =>
+                              setBuilder(prev => ({ ...prev, playerName: e.target.value }))
+                            }
+                            placeholder="Enter player name (fallback)"
+                            className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+                          />
+                          <p className="text-xs text-amber-400 mt-1">
+                            No players in database. Manual entry mode.
+                          </p>
+                        </>
+                      )}
                     </div>
                     <div>
                       <Label className="text-slate-300 text-xs uppercase tracking-wide">
@@ -660,98 +1082,75 @@ export function SportsbookManualEntry() {
                   </div>
                 )}
 
-                {/* Selection Buttons */}
-                <div>
-                  <Label className="text-slate-300 text-xs uppercase tracking-wide">
-                    Selection
-                  </Label>
-                  <div className="flex gap-2 mt-1">
-                    {currentBetType?.outcomeType === 'team' && (
-                      <>
-                        <Button
-                          variant={builder.selection === 'home' ? 'default' : 'outline'}
-                          onClick={() => setBuilder(prev => ({ ...prev, selection: 'home' }))}
-                          className={cn(
-                            'flex-1',
-                            builder.selection === 'home'
-                              ? 'bg-blue-600'
-                              : 'bg-slate-700 border-slate-600 text-white'
-                          )}
-                        >
-                          {builder.team || 'Home'}
-                        </Button>
-                        <Button
-                          variant={builder.selection === 'away' ? 'default' : 'outline'}
-                          onClick={() => setBuilder(prev => ({ ...prev, selection: 'away' }))}
-                          className={cn(
-                            'flex-1',
-                            builder.selection === 'away'
-                              ? 'bg-blue-600'
-                              : 'bg-slate-700 border-slate-600 text-white'
-                          )}
-                        >
-                          Away
-                        </Button>
-                      </>
-                    )}
-                    {currentBetType?.outcomeType === 'over_under' && (
-                      <>
-                        <Button
-                          variant={builder.selection === 'over' ? 'default' : 'outline'}
-                          onClick={() => setBuilder(prev => ({ ...prev, selection: 'over' }))}
-                          className={cn(
-                            'flex-1',
-                            builder.selection === 'over'
-                              ? 'bg-green-600'
-                              : 'bg-slate-700 border-slate-600 text-white'
-                          )}
-                        >
-                          Over
-                        </Button>
-                        <Button
-                          variant={builder.selection === 'under' ? 'default' : 'outline'}
-                          onClick={() => setBuilder(prev => ({ ...prev, selection: 'under' }))}
-                          className={cn(
-                            'flex-1',
-                            builder.selection === 'under'
-                              ? 'bg-red-600'
-                              : 'bg-slate-700 border-slate-600 text-white'
-                          )}
-                        >
-                          Under
-                        </Button>
-                      </>
-                    )}
-                    {currentBetType?.outcomeType === 'yes_no' && (
-                      <>
-                        <Button
-                          variant={builder.selection === 'yes' ? 'default' : 'outline'}
-                          onClick={() => setBuilder(prev => ({ ...prev, selection: 'yes' }))}
-                          className={cn(
-                            'flex-1',
-                            builder.selection === 'yes'
-                              ? 'bg-green-600'
-                              : 'bg-slate-700 border-slate-600 text-white'
-                          )}
-                        >
-                          Yes
-                        </Button>
-                        <Button
-                          variant={builder.selection === 'no' ? 'default' : 'outline'}
-                          onClick={() => setBuilder(prev => ({ ...prev, selection: 'no' }))}
-                          className={cn(
-                            'flex-1',
-                            builder.selection === 'no'
-                              ? 'bg-red-600'
-                              : 'bg-slate-700 border-slate-600 text-white'
-                          )}
-                        >
-                          No
-                        </Button>
-                      </>
-                    )}
+                {/* Over/Under Selection */}
+                {currentBetType?.outcomeType === 'over_under' && (
+                  <div>
+                    <Label className="text-slate-300 text-xs uppercase tracking-wide">
+                      Selection
+                    </Label>
+                    <div className="flex gap-2 mt-1">
+                      <Button
+                        variant={builder.selection === 'over' ? 'default' : 'outline'}
+                        onClick={() => setBuilder(prev => ({ ...prev, selection: 'over' }))}
+                        className={cn(
+                          'flex-1',
+                          builder.selection === 'over'
+                            ? 'bg-green-600'
+                            : 'bg-slate-700 border-slate-600 text-white'
+                        )}
+                      >
+                        Over
+                      </Button>
+                      <Button
+                        variant={builder.selection === 'under' ? 'default' : 'outline'}
+                        onClick={() => setBuilder(prev => ({ ...prev, selection: 'under' }))}
+                        className={cn(
+                          'flex-1',
+                          builder.selection === 'under'
+                            ? 'bg-red-600'
+                            : 'bg-slate-700 border-slate-600 text-white'
+                        )}
+                      >
+                        Under
+                      </Button>
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {/* Yes/No Selection */}
+                {currentBetType?.outcomeType === 'yes_no' && (
+                  <div>
+                    <Label className="text-slate-300 text-xs uppercase tracking-wide">
+                      Selection
+                    </Label>
+                    <div className="flex gap-2 mt-1">
+                      <Button
+                        variant={builder.selection === 'yes' ? 'default' : 'outline'}
+                        onClick={() => setBuilder(prev => ({ ...prev, selection: 'yes' }))}
+                        className={cn(
+                          'flex-1',
+                          builder.selection === 'yes'
+                            ? 'bg-green-600'
+                            : 'bg-slate-700 border-slate-600 text-white'
+                        )}
+                      >
+                        Yes
+                      </Button>
+                      <Button
+                        variant={builder.selection === 'no' ? 'default' : 'outline'}
+                        onClick={() => setBuilder(prev => ({ ...prev, selection: 'no' }))}
+                        className={cn(
+                          'flex-1',
+                          builder.selection === 'no'
+                            ? 'bg-red-600'
+                            : 'bg-slate-700 border-slate-600 text-white'
+                        )}
+                      >
+                        No
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Odds + Provider Row */}
                 <div className="grid grid-cols-2 gap-3">
@@ -836,28 +1235,22 @@ export function SportsbookManualEntry() {
                 </Button>
               </div>
             </Card>
-
-            {/* Select from Games - Disabled */}
-            <Card className="bg-[#252830] border-slate-700 p-4 mt-4 opacity-60">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-white font-medium">Select from Games</div>
-                  <div className="text-slate-400 text-sm">Catalog-based selection</div>
-                </div>
-                <Badge variant="outline" className="text-slate-400 border-slate-600">
-                  Coming Soon
-                </Badge>
-              </div>
-            </Card>
           </div>
 
           {/* RIGHT: Bet Slip Panel (Sticky) */}
           <div className="lg:w-96 lg:sticky lg:top-6 lg:self-start">
             <Card className="bg-[#252830] border-slate-700 overflow-hidden">
-              {/* Header */}
+              {/* Header with Capper */}
               <div className="bg-slate-800 px-4 py-3 border-b border-slate-700">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-white font-semibold">Bet Slip</h2>
+                  <div>
+                    <h2 className="text-white font-semibold">Bet Slip</h2>
+                    {selectedCapperName && (
+                      <div className="text-xs text-blue-400 mt-0.5">
+                        Capper: {selectedCapperName}
+                      </div>
+                    )}
+                  </div>
                   <Badge
                     className={cn(
                       ticketType === 'parlay' ? 'bg-purple-600' : 'bg-blue-600',
@@ -906,7 +1299,7 @@ export function SportsbookManualEntry() {
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                    {legs.map((leg, idx) => {
+                    {legs.map(leg => {
                       const sport = SPORTS.find(s => s.code === leg.sport);
                       const betType = BET_TYPES.find(bt => bt.key === leg.betType);
                       return (
@@ -919,12 +1312,6 @@ export function SportsbookManualEntry() {
                                 </Badge>
                                 <Badge className={cn('text-[10px] px-1.5 py-0', betType?.color)}>
                                   {betType?.shortLabel}
-                                </Badge>
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px] px-1.5 py-0 text-slate-400 border-slate-600"
-                                >
-                                  Manual
                                 </Badge>
                               </div>
                               <div className="text-white text-sm font-medium truncate">
@@ -985,10 +1372,10 @@ export function SportsbookManualEntry() {
               <div className="p-4 bg-slate-800/50 border-t border-slate-700">
                 <Button
                   onClick={handleSubmit}
-                  disabled={legs.length === 0 || submitting}
+                  disabled={legs.length === 0 || submitting || !selectedCapperId}
                   className={cn(
                     'w-full font-semibold py-3',
-                    legs.length > 0
+                    legs.length > 0 && selectedCapperId
                       ? 'bg-green-600 hover:bg-green-700'
                       : 'bg-slate-600 cursor-not-allowed'
                   )}
@@ -1010,6 +1397,13 @@ export function SportsbookManualEntry() {
                     </>
                   )}
                 </Button>
+
+                {/* Capper warning */}
+                {!selectedCapperId && legs.length > 0 && (
+                  <div className="mt-2 text-center text-amber-400 text-xs">
+                    Select a capper to submit
+                  </div>
+                )}
 
                 {/* Result */}
                 {submitResult && (
