@@ -13,8 +13,9 @@ const log = createRouteLogger('GET /api/catalog/cappers', 'GET');
  * Cached for 10 minutes.
  */
 
-// Cache TTL in seconds (10 minutes)
-const CACHE_TTL = 600;
+// Cache TTL in seconds - SPRINT-091: Reduced to 60s for faster cache refresh
+// until cappers are stable, then can raise to 600s later
+const CACHE_TTL = 60;
 
 interface CapperResult {
   id: string;

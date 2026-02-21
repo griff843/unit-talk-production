@@ -455,14 +455,26 @@ export function SportsbookManualEntry() {
   }, [builder]);
 
   // ---- FETCH CAPPERS ----
+  // SPRINT-SMARTFORM-MATCHUP-WIRED-PLAYER-FILTER-091: Use canonical /api/cappers endpoint
+  // which queries users table with role='capper' (fail-closed, no stale cache)
   useEffect(() => {
     async function fetchCappers() {
       setCappersLoading(true);
       try {
-        const res = await fetch('/api/catalog/cappers');
+        // Canonical endpoint: queries users table where role='capper' and active=true
+        const res = await fetch('/api/cappers?active=true');
         if (res.ok) {
           const data = await res.json();
-          setCappers(data.cappers || []);
+          // Map canonical response format to component interface
+          // /api/cappers returns { id, name, active, tier, discordId }
+          // Component expects { id, display_name }
+          const mappedCappers: Capper[] = (data.cappers || []).map(
+            (c: { id: string; name: string }) => ({
+              id: c.id,
+              display_name: c.name,
+            })
+          );
+          setCappers(mappedCappers);
         }
       } catch (err) {
         console.error('Failed to fetch cappers:', err);
