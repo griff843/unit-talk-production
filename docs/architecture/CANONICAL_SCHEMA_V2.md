@@ -767,5 +767,63 @@ See: `docs/migrations/CANONICAL_SCHEMA_MIGRATION_PLAN.md`
 
 ---
 
-**Architecture Owner**: Engineering Team **Last Updated**: 2026-02-20
+## Appendix B: Immutability Contracts
+
+### B.1 Closing Line Truth
+
+**Canonical Source:** `provider_offers.is_closing = TRUE`
+
+The "closing truth" for CLV (Closing Line Value) analysis is stored in
+`provider_offers` rows where `is_closing = TRUE`. These rows represent the final
+line/odds snapshot before an event starts and are **immutable by database
+trigger**.
+
+```sql
+-- Trigger: trigger_guard_provider_offers_closing_immutability
+-- Sprint: SPRINT-CLOSING-LINE-IMMUTABILITY-096
+
+-- BLOCKED OPERATIONS:
+-- 1. UPDATE on rows where is_closing = TRUE
+-- 2. DELETE on rows where is_closing = TRUE
+-- 3. Toggle is_closing from FALSE to TRUE via UPDATE
+
+-- ALLOWED OPERATIONS:
+-- 1. INSERT with is_closing = TRUE (setting closing at insert time)
+-- 2. UPDATE on rows where is_closing = FALSE
+-- 3. DELETE on rows where is_closing = FALSE
+```
+
+### B.2 Immutability Rationale
+
+Closing lines are the foundation of professional betting analysis:
+
+1. **CLV Calculation**: Closing line is the benchmark for measuring edge
+2. **Historical Analysis**: Must remain unchanged for accurate backtesting
+3. **Audit Trail**: Regulatory and compliance requirements
+4. **Settlement Reference**: Used to verify settlement accuracy
+
+### B.3 Setting Closing Lines
+
+Closing lines should only be set at INSERT time, never via UPDATE:
+
+```typescript
+// CORRECT: Insert with is_closing=TRUE
+await supabase.from('provider_offers').insert({
+  event_id: eventId,
+  market_id: marketId,
+  provider: 'pinnacle',
+  is_closing: true, // Set at insert time
+  // ...other fields
+});
+
+// INCORRECT: Will throw IMMUTABILITY_VIOLATION
+await supabase
+  .from('provider_offers')
+  .update({ is_closing: true })
+  .eq('id', offerId);
+```
+
+---
+
+**Architecture Owner**: Engineering Team **Last Updated**: 2026-02-21
 **Status**: DRAFT

@@ -1,0 +1,5 @@
+ schema |   table_name    |                    trigger_name                    | enabled |               function_name                |                                              description                                               
+--------+-----------------+----------------------------------------------------+---------+--------------------------------------------+--------------------------------------------------------------------------------------------------------
+ public | provider_offers | trigger_guard_provider_offers_closing_immutability | O       | guard_provider_offers_closing_immutability | Prevents modification or deletion of closing line offers. Sprint: SPRINT-CLOSING-LINE-IMMUTABILITY-096
+(1 row)
+

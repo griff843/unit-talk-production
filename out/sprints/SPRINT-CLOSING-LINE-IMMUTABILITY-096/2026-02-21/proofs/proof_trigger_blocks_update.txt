@@ -1,0 +1,34 @@
+NOTICE:  === CLOSING LINE IMMUTABILITY TEST ===
+NOTICE:  
+NOTICE:  Using event_id: 0e95ec93-3c6b-4f4c-949b-14493c342e51
+NOTICE:  Using market_id: bac3c992-7c19-452c-b027-2d3521fa14b3
+NOTICE:  
+NOTICE:  [TEST A] INSERT with is_closing=TRUE...
+NOTICE:    PASS: Created closing offer id=85e2cf9d-53ae-4f55-9363-d0be3b95645e
+NOTICE:  
+NOTICE:  [TEST B] UPDATE on is_closing=TRUE row (should fail)...
+NOTICE:    PASS: Trigger blocked UPDATE as expected
+NOTICE:          Error: IMMUTABILITY_VIOLATION: Cannot UPDATE provider_offers row with is_closing=TRUE (id=85e2cf9d-53ae-4f55-9363-d0be3b95645e)
+NOTICE:  
+NOTICE:  [TEST C] DELETE on is_closing=TRUE row (should fail)...
+NOTICE:    PASS: Trigger blocked DELETE as expected
+NOTICE:          Error: IMMUTABILITY_VIOLATION: Cannot DELETE provider_offers row with is_closing=TRUE (id=85e2cf9d-53ae-4f55-9363-d0be3b95645e)
+NOTICE:  
+NOTICE:  [TEST D] INSERT non-closing, then toggle FALSE->TRUE...
+NOTICE:    Created non-closing offer id=52e57896-c030-48b7-a6e8-21d6752e1fd3
+NOTICE:    PASS: Trigger blocked toggle as expected
+NOTICE:          Error: IMMUTABILITY_VIOLATION: Cannot toggle is_closing from FALSE to TRUE via UPDATE (id=52e57896-c030-48b7-a6e8-21d6752e1fd3). Set is_closing=TRUE at INSERT time only.
+NOTICE:  
+NOTICE:  [TEST E] UPDATE on is_closing=FALSE row (should succeed)...
+NOTICE:    PASS: UPDATE on non-closing row succeeded
+NOTICE:  
+NOTICE:  [TEST F] DELETE on is_closing=FALSE row (should succeed)...
+NOTICE:    PASS: DELETE on non-closing row succeeded
+NOTICE:  
+NOTICE:  [CLEANUP]
+NOTICE:    Note: Closing offer id=85e2cf9d-53ae-4f55-9363-d0be3b95645e remains (immutable by design)
+NOTICE:  
+NOTICE:  ======================================================================
+NOTICE:  RESULT: PASS - All immutability constraints enforced correctly
+NOTICE:  ======================================================================
+DO

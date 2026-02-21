@@ -1,0 +1,6 @@
+                       tgname                       |     tgrelid     | tgenabled |                                                                                                         pg_get_triggerdef                                                                                                          
+----------------------------------------------------+-----------------+-----------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ trg_guard_closing_line_immutability                | unified_picks   | O         | CREATE TRIGGER trg_guard_closing_line_immutability BEFORE UPDATE ON public.unified_picks FOR EACH ROW WHEN (((old.closing_line IS NOT NULL) OR (old.closing_odds IS NOT NULL))) EXECUTE FUNCTION guard_closing_line_immutability()
+ trigger_guard_provider_offers_closing_immutability | provider_offers | O         | CREATE TRIGGER trigger_guard_provider_offers_closing_immutability BEFORE DELETE OR UPDATE ON public.provider_offers FOR EACH ROW EXECUTE FUNCTION guard_provider_offers_closing_immutability()
+(2 rows)
+
