@@ -23,6 +23,7 @@
     "start:dashboard": "npm run dev --workspace=apps/dashboard",
     "start:smart-form": "npm run dev --workspace=apps/smart-form",
     "start:command-center": "npm run dev --workspace=apps/command-center",
+    "env:audit": "npx tsx scripts/ops/env-audit.ts",
     "docs:validate": "node scripts/validate-documentation.js",
     "docs:generate": "node scripts/generate-docs.js",
     "setup": "npm install && npm run build",

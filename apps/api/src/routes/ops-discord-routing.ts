@@ -2,12 +2,14 @@
  * Discord Routing Status Endpoint
  *
  * SPRINT-END-TO-END-TICKET-LIFECYCLE-TRUTH-093
+ * SPRINT-FOUNDATION-TRUTH-LOCK-094A (resolved_from tracking)
  *
  * Self-verification endpoint for Discord pipeline health.
  */
 
 import express, { Response, Router } from 'express';
 
+import { resolveDiscordRoutingConfig } from '../config/discordRouting';
 import { supabaseClient } from '../services/supabaseClient';
 import { createLogger } from '../utils/logger';
 
@@ -23,6 +25,7 @@ interface DiscordRoutingStatus {
     channel_from_env: boolean;
     channel_id_resolved: boolean;
     webhook_configured: boolean;
+    resolved_from: { webhook: string; channel: string; worker: string };
   };
   worker: {
     configured: boolean;
@@ -47,10 +50,12 @@ interface DiscordRoutingStatus {
 // ---- HELPERS ----
 
 function getEnvConfig() {
+  const routingConfig = resolveDiscordRoutingConfig();
   return {
-    channelFromEnv: !!process.env.DEFAULT_DISCORD_TICKET_CHANNEL_ID,
-    webhookConfigured: !!process.env.DISCORD_WEBHOOK_URL,
-    workerConfigured: process.env.ENABLE_DISCORD_TICKET_WORKER === 'true',
+    channelFromEnv: !!routingConfig.channelId,
+    webhookConfigured: !!routingConfig.webhookUrl,
+    workerConfigured: routingConfig.workerEnabled,
+    resolution: routingConfig.resolution,
   };
 }
 
@@ -93,6 +98,11 @@ function buildErrorResponse(
       channel_from_env: env.channelFromEnv,
       channel_id_resolved: env.channelFromEnv,
       webhook_configured: env.webhookConfigured,
+      resolved_from: {
+        webhook: env.resolution.webhookUrl,
+        channel: env.resolution.channelId,
+        worker: env.resolution.workerEnabled,
+      },
     },
     worker: {
       configured: env.workerConfigured,
@@ -152,6 +162,11 @@ router.get('/discord-routing-status', async (_req, res: Response) => {
         channel_from_env: env.channelFromEnv,
         channel_id_resolved: channelIdResolved,
         webhook_configured: env.webhookConfigured,
+        resolved_from: {
+          webhook: env.resolution.webhookUrl,
+          channel: channelFromDb ? 'db' : env.resolution.channelId,
+          worker: env.resolution.workerEnabled,
+        },
       },
       worker: {
         configured: env.workerConfigured,
