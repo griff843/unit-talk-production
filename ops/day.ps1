@@ -2,7 +2,7 @@
 .SYNOPSIS
     CANONICAL ENTRYPOINT: pnpm ops:day (PowerShell variant)
 .DESCRIPTION
-    SPRINT-ENTRYPOINT-CANONICALIZATION-097A
+    SPRINT-POWERSHELL-DOCKER-STDERR-FIX-098A
 
     THE ONE TRUE WAY to start a production workday locally.
     All other entrypoints (dev.sh, etc.) are DEPRECATED.
@@ -25,10 +25,79 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # ============================================================================
+# INVOKE-NATIVE: Safe native command execution with exit code enforcement
+# ============================================================================
+# Docker and other native commands write progress/status to stderr.
+# PowerShell with $ErrorActionPreference='Stop' treats stderr as terminating errors.
+# This helper:
+#   1. Temporarily sets ErrorActionPreference to 'Continue' during execution
+#   2. Merges stderr into stdout to prevent NativeCommandError
+#   3. ALWAYS checks $LASTEXITCODE after the command
+#   4. Throws if exit code is non-zero (FAIL-CLOSED behavior)
+#
+# Usage:
+#   Invoke-Native { docker compose down }                    # Silent mode
+#   Invoke-Native { docker compose up -d --build } -ShowOutput   # Show output
+#   $output = Invoke-Native { docker compose ps } -Capture   # Capture output
+# ============================================================================
+
+function Invoke-Native {
+    param(
+        [Parameter(Mandatory)]
+        [scriptblock]$Command,
+
+        [switch]$ShowOutput, # Show command output in real-time
+        [switch]$Capture,   # Return captured output instead of displaying
+        [switch]$AllowFail, # Don't throw on non-zero exit (use with caution)
+        [string]$ErrorMessage = "Native command failed"
+    )
+
+    # Save current preference and switch to Continue to prevent NativeCommandError
+    $savedErrorPref = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+
+    try {
+        # Execute command with stderr merged to stdout
+        if ($Capture) {
+            # Capture all output for return
+            $output = & $Command 2>&1
+            $exitCode = $LASTEXITCODE
+        } elseif ($ShowOutput) {
+            # Stream output to console
+            & $Command 2>&1 | ForEach-Object { Write-Host $_ }
+            $exitCode = $LASTEXITCODE
+            $output = $null
+        } else {
+            # Silent execution - discard output
+            & $Command 2>&1 | Out-Null
+            $exitCode = $LASTEXITCODE
+            $output = $null
+        }
+    }
+    finally {
+        # Restore original preference
+        $ErrorActionPreference = $savedErrorPref
+    }
+
+    # FAIL-CLOSED: Throw if command failed (unless AllowFail)
+    if ($exitCode -ne 0 -and -not $AllowFail) {
+        if ($output) {
+            Write-Host ($output -join "`n") -ForegroundColor Red
+        }
+        throw "$ErrorMessage (exit code: $exitCode)"
+    }
+
+    # Return captured output if requested
+    if ($Capture) {
+        return $output
+    }
+}
+
+# ============================================================================
 # CONFIGURATION
 # ============================================================================
 
-$SPRINT_ID = "SPRINT-ENTRYPOINT-CANONICALIZATION-097A"
+$SPRINT_ID = "SPRINT-POWERSHELL-DOCKER-STDERR-FIX-098A"
 $DATE = Get-Date -Format "yyyy-MM-dd"
 $PROOF_DIR = "out/sprints/$SPRINT_ID/$DATE/proofs"
 # Use 127.0.0.1 instead of localhost to avoid IPv6 issues on Windows
@@ -80,21 +149,22 @@ New-Item -ItemType Directory -Force -Path $PROOF_DIR | Out-Null
 Write-Step "A) Git Repository Status"
 
 try {
-    git fetch origin 2>$null
+    Invoke-Native { git fetch origin } -AllowFail
 } catch {
     Write-Warn "Git fetch failed (offline?)"
 }
 
-$gitStatus = git status --porcelain 2>$null
+$gitStatus = Invoke-Native { git status --porcelain } -Capture -AllowFail
 if ($gitStatus) {
     Write-Warn "Working tree has uncommitted changes:"
-    git status --short
+    $shortStatus = Invoke-Native { git status --short } -Capture -AllowFail
+    Write-Host ($shortStatus -join "`n")
 } else {
     Write-Ok "Working tree clean"
 }
 
-$ahead = git rev-list --count origin/main..HEAD 2>$null
-$behind = git rev-list --count HEAD..origin/main 2>$null
+$ahead = Invoke-Native { git rev-list --count origin/main..HEAD } -Capture -AllowFail
+$behind = Invoke-Native { git rev-list --count HEAD..origin/main } -Capture -AllowFail
 if ([int]$behind -gt 0) {
     Write-Warn "Branch is $behind commits behind origin/main"
 }
@@ -109,22 +179,21 @@ if ([int]$ahead -gt 0) {
 Write-Step "B) Docker Verification"
 
 try {
-    $dockerVersion = docker --version 2>$null
+    $dockerVersion = Invoke-Native { docker --version } -Capture
     if (-not $dockerVersion) { throw "Docker not found" }
-    Write-Ok $dockerVersion
+    Write-Ok ($dockerVersion -join " ")
 } catch {
     Write-Fail "Docker not found. Install Docker Desktop and try again."
 }
 
 try {
-    $dockerInfo = docker info 2>$null
-    if ($LASTEXITCODE -ne 0) { throw "Docker daemon not running" }
+    Invoke-Native { docker info } -ErrorMessage "Docker daemon not running"
 } catch {
     Write-Fail "Docker daemon not running. Start Docker Desktop and try again."
 }
 
-$composeVersion = docker compose version
-Write-Ok $composeVersion
+$composeVersion = Invoke-Native { docker compose version } -Capture
+Write-Ok ($composeVersion -join " ")
 
 # ============================================================================
 # STEP C: Compose Stack (FAIL-CLOSED)
@@ -133,24 +202,30 @@ Write-Ok $composeVersion
 Write-Step "C) Starting Docker Compose Stack"
 
 Write-Info "Stopping existing containers..."
-docker compose down --remove-orphans 2>$null | Out-Null
+try {
+    # AllowFail because containers may not exist yet
+    Invoke-Native { docker compose down --remove-orphans } -AllowFail
+    Write-Ok "Existing containers stopped"
+} catch {
+    Write-Warn "No containers to stop (clean slate)"
+}
 
 if ($DbMode -eq 'local') {
     Write-Info "Mode: LOCAL (with postgres container)"
     if (-not (Test-Path "docker-compose.local.yml")) {
         Write-Fail "docker-compose.local.yml not found for local mode"
     }
-    $result = docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host $result
-        Write-Fail "Docker compose up failed"
+    try {
+        Invoke-Native { docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build } -ShowOutput -ErrorMessage "Docker compose up (local mode) failed"
+    } catch {
+        Write-Fail "Docker compose up failed: $_"
     }
 } else {
     Write-Info "Mode: CLOUD (Supabase)"
-    $result = docker compose up -d --build 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host $result
-        Write-Fail "Docker compose up failed"
+    try {
+        Invoke-Native { docker compose up -d --build } -ShowOutput -ErrorMessage "Docker compose up (cloud mode) failed"
+    } catch {
+        Write-Fail "Docker compose up failed: $_"
     }
 }
 
@@ -169,9 +244,9 @@ while ($waited -lt $HEALTH_TIMEOUT) {
     Start-Sleep -Seconds $interval
     $waited += $interval
 
-    $psOutput = docker compose ps --format json 2>$null
-    if ($psOutput) {
-        try {
+    try {
+        $psOutput = Invoke-Native { docker compose ps --format json } -Capture -AllowFail
+        if ($psOutput) {
             $services = $psOutput | ConvertFrom-Json
             $unhealthy = $services | Where-Object { $_.Health -and $_.Health -ne 'healthy' -and $_.Health -ne '' } | Select-Object -ExpandProperty Name
             if (-not $unhealthy) {
@@ -179,9 +254,9 @@ while ($waited -lt $HEALTH_TIMEOUT) {
                 break
             }
             Write-Info "Waiting... (${waited}s / ${HEALTH_TIMEOUT}s) - Unhealthy: $($unhealthy -join ', ')"
-        } catch {
-            Write-Info "Waiting... (${waited}s / ${HEALTH_TIMEOUT}s)"
         }
+    } catch {
+        Write-Info "Waiting... (${waited}s / ${HEALTH_TIMEOUT}s)"
     }
 }
 
@@ -321,10 +396,12 @@ if (Test-Path "scripts/proof-db-mode-095a.mjs") {
 
 Write-Step "G) Capturing Additional Proofs"
 
-docker compose ps | Out-File -FilePath "$PROOF_DIR/proof_docker_ps.txt" -Encoding UTF8
+$dockerPs = Invoke-Native { docker compose ps } -Capture -AllowFail
+$dockerPs | Out-File -FilePath "$PROOF_DIR/proof_docker_ps.txt" -Encoding UTF8
 Write-Ok "Saved: proof_docker_ps.txt"
 
-git status | Out-File -FilePath "$PROOF_DIR/proof_git_status.txt" -Encoding UTF8
+$gitStatusOutput = Invoke-Native { git status } -Capture -AllowFail
+$gitStatusOutput | Out-File -FilePath "$PROOF_DIR/proof_git_status.txt" -Encoding UTF8
 Write-Ok "Saved: proof_git_status.txt"
 
 # ============================================================================
