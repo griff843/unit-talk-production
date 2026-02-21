@@ -262,8 +262,8 @@ services:
   # External 3010 -> Internal 3000 (CANONICAL)
   api:
     build:
-      context: ./apps/api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/api/Dockerfile
       target: development
     container_name: unit-talk-api
     ports:
@@ -285,8 +285,8 @@ services:
       - GIT_COMMIT_SHORT=${GIT_COMMIT_SHORT:-unknown}
       - GIT_BRANCH=${GIT_BRANCH:-unknown}
     volumes:
-      - ./apps/api/src:/app/src
-      - ./apps/api/logs:/app/logs
+      - ./apps/api/src:/app/apps/api/src
+      - ./apps/api/logs:/app/apps/api/logs
       - ./packages:/app/packages
     depends_on:
       postgres:
@@ -308,8 +308,8 @@ services:
   # Temporal Workers
   workers:
     build:
-      context: ./apps/api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/api/Dockerfile
       target: development
     container_name: unit-talk-workers
     env_file:
@@ -324,8 +324,8 @@ services:
       - OPTIMAL_API_KEY=${OPTIMAL_API_KEY}
       - ODDS_API_KEY=${ODDS_API_KEY}
     volumes:
-      - ./apps/api/src:/app/src
-      - ./apps/api/logs:/app/logs
+      - ./apps/api/src:/app/apps/api/src
+      - ./apps/api/logs:/app/apps/api/logs
       - ./packages:/app/packages
     command: npm run worker:dev
     depends_on:
@@ -375,8 +375,8 @@ services:
   # CANONICAL UI SURFACE: /submit-ticket (ui/surface-reset-020)
   smart-form:
     build:
-      context: ./apps/smart-form
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/smart-form/Dockerfile
       target: development
     container_name: unit-talk-smart-form
     ports:
@@ -393,9 +393,12 @@ services:
       - GIT_COMMIT_SHORT=${GIT_COMMIT_SHORT:-unknown}
       - GIT_BRANCH=${GIT_BRANCH:-unknown}
     volumes:
-      - ./apps/smart-form:/app
-      - /app/node_modules
-      - /app/.next
+      # Mount source directories for hot reload (NOT node_modules or config)
+      - ./apps/smart-form/app:/app/apps/smart-form/app
+      - ./apps/smart-form/components:/app/apps/smart-form/components
+      - ./apps/smart-form/lib:/app/apps/smart-form/lib
+      - ./apps/smart-form/types:/app/apps/smart-form/types
+      - ./apps/smart-form/public:/app/apps/smart-form/public
     depends_on:
       api:
         condition: service_healthy
@@ -442,8 +445,8 @@ services:
   # CANONICAL UI SURFACE: /dashboard/* (ui/surface-reset-020)
   command-center:
     build:
-      context: ./apps/command-center
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/command-center/Dockerfile
       target: development
     container_name: unit-talk-command-center
     ports:
@@ -461,9 +464,9 @@ services:
       - GIT_COMMIT_SHORT=${GIT_COMMIT_SHORT:-unknown}
       - GIT_BRANCH=${GIT_BRANCH:-unknown}
     volumes:
-      - ./apps/command-center:/app
-      - /app/node_modules
-      - /app/.next
+      # Mount source directories for hot reload (NOT node_modules or config)
+      - ./apps/command-center/src:/app/apps/command-center/src
+      - ./apps/command-center/public:/app/apps/command-center/public
     depends_on:
       api:
         condition: service_healthy

@@ -32,13 +32,18 @@ RUN corepack enable && corepack prepare pnpm@10.29.3 --activate
 # ==============================================
 FROM base AS development
 
-# Install all dependencies (including dev)
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+# Copy monorepo root pnpm files (context is repo root)
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
-# Config is mounted at runtime via docker-compose volumes or provided via env vars
-# Copy source code and configs
-COPY . .
+# Copy all source code first (before pnpm install)
+COPY packages ./packages
+COPY apps/api ./apps/api
+
+# Install all workspace dependencies (ignore-scripts skips husky)
+# This runs AFTER copying source to create correct symlinks
+RUN pnpm install --frozen-lockfile --ignore-scripts
+
+WORKDIR /app/apps/api
 
 # Rebuild native modules for Temporal SDK
 RUN pnpm rebuild @temporalio/core-bridge
@@ -61,14 +66,17 @@ CMD ["npm", "run", "start:dev"]
 # ==============================================
 FROM base AS builder
 
-# Copy package files
-COPY package.json pnpm-lock.yaml ./
+# Copy monorepo root pnpm files
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+
+# Copy all source code first
+COPY packages ./packages
+COPY apps/api ./apps/api
 
 # Install all dependencies for building
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
-# Copy source code
-COPY . .
+WORKDIR /app/apps/api
 
 # Build TypeScript
 RUN pnpm run build
@@ -78,14 +86,22 @@ RUN pnpm run build
 # ==============================================
 FROM base AS production
 
-# Install only production dependencies
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --prod
+# Copy monorepo root pnpm files
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
-# Copy built application from builder stage
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/migrations ./migrations
-COPY --from=builder /app/config ./config
+# Copy workspace source (needed for pnpm install to work)
+COPY packages ./packages
+COPY apps/api ./apps/api
+
+# Install only production dependencies
+RUN pnpm install --frozen-lockfile --ignore-scripts --prod
+
+WORKDIR /app/apps/api
+
+# Copy built application from builder stage (overwrites source with built)
+COPY --from=builder /app/apps/api/dist ./dist
+COPY --from=builder /app/apps/api/migrations ./migrations
+COPY --from=builder /app/apps/api/config ./config
 
 # Production mode - TODO: Add non-root user back after development testing
 
