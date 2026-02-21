@@ -25,9 +25,17 @@ const log = createRouteLogger('GET /api/catalog/players', 'GET');
  * Contract: docs/contracts/SMARTFORM_DATA_CONTRACT_V1.md
  */
 
+/**
+ * SPRINT-SMARTFORM-PLAYER-TEAM-INTEGRITY-090
+ * Added away_team_id and home_team_id for matchup-aware filtering.
+ * Fail-closed: if require_matchup=true and no teams provided, return empty.
+ */
 const QuerySchema = z.object({
   sport: z.string().min(1, 'sport parameter is required'),
-  team_id: z.string().uuid().nullish(),
+  team_id: z.string().nullish(), // Legacy single-team filter (text team ID like "team_nfl_buffalo_bills")
+  away_team_id: z.string().nullish(), // Matchup: away team ID
+  home_team_id: z.string().nullish(), // Matchup: home team ID
+  require_matchup: z.coerce.boolean().default(false), // Fail-closed: require team filter
   q: z.string().min(2).nullish(),
   limit: z.coerce.number().min(1).max(100).default(50),
 });
@@ -46,6 +54,9 @@ export async function GET(request: NextRequest) {
     const rawQuery = {
       sport: searchParams.get('sport'),
       team_id: searchParams.get('team_id'),
+      away_team_id: searchParams.get('away_team_id'),
+      home_team_id: searchParams.get('home_team_id'),
+      require_matchup: searchParams.get('require_matchup') || 'false',
       q: searchParams.get('q'),
       limit: searchParams.get('limit') || '50',
     };
@@ -67,11 +78,48 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { sport, team_id, q, limit } = queryValidation.data;
-    const cacheKey = `contract:players:v1:${sport}${team_id ? `:${team_id}` : ''}${q ? `:${q}` : ''}`;
+    const { sport, team_id, away_team_id, home_team_id, require_matchup, q, limit } =
+      queryValidation.data;
+
+    // SPRINT-090: Fail-closed matchup validation
+    // If require_matchup is true and no team filters provided, return empty
+    const hasTeamFilter = team_id || away_team_id || home_team_id;
+    if (require_matchup && !hasTeamFilter) {
+      log.info(
+        { sport, require_matchup },
+        'Matchup required but no team filter provided - returning empty (fail-closed)'
+      );
+      return NextResponse.json(
+        {
+          players: [],
+          meta: {
+            ...buildContractMeta(sport, 0),
+            query: q || null,
+            team_id: null,
+            cache_hit: false,
+            fail_closed_reason: 'matchup_required_but_no_team_filter',
+          },
+        },
+        { status: 200 }
+      );
+    }
+
+    // Build cache key including matchup teams
+    const teamKey =
+      away_team_id && home_team_id ? `matchup:${away_team_id}:${home_team_id}` : team_id || 'all';
+    const cacheKey = `contract:players:v1:${sport}:${teamKey}${q ? `:${q}` : ''}`;
 
     log.info(
-      { sport, team_id, q, limit, surface: CONTRACT_SURFACE },
+      {
+        sport,
+        team_id,
+        away_team_id,
+        home_team_id,
+        require_matchup,
+        q,
+        limit,
+        surface: CONTRACT_SURFACE,
+      },
       'Fetching players from contract surface'
     );
 
@@ -134,10 +182,18 @@ export async function GET(request: NextRequest) {
       query = query.or(`player_name.ilike.%${q}%,search_text.ilike.%${q}%`);
     }
 
-    // Apply team filter
-    if (team_id) {
+    // Apply team filter - SPRINT-090: matchup-aware filtering
+    if (away_team_id && home_team_id) {
+      // Matchup mode: show players from BOTH teams
+      query = query.in('team_id', [away_team_id, home_team_id]);
+    } else if (team_id) {
+      // Legacy single-team filter
       query = query.eq('team_id', team_id);
+    } else if (away_team_id || home_team_id) {
+      // Single matchup team provided
+      query = query.eq('team_id', (away_team_id || home_team_id)!);
     }
+    // If no team filter and not require_matchup, return all players for sport
 
     // Order and limit
     query = query.order('player_name').limit(limit);
@@ -184,6 +240,9 @@ export async function GET(request: NextRequest) {
         ...buildContractMeta(sport, players.length),
         query: q || null,
         team_id: team_id || null,
+        away_team_id: away_team_id || null,
+        home_team_id: home_team_id || null,
+        matchup_filtered: !!(away_team_id && home_team_id),
         cache_hit: false,
       },
     };
@@ -210,6 +269,9 @@ export async function GET(request: NextRequest) {
       player_count: players.length,
       sport,
       team_id,
+      away_team_id,
+      home_team_id,
+      matchup_filtered: !!(away_team_id && home_team_id),
       search_query: q || null,
       surface: CONTRACT_SURFACE,
     });

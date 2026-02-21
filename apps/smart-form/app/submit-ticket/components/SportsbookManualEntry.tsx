@@ -493,7 +493,7 @@ export function SportsbookManualEntry() {
   }, [builder.sport]);
 
   // ---- FETCH PLAYERS BY SPORT (for player props) - MATCHUP AWARE ----
-  // SPRINT-SMARTFORM-CANONICAL-ENTITIES-089: Require matchup before player selection
+  // SPRINT-SMARTFORM-PLAYER-TEAM-INTEGRITY-090: Use matchup-aware API
   const matchupComplete = builder.homeTeamId && builder.awayTeamId;
 
   useEffect(() => {
@@ -511,25 +511,22 @@ export function SportsbookManualEntry() {
 
       setPlayersLoading(true);
       try {
-        // Fetch players for BOTH teams in the matchup
-        const [homeRes, awayRes] = await Promise.all([
-          fetch(
-            `/api/catalog/players?sport=${builder.sport}&team_id=${builder.homeTeamId}&limit=50`
-          ),
-          fetch(
-            `/api/catalog/players?sport=${builder.sport}&team_id=${builder.awayTeamId}&limit=50`
-          ),
-        ]);
+        // SPRINT-090: Single API call with matchup filtering
+        const res = await fetch(
+          `/api/catalog/players?sport=${builder.sport}&away_team_id=${builder.awayTeamId}&home_team_id=${builder.homeTeamId}&require_matchup=true&limit=100`
+        );
 
-        const homePlayers = homeRes.ok ? (await homeRes.json()).players || [] : [];
-        const awayPlayers = awayRes.ok ? (await awayRes.json()).players || [] : [];
+        if (!res.ok) {
+          console.error('Failed to fetch players:', res.status);
+          setPlayers([]);
+          return;
+        }
 
-        // Combine and dedupe by player_id
-        const allPlayers = [...homePlayers, ...awayPlayers];
-        const uniquePlayers = Array.from(new Map(allPlayers.map(p => [p.player_id, p])).values());
+        const data = await res.json();
+        const allPlayers = data.players || [];
 
         // Sort by team (home first) then by name
-        uniquePlayers.sort((a, b) => {
+        allPlayers.sort((a: Player, b: Player) => {
           // Home team players first
           if (a.team_id === builder.homeTeamId && b.team_id !== builder.homeTeamId) return -1;
           if (b.team_id === builder.homeTeamId && a.team_id !== builder.homeTeamId) return 1;
@@ -537,7 +534,7 @@ export function SportsbookManualEntry() {
           return a.player_name.localeCompare(b.player_name);
         });
 
-        setPlayers(uniquePlayers);
+        setPlayers(allPlayers);
       } catch (err) {
         console.error('Failed to fetch players:', err);
         setPlayers([]);
