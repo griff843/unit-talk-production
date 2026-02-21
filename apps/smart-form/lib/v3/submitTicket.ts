@@ -174,16 +174,36 @@ export async function submitTicketV3(input: V3SubmitTicketInput): Promise<V3Subm
     error_count: result.error_details?.length || 0,
   });
 
-  // SPRINT-V3-TICKET-DISCORD-PUBLISH-086: Enqueue Discord publish on successful insert
+  // SPRINT-092: Enqueue Discord publish via API endpoint (server-side channel routing)
   // Fail-closed: only enqueue on 'inserted' status, not 'exists' or 'error'
   if (result.status === 'inserted' && result.ticket_id) {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase.rpc as any)('enqueue_ticket_discord_outbox', {
-        p_ticket_id: result.ticket_id,
-        p_bet_slip_id: input.bet_slip_id,
+      // Call server-side API to enqueue with channel routing
+      const enqueueRes = await fetch('/api/discord-outbox/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ticket_id: result.ticket_id,
+          bet_slip_id: input.bet_slip_id,
+        }),
       });
-      console.log('[V3Submit] Discord outbox enqueued for ticket:', result.ticket_id);
+
+      const enqueueData = await enqueueRes.json();
+
+      if (enqueueData.success) {
+        console.log('[V3Submit] Discord outbox enqueued:', {
+          ticket_id: result.ticket_id,
+          outbox_id: enqueueData.outbox_id,
+          status: enqueueData.status,
+        });
+      } else {
+        // Log routing failure but don't fail submission
+        console.warn('[V3Submit] Discord outbox enqueue failed (ROUTE_MISSING):', {
+          ticket_id: result.ticket_id,
+          error_code: enqueueData.error_code,
+          error_message: enqueueData.error_message,
+        });
+      }
     } catch (enqueueErr) {
       // Log but don't fail submission - Discord publish is secondary
       console.error('[V3Submit] Failed to enqueue Discord outbox:', enqueueErr);
