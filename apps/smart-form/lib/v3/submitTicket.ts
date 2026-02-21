@@ -174,6 +174,22 @@ export async function submitTicketV3(input: V3SubmitTicketInput): Promise<V3Subm
     error_count: result.error_details?.length || 0,
   });
 
+  // SPRINT-V3-TICKET-DISCORD-PUBLISH-086: Enqueue Discord publish on successful insert
+  // Fail-closed: only enqueue on 'inserted' status, not 'exists' or 'error'
+  if (result.status === 'inserted' && result.ticket_id) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.rpc as any)('enqueue_ticket_discord_outbox', {
+        p_ticket_id: result.ticket_id,
+        p_bet_slip_id: input.bet_slip_id,
+      });
+      console.log('[V3Submit] Discord outbox enqueued for ticket:', result.ticket_id);
+    } catch (enqueueErr) {
+      // Log but don't fail submission - Discord publish is secondary
+      console.error('[V3Submit] Failed to enqueue Discord outbox:', enqueueErr);
+    }
+  }
+
   return result;
 }
 
