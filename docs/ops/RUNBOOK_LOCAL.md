@@ -1,6 +1,6 @@
 # Local Development Runbook
 
-**Sprint**: SPRINT-ENTRYPOINT-CANONICALIZATION-097A **Date**: 2026-02-21
+**Sprint**: SPRINT-OPS-DAY-CROSS-SHELL-ENTRYPOINT-100A **Date**: 2026-02-21
 
 ---
 
@@ -11,6 +11,15 @@ There is exactly ONE canonical command to start a production workday locally:
 ```bash
 pnpm ops:day
 ```
+
+**This command works from ANY shell on ANY platform:**
+
+| Shell      | Platform    | Works? |
+| ---------- | ----------- | ------ |
+| PowerShell | Windows     | YES    |
+| CMD        | Windows     | YES    |
+| Git Bash   | Windows     | YES    |
+| bash       | macOS/Linux | YES    |
 
 This command:
 
@@ -31,15 +40,18 @@ pnpm ops:day
 pnpm ops:day local
 ```
 
-### Windows PowerShell
+### Cross-Platform Implementation
 
-```powershell
-# Cloud mode (default)
-.\ops\day.ps1
+The `pnpm ops:day` command uses a Node.js wrapper (`ops/day.mjs`) that:
 
-# Local mode
-.\ops\day.ps1 -DbMode local
-```
+- Detects the OS via `process.platform`
+- On Windows: invokes `ops/day.ps1` via PowerShell
+- On Unix: invokes `ops/day.sh` via bash
+- Forwards arguments correctly to both scripts
+- Exits non-zero if the underlying script fails (fail-closed)
+
+**You no longer need to run different commands on Windows vs Unix.** Just use
+`pnpm ops:day` from any shell.
 
 ---
 
@@ -51,9 +63,15 @@ The following are **DEPRECATED** and will be removed:
 | ---------------------------- | ----------- | -------------- |
 | `dev.sh`                     | DEPRECATED  | `pnpm ops:day` |
 | `npm run dev:all`            | DEPRECATED  | `pnpm ops:day` |
+| `.\ops\day.ps1` (direct)     | DISCOURAGED | `pnpm ops:day` |
+| `bash ops/day.sh` (direct)   | DISCOURAGED | `pnpm ops:day` |
 | `docker compose up` (direct) | DISCOURAGED | `pnpm ops:day` |
 
-**DO NOT** use these scripts. They do not enforce DB truth or run proofs.
+**DO NOT** use these scripts directly. Always use `pnpm ops:day` for:
+
+- Consistent cross-platform behavior
+- DB truth enforcement
+- Required E2E proofs
 
 ---
 
@@ -227,7 +245,8 @@ warning is informational only.
 
 ## Sprint Reference
 
-- **SPRINT-ENTRYPOINT-CANONICALIZATION-097A**: This runbook
+- **SPRINT-OPS-DAY-CROSS-SHELL-ENTRYPOINT-100A**: Cross-platform entrypoint
+- **SPRINT-ENTRYPOINT-CANONICALIZATION-097A**: Original ops:day scripts
 - **SPRINT-DB-MODE-TRUTH-LOCK-095A**: DB mode enforcement
 - **SPRINT-FOUNDATION-TRUTH-LOCK-094A**: Runtime truth lock
 - **SPRINT-END-TO-END-TICKET-LIFECYCLE-TRUTH-093**: Worker heartbeats

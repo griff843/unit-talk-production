@@ -52,7 +52,7 @@
     "sprint:validate": "npx tsx scripts/sprint-close.ts --validate-only",
     "sprint:close": "npx tsx scripts/sprint-close.ts",
     "guard:lockfiles": "npx tsx scripts/guard-no-npm-lock.ts",
-    "ops:day": "bash ops/day.sh"
+    "ops:day": "node ops/day.mjs"
   },
   "keywords": [
     "sports-betting",
