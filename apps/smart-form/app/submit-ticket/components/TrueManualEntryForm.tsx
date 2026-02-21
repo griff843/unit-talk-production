@@ -147,6 +147,9 @@ const PROVIDERS = [
   { code: 'espn_bet', name: 'ESPN BET' },
   { code: 'bet365', name: 'Bet365' },
   { code: 'pinnacle', name: 'Pinnacle' },
+  { code: 'fanatics', name: 'Fanatics' },
+  { code: 'novig', name: 'NOVIG' },
+  { code: 'prizepicks', name: 'PrizePicks' },
 ];
 
 // ============================================================================

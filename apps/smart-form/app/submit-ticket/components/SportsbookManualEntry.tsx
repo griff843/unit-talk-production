@@ -172,6 +172,9 @@ const PROVIDERS = [
   { code: 'espn_bet', name: 'ESPN BET', short: 'ESPN' },
   { code: 'bet365', name: 'Bet365', short: '365' },
   { code: 'pinnacle', name: 'Pinnacle', short: 'PIN' },
+  { code: 'fanatics', name: 'Fanatics', short: 'FAN' },
+  { code: 'novig', name: 'NOVIG', short: 'NOV' },
+  { code: 'prizepicks', name: 'PrizePicks', short: 'PP' },
 ];
 
 // ============================================================================
@@ -363,6 +366,94 @@ export function SportsbookManualEntry() {
     return PROP_TYPES_BY_SPORT[builder.sport] || [];
   }, [builder.sport]);
 
+  // ---- DRAFT PREVIEW (SPRINT-SMARTFORM-CANONICAL-ENTITIES-089) ----
+  // Shows live preview of the leg being built before "Add Pick" is clicked
+  const draftPreview = useMemo(() => {
+    // Only show draft if user has started filling fields
+    const hasContent =
+      builder.awayTeamName.trim() ||
+      builder.homeTeamName.trim() ||
+      builder.odds.trim() ||
+      builder.playerName.trim();
+
+    if (!hasContent) return null;
+
+    const betType = BET_TYPES.find(bt => bt.key === builder.betType);
+    const provider = PROVIDERS.find(p => p.code === builder.provider);
+    const sport = SPORTS.find(s => s.code === builder.sport);
+
+    // Build matchup string
+    const matchup =
+      builder.awayTeamName && builder.homeTeamName
+        ? `${builder.awayTeamName} @ ${builder.homeTeamName}`
+        : builder.awayTeamName || builder.homeTeamName || '...';
+
+    // Build description based on bet type
+    let description = '';
+    if (builder.betType === 'player_prop' && builder.playerName) {
+      const lineStr = builder.line
+        ? `${builder.selection === 'over' ? 'O' : 'U'}${builder.line}`
+        : '';
+      description = `${builder.playerName} ${builder.propType || '...'} ${lineStr}`;
+    } else if (builder.betType === 'moneyline') {
+      const team =
+        builder.teamSelection === 'home'
+          ? builder.homeTeamName
+          : builder.teamSelection === 'away'
+            ? builder.awayTeamName
+            : '...';
+      description = `${team} ML`;
+    } else if (builder.betType === 'spread') {
+      const team =
+        builder.teamSelection === 'home'
+          ? builder.homeTeamName
+          : builder.teamSelection === 'away'
+            ? builder.awayTeamName
+            : '...';
+      const line = builder.line
+        ? parseFloat(builder.line) > 0
+          ? `+${builder.line}`
+          : builder.line
+        : '...';
+      description = `${team} ${line}`;
+    } else if (builder.betType === 'total') {
+      const lineStr = builder.line
+        ? `${builder.selection === 'over' ? 'O' : 'U'}${builder.line}`
+        : '...';
+      description = `Total ${lineStr}`;
+    } else if (builder.betType === 'team_total') {
+      const team =
+        builder.teamSelection === 'home'
+          ? builder.homeTeamName
+          : builder.teamSelection === 'away'
+            ? builder.awayTeamName
+            : '...';
+      const lineStr = builder.line
+        ? `${builder.selection === 'over' ? 'O' : 'U'}${builder.line}`
+        : '...';
+      description = `${team} TT ${lineStr}`;
+    } else if (builder.betType === 'nrfi' || builder.betType === 'yrfi') {
+      description = betType?.shortLabel || builder.betType.toUpperCase();
+    } else {
+      description = betType?.shortLabel || builder.betType;
+    }
+
+    // Add odds if present
+    if (builder.odds.trim()) {
+      const oddsNum = parseInt(builder.odds, 10);
+      description += ` ${formatOdds(oddsNum)} (${provider?.short || builder.provider})`;
+    }
+
+    return {
+      sport: sport?.code || builder.sport,
+      sportColor: sport?.color || 'bg-slate-600',
+      betType: betType?.shortLabel || builder.betType,
+      betTypeColor: betType?.color || 'bg-slate-600',
+      description,
+      matchup,
+    };
+  }, [builder]);
+
   // ---- FETCH CAPPERS ----
   useEffect(() => {
     async function fetchCappers() {
@@ -401,35 +492,67 @@ export function SportsbookManualEntry() {
     fetchTeams();
   }, [builder.sport]);
 
-  // ---- FETCH PLAYERS BY SPORT (for player props) ----
+  // ---- FETCH PLAYERS BY SPORT (for player props) - MATCHUP AWARE ----
+  // SPRINT-SMARTFORM-CANONICAL-ENTITIES-089: Require matchup before player selection
+  const matchupComplete = builder.homeTeamId && builder.awayTeamId;
+
   useEffect(() => {
     async function fetchPlayers() {
       if (!currentBetType?.requiresPlayer) {
         setPlayers([]);
         return;
       }
+
+      // Require matchup selection before fetching players
+      if (!matchupComplete) {
+        setPlayers([]);
+        return;
+      }
+
       setPlayersLoading(true);
       try {
-        let url = `/api/catalog/players?sport=${builder.sport}&limit=100`;
-        // If home team is selected, filter by that team
-        if (builder.homeTeamId) {
-          url += `&team_id=${builder.homeTeamId}`;
-        } else if (builder.awayTeamId) {
-          url += `&team_id=${builder.awayTeamId}`;
-        }
-        const res = await fetch(url);
-        if (res.ok) {
-          const data = await res.json();
-          setPlayers(data.players || []);
-        }
+        // Fetch players for BOTH teams in the matchup
+        const [homeRes, awayRes] = await Promise.all([
+          fetch(
+            `/api/catalog/players?sport=${builder.sport}&team_id=${builder.homeTeamId}&limit=50`
+          ),
+          fetch(
+            `/api/catalog/players?sport=${builder.sport}&team_id=${builder.awayTeamId}&limit=50`
+          ),
+        ]);
+
+        const homePlayers = homeRes.ok ? (await homeRes.json()).players || [] : [];
+        const awayPlayers = awayRes.ok ? (await awayRes.json()).players || [] : [];
+
+        // Combine and dedupe by player_id
+        const allPlayers = [...homePlayers, ...awayPlayers];
+        const uniquePlayers = Array.from(new Map(allPlayers.map(p => [p.player_id, p])).values());
+
+        // Sort by team (home first) then by name
+        uniquePlayers.sort((a, b) => {
+          // Home team players first
+          if (a.team_id === builder.homeTeamId && b.team_id !== builder.homeTeamId) return -1;
+          if (b.team_id === builder.homeTeamId && a.team_id !== builder.homeTeamId) return 1;
+          // Then alphabetically
+          return a.player_name.localeCompare(b.player_name);
+        });
+
+        setPlayers(uniquePlayers);
       } catch (err) {
         console.error('Failed to fetch players:', err);
+        setPlayers([]);
       } finally {
         setPlayersLoading(false);
       }
     }
     fetchPlayers();
-  }, [builder.sport, builder.homeTeamId, builder.awayTeamId, currentBetType?.requiresPlayer]);
+  }, [
+    builder.sport,
+    builder.homeTeamId,
+    builder.awayTeamId,
+    currentBetType?.requiresPlayer,
+    matchupComplete,
+  ]);
 
   // ---- FILTERED TEAMS ----
   const filteredTeams = useMemo(() => {
@@ -973,14 +1096,22 @@ export function SportsbookManualEntry() {
                     </div>
                   )}
 
-                {/* Player Search (for player props) */}
+                {/* Player Search (for player props) - MATCHUP AWARE */}
                 {currentBetType?.requiresPlayer && (
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <Label className="text-slate-300 text-xs uppercase tracking-wide">
                         Player
                       </Label>
-                      {players.length > 0 ? (
+                      {!matchupComplete ? (
+                        // Matchup not selected - show prompt
+                        <div className="mt-1 px-3 py-2 bg-slate-800 border border-slate-600 rounded-md">
+                          <p className="text-xs text-slate-400">
+                            Select both teams above to choose player
+                          </p>
+                        </div>
+                      ) : players.length > 0 ? (
+                        // Players available - show dropdown
                         <Select
                           value={builder.playerId}
                           onValueChange={playerId => {
@@ -1007,7 +1138,7 @@ export function SportsbookManualEntry() {
                                 No players found
                               </div>
                             ) : (
-                              filteredPlayers.slice(0, 20).map(p => (
+                              filteredPlayers.slice(0, 30).map(p => (
                                 <SelectItem
                                   key={p.player_id}
                                   value={p.player_id}
@@ -1023,6 +1154,7 @@ export function SportsbookManualEntry() {
                           </SelectContent>
                         </Select>
                       ) : (
+                        // Matchup selected but no players - manual fallback
                         <>
                           <Input
                             value={builder.playerName}
@@ -1033,7 +1165,8 @@ export function SportsbookManualEntry() {
                             className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
                           />
                           <p className="text-xs text-amber-400 mt-1">
-                            No players in database. Manual entry mode.
+                            <User className="inline-block w-3 h-3 mr-1" />
+                            No players in database for these teams. Manual entry mode.
                           </p>
                         </>
                       )}
@@ -1290,15 +1423,11 @@ export function SportsbookManualEntry() {
                 </div>
               </div>
 
-              {/* Legs List */}
-              <div className="p-4">
-                {legs.length === 0 ? (
-                  <div className="text-center py-8">
-                    <div className="text-slate-500 text-sm">No picks added</div>
-                    <div className="text-slate-600 text-xs mt-1">Build your picks on the left</div>
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              {/* Legs List + Draft Preview */}
+              <div className="p-4 space-y-2">
+                {/* Existing Legs */}
+                {legs.length > 0 && (
+                  <div className="space-y-2 max-h-[200px] overflow-y-auto">
                     {legs.map(leg => {
                       const sport = SPORTS.find(s => s.code === leg.sport);
                       const betType = BET_TYPES.find(bt => bt.key === leg.betType);
@@ -1335,6 +1464,47 @@ export function SportsbookManualEntry() {
                     })}
                   </div>
                 )}
+
+                {/* LIVE DRAFT PREVIEW - SPRINT-SMARTFORM-CANONICAL-ENTITIES-089 */}
+                {draftPreview && (
+                  <div className="border-2 border-dashed border-blue-500/50 rounded-lg p-3 bg-blue-900/10">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge className="text-[10px] px-1.5 py-0 bg-blue-600/50 text-blue-200">
+                        DRAFT
+                      </Badge>
+                      <Badge
+                        className={cn(
+                          'text-[10px] px-1.5 py-0 opacity-70',
+                          draftPreview.sportColor
+                        )}
+                      >
+                        {draftPreview.sport}
+                      </Badge>
+                      <Badge
+                        className={cn(
+                          'text-[10px] px-1.5 py-0 opacity-70',
+                          draftPreview.betTypeColor
+                        )}
+                      >
+                        {draftPreview.betType}
+                      </Badge>
+                    </div>
+                    <div className="text-blue-200 text-sm font-medium truncate">
+                      {draftPreview.description || '...'}
+                    </div>
+                    <div className="text-blue-300/60 text-xs truncate mt-0.5">
+                      {draftPreview.matchup}
+                    </div>
+                  </div>
+                )}
+
+                {/* Empty State */}
+                {legs.length === 0 && !draftPreview && (
+                  <div className="text-center py-8">
+                    <div className="text-slate-500 text-sm">No picks added</div>
+                    <div className="text-slate-600 text-xs mt-1">Build your picks on the left</div>
+                  </div>
+                )}
               </div>
 
               {/* Stake & Payout */}
@@ -1346,9 +1516,10 @@ export function SportsbookManualEntry() {
                       <Input
                         type="number"
                         min="0.5"
+                        max="5"
                         step="0.5"
                         value={stake}
-                        onChange={e => setStake(parseFloat(e.target.value) || 1)}
+                        onChange={e => setStake(Math.min(5, parseFloat(e.target.value) || 1))}
                         className="w-20 h-8 text-right bg-slate-800 border-slate-600 text-white"
                       />
                     </div>

@@ -19,6 +19,8 @@ const CACHE_TTL = 600;
 interface CapperResult {
   id: string;
   display_name: string;
+  username: string | null;
+  external_id: string | null;
 }
 
 export async function GET(request: NextRequest) {
@@ -83,6 +85,8 @@ export async function GET(request: NextRequest) {
       const cappers: CapperResult[] = (fallbackData || []).map((c: any) => ({
         id: c.id,
         display_name: c.display_name,
+        username: c.username || null,
+        external_id: c.external_id || null,
       }));
 
       const response = {
@@ -119,6 +123,8 @@ export async function GET(request: NextRequest) {
     const cappers: CapperResult[] = (data || []).map((c: any) => ({
       id: c.id,
       display_name: c.display_name,
+      username: c.username || null,
+      external_id: c.external_id || null,
     }));
 
     const response = {

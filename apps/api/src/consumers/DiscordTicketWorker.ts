@@ -73,6 +73,37 @@ async function handleContractViolation(item: OutboxItem, missingFields: string[]
   });
 }
 
+async function handlePostError(
+  item: OutboxItem,
+  err: unknown,
+  attemptNumber: number
+): Promise<void> {
+  const axiosErr = err as {
+    response?: { data?: { message?: string }; status?: number };
+    message?: string;
+  };
+  const errorMessage = axiosErr.response?.data?.message || axiosErr.message || 'Unknown error';
+  const statusCode = axiosErr.response?.status;
+
+  await supabaseClient.rpc('mark_discord_outbox_failed', {
+    p_outbox_id: item.outbox_id,
+    p_error: JSON.stringify({
+      message: errorMessage,
+      status_code: statusCode,
+      attempt: attemptNumber + 1,
+      timestamp: new Date().toISOString(),
+    }),
+  });
+
+  logger.error('Failed to post ticket to Discord', {
+    outbox_id: item.outbox_id,
+    ticket_id: item.ticket_id,
+    error: errorMessage,
+    status_code: statusCode,
+    attempt: attemptNumber + 1,
+  });
+}
+
 async function postToDiscord(
   item: OutboxItem,
   embed: object,
@@ -106,31 +137,7 @@ async function postToDiscord(
 
     return true;
   } catch (err: unknown) {
-    const axiosErr = err as {
-      response?: { data?: { message?: string }; status?: number };
-      message?: string;
-    };
-    const errorMessage = axiosErr.response?.data?.message || axiosErr.message || 'Unknown error';
-    const statusCode = axiosErr.response?.status;
-
-    await supabaseClient.rpc('mark_discord_outbox_failed', {
-      p_outbox_id: item.outbox_id,
-      p_error: JSON.stringify({
-        message: errorMessage,
-        status_code: statusCode,
-        attempt: attemptNumber + 1,
-        timestamp: new Date().toISOString(),
-      }),
-    });
-
-    logger.error('Failed to post ticket to Discord', {
-      outbox_id: item.outbox_id,
-      ticket_id: item.ticket_id,
-      error: errorMessage,
-      status_code: statusCode,
-      attempt: attemptNumber + 1,
-    });
-
+    await handlePostError(item, err, attemptNumber);
     return false;
   }
 }
@@ -171,6 +178,55 @@ async function fetchPendingItems(): Promise<OutboxItem[] | null> {
     return null;
   }
   return (items || []) as OutboxItem[];
+}
+
+// SPRINT-SMARTFORM-CANONICAL-ENTITIES-089: Mark stale pending items as failed
+const STALE_THRESHOLD_SECONDS = 60;
+
+async function markStaleItemsFailed(): Promise<number> {
+  // Find items pending for more than 60 seconds and mark them failed
+  const { data: staleItems, error: fetchErr } = await supabaseClient
+    .from('ticket_discord_outbox')
+    .select('id, ticket_id, created_at')
+    .eq('status', 'pending')
+    .lt('created_at', new Date(Date.now() - STALE_THRESHOLD_SECONDS * 1000).toISOString());
+
+  if (fetchErr) {
+    logger.error('Failed to fetch stale items', { error: fetchErr.message });
+    return 0;
+  }
+
+  if (!staleItems || staleItems.length === 0) return 0;
+
+  let markedCount = 0;
+  for (const item of staleItems) {
+    const ageSeconds = Math.round((Date.now() - new Date(item.created_at).getTime()) / 1000);
+    const { error: updateErr } = await supabaseClient.rpc('mark_discord_outbox_failed', {
+      p_outbox_id: item.id,
+      p_error: JSON.stringify({
+        type: 'STALE_TIMEOUT',
+        message: `Ticket pending for ${ageSeconds}s (threshold: ${STALE_THRESHOLD_SECONDS}s)`,
+        threshold_seconds: STALE_THRESHOLD_SECONDS,
+        actual_seconds: ageSeconds,
+        timestamp: new Date().toISOString(),
+      }),
+    });
+
+    if (!updateErr) {
+      logger.warn('Marked stale ticket as failed', {
+        outbox_id: item.id,
+        ticket_id: item.ticket_id,
+        age_seconds: ageSeconds,
+      });
+      markedCount++;
+    }
+  }
+
+  if (markedCount > 0) {
+    logger.info(`Marked ${markedCount} stale item(s) as failed`);
+  }
+
+  return markedCount;
 }
 
 /**
@@ -227,6 +283,8 @@ export async function startDiscordTicketWorker(): Promise<void> {
 
   pollTimer = setInterval(async () => {
     try {
+      // SPRINT-SMARTFORM-CANONICAL-ENTITIES-089: Check for stale pending items
+      await markStaleItemsFailed();
       await processBatch();
     } catch (err) {
       logger.error('Poll cycle failed (non-fatal)', {
