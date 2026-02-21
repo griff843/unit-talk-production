@@ -1,6 +1,8 @@
 /**
  * V3 Ticket Submission for Smart Form
- * SPRINT-SMARTFORM-UX-REBUILD-080
+ *
+ * SPRINT-END-TO-END-TICKET-LIFECYCLE-TRUTH-093 (routing status check)
+ * SPRINT-SMARTFORM-UX-REBUILD-080 (original)
  *
  * Calls atomic_submit_ticket_v2 RPC with provider-first model.
  * Fail-closed: Only shows success on 'inserted' or 'exists' status.
@@ -23,6 +25,138 @@ import type {
 // Test user ID when auth is not implemented
 // tickets.user_id has no FK, so this is safe
 export const TEST_USER_ID = '00000000-0000-0000-0000-000000000001';
+
+// ============================================================================
+// DISCORD ROUTING STATUS (SPRINT-093)
+// ============================================================================
+
+export interface DiscordRoutingStatus {
+  success: boolean;
+  routing: {
+    channel_from_db: boolean;
+    channel_from_env: boolean;
+    channel_id_resolved: boolean;
+    webhook_configured: boolean;
+  };
+  worker: {
+    configured: boolean;
+    healthy: boolean;
+    health_status: 'healthy' | 'degraded' | 'unhealthy';
+    worker_id: string | null;
+    last_heartbeat_at: string | null;
+    heartbeat_age_seconds: number | null;
+    recent_error: {
+      message: string | null;
+      timestamp: string | null;
+    };
+  };
+  queue: {
+    pending_count: number;
+    processing_count: number;
+    posted_count: number;
+    failed_count: number;
+  };
+  activity: {
+    last_post_at: string | null;
+    items_processed_total: number;
+  };
+  overall_health: 'healthy' | 'degraded' | 'unhealthy';
+  timestamp: string;
+  error?: string;
+}
+
+/**
+ * Check Discord routing status before submission.
+ * Used to show early warning if Discord pipeline is unhealthy.
+ *
+ * @returns DiscordRoutingStatus with overall_health indicator
+ */
+export async function checkDiscordRoutingStatus(): Promise<DiscordRoutingStatus> {
+  const unhealthyFallback: DiscordRoutingStatus = {
+    success: false,
+    routing: {
+      channel_from_db: false,
+      channel_from_env: false,
+      channel_id_resolved: false,
+      webhook_configured: false,
+    },
+    worker: {
+      configured: false,
+      healthy: false,
+      health_status: 'unhealthy',
+      worker_id: null,
+      last_heartbeat_at: null,
+      heartbeat_age_seconds: null,
+      recent_error: { message: null, timestamp: null },
+    },
+    queue: { pending_count: 0, processing_count: 0, posted_count: 0, failed_count: 0 },
+    activity: { last_post_at: null, items_processed_total: 0 },
+    overall_health: 'unhealthy',
+    timestamp: new Date().toISOString(),
+  };
+
+  try {
+    const res = await fetch('/api/ops/discord-routing-status', {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      // Timeout after 5 seconds
+      signal: AbortSignal.timeout(5000),
+    });
+
+    if (!res.ok) {
+      console.warn('[RoutingStatus] API returned non-OK status:', res.status);
+      return { ...unhealthyFallback, error: `Status ${res.status}` };
+    }
+
+    const data: DiscordRoutingStatus = await res.json();
+    console.log('[RoutingStatus] Discord routing status:', {
+      overall_health: data.overall_health,
+      channel_resolved: data.routing?.channel_id_resolved,
+      worker_healthy: data.worker?.healthy,
+    });
+
+    return data;
+  } catch (err) {
+    console.error('[RoutingStatus] Failed to check routing status:', err);
+    return {
+      ...unhealthyFallback,
+      error: err instanceof Error ? err.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * Get a human-readable message for routing status
+ */
+export function getRoutingStatusMessage(status: DiscordRoutingStatus): string | null {
+  if (status.overall_health === 'healthy') {
+    return null;
+  }
+
+  const issues: string[] = [];
+
+  if (!status.routing?.channel_id_resolved) {
+    issues.push('Discord channel not configured');
+  }
+  if (!status.routing?.webhook_configured) {
+    issues.push('Discord webhook not configured');
+  }
+  if (!status.worker?.configured) {
+    issues.push('Discord worker not enabled');
+  }
+  if (status.worker?.configured && !status.worker?.healthy) {
+    issues.push('Discord worker not responding');
+  }
+  if (status.queue?.failed_count > 0) {
+    issues.push(`${status.queue.failed_count} pending failures in queue`);
+  }
+
+  if (issues.length === 0) {
+    return 'Discord pipeline status unknown';
+  }
+
+  return issues.join('. ');
+}
 
 // ============================================================================
 // BET SLIP ID GENERATION

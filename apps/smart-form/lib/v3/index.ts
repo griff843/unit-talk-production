@@ -37,4 +37,8 @@ export {
   formatErrorDetails,
   getLegErrors,
   TEST_USER_ID,
+  // SPRINT-093: Discord routing status
+  checkDiscordRoutingStatus,
+  getRoutingStatusMessage,
+  type DiscordRoutingStatus,
 } from './submitTicket';

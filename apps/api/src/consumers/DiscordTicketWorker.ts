@@ -1,7 +1,8 @@
 /**
  * DiscordTicketWorker — Polls ticket_discord_outbox and posts Discord embeds.
  *
- * SPRINT-DISCORD-OUTBOX-ROUTING-CLAIM-092 (updated)
+ * SPRINT-END-TO-END-TICKET-LIFECYCLE-TRUTH-093 (heartbeat integration)
+ * SPRINT-DISCORD-OUTBOX-ROUTING-CLAIM-092 (atomic claim)
  * SPRINT-SMARTFORM-ENTITY-AUTOFILL-088 (contract validation)
  * SPRINT-DISCORD-WORKER-AUTOSTART-087 (original)
  *
@@ -16,6 +17,10 @@
  * - Stale claim reset (60s threshold)
  * - Null-channel cleanup (ROUTE_MISSING)
  * - Structured error logging
+ *
+ * SPRINT-093 Features:
+ * - Worker heartbeat every poll cycle (ops_worker_heartbeats)
+ * - Tracks last successful post and last error for observability
  */
 
 import axios from 'axios';
@@ -43,10 +48,50 @@ const WORKER_ID = `worker-${process.pid}-${Date.now()}`;
 let isRunning = false;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 
+// SPRINT-093: Heartbeat state
+let lastSuccessfulPostAt: Date | null = null;
+// eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars -- tracked for diagnostics
+let lastErrorTracked: string | null = null;
+let totalItemsProcessed = 0;
+
 // ---- TYPES ----
 interface ClaimedItem extends OutboxItem {
   discord_channel_id: string;
   retry_count: number;
+}
+
+// ---- HEARTBEAT ----
+
+/**
+ * SPRINT-093: Write worker heartbeat to ops_worker_heartbeats table.
+ * Called every poll cycle to indicate worker is alive and track metrics.
+ */
+async function writeHeartbeat(
+  itemsProcessed: number,
+  errorMessage: string | null = null
+): Promise<void> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabaseClient.rpc as any)('upsert_worker_heartbeat', {
+      p_worker_name: 'discord-ticket-worker',
+      p_worker_id: WORKER_ID,
+      p_status: errorMessage ? 'degraded' : 'healthy',
+      p_last_error: errorMessage,
+      p_items_processed: itemsProcessed,
+      p_last_successful_post_at: lastSuccessfulPostAt?.toISOString() || null,
+      p_meta: {
+        poll_interval_ms: POLL_INTERVAL,
+        batch_size: BATCH_SIZE,
+        webhook_configured: !!DISCORD_WEBHOOK_URL,
+        total_items_processed: totalItemsProcessed,
+      },
+    });
+  } catch (err) {
+    // Non-fatal: log but don't crash the worker
+    logger.warn('Failed to write worker heartbeat', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
 
 // ---- ATOMIC CLAIM ----
@@ -260,8 +305,15 @@ async function processBatch(): Promise<number> {
 
   let processed = 0;
   for (const item of items) {
-    if (await processItem(item)) processed++;
+    if (await processItem(item)) {
+      processed++;
+      // SPRINT-093: Track last successful post time
+      lastSuccessfulPostAt = new Date();
+    }
   }
+
+  // SPRINT-093: Update cumulative total
+  totalItemsProcessed += processed;
 
   return processed;
 }
@@ -292,34 +344,61 @@ export async function startDiscordTicketWorker(): Promise<void> {
     logger.warn('DISCORD_WEBHOOK_URL not set - worker will skip processing until configured');
   }
 
+  // SPRINT-093: Write initial heartbeat on startup
+  await writeHeartbeat(0, null);
+  logger.info('Initial heartbeat written');
+
   // Initial batch
   try {
     const count = await processBatch();
     if (count > 0) logger.info(`Initial batch: processed ${count} item(s)`);
+    lastErrorTracked = null;
+    await writeHeartbeat(count, null);
   } catch (err) {
-    logger.error('Initial batch failed (non-fatal)', {
-      error: err instanceof Error ? err.message : String(err),
-    });
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    logger.error('Initial batch failed (non-fatal)', { error: errorMsg });
+    lastErrorTracked = errorMsg;
+    await writeHeartbeat(0, errorMsg);
   }
 
-  // Poll loop
+  // Poll loop with heartbeat
   pollTimer = setInterval(async () => {
     try {
-      await processBatch();
+      const count = await processBatch();
+      lastErrorTracked = null;
+      await writeHeartbeat(count, null);
     } catch (err) {
-      logger.error('Poll cycle failed (non-fatal)', {
-        error: err instanceof Error ? err.message : String(err),
-      });
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      logger.error('Poll cycle failed (non-fatal)', { error: errorMsg });
+      lastErrorTracked = errorMsg;
+      await writeHeartbeat(0, errorMsg);
     }
   }, POLL_INTERVAL);
 }
 
-export function stopDiscordTicketWorker(): void {
+export async function stopDiscordTicketWorker(): Promise<void> {
   if (pollTimer) {
     clearInterval(pollTimer);
     pollTimer = null;
   }
   isRunning = false;
+
+  // SPRINT-093: Write final heartbeat indicating stopped
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabaseClient.rpc as any)('upsert_worker_heartbeat', {
+      p_worker_name: 'discord-ticket-worker',
+      p_worker_id: WORKER_ID,
+      p_status: 'stopped',
+      p_last_error: null,
+      p_items_processed: 0,
+      p_last_successful_post_at: lastSuccessfulPostAt?.toISOString() || null,
+      p_meta: { total_items_processed: totalItemsProcessed, stopped_at: new Date().toISOString() },
+    });
+  } catch {
+    // Best effort
+  }
+
   logger.info('DiscordTicketWorker stopped');
 }
 

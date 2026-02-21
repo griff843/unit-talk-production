@@ -6,6 +6,7 @@ import express, { Express } from 'express';
 
 import healthRouter from './routes/health';
 import opsRouter from './routes/ops';
+import opsDiscordRoutingRouter from './routes/ops-discord-routing';
 import picksRouter from './routes/picks';
 import { smartFormRouter } from './routes/smart-form';
 import versionRouter from './routes/version';
@@ -74,6 +75,7 @@ app.use('/api/smart-form', smartFormRouter);
 app.use('/api/health', healthRouter);
 app.use('/api/picks', picksRouter);
 app.use('/ops', opsRouter);
+app.use('/ops', opsDiscordRoutingRouter); // SPRINT-093: Discord routing status
 app.use('/version', versionRouter);
 app.use('/api/version', versionRouter);
 

@@ -35,9 +35,12 @@ import {
   generateBetSlipId,
   formatOdds,
   TEST_USER_ID,
+  checkDiscordRoutingStatus,
+  getRoutingStatusMessage,
   type V3SubmitTicketResult,
   type Selection,
   type TicketType,
+  type DiscordRoutingStatus,
 } from '@/lib/v3';
 
 // ============================================================================
@@ -324,12 +327,45 @@ export function SportsbookManualEntry() {
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState<V3SubmitTicketResult | null>(null);
 
+  // ---- DISCORD ROUTING STATUS (SPRINT-093) ----
+  const [routingStatus, setRoutingStatus] = useState<{
+    checked: boolean;
+    healthy: boolean;
+    status: DiscordRoutingStatus | null;
+    message: string | null;
+  }>({ checked: false, healthy: true, status: null, message: null });
+
   // Generate bet slip ID on client-side only
   useEffect(() => {
     if (!betSlipId) {
       setBetSlipId(generateBetSlipId());
     }
   }, [betSlipId]);
+
+  // SPRINT-093: Check Discord routing status on mount (eager warning)
+  useEffect(() => {
+    async function checkRouting() {
+      try {
+        const status = await checkDiscordRoutingStatus();
+        const healthy = status.overall_health === 'healthy';
+        const message = getRoutingStatusMessage(status);
+        setRoutingStatus({ checked: true, healthy, status, message });
+
+        if (!healthy) {
+          console.warn('[RoutingCheck] Discord routing unhealthy:', message);
+        }
+      } catch (err) {
+        console.error('[RoutingCheck] Failed to check routing:', err);
+        setRoutingStatus({
+          checked: true,
+          healthy: false,
+          status: null,
+          message: 'Unable to verify Discord pipeline status',
+        });
+      }
+    }
+    checkRouting();
+  }, []);
 
   // ---- BUILDER STATE ----
   const [builder, setBuilder] = useState<BuilderState>({
@@ -855,6 +891,24 @@ export function SportsbookManualEntry() {
             Select capper + teams • Enter to add • Esc to clear
           </p>
         </div>
+
+        {/* SPRINT-093: Discord Routing Warning */}
+        {routingStatus.checked && !routingStatus.healthy && (
+          <div className="mb-4 p-3 bg-amber-900/30 border border-amber-500/50 rounded-lg flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-amber-400 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-amber-200 text-sm font-medium">Discord Pipeline Warning</p>
+              <p className="text-amber-300/80 text-xs mt-0.5">
+                {routingStatus.message || 'Discord posting may not work correctly'}
+              </p>
+              {routingStatus.status?.overall_health === 'unhealthy' && (
+                <p className="text-amber-400/70 text-xs mt-1">
+                  Tickets will be saved but may not post to Discord automatically.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-col lg:flex-row gap-6">
           {/* LEFT: Builder Panel */}
