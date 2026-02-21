@@ -1,13 +1,15 @@
-/* eslint-disable complexity, security/detect-object-injection */
+/* eslint-disable complexity, security/detect-object-injection, max-lines */
 /**
  * Global Ops Status Endpoint
  *
  * SPRINT-FOUNDATION-TRUTH-LOCK-094A
+ * SPRINT-TEMPORAL-FOUNDATION-TRUTH-LOCK-099A: Added Temporal health status
  *
  * One endpoint answers "Is the system ready?" with reasons.
  * Aggregates all health signals into a single response.
  */
 
+import { Connection } from '@temporalio/client';
 import express, { Response, Router } from 'express';
 
 import { getDbModeStatus } from '../config/dbMode';
@@ -44,6 +46,7 @@ interface OpsStatusResponse {
     outbox: OutboxStatus;
     database: DatabaseStatus;
     db: DbModeStatus;
+    temporal: TemporalStatus;
   };
   supabase_fingerprint: string;
   timestamp: string;
@@ -78,6 +81,17 @@ interface DatabaseStatus {
   ready: boolean;
   connected: boolean;
   tables_exist: boolean;
+  error: string | null;
+}
+
+// SPRINT-TEMPORAL-FOUNDATION-TRUTH-LOCK-099A: Temporal health status
+interface TemporalStatus {
+  configured: boolean;
+  healthy: boolean;
+  endpoint: string;
+  ui_url: string;
+  ui_reachable: boolean;
+  namespace: string;
   error: string | null;
 }
 
@@ -231,6 +245,71 @@ async function checkDiscordStatus(): Promise<DiscordStatus> {
   };
 }
 
+// SPRINT-TEMPORAL-FOUNDATION-TRUTH-LOCK-099A: Temporal health check
+async function checkTemporalStatus(): Promise<TemporalStatus> {
+  const temporalAddress =
+    process.env['TEMPORAL_SERVER_URL'] || process.env['TEMPORAL_ADDRESS'] || 'temporal:7233';
+  const temporalUiUrl = process.env['TEMPORAL_UI_URL'] || 'http://localhost:8088';
+  const temporalNamespace = process.env['TEMPORAL_NAMESPACE'] || 'default';
+
+  // Check if Temporal is configured
+  const configured = !!temporalAddress;
+
+  if (!configured) {
+    return {
+      configured: false,
+      healthy: false,
+      endpoint: 'not configured',
+      ui_url: temporalUiUrl,
+      ui_reachable: false,
+      namespace: temporalNamespace,
+      error: 'TEMPORAL_SERVER_URL not configured',
+    };
+  }
+
+  // Try to connect to Temporal
+  let healthy = false;
+  let connectionError: string | null = null;
+
+  try {
+    const connection = await Connection.connect({
+      address: temporalAddress,
+    });
+    // If we get here, connection succeeded
+    healthy = true;
+    // Close the connection after health check
+    await connection.close();
+  } catch (err) {
+    connectionError = err instanceof Error ? err.message : 'Unknown connection error';
+  }
+
+  // Check if Temporal UI is reachable (best-effort, non-blocking)
+  let uiReachable = false;
+  try {
+    // Use a simple fetch with short timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    const response = await fetch(temporalUiUrl, {
+      method: 'HEAD',
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    uiReachable = response.ok || response.status < 500;
+  } catch {
+    // UI not reachable - non-blocking
+  }
+
+  return {
+    configured,
+    healthy,
+    endpoint: temporalAddress,
+    ui_url: temporalUiUrl,
+    ui_reachable: uiReachable,
+    namespace: temporalNamespace,
+    error: connectionError,
+  };
+}
+
 // ============================================================================
 // ROUTE
 // ============================================================================
@@ -241,11 +320,12 @@ router.get('/status', async (_req, res: Response) => {
 
   try {
     // Run all checks in parallel
-    const [envCheck, dbStatus, outboxStatus, discordStatus] = await Promise.all([
+    const [envCheck, dbStatus, outboxStatus, discordStatus, temporalStatus] = await Promise.all([
       Promise.resolve(checkRequiredEnvKeys()),
       checkDatabaseStatus(),
       checkOutboxStatus(),
       checkDiscordStatus(),
+      checkTemporalStatus(),
     ]);
 
     // Get DB mode status (SPRINT-DB-MODE-TRUTH-LOCK-095A)
@@ -293,9 +373,15 @@ router.get('/status', async (_req, res: Response) => {
     if (dbModeStatus.requiredEnvMissing.length > 0) {
       reasons.push(`DB Mode: Missing ${dbModeStatus.requiredEnvMissing.join(', ')}`);
     }
+    // SPRINT-TEMPORAL-FOUNDATION-TRUTH-LOCK-099A: Temporal health check
+    if (!temporalStatus.healthy) {
+      reasons.push(`Temporal: ${temporalStatus.error || 'not healthy'}`);
+    }
 
     const dbModeReady =
       !dbModeStatus.mismatchDetected && dbModeStatus.requiredEnvMissing.length === 0;
+    // Note: Temporal health is informational but not blocking overall_ready
+    // This matches the current behavior where Discord pipeline can work without Temporal
     const overallReady =
       envStatus.ready && dbStatus.ready && discordStatus.ready && outboxStatus.ready && dbModeReady;
 
@@ -308,6 +394,7 @@ router.get('/status', async (_req, res: Response) => {
         outbox: outboxStatus,
         database: dbStatus,
         db: dbModeStatus,
+        temporal: temporalStatus,
       },
       supabase_fingerprint: extractSupabaseFingerprint(),
       timestamp,
@@ -359,6 +446,15 @@ router.get('/status', async (_req, res: Response) => {
           ready: false,
           connected: false,
           tables_exist: false,
+          error: 'Status check failed',
+        },
+        temporal: {
+          configured: false,
+          healthy: false,
+          endpoint: 'unknown',
+          ui_url: 'unknown',
+          ui_reachable: false,
+          namespace: 'default',
           error: 'Status check failed',
         },
       },

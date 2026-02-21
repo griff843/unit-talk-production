@@ -106,6 +106,7 @@ services:
   # ==============================================
 
   # Temporal Database
+  # SPRINT-TEMPORAL-FOUNDATION-TRUTH-LOCK-099A: Explicit healthcheck with start_period
   temporal-postgres:
     image: postgres:13
     container_name: unit-talk-temporal-db
@@ -116,17 +117,24 @@ services:
     volumes:
       - temporal_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U temporal"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD-SHELL", "pg_isready -U temporal -d temporal"]
+      interval: 10s
+      timeout: 5s
       retries: 5
+      start_period: 30s
     networks:
       - unit-talk-network
+    restart: unless-stopped
 
-  # Temporal Setup
+  # Temporal Setup (one-shot schema initialization)
+  # SPRINT-TEMPORAL-FOUNDATION-TRUTH-LOCK-099A: Fixed command syntax (-p is port, --pw is password)
+  # NOTE: The auto-setup image handles schema setup automatically.
+  # This service is only needed for manual schema operations.
   temporal-admin-tools:
     image: temporalio/admin-tools:1.20.0
     container_name: unit-talk-temporal-setup
+    profiles:
+      - tools
     depends_on:
       temporal-postgres:
         condition: service_healthy
@@ -149,14 +157,15 @@ services:
           sleep 2
         done
         echo 'PostgreSQL is ready. Setting up Temporal schema...'
-        temporal-sql-tool --plugin postgres --ep temporal-postgres:5432 -u temporal -p temporal --db temporal setup-schema -v 0.0
-        temporal-sql-tool --plugin postgres --ep temporal-postgres:5432 -u temporal -p temporal --db temporal update-schema -d /etc/temporal/schema/postgresql/v96
+        temporal-sql-tool --plugin postgres --ep temporal-postgres -u temporal --pw temporal -p 5432 --db temporal setup-schema -v 0.0
+        temporal-sql-tool --plugin postgres --ep temporal-postgres -u temporal --pw temporal -p 5432 --db temporal update-schema -d /etc/temporal/schema/postgresql/v96
         echo 'Temporal schema setup complete.'
       "
     networks:
       - unit-talk-network
 
-  # Temporal Server with Auto-Setup for Windows Gaming PC
+  # Temporal Server with Auto-Setup
+  # SPRINT-TEMPORAL-FOUNDATION-TRUTH-LOCK-099A: Deterministic startup with healthcheck
   temporal:
     image: temporalio/auto-setup:1.20.0
     container_name: unit-talk-temporal
@@ -185,18 +194,19 @@ services:
           "-c",
           "temporal operator cluster health --address temporal:7233 2>/dev/null | grep -q SERVING",
         ]
-      interval: 30s
+      interval: 15s
       timeout: 10s
-      retries: 5
-      start_period: 60s
+      retries: 10
+      start_period: 90s
 
   # Temporal UI
+  # SPRINT-TEMPORAL-FOUNDATION-TRUTH-LOCK-099A: Wait for temporal to be healthy before starting UI
   temporal-ui:
     image: temporalio/ui:2.27.0
     container_name: unit-talk-temporal-ui
     depends_on:
       temporal:
-        condition: service_started
+        condition: service_healthy
     ports:
       - "8088:8080"
     environment:
@@ -204,11 +214,13 @@ services:
       - TEMPORAL_CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://localhost:3021,http://localhost:3003,http://localhost:3004
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080"]
-      interval: 30s
+      interval: 15s
       timeout: 10s
-      retries: 3
+      retries: 5
+      start_period: 30s
     networks:
       - unit-talk-network
+    restart: unless-stopped
 
   # ==============================================
   # MONITORING & OBSERVABILITY

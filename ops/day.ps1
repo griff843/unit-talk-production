@@ -268,6 +268,77 @@ if ($waited -ge $HEALTH_TIMEOUT) {
 Start-Sleep -Seconds 5
 
 # ============================================================================
+# STEP D.1: Verify Temporal Health (FAIL-CLOSED)
+# SPRINT-TEMPORAL-FOUNDATION-TRUTH-LOCK-099A
+# ============================================================================
+
+Write-Step "D.1) Verifying Temporal Services (FAIL-CLOSED)"
+
+# Check temporal-postgres health
+$temporalPgJson = Invoke-Native { docker compose ps temporal-postgres --format json } -Capture -AllowFail
+$temporalPgStatus = "unknown"
+if ($temporalPgJson) {
+    try {
+        $temporalPgSvc = $temporalPgJson | ConvertFrom-Json
+        $temporalPgStatus = $temporalPgSvc.Health
+    } catch {
+        $temporalPgStatus = "parse_error"
+    }
+}
+
+if ($temporalPgStatus -ne "healthy") {
+    Write-Warn "temporal-postgres status: $temporalPgStatus"
+    Write-Host "--- temporal-postgres logs (last 50 lines) ---"
+    Invoke-Native { docker compose logs --tail=50 temporal-postgres } -ShowOutput -AllowFail
+    Write-Fail "temporal-postgres is not healthy. Cannot proceed."
+}
+Write-Ok "temporal-postgres: healthy"
+
+# Check temporal health
+$temporalJson = Invoke-Native { docker compose ps temporal --format json } -Capture -AllowFail
+$temporalSvcStatus = "unknown"
+if ($temporalJson) {
+    try {
+        $temporalSvc = $temporalJson | ConvertFrom-Json
+        $temporalSvcStatus = $temporalSvc.Health
+    } catch {
+        $temporalSvcStatus = "parse_error"
+    }
+}
+
+if ($temporalSvcStatus -ne "healthy") {
+    Write-Warn "temporal status: $temporalSvcStatus"
+    Write-Host "--- temporal logs (last 100 lines) ---"
+    Invoke-Native { docker compose logs --tail=100 temporal } -ShowOutput -AllowFail
+    Write-Host "--- temporal-postgres logs (last 50 lines) ---"
+    Invoke-Native { docker compose logs --tail=50 temporal-postgres } -ShowOutput -AllowFail
+    Write-Fail "temporal is not healthy. Cannot proceed."
+}
+Write-Ok "temporal: healthy"
+
+# Check temporal-ui health (non-blocking warning only)
+$temporalUiJson = Invoke-Native { docker compose ps temporal-ui --format json } -Capture -AllowFail
+$temporalUiStatus = "not_running"
+if ($temporalUiJson) {
+    try {
+        $temporalUiSvc = $temporalUiJson | ConvertFrom-Json
+        $temporalUiStatus = $temporalUiSvc.Health
+    } catch {
+        $temporalUiStatus = "parse_error"
+    }
+}
+
+if ($temporalUiStatus -eq "healthy") {
+    Write-Ok "temporal-ui: healthy"
+} elseif ($temporalUiStatus -eq "starting" -or $temporalUiStatus -eq "unknown") {
+    Write-Info "temporal-ui: $temporalUiStatus (non-blocking)"
+} else {
+    Write-Warn "temporal-ui: $temporalUiStatus (non-blocking)"
+}
+
+Write-Ok "Temporal foundation verified"
+
+# ============================================================================
 # STEP E: Assert /ops/status (FAIL-CLOSED)
 # ============================================================================
 
@@ -334,15 +405,36 @@ Write-Ok "DB mode verified: $DbMode"
 $statusResponse | ConvertTo-Json -Depth 10 | Out-File -FilePath "$PROOF_DIR/proof_ops_status.json" -Encoding UTF8
 Write-Ok "Saved: proof_ops_status.json"
 
-# Check Temporal (non-blocking)
-$temporalStatus = "unknown"
-try {
-    Invoke-WebRequest -Uri $TEMPORAL_UI_URL -TimeoutSec 5 -ErrorAction Stop | Out-Null
-    $temporalStatus = "healthy"
-    Write-Ok "Temporal UI: healthy"
-} catch {
-    $temporalStatus = "degraded"
-    Write-Warn "Temporal UI: DEGRADED (not blocking Discord pipeline)"
+# Parse Temporal status from /ops/status
+$temporalConfigured = $statusResponse.components.temporal.configured
+$temporalHealthy = $statusResponse.components.temporal.healthy
+$temporalEndpoint = $statusResponse.components.temporal.endpoint
+$temporalUiReachable = $statusResponse.components.temporal.ui_reachable
+if (-not $temporalEndpoint) { $temporalEndpoint = "temporal:7233" }
+
+Write-Host ""
+Write-Host "  Temporal Configured: $temporalConfigured"
+Write-Host "  Temporal Healthy:    $temporalHealthy"
+Write-Host "  Temporal Endpoint:   $temporalEndpoint"
+Write-Host "  Temporal UI:         $temporalUiReachable"
+Write-Host ""
+
+# Determine display status
+$temporalDisplayStatus = "unknown"
+if ($temporalHealthy -eq $true) {
+    Write-Ok "Temporal: healthy"
+    $temporalDisplayStatus = "healthy"
+} else {
+    Write-Warn "Temporal health from /ops/status: $temporalHealthy"
+    # Fall back to checking UI directly
+    try {
+        Invoke-WebRequest -Uri $TEMPORAL_UI_URL -TimeoutSec 5 -ErrorAction Stop | Out-Null
+        Write-Ok "Temporal UI reachable (fallback check)"
+        $temporalDisplayStatus = "degraded (UI only)"
+    } catch {
+        Write-Warn "Temporal UI not reachable"
+        $temporalDisplayStatus = "degraded"
+    }
 }
 
 # ============================================================================
@@ -433,7 +525,8 @@ Write-Host "    Last Post:       $discordLastPost"
 Write-Host "    Outbox Pending:  $outboxPending"
 Write-Host ""
 Write-Host "  Temporal:" -ForegroundColor White
-Write-Host "    Status:          $temporalStatus"
+Write-Host "    Status:          $temporalDisplayStatus"
+Write-Host "    Endpoint:        $temporalEndpoint"
 Write-Host ""
 Write-Host "  Proof Bundle:" -ForegroundColor White
 Write-Host "    Location:        $PROOF_DIR"

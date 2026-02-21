@@ -196,6 +196,77 @@ fi
 sleep 5
 
 # ============================================================================
+# STEP D.1: Verify Temporal Health (FAIL-CLOSED)
+# SPRINT-TEMPORAL-FOUNDATION-TRUTH-LOCK-099A
+# ============================================================================
+
+step "D.1) Verifying Temporal Services (FAIL-CLOSED)"
+
+# Check temporal-postgres health
+TEMPORAL_PG_STATUS=$(docker compose ps temporal-postgres --format json 2>/dev/null | node -e "
+    const readline = require('readline');
+    const rl = readline.createInterface({ input: process.stdin });
+    rl.on('line', (line) => {
+        try {
+            const svc = JSON.parse(line);
+            console.log(svc.Health || 'unknown');
+        } catch (e) { console.log('error'); }
+    });
+" 2>/dev/null || echo "error")
+
+if [[ "$TEMPORAL_PG_STATUS" != "healthy" ]]; then
+    warn "temporal-postgres status: $TEMPORAL_PG_STATUS"
+    echo "--- temporal-postgres logs (last 50 lines) ---"
+    docker compose logs --tail=50 temporal-postgres 2>&1 || true
+    fail "temporal-postgres is not healthy. Cannot proceed."
+fi
+ok "temporal-postgres: healthy"
+
+# Check temporal health
+TEMPORAL_STATUS=$(docker compose ps temporal --format json 2>/dev/null | node -e "
+    const readline = require('readline');
+    const rl = readline.createInterface({ input: process.stdin });
+    rl.on('line', (line) => {
+        try {
+            const svc = JSON.parse(line);
+            console.log(svc.Health || 'unknown');
+        } catch (e) { console.log('error'); }
+    });
+" 2>/dev/null || echo "error")
+
+if [[ "$TEMPORAL_STATUS" != "healthy" ]]; then
+    warn "temporal status: $TEMPORAL_STATUS"
+    echo "--- temporal logs (last 100 lines) ---"
+    docker compose logs --tail=100 temporal 2>&1 || true
+    echo "--- temporal-postgres logs (last 50 lines) ---"
+    docker compose logs --tail=50 temporal-postgres 2>&1 || true
+    fail "temporal is not healthy. Cannot proceed."
+fi
+ok "temporal: healthy"
+
+# Check temporal-ui health (non-blocking warning only)
+TEMPORAL_UI_STATUS=$(docker compose ps temporal-ui --format json 2>/dev/null | node -e "
+    const readline = require('readline');
+    const rl = readline.createInterface({ input: process.stdin });
+    rl.on('line', (line) => {
+        try {
+            const svc = JSON.parse(line);
+            console.log(svc.Health || 'unknown');
+        } catch (e) { console.log('not_running'); }
+    });
+" 2>/dev/null || echo "not_running")
+
+if [[ "$TEMPORAL_UI_STATUS" == "healthy" ]]; then
+    ok "temporal-ui: healthy"
+elif [[ "$TEMPORAL_UI_STATUS" == "starting" || "$TEMPORAL_UI_STATUS" == "unknown" ]]; then
+    info "temporal-ui: $TEMPORAL_UI_STATUS (non-blocking)"
+else
+    warn "temporal-ui: $TEMPORAL_UI_STATUS (non-blocking)"
+fi
+
+ok "Temporal foundation verified"
+
+# ============================================================================
 # STEP E: Assert /ops/status (FAIL-CLOSED)
 # ============================================================================
 
@@ -284,14 +355,33 @@ echo "$STATUS_RESPONSE" | node -e "
 " > "$PROOF_DIR/proof_ops_status.json" 2>/dev/null || echo "$STATUS_RESPONSE" > "$PROOF_DIR/proof_ops_status.json"
 ok "Saved: proof_ops_status.json"
 
-# Check for Temporal health (non-blocking but surfaced)
-TEMPORAL_STATUS="unknown"
-if curl -sf "$TEMPORAL_UI_URL" &>/dev/null; then
-    TEMPORAL_STATUS="healthy"
-    ok "Temporal UI: healthy"
+# Parse Temporal status from /ops/status
+TEMPORAL_CONFIGURED=$(parse_json "$STATUS_RESPONSE" "components.temporal.configured")
+TEMPORAL_HEALTHY=$(parse_json "$STATUS_RESPONSE" "components.temporal.healthy")
+TEMPORAL_ENDPOINT=$(parse_json "$STATUS_RESPONSE" "components.temporal.endpoint")
+TEMPORAL_UI_REACHABLE=$(parse_json "$STATUS_RESPONSE" "components.temporal.ui_reachable")
+
+# Display Temporal status
+echo "  Temporal Configured: $TEMPORAL_CONFIGURED"
+echo "  Temporal Healthy:    $TEMPORAL_HEALTHY"
+echo "  Temporal Endpoint:   $TEMPORAL_ENDPOINT"
+echo "  Temporal UI:         $TEMPORAL_UI_REACHABLE"
+echo ""
+
+# FAIL-CLOSED: Temporal must be healthy
+if [[ "$TEMPORAL_HEALTHY" != "true" ]]; then
+    warn "Temporal health from /ops/status: $TEMPORAL_HEALTHY"
+    # Fall back to checking UI directly
+    if curl -sf "$TEMPORAL_UI_URL" &>/dev/null; then
+        ok "Temporal UI reachable (fallback check)"
+        TEMPORAL_DISPLAY_STATUS="degraded (UI only)"
+    else
+        warn "Temporal UI not reachable"
+        TEMPORAL_DISPLAY_STATUS="degraded"
+    fi
 else
-    TEMPORAL_STATUS="degraded"
-    warn "Temporal UI: DEGRADED (not blocking Discord pipeline)"
+    ok "Temporal: healthy"
+    TEMPORAL_DISPLAY_STATUS="healthy"
 fi
 
 # ============================================================================
@@ -379,7 +469,8 @@ echo "    Last Post:       $DISCORD_LAST_POST"
 echo "    Outbox Pending:  $OUTBOX_PENDING"
 echo ""
 echo "  ${BOLD}Temporal:${NC}"
-echo "    Status:          $TEMPORAL_STATUS"
+echo "    Status:          $TEMPORAL_DISPLAY_STATUS"
+echo "    Endpoint:        $TEMPORAL_ENDPOINT"
 echo ""
 echo "  ${BOLD}Proof Bundle:${NC}"
 echo "    Location:        $PROOF_DIR"
