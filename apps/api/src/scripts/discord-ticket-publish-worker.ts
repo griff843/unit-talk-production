@@ -2,6 +2,12 @@
  * discord-ticket-publish-worker.ts
  * Sprint: SPRINT-V3-TICKET-DISCORD-PUBLISH-086
  *
+ * @deprecated SPRINT-DISCORD-WORKER-AUTOSTART-087: Use DiscordTicketWorker consumer instead.
+ * The worker is now automatically started by the API service when ENABLE_DISCORD_TICKET_WORKER=true.
+ * See: src/consumers/DiscordTicketWorker.ts
+ *
+ * This standalone script is kept for manual/debugging runs only.
+ *
  * Consumes ticket_discord_outbox and posts Discord embeds for V3 tickets.
  * - Polls pending outbox items
  * - Builds embed with ticket summary (ticket type, stake, legs, combined odds, provider)

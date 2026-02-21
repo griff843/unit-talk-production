@@ -4,25 +4,26 @@ import { createLogger } from './utils/logger';
 
 const logger = createLogger('Main');
 
+// eslint-disable-next-line max-lines-per-function, complexity -- Main startup orchestrates multiple services
 async function main() {
   try {
     logger.info('Starting Unit Talk Platform...');
-    
+
     // Validate environment variables
     getEnv();
     logger.info('Environment variables loaded successfully');
-    
+
     // Start both API server and Temporal worker in parallel
     logger.info('Starting API server and Temporal worker...');
-    
+
     // Import and start the API server
     const { startServer } = await import('./api-server');
     const serverPromise = startServer();
-    
+
     // Import and start the Temporal worker
     const { default: startWorker } = await import('./worker');
     const workerPromise = startWorker();
-    
+
     // Wait for both to start
     await Promise.all([serverPromise, workerPromise]);
 
@@ -70,7 +71,16 @@ async function main() {
             version: '1.0.0',
             logLevel: 'info',
             metrics: { enabled: true, interval: 60000 },
-            retry: { maxRetries: 3, backoffMs: 1000, maxBackoffMs: 30000, enabled: true, maxAttempts: 3, backoff: 1000, exponential: true, jitter: true },
+            retry: {
+              maxRetries: 3,
+              backoffMs: 1000,
+              maxBackoffMs: 30000,
+              enabled: true,
+              maxAttempts: 3,
+              backoff: 1000,
+              exponential: true,
+              jitter: true,
+            },
             health: { enabled: true, interval: 30000, timeout: 5000 },
           },
           { logger, supabase }
@@ -81,6 +91,22 @@ async function main() {
         const msg = err instanceof Error ? err.message : String(err);
         logger.error('SettlementAgent failed to start (non-fatal):', { err: msg });
       }
+    }
+
+    // SPRINT-DISCORD-WORKER-AUTOSTART-087: Start DiscordTicketWorker
+    // Polls ticket_discord_outbox and posts Discord embeds automatically.
+    // Fail-closed: disabled by default, requires ENABLE_DISCORD_TICKET_WORKER=true
+    if (process.env.ENABLE_DISCORD_TICKET_WORKER === 'true') {
+      try {
+        const { startDiscordTicketWorker } = await import('./consumers/DiscordTicketWorker');
+        await startDiscordTicketWorker();
+        logger.info('DiscordTicketWorker started (ENABLE_DISCORD_TICKET_WORKER=true)');
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.error('DiscordTicketWorker failed to start (non-fatal):', { err: msg });
+      }
+    } else {
+      logger.info('DiscordTicketWorker SKIPPED (ENABLE_DISCORD_TICKET_WORKER not set to true)');
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -100,7 +126,7 @@ process.on('SIGTERM', () => {
   process.exit(0);
 });
 
-main().catch((error) => {
+main().catch(error => {
   const errorMessage = error instanceof Error ? error.message : String(error);
   logger.error('Unhandled error in main:', { error: errorMessage });
   process.exit(1);
