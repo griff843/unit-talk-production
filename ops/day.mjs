@@ -68,9 +68,11 @@ async function runWindows() {
   }
 
   const psExe = await findPowerShell();
+  const strictFrontends = process.env.OPS_STRICT_FRONTENDS === '1' ? 'YES' : 'NO';
   console.log(`[INFO] Runner: Windows -> ${psExe}`);
   console.log(`[INFO] Script: ops/day.ps1`);
   console.log(`[INFO] DB Mode: ${dbMode}`);
+  console.log(`[INFO] Strict Frontends: ${strictFrontends}`);
   console.log('');
 
   const child = spawn(
@@ -104,9 +106,11 @@ function runUnix() {
     process.exit(1);
   }
 
+  const strictFrontends = process.env.OPS_STRICT_FRONTENDS === '1' ? 'YES' : 'NO';
   console.log(`[INFO] Runner: Unix -> bash`);
   console.log(`[INFO] Script: ops/day.sh`);
   console.log(`[INFO] DB Mode: ${dbMode}`);
+  console.log(`[INFO] Strict Frontends: ${strictFrontends}`);
   console.log('');
 
   const child = spawn('bash', [shPath, dbMode], {

@@ -97,7 +97,7 @@ function Invoke-Native {
 # CONFIGURATION
 # ============================================================================
 
-$SPRINT_ID$SPRINT_ID = "SPRINT-OPS-DAY-HEALTH-TIMEOUTS-101A"
+$SPRINT_ID = "SPRINT-OPS-DAY-HEALTH-TIMEOUTS-101A"
 $DATE = Get-Date -Format "yyyy-MM-dd"
 $PROOF_DIR = "out/sprints/$SPRINT_ID/$DATE/proofs"
 # Use 127.0.0.1 instead of localhost to avoid IPv6 issues on Windows
