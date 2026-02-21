@@ -51,7 +51,8 @@
     "verify:sprint": "npx tsx scripts/verify-sprint.ts",
     "sprint:validate": "npx tsx scripts/sprint-close.ts --validate-only",
     "sprint:close": "npx tsx scripts/sprint-close.ts",
-    "guard:lockfiles": "npx tsx scripts/guard-no-npm-lock.ts"
+    "guard:lockfiles": "npx tsx scripts/guard-no-npm-lock.ts",
+    "ops:day": "bash ops/day.sh"
   },
   "keywords": [
     "sports-betting",

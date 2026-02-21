@@ -1,7 +1,47 @@
 #!/bin/bash
 
 # ==============================================
-# Unit Talk Development Environment Startup
+# DEPRECATED: Use pnpm ops:day instead
+# ==============================================
+#
+# This script is DEPRECATED as of SPRINT-ENTRYPOINT-CANONICALIZATION-097A
+#
+# THE CANONICAL ENTRYPOINT IS NOW:
+#   pnpm ops:day          # cloud mode (default)
+#   pnpm ops:day local    # local mode with postgres container
+#
+# For Windows PowerShell:
+#   .\ops\day.ps1
+#   .\ops\day.ps1 -DbMode local
+#
+# This script will be removed in a future release.
+# ==============================================
+
+echo ""
+echo "=============================================="
+echo "  WARNING: dev.sh is DEPRECATED"
+echo "=============================================="
+echo ""
+echo "  Please use the canonical entrypoint instead:"
+echo ""
+echo "    pnpm ops:day          # cloud mode"
+echo "    pnpm ops:day local    # local mode"
+echo ""
+echo "  For Windows PowerShell:"
+echo "    .\\ops\\day.ps1"
+echo ""
+echo "=============================================="
+echo ""
+read -p "Continue with deprecated script? (y/N): " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo "Exiting. Use: pnpm ops:day"
+    exit 0
+fi
+echo ""
+
+# ==============================================
+# [DEPRECATED] Unit Talk Development Environment Startup
 # Fortune 100-grade local development orchestration
 # ==============================================
 

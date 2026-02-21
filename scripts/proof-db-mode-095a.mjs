@@ -19,7 +19,8 @@ import { execSync } from 'child_process';
 const SPRINT_ID = 'SPRINT-DB-MODE-TRUTH-LOCK-095A';
 const DATE = new Date().toISOString().split('T')[0];
 const PROOF_DIR = `out/sprints/${SPRINT_ID}/${DATE}/proofs`;
-const API_URL = process.env.API_URL || 'http://localhost:3010';
+// Use 127.0.0.1 instead of localhost to avoid IPv6 issues on Windows
+const API_URL = process.env.API_URL || 'http://127.0.0.1:3010';
 
 console.log('========================================');
 console.log(`${SPRINT_ID} - Proof Bundle Automation`);

@@ -1,140 +1,233 @@
 # Local Development Runbook
 
-**Sprint**: SPRINT-FOUNDATION-TRUTH-LOCK-094A **Date**: 2026-02-21
+**Sprint**: SPRINT-ENTRYPOINT-CANONICALIZATION-097A **Date**: 2026-02-21
 
 ---
 
-## Official Local Development Runtime
+## THE ONE TRUE WAY
 
-### Primary: Direct Node Mode
-
-This repository supports **direct node mode** as the primary local development
-runtime.
+There is exactly ONE canonical command to start a production workday locally:
 
 ```bash
-# One command brings up truth (recommended)
-npm run dev:all
-
-# Or start services individually:
-npm run dev --workspace=apps/api        # API on port 3010
-npm run dev --workspace=apps/smart-form # Smart Form on port 3021
-npm run dev --workspace=apps/command-center # Command Center on port 3004
+pnpm ops:day
 ```
 
-### Secondary: Docker Compose (Optional)
+This command:
 
-Docker Compose is available for full-stack testing but requires Docker Desktop:
+1. Enforces DB truth (DB_MODE cloud|local, fail-closed)
+2. Brings up the correct Docker Compose stack
+3. Waits for all services to become healthy
+4. Asserts /ops/status is healthy with no mismatches
+5. Runs required E2E proofs
+6. Exits non-zero on ANY failure
+
+### Usage
 
 ```bash
-# Start full stack
-docker compose up -d
+# Cloud mode (default) - uses Supabase
+pnpm ops:day
 
-# Check status
-docker compose ps
+# Local mode - uses local postgres container
+pnpm ops:day local
+```
 
-# Stop
-docker compose down
+### Windows PowerShell
+
+```powershell
+# Cloud mode (default)
+.\ops\day.ps1
+
+# Local mode
+.\ops\day.ps1 -DbMode local
 ```
 
 ---
 
-## Environment Configuration
+## DEPRECATED Entrypoints
 
-### Root .env (Required)
+The following are **DEPRECATED** and will be removed:
 
-All apps load environment variables from the root `.env` file. Copy
-`.env.example` to `.env` and configure:
+| Script                       | Status      | Replacement    |
+| ---------------------------- | ----------- | -------------- |
+| `dev.sh`                     | DEPRECATED  | `pnpm ops:day` |
+| `npm run dev:all`            | DEPRECATED  | `pnpm ops:day` |
+| `docker compose up` (direct) | DISCOURAGED | `pnpm ops:day` |
 
-```bash
-cp .env.example .env
-```
-
-### Required Keys
-
-| Key                                 | Description          | Used By        |
-| ----------------------------------- | -------------------- | -------------- |
-| `SUPABASE_URL`                      | Supabase project URL | API, Workers   |
-| `SUPABASE_SERVICE_ROLE_KEY`         | Service role key     | API, Workers   |
-| `NEXT_PUBLIC_SUPABASE_URL`          | Public Supabase URL  | Smart Form, CC |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY`     | Anon key             | Smart Form, CC |
-| `DISCORD_WEBHOOK_URL`               | Discord webhook      | Worker         |
-| `DEFAULT_DISCORD_TICKET_CHANNEL_ID` | Channel ID           | Smart Form     |
-| `ENABLE_DISCORD_TICKET_WORKER`      | Worker toggle        | API            |
-
-### App-Specific .env Files
-
-For direct node development, apps may have their own `.env.local` files:
-
-- `apps/smart-form/.env.local` - Smart Form overrides
-- `apps/command-center/.env.local` - Command Center overrides
-
-**IMPORTANT**: These MUST point to the SAME Supabase instance as root `.env`.
+**DO NOT** use these scripts. They do not enforce DB truth or run proofs.
 
 ---
 
-## Verification Commands
+## DB_MODE Explained
 
-### Check Environment Health
+The platform runs in exactly ONE database mode at a time:
+
+| Mode    | Description                   | When to Use                     |
+| ------- | ----------------------------- | ------------------------------- |
+| `cloud` | Connects to Supabase cloud    | Production-like development     |
+| `local` | Runs local postgres container | Offline development, migrations |
+
+### How DB_MODE is Enforced
+
+1. `pnpm ops:day` sets `DB_MODE` environment variable
+2. Docker Compose passes `DB_MODE` to all services
+3. API validates `DB_MODE` at boot (fail-closed)
+4. `/ops/status` reports current mode
+5. Any mismatch = boot failure
+
+### Mismatch Examples (Will Fail)
+
+- `DB_MODE=cloud` but `DATABASE_URL` points to localhost → FAIL
+- `DB_MODE=local` but `SUPABASE_URL` points to cloud → FAIL
+- Workers have different DB_MODE than API → FAIL
+
+---
+
+## Service URLs
+
+After `pnpm ops:day` completes successfully:
+
+| Service        | Port | URL                   |
+| -------------- | ---- | --------------------- |
+| Smart Form     | 3002 | http://localhost:3002 |
+| Command Center | 3004 | http://localhost:3004 |
+| Dashboard      | 3003 | http://localhost:3003 |
+| API            | 3010 | http://localhost:3010 |
+| Workers        | 3021 | http://localhost:3021 |
+| Grafana        | 3001 | http://localhost:3001 |
+| Prometheus     | 9090 | http://localhost:9090 |
+| Temporal UI    | 8088 | http://localhost:8088 |
+
+---
+
+## Understanding /ops/status
+
+The `/ops/status` endpoint reports system health:
 
 ```bash
-# Run env audit (after Phase 2 implementation)
-npm run env:audit
-
-# Check API health
-curl http://localhost:3010/api/health
-
-# Check Discord routing status
-curl http://localhost:3010/ops/discord-routing-status
-
-# Check Smart Form
-curl http://localhost:3021/api/health
+curl http://localhost:3010/ops/status | jq .
 ```
 
-### Check Supabase Connectivity
+### Key Fields
+
+```json
+{
+  "overall_ready": true,
+  "reasons": [],
+  "components": {
+    "db": {
+      "mode": "cloud",
+      "target": "xxxx.supabase.co/supabase",
+      "mismatchDetected": false
+    },
+    "discord": {
+      "ready": true,
+      "worker_healthy": true,
+      "last_post_at": "2026-02-21T..."
+    },
+    "outbox": {
+      "pending_count": 0,
+      "failed_count": 0
+    }
+  }
+}
+```
+
+### Interpreting Status
+
+| Field                    | Meaning                             |
+| ------------------------ | ----------------------------------- |
+| `overall_ready`          | All systems go                      |
+| `db.mismatchDetected`    | CRITICAL: DB configuration conflict |
+| `discord.worker_healthy` | Discord ticket worker is running    |
+| `outbox.failed_count`    | Number of failed Discord posts      |
+
+---
+
+## Running Proofs Manually
+
+To re-run proof scripts:
 
 ```bash
-# All apps should connect to same Supabase
-grep "SUPABASE_URL" .env apps/*/.env.local 2>/dev/null | sort -u
+# Required: E2E receipt proof
+node scripts/e2e-receipt-proof.mjs
+
+# Recommended: DB mode proof
+node scripts/proof-db-mode-095a.mjs
+```
+
+Proof bundles are stored in:
+
+```
+out/sprints/<SPRINT-ID>/<DATE>/proofs/
 ```
 
 ---
 
 ## Troubleshooting
 
-### "Multiple Truths" Detection
+### "DB MODE MISMATCH" Error
 
-If you see different Supabase URLs across apps:
+**Cause**: Environment variables point to different databases.
 
-1. Check root `.env` SUPABASE_URL
-2. Check `apps/smart-form/.env.local`
-3. Check `apps/command-center/.env.local`
-4. Ensure all point to same instance
+**Fix**:
 
-### Worker Not Running
+1. Check `.env` - ensure consistent SUPABASE_URL / DATABASE_URL
+2. Run `pnpm ops:day` again with correct mode
+3. For local: ensure `docker-compose.local.yml` exists
 
-1. Check `ENABLE_DISCORD_TICKET_WORKER=true` in root `.env`
-2. Check `DISCORD_WEBHOOK_URL` is configured
-3. Check `DEFAULT_DISCORD_TICKET_CHANNEL_ID` is set
-4. Check worker heartbeats:
-   `curl http://localhost:3010/ops/discord-routing-status`
+### "Services did not become healthy"
+
+**Cause**: Docker containers failing to start.
+
+**Fix**:
+
+```bash
+docker compose ps
+docker compose logs api
+docker compose logs workers
+```
+
+### "/ops/status unreachable"
+
+**Cause**: API not responding.
+
+**Fix**:
+
+```bash
+docker compose logs api
+# Check for boot failures (DB mismatch, missing env)
+```
+
+### Temporal UI Degraded
+
+**Note**: Temporal health issues do NOT block the Discord ticket pipeline. The
+warning is informational only.
 
 ---
 
-## Port Reference
+## Environment Variables
 
-| Service        | Port | URL                   |
-| -------------- | ---- | --------------------- |
-| API            | 3010 | http://localhost:3010 |
-| Smart Form     | 3021 | http://localhost:3021 |
-| Command Center | 3004 | http://localhost:3004 |
-| Grafana        | 3001 | http://localhost:3001 |
-| Temporal UI    | 8088 | http://localhost:8088 |
-| Prometheus     | 9090 | http://localhost:9090 |
+### Required (Cloud Mode)
+
+| Key                                 | Description               |
+| ----------------------------------- | ------------------------- |
+| `SUPABASE_URL`                      | Supabase project URL      |
+| `SUPABASE_SERVICE_ROLE_KEY`         | Service role key          |
+| `DISCORD_WEBHOOK_URL`               | Discord webhook for posts |
+| `DEFAULT_DISCORD_TICKET_CHANNEL_ID` | Target channel            |
+| `ENABLE_DISCORD_TICKET_WORKER`      | Must be `true`            |
+
+### Required (Local Mode)
+
+| Key            | Description               |
+| -------------- | ------------------------- |
+| `DATABASE_URL` | Local postgres connection |
 
 ---
 
 ## Sprint Reference
 
-- SPRINT-FOUNDATION-TRUTH-LOCK-094A: Runtime truth lock
-- SPRINT-END-TO-END-TICKET-LIFECYCLE-TRUTH-093: Worker heartbeats
-- SPRINT-DISCORD-OUTBOX-ROUTING-CLAIM-092: Atomic claim
+- **SPRINT-ENTRYPOINT-CANONICALIZATION-097A**: This runbook
+- **SPRINT-DB-MODE-TRUTH-LOCK-095A**: DB mode enforcement
+- **SPRINT-FOUNDATION-TRUTH-LOCK-094A**: Runtime truth lock
+- **SPRINT-END-TO-END-TICKET-LIFECYCLE-TRUTH-093**: Worker heartbeats
