@@ -1,0 +1,50 @@
+# docker-compose.local.yml
+# SPRINT-DB-MODE-TRUTH-LOCK-095A: Local mode overrides
+#
+# Usage: docker compose -f docker-compose.yml -f docker-compose.local.yml up -d
+#
+# This file adds local postgres configuration for sandbox development.
+# Do NOT use this for cloud/production mode.
+
+services:
+  # API needs postgres dependency in local mode
+  api:
+    environment:
+      - DB_MODE=local
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+
+  # Workers need postgres dependency in local mode
+  workers:
+    environment:
+      - DB_MODE=local
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
+
+  # Discord bot
+  discord-bot:
+    environment:
+      - DB_MODE=local
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
+
+  # Smart form
+  smart-form:
+    environment:
+      - DB_MODE=local
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
+
+  # Command center
+  command-center:
+    environment:
+      - DB_MODE=local
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
+
+  # Dashboard
+  dashboard:
+    environment:
+      - DB_MODE=local

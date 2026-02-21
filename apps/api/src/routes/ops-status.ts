@@ -10,6 +10,7 @@
 
 import express, { Response, Router } from 'express';
 
+import { getDbModeStatus } from '../config/dbMode';
 import {
   resolveDiscordRoutingConfig,
   validateDiscordRoutingReadiness,
@@ -24,6 +25,16 @@ const router: Router = express.Router();
 // TYPES
 // ============================================================================
 
+interface DbModeStatus {
+  mode: 'cloud' | 'local';
+  target: string;
+  isLocal: boolean;
+  mismatchDetected: boolean;
+  mismatchReason: string | null;
+  requiredEnvMissing: string[];
+  resolutionSource: 'env' | 'default';
+}
+
 interface OpsStatusResponse {
   overall_ready: boolean;
   reasons: string[];
@@ -32,6 +43,7 @@ interface OpsStatusResponse {
     discord: DiscordStatus;
     outbox: OutboxStatus;
     database: DatabaseStatus;
+    db: DbModeStatus;
   };
   supabase_fingerprint: string;
   timestamp: string;
@@ -236,6 +248,18 @@ router.get('/status', async (_req, res: Response) => {
       checkDiscordStatus(),
     ]);
 
+    // Get DB mode status (SPRINT-DB-MODE-TRUTH-LOCK-095A)
+    const dbModeResolution = getDbModeStatus();
+    const dbModeStatus: DbModeStatus = {
+      mode: dbModeResolution.mode,
+      target: `${dbModeResolution.host}/${dbModeResolution.dbName}`,
+      isLocal: dbModeResolution.isLocal,
+      mismatchDetected: dbModeResolution.mismatchDetected,
+      mismatchReason: dbModeResolution.mismatchReason,
+      requiredEnvMissing: dbModeResolution.requiredEnvMissing,
+      resolutionSource: dbModeResolution.source,
+    };
+
     const envStatus: EnvStatus = {
       ready: envCheck.missing_required.length === 0,
       missing_required: envCheck.missing_required,
@@ -262,9 +286,18 @@ router.get('/status', async (_req, res: Response) => {
         reasons.push(`Outbox: ${outboxStatus.stuck_count} stuck items`);
       }
     }
+    // DB mode mismatch is critical
+    if (dbModeStatus.mismatchDetected) {
+      reasons.push(`DB Mode: ${dbModeStatus.mismatchReason}`);
+    }
+    if (dbModeStatus.requiredEnvMissing.length > 0) {
+      reasons.push(`DB Mode: Missing ${dbModeStatus.requiredEnvMissing.join(', ')}`);
+    }
 
+    const dbModeReady =
+      !dbModeStatus.mismatchDetected && dbModeStatus.requiredEnvMissing.length === 0;
     const overallReady =
-      envStatus.ready && dbStatus.ready && discordStatus.ready && outboxStatus.ready;
+      envStatus.ready && dbStatus.ready && discordStatus.ready && outboxStatus.ready && dbModeReady;
 
     const response: OpsStatusResponse = {
       overall_ready: overallReady,
@@ -274,6 +307,7 @@ router.get('/status', async (_req, res: Response) => {
         discord: discordStatus,
         outbox: outboxStatus,
         database: dbStatus,
+        db: dbModeStatus,
       },
       supabase_fingerprint: extractSupabaseFingerprint(),
       timestamp,
@@ -311,6 +345,15 @@ router.get('/status', async (_req, res: Response) => {
           failed_count: 0,
           stuck_count: 0,
           oldest_pending_age_seconds: null,
+        },
+        db: {
+          mode: 'cloud',
+          target: 'unknown/unknown',
+          isLocal: false,
+          mismatchDetected: false,
+          mismatchReason: null,
+          requiredEnvMissing: [],
+          resolutionSource: 'default',
         },
         database: {
           ready: false,

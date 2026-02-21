@@ -225,7 +225,6 @@ apps/*/package-lock.json
 packages/*/package-lock.json
 
 # Local development overrides
-docker-compose.local.yml
 k8s/local/
 .local/
 

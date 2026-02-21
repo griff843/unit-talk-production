@@ -1,15 +1,26 @@
 # Unit Talk Platform - Fortune 100 Development Environment
 # Complete local development orchestration
+#
+# SPRINT-DB-MODE-TRUTH-LOCK-095A: Compose profiles enforce DB mode separation
+#
+# Usage:
+#   Cloud mode (default): docker compose --profile cloud up -d
+#   Local mode (sandbox): docker compose --profile local up -d
+#
+# IMPORTANT: Do NOT mix profiles. Only use one at a time.
 
 services:
   # ==============================================
   # DATABASE LAYER
   # ==============================================
 
-  # PostgreSQL Database
+  # PostgreSQL Database (LOCAL MODE ONLY)
+  # SPRINT-DB-MODE-TRUTH-LOCK-095A: Only starts with --profile local
   postgres:
     image: postgres:15-alpine
     container_name: unit-talk-postgres
+    profiles:
+      - local
     ports:
       - "5432:5432"
     environment:
@@ -260,6 +271,7 @@ services:
 
   # Main API Platform
   # External 3010 -> Internal 3000 (CANONICAL)
+  # SPRINT-DB-MODE-TRUTH-LOCK-095A: DB_MODE controls connection
   api:
     build:
       context: .
@@ -273,7 +285,9 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3000
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
+      # SPRINT-DB-MODE-TRUTH-LOCK-095A: DB_MODE from env file (cloud or local)
+      - DB_MODE=${DB_MODE:-cloud}
+      # DATABASE_URL only set via .env for local mode
       - REDIS_URL=redis://redis:6379
       - TEMPORAL_SERVER_URL=temporal:7233
       - PROMETHEUS_ENABLED=true
@@ -289,8 +303,6 @@ services:
       - ./apps/api/logs:/app/apps/api/logs
       - ./packages:/app/packages
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
       temporal:
@@ -306,6 +318,7 @@ services:
     restart: unless-stopped
 
   # Temporal Workers
+  # SPRINT-DB-MODE-TRUTH-LOCK-095A: DB_MODE controls connection
   workers:
     build:
       context: .
@@ -316,7 +329,9 @@ services:
       - .env
     environment:
       - NODE_ENV=development
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
+      # SPRINT-DB-MODE-TRUTH-LOCK-095A: DB_MODE from env file (cloud or local)
+      - DB_MODE=${DB_MODE:-cloud}
+      # DATABASE_URL only set via .env for local mode
       - REDIS_URL=redis://redis:6379
       - TEMPORAL_SERVER_URL=temporal:7233
       - WORKER_MODE=true
@@ -341,6 +356,7 @@ services:
     restart: unless-stopped
 
   # Discord Bot
+  # SPRINT-DB-MODE-TRUTH-LOCK-095A: DB_MODE controls connection
   discord-bot:
     build:
       context: ./apps/discord-bot
@@ -351,7 +367,9 @@ services:
       - .env
     environment:
       - NODE_ENV=development
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
+      # SPRINT-DB-MODE-TRUTH-LOCK-095A: DB_MODE from env file (cloud or local)
+      - DB_MODE=${DB_MODE:-cloud}
+      # DATABASE_URL only set via .env for local mode
       - REDIS_URL=redis://redis:6379
       - API_URL=http://api:3000
       - LOG_LEVEL=debug
@@ -373,6 +391,7 @@ services:
 
   # Smart Form Application
   # CANONICAL UI SURFACE: /submit-ticket (ui/surface-reset-020)
+  # SPRINT-DB-MODE-TRUTH-LOCK-095A: DB_MODE controls connection
   smart-form:
     build:
       context: .
@@ -381,10 +400,14 @@ services:
     container_name: unit-talk-smart-form
     ports:
       - "3021:3021" # POSTING-AUTHORITY-LOCKDOWN-033: External 3021 = Internal 3021 (CANONICAL)
+    env_file:
+      - .env
     environment:
       - NODE_ENV=development
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
-      - NEXT_PUBLIC_API_URL=http://localhost:3001
+      # SPRINT-DB-MODE-TRUTH-LOCK-095A: DB_MODE from env file (cloud or local)
+      - DB_MODE=${DB_MODE:-cloud}
+      # DATABASE_URL only set via .env for local mode
+      - NEXT_PUBLIC_API_URL=http://localhost:3010
       - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
@@ -412,6 +435,7 @@ services:
     restart: unless-stopped
 
   # Dashboard Application
+  # SPRINT-DB-MODE-TRUTH-LOCK-095A: DB_MODE controls connection
   dashboard:
     build:
       context: ./apps/dashboard
@@ -420,9 +444,13 @@ services:
     container_name: unit-talk-dashboard
     ports:
       - "3003:3000"
+    env_file:
+      - .env
     environment:
       - NODE_ENV=development
-      - NEXT_PUBLIC_API_URL=http://localhost:3001
+      # SPRINT-DB-MODE-TRUTH-LOCK-095A: DB_MODE from env file (cloud or local)
+      - DB_MODE=${DB_MODE:-cloud}
+      - NEXT_PUBLIC_API_URL=http://localhost:3010
       - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
     volumes:
@@ -443,6 +471,7 @@ services:
 
   # Command Center
   # CANONICAL UI SURFACE: /dashboard/* (ui/surface-reset-020)
+  # SPRINT-DB-MODE-TRUTH-LOCK-095A: DB_MODE controls connection
   command-center:
     build:
       context: .
@@ -451,10 +480,14 @@ services:
     container_name: unit-talk-command-center
     ports:
       - "3004:3015" # External 3004 -> Internal 3015 (CANONICAL)
+    env_file:
+      - .env
     environment:
       - NODE_ENV=development
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/unit_talk_dev
-      - NEXT_PUBLIC_API_URL=http://localhost:3001
+      # SPRINT-DB-MODE-TRUTH-LOCK-095A: DB_MODE from env file (cloud or local)
+      - DB_MODE=${DB_MODE:-cloud}
+      # DATABASE_URL only set via .env for local mode
+      - NEXT_PUBLIC_API_URL=http://localhost:3010
       - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
       - PROMETHEUS_URL=http://prometheus:9090

@@ -4,6 +4,7 @@ import 'dotenv/config';
 import cors from 'cors';
 import express, { Express } from 'express';
 
+import { validateDbMode } from './config/dbMode';
 import healthRouter from './routes/health';
 import opsRouter from './routes/ops';
 import opsDiscordRoutingRouter from './routes/ops-discord-routing';
@@ -75,9 +76,12 @@ app.use((req, res, next) => {
 app.use('/api/smart-form', smartFormRouter);
 app.use('/api/health', healthRouter);
 app.use('/api/picks', picksRouter);
+// SPRINT-094A: Status endpoint first (no auth required for monitoring)
+app.use('/ops', opsStatusRouter);
+// SPRINT-093: Discord routing status
+app.use('/ops', opsDiscordRoutingRouter);
+// Admin ops routes (auth required)
 app.use('/ops', opsRouter);
-app.use('/ops', opsDiscordRoutingRouter); // SPRINT-093: Discord routing status
-app.use('/ops', opsStatusRouter); // SPRINT-094A: Global ops status
 app.use('/version', versionRouter);
 app.use('/api/version', versionRouter);
 
@@ -262,6 +266,14 @@ app.use('*', (req, res) => {
 
 async function startServer() {
   try {
+    // SPRINT-DB-MODE-TRUTH-LOCK-095A: Validate DB mode first (fail-closed)
+    const dbModeResolution = validateDbMode();
+    logger.info('DB mode validated', {
+      mode: dbModeResolution.mode,
+      host: dbModeResolution.host,
+      isLocal: dbModeResolution.isLocal,
+    });
+
     // Validate environment variables
     getEnv();
     logger.info('Environment variables validated successfully');
