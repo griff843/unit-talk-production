@@ -22,12 +22,15 @@ set -euo pipefail
 # ============================================================================
 
 DB_MODE="${1:-cloud}"
-SPRINT_ID="SPRINT-ENTRYPOINT-CANONICALIZATION-097A"
+SPRINT_ID="SPRINT-OPS-DAY-HEALTH-TIMEOUTS-101A"
 DATE=$(date +%Y-%m-%d)
 PROOF_DIR="out/sprints/$SPRINT_ID/$DATE/proofs"
 # Use 127.0.0.1 instead of localhost to avoid IPv6 issues on Windows
 API_URL="${API_URL:-http://127.0.0.1:3010}"
-HEALTH_TIMEOUT=180  # 3 minutes max wait
+CRITICAL_TIMEOUT=300  # 5 min for critical services
+FRONTEND_TIMEOUT=900  # 15 min for frontends (Next.js cold builds)
+STRICT_FRONTENDS="${OPS_STRICT_FRONTENDS:-0}"
+HEALTH_TIMEOUT=$FRONTEND_TIMEOUT
 
 # Service URLs
 SMART_FORM_URL="http://localhost:3002"

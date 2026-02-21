@@ -102,7 +102,10 @@ $DATE = Get-Date -Format "yyyy-MM-dd"
 $PROOF_DIR = "out/sprints/$SPRINT_ID/$DATE/proofs"
 # Use 127.0.0.1 instead of localhost to avoid IPv6 issues on Windows
 $API_URL = if ($env:API_URL) { $env:API_URL } else { "http://127.0.0.1:3010" }
-$HEALTH_TIMEOUT = 180  # 3 minutes max wait
+$CRITICAL_TIMEOUT = 300  # 5 min for critical services
+$FRONTEND_TIMEOUT = 900  # 15 min for frontends (Next.js cold builds)
+$STRICT_FRONTENDS = if ($env:OPS_STRICT_FRONTENDS -eq "1") { $true } else { $false }
+$HEALTH_TIMEOUT = $FRONTEND_TIMEOUT
 
 # Service URLs
 $SMART_FORM_URL = "http://localhost:3002"
