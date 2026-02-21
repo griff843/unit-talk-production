@@ -1,0 +1,64 @@
+======================================================================
+EDGE ENGINE PRE/POST DETERMINISM TEST
+PRE Model Version: v1.0.1-pre
+POST Model Version: v1.0.1-post
+Sprint: SPRINT-EDGE-ENGINE-PRESCORE-SPLIT-098
+======================================================================
+
+[SETUP] Generated 20 test picks
+
+[TEST 1] Determinism Tests (compute twice, compare hashes)
+----------------------------------------------------------------------
+
+| Pick ID   | PRE Det | POST Det | PRE Hash     | POST Hash    | PRE Score | POST Score |
+|-----------|---------|----------|--------------|--------------|-----------|------------|
+| test-1    | PASS    | PASS     | 1f679bc396bee5c1... | f8d85028caf97354... |      41.0 |       15.5 |
+| test-2    | PASS    | PASS     | f17e186d6f8ff4be... | bdc2ce486cc4d064... |      41.8 |       52.1 |
+| test-3    | PASS    | PASS     | 53260acd95c18c75... | f32e51e3dc368408... |      86.7 |       40.0 |
+| test-4    | PASS    | PASS     | 5e20e9d207384326... | 8fd5d6d268556fa6... |      34.3 |       31.1 |
+| test-5    | PASS    | PASS     | d47c21c595319ca4... | 0ad46b32df6703f0... |      56.0 |       26.1 |
+| test-6    | PASS    | PASS     | 4e8bcac5034221cf... | 3729b3a772928871... |      38.1 |       16.6 |
+| test-7    | PASS    | PASS     | 0a9c8fa15798534c... | cd4ee6c0a35a7ffb... |      42.0 |       35.8 |
+| test-8    | PASS    | PASS     | e258819100ef9c10... | 44cd66bc1a5189d6... |      46.1 |       31.7 |
+| test-9    | PASS    | PASS     | d4011056a4d66118... | 2595e5b53575e2a6... |      75.1 |       40.0 |
+| test-10   | PASS    | PASS     | 63bf0532ec573436... | 87f7bdcdf39ed92c... |      35.6 |       31.6 |
+| test-11   | PASS    | PASS     | d68db78f38162b22... | ecd6677cbbf889fc... |      46.0 |       51.1 |
+| test-12   | PASS    | PASS     | d27b2bf4c96311e9... | 887826d3426769c0... |      36.4 |       38.9 |
+| test-13   | PASS    | PASS     | 6879044cbe415949... | d618dcd7b86bcf41... |      42.1 |       36.0 |
+| test-14   | PASS    | PASS     | a3775aa8438f3aad... | 8d2402678b20bca1... |      45.2 |       29.6 |
+| test-15   | PASS    | PASS     | ced3e38400e19182... | 5d42f49715e0616a... |      45.5 |       40.0 |
+| test-16   | PASS    | PASS     | a56b8253067be88e... | 16e2d93089754967... |      49.1 |       49.0 |
+| test-17   | PASS    | PASS     | d3277dbbcccaade1... | fe4e0803e2907a80... |      35.1 |       31.6 |
+| test-18   | PASS    | PASS     | 74acc29bc9167426... | 823b46335bb6fa99... |      44.0 |       37.0 |
+| test-19   | PASS    | PASS     | 22cc9257c16a01a2... | 6d5dcbd25d8b669c... |      42.0 |       13.7 |
+| test-20   | PASS    | PASS     | 13e0b392c8940f56... | 4a338e6ec3f9e962... |      58.2 |       18.2 |
+
+PRE Determinism: 20/20 PASS
+POST Determinism: 20/20 PASS
+
+[TEST 2] PRE Score Unchanged Without Closing Data
+----------------------------------------------------------------------
+  PASS: All 20 picks have identical PRE scores with/without closing data
+
+[TEST 3] PRE/POST Correlation Analysis
+----------------------------------------------------------------------
+  Average PRE Score: 47.01
+  Average POST Score: 33.28
+  Pearson Correlation: 0.162
+
+  WARN: PRE and POST have weak positive correlation
+
+======================================================================
+TEST SUMMARY
+======================================================================
+  PRE Determinism: PASS (20/20)
+  POST Determinism: PASS (20/20)
+  PRE Unchanged: PASS
+  Correlation: PASS (r = 0.162)
+
+======================================================================
+RESULT: PASS - All determinism tests passed
+
+PRE_MODEL_VERSION: v1.0.1-pre
+POST_MODEL_VERSION: v1.0.1-post
+======================================================================

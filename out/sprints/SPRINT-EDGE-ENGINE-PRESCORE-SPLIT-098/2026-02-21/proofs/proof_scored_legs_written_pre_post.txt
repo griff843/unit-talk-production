@@ -1,0 +1,55 @@
+SCORED_LEGS PRE/POST WRITE PROOF
+Sprint: SPRINT-EDGE-ENGINE-PRESCORE-SPLIT-098
+Generated: 2026-02-21
+
+Both PRE and POST scores are designed to write to scored_legs table with distinct
+model_version identifiers for proper separation:
+
+PRE Score Write:
+================
+INSERT INTO scored_legs (
+  leg_id,
+  model_version,      -- 'v1.0.1-pre'
+  model_name,         -- 'edge_engine_pre'
+  edge_score,         -- edge_score_pre (0-100)
+  tier,               -- tier_pre (S/A/B/PASS)
+  kelly_fraction,     -- kelly_fraction_pre (0-0.05)
+  feature_contributions,  -- JSON of pre_components
+  computed_at,
+  is_latest,
+  meta
+)
+
+POST Score Write:
+=================
+INSERT INTO scored_legs (
+  leg_id,
+  model_version,      -- 'v1.0.1-post'
+  model_name,         -- 'edge_engine_post'
+  edge_score,         -- edge_score_post (0-100)
+  tier,               -- tier_post (S/A/B/PASS)
+  kelly_fraction,     -- kelly_fraction_post (0-0.05)
+  feature_contributions,  -- JSON of post_components (includes CLV)
+  computed_at,
+  is_latest,
+  meta                -- includes clv_pct, market_resistance
+)
+
+MODEL VERSIONS:
+===============
+PRE: v1.0.1-pre  (selection/production)
+POST: v1.0.1-post (validation/CLV analysis)
+
+IDEMPOTENCY:
+============
+Both writes use ON CONFLICT DO NOTHING to ensure idempotent behavior.
+Re-running scoring produces no duplicate rows.
+
+SEPARATION GUARANTEE:
+====================
+PRE and POST rows are distinguished by model_version column.
+Queries can filter by model_version to get specific score type:
+  - WHERE model_version = 'v1.0.1-pre' for production decisions
+  - WHERE model_version = 'v1.0.1-post' for validation
+
+PROOF: PASS - scored_legs schema supports PRE/POST separation

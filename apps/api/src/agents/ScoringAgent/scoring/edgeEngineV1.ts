@@ -1,10 +1,14 @@
 /* eslint-disable max-lines, max-lines-per-function, max-params, security/detect-object-injection, @typescript-eslint/no-unused-vars, no-unused-vars */
 /**
- * Edge Engine V1 - Deterministic Scoring System
+ * Edge Engine V1 / POST - Deterministic Scoring System (Validation)
  * Sprint: SPRINT-EDGE-ENGINE-V1-IMPLEMENT-097
- * Model Version: v1.0.0
+ * Updated: SPRINT-EDGE-ENGINE-PRESCORE-SPLIT-098
+ * Model Version: v1.0.1-post
  *
- * Computes edge scores using CLV as the primary signal with deterministic guarantees.
+ * POST Score: Uses CLV as primary signal. Includes closing line data.
+ * Purpose: Validation, CLV tracking, retrospective analysis.
+ * NOT for: Promotion/posting decisions (use PRE score instead).
+ *
  * All inputs are frozen at computation time for replayability.
  */
 
@@ -13,6 +17,7 @@
 // =============================================================================
 
 export const MODEL_VERSION = 'v1.0.0' as const;
+export const MODEL_VERSION_POST = 'v1.0.1-post' as const;
 
 /** Market type historical performance weights */
 const MARKET_WEIGHTS: Record<string, number> = {
@@ -506,6 +511,61 @@ export function verifyDeterminism(input: EdgeV1Input): boolean {
 }
 
 // =============================================================================
+// POST SCORE ALIASES (SPRINT-EDGE-ENGINE-PRESCORE-SPLIT-098)
+// =============================================================================
+
+/**
+ * POST Input type (alias for EdgeV1Input)
+ * Explicitly allows closing data for validation purposes.
+ */
+export type EdgePostInput = EdgeV1Input;
+
+/**
+ * POST Output type (alias for EdgeEngineV1Output with POST naming)
+ */
+export interface EdgePostOutput extends EdgeEngineV1Output {
+  edge_score_post: number;
+  tier_post: 'S' | 'A' | 'B' | 'PASS';
+  kelly_fraction_post: number;
+  post_flags: string[];
+  model_version_post: typeof MODEL_VERSION_POST;
+}
+
+/**
+ * Compute Edge Engine POST score (Validation)
+ *
+ * Uses closing line data (CLV) for retrospective validation.
+ * NOT for promotion/posting decisions - use computeEdgeScorePre() instead.
+ */
+export function computeEdgeScorePost(input: EdgePostInput): EdgePostOutput {
+  const baseOutput = computeEdgeV1(input);
+
+  // Extend with POST-specific naming
+  return {
+    ...baseOutput,
+    edge_score_post: baseOutput.edge_score,
+    tier_post: baseOutput.tier,
+    kelly_fraction_post: baseOutput.kelly_fraction,
+    post_flags: baseOutput.risk_flags,
+    model_version_post: MODEL_VERSION_POST,
+  };
+}
+
+/**
+ * Batch POST scoring
+ */
+export function computeEdgeScorePostBatch(inputs: EdgePostInput[]): EdgePostOutput[] {
+  return inputs.map(input => computeEdgeScorePost(input));
+}
+
+/**
+ * Verify POST determinism
+ */
+export function verifyPostDeterminism(input: EdgePostInput): boolean {
+  return verifyDeterminism(input);
+}
+
+// =============================================================================
 // EXPORTS
 // =============================================================================
 
@@ -519,3 +579,6 @@ export {
   calculateKellyFraction,
   detectRiskFlags,
 };
+
+// Re-export POST aliases as TIER_THRESHOLDS_POST for consistency
+export const TIER_THRESHOLDS_POST = TIER_THRESHOLDS;

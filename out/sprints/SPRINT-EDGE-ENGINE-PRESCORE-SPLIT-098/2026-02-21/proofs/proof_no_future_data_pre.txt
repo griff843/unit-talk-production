@@ -1,0 +1,54 @@
+======================================================================
+PRE SCORE NO-FUTURE-DATA GUARD
+Model Version: v1.0.1-pre
+Sprint: SPRINT-EDGE-ENGINE-PRESCORE-SPLIT-098
+======================================================================
+
+[TEST 1] Leakage Guard Function Tests
+----------------------------------------------------------------------
+  PASS: assertNoFutureData: empty object
+  PASS: assertNoFutureData: is_closing=true
+  PASS: assertNoFutureData: closing_line
+  PASS: assertNoFutureData: closing_odds
+  PASS: assertNoFutureData: result
+  PASS: assertNoFutureData: null values
+
+[TEST 2] Input Validation Tests
+----------------------------------------------------------------------
+  PASS: validatePreInput: valid input
+  PASS: validatePreInput: closing_line
+  PASS: validatePreInput: closing_odds
+  PASS: validatePreInput: result
+  PASS: validatePreInput: settlement_status
+
+[TEST 3] PRE Scoring - No Future Data in Output
+----------------------------------------------------------------------
+  Generated 20 test picks
+
+  Scoring Results: 20 PASS / 0 FAIL
+
+[TEST 4] Verify Rejection of Polluted Input
+----------------------------------------------------------------------
+  PASS: Correctly rejected polluted input with closing_line
+
+======================================================================
+TEST SUMMARY
+======================================================================
+  Leakage Guard Tests: 6/6 PASS
+  Input Validation Tests: 5/5 PASS
+  PRE Scoring Tests: 20/20 PASS
+  Polluted Input Test: 1/1 PASS
+
+======================================================================
+RESULT: PASS - PRE score NEVER uses future data
+
+PROOF STATEMENT:
+  1. assertNoFutureData() correctly rejects is_closing=true
+  2. assertNoFutureData() correctly rejects closing_line/closing_odds
+  3. assertNoFutureData() correctly rejects result data
+  4. validatePreInput() blocks forbidden fields in input
+  5. computeEdgeScorePre() output contains NO closing data references
+  6. Polluted input is correctly rejected at runtime
+
+MODEL_VERSION_PRE: v1.0.1-pre
+======================================================================
