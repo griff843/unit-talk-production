@@ -1,0 +1,57 @@
+# CLAUDE.MD UPDATE VERIFICATION
+# Date: 2026-02-22
+# Sprint: SPRINT-CLAUDE-OS-SESSION-ENFORCEMENT-110A
+
+## Changes Made
+
+### New Section Added: 11. 🔒 Mandatory Session Baseline (Non-Negotiable)
+
+#### Required Pre-Sprint Actions
+1. Run session baseline script: `pnpm session:baseline`
+2. Review diagnostics from baseline-summary.md
+3. Generate sprint plan based on real errors
+4. Confirm no schema drift
+5. Confirm working tree state
+
+#### Baseline Output Location
+- out/session-baseline/<timestamp>/baseline.json
+- out/session-baseline/<timestamp>/baseline-summary.md
+
+#### Pre-Sprint Check Gate
+- Command: `pnpm pre-sprint-check`
+- Verifies baseline freshness (< 10 minutes)
+- FAIL-CLOSED on violations
+
+#### Blocking Thresholds
+| Check | Threshold | Action |
+|-------|-----------|--------|
+| TypeScript errors | > 0 | Must address or justify |
+| ESLint errors | > 0 | Must address before commit |
+| Schema drift | detected | Regenerate types immediately |
+
+#### MCP Integration Commands
+- pnpm mcp:typescript
+- pnpm mcp:eslint
+- pnpm mcp:git
+- pnpm mcp:workspace
+- pnpm mcp:supabase
+
+#### Enforcement Rules
+1. No sprint may begin without baseline artifacts
+2. If baseline fails → STOP and fix
+3. TypeScript diagnostics > 0: Sprint must address
+4. ESLint errors > threshold: Must address
+5. Schema drift: Regenerate types immediately
+
+### Section Renumbering
+- Previous section 11 "References" → Now section 12
+
+## Verification
+
+### Section 11 Present: ✅
+### Enforcement Rules Documented: ✅
+### MCP Commands Documented: ✅
+### Blocking Thresholds Defined: ✅
+### FAIL-CLOSED Behavior Specified: ✅
+
+## PHASE 3 STATUS: ✅ PASS

@@ -1,0 +1,998 @@
+{
+  "timestamp": "2026-02-22T09:29:46.318Z",
+  "outputDir": "C:\\dev\\unit-talk-production\\out\\session-baseline\\2026-02-22T09-29-46",
+  "status": {
+    "overall": "fail",
+    "git": "warn",
+    "typescript": "pass",
+    "eslint": "fail",
+    "supabase": "warn"
+  },
+  "git": {
+    "status": {
+      "success": true,
+      "clean": false,
+      "staged": 2,
+      "modified": 5,
+      "untracked": 3,
+      "files": [
+        {
+          "status": "M",
+          "file": "LAUDE.md"
+        },
+        {
+          "status": "M",
+          "file": "package.json"
+        },
+        {
+          "status": "??",
+          "file": "scripts/claude-session-baseline.mjs"
+        },
+        {
+          "status": "??",
+          "file": "scripts/mcp-wrappers/"
+        },
+        {
+          "status": "??",
+          "file": "scripts/pre-sprint-check.mjs"
+        }
+      ]
+    },
+    "diff": {
+      "success": true,
+      "staged": false,
+      "changedFiles": [
+        "CLAUDE.md",
+        "package.json"
+      ],
+      "stat": "CLAUDE.md    | 72 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-\n package.json |  9 +++++++-\n 2 files changed, 79 insertions(+), 2 deletions(-)",
+      "hasChanges": true,
+      "linesAdded": 0,
+      "linesRemoved": 0
+    },
+    "branch": {
+      "success": true,
+      "current": "sprint/claude-os-session-enforcement-110a",
+      "upstream": "\"none\"",
+      "branches": [
+        "canonical/users-active-contract",
+        "chore/ci-hygiene-001",
+        "chore/ci-hygiene-002",
+        "chore/ci-upload-artifact-v4",
+        "chore/main-consolidation-2026-02-16",
+        "chore/ops-contracts",
+        "chore/repo-hygiene-001",
+        "dx-ops-pack-002",
+        "feat/alert-agent-v2",
+        "feat/alert-agent-v2-clean",
+        "feat/embed-production-contract-030",
+        "feat/posting-authority-implement-001",
+        "feat/scoring-tranche-10-hard-promotion-canary",
+        "feat/scoring-tranche-2-only",
+        "feat/scoring-tranche-2-tier-ev-v2",
+        "feat/scoring-tranche-3-registry-v2",
+        "feat/scoring-tranche-4-validate-weights",
+        "feat/scoring-tranche-4-weights-fix",
+        "feat/scoring-tranche-6-canary-routing",
+        "feat/scoring-tranche-7-promotion-policy",
+        "feat/scoring-tranche-8-prod-shadow-ops",
+        "feat/scoring-tranche-9-first-launch",
+        "feat/single-writer-seal-011",
+        "feat/smartform-contract-lock-023",
+        "feat/smartform-ux-critical-fixpack-025",
+        "feat/smartform-v1_1-compliance-035",
+        "feat/sprint-smartform-player-team-integrity-090",
+        "feat/sprint-smartform-sportsbook-ux-085",
+        "feat/sprint-smartform-true-manual-entry-084",
+        "feat/sprint-v3-ticket-discord-publish-086",
+        "feature/E2E-SUBMIT-LIFECYCLE-HARDENING-062",
+        "feature/SMARTFORM-BETSLIP-SPORTSBOOK-MANUAL-061",
+        "feature/SMARTFORM-CONTRACT-EXECUTION-PROOF-060",
+        "feature/SMARTFORM-DATA-CONTRACTS-INVENTORY-SURFACE-059",
+        "feature/SMARTFORM-DATA-CONTRACTS-MANUAL-INVENTORY-059",
+        "feature/SPRINT-OPS-SUBMIT-V2-071B",
+        "fix/column-drift-001",
+        "fix/docker-e2e-unblock",
+        "fix/local-contract-drift-health-and-users-active",
+        "fix/required-checks-always-run",
+        "fix/smart-form-500-health",
+        "fix/smart-form-docker-build",
+        "fix/smart-form-eslint-precommit",
+        "fix/smart-form-ui-step1",
+        "fix/tranche-6-v2-unblock",
+        "governance/mcp-tooling-constitution-2026-01-23",
+        "hotfix/smart-form-500",
+        "main",
+        "recovery/split-039-040",
+        "release/canary-rollout",
+        "safety/repo-catchup-20260218",
+        "scoring/tranche-split-t1-v2-foundation",
+        "scoring/tranche-split-t2-promotion-safety",
+        "scoring/tranche-split-t3-canary-v2-wiring",
+        "scoring/tranche-split-t4-production-enablement",
+        "sprint/claude-os-session-enforcement-110a",
+        "sprint/e2e-pick-submit-to-discord-proof-lock-107a",
+        "sprint/full-chain-staging-gauntlet-041",
+        "sprint/ops-gauntlet-schema-alignment-047",
+        "sprint/release-readiness-env-normalization-042",
+        "ui/surface-reset-020",
+        "origin",
+        "origin/chore/ci-hygiene-001",
+        "origin/chore/ci-hygiene-002",
+        "origin/chore/ci-upload-artifact-v4",
+        "origin/chore/db-audit-fixes",
+        "origin/chore/lint-reduction-pass-1",
+        "origin/chore/lock-main-for-migration",
+        "origin/chore/ops-contracts",
+        "origin/chore/repo-quality-rails",
+        "origin/ci/lockfile-sync",
+        "origin/cmd-center-toggles/2025-08-12",
+        "origin/cursor/restore-feedagent-business-logic-9ef4",
+        "origin/develop",
+        "origin/droid/agent-standardization",
+        "origin/feat/alert-agent-v2",
+        "origin/feat/alert-agent-v2-clean",
+        "origin/feat/charter-guards-postgrest-alignment",
+        "origin/feat/git-fortune100-auto-resolution",
+        "origin/feat/phase15-orchestrator",
+        "origin/feat/posting-authority-implement-001",
+        "origin/feat/pr7-incident-routing",
+        "origin/feat/pr9-go-live-hardening",
+        "origin/feat/scoring-tranche-10-hard-promotion-canary",
+        "origin/feat/scoring-tranche-2-only",
+        "origin/feat/scoring-tranche-2-tier-ev-v2",
+        "origin/feat/scoring-tranche-3-registry-v2",
+        "origin/feat/scoring-tranche-4-validate-weights",
+        "origin/feat/scoring-tranche-4-weights-fix",
+        "origin/feat/scoring-tranche-6-canary-routing",
+        "origin/feat/scoring-tranche-7-promotion-policy",
+        "origin/feat/scoring-tranche-8-prod-shadow-ops",
+        "origin/feat/scoring-tranche-9-first-launch",
+        "origin/feat/single-writer-seal-011",
+        "origin/feature/E2E-SUBMIT-LIFECYCLE-HARDENING-062",
+        "origin/feature/mlb-settlement-pipeline",
+        "origin/fix/add-missing-ci-scripts",
+        "origin/fix/ci-admin-rpcs-fault-tolerant",
+        "origin/fix/column-drift-001",
+        "origin/fix/compile-green-api",
+        "origin/fix/docker-e2e-unblock",
+        "origin/fix/fully-fault-tolerant-backfill",
+        "origin/fix/required-checks-always-run",
+        "origin/fix/smart-form-docker-build",
+        "origin/fix/smart-form-eslint-precommit",
+        "origin/fix/supabase-migration-history-repair",
+        "origin/fix/supabase-preview-idempotency",
+        "origin/fix/supabase-repair-specific",
+        "origin/governance/mcp-tooling-constitution-2026-01-23",
+        "origin/hotfix/phase4-finalization",
+        "origin/main",
+        "origin/master",
+        "origin/phase-10b-workflow-wiring",
+        "origin/phase-smart-form-stabilization",
+        "origin/phase10-app-tenancy",
+        "origin/phase10-infra-global",
+        "origin/phase6-performance-execution",
+        "origin/pr/phase4-agent-watchdog",
+        "origin/pr/phase4-build-hygiene",
+        "origin/pr/phase4-db-hygiene",
+        "origin/pr/phase4-dependency-plan",
+        "origin/pr/phase4-docs-runbook",
+        "origin/pr/phase4-index-optimization",
+        "origin/pr/phase4-nightly-baseline",
+        "origin/pr/phase4-secrets-policy",
+        "origin/pr/phase4-weekly-cleanup",
+        "origin/qa/pre-launch-documentation",
+        "origin/release/canary-rollout",
+        "origin/scoring/tranche-split-t1-v2-foundation",
+        "origin/scoring/tranche-split-t2-promotion-safety",
+        "origin/scoring/tranche-split-t3-canary-v2-wiring",
+        "origin/scoring/tranche-split-t4-production-enablement",
+        "origin/split/auto-revert",
+        "origin/split/autopilot-freeze",
+        "origin/split/ci-resolver",
+        "origin/split/policy-docs",
+        "origin/split/required-checks-rollout",
+        "origin/workspace-cleanup-backup"
+      ]
+    },
+    "recentCommits": [
+      "8cb2f7eb docs(sprint): SPRINT-E2E-PICK-SUBMIT-TO-DISCORD-PROOF-LOCK-107A complete",
+      "7a1e64ea fix(types): resolve schema debt in command-center TypeScript",
+      "04aef7ee feat(identity): refactor identity resolution for SPRINT-MARKET-SCOPED-IDENTITY-100B2",
+      "d4f2a344 fix(command-center): zero build errors (remove ignoreBuildErrors)",
+      "6a09ffb2 feat(sgo): add SGO roster sync client and scripts"
+    ],
+    "clean": false
+  },
+  "typescript": {
+    "success": true,
+    "timestamp": "2026-02-22T09:30:55.982Z",
+    "totalErrors": 0,
+    "summary": {
+      "totalErrors": 0,
+      "uniqueErrorCodes": 0,
+      "filesWithErrors": 0,
+      "byCode": [],
+      "byFile": []
+    },
+    "workspaceResults": [
+      {
+        "workspace": "api",
+        "config": "apps/api/tsconfig.json",
+        "errorCount": 0,
+        "topErrors": []
+      },
+      {
+        "workspace": "command-center",
+        "config": "apps/command-center/tsconfig.json",
+        "errorCount": 0,
+        "topErrors": []
+      },
+      {
+        "workspace": "dashboard",
+        "config": "apps/dashboard/tsconfig.json",
+        "errorCount": 0,
+        "topErrors": []
+      },
+      {
+        "workspace": "discord-bot",
+        "config": "apps/discord-bot/tsconfig.json",
+        "errorCount": 0,
+        "topErrors": []
+      },
+      {
+        "workspace": "smart-form",
+        "config": "apps/smart-form/tsconfig.json",
+        "errorCount": 0,
+        "topErrors": []
+      },
+      {
+        "workspace": "config",
+        "config": "packages/config/tsconfig.json",
+        "errorCount": 0,
+        "topErrors": []
+      },
+      {
+        "workspace": "database",
+        "config": "packages/database/tsconfig.json",
+        "errorCount": 0,
+        "topErrors": []
+      },
+      {
+        "workspace": "shared-types",
+        "config": "packages/shared-types/tsconfig.json",
+        "errorCount": 0,
+        "topErrors": []
+      },
+      {
+        "workspace": "shared-utils",
+        "config": "packages/shared-utils/tsconfig.json",
+        "errorCount": 0,
+        "topErrors": []
+      },
+      {
+        "workspace": "telemetry",
+        "config": "packages/telemetry/tsconfig.json",
+        "errorCount": 0,
+        "topErrors": []
+      }
+    ]
+  },
+  "eslint": {
+    "success": true,
+    "timestamp": "2026-02-22T09:32:11.918Z",
+    "summary": {
+      "totalErrors": 7893,
+      "totalWarnings": 14910,
+      "filesWithIssues": 1304,
+      "totalFilesScanned": 1889
+    },
+    "byRule": {
+      "totalErrors": 7893,
+      "totalWarnings": 14910,
+      "totalIssues": 22803,
+      "ruleBreakdown": [
+        {
+          "rule": "no-console",
+          "count": 11776,
+          "severity": "warning",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\fetch-mlb-props-now.js",
+            "line": 10,
+            "message": "Unexpected console statement.",
+            "severity": "warning"
+          }
+        },
+        {
+          "rule": "no-var",
+          "count": 2117,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\command-center\\playwright-verification-report\\trace\\sw.bundle.js",
+            "line": 1,
+            "message": "Unexpected var, use let or const instead.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "security/detect-object-injection",
+          "count": 1990,
+          "severity": "warning",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\qa\\tests\\security.test.ts",
+            "line": 690,
+            "message": "Generic Object Injection Sink",
+            "severity": "warning"
+          }
+        },
+        {
+          "rule": "@typescript-eslint/no-unused-vars",
+          "count": 953,
+          "severity": "warning",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\jest.shadow.config.js",
+            "line": 6,
+            "message": "'baseConfig' is assigned a value but never used. Allowed unused vars must match /^_/u.",
+            "severity": "warning"
+          }
+        },
+        {
+          "rule": "import/order",
+          "count": 891,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\qa\\tests\\security.test.ts",
+            "line": 20,
+            "message": "`crypto` import should occur before import of `../config/qa-config`",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "no-unused-vars",
+          "count": 864,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\jest.shadow.config.js",
+            "line": 6,
+            "message": "'baseConfig' is assigned a value but never used.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "complexity",
+          "count": 854,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\fetch-mlb-props-now.js",
+            "line": 9,
+            "message": "Async function 'fetchMLBPropsNow' has a complexity of 14. Maximum allowed is 10.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "max-lines-per-function",
+          "count": 815,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\fetch-mlb-props-now.js",
+            "line": 9,
+            "message": "Async function 'fetchMLBPropsNow' has too many lines (100). Maximum allowed is 50.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "no-undef",
+          "count": 780,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\qa\\run-launch-qa.ts",
+            "line": 283,
+            "message": "'string' is not defined.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "max-lines",
+          "count": 262,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\qa\\run-launch-qa.ts",
+            "line": 373,
+            "message": "File has too many lines (320). Maximum allowed is 300.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "unknown",
+          "count": 252,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\scripts\\comprehensiveTestRunner.ts",
+            "line": 2,
+            "message": "Parsing error: '#!' can only be used at the start of a file.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "max-depth",
+          "count": 238,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\qa\\tests\\security.test.ts",
+            "line": 286,
+            "message": "Blocks are nested too deeply (5). Maximum allowed is 4.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "security/detect-non-literal-fs-filename",
+          "count": 148,
+          "severity": "warning",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\qa\\utils\\generate-report.ts",
+            "line": 22,
+            "message": "Found existsSync from package \"fs\" with non literal argument at index 0",
+            "severity": "warning"
+          }
+        },
+        {
+          "rule": "no-useless-escape",
+          "count": 147,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\src\\lib\\embedPresentationContract.ts",
+            "line": 578,
+            "message": "Unnecessary escape character: \\..",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "max-params",
+          "count": 135,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\qa\\utils\\test-utils.ts",
+            "line": 10,
+            "message": "Function 'createQATestResult' has too many parameters (5). Maximum allowed is 4.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "no-prototype-builtins",
+          "count": 89,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\test-health-direct.js",
+            "line": 148,
+            "message": "Do not access Object.prototype method 'hasOwnProperty' from target object.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "no-return-await",
+          "count": 81,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\src\\agents\\AlertAgent\\activities\\hedge-detector.ts",
+            "line": 160,
+            "message": "Redundant use of `await` on a return value.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "prefer-const",
+          "count": 73,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\src\\logic\\scoring\\edgeScoring.ts",
+            "line": 147,
+            "message": "'breakdown' is never reassigned. Use 'const' instead.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "no-case-declarations",
+          "count": 62,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\src\\agents\\RiskManagementAgent\\positionSizer.ts",
+            "line": 340,
+            "message": "Unexpected lexical declaration in case block.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "no-empty",
+          "count": 42,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\src\\scripts\\smoke-capper-thread-routing.ts",
+            "line": 182,
+            "message": "Empty block statement.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "no-fallthrough",
+          "count": 41,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\command-center\\playwright-verification-report\\trace\\sw.bundle.js",
+            "line": 3,
+            "message": "Expected a 'break' statement before 'case'.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "security/detect-non-literal-regexp",
+          "count": 34,
+          "severity": "warning",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\scripts\\migrate-agents-v2.ts",
+            "line": 39,
+            "message": "Found non-literal argument to RegExp Constructor",
+            "severity": "warning"
+          }
+        },
+        {
+          "rule": "security/detect-unsafe-regex",
+          "count": 32,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\scripts\\auditAgents.ts",
+            "line": 217,
+            "message": "Unsafe Regular Expression",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "no-cond-assign",
+          "count": 30,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\dashboard\\playwright-report\\trace\\assets\\codeMirrorModule-3kZ8GVgK.js",
+            "line": 1,
+            "message": "Expected a conditional expression and instead saw an assignment.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "no-redeclare",
+          "count": 14,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\src\\agents\\FeedAgent\\optimal.ts",
+            "line": 114,
+            "message": "'OptimalPlayerProp' is already defined.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "no-constant-condition",
+          "count": 13,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\src\\agents\\AnalyticsAgent\\workflows\\index.ts",
+            "line": 20,
+            "message": "Unexpected constant condition.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "no-control-regex",
+          "count": 11,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\dashboard\\playwright-report\\trace\\assets\\codeMirrorModule-3kZ8GVgK.js",
+            "line": 11,
+            "message": "Unexpected control character(s) in regular expression: \\x00, \\x08, \\x0e, \\x1f.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "no-script-url",
+          "count": 9,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\qa\\tests\\security.test.ts",
+            "line": 265,
+            "message": "Script URL is a form of eval.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "react-hooks/rules-of-hooks",
+          "count": 9,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\dashboard\\playwright-report\\trace\\assets\\defaultSettingsView-Ds-bson8.js",
+            "line": 18,
+            "message": "React Hook \"Mt.useState\" is called in function \"k0\" that is neither a React function component nor a custom React Hook function. React component names must start with an uppercase letter. React Hook names must start with the word \"use\".",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "no-unreachable",
+          "count": 8,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\src\\agents\\AlertAgent\\index.ts",
+            "line": 564,
+            "message": "Unreachable code.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "no-empty-pattern",
+          "count": 4,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\src\\workflows\\smartFormWorkflow.ts",
+            "line": 6,
+            "message": "Unexpected empty object pattern.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "import/no-duplicates",
+          "count": 4,
+          "severity": "warning",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\command-center\\src\\components\\PickDetailsModal.tsx",
+            "line": 32,
+            "message": "'@/lib/utils' imported multiple times.",
+            "severity": "warning"
+          }
+        },
+        {
+          "rule": "prefer-promise-reject-errors",
+          "count": 3,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\test-health-direct.js",
+            "line": 80,
+            "message": "Expected the Promise rejection reason to be an Error.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "no-alert",
+          "count": 3,
+          "severity": "warning",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\command-center\\src\\app\\dashboard\\api-health\\page.tsx",
+            "line": 320,
+            "message": "Unexpected alert.",
+            "severity": "warning"
+          }
+        },
+        {
+          "rule": "no-misleading-character-class",
+          "count": 3,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\dashboard\\playwright-report\\trace\\assets\\codeMirrorModule-3kZ8GVgK.js",
+            "line": 1,
+            "message": "Unexpected combined character in character class.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "no-extra-boolean-cast",
+          "count": 3,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\dashboard\\playwright-report\\trace\\assets\\defaultSettingsView-Ds-bson8.js",
+            "line": 49,
+            "message": "Redundant double negation.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "no-regex-spaces",
+          "count": 2,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\scripts\\run-golden-tests.ts",
+            "line": 144,
+            "message": "Spaces are hard to count. Use {2}.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "no-import-assign",
+          "count": 2,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\test\\shadow-mode\\shadow-integration.test.ts",
+            "line": 46,
+            "message": "'supabaseClient' is read-only.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "valid-typeof",
+          "count": 2,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\dashboard\\playwright-report\\trace\\assets\\defaultSettingsView-Ds-bson8.js",
+            "line": 38,
+            "message": "Invalid typeof comparison value.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "no-func-assign",
+          "count": 2,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\dashboard\\playwright-report\\trace\\assets\\defaultSettingsView-Ds-bson8.js",
+            "line": 41,
+            "message": "'Uf' is a function.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "security/detect-non-literal-require",
+          "count": 1,
+          "severity": "warning",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\src\\scripts\\simple-health-check.ts",
+            "line": 196,
+            "message": "Found non-literal argument in require",
+            "severity": "warning"
+          }
+        },
+        {
+          "rule": "security/detect-child-process",
+          "count": 1,
+          "severity": "warning",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\test-health-endpoint.js",
+            "line": 44,
+            "message": "Found child_process.exec() with non Literal first argument",
+            "severity": "warning"
+          }
+        },
+        {
+          "rule": "no-dupe-keys",
+          "count": 1,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\api\\test\\professional\\integration.golden.test.ts",
+            "line": 389,
+            "message": "Duplicate key 'player'.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "getter-return",
+          "count": 1,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\dashboard\\playwright-report\\trace\\assets\\defaultSettingsView-Ds-bson8.js",
+            "line": 38,
+            "message": "Expected to return a value in method 'get'.",
+            "severity": "error"
+          }
+        },
+        {
+          "rule": "no-self-assign",
+          "count": 1,
+          "severity": "error",
+          "example": {
+            "file": "C:\\dev\\unit-talk-production\\apps\\dashboard\\playwright-report\\trace\\assets\\defaultSettingsView-Ds-bson8.js",
+            "line": 106,
+            "message": "'p' is assigned to itself.",
+            "severity": "error"
+          }
+        }
+      ]
+    },
+    "byFile": {
+      "filesWithIssues": 1304,
+      "totalFiles": 1889,
+      "summary": [
+        {
+          "file": "apps\\dashboard\\playwright-report\\trace\\assets\\codeMirrorModule-3kZ8GVgK.js",
+          "errors": 1737,
+          "warnings": 444,
+          "total": 2181,
+          "fixable": 1190
+        },
+        {
+          "file": "apps\\dashboard\\playwright-report\\trace\\assets\\defaultSettingsView-Ds-bson8.js",
+          "errors": 1326,
+          "warnings": 484,
+          "total": 1810,
+          "fixable": 615
+        },
+        {
+          "file": "apps\\command-center\\playwright-verification-report\\trace\\sw.bundle.js",
+          "errors": 105,
+          "warnings": 141,
+          "total": 246,
+          "fixable": 13
+        },
+        {
+          "file": "apps\\dashboard\\playwright-report\\trace\\sw.bundle.js",
+          "errors": 105,
+          "warnings": 138,
+          "total": 243,
+          "fixable": 13
+        },
+        {
+          "file": "apps\\api\\src\\tests\\syndicate-grade\\performance\\high-volume-processing.test.ts",
+          "errors": 36,
+          "warnings": 116,
+          "total": 152,
+          "fixable": 23
+        },
+        {
+          "file": "apps\\api\\test\\setup.ts",
+          "errors": 134,
+          "warnings": 9,
+          "total": 143,
+          "fixable": 0
+        },
+        {
+          "file": "apps\\api\\src\\runner\\testE2ERealData.ts",
+          "errors": 16,
+          "warnings": 124,
+          "total": 140,
+          "fixable": 0
+        },
+        {
+          "file": "apps\\api\\src\\tests\\syndicate-grade\\chaos\\fault-tolerance.test.ts",
+          "errors": 35,
+          "warnings": 104,
+          "total": 139,
+          "fixable": 23
+        },
+        {
+          "file": "apps\\api\\src\\tests\\syndicate-grade\\integration\\data-flow-validation.test.ts",
+          "errors": 30,
+          "warnings": 100,
+          "total": 130,
+          "fixable": 19
+        },
+        {
+          "file": "apps\\api\\src\\runner\\testE2ERealDataFixed.ts",
+          "errors": 12,
+          "warnings": 103,
+          "total": 115,
+          "fixable": 0
+        },
+        {
+          "file": "apps\\api\\scripts\\analyze-database-schema.ts",
+          "errors": 5,
+          "warnings": 106,
+          "total": 111,
+          "fixable": 0
+        },
+        {
+          "file": "apps\\api\\scripts\\deploy-phase-d-analytics.ts",
+          "errors": 2,
+          "warnings": 108,
+          "total": 110,
+          "fixable": 0
+        },
+        {
+          "file": "apps\\api\\src\\scripts\\investigate-credit-tracking.ts",
+          "errors": 3,
+          "warnings": 102,
+          "total": 105,
+          "fixable": 0
+        },
+        {
+          "file": "apps\\api\\scripts\\test-odds-api-integration.ts",
+          "errors": 2,
+          "warnings": 101,
+          "total": 103,
+          "fixable": 0
+        },
+        {
+          "file": "apps\\api\\src\\scripts\\test-optimal-api-integration.ts",
+          "errors": 3,
+          "warnings": 90,
+          "total": 93,
+          "fixable": 0
+        },
+        {
+          "file": "apps\\api\\scripts\\deploy-elite-system.ts",
+          "errors": 1,
+          "warnings": 91,
+          "total": 92,
+          "fixable": 0
+        },
+        {
+          "file": "apps\\api\\src\\scripts\\fix-odds-api-parsing.ts",
+          "errors": 2,
+          "warnings": 84,
+          "total": 86,
+          "fixable": 0
+        },
+        {
+          "file": "apps\\api\\src\\scripts\\analyze-over-under-issue.ts",
+          "errors": 3,
+          "warnings": 82,
+          "total": 85,
+          "fixable": 0
+        },
+        {
+          "file": "apps\\api\\scripts\\test-elite-dual-api.ts",
+          "errors": 2,
+          "warnings": 82,
+          "total": 84,
+          "fixable": 0
+        },
+        {
+          "file": "apps\\api\\src\\scripts\\diagnose-grading-system.ts",
+          "errors": 3,
+          "warnings": 78,
+          "total": 81,
+          "fixable": 0
+        }
+      ]
+    }
+  },
+  "workspace": {
+    "summary": {
+      "success": true,
+      "totalPackages": 11,
+      "apps": [],
+      "packages": [],
+      "workspacePatterns": [
+        "apps/*",
+        "packages/*"
+      ]
+    },
+    "affected": {
+      "success": true,
+      "directlyAffected": [
+        "@root"
+      ],
+      "potentiallyAffected": [],
+      "fileToPackage": {
+        "scripts/claude-session-baseline.mjs": "@root",
+        "scripts/mcp-wrappers/": "@root",
+        "scripts/pre-sprint-check.mjs": "@root"
+      },
+      "totalAffected": 1
+    }
+  },
+  "supabase": {
+    "summary": {
+      "success": true,
+      "config": {
+        "exists": false
+      },
+      "schema": {
+        "tables": 32,
+        "functions": 47,
+        "triggers": 11,
+        "indexes": 187,
+        "types": 2
+      },
+      "hash": "1be168b211901ad2",
+      "drift": {
+        "hasDrift": null
+      },
+      "rpcs": 48,
+      "latestMigration": "20260222041000_identity_status_schema.sql"
+    },
+    "hash": {
+      "success": true,
+      "hash": "1be168b211901ad2",
+      "migrationCount": 31,
+      "latestMigration": "20260222041000_identity_status_schema.sql",
+      "computedAt": "2026-02-22T09:33:37.814Z"
+    },
+    "drift": {
+      "success": true,
+      "hasDrift": null,
+      "reason": "No generated types file found",
+      "recommendation": "Run: npx supabase gen types typescript --local"
+    }
+  }
+}

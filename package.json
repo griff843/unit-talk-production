@@ -52,7 +52,14 @@
     "sprint:validate": "npx tsx scripts/sprint-close.ts --validate-only",
     "sprint:close": "npx tsx scripts/sprint-close.ts",
     "guard:lockfiles": "npx tsx scripts/guard-no-npm-lock.ts",
-    "ops:day": "node ops/day.mjs"
+    "ops:day": "node ops/day.mjs",
+    "session:baseline": "node scripts/claude-session-baseline.mjs",
+    "pre-sprint-check": "node scripts/pre-sprint-check.mjs",
+    "mcp:eslint": "node scripts/mcp-wrappers/eslint-mcp.mjs",
+    "mcp:git": "node scripts/mcp-wrappers/git-mcp.mjs",
+    "mcp:workspace": "node scripts/mcp-wrappers/pnpm-workspace-mcp.mjs",
+    "mcp:supabase": "node scripts/mcp-wrappers/supabase-schema-mcp.mjs",
+    "mcp:typescript": "node scripts/mcp-wrappers/typescript-lsp-mcp.mjs"
   },
   "keywords": [
     "sports-betting",

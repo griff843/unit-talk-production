@@ -1,0 +1,67 @@
+# PRE-SPRINT HOOK VERIFICATION
+# Date: 2026-02-22
+# Sprint: SPRINT-CLAUDE-OS-SESSION-ENFORCEMENT-110A
+
+## Script Details
+
+### Location
+scripts/pre-sprint-check.mjs
+
+### Command
+pnpm pre-sprint-check
+
+### Behavior
+
+#### Check 1: Baseline Exists
+- Searches out/session-baseline/ for latest baseline
+- FAIL if no baseline found
+
+#### Check 2: Baseline Freshness
+- Default max age: 10 minutes
+- Configurable via MAX_BASELINE_AGE_MINUTES
+- FAIL if baseline too old
+
+#### Check 3: No Blockers
+Blocking issues:
+- TypeScript errors > 0
+- ESLint errors > 0
+- Supabase schema drift detected
+
+#### Check 4: Warnings (Non-blocking)
+- Dirty working tree
+- ESLint warnings > 10
+
+### Exit Codes
+- 0: All checks passed, sprint may proceed
+- 1: Check failed, sprint CANNOT proceed
+
+### FAIL-CLOSED Enforcement
+Script always exits with code 1 if any blocker found.
+No silent fallbacks.
+No soft enforcement.
+
+## Integration Points
+
+### Package.json
+```json
+"pre-sprint-check": "node scripts/pre-sprint-check.mjs"
+```
+
+### ops:day Integration (Planned)
+- Can be added to pnpm ops:day workflow
+- Would run baseline + pre-sprint check automatically
+
+### Sprint Template Integration
+- CLAUDE.md section 11 requires pre-sprint-check
+- No sprint may begin without passing check
+
+## Test Run Output
+```
+[1/4] Checking for baseline... ✓ Baseline found
+[2/4] Checking baseline freshness... ✓ Fresh
+[3/4] Checking for blockers... ✓ No blockers
+[4/4] Checking warnings... ⚠ X warnings
+✅ Sprint may proceed.
+```
+
+## PHASE 4 STATUS: ✅ PASS

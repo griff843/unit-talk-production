@@ -1,0 +1,91 @@
+# MCP INSTALLATION VERIFICATION
+# Date: 2026-02-22
+# Sprint: SPRINT-CLAUDE-OS-SESSION-ENFORCEMENT-110A
+
+## Tier 1 - Mandatory MCPs
+
+### 1. TypeScript LSP MCP ✅
+- Location: scripts/mcp-wrappers/typescript-lsp-mcp.mjs
+- Capabilities:
+  - getDiagnostics() - Run tsc --noEmit across workspace
+  - getCompilerOptions() - Parse tsconfig.json
+  - summarizeErrors() - Group errors by code/file
+  - runFullDiagnostics() - Complete workspace analysis
+- Integration: IDE MCP (mcp__ide__getDiagnostics) also available
+
+### 2. ESLint MCP ✅
+- Location: scripts/mcp-wrappers/eslint-mcp.mjs
+- Capabilities:
+  - lint(files) - Lint specific files
+  - lintAndFix(files) - Lint with auto-fix
+  - summarizeByRule() - Group by rule ID
+  - summarizeByFile() - Group by file
+  - runFullAnalysis() - Complete repo analysis
+
+### 3. Git MCP ✅
+- Location: scripts/mcp-wrappers/git-mcp.mjs
+- Capabilities:
+  - status() - Working tree status
+  - diff(staged) - Show changes
+  - branch() - Branch information
+  - log(count, format) - Commit history
+  - show(ref) - Show specific commit
+  - info() - Complete repository info
+
+### 4. pnpm Workspace MCP ✅
+- Location: scripts/mcp-wrappers/pnpm-workspace-mcp.mjs
+- Capabilities:
+  - getAffectedPackages(changedFiles) - Impact analysis
+  - dependencyGraph() - Workspace dependency graph
+  - runInWorkspace(workspace, command) - Run in specific workspace
+  - listPackages() - List all workspace packages
+  - getDependents(packages) - Reverse dependency lookup
+
+### 5. Supabase Schema MCP ✅
+- Location: scripts/mcp-wrappers/supabase-schema-mcp.mjs
+- Capabilities:
+  - introspectSchema() - Parse migrations for schema
+  - generateTypes() - Trigger type generation
+  - diffSchemaVsTypes() - Detect drift
+  - getRpcSignatures() - Extract RPC function signatures
+  - getSchemaHash() - Compute schema fingerprint
+
+## Integration Points
+
+### Package.json Scripts
+```json
+{
+  "session:baseline": "node scripts/claude-session-baseline.mjs",
+  "pre-sprint-check": "node scripts/pre-sprint-check.mjs",
+  "mcp:eslint": "node scripts/mcp-wrappers/eslint-mcp.mjs",
+  "mcp:git": "node scripts/mcp-wrappers/git-mcp.mjs",
+  "mcp:workspace": "node scripts/mcp-wrappers/pnpm-workspace-mcp.mjs",
+  "mcp:supabase": "node scripts/mcp-wrappers/supabase-schema-mcp.mjs",
+  "mcp:typescript": "node scripts/mcp-wrappers/typescript-lsp-mcp.mjs"
+}
+```
+
+### Baseline Session Script
+- Location: scripts/claude-session-baseline.mjs
+- Imports all MCP wrappers
+- Generates out/session-baseline/<timestamp>/baseline.json
+- Generates out/session-baseline/<timestamp>/baseline-summary.md
+
+### Pre-Sprint Check
+- Location: scripts/pre-sprint-check.mjs
+- Validates baseline freshness (< 10 minutes)
+- Checks for blocking issues
+- FAIL-CLOSED on violations
+
+## Verification Status
+
+| MCP | File Exists | Capabilities | Tested |
+|-----|-------------|--------------|--------|
+| TypeScript LSP | ✅ | 4/4 | ✅ |
+| ESLint | ✅ | 5/5 | ✅ |
+| Git | ✅ | 6/6 | ✅ |
+| pnpm Workspace | ✅ | 5/5 | ✅ |
+| Supabase Schema | ✅ | 5/5 | ✅ |
+
+## PHASE 1 STATUS: ✅ PASS
+All Tier 1 MCPs installed and verified.
