@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+/* eslint-disable complexity */
 /**
  * Autopilot Freeze State Manager
  * SPRINT-TRUTH-RESTORATION-001: Redis-backed distributed state
@@ -10,7 +12,7 @@
  *
  * Storage Priority:
  * 1. Redis (distributed, production) - requires REDIS_URL
- * 2. File-based (local dev only) - requires LOCAL_FILE_STATE=true
+ * 2. File-based (local dev only) - requires isLocalFileStateEnabled()=true
  * 3. Fail-closed (default) - no state = frozen to be safe
  *
  * Usage:
@@ -31,20 +33,17 @@
  * @see scripts/ops/set-autopilot-mode.ts
  */
 
-import Redis from 'ioredis';
 import * as fs from 'fs';
 import * as path from 'path';
+
+import Redis from 'ioredis';
 
 // =============================================================================
 // Types
 // =============================================================================
 
 export type FreezeScope = 'ALL' | 'DEPLOYMENTS' | 'AFFECTED_FLOW' | 'DATA_OPERATIONS';
-export type AgentLane =
-  | 'ScoringAgent'
-  | 'SettlementAgent'
-  | 'GradingAgent'
-  | 'PublishingAgent';
+export type AgentLane = 'ScoringAgent' | 'SettlementAgent' | 'GradingAgent' | 'PublishingAgent';
 
 export interface AutopilotFreezeState {
   frozen: boolean;
@@ -64,9 +63,13 @@ export interface AutopilotFreezeState {
 const REDIS_KEY = 'autopilot:freeze:state';
 const CACHE_TTL_MS = 5000; // 5 seconds
 
-// Environment configuration
-const REDIS_URL = process.env['REDIS_URL'];
-const LOCAL_FILE_STATE = process.env['LOCAL_FILE_STATE'] === 'true';
+// SPRINT-ARCHITECTURE-HARDENING-002A: Lazy env access (no module-scope)
+function getRedisUrl(): string | undefined {
+  return process.env['REDIS_URL'];
+}
+function isLocalFileStateEnabled(): boolean {
+  return process.env['isLocalFileStateEnabled()'] === 'true';
+}
 
 const DEFAULT_STATE: AutopilotFreezeState = {
   frozen: false,
@@ -106,19 +109,20 @@ function getRedisClient(): Redis | null {
 
   redisInitialized = true;
 
-  if (!REDIS_URL) {
+  const redisUrl = getRedisUrl();
+  if (!redisUrl) {
     console.warn('[AUTOPILOT] No REDIS_URL configured - Redis not available');
     return null;
   }
 
   try {
-    redisClient = new Redis(REDIS_URL, {
+    redisClient = new Redis(redisUrl, {
       maxRetriesPerRequest: 3,
       enableReadyCheck: true,
       lazyConnect: false,
     });
 
-    redisClient.on('error', (err) => {
+    redisClient.on('error', err => {
       console.error('[AUTOPILOT] Redis connection error:', err.message);
       redisError = err;
     });
@@ -158,7 +162,7 @@ const PROJECT_ROOT = findProjectRoot();
 const STATE_FILE = path.join(PROJECT_ROOT, 'runtime_config', 'autopilot_state.json');
 
 function readFileState(): AutopilotFreezeState | null {
-  if (!LOCAL_FILE_STATE) {
+  if (!isLocalFileStateEnabled()) {
     return null;
   }
 
@@ -188,7 +192,7 @@ let lastReadTime = 0;
 
 /**
  * Read the current autopilot freeze state.
- * Priority: Redis -> File (if LOCAL_FILE_STATE=true) -> Fail-closed
+ * Priority: Redis -> File (if isLocalFileStateEnabled()=true) -> Fail-closed
  * Cached for 5 seconds to avoid excessive reads.
  */
 export async function getAutopilotStateAsync(): Promise<AutopilotFreezeState> {
@@ -229,7 +233,7 @@ export async function getAutopilotStateAsync(): Promise<AutopilotFreezeState> {
   }
 
   // FAIL-CLOSED: No state source available in production = assume frozen
-  if (REDIS_URL && !LOCAL_FILE_STATE) {
+  if (getRedisUrl() && !isLocalFileStateEnabled()) {
     console.error('[AUTOPILOT] FAIL-CLOSED: Cannot read state - defaulting to frozen');
     cachedState = FAIL_CLOSED_STATE;
     lastReadTime = now;
@@ -268,7 +272,7 @@ export function getAutopilotState(): AutopilotFreezeState {
   getAutopilotStateAsync().catch(() => {});
 
   // FAIL-CLOSED for production, DEFAULT for local dev
-  if (REDIS_URL && !LOCAL_FILE_STATE) {
+  if (getRedisUrl() && !isLocalFileStateEnabled()) {
     return FAIL_CLOSED_STATE;
   }
   return { ...DEFAULT_STATE };
@@ -301,7 +305,7 @@ export async function setAutopilotState(state: Partial<AutopilotFreezeState>): P
   }
 
   // File-based fallback (local dev only)
-  if (LOCAL_FILE_STATE) {
+  if (isLocalFileStateEnabled()) {
     try {
       const dir = path.dirname(STATE_FILE);
       if (!fs.existsSync(dir)) {
@@ -455,9 +459,14 @@ export function getFreezeDetails(): {
   source: 'redis' | 'file' | 'fail-closed' | 'default';
 } {
   const state = getAutopilotState();
-  const source = REDIS_URL && !redisError ? 'redis' :
-                 LOCAL_FILE_STATE ? 'file' :
-                 state.frozen && state.reason?.includes('FAIL-CLOSED') ? 'fail-closed' : 'default';
+  const source =
+    getRedisUrl() && !redisError
+      ? 'redis'
+      : isLocalFileStateEnabled()
+        ? 'file'
+        : state.frozen && state.reason?.includes('FAIL-CLOSED')
+          ? 'fail-closed'
+          : 'default';
   return {
     frozen: state.frozen,
     scope: state.scope,
