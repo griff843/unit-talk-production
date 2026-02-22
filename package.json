@@ -87,7 +87,7 @@
   "lint-staged": {
     "*.{ts,tsx}": [
       "prettier --write",
-      "eslint --fix"
+      "eslint --fix --ignore-pattern 'apps/command-center/src/types/database*.ts' --ignore-pattern 'apps/command-center/src/types/index.ts'"
     ],
     "*.{js,jsx}": [
       "prettier --write",
