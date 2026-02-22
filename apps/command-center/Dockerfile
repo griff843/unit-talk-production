@@ -1,6 +1,6 @@
 # ==============================================
 # Multi-stage Dockerfile for Unit Talk Command Center
-# Next.js operational dashboard with real-time monitoring
+# SPRINT-FRONTEND-CONTAINER-TRUTH-LOCK-102B: Production mode execution
 # ==============================================
 
 # Base image
@@ -20,7 +20,8 @@ WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@10.29.3 --activate
 
 # ==============================================
-# DEVELOPMENT STAGE
+# DEVELOPMENT STAGE (runs production build)
+# SPRINT-FRONTEND-CONTAINER-TRUTH-LOCK-102B: No dev mode - always production
 # ==============================================
 FROM base AS development
 
@@ -37,21 +38,26 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 
 WORKDIR /app/apps/command-center
 
-# Development mode - run as root for simplicity during Docker troubleshooting
-# TODO: Switch back to non-root user once development is stable
+# Build Next.js application in production mode
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+RUN pnpm run build
 
-# Expose port
-EXPOSE 3000
+# Expose port (internal: 3015)
+EXPOSE 3015
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD curl -f http://localhost:3000/api/health || exit 1
+# Health check using /api/health endpoint
+HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=30 \
+  CMD curl -f http://127.0.0.1:3015/api/health || exit 1
 
-# Development start
-CMD ["npm", "run", "dev"]
+# Production start using standalone server
+# SPRINT-FRONTEND-CONTAINER-TRUTH-LOCK-102B: No dev mode - production only
+ENV PORT=3015
+ENV HOSTNAME=0.0.0.0
+CMD ["node", ".next/standalone/apps/command-center/server.js"]
 
 # ==============================================
-# BUILD STAGE
+# BUILD STAGE (for external production builds)
 # ==============================================
 FROM base AS builder
 
@@ -79,6 +85,8 @@ FROM base AS production
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+WORKDIR /app
+
 # Copy built application
 COPY --from=builder /app/apps/command-center/.next/standalone ./
 COPY --from=builder /app/apps/command-center/.next/static ./.next/static
@@ -91,12 +99,14 @@ RUN addgroup -g 1001 -S nodejs && \
 
 USER nodejs
 
-# Expose port
-EXPOSE 3000
+# Expose port (internal: 3015)
+EXPOSE 3015
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/api/health || exit 1
+HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=30 \
+  CMD curl -f http://127.0.0.1:3015/api/health || exit 1
 
 # Production start
+ENV PORT=3015
+ENV HOSTNAME=0.0.0.0
 CMD ["node", "server.js"]

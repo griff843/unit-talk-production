@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // SPRINT-FRONTEND-CONTAINER-TRUTH-LOCK-102B: Enable standalone for Docker production
+  output: 'standalone',
+
   reactStrictMode: true,
   typescript: {
     ignoreBuildErrors: true,

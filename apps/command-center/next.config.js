@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // SPRINT-FRONTEND-CONTAINER-TRUTH-LOCK-102B: Enable standalone for Docker production
+  output: 'standalone',
+
   // Windows build optimization
   swcMinify: false, // Disable SWC minifier for Windows compatibility
   reactStrictMode: false, // Disable for debugging
@@ -19,7 +22,7 @@ const nextConfig = {
   },
 
   // Disable webpack cache and minification for Windows builds
-  webpack: (config, { dev, isServer }) => {
+  webpack: (config, { dev }) => {
     if (!dev && process.platform === 'win32') {
       // Disable filesystem cache on Windows production builds
       config.cache = false;
@@ -32,10 +35,6 @@ const nextConfig = {
 
     return config;
   },
-
-  // NOTE: Removed 'output: standalone' - causes symlink EINVAL errors
-  // on Windows when repo is inside OneDrive/cloud-synced folders.
-  // Use standard build output for local development.
 
   // Simple compression
   compress: true,

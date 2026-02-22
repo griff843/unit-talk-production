@@ -1,6 +1,6 @@
 # ==============================================
 # Multi-stage Dockerfile for Unit Talk Smart Form
-# Next.js application with development support
+# SPRINT-FRONTEND-CONTAINER-TRUTH-LOCK-102B: Production mode execution
 # ==============================================
 
 # Base image
@@ -20,7 +20,8 @@ WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@10.29.3 --activate
 
 # ==============================================
-# DEVELOPMENT STAGE
+# DEVELOPMENT STAGE (runs production build)
+# SPRINT-FRONTEND-CONTAINER-TRUTH-LOCK-102B: No dev mode - always production
 # ==============================================
 FROM base AS development
 
@@ -37,21 +38,24 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 
 WORKDIR /app/apps/smart-form
 
-# Note: Development stage runs as root for volume mount compatibility
-# Production stage uses non-root user (see below)
+# Build Next.js application in production mode
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+RUN pnpm run build
 
-# Expose port
+# Expose port (internal: 3021)
 EXPOSE 3021
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD curl -f http://localhost:3021/api/health || exit 1
+# Health check using /api/health endpoint
+HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=30 \
+  CMD curl -f http://127.0.0.1:3021/api/health || exit 1
 
-# Development start
-CMD ["npm", "run", "dev"]
+# Production start using standalone server
+# SPRINT-FRONTEND-CONTAINER-TRUTH-LOCK-102B: No dev mode - production only
+CMD ["node", ".next/standalone/apps/smart-form/server.js"]
 
 # ==============================================
-# BUILD STAGE
+# BUILD STAGE (for external production builds)
 # ==============================================
 FROM base AS builder
 
@@ -75,6 +79,8 @@ RUN pnpm run build
 # PRODUCTION STAGE
 # ==============================================
 FROM base AS production
+
+WORKDIR /app
 
 # Copy monorepo root pnpm files
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -100,12 +106,14 @@ RUN addgroup -g 1001 -S nodejs && \
 
 USER nodejs
 
-# Expose port
-EXPOSE 3000
+# Expose port (internal: 3021)
+EXPOSE 3021
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/api/health || exit 1
+HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=30 \
+  CMD curl -f http://127.0.0.1:3021/api/health || exit 1
 
 # Production start
+ENV PORT=3021
+ENV HOSTNAME=0.0.0.0
 CMD ["node", "server.js"]

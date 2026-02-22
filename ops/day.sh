@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # CANONICAL ENTRYPOINT: pnpm ops:day
-# SPRINT-ENTRYPOINT-CANONICALIZATION-097A
+# SPRINT-FRONTEND-CONTAINER-TRUTH-LOCK-102B
 #
 # THE ONE TRUE WAY to start a production workday locally.
 # All other entrypoints (dev.sh, etc.) are DEPRECATED.
@@ -22,7 +22,7 @@ set -euo pipefail
 # ============================================================================
 
 DB_MODE="${1:-cloud}"
-SPRINT_ID="SPRINT-OPS-DAY-HEALTH-TIMEOUTS-101A"
+SPRINT_ID="SPRINT-FRONTEND-CONTAINER-TRUTH-LOCK-102B"
 DATE=$(date +%Y-%m-%d)
 PROOF_DIR="out/sprints/$SPRINT_ID/$DATE/proofs"
 # Use 127.0.0.1 instead of localhost to avoid IPv6 issues on Windows
@@ -33,7 +33,8 @@ STRICT_FRONTENDS="${OPS_STRICT_FRONTENDS:-0}"
 HEALTH_TIMEOUT=$FRONTEND_TIMEOUT
 
 # Service URLs
-SMART_FORM_URL="http://localhost:3002"
+# SPRINT-FRONTEND-CONTAINER-TRUTH-LOCK-102B: Fixed ports
+SMART_FORM_URL="http://localhost:3021"
 COMMAND_CENTER_URL="http://localhost:3004"
 DASHBOARD_URL="http://localhost:3003"
 GRAFANA_URL="http://localhost:3001"
@@ -270,6 +271,99 @@ fi
 ok "Temporal foundation verified"
 
 # ============================================================================
+# STEP D.2: Verify Frontend Health
+# SPRINT-FRONTEND-CONTAINER-TRUTH-LOCK-102B
+# ============================================================================
+
+step "D.2) Verifying Frontend Health"
+
+# Display strict mode setting
+if [[ "$STRICT_FRONTENDS" == "1" ]]; then
+    info "STRICT_FRONTENDS=YES - Frontends MUST be healthy"
+else
+    info "STRICT_FRONTENDS=NO - Frontend failures are warnings"
+fi
+
+# Function to check frontend health
+check_frontend_health() {
+    local name="$1"
+    local url="$2"
+    local container="$3"
+    local max_retries=10
+    local retry_delay=5
+
+    local health_url="${url}/api/health"
+    info "Checking $name at $health_url..."
+
+    for i in $(seq 1 $max_retries); do
+        response=$(curl -sf "$health_url" 2>/dev/null || echo "")
+        if [[ -n "$response" ]]; then
+            status=$(echo "$response" | node -e "
+                const data = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+                console.log(data.status || 'unknown');
+            " 2>/dev/null || echo "unknown")
+            if [[ "$status" == "ok" || "$status" == "healthy" ]]; then
+                ok "$name: healthy (status: $status)"
+                return 0
+            else
+                info "$name: status=$status (retry $i/$max_retries)"
+            fi
+        else
+            info "$name: not ready (retry $i/$max_retries)"
+        fi
+        sleep $retry_delay
+    done
+
+    # Frontend failed to become healthy - dump logs
+    warn "$name: UNHEALTHY after $max_retries retries"
+    echo "--- $container logs (last 100 lines) ---"
+    docker compose logs --tail=100 "$container" 2>&1 || true
+    echo "--- end $container logs ---"
+    return 1
+}
+
+# Track frontend health status
+SMART_FORM_HEALTHY=false
+COMMAND_CENTER_HEALTHY=false
+DASHBOARD_HEALTHY=false
+
+# Check Smart Form
+if check_frontend_health "smart-form" "$SMART_FORM_URL" "smart-form"; then
+    SMART_FORM_HEALTHY=true
+fi
+
+# Check Command Center
+if check_frontend_health "command-center" "$COMMAND_CENTER_URL" "command-center"; then
+    COMMAND_CENTER_HEALTHY=true
+fi
+
+# Check Dashboard
+if check_frontend_health "dashboard" "$DASHBOARD_URL" "dashboard"; then
+    DASHBOARD_HEALTHY=true
+fi
+
+# Evaluate results
+UNHEALTHY_FRONTENDS=""
+if [[ "$SMART_FORM_HEALTHY" != "true" ]]; then
+    UNHEALTHY_FRONTENDS="$UNHEALTHY_FRONTENDS smart-form"
+fi
+if [[ "$COMMAND_CENTER_HEALTHY" != "true" ]]; then
+    UNHEALTHY_FRONTENDS="$UNHEALTHY_FRONTENDS command-center"
+fi
+if [[ "$DASHBOARD_HEALTHY" != "true" ]]; then
+    UNHEALTHY_FRONTENDS="$UNHEALTHY_FRONTENDS dashboard"
+fi
+
+if [[ -z "$UNHEALTHY_FRONTENDS" || "$UNHEALTHY_FRONTENDS" == "   " ]]; then
+    ok "All frontends healthy"
+elif [[ "$STRICT_FRONTENDS" == "1" ]]; then
+    fail "STRICT_FRONTENDS=1: Unhealthy frontends:$UNHEALTHY_FRONTENDS"
+else
+    warn "Unhealthy frontends (non-blocking):$UNHEALTHY_FRONTENDS"
+    info "Set OPS_STRICT_FRONTENDS=1 to fail on frontend issues"
+fi
+
+# ============================================================================
 # STEP E: Assert /ops/status (FAIL-CLOSED)
 # ============================================================================
 
@@ -474,6 +568,12 @@ echo ""
 echo "  ${BOLD}Temporal:${NC}"
 echo "    Status:          $TEMPORAL_DISPLAY_STATUS"
 echo "    Endpoint:        $TEMPORAL_ENDPOINT"
+echo ""
+echo "  ${BOLD}Frontends:${NC}"
+echo "    Smart Form:      $(if [[ "$SMART_FORM_HEALTHY" == "true" ]]; then echo "healthy"; else echo "UNHEALTHY"; fi)"
+echo "    Command Center:  $(if [[ "$COMMAND_CENTER_HEALTHY" == "true" ]]; then echo "healthy"; else echo "UNHEALTHY"; fi)"
+echo "    Dashboard:       $(if [[ "$DASHBOARD_HEALTHY" == "true" ]]; then echo "healthy"; else echo "UNHEALTHY"; fi)"
+echo "    Strict Mode:     $(if [[ "$STRICT_FRONTENDS" == "1" ]]; then echo "YES"; else echo "NO"; fi)"
 echo ""
 echo "  ${BOLD}Proof Bundle:${NC}"
 echo "    Location:        $PROOF_DIR"

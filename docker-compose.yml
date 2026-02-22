@@ -403,7 +403,7 @@ services:
 
   # Smart Form Application
   # CANONICAL UI SURFACE: /submit-ticket (ui/surface-reset-020)
-  # SPRINT-DB-MODE-TRUTH-LOCK-095A: DB_MODE controls connection
+  # SPRINT-FRONTEND-CONTAINER-TRUTH-LOCK-102B: Production mode with /api/health
   smart-form:
     build:
       context: .
@@ -411,14 +411,15 @@ services:
       target: development
     container_name: unit-talk-smart-form
     ports:
-      - "3021:3021" # POSTING-AUTHORITY-LOCKDOWN-033: External 3021 = Internal 3021 (CANONICAL)
+      - "3021:3021" # External 3021 = Internal 3021 (CANONICAL)
     env_file:
       - .env
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       # SPRINT-DB-MODE-TRUTH-LOCK-095A: DB_MODE from env file (cloud or local)
       - DB_MODE=${DB_MODE:-cloud}
-      # DATABASE_URL only set via .env for local mode
+      - PORT=3021
+      - HOSTNAME=0.0.0.0
       - NEXT_PUBLIC_API_URL=http://localhost:3010
       - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
@@ -427,31 +428,26 @@ services:
       - GIT_COMMIT=${GIT_COMMIT:-unknown}
       - GIT_COMMIT_SHORT=${GIT_COMMIT_SHORT:-unknown}
       - GIT_BRANCH=${GIT_BRANCH:-unknown}
-    volumes:
-      # Mount source directories for hot reload (NOT node_modules or config)
-      - ./apps/smart-form/app:/app/apps/smart-form/app
-      - ./apps/smart-form/components:/app/apps/smart-form/components
-      - ./apps/smart-form/lib:/app/apps/smart-form/lib
-      - ./apps/smart-form/types:/app/apps/smart-form/types
-      - ./apps/smart-form/public:/app/apps/smart-form/public
+    # SPRINT-FRONTEND-CONTAINER-TRUTH-LOCK-102B: No volumes - production build only
     depends_on:
       api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3021"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:3021/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
     networks:
       - unit-talk-network
     restart: unless-stopped
 
   # Dashboard Application
-  # SPRINT-DB-MODE-TRUTH-LOCK-095A: DB_MODE controls connection
+  # SPRINT-FRONTEND-CONTAINER-TRUTH-LOCK-102B: Production mode with /api/health
   dashboard:
     build:
-      context: ./apps/dashboard
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/dashboard/Dockerfile
       target: development
     container_name: unit-talk-dashboard
     ports:
@@ -459,31 +455,31 @@ services:
     env_file:
       - .env
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       # SPRINT-DB-MODE-TRUTH-LOCK-095A: DB_MODE from env file (cloud or local)
       - DB_MODE=${DB_MODE:-cloud}
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
       - NEXT_PUBLIC_API_URL=http://localhost:3010
       - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
-    volumes:
-      - ./apps/dashboard:/app
-      - /app/node_modules
-      - /app/.next
+    # SPRINT-FRONTEND-CONTAINER-TRUTH-LOCK-102B: No volumes - production build only
     depends_on:
       api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
     networks:
       - unit-talk-network
     restart: unless-stopped
 
   # Command Center
   # CANONICAL UI SURFACE: /dashboard/* (ui/surface-reset-020)
-  # SPRINT-DB-MODE-TRUTH-LOCK-095A: DB_MODE controls connection
+  # SPRINT-FRONTEND-CONTAINER-TRUTH-LOCK-102B: Production mode with /api/health
   command-center:
     build:
       context: .
@@ -495,10 +491,11 @@ services:
     env_file:
       - .env
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       # SPRINT-DB-MODE-TRUTH-LOCK-095A: DB_MODE from env file (cloud or local)
       - DB_MODE=${DB_MODE:-cloud}
-      # DATABASE_URL only set via .env for local mode
+      - PORT=3015
+      - HOSTNAME=0.0.0.0
       - NEXT_PUBLIC_API_URL=http://localhost:3010
       - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
@@ -508,20 +505,18 @@ services:
       - GIT_COMMIT=${GIT_COMMIT:-unknown}
       - GIT_COMMIT_SHORT=${GIT_COMMIT_SHORT:-unknown}
       - GIT_BRANCH=${GIT_BRANCH:-unknown}
-    volumes:
-      # Mount source directories for hot reload (NOT node_modules or config)
-      - ./apps/command-center/src:/app/apps/command-center/src
-      - ./apps/command-center/public:/app/apps/command-center/public
+    # SPRINT-FRONTEND-CONTAINER-TRUTH-LOCK-102B: No volumes - production build only
     depends_on:
       api:
         condition: service_healthy
       prometheus:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3015/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:3015/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
     networks:
       - unit-talk-network
     restart: unless-stopped

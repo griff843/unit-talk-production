@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * CANONICAL ENTRYPOINT: pnpm ops:day
- * SPRINT-OPS-DAY-HEALTH-TIMEOUTS-101A
+ * SPRINT-FRONTEND-CONTAINER-TRUTH-LOCK-102B
  *
  * Cross-platform wrapper that works from ANY shell:
  *   - Windows PowerShell
@@ -132,7 +132,7 @@ function runUnix() {
 // Main execution
 console.log('========================================');
 console.log('  UNIT TALK - Cross-Platform Entrypoint');
-console.log('  SPRINT-OPS-DAY-HEALTH-TIMEOUTS-101A');
+console.log('  SPRINT-FRONTEND-CONTAINER-TRUTH-LOCK-102B');
 console.log('========================================');
 
 if (process.platform === 'win32') {

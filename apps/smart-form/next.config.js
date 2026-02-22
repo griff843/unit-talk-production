@@ -2,6 +2,9 @@ require('dotenv').config();
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // SPRINT-FRONTEND-CONTAINER-TRUTH-LOCK-102B: Enable standalone for Docker production
+  output: 'standalone',
+
   staticPageGenerationTimeout: 300, // 5 minutes
 
   // Windows build optimization (Sprint: RELEASE-READINESS-ENV-NORMALIZATION-042)
@@ -21,7 +24,7 @@ const nextConfig = {
   },
 
   // Disable webpack cache on Windows to prevent EINVAL errors
-  webpack: (config, { dev, isServer }) => {
+  webpack: (config, { dev }) => {
     if (!dev && process.platform === 'win32') {
       config.cache = false;
     }

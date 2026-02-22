@@ -97,7 +97,7 @@ function Invoke-Native {
 # CONFIGURATION
 # ============================================================================
 
-$SPRINT_ID = "SPRINT-OPS-DAY-HEALTH-TIMEOUTS-101A"
+$SPRINT_ID = "SPRINT-FRONTEND-CONTAINER-TRUTH-LOCK-102B"
 $DATE = Get-Date -Format "yyyy-MM-dd"
 $PROOF_DIR = "out/sprints/$SPRINT_ID/$DATE/proofs"
 # Use 127.0.0.1 instead of localhost to avoid IPv6 issues on Windows
@@ -108,7 +108,8 @@ $STRICT_FRONTENDS = if ($env:OPS_STRICT_FRONTENDS -eq "1") { $true } else { $fal
 $HEALTH_TIMEOUT = $FRONTEND_TIMEOUT
 
 # Service URLs
-$SMART_FORM_URL = "http://localhost:3002"
+# SPRINT-FRONTEND-CONTAINER-TRUTH-LOCK-102B: Fixed ports
+$SMART_FORM_URL = "http://localhost:3021"
 $COMMAND_CENTER_URL = "http://localhost:3004"
 $DASHBOARD_URL = "http://localhost:3003"
 $GRAFANA_URL = "http://localhost:3001"
@@ -342,6 +343,80 @@ if ($temporalUiStatus -eq "healthy") {
 Write-Ok "Temporal foundation verified"
 
 # ============================================================================
+# STEP D.2: Verify Frontend Health
+# SPRINT-FRONTEND-CONTAINER-TRUTH-LOCK-102B
+# ============================================================================
+
+Write-Step "D.2) Verifying Frontend Health"
+
+# Display strict mode setting
+if ($STRICT_FRONTENDS) {
+    Write-Info "STRICT_FRONTENDS=YES - Frontends MUST be healthy"
+} else {
+    Write-Info "STRICT_FRONTENDS=NO - Frontend failures are warnings"
+}
+
+# Function to check frontend health
+function Test-FrontendHealth {
+    param(
+        [string]$Name,
+        [string]$Url,
+        [string]$ContainerName,
+        [int]$MaxRetries = 10,
+        [int]$RetryDelay = 5
+    )
+
+    $healthUrl = "$Url/api/health"
+    Write-Info "Checking $Name at $healthUrl..."
+
+    for ($i = 1; $i -le $MaxRetries; $i++) {
+        try {
+            $response = Invoke-RestMethod -Uri $healthUrl -Method Get -TimeoutSec 5 -ErrorAction Stop
+            if ($response.status -eq "ok" -or $response.status -eq "healthy") {
+                Write-Ok "$Name: healthy (status: $($response.status))"
+                return $true
+            } else {
+                Write-Info "$Name: status=$($response.status) (retry $i/$MaxRetries)"
+            }
+        } catch {
+            Write-Info "$Name: not ready (retry $i/$MaxRetries)"
+        }
+        Start-Sleep -Seconds $RetryDelay
+    }
+
+    # Frontend failed to become healthy - dump logs
+    Write-Warn "$Name: UNHEALTHY after $MaxRetries retries"
+    Write-Host "--- $ContainerName logs (last 100 lines) ---"
+    Invoke-Native { docker compose logs --tail=100 $ContainerName } -ShowOutput -AllowFail
+    Write-Host "--- end $ContainerName logs ---"
+    return $false
+}
+
+# Track frontend health status
+$frontendStatus = @{}
+
+# Check Smart Form
+$frontendStatus["smart-form"] = Test-FrontendHealth -Name "smart-form" -Url $SMART_FORM_URL -ContainerName "smart-form"
+
+# Check Command Center
+$frontendStatus["command-center"] = Test-FrontendHealth -Name "command-center" -Url $COMMAND_CENTER_URL -ContainerName "command-center"
+
+# Check Dashboard
+$frontendStatus["dashboard"] = Test-FrontendHealth -Name "dashboard" -Url $DASHBOARD_URL -ContainerName "dashboard"
+
+# Evaluate results
+$unhealthyFrontends = $frontendStatus.GetEnumerator() | Where-Object { $_.Value -eq $false } | Select-Object -ExpandProperty Name
+
+if ($unhealthyFrontends.Count -eq 0) {
+    Write-Ok "All frontends healthy"
+} elseif ($STRICT_FRONTENDS) {
+    Write-Fail "STRICT_FRONTENDS=1: Unhealthy frontends: $($unhealthyFrontends -join ', ')"
+} else {
+    Write-Warn "Unhealthy frontends (non-blocking): $($unhealthyFrontends -join ', ')"
+    Write-Info "Set OPS_STRICT_FRONTENDS=1 to fail on frontend issues"
+}
+
+# ============================================================================
 # STEP E: Assert /ops/status (FAIL-CLOSED)
 # ============================================================================
 
@@ -530,6 +605,12 @@ Write-Host ""
 Write-Host "  Temporal:" -ForegroundColor White
 Write-Host "    Status:          $temporalDisplayStatus"
 Write-Host "    Endpoint:        $temporalEndpoint"
+Write-Host ""
+Write-Host "  Frontends:" -ForegroundColor White
+Write-Host "    Smart Form:      $(if ($frontendStatus['smart-form']) { 'healthy' } else { 'UNHEALTHY' })"
+Write-Host "    Command Center:  $(if ($frontendStatus['command-center']) { 'healthy' } else { 'UNHEALTHY' })"
+Write-Host "    Dashboard:       $(if ($frontendStatus['dashboard']) { 'healthy' } else { 'UNHEALTHY' })"
+Write-Host "    Strict Mode:     $(if ($STRICT_FRONTENDS) { 'YES' } else { 'NO' })"
 Write-Host ""
 Write-Host "  Proof Bundle:" -ForegroundColor White
 Write-Host "    Location:        $PROOF_DIR"
