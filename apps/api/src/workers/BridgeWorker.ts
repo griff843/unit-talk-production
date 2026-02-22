@@ -55,12 +55,13 @@ interface EventRecord {
 // Cloud-canonical columns per parity-gate-001 + COLUMN-DRIFT-001 discovery
 const BRIDGE_OUTBOX_MAX_RETRIES = 3;
 
+// SPRINT-108B: Added 'blocked_contract' status (TERMINAL - never retry)
 interface BridgeOutboxRecord {
   id: string;
   event_type: string;
   event_data: any;
   bet_slip_id: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'blocked_contract';
   retry_count: number;
   created_at: string;
   updated_at?: string;
@@ -412,6 +413,12 @@ export class BridgeWorker extends BaseAgent {
     );
   }
 
+  /**
+   * Fetch pending bridge outbox events for processing.
+   * SPRINT-108B: Note that 'blocked_contract' is a TERMINAL status.
+   * Events with status = 'blocked_contract' are NEVER fetched or retried.
+   * This is intentional per Contract v1.2 - contract violations are terminal failures.
+   */
   private async fetchBridgeOutboxEvents(): Promise<BridgeOutboxRecord[]> {
     if (!this.enableBridgeOutbox) return [];
 
@@ -419,6 +426,8 @@ export class BridgeWorker extends BaseAgent {
       async () => {
         if (!this.hasSupabase()) throw new Error('Supabase not available');
 
+        // SPRINT-108B: Only fetch 'pending' events. Terminal states (failed, completed,
+        // blocked_contract) are excluded by the eq('status', 'pending') filter.
         const { data: events, error } = await this.requireSupabase()
           .from('bridge_outbox')
           .select('*')
@@ -932,6 +941,7 @@ export class BridgeWorker extends BaseAgent {
   }
 
   // Bridge outbox specific event handlers
+  // SPRINT-108B: Added contract validation before processing
   private async handleBridgeOutboxTicketSubmitted(event: any): Promise<void> {
     this.logger.info('Processing bridge outbox ticket submission event', {
       eventId: event.id,
@@ -941,6 +951,30 @@ export class BridgeWorker extends BaseAgent {
 
     // Extract ticket data from event_data
     const ticketData = event.event_data;
+
+    // SPRINT-108B: Validate picks have provider per Contract v1.2
+    // This is a fail-closed check - missing provider = blocked_contract (terminal)
+    if (ticketData.picks && Array.isArray(ticketData.picks)) {
+      const missingProviderPicks = ticketData.picks.filter(
+        (pick: any) => !pick.provider && !pick.provider_id
+      );
+
+      if (missingProviderPicks.length > 0) {
+        this.logger.error('SPRINT-108B: Contract v1.2 violation - picks missing provider', {
+          eventId: event.id,
+          betSlipId: event.aggregate_id,
+          missingCount: missingProviderPicks.length,
+          totalPicks: ticketData.picks.length,
+        });
+
+        // Note: The event should be marked as blocked_contract by the caller
+        // This throws to trigger the error handler which will mark appropriately
+        const err = new Error('CONTRACT_V1_2_VIOLATION: Picks missing required provider field');
+        (err as any).contractViolation = true;
+        (err as any).missingFields = ['provider'];
+        throw err;
+      }
+    }
 
     // Add bridge outbox metadata for tracking
     const enrichedTicketData = {
@@ -1112,16 +1146,78 @@ export class BridgeWorker extends BaseAgent {
       .eq('id', event.id);
   }
 
+  /**
+   * SPRINT-108B: Mark bridge outbox event as blocked_contract
+   * This is a TERMINAL status - event will never be retried.
+   * Used when Discord Contract v1.2 validation fails (missing required fields).
+   */
+  private async markBridgeOutboxEventAsBlockedContract(
+    event: BridgeOutboxRecord,
+    reason: string,
+    missingFields: string[]
+  ): Promise<void> {
+    if (!this.hasSupabase()) return;
+
+    await this.requireSupabase()
+      .from('bridge_outbox')
+      .update({
+        status: 'blocked_contract',
+        processed_at: new Date().toISOString(),
+        error_message: `CONTRACT_V1_2: ${reason} (missing: ${missingFields.join(', ')})`,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', event.id);
+
+    // Write audit log for contract block
+    await this.requireSupabase()
+      .from('audit_log')
+      .insert({
+        actor: 'BridgeWorker',
+        action: 'OUTBOX_CONTRACT_BLOCKED',
+        entity_type: 'bridge_outbox',
+        entity_id: event.id,
+        details: {
+          bet_slip_id: event.bet_slip_id,
+          reason,
+          missing_fields: missingFields,
+          status: 'blocked_contract',
+          terminal: true,
+          timestamp: new Date().toISOString(),
+        },
+        created_at: new Date().toISOString(),
+      });
+
+    this.logger.error('SPRINT-108B: Bridge outbox event blocked by contract', {
+      eventId: event.id,
+      betSlipId: event.bet_slip_id,
+      reason,
+      missingFields,
+      status: 'blocked_contract',
+      terminal: true,
+    });
+  }
+
   private async handleBridgeOutboxEventProcessingError(
     event: BridgeOutboxRecord,
     error: any,
     processingTime: number
   ): Promise<void> {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const shouldRetry = event.retry_count + 1 < BRIDGE_OUTBOX_MAX_RETRIES;
 
     this.bridgeMetrics.bridgeOutboxEventsFailed++;
     this.bridgeMetrics.errorCount++;
+
+    // SPRINT-108B: Check if this is a contract violation (TERMINAL - no retry)
+    const isContractViolation = (error as any)?.contractViolation === true;
+    const missingFields = (error as any)?.missingFields || [];
+
+    if (isContractViolation) {
+      // Contract violations are TERMINAL - mark as blocked_contract, never retry
+      await this.markBridgeOutboxEventAsBlockedContract(event, errorMessage, missingFields);
+      return;
+    }
+
+    const shouldRetry = event.retry_count + 1 < BRIDGE_OUTBOX_MAX_RETRIES;
 
     if (shouldRetry) {
       // Calculate exponential backoff: 3min, 9min, 27min

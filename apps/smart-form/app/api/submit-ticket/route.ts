@@ -44,6 +44,7 @@ const VALID_BET_TYPES = ['player_prop', 'spread', 'moneyline', 'total', 'team_to
 
 // Validation schemas with enhanced odds validation
 // EMBED-TRUTH-FIX-031: Added player_name and bet_type fields
+// SPRINT-108B: Added book_id for Contract v1.2
 const GameSelectionSchema = z.object({
   sport: z.enum(SUPPORTED_SPORTS),
   team_id: z.string().uuid().optional(),
@@ -80,6 +81,9 @@ const GameSelectionSchema = z.object({
   manual_matchup_home: z.string().optional(),
   manual_matchup_away: z.string().optional(),
   manual_game_date: z.string().optional(),
+  // SPRINT-108B: provider is REQUIRED per Contract v1.2
+  // Uses provider code (TEXT like 'fanduel') which is resolved to provider_id in the RPC
+  provider: z.string().min(2, 'Provider is required').max(50, 'Invalid provider code'),
 });
 
 // SPRINT-E2E-SUBMIT-LIFECYCLE-HARDENING-062: Add idempotency_key support
@@ -323,8 +327,92 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // SPRINT-108B: Validate all providers exist and are active (Contract v1.2)
+    // NO implicit defaults, NO placeholders - missing provider = BLOCK
+    // NOTE: provider_registry may not be in Supabase types yet - using explicit typing
+    type ProviderRegistryRow = {
+      id: number;
+      code: string;
+      display_name: string;
+      active: boolean;
+    };
+    const providerCodes = [...new Set(selections.map(s => s.provider))];
+    for (const providerCode of providerCodes) {
+      const { data: provider, error: providerError } = (await supabase
+        .from('provider_registry' as any)
+        .select('id, code, display_name, active')
+        .eq('code', providerCode)
+        .single()) as { data: ProviderRegistryRow | null; error: any };
+
+      if (providerError || !provider) {
+        log.warn(
+          {
+            provider_code: providerCode,
+            error: providerError?.message,
+          },
+          'SPRINT-108B: Invalid provider code provided'
+        );
+
+        return NextResponse.json(
+          {
+            error: 'Invalid provider',
+            message: 'The specified sportsbook provider was not found',
+            code: 'INVALID_PROVIDER',
+            provider: providerCode,
+          },
+          { status: 400 }
+        );
+      }
+
+      if (!provider.active) {
+        log.warn(
+          {
+            provider_code: providerCode,
+            provider_name: provider.display_name,
+          },
+          'SPRINT-108B: Inactive provider selected'
+        );
+
+        return NextResponse.json(
+          {
+            error: 'Inactive provider',
+            message: `The provider "${provider.display_name}" is not currently active`,
+            code: 'INACTIVE_PROVIDER',
+            provider: providerCode,
+          },
+          { status: 400 }
+        );
+      }
+
+      // SPRINT-108B: Block UNKNOWN_LEGACY provider for new submissions
+      if (provider.code === 'UNKNOWN_LEGACY') {
+        log.error(
+          {
+            provider_code: providerCode,
+          },
+          'SPRINT-108B: Attempt to use UNKNOWN_LEGACY provider for new submission'
+        );
+
+        return NextResponse.json(
+          {
+            error: 'Invalid provider',
+            message: 'UNKNOWN_LEGACY is not a valid provider for new submissions',
+            code: 'LEGACY_PROVIDER_BLOCKED',
+            provider: providerCode,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    log.info(
+      { providers: providerCodes, selection_count: selections.length },
+      'SPRINT-108B: Provider validation passed (Contract v1.2)'
+    );
+
     // SPRINT-E2E-SUBMIT-LIFECYCLE-HARDENING-062: Build picks array for atomic RPC
     // Transform selections to the format expected by the RPC
+    // SPRINT-108B: Added book_id per Contract v1.2
     const picksForRpc = selections.map(selection => ({
       stat_type: selection.stat_type,
       line: selection.line,
@@ -341,6 +429,9 @@ export async function POST(request: NextRequest) {
       manual_matchup_home: selection.manual_matchup_home || null,
       manual_matchup_away: selection.manual_matchup_away || null,
       manual_game_date: selection.manual_game_date || null,
+      // SPRINT-108B: provider is REQUIRED (validated above)
+      // The RPC will resolve provider code to provider_id
+      provider: selection.provider,
     }));
 
     // SPRINT-E2E-SUBMIT-LIFECYCLE-HARDENING-062: Call atomic submit RPC

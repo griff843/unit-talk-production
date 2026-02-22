@@ -1,3 +1,4 @@
+/* eslint-disable max-lines, max-lines-per-function, complexity, no-useless-escape */
 /**
  * Embed Presentation Contract
  *
@@ -22,7 +23,7 @@ export const FORBIDDEN_PHRASES = [
   'LOCK OF THE WEEK',
   'GUARANTEED',
   'GUARANTEED WIN',
-  'CAN\'T LOSE',
+  "CAN'T LOSE",
   'FREE MONEY',
   '100% SURE',
   'ABSOLUTE LOCK',
@@ -217,7 +218,9 @@ export function validateProductionEmbed(embed: any): ProductionValidationResult 
         }
         const forbiddenPattern = containsForbiddenFieldPattern(field.name);
         if (forbiddenPattern) {
-          violations.push(`Field[${i}].name "${field.name}" contains forbidden pattern: "${forbiddenPattern}"`);
+          violations.push(
+            `Field[${i}].name "${field.name}" contains forbidden pattern: "${forbiddenPattern}"`
+          );
         }
       }
 
@@ -275,10 +278,7 @@ export function validateProductionEmbed(embed: any): ProductionValidationResult 
  */
 export function buildProductionFooter(gauntletRunId?: string): string {
   const buildInfo = getBuildInfo('embed-builder');
-  const parts = [
-    `build:${buildInfo.commitShort}`,
-    `env:${buildInfo.environment}`,
-  ];
+  const parts = [`build:${buildInfo.commitShort}`, `env:${buildInfo.environment}`];
 
   if (gauntletRunId) {
     parts.push(`run:${gauntletRunId}`);
@@ -291,37 +291,39 @@ export function buildProductionFooter(gauntletRunId?: string): string {
 /**
  * Build a compliant embed with proper footer
  */
-export function buildCompliantEmbed(
-  options: {
-    title: string;
-    description?: string;
-    color?: number;
-    fields?: Array<{ name: string; value: string; inline?: boolean }>;
-    image?: { url: string };
-    thumbnail?: { url: string };
-    gauntletRunId?: string;
-  }
-): any {
+export function buildCompliantEmbed(options: {
+  title: string;
+  description?: string;
+  color?: number;
+  fields?: Array<{ name: string; value: string; inline?: boolean }>;
+  image?: { url: string };
+  thumbnail?: { url: string };
+  gauntletRunId?: string;
+}): any {
   const buildInfo = getBuildInfo('embed-builder');
   const footerText = formatEmbedFooter(buildInfo, options.gauntletRunId);
 
   // Validate title doesn't have forbidden phrases
   const forbiddenCheck = containsForbiddenPhrase(options.title);
   if (forbiddenCheck) {
-    throw new Error(`PRESENTATION_CONTRACT_VIOLATION: Title contains forbidden phrase "${forbiddenCheck}"`);
+    throw new Error(
+      `PRESENTATION_CONTRACT_VIOLATION: Title contains forbidden phrase "${forbiddenCheck}"`
+    );
   }
 
   if (options.description) {
     const descCheck = containsForbiddenPhrase(options.description);
     if (descCheck) {
-      throw new Error(`PRESENTATION_CONTRACT_VIOLATION: Description contains forbidden phrase "${descCheck}"`);
+      throw new Error(
+        `PRESENTATION_CONTRACT_VIOLATION: Description contains forbidden phrase "${descCheck}"`
+      );
     }
   }
 
   return {
     title: options.title,
     description: options.description,
-    color: options.color ?? 0x00AA00,
+    color: options.color ?? 0x00aa00,
     fields: options.fields ?? [],
     image: options.image,
     thumbnail: options.thumbnail,
@@ -336,11 +338,7 @@ export function buildCompliantEmbed(
  * Get pick embed title based on tier and type
  * This replaces legacy "LOCK OF THE DAY" language
  */
-export function getCompliantPickTitle(
-  tier: string,
-  isParlay: boolean,
-  legCount?: number
-): string {
+export function getCompliantPickTitle(tier: string, isParlay: boolean, legCount?: number): string {
   if (isParlay && legCount) {
     const tierEmoji = getTierEmoji(tier);
     return `${tierEmoji} ${tier.toUpperCase()} PARLAY • ${legCount} Legs`;
@@ -382,7 +380,7 @@ export function getTierColor(tier: string): number {
     case 'S':
     case 'S+':
     case 'S-TIER':
-      return 0xFF5252; // Red
+      return 0xff5252; // Red
     case 'A':
     case 'A+':
     case 'A-TIER':
@@ -401,7 +399,22 @@ export function getTierColor(tier: string): number {
  * Ensures market labels match expected patterns for each market type
  */
 export const VALID_MARKET_LABELS: Record<string, string[]> = {
-  player_prop: ['PTS', 'AST', 'REB', '3PM', 'STL', 'BLK', 'TO', 'PRA', 'P+R', 'P+A', 'R+A', 'DD', 'TD', 'Player Prop'],
+  player_prop: [
+    'PTS',
+    'AST',
+    'REB',
+    '3PM',
+    'STL',
+    'BLK',
+    'TO',
+    'PRA',
+    'P+R',
+    'P+A',
+    'R+A',
+    'DD',
+    'TD',
+    'Player Prop',
+  ],
   spread: ['Spread'],
   moneyline: ['Moneyline', 'ML'],
   total: ['Game Total', 'Total'],
@@ -423,8 +436,8 @@ export function validateMarketLabel(
   }
 
   // Check if the label matches any valid pattern (case-insensitive)
-  const isValid = validLabels.some(
-    (valid) => marketLabel.toUpperCase().includes(valid.toUpperCase())
+  const isValid = validLabels.some(valid =>
+    marketLabel.toUpperCase().includes(valid.toUpperCase())
   );
 
   if (!isValid) {
@@ -459,16 +472,15 @@ const VALID_THUMBNAIL_PATTERNS = [
 /**
  * EMBED-FIX-031: Validate thumbnail URL matches expected patterns
  */
-export function validateThumbnailUrl(
-  thumbnailUrl: string | undefined | null
-): { valid: boolean; warning?: string } {
+export function validateThumbnailUrl(thumbnailUrl: string | undefined | null): {
+  valid: boolean;
+  warning?: string;
+} {
   if (!thumbnailUrl) {
     return { valid: true, warning: 'No thumbnail URL provided' };
   }
 
-  const matchesPattern = VALID_THUMBNAIL_PATTERNS.some((pattern) =>
-    pattern.test(thumbnailUrl)
-  );
+  const matchesPattern = VALID_THUMBNAIL_PATTERNS.some(pattern => pattern.test(thumbnailUrl));
 
   if (!matchesPattern) {
     return {
@@ -695,7 +707,9 @@ export function validatePostingGate(pick: {
         violations.push('PLAYER_PROP_MISSING_PLAYER: Player name required for player prop bets');
       }
       if (!effectiveDirection) {
-        violations.push('PLAYER_PROP_MISSING_DIRECTION: Direction (over/under) required for player prop bets');
+        violations.push(
+          'PLAYER_PROP_MISSING_DIRECTION: Direction (over/under) required for player prop bets'
+        );
       }
       if (effectiveLine === null || effectiveLine === undefined) {
         violations.push('PLAYER_PROP_MISSING_LINE: Line required for player prop bets');
@@ -725,7 +739,9 @@ export function validatePostingGate(pick: {
         violations.push('TEAM_TOTAL_MISSING_TEAM: Team name required for team total bets');
       }
       if (!effectiveDirection) {
-        violations.push('TEAM_TOTAL_MISSING_DIRECTION: Direction (over/under) required for team total bets');
+        violations.push(
+          'TEAM_TOTAL_MISSING_DIRECTION: Direction (over/under) required for team total bets'
+        );
       }
       if (effectiveLine === null || effectiveLine === undefined) {
         violations.push('TEAM_TOTAL_MISSING_LINE: Line required for team total bets');
@@ -752,7 +768,10 @@ export function validatePostingGate(pick: {
  * EMBED-TRUTH-FIX-031: Validate build provenance
  * Returns false if build SHA is "unknown" in production environment
  */
-export function validateBuildProvenance(commitShort: string, environment: string): {
+export function validateBuildProvenance(
+  commitShort: string,
+  environment: string
+): {
   valid: boolean;
   error?: string;
 } {
@@ -760,7 +779,8 @@ export function validateBuildProvenance(commitShort: string, environment: string
   if (environment === 'production' && (commitShort === 'unknown' || !commitShort)) {
     return {
       valid: false,
-      error: 'BUILD_SHA_UNKNOWN: Build provenance required in production. Set GIT_COMMIT_SHORT env var.',
+      error:
+        'BUILD_SHA_UNKNOWN: Build provenance required in production. Set GIT_COMMIT_SHORT env var.',
     };
   }
 
@@ -924,7 +944,11 @@ function checkMissingFields(
 /**
  * SPRINT-EMBED-MIN-REQ-051: Check for content violations
  */
-function checkContentViolations(pick: EmbedReadinessPick, league: string | null | undefined, matchup: string | null): string[] {
+function checkContentViolations(
+  pick: EmbedReadinessPick,
+  league: string | null | undefined,
+  matchup: string | null
+): string[] {
   const violations: string[] = [];
   const fieldsToCheck = { league, matchup, selection: pick.selection, title: pick.title };
   const undefinedFields = findUndefinedStrings(fieldsToCheck);
@@ -988,11 +1012,188 @@ export function assertEmbedReadiness(pick: EmbedReadinessPick): EmbedReadinessRe
   };
 }
 
+// ---- SPRINT-DISCORD-CONTRACT-BOOK-ENFORCEMENT-108B: Discord Contract v1.2 ----
+
+/**
+ * SPRINT-108B: Discord Contract v1.2 - Hard fields required for posting
+ * These fields MUST be present for a pick to be eligible for Discord posting.
+ * NO fallbacks, NO placeholders, NO implicit defaults allowed.
+ */
+export const DISCORD_CONTRACT_V1_2_HARD_FIELDS = [
+  'pick_id',
+  'bet_slip_id',
+  'capper_id', // user_id in unified_picks
+  'market_type', // stat_type / bet_type
+  'selection',
+  'odds',
+  'unit_amount', // from meta.unit_size or confidence
+  'tier',
+  'provider_id', // MANDATORY NEW RULE (Contract v1.2)
+] as const;
+
+/**
+ * SPRINT-108B: Discord Contract v1.2 - Result type
+ */
+export interface DiscordContractResult {
+  ok: boolean;
+  code: 'ok' | 'blocked_contract';
+  missing_fields: string[];
+  message: string;
+}
+
+/**
+ * SPRINT-108B: Pick type for Discord contract validation
+ */
+type DiscordContractPick = {
+  id?: string;
+  pick_id?: string;
+  bet_slip_id?: string;
+  user_id?: string;
+  capper_id?: string;
+  stat_type?: string | null;
+  market_type?: string | null;
+  bet_type?: string | null;
+  selection?: string | null;
+  odds?: number | null;
+  tier?: string | null;
+  confidence?: number | null;
+  provider_id?: number | null;
+  provider_code?: string | null;
+  provider_display_name?: string | null;
+  meta?: {
+    unit_size?: number | null;
+    units?: number | null;
+    total_units?: number | null;
+    provider_code?: string | null;
+    provider_display?: string | null;
+  } | null;
+};
+
+/**
+ * SPRINT-108B: Assert Discord Contract v1.2
+ *
+ * This is the HARD GATE that enforces all required fields for Discord posting.
+ * Per Amendment:
+ * - NO implicit defaults
+ * - NO placeholder values
+ * - NO auto-populating missing fields
+ * - Missing provider = BLOCK (blocked_contract)
+ *
+ * Called BEFORE any embed building or webhook call.
+ */
+export function assertDiscordContract(pick: DiscordContractPick): DiscordContractResult {
+  const missing_fields: string[] = [];
+
+  // Check pick_id
+  const pickId = pick.pick_id || pick.id;
+  if (!pickId) {
+    missing_fields.push('pick_id');
+  }
+
+  // Check bet_slip_id
+  if (!pick.bet_slip_id) {
+    missing_fields.push('bet_slip_id');
+  }
+
+  // Check capper_id (user_id)
+  const capperId = pick.capper_id || pick.user_id;
+  if (!capperId) {
+    missing_fields.push('capper_id');
+  }
+
+  // Check market_type (stat_type or bet_type)
+  const marketType = pick.market_type || pick.stat_type || pick.bet_type;
+  if (!marketType) {
+    missing_fields.push('market_type');
+  }
+
+  // Check selection
+  if (!pick.selection) {
+    missing_fields.push('selection');
+  }
+
+  // Check odds
+  if (pick.odds === null || pick.odds === undefined) {
+    missing_fields.push('odds');
+  }
+
+  // Check unit_amount (from meta.unit_size, meta.units, meta.total_units, or confidence)
+  const unitAmount =
+    pick.meta?.unit_size ?? pick.meta?.units ?? pick.meta?.total_units ?? pick.confidence;
+  if (unitAmount === null || unitAmount === undefined) {
+    missing_fields.push('unit_amount');
+  }
+
+  // Check tier
+  if (!pick.tier) {
+    missing_fields.push('tier');
+  }
+
+  // SPRINT-108B: Check provider_id (MANDATORY per Contract v1.2)
+  // NO fallbacks, NO placeholders - missing = BLOCK
+  if (pick.provider_id === null || pick.provider_id === undefined) {
+    missing_fields.push('provider_id');
+  }
+
+  // Build result
+  if (missing_fields.length > 0) {
+    return {
+      ok: false,
+      code: 'blocked_contract',
+      missing_fields,
+      message: `Discord Contract v1.2 violation: Missing required fields: ${missing_fields.join(', ')}`,
+    };
+  }
+
+  return {
+    ok: true,
+    code: 'ok',
+    missing_fields: [],
+    message: 'Discord Contract v1.2 satisfied',
+  };
+}
+
+/**
+ * SPRINT-108B: Check if pick is postable per view_postable_picks_v1_2 criteria
+ * This is a TypeScript mirror of the SQL view logic for client-side validation.
+ */
+export function isPickPostable(
+  pick: DiscordContractPick & {
+    posted_to_discord?: boolean;
+    settlement_status?: string;
+    blocked_reason?: string | null;
+  }
+): { postable: boolean; reason: string } {
+  // Already posted
+  if (pick.posted_to_discord) {
+    return { postable: false, reason: 'Already posted to Discord' };
+  }
+
+  // Already settled
+  if (pick.settlement_status && pick.settlement_status !== 'pending') {
+    return { postable: false, reason: `Already settled: ${pick.settlement_status}` };
+  }
+
+  // Has blocking reason
+  if (pick.blocked_reason) {
+    return { postable: false, reason: `Blocked: ${pick.blocked_reason}` };
+  }
+
+  // Run contract check
+  const contractResult = assertDiscordContract(pick);
+  if (!contractResult.ok) {
+    return { postable: false, reason: contractResult.message };
+  }
+
+  return { postable: true, reason: 'Pick is postable' };
+}
+
 export default {
   FORBIDDEN_PHRASES,
   FORBIDDEN_FIELD_PATTERNS,
   VALID_MARKET_LABELS,
   EMBED_STRICT_MODE,
+  DISCORD_CONTRACT_V1_2_HARD_FIELDS,
   containsForbiddenPhrase,
   containsForbiddenFieldPattern,
   validateEmbedContract,
@@ -1003,6 +1204,8 @@ export default {
   validatePostingGate,
   validateBuildProvenance,
   assertEmbedReadiness,
+  assertDiscordContract,
+  isPickPostable,
   buildCompliantEmbed,
   buildProductionFooter,
   getCompliantPickTitle,

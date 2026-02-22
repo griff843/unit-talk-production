@@ -14,9 +14,11 @@ import {
   isValidLine,
   parseOdds,
   parseLine,
+  isValidProviderCode,
   PickState,
 } from '../validation';
 
+// SPRINT-108B: Updated emptyPick to include provider fields (Contract v1.2)
 const emptyPick: PickState = {
   sport: '',
   betCategory: '',
@@ -31,6 +33,8 @@ const emptyPick: PickState = {
   gameId: '',
   gameLabel: '',
   source: 'api',
+  providerId: '',
+  providerName: '',
 };
 
 describe('validateStep1', () => {
@@ -114,17 +118,29 @@ describe('validateStep3', () => {
   });
 
   it('should require direction for player_prop', () => {
-    const pick: PickState = { ...emptyPick, betCategory: 'player_prop', odds: '-110', line: '24.5' };
+    const pick: PickState = {
+      ...emptyPick,
+      betCategory: 'player_prop',
+      odds: '-110',
+      line: '24.5',
+    };
     const errors = validateStep3(pick);
     expect(errors.direction).toBe('Direction (Over/Under) is required');
   });
 
+  // SPRINT-108B: Updated to include providerId per Contract v1.2
   it('should pass with valid moneyline data', () => {
-    const pick: PickState = { ...emptyPick, betCategory: 'moneyline', odds: '-110' };
+    const pick: PickState = {
+      ...emptyPick,
+      betCategory: 'moneyline',
+      odds: '-110',
+      providerId: 'fanduel',
+    };
     const errors = validateStep3(pick);
     expect(Object.keys(errors)).toHaveLength(0);
   });
 
+  // SPRINT-108B: Updated to include providerId per Contract v1.2
   it('should pass with valid player_prop data', () => {
     const pick: PickState = {
       ...emptyPick,
@@ -132,6 +148,7 @@ describe('validateStep3', () => {
       odds: '-110',
       line: '24.5',
       direction: 'over',
+      providerId: 'draftkings',
     };
     const errors = validateStep3(pick);
     expect(Object.keys(errors)).toHaveLength(0);
@@ -230,5 +247,144 @@ describe('parseLine', () => {
   it('should handle invalid input', () => {
     expect(parseLine('')).toBe(0);
     expect(parseLine('abc')).toBe(0);
+  });
+});
+
+// ============================================================
+// SPRINT-108B: Provider Validation Tests (Contract v1.2)
+// ============================================================
+
+describe('isValidProviderCode (SPRINT-108B)', () => {
+  describe('Valid Provider Codes', () => {
+    it('should accept lowercase provider codes', () => {
+      expect(isValidProviderCode('fanduel')).toBe(true);
+      expect(isValidProviderCode('draftkings')).toBe(true);
+      expect(isValidProviderCode('betmgm')).toBe(true);
+    });
+
+    it('should accept provider codes with underscores', () => {
+      expect(isValidProviderCode('espn_bet')).toBe(true);
+      expect(isValidProviderCode('hard_rock')).toBe(true);
+      expect(isValidProviderCode('bet365_us')).toBe(true);
+    });
+
+    it('should accept provider codes with numbers', () => {
+      expect(isValidProviderCode('bet365')).toBe(true);
+      expect(isValidProviderCode('bet99')).toBe(true);
+    });
+
+    it('should accept uppercase provider codes', () => {
+      expect(isValidProviderCode('FANDUEL')).toBe(true);
+      expect(isValidProviderCode('DRAFTKINGS')).toBe(true);
+    });
+
+    it('should accept mixed case provider codes', () => {
+      expect(isValidProviderCode('FanDuel')).toBe(true);
+      expect(isValidProviderCode('DraftKings')).toBe(true);
+    });
+  });
+
+  describe('Invalid Provider Codes', () => {
+    it('should reject empty string', () => {
+      expect(isValidProviderCode('')).toBe(false);
+    });
+
+    it('should reject single character', () => {
+      expect(isValidProviderCode('a')).toBe(false);
+    });
+
+    it('should reject codes with spaces', () => {
+      expect(isValidProviderCode('fan duel')).toBe(false);
+      expect(isValidProviderCode('draft kings')).toBe(false);
+    });
+
+    it('should reject codes with special characters', () => {
+      expect(isValidProviderCode('fanduel!')).toBe(false);
+      expect(isValidProviderCode('draft@kings')).toBe(false);
+      expect(isValidProviderCode('bet-mgm')).toBe(false);
+    });
+
+    it('should reject codes that are too long', () => {
+      const longCode = 'a'.repeat(51);
+      expect(isValidProviderCode(longCode)).toBe(false);
+    });
+  });
+
+  describe('Edge Cases', () => {
+    it('should accept minimum length (2 chars)', () => {
+      expect(isValidProviderCode('ab')).toBe(true);
+    });
+
+    it('should accept maximum length (50 chars)', () => {
+      const maxCode = 'a'.repeat(50);
+      expect(isValidProviderCode(maxCode)).toBe(true);
+    });
+  });
+});
+
+describe('validateStep3 - Provider Validation (SPRINT-108B)', () => {
+  it('should require provider for step 3', () => {
+    const pick: PickState = {
+      ...emptyPick,
+      betCategory: 'moneyline',
+      odds: '-110',
+      // providerId missing
+    };
+    const errors = validateStep3(pick);
+    expect(errors.providerId).toBe('Provider is required');
+  });
+
+  it('should reject invalid provider code', () => {
+    const pick: PickState = {
+      ...emptyPick,
+      betCategory: 'moneyline',
+      odds: '-110',
+      providerId: 'a', // Too short
+    };
+    const errors = validateStep3(pick);
+    expect(errors.providerId).toBe('Invalid provider selection');
+  });
+
+  it('should pass with valid provider', () => {
+    const pick: PickState = {
+      ...emptyPick,
+      betCategory: 'moneyline',
+      odds: '-110',
+      providerId: 'fanduel',
+    };
+    const errors = validateStep3(pick);
+    expect(errors.providerId).toBeUndefined();
+  });
+});
+
+describe('canProceedToNextStep - Provider Requirement (SPRINT-108B)', () => {
+  it('should require provider for step 3', () => {
+    const pick: PickState = {
+      ...emptyPick,
+      betCategory: 'moneyline',
+      odds: '-110',
+      // providerId missing
+    };
+    expect(canProceedToNextStep(3, pick, 0)).toBe(false);
+  });
+
+  it('should allow step 3 proceed with valid provider', () => {
+    const pick: PickState = {
+      ...emptyPick,
+      betCategory: 'moneyline',
+      odds: '-110',
+      providerId: 'fanduel',
+    };
+    expect(canProceedToNextStep(3, pick, 0)).toBe(true);
+  });
+
+  it('should not allow step 3 proceed with invalid provider code', () => {
+    const pick: PickState = {
+      ...emptyPick,
+      betCategory: 'moneyline',
+      odds: '-110',
+      providerId: 'x', // Invalid - too short
+    };
+    expect(canProceedToNextStep(3, pick, 0)).toBe(false);
   });
 });

@@ -1,4 +1,4 @@
-/* eslint-disable max-lines */
+/* eslint-disable max-lines, max-lines-per-function, complexity, max-depth, no-unused-vars */
 import 'dotenv/config';
 import axios from 'axios';
 import FormData from 'form-data';
@@ -6,24 +6,21 @@ import FormData from 'form-data';
 import { autopilotGuard } from '../../lib/AutopilotGuard';
 import { getBuildInfo } from '../../lib/buildInfo';
 import {
-  atomicClaimForPost,
-  atomicClaimParlayForPost,
-  lifecycleUpdate,
-} from '../../lib/lifecycle';
-import {
   buildProductionFooter,
   validatePickPresentation,
   validatePostingGate,
   validateBuildProvenance,
   assertEmbedReadiness,
+  assertDiscordContract,
   EMBED_STRICT_MODE,
 } from '../../lib/embedPresentationContract';
+import { atomicClaimForPost, atomicClaimParlayForPost, lifecycleUpdate } from '../../lib/lifecycle';
 import { logger } from '../../services/logging';
-import { supabase } from '../../services/supabaseClient';
 import { buildPickPresentation } from '../../services/pickPresentationBuilder';
+import { supabase } from '../../services/supabaseClient';
 import { PickPresentation } from '../../types/pickPresentation';
-import { parsePromotionPolicyConfig } from '../GradingAgent/scoring/promotionPolicy';
 import { calculateParlayOdds } from '../AlertAgent/parlayEmbedBuilder';
+import { parsePromotionPolicyConfig } from '../GradingAgent/scoring/promotionPolicy';
 
 // ---- CONFIG ----
 const DISCORD_WEBHOOK_URL = process.env['DISCORD_WEBHOOK_URL'] || '';
@@ -82,9 +79,8 @@ function formatPickDetails(pick: any): string {
   }
 
   // For player props and spreads: show player, stat, line
-  const lineDisplay = pick.line !== null && pick.line !== undefined && pick.line !== 0
-    ? ` ${pick.line}`
-    : '';
+  const lineDisplay =
+    pick.line !== null && pick.line !== undefined && pick.line !== 0 ? ` ${pick.line}` : '';
   const direction = pick.direction?.toUpperCase() || pick.side || '';
 
   return `**${pick.player_name || pick.selection}**\n${pick.stat_type} ${direction}${lineDisplay}`;
@@ -110,7 +106,9 @@ function formatGameTime(pick: any): string | null {
     const month = date.toLocaleString('en-US', { month: 'short' });
     const day = date.getDate();
     const year = date.getFullYear();
-    const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
+    const time = date
+      .toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+      .toLowerCase();
     return `(${month} ${day}, ${year}, ${time})`;
   } catch {
     return null;
@@ -122,6 +120,16 @@ function getCapperFromPick(pick: any): string {
   return meta.capper || pick.capper_username || pick.capper || 'Unit Talk';
 }
 
+// SPRINT-108B: Get provider display from pick (for parlays)
+function getProviderFromPick(pick: any): string | null {
+  const meta = pick.meta || {};
+  // Priority 1: meta.provider_display (already resolved during submission)
+  if (meta.provider_display) return meta.provider_display;
+  // Priority 2: meta.provider_code (fallback)
+  if (meta.provider_code) return meta.provider_code;
+  return null;
+}
+
 // PARLAY-PRESENTATION-REFINE-001: Get short market label for parlay leg
 // eslint-disable-next-line complexity
 function getParlayLegMarketLabel(leg: any): string {
@@ -130,10 +138,16 @@ function getParlayLegMarketLabel(leg: any): string {
 
   if (statType.includes('moneyline') || betType.includes('ml') || statType === 'ml') return 'ML';
   if (statType.includes('spread') || betType.includes('spread')) {
-    const line = leg.line !== null && leg.line !== undefined ? ` ${leg.line > 0 ? '+' : ''}${leg.line}` : '';
+    const line =
+      leg.line !== null && leg.line !== undefined ? ` ${leg.line > 0 ? '+' : ''}${leg.line}` : '';
     return `Spread${line}`;
   }
-  if (statType.includes('total') || betType.includes('total') || statType.includes('over') || statType.includes('under')) {
+  if (
+    statType.includes('total') ||
+    betType.includes('total') ||
+    statType.includes('over') ||
+    statType.includes('under')
+  ) {
     const direction = (leg.direction || leg.side || '').toUpperCase();
     const line = leg.line !== null && leg.line !== undefined ? ` ${leg.line}` : '';
     return direction ? `${direction}${line}` : `Total${line}`;
@@ -150,8 +164,10 @@ function getParlayLegMarketLabel(leg: any): string {
 // PARLAY-DISCORD-FIX-001: Build parlay embed from multiple legs
 // PARLAY-PRESENTATION-REFINE-001: Clean block format without "Leg X:" labels
 // EMBED-FIX-031: Removed "Sports" field per production contract
+// SPRINT-108B: Added Provider field (Contract v1.2)
 function buildParlayEmbed(legs: any[]) {
   const capper = getCapperFromPick(legs[0]);
+  const provider = getProviderFromPick(legs[0]); // SPRINT-108B: All legs same provider
   const totalOdds = calculateParlayOdds(legs.map(l => l.odds || -110));
   const totalUnits = legs[0].unit_size || legs[0].units || 1;
   const highestTier = legs.reduce((best, leg) => {
@@ -165,37 +181,47 @@ function buildParlayEmbed(legs: any[]) {
   // PARLAY-PRESENTATION-REFINE-001: Format each leg with clean block format
   // Format: Selection + Market Label (Odds)
   //         Matchup
-  const legsText = legs.map((leg) => {
-    const matchup = getMatchupFromPick(leg);
-    const selection = leg.selection || leg.player_name || 'Unknown';
-    const marketLabel = getParlayLegMarketLabel(leg);
-    const oddsStr = formatOdds(leg.odds);
+  const legsText = legs
+    .map(leg => {
+      const matchup = getMatchupFromPick(leg);
+      const selection = leg.selection || leg.player_name || 'Unknown';
+      const marketLabel = getParlayLegMarketLabel(leg);
+      const oddsStr = formatOdds(leg.odds);
 
-    // Line 1: Selection + Market Label + (Odds)
-    const line1 = marketLabel
-      ? `**${selection} ${marketLabel}** (${oddsStr})`
-      : `**${selection}** (${oddsStr})`;
+      // Line 1: Selection + Market Label + (Odds)
+      const line1 = marketLabel
+        ? `**${selection} ${marketLabel}** (${oddsStr})`
+        : `**${selection}** (${oddsStr})`;
 
-    // Line 2: Matchup
-    const line2 = matchup || '';
+      // Line 2: Matchup
+      const line2 = matchup || '';
 
-    return line2 ? `${line1}\n${line2}` : line1;
-  }).join('\n\n');
+      return line2 ? `${line1}\n${line2}` : line1;
+    })
+    .join('\n\n');
 
   // EMBED-PRODUCTION-CONTRACT-030: Production footer with build info
   const footer = buildProductionFooter();
+
+  // Build fields array
+  const fields: Array<{ name: string; value: string; inline: boolean }> = [
+    { name: 'Legs', value: legsText, inline: false },
+    { name: 'Total Odds', value: `${formatOdds(totalOdds)}`, inline: true },
+    { name: 'Units', value: formatUnit(totalUnits), inline: true },
+    { name: 'Tier', value: `${highestTier}-Tier`, inline: true },
+    { name: 'Capper', value: capper, inline: true },
+  ];
+
+  // SPRINT-108B: Add Provider field (Contract v1.2 - mandatory)
+  if (provider) {
+    fields.push({ name: 'Provider', value: provider, inline: true });
+  }
 
   // EMBED-FIX-031: Removed "Sports" field - redundant with matchup info
   return {
     title: `🔥 ${legs.length}-Leg Parlay`,
     color: highestTier === 'S' ? 0xff5252 : highestTier === 'A' ? 0x66bb6a : 0xfbc02d,
-    fields: [
-      { name: 'Legs', value: legsText, inline: false },
-      { name: 'Total Odds', value: `${formatOdds(totalOdds)}`, inline: true },
-      { name: 'Units', value: formatUnit(totalUnits), inline: true },
-      { name: 'Tier', value: `${highestTier}-Tier`, inline: true },
-      { name: 'Capper', value: capper, inline: true },
-    ],
+    fields,
     footer: { text: footer },
   };
 }
@@ -203,15 +229,16 @@ function buildParlayEmbed(legs: any[]) {
 /**
  * DISCORD-UX-OVERHAUL-001: Build embed from PickPresentation
  * Uses the standardized presentation format for consistent Discord display.
+ * SPRINT-108B: Now includes Provider field (Contract v1.2)
  * @see docs/contracts/PICK_PRESENTATION_STANDARD.md
  */
 function buildEmbedFromPresentation(presentation: PickPresentation) {
   const tierColors: Record<string, number> = {
-    'S': 0x4fc3f7, // Cyan for S-tier
-    'A': 0x66bb6a, // Green for A-tier
-    'B': 0xfbc02d, // Yellow for B-tier
-    'C': 0xff9800, // Orange for C-tier
-    'D': 0x9e9e9e, // Gray for D-tier
+    S: 0x4fc3f7, // Cyan for S-tier
+    A: 0x66bb6a, // Green for A-tier
+    B: 0xfbc02d, // Yellow for B-tier
+    C: 0xff9800, // Orange for C-tier
+    D: 0x9e9e9e, // Gray for D-tier
   };
 
   const color = tierColors[presentation.tier] || 0xfbc02d;
@@ -226,6 +253,11 @@ function buildEmbedFromPresentation(presentation: PickPresentation) {
   // Add capper field
   if (presentation.capper_name && presentation.capper_name !== 'Unit Talk') {
     fields.push({ name: 'Capper', value: presentation.capper_name, inline: true });
+  }
+
+  // SPRINT-108B: Add Provider field (Contract v1.2 - mandatory)
+  if (presentation.provider_display) {
+    fields.push({ name: 'Provider', value: presentation.provider_display, inline: true });
   }
 
   // EMBED-PRODUCTION-CONTRACT-030: Production footer with build info
@@ -337,6 +369,65 @@ async function postEliteCardToDiscord(pick: any): Promise<string | null> {
     return null;
   }
 
+  // SPRINT-108B: Discord Contract v1.2 - hard gate for required fields including provider
+  // This MUST pass before any embed building or webhook call
+  const contractResult = assertDiscordContract({
+    pick_id: pick.id,
+    bet_slip_id: pick.bet_slip_id,
+    capper_id: pick.user_id || pick.capper_id,
+    stat_type: pick.stat_type,
+    bet_type: pick.bet_type,
+    selection: pick.selection,
+    odds: pick.odds,
+    tier: pick.tier,
+    confidence: pick.confidence,
+    provider_id: pick.provider_id,
+    meta: pick.meta,
+  });
+
+  if (!contractResult.ok) {
+    logger.error(
+      {
+        pickId: pick.id,
+        code: contractResult.code,
+        missing_fields: contractResult.missing_fields,
+        message: contractResult.message,
+      },
+      'SPRINT-108B: Discord Contract v1.2 BLOCKED - missing hard fields'
+    );
+
+    // Write audit log for contract violation
+    await supabase.from('audit_log').insert({
+      actor: 'DiscordPromotionAgent',
+      action: 'DISCORD_CONTRACT_BLOCKED',
+      entity_type: 'unified_picks',
+      entity_id: pick.id,
+      details: {
+        code: contractResult.code,
+        missing_fields: contractResult.missing_fields,
+        message: contractResult.message,
+        timestamp: new Date().toISOString(),
+      },
+      created_at: new Date().toISOString(),
+    });
+
+    // Set blocked_reason on pick
+    await lifecycleUpdate(
+      supabase,
+      pick.id,
+      {
+        blocked_reason: `CONTRACT_V1_2: ${contractResult.missing_fields.join(', ')}`,
+      },
+      {
+        writerRole: 'poster',
+        traceId: `contract-violation-${pick.id}`,
+        skipTransitionValidation: true,
+      }
+    );
+
+    return null;
+  }
+
   // EMBED-TRUTH-FIX-031: Posting gate validation - refuse to post if critical fields missing
   const postingGate = validatePostingGate({
     player_name: pick.player_name,
@@ -421,13 +512,18 @@ async function postEliteCardToDiscord(pick: any): Promise<string | null> {
       });
 
       // Set blocked_reason on pick
-      await lifecycleUpdate(supabase, pick.id, {
-        blocked_reason: `EMBED_READINESS: ${embedReadiness.missingFields.join(', ')}`,
-      }, {
-        writerRole: 'poster',
-        traceId: `embed-readiness-${pick.id}`,
-        skipTransitionValidation: true,
-      });
+      await lifecycleUpdate(
+        supabase,
+        pick.id,
+        {
+          blocked_reason: `EMBED_READINESS: ${embedReadiness.missingFields.join(', ')}`,
+        },
+        {
+          writerRole: 'poster',
+          traceId: `embed-readiness-${pick.id}`,
+          skipTransitionValidation: true,
+        }
+      );
     }
 
     return null;
@@ -534,7 +630,10 @@ async function postEliteCardToDiscord(pick: any): Promise<string | null> {
     });
     const messageId = response.data?.id || null;
 
-    logger.info({ pickId: pick.id, title: presentation.title, messageId }, 'Posted pick to Discord');
+    logger.info(
+      { pickId: pick.id, title: presentation.title, messageId },
+      'Posted pick to Discord'
+    );
     return messageId;
   } catch (err: any) {
     logger.error({ id: pick.id, error: err?.message || err }, 'Discord post error');
@@ -556,10 +655,16 @@ async function postEliteCardToDiscord(pick: any): Promise<string | null> {
         maxBodyLength: Infinity,
       });
       const fallbackMsgId = fallbackResponse.data?.id || null;
-      logger.info({ pickId: pick.id, messageId: fallbackMsgId }, 'Posted pick to Discord (legacy fallback)');
+      logger.info(
+        { pickId: pick.id, messageId: fallbackMsgId },
+        'Posted pick to Discord (legacy fallback)'
+      );
       return fallbackMsgId;
     } catch (fallbackErr: any) {
-      logger.error({ id: pick.id, error: fallbackErr?.message || fallbackErr }, 'Discord fallback post error');
+      logger.error(
+        { id: pick.id, error: fallbackErr?.message || fallbackErr },
+        'Discord fallback post error'
+      );
       return null;
     }
   }
@@ -672,13 +777,18 @@ async function postParlayToDiscord(legs: any[]): Promise<string | null> {
           created_at: new Date().toISOString(),
         });
 
-        await lifecycleUpdate(supabase, leg.id, {
-          blocked_reason: `EMBED_READINESS: ${embedReadiness.missingFields.join(', ')}`,
-        }, {
-          writerRole: 'poster',
-          traceId: `embed-readiness-parlay-${leg.id}`,
-          skipTransitionValidation: true,
-        });
+        await lifecycleUpdate(
+          supabase,
+          leg.id,
+          {
+            blocked_reason: `EMBED_READINESS: ${embedReadiness.missingFields.join(', ')}`,
+          },
+          {
+            writerRole: 'poster',
+            traceId: `embed-readiness-parlay-${leg.id}`,
+            skipTransitionValidation: true,
+          }
+        );
       }
 
       return null;
@@ -768,13 +878,18 @@ async function confirmPostWithReceipt(
   }
 
   // Update discord_message_id column with validated snowflake
-  const result = await lifecycleUpdate(supabase, pickId, {
-    discord_message_id: messageId,
-  }, {
-    writerRole: 'poster',
-    traceId: `confirm-post-${pickId}`,
-    skipTransitionValidation: true,
-  });
+  const result = await lifecycleUpdate(
+    supabase,
+    pickId,
+    {
+      discord_message_id: messageId,
+    },
+    {
+      writerRole: 'poster',
+      traceId: `confirm-post-${pickId}`,
+      skipTransitionValidation: true,
+    }
+  );
 
   if (!result.success) {
     logger.error(
@@ -796,10 +911,7 @@ async function confirmPostWithReceipt(
  * If Discord call fails, we must reset posted_to_discord to false
  * so the pick can be retried.
  */
-async function resetPostingOnFailure(
-  pickId: string,
-  reason: string
-): Promise<void> {
+async function resetPostingOnFailure(pickId: string, reason: string): Promise<void> {
   try {
     const { error } = await supabase
       .from('unified_picks')
@@ -893,11 +1005,16 @@ async function persistDiscordReceipt(
         environment: buildInfo.environment,
       },
     };
-    const result = await lifecycleUpdate(supabase, pickId, { meta }, {
-      writerRole: 'poster',
-      traceId: `discord-receipt-${pickId}`,
-      skipTransitionValidation: true, // Meta update doesn't change stage
-    });
+    const result = await lifecycleUpdate(
+      supabase,
+      pickId,
+      { meta },
+      {
+        writerRole: 'poster',
+        traceId: `discord-receipt-${pickId}`,
+        skipTransitionValidation: true, // Meta update doesn't change stage
+      }
+    );
     if (!result.success) {
       logger.warn({ pickId, error: result.error }, 'Failed to persist discord receipt');
     }
@@ -958,7 +1075,7 @@ async function processCapperPicks(): Promise<number> {
 
       // IDEMPOTENCY: If ANY leg already posted, skip entire parlay
       const anyPosted = allLegs.some(
-        (leg) => leg.posted_to_discord === true || leg.meta?.discord_receipt?.message_id
+        leg => leg.posted_to_discord === true || leg.meta?.discord_receipt?.message_id
       );
       if (anyPosted) {
         logger.info(
@@ -969,7 +1086,7 @@ async function processCapperPicks(): Promise<number> {
       }
 
       // Claim ALL legs atomically
-      const pickIds = allLegs.map((l) => l.id);
+      const pickIds = allLegs.map(l => l.id);
       if (!(await claimParlayLegs(pickIds))) continue;
 
       logger.info(

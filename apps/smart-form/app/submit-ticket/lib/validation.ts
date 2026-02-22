@@ -24,6 +24,9 @@ export interface PickState {
   gameId: string;
   gameLabel: string;
   source: 'api' | 'manual';
+  // SPRINT-108B: Book enforcement (Contract v1.2)
+  providerId: string;
+  providerName: string;
 }
 
 export interface ValidationErrors {
@@ -71,6 +74,7 @@ export function validateStep2(pick: PickState): ValidationErrors {
 
 /**
  * Validates Step 3: Line & Odds
+ * SPRINT-108B: Added book validation (Contract v1.2)
  */
 export function validateStep3(pick: PickState): ValidationErrors {
   const errors: ValidationErrors = {};
@@ -93,7 +97,26 @@ export function validateStep3(pick: PickState): ValidationErrors {
     errors.direction = 'Direction (Over/Under) is required';
   }
 
+  // SPRINT-108B: Provider is REQUIRED per Contract v1.2
+  // Accepts provider code (TEXT like 'fanduel') - validated server-side against provider_registry
+  if (!pick.providerId) {
+    errors.providerId = 'Provider is required';
+  } else if (!isValidProviderCode(pick.providerId)) {
+    errors.providerId = 'Invalid provider selection';
+  }
+
   return errors;
+}
+
+/**
+ * SPRINT-108B: Validates provider code format
+ * Accepts alphanumeric codes with underscores (e.g., 'fanduel', 'espn_bet')
+ */
+export function isValidProviderCode(code: string): boolean {
+  if (!code) return false;
+  // Provider codes are lowercase alphanumeric with optional underscores
+  const codeRegex = /^[a-z0-9_]+$/i;
+  return codeRegex.test(code) && code.length >= 2 && code.length <= 50;
 }
 
 /**
@@ -114,6 +137,7 @@ export function validateStep(step: number, pick: PickState): ValidationErrors {
 
 /**
  * Checks if step can proceed
+ * SPRINT-108B: Added book validation for step 3 (Contract v1.2)
  */
 export function canProceedToNextStep(step: number, pick: PickState, legsCount: number): boolean {
   switch (step) {
@@ -133,7 +157,9 @@ export function canProceedToNextStep(step: number, pick: PickState, legsCount: n
       const hasLine = !needsLine || !!pick.line;
       const needsDirection = ['total', 'player_prop'].includes(pick.betCategory);
       const hasDirection = !needsDirection || !!pick.direction;
-      return hasOdds && hasLine && hasDirection;
+      // SPRINT-108B: Provider is REQUIRED per Contract v1.2
+      const hasProvider = !!pick.providerId && isValidProviderCode(pick.providerId);
+      return hasOdds && hasLine && hasDirection && hasProvider;
     }
     case 4:
       return legsCount > 0;

@@ -52,6 +52,8 @@ export interface UnifiedPickRow {
   meta?: Record<string, unknown>;
   created_at?: string;
   posted_to_discord?: boolean;
+  // SPRINT-108B: Provider enforcement (Contract v1.2)
+  provider_id?: number | null;
 }
 
 /**
@@ -115,6 +117,12 @@ export interface PickPresentation {
    * Internal market type for processing
    */
   market_type: PickMarketType;
+
+  /**
+   * SPRINT-108B: Provider display name for Discord embed
+   * Example: "FanDuel", "DraftKings", "BetMGM"
+   */
+  provider_display?: string;
 }
 
 /**

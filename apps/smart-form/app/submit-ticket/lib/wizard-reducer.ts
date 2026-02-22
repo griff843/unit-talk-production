@@ -37,6 +37,7 @@ export type WizardAction =
   | { type: 'RESET_PICK' };
 
 // Initial pick state
+// SPRINT-108B: Added providerId and providerName per Contract v1.2
 export const initialPickState: PickState = {
   sport: '',
   betCategory: '',
@@ -51,6 +52,8 @@ export const initialPickState: PickState = {
   gameId: '',
   gameLabel: '',
   source: 'api',
+  providerId: '',
+  providerName: '',
 };
 
 // Initial wizard state
@@ -146,7 +149,7 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
     case 'REMOVE_LEG':
       return {
         ...state,
-        legs: state.legs.filter((l) => l.id !== action.legId),
+        legs: state.legs.filter(l => l.id !== action.legId),
       };
 
     case 'RESET_WIZARD':
