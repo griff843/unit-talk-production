@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 /** OpenTelemetry instrumentation for Unit Talk Platform - tracing from ingest → scoring → publishing */
 
 import { trace, context, propagation, Span, SpanStatusCode, SpanKind } from '@opentelemetry/api';
@@ -351,9 +352,23 @@ export class SyntheticCanary {
 export { UnitTalkTelemetry, trace, context, propagation };
 export type { TelemetryConfig };
 
-// Default instance for easy setup
-export const telemetry = new UnitTalkTelemetry({
-  serviceName: process.env.SERVICE_NAME || 'unit-talk-unknown',
-  serviceVersion: process.env.SERVICE_VERSION || '1.0.0',
-  environment: process.env.NODE_ENV || 'development',
+// SPRINT-ARCHITECTURE-HARDENING-002A: Lazy telemetry - env access at runtime
+let _defaultTelemetry: UnitTalkTelemetry | null = null;
+export function getDefaultTelemetry(): UnitTalkTelemetry {
+  if (!_defaultTelemetry) {
+    _defaultTelemetry = new UnitTalkTelemetry({
+      serviceName: process.env.SERVICE_NAME || 'unit-talk-unknown',
+      serviceVersion: process.env.SERVICE_VERSION || '1.0.0',
+      environment: process.env.NODE_ENV || 'development',
+    });
+  }
+  return _defaultTelemetry;
+}
+// Backward compat - lazy proxy
+export const telemetry = new Proxy({} as UnitTalkTelemetry, {
+  get(_, p) {
+    const t = getDefaultTelemetry();
+    const v = t[p as keyof UnitTalkTelemetry];
+    return typeof v === 'function' ? v.bind(t) : v;
+  },
 });

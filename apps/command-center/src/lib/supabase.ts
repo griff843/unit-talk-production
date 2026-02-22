@@ -9,7 +9,17 @@ import type { Database, Json } from '@/types';
 // SPRINT-TRUTH-RESTORATION-001: DEMO_MODE gating for mock data
 // INVARIANT #2: Fail-closed environment - no silent fallbacks
 // INVARIANT #4: No demo mode without explicit DEMO_MODE=true flag
-const DEMO_MODE = process.env.DEMO_MODE === 'true';
+// SPRINT-ARCHITECTURE-HARDENING-002A: Lazy evaluation (no module-scope env access)
+
+/**
+ * Get DEMO_MODE setting lazily (runtime access, not build-time)
+ */
+function getDemoMode(): boolean {
+  return process.env.DEMO_MODE === 'true';
+}
+
+// Backward compat alias (evaluated lazily via getter)
+const DEMO_MODE = false; // Never accessed directly - use getDemoMode()
 
 /**
  * Fail-closed error for missing Supabase configuration.
@@ -115,7 +125,7 @@ function getSupabaseClient(): any {
 
   if (!supabaseUrl || !supabaseAnonKey) {
     // DEMO_MODE: Explicit flag required for mock data
-    if (DEMO_MODE) {
+    if (getDemoMode()) {
       console.warn('[DEMO_MODE] Supabase not configured - mock data will be used');
       console.warn('[DEMO_MODE] This is expected in development without Supabase');
       clientInitialized = true;
@@ -140,7 +150,7 @@ function getSupabaseClient(): any {
  * Check if running in DEMO_MODE (explicit mock data mode)
  */
 export function isDemoMode(): boolean {
-  return DEMO_MODE;
+  return getDemoMode();
 }
 
 /**
@@ -166,22 +176,19 @@ export type { TypedSupabaseClient };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _lazySupabase: any = undefined;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const supabase: any = new Proxy(
-  {} as TypedSupabaseClient,
-  {
-    get(_, prop) {
-      if (_lazySupabase === undefined) {
-        _lazySupabase = getSupabaseClient();
-      }
-      if (_lazySupabase === null) {
-        // DEMO_MODE is true but no client - throw for direct supabase usage
-        // Code should use dbOperations which handle DEMO_MODE properly
-        throw new SupabaseConfigurationError();
-      }
-      return _lazySupabase[prop];
-    },
-  }
-);
+export const supabase: any = new Proxy({} as TypedSupabaseClient, {
+  get(_, prop) {
+    if (_lazySupabase === undefined) {
+      _lazySupabase = getSupabaseClient();
+    }
+    if (_lazySupabase === null) {
+      // DEMO_MODE is true but no client - throw for direct supabase usage
+      // Code should use dbOperations which handle DEMO_MODE properly
+      throw new SupabaseConfigurationError();
+    }
+    return _lazySupabase[prop];
+  },
+});
 
 // Export createClient function for API routes
 export function createClient() {
@@ -249,7 +256,11 @@ export interface SecurityEvent {
 }
 
 // Connection test function
-export async function testDatabaseConnection(): Promise<{ connected: boolean; demoMode: boolean; error?: string }> {
+export async function testDatabaseConnection(): Promise<{
+  connected: boolean;
+  demoMode: boolean;
+  error?: string;
+}> {
   try {
     const client = getSupabaseClient();
 
@@ -271,7 +282,7 @@ export async function testDatabaseConnection(): Promise<{ connected: boolean; de
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : 'Unknown error';
     console.log('Database connection test failed:', errorMsg);
-    return { connected: false, demoMode: DEMO_MODE, error: errorMsg };
+    return { connected: false, demoMode: getDemoMode(), error: errorMsg };
   }
 }
 
@@ -318,7 +329,7 @@ export const dbOperations = {
 
     // DEMO_MODE: Explicit mock data usage
     if (!client) {
-      if (!DEMO_MODE) {
+      if (!getDemoMode()) {
         throw new SupabaseConfigurationError();
       }
       console.log('[DEMO_MODE] Using mock users data');
@@ -335,7 +346,7 @@ export const dbOperations = {
       if (error) {
         // FAIL-CLOSED: Database errors are not silently ignored
         console.error('Database query failed:', error.message);
-        if (DEMO_MODE) {
+        if (getDemoMode()) {
           console.log('[DEMO_MODE] Falling back to mock users after error');
           const { mockUsers } = await import('./mockData');
           return mockUsers;
@@ -348,7 +359,7 @@ export const dbOperations = {
     } catch (err) {
       // FAIL-CLOSED: Connection errors are not silently ignored
       console.error('Database connection failed:', err);
-      if (DEMO_MODE) {
+      if (getDemoMode()) {
         console.log('[DEMO_MODE] Falling back to mock users after connection error');
         const { mockUsers } = await import('./mockData');
         return mockUsers;
@@ -394,7 +405,7 @@ export const dbOperations = {
 
     // DEMO_MODE: Explicit mock data usage
     if (!client) {
-      if (!DEMO_MODE) {
+      if (!getDemoMode()) {
         throw new SupabaseConfigurationError();
       }
       console.log('[DEMO_MODE] Using mock picks data');
@@ -443,7 +454,7 @@ export const dbOperations = {
 
       if (error) {
         console.error('unified_picks query failed:', error.message);
-        if (DEMO_MODE) {
+        if (getDemoMode()) {
           console.log('[DEMO_MODE] Falling back to mock picks after error');
           const { mockRecentPicks } = await import('./mockData');
           return mockRecentPicks.slice(0, limit);
@@ -457,7 +468,7 @@ export const dbOperations = {
       return picks;
     } catch (err) {
       console.error('Database connection failed:', err);
-      if (DEMO_MODE) {
+      if (getDemoMode()) {
         console.log('[DEMO_MODE] Falling back to mock picks after connection error');
         const { mockRecentPicks } = await import('./mockData');
         return mockRecentPicks.slice(0, limit);
@@ -624,7 +635,7 @@ export const dbOperations = {
 
     // DEMO_MODE: Explicit mock data usage
     if (!client) {
-      if (!DEMO_MODE) {
+      if (!getDemoMode()) {
         throw new SupabaseConfigurationError();
       }
       console.log('[DEMO_MODE] No picks available for user in demo mode');
@@ -675,7 +686,7 @@ export const dbOperations = {
 
     // DEMO_MODE: Explicit mock data usage
     if (!client) {
-      if (!DEMO_MODE) {
+      if (!getDemoMode()) {
         throw new SupabaseConfigurationError();
       }
       console.log('[DEMO_MODE] Using mock picks with filters');
@@ -719,7 +730,7 @@ export const dbOperations = {
 
     if (error) {
       console.error('Filtered picks query failed:', error.message);
-      if (DEMO_MODE) {
+      if (getDemoMode()) {
         console.log('[DEMO_MODE] Falling back to mock picks after filter error');
         const { mockRecentPicks } = await import('./mockData');
         return mockRecentPicks;
@@ -875,7 +886,7 @@ export const dbOperations = {
 
     // DEMO_MODE: Explicit mock data usage
     if (!client) {
-      if (!DEMO_MODE) {
+      if (!getDemoMode()) {
         throw new SupabaseConfigurationError();
       }
       console.log('[DEMO_MODE] Using mock agents data');
@@ -901,7 +912,7 @@ export const dbOperations = {
 
         if (metricsError) {
           console.error('agent_metrics query also failed:', metricsError.message);
-          if (DEMO_MODE) {
+          if (getDemoMode()) {
             console.log('[DEMO_MODE] Falling back to mock agents after error');
             const { mockAgents } = await import('./mockData');
             return mockAgents;
@@ -921,7 +932,7 @@ export const dbOperations = {
       return agents;
     } catch (err) {
       console.error('Database connection failed:', err);
-      if (DEMO_MODE) {
+      if (getDemoMode()) {
         console.log('[DEMO_MODE] Falling back to mock agents after connection error');
         const { mockAgents } = await import('./mockData');
         return mockAgents;
@@ -1104,7 +1115,7 @@ export const dbOperations = {
 
     // DEMO_MODE: Explicit mock data usage
     if (!client) {
-      if (!DEMO_MODE) {
+      if (!getDemoMode()) {
         throw new SupabaseConfigurationError();
       }
       console.log('[DEMO_MODE] Using mock security events');
@@ -1121,7 +1132,7 @@ export const dbOperations = {
 
       if (error) {
         console.error('Database query failed:', error.message);
-        if (DEMO_MODE) {
+        if (getDemoMode()) {
           console.log('[DEMO_MODE] Falling back to mock security events after error');
           const { mockSecurityEvents } = await import('./mockData');
           return mockSecurityEvents.slice(0, limit);
@@ -1133,7 +1144,7 @@ export const dbOperations = {
       return data as unknown as SecurityEvent[];
     } catch (err) {
       console.error('Database connection failed:', err);
-      if (DEMO_MODE) {
+      if (getDemoMode()) {
         console.log('[DEMO_MODE] Falling back to mock security events after connection error');
         const { mockSecurityEvents } = await import('./mockData');
         return mockSecurityEvents.slice(0, limit);
@@ -1161,7 +1172,7 @@ export const dbOperations = {
 
     // DEMO_MODE: Explicit mock data usage
     if (!client) {
-      if (!DEMO_MODE) {
+      if (!getDemoMode()) {
         throw new SupabaseConfigurationError();
       }
       console.log('[DEMO_MODE] Using mock analytics data');
@@ -1214,7 +1225,7 @@ export const dbOperations = {
       };
     } catch (err) {
       console.error('Database analytics query failed:', err);
-      if (DEMO_MODE) {
+      if (getDemoMode()) {
         console.log('[DEMO_MODE] Falling back to mock analytics after error');
         const { getMockAnalytics } = await import('./mockData');
         return getMockAnalytics();
@@ -1245,7 +1256,7 @@ export const dbOperations = {
           connected: false,
           demoMode: false,
           error: error.message,
-          usingMockData: DEMO_MODE,
+          usingMockData: getDemoMode(),
         };
       }
 
@@ -1262,9 +1273,9 @@ export const dbOperations = {
       }
       return {
         connected: false,
-        demoMode: DEMO_MODE,
+        demoMode: getDemoMode(),
         error: err instanceof Error ? err.message : 'Unknown error',
-        usingMockData: DEMO_MODE,
+        usingMockData: getDemoMode(),
       };
     }
   },
@@ -1279,7 +1290,7 @@ export const subscriptions = {
   subscribeToAgentStatus(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
     if (!client) {
-      if (DEMO_MODE) {
+      if (getDemoMode()) {
         console.log('[DEMO_MODE] Subscriptions disabled - no real-time updates');
         return null;
       }
@@ -1295,7 +1306,7 @@ export const subscriptions = {
   subscribeToAgentHealth(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
     if (!client) {
-      if (DEMO_MODE) {
+      if (getDemoMode()) {
         console.log('[DEMO_MODE] Subscriptions disabled - no real-time updates');
         return null;
       }
@@ -1311,7 +1322,7 @@ export const subscriptions = {
   subscribeToAgentMetrics(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
     if (!client) {
-      if (DEMO_MODE) {
+      if (getDemoMode()) {
         console.log('[DEMO_MODE] Subscriptions disabled - no real-time updates');
         return null;
       }
@@ -1331,7 +1342,7 @@ export const subscriptions = {
   subscribeToSecurityEvents(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
     if (!client) {
-      if (DEMO_MODE) {
+      if (getDemoMode()) {
         console.log('[DEMO_MODE] Subscriptions disabled - no real-time updates');
         return null;
       }
@@ -1351,7 +1362,7 @@ export const subscriptions = {
   subscribeToNewPicks(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
     if (!client) {
-      if (DEMO_MODE) {
+      if (getDemoMode()) {
         console.log('[DEMO_MODE] Subscriptions disabled - no real-time updates');
         return null;
       }
@@ -1371,7 +1382,7 @@ export const subscriptions = {
   subscribeToPickUpdates(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
     if (!client) {
-      if (DEMO_MODE) {
+      if (getDemoMode()) {
         console.log('[DEMO_MODE] Subscriptions disabled - no real-time updates');
         return null;
       }
@@ -1391,7 +1402,7 @@ export const subscriptions = {
   subscribeToAgentLogs(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
     if (!client) {
-      if (DEMO_MODE) {
+      if (getDemoMode()) {
         console.log('[DEMO_MODE] Subscriptions disabled - no real-time updates');
         return null;
       }

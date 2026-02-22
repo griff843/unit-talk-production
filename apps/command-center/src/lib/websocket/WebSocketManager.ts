@@ -396,13 +396,36 @@ export class WebSocketManager {
   }
 }
 
-// Export singleton instance for application use
-export const websocketManager = new WebSocketManager({
-  url: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080',
-  reconnectInterval: 3000,
-  maxReconnectAttempts: 15,
-  heartbeatInterval: 30000,
-  timeout: 10000,
+/**
+ * SPRINT-ARCHITECTURE-HARDENING-002A: Lazy singleton initialization
+ * No module-scope env access - manager created on first use.
+ */
+let _websocketManager: WebSocketManager | null = null;
+
+function getWebSocketManager(): WebSocketManager {
+  if (_websocketManager) return _websocketManager;
+
+  _websocketManager = new WebSocketManager({
+    url: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080',
+    reconnectInterval: 3000,
+    maxReconnectAttempts: 15,
+    heartbeatInterval: 30000,
+    timeout: 10000,
+  });
+
+  return _websocketManager;
+}
+
+// Export getter for singleton instance
+export { getWebSocketManager };
+
+// Export lazy proxy for backward compat
+export const websocketManager = new Proxy({} as WebSocketManager, {
+  get(_, prop) {
+    const manager = getWebSocketManager();
+    const value = manager[prop as keyof WebSocketManager];
+    return typeof value === 'function' ? value.bind(manager) : value;
+  },
 });
 
 // React hook for using WebSocket in components

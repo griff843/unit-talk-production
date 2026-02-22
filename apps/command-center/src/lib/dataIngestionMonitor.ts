@@ -1,16 +1,32 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// SPRINT-SUPABASE-ENDPOINT-TRUTH-LOCK-110A: Fail-closed - no hardcoded fallbacks
-const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+/**
+ * SPRINT-SUPABASE-ENDPOINT-TRUTH-LOCK-110A: Fail-closed - no hardcoded fallbacks
+ * SPRINT-ARCHITECTURE-HARDENING-002A: Lazy client initialization (no module-scope env access)
+ */
 
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error(
-    'SPRINT-110A: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables are required'
-  );
+// Lazy client singleton
+let _supabaseClient: SupabaseClient | null = null;
+
+/**
+ * Get Supabase client lazily - evaluated at runtime, not build time.
+ * Fail-closed: throws if env vars are missing.
+ */
+function getSupabase(): SupabaseClient {
+  if (_supabaseClient) return _supabaseClient;
+
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error(
+      'SPRINT-110A: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables are required'
+    );
+  }
+
+  _supabaseClient = createClient(supabaseUrl, supabaseKey);
+  return _supabaseClient;
 }
-
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 export interface DataIngestionStatus {
   source: string;
@@ -101,7 +117,7 @@ class DataIngestionMonitorService {
     const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
     // Check when we last received data from this source
-    let lastDataQuery = supabase
+    let lastDataQuery = getSupabase()
       .from(config.table)
       .select('created_at')
       .order('created_at', { ascending: false })
@@ -117,7 +133,7 @@ class DataIngestionMonitorService {
     const { data: lastRecord, error: lastError } = await lastDataQuery.single();
 
     // Count records in last hour
-    let hourCountQuery = supabase
+    let hourCountQuery = getSupabase()
       .from(config.table)
       .select('*', { count: 'exact', head: true })
       .gte('created_at', oneHourAgo.toISOString());
@@ -131,7 +147,7 @@ class DataIngestionMonitorService {
     const { count: hourCount, error: hourError } = await hourCountQuery;
 
     // Count records in last 24 hours
-    let dayCountQuery = supabase
+    let dayCountQuery = getSupabase()
       .from(config.table)
       .select('*', { count: 'exact', head: true })
       .gte('created_at', twentyFourHoursAgo.toISOString());
@@ -226,15 +242,17 @@ class DataIngestionMonitorService {
       });
 
       // Also log directly to database
-      await supabase.from('system_logs').insert([
-        {
-          level: 'error',
-          message: alertData.message,
-          metadata: alertData,
-          source: 'data_ingestion_monitor',
-          created_at: new Date().toISOString(),
-        },
-      ]);
+      await getSupabase()
+        .from('system_logs')
+        .insert([
+          {
+            level: 'error',
+            message: alertData.message,
+            metadata: alertData,
+            source: 'data_ingestion_monitor',
+            created_at: new Date().toISOString(),
+          },
+        ]);
     } catch (error) {
       console.error('Failed to send data ingestion alert:', error);
       // Fallback logging

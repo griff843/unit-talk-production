@@ -1,17 +1,27 @@
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 
-// SPRINT-SUPABASE-ENDPOINT-TRUTH-LOCK-110A: Fail-closed - no hardcoded fallbacks
-const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+/**
+ * SPRINT-SUPABASE-ENDPOINT-TRUTH-LOCK-110A: Fail-closed - no hardcoded fallbacks
+ * SPRINT-ARCHITECTURE-HARDENING-002A: Lazy client initialization
+ */
+let _supabaseClient: SupabaseClient | null = null;
 
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error(
-    'SPRINT-110A: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables are required'
-  );
+function getSupabase(): SupabaseClient {
+  if (_supabaseClient) return _supabaseClient;
+
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error(
+      'SPRINT-110A: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables are required'
+    );
+  }
+
+  _supabaseClient = createClient(supabaseUrl, supabaseKey);
+  return _supabaseClient;
 }
-
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,7 +30,7 @@ export async function POST(request: NextRequest) {
     console.log('🚨 STORING CRITICAL API ALERT:', alertData);
 
     // Store alert in database
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('api_alerts')
       .insert([
         {
@@ -40,15 +50,17 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Failed to store API alert:', error);
       // Try alternative storage method
-      const { error: logError } = await supabase.from('system_logs').insert([
-        {
-          level: 'error',
-          message: `API Alert: ${alertData.message}`,
-          metadata: alertData,
-          source: 'api_health_monitor',
-          created_at: new Date().toISOString(),
-        },
-      ]);
+      const { error: logError } = await getSupabase()
+        .from('system_logs')
+        .insert([
+          {
+            level: 'error',
+            message: `API Alert: ${alertData.message}`,
+            metadata: alertData,
+            source: 'api_health_monitor',
+            created_at: new Date().toISOString(),
+          },
+        ]);
 
       if (logError) {
         console.error('Failed to store in system_logs:', logError);
@@ -56,7 +68,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Broadcast to all connected Command Center clients via Supabase Realtime
-    const channel = supabase.channel('command_center_alerts');
+    const channel = getSupabase().channel('command_center_alerts');
     await channel.send({
       type: 'broadcast',
       event: 'critical_api_alert',
@@ -64,7 +76,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Also send to realtime notifications table for persistent alerts
-    await supabase
+    await getSupabase()
       .from('realtime_notifications')
       .insert([
         {
@@ -116,7 +128,10 @@ export async function GET(request: NextRequest) {
     const includeResolved = searchParams.get('resolved') === 'true';
 
     // Get active alerts for Command Center dashboard
-    let query = supabase.from('api_alerts').select('*').order('created_at', { ascending: false });
+    let query = getSupabase()
+      .from('api_alerts')
+      .select('*')
+      .order('created_at', { ascending: false });
 
     if (!includeResolved) {
       query = query.eq('resolved', false);
@@ -179,7 +194,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('api_alerts')
       .update(updates)
       .eq('alert_id', alertId)

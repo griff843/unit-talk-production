@@ -1,12 +1,30 @@
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+/**
+ * SPRINT-ARCHITECTURE-HARDENING-002A: Lazy Supabase client initialization
+ * No module-scope env access - client created on first request.
+ */
+let _supabaseClient: SupabaseClient | null = null;
+
+function getSupabase(): SupabaseClient {
+  if (_supabaseClient) return _supabaseClient;
+
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !key) {
+    throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
+  }
+
+  _supabaseClient = createClient(url, key);
+  return _supabaseClient;
+}
 
 export async function GET(request: NextRequest) {
   try {
     // Use PostgreSQL view v_unified_picks_health_24h for consistent data
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('v_unified_picks_health_24h')
       .select('*')
       .limit(1)
@@ -71,13 +89,15 @@ export async function POST(request: NextRequest) {
     if (type === 'conflict_skip') {
       const { raw_prop_id, reason, timestamp } = data;
 
-      await supabase.from('conflict_events').insert({
-        event_type: 'conflict_skip',
-        raw_prop_id,
-        reason,
-        occurred_at: timestamp || new Date().toISOString(),
-        metadata: data,
-      });
+      await getSupabase()
+        .from('conflict_events')
+        .insert({
+          event_type: 'conflict_skip',
+          raw_prop_id,
+          reason,
+          occurred_at: timestamp || new Date().toISOString(),
+          metadata: data,
+        });
 
       return NextResponse.json({ success: true });
     }
@@ -86,7 +106,7 @@ export async function POST(request: NextRequest) {
     if (type === 'promotion_attempt') {
       const { raw_prop_id, success, reason, processing_time } = data;
 
-      await supabase.from('promotion_events').insert({
+      await getSupabase().from('promotion_events').insert({
         raw_prop_id,
         success,
         reason,
