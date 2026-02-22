@@ -1027,9 +1027,17 @@ async function persistDiscordReceipt(
 // POSTING-AUTHORITY-001: Origin-gated posting per POSTING_AUTHORITY_CONTRACT.md
 
 /** Rule 1: Capper picks ALWAYS post — no band/tier/score gate */
-/** PARLAY-DISCORD-GROUPING-001: Always query ALL legs by bet_slip_id before posting */
+/**
+ * PARLAY-DISCORD-GROUPING-001: Always query ALL legs by bet_slip_id before posting
+ *
+ * SPRINT-109A: CONTRACT-GUARDED - Selector Enforcement
+ * This query reads from unified_picks but MUST validate each pick with assertDiscordContract
+ * before posting. Future migration should use view_postable_picks_v1_2 as canonical source.
+ * DO NOT bypass contract validation - all picks MUST pass assertDiscordContract.
+ */
 // eslint-disable-next-line max-lines-per-function, complexity
 async function processCapperPicks(): Promise<number> {
+  // SPRINT-109A: CONTRACT-GUARDED - Do not bypass view_postable_picks_v1_2 logic
   const { data: picks, error } = await supabase
     .from('unified_picks')
     .select('*')
@@ -1168,8 +1176,12 @@ async function processCapperPicks(): Promise<number> {
   return processedCount;
 }
 
-/** Rule 2: System picks only post when meta.system_approved=true */
+/**
+ * Rule 2: System picks only post when meta.system_approved=true
+ * SPRINT-109A: CONTRACT-GUARDED - Do not bypass view_postable_picks_v1_2 logic
+ */
 async function processSystemPicks(): Promise<number> {
+  // SPRINT-109A: CONTRACT-GUARDED - Must validate with assertDiscordContract before posting
   const { data: picks, error } = await supabase
     .from('unified_picks')
     .select('*')
@@ -1215,8 +1227,12 @@ async function processSystemPicks(): Promise<number> {
   return processedCount;
 }
 
-/** Legacy fallback: picks without origin tag use promotion_band='HARD' */
+/**
+ * Legacy fallback: picks without origin tag use promotion_band='HARD'
+ * SPRINT-109A: CONTRACT-GUARDED - Do not bypass view_postable_picks_v1_2 logic
+ */
 async function processLegacyPicks(): Promise<number> {
+  // SPRINT-109A: CONTRACT-GUARDED - Must validate with assertDiscordContract before posting
   const { data: picks, error } = await supabase
     .from('unified_picks')
     .select('*')

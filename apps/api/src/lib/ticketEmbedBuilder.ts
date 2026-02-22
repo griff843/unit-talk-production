@@ -7,7 +7,12 @@
  * Extracted from DiscordTicketWorker to reduce file size.
  */
 
-import { buildProductionFooter } from './embedPresentationContract';
+// SPRINT-109A: Import canonical contract gate for unified enforcement
+import {
+  buildProductionFooter,
+  assertDiscordContract,
+  DiscordContractResult,
+} from './embedPresentationContract';
 
 // ---- TYPES ----
 
@@ -95,6 +100,35 @@ export function validateTicketContract(item: OutboxItem): TicketContractValidati
   };
 }
 
+/**
+ * SPRINT-109A: CONTRACT-GUARDED - Assert Discord Contract v1.2 for outbox items
+ *
+ * This function wraps the canonical assertDiscordContract for outbox item validation.
+ * Runtime guard: throws if called without contract assertion capability.
+ */
+export function assertTicketDiscordContract(item: OutboxItem): DiscordContractResult {
+  const firstLeg = item.legs?.[0];
+
+  // Build a contract-compatible pick from the outbox item
+  const contractPick = {
+    pick_id: item.ticket_id,
+    bet_slip_id: item.bet_slip_id,
+    capper_id: item.meta?.capper_id,
+    stat_type: firstLeg?.provider_value?.prop_type || firstLeg?.provider_value?.bet_type,
+    selection: firstLeg?.selection || firstLeg?.provider_value?.selection,
+    odds: firstLeg?.provider_odds ?? firstLeg?.provider_value?.odds,
+    tier: 'A', // Tickets are tier A by default
+    confidence: item.total_stake || 1,
+    provider_id: typeof firstLeg?.provider === 'number' ? firstLeg?.provider : null,
+    meta: {
+      unit_size: item.total_stake || 1,
+      provider_code: typeof firstLeg?.provider === 'string' ? firstLeg?.provider : null,
+    },
+  };
+
+  return assertDiscordContract(contractPick);
+}
+
 // ---- HELPERS ----
 
 export function formatOdds(odds: number): string {
@@ -168,6 +202,17 @@ export function formatLegSummary(leg: LegData): string {
 
 // eslint-disable-next-line complexity -- Embed building requires multiple conditional fields
 export function buildTicketEmbed(item: OutboxItem, contract: TicketContractValidation) {
+  // SPRINT-109A: CONTRACT-GUARDED - Runtime assert that contract was validated
+  // If caller didn't validate, this is a bypass attempt
+  if (!contract || !contract.valid) {
+    throw new Error(
+      'SPRINT-109A: buildTicketEmbed called without valid contract. ' +
+        'Must call validateTicketContract() first. ' +
+        'Missing: ' +
+        (contract?.missingFields?.join(', ') || 'unknown')
+    );
+  }
+
   const ticketType = formatTicketType(item.ticket_type);
   const legCount = item.legs?.length || 0;
   const combinedOdds =

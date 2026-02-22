@@ -69,6 +69,8 @@
     "lifecycle:gate": "tsx src/lib/lifecycle/ci-gate.ts",
     "lifecycle:test": "npx vitest run src/lib/lifecycle/__tests__/lifecycle.test.ts",
     "lifecycle:single-writer": "tsx src/lib/lifecycle/single-writer-gate.ts src",
+    "discord:contract-gate": "tsx scripts/discord-contract-gate.ts",
+    "discord:contract-gate:strict": "tsx scripts/discord-contract-gate.ts --strict",
     "db:migrate:critical": "tsx scripts/execute-database-migration.ts",
     "db:validate:schema": "tsx scripts/execute-database-migration.ts --validate-only",
     "syndicate:start": "tsx src/scripts/start-syndicate.ts",

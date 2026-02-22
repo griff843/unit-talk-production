@@ -10,7 +10,9 @@ import {
   HealthStatus,
 } from '../agents/BaseAgent/types';
 import { SyndicateGradingEngine } from '../agents/GradingAgent/scoring/gradingEngine';
+// SPRINT-109A: Import canonical contract gate for unified enforcement
 import { AgentInstrumentation, createAgentInstrumentation } from '../lib/AgentInstrumentation';
+import { assertDiscordContract } from '../lib/embedPresentationContract';
 import { withCircuitBreaker, circuitBreaker } from '../services/enhanced-circuit-breaker';
 import { Logger } from '../shared/logger/types';
 import { AgentControlPlane, createAgentControlPlane } from '../temporal/AgentControlPlane';
@@ -941,7 +943,7 @@ export class BridgeWorker extends BaseAgent {
   }
 
   // Bridge outbox specific event handlers
-  // SPRINT-108B: Added contract validation before processing
+  // SPRINT-109A: CONTRACT-GUARDED - Uses canonical assertDiscordContract
   private async handleBridgeOutboxTicketSubmitted(event: any): Promise<void> {
     this.logger.info('Processing bridge outbox ticket submission event', {
       eventId: event.id,
@@ -952,27 +954,44 @@ export class BridgeWorker extends BaseAgent {
     // Extract ticket data from event_data
     const ticketData = event.event_data;
 
-    // SPRINT-108B: Validate picks have provider per Contract v1.2
-    // This is a fail-closed check - missing provider = blocked_contract (terminal)
+    // SPRINT-109A: CONTRACT-GUARDED - Use canonical assertDiscordContract for ALL picks
+    // This replaces the inline provider check with full Contract v1.2 validation
     if (ticketData.picks && Array.isArray(ticketData.picks)) {
-      const missingProviderPicks = ticketData.picks.filter(
-        (pick: any) => !pick.provider && !pick.provider_id
-      );
+      for (const pick of ticketData.picks) {
+        // Build contract pick from outbox data
+        const contractPick = {
+          pick_id: pick.pick_id || pick.id,
+          bet_slip_id: ticketData.bet_slip_id || event.aggregate_id,
+          capper_id: ticketData.capper_id || ticketData.user_id,
+          stat_type: pick.stat_type || pick.prop_type,
+          selection: pick.selection,
+          odds: pick.odds,
+          tier: pick.tier || 'A',
+          confidence: pick.confidence || pick.units || 1,
+          provider_id: typeof pick.provider_id === 'number' ? pick.provider_id : null,
+          meta: {
+            unit_size: pick.units || pick.unit_size || 1,
+            provider_code: typeof pick.provider === 'string' ? pick.provider : null,
+          },
+        };
 
-      if (missingProviderPicks.length > 0) {
-        this.logger.error('SPRINT-108B: Contract v1.2 violation - picks missing provider', {
-          eventId: event.id,
-          betSlipId: event.aggregate_id,
-          missingCount: missingProviderPicks.length,
-          totalPicks: ticketData.picks.length,
-        });
+        const contractResult = assertDiscordContract(contractPick);
+        if (!contractResult.ok) {
+          this.logger.error('SPRINT-109A: Discord Contract v1.2 violation - blocked_contract', {
+            eventId: event.id,
+            betSlipId: event.aggregate_id,
+            pickId: pick.pick_id || pick.id,
+            missingFields: contractResult.missing_fields,
+            code: contractResult.code,
+          });
 
-        // Note: The event should be marked as blocked_contract by the caller
-        // This throws to trigger the error handler which will mark appropriately
-        const err = new Error('CONTRACT_V1_2_VIOLATION: Picks missing required provider field');
-        (err as any).contractViolation = true;
-        (err as any).missingFields = ['provider'];
-        throw err;
+          // Note: The event should be marked as blocked_contract by the caller
+          // This throws to trigger the error handler which will mark appropriately
+          const err = new Error(contractResult.message);
+          (err as any).contractViolation = true;
+          (err as any).missingFields = contractResult.missing_fields;
+          throw err;
+        }
       }
     }
 

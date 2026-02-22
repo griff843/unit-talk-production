@@ -1,3 +1,4 @@
+/* eslint-disable max-lines, max-lines-per-function */
 /**
  * DiscordTicketWorker — Polls ticket_discord_outbox and posts Discord embeds.
  *
@@ -25,6 +26,7 @@
 
 import axios from 'axios';
 
+import { assertDiscordContract } from '../lib/embedPresentationContract';
 import {
   OutboxItem,
   validateTicketContract,
@@ -33,6 +35,7 @@ import {
   formatLegSummary,
   calculateCombinedOdds,
 } from '../lib/ticketEmbedBuilder';
+// SPRINT-109A: Import canonical contract gate for unified enforcement
 import { supabaseClient } from '../services/supabaseClient';
 import { createLogger } from '../utils/logger';
 
@@ -258,6 +261,41 @@ async function processItem(item: ClaimedItem): Promise<boolean> {
       ticket_id: item.ticket_id,
       missing_fields: contract.missingFields,
     });
+    await releaseClaim(item.outbox_id, false, { errorMsg });
+    return false;
+  }
+
+  // SPRINT-109A: CONTRACT-GUARDED - Canonical Discord Contract v1.2 enforcement
+  // Build a pick-like object from outbox item for contract validation
+  const firstLeg = item.legs?.[0];
+  const contractPick = {
+    pick_id: item.ticket_id,
+    bet_slip_id: item.bet_slip_id,
+    capper_id: item.meta?.capper_id,
+    stat_type: firstLeg?.provider_value?.prop_type || firstLeg?.provider_value?.bet_type,
+    selection: firstLeg?.selection || firstLeg?.provider_value?.selection,
+    odds: firstLeg?.provider_odds ?? firstLeg?.provider_value?.odds,
+    tier: 'A', // Tickets are tier A by default
+    confidence: item.total_stake || 1,
+    provider_id: typeof firstLeg?.provider === 'number' ? firstLeg?.provider : null,
+    meta: {
+      provider_code: typeof firstLeg?.provider === 'string' ? firstLeg?.provider : null,
+    },
+  };
+
+  const discordContract = assertDiscordContract(contractPick);
+  if (!discordContract.ok) {
+    const errorMsg = buildErrorPayload('DISCORD_CONTRACT_V1_2_VIOLATION', discordContract.message, {
+      missing_fields: discordContract.missing_fields,
+      code: discordContract.code,
+    });
+    logger.error('SPRINT-109A: Discord Contract v1.2 violation - blocked_contract', {
+      outbox_id: item.outbox_id,
+      ticket_id: item.ticket_id,
+      missing_fields: discordContract.missing_fields,
+      code: discordContract.code,
+    });
+    // SPRINT-109A: blocked_contract is TERMINAL - never retry
     await releaseClaim(item.outbox_id, false, { errorMsg });
     return false;
   }
