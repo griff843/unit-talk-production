@@ -2,14 +2,14 @@ name: Fortune 100 CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   schedule:
-    - cron: '0 2 * * *' # Daily at 2 AM for scheduled tests
+    - cron: "0 2 * * *" # Daily at 2 AM for scheduled tests
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: "18"
   REGISTRY: ghcr.io
   IMAGE_NAME: unit-talk-production
 
@@ -26,7 +26,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -42,6 +42,25 @@ jobs:
 
       - name: Security audit
         run: npm audit --audit-level=high
+
+      # SPRINT-ARCHITECTURE-HARDENING-002A: CI-enforced guards
+      - name: Guard - Env Proliferation (in-scope only)
+        run: |
+          # Check only in-scope packages (command-center + shared packages)
+          # Full strict mode will be enabled when apps/api is remediated
+          VIOLATIONS=$(npm run guard:env:strict 2>&1 | grep -E "apps\\\\command-center|packages\\\\" || true)
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::Env proliferation violations in protected packages:"
+            echo "$VIOLATIONS"
+            exit 1
+          fi
+          echo "✅ In-scope packages have no env proliferation violations"
+
+      - name: Guard - Schema Drift Check
+        run: npm run schema:check-drift
+
+      - name: Guard - Build Sanity Mode
+        run: npm run build:sanity
 
   # Unit Tests
   unit-tests:
@@ -59,7 +78,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -105,7 +124,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -141,7 +160,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -182,10 +201,10 @@ jobs:
       - name: Run container security scan
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
+          scan-type: "fs"
+          scan-ref: "."
+          format: "sarif"
+          output: "trivy-results.sarif"
 
   # Build and Package
   build:
@@ -348,4 +367,4 @@ jobs:
         if: failure()
         run: |
           echo "Deployment failed - sending notification"
-          # Add failure notification logic here 
+          # Add failure notification logic here
