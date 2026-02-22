@@ -1,31 +1,25 @@
-/**
- * @fileoverview OpenTelemetry instrumentation for Unit Talk Platform
- * Provides comprehensive tracing from ingest → devig → CLV → scoring → publishing
- */
+/** OpenTelemetry instrumentation for Unit Talk Platform - tracing from ingest → scoring → publishing */
 
-import { NodeSDK } from '@opentelemetry/sdk-node';
+import { trace, context, propagation, Span, SpanStatusCode, SpanKind } from '@opentelemetry/api';
+import { W3CTraceContextPropagator, CompositePropagator } from '@opentelemetry/core';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
-import { Resource } from '@opentelemetry/resources';
-import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
-import { 
-  trace, 
-  context, 
-  propagation, 
-  Span, 
-  SpanStatusCode, 
-  SpanKind 
-} from '@opentelemetry/api';
-import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { ExpressInstrumentation } from '@opentelemetry/instrumentation-express';
+import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { PgInstrumentation } from '@opentelemetry/instrumentation-pg';
 import { RedisInstrumentation } from '@opentelemetry/instrumentation-redis';
 import { WinstonInstrumentation } from '@opentelemetry/instrumentation-winston';
 import { B3Propagator } from '@opentelemetry/propagator-b3';
 import { JaegerPropagator } from '@opentelemetry/propagator-jaeger';
+import { Resource } from '@opentelemetry/resources';
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
 
-// =============================================================================
-// CONFIGURATION & INITIALIZATION
-// =============================================================================
+import type { IncomingMessage, ClientRequest } from 'http';
+
+/** Type guard: check if request is IncomingMessage (has url property) */
+function isIncomingMessage(request: ClientRequest | IncomingMessage): request is IncomingMessage {
+  return 'url' in request;
+}
 
 interface TelemetryConfig {
   serviceName: string;
@@ -39,119 +33,89 @@ interface TelemetryConfig {
 
 class UnitTalkTelemetry {
   private sdk: NodeSDK | null = null;
-  private tracer = trace.getTracer('unit-talk-platform', '1.0.0');
   private config: TelemetryConfig;
 
   constructor(config: TelemetryConfig) {
     this.config = {
-      sampleRate: 1.0, // Sample all traces in development
+      sampleRate: 1.0,
       otlpEndpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318/v1/traces',
       enableConsoleExporter: process.env.NODE_ENV !== 'production',
       enableDebugLogs: process.env.NODE_ENV === 'development',
-      ...config
+      ...config,
     };
   }
 
-  /**
-   * Initialize OpenTelemetry with comprehensive instrumentation
-   */
+  /** Build configured exporters */
+  private buildExporters(): OTLPTraceExporter[] {
+    const exporters: OTLPTraceExporter[] = [];
+    if (this.config.otlpEndpoint) {
+      exporters.push(
+        new OTLPTraceExporter({
+          url: this.config.otlpEndpoint,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
+    }
+    return exporters;
+  }
+
+  /** Build configured instrumentations */
+  private buildInstrumentations() {
+    return [
+      new HttpInstrumentation({
+        ignoreIncomingRequestHook: (req: IncomingMessage): boolean =>
+          req.url?.includes('/health') || req.url?.includes('/static') || false,
+        requestHook: (span: Span, request: ClientRequest | IncomingMessage): void => {
+          const url = isIncomingMessage(request) ? request.url : undefined;
+          span.setAttributes({
+            'unit-talk.request.method': request.method || '',
+            'unit-talk.request.path': url || '',
+          });
+        },
+      }),
+      new ExpressInstrumentation({
+        ignoreLayers: [(name: string): boolean => name === 'cors' || name === 'helmet'],
+      }),
+      new PgInstrumentation({
+        enhancedDatabaseReporting: true,
+        responseHook: (span, responseInfo) => {
+          if (responseInfo.data) {
+            span.setAttributes({ 'unit-talk.db.rows_affected': responseInfo.data.rowCount || 0 });
+          }
+        },
+      }),
+      new RedisInstrumentation({
+        responseHook: (span, cmdName, cmdArgs) => {
+          span.setAttributes({
+            'unit-talk.redis.command': cmdName,
+            'unit-talk.redis.args_count': cmdArgs.length,
+          });
+        },
+      }),
+      new WinstonInstrumentation(),
+    ];
+  }
+
+  /** Initialize OpenTelemetry with comprehensive instrumentation */
   initialize(): void {
-    // Configure resource identification
     const resource = new Resource({
       [SemanticResourceAttributes.SERVICE_NAME]: this.config.serviceName,
       [SemanticResourceAttributes.SERVICE_VERSION]: this.config.serviceVersion,
       [SemanticResourceAttributes.DEPLOYMENT_ENVIRONMENT]: this.config.environment,
       [SemanticResourceAttributes.SERVICE_NAMESPACE]: 'unit-talk',
-      // Custom attributes for Unit Talk platform
       'unit-talk.component': this.config.serviceName,
       'unit-talk.platform': 'sports-intelligence',
     });
 
-    // Configure exporters
-    const exporters = [];
-    
-    // OTLP HTTP exporter for production
-    if (this.config.otlpEndpoint) {
-      exporters.push(new OTLPTraceExporter({
-        url: this.config.otlpEndpoint,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }));
-    }
-
-    // Console exporter for development
-    if (this.config.enableConsoleExporter && this.config.environment !== 'production') {
-      const { ConsoleSpanExporter } = require('@opentelemetry/sdk-node');
-      exporters.push(new ConsoleSpanExporter());
-    }
-
-    // Configure SDK
+    const exporters = this.buildExporters();
     this.sdk = new NodeSDK({
       resource,
-      traceExporter: exporters.length > 1 ? 
-        // Multiple exporters require BatchSpanProcessor
-        new (require('@opentelemetry/sdk-node').BatchSpanProcessor)(exporters[0]) :
-        exporters[0],
-      instrumentations: [
-        // HTTP instrumentation for API calls
-        new HttpInstrumentation({
-          ignoreIncomingRequestHook: (req) => {
-            // Ignore health check and static asset requests
-            return req.url?.includes('/health') || req.url?.includes('/static') || false;
-          },
-          requestHook: (span, request) => {
-            span.setAttributes({
-              'unit-talk.request.method': request.method,
-              'unit-talk.request.path': request.url || '',
-            });
-          },
-        }),
-
-        // Express instrumentation
-        new ExpressInstrumentation({
-          ignoreIncomingMiddleware: (info) => {
-            // Ignore middleware that doesn't contribute to business logic
-            return info.name === 'cors' || info.name === 'helmet';
-          },
-        }),
-
-        // Database instrumentation
-        new PgInstrumentation({
-          enhancedDatabaseReporting: true,
-          responseHook: (span, responseInfo) => {
-            if (responseInfo.data) {
-              span.setAttributes({
-                'unit-talk.db.rows_affected': responseInfo.data.rowCount || 0,
-              });
-            }
-          },
-        }),
-
-        // Redis instrumentation for caching
-        new RedisInstrumentation({
-          responseHook: (span, cmdName, cmdArgs) => {
-            span.setAttributes({
-              'unit-talk.redis.command': cmdName,
-              'unit-talk.redis.args_count': cmdArgs.length,
-            });
-          },
-        }),
-
-        // Winston logging instrumentation
-        new WinstonInstrumentation(),
-      ],
-
-      // Configure propagators for distributed tracing
-      textMapPropagator: propagation.createTextMapPropagator({
-        propagators: [
-          new B3Propagator(),
-          new JaegerPropagator(),
-        ],
+      traceExporter: exporters[0],
+      instrumentations: this.buildInstrumentations(),
+      textMapPropagator: new CompositePropagator({
+        propagators: [new W3CTraceContextPropagator(), new B3Propagator(), new JaegerPropagator()],
       }),
     });
-
-    // Start the SDK
     this.sdk.start();
 
     if (this.config.enableDebugLogs) {
@@ -161,9 +125,7 @@ class UnitTalkTelemetry {
     }
   }
 
-  /**
-   * Graceful shutdown
-   */
+  /** Graceful shutdown */
   async shutdown(): Promise<void> {
     if (this.sdk) {
       await this.sdk.shutdown();
@@ -172,22 +134,14 @@ class UnitTalkTelemetry {
   }
 }
 
-// =============================================================================
-// UNIT TALK SPECIFIC TRACING UTILITIES
-// =============================================================================
-
-/**
- * Custom span utility for Unit Talk business operations
- */
+/** Custom span utility for Unit Talk business operations */
 export class UnitTalkTracing {
   private static tracer = trace.getTracer('unit-talk-business', '1.0.0');
 
-  /**
-   * Start a span for prop processing pipeline
-   */
+  /** Start a span for prop processing pipeline */
   static startPropProcessingSpan(
-    operation: string, 
-    propId?: string, 
+    operation: string,
+    propId?: string,
     metadata?: Record<string, any>
   ): Span {
     const span = this.tracer.startSpan(`prop.${operation}`, {
@@ -199,13 +153,10 @@ export class UnitTalkTracing {
         ...metadata,
       },
     });
-
     return span;
   }
 
-  /**
-   * Start a span for agent operations
-   */
+  /** Start a span for agent operations */
   static startAgentSpan(
     agentName: string,
     operation: string,
@@ -220,13 +171,10 @@ export class UnitTalkTracing {
         ...metadata,
       },
     });
-
     return span;
   }
 
-  /**
-   * Start a span for Temporal workflow operations
-   */
+  /** Start a span for Temporal workflow operations */
   static startTemporalSpan(
     workflowType: string,
     operation: string,
@@ -243,13 +191,10 @@ export class UnitTalkTracing {
         'unit-talk.operation.type': 'temporal_workflow',
       },
     });
-
     return span;
   }
 
-  /**
-   * Add business context to current span
-   */
+  /** Add business context to current span */
   static addBusinessContext(
     span: Span,
     context: {
@@ -262,7 +207,6 @@ export class UnitTalkTracing {
     }
   ): void {
     const attributes: Record<string, string> = {};
-    
     if (context.userId) attributes['unit-talk.user.id'] = context.userId;
     if (context.sport) attributes['unit-talk.sports.sport'] = context.sport;
     if (context.league) attributes['unit-talk.sports.league'] = context.league;
@@ -273,9 +217,7 @@ export class UnitTalkTracing {
     span.setAttributes(attributes);
   }
 
-  /**
-   * Record an error on current span
-   */
+  /** Record an error on current span */
   static recordError(span: Span, error: Error, context?: Record<string, any>): void {
     span.recordException(error);
     span.setStatus({
@@ -290,118 +232,83 @@ export class UnitTalkTracing {
     }
   }
 
-  /**
-   * Record success metrics on span
-   */
+  /** Record success metrics on span */
   static recordSuccess(
-    span: Span, 
-    metrics?: { 
-      duration?: number; 
-      itemsProcessed?: number; 
+    span: Span,
+    metrics?: {
+      duration?: number;
+      itemsProcessed?: number;
       score?: number;
     }
   ): void {
     span.setStatus({ code: SpanStatusCode.OK });
-    
     if (metrics) {
       const attributes: Record<string, number> = {};
       if (metrics.duration) attributes['unit-talk.metrics.duration_ms'] = metrics.duration;
-      if (metrics.itemsProcessed) attributes['unit-talk.metrics.items_processed'] = metrics.itemsProcessed;
+      if (metrics.itemsProcessed)
+        attributes['unit-talk.metrics.items_processed'] = metrics.itemsProcessed;
       if (metrics.score) attributes['unit-talk.metrics.score'] = metrics.score;
-      
       span.setAttributes(attributes);
     }
   }
 }
 
-// =============================================================================
-// MIDDLEWARE AND HELPERS
-// =============================================================================
-
-/**
- * Express middleware to add trace context to requests
- */
+/** Express middleware to add trace context to requests */
 export function traceMiddleware(serviceName: string) {
   return (req: any, res: any, next: any) => {
     const span = trace.getActiveSpan();
     if (span) {
-      // Add request context
       span.setAttributes({
         'unit-talk.service': serviceName,
         'unit-talk.request.id': req.headers['x-request-id'] || '',
         'unit-talk.user.id': req.user?.id || 'anonymous',
       });
-
-      // Add trace ID to response headers for debugging
       const traceId = span.spanContext().traceId;
       res.setHeader('X-Trace-ID', traceId);
-      
-      // Add trace ID to request for logging
       req.traceId = traceId;
     }
     next();
   };
 }
 
-/**
- * Get current trace ID for correlation
- */
+/** Get current trace ID for correlation */
 export function getCurrentTraceId(): string | undefined {
-  const span = trace.getActiveSpan();
-  return span?.spanContext().traceId;
+  return trace.getActiveSpan()?.spanContext().traceId;
 }
 
-/**
- * Get current span context for propagation
- */
+/** Get current span context for propagation */
 export function getCurrentSpanContext() {
   return trace.getActiveSpan()?.spanContext();
 }
 
-/**
- * Propagate trace context across async boundaries
- */
+/** Propagate trace context across async boundaries */
 export function withTraceContext<T>(fn: () => Promise<T>): Promise<T> {
-  const activeContext = context.active();
-  return context.with(activeContext, fn);
+  return context.with(context.active(), fn);
 }
-
-// =============================================================================
-// CANARY AND SYNTHETIC MONITORING
-// =============================================================================
 
 export interface CanaryConfig {
   name: string;
-  interval: number; // minutes
-  timeout: number;  // milliseconds
+  interval: number;
+  timeout: number;
   enabled: boolean;
 }
 
 export class SyntheticCanary {
   private config: CanaryConfig;
-  private intervalHandle?: NodeJS.Timeout;
+  private intervalHandle?: ReturnType<typeof setInterval>;
 
   constructor(config: CanaryConfig) {
     this.config = config;
   }
 
-  /**
-   * Start synthetic canary monitoring
-   */
+  /** Start synthetic canary monitoring */
   start(): void {
     if (!this.config.enabled) return;
-
-    this.intervalHandle = setInterval(
-      () => this.runCanary(),
-      this.config.interval * 60 * 1000
-    );
-
+    this.intervalHandle = setInterval(() => this.runCanary(), this.config.interval * 60 * 1000);
     console.log(`🐦 Started synthetic canary: ${this.config.name}`);
   }
 
-  /**
-   * Stop synthetic canary
-   */
+  /** Stop synthetic canary */
   stop(): void {
     if (this.intervalHandle) {
       clearInterval(this.intervalHandle);
@@ -409,10 +316,9 @@ export class SyntheticCanary {
     }
   }
 
-  /**
-   * Execute canary test
-   */
+  /** Execute canary test */
   private async runCanary(): Promise<void> {
+    const startTime = Date.now();
     const span = UnitTalkTracing.startPropProcessingSpan('canary_test', 'synthetic', {
       'unit-talk.canary.name': this.config.name,
       'unit-talk.canary.type': 'synthetic_golden_prop',
@@ -420,65 +326,27 @@ export class SyntheticCanary {
 
     try {
       await this.executeGoldenPropFlow();
-      
-      UnitTalkTracing.recordSuccess(span, {
-        duration: Date.now() - parseInt(span.startTime.toString()),
-      });
-
-      // Record canary success metric
+      UnitTalkTracing.recordSuccess(span, { duration: Date.now() - startTime });
       await this.recordCanaryResult(true);
-
     } catch (error) {
-      UnitTalkTracing.recordError(span, error as Error, {
-        canary_name: this.config.name,
-      });
-
+      UnitTalkTracing.recordError(span, error as Error, { canary_name: this.config.name });
       await this.recordCanaryResult(false);
       console.error(`🚨 Canary failed: ${this.config.name}`, error);
-
     } finally {
       span.end();
     }
   }
 
-  /**
-   * Execute the golden prop workflow
-   */
+  /** Execute the golden prop workflow (placeholder) */
   private async executeGoldenPropFlow(): Promise<void> {
-    // Create synthetic prop → devig → score → validate all gates
-    // This would integrate with your actual prop processing pipeline
-    // Implementation would depend on your specific workflow
-    
-    const syntheticProp = {
-      id: `canary-${Date.now()}`,
-      player_name: 'Synthetic Player',
-      stat_type: 'points',
-      line: 25.5,
-      sport: 'NBA',
-      canary: true,
-    };
-
-    // Simulate prop processing pipeline
     await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // Validate all expected gates fired
-    // Check shadow mode behavior
-    // Verify logging occurred
   }
 
-  /**
-   * Record canary result as metric
-   */
+  /** Record canary result as metric */
   private async recordCanaryResult(success: boolean): Promise<void> {
-    // This would integrate with your metrics collection system
-    // For now, just log the result
     console.log(`🐦 Canary ${this.config.name}: ${success ? 'PASS' : 'FAIL'}`);
   }
 }
-
-// =============================================================================
-// EXPORTS
-// =============================================================================
 
 export { UnitTalkTelemetry, trace, context, propagation };
 export type { TelemetryConfig };
