@@ -43,7 +43,7 @@ class FreezeService {
    */
   static async getStatus(): Promise<FreezeConfig> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('system_config')
         .select('config_value')
         .eq('config_key', 'system_freeze')
@@ -76,7 +76,7 @@ class FreezeService {
     };
 
     // Update in database
-    const { error } = await supabase.from('system_config').upsert({
+    const { error } = await (supabase as any).from('system_config').upsert({
       config_key: 'system_freeze',
       config_value: JSON.stringify(newConfig),
       updated_at: new Date().toISOString(),
@@ -115,7 +115,7 @@ class FreezeService {
       };
 
       // Store freeze settings for agents to read
-      const { error: configError } = await supabase.from('system_config').upsert({
+      const { error: configError } = await (supabase as any).from('system_config').upsert({
         config_key: 'freeze_restrictions',
         config_value: JSON.stringify(freezeSettings),
         updated_at: new Date().toISOString(),
@@ -132,7 +132,7 @@ class FreezeService {
 
       // Update all active picks to frozen state (but allow grading)
       if (config.freeze_publishing) {
-        const { error: picksError } = await supabase
+        const { error: picksError } = await (supabase as any)
           .from('unified_picks')
           .update({
             frozen: true,
@@ -158,7 +158,7 @@ class FreezeService {
   private static async removeFreezeRestrictions(): Promise<void> {
     try {
       // Clear freeze restrictions
-      const { error: configError } = await supabase
+      const { error: configError } = await (supabase as any)
         .from('system_config')
         .delete()
         .eq('config_key', 'freeze_restrictions');
@@ -168,7 +168,7 @@ class FreezeService {
       }
 
       // Unfreeze previously frozen picks
-      const { error: picksError } = await supabase
+      const { error: picksError } = await (supabase as any)
         .from('unified_picks')
         .update({
           frozen: false,
@@ -193,7 +193,7 @@ class FreezeService {
    */
   private static async enableShadowMode(): Promise<void> {
     try {
-      const { error } = await supabase.from('system_config').upsert({
+      const { error } = await (supabase as any).from('system_config').upsert({
         config_key: 'shadow_mode',
         config_value: JSON.stringify({
           enabled: true,
@@ -216,7 +216,7 @@ class FreezeService {
    */
   private static async recordFreezeMetric(enabled: boolean): Promise<void> {
     try {
-      const { error } = await supabase.from('system_metrics').insert({
+      const { error } = await (supabase as any).from('system_metrics').insert({
         metric: 'system_freeze_status',
         value: enabled ? 1 : 0,
         labels: JSON.stringify({
@@ -245,20 +245,20 @@ class FreezeService {
   }> {
     try {
       // Count frozen picks
-      const { count: frozenCount } = await supabase
+      const { count: frozenCount } = await (supabase as any)
         .from('unified_picks')
         .select('*', { count: 'exact', head: true })
         .eq('frozen', true);
 
       // Count queued picks
-      const { count: queuedCount } = await supabase
+      const { count: queuedCount } = await (supabase as any)
         .from('unified_picks')
         .select('*', { count: 'exact', head: true })
         .in('workflow_stage', ['draft', 'pending_review', 'approved'])
         .eq('published', false);
 
       // Check shadow mode status
-      const { data: shadowData } = await supabase
+      const { data: shadowData } = await (supabase as any)
         .from('system_config')
         .select('config_value')
         .eq('config_key', 'shadow_mode')

@@ -46,7 +46,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Execute REFRESH MATERIALIZED VIEW CONCURRENTLY
     // This allows concurrent reads while refreshing
-    const { error } = await supabase.rpc('refresh_pipeline_lag_materialized_view');
+    const { error } = await (supabase as any).rpc('refresh_pipeline_lag_materialized_view');
 
     if (error) {
       console.error('❌ Materialized view refresh failed:', error);

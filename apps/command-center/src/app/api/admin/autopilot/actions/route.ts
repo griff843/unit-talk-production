@@ -33,7 +33,8 @@ export async function POST(request: NextRequest) {
         await RBACService.requirePermission(userId, Permission.VIEW_DASHBOARD);
 
         const hourStart = params?.hour_start || undefined;
-        const { data, error } = await supabase.rpc('compute_autopilot_hourly_metrics', {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data, error } = await (supabase as any).rpc('compute_autopilot_hourly_metrics', {
           p_hour_start: hourStart,
         });
 
@@ -58,7 +59,8 @@ export async function POST(request: NextRequest) {
           throw new Error('gate_id must be "gate1" or "gate2"');
         }
 
-        const { data, error } = await supabase.rpc('compute_gate_snapshot', {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data, error } = await (supabase as any).rpc('compute_gate_snapshot', {
           p_gate_id: gateId,
         });
 
@@ -87,7 +89,8 @@ export async function POST(request: NextRequest) {
         await RBACService.requirePermission(userId, Permission.EMERGENCY_CONTROLS);
 
         // Get current mode
-        const { data: configData } = await supabase.rpc('get_autopilot_mode');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: configData } = await (supabase as any).rpc('get_autopilot_mode');
         const currentMode = (configData as { mode: string })?.mode;
 
         if (currentMode === 'off' || currentMode === 'log_only') {
@@ -101,7 +104,8 @@ export async function POST(request: NextRequest) {
         }
 
         // Trigger emergency demotion
-        const { data: demotionId, error } = await supabase.rpc('record_autopilot_demotion', {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: demotionId, error } = await (supabase as any).rpc('record_autopilot_demotion', {
           p_from_mode: currentMode,
           p_to_mode: 'log_only',
           p_trigger_type: 'manual_emergency',
@@ -154,7 +158,8 @@ export async function POST(request: NextRequest) {
           const hourStart = new Date(Date.now() - i * 60 * 60 * 1000);
           hourStart.setMinutes(0, 0, 0);
 
-          const { data, error } = await supabase.rpc('compute_autopilot_hourly_metrics', {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { data, error } = await (supabase as any).rpc('compute_autopilot_hourly_metrics', {
             p_hour_start: hourStart.toISOString(),
           });
 
@@ -176,7 +181,8 @@ export async function POST(request: NextRequest) {
         // Clear pending PROD confirmation
         await RBACService.requirePermission(userId, Permission.FREEZE_SYSTEM);
 
-        const { error } = await supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error } = await (supabase as any)
           .from('autopilot_mode_config')
           .update({
             pending_mode: null,

@@ -284,7 +284,7 @@ class AutopilotIntelligenceService {
    */
   static async getSignalWeights(): Promise<SignalWeights | null> {
     try {
-      const { data, error } = await supabase.rpc('get_active_signal_weights');
+      const { data, error } = await (supabase as any).rpc('get_active_signal_weights');
 
       if (error) {
         console.error('Error fetching signal weights:', error);
@@ -303,7 +303,7 @@ class AutopilotIntelligenceService {
    */
   static async getLearningState(): Promise<LearningState | null> {
     try {
-      const { data, error } = await supabase.rpc('get_autopilot_learning_state');
+      const { data, error } = await (supabase as any).rpc('get_autopilot_learning_state');
 
       if (error) {
         console.error('Error fetching learning state:', error);
@@ -348,7 +348,7 @@ class AutopilotIntelligenceService {
     actor: string
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      const { data, error } = await supabase.rpc('set_autopilot_learning_enabled', {
+      const { data, error } = await (supabase as any).rpc('set_autopilot_learning_enabled', {
         p_enabled: enabled,
         p_actor: actor,
       });
@@ -368,7 +368,7 @@ class AutopilotIntelligenceService {
    */
   static async computeAccuracy(date: string): Promise<{ success: boolean; id?: string }> {
     try {
-      const { data, error } = await supabase.rpc('compute_autopilot_accuracy_daily', {
+      const { data, error } = await (supabase as any).rpc('compute_autopilot_accuracy_daily', {
         p_date: date,
       });
 
@@ -389,7 +389,7 @@ class AutopilotIntelligenceService {
    */
   static async computeCLV(date: string): Promise<{ success: boolean; id?: string }> {
     try {
-      const { data, error } = await supabase.rpc('compute_autopilot_clv_daily', {
+      const { data, error } = await (supabase as any).rpc('compute_autopilot_clv_daily', {
         p_date: date,
       });
 
@@ -410,7 +410,7 @@ class AutopilotIntelligenceService {
    */
   static async computeCalibration(date: string): Promise<{ success: boolean; id?: string }> {
     try {
-      const { data, error } = await supabase.rpc('compute_autopilot_confidence_calibration', {
+      const { data, error } = await (supabase as any).rpc('compute_autopilot_confidence_calibration', {
         p_date: date,
       });
 

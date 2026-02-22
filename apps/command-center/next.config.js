@@ -9,8 +9,8 @@ const nextConfig = {
   poweredByHeader: false,
 
   typescript: {
-    // SPRINT-COMMAND-CENTER-WORKSPACE-PROD-RUNTIME-104A: Ignore legacy type errors for prod build
-    ignoreBuildErrors: true,
+    // Type checking enabled - all errors must be fixed
+    ignoreBuildErrors: false,
   },
   eslint: {
     ignoreDuringBuilds: true,

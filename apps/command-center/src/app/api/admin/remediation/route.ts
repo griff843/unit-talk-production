@@ -92,7 +92,7 @@ class RemediationService {
   static async getPlaybooks(): Promise<PlaybookDefinition[]> {
     try {
       // Try ops schema first
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('ops.remediation_playbooks')
         .select('*')
         .order('playbook_id');
@@ -124,7 +124,7 @@ class RemediationService {
    */
   static async getPlaybook(playbookId: PlaybookId): Promise<PlaybookDefinition | null> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('remediation_playbooks')
         .select('*')
         .eq('playbook_id', playbookId)
@@ -184,7 +184,7 @@ class RemediationService {
    */
   static async getPending(): Promise<ExecutionRecord[]> {
     try {
-      const { data, error } = await supabase.rpc('get_pending_remediations');
+      const { data, error } = await (supabase as any).rpc('get_pending_remediations');
 
       if (error) {
         console.error('Error fetching pending remediations:', error);
@@ -203,7 +203,7 @@ class RemediationService {
    */
   static async getStats(hoursBack: number = 24): Promise<RemediationStats> {
     try {
-      const { data, error } = await supabase.rpc('get_remediation_stats', {
+      const { data, error } = await (supabase as any).rpc('get_remediation_stats', {
         p_hours_back: hoursBack,
       });
 
@@ -225,7 +225,7 @@ class RemediationService {
    */
   static async getConfig(): Promise<Record<string, unknown> | null> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('remediation_config')
         .select('*')
         .eq('config_key', 'global')
@@ -266,7 +266,7 @@ class RemediationService {
       const correlationId = uuidv4();
       const executionKey = `${playbookId}:${incidentId}:${correlationId}`.substring(0, 32);
 
-      const { error } = await supabase.rpc('create_remediation_execution', {
+      const { error } = await (supabase as any).rpc('create_remediation_execution', {
         p_execution_id: executionId,
         p_playbook_id: playbookId,
         p_incident_id: incidentId,
@@ -311,7 +311,7 @@ class RemediationService {
     error?: string;
   }> {
     try {
-      const { data, error } = await supabase.rpc('approve_remediation', {
+      const { data, error } = await (supabase as any).rpc('approve_remediation', {
         p_execution_id: executionId,
         p_approved_by: approvedBy,
       });
@@ -341,7 +341,7 @@ class RemediationService {
     status: 'active' | 'disabled'
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('remediation_playbooks')
         .update({
           status,

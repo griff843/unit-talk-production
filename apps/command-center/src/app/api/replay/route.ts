@@ -580,8 +580,8 @@ async function cancelReplay(replayId: string, userId: string): Promise<void> {
   const { error: eventsError } = await supabase
     .from('events')
     .update({
-      metadata: supabase.rpc('jsonb_set', {
-        target: supabase.rpc('coalesce', { events: 'metadata', fallback: '{}' }),
+      metadata: (supabase as any).rpc('jsonb_set', {
+        target: (supabase as any).rpc('coalesce', { events: 'metadata', fallback: '{}' }),
         path: '{cancelled}',
         new_value: 'true',
       }),

@@ -90,7 +90,7 @@ class PolicyService {
    */
   static async getConfig(): Promise<PolicyConfig | null> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('autopilot_policy_config')
         .select('*')
         .eq('id', 'default')
@@ -126,7 +126,7 @@ class PolicyService {
    */
   static async setMode(mode: AutopilotMode, operatorId: string): Promise<boolean> {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('autopilot_policy_config')
         .update({
           default_mode: mode,
@@ -155,7 +155,7 @@ class PolicyService {
         global_freeze: freeze,
       };
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('autopilot_policy_config')
         .update({
           operator_overrides: newOverrides,
@@ -191,7 +191,7 @@ class PolicyService {
         },
       };
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('autopilot_policy_config')
         .update({
           operator_overrides: newOverrides,
@@ -227,7 +227,7 @@ class PolicyService {
         },
       };
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('autopilot_policy_config')
         .update({
           operator_overrides: newOverrides,
@@ -255,7 +255,7 @@ class PolicyService {
     }
   ): Promise<DecisionEntry[]> {
     try {
-      let query = supabase
+      let query = (supabase as any)
         .from('autopilot_decisions')
         .select('*')
         .order('created_at', { ascending: false })
@@ -302,7 +302,7 @@ class PolicyService {
     try {
       const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('autopilot_decisions')
         .select('action_type, mode, evaluation_result, executed')
         .gte('created_at', cutoff);

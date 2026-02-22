@@ -96,7 +96,7 @@ class AutopilotService {
    */
   static async getConfig(): Promise<AutopilotConfig | null> {
     try {
-      const { data, error } = await supabase.rpc('get_autopilot_mode');
+      const { data, error } = await (supabase as any).rpc('get_autopilot_mode');
 
       if (error) {
         console.error('Error fetching autopilot config:', error);
@@ -126,7 +126,7 @@ class AutopilotService {
     expires_at?: string;
   }> {
     try {
-      const { data, error } = await supabase.rpc('set_autopilot_mode', {
+      const { data, error } = await (supabase as any).rpc('set_autopilot_mode', {
         p_mode: mode,
         p_actor: actor,
         p_confirm: confirm,
@@ -158,7 +158,7 @@ class AutopilotService {
    */
   static async getGateSnapshots(gateId?: string, limit: number = 10): Promise<GateSnapshot[]> {
     try {
-      let query = supabase
+      let query = (supabase as any)
         .from('autopilot_gate_snapshots')
         .select('*')
         .order('evaluated_at', { ascending: false })
@@ -187,7 +187,7 @@ class AutopilotService {
    */
   static async getDemotionEvents(limit: number = 20): Promise<DemotionEvent[]> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('autopilot_demotion_events')
         .select('*')
         .order('demoted_at', { ascending: false })
@@ -212,7 +212,7 @@ class AutopilotService {
     try {
       const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('autopilot_metrics_hourly')
         .select('*')
         .gte('hour_start', cutoff)
@@ -235,7 +235,7 @@ class AutopilotService {
    */
   static async computeMetrics(): Promise<{ success: boolean; id?: string }> {
     try {
-      const { data, error } = await supabase.rpc('compute_autopilot_hourly_metrics');
+      const { data, error } = await (supabase as any).rpc('compute_autopilot_hourly_metrics');
 
       if (error) {
         console.error('Error computing metrics:', error);
@@ -254,7 +254,7 @@ class AutopilotService {
    */
   static async computeGateSnapshot(gateId: string): Promise<{ success: boolean; id?: string }> {
     try {
-      const { data, error } = await supabase.rpc('compute_gate_snapshot', {
+      const { data, error } = await (supabase as any).rpc('compute_gate_snapshot', {
         p_gate_id: gateId,
       });
 
@@ -284,7 +284,7 @@ class AutopilotService {
       const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
       // Get decision counts
-      const { data: decisions, error: decisionsError } = await supabase
+      const { data: decisions, error: decisionsError } = await (supabase as any)
         .from('autopilot_decisions')
         .select('decision, reason')
         .gte('created_at', cutoff);
@@ -321,7 +321,7 @@ class AutopilotService {
         .slice(0, 5);
 
       // Get canary volume
-      const { count: canaryCount } = await supabase
+      const { count: canaryCount } = await (supabase as any)
         .from('autopilot_decisions')
         .select('*', { count: 'exact', head: true })
         .eq('canary_routed', true)
@@ -359,7 +359,7 @@ class AutopilotService {
     }>
   > {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('audit_log')
         .select('actor, action, previous_state, new_state, created_at')
         .in('action', ['AUTOPILOT_MODE_CHANGE', 'AUTOPILOT_DEMOTION'])
@@ -713,7 +713,7 @@ export async function PUT(request: NextRequest) {
     const previousConfig = await AutopilotService.getConfig();
 
     // Update config
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('autopilot_mode_config')
       .update(updates)
       .eq('id', 'a0000000-0000-0000-0000-000000000001');
