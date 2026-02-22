@@ -1,0 +1,59 @@
+======================================================================
+TEST EDGE ENGINE PROJECTION NON-ZERO
+Sprint: SPRINT-PROJECTIONS-FOUNDATION-099A
+======================================================================
+
+📋 Projection present - favorable OVER (projection > line)
+   Input: entry_line=25.5, projection=28, side=over
+   projection_delta_score: 39.22
+   edge_score_pre: 89.22
+   tier_pre: S
+   pre_flags: []
+   ✅ PASS
+
+📋 Projection present - favorable UNDER (projection < line)
+   Input: entry_line=8.5, projection=7.5, side=under
+   projection_delta_score: 40
+   edge_score_pre: 78
+   tier_pre: S
+   pre_flags: [adverse_early_movement]
+   ✅ PASS
+
+📋 Projection absent - should be zero with flag
+   Input: entry_line=6.5, projection=null, side=over
+   projection_delta_score: 0
+   edge_score_pre: 44
+   tier_pre: PASS
+   pre_flags: [no_projection]
+   ✅ PASS
+
+📋 Projection undefined - should be zero with flag
+   Input: entry_line=275.5, projection=null, side=over
+   projection_delta_score: 0
+   edge_score_pre: 41.07
+   tier_pre: PASS
+   pre_flags: [no_projection]
+   ✅ PASS
+
+📋 Projection equals line - should be zero (no edge)
+   Input: entry_line=10, projection=10, side=over
+   projection_delta_score: 0
+   edge_score_pre: 53
+   tier_pre: B
+   pre_flags: []
+   ✅ PASS
+
+📋 Large projection edge (10%+) - should score high
+   Input: entry_line=3.5, projection=4.2, side=over
+   projection_delta_score: 40
+   edge_score_pre: 82
+   tier_pre: S
+   pre_flags: []
+   ✅ PASS
+
+======================================================================
+RESULTS: 6 passed, 0 failed
+======================================================================
+✅ ALL TESTS PASSED
+
+PROOF: projection_delta_score is NON-ZERO when projection exists

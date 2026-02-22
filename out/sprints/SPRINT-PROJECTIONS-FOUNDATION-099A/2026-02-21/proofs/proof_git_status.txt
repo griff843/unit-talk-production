@@ -1,0 +1,18 @@
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   apps/api/src/agents/GradingAgent/GradingAgent.ts
+	modified:   apps/api/src/services/projections/index.ts
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	apps/api/src/agents/ProjectionAgent/
+	apps/api/src/scripts/projections-coverage.ts
+	apps/api/src/scripts/test-edge-engine-projection-nonzero.ts
+	apps/api/src/scripts/test-projections-lookup.ts
+	supabase/migrations/20260221200000_create_player_projections.sql
+
+no changes added to commit (use "git add" and/or "git commit -a")

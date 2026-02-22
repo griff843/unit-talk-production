@@ -1,10 +1,11 @@
-/* eslint-disable max-lines, max-lines-per-function, complexity, no-undef, no-return-await, no-unused-vars */
+/* eslint-disable max-lines, max-lines-per-function, complexity, no-undef, no-return-await, no-unused-vars, max-depth, @typescript-eslint/no-unused-vars */
 import { randomUUID } from 'crypto';
 
 import {
   ProfessionalPropProcessor,
   ProfessionalPropResult,
 } from '../../services/ProfessionalPropProcessor';
+import { ProjectionEngine, getProjectionEngine } from '../../services/projections';
 import { GradingFeatureSet } from '../../types/GradingFeatureSet';
 import { BaseAgent } from '../BaseAgent';
 import {
@@ -15,7 +16,6 @@ import {
 } from '../BaseAgent/types';
 
 import { SyndicateGradingEngine, GradingResult, ScoringConfig } from './scoring/gradingEngine';
-import { ProjectionEngine, getProjectionEngine } from '../../services/projections';
 // import { Pick, GradeResult } from './types';
 // import { PerformanceAnalyzer } from './scoring/performanceAnalyzer';
 // import { RiskManager } from './scoring/riskManager';
@@ -260,7 +260,7 @@ export class GradingAgent extends BaseAgent {
           const projection = await this.projectionEngine.getProjection(
             features.player,
             features.marketType,
-            { date: features.date }
+            { sport: features.sport, date: features.date }
           );
 
           if (projection) {
