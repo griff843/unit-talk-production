@@ -1,12 +1,19 @@
 /**
  * @fileoverview Temporal workflow health summary API
  * Provides comprehensive Temporal workflow monitoring and health metrics
+ *
+ * NOTE: temporal_* tables may not exist in production.
+ * Using 'any' casts to avoid type errors with merged database types.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+
 import { RBACService, Permission } from '@/lib/rbac';
-import { UnitTalkTracing } from '@/lib/telemetry';
 import { supabase } from '@/lib/supabase';
+import { UnitTalkTracing } from '@/lib/telemetry';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const dbClient = supabase as any;
 
 // =============================================================================
 // TEMPORAL HEALTH INTERFACES
@@ -117,7 +124,7 @@ class TemporalMonitoringService {
    * Get workflow summaries grouped by type
    */
   private static async getWorkflowSummaries(since: Date): Promise<WorkflowSummary[]> {
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('temporal_workflow_health')
       .select('*')
       .gte('created_at', since.toISOString())
@@ -208,7 +215,7 @@ class TemporalMonitoringService {
    */
   private static async getQueueSummaries(): Promise<TemporalSummary['by_queue']> {
     // Query current running workflows to estimate queue depth
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('temporal_workflow_health')
       .select('task_queue, workflow_type, started_at')
       .eq('status', 'running')
@@ -276,7 +283,7 @@ class TemporalMonitoringService {
    * Get performance metrics
    */
   private static async getPerformanceMetrics(since: Date): Promise<TemporalSummary['performance']> {
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('temporal_workflow_health')
       .select('duration_ms, created_at')
       .gte('created_at', since.toISOString())
@@ -312,7 +319,7 @@ class TemporalMonitoringService {
    * Get missed schedule count
    */
   private static async getMissedScheduleCount(): Promise<number> {
-    const { count, error } = await supabase
+    const { count, error } = await dbClient
       .from('temporal_schedule_health')
       .select('*', { count: 'exact', head: true })
       .eq('is_missing', true);
@@ -326,7 +333,7 @@ class TemporalMonitoringService {
   private static async getStuckWorkflowCount(since: Date): Promise<number> {
     const stuckThreshold = new Date(Date.now() - 30 * 60 * 1000); // 30 minutes ago
 
-    const { count, error } = await supabase
+    const { count, error } = await dbClient
       .from('temporal_workflow_health')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'running')
@@ -341,7 +348,7 @@ class TemporalMonitoringService {
   private static async getRecentFailureCount(since: Date): Promise<number> {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
-    const { count, error } = await supabase
+    const { count, error } = await dbClient
       .from('temporal_workflow_health')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'failed')
@@ -354,7 +361,7 @@ class TemporalMonitoringService {
    * Get high retry workflow count
    */
   private static async getHighRetryWorkflowCount(since: Date): Promise<number> {
-    const { count, error } = await supabase
+    const { count, error } = await dbClient
       .from('temporal_workflow_health')
       .select('*', { count: 'exact', head: true })
       .gte('retry_count', 3)
@@ -389,7 +396,7 @@ class TemporalMonitoringService {
    * Get recent failures for detailed analysis
    */
   static async getRecentFailures(limit: number = 10): Promise<any[]> {
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('temporal_workflow_health')
       .select('workflow_id, workflow_type, error_message, created_at')
       .eq('status', 'failed')
@@ -405,7 +412,7 @@ class TemporalMonitoringService {
   static async getStuckWorkflows(limit: number = 10): Promise<any[]> {
     const stuckThreshold = new Date(Date.now() - 30 * 60 * 1000);
 
-    const { data, error } = await supabase
+    const { data, error } = await dbClient
       .from('temporal_workflow_health')
       .select('workflow_id, workflow_type, started_at, last_heartbeat')
       .eq('status', 'running')

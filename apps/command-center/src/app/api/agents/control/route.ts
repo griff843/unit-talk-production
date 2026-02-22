@@ -12,9 +12,10 @@
  * @module agents/control
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseClient } from '@/lib/supabase';
 import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from 'next/server';
+
+import { getSupabaseClient } from '@/lib/supabase';
 
 /**
  * RPC Response Types
@@ -194,10 +195,7 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!action) {
-      return NextResponse.json(
-        { success: false, error: 'Action is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: 'Action is required' }, { status: 400 });
     }
 
     // Get operator context
@@ -224,14 +222,9 @@ export async function POST(request: NextRequest) {
 
     // Check permission
     if (!hasPermission(operatorContext.role, requiredPermission)) {
-      await auditLog(
-        getSupabaseClient(),
-        action,
-        agentId || '*',
-        'denied',
-        operatorContext,
-        { requiredPermission }
-      );
+      await auditLog(getSupabaseClient(), action, agentId || '*', 'denied', operatorContext, {
+        requiredPermission,
+      });
 
       return NextResponse.json(
         {
@@ -245,10 +238,7 @@ export async function POST(request: NextRequest) {
 
     const client = getSupabaseClient();
     if (!client) {
-      return NextResponse.json(
-        { success: false, error: 'Database unavailable' },
-        { status: 503 }
-      );
+      return NextResponse.json({ success: false, error: 'Database unavailable' }, { status: 503 });
     }
 
     // Handle different actions
@@ -286,14 +276,11 @@ export async function POST(request: NextRequest) {
             error: error.message,
           });
 
-          return NextResponse.json(
-            { success: false, error: error.message },
-            { status: 500 }
-          );
+          return NextResponse.json({ success: false, error: error.message }, { status: 500 });
         }
 
-        // Type assertion for RPC response
-        const data = rpcData as StateChangeResponse | null;
+        // Type assertion for RPC response (cast through unknown for Json type)
+        const data = rpcData as unknown as StateChangeResponse | null;
 
         if (!data?.success) {
           await auditLog(client, action, agentId, 'failure', operatorContext, {
@@ -353,14 +340,11 @@ export async function POST(request: NextRequest) {
             error: error.message,
           });
 
-          return NextResponse.json(
-            { success: false, error: error.message },
-            { status: 500 }
-          );
+          return NextResponse.json({ success: false, error: error.message }, { status: 500 });
         }
 
-        // Type assertion for RPC response
-        const data = rpcData as KillConfirmationResponse | null;
+        // Type assertion for RPC response (cast through unknown for Json type)
+        const data = rpcData as unknown as KillConfirmationResponse | null;
 
         await auditLog(client, 'kill_request', agentId, 'success', operatorContext, {
           expiresAt: data?.expires_at,
@@ -374,8 +358,7 @@ export async function POST(request: NextRequest) {
             expiresAt: data?.expires_at,
             expiresInSeconds: 60,
           },
-          message:
-            'Kill confirmation token created. You have 60 seconds to confirm.',
+          message: 'Kill confirmation token created. You have 60 seconds to confirm.',
           latencyMs: Date.now() - startTime,
         });
       }
@@ -398,14 +381,11 @@ export async function POST(request: NextRequest) {
             error: error.message,
           });
 
-          return NextResponse.json(
-            { success: false, error: error.message },
-            { status: 500 }
-          );
+          return NextResponse.json({ success: false, error: error.message }, { status: 500 });
         }
 
-        // Type assertion for RPC response
-        const data = rpcData as KillConfirmResponse | null;
+        // Type assertion for RPC response (cast through unknown for Json type)
+        const data = rpcData as unknown as KillConfirmResponse | null;
 
         if (!data?.success) {
           await auditLog(client, 'kill_confirm', agentId || 'unknown', 'failure', operatorContext, {
@@ -418,9 +398,16 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        await auditLog(client, 'kill_confirm', data.agent_id || 'unknown', 'success', operatorContext, {
-          killedAt: data.killed_at,
-        });
+        await auditLog(
+          client,
+          'kill_confirm',
+          data.agent_id || 'unknown',
+          'success',
+          operatorContext,
+          {
+            killedAt: data.killed_at,
+          }
+        );
 
         return NextResponse.json({
           success: true,
@@ -440,12 +427,14 @@ export async function POST(request: NextRequest) {
         // Super admin only - stop all agents
         try {
           // Set system-wide emergency stop flag
+          // Production schema: id (number), emergency_stop, maintenance_mode, maintenance_message, updated_at, updated_by
           await client.from('system_status').upsert({
-            id: 'global',
+            id: 1, // Global status uses numeric id=1
             emergency_stop: true,
-            emergency_stop_reason: reason || 'Emergency stop triggered',
-            emergency_stop_by: operatorContext.userId,
-            emergency_stop_at: new Date().toISOString(),
+            maintenance_mode: false,
+            maintenance_message: `Emergency stop: ${reason || 'No reason provided'} (by ${operatorContext.userId})`,
+            updated_at: new Date().toISOString(),
+            updated_by: operatorContext.userId,
           });
 
           // Get all running agents
@@ -549,10 +538,7 @@ export async function GET(request: NextRequest) {
 
     const client = getSupabaseClient();
     if (!client) {
-      return NextResponse.json(
-        { success: false, error: 'Database unavailable' },
-        { status: 503 }
-      );
+      return NextResponse.json({ success: false, error: 'Database unavailable' }, { status: 503 });
     }
 
     // Get specific agent
@@ -564,10 +550,7 @@ export async function GET(request: NextRequest) {
         .single();
 
       if (error || !agentData) {
-        return NextResponse.json(
-          { success: false, error: 'Agent not found' },
-          { status: 404 }
-        );
+        return NextResponse.json({ success: false, error: 'Agent not found' }, { status: 404 });
       }
 
       // Type assertion for agent data (Supabase returns unknown)
@@ -600,7 +583,7 @@ export async function GET(request: NextRequest) {
         // Type assertion for metrics data (Supabase returns unknown)
         const metrics = (metricsData || []) as unknown as MetricsSnapshotRow[];
 
-        result.metrics = metrics.map((m) => ({
+        result.metrics = metrics.map(m => ({
           runCount: m.run_count,
           successCount: m.success_count,
           failureCount: m.failure_count,
@@ -623,7 +606,7 @@ export async function GET(request: NextRequest) {
         // Type assertion for events data (Supabase returns unknown)
         const events = (eventsData || []) as unknown as LifecycleEventRow[];
 
-        result.lifecycleEvents = events.map((e) => ({
+        result.lifecycleEvents = events.map(e => ({
           eventType: e.event_type,
           previousState: e.previous_state,
           newState: e.new_state,
@@ -647,16 +630,13 @@ export async function GET(request: NextRequest) {
       .order('agent_id');
 
     if (error) {
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: 500 }
-      );
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
     // Type assertion for agents data (Supabase returns unknown)
     const agents = (agentsData || []) as unknown as AgentRegistryRow[];
 
-    const agentList = agents.map((agent) => {
+    const agentList = agents.map(agent => {
       const heartbeatAge = agent.last_heartbeat
         ? Date.now() - new Date(agent.last_heartbeat).getTime()
         : Infinity;
@@ -675,13 +655,13 @@ export async function GET(request: NextRequest) {
     // Calculate summary
     const summary = {
       total: agentList.length,
-      running: agentList.filter((a) => a.currentState === 'running').length,
-      paused: agentList.filter((a) => a.currentState === 'paused').length,
-      stopped: agentList.filter((a) => a.currentState === 'stopped').length,
-      draining: agentList.filter((a) => a.currentState === 'draining').length,
-      killed: agentList.filter((a) => a.currentState === 'killed').length,
-      healthy: agentList.filter((a) => a.isHealthy).length,
-      unhealthy: agentList.filter((a) => !a.isHealthy).length,
+      running: agentList.filter(a => a.currentState === 'running').length,
+      paused: agentList.filter(a => a.currentState === 'paused').length,
+      stopped: agentList.filter(a => a.currentState === 'stopped').length,
+      draining: agentList.filter(a => a.currentState === 'draining').length,
+      killed: agentList.filter(a => a.currentState === 'killed').length,
+      healthy: agentList.filter(a => a.isHealthy).length,
+      unhealthy: agentList.filter(a => !a.isHealthy).length,
     };
 
     return NextResponse.json({

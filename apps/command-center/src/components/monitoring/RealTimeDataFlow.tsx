@@ -1,10 +1,5 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import {
   Activity,
   TrendingUp,
@@ -27,8 +22,15 @@ import {
   FileText,
   Settings,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
+
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { supabase } from '@/lib/supabase';
+
 
 interface DataFlowMetrics {
   feedIngestion: {
@@ -200,64 +202,67 @@ export function RealTimeDataFlow({ className }: RealTimeDataFlowProps) {
           const realMetrics: DataFlowMetrics = {
             feedIngestion: {
               propsReceived: rawProps?.length || mockMetrics.feedIngestion.propsReceived,
-              propsProcessed:
-                rawProps?.filter(p => p.status === 'processed').length ||
-                mockMetrics.feedIngestion.propsProcessed,
-              propsFailed:
-                rawProps?.filter(p => p.status === 'failed').length ||
-                mockMetrics.feedIngestion.propsFailed,
+              // Note: mv_raw_props_grading may not have 'status' column in production
+              // Using length-based approximation
+              propsProcessed: rawProps?.length || mockMetrics.feedIngestion.propsProcessed,
+              propsFailed: mockMetrics.feedIngestion.propsFailed,
               lastRun: String(rawProps?.[0]?.created_at || mockMetrics.feedIngestion.lastRun),
               processingRate: mockMetrics.feedIngestion.processingRate,
               sources: ['Optimal Sports', 'DraftKings', 'FanDuel', 'Caesars'],
             },
             gradingResults: {
+              // Production schema: use settlement_status for graded state, tier for tiers
               totalGraded:
-                picks?.filter(p => p.grade).length || mockMetrics.gradingResults.totalGraded,
+                picks?.filter(p => p.settlement_status && p.settlement_status !== 'pending')
+                  .length || mockMetrics.gradingResults.totalGraded,
               tierA: picks?.filter(p => p.tier === 'A').length || mockMetrics.gradingResults.tierA,
               tierB: picks?.filter(p => p.tier === 'B').length || mockMetrics.gradingResults.tierB,
               tierC: picks?.filter(p => p.tier === 'C').length || mockMetrics.gradingResults.tierC,
-              pending: picks?.filter(p => !p.grade).length || mockMetrics.gradingResults.pending,
+              pending:
+                picks?.filter(p => !p.settlement_status || p.settlement_status === 'pending')
+                  .length || mockMetrics.gradingResults.pending,
               avgGradingTime: mockMetrics.gradingResults.avgGradingTime,
               successRate: mockMetrics.gradingResults.successRate,
             },
             approvalQueue: {
+              // Production schema: use workflow_stage for approval status
               awaitingApproval:
-                picks?.filter(p => p.status === 'pending_approval').length ||
+                picks?.filter(p => p.workflow_stage === 'pending_review').length ||
                 mockMetrics.approvalQueue.awaitingApproval,
               approved:
-                picks?.filter(p => p.status === 'approved').length ||
+                picks?.filter(p => p.workflow_stage === 'approved').length ||
                 mockMetrics.approvalQueue.approved,
               rejected:
-                picks?.filter(p => p.status === 'rejected').length ||
+                picks?.filter(p => p.workflow_stage === 'rejected').length ||
                 mockMetrics.approvalQueue.rejected,
               avgApprovalTime: mockMetrics.approvalQueue.avgApprovalTime,
-              highPriority:
-                picks?.filter(p => p.priority === 'high').length ||
-                mockMetrics.approvalQueue.highPriority,
+              // Note: priority column doesn't exist in production schema
+              highPriority: mockMetrics.approvalQueue.highPriority,
             },
             formSubmissions: mockMetrics.formSubmissions,
             agentActivity: {
+              // Production schema: agent_health uses 'agent' column, not 'agent_name'
               feedAgent:
-                transformAgentHealth(agentHealth?.find(a => a.agent_name === 'FeedAgent')) ||
+                transformAgentHealth(agentHealth?.find(a => a.agent === 'FeedAgent')) ||
                 mockMetrics.agentActivity.feedAgent,
               gradingAgent:
-                transformAgentHealth(agentHealth?.find(a => a.agent_name === 'GradingAgent')) ||
+                transformAgentHealth(agentHealth?.find(a => a.agent === 'GradingAgent')) ||
                 mockMetrics.agentActivity.gradingAgent,
               alertAgent:
-                transformAgentHealth(agentHealth?.find(a => a.agent_name === 'AlertAgent')) ||
+                transformAgentHealth(agentHealth?.find(a => a.agent === 'AlertAgent')) ||
                 mockMetrics.agentActivity.alertAgent,
               recapAgent:
-                transformAgentHealth(agentHealth?.find(a => a.agent_name === 'RecapAgent')) ||
+                transformAgentHealth(agentHealth?.find(a => a.agent === 'RecapAgent')) ||
                 mockMetrics.agentActivity.recapAgent,
               operatorAgent:
-                transformAgentHealth(agentHealth?.find(a => a.agent_name === 'OperatorAgent')) ||
+                transformAgentHealth(agentHealth?.find(a => a.agent === 'OperatorAgent')) ||
                 mockMetrics.agentActivity.operatorAgent,
               analyticsAgent:
-                transformAgentHealth(agentHealth?.find(a => a.agent_name === 'AnalyticsAgent')) ||
+                transformAgentHealth(agentHealth?.find(a => a.agent === 'AnalyticsAgent')) ||
                 mockMetrics.agentActivity.analyticsAgent,
               professionalProcessor:
                 transformAgentHealth(
-                  agentHealth?.find(a => a.agent_name === 'ProfessionalPropProcessor')
+                  agentHealth?.find(a => a.agent === 'ProfessionalPropProcessor')
                 ) || mockMetrics.agentActivity.professionalProcessor,
             },
           };

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { dbOperations, subscriptions, User, Agent, SecurityEvent } from '@/lib/supabase';
+
 import {
   mockUsers,
   mockAgents,
@@ -7,6 +7,7 @@ import {
   getMockAnalytics,
   startLiveDataSimulation,
 } from '@/lib/mockData';
+import { dbOperations, subscriptions, User, Agent, SecurityEvent } from '@/lib/supabase';
 
 // Custom hook for users data
 export function useUsers() {
@@ -87,15 +88,18 @@ export function useAgents() {
 
     const subscription = subscriptions.subscribeToAgentStatus(payload => {
       const { eventType, new: newRecord, old: oldRecord } = payload;
+      // Cast to Agent type since real-time payloads come as Record<string, unknown>
+      const typedNewRecord = newRecord as Agent;
+      const typedOldRecord = oldRecord as Agent;
 
       setAgents(prev => {
         switch (eventType) {
           case 'INSERT':
-            return [...prev, newRecord];
+            return [...prev, typedNewRecord];
           case 'UPDATE':
-            return prev.map(agent => (agent.id === newRecord.id ? newRecord : agent));
+            return prev.map(agent => (agent.id === typedNewRecord.id ? typedNewRecord : agent));
           case 'DELETE':
-            return prev.filter(agent => agent.id !== oldRecord.id);
+            return prev.filter(agent => agent.id !== typedOldRecord.id);
           default:
             return prev;
         }
@@ -169,7 +173,9 @@ export function useSecurityEvents() {
     if (!usingMockData) {
       subscription = subscriptions.subscribeToSecurityEvents(payload => {
         if (payload.eventType === 'INSERT') {
-          setEvents(prev => [payload.new, ...prev.slice(0, 49)]); // Keep last 50 events
+          // Cast to SecurityEvent since real-time payloads come as Record<string, unknown>
+          const newEvent = payload.new as unknown as SecurityEvent;
+          setEvents(prev => [newEvent, ...prev.slice(0, 49)]); // Keep last 50 events
         }
       });
     }

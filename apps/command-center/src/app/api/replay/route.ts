@@ -1,7 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+
 import { RBACService, Permission } from '@/lib/rbac';
+import { supabase } from '@/lib/supabase';
 import { UnitTalkTracing } from '@/lib/telemetry';
+
+// Feature gate: Replay requires workflow_executions, event_processing_logs tables not in production
+const REPLAY_ENABLED = process.env.ENABLE_REPLAY === 'true';
+
+function replayNotEnabledResponse(): NextResponse {
+  return NextResponse.json(
+    {
+      success: false,
+      error: 'Replay feature not enabled',
+      code: 'FEATURE_NOT_ENABLED',
+      message: 'The replay feature requires additional database tables that are not provisioned.',
+    },
+    { status: 503 }
+  );
+}
 
 interface ReplayCriteria {
   timeRange: '1h' | '6h' | '24h' | 'custom';
@@ -25,6 +41,10 @@ interface ReplayResult {
 }
 
 export async function POST(request: NextRequest) {
+  if (!REPLAY_ENABLED) {
+    return replayNotEnabledResponse();
+  }
+
   const span = UnitTalkTracing.startTemporalSpan('command-center', 'replay-operation');
 
   try {
@@ -427,39 +447,47 @@ async function handleAlertReemission(
   };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type EventRecord = Record<string, any>;
+
 async function fetchEventsForCriteria(
   criteria: ReplayCriteria,
   eventTypes?: string[]
-): Promise<any[]> {
-  let query = supabase.from('events').select('*');
+): Promise<EventRecord[]> {
+  // Use any cast to avoid type recursion with merged types
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const client = supabase as any;
 
-  // Apply event type filter
-  if (criteria.eventType) {
-    query = query.eq('event_type', criteria.eventType);
-  } else if (eventTypes) {
-    query = query.in('event_type', eventTypes);
-  }
-
-  // Apply time range filter
   const timeRangeFilter = getTimeRangeFilter(
     criteria.timeRange,
     criteria.customStart,
     criteria.customEnd
   );
-  query = query.gte('created_at', timeRangeFilter.start).lte('created_at', timeRangeFilter.end);
+
+  // Build query with all filters inline to avoid type recursion
+  let queryBuilder = client
+    .from('events')
+    .select('*')
+    .gte('created_at', timeRangeFilter.start)
+    .lte('created_at', timeRangeFilter.end)
+    .order('created_at', { ascending: true });
+
+  // Apply event type filter
+  if (criteria.eventType) {
+    queryBuilder = queryBuilder.eq('event_type', criteria.eventType);
+  } else if (eventTypes && eventTypes.length > 0) {
+    queryBuilder = queryBuilder.in('event_type', eventTypes);
+  }
 
   // Apply status filter (only get successfully processed events for replay)
   if (criteria.status) {
-    query = query.eq('processing_status', criteria.status);
+    queryBuilder = queryBuilder.eq('processing_status', criteria.status);
   } else {
     // Default: only replay successfully processed events
-    query = query.is('processed_at', null).is('failed_at', null);
+    queryBuilder = queryBuilder.is('processed_at', null).is('failed_at', null);
   }
 
-  // Order by creation time
-  query = query.order('created_at', { ascending: true });
-
-  const { data: events, error } = await query;
+  const { data: events, error } = await queryBuilder;
 
   if (error) {
     throw new Error(`Failed to fetch events: ${error.message}`);
@@ -495,21 +523,31 @@ async function getReplayStatus(replayId: string): Promise<any> {
   const failedEvents = replayEvents?.filter(e => e.failed_at).length || 0;
 
   // Get processing logs for more detailed metrics
-  const { data: processingLogs } = await supabase
+  // Table doesn't exist in production schema - use any cast
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const client = supabase as any;
+  const { data: processingLogs } = await client
     .from('event_processing_logs')
     .select('*')
-    .in('event_id', replayEvents?.map(e => e.id) || []);
+    .in('event_id', replayEvents?.map((e: { id: string }) => e.id) || []);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const typedLogs = processingLogs as Array<{
+    processing_duration_ms?: number;
+    error_message?: string;
+    processing_started_at?: string;
+  }> | null;
 
   const metrics = {
     processingTime:
-      processingLogs?.reduce((sum, log) => sum + (Number(log.processing_duration_ms) || 0), 0) || 0,
+      typedLogs?.reduce((sum, log) => sum + (Number(log.processing_duration_ms) || 0), 0) || 0,
     alertsGenerated: 0, // Would need to count alerts generated during replay
     opportunitiesFound: 0, // Would need to count opportunities found
     errorsEncountered: failedEvents,
   };
 
   const errors =
-    processingLogs
+    typedLogs
       ?.filter(log => log.error_message)
       .map(log => ({
         step: 'event_processing',
@@ -577,15 +615,14 @@ async function cancelReplay(replayId: string, userId: string): Promise<void> {
   }
 
   // Mark any remaining unprocessed replay events as cancelled
-  const { error: eventsError } = await supabase
+  // Use any cast since events table columns may not match types
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const eventsClient = supabase as any;
+  const { error: eventsError } = await eventsClient
     .from('events')
     .update({
-      metadata: (supabase as any).rpc('jsonb_set', {
-        target: (supabase as any).rpc('coalesce', { events: 'metadata', fallback: '{}' }),
-        path: '{cancelled}',
-        new_value: 'true',
-      }),
       failed_at: new Date().toISOString(),
+      failed_reason: 'Replay cancelled by user',
     })
     .eq('metadata->>replay_id', replayId)
     .is('processed_at', null)

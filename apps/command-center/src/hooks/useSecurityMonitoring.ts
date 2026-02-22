@@ -1,5 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
+
 import { supabase } from '@/lib/supabase';
+
+// Using 'any' cast to avoid type mismatch with security_events table
+// (App uses extended type enum, DB has limited enum)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const dbClient = supabase as any;
 
 export interface SecurityAlert {
   id: string;
@@ -128,7 +134,7 @@ export function useSecurityMonitoring() {
 
       console.log('🔍 Fetching security data...');
 
-      if (!supabase) {
+      if (!dbClient) {
         console.log('⚠️ Supabase client not available, using mock data');
         setAlerts(mockSecurityAlerts);
         setMetrics(calculateMetrics(mockSecurityAlerts));
@@ -136,7 +142,7 @@ export function useSecurityMonitoring() {
       }
 
       // Try to fetch real security events
-      const { data: securityEvents, error: securityError } = await supabase
+      const { data: securityEvents, error: securityError } = await dbClient
         .from('security_events')
         .select('*')
         .order('created_at', { ascending: false })
@@ -151,7 +157,9 @@ export function useSecurityMonitoring() {
           type: (event.type || 'suspicious_activity') as SecurityAlert['type'],
           severity: (event.severity || 'medium') as SecurityAlert['severity'],
           message: String(event.description || 'No description'),
-          details: event.metadata || {},
+          details: (typeof event.metadata === 'object' && event.metadata !== null
+            ? event.metadata
+            : {}) as Record<string, unknown>,
           userId: event.user_id ? String(event.user_id) : undefined,
           timestamp: String(event.created_at || new Date().toISOString()),
           resolved: Boolean(event.resolved_at),
@@ -179,7 +187,7 @@ export function useSecurityMonitoring() {
 
   const resolveAlert = useCallback(async (alertId: string, resolvedBy: string) => {
     try {
-      const client = supabase;
+      const client = dbClient;
       if (client) {
         const { error } = await client
           .from('security_events')
@@ -214,7 +222,7 @@ export function useSecurityMonitoring() {
   const createAlert = useCallback(
     async (alert: Omit<SecurityAlert, 'id' | 'timestamp' | 'resolved'>) => {
       try {
-        const client = supabase;
+        const client = dbClient;
         if (client) {
           const { data, error } = await client
             .from('security_events')
@@ -251,14 +259,14 @@ export function useSecurityMonitoring() {
 
   // Real-time subscription for new security events
   useEffect(() => {
-    if (!supabase) {
+    if (!dbClient) {
       console.log('⚠️ Supabase not available, skipping security events subscription');
       return;
     }
 
     console.log('🔌 Setting up security events real-time subscription...');
 
-    const subscription = supabase
+    const subscription = dbClient
       .channel('security_alerts')
       .on(
         'postgres_changes',

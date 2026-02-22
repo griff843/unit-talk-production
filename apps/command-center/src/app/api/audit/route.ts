@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+
 import { supabase } from '@/lib/supabase';
 
 /**
@@ -325,19 +326,23 @@ function calculateRiskLevel(
 
 async function triggerSecurityAlert(auditEvent: AuditEvent) {
   try {
+    // Production schema: type (enum), severity (enum), description, ip_address, user_id, metadata
     const alert = {
-      type: 'security_audit',
-      severity: auditEvent.risk_level === 'critical' ? 'critical' : 'high',
-      message: `High-risk activity detected: ${auditEvent.action} on ${auditEvent.resource}`,
-      details: {
+      type: 'suspicious_activity' as const, // Map security_audit to production enum
+      severity: (auditEvent.risk_level === 'critical' ? 'critical' : 'high') as
+        | 'low'
+        | 'medium'
+        | 'high'
+        | 'critical',
+      description: `High-risk activity detected: ${auditEvent.action} on ${auditEvent.resource}`,
+      ip_address: auditEvent.ip_address,
+      user_id: auditEvent.user_id,
+      metadata: {
         audit_event_id: auditEvent.id,
-        user_id: auditEvent.user_id,
         action: auditEvent.action,
         resource: auditEvent.resource,
-        ip_address: auditEvent.ip_address,
         timestamp: auditEvent.timestamp,
       },
-      created_at: new Date().toISOString(),
     };
 
     await supabase.from('security_events').insert(alert);

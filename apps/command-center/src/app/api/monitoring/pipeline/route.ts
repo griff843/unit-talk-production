@@ -4,8 +4,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+
 import { RBACService, Permission } from '@/lib/rbac';
+import { supabase } from '@/lib/supabase';
 
 interface PipelineMetrics {
   timestamp: string;
@@ -231,9 +232,11 @@ function getErrorMetrics(component: string): ComponentMetrics {
 
 async function getBridgeWorkerMetrics(startTime: string): Promise<ComponentMetrics> {
   // Get bridge outbox processing stats
+  // Production schema: id, bet_slip_id, event_type, event_data, error_message,
+  // processed_at, resolved_channel_id, resolved_thread_id, status, created_at, updated_at
   const { data: outboxEvents } = await supabase
     .from('bridge_outbox')
-    .select('status, created_at, updated_at, attempts')
+    .select('status, created_at, updated_at')
     .gte('created_at', startTime);
 
   if (!outboxEvents?.length) {
@@ -287,65 +290,26 @@ async function getBridgeWorkerMetrics(startTime: string): Promise<ComponentMetri
 }
 
 async function getTemporalWorkflowMetrics(startTime: string): Promise<ComponentMetrics> {
-  // Get workflow execution stats
-  const { data: workflows } = await supabase
-    .from('workflow_executions')
-    .select('status, created_at, updated_at, workflow_id')
-    .gte('created_at', startTime);
-
-  if (!workflows?.length) {
-    return {
-      status: 'healthy',
-      uptime_percent: 100,
-      throughput_per_hour: 0,
-      error_rate_percent: 0,
-      avg_response_time_ms: 0,
-      last_activity: new Date().toISOString(),
-      version: '1.24.0',
-    };
-  }
-
-  const totalWorkflows = workflows.length;
-  const completedWorkflows = workflows.filter(w => w.status === 'completed').length;
-  const failedWorkflows = workflows.filter(w => w.status === 'failed').length;
-
-  const successRate = totalWorkflows > 0 ? (completedWorkflows / totalWorkflows) * 100 : 100;
-  const errorRate = 100 - successRate;
-
-  // Calculate average execution time
-  const executionTimes = workflows
-    .filter(w => w.status === 'completed' && w.updated_at)
-    .map(
-      w =>
-        new Date(String(w.updated_at || new Date().toISOString())).getTime() -
-        new Date(String(w.created_at || new Date().toISOString())).getTime()
-    )
-    .filter(time => time > 0);
-
-  const avgExecutionTime =
-    executionTimes.length > 0
-      ? executionTimes.reduce((sum, time) => sum + time, 0) / executionTimes.length
-      : 0;
-
-  const status = errorRate > 30 ? 'unhealthy' : errorRate > 10 ? 'degraded' : 'healthy';
-
+  // Note: workflow_executions table doesn't exist in production schema.
+  // Return healthy placeholder metrics - feature not provisioned.
   return {
-    status,
-    uptime_percent: successRate,
-    throughput_per_hour: totalWorkflows,
-    error_rate_percent: errorRate,
-    avg_response_time_ms: avgExecutionTime,
-    last_activity: String(workflows[workflows.length - 1]?.updated_at || new Date().toISOString()),
+    status: 'healthy',
+    uptime_percent: 100,
+    throughput_per_hour: 0,
+    error_rate_percent: 0,
+    avg_response_time_ms: 0,
+    last_activity: new Date().toISOString(),
     version: '1.24.0',
   };
 }
 
 async function getAlertAgentMetrics(startTime: string): Promise<ComponentMetrics> {
   // Check agent health
+  // Production schema uses 'agent' column not 'agent_name'
   const { data: agentHealth } = await supabase
     .from('agent_health')
     .select('status, last_heartbeat, created_at')
-    .eq('agent_name', 'AlertAgent')
+    .eq('agent', 'AlertAgent')
     .single();
 
   // Get alert generation stats
@@ -383,10 +347,10 @@ async function getAlertAgentMetrics(startTime: string): Promise<ComponentMetrics
 
 async function getEventsStreamMetrics(startTime: string): Promise<ComponentMetrics> {
   // Check event ingestion across all sources
+  // Note: workflow_executions removed (table not in production)
   const eventSources = await Promise.allSettled([
     supabase.from('events').select('count').gte('created_at', startTime),
     supabase.from('bridge_outbox').select('count').gte('created_at', startTime),
-    supabase.from('workflow_executions').select('count').gte('created_at', startTime),
   ]);
 
   const healthySources = eventSources.filter(result => result.status === 'fulfilled').length;
@@ -468,10 +432,8 @@ async function getThroughputMetrics(startTime: string) {
     .select('status, created_at')
     .gte('created_at', startTime);
 
-  const { data: workflows } = await supabase
-    .from('workflow_executions')
-    .select('status, created_at')
-    .gte('created_at', startTime);
+  // Note: workflow_executions table not in production, skip query
+  const workflows: Array<{ status: string }> = [];
 
   const totalEvents = (events?.length || 0) + (bridgeEvents?.length || 0);
   const eventsPerMinute = totalEvents / timeRangeMinutes;
@@ -485,8 +447,8 @@ async function getThroughputMetrics(startTime: string) {
     events?.filter(e => String(e.event_type || '').startsWith('alert.')).length || 0;
   const alertGenerationRate = alertEvents / timeRangeMinutes;
 
-  const completedWorkflows = workflows?.filter(w => w.status === 'completed').length || 0;
-  const workflowCompletionRate = workflows?.length
+  const completedWorkflows = workflows.filter(w => w.status === 'completed').length;
+  const workflowCompletionRate = workflows.length
     ? (completedWorkflows / workflows.length) * 100
     : 100;
 

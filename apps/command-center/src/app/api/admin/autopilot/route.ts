@@ -7,9 +7,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+
 import { RBACService, Permission } from '@/lib/rbac';
-import { UnitTalkTracing } from '@/lib/telemetry';
 import { supabase } from '@/lib/supabase';
+import { UnitTalkTracing } from '@/lib/telemetry';
 
 // =============================================================================
 // TYPES
@@ -96,14 +97,14 @@ class AutopilotService {
    */
   static async getConfig(): Promise<AutopilotConfig | null> {
     try {
-      const { data, error } = await (supabase as any).rpc('get_autopilot_mode');
+      const { data, error } = await supabase.rpc('get_autopilot_mode');
 
       if (error) {
         console.error('Error fetching autopilot config:', error);
         return null;
       }
 
-      return data as AutopilotConfig;
+      return data as unknown as AutopilotConfig;
     } catch (error) {
       console.error('Error in getConfig:', error);
       return null;
@@ -126,7 +127,7 @@ class AutopilotService {
     expires_at?: string;
   }> {
     try {
-      const { data, error } = await (supabase as any).rpc('set_autopilot_mode', {
+      const { data, error } = await supabase.rpc('set_autopilot_mode', {
         p_mode: mode,
         p_actor: actor,
         p_confirm: confirm,
@@ -158,7 +159,7 @@ class AutopilotService {
    */
   static async getGateSnapshots(gateId?: string, limit: number = 10): Promise<GateSnapshot[]> {
     try {
-      let query = (supabase as any)
+      let query = supabase
         .from('autopilot_gate_snapshots')
         .select('*')
         .order('evaluated_at', { ascending: false })
@@ -187,7 +188,7 @@ class AutopilotService {
    */
   static async getDemotionEvents(limit: number = 20): Promise<DemotionEvent[]> {
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('autopilot_demotion_events')
         .select('*')
         .order('demoted_at', { ascending: false })
@@ -212,7 +213,7 @@ class AutopilotService {
     try {
       const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('autopilot_metrics_hourly')
         .select('*')
         .gte('hour_start', cutoff)
@@ -235,7 +236,7 @@ class AutopilotService {
    */
   static async computeMetrics(): Promise<{ success: boolean; id?: string }> {
     try {
-      const { data, error } = await (supabase as any).rpc('compute_autopilot_hourly_metrics');
+      const { data, error } = await supabase.rpc('compute_autopilot_hourly_metrics');
 
       if (error) {
         console.error('Error computing metrics:', error);
@@ -254,7 +255,7 @@ class AutopilotService {
    */
   static async computeGateSnapshot(gateId: string): Promise<{ success: boolean; id?: string }> {
     try {
-      const { data, error } = await (supabase as any).rpc('compute_gate_snapshot', {
+      const { data, error } = await supabase.rpc('compute_gate_snapshot', {
         p_gate_id: gateId,
       });
 
@@ -283,10 +284,10 @@ class AutopilotService {
     try {
       const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-      // Get decision counts
-      const { data: decisions, error: decisionsError } = await (supabase as any)
+      // Get decision counts - using production schema columns
+      const { data: decisions, error: decisionsError } = await supabase
         .from('autopilot_decisions')
-        .select('decision, reason')
+        .select('decision, decision_reason')
         .gte('created_at', cutoff);
 
       if (decisionsError || !decisions) {
@@ -299,19 +300,22 @@ class AutopilotService {
         };
       }
 
-      // Type the decisions properly
-      const typedDecisions = decisions as Array<{ decision: string; reason: string }>;
+      const approve = decisions.filter(
+        d => d.decision === 'ALLOW' || d.decision === 'allow'
+      ).length;
+      const reject = decisions.filter(
+        d => d.decision === 'REJECT' || d.decision === 'reject' || d.decision === 'deny'
+      ).length;
+      const unknown = decisions.filter(
+        d => d.decision === 'UNKNOWN' || d.decision === 'unknown'
+      ).length;
 
-      const approve = typedDecisions.filter((d) => d.decision === 'ALLOW').length;
-      const reject = typedDecisions.filter((d) => d.decision === 'REJECT').length;
-      const unknown = typedDecisions.filter((d) => d.decision === 'UNKNOWN').length;
-
-      // Count reject reasons
+      // Count reject reasons using production schema column
       const reasonCounts: Record<string, number> = {};
-      typedDecisions
-        .filter((d) => d.decision === 'REJECT')
-        .forEach((d) => {
-          const key = d.reason?.substring(0, 50) || 'unknown';
+      decisions
+        .filter(d => d.decision === 'REJECT' || d.decision === 'reject' || d.decision === 'deny')
+        .forEach(d => {
+          const key = d.decision_reason?.substring(0, 50) || 'unknown';
           reasonCounts[key] = (reasonCounts[key] || 0) + 1;
         });
 
@@ -320,12 +324,8 @@ class AutopilotService {
         .sort((a, b) => b.count - a.count)
         .slice(0, 5);
 
-      // Get canary volume
-      const { count: canaryCount } = await (supabase as any)
-        .from('autopilot_decisions')
-        .select('*', { count: 'exact', head: true })
-        .eq('canary_routed', true)
-        .gte('created_at', cutoff);
+      // Canary routing not in production schema - return 0
+      const canaryCount = 0;
 
       return {
         approve,
@@ -359,9 +359,10 @@ class AutopilotService {
     }>
   > {
     try {
-      const { data, error } = await (supabase as any)
+      // Production schema uses 'details' JSON field instead of separate state columns
+      const { data, error } = await supabase
         .from('audit_log')
-        .select('actor, action, previous_state, new_state, created_at')
+        .select('actor, action, details, created_at')
         .in('action', ['AUTOPILOT_MODE_CHANGE', 'AUTOPILOT_DEMOTION'])
         .order('created_at', { ascending: false })
         .limit(limit);
@@ -371,13 +372,17 @@ class AutopilotService {
         return [];
       }
 
-      return (data || []) as Array<{
-        actor: string;
-        action: string;
-        previous_state: Record<string, unknown>;
-        new_state: Record<string, unknown>;
-        created_at: string;
-      }>;
+      // Transform to expected format - details may contain previous/new state info
+      return (data || []).map(row => {
+        const details = (row.details || {}) as Record<string, unknown>;
+        return {
+          actor: row.actor,
+          action: row.action,
+          previous_state: (details.previous_state as Record<string, unknown>) || {},
+          new_state: (details.new_state as Record<string, unknown>) || details,
+          created_at: row.created_at || new Date().toISOString(),
+        };
+      });
     } catch (error) {
       console.error('Error in getModeChangeLog:', error);
       return [];
@@ -389,11 +394,32 @@ class AutopilotService {
 // API ENDPOINTS
 // =============================================================================
 
+// Feature gate: Autopilot requires autopilot_* tables which are not in production schema.
+// Return 503 when feature is not enabled.
+const AUTOPILOT_ENABLED = process.env.ENABLE_AUTOPILOT === 'true';
+
+function autopilotNotEnabledResponse(): NextResponse {
+  return NextResponse.json(
+    {
+      success: false,
+      error: 'Autopilot feature not enabled',
+      code: 'FEATURE_NOT_ENABLED',
+      message:
+        'The autopilot feature requires additional database tables that are not provisioned. Set ENABLE_AUTOPILOT=true when tables are available.',
+    },
+    { status: 503 }
+  );
+}
+
 /**
  * GET /api/admin/autopilot
  * Get autopilot status, configuration, and dashboard data
  */
 export async function GET(request: NextRequest) {
+  if (!AUTOPILOT_ENABLED) {
+    return autopilotNotEnabledResponse();
+  }
+
   const span = UnitTalkTracing.startAgentSpan('admin', 'get_autopilot_status');
 
   try {
@@ -500,6 +526,10 @@ export async function GET(request: NextRequest) {
  * Set autopilot mode (with two-step confirm for PROD)
  */
 export async function POST(request: NextRequest) {
+  if (!AUTOPILOT_ENABLED) {
+    return autopilotNotEnabledResponse();
+  }
+
   const span = UnitTalkTracing.startAgentSpan('admin', 'set_autopilot_mode');
 
   try {
@@ -635,6 +665,10 @@ export async function POST(request: NextRequest) {
  * Update autopilot thresholds (admin only)
  */
 export async function PUT(request: NextRequest) {
+  if (!AUTOPILOT_ENABLED) {
+    return autopilotNotEnabledResponse();
+  }
+
   const span = UnitTalkTracing.startAgentSpan('admin', 'update_autopilot_config');
 
   try {
@@ -713,7 +747,7 @@ export async function PUT(request: NextRequest) {
     const previousConfig = await AutopilotService.getConfig();
 
     // Update config
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from('autopilot_mode_config')
       .update(updates)
       .eq('id', 'a0000000-0000-0000-0000-000000000001');

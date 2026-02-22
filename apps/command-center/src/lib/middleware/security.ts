@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+
 import { supabase } from '@/lib/supabase';
+
+// Using 'any' cast to avoid type mismatch with security_events table
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const dbClient = supabase as any;
 
 /**
  * Security Middleware
@@ -444,7 +449,7 @@ async function logSecurityEvent(event: {
   details: any;
 }) {
   try {
-    await supabase.from('security_events').insert({
+    await dbClient.from('security_events').insert({
       type: event.type,
       severity: event.severity,
       source_ip: event.source_ip,

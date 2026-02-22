@@ -1,6 +1,7 @@
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
+
 import { createClient } from '@/lib/supabase';
 
 interface LLMRequest {
@@ -101,7 +102,8 @@ export async function GET(request: NextRequest) {
         status: request.status || 'completed',
         timestamp: request.created_at || new Date().toISOString(),
         user: request.user_id || 'system',
-        type: request.request_type || 'system',
+        // Note: request_type not in production schema - defaulting to 'system'
+        type: 'system',
       })) || [];
 
     return NextResponse.json(transformedRequests.length > 0 ? transformedRequests : mockRequests);

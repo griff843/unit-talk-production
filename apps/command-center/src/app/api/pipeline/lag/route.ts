@@ -4,8 +4,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+
 import { RBACService, Permission } from '@/lib/rbac';
+import { supabase } from '@/lib/supabase';
 
 export type LagRow = {
   minute_bucket: string; // ISO datetime string
@@ -42,30 +43,64 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     console.log('🔍 Fetching pipeline lag metrics from mv_pipeline_lag_24h...');
 
-    // Build query for materialized view
-    let query = supabase
-      .from('mv_pipeline_lag_24h')
-      .select(
-        `
-        minute_bucket,
-        sport,
-        promoted_ct,
-        promotion_lag_avg,
-        promotion_lag_p50,
-        promotion_lag_p95
-      `
-      )
-      .order('minute_bucket', { ascending: false })
-      .limit(limit);
+    // Note: mv_pipeline_lag_24h materialized view may not exist in production.
+    // This is an optional feature that requires the MV to be created via migration.
+    // If the MV doesn't exist, return empty array with feature_note.
+    let data: Array<{
+      minute_bucket: string;
+      sport: string | null;
+      promoted_ct: number;
+      promotion_lag_avg: string;
+      promotion_lag_p50: string;
+      promotion_lag_p95: string;
+    }> | null = null;
+    let error: { message: string } | null = null;
 
-    // Filter by sport if specified
-    if (sport && sport !== 'all') {
-      query = query.eq('sport', sport);
+    try {
+      // Build query for materialized view
+      // MV may not exist - use dynamic query to avoid type system issues
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const client = supabase as any;
+      let result;
+
+      if (sport && sport !== 'all') {
+        result = await client
+          .from('mv_pipeline_lag_24h')
+          .select(
+            'minute_bucket, sport, promoted_ct, promotion_lag_avg, promotion_lag_p50, promotion_lag_p95'
+          )
+          .eq('sport', sport)
+          .order('minute_bucket', { ascending: false })
+          .limit(limit);
+      } else {
+        result = await client
+          .from('mv_pipeline_lag_24h')
+          .select(
+            'minute_bucket, sport, promoted_ct, promotion_lag_avg, promotion_lag_p50, promotion_lag_p95'
+          )
+          .order('minute_bucket', { ascending: false })
+          .limit(limit);
+      }
+      data = result.data as typeof data;
+      error = result.error;
+    } catch (queryError) {
+      // If the MV doesn't exist, this will throw
+      console.warn('⚠️ mv_pipeline_lag_24h MV not available:', queryError);
+      error = { message: 'Materialized view not provisioned' };
     }
 
-    const { data, error } = await query;
-
     if (error) {
+      // For MV not existing, return empty array instead of failing
+      if (error.message.includes('does not exist') || error.message.includes('not provisioned')) {
+        console.log('📊 mv_pipeline_lag_24h not provisioned, returning empty data');
+        return NextResponse.json([], {
+          status: 200,
+          headers: {
+            'X-Feature-Note': 'mv_pipeline_lag_24h not provisioned',
+            'X-Data-Points': '0',
+          },
+        });
+      }
       console.error('❌ Error fetching pipeline lag metrics:', error);
       throw new Error(`Failed to fetch pipeline lag metrics: ${error.message}`);
     }

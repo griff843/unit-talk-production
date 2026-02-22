@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import type { Json } from '@/types/database';
+
 import { mockUsers } from '@/lib/mockData';
 import { dbOperations, User, supabase } from '@/lib/supabase';
 
@@ -150,6 +152,27 @@ export async function POST(request: NextRequest) {
 
     console.log('📝 POST /api/users - Creating user:', body.username);
 
+    // Production schema fields
+    const isActive = body.status !== 'banned' && body.status !== 'inactive';
+    const dbUser = {
+      discord_id: body.discord_id,
+      username: body.username,
+      tier: body.tier || null,
+      active: isActive,
+      is_active: isActive,
+      tenant_id: body.tenant_id || 'default',
+      meta: {
+        status: body.status || 'active',
+        last_active: new Date().toISOString(),
+        total_picks: body.total_picks || 0,
+        win_rate: body.win_rate || 0,
+        revenue: body.revenue || 0,
+      } as Json,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    // Keep old User type for mock data compatibility
     const newUser: Omit<User, 'id' | 'created_at' | 'updated_at'> = {
       discord_id: body.discord_id,
       username: body.username,
@@ -162,16 +185,8 @@ export async function POST(request: NextRequest) {
     };
 
     try {
-      // Try to create in database
-      const { data, error } = await supabase
-        .from('users')
-        .insert({
-          ...newUser,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
+      // Try to create in database with production schema
+      const { data, error } = await supabase.from('users').insert(dbUser).select().single();
 
       if (error) throw error;
 

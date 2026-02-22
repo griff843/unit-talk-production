@@ -4,8 +4,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+
 import { RBACService } from '@/lib/rbac';
+import { supabase } from '@/lib/supabase';
 
 /**
  * POST /api/pipeline/lag/refresh
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Execute REFRESH MATERIALIZED VIEW CONCURRENTLY
     // This allows concurrent reads while refreshing
-    const { error } = await (supabase as any).rpc('refresh_pipeline_lag_materialized_view');
+    const { error } = await supabase.rpc('refresh_pipeline_lag_materialized_view');
 
     if (error) {
       console.error('❌ Materialized view refresh failed:', error);

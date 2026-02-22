@@ -4,9 +4,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+
 import { RBACService, Permission } from '@/lib/rbac';
-import { UnitTalkTracing } from '@/lib/telemetry';
 import { supabase } from '@/lib/supabase';
+import { UnitTalkTracing } from '@/lib/telemetry';
 
 // =============================================================================
 // EXPOSURE INTERFACES
@@ -125,7 +126,9 @@ class ExposureTrackingService {
       correlationCluster
     );
 
-    const snapshot: ExposureSnapshot = {
+    // Production schema: id, snapshot_type, snapshot_data (JSON), created_at
+    // All detailed exposure fields go into snapshot_data
+    const snapshotData = {
       unified_pick_id: pickData.unified_pick_id,
       sport: pickData.sport,
       league: pickData.league,
@@ -143,16 +146,19 @@ class ExposureTrackingService {
       correlation_cluster: correlationCluster,
       published: pickData.published,
       risk_tier: riskTier,
-      metadata: {
-        avg_bet_size: avgBetSize,
-        calculated_at: new Date().toISOString(),
-      },
+      avg_bet_size: avgBetSize,
+      calculated_at: new Date().toISOString(),
+    };
+
+    const dbRecord = {
+      snapshot_type: 'exposure',
+      snapshot_data: snapshotData,
     };
 
     // Insert into database
     const { data, error } = await supabase
       .from('exposure_snapshots')
-      .insert(snapshot as unknown as Record<string, unknown>)
+      .insert(dbRecord)
       .select()
       .single();
 
@@ -160,7 +166,12 @@ class ExposureTrackingService {
       throw new Error(`Failed to create exposure snapshot: ${error.message}`);
     }
 
-    return { ...snapshot, ...data };
+    // Return combined snapshot for API response
+    return {
+      id: data?.id,
+      created_at: data?.created_at ? new Date(data.created_at) : new Date(),
+      ...snapshotData,
+    } as ExposureSnapshot;
   }
 
   /**
@@ -173,32 +184,26 @@ class ExposureTrackingService {
       published_only?: boolean;
     } = {}
   ): Promise<ExposureAnalysis> {
-    let query = supabase.from('exposure_snapshots').select('*');
+    // Build base query - production schema has snapshot_type, snapshot_data, created_at
+    // sport/published filters are not DB columns - filtering done post-query on snapshot_data
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Apply filters
-    if (options.sport) {
-      query = query.eq('sport', options.sport);
-    }
+    let startDate = today;
+    let endDate = tomorrow;
     if (options.date) {
-      const startDate = new Date(options.date);
-      const endDate = new Date(startDate);
+      startDate = new Date(options.date);
+      endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + 1);
-      query = query
-        .gte('created_at', startDate.toISOString())
-        .lt('created_at', endDate.toISOString());
-    } else {
-      // Default to today
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      query = query.gte('created_at', today.toISOString()).lt('created_at', tomorrow.toISOString());
-    }
-    if (options.published_only) {
-      query = query.eq('published', true);
     }
 
-    const { data: snapshots, error } = await query;
+    const { data: snapshots, error } = await supabase
+      .from('exposure_snapshots')
+      .select('*')
+      .gte('created_at', startDate.toISOString())
+      .lt('created_at', endDate.toISOString());
 
     if (error) {
       console.error('Error fetching exposure snapshots:', error);

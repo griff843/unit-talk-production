@@ -8,6 +8,7 @@
  */
 
 import { NextResponse } from 'next/server';
+
 import { supabase } from '@/lib/supabase';
 
 // =============================================================================
@@ -105,7 +106,11 @@ class RolloutStatusService {
 
       // Map config to feature flags
       for (const rawRow of data || []) {
-        const row = rawRow as { config_key: string; config_value: unknown; description: string | null };
+        const row = rawRow as {
+          config_key: string;
+          config_value: unknown;
+          description: string | null;
+        };
         const flag = this.mapConfigToFeatureFlag(row);
         if (flag) {
           flags.push(flag);
@@ -131,9 +136,8 @@ class RolloutStatusService {
     config_value: unknown;
     description: string | null;
   }): FeatureFlag | null {
-    const valueStr = typeof row.config_value === 'string'
-      ? row.config_value
-      : JSON.stringify(row.config_value);
+    const valueStr =
+      typeof row.config_value === 'string' ? row.config_value : JSON.stringify(row.config_value);
     const enabled = valueStr === 'true' || valueStr === '"true"';
 
     switch (row.config_key) {
@@ -180,14 +184,16 @@ class RolloutStatusService {
         .eq('environment', 'production');
 
       if (error || !data) {
-        return [{
-          id: 'notifications_disabled',
-          name: 'Notifications',
-          description: 'Production notifications',
-          enabled: false,
-          safe: true,
-          category: 'notification',
-        }];
+        return [
+          {
+            id: 'notifications_disabled',
+            name: 'Notifications',
+            description: 'Production notifications',
+            enabled: false,
+            safe: true,
+            category: 'notification',
+          },
+        ];
       }
 
       return data.map(rawRow => {
@@ -238,7 +244,8 @@ class RolloutStatusService {
         .order('evaluated_at', { ascending: false })
         .limit(1)
         .single();
-      return (data?.evaluated_at as string) || null;
+      if (!data) return null;
+      return (data.evaluated_at as string) || null;
     } catch {
       return null;
     }
@@ -252,7 +259,8 @@ class RolloutStatusService {
         .order('opened_at', { ascending: false })
         .limit(1)
         .single();
-      return (data?.opened_at as string) || null;
+      if (!data) return null;
+      return (data.opened_at as string) || null;
     } catch {
       return null;
     }
@@ -266,7 +274,8 @@ class RolloutStatusService {
         .order('sent_at', { ascending: false })
         .limit(1)
         .single();
-      return (data?.sent_at as string) || null;
+      if (!data) return null;
+      return ((data as { sent_at?: string }).sent_at as string) || null;
     } catch {
       return null;
     }
@@ -280,7 +289,8 @@ class RolloutStatusService {
         .order('completed_at', { ascending: false })
         .limit(1)
         .single();
-      return (data?.completed_at as string) || null;
+      if (!data) return null;
+      return (data.completed_at as string) || null;
     } catch {
       return null;
     }
@@ -353,9 +363,7 @@ class RolloutStatusService {
       checks.playbooks_seeded = (playbooks?.length || 0) >= 5;
 
       // Check config seeded
-      const { data: config } = await supabase
-        .from('remediation_config')
-        .select('config_key');
+      const { data: config } = await supabase.from('remediation_config').select('config_key');
       checks.config_seeded = (config?.length || 0) >= 3;
 
       // Check dry run enforced
@@ -378,7 +386,6 @@ class RolloutStatusService {
 
       // RLS check is assumed true if schema is deployed (we can't easily query pg_tables)
       checks.rls_enabled = checks.schema_deployed;
-
     } catch (error) {
       console.error('Error in getReadinessChecks:', error);
     }

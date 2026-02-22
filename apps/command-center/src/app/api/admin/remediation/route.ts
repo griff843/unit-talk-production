@@ -8,10 +8,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { RBACService, Permission } from '@/lib/rbac';
-import { UnitTalkTracing } from '@/lib/telemetry';
-import { supabase } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
+
+import { RBACService, Permission } from '@/lib/rbac';
+import { supabase } from '@/lib/supabase';
+import { UnitTalkTracing } from '@/lib/telemetry';
 
 // =============================================================================
 // TYPES
@@ -73,12 +74,15 @@ interface RemediationStats {
   failed: number;
   pending_approval: number;
   recommendations_given: number;
-  by_playbook: Record<string, {
-    total: number;
-    successful: number;
-    failed: number;
-    avg_duration_ms: number;
-  }>;
+  by_playbook: Record<
+    string,
+    {
+      total: number;
+      successful: number;
+      failed: number;
+      avg_duration_ms: number;
+    }
+  >;
 }
 
 // =============================================================================
@@ -92,7 +96,7 @@ class RemediationService {
   static async getPlaybooks(): Promise<PlaybookDefinition[]> {
     try {
       // Try ops schema first
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('ops.remediation_playbooks')
         .select('*')
         .order('playbook_id');
@@ -124,7 +128,7 @@ class RemediationService {
    */
   static async getPlaybook(playbookId: PlaybookId): Promise<PlaybookDefinition | null> {
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('remediation_playbooks')
         .select('*')
         .eq('playbook_id', playbookId)
@@ -145,11 +149,13 @@ class RemediationService {
   /**
    * Get execution history
    */
-  static async getExecutions(options: {
-    playbookId?: PlaybookId;
-    status?: ExecutionStatus;
-    limit?: number;
-  } = {}): Promise<ExecutionRecord[]> {
+  static async getExecutions(
+    options: {
+      playbookId?: PlaybookId;
+      status?: ExecutionStatus;
+      limit?: number;
+    } = {}
+  ): Promise<ExecutionRecord[]> {
     try {
       let query = supabase
         .from('remediation_executions')
@@ -184,7 +190,7 @@ class RemediationService {
    */
   static async getPending(): Promise<ExecutionRecord[]> {
     try {
-      const { data, error } = await (supabase as any).rpc('get_pending_remediations');
+      const { data, error } = await supabase.rpc('get_pending_remediations');
 
       if (error) {
         console.error('Error fetching pending remediations:', error);
@@ -203,7 +209,7 @@ class RemediationService {
    */
   static async getStats(hoursBack: number = 24): Promise<RemediationStats> {
     try {
-      const { data, error } = await (supabase as any).rpc('get_remediation_stats', {
+      const { data, error } = await supabase.rpc('get_remediation_stats', {
         p_hours_back: hoursBack,
       });
 
@@ -225,13 +231,13 @@ class RemediationService {
    */
   static async getConfig(): Promise<Record<string, unknown> | null> {
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('remediation_config')
         .select('*')
         .eq('config_key', 'global')
         .single();
 
-      if (error) {
+      if (error || !data) {
         return {
           enabled: false,
           dry_run_only: true,
@@ -240,7 +246,7 @@ class RemediationService {
         };
       }
 
-      return (data?.config_value as Record<string, unknown>) || null;
+      return ((data as { config_value?: unknown }).config_value as Record<string, unknown>) || null;
     } catch (error) {
       console.error('Error in getConfig:', error);
       return null;
@@ -266,7 +272,7 @@ class RemediationService {
       const correlationId = uuidv4();
       const executionKey = `${playbookId}:${incidentId}:${correlationId}`.substring(0, 32);
 
-      const { error } = await (supabase as any).rpc('create_remediation_execution', {
+      const { error } = await supabase.rpc('create_remediation_execution', {
         p_execution_id: executionId,
         p_playbook_id: playbookId,
         p_incident_id: incidentId,
@@ -311,7 +317,7 @@ class RemediationService {
     error?: string;
   }> {
     try {
-      const { data, error } = await (supabase as any).rpc('approve_remediation', {
+      const { data, error } = await supabase.rpc('approve_remediation', {
         p_execution_id: executionId,
         p_approved_by: approvedBy,
       });
@@ -341,7 +347,7 @@ class RemediationService {
     status: 'active' | 'disabled'
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('remediation_playbooks')
         .update({
           status,
@@ -379,11 +385,29 @@ class RemediationService {
 // API ENDPOINTS
 // =============================================================================
 
+// Feature gate: Remediation requires remediation_* tables which are not in production schema.
+const REMEDIATION_ENABLED = process.env.ENABLE_REMEDIATION === 'true';
+
+function remediationNotEnabledResponse(): NextResponse {
+  return NextResponse.json(
+    {
+      success: false,
+      error: 'Remediation feature not enabled',
+      code: 'FEATURE_NOT_ENABLED',
+    },
+    { status: 503 }
+  );
+}
+
 /**
  * GET /api/admin/remediation
  * Get remediation dashboard data: playbooks, executions, stats
  */
 export async function GET(request: NextRequest) {
+  if (!REMEDIATION_ENABLED) {
+    return remediationNotEnabledResponse();
+  }
+
   const span = UnitTalkTracing.startAgentSpan('admin', 'get_remediation_dashboard');
 
   try {
@@ -483,6 +507,10 @@ export async function GET(request: NextRequest) {
  * Trigger a playbook execution or approve a pending remediation
  */
 export async function POST(request: NextRequest) {
+  if (!REMEDIATION_ENABLED) {
+    return remediationNotEnabledResponse();
+  }
+
   const span = UnitTalkTracing.startAgentSpan('admin', 'remediation_action');
 
   try {
@@ -616,6 +644,10 @@ export async function POST(request: NextRequest) {
  * Update playbook configuration
  */
 export async function PUT(request: NextRequest) {
+  if (!REMEDIATION_ENABLED) {
+    return remediationNotEnabledResponse();
+  }
+
   const span = UnitTalkTracing.startAgentSpan('admin', 'update_playbook');
 
   try {
@@ -649,10 +681,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const result = await RemediationService.updatePlaybookStatus(
-      playbook_id as PlaybookId,
-      status
-    );
+    const result = await RemediationService.updatePlaybookStatus(playbook_id as PlaybookId, status);
 
     if (!result.success) {
       return NextResponse.json(

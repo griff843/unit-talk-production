@@ -1,6 +1,7 @@
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
+
 import { createClient } from '@/lib/supabase';
 
 interface GradingAgent {
@@ -121,10 +122,10 @@ export async function GET(request: NextRequest) {
       processed,
       pending,
       accuracy: Math.round(avgConfidence),
+      // Production schema: agent_metrics has 'value' not 'avg_response_time'
+      // Use value or extract from meta JSON
       avgProcessingTime:
-        typeof mainGradingMetrics?.avg_response_time === 'number'
-          ? mainGradingMetrics.avg_response_time
-          : 1200,
+        typeof mainGradingMetrics?.value === 'number' ? mainGradingMetrics.value : 1200,
       lastActivity:
         typeof mainGradingHealth?.created_at === 'string'
           ? mainGradingHealth.created_at

@@ -10,9 +10,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+
 import { RBACService, Permission } from '@/lib/rbac';
-import { UnitTalkTracing } from '@/lib/telemetry';
 import { supabase } from '@/lib/supabase';
+import { UnitTalkTracing } from '@/lib/telemetry';
 
 // =============================================================================
 // TYPES
@@ -211,7 +212,7 @@ class AutopilotIntelligenceService {
         agentMap.set(row.agent_name, existing);
       }
 
-      return Array.from(agentMap.values()).map((a) => ({
+      return Array.from(agentMap.values()).map(a => ({
         agent_name: a.agent_name,
         total_settled: a.total_settled,
         wins: a.wins,
@@ -284,14 +285,14 @@ class AutopilotIntelligenceService {
    */
   static async getSignalWeights(): Promise<SignalWeights | null> {
     try {
-      const { data, error } = await (supabase as any).rpc('get_active_signal_weights');
+      const { data, error } = await supabase.rpc('get_active_signal_weights');
 
       if (error) {
         console.error('Error fetching signal weights:', error);
         return null;
       }
 
-      return data as SignalWeights;
+      return data as unknown as SignalWeights;
     } catch (error) {
       console.error('Error in getSignalWeights:', error);
       return null;
@@ -303,14 +304,14 @@ class AutopilotIntelligenceService {
    */
   static async getLearningState(): Promise<LearningState | null> {
     try {
-      const { data, error } = await (supabase as any).rpc('get_autopilot_learning_state');
+      const { data, error } = await supabase.rpc('get_autopilot_learning_state');
 
       if (error) {
         console.error('Error fetching learning state:', error);
         return null;
       }
 
-      return data as LearningState;
+      return data as unknown as LearningState;
     } catch (error) {
       console.error('Error in getLearningState:', error);
       return null;
@@ -348,7 +349,7 @@ class AutopilotIntelligenceService {
     actor: string
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      const { data, error } = await (supabase as any).rpc('set_autopilot_learning_enabled', {
+      const { data, error } = await supabase.rpc('set_autopilot_learning_enabled', {
         p_enabled: enabled,
         p_actor: actor,
       });
@@ -368,7 +369,7 @@ class AutopilotIntelligenceService {
    */
   static async computeAccuracy(date: string): Promise<{ success: boolean; id?: string }> {
     try {
-      const { data, error } = await (supabase as any).rpc('compute_autopilot_accuracy_daily', {
+      const { data, error } = await supabase.rpc('compute_autopilot_accuracy_daily', {
         p_date: date,
       });
 
@@ -389,7 +390,7 @@ class AutopilotIntelligenceService {
    */
   static async computeCLV(date: string): Promise<{ success: boolean; id?: string }> {
     try {
-      const { data, error } = await (supabase as any).rpc('compute_autopilot_clv_daily', {
+      const { data, error } = await supabase.rpc('compute_autopilot_clv_daily', {
         p_date: date,
       });
 
@@ -410,7 +411,7 @@ class AutopilotIntelligenceService {
    */
   static async computeCalibration(date: string): Promise<{ success: boolean; id?: string }> {
     try {
-      const { data, error } = await (supabase as any).rpc('compute_autopilot_confidence_calibration', {
+      const { data, error } = await supabase.rpc('compute_autopilot_confidence_calibration', {
         p_date: date,
       });
 
@@ -470,8 +471,10 @@ class AutopilotIntelligenceService {
       // Calculate accuracy trend
       let accuracyTrend: 'up' | 'down' | 'stable' = 'stable';
       if (accuracyData.length >= 2) {
-        const recent = accuracyData.slice(0, 3).reduce((s, d) => s + (d.true_accuracy_rate || 0), 0) / 3;
-        const older = accuracyData.slice(-3).reduce((s, d) => s + (d.true_accuracy_rate || 0), 0) / 3;
+        const recent =
+          accuracyData.slice(0, 3).reduce((s, d) => s + (d.true_accuracy_rate || 0), 0) / 3;
+        const older =
+          accuracyData.slice(-3).reduce((s, d) => s + (d.true_accuracy_rate || 0), 0) / 3;
         if (recent > older + 2) accuracyTrend = 'up';
         else if (recent < older - 2) accuracyTrend = 'down';
       }
@@ -490,7 +493,8 @@ class AutopilotIntelligenceService {
       // Calculate CLV trend
       let clvTrend: 'up' | 'down' | 'stable' = 'stable';
       if (clvData.length >= 2) {
-        const recent = clvData.slice(0, 3).reduce((s, d) => s + (d.clv_beat_close_rate || 0), 0) / 3;
+        const recent =
+          clvData.slice(0, 3).reduce((s, d) => s + (d.clv_beat_close_rate || 0), 0) / 3;
         const older = clvData.slice(-3).reduce((s, d) => s + (d.clv_beat_close_rate || 0), 0) / 3;
         if (recent > older + 5) clvTrend = 'up';
         else if (recent < older - 5) clvTrend = 'down';
@@ -551,11 +555,29 @@ class AutopilotIntelligenceService {
 // API ENDPOINTS
 // =============================================================================
 
+// Feature gate: Autopilot requires autopilot_* tables which are not in production schema.
+const AUTOPILOT_ENABLED = process.env.ENABLE_AUTOPILOT === 'true';
+
+function autopilotNotEnabledResponse(): NextResponse {
+  return NextResponse.json(
+    {
+      success: false,
+      error: 'Autopilot intelligence feature not enabled',
+      code: 'FEATURE_NOT_ENABLED',
+    },
+    { status: 503 }
+  );
+}
+
 /**
  * GET /api/admin/autopilot/intelligence
  * Get Phase 8 intelligence metrics
  */
 export async function GET(request: NextRequest) {
+  if (!AUTOPILOT_ENABLED) {
+    return autopilotNotEnabledResponse();
+  }
+
   const span = UnitTalkTracing.startAgentSpan('admin', 'get_autopilot_intelligence');
 
   try {
@@ -642,6 +664,10 @@ export async function GET(request: NextRequest) {
  * Execute intelligence actions (compute metrics, toggle learning)
  */
 export async function POST(request: NextRequest) {
+  if (!AUTOPILOT_ENABLED) {
+    return autopilotNotEnabledResponse();
+  }
+
   const span = UnitTalkTracing.startAgentSpan('admin', 'autopilot_intelligence_action');
 
   try {
@@ -655,25 +681,29 @@ export async function POST(request: NextRequest) {
     switch (action) {
       case 'compute_accuracy':
         await RBACService.requirePermission(userId, Permission.FREEZE_SYSTEM);
-        const accuracyDate = params?.date || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const accuracyDate =
+          params?.date || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
         result = await AutopilotIntelligenceService.computeAccuracy(accuracyDate);
         break;
 
       case 'compute_clv':
         await RBACService.requirePermission(userId, Permission.FREEZE_SYSTEM);
-        const clvDate = params?.date || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const clvDate =
+          params?.date || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
         result = await AutopilotIntelligenceService.computeCLV(clvDate);
         break;
 
       case 'compute_calibration':
         await RBACService.requirePermission(userId, Permission.FREEZE_SYSTEM);
-        const calDate = params?.date || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const calDate =
+          params?.date || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
         result = await AutopilotIntelligenceService.computeCalibration(calDate);
         break;
 
       case 'compute_all':
         await RBACService.requirePermission(userId, Permission.FREEZE_SYSTEM);
-        const allDate = params?.date || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const allDate =
+          params?.date || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
         const [accResult, clvResult, calResult] = await Promise.all([
           AutopilotIntelligenceService.computeAccuracy(allDate),
           AutopilotIntelligenceService.computeCLV(allDate),

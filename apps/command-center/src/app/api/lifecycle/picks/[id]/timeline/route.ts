@@ -1,12 +1,9 @@
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
+
+import { deriveLifecycleStage, buildTimeline, type LifecycleStage } from '@/lib/lifecycleDisplay';
 import { createClient } from '@/lib/supabase';
-import {
-  deriveLifecycleStage,
-  buildTimeline,
-  type LifecycleStage,
-} from '@/lib/lifecycleDisplay';
 
 /**
  * LIFECYCLE TIMELINE API
@@ -33,7 +30,7 @@ interface TimelineResponse {
 
 interface PickRecord {
   id: string;
-  status: string | null;
+  workflow_stage: string | null;
   promotion_status: string | null;
   settlement_status: string | null;
   posted_to_discord: boolean | null;
@@ -47,13 +44,9 @@ interface PickRecord {
   settled_at: string | null;
   blocked_at: string | null;
   failed_at: string | null;
-  freeze_enforced_at: string | null;
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
 
@@ -63,11 +56,13 @@ export async function GET(
     }
 
     // Fetch the pick with all lifecycle-relevant timestamps
+    // Note: freeze_enforced_at removed (not in production schema)
     const { data, error: pickError } = await supabase
       .from('unified_picks')
-      .select(`
+      .select(
+        `
         id,
-        status,
+        workflow_stage,
         promotion_status,
         settlement_status,
         posted_to_discord,
@@ -80,9 +75,9 @@ export async function GET(
         promotion_posted_at,
         settled_at,
         blocked_at,
-        failed_at,
-        freeze_enforced_at
-      `)
+        failed_at
+      `
+      )
       .eq('id', id)
       .single();
 
@@ -101,8 +96,9 @@ export async function GET(
     }
 
     // Derive current lifecycle stage
+    // Note: using workflow_stage as status (production schema)
     const currentStage = deriveLifecycleStage({
-      status: pick.status,
+      status: pick.workflow_stage,
       promotion_status: pick.promotion_status,
       settlement_status: pick.settlement_status,
       posted_to_discord: pick.posted_to_discord,

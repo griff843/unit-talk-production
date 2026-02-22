@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+
 import { supabase } from '@/lib/supabase';
+
+// Using 'any' cast to avoid type recursion with merged database types
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const dbClient = supabase as any;
 
 /**
  * Authentication and Authorization Middleware
@@ -130,7 +135,7 @@ export async function authenticate(request: NextRequest): Promise<AuthContext> {
     const {
       data: { user },
       error,
-    } = await supabase.auth.getUser(token);
+    } = await dbClient.auth.getUser(token);
 
     if (error || !user) {
       console.log('🔐 Authentication failed:', error?.message);
@@ -138,7 +143,7 @@ export async function authenticate(request: NextRequest): Promise<AuthContext> {
     }
 
     // Get user profile with role and permissions
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile, error: profileError } = await dbClient
       .from('user_profiles')
       .select('*')
       .eq('id', user.id)
@@ -169,7 +174,7 @@ export async function authenticate(request: NextRequest): Promise<AuthContext> {
     };
 
     // Update last login timestamp
-    await supabase
+    await dbClient
       .from('user_profiles')
       .update({ last_login: new Date().toISOString() })
       .eq('id', user.id);
@@ -376,7 +381,7 @@ async function logUnauthorizedAccess(
       risk_level: 'high' as const,
     };
 
-    await supabase.from('audit_logs').insert(auditEvent);
+    await dbClient.from('audit_logs').insert(auditEvent);
   } catch (error) {
     console.error('❌ Failed to log unauthorized access:', error);
   }

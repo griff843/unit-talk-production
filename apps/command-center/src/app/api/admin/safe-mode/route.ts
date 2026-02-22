@@ -4,9 +4,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+
 import { RBACService, Permission } from '@/lib/rbac';
-import { UnitTalkTracing } from '@/lib/telemetry';
 import { supabase } from '@/lib/supabase';
+import { UnitTalkTracing } from '@/lib/telemetry';
 
 // =============================================================================
 // SAFE MODE CONFIGURATION
@@ -132,15 +133,15 @@ class SafeModeService {
    */
   private static async recordSafeModeMetric(enabled: boolean): Promise<void> {
     try {
+      // Production schema: metric_name, metric_value, metadata
       const { error } = await supabase.from('system_metrics').insert({
-        metric: 'safe_mode_status',
-        value: enabled ? 1 : 0,
-        labels: JSON.stringify({
+        metric_name: 'safe_mode_status',
+        metric_value: enabled ? 1 : 0,
+        metadata: {
           action: enabled ? 'enabled' : 'disabled',
           timestamp: new Date().toISOString(),
-        }),
-        source: 'admin_control',
-        created_at: new Date().toISOString(),
+          source: 'admin_control',
+        },
       });
 
       if (error) {

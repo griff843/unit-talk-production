@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { dbOperations, SecurityEvent, supabase } from '@/lib/supabase';
+
 import { mockSecurityEvents, simulateNewSecurityEvent } from '@/lib/mockData';
+import { dbOperations, SecurityEvent, supabase } from '@/lib/supabase';
 
 /**
  * Security Events API Endpoint
@@ -80,12 +81,15 @@ export async function GET(request: NextRequest) {
         .select('*')
         .order('created_at', { ascending: false });
 
-      // Apply filters
+      // Apply filters - cast string params to match enum types
       if (severity) {
-        query = query.eq('severity', severity);
+        query = query.eq('severity', severity as 'low' | 'medium' | 'high' | 'critical');
       }
       if (type) {
-        query = query.eq('type', type);
+        query = query.eq(
+          'type',
+          type as 'login_attempt' | 'api_access' | 'rate_limit' | 'suspicious_activity'
+        );
       }
       if (resolved === 'true') {
         query = query.not('resolved_at', 'is', null);

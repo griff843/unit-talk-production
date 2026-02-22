@@ -4,9 +4,13 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+
 import { RBACService, Permission } from '@/lib/rbac';
-import { UnitTalkTracing } from '@/lib/telemetry';
 import { supabase } from '@/lib/supabase';
+import { UnitTalkTracing } from '@/lib/telemetry';
+
+// Feature gate: Autopilot requires autopilot_* tables which are not in production schema.
+const AUTOPILOT_ENABLED = process.env.ENABLE_AUTOPILOT === 'true';
 
 // =============================================================================
 // ACTION HANDLERS
@@ -17,6 +21,17 @@ import { supabase } from '@/lib/supabase';
  * Execute autopilot actions
  */
 export async function POST(request: NextRequest) {
+  if (!AUTOPILOT_ENABLED) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Autopilot feature not enabled',
+        code: 'FEATURE_NOT_ENABLED',
+      },
+      { status: 503 }
+    );
+  }
+
   const span = UnitTalkTracing.startAgentSpan('admin', 'autopilot_action');
 
   try {
@@ -34,7 +49,7 @@ export async function POST(request: NextRequest) {
 
         const hourStart = params?.hour_start || undefined;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data, error } = await (supabase as any).rpc('compute_autopilot_hourly_metrics', {
+        const { data, error } = await supabase.rpc('compute_autopilot_hourly_metrics', {
           p_hour_start: hourStart,
         });
 
@@ -60,7 +75,7 @@ export async function POST(request: NextRequest) {
         }
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data, error } = await (supabase as any).rpc('compute_gate_snapshot', {
+        const { data, error } = await supabase.rpc('compute_gate_snapshot', {
           p_gate_id: gateId,
         });
 
@@ -90,7 +105,7 @@ export async function POST(request: NextRequest) {
 
         // Get current mode
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: configData } = await (supabase as any).rpc('get_autopilot_mode');
+        const { data: configData } = await supabase.rpc('get_autopilot_mode');
         const currentMode = (configData as { mode: string })?.mode;
 
         if (currentMode === 'off' || currentMode === 'log_only') {
@@ -105,7 +120,7 @@ export async function POST(request: NextRequest) {
 
         // Trigger emergency demotion
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: demotionId, error } = await (supabase as any).rpc('record_autopilot_demotion', {
+        const { data: demotionId, error } = await supabase.rpc('record_autopilot_demotion', {
           p_from_mode: currentMode,
           p_to_mode: 'log_only',
           p_trigger_type: 'manual_emergency',
@@ -159,7 +174,7 @@ export async function POST(request: NextRequest) {
           hourStart.setMinutes(0, 0, 0);
 
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { data, error } = await (supabase as any).rpc('compute_autopilot_hourly_metrics', {
+          const { data, error } = await supabase.rpc('compute_autopilot_hourly_metrics', {
             p_hour_start: hourStart.toISOString(),
           });
 
@@ -182,7 +197,7 @@ export async function POST(request: NextRequest) {
         await RBACService.requirePermission(userId, Permission.FREEZE_SYSTEM);
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error } = await (supabase as any)
+        const { error } = await supabase
           .from('autopilot_mode_config')
           .update({
             pending_mode: null,

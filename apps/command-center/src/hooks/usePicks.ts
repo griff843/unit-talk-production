@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+
 import { supabase } from '@/lib/supabase';
 
 // Helper functions for v3.0.0 unified data transformation
@@ -130,7 +131,10 @@ export function usePicks() {
 
       console.log('🔍 Fetching picks from unified_picks table...');
 
-      // Fetch picks from unified_picks with proper v3.0.0 relationships
+      // Fetch picks from unified_picks with proper relationships
+      // Production schema columns: id, user_id, selection, odds, confidence, workflow_stage,
+      // settlement_status, tier, sport, created_at, etc.
+      // Note: status, tier_when_placed, placed_at don't exist in production
       const { data: picksData, error: picksError } = await supabase
         .from('unified_picks')
         .select(
@@ -140,12 +144,11 @@ export function usePicks() {
           selection,
           odds,
           confidence,
-          status,
           workflow_stage,
-          tier_when_placed,
+          settlement_status,
+          tier,
           sport,
           created_at,
-          placed_at,
           users!unified_picks_user_id_fkey (
             username,
             discord_id,
@@ -165,6 +168,7 @@ export function usePicks() {
       console.log(`✅ Successfully fetched ${picksData?.length || 0} picks from unified_picks`);
 
       // Transform unified_picks data to Pick interface
+      // Using production schema columns only
       const transformedPicks: Pick[] = (picksData || []).map(pick => {
         const user = Array.isArray(pick.users) ? pick.users[0] : pick.users;
 
@@ -174,6 +178,7 @@ export function usePicks() {
         const odds = Number(pick.odds || 0);
         const selection = String(pick.selection || '');
         const workflowStage = String(pick.workflow_stage || 'draft');
+        const settlementStatus = String(pick.settlement_status || 'pending');
 
         return {
           id: pickId,
@@ -182,13 +187,13 @@ export function usePicks() {
           sport: String(pick.sport || 'Unknown'),
           selection: selection,
           odds: odds,
-          status: mapWorkflowStageToStatus(workflowStage, String(pick.status || '')),
+          status: mapWorkflowStageToStatus(workflowStage, settlementStatus),
           workflow_stage: workflowStage,
-          tier: pick.tier_when_placed || user?.capper_tier || user?.tier || 'C',
+          tier: pick.tier || user?.capper_tier || user?.tier || 'C',
           confidence: confidence,
           ev_score: calculateEvScore(confidence, odds),
-          roi: calculateRoi(String(pick.status || 'pending'), odds),
-          submitted_at: String(pick.placed_at || pick.created_at || new Date().toISOString()),
+          roi: calculateRoi(settlementStatus, odds),
+          submitted_at: String(pick.created_at || new Date().toISOString()),
           created_at: String(pick.created_at || new Date().toISOString()),
           player_name: extractPlayerFromSelection(selection),
           line: selection,

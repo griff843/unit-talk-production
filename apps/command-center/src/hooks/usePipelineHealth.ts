@@ -1,5 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
+
 import { supabase } from '@/lib/supabase';
+
+// Using 'any' cast to avoid type recursion with merged database types
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const dbClient = supabase as any;
 
 export interface PipelineHealthMetrics {
   processingLag: number; // AVG(now() - processed_at) in minutes
@@ -65,7 +70,7 @@ export function usePipelineHealth(options: UsePipelineHealthOptions = {}) {
         const startTime = new Date(Date.now() - timeframe * 60 * 60 * 1000).toISOString();
 
         // Processing Lag: AVG(now() - processed_at) for processed props
-        const { data: processedProps } = await supabase
+        const { data: processedProps } = await dbClient
           .from('raw_props')
           .select('processed_at')
           .not('processed_at', 'is', null)
@@ -86,7 +91,7 @@ export function usePipelineHealth(options: UsePipelineHealthOptions = {}) {
             : 0;
 
         // Promotion Lag: AVG(promoted_at - processed_at) for promoted props
-        const { data: promotedProps } = await supabase
+        const { data: promotedProps } = await dbClient
           .from('raw_props')
           .select('processed_at, promoted_at')
           .not('processed_at', 'is', null)
@@ -110,13 +115,13 @@ export function usePipelineHealth(options: UsePipelineHealthOptions = {}) {
             : 0;
 
         // Promotion Success Rate: COUNT(promoted)/COUNT(processed)
-        const { count: processedCount } = await supabase
+        const { count: processedCount } = await dbClient
           .from('raw_props')
           .select('*', { count: 'exact', head: true })
           .not('processed_at', 'is', null)
           .gte('processed_at', startTime);
 
-        const { count: promotedCount } = await supabase
+        const { count: promotedCount } = await dbClient
           .from('raw_props')
           .select('*', { count: 'exact', head: true })
           .not('promoted_at', 'is', null)
@@ -126,12 +131,12 @@ export function usePipelineHealth(options: UsePipelineHealthOptions = {}) {
           processedCount && processedCount > 0 ? ((promotedCount || 0) / processedCount) * 100 : 0;
 
         // Writer Audit: % of unified_picks where writer source is promoter
-        const { count: totalUnifiedPicks } = await supabase
+        const { count: totalUnifiedPicks } = await dbClient
           .from('unified_picks')
           .select('*', { count: 'exact', head: true })
           .gte('created_at', startTime);
 
-        const { count: promoterWrittenPicks } = await supabase
+        const { count: promoterWrittenPicks } = await dbClient
           .from('unified_picks')
           .select('*', { count: 'exact', head: true })
           .eq('pick_source', 'promoted')
@@ -143,13 +148,13 @@ export function usePipelineHealth(options: UsePipelineHealthOptions = {}) {
             : 0;
 
         // Get conflict count
-        const { count: conflictCount } = await supabase
+        const { count: conflictCount } = await dbClient
           .from('conflict_events')
           .select('*', { count: 'exact', head: true })
           .gte('occurred_at', startTime);
 
         // Get single-writer mode status
-        const { data: configData } = await supabase
+        const { data: configData } = await dbClient
           .from('system_config')
           .select('value')
           .eq('key', 'PIPELINE_SINGLE_WRITER')
@@ -202,7 +207,7 @@ export function usePipelineHealth(options: UsePipelineHealthOptions = {}) {
     try {
       if (!supabase) return;
 
-      const { data, error } = await supabase
+      const { data, error } = await dbClient
         .from('pipeline_health_snapshots')
         .select('*')
         .gte('created_at', new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString())
@@ -221,7 +226,7 @@ export function usePipelineHealth(options: UsePipelineHealthOptions = {}) {
       if (!supabase) return null;
 
       // Call the database function to capture snapshot
-      const { data, error } = await supabase.rpc('capture_pipeline_health_snapshot', {
+      const { data, error } = await dbClient.rpc('capture_pipeline_health_snapshot', {
         p_timeframe_hours: timeframe,
       });
 

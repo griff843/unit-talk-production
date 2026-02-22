@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { dbOperations, Agent, getSupabaseClient } from '@/lib/supabase';
-import { mockAgents, simulateAgentStatusUpdate } from '@/lib/mockData';
+
 import { agentMonitor } from '@/lib/agentMonitoring';
+import { mockAgents, simulateAgentStatusUpdate } from '@/lib/mockData';
 import { redisClient } from '@/lib/redis';
+import { dbOperations, Agent, getSupabaseClient } from '@/lib/supabase';
 
 /**
  * Agents API Endpoint
@@ -131,18 +132,22 @@ export async function GET(request: NextRequest) {
         if (error) throw error;
 
         // Transform agent_health data to match Agent interface
-        agents = (data || []).map(row => ({
-          id: row.id as string,
-          name: row.agent as string,
-          type: 'system' as const, // Default type since not in agent_health table
-          status: row.status as Agent['status'],
-          lastHealthCheck: row.last_run as string,
-          last_run: row.last_run as string,
-          success_rate: Math.round(Math.random() * 100), // Mock success rate
-          avg_response_time: row.response_time_ms as number,
-          total_operations: row.total_operations as number,
-          configuration: (row.details || {}) as Record<string, any>,
-        }));
+        // Production schema: id, agent, status, last_heartbeat, details, created_at, updated_at
+        agents = (data || []).map(row => {
+          const details = (row.details || {}) as Record<string, unknown>;
+          return {
+            id: row.id as string,
+            name: row.agent as string,
+            type: 'system' as const, // Default type since not in agent_health table
+            status: row.status as Agent['status'],
+            lastHealthCheck: row.last_heartbeat as string,
+            last_run: row.last_heartbeat as string,
+            success_rate: (details.success_rate as number) ?? Math.round(Math.random() * 100),
+            avg_response_time: (details.response_time_ms as number) ?? 0,
+            total_operations: (details.total_operations as number) ?? 0,
+            configuration: details,
+          };
+        });
 
         // If live health check requested, merge with real health data
         if (liveHealth) {
@@ -329,7 +334,7 @@ export async function POST(request: NextRequest) {
           .from('agent_health')
           .update({
             status: newStatus,
-            last_run: new Date().toISOString(),
+            last_heartbeat: new Date().toISOString(),
             updated_at: new Date().toISOString(),
             ...(agentData.configuration && { details: agentData.configuration }),
           })
@@ -446,10 +451,13 @@ export async function POST(request: NextRequest) {
         .insert({
           agent: newAgent.name,
           status: newAgent.status,
-          last_run: newAgent.last_run,
-          total_operations: newAgent.total_operations,
-          response_time_ms: newAgent.avg_response_time,
-          details: newAgent.configuration,
+          last_heartbeat: newAgent.last_run,
+          details: {
+            ...newAgent.configuration,
+            total_operations: newAgent.total_operations,
+            response_time_ms: newAgent.avg_response_time,
+            success_rate: newAgent.success_rate,
+          },
         })
         .select()
         .single();
@@ -551,15 +559,21 @@ export async function PUT(request: NextRequest) {
       const client = getSupabaseClient();
       if (!client) throw new Error('Database unavailable');
 
+      // Build details object with metrics that are stored in JSON
+      const existingDetails = body.configuration || body.details || {};
+      const updatedDetails = {
+        ...existingDetails,
+        ...(body.total_operations !== undefined && { total_operations: body.total_operations }),
+        ...(body.avg_response_time !== undefined && { response_time_ms: body.avg_response_time }),
+      };
+
       const { data, error } = await client
         .from('agent_health')
         .update({
           status: body.status,
-          last_run: new Date().toISOString(),
+          last_heartbeat: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          total_operations: body.total_operations,
-          response_time_ms: body.avg_response_time,
-          details: body.configuration || body.details,
+          details: updatedDetails,
         })
         .eq(identifier === 'id' ? 'id' : 'agent', value)
         .select()

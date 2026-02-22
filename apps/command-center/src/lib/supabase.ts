@@ -1,4 +1,75 @@
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import {
+  createClient as createSupabaseClient,
+  SupabaseClient,
+  RealtimePostgresChangesPayload,
+} from '@supabase/supabase-js';
+
+import type { Database, Json } from '@/types';
+
+// Type definitions for Supabase query results with relations
+interface UnifiedPickWithRelations {
+  id: string;
+  user_id: string;
+  sport: string | null;
+  pick_type: string | null;
+  prediction: string | null;
+  confidence: number | null;
+  status: string | null;
+  result: string | null;
+  created_at: string;
+  approved_at: string | null;
+  denied_at: string | null;
+  selection: string | null;
+  users?: {
+    username: string;
+    tier: string;
+  } | null;
+  raw_props?: {
+    player_name: string;
+    team: string | null;
+    opponent: string | null;
+    prop_type: string | null;
+    line: number | null;
+    over_odds: number | null;
+    under_odds: number | null;
+    game_date: string | null;
+    games?: {
+      league: string;
+      home_team: string;
+      away_team: string;
+      start_time: string | null;
+    } | null;
+    players?: {
+      name: string;
+      sport: string;
+    } | null;
+  } | null;
+}
+
+interface AgentHealthRecord {
+  id: string;
+  agent: string;
+  status: string;
+  details: Json;
+  created_at: string;
+}
+
+interface AgentMetricsRecord {
+  id: string;
+  agent: string;
+  metrics: Json;
+  created_at: string;
+}
+
+// Type guard for Json to object type conversion
+function isRecord(value: Json): value is { [key: string]: Json | undefined } {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+// Typed Supabase client - using 'any' to avoid type recursion with merged extension types
+// This is a workaround for "Type instantiation is excessively deep and possibly infinite" errors
+// caused by the database-extensions.ts merge with the generated types
+type TypedSupabaseClient = SupabaseClient<Database>;
 
 // Lazy initialization of Supabase client
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -17,16 +88,15 @@ function getSupabaseClient(): any {
     return null;
   }
 
-  client = createSupabaseClient(supabaseUrl, supabaseAnonKey);
+  client = createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey);
   return client;
 }
 
-// Export the client getter function and a convenience export
-// Note: Using `any` type to bypass missing table type definitions
-// TODO: Generate proper Supabase types from database schema
+// Export the typed client getter function and a convenience export
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const supabase: any = getSupabaseClient();
 export { getSupabaseClient };
+export type { TypedSupabaseClient };
 
 // Export createClient function for API routes
 export function createClient() {
@@ -78,7 +148,7 @@ export interface Agent {
   success_rate: number;
   avg_response_time: number;
   total_operations: number;
-  configuration: Record<string, any>;
+  configuration: Record<string, unknown>;
 }
 
 export interface SecurityEvent {
@@ -88,7 +158,7 @@ export interface SecurityEvent {
   description: string;
   ip_address: string;
   user_id?: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   created_at: string;
   resolved_at?: string;
 }
@@ -261,7 +331,7 @@ export const dbOperations = {
   },
 
   // Transform unified_picks data to Pick interface (v3.0.0)
-  transformUnifiedPicksToPicks(unifiedPicks: any[]): Pick[] {
+  transformUnifiedPicksToPicks(unifiedPicks: UnifiedPickWithRelations[]): Pick[] {
     return unifiedPicks.map(pick => {
       const rawProp = pick.raw_props;
       const game = rawProp?.games;
@@ -296,7 +366,11 @@ export const dbOperations = {
   },
 
   // Enhanced selection formatting for unified structure
-  formatPickSelection(pick: any, rawProp: any, player: any): string {
+  formatPickSelection(
+    pick: UnifiedPickWithRelations,
+    rawProp: UnifiedPickWithRelations['raw_props'],
+    player: UnifiedPickWithRelations['raw_props'] extends { players?: infer P } ? P : never
+  ): string {
     const playerName = rawProp?.player_name || player?.name || 'Unknown Player';
     const propType = rawProp?.prop_type || pick.pick_type || 'prop';
     const line = rawProp?.line;
@@ -310,7 +384,10 @@ export const dbOperations = {
   },
 
   // Get odds based on prediction and prop data
-  getPickOdds(pick: any, rawProp: any): number {
+  getPickOdds(
+    pick: UnifiedPickWithRelations,
+    rawProp: UnifiedPickWithRelations['raw_props']
+  ): number {
     if (!rawProp) return 0;
 
     if (pick.prediction === 'over' || pick.prediction === 'yes') {
@@ -354,7 +431,10 @@ export const dbOperations = {
   },
 
   // Calculate profit from unified structure
-  calculateUnifiedProfit(pick: any, rawProp: any): number | undefined {
+  calculateUnifiedProfit(
+    pick: UnifiedPickWithRelations,
+    rawProp: UnifiedPickWithRelations['raw_props']
+  ): number | undefined {
     if (!pick.result || pick.result === 'pending') return undefined;
 
     const stake = 100; // Default stake
@@ -385,7 +465,10 @@ export const dbOperations = {
     }
   },
 
-  calculateProfit(pick: any, rawProp: any): number | undefined {
+  calculateProfit(
+    pick: UnifiedPickWithRelations,
+    rawProp: UnifiedPickWithRelations['raw_props']
+  ): number | undefined {
     if (!pick.result || pick.result === 'pending') return undefined;
 
     const stake = 100; // Default stake
@@ -454,7 +537,8 @@ export const dbOperations = {
       return mockRecentPicks;
     }
 
-    let query = client.from('unified_picks').select(`
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let query: any = client.from('unified_picks').select(`
         *,
         users!inner (
           username,
@@ -672,12 +756,13 @@ export const dbOperations = {
   },
 
   // Transform agent_health data to Agent interface
-  transformHealthToAgents(healthData: any[]): Agent[] {
+  transformHealthToAgents(healthData: AgentHealthRecord[]): Agent[] {
     const agentMap = new Map<string, Agent>();
 
     healthData.forEach(health => {
       const agentName = health.agent;
       const status = this.mapHealthStatus(health.status);
+      const details = isRecord(health.details) ? health.details : {};
 
       if (!agentMap.has(agentName)) {
         agentMap.set(agentName, {
@@ -686,10 +771,10 @@ export const dbOperations = {
           type: this.inferAgentType(agentName),
           status,
           last_run: health.created_at,
-          success_rate: this.calculateSuccessRate(health.details),
-          avg_response_time: this.extractResponseTime(health.details),
-          total_operations: this.extractOperationCount(health.details),
-          configuration: health.details || {},
+          success_rate: this.calculateSuccessRate(details),
+          avg_response_time: this.extractResponseTime(details),
+          total_operations: this.extractOperationCount(details),
+          configuration: details,
         });
       } else {
         // Update with latest health status
@@ -697,7 +782,7 @@ export const dbOperations = {
         if (new Date(health.created_at) > new Date(agent.last_run)) {
           agent.status = status;
           agent.last_run = health.created_at;
-          agent.configuration = { ...agent.configuration, ...health.details };
+          agent.configuration = { ...agent.configuration, ...details };
         }
       }
     });
@@ -706,33 +791,43 @@ export const dbOperations = {
   },
 
   // Transform agent_metrics data to Agent interface
-  transformMetricsToAgents(metricsData: any[]): Agent[] {
+  transformMetricsToAgents(metricsData: AgentMetricsRecord[]): Agent[] {
     const agentMap = new Map<string, Agent>();
 
     metricsData.forEach(metric => {
       const agentName = metric.agent;
+      const metrics = isRecord(metric.metrics) ? metric.metrics : {};
 
       if (!agentMap.has(agentName)) {
         agentMap.set(agentName, {
           id: `agent-${agentName.toLowerCase().replace(/\s+/g, '-')}`,
           name: agentName,
           type: this.inferAgentType(agentName),
-          status: this.inferStatusFromMetrics(metric.metrics),
+          status: this.inferStatusFromMetrics(metrics),
           last_run: metric.created_at,
-          success_rate: metric.metrics.success_rate || 0,
-          avg_response_time: metric.metrics.avg_response_time || 0,
-          total_operations: metric.metrics.total_operations || 0,
-          configuration: metric.metrics || {},
+          success_rate: typeof metrics.success_rate === 'number' ? metrics.success_rate : 0,
+          avg_response_time:
+            typeof metrics.avg_response_time === 'number' ? metrics.avg_response_time : 0,
+          total_operations:
+            typeof metrics.total_operations === 'number' ? metrics.total_operations : 0,
+          configuration: metrics,
         });
       } else {
         // Update with latest metrics
         const agent = agentMap.get(agentName)!;
         if (new Date(metric.created_at) > new Date(agent.last_run)) {
           agent.last_run = metric.created_at;
-          agent.success_rate = metric.metrics.success_rate || agent.success_rate;
-          agent.avg_response_time = metric.metrics.avg_response_time || agent.avg_response_time;
-          agent.total_operations = metric.metrics.total_operations || agent.total_operations;
-          agent.configuration = { ...agent.configuration, ...metric.metrics };
+          agent.success_rate =
+            typeof metrics.success_rate === 'number' ? metrics.success_rate : agent.success_rate;
+          agent.avg_response_time =
+            typeof metrics.avg_response_time === 'number'
+              ? metrics.avg_response_time
+              : agent.avg_response_time;
+          agent.total_operations =
+            typeof metrics.total_operations === 'number'
+              ? metrics.total_operations
+              : agent.total_operations;
+          agent.configuration = { ...agent.configuration, ...metrics };
         }
       }
     });
@@ -769,34 +864,36 @@ export const dbOperations = {
     return 'Agent';
   },
 
-  calculateSuccessRate(details: any): number {
+  calculateSuccessRate(details: Record<string, unknown>): number {
     if (!details) return 0;
     if (typeof details.success_rate === 'number') return details.success_rate;
-    if (details.successful_operations && details.total_operations) {
-      return (details.successful_operations / details.total_operations) * 100;
+    const successOps = details.successful_operations;
+    const totalOps = details.total_operations;
+    if (typeof successOps === 'number' && typeof totalOps === 'number' && totalOps > 0) {
+      return (successOps / totalOps) * 100;
     }
     return 85; // Default success rate for healthy agents
   },
 
-  extractResponseTime(details: any): number {
+  extractResponseTime(details: Record<string, unknown>): number {
     if (!details) return 0;
     if (typeof details.avg_response_time === 'number') return details.avg_response_time;
     if (typeof details.response_time === 'number') return details.response_time;
     return 150; // Default response time in ms
   },
 
-  extractOperationCount(details: any): number {
+  extractOperationCount(details: Record<string, unknown>): number {
     if (!details) return 0;
     if (typeof details.total_operations === 'number') return details.total_operations;
     if (typeof details.operation_count === 'number') return details.operation_count;
     return 0;
   },
 
-  inferStatusFromMetrics(metrics: any): Agent['status'] {
+  inferStatusFromMetrics(metrics: Record<string, unknown>): Agent['status'] {
     if (!metrics) return 'inactive';
 
-    const successRate = metrics.success_rate || 0;
-    const errorRate = metrics.error_rate || 0;
+    const successRate = typeof metrics.success_rate === 'number' ? metrics.success_rate : 0;
+    const errorRate = typeof metrics.error_rate === 'number' ? metrics.error_rate : 0;
 
     if (successRate >= 95 && errorRate < 1) return 'healthy';
     if (successRate >= 85 && errorRate < 5) return 'warning';
@@ -804,7 +901,7 @@ export const dbOperations = {
     return 'inactive';
   },
 
-  async updateAgentStatus(id: string, status: Agent['status'], metadata?: Record<string, any>) {
+  async updateAgentStatus(id: string, status: Agent['status'], metadata?: Record<string, Json>) {
     const { data, error } = await supabase
       .from('agents')
       .update({
@@ -946,9 +1043,13 @@ export const dbOperations = {
   },
 };
 
+// Realtime payload type for subscription callbacks
+type RealtimePayload<T extends Record<string, unknown> = Record<string, unknown>> =
+  RealtimePostgresChangesPayload<T>;
+
 // Real-time subscriptions for Unit Talk production tables
 export const subscriptions = {
-  subscribeToAgentStatus(callback: (payload: any) => void) {
+  subscribeToAgentStatus(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
     if (!client) {
       console.warn('Cannot subscribe to agent status - Supabase not initialized');
@@ -961,7 +1062,7 @@ export const subscriptions = {
       .subscribe();
   },
 
-  subscribeToAgentHealth(callback: (payload: any) => void) {
+  subscribeToAgentHealth(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
     if (!client) {
       console.warn('Cannot subscribe to agent health - Supabase not initialized');
@@ -974,7 +1075,7 @@ export const subscriptions = {
       .subscribe();
   },
 
-  subscribeToAgentMetrics(callback: (payload: any) => void) {
+  subscribeToAgentMetrics(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
     if (!client) {
       console.warn('Cannot subscribe to agent metrics - Supabase not initialized');
@@ -991,7 +1092,7 @@ export const subscriptions = {
       .subscribe();
   },
 
-  subscribeToSecurityEvents(callback: (payload: any) => void) {
+  subscribeToSecurityEvents(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
     if (!client) return null;
 
@@ -1005,7 +1106,7 @@ export const subscriptions = {
       .subscribe();
   },
 
-  subscribeToNewPicks(callback: (payload: any) => void) {
+  subscribeToNewPicks(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
     if (!client) return null;
 
@@ -1019,7 +1120,7 @@ export const subscriptions = {
       .subscribe();
   },
 
-  subscribeToPickUpdates(callback: (payload: any) => void) {
+  subscribeToPickUpdates(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
     if (!client) return null;
 
@@ -1033,7 +1134,7 @@ export const subscriptions = {
       .subscribe();
   },
 
-  subscribeToAgentLogs(callback: (payload: any) => void) {
+  subscribeToAgentLogs(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
     if (!client) return null;
 

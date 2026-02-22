@@ -1,25 +1,5 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   FileText,
   Search,
@@ -40,8 +20,34 @@ import {
   Calendar,
   ArrowUpDown,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
+
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { supabase } from '@/lib/supabase';
+
+
+// NOTE: agent_logs table may not exist in production
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const dbClient = supabase as any;
 
 interface AuditLogEntry {
   id: string;
@@ -188,8 +194,8 @@ export function AuditTrail({ className }: AuditTrailProps) {
       setError(null);
 
       // Try to fetch real audit logs from database
-      if (supabase) {
-        const { data: realLogs, error: dbError } = await supabase
+      if (dbClient) {
+        const { data: realLogs, error: dbError } = await dbClient
           .from('agent_logs')
           .select('*')
           .order('created_at', { ascending: false })

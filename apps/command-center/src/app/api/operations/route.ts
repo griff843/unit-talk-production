@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+
 import { supabase } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
@@ -39,19 +40,11 @@ async function triggerManualGrading() {
   const processingStarted = Date.now();
 
   // Log the grading trigger event
-  await supabase
-    .from('agent_logs')
-    .insert({
-      agent: 'GradingAgent',
-      level: 'info',
-      message: `Manual grading triggered for ${ungradedCount} ungraded props`,
-      metadata: {
-        action: 'manual_trigger',
-        props_count: ungradedCount,
-        triggered_at: new Date().toISOString(),
-      },
-    })
-    .select();
+  // Note: agent_logs table not in production schema - using console.log instead
+  console.log('[GradingAgent] Manual grading triggered', {
+    props_count: ungradedCount,
+    triggered_at: new Date().toISOString(),
+  });
 
   return NextResponse.json({
     success: true,
@@ -75,19 +68,11 @@ async function forceDatabaseSync() {
   ];
 
   // Log the sync operation
-  await supabase
-    .from('agent_logs')
-    .insert({
-      agent: 'OperationalControl',
-      level: 'info',
-      message: 'Database sync operation initiated',
-      metadata: {
-        action: 'force_sync',
-        operations: syncOperations,
-        triggered_at: new Date().toISOString(),
-      },
-    })
-    .select();
+  // Note: agent_logs table not in production schema - using console.log instead
+  console.log('[OperationalControl] Database sync operation initiated', {
+    operations: syncOperations,
+    triggered_at: new Date().toISOString(),
+  });
 
   return NextResponse.json({
     success: true,
@@ -117,19 +102,11 @@ async function restartAllAgents() {
   }
 
   // Log the restart operation
-  await supabase
-    .from('agent_logs')
-    .insert({
-      agent: 'OperationalControl',
-      level: 'info',
-      message: 'Agent system restart initiated',
-      metadata: {
-        action: 'restart_all_agents',
-        agents_affected: agents,
-        triggered_at: new Date().toISOString(),
-      },
-    })
-    .select();
+  // Note: agent_logs table not in production schema - using console.log instead
+  console.log('[OperationalControl] Agent system restart initiated', {
+    agents_affected: agents,
+    triggered_at: new Date().toISOString(),
+  });
 
   // Simulate restart completion after delay
   setTimeout(async () => {
@@ -161,20 +138,12 @@ async function handleServiceControl(serviceId: string, parameters: any) {
   const { action } = parameters; // 'start', 'stop', 'restart'
 
   // Log the service control action
-  await supabase
-    .from('agent_logs')
-    .insert({
-      agent: 'OperationalControl',
-      level: 'info',
-      message: `Service control: ${action} ${serviceId}`,
-      metadata: {
-        action: 'service_control',
-        service_id: serviceId,
-        control_action: action,
-        triggered_at: new Date().toISOString(),
-      },
-    })
-    .select();
+  // Note: agent_logs table not in production schema - using console.log instead
+  console.log(`[OperationalControl] Service control: ${action} ${serviceId}`, {
+    service_id: serviceId,
+    control_action: action,
+    triggered_at: new Date().toISOString(),
+  });
 
   return NextResponse.json({
     success: true,

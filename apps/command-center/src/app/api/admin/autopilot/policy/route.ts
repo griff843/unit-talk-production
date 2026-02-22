@@ -11,10 +11,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { RBACService, Permission } from '@/lib/rbac';
-import { UnitTalkTracing } from '@/lib/telemetry';
-import { supabase } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
+
+import { RBACService, Permission } from '@/lib/rbac';
+import { supabase } from '@/lib/supabase';
+import { UnitTalkTracing } from '@/lib/telemetry';
 
 // =============================================================================
 // TYPES
@@ -90,7 +91,7 @@ class PolicyService {
    */
   static async getConfig(): Promise<PolicyConfig | null> {
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('autopilot_policy_config')
         .select('*')
         .eq('id', 'default')
@@ -102,19 +103,19 @@ class PolicyService {
       }
 
       return {
-        version: data.version,
-        default_mode: data.default_mode,
+        version: String(data.version),
+        default_mode: data.default_mode as AutopilotMode,
         canary_percentage: data.canary_percentage,
         fail_closed: data.fail_closed,
-        rules: data.rules || [],
-        operator_overrides: data.operator_overrides || {
+        rules: (data.rules as unknown as PolicyRule[]) || [],
+        operator_overrides: (data.operator_overrides as PolicyConfig['operator_overrides']) || {
           global_freeze: false,
           agent_freezes: {},
           action_freezes: {},
         },
         updated_at: data.updated_at,
         updated_by: data.updated_by,
-      } as PolicyConfig;
+      };
     } catch (error) {
       console.error('Error in getConfig:', error);
       return null;
@@ -126,7 +127,7 @@ class PolicyService {
    */
   static async setMode(mode: AutopilotMode, operatorId: string): Promise<boolean> {
     try {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('autopilot_policy_config')
         .update({
           default_mode: mode,
@@ -155,7 +156,7 @@ class PolicyService {
         global_freeze: freeze,
       };
 
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('autopilot_policy_config')
         .update({
           operator_overrides: newOverrides,
@@ -191,7 +192,7 @@ class PolicyService {
         },
       };
 
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('autopilot_policy_config')
         .update({
           operator_overrides: newOverrides,
@@ -227,7 +228,7 @@ class PolicyService {
         },
       };
 
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('autopilot_policy_config')
         .update({
           operator_overrides: newOverrides,
@@ -255,30 +256,49 @@ class PolicyService {
     }
   ): Promise<DecisionEntry[]> {
     try {
-      let query = (supabase as any)
+      // Build query with explicit filtering via chained calls
+      // Note: Using decision/evaluation_run_id columns from production schema
+      const baseQuery = supabase
         .from('autopilot_decisions')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(limit);
 
-      if (filters?.action_type) {
-        query = query.eq('action_type', filters.action_type);
-      }
-      if (filters?.evaluation_result) {
-        query = query.eq('evaluation_result', filters.evaluation_result);
-      }
-      if (filters?.trace_id) {
-        query = query.eq('trace_id', filters.trace_id);
-      }
-
-      const { data, error } = await query;
+      // Apply filters using production schema columns
+      const { data, error } = await (async () => {
+        // Filters map to production schema columns where available
+        // action_type -> not in schema (skip)
+        // evaluation_result -> decision
+        // trace_id -> evaluation_run_id
+        if (filters?.evaluation_result) {
+          return baseQuery.eq('decision', filters.evaluation_result);
+        }
+        if (filters?.trace_id) {
+          return baseQuery.eq('evaluation_run_id', filters.trace_id);
+        }
+        return baseQuery;
+      })();
 
       if (error) {
         console.error('Error fetching decisions:', error);
         return [];
       }
 
-      return (data || []) as unknown as DecisionEntry[];
+      // Transform production schema to expected interface
+      return (data || []).map(row => ({
+        decision_id: row.id,
+        trace_id: row.evaluation_run_id,
+        action_type: 'unknown', // Not in production schema
+        policy_version: '1', // Not in production schema
+        mode: row.mode,
+        evaluation_result: row.decision,
+        reason_codes: [],
+        reason_message: row.decision_reason,
+        executed: row.would_publish,
+        created_at: row.created_at || new Date().toISOString(),
+        inputs: row.pick_data as Record<string, unknown>,
+        evidence: row.metadata as Record<string, unknown>,
+      }));
     } catch (error) {
       console.error('Error in getDecisions:', error);
       return [];
@@ -302,9 +322,10 @@ class PolicyService {
     try {
       const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
 
-      const { data, error } = await (supabase as any)
+      // Use production schema columns: decision, mode, would_publish
+      const { data, error } = await supabase
         .from('autopilot_decisions')
-        .select('action_type, mode, evaluation_result, executed')
+        .select('decision, mode, would_publish')
         .gte('created_at', cutoff);
 
       if (error || !data) {
@@ -321,29 +342,21 @@ class PolicyService {
         };
       }
 
-      const rows = data as { action_type: string; mode: string; evaluation_result: string; executed: boolean }[];
-      const total = rows.length;
-      const allow = rows.filter(d => d.evaluation_result === 'ALLOW').length;
-      const deny = rows.filter(d => d.evaluation_result === 'DENY').length;
-      const shadow = rows.filter(d => d.evaluation_result === 'SHADOW_ONLY').length;
-      const executed = rows.filter(d => d.executed).length;
+      // Map production schema to expected types
+      const total = data.length;
+      const allow = data.filter(d => d.decision === 'ALLOW' || d.decision === 'allow').length;
+      const deny = data.filter(d => d.decision === 'DENY' || d.decision === 'deny').length;
+      const shadow = data.filter(
+        d => d.decision === 'SHADOW_ONLY' || d.decision === 'shadow'
+      ).length;
+      const executed = data.filter(d => d.would_publish === true).length;
 
-      // Group by action type
+      // No action_type in production schema - return empty
       const byAction: Record<string, { allow: number; deny: number }> = {};
-      rows.forEach(d => {
-        if (!byAction[d.action_type]) {
-          byAction[d.action_type] = { allow: 0, deny: 0 };
-        }
-        if (d.evaluation_result === 'ALLOW') {
-          byAction[d.action_type].allow++;
-        } else {
-          byAction[d.action_type].deny++;
-        }
-      });
 
       // Group by mode
       const byMode: Record<string, number> = {};
-      rows.forEach(d => {
+      data.forEach(d => {
         byMode[d.mode] = (byMode[d.mode] || 0) + 1;
       });
 
@@ -379,11 +392,29 @@ class PolicyService {
 // API ENDPOINTS
 // =============================================================================
 
+// Feature gate: Autopilot requires autopilot_* tables which are not in production schema.
+const AUTOPILOT_ENABLED = process.env.ENABLE_AUTOPILOT === 'true';
+
+function autopilotNotEnabledResponse(): NextResponse {
+  return NextResponse.json(
+    {
+      success: false,
+      error: 'Autopilot policy feature not enabled',
+      code: 'FEATURE_NOT_ENABLED',
+    },
+    { status: 503 }
+  );
+}
+
 /**
  * GET /api/admin/autopilot/policy
  * Get policy configuration, decisions, and statistics
  */
 export async function GET(request: NextRequest) {
+  if (!AUTOPILOT_ENABLED) {
+    return autopilotNotEnabledResponse();
+  }
+
   const correlationId = uuidv4();
   const span = UnitTalkTracing.startAgentSpan('admin', 'get_autopilot_policy');
 
@@ -483,6 +514,10 @@ export async function GET(request: NextRequest) {
  * Update policy settings (mode, freezes)
  */
 export async function POST(request: NextRequest) {
+  if (!AUTOPILOT_ENABLED) {
+    return autopilotNotEnabledResponse();
+  }
+
   const correlationId = uuidv4();
   const span = UnitTalkTracing.startAgentSpan('admin', 'update_autopilot_policy');
 
@@ -539,7 +574,11 @@ export async function POST(request: NextRequest) {
             { status: 400 }
           );
         }
-        success = await PolicyService.setAgentFreeze(params.agent_id, params.freeze === true, userId);
+        success = await PolicyService.setAgentFreeze(
+          params.agent_id,
+          params.freeze === true,
+          userId
+        );
         message = success
           ? `Agent ${params.agent_id} freeze ${params.freeze ? 'enabled' : 'disabled'}`
           : 'Failed to set agent freeze';
@@ -571,7 +610,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             success: false,
-            error: 'Invalid action. Must be: set_mode, set_global_freeze, set_agent_freeze, or set_action_freeze',
+            error:
+              'Invalid action. Must be: set_mode, set_global_freeze, set_agent_freeze, or set_action_freeze',
             code: 'INVALID_ACTION',
             correlation_id: correlationId,
           },

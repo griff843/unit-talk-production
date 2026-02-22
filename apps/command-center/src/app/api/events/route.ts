@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+
 import { RBACService, Permission } from '@/lib/rbac';
+import { supabase } from '@/lib/supabase';
 import { UnitTalkTracing } from '@/lib/telemetry';
 
 /**
@@ -295,16 +296,18 @@ async function fetchFromBridgeOutboxTable(query: EventQuery): Promise<PipelineEv
     throw new Error(`Failed to fetch bridge outbox events: ${error.message}`);
   }
 
+  // Production schema: id, bet_slip_id, event_type, event_data, error_message,
+  // processed_at, resolved_channel_id, resolved_thread_id, status, created_at, updated_at
   return (data || []).map(outboxRecord => ({
     id: String(outboxRecord.id || ''),
     eventType: String(outboxRecord.event_type || ''),
-    aggregateId: String(outboxRecord.unique_key || ''), // Use unique_key as aggregate_id
+    aggregateId: String(outboxRecord.bet_slip_id || ''), // Use bet_slip_id as aggregate_id
     aggregateType: 'bridge_outbox',
-    eventData: outboxRecord.payload || {},
+    eventData: outboxRecord.event_data || {},
     metadata: {
-      attempts: outboxRecord.attempts || 0,
-      max_attempts: outboxRecord.max_attempts || 3,
-      next_attempt_at: outboxRecord.next_attempt_at || null,
+      bet_slip_id: outboxRecord.bet_slip_id || null,
+      resolved_channel_id: outboxRecord.resolved_channel_id || null,
+      resolved_thread_id: outboxRecord.resolved_thread_id || null,
       error_message: outboxRecord.error_message || null,
     },
     source: 'bridge_outbox' as const,

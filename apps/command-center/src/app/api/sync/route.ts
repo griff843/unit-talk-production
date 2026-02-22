@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+
+import type { Json } from '@/types/database';
+
 import { supabase } from '@/lib/supabase';
 
 /**
@@ -145,18 +148,24 @@ export async function GET(request: NextRequest) {
 }
 
 // Sync handlers
-async function handleUserUpdate(userData: any) {
+async function handleUserUpdate(userData: Record<string, unknown>) {
   try {
+    // Production schema: discord_id, username, tier, capper_tier, role, active, is_active, meta, tenant_id
     const { data, error } = await supabase.from('users').upsert(
       {
-        discord_id: userData.discord_id,
-        username: userData.username,
-        tier: userData.tier,
-        status: userData.status,
-        total_picks: userData.total_picks,
-        win_rate: userData.win_rate,
-        revenue: userData.revenue,
-        last_active: userData.last_active,
+        discord_id: userData.discord_id as string,
+        username: userData.username as string,
+        tier: userData.tier as string | null,
+        capper_tier: userData.capper_tier as string | null,
+        active: userData.status === 'active',
+        is_active: userData.status === 'active',
+        meta: {
+          total_picks: userData.total_picks,
+          win_rate: userData.win_rate,
+          revenue: userData.revenue,
+          last_active: userData.last_active,
+        } as Json,
+        tenant_id: (userData.tenant_id as string) || 'default',
         updated_at: new Date().toISOString(),
       },
       {

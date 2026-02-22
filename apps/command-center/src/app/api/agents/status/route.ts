@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { dbOperations, Agent, getSupabaseClient } from '@/lib/supabase';
-import { mockAgents, simulateAgentStatusUpdate } from '@/lib/mockData';
+
 import { agentMonitor } from '@/lib/agentMonitoring';
+import { mockAgents, simulateAgentStatusUpdate } from '@/lib/mockData';
 import { redisClient } from '@/lib/redis';
+import { dbOperations, Agent, getSupabaseClient } from '@/lib/supabase';
 
 /**
  * Agent Status API Endpoint
@@ -55,10 +56,11 @@ export async function GET(request: NextRequest) {
         let metricsHistory = null;
         if (includeHistory) {
           try {
+            // Production schema uses 'agent' not 'agent_name'
             const { data: history } = await client
               .from('agent_metrics')
               .select('*')
-              .eq('agent_name', agent.name)
+              .eq('agent', agent.name)
               .order('created_at', { ascending: false })
               .limit(100);
 
@@ -225,7 +227,7 @@ export async function GET(request: NextRequest) {
       });
     } catch (error) {
       console.log('⚠️ Database unavailable, using mock data');
-      let agentsStatus = [...mockAgents];
+      const agentsStatus = [...mockAgents];
 
       // Simulate updates for mock data
       agentsStatus.forEach(agent => {

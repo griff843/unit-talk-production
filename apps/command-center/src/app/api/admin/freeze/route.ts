@@ -4,9 +4,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+
 import { RBACService, Permission } from '@/lib/rbac';
-import { UnitTalkTracing } from '@/lib/telemetry';
 import { supabase } from '@/lib/supabase';
+import { UnitTalkTracing } from '@/lib/telemetry';
 
 // =============================================================================
 // FREEZE CONFIGURATION
@@ -43,7 +44,7 @@ class FreezeService {
    */
   static async getStatus(): Promise<FreezeConfig> {
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('system_config')
         .select('config_value')
         .eq('config_key', 'system_freeze')
@@ -76,7 +77,7 @@ class FreezeService {
     };
 
     // Update in database
-    const { error } = await (supabase as any).from('system_config').upsert({
+    const { error } = await supabase.from('system_config').upsert({
       config_key: 'system_freeze',
       config_value: JSON.stringify(newConfig),
       updated_at: new Date().toISOString(),
@@ -115,7 +116,7 @@ class FreezeService {
       };
 
       // Store freeze settings for agents to read
-      const { error: configError } = await (supabase as any).from('system_config').upsert({
+      const { error: configError } = await supabase.from('system_config').upsert({
         config_key: 'freeze_restrictions',
         config_value: JSON.stringify(freezeSettings),
         updated_at: new Date().toISOString(),
@@ -130,21 +131,12 @@ class FreezeService {
         await this.enableShadowMode();
       }
 
-      // Update all active picks to frozen state (but allow grading)
+      // Note: unified_picks freeze columns (frozen, frozen_at, frozen_reason) are not in production schema.
+      // Freeze state is tracked via system_config only. Publishing freeze is enforced at application level.
       if (config.freeze_publishing) {
-        const { error: picksError } = await (supabase as any)
-          .from('unified_picks')
-          .update({
-            frozen: true,
-            frozen_at: new Date().toISOString(),
-            frozen_reason: 'System freeze activated',
-          })
-          .eq('published', false)
-          .eq('workflow_stage', 'approved');
-
-        if (picksError) {
-          console.error('Error freezing picks:', picksError);
-        }
+        console.log(
+          '📛 Publishing freeze active - enforced via system_config (freeze_restrictions)'
+        );
       }
     } catch (error) {
       console.error('Error in applyFreezeRestrictions:', error);
@@ -158,7 +150,7 @@ class FreezeService {
   private static async removeFreezeRestrictions(): Promise<void> {
     try {
       // Clear freeze restrictions
-      const { error: configError } = await (supabase as any)
+      const { error: configError } = await supabase
         .from('system_config')
         .delete()
         .eq('config_key', 'freeze_restrictions');
@@ -167,21 +159,9 @@ class FreezeService {
         console.error('Error removing freeze restrictions:', configError);
       }
 
-      // Unfreeze previously frozen picks
-      const { error: picksError } = await (supabase as any)
-        .from('unified_picks')
-        .update({
-          frozen: false,
-          frozen_at: null,
-          frozen_reason: null,
-          unfrozen_at: new Date().toISOString(),
-        })
-        .eq('frozen', true)
-        .eq('frozen_reason', 'System freeze activated');
-
-      if (picksError) {
-        console.error('Error unfreezing picks:', picksError);
-      }
+      // Note: unified_picks freeze columns are not in production schema.
+      // Freeze state is tracked via system_config only. Publishing is automatically allowed when freeze_restrictions config is removed.
+      console.log('✅ Freeze restrictions removed - publishing allowed via system_config');
     } catch (error) {
       console.error('Error in removeFreezeRestrictions:', error);
       throw error;
@@ -193,7 +173,7 @@ class FreezeService {
    */
   private static async enableShadowMode(): Promise<void> {
     try {
-      const { error } = await (supabase as any).from('system_config').upsert({
+      const { error } = await supabase.from('system_config').upsert({
         config_key: 'shadow_mode',
         config_value: JSON.stringify({
           enabled: true,
@@ -216,15 +196,15 @@ class FreezeService {
    */
   private static async recordFreezeMetric(enabled: boolean): Promise<void> {
     try {
-      const { error } = await (supabase as any).from('system_metrics').insert({
-        metric: 'system_freeze_status',
-        value: enabled ? 1 : 0,
-        labels: JSON.stringify({
+      // Production schema: metric_name, metric_value, metadata
+      const { error } = await supabase.from('system_metrics').insert({
+        metric_name: 'system_freeze_status',
+        metric_value: enabled ? 1 : 0,
+        metadata: {
           action: enabled ? 'frozen' : 'unfrozen',
           timestamp: new Date().toISOString(),
-        }),
-        source: 'admin_control',
-        created_at: new Date().toISOString(),
+          source: 'admin_control',
+        },
       });
 
       if (error) {
@@ -244,21 +224,21 @@ class FreezeService {
     shadow_mode_active: boolean;
   }> {
     try {
-      // Count frozen picks
-      const { count: frozenCount } = await (supabase as any)
-        .from('unified_picks')
-        .select('*', { count: 'exact', head: true })
-        .eq('frozen', true);
+      // Note: unified_picks 'frozen' column doesn't exist in production schema.
+      // Freeze state is tracked via system_config. Return 0 for frozen_picks as freeze
+      // is applied at application level, not per-pick.
+      const frozenCount = 0;
 
-      // Count queued picks
-      const { count: queuedCount } = await (supabase as any)
+      // Count queued picks (these are affected by freeze when active)
+      // Using posted_to_discord instead of 'published' which doesn't exist
+      const { count: queuedCount } = await supabase
         .from('unified_picks')
         .select('*', { count: 'exact', head: true })
         .in('workflow_stage', ['draft', 'pending_review', 'approved'])
-        .eq('published', false);
+        .eq('posted_to_discord', false);
 
       // Check shadow mode status
-      const { data: shadowData } = await (supabase as any)
+      const { data: shadowData } = await supabase
         .from('system_config')
         .select('config_value')
         .eq('config_key', 'shadow_mode')

@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
+
 import { supabase } from '@/lib/supabase';
 
 /**
  * System Configuration API Endpoint
  * Handles system-wide configuration, emergency controls, and operational management
+ *
+ * NOTE: system_config, system_status, system_logs tables may not exist in production.
+ * Using 'any' casts to avoid type recursion with merged database types.
  */
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const dbClient = supabase as any;
 
 interface SystemConfig {
   id: string;
@@ -39,12 +46,12 @@ export async function GET(request: NextRequest) {
 
     console.log('⚙️ GET /api/system', { category, key, includeStatus });
 
-    let response: any = {};
+    const response: any = {};
 
     // Get specific configuration key
     if (key) {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await dbClient
           .from('system_config')
           .select('*')
           .eq('key', key)
@@ -70,7 +77,7 @@ export async function GET(request: NextRequest) {
 
     // Get configuration by category or all
     try {
-      let query = supabase.from('system_config').select('*');
+      let query = dbClient.from('system_config').select('*');
 
       if (category) {
         query = query.eq('category', category);
@@ -98,7 +105,7 @@ export async function GET(request: NextRequest) {
     // Get system status if requested
     if (includeStatus) {
       try {
-        const { data: status, error } = await supabase.from('system_status').select('*').single();
+        const { data: status, error } = await dbClient.from('system_status').select('*').single();
 
         if (error) throw error;
         response.status = status;
@@ -168,7 +175,7 @@ export async function POST(request: NextRequest) {
       };
 
       try {
-        const { data, error } = await supabase
+        const { data, error } = await dbClient
           .from('system_config')
           .upsert(configUpdate)
           .select()
@@ -205,7 +212,7 @@ export async function POST(request: NextRequest) {
       }));
 
       try {
-        const { data, error } = await supabase.from('system_config').upsert(updates).select();
+        const { data, error } = await dbClient.from('system_config').upsert(updates).select();
 
         if (error) throw error;
 
@@ -251,14 +258,14 @@ async function handleEmergencyStop(): Promise<NextResponse> {
     console.log('🚨 Emergency stop activated');
 
     // Update system status
-    await supabase.from('system_status').upsert({
+    await dbClient.from('system_status').upsert({
       emergency_stop: true,
       last_updated: new Date().toISOString(),
       updated_by: 'system',
     });
 
     // Log the emergency stop
-    await supabase.from('system_logs').insert({
+    await dbClient.from('system_logs').insert({
       level: 'critical',
       message: 'Emergency stop activated',
       metadata: { action: 'emergency_stop', timestamp: new Date().toISOString() },
@@ -284,7 +291,7 @@ async function handleMaintenanceMode(enabled: boolean): Promise<NextResponse> {
   try {
     console.log(`🔧 Maintenance mode ${enabled ? 'enabled' : 'disabled'}`);
 
-    await supabase.from('system_status').upsert({
+    await dbClient.from('system_status').upsert({
       maintenance_mode: enabled,
       last_updated: new Date().toISOString(),
       updated_by: 'admin',
@@ -310,7 +317,7 @@ async function handleAgentRestart(agentIds?: string[]): Promise<NextResponse> {
   try {
     console.log('🔄 Restarting agents:', agentIds || 'all');
 
-    let query = supabase.from('agents').update({
+    let query = dbClient.from('agents').update({
       status: 'healthy',
       last_run: new Date().toISOString(),
     });
@@ -366,7 +373,7 @@ async function handleBackupConfig(): Promise<NextResponse> {
   try {
     console.log('💾 Creating configuration backup');
 
-    const { data: configs, error } = await supabase.from('system_config').select('*');
+    const { data: configs, error } = await dbClient.from('system_config').select('*');
 
     if (error) throw error;
 
