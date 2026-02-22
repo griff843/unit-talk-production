@@ -29,8 +29,24 @@ interface AgentStatus {
   };
 }
 
+/**
+ * SPRINT-COMMAND-CENTER-BUILD-TRUTH-002: Lazy runtime config
+ * Environment variables are only accessed at runtime, never at build time.
+ * This ensures Next.js build succeeds without runtime env vars.
+ */
+function getRuntimeApiUrl(): string {
+  // Only evaluate at runtime, not build time
+  const url = process.env['NEXT_PUBLIC_PLATFORM_API_URL'] || process.env['NEXT_PUBLIC_API_URL'];
+  if (!url) {
+    // Return empty string - callers will handle gracefully
+    console.warn('[AgentMonitoring] API URL not configured - agent health checks will be disabled');
+    return '';
+  }
+  return url;
+}
+
 class AgentMonitoringService {
-  private agents: AgentHealthCheck[] = [];
+  private agents: AgentHealthCheck[] | null = null; // Lazy init
   private monitoringInterval: NodeJS.Timeout | null = null;
   private statusCache: Map<string, AgentStatus> = new Map();
   private performanceMetrics: Map<
@@ -40,44 +56,65 @@ class AgentMonitoringService {
   private maxMetricsHistory = 100;
 
   constructor() {
-    this.initializeAgentConfigs();
+    // SPRINT-COMMAND-CENTER-BUILD-TRUTH-002: NO env access in constructor
+    // Lazy initialization happens on first use
+  }
+
+  /**
+   * Get agent configs, initializing lazily on first access
+   */
+  private getAgentConfigs(): AgentHealthCheck[] {
+    if (this.agents === null) {
+      this.initializeAgentConfigs();
+    }
+    return this.agents!;
   }
 
   private initializeAgentConfigs() {
+    // SPRINT-COMMAND-CENTER-BUILD-TRUTH-002: Lazy runtime initialization
+    // This is only called at runtime when agents are actually needed
+    const apiUrl = getRuntimeApiUrl();
+
+    // If no API URL configured, return empty array (graceful degradation)
+    if (!apiUrl) {
+      this.agents = [];
+      return;
+    }
+
     // Configure health checks for platform agents
     // For development: Use fast timeout and expect 404s gracefully
     this.agents = [
       {
         agentName: 'AlertAgent',
-        endpoint: `${process.env.NEXT_PUBLIC_PLATFORM_API_URL}/api/agents/alert/health`,
+        endpoint: `${apiUrl}/api/agents/alert/health`,
         timeout: 1000, // Reduced timeout for development
         expectedStatus: [200, 404], // Accept 404s in development
         healthIndicators: ['uptime', 'lastAlert', 'alertsSent'],
       },
       {
         agentName: 'GradingAgent',
-        endpoint: `${process.env.NEXT_PUBLIC_PLATFORM_API_URL}/api/agents/grading/health`,
+        endpoint: `${apiUrl}/api/agents/grading/health`,
         timeout: 1000, // Reduced timeout for development
         expectedStatus: [200, 404], // Accept 404s in development
         healthIndicators: ['picksProcessed', 'accuracy', 'uptime'],
       },
       {
         agentName: 'RecapAgent',
-        endpoint: `${process.env.NEXT_PUBLIC_PLATFORM_API_URL}/api/agents/recap/health`,
+        endpoint: `${apiUrl}/api/agents/recap/health`,
         timeout: 1000, // Reduced timeout for development
         expectedStatus: [200, 404], // Accept 404s in development
         healthIndicators: ['recapsGenerated', 'uptime', 'lastRecap'],
       },
       {
         agentName: 'FeedAgent',
-        endpoint: `${process.env.NEXT_PUBLIC_PLATFORM_API_URL}/api/agents/feed/health`,
+        endpoint: `${apiUrl}/api/agents/feed/health`,
         timeout: 1000, // Reduced timeout for development
         expectedStatus: [200, 404], // Accept 404s in development
         healthIndicators: ['feedsProcessed', 'uptime', 'sources'],
       },
       {
         agentName: 'NotificationAgent',
-        endpoint: `${process.env.NEXT_PUBLIC_PLATFORM_API_URL}/api/agents/notification/health`,
+        endpoint: `${apiUrl}/api/agents/notification/health`,
         timeout: 1000, // Reduced timeout for development
         expectedStatus: [200, 404], // Accept 404s in development
         healthIndicators: ['notificationsSent', 'uptime', 'channels'],
@@ -119,9 +156,16 @@ class AgentMonitoringService {
    * Check health of all configured agents
    */
   async checkAllAgents(): Promise<AgentStatus[]> {
+    const agents = this.getAgentConfigs();
+
+    if (agents.length === 0) {
+      console.log('⚠️ No agents configured (API URL not set)');
+      return [];
+    }
+
     console.log('🏥 Checking health of all agents...');
 
-    const healthChecks = this.agents.map(agent =>
+    const healthChecks = agents.map(agent =>
       this.checkAgentHealth(agent).catch(error => {
         console.error(`Health check failed for ${agent.agentName}:`, error);
         return this.createErrorStatus(agent.agentName, error);
@@ -132,7 +176,7 @@ class AgentMonitoringService {
     const statuses: AgentStatus[] = [];
 
     results.forEach((result, index) => {
-      const agentName = this.agents[index].agentName;
+      const agentName = agents[index].agentName;
 
       if (result.status === 'fulfilled') {
         statuses.push(result.value);
@@ -218,7 +262,7 @@ class AgentMonitoringService {
    * Check a specific agent's health
    */
   async checkAgent(agentName: string): Promise<AgentStatus> {
-    const config = this.agents.find(a => a.agentName === agentName);
+    const config = this.getAgentConfigs().find(a => a.agentName === agentName);
     if (!config) {
       throw new Error(`Agent ${agentName} not configured for monitoring`);
     }
@@ -238,7 +282,7 @@ class AgentMonitoringService {
    * Force refresh of a specific agent
    */
   async refreshAgent(agentName: string): Promise<AgentStatus> {
-    const config = this.agents.find(a => a.agentName === agentName);
+    const config = this.getAgentConfigs().find(a => a.agentName === agentName);
     if (!config) {
       throw new Error(`Agent ${agentName} not configured for monitoring`);
     }

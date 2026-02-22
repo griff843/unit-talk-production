@@ -1,7 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // SPRINT-FRONTEND-CONTAINER-TRUTH-LOCK-102B: Enable standalone for Docker production
-  output: 'standalone',
+  // NOTE: Standalone mode requires admin symlink permissions on Windows
+  // Set NEXT_OUTPUT_STANDALONE=true for Docker/CI builds
+  output: process.env.NEXT_OUTPUT_STANDALONE === 'true' ? 'standalone' : undefined,
 
   // Windows build optimization
   swcMinify: false, // Disable SWC minifier for Windows compatibility
