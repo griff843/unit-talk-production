@@ -1,0 +1,16 @@
+{
+  "query": "SELECT * FROM unified_picks WHERE settlement_status = 'settled' AND game_date = '2026-02-22'",
+  "result_count": 1,
+  "pick": {
+    "id": "f130a32a-0792-4dc8-bb2b-af30b132d5e0",
+    "user_id": "00000000-0000-0000-0000-000000000001",
+    "sport": "NBA",
+    "selection": "Celtics ML",
+    "odds": -150,
+    "settlement_result": "won",
+    "settled_at": "2026-02-22T09:00:00+00:00",
+    "discord_message_id": "1475049513747222612",
+    "game_date": "2026-02-22"
+  },
+  "recap_eligible": true
+}

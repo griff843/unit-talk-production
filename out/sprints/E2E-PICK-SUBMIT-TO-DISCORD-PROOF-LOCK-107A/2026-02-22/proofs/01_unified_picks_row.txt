@@ -1,0 +1,46 @@
+# UNIFIED_PICKS ROW VERIFICATION
+# Date: 2026-02-22
+# Sprint: SPRINT-E2E-PICK-SUBMIT-TO-DISCORD-PROOF-LOCK-107A
+
+## Pick Identification
+- pick_id: f130a32a-0792-4dc8-bb2b-af30b132d5e0
+- bet_slip_id: 8070cf8b-193f-40a3-9f82-a83a5d56ce82
+- trace_id: 3fec0d6b-3fc7-45ca-99c2-a89c98de79e8
+
+## Core Fields
+- sport: NBA
+- selection: Celtics ML
+- bet_type: moneyline
+- odds: -150
+- line: 0
+- side: over
+- confidence: 7
+- ticket_type: single
+
+## Capper Info
+- user_id: 00000000-0000-0000-0000-000000000001
+- capper (meta): test_user_phase13
+
+## Lifecycle State
+- status: pending
+- workflow_stage: pending_review
+- meta.lifecycle_stage: submitted
+- lane: clean
+- promotion_status: not_promoted
+- posted_to_discord: false
+- settlement_status: pending
+
+## Timestamps
+- created_at: 2026-02-22T08:19:52.947596+00:00
+- updated_at: 2026-02-22T08:19:52.947596+00:00
+
+## Verification Checklist
+✅ Row exists in unified_picks
+✅ id is valid UUID
+✅ created_at is set
+✅ bet_slip_id matches submission response
+✅ lifecycle_stage = submitted
+✅ status = pending (correct initial state)
+✅ No null values in required fields
+
+## PHASE 3 STATUS: ✅ PASS

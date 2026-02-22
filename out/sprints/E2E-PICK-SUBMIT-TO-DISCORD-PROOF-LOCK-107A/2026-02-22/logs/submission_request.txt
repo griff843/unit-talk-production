@@ -1,0 +1,30 @@
+# SUBMISSION REQUEST
+# Date: 2026-02-22
+# Endpoint: POST http://127.0.0.1:3021/api/submit-ticket
+
+## Request Headers
+Content-Type: application/json
+
+## Request Body
+{
+  "capper_id": "00000000-0000-0000-0000-000000000001",
+  "sport": "NBA",
+  "ticket_type": "single",
+  "total_units": 1.0,
+  "selections": [
+    {
+      "sport": "NBA",
+      "bet_type": "moneyline",
+      "selection": "Celtics ML",
+      "team": "Boston Celtics",
+      "stat_type": "moneyline",
+      "line": 0,
+      "leg_odds": -150,
+      "source": "api",
+      "is_live": false,
+      "confidence": 7,
+      "direction": "over"
+    }
+  ],
+  "notes": "E2E Test Pick - SPRINT-107A"
+}

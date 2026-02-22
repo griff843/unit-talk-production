@@ -1,0 +1,12 @@
+{
+  "id": "f130a32a-0792-4dc8-bb2b-af30b132d5e0",
+  "bet_slip_id": "8070cf8b-193f-40a3-9f82-a83a5d56ce82",
+  "settlement_status": "settled",
+  "settlement_result": "won",
+  "settled_at": "2026-02-22T09:00:00+00:00",
+  "settlement_source": "e2e_sprint_test",
+  "posted_to_discord": true,
+  "discord_message_id": "1475049513747222612",
+  "promotion_status": "promoted",
+  "workflow_stage": "approved"
+}

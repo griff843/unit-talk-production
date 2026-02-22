@@ -1,0 +1,22 @@
+# SUBMISSION RESPONSE
+# Date: 2026-02-22
+# HTTP Status: 201 Created
+
+{
+  "bet_slip_id": "8070cf8b-193f-40a3-9f82-a83a5d56ce82",
+  "ticket_id": "8070cf8b-193f-40a3-9f82-a83a5d56ce82",
+  "capper_name": "test_user_phase13",
+  "sport": "NBA",
+  "ticket_type": "single",
+  "selection_count": 1,
+  "total_units": 1,
+  "is_live": false,
+  "status": "submitted",
+  "message": "Ticket submitted successfully!",
+  "pick_ids": ["f130a32a-0792-4dc8-bb2b-af30b132d5e0"]
+}
+
+## Key IDs for E2E Tracking
+- bet_slip_id: 8070cf8b-193f-40a3-9f82-a83a5d56ce82
+- ticket_id: 8070cf8b-193f-40a3-9f82-a83a5d56ce82
+- pick_id: f130a32a-0792-4dc8-bb2b-af30b132d5e0

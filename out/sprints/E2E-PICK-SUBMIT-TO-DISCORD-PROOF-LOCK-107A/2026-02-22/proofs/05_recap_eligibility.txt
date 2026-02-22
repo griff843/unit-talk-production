@@ -1,0 +1,43 @@
+# RECAP ELIGIBILITY VERIFICATION
+# Date: 2026-02-22
+# Sprint: SPRINT-E2E-PICK-SUBMIT-TO-DISCORD-PROOF-LOCK-107A
+
+## Recap Query Result
+
+### Query
+```sql
+SELECT id, user_id, sport, selection, odds, settlement_result,
+       settled_at, discord_message_id, game_date
+FROM unified_picks
+WHERE settlement_status = 'settled'
+  AND game_date = '2026-02-22'
+```
+
+### Result
+Pick is included in recap query results:
+- id: f130a32a-0792-4dc8-bb2b-af30b132d5e0
+- user_id: 00000000-0000-0000-0000-000000000001
+- sport: NBA
+- selection: Celtics ML
+- odds: -150
+- settlement_result: won
+- settled_at: 2026-02-22T09:00:00+00:00
+- discord_message_id: 1475049513747222612
+- game_date: 2026-02-22
+
+### Eligibility Criteria
+| Criterion | Value | Status |
+|-----------|-------|--------|
+| settlement_status = settled | settled | PASS |
+| settlement_result present | won | PASS |
+| settled_at timestamp | 2026-02-22T09:00:00+00:00 | PASS |
+| game_date = today | 2026-02-22 | PASS |
+| discord_message_id present | 1475049513747222612 | PASS |
+
+### Recap-Ready Fields
+- Can link to original Discord message via snowflake
+- Has settlement result for W/L display
+- Has odds for ROI calculation
+- Associated with capper (user_id)
+
+## PHASE 8 STATUS: PASS
