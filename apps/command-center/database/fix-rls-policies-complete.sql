@@ -1,5 +1,5 @@
 -- Complete RLS Policy Fix for Command Center
--- Run this ENTIRE script in your Supabase SQL editor: https://app.supabase.com/project/lxqmuzmqtnnlpfapvief/sql
+-- Run this ENTIRE script in your Supabase SQL editor: https://app.supabase.com/project/cqfnsozknjzvyiziwicl/sql
 
 -- =========================================================================
 -- STEP 1: DROP ALL EXISTING POLICIES (Clean Slate)

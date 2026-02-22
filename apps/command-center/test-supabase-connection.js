@@ -1,9 +1,15 @@
 // Test Supabase connection and data availability
+// SPRINT-SUPABASE-ENDPOINT-TRUTH-LOCK-110A: Use env vars - no hardcoded URLs
+require('dotenv').config({ path: '../../.env' });
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = 'https://lxqmuzmqtnnlpfapvief.supabase.co';
-const supabaseKey =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cW11em1xdG5ubHBmYXB2aWVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUwOTY4NDUsImV4cCI6MjA2MDY3Mjg0NX0.PkJJDTPo8WVpGWaAQ-gdzvyGH9WEjcxcwCDi8z0g93o';
+const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('❌ SPRINT-110A: SUPABASE_URL and SUPABASE_ANON_KEY environment variables are required');
+  process.exit(1);
+}
 
 async function testSupabaseConnection() {
   console.log('🧪 Testing Supabase Production Database Connection...\n');

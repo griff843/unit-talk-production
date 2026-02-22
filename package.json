@@ -52,6 +52,7 @@
     "sprint:validate": "npx tsx scripts/sprint-close.ts --validate-only",
     "sprint:close": "npx tsx scripts/sprint-close.ts",
     "guard:lockfiles": "npx tsx scripts/guard-no-npm-lock.ts",
+    "guard:supabase-endpoint": "node scripts/assert-no-stale-supabase.mjs",
     "ops:day": "node ops/day.mjs",
     "session:baseline": "node scripts/claude-session-baseline.mjs",
     "pre-sprint-check": "node scripts/pre-sprint-check.mjs",

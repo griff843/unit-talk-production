@@ -53,7 +53,7 @@ interface ValidationReport {
 async function validateTimeSeriesData(): Promise<void> {
   // Use Supabase pooler URL (production database)
   const connectionString = process.env.DATABASE_POOLER_URL ||
-    'postgresql://postgres.lxqmuzmqtnnlpfapvief:Adalise843!@aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require';
+    'postgresql://postgres.cqfnsozknjzvyiziwicl:Adalise843!@aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require';
 
   const client = new Client({
     connectionString,

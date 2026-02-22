@@ -7,7 +7,7 @@
 **Method 1: Supabase Dashboard (Recommended)**
 
 1. Go to
-   [Supabase Dashboard](https://app.supabase.com/project/lxqmuzmqtnnlpfapvief)
+   [Supabase Dashboard](https://app.supabase.com/project/cqfnsozknjzvyiziwicl)
 2. Navigate to **SQL Editor**
 3. Copy and paste the entire contents of
    `migrations/001_create_smart_tickets.sql`
@@ -160,7 +160,7 @@ SELECT * FROM smart_tickets WHERE status = 'error';
 Ensure your `.env.local` file contains:
 
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=https://lxqmuzmqtnnlpfapvief.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=https://cqfnsozknjzvyiziwicl.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cW11em1xdG5ubHBmYXB2aWVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUwOTY4NDUsImV4cCI6MjA2MDY3Mjg0NX0.PkJJDTPo8WVpGWaAQ-gdzvyGH9WEjcxcwCDi8z0g93o
 ```
 
@@ -172,7 +172,7 @@ Run this to test everything:
 # Test database connection
 node -e "
 const { createClient } = require('@supabase/supabase-js');
-const supabase = createClient('https://lxqmuzmqtnnlpfapvief.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cW11em1xdG5ubHBmYXB2aWVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUwOTY4NDUsImV4cCI6MjA2MDY3Mjg0NX0.PkJJDTPo8WVpGWaAQ-gdzvyGH9WEjcxcwCDi8z0g93o');
+const supabase = createClient('https://cqfnsozknjzvyiziwicl.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cW11em1xdG5ubHBmYXB2aWVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUwOTY4NDUsImV4cCI6MjA2MDY3Mjg0NX0.PkJJDTPo8WVpGWaAQ-gdzvyGH9WEjcxcwCDi8z0g93o');
 supabase.from('smart_tickets').select('count').single().then(r => console.log('✅ Table exists:', r)).catch(e => console.log('❌ Error:', e.message));
 "
 ```

@@ -112,7 +112,7 @@ async function testSmartFormComplete() {
         // Query the database directly to verify
         const { createClient } = require('@supabase/supabase-js');
         const supabase = createClient(
-          'https://lxqmuzmqtnnlpfapvief.supabase.co',
+          'https://cqfnsozknjzvyiziwicl.supabase.co',
           'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cW11em1xdG5ubHBmYXB2aWVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUwOTY4NDUsImV4cCI6MjA2MDY3Mjg0NX0.PkJJDTPo8WVpGWaAQ-gdzvyGH9WEjcxcwCDi8z0g93o'
         );
         

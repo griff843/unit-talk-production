@@ -1,5 +1,5 @@
 -- Fix RLS Policies for Command Center Anonymous Access
--- Run this in your Supabase SQL editor: https://app.supabase.com/project/lxqmuzmqtnnlpfapvief/sql
+-- Run this in your Supabase SQL editor: https://app.supabase.com/project/cqfnsozknjzvyiziwicl/sql
 
 -- =========================================================================
 -- DROP EXISTING RESTRICTIVE POLICIES

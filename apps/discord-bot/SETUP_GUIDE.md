@@ -37,7 +37,8 @@ looks mostly complete, but double-check these critical ones:
 
 ```env
 # Database (CRITICAL - Must be correct)
-SUPABASE_URL=https://lxqmuzmqtnnlpfapvief.supabase.co
+# SPRINT-SUPABASE-ENDPOINT-TRUTH-LOCK-110A: Use canonical production URL
+SUPABASE_URL=https://cqfnsozknjzvyiziwicl.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
 
 # Discord (CRITICAL)

@@ -1,4 +1,8 @@
-// SPRINT-SUPABASE-ENDPOINT-TRUTH-LOCK-110A: Canonical Supabase configuration
+/**
+ * Environment Configuration & Validation
+ * SPRINT-SUPABASE-ENDPOINT-TRUTH-LOCK-110A: Canonical Supabase configuration
+ */
+
 // This is the ONLY acceptable production Supabase host
 export const CANONICAL_SUPABASE_HOST = 'cqfnsozknjzvyiziwicl.supabase.co';
 

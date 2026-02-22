@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://lxqmuzmqtnnlpfapvief.supabase.co';
-const supabaseKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cW11em1xdG5ubHBmYXB2aWVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUwOTY4NDUsImV4cCI6MjA2MDY3Mjg0NX0.PkJJDTPo8WVpGWaAQ-gdzvyGH9WEjcxcwCDi8z0g93o';
+// SPRINT-SUPABASE-ENDPOINT-TRUTH-LOCK-110A: Fail-closed - no hardcoded fallbacks
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error(
+    'SPRINT-110A: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables are required'
+  );
+}
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -119,7 +122,8 @@ export async function GET(_request: NextRequest) {
       checkExternalAPI('Optimal API', 'https://api.optimal-bet.com/v1/health'),
       checkExternalAPI('Odds API', 'https://api.the-odds-api.com/v4/sports'),
       checkExternalAPI('Discord API', 'https://discord.com/api/v10/gateway'),
-      checkExternalAPI('Supabase API', 'https://lxqmuzmqtnnlpfapvief.supabase.co/rest/v1/'),
+      // SPRINT-SUPABASE-ENDPOINT-TRUTH-LOCK-110A: Use env var, not hardcoded URL
+      checkExternalAPI('Supabase API', `${supabaseUrl}/rest/v1/`),
     ]);
 
     // Get recent system activity

@@ -15,7 +15,7 @@ Your Unit Talk Discord Bot is failing with these specific errors:
 **Go to your Supabase project dashboard:**
 
 1. Open https://supabase.com/dashboard
-2. Select your project: `lxqmuzmqtnnlpfapvief`
+2. Select your project: `cqfnsozknjzvyiziwicl`
 3. Click "SQL Editor" in the left sidebar
 4. Copy the ENTIRE contents of `complete-database-setup.sql` (created for you)
 5. Paste it into the SQL Editor

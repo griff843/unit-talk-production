@@ -54,7 +54,7 @@ class DatabaseMigrationExecutor {
       // For now, let's test if we can read the file properly and check existing schema
       
       console.log('⚠️ MANUAL MIGRATION REQUIRED:');
-      console.log('1. Open Supabase SQL Editor at: https://lxqmuzmqtnnlpfapvief.supabase.co/project/lxqmuzmqtnnlpfapvief/sql');
+      console.log('1. Open Supabase SQL Editor at: https://cqfnsozknjzvyiziwicl.supabase.co/project/cqfnsozknjzvyiziwicl/sql');
       console.log('2. Copy the SQL from: migrations/001_critical_schema_alignment.sql');
       console.log('3. Execute the SQL in the editor');
       console.log('4. Run validation: npm run db:validate:schema');

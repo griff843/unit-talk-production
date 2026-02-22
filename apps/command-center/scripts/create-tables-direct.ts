@@ -2,7 +2,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://lxqmuzmqtnnlpfapvief.supabase.co';
+const supabaseUrl = 'https://cqfnsozknjzvyiziwicl.supabase.co';
 const supabaseKey =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cW11em1xdG5ubHBmYXB2aWVmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NTA5Njg0NSwiZXhwIjoyMDYwNjcyODQ1fQ.NFMR0P7iQU7aEa1ssY-jnDD2Tm5ylfzEpUEAkZZ2n7E';
 
@@ -248,7 +248,7 @@ async function createTablesAndData() {
 
     console.log('\n🎯 NEXT STEPS:');
     console.log(
-      '1. Go to your Supabase dashboard: https://app.supabase.com/project/lxqmuzmqtnnlpfapvief/sql'
+      '1. Go to your Supabase dashboard: https://app.supabase.com/project/cqfnsozknjzvyiziwicl/sql'
     );
     console.log('2. Copy and paste the SQL commands above');
     console.log('3. Run them in the SQL editor');

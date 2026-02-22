@@ -32,7 +32,7 @@ All critical containers are healthy and operational:
 
 ### Environment Configuration
 - **Environment:** Production configuration (NODE_ENV=production)
-- **Database:** Supabase live database (lxqmuzmqtnnlpfapvief.supabase.co)
+- **Database:** Supabase live database (cqfnsozknjzvyiziwicl.supabase.co)
 - **Port Mapping:** Command Center accessible on port 3004
 - **Service Discovery:** All internal services properly networked
 

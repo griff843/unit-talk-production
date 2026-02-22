@@ -1,12 +1,14 @@
 /**
  * @fileoverview Production Pipeline Health Monitoring API
  * Comprehensive health checks for all production pipeline components
+ * SPRINT-SUPABASE-ENDPOINT-TRUTH-LOCK-110A: Canonical endpoint validation
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 
 import { RBACService, Permission } from '@/lib/rbac';
 import { supabase } from '@/lib/supabase';
+import { validateSupabaseEndpoint, CANONICAL_SUPABASE_HOST } from '@/lib/env';
 
 interface ComponentHealthStatus {
   component: string;
@@ -200,6 +202,26 @@ async function getDetailedHealthCheck(userId: string, startTime: number): Promis
 // Basic health check for backward compatibility and load balancers
 async function getBasicHealthCheck(): Promise<NextResponse> {
   const startTime = Date.now();
+
+  // SPRINT-SUPABASE-ENDPOINT-TRUTH-LOCK-110A: Validate canonical endpoint first
+  const endpointValidation = validateSupabaseEndpoint();
+  if (!endpointValidation.valid) {
+    return NextResponse.json(
+      {
+        status: 'unhealthy',
+        timestamp: new Date().toISOString(),
+        critical_error: endpointValidation.error,
+        expected_host: CANONICAL_SUPABASE_HOST,
+        services: {
+          supabase_endpoint: {
+            status: 'unhealthy',
+            error: endpointValidation.error,
+          },
+        },
+      },
+      { status: 503 }
+    );
+  }
 
   // Initialize basic health status
   const health: HealthStatus = {

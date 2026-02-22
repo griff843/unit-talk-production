@@ -1,5 +1,5 @@
 -- Fix v3.0.0 Compatibility Views for Command Center
--- Run this ENTIRE script in your Supabase SQL editor: https://app.supabase.com/project/lxqmuzmqtnnlpfapvief/sql
+-- Run this ENTIRE script in your Supabase SQL editor: https://app.supabase.com/project/cqfnsozknjzvyiziwicl/sql
 
 -- =========================================================================
 -- STEP 1: ENSURE CORE v3.0.0 TABLES EXIST

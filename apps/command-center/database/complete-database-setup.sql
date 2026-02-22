@@ -1,5 +1,5 @@
 -- Complete Database Setup for Unit Talk Command Center
--- Run this entire file in your Supabase SQL editor: https://app.supabase.com/project/lxqmuzmqtnnlpfapvief/sql
+-- Run this entire file in your Supabase SQL editor: https://app.supabase.com/project/cqfnsozknjzvyiziwicl/sql
 
 -- =========================================================================
 -- CREATE TABLES

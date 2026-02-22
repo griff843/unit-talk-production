@@ -1,5 +1,5 @@
 -- Fix Missing Production Tables for Command Center
--- Run this ENTIRE script in your Supabase SQL editor: https://app.supabase.com/project/lxqmuzmqtnnlpfapvief/sql
+-- Run this ENTIRE script in your Supabase SQL editor: https://app.supabase.com/project/cqfnsozknjzvyiziwicl/sql
 
 -- =========================================================================
 -- STEP 1: CREATE MISSING PRODUCTION TABLES

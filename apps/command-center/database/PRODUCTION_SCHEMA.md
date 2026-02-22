@@ -1,7 +1,7 @@
 # Unit Talk Production Database Schema - Command Center
 
 **Last Updated**: 2025-08-04  
-**Database**: Supabase PostgreSQL (lxqmuzmqtnnlpfapvief.supabase.co)  
+**Database**: Supabase PostgreSQL (cqfnsozknjzvyiziwicl.supabase.co)  
 **Status**: ✅ PRODUCTION READY with 514,940+ raw props
 
 ## 🎯 Key Tables for Command Center

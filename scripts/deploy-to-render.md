@@ -33,7 +33,7 @@ git push origin main
    NODE_ENV=production
    PORT=3000
    LOG_LEVEL=info
-   SUPABASE_URL=https://lxqmuzmqtnnlpfapvief.supabase.co
+   SUPABASE_URL=https://cqfnsozknjzvyiziwicl.supabase.co
    SUPABASE_SERVICE_ROLE_KEY=[FROM SUPABASE DASHBOARD]
    OPTIMAL_API_KEY=optimalbet_T0PpLGK63PPwE8xSnQNgpZcpi3HoN4UC
    ODDS_API_KEY=8014c48eb8a05f289de049c0961ac4cf
@@ -90,7 +90,7 @@ git push origin main
 
 **Keep using Supabase** (you're already set up):
 
-- Your existing database at `https://lxqmuzmqtnnlpfapvief.supabase.co`
+- Your existing database at `https://cqfnsozknjzvyiziwicl.supabase.co`
 - No migration needed
 - Add production environment variables to Render services
 

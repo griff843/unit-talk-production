@@ -46,7 +46,8 @@ The **ONLY** file where environment variables should be defined:
 # =============================================================================
 
 # Database Configuration (v3.0.0 Unified Schema)
-SUPABASE_URL=https://lxqmuzmqtnnlpfapvief.supabase.co
+# SPRINT-SUPABASE-ENDPOINT-TRUTH-LOCK-110A: Use canonical production URL
+SUPABASE_URL=https://cqfnsozknjzvyiziwicl.supabase.co
 SUPABASE_ANON_KEY=eyJ...
 
 # Data Provider API Keys (CRITICAL FOR MONITORING)
