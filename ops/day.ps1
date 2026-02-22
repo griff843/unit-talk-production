@@ -373,19 +373,19 @@ function Test-FrontendHealth {
         try {
             $response = Invoke-RestMethod -Uri $healthUrl -Method Get -TimeoutSec 5 -ErrorAction Stop
             if ($response.status -eq "ok" -or $response.status -eq "healthy") {
-                Write-Ok "$Name: healthy (status: $($response.status))"
+                Write-Ok "${Name}: healthy (status: $($response.status))"
                 return $true
             } else {
-                Write-Info "$Name: status=$($response.status) (retry $i/$MaxRetries)"
+                Write-Info "${Name}: status=$($response.status) (retry $i/$MaxRetries)"
             }
         } catch {
-            Write-Info "$Name: not ready (retry $i/$MaxRetries)"
+            Write-Info "${Name}: not ready (retry $i/$MaxRetries)"
         }
         Start-Sleep -Seconds $RetryDelay
     }
 
     # Frontend failed to become healthy - dump logs
-    Write-Warn "$Name: UNHEALTHY after $MaxRetries retries"
+    Write-Warn "${Name}: UNHEALTHY after $MaxRetries retries"
     Write-Host "--- $ContainerName logs (last 100 lines) ---"
     Invoke-Native { docker compose logs --tail=100 $ContainerName } -ShowOutput -AllowFail
     Write-Host "--- end $ContainerName logs ---"
