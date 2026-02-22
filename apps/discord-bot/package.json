@@ -24,7 +24,7 @@
     "@anthropic-ai/sdk": "^0.55.0",
     "@discordjs/builders": "^1.6.5",
     "@discordjs/rest": "^2.0.1",
-    "@supabase/supabase-js": "^2.33.1",
+    "@supabase/supabase-js": "2.33.1",
     "axios": "^1.6.2",
     "bcrypt": "^5.1.1",
     "compression": "^1.7.4",

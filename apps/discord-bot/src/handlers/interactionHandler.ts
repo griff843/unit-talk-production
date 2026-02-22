@@ -770,9 +770,12 @@ export class InteractionHandler {
     const fields = interaction.fields;
 
     // Process form fields and update configuration
-    const updates: any = {};
-    fields.fields.forEach((field, key) => {
-      updates[key] = field.value;
+    const updates: Record<string, string> = {};
+    fields.fields.forEach((field) => {
+      // Only process text input fields that have a value property
+      if ('value' in field) {
+        updates[field.customId] = field.value;
+      }
     });
 
     await this.services.quickEditConfigService.applyConfigUpdates(

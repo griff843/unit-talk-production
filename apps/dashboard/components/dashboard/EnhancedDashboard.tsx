@@ -188,7 +188,7 @@ export default function EnhancedDashboard() {
         id: '2',
         type: 'warning',
         message: 'High volume detected - monitoring closely',
-        timestamp: new Date(Date.now() - 300000),
+        timestamp: new Date(Date.now() - 300000).toISOString(),
       },
     ],
   };
@@ -257,7 +257,7 @@ export default function EnhancedDashboard() {
       stats: displayStats,
       performance: displayPerformance,
       analytics: displayAnalytics,
-      exportDate: new Date().toISOString().toISOString(),
+      exportDate: new Date().toISOString(),
     };
 
     const blob = new Blob([JSON.stringify(dataToExport, null, 2)], {
@@ -267,7 +267,7 @@ export default function EnhancedDashboard() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `unit-talk-dashboard-${new Date().toISOString().toISOString().split('T')[0]}.json`;
+    a.download = `unit-talk-dashboard-${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -295,7 +295,7 @@ export default function EnhancedDashboard() {
               <Trophy className="h-8 w-8 text-yellow-600" />
               Unit Talk Dashboard
             </h1>
-            <p className="text-gray-600 mt-1">Last updated: {lastRefresh.toLocaleTimeString()}</p>
+            <p className="text-gray-600 mt-1">Last updated: {new Date(lastRefresh).toLocaleTimeString()}</p>
           </div>
 
           <div className="flex items-center gap-3">

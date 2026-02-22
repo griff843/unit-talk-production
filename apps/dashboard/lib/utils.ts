@@ -54,14 +54,14 @@ export function debounce<T extends (...args: any[]) => void>(
   };
 }
 
-export function throttle<T extends (...args: any[]) => void>(
+export function throttle<T extends (...args: any[]) => any>(
   func: T,
   limit: number
-): (...args: Parameters<T>) => void {
+): (...args: Parameters<T>) => ReturnType<T> | undefined {
   let inThrottle: boolean;
-  let lastResult: ReturnType<T>;
+  let lastResult: ReturnType<T> | undefined;
 
-  return function executedFunction(...args: Parameters<T>): ReturnType<T> {
+  return function executedFunction(...args: Parameters<T>): ReturnType<T> | undefined {
     if (!inThrottle) {
       lastResult = func(...args);
       inThrottle = true;

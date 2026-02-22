@@ -1,5 +1,6 @@
 /* eslint-disable complexity, no-console, no-unused-vars, no-unreachable, max-lines-per-function, @typescript-eslint/no-unused-vars */
 // Pre-existing ESLint complexity issues - documented for SPRINT-058A
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Router, Request, Response } from 'express';
 import Redis from 'ioredis';
 
@@ -9,42 +10,42 @@ import { createLogger } from '../utils/logger';
 const env = getEnv();
 const logger = createLogger('Health');
 
-// Create a simple SupabaseService interface for health checks
-interface SimpleSupabaseService {
-  client: {
-    from: (table: string) => {
-      select: (columns: string) => {
-        limit: (count: number) => Promise<{ error?: any }>;
-      };
-    };
-  };
+// SPRINT-SYNDICATE-FOUNDATION-REALIGN-114A: Real Supabase client for health checks
+// NO MOCK DATA - Health must reflect actual database connectivity
+
+// Create real Supabase client - fail-closed if env vars missing
+let supabaseClient: SupabaseClient | null = null;
+let supabaseInitError: string | null = null;
+
+try {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+
+  if (supabaseUrl && supabaseKey) {
+    supabaseClient = createClient(supabaseUrl, supabaseKey);
+  } else {
+    supabaseInitError = 'SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not configured';
+  }
+} catch (err) {
+  supabaseInitError = err instanceof Error ? err.message : 'Failed to initialize Supabase client';
 }
 
-// Simple implementation for health checks
-const createSimpleSupabaseService = (): SimpleSupabaseService => {
-  return {
-    client: {
-      from: (_table: string) => ({
-        select: (_columns: string) => ({
-          limit: async (_count: number) => {
-            // Simple health check - just return success for now
-            // In production, this would make an actual database call
-            return { error: null };
-          },
-        }),
-      }),
-    },
-  };
-};
+// Interface for health check results
+interface SupabaseHealthResult {
+  connected: boolean;
+  error?: string;
+  responseTime?: number;
+}
 
 const router: Router = Router();
+
+// Redis client with lazy connect for health checks
 const redis = new Redis({
-  host: 'unit-talk-redis',
-  port: 6379,
+  host: process.env.REDIS_HOST || 'unit-talk-redis',
+  port: parseInt(process.env.REDIS_PORT || '6379', 10),
   enableReadyCheck: false,
   lazyConnect: true,
 });
-const supabase = createSimpleSupabaseService();
 
 interface HealthStatus {
   status: 'healthy' | 'unhealthy' | 'degraded';
@@ -115,21 +116,31 @@ router.get('/', async (req: Request, res: Response) => {
       cpuUsage: process.cpuUsage().user / 1000000, // Convert to seconds
     };
 
-    // Check database
+    // Check database - SPRINT-114A: Real connectivity check, no mocks
     const dbStartTime = Date.now();
     try {
-      const { error: dbError } = await supabase.client
-        .from('user_profiles')
-        .select('count')
-        .limit(1);
+      if (!supabaseClient) {
+        // Supabase not configured - report honestly
+        healthStatus.services.database = {
+          status: 'down',
+          lastCheck: new Date().toISOString(),
+          error: supabaseInitError || 'Supabase client not initialized',
+        };
+      } else {
+        // Real database query - use agent_health table (exists in schema)
+        const { data, error: dbError } = await supabaseClient
+          .from('agent_health')
+          .select('id')
+          .limit(1);
 
-      const dbResponseTime = Date.now() - dbStartTime;
-      healthStatus.services.database = {
-        status: dbError ? 'down' : 'up',
-        responseTime: dbResponseTime,
-        lastCheck: new Date().toISOString(),
-        error: dbError?.message,
-      };
+        const dbResponseTime = Date.now() - dbStartTime;
+        healthStatus.services.database = {
+          status: dbError ? 'down' : 'up',
+          responseTime: dbResponseTime,
+          lastCheck: new Date().toISOString(),
+          error: dbError?.message,
+        };
+      }
     } catch (error) {
       healthStatus.services.database = {
         status: 'down',

@@ -1,14 +1,15 @@
-# CLAUDE.md - Unit Talk API
+# CLAUDE.md - API Service
 
-> **Governance**: See [../../CLAUDE.md](../../CLAUDE.md) for Docker rules,
-> secrets, database architecture, and service boundaries.
+> **Sprint**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A
+> **Status**: AUTHORITATIVE
+> **Role**: CANONICAL WRITER
+> **Last Updated**: 2026-02-22
 
 ---
 
-## Service Overview
+## Overview
 
-The API is the backend service for the sports betting intelligence platform. It
-provides agent orchestration, grading, settlement, and data pipeline.
+The API is the **canonical writer** for all business tables. It owns agent orchestration, grading, settlement, and the data pipeline. All writes to `unified_picks` MUST go through this service via lifecycle adapters.
 
 ---
 
@@ -21,36 +22,165 @@ provides agent orchestration, grading, settlement, and data pipeline.
 - Settlement processing (SettlementAgent)
 - Data pipeline (FeedAgent, BridgeWorker)
 - Temporal workflows
+- Lifecycle adapters (single-writer enforcement)
+- Discord posting (DiscordPromotionAgent)
 
 ### This Service MUST NOT
 
 - Serve UI assets
-- Handle direct Discord interactions
+- Handle direct Discord interactions (bot commands)
 - Define database schema (infrastructure concern)
+- Bypass lifecycle adapters for `unified_picks` writes
 
 ---
 
-## Development Commands
+## Read/Write Surfaces
+
+### Write Authority
+
+| Table | Writer Role | Adapter |
+|-------|-------------|---------|
+| `unified_picks` | submitter, promoter, poster, settler | `lifecycleInsert`, `lifecycleUpdate` |
+| `prop_settlements` | settler | `lifecycleSettle` |
+| `agent_health` | agents | Direct (internal table) |
+| `agent_metrics` | agents | Direct (internal table) |
+
+### Read Access
+
+- All tables (canonical reader for business logic)
+
+### Forbidden Patterns
+
+```typescript
+// NEVER do this:
+await supabase.from('unified_picks').insert(data);
+await supabase.from('unified_picks').update(data);
+
+// ALWAYS do this:
+await lifecycleInsert(supabase, data, { writerRole: 'submitter' });
+await lifecycleUpdate(supabase, id, data, { writerRole: 'poster' });
+```
+
+---
+
+## Environment Requirements
+
+### All Profiles
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NODE_ENV` | Yes | `development`, `test`, `production` |
+| `PORT` | No | Default: 3000 |
+
+### Local Profile
+
+| Variable | Required | Source |
+|----------|----------|--------|
+| `SUPABASE_URL` | Yes | `.env` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | `.env` |
+
+### Docker Profile
+
+| Variable | Required | Source |
+|----------|----------|--------|
+| `SUPABASE_URL` | Yes | `docker-compose.yml` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | `docker-compose.yml` |
+| `REDIS_URL` | Yes | `redis://redis:6379` |
+
+### CI Profile
+
+| Variable | Required | Notes |
+|----------|----------|-------|
+| `CI` | Yes | Set automatically |
+| `SUPABASE_URL` | Placeholder | Build-only |
+
+### Production Profile
+
+| Variable | Required | Source |
+|----------|----------|--------|
+| `SUPABASE_URL` | Yes | K8s Secrets |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | K8s Secrets |
+| `REDIS_URL` | Yes | K8s Secrets |
+| `JWT_SECRET` | Yes | K8s Secrets |
+| `DISCORD_TOKEN` | Yes | K8s Secrets |
+| `DISCORD_WEBHOOK_URL` | Yes | K8s Secrets |
+
+---
+
+## Commands
+
+### Development
 
 ```bash
-# Development
+# Local
+pnpm --filter api dev
+
+# Docker
 docker-compose exec api npm run start:dev
 docker-compose exec api npm run worker:dev
-
-# Build
-docker-compose exec api npm run build
-
-# Type check
-docker-compose exec api npm run type-check
-
-# Test
-docker-compose exec api npm test
-docker-compose exec api npm run test:unit
-docker-compose exec api npm run test:integration
-
-# Lint
-docker-compose exec api npm run lint
 ```
+
+### Build & Verify
+
+```bash
+pnpm --filter api build
+pnpm --filter api type-check
+pnpm --filter api test
+```
+
+### Gates
+
+```bash
+# Single-writer gate (REQUIRED before merge)
+npm run lifecycle:single-writer -- --strict
+```
+
+---
+
+## Health Checks
+
+### Endpoint
+
+```
+GET /health
+```
+
+### Expected Response
+
+```json
+{
+  "status": "healthy",
+  "service": "api",
+  "supabase": "connected",
+  "redis": "connected",
+  "timestamp": "2026-02-22T12:00:00Z"
+}
+```
+
+### Verification
+
+```bash
+# Local
+curl http://localhost:3010/health
+
+# Docker
+docker-compose exec api curl http://localhost:3000/health
+
+# Production
+curl https://api.unit-talk.com/health
+```
+
+---
+
+## Common Failure Modes
+
+| Failure | Cause | Prevention |
+|---------|-------|------------|
+| Direct `unified_picks` write | Bypassing lifecycle adapter | CI gate: `npm run lifecycle:single-writer -- --strict` |
+| Missing env var | Incomplete configuration | Zod validation at boot |
+| Supabase host mismatch | Wrong project URL | Canonical host validation |
+| Settlement double-write | Race condition | Idempotency via `atomicClaimForPost` |
+| Agent health stale | Agent crash | Health check polling |
 
 ---
 
@@ -69,109 +199,23 @@ import { BaseAgent } from '../BaseAgent';
 
 ### Agent Categories
 
-**Business Intelligence:** GradingAgent, AnalyticsAgent, AlertAgent, FeedAgent,
-RecapAgent
-
-**Operational:** NotificationAgent, ContestAgent, PlayerEnrichmentAgent,
-AuditAgent
-
-### Agent Development
-
-1. Extend `BaseAgent`
-2. Implement health checks
-3. Add Prometheus metrics
-4. Use structured logging with correlation IDs
+| Category | Agents |
+|----------|--------|
+| Business Intelligence | GradingAgent, AnalyticsAgent, AlertAgent, FeedAgent, RecapAgent |
+| Operational | NotificationAgent, ContestAgent, PlayerEnrichmentAgent, AuditAgent |
+| Lifecycle | DiscordPromotionAgent, SettlementAgent |
 
 ---
 
-## Professional Grading Rules
+## References
 
-### Core Standards
-
-1. **Devigging**: Every odds source must be devigged
-2. **CLV Tracking**: Every pick must have CLV tracking
-3. **Professional Grading**: All picks through ProfessionalPropProcessor
-4. **Kelly Sizing**: Optimal Kelly fraction for all picks
-
-### Required Fields
-
-| Field                | Requirement            |
-| -------------------- | ---------------------- |
-| `devigged_edge`      | Must be populated      |
-| `clv_tracking_id`    | Must be populated      |
-| `professional_score` | Must be populated      |
-| `kelly_fraction`     | > 0 for approved picks |
-
-### Prohibitions
-
-- No raw odds without devigging
-- No picks without CLV tracking
-- No manual grading bypasses
+- Root Governance: `../../CLAUDE.md`
+- Execution Contract: `../../CLAUDE_EXECUTION_CONTRACT.md`
+- System Invariants: `../../docs/SYSTEM_INVARIANTS.md`
+- Env Contract: `../../docs/ENV_CONTRACT.md`
+- Lifecycle Contract: `../../docs/contracts/PICK_LIFECYCLE_CONTRACT.md`
 
 ---
 
-## BridgeWorker
-
-Consumes events from `bridge_outbox` table.
-
-```bash
-BRIDGE_OUTBOX_POLL_INTERVAL=10000
-BRIDGE_OUTBOX_BATCH_SIZE=10
-ENABLE_BRIDGE_OUTBOX=true
-```
-
-- Idempotent processing by `bet_slip_id`
-- Exponential backoff: 1min, 5min, 15min
-- Circuit breaker for external failures
-
----
-
-## Temporal Workflows
-
-### EventDrivenGradingWorkflow
-
-- Individual leg processing
-- Professional grading features
-- Circuit breaker protection
-- Automatic retry
-
-### Key Activities
-
-- `validateEventData`
-- `processIndividualLeg`
-- `applyProfessionalGrading`
-- `generateAlerts`
-
----
-
-## Settlement
-
-### Rules
-
-1. Only `SettlementAgent` writes to settlement columns
-2. Settlement fields are immutable after set
-3. Settlement source must be valid
-4. Settlement confidence: 0.0-1.0
-
-### Single-Writer Enforcement
-
-`prop_settlements` table: Only SettlementAgent
-
----
-
-## Troubleshooting
-
-```bash
-# Debug agent
-docker-compose exec api bash -c "DEBUG=agent:* npx tsx src/runner/testAllAgents.ts"
-
-# Health check
-docker-compose exec api npm run health:check
-
-# Database status
-docker-compose exec api npm run db:status
-```
-
----
-
-**Status**: See CI/CD pipelines
+**Document Owner**: Engineering Team
+**Last Audit**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A

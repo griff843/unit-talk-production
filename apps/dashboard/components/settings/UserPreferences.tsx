@@ -93,12 +93,13 @@ export function UserPreferences() {
     localStorage.setItem('unitTalk_preferences', JSON.stringify(preferences));
   }, [preferences]);
 
-  const updatePreferences = (path: string[], value: any) => {
+  const updatePreferences = (path: string[], value: unknown) => {
     setPreferences(prev => {
       const newPrefs = { ...prev };
-      let current = newPrefs;
+      // Use type assertion for dynamic path access
+      let current: Record<string, unknown> = newPrefs as unknown as Record<string, unknown>;
       for (let i = 0; i < path.length - 1; i++) {
-        current = current[path[i]];
+        current = current[path[i]] as Record<string, unknown>;
       }
       current[path[path.length - 1]] = value;
       return newPrefs;

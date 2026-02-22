@@ -14,7 +14,7 @@ import {
 } from '../utils/dateUtils';
 // import { supabase } from '../config/supabase'; // Commented out until config is available
 
-const router = Router();
+const router: Router = Router();
 const cache = new EnterpriseCache();
 
 // Metrics endpoint for Prometheus

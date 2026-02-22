@@ -1,14 +1,15 @@
-# CLAUDE.md - Unit Talk Command Center
+# CLAUDE.md - Command Center
 
-> **Governance**: See [../../CLAUDE.md](../../CLAUDE.md) for Docker rules,
-> secrets, database architecture, and service boundaries.
+> **Sprint**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A
+> **Status**: AUTHORITATIVE
+> **Role**: READ-ONLY DASHBOARD
+> **Last Updated**: 2026-02-22
 
 ---
 
-## Service Overview
+## Overview
 
-The Command Center is the operational monitoring dashboard. It provides
-real-time visibility into system health and agent status.
+The Command Center is the operational monitoring dashboard. It provides real-time visibility into system health, agent status, and pipeline events. **This service is READ-ONLY** - it does not write to business tables.
 
 ---
 
@@ -18,7 +19,7 @@ real-time visibility into system health and agent status.
 
 - Real-time monitoring dashboards
 - Agent health visualization
-- Operational controls (start/stop/restart)
+- Operational controls UI (proxied to API)
 - Event stream monitoring
 - Replay capabilities
 
@@ -27,55 +28,169 @@ real-time visibility into system health and agent status.
 - Execute grading logic
 - Process settlements
 - Modify agent behavior directly
-- Write to business tables
+- Write to business tables (`unified_picks`, `prop_settlements`)
 - Define professional betting rules
+- Access service-role keys at build time
 
-**This service has READ-ONLY access to business tables.**
-
-**Agent controls communicate with API, not database directly.**
+**Agent controls communicate with API via proxy - they do not write directly.**
 
 ---
 
-## Development Commands
+## Read/Write Surfaces
+
+### Write Authority
+
+**NONE** - This service is read-only.
+
+### Read Access
+
+| Table | Purpose |
+|-------|---------|
+| `unified_picks` | Display picks in dashboard |
+| `agent_health` | Agent status monitoring |
+| `agent_metrics` | Performance metrics |
+| `agent_logs` | Log visualization |
+| `users` | User info display |
+
+### Control Endpoints (API Proxy)
+
+| Endpoint | Action | Proxied To |
+|----------|--------|------------|
+| `POST /api/agents/:id/restart` | Restart agent | API service |
+| `POST /api/admin/freeze` | Emergency freeze | API service |
+| `POST /api/admin/safe-mode` | Safe mode toggle | API service |
+
+---
+
+## Environment Requirements
+
+### All Profiles
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NODE_ENV` | Yes | `development`, `test`, `production` |
+| `DEMO_MODE` | No | Default: `false`. Set `true` for mock data |
+
+### Local Profile
+
+| Variable | Required | Source |
+|----------|----------|--------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | `.env` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | `.env` |
+
+### Docker Profile
+
+| Variable | Required | Source |
+|----------|----------|--------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Build args |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Build args |
+
+**Note**: `NEXT_PUBLIC_*` vars are embedded at BUILD time, not runtime.
+
+### CI Profile
+
+| Variable | Required | Notes |
+|----------|----------|-------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Placeholder | Build-only |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Placeholder | Build-only |
+
+### Production Profile
+
+| Variable | Required | Source |
+|----------|----------|--------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Baked into image |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Baked into image |
+| `NEXT_PUBLIC_API_URL` | Yes | Baked into image |
+
+---
+
+## Commands
+
+### Development
 
 ```bash
-# Development
+# Local
+pnpm --filter command-center dev
+
+# Docker
 docker-compose exec command-center npm run dev
+```
 
-# Build
-docker-compose exec command-center npm run build
+### Build & Verify
 
-# Type check
-docker-compose exec command-center npm run type-check
+```bash
+pnpm --filter command-center build
+pnpm --filter command-center type-check
+pnpm --filter command-center test
+```
 
-# Test
-docker-compose exec command-center npm test
-docker-compose exec command-center npm run test:e2e
+### Gates
 
-# Lint
-docker-compose exec command-center npm run lint
+```bash
+# No-mocks gate (REQUIRED before merge)
+npm run cc:no-mocks
 ```
 
 ---
 
-## Architecture
+## Health Checks
 
-### Directory Structure
+### Endpoint
 
 ```
-app/
-├── dashboard/
-│   ├── overview/
-│   ├── agents/
-│   ├── analytics/
-│   └── settings/
-└── api/
-    ├── agents/
-    ├── system/
-    └── websocket/
+GET /api/health
 ```
 
-### Technology Stack
+### Expected Response
+
+```json
+{
+  "status": "healthy",
+  "service": "command-center",
+  "supabase": "connected",
+  "demoMode": false,
+  "timestamp": "2026-02-22T12:00:00Z"
+}
+```
+
+### Verification
+
+```bash
+# Local
+curl http://localhost:3004/api/health
+
+# Docker
+curl http://localhost:3004/api/health
+
+# Production
+curl https://command.unit-talk.com/api/health
+```
+
+---
+
+## Common Failure Modes
+
+| Failure | Cause | Prevention |
+|---------|-------|------------|
+| Silent mock fallback | Missing Supabase config | `DEMO_MODE` gating + fail-closed |
+| Build-time secret access | Requiring service-role at build | Only use anon key in frontend |
+| Supabase host mismatch | Wrong project URL | Canonical host validation |
+| Stale dashboard data | Subscription disconnect | Real-time reconnection logic |
+| API proxy failure | API service down | Health check + error boundary |
+
+### DEMO_MODE Behavior
+
+```typescript
+// If DEMO_MODE=false (default) and Supabase config missing:
+// → SupabaseConfigurationError thrown (fail-closed)
+
+// If DEMO_MODE=true and Supabase config missing:
+// → Mock data returned (development only)
+```
+
+---
+
+## Technology Stack
 
 - Next.js 14 (App Router)
 - Supabase real-time subscriptions
@@ -85,93 +200,15 @@ app/
 
 ---
 
-## Real-Time Integration
+## References
 
-### Supabase Subscriptions
-
-```typescript
-// Agent health monitoring (read-only)
-supabase
-  .channel('agent-health')
-  .on(
-    'postgres_changes',
-    {
-      event: '*',
-      table: 'agent_health',
-    },
-    handler
-  )
-  .subscribe();
-```
-
-### Event Stream
-
-- Server-Sent Events (SSE) for pipeline events
-- Real-time filtering
-- Replay capabilities
+- Root Governance: `../../CLAUDE.md`
+- Execution Contract: `../../CLAUDE_EXECUTION_CONTRACT.md`
+- System Invariants: `../../docs/SYSTEM_INVARIANTS.md`
+- Env Contract: `../../docs/ENV_CONTRACT.md`
+- Ops Wiring Plan: `../../docs/OPS_WIRING_PLAN.md`
 
 ---
 
-## API Endpoints
-
-### Monitoring (Read-Only)
-
-- `GET /api/events` - Pipeline events
-- `GET /api/stream` - SSE stream
-- `GET /api/monitoring/pipeline` - Pipeline metrics
-- `GET /api/health` - Health status
-
-### Control (via API proxy)
-
-- `POST /api/agents/:id/restart` - Proxy to API
-- `POST /api/admin/freeze` - Emergency freeze
-- `POST /api/admin/safe-mode` - Safe mode
-
-**Control endpoints proxy to API service - they do not write directly.**
-
----
-
-## v3.0.0 Database Access
-
-### Read Patterns
-
-```typescript
-// Correct Supabase syntax
-const { data } = await supabase.from('unified_picks').select(`
-    id, user_id, selection, odds,
-    users!unified_picks_user_id_fkey (username, tier)
-  `);
-```
-
-### Tables Accessed (Read-Only)
-
-- `unified_picks`
-- `agent_health`
-- `agent_metrics`
-- `agent_logs`
-- `users`
-
----
-
-## Security
-
-### Role-Based Access
-
-```typescript
-enum Permission {
-  VIEW_DASHBOARD = 'view:dashboard',
-  CONTROL_AGENTS = 'control:agents',
-  MANAGE_USERS = 'manage:users',
-  EMERGENCY_CONTROLS = 'emergency:controls',
-}
-```
-
-### Emergency Controls
-
-- Require explicit permission
-- Require confirmation dialog
-- Logged to audit trail
-
----
-
-**Status**: See CI/CD pipelines
+**Document Owner**: Engineering Team
+**Last Audit**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A

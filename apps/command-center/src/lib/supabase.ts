@@ -6,6 +6,26 @@ import {
 
 import type { Database, Json } from '@/types';
 
+// SPRINT-TRUTH-RESTORATION-001: DEMO_MODE gating for mock data
+// INVARIANT #2: Fail-closed environment - no silent fallbacks
+// INVARIANT #4: No demo mode without explicit DEMO_MODE=true flag
+const DEMO_MODE = process.env.DEMO_MODE === 'true';
+
+/**
+ * Fail-closed error for missing Supabase configuration.
+ * This error is thrown when DEMO_MODE is not enabled and Supabase env vars are missing.
+ */
+class SupabaseConfigurationError extends Error {
+  constructor() {
+    super(
+      'FAIL-CLOSED: Supabase configuration required. ' +
+        'Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY, ' +
+        'or set DEMO_MODE=true for development without Supabase.'
+    );
+    this.name = 'SupabaseConfigurationError';
+  }
+}
+
 // Type definitions for Supabase query results with relations
 interface UnifiedPickWithRelations {
   id: string;
@@ -74,29 +94,94 @@ type TypedSupabaseClient = SupabaseClient<Database>;
 // Lazy initialization of Supabase client
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let client: any = null;
+let clientInitialized = false;
 
+/**
+ * Get Supabase client with fail-closed behavior.
+ *
+ * INVARIANT #2: Fail-closed - throws if env vars missing and DEMO_MODE not set
+ * INVARIANT #4: DEMO_MODE must be explicit for mock data
+ *
+ * @returns Supabase client (never null in production mode)
+ * @throws SupabaseConfigurationError if env vars missing and DEMO_MODE !== 'true'
+ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getSupabaseClient(): any {
-  if (client) return client;
+  // Return cached client if already initialized
+  if (clientInitialized && client) return client;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn('Supabase environment variables not found. Mock data will be used.');
-    console.warn('Required: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY');
-    return null;
+    // DEMO_MODE: Explicit flag required for mock data
+    if (DEMO_MODE) {
+      console.warn('[DEMO_MODE] Supabase not configured - mock data will be used');
+      console.warn('[DEMO_MODE] This is expected in development without Supabase');
+      clientInitialized = true;
+      client = null; // Null client signals DEMO_MODE to consumer functions
+      return null;
+    }
+
+    // FAIL-CLOSED: No silent fallback without explicit DEMO_MODE
+    console.error('FAIL-CLOSED: Supabase configuration required');
+    console.error('Missing: NEXT_PUBLIC_SUPABASE_URL and/or NEXT_PUBLIC_SUPABASE_ANON_KEY');
+    console.error('Set DEMO_MODE=true to run without Supabase');
+    throw new SupabaseConfigurationError();
   }
 
   client = createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey);
+  clientInitialized = true;
+  console.log('✅ Supabase client initialized successfully');
   return client;
 }
 
-// Export the typed client getter function and a convenience export
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const supabase: any = getSupabaseClient();
+/**
+ * Check if running in DEMO_MODE (explicit mock data mode)
+ */
+export function isDemoMode(): boolean {
+  return DEMO_MODE;
+}
+
+/**
+ * Check if Supabase is available (not in DEMO_MODE with missing config)
+ */
+export function isSupabaseAvailable(): boolean {
+  if (clientInitialized) return client !== null;
+  try {
+    return getSupabaseClient() !== null;
+  } catch {
+    return false;
+  }
+}
+
+// Export the typed client getter function
+// NOTE: Use getSupabaseClient() instead of supabase to get fail-closed behavior
+// The supabase export is a getter that calls getSupabaseClient() lazily
 export { getSupabaseClient };
 export type { TypedSupabaseClient };
+
+// Legacy export for backward compatibility - lazily evaluated via getter
+// Uses a Proxy to defer initialization and enforce fail-closed behavior
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _lazySupabase: any = undefined;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const supabase: any = new Proxy(
+  {} as TypedSupabaseClient,
+  {
+    get(_, prop) {
+      if (_lazySupabase === undefined) {
+        _lazySupabase = getSupabaseClient();
+      }
+      if (_lazySupabase === null) {
+        // DEMO_MODE is true but no client - throw for direct supabase usage
+        // Code should use dbOperations which handle DEMO_MODE properly
+        throw new SupabaseConfigurationError();
+      }
+      return _lazySupabase[prop];
+    },
+  }
+);
 
 // Export createClient function for API routes
 export function createClient() {
@@ -164,51 +249,62 @@ export interface SecurityEvent {
 }
 
 // Connection test function
-export async function testDatabaseConnection() {
-  const client = supabase;
-  if (!client) {
-    console.log('❌ Supabase client not initialized (missing environment variables)');
-    return false;
-  }
-
+export async function testDatabaseConnection(): Promise<{ connected: boolean; demoMode: boolean; error?: string }> {
   try {
-    const { data, error } = await client.from('users').select('count').limit(1);
+    const client = getSupabaseClient();
+
+    if (!client) {
+      // Only possible if DEMO_MODE is true
+      console.log('[DEMO_MODE] Database connection test skipped');
+      return { connected: false, demoMode: true };
+    }
+
+    const { error } = await client.from('users').select('count').limit(1);
 
     if (error) {
       console.log('Database connection test failed:', error.message);
-      return false;
+      return { connected: false, demoMode: false, error: error.message };
     }
 
     console.log('✅ Database connection successful');
-    return true;
+    return { connected: true, demoMode: false };
   } catch (err) {
-    console.log('Database connection test failed:', err);
-    return false;
+    const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+    console.log('Database connection test failed:', errorMsg);
+    return { connected: false, demoMode: DEMO_MODE, error: errorMsg };
   }
 }
 
 // Check if required tables exist
-export async function checkRequiredTables() {
+export async function checkRequiredTables(): Promise<Record<string, boolean>> {
   const requiredTables = ['users', 'agents', 'security_events'];
   const tableStatus: Record<string, boolean> = {};
 
-  const client = supabase;
-  if (!client) {
-    // If no supabase client, mark all tables as not existing
+  try {
+    const client = getSupabaseClient();
+
+    if (!client) {
+      // DEMO_MODE: All tables marked as unavailable
+      console.log('[DEMO_MODE] Table check skipped - using mock data');
+      requiredTables.forEach(table => {
+        tableStatus[table] = false;
+      });
+      return tableStatus;
+    }
+
+    for (const table of requiredTables) {
+      try {
+        const { error } = await client.from(table).select('*').limit(1);
+        tableStatus[table] = !error;
+      } catch {
+        tableStatus[table] = false;
+      }
+    }
+  } catch {
+    // Client init failed - mark all as unavailable
     requiredTables.forEach(table => {
       tableStatus[table] = false;
     });
-    return tableStatus;
-  }
-
-  for (const table of requiredTables) {
-    try {
-      const { error } = await client.from(table).select('*').limit(1);
-
-      tableStatus[table] = !error;
-    } catch (err) {
-      tableStatus[table] = false;
-    }
   }
 
   return tableStatus;
@@ -218,9 +314,14 @@ export async function checkRequiredTables() {
 export const dbOperations = {
   // Users
   async getUsers() {
-    const client = supabase;
+    const client = getSupabaseClient();
+
+    // DEMO_MODE: Explicit mock data usage
     if (!client) {
-      console.warn('Supabase not initialized, using mock data');
+      if (!DEMO_MODE) {
+        throw new SupabaseConfigurationError();
+      }
+      console.log('[DEMO_MODE] Using mock users data');
       const { mockUsers } = await import('./mockData');
       return mockUsers;
     }
@@ -232,29 +333,51 @@ export const dbOperations = {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.warn('Database query failed, using mock data:', error.message);
-        const { mockUsers } = await import('./mockData');
-        return mockUsers;
+        // FAIL-CLOSED: Database errors are not silently ignored
+        console.error('Database query failed:', error.message);
+        if (DEMO_MODE) {
+          console.log('[DEMO_MODE] Falling back to mock users after error');
+          const { mockUsers } = await import('./mockData');
+          return mockUsers;
+        }
+        throw new Error(`Database query failed: ${error.message}`);
       }
 
       console.log(`✅ Retrieved ${data?.length || 0} users from database`);
       return data as unknown as User[];
     } catch (err) {
-      console.warn('Database connection failed, using mock data:', err);
-      const { mockUsers } = await import('./mockData');
-      return mockUsers;
+      // FAIL-CLOSED: Connection errors are not silently ignored
+      console.error('Database connection failed:', err);
+      if (DEMO_MODE) {
+        console.log('[DEMO_MODE] Falling back to mock users after connection error');
+        const { mockUsers } = await import('./mockData');
+        return mockUsers;
+      }
+      throw err;
     }
   },
 
   async getUserById(id: string) {
-    const { data, error } = await supabase.from('users').select('*').eq('id', id).single();
+    const client = getSupabaseClient();
+    // FAIL-CLOSED: Requires Supabase (no DEMO_MODE fallback for specific user queries)
+    if (!client) {
+      throw new SupabaseConfigurationError();
+    }
+
+    const { data, error } = await client.from('users').select('*').eq('id', id).single();
 
     if (error) throw error;
     return data as unknown as User;
   },
 
   async updateUser(id: string, updates: Partial<User>) {
-    const { data, error } = await supabase
+    const client = getSupabaseClient();
+    // FAIL-CLOSED: Write operations require Supabase (no DEMO_MODE fallback)
+    if (!client) {
+      throw new SupabaseConfigurationError();
+    }
+
+    const { data, error } = await client
       .from('users')
       .update(updates)
       .eq('id', id)
@@ -268,8 +391,13 @@ export const dbOperations = {
   // Picks - Connect to real Unit Talk unified_picks table (v3.0.0)
   async getPicks(limit = 100) {
     const client = getSupabaseClient();
+
+    // DEMO_MODE: Explicit mock data usage
     if (!client) {
-      console.log('⚠️ Supabase client unavailable, using mock data');
+      if (!DEMO_MODE) {
+        throw new SupabaseConfigurationError();
+      }
+      console.log('[DEMO_MODE] Using mock picks data');
       const { mockRecentPicks } = await import('./mockData');
       return mockRecentPicks.slice(0, limit);
     }
@@ -314,9 +442,13 @@ export const dbOperations = {
         .limit(limit);
 
       if (error) {
-        console.warn('unified_picks query failed, using mock data:', error.message);
-        const { mockRecentPicks } = await import('./mockData');
-        return mockRecentPicks.slice(0, limit);
+        console.error('unified_picks query failed:', error.message);
+        if (DEMO_MODE) {
+          console.log('[DEMO_MODE] Falling back to mock picks after error');
+          const { mockRecentPicks } = await import('./mockData');
+          return mockRecentPicks.slice(0, limit);
+        }
+        throw new Error(`Database query failed: ${error.message}`);
       }
 
       // Transform unified_picks to Pick interface
@@ -324,9 +456,13 @@ export const dbOperations = {
       console.log(`✅ Retrieved ${picks.length} picks from unified_picks table`);
       return picks;
     } catch (err) {
-      console.warn('Database connection failed, using mock picks:', err);
-      const { mockRecentPicks } = await import('./mockData');
-      return mockRecentPicks.slice(0, limit);
+      console.error('Database connection failed:', err);
+      if (DEMO_MODE) {
+        console.log('[DEMO_MODE] Falling back to mock picks after connection error');
+        const { mockRecentPicks } = await import('./mockData');
+        return mockRecentPicks.slice(0, limit);
+      }
+      throw err;
     }
   },
 
@@ -485,8 +621,13 @@ export const dbOperations = {
 
   async getPicksByUser(userId: string) {
     const client = getSupabaseClient();
+
+    // DEMO_MODE: Explicit mock data usage
     if (!client) {
-      console.log('⚠️ Supabase client unavailable, using mock data');
+      if (!DEMO_MODE) {
+        throw new SupabaseConfigurationError();
+      }
+      console.log('[DEMO_MODE] No picks available for user in demo mode');
       return [];
     }
 
@@ -531,8 +672,13 @@ export const dbOperations = {
     } = {}
   ) {
     const client = getSupabaseClient();
+
+    // DEMO_MODE: Explicit mock data usage
     if (!client) {
-      console.log('⚠️ Supabase client unavailable, using mock data');
+      if (!DEMO_MODE) {
+        throw new SupabaseConfigurationError();
+      }
+      console.log('[DEMO_MODE] Using mock picks with filters');
       const { mockRecentPicks } = await import('./mockData');
       return mockRecentPicks;
     }
@@ -572,9 +718,13 @@ export const dbOperations = {
       .limit(filters.limit || 100);
 
     if (error) {
-      console.warn('Filtered picks query failed:', error.message);
-      const { mockRecentPicks } = await import('./mockData');
-      return mockRecentPicks;
+      console.error('Filtered picks query failed:', error.message);
+      if (DEMO_MODE) {
+        console.log('[DEMO_MODE] Falling back to mock picks after filter error');
+        const { mockRecentPicks } = await import('./mockData');
+        return mockRecentPicks;
+      }
+      throw new Error(`Database query failed: ${error.message}`);
     }
 
     return this.transformUnifiedPicksToPicks(data || []);
@@ -582,7 +732,10 @@ export const dbOperations = {
 
   async createPick(pick: Omit<Pick, 'id' | 'created_at'>) {
     const client = getSupabaseClient();
-    if (!client) throw new Error('Supabase client not available');
+    // FAIL-CLOSED: Write operations require Supabase (no DEMO_MODE fallback)
+    if (!client) {
+      throw new SupabaseConfigurationError();
+    }
 
     const { data, error } = await client
       .from('unified_picks')
@@ -604,7 +757,10 @@ export const dbOperations = {
   // Pick approval/denial functionality for unified structure
   async approvePick(pickId: string, approvedBy: string) {
     const client = getSupabaseClient();
-    if (!client) throw new Error('Supabase client not available');
+    // FAIL-CLOSED: Write operations require Supabase (no DEMO_MODE fallback)
+    if (!client) {
+      throw new SupabaseConfigurationError();
+    }
 
     try {
       const { data, error } = await client
@@ -639,7 +795,10 @@ export const dbOperations = {
 
   async denyPick(pickId: string, deniedBy: string, reason?: string) {
     const client = getSupabaseClient();
-    if (!client) throw new Error('Supabase client not available');
+    // FAIL-CLOSED: Write operations require Supabase (no DEMO_MODE fallback)
+    if (!client) {
+      throw new SupabaseConfigurationError();
+    }
 
     try {
       const { data, error } = await client
@@ -675,7 +834,10 @@ export const dbOperations = {
 
   async updatePickResult(pickId: string, result: 'win' | 'loss' | 'push', actualValue?: number) {
     const client = getSupabaseClient();
-    if (!client) throw new Error('Supabase client not available');
+    // FAIL-CLOSED: Write operations require Supabase (no DEMO_MODE fallback)
+    if (!client) {
+      throw new SupabaseConfigurationError();
+    }
 
     try {
       const { data, error } = await client
@@ -710,8 +872,13 @@ export const dbOperations = {
   // Agents - Connect to real Unit Talk agent system
   async getAgents() {
     const client = getSupabaseClient();
+
+    // DEMO_MODE: Explicit mock data usage
     if (!client) {
-      console.warn('Supabase not initialized, using mock data');
+      if (!DEMO_MODE) {
+        throw new SupabaseConfigurationError();
+      }
+      console.log('[DEMO_MODE] Using mock agents data');
       const { mockAgents } = await import('./mockData');
       return mockAgents;
     }
@@ -733,9 +900,13 @@ export const dbOperations = {
           .order('created_at', { ascending: false });
 
         if (metricsError) {
-          console.warn('agent_metrics query failed, using mock data:', metricsError.message);
-          const { mockAgents } = await import('./mockData');
-          return mockAgents;
+          console.error('agent_metrics query also failed:', metricsError.message);
+          if (DEMO_MODE) {
+            console.log('[DEMO_MODE] Falling back to mock agents after error');
+            const { mockAgents } = await import('./mockData');
+            return mockAgents;
+          }
+          throw new Error(`Database query failed: ${metricsError.message}`);
         }
 
         // Transform agent_metrics to Agent format
@@ -749,9 +920,13 @@ export const dbOperations = {
       console.log(`✅ Retrieved ${agents.length} agents from agent_health table`);
       return agents;
     } catch (err) {
-      console.warn('Database connection failed, using mock data:', err);
-      const { mockAgents } = await import('./mockData');
-      return mockAgents;
+      console.error('Database connection failed:', err);
+      if (DEMO_MODE) {
+        console.log('[DEMO_MODE] Falling back to mock agents after connection error');
+        const { mockAgents } = await import('./mockData');
+        return mockAgents;
+      }
+      throw err;
     }
   },
 
@@ -902,7 +1077,13 @@ export const dbOperations = {
   },
 
   async updateAgentStatus(id: string, status: Agent['status'], metadata?: Record<string, Json>) {
-    const { data, error } = await supabase
+    const client = getSupabaseClient();
+    // FAIL-CLOSED: Write operations require Supabase (no DEMO_MODE fallback)
+    if (!client) {
+      throw new SupabaseConfigurationError();
+    }
+
+    const { data, error } = await client
       .from('agents')
       .update({
         status,
@@ -919,30 +1100,56 @@ export const dbOperations = {
 
   // Security Events
   async getSecurityEvents(limit = 50) {
+    const client = getSupabaseClient();
+
+    // DEMO_MODE: Explicit mock data usage
+    if (!client) {
+      if (!DEMO_MODE) {
+        throw new SupabaseConfigurationError();
+      }
+      console.log('[DEMO_MODE] Using mock security events');
+      const { mockSecurityEvents } = await import('./mockData');
+      return mockSecurityEvents.slice(0, limit);
+    }
+
     try {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('security_events')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(limit);
 
       if (error) {
-        console.warn('Database query failed, using mock data:', error.message);
-        const { mockSecurityEvents } = await import('./mockData');
-        return mockSecurityEvents.slice(0, limit);
+        console.error('Database query failed:', error.message);
+        if (DEMO_MODE) {
+          console.log('[DEMO_MODE] Falling back to mock security events after error');
+          const { mockSecurityEvents } = await import('./mockData');
+          return mockSecurityEvents.slice(0, limit);
+        }
+        throw new Error(`Database query failed: ${error.message}`);
       }
 
       console.log(`✅ Retrieved ${data?.length || 0} security events from database`);
       return data as unknown as SecurityEvent[];
     } catch (err) {
-      console.warn('Database connection failed, using mock data:', err);
-      const { mockSecurityEvents } = await import('./mockData');
-      return mockSecurityEvents.slice(0, limit);
+      console.error('Database connection failed:', err);
+      if (DEMO_MODE) {
+        console.log('[DEMO_MODE] Falling back to mock security events after connection error');
+        const { mockSecurityEvents } = await import('./mockData');
+        return mockSecurityEvents.slice(0, limit);
+      }
+      throw err;
     }
   },
 
   async createSecurityEvent(event: Omit<SecurityEvent, 'id' | 'created_at'>) {
-    const { data, error } = await supabase.from('security_events').insert(event).select().single();
+    const client = getSupabaseClient();
+    // FAIL-CLOSED: Write operations require Supabase (no DEMO_MODE fallback)
+    if (!client) {
+      throw new SupabaseConfigurationError();
+    }
+
+    const { data, error } = await client.from('security_events').insert(event).select().single();
 
     if (error) throw error;
     return data as unknown as SecurityEvent;
@@ -951,8 +1158,13 @@ export const dbOperations = {
   // Analytics - Connect to real Unit Talk production data
   async getAnalytics() {
     const client = getSupabaseClient();
+
+    // DEMO_MODE: Explicit mock data usage
     if (!client) {
-      console.warn('Supabase not initialized, using mock analytics');
+      if (!DEMO_MODE) {
+        throw new SupabaseConfigurationError();
+      }
+      console.log('[DEMO_MODE] Using mock analytics data');
       const { getMockAnalytics } = await import('./mockData');
       return getMockAnalytics();
     }
@@ -969,9 +1181,9 @@ export const dbOperations = {
         .from('unified_picks')
         .select(
           `
-          id, 
-          prediction, 
-          confidence, 
+          id,
+          prediction,
+          confidence,
           status,
           result,
           created_at,
@@ -1001,43 +1213,58 @@ export const dbOperations = {
         source: 'database',
       };
     } catch (err) {
-      console.warn('Database analytics query failed, using mock data:', err);
-      const { getMockAnalytics } = await import('./mockData');
-      return getMockAnalytics();
+      console.error('Database analytics query failed:', err);
+      if (DEMO_MODE) {
+        console.log('[DEMO_MODE] Falling back to mock analytics after error');
+        const { getMockAnalytics } = await import('./mockData');
+        return getMockAnalytics();
+      }
+      throw err;
     }
   },
 
   // Database status check
   async getDatabaseStatus() {
-    if (!supabase) {
-      return {
-        connected: false,
-        error: 'Supabase client not initialized (missing environment variables)',
-        usingMockData: true,
-      };
-    }
-
     try {
-      const { data, error } = await supabase.from('users').select('count').limit(1);
+      const client = getSupabaseClient();
+
+      if (!client) {
+        // Only possible if DEMO_MODE is true
+        return {
+          connected: false,
+          demoMode: true,
+          error: null,
+          usingMockData: true,
+        };
+      }
+
+      const { error } = await client.from('users').select('count').limit(1);
 
       if (error) {
         return {
           connected: false,
+          demoMode: false,
           error: error.message,
-          usingMockData: true,
+          usingMockData: DEMO_MODE,
         };
       }
 
       return {
         connected: true,
+        demoMode: false,
         error: null,
         usingMockData: false,
       };
     } catch (err) {
+      // If DEMO_MODE is false, getSupabaseClient() throws - this is correct behavior
+      if (err instanceof SupabaseConfigurationError) {
+        throw err; // Re-throw fail-closed error
+      }
       return {
         connected: false,
+        demoMode: DEMO_MODE,
         error: err instanceof Error ? err.message : 'Unknown error',
-        usingMockData: true,
+        usingMockData: DEMO_MODE,
       };
     }
   },
@@ -1052,8 +1279,11 @@ export const subscriptions = {
   subscribeToAgentStatus(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
     if (!client) {
-      console.warn('Cannot subscribe to agent status - Supabase not initialized');
-      return null;
+      if (DEMO_MODE) {
+        console.log('[DEMO_MODE] Subscriptions disabled - no real-time updates');
+        return null;
+      }
+      throw new SupabaseConfigurationError();
     }
 
     return client
@@ -1065,8 +1295,11 @@ export const subscriptions = {
   subscribeToAgentHealth(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
     if (!client) {
-      console.warn('Cannot subscribe to agent health - Supabase not initialized');
-      return null;
+      if (DEMO_MODE) {
+        console.log('[DEMO_MODE] Subscriptions disabled - no real-time updates');
+        return null;
+      }
+      throw new SupabaseConfigurationError();
     }
 
     return client
@@ -1078,8 +1311,11 @@ export const subscriptions = {
   subscribeToAgentMetrics(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
     if (!client) {
-      console.warn('Cannot subscribe to agent metrics - Supabase not initialized');
-      return null;
+      if (DEMO_MODE) {
+        console.log('[DEMO_MODE] Subscriptions disabled - no real-time updates');
+        return null;
+      }
+      throw new SupabaseConfigurationError();
     }
 
     return client
@@ -1094,7 +1330,13 @@ export const subscriptions = {
 
   subscribeToSecurityEvents(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
-    if (!client) return null;
+    if (!client) {
+      if (DEMO_MODE) {
+        console.log('[DEMO_MODE] Subscriptions disabled - no real-time updates');
+        return null;
+      }
+      throw new SupabaseConfigurationError();
+    }
 
     return client
       .channel('security_events')
@@ -1108,7 +1350,13 @@ export const subscriptions = {
 
   subscribeToNewPicks(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
-    if (!client) return null;
+    if (!client) {
+      if (DEMO_MODE) {
+        console.log('[DEMO_MODE] Subscriptions disabled - no real-time updates');
+        return null;
+      }
+      throw new SupabaseConfigurationError();
+    }
 
     return client
       .channel('unified_picks')
@@ -1122,7 +1370,13 @@ export const subscriptions = {
 
   subscribeToPickUpdates(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
-    if (!client) return null;
+    if (!client) {
+      if (DEMO_MODE) {
+        console.log('[DEMO_MODE] Subscriptions disabled - no real-time updates');
+        return null;
+      }
+      throw new SupabaseConfigurationError();
+    }
 
     return client
       .channel('unified_picks_updates')
@@ -1136,7 +1390,13 @@ export const subscriptions = {
 
   subscribeToAgentLogs(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
-    if (!client) return null;
+    if (!client) {
+      if (DEMO_MODE) {
+        console.log('[DEMO_MODE] Subscriptions disabled - no real-time updates');
+        return null;
+      }
+      throw new SupabaseConfigurationError();
+    }
 
     return client
       .channel('agent_logs')

@@ -191,7 +191,8 @@ export async function GET(_request: NextRequest) {
     ];
 
     // Determine overall health
-    const criticalServices = services.filter(s => s.status === 'down').length;
+    // Cast to allow for dynamic health states
+    const criticalServices = services.filter(s => (s.status as string) === 'down').length;
     const degradedServices = services.filter(s => s.status === 'degraded').length;
     const downAPIs = apiChecks.filter(api => api.status === 'down').length;
 

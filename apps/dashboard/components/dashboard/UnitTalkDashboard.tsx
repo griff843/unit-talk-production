@@ -13,7 +13,7 @@ import {
   Trophy,
   Flame,
   Brain,
-  ChartBar,
+  BarChart2 as ChartBar,
   Wallet,
   Eye,
   EyeOff,
@@ -159,6 +159,18 @@ const COLORS = {
   dark: '#1f2937',
   light: '#f9fafb',
 };
+
+// Array of colors for charts (pie/bar)
+const CHART_COLORS = [
+  '#6366f1',
+  '#8b5cf6',
+  '#10b981',
+  '#f59e0b',
+  '#ef4444',
+  '#3b82f6',
+  '#ec4899',
+  '#14b8a6',
+];
 
 const TIER_COLORS = {
   MEMBER: '#6b7280',
@@ -672,7 +684,7 @@ export function UnitTalkDashboard() {
                         dataKey="percentage"
                       >
                         {data.portfolio.allocation.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                         ))}
                       </Pie>
                       <RechartsTooltip

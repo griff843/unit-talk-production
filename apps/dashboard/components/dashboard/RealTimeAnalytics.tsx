@@ -470,9 +470,9 @@ export function RealTimeAnalytics() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2 text-sm">
-              {analyticsError && <p className="text-red-300">Analytics: {analyticsError}</p>}
-              {healthError && <p className="text-red-300">Health: {healthError}</p>}
-              {usersError && <p className="text-red-300">Users: {usersError}</p>}
+              {analyticsError && <p className="text-red-300">Analytics: {analyticsError.message}</p>}
+              {healthError && <p className="text-red-300">Health: {healthError.message}</p>}
+              {usersError && <p className="text-red-300">Users: {usersError.message}</p>}
               <p className="text-gray-400">Showing fallback data where available.</p>
             </div>
           </CardContent>

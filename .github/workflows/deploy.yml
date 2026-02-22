@@ -55,11 +55,13 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix={{branch}}-
 
+      # SPRINT-TRUTH-RESTORATION-001: Fixed Dockerfile paths
+      # Dockerfiles are located at apps/<app>/Dockerfile, not infrastructure/docker/
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: infrastructure/docker/Dockerfile.${{ matrix.app }}
+          file: apps/${{ matrix.app }}/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

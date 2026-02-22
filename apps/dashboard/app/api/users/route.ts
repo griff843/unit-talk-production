@@ -120,10 +120,10 @@ async function handleUserStats(): Promise<NextResponse> {
 
         const allPicks = [...dailyPicks, ...smartTickets];
         const completedPicks = allPicks.filter(
-          pick => pick.result || (pick.status && ['won', 'lost', 'settled'].includes(pick.status))
+          (pick: Record<string, unknown>) => pick.result || (pick.status && ['won', 'lost', 'settled'].includes(pick.status as string))
         );
         const wonPicks = completedPicks.filter(
-          pick => pick.result === 'win' || pick.status === 'won'
+          (pick: Record<string, unknown>) => pick.result === 'win' || pick.status === 'won'
         );
 
         return {

@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, Router } from 'express';
 import { HealthChecker, PerformanceMonitor, logger } from '../utils/enterpriseErrorHandling';
 import { SupabaseService } from '../services/supabase';
 import Redis from 'ioredis';
@@ -16,7 +16,7 @@ import {
   toLocaleDateString,
 } from '../utils/dateUtils';
 
-const router = express.Router();
+const router: Router = express.Router();
 const healthChecker = new HealthChecker();
 const performanceMonitor = PerformanceMonitor.getInstance();
 

@@ -26,6 +26,11 @@ export interface Database {
           confidence: number;
           analysis: string | null;
           metadata: Json | null;
+          // Admin override fields
+          result_overridden_by: string | null;
+          result_override_reason: string | null;
+          tier_changed_by: string | null;
+          tier_change_reason: string | null;
         };
         Insert: {
           id?: string;
@@ -48,11 +53,15 @@ export interface Database {
           confidence: number;
           analysis?: string | null;
           metadata?: Json | null;
+          result_overridden_by?: string | null;
+          result_override_reason?: string | null;
+          tier_changed_by?: string | null;
+          tier_change_reason?: string | null;
         };
         Update: {
           id?: string;
           created_at?: string;
-          updated_at?: string;
+          updated_at?: string | Date;
           capper_id?: string;
           player_id?: string;
           game_id?: string;
@@ -61,7 +70,7 @@ export interface Database {
           odds?: number;
           stake?: number;
           payout?: number;
-          result?: 'win' | 'loss' | 'push' | 'pending';
+          result?: 'win' | 'loss' | 'push' | 'pending' | string;
           actual_value?: number;
           tier?: string;
           ticket_type?: string;
@@ -70,7 +79,12 @@ export interface Database {
           confidence?: number;
           analysis?: string | null;
           metadata?: Json | null;
+          result_overridden_by?: string | null;
+          result_override_reason?: string | null;
+          tier_changed_by?: string | null;
+          tier_change_reason?: string | null;
         };
+        Relationships: [];
       };
       analytics_summary: {
         Row: {
@@ -171,6 +185,7 @@ export interface Database {
           profit_loss?: number;
           metadata?: Json | null;
         };
+              Relationships: [];
       };
       trend_analysis: {
         Row: {
@@ -212,6 +227,7 @@ export interface Database {
           confidence?: number;
           metadata?: Json | null;
         };
+              Relationships: [];
       };
       // Onboarding tables from existing schema
       onboarding_config: {
@@ -236,6 +252,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+              Relationships: [];
       };
       onboarding_progress: {
         Row: {
@@ -286,6 +303,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+              Relationships: [];
       };
       dm_failures: {
         Row: {
@@ -336,6 +354,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+              Relationships: [];
       };
       analytics_events: {
         Row: {
@@ -374,6 +393,7 @@ export interface Database {
           ip_address?: string | null;
           created_at?: string;
         };
+              Relationships: [];
       };
       user_journeys: {
         Row: {
@@ -418,6 +438,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+              Relationships: [];
       };
       onboarding_flow_edits: {
         Row: {
@@ -450,6 +471,7 @@ export interface Database {
           edited_at?: string;
           created_at?: string;
         };
+              Relationships: [];
       };
       admin_actions: {
         Row: {
@@ -488,6 +510,7 @@ export interface Database {
           user_agent?: string | null;
           created_at?: string;
         };
+              Relationships: [];
       };
       user_preferences: {
         Row: {
@@ -535,6 +558,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+              Relationships: [];
       };
       onboarding_templates: {
         Row: {
@@ -567,6 +591,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+              Relationships: [];
       };
       // Missing tables identified from code analysis
       user_profiles: {
@@ -609,6 +634,7 @@ export interface Database {
           last_active?: string;
           metadata?: Json;
         };
+              Relationships: [];
       };
       game_threads: {
         Row: {
@@ -665,6 +691,7 @@ export interface Database {
           updated_at?: string;
           metadata?: Json;
         };
+              Relationships: [];
       };
       user_picks: {
         Row: {
@@ -733,6 +760,7 @@ export interface Database {
           updated_at?: string;
           metadata?: Json;
         };
+              Relationships: [];
       };
       thread_stats: {
         Row: {
@@ -768,6 +796,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+              Relationships: [];
       };
       thread_followers: {
         Row: {
@@ -797,6 +826,7 @@ export interface Database {
           notifications_enabled?: boolean;
           created_at?: string;
         };
+              Relationships: [];
       };
       user_cooldowns: {
         Row: {
@@ -823,6 +853,7 @@ export interface Database {
           expires_at?: string;
           created_at?: string;
         };
+              Relationships: [];
       };
       pick_gradings: {
         Row: {
@@ -861,6 +892,7 @@ export interface Database {
           graded_at?: string;
           created_at?: string;
         };
+              Relationships: [];
       };
       coaching_sessions: {
         Row: {
@@ -911,6 +943,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+              Relationships: [];
       };
       message_feedback: {
         Row: {
@@ -940,6 +973,7 @@ export interface Database {
           comment?: string | null;
           created_at?: string;
         };
+              Relationships: [];
       };
       feedback_messages: {
         Row: {
@@ -984,6 +1018,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+              Relationships: [];
       };
       activity_logs: {
         Row: {
@@ -1016,6 +1051,7 @@ export interface Database {
           user_agent?: string | null;
           created_at?: string;
         };
+              Relationships: [];
       };
       config_edit_sessions: {
         Row: {
@@ -1051,6 +1087,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+              Relationships: [];
       };
       config_changes: {
         Row: {
@@ -1083,6 +1120,7 @@ export interface Database {
           changed_at?: string;
           created_at?: string;
         };
+              Relationships: [];
       };
       agent_health_checks: {
         Row: {
@@ -1121,6 +1159,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+              Relationships: [];
       };
       keyword_triggers: {
         Row: {
@@ -1162,6 +1201,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+              Relationships: [];
       };
       emoji_triggers: {
         Row: {
@@ -1197,6 +1237,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+              Relationships: [];
       };
       auto_dm_templates: {
         Row: {
@@ -1229,6 +1270,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+              Relationships: [];
       };
       trigger_activation_logs: {
         Row: {
@@ -1267,6 +1309,7 @@ export interface Database {
           response_message_id?: string | null;
           created_at?: string;
         };
+              Relationships: [];
       };
       vip_notification_sequences: {
         Row: {
@@ -1299,6 +1342,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+              Relationships: [];
       };
       vip_welcome_flows: {
         Row: {
@@ -1334,6 +1378,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+              Relationships: [];
       };
       notification_logs: {
         Row: {
@@ -1372,6 +1417,1024 @@ export interface Database {
           metadata?: Json;
           created_at?: string;
         };
+              Relationships: [];
+      };
+      // SPRINT-ENV-BUILD-TRUTH-LOCK: A/B Testing stub types for planned features
+      // These tables may not exist in production - services using them will fail at runtime
+      ab_test_cohorts: {
+        Row: {
+          id: string;
+          name: string;
+          description: string;
+          test_type: string;
+          percentage: number;
+          is_active: boolean;
+          config: Json;
+          end_date: string | null;
+          createdAt: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          description?: string;
+          test_type: string;
+          percentage: number;
+          is_active?: boolean;
+          config?: Json;
+          end_date?: string | null;
+          createdAt?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          description?: string;
+          test_type?: string;
+          percentage?: number;
+          is_active?: boolean;
+          config?: Json;
+          end_date?: string | null;
+          createdAt?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+              Relationships: [];
+      };
+      user_cohort_assignments: {
+        Row: {
+          id: string;
+          user_id: string;
+          cohort_id: string;
+          test_type: string;
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          cohort_id: string;
+          test_type: string;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          cohort_id?: string;
+          test_type?: string;
+          metadata?: Json;
+          created_at?: string;
+        };
+              Relationships: [];
+      };
+      ab_test_results: {
+        Row: {
+          id: string;
+          user_id: string;
+          cohort_id: string;
+          test_type: string;
+          metric: string;
+          value: number;
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          cohort_id: string;
+          test_type: string;
+          metric: string;
+          value: number;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          cohort_id?: string;
+          test_type?: string;
+          metric?: string;
+          value?: number;
+          metadata?: Json;
+          created_at?: string;
+        };
+              Relationships: [];
+      };
+      message_templates: {
+        Row: {
+          id: string;
+          type: 'recap' | 'alert' | 'command_response' | 'notification';
+          cohort_id: string;
+          template: string;
+          variables: string[];
+          is_active: boolean;
+          createdAt: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          type: 'recap' | 'alert' | 'command_response' | 'notification';
+          cohort_id: string;
+          template: string;
+          variables?: string[];
+          is_active?: boolean;
+          createdAt?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          type?: 'recap' | 'alert' | 'command_response' | 'notification';
+          cohort_id?: string;
+          template?: string;
+          variables?: string[];
+          is_active?: boolean;
+          createdAt?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+              Relationships: [];
+      };
+      system_config: {
+        Row: {
+          key: string;
+          value: Json;
+          updated_at: string;
+        };
+        Insert: {
+          key: string;
+          value: Json;
+          updated_at?: string;
+        };
+        Update: {
+          key?: string;
+          value?: Json;
+          updated_at?: string;
+        };
+              Relationships: [];
+      };
+      system_health_checks: {
+        Row: {
+          id: string;
+          timestamp: string;
+          performedBy: string;
+          performed_by: string;
+          database: Json;
+          discord: Json;
+          services: Json;
+          memory: Json;
+          uptime: number;
+          errors: Json;
+          recommendations: string[];
+        };
+        Insert: {
+          id?: string;
+          timestamp?: string;
+          performedBy?: string;
+          performed_by?: string;
+          database: Json;
+          discord: Json;
+          services: Json;
+          memory: Json;
+          uptime: number;
+          errors?: Json;
+          recommendations?: string[];
+        };
+        Update: {
+          id?: string;
+          timestamp?: string;
+          performedBy?: string;
+          performed_by?: string;
+          database?: Json;
+          discord?: Json;
+          services?: Json;
+          memory?: Json;
+          uptime?: number;
+          errors?: Json;
+          recommendations?: string[];
+        };
+              Relationships: [];
+      };
+      trial_subscriptions: {
+        Row: {
+          id: string;
+          user_id: string;
+          tier: string;
+          expires_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          tier: string;
+          expires_at: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          tier?: string;
+          expires_at?: string;
+          created_at?: string;
+        };
+              Relationships: [];
+      };
+      // Additional missing tables - SPRINT-ENV-BUILD-TRUTH-LOCK
+      user_trials: {
+        Row: {
+          id: string;
+          discord_id: string;
+          user_id: string;
+          active: boolean;
+          expires_at: string;
+          tier: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          discord_id: string;
+          user_id: string;
+          active?: boolean;
+          expires_at: string;
+          tier?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          discord_id?: string;
+          user_id?: string;
+          active?: boolean;
+          expires_at?: string;
+          tier?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+              Relationships: [];
+      };
+      error_logs: {
+        Row: {
+          id: string;
+          error_type: string;
+          message: string;
+          stack: string | null;
+          metadata: Json;
+          timestamp: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          error_type: string;
+          message: string;
+          stack?: string | null;
+          metadata?: Json;
+          timestamp?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          error_type?: string;
+          message?: string;
+          stack?: string | null;
+          metadata?: Json;
+          timestamp?: string;
+          created_at?: string;
+        };
+              Relationships: [];
+      };
+      event_logs: {
+        Row: {
+          id: string;
+          event_type: string;
+          data: Json;
+          timestamp: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          event_type: string;
+          data?: Json;
+          timestamp?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          event_type?: string;
+          data?: Json;
+          timestamp?: string;
+          created_at?: string;
+        };
+              Relationships: [];
+      };
+      thread_linking_rules: {
+        Row: {
+          id: string;
+          source_type: string;
+          target_type: string;
+          config: Json;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          source_type: string;
+          target_type: string;
+          config?: Json;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          source_type?: string;
+          target_type?: string;
+          config?: Json;
+          is_active?: boolean;
+          created_at?: string;
+        };
+              Relationships: [];
+      };
+      cross_post_configs: {
+        Row: {
+          id: string;
+          source_channel: string;
+          target_channels: string[];
+          config: Json;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          source_channel: string;
+          target_channels: string[];
+          config?: Json;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          source_channel?: string;
+          target_channels?: string[];
+          config?: Json;
+          is_active?: boolean;
+          created_at?: string;
+        };
+              Relationships: [];
+      };
+      games: {
+        Row: {
+          id: string;
+          sport: string;
+          league: string;
+          home_team: string;
+          away_team: string;
+          game_time: string;
+          status: string;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          sport: string;
+          league: string;
+          home_team: string;
+          away_team: string;
+          game_time: string;
+          status?: string;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          sport?: string;
+          league?: string;
+          home_team?: string;
+          away_team?: string;
+          game_time?: string;
+          status?: string;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+              Relationships: [];
+      };
+      thread_trivia: {
+        Row: {
+          id: string;
+          thread_id: string;
+          question: string;
+          answer: string;
+          options: string[];
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          thread_id: string;
+          question: string;
+          answer: string;
+          options?: string[];
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          thread_id?: string;
+          question?: string;
+          answer?: string;
+          options?: string[];
+          is_active?: boolean;
+          created_at?: string;
+        };
+              Relationships: [];
+      };
+      thread_rules: {
+        Row: {
+          id: string;
+          thread_id: string;
+          rule_type: string;
+          config: Json;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          thread_id: string;
+          rule_type: string;
+          config?: Json;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          thread_id?: string;
+          rule_type?: string;
+          config?: Json;
+          is_active?: boolean;
+          created_at?: string;
+        };
+              Relationships: [];
+      };
+      ai_grading_results: {
+        Row: {
+          id: string;
+          pick_id: string;
+          grade: string;
+          reasoning: string;
+          confidence: number;
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          pick_id: string;
+          grade: string;
+          reasoning?: string;
+          confidence?: number;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          pick_id?: string;
+          grade?: string;
+          reasoning?: string;
+          confidence?: number;
+          metadata?: Json;
+          created_at?: string;
+        };
+              Relationships: [];
+      };
+      ai_coaching_sessions: {
+        Row: {
+          id: string;
+          user_id: string;
+          session_type: string;
+          messages: Json;
+          status: string;
+          started_at: string;
+          ended_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          session_type: string;
+          messages?: Json;
+          status?: string;
+          started_at?: string;
+          ended_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          session_type?: string;
+          messages?: Json;
+          status?: string;
+          started_at?: string;
+          ended_at?: string | null;
+          created_at?: string;
+        };
+              Relationships: [];
+      };
+      ai_pick_recommendations: {
+        Row: {
+          id: string;
+          user_id: string;
+          recommendations: Json;
+          generated_at: string;
+          expires_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          recommendations?: Json;
+          generated_at?: string;
+          expires_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          recommendations?: Json;
+          generated_at?: string;
+          expires_at?: string;
+          created_at?: string;
+        };
+              Relationships: [];
+      };
+      alert_preferences: {
+        Row: {
+          id: string;
+          user_id: string;
+          preferences: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          preferences?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          preferences?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+              Relationships: [];
+      };
+      betting_pattern_analyses: {
+        Row: {
+          id: string;
+          user_id: string;
+          analysis: Json;
+          generated_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          analysis?: Json;
+          generated_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          analysis?: Json;
+          generated_at?: string;
+          created_at?: string;
+        };
+              Relationships: [];
+      };
+      live_coaching_sessions: {
+        Row: {
+          id: string;
+          user_id: string;
+          coach_id: string;
+          status: string;
+          messages: Json;
+          started_at: string;
+          ended_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          coach_id: string;
+          status?: string;
+          messages?: Json;
+          started_at?: string;
+          ended_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          coach_id?: string;
+          status?: string;
+          messages?: Json;
+          started_at?: string;
+          ended_at?: string | null;
+          created_at?: string;
+        };
+              Relationships: [];
+      };
+      multi_lang_responses: {
+        Row: {
+          id: string;
+          key: string;
+          language: string;
+          response: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          key: string;
+          language: string;
+          response: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          key?: string;
+          language?: string;
+          response?: string;
+          created_at?: string;
+        };
+              Relationships: [];
+      };
+      pick_analytics: {
+        Row: {
+          id: string;
+          pick_id: string;
+          analytics: Json;
+          calculated_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          pick_id: string;
+          analytics?: Json;
+          calculated_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          pick_id?: string;
+          analytics?: Json;
+          calculated_at?: string;
+          created_at?: string;
+        };
+              Relationships: [];
+      };
+      pick_trends: {
+        Row: {
+          id: string;
+          stat_type: string;
+          trend_data: Json;
+          calculated_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          stat_type: string;
+          trend_data?: Json;
+          calculated_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          stat_type?: string;
+          trend_data?: Json;
+          calculated_at?: string;
+          created_at?: string;
+        };
+              Relationships: [];
+      };
+      picks: {
+        Row: {
+          id: string;
+          user_id: string;
+          sport: string;
+          pick_type: string;
+          data: Json;
+          status: string;
+          result: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          sport: string;
+          pick_type: string;
+          data?: Json;
+          status?: string;
+          result?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          sport?: string;
+          pick_type?: string;
+          data?: Json;
+          status?: string;
+          result?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+              Relationships: [];
+      };
+      user_pick_stats: {
+        Row: {
+          id: string;
+          user_id: string;
+          stats: Json;
+          calculated_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          stats?: Json;
+          calculated_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          stats?: Json;
+          calculated_at?: string;
+          created_at?: string;
+        };
+              Relationships: [];
+      };
+      users: {
+        Row: {
+          id: string;
+          discord_id: string;
+          username: string;
+          email: string | null;
+          tier: string;
+          status: string;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          discord_id: string;
+          username: string;
+          email?: string | null;
+          tier?: string;
+          status?: string;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          discord_id?: string;
+          username?: string;
+          email?: string | null;
+          tier?: string;
+          status?: string;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+              Relationships: [];
+      };
+      dm_analytics: {
+        Row: {
+          id: string;
+          user_id: string;
+          metrics: Json;
+          calculated_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          metrics?: Json;
+          calculated_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          metrics?: Json;
+          calculated_at?: string;
+          created_at?: string;
+        };
+              Relationships: [];
+      };
+      dm_logs: {
+        Row: {
+          id: string;
+          user_id: string;
+          message_type: string;
+          content: string;
+          status: string;
+          sent_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          message_type: string;
+          content: string;
+          status?: string;
+          sent_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          message_type?: string;
+          content?: string;
+          status?: string;
+          sent_at?: string;
+          created_at?: string;
+        };
+              Relationships: [];
+      };
+      dm_templates: {
+        Row: {
+          id: string;
+          name: string;
+          template: string;
+          variables: string[];
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          template: string;
+          variables?: string[];
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          template?: string;
+          variables?: string[];
+          is_active?: boolean;
+          created_at?: string;
+        };
+              Relationships: [];
+      };
+      dm_triggers: {
+        Row: {
+          id: string;
+          trigger_type: string;
+          config: Json;
+          template_id: string;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          trigger_type: string;
+          config?: Json;
+          template_id: string;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          trigger_type?: string;
+          config?: Json;
+          template_id?: string;
+          is_active?: boolean;
+          created_at?: string;
+        };
+              Relationships: [];
+      };
+      enhanced_players: {
+        Row: {
+          id: string;
+          name: string;
+          team: string;
+          sport: string;
+          position: string | null;
+          stats: Json;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          team: string;
+          sport: string;
+          position?: string | null;
+          stats?: Json;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          team?: string;
+          sport?: string;
+          position?: string | null;
+          stats?: Json;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+              Relationships: [];
+      };
+      enhanced_games: {
+        Row: {
+          id: string;
+          sport: string;
+          league: string;
+          home_team: string;
+          away_team: string;
+          game_time: string;
+          odds: Json;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          sport: string;
+          league: string;
+          home_team: string;
+          away_team: string;
+          game_time: string;
+          odds?: Json;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          sport?: string;
+          league?: string;
+          home_team?: string;
+          away_team?: string;
+          game_time?: string;
+          odds?: Json;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+              Relationships: [];
+      };
+      enhanced_tickets: {
+        Row: {
+          id: string;
+          user_id: string;
+          ticket_type: string;
+          legs: Json;
+          status: string;
+          submitted_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          ticket_type: string;
+          legs?: Json;
+          status?: string;
+          submitted_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          ticket_type?: string;
+          legs?: Json;
+          status?: string;
+          submitted_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+              Relationships: [];
       };
     };
     Views: {
@@ -1465,6 +2528,7 @@ export interface Database {
           worst_streak?: number;
           metadata?: Json | null;
         };
+              Relationships: [];
       };
       capper_evaluations: {
         Row: {
@@ -1506,10 +2570,18 @@ export interface Database {
           notes?: string | null;
           metadata?: Json | null;
         };
+              Relationships: [];
       };
     };
     Functions: {
-      [_ in never]: never;
+      update_user_stats: {
+        Args: {
+          user_discord_id: string;
+          pick_result: string;
+          units_change: number;
+        };
+        Returns: void;
+      };
     };
     Enums: {
       [_ in never]: never;
