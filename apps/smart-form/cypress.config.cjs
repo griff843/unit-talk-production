@@ -1,6 +1,15 @@
-import { defineConfig } from 'cypress';
+/**
+ * Cypress Configuration
+ *
+ * SPRINT-SMARTFORM-CYPRESS-BUILD-SURFACE-ISOLATION-103A:
+ * Using .cjs extension to isolate from Next.js/TypeScript production build.
+ * This prevents "Cannot find module 'cypress'" errors during Docker build
+ * when cypress is not installed (devDependency only).
+ */
 
-export default defineConfig({
+const { defineConfig } = require('cypress');
+
+module.exports = defineConfig({
   e2e: {
     baseUrl: 'http://localhost:3000',
     viewportWidth: 1280,

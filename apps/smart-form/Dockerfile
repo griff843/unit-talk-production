@@ -31,6 +31,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 # Copy all source code first (before pnpm install)
 COPY packages ./packages
 COPY apps/smart-form ./apps/smart-form
+COPY config ./config
 
 # Install all workspace dependencies (ignore-scripts skips husky)
 # This runs AFTER copying source to create correct symlinks
@@ -65,6 +66,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 # Copy all source code first
 COPY packages ./packages
 COPY apps/smart-form ./apps/smart-form
+COPY config ./config
 
 # Install all workspace dependencies
 RUN pnpm install --frozen-lockfile --ignore-scripts
@@ -88,6 +90,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 # Copy workspace source (needed for pnpm install to work)
 COPY packages ./packages
 COPY apps/smart-form ./apps/smart-form
+COPY config ./config
 
 # Install only production dependencies
 RUN pnpm install --frozen-lockfile --ignore-scripts --prod
