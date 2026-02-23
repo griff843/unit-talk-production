@@ -46,6 +46,13 @@ RUN pnpm run build
 
 WORKDIR /app/apps/smart-form
 
+# SPRINT-BUILD-TIME-ISOLATION-111: Accept build-time args for NEXT_PUBLIC_* vars
+# These are embedded into the Next.js bundle at build time
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ENV NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+
 # Build Next.js application in production mode
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production

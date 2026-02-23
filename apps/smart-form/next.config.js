@@ -1,4 +1,6 @@
-require('dotenv').config();
+// SPRINT-BUILD-TIME-ISOLATION-111: Removed require('dotenv').config()
+// Next.js automatically loads .env files - explicit dotenv is redundant and
+// can cause build-time side effects.
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {

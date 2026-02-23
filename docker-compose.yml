@@ -411,6 +411,10 @@ services:
       context: .
       dockerfile: apps/smart-form/Dockerfile
       target: development
+      # SPRINT-BUILD-TIME-ISOLATION-111: Pass NEXT_PUBLIC_* vars at build time
+      args:
+        - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+        - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
     container_name: unit-talk-smart-form
     ports:
       - "3021:3021" # External 3021 = Internal 3021 (CANONICAL)
@@ -487,6 +491,10 @@ services:
       context: .
       dockerfile: apps/command-center/Dockerfile
       target: development
+      # SPRINT-BUILD-TIME-ISOLATION-111: Pass NEXT_PUBLIC_* vars at build time
+      args:
+        - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+        - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
     container_name: unit-talk-command-center
     ports:
       - "3004:3015" # External 3004 -> Internal 3015 (CANONICAL)

@@ -28,11 +28,11 @@ class RedisManager {
   private poolSize = 5;
   private activeConnections = 0;
 
+  // SPRINT-BUILD-TIME-ISOLATION-111: Removed constructor auto-init
+  // Redis connection is now deferred to first use via ensureConnection()
+  // This prevents build-time connection attempts that fail without Redis available.
   constructor() {
-    if (typeof window === 'undefined') {
-      // Only initialize Redis on server-side
-      this.initializeClient();
-    }
+    // Intentionally empty - lazy initialization via ensureConnection()
   }
 
   private async initializeClient() {
@@ -391,8 +391,24 @@ class RedisManager {
   }
 }
 
-// Create singleton instance
-export const redisClient = new RedisManager();
+// SPRINT-BUILD-TIME-ISOLATION-111: Lazy singleton pattern
+// The instance is created at module scope but no connection is attempted
+// until ensureConnection() is called at runtime.
+let _redisClientInstance: RedisManager | null = null;
+
+export function getRedisClient(): RedisManager {
+  if (!_redisClientInstance) {
+    _redisClientInstance = new RedisManager();
+  }
+  return _redisClientInstance;
+}
+
+// Legacy export for backwards compatibility - use getRedisClient() preferred
+export const redisClient = new Proxy({} as RedisManager, {
+  get(_target, prop) {
+    return (getRedisClient() as any)[prop];
+  },
+});
 
 // Graceful shutdown
 if (typeof process !== 'undefined') {
