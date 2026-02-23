@@ -1,8 +1,10 @@
 #!/usr/bin/env tsx
-/* eslint-disable no-console, max-lines-per-function, complexity, security/detect-object-injection */
+/* eslint-disable no-console, max-lines-per-function, max-lines, complexity, security/detect-object-injection */
 /**
  * Edge Engine V1 - Validation Report Generator
  * Sprint: SPRINT-EDGE-ENGINE-V1-IMPLEMENT-097
+ *
+ * @lint-cleanup SPRINT-LINT-CLEANUP-TBD: Split into modules (report generator, data fetcher, formatters)
  *
  * Generates edge decile analysis report:
  * - Edge deciles (0-10, 10-20, ..., 90-100)
@@ -22,12 +24,18 @@ import {
   MODEL_VERSION,
 } from '../agents/ScoringAgent/scoring/edgeEngineV1';
 
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Use canonical types from shared-types
+import type { UnifiedPicksRow } from '@unit-talk/shared-types';
+
+type UnifiedPick = UnifiedPicksRow;
+
 const DATABASE_URL =
   process.env.DATABASE_URL ||
   process.env.SUPABASE_DB_URL ||
   'postgresql://postgres:postgres@localhost:54322/postgres';
 
-interface UnifiedPick {
+// Extended type for edge validation script - adds computed fields
+interface EdgeValidationPick extends Partial<UnifiedPicksRow> {
   id: string;
   sport: string;
   stat_type: string;
@@ -128,7 +136,7 @@ async function main(): Promise<void> {
       console.log('  No picks found. Generating synthetic test data for report...\n');
 
       // Generate synthetic picks for demonstration
-      const syntheticPicks: UnifiedPick[] = [];
+      const syntheticPicks: EdgeValidationPick[] = [];
       const players = [
         'LeBron James',
         'Stephen Curry',

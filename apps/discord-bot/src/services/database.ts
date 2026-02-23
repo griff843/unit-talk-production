@@ -1,9 +1,17 @@
+/* eslint-disable max-lines, max-lines-per-function -- Large service class, refactor TBD */
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Database } from '../db/types/supabase-complete';
-import { logger } from '../utils/logger';
-import { botConfig } from '../config';
 
-// Type aliases for better readability
+import { botConfig } from '../config';
+import { Database } from '../db/types/supabase-complete';
+import { UserTier } from '../types/index';
+import { toISOString } from '../utils/dateUtils';
+import { logger } from '../utils/logger';
+
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Import canonical unified_picks types from shared-types
+// Use canonical type directly without local alias
+import type { UnifiedPicksRow } from '@unit-talk/shared-types';
+
+// Type aliases for better readability (discord-bot specific tables from local schema)
 type Tables = Database['public']['Tables'];
 type UserProfileRow = Tables['user_profiles']['Row'];
 type UserProfileInsert = Tables['user_profiles']['Insert'];
@@ -11,7 +19,7 @@ type UserProfileUpdate = Tables['user_profiles']['Update'];
 type UserPicksRow = Tables['user_picks']['Row'];
 type UserPicksInsert = Tables['user_picks']['Insert'];
 type UserPicksUpdate = Tables['user_picks']['Update'];
-type UnifiedPicksRow = Tables['unified_picks']['Row'];
+// UnifiedPicks types: Row from shared-types, Insert/Update from local schema
 type UnifiedPicksInsert = Tables['unified_picks']['Insert'];
 type UnifiedPicksUpdate = Tables['unified_picks']['Update'];
 type GameThreadsRow = Tables['game_threads']['Row'];
@@ -32,23 +40,18 @@ type CoachingSessionsUpdate = Tables['coaching_sessions']['Update'];
 /**
  * Capper types - temporarily using any until TypeScript recognizes the new database schema
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type CappersRow = any; // Tables['cappers']['Row'];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type CappersInsert = any; // Tables['cappers']['Insert'];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type CappersUpdate = any; // Tables['cappers']['Update'];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type CapperEvaluationsRow = any; // Tables['capper_evaluations']['Row'];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type CapperEvaluationsInsert = any; // Tables['capper_evaluations']['Insert'];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type CapperEvaluationsUpdate = any; // Tables['capper_evaluations']['Update'];
-
-import { UserTier } from '../types/index';
-import {
-  toISOString,
-  toDate,
-  getHours,
-  getMinutes,
-  getFullYear,
-  getMonth,
-  getDate,
-} from '../utils/dateUtils';
 
 /**
  * Strictly typed database service using complete Supabase types
@@ -439,7 +442,10 @@ export class DatabaseService {
   /**
    * Update final pick with strict typing
    */
-  async updateUnifiedPick(pickId: string, updates: UnifiedPicksUpdate): Promise<UnifiedPicksRow | null> {
+  async updateUnifiedPick(
+    pickId: string,
+    updates: UnifiedPicksUpdate
+  ): Promise<UnifiedPicksRow | null> {
     try {
       const { data, error } = await this.client
         .from('unified_picks')

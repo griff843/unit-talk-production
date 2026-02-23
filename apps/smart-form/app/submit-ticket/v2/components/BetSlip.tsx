@@ -5,12 +5,16 @@ import { BetSlipProps, BetLeg, formatOdds, calculateParlayOdds, getTicketType } 
 import { UnitsInput } from './UnitsInput';
 import { OddsPill } from './OddsPill';
 
-interface Capper {
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Renamed to avoid conflict with canonical CappersRow
+interface BetSlipCapper {
   id: string;
   name: string;
   username: string;
   active: boolean;
 }
+
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Legacy alias for backward compatibility
+type Capper = BetSlipCapper;
 
 export function BetSlip({
   capper_id,

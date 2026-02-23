@@ -196,7 +196,9 @@ export function createClient() {
 }
 
 // Database schema types
-export interface User {
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Renamed to avoid conflict with canonical UsersRow
+// Legacy alias User exported below for backward compatibility
+export interface SupabaseUser {
   id: string;
   discord_id: string;
   username: string;
@@ -209,6 +211,9 @@ export interface User {
   win_rate: number;
   revenue: number;
 }
+
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Legacy alias for backward compatibility
+export type User = SupabaseUser;
 
 export interface Pick {
   id: string;
@@ -355,7 +360,7 @@ export const dbOperations = {
       }
 
       console.log(`✅ Retrieved ${data?.length || 0} users from database`);
-      return data as unknown as User[];
+      return data as unknown as SupabaseUser[];
     } catch (err) {
       // FAIL-CLOSED: Connection errors are not silently ignored
       console.error('Database connection failed:', err);
@@ -378,10 +383,10 @@ export const dbOperations = {
     const { data, error } = await client.from('users').select('*').eq('id', id).single();
 
     if (error) throw error;
-    return data as unknown as User;
+    return data as unknown as SupabaseUser;
   },
 
-  async updateUser(id: string, updates: Partial<User>) {
+  async updateUser(id: string, updates: Partial<SupabaseUser>) {
     const client = getSupabaseClient();
     // FAIL-CLOSED: Write operations require Supabase (no DEMO_MODE fallback)
     if (!client) {
@@ -396,7 +401,7 @@ export const dbOperations = {
       .single();
 
     if (error) throw error;
-    return data as unknown as User;
+    return data as unknown as SupabaseUser;
   },
 
   // Picks - Connect to real Unit Talk unified_picks table (v3.0.0)

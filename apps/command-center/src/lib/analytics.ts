@@ -1,5 +1,6 @@
 // Analytics utilities for Command Center
-export interface User {
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Renamed to avoid conflict with canonical UsersRow
+export interface AnalyticsUser {
   id: string;
   name: string;
   email: string;
@@ -10,15 +11,15 @@ export interface User {
 }
 
 export interface DatabaseService {
-  getUsers(): Promise<User[]>;
-  getUserById(id: string): Promise<User>;
-  updateUser(id: string, updates: Partial<User>): Promise<User>;
+  getUsers(): Promise<AnalyticsUser[]>;
+  getUserById(id: string): Promise<AnalyticsUser>;
+  updateUser(id: string, updates: Partial<AnalyticsUser>): Promise<AnalyticsUser>;
   deleteUser(id: string): Promise<void>;
-  createUser(user: Omit<User, 'id'>): Promise<User>;
-  getUsersByTier(tier: string): Promise<User[]>;
-  getUsersByStatus(status: string): Promise<User[]>;
-  getUsersByRole(role: string): Promise<User[]>;
-  searchUsers(query: string): Promise<User[]>;
+  createUser(user: Omit<AnalyticsUser, 'id'>): Promise<AnalyticsUser>;
+  getUsersByTier(tier: string): Promise<AnalyticsUser[]>;
+  getUsersByStatus(status: string): Promise<AnalyticsUser[]>;
+  getUsersByRole(role: string): Promise<AnalyticsUser[]>;
+  searchUsers(query: string): Promise<AnalyticsUser[]>;
   getAnalytics(): Promise<AnalyticsData>;
   supabase: any; // Supabase client
 }
@@ -64,7 +65,7 @@ export interface AnalyticsData {
       banned: number;
     };
     avgWinRate: number;
-    topUsers: User[];
+    topUsers: AnalyticsUser[];
   };
   agents: {
     total: number;
@@ -132,7 +133,7 @@ export const databaseService: DatabaseService = {
     status: 'active',
     permissions: [],
   }),
-  updateUser: async (id: string, updates: Partial<User>) => ({
+  updateUser: async (id: string, updates: Partial<AnalyticsUser>) => ({
     id,
     name: 'Mock User',
     email: 'mock@example.com',
@@ -143,7 +144,7 @@ export const databaseService: DatabaseService = {
     ...updates,
   }),
   deleteUser: async (id: string) => {},
-  createUser: async (user: Omit<User, 'id'>) => ({
+  createUser: async (user: Omit<AnalyticsUser, 'id'>) => ({
     id: 'mock-id',
     ...user,
   }),

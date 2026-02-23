@@ -1,6 +1,9 @@
 import { z } from 'zod';
 
-export interface Game {
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Renamed to avoid conflict with canonical types
+// These interfaces use camelCase for activity monitoring, distinct from DB row types
+
+export interface ActivityGame {
   id: string;
   league: string;
   homeTeam: string;
@@ -9,7 +12,7 @@ export interface Game {
   status: 'scheduled' | 'in_progress' | 'final' | 'postponed' | 'cancelled';
 }
 
-export interface Player {
+export interface ActivityPlayer {
   id: string;
   name: string;
   teamId: string;
@@ -117,11 +120,13 @@ export const GameSchema = z.object({
   startTime: z.string(),
   status: z.enum(['scheduled', 'live', 'completed']),
   inningPeriod: z.string().optional(),
-  score: z.object({
-    home: z.number(),
-    away: z.number()
-  }).optional(),
-  metadata: z.record(z.unknown()).optional()
+  score: z
+    .object({
+      home: z.number(),
+      away: z.number(),
+    })
+    .optional(),
+  metadata: z.record(z.unknown()).optional(),
 });
 
 export const PlayerSchema = z.object({
@@ -131,7 +136,7 @@ export const PlayerSchema = z.object({
   position: z.string(),
   league: z.string(),
   status: z.enum(['active', 'injured', 'suspended', 'inactive']),
-  metadata: z.record(z.unknown()).optional()
+  metadata: z.record(z.unknown()).optional(),
 });
 
 export const PropSchema = z.object({
@@ -147,7 +152,7 @@ export const PropSchema = z.object({
   marketType: z.string(),
   gameTime: z.string(),
   league: z.string(),
-  metadata: z.record(z.unknown()).optional()
+  metadata: z.record(z.unknown()).optional(),
 });
 
 export const AlertSchema = z.object({
@@ -156,14 +161,14 @@ export const AlertSchema = z.object({
   priority: z.enum(['critical', 'high', 'medium', 'low']),
   message: z.string(),
   data: z.record(z.unknown()),
-  timestamp: z.string()
+  timestamp: z.string(),
 });
 
 export const MetricDataSchema = z.object({
   name: z.string(),
   value: z.number(),
   tags: z.record(z.string()).optional(),
-  timestamp: z.string()
+  timestamp: z.string(),
 });
 
 export const HealthCheckSchema = z.object({
@@ -171,7 +176,7 @@ export const HealthCheckSchema = z.object({
   status: z.enum(['pass', 'fail']),
   message: z.string().optional(),
   details: z.record(z.unknown()).optional(),
-  timestamp: z.string()
+  timestamp: z.string(),
 });
 
 export const SystemMetricsSchema = z.object({
@@ -179,7 +184,7 @@ export const SystemMetricsSchema = z.object({
   cpuUsage: z.number(),
   diskUsage: z.number(),
   networkLatency: z.number(),
-  timestamp: z.string()
+  timestamp: z.string(),
 });
 
 export const ApiHealthSchema = z.object({
@@ -187,14 +192,14 @@ export const ApiHealthSchema = z.object({
   healthy: z.boolean(),
   responseTime: z.number(),
   error: z.string().optional(),
-  timestamp: z.string()
+  timestamp: z.string(),
 });
 
 export const DatabaseHealthSchema = z.object({
   connected: z.boolean(),
   responseTime: z.number(),
   activeConnections: z.number(),
-  timestamp: z.string()
+  timestamp: z.string(),
 });
 
 export const WorkflowMetricsSchema = z.object({
@@ -203,29 +208,39 @@ export const WorkflowMetricsSchema = z.object({
   failedExecutions: z.number(),
   failureRate: z.number(),
   avgExecutionTime: z.number(),
-  timestamp: z.string()
+  timestamp: z.string(),
 });
 
 export const DiscordEmbedSchema = z.object({
   title: z.string(),
   description: z.string().optional(),
   color: z.number().optional(),
-  fields: z.array(z.object({
-    name: z.string(),
-    value: z.string(),
-    inline: z.boolean().optional()
-  })).optional(),
-  footer: z.object({
-    text: z.string(),
-    icon_url: z.string().optional()
-  }).optional(),
+  fields: z
+    .array(
+      z.object({
+        name: z.string(),
+        value: z.string(),
+        inline: z.boolean().optional(),
+      })
+    )
+    .optional(),
+  footer: z
+    .object({
+      text: z.string(),
+      icon_url: z.string().optional(),
+    })
+    .optional(),
   timestamp: z.string().optional(),
-  thumbnail: z.object({
-    url: z.string()
-  }).optional(),
-  image: z.object({
-    url: z.string()
-  }).optional()
+  thumbnail: z
+    .object({
+      url: z.string(),
+    })
+    .optional(),
+  image: z
+    .object({
+      url: z.string(),
+    })
+    .optional(),
 });
 
 export const ReportSchema = z.object({
@@ -235,5 +250,5 @@ export const ReportSchema = z.object({
   startDate: z.string(),
   endDate: z.string(),
   metrics: z.array(z.string()),
-  timestamp: z.string()
-}); 
+  timestamp: z.string(),
+});

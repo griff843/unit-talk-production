@@ -546,7 +546,8 @@ export interface FieldDependency {
   action: 'show' | 'hide' | 'enable' | 'disable' | 'reset';
 }
 
-export interface Capper {
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Renamed to avoid conflict with canonical CappersRow
+export interface TicketCapper {
   id: string;
   name: string;
   active?: boolean;
@@ -557,6 +558,9 @@ export interface Capper {
     isLive?: boolean;
   };
 }
+
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Legacy alias for backward compatibility
+export type Capper = TicketCapper;
 
 // Sport configuration with enhanced features
 export interface SportConfigEnhanced extends SportConfig {

@@ -1,10 +1,23 @@
+/* eslint-disable max-lines -- Type definition file, inherently long */
 /**
  * Enhanced Supabase Types with Complete Schema Alignment
  * Updated to match Fortune 100-grade database structure
  * Includes all enhanced scoring metrics and professional capper features
+ *
+ * SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Canonical types imported from shared-types
+ * @lint-cleanup SPRINT-LINT-CLEANUP-TBD: Consider splitting into domain-specific type modules
  */
 
 import { z } from 'zod';
+
+// Import canonical types from shared-types
+import type { GamesRow, TeamsRow, PlayersRow, AgentHealthRow } from '@unit-talk/shared-types';
+
+// Re-export canonical types
+export type Game = GamesRow;
+export type Team = TeamsRow;
+export type Player = PlayersRow;
+export type AgentHealth = AgentHealthRow;
 
 // =============================================================================
 // ENHANCED RAW PROP INTERFACE - Aligned with Migration Schema
@@ -18,7 +31,7 @@ export interface EnhancedRawProp {
   player_name: string;
   team: string;
   opponent: string;
-  
+
   // Market details
   market: string;
   market_type: string;
@@ -27,12 +40,12 @@ export interface EnhancedRawProp {
   under: number;
   over_odds: number;
   under_odds: number;
-  
+
   // Grading system fields (CRITICAL - fixes agent failures)
   outcome?: 'win' | 'loss' | 'push' | null;
   promoted_to_picks: boolean;
   promoted_at?: string;
-  
+
   // Enhanced scoring metrics (fixes NULL scoring issue)
   trend_confidence?: number;
   edge_score?: number;
@@ -46,7 +59,7 @@ export interface EnhancedRawProp {
   market_intelligence?: number;
   volume_profile?: number;
   closing_line_value?: number;
-  
+
   // Professional capper features (from capper insights analysis)
   steam_detected: boolean;
   predicted_closing_line?: number;
@@ -58,7 +71,7 @@ export interface EnhancedRawProp {
   contrarian_opportunity: boolean;
   injury_timing_advantage?: number;
   cross_market_arbitrage?: number;
-  
+
   // Additional scoring factors for risk management
   player_fatigue?: number;
   venue_advantage?: number;
@@ -69,13 +82,13 @@ export interface EnhancedRawProp {
   volatility?: number;
   portfolio_impact?: number;
   bid_ask_spread?: number;
-  
+
   // Data quality tracking
   data_completeness?: number;
   outlier_score?: number;
   consistency_score?: number;
   data_validation_score?: number;
-  
+
   // Standard fields
   source: string;
   league: string;
@@ -99,12 +112,12 @@ export const EnhancedRawPropSchema = z.object({
   under: z.number(),
   over_odds: z.number(),
   under_odds: z.number(),
-  
+
   // Grading system
   outcome: z.enum(['win', 'loss', 'push']).nullable().optional(),
   promoted_to_picks: z.boolean().default(false),
   promoted_at: z.string().datetime().optional(),
-  
+
   // Enhanced scoring metrics
   trend_confidence: z.number().optional(),
   edge_score: z.number().optional(),
@@ -118,7 +131,7 @@ export const EnhancedRawPropSchema = z.object({
   market_intelligence: z.number().optional(),
   volume_profile: z.number().optional(),
   closing_line_value: z.number().optional(),
-  
+
   // Professional capper features
   steam_detected: z.boolean().default(false),
   predicted_closing_line: z.number().optional(),
@@ -130,7 +143,7 @@ export const EnhancedRawPropSchema = z.object({
   contrarian_opportunity: z.boolean().default(false),
   injury_timing_advantage: z.number().optional(),
   cross_market_arbitrage: z.number().optional(),
-  
+
   // Risk management factors
   player_fatigue: z.number().optional(),
   venue_advantage: z.number().optional(),
@@ -141,20 +154,20 @@ export const EnhancedRawPropSchema = z.object({
   volatility: z.number().default(5),
   portfolio_impact: z.number().optional(),
   bid_ask_spread: z.number().default(0.02),
-  
+
   // Data quality
   data_completeness: z.number().default(0.95),
   outlier_score: z.number().default(0.95),
   consistency_score: z.number().default(0.95),
   data_validation_score: z.number().default(0.95),
-  
+
   // Standard
   source: z.string().default('optimal'),
   league: z.string(),
   game_date: z.string().optional(),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
-  metadata: z.record(z.unknown()).optional()
+  metadata: z.record(z.unknown()).optional(),
 });
 
 // =============================================================================
@@ -171,19 +184,19 @@ export interface GradingResult {
   kelly_fraction?: number;
   position_size?: number;
   risk_score?: number;
-  
+
   // Feature attribution (JSONB for flexibility)
   feature_contributions?: Record<string, unknown>;
   model_contributions?: Record<string, unknown>;
   scenario_analysis?: Record<string, unknown>;
   professional_insights?: Record<string, unknown>;
   enhanced_capper_analysis?: Record<string, unknown>;
-  
+
   // Quality metrics
   data_quality?: number;
   model_agreement?: number;
   historical_accuracy?: number;
-  
+
   // Metadata
   model_version?: string;
   config_used?: string;
@@ -212,7 +225,7 @@ export const GradingResultSchema = z.object({
   model_version: z.string().optional(),
   config_used: z.string().optional(),
   created_at: z.string().datetime(),
-  updated_at: z.string().datetime()
+  updated_at: z.string().datetime(),
 });
 
 // =============================================================================
@@ -223,13 +236,13 @@ export interface EnhancedUnifiedPick {
   id: string;
   raw_prop_id: string;
   grading_result_id?: string;
-  
+
   // Pick details
   player_name: string;
   market_type: string;
   line: number;
   odds: number;
-  
+
   // Grading results
   tier: 'S' | 'A' | 'B' | 'C' | 'D';
   confidence: number;
@@ -238,16 +251,16 @@ export interface EnhancedUnifiedPick {
   position_size?: number;
   kelly_fraction?: number;
   risk_score?: number;
-  
+
   // Status tracking
   play_status: 'pending' | 'approved' | 'rejected' | 'settled';
   result: 'win' | 'loss' | 'push' | 'pending';
-  
+
   // Settlement
   actual_result?: number;
   profit_loss?: number;
   settled_at?: string;
-  
+
   created_at: string;
   updated_at: string;
 }
@@ -273,7 +286,7 @@ export const EnhancedUnifiedPickSchema = z.object({
   profit_loss: z.number().optional(),
   settled_at: z.string().datetime().optional(),
   created_at: z.string().datetime(),
-  updated_at: z.string().datetime()
+  updated_at: z.string().datetime(),
 });
 
 // =============================================================================
@@ -313,7 +326,7 @@ export const CapperProfileSchema = z.object({
   streak_current: z.number().default(0),
   streak_type: z.enum(['win', 'loss', 'none']).default('none'),
   created_at: z.string().datetime(),
-  updated_at: z.string().datetime()
+  updated_at: z.string().datetime(),
 });
 
 // =============================================================================
@@ -323,21 +336,21 @@ export const CapperProfileSchema = z.object({
 export interface MLFeatures {
   id: string;
   prop_id: string;
-  
+
   // Core ML features
   neural_network_score?: number;
   gradient_boosting_score?: number;
   random_forest_score?: number;
   ensemble_score?: number;
   model_agreement?: number;
-  
+
   // Feature importance weights
   feature_weights?: Record<string, unknown>;
-  
+
   // Historical performance context
   similar_props_performance?: Record<string, unknown>;
   player_historical_performance?: Record<string, unknown>;
-  
+
   model_version?: string;
   created_at: string;
 }
@@ -354,7 +367,7 @@ export const MLFeaturesSchema = z.object({
   similar_props_performance: z.record(z.unknown()).optional(),
   player_historical_performance: z.record(z.unknown()).optional(),
   model_version: z.string().optional(),
-  created_at: z.string().datetime()
+  created_at: z.string().datetime(),
 });
 
 // =============================================================================
@@ -365,22 +378,22 @@ export interface SettlementTracking {
   id: string;
   pick_id: string;
   game_id?: string;
-  
+
   // Settlement details
   settlement_source: string; // 'odds_api', 'manual', 'espn'
   original_line: number;
   actual_result?: number;
   settlement_status: 'pending' | 'settled' | 'void' | 'disputed';
-  
+
   // Timing
   game_completed_at?: string;
   settlement_attempted_at?: string;
   settled_at?: string;
-  
+
   // Error tracking
   settlement_errors?: Record<string, unknown>;
   retry_count: number;
-  
+
   created_at: string;
   updated_at: string;
 }
@@ -399,40 +412,13 @@ export const SettlementTrackingSchema = z.object({
   settlement_errors: z.record(z.unknown()).optional(),
   retry_count: z.number().default(0),
   created_at: z.string().datetime(),
-  updated_at: z.string().datetime()
+  updated_at: z.string().datetime(),
 });
 
 // =============================================================================
 // EXISTING TABLES (Updated for consistency)
+// Game, Team, Player, AgentHealth now imported from shared-types (see top of file)
 // =============================================================================
-
-export interface Game {
-  id: string;
-  league: string;
-  home_team: string;
-  away_team: string;
-  start_time: string;
-  status: 'scheduled' | 'in_progress' | 'final' | 'postponed' | 'cancelled';
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Team {
-  id: string;
-  name: string;
-  league: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Player {
-  id: string;
-  name: string;
-  team_id: string;
-  position: string;
-  created_at: string;
-  updated_at: string;
-}
 
 export interface AgentLog {
   id: string;
@@ -440,15 +426,6 @@ export interface AgentLog {
   level: string;
   message: string;
   context?: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface AgentHealth {
-  id: string;
-  agent: string;
-  status: 'healthy' | 'degraded' | 'unhealthy';
-  details: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -551,5 +528,5 @@ export const VALIDATION_SCHEMAS = {
   unified_picks: EnhancedUnifiedPickSchema,
   capper_profiles: CapperProfileSchema,
   ml_features: MLFeaturesSchema,
-  settlement_tracking: SettlementTrackingSchema
+  settlement_tracking: SettlementTrackingSchema,
 } as const;

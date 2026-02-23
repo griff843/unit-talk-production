@@ -32,7 +32,11 @@ interface GameResult {
   completion_time: string;
 }
 
-interface PropSettlement {
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Use canonical PropSettlementsRow from shared-types
+// Note: This local interface is for in-memory processing, extends DB row with additional fields
+import type { PropSettlementsRow } from '@unit-talk/shared-types';
+
+interface PropSettlement extends Partial<PropSettlementsRow> {
   raw_prop_id: string;
   final_pick_id?: string;
   player_name: string;
@@ -458,11 +462,13 @@ export class SettlementAgent extends BaseAgent {
 
   /**
    * Calculate prop settlement result
+   * @param _settlementData Reserved for future settlement context (currently unused)
    */
-  // eslint-disable-next-line complexity, no-unused-vars -- pre-existing, refactor in separate sprint
+  // eslint-disable-next-line complexity -- pre-existing, refactor in separate sprint
   private async calculatePropSettlement(
     prop: any,
     game: GameResult,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars -- reserved for future use
     _settlementData: any
   ): Promise<PropSettlement | null> {
     // This is a simplified version - in production you'd need more sophisticated logic

@@ -1,31 +1,21 @@
 #!/usr/bin/env tsx
-
+/* eslint-disable no-console, max-lines-per-function, complexity -- CLI script with intentional logging */
 /**
  * Quick Props Population Script
  * Populates props data for live games to fix the immediate testing issue
+ *
+ * @lint-cleanup SPRINT-LINT-CLEANUP-TBD: Refactor into smaller functions
  */
 
 import { createClient } from '@supabase/supabase-js';
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Types available from shared-types if needed
+// import type { Game, Player } from '@unit-talk/shared-types';
 
 const SUPABASE_URL = 'https://cqfnsozknjzvyiziwicl.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cW11em1xdG5ubHBmYXB2aWVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUwOTY4NDUsImV4cCI6MjA2MDY3Mjg0NX0.PkJJDTPo8WVpGWaAQ-gdzvyGH9WEjcxcwCDi8z0g93o';
+const SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4cW11em1xdG5ubHBmYXB2aWVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUwOTY4NDUsImV4cCI6MjA2MDY3Mjg0NX0.PkJJDTPo8WVpGWaAQ-gdzvyGH9WEjcxcwCDi8z0g93o';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-interface Game {
-  id: string;
-  home_team: string;
-  away_team: string;
-  game_time: string;
-  sport: string;
-}
-
-interface Player {
-  id: string;
-  name: string;
-  team: string;
-  sport: string;
-}
 
 async function populatePropsForLiveGames() {
   console.log('🎯 Populating props for live games...\n');
@@ -50,7 +40,7 @@ async function populatePropsForLiveGames() {
     }
 
     console.log(`✅ Found ${games.length} games`);
-    
+
     // 2. Get players for prop creation
     console.log('👥 Fetching players...');
     const { data: players, error: playersError } = await supabase
@@ -68,21 +58,24 @@ async function populatePropsForLiveGames() {
     // 3. Create props for each game
     let totalPropsCreated = 0;
 
-    for (const game of games.slice(0, 5)) { // Limit to first 5 games
+    for (const game of games.slice(0, 5)) {
+      // Limit to first 5 games
       console.log(`\n🏟️ Processing game: ${game.away_team} @ ${game.home_team}`);
-      
+
       // Get players for both teams
       const gameTeams = [game.home_team, game.away_team];
-      const gamePlayers = players?.filter(p => 
-        gameTeams.some(team => p.team?.toLowerCase().includes(team.toLowerCase().substring(0, 3)))
-      ) || [];
+      const gamePlayers =
+        players?.filter(p =>
+          gameTeams.some(team => p.team?.toLowerCase().includes(team.toLowerCase().substring(0, 3)))
+        ) || [];
 
       console.log(`   Found ${gamePlayers.length} players for this game`);
 
       // Create props for each player
       const propsToCreate = [];
-      
-      for (const player of gamePlayers.slice(0, 6)) { // Limit to 6 players per game
+
+      for (const player of gamePlayers.slice(0, 6)) {
+        // Limit to 6 players per game
         // Create multiple prop types for each player
         const propTypes = [
           { type: 'hits', line: 1.5, over_odds: -120, under_odds: +100 },
@@ -102,7 +95,7 @@ async function populatePropsForLiveGames() {
             sport: 'MLB',
             bookmaker: 'DraftKings',
             created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
           });
         }
       }
@@ -110,7 +103,7 @@ async function populatePropsForLiveGames() {
       // Insert props in batches
       if (propsToCreate.length > 0) {
         console.log(`   Creating ${propsToCreate.length} props...`);
-        
+
         const { data: insertedProps, error: propsError } = await supabase
           .from('props')
           .insert(propsToCreate)
@@ -126,7 +119,7 @@ async function populatePropsForLiveGames() {
     }
 
     console.log(`\n🎉 COMPLETED! Created ${totalPropsCreated} total props`);
-    
+
     // 4. Verify props were created
     console.log('\n🔍 Verifying props creation...');
     const { data: allProps, error: verifyError } = await supabase
@@ -143,7 +136,6 @@ async function populatePropsForLiveGames() {
         console.log(`   ${index + 1}. ${prop.player_name} - ${prop.prop_type} ${prop.line}`);
       });
     }
-
   } catch (error) {
     console.error('💥 Error populating props:', error);
     throw error;
@@ -158,7 +150,7 @@ if (require.main === module) {
       console.log('💡 You can now test the smart form with live props data');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('💥 Props population failed:', error);
       process.exit(1);
     });

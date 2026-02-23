@@ -25,12 +25,16 @@ import {
   verifyDeterminism,
 } from '../agents/ScoringAgent/scoring/edgeEngineV1';
 
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Use canonical types from shared-types
+import type { UnifiedPicksRow } from '@unit-talk/shared-types';
+
 const DATABASE_URL =
   process.env.DATABASE_URL ||
   process.env.SUPABASE_DB_URL ||
   'postgresql://postgres:postgres@localhost:54322/postgres';
 
-interface UnifiedPick {
+// Extended type for edge engine test script
+interface TestEdgePick extends Partial<UnifiedPicksRow> {
   id: string;
   sport: string;
   stat_type: string;
@@ -86,7 +90,7 @@ async function main(): Promise<void> {
 
     // Step 1: Fetch picks from unified_picks
     console.log('\n[STEP 1] Fetching picks from unified_picks...');
-    const picksQuery = await client.query<UnifiedPick>(`
+    const picksQuery = await client.query<TestEdgePick>(`
       SELECT
         id, sport, stat_type, side, player_name,
         line, odds,
@@ -109,7 +113,7 @@ async function main(): Promise<void> {
       console.log('  No picks found. Creating synthetic test data...');
 
       // Create synthetic test picks for demonstration
-      const syntheticPicks: UnifiedPick[] = [
+      const syntheticPicks: TestEdgePick[] = [
         {
           id: 'test-pick-001',
           sport: 'NBA',

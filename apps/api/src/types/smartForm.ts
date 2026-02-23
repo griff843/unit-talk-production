@@ -1,8 +1,13 @@
 /**
  * Smart Form Types - Data structures for smart form integration
+ * SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Import canonical types from shared-types
  */
 
-export interface SmartTicket {
+import type { SmartTicketsRow } from '@unit-talk/shared-types';
+
+// Extended SmartTicket with form-specific fields not in DB
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Use Omit to exclude conflicting Json type
+export interface SmartTicket extends Omit<Partial<SmartTicketsRow>, 'game_selections'> {
   id: string;
   bet_slip_id: string;
   capper: string;

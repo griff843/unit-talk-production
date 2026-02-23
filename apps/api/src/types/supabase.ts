@@ -1,126 +1,86 @@
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Canonical types from shared-types
 import { z } from 'zod';
 
-import { Database } from './supabase-types';
+// Import canonical Database type from shared-types
+import type {
+  Database,
+  RawPropsRow,
+  GamesRow,
+  TeamsRow,
+  PlayersRow,
+  UnifiedPicksRow,
+  AgentHealthRow,
+} from '@unit-talk/shared-types';
 
-// Raw Props Table
-export interface RawProp {
-  id: string;
-  player_id: string;
-  player_name: string;
-  team: string;
-  opponent: string;
-  market: string;
-  line: number;
-  over: number;
-  under: number;
-  market_type: string;
-  game_time: string;
-  league: string;
-  source: string;
-  created_at: string;
-  updated_at: string;
-  metadata?: Record<string, unknown>;
-}
+// Re-export canonical types with local aliases
+export type RawProp = RawPropsRow;
+export type Game = GamesRow;
+export type Team = TeamsRow;
+export type Player = PlayersRow;
+export type UnifiedPick = UnifiedPicksRow;
+export type AgentHealth = AgentHealthRow;
 
+// Zod schemas for runtime validation
 export const RawPropSchema = z.object({
   id: z.string().uuid(),
-  player_id: z.string(),
-  player_name: z.string(),
-  team: z.string(),
-  opponent: z.string(),
-  market: z.string(),
-  line: z.number(),
-  over: z.number(),
-  under: z.number(),
+  player_id: z.string().optional(),
+  player_name: z.string().nullable(),
+  team: z.string().nullable(),
+  opponent: z.string().nullable(),
+  market: z.string().optional(),
+  stat_type: z.string(),
   market_type: z.string(),
-  game_time: z.string(),
-  league: z.string(),
-  source: z.string(),
+  line: z.number().nullable(),
+  odds: z.number().nullable(),
+  over_odds: z.number().optional(),
+  under_odds: z.number().optional(),
+  game_time: z.string().optional(),
+  league: z.string().optional(),
+  source: z.string().nullable(),
+  sport: z.string().optional(),
   created_at: z.string(),
   updated_at: z.string(),
-  metadata: z.record(z.unknown()).optional()
+  status: z.string(),
 });
-
-// Games Table
-export interface Game {
-  id: string;
-  league: string;
-  home_team: string;
-  away_team: string;
-  start_time: string;
-  status: 'scheduled' | 'live' | 'completed';
-  inning_period?: string;
-  score_home?: number;
-  score_away?: number;
-  created_at: string;
-  updated_at: string;
-  metadata?: Record<string, unknown>;
-}
 
 export const GameSchema = z.object({
   id: z.string().uuid(),
+  sport: z.string(),
   league: z.string(),
   home_team: z.string(),
   away_team: z.string(),
-  start_time: z.string(),
-  status: z.enum(['scheduled', 'live', 'completed']),
-  inning_period: z.string().optional(),
-  score_home: z.number().optional(),
-  score_away: z.number().optional(),
+  game_date: z.string(),
+  start_time: z.string().nullable(),
+  status: z.string(),
   created_at: z.string(),
   updated_at: z.string(),
-  metadata: z.record(z.unknown()).optional()
+  meta: z.record(z.unknown()).nullable(),
 });
-
-// Teams Table
-export interface Team {
-  id: string;
-  name: string;
-  league: string;
-  city: string;
-  abbreviation: string;
-  created_at: string;
-  updated_at: string;
-  metadata?: Record<string, unknown>;
-}
 
 export const TeamSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
-  league: z.string(),
-  city: z.string(),
+  sport: z.string(),
   abbreviation: z.string(),
+  active: z.boolean(),
+  league: z.string().optional(),
   created_at: z.string(),
   updated_at: z.string(),
-  metadata: z.record(z.unknown()).optional()
 });
-
-// Players Table
-export interface Player {
-  id: string;
-  name: string;
-  team_id: string;
-  position: string;
-  league: string;
-  status: 'active' | 'injured' | 'suspended' | 'inactive';
-  created_at: string;
-  updated_at: string;
-  metadata?: Record<string, unknown>;
-}
 
 export const PlayerSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
   team_id: z.string().uuid(),
   position: z.string(),
-  league: z.string(),
-  status: z.enum(['active', 'injured', 'suspended', 'inactive']),
+  sport: z.string(),
+  active: z.boolean(),
+  league: z.string().optional(),
   created_at: z.string(),
   updated_at: z.string(),
-  metadata: z.record(z.unknown()).optional()
 });
 
-// Daily Picks Table
+// DailyPick - local definition (deprecated table)
 export interface DailyPick {
   id: string;
   raw_prop_id: string;
@@ -152,47 +112,28 @@ export const DailyPickSchema = z.object({
   status: z.enum(['pending', 'approved', 'rejected']),
   created_at: z.string(),
   updated_at: z.string(),
-  metadata: z.record(z.unknown()).optional()
+  metadata: z.record(z.unknown()).optional(),
 });
-
-// Final Picks Table
-export interface UnifiedPick {
-  id: string;
-  daily_pick_id: string;
-  player_id: string;
-  game_id: string;
-  market: string;
-  line: number;
-  over: number;
-  under: number;
-  grade: 'S' | 'A' | 'B' | 'C' | 'D' | 'F';
-  confidence: number;
-  result: 'win' | 'loss' | 'push' | 'pending';
-  score: number;
-  created_at: string;
-  updated_at: string;
-  metadata?: Record<string, unknown>;
-}
 
 export const UnifiedPickSchema = z.object({
   id: z.string().uuid(),
-  daily_pick_id: z.string().uuid(),
-  player_id: z.string().uuid(),
-  game_id: z.string().uuid(),
-  market: z.string(),
-  line: z.number(),
-  over: z.number(),
-  under: z.number(),
-  grade: z.enum(['S', 'A', 'B', 'C', 'D', 'F']),
-  confidence: z.number(),
-  result: z.enum(['win', 'loss', 'push', 'pending']),
-  score: z.number(),
+  player_name: z.string().nullable(),
+  sport: z.string().nullable(),
+  stat_type: z.string().nullable(),
+  line: z.number().nullable(),
+  odds: z.number().nullable(),
+  direction: z.string().nullable(),
+  capper: z.string().nullable(),
+  tier: z.string().nullable(),
+  posted_to_discord: z.boolean(),
+  settlement_status: z.string().nullable(),
+  lifecycle_stage: z.string().nullable(),
   created_at: z.string(),
   updated_at: z.string(),
-  metadata: z.record(z.unknown()).optional()
+  meta: z.record(z.unknown()).nullable(),
 });
 
-// Capper Threads Table
+// Capper Threads Table - local definition
 export interface CapperThread {
   id: string;
   discord_thread_id: string;
@@ -212,10 +153,10 @@ export const CapperThreadSchema = z.object({
   status: z.enum(['active', 'archived', 'deleted']),
   created_at: z.string(),
   updated_at: z.string(),
-  metadata: z.record(z.unknown()).optional()
+  metadata: z.record(z.unknown()).optional(),
 });
 
-// Agent Logs Table
+// Agent Logs Table - local definition
 export interface AgentLog {
   id: string;
   agent: string;
@@ -231,29 +172,20 @@ export const AgentLogSchema = z.object({
   level: z.enum(['info', 'warn', 'error']),
   message: z.string(),
   metadata: z.record(z.unknown()).optional(),
-  timestamp: z.string()
+  timestamp: z.string(),
 });
-
-// Agent Health Table
-export interface AgentHealth {
-  id: string;
-  agent: string;
-  status: 'healthy' | 'degraded' | 'unhealthy';
-  health_score: number;
-  details: Record<string, unknown>;
-  timestamp: string;
-}
 
 export const AgentHealthSchema = z.object({
   id: z.string().uuid(),
-  agent: z.string(),
-  status: z.enum(['healthy', 'degraded', 'unhealthy']),
-  health_score: z.number(),
-  details: z.record(z.unknown()),
-  timestamp: z.string()
+  agent_name: z.string(),
+  status: z.string(),
+  last_heartbeat: z.string(),
+  metadata: z.record(z.unknown()).nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
 });
 
-// Agent Metrics Table
+// Agent Metrics Table - local definition
 export interface AgentMetrics {
   id: string;
   agent: string;
@@ -265,7 +197,7 @@ export const AgentMetricsSchema = z.object({
   id: z.string().uuid(),
   agent: z.string(),
   metrics: z.record(z.number()),
-  timestamp: z.string()
+  timestamp: z.string(),
 });
 
 // Database type with all tables
@@ -282,8 +214,8 @@ export type Tables = {
   agent_metrics: AgentMetrics;
 };
 
-// Type-safe database type
+// Type-safe database type - re-export from shared-types
 export type TypedSupabaseClient = Database;
 
 // Helper type to get table type
-export type TableType<T extends keyof Tables> = Tables[T]; 
+export type TableType<T extends keyof Tables> = Tables[T];

@@ -51,7 +51,8 @@ export enum Role {
   VIEWER = 'viewer',
 }
 
-interface User {
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Renamed to avoid conflict with canonical UsersRow
+interface AuthUser {
   id: string;
   email: string;
   role: Role;
@@ -62,7 +63,7 @@ interface User {
 }
 
 interface AuthContext {
-  user: User | null;
+  user: AuthUser | null;
   isAuthenticated: boolean;
   hasPermission: (permission: Permission) => boolean;
   hasRole: (role: Role) => boolean;
@@ -163,7 +164,7 @@ export async function authenticate(request: NextRequest): Promise<AuthContext> {
     const userRole = profile.role as Role;
     const userPermissions = ROLE_PERMISSIONS[userRole] || [];
 
-    const authenticatedUser: User = {
+    const authenticatedUser: AuthUser = {
       id: user.id,
       email: (user.email as string) || '',
       role: userRole,
@@ -319,7 +320,7 @@ export async function emergencyBypass(
   });
 
   // Create emergency admin context
-  const emergencyUser: User = {
+  const emergencyUser: AuthUser = {
     id: 'emergency-bypass',
     email: 'emergency@system.local',
     role: Role.SUPER_ADMIN,
@@ -332,7 +333,7 @@ export async function emergencyBypass(
 }
 
 // Helper functions
-function createAuthenticatedContext(user: User): AuthContext {
+function createAuthenticatedContext(user: AuthUser): AuthContext {
   return {
     user,
     isAuthenticated: true,
@@ -408,7 +409,7 @@ export function getPermissionsForRole(role: Role): Permission[] {
   return ROLE_PERMISSIONS[role] || [];
 }
 
-export function canUserPerformAction(user: User, permission: Permission): boolean {
+export function canUserPerformAction(user: AuthUser, permission: Permission): boolean {
   return user.permissions.includes(permission);
 }
 

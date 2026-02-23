@@ -1,26 +1,33 @@
-export interface UnifiedPick {
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Use canonical types from shared-types
+import type { UnifiedPicksRow } from '@unit-talk/shared-types';
+
+/**
+ * UnifiedPick - Extended for recap/analytics use cases
+ * Base type imported from @unit-talk/shared-types
+ */
+export interface UnifiedPick extends Partial<UnifiedPicksRow> {
   id: string;
   created_at: string;
   updated_at?: string;
   player_name?: string;
   team_name?: string;
   matchup?: string;
-  market_type: string;
-  line: number;
-  odds: number;
-  tier: string;
-  edge_score: number;
-  play_status: string;
+  market_type?: string;
+  line?: number;
+  odds?: number;
+  tier?: string;
+  edge_score?: number;
+  play_status?: string;
   capper?: string;
   units?: number;
   outcome?: 'win' | 'loss' | 'push' | 'pending';
   parlay_id?: string;
   is_sharp_fade?: boolean;
   tags?: string[];
-  // Additional properties with proper typing
-  [key: string]: string | number | boolean | string[] | undefined;
+  // SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Include meta type in index signature
+  meta?: Record<string, unknown> | null;
+  [key: string]: string | number | boolean | string[] | Record<string, unknown> | undefined | null;
 }
-
 
 // Enhanced recap interfaces
 export type RecapType = 'daily' | 'weekly' | 'monthly';

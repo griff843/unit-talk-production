@@ -15,12 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  TicketLeg,
-  MARKET_TYPES,
-  BET_CATEGORIES,
-  DIRECTIONS,
-} from '../types';
+import { TicketLeg, MARKET_TYPES, BET_CATEGORIES, DIRECTIONS } from '../types';
 import { apiClient } from '@/lib/api-client';
 import { useToast } from '@/components/ui/use-toast';
 import { Spinner } from '@/components/ui/spinner';
@@ -29,11 +24,18 @@ import { SmartSearch } from '@/components/ui/smart-search';
 interface LegCardProps {
   leg: TicketLeg;
   onRemove: () => void;
-  onUpdate?: (updates: Partial<TicketLeg> & { manual_home_team?: string; manual_away_team?: string; source?: 'api' | 'manual' }) => void;
+  onUpdate?: (
+    updates: Partial<TicketLeg> & {
+      manual_home_team?: string;
+      manual_away_team?: string;
+      source?: 'api' | 'manual';
+    }
+  ) => void;
   legIndex: number;
 }
 
-interface Team {
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Renamed to avoid conflict with canonical TeamsRow
+interface UITeam {
   id: string;
   name: string;
   sport: string;
@@ -56,7 +58,7 @@ interface Team {
  * - Player must match team, team must match sport
  */
 export function LegCard({ leg, onRemove, onUpdate, legIndex }: LegCardProps) {
-  const [teams, setTeams] = useState<Team[]>([]);
+  const [teams, setTeams] = useState<UITeam[]>([]);
   const [games, setGames] = useState<any[]>([]);
   const [statTypes, setStatTypes] = useState<string[]>([]);
   const [isManualMode, setIsManualMode] = useState(false);
@@ -84,44 +86,47 @@ export function LegCard({ leg, onRemove, onUpdate, legIndex }: LegCardProps) {
     ? [selectedGame.home_team, selectedGame.away_team].filter(Boolean)
     : [];
 
-  const handleChange = useCallback((field: keyof TicketLeg | 'manual_home_team' | 'manual_away_team' | 'source', value: any) => {
-    if (onUpdate) {
-      if (field === 'sport') {
-        // V1.1 COMPLIANCE: Reset all downstream fields when sport changes
-        onUpdate({
-          sport: value,
-          market_type: undefined,
-          bet_type: undefined,
-          bet_category: undefined,
-          team: '',
-          opponent: '',
-          player_name: '',
-          prop_type: '',
-          line: '',
-          odds: '',
-          direction: undefined,
-          game_id: undefined,
-        });
-        // Fetch new data for the selected sport
-        fetchGamesForSport(value);
-        fetchTeamsForSport(value);
-        // Note: stat types fetched in useEffect when bet_category is player_prop
-      } else if (field === 'bet_category') {
-        // V1.1 COMPLIANCE: Reset fields when bet category changes
-        onUpdate({
-          bet_category: value,
-          team: '',
-          player_name: '',
-          prop_type: '',
-          line: '',
-          odds: '',
-          direction: undefined,
-        });
-      } else {
-        onUpdate({ [field]: value });
+  const handleChange = useCallback(
+    (field: keyof TicketLeg | 'manual_home_team' | 'manual_away_team' | 'source', value: any) => {
+      if (onUpdate) {
+        if (field === 'sport') {
+          // V1.1 COMPLIANCE: Reset all downstream fields when sport changes
+          onUpdate({
+            sport: value,
+            market_type: undefined,
+            bet_type: undefined,
+            bet_category: undefined,
+            team: '',
+            opponent: '',
+            player_name: '',
+            prop_type: '',
+            line: '',
+            odds: '',
+            direction: undefined,
+            game_id: undefined,
+          });
+          // Fetch new data for the selected sport
+          fetchGamesForSport(value);
+          fetchTeamsForSport(value);
+          // Note: stat types fetched in useEffect when bet_category is player_prop
+        } else if (field === 'bet_category') {
+          // V1.1 COMPLIANCE: Reset fields when bet category changes
+          onUpdate({
+            bet_category: value,
+            team: '',
+            player_name: '',
+            prop_type: '',
+            line: '',
+            odds: '',
+            direction: undefined,
+          });
+        } else {
+          onUpdate({ [field]: value });
+        }
       }
-    }
-  }, [onUpdate]);
+    },
+    [onUpdate]
+  );
 
   // V1.1 COMPLIANCE: Fetch games from DB (no fallback to mock)
   const fetchGamesForSport = async (sport: string) => {
@@ -190,7 +195,12 @@ export function LegCard({ leg, onRemove, onUpdate, legIndex }: LegCardProps) {
   };
 
   // V1.1 COMPLIANCE: Normalize team/player input
-  const normalizeInput = async (type: 'team' | 'player', query: string, sport?: string, team?: string) => {
+  const normalizeInput = async (
+    type: 'team' | 'player',
+    query: string,
+    sport?: string,
+    team?: string
+  ) => {
     try {
       setNormalizing(true);
       const response = await fetch('/api/normalize', {
@@ -300,7 +310,12 @@ export function LegCard({ leg, onRemove, onUpdate, legIndex }: LegCardProps) {
               Manual
             </Label>
           </div>
-          <Button variant="ghost" size="sm" onClick={onRemove} className="text-red-500 hover:text-red-700">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onRemove}
+            className="text-red-500 hover:text-red-700"
+          >
             Remove
           </Button>
         </div>
@@ -370,10 +385,7 @@ export function LegCard({ leg, onRemove, onUpdate, legIndex }: LegCardProps) {
                   <span className="text-sm text-gray-500">Loading games...</span>
                 </div>
               ) : games.length > 0 ? (
-                <Select
-                  value={leg.game_id}
-                  onValueChange={value => handleChange('game_id', value)}
-                >
+                <Select value={leg.game_id} onValueChange={value => handleChange('game_id', value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select Game (or use Manual Mode)" />
                   </SelectTrigger>
@@ -396,67 +408,76 @@ export function LegCard({ leg, onRemove, onUpdate, legIndex }: LegCardProps) {
           )}
 
           {/* V1.1 MANUAL MODE: Team Entry */}
-          {isManualMode && leg.sport && (leg.bet_category === 'spread' || leg.bet_category === 'moneyline' || leg.bet_category === 'team_prop') && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">
-                Team <span className="text-red-500">*</span>
-                <span className="text-xs text-gray-400 ml-2">(type name - will normalize)</span>
-              </label>
-              <div className="relative">
-                <Input
-                  value={manualTeam}
-                  onChange={e => {
-                    // V1.1: Update local state AND leg.team immediately for validation
-                    setManualTeam(e.target.value);
-                    handleChange('team', e.target.value);
-                  }}
-                  onBlur={handleManualTeamBlur}
-                  placeholder="e.g., Celtics, Boston, BOS"
-                  className={!leg.team ? 'border-red-300' : ''}
-                />
-                {normalizing && (
-                  <Spinner className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4" />
-                )}
+          {isManualMode &&
+            leg.sport &&
+            (leg.bet_category === 'spread' ||
+              leg.bet_category === 'moneyline' ||
+              leg.bet_category === 'team_prop') && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Team <span className="text-red-500">*</span>
+                  <span className="text-xs text-gray-400 ml-2">(type name - will normalize)</span>
+                </label>
+                <div className="relative">
+                  <Input
+                    value={manualTeam}
+                    onChange={e => {
+                      // V1.1: Update local state AND leg.team immediately for validation
+                      setManualTeam(e.target.value);
+                      handleChange('team', e.target.value);
+                    }}
+                    onBlur={handleManualTeamBlur}
+                    placeholder="e.g., Celtics, Boston, BOS"
+                    className={!leg.team ? 'border-red-300' : ''}
+                  />
+                  {normalizing && (
+                    <Spinner className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4" />
+                  )}
+                </div>
+                {leg.team && <p className="text-xs text-green-600">Normalized: {leg.team}</p>}
               </div>
-              {leg.team && (
-                <p className="text-xs text-green-600">Normalized: {leg.team}</p>
-              )}
-            </div>
-          )}
+            )}
 
           {/* API MODE: Team Selection from DB */}
-          {!isManualMode && leg.sport && (leg.bet_category === 'spread' || leg.bet_category === 'moneyline' || leg.bet_category === 'team_prop') && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">
-                Team <span className="text-red-500">*</span>
-              </label>
-              {loading.teams ? (
-                <div className="flex items-center space-x-2">
-                  <Spinner className="h-4 w-4" />
-                  <span className="text-sm text-gray-500">Loading teams...</span>
-                </div>
-              ) : (
-                <Select value={leg.team || ''} onValueChange={value => handleChange('team', value)}>
-                  <SelectTrigger className={!leg.team ? 'border-red-300' : ''}>
-                    <SelectValue placeholder="Select Team" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {gameTeams.length > 0
-                      ? gameTeams.map(team => (
-                          <SelectItem key={team.value} value={team.value}>
-                            {team.label}
-                          </SelectItem>
-                        ))
-                      : teams.map(team => (
-                          <SelectItem key={team.id} value={team.name}>
-                            {team.name} {team.abbr ? `(${team.abbr})` : ''}
-                          </SelectItem>
-                        ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-          )}
+          {!isManualMode &&
+            leg.sport &&
+            (leg.bet_category === 'spread' ||
+              leg.bet_category === 'moneyline' ||
+              leg.bet_category === 'team_prop') && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Team <span className="text-red-500">*</span>
+                </label>
+                {loading.teams ? (
+                  <div className="flex items-center space-x-2">
+                    <Spinner className="h-4 w-4" />
+                    <span className="text-sm text-gray-500">Loading teams...</span>
+                  </div>
+                ) : (
+                  <Select
+                    value={leg.team || ''}
+                    onValueChange={value => handleChange('team', value)}
+                  >
+                    <SelectTrigger className={!leg.team ? 'border-red-300' : ''}>
+                      <SelectValue placeholder="Select Team" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {gameTeams.length > 0
+                        ? gameTeams.map(team => (
+                            <SelectItem key={team.value} value={team.value}>
+                              {team.label}
+                            </SelectItem>
+                          ))
+                        : teams.map(team => (
+                            <SelectItem key={team.id} value={team.name}>
+                              {team.name} {team.abbr ? `(${team.abbr})` : ''}
+                            </SelectItem>
+                          ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
 
           {/* Player Props */}
           {leg.sport && leg.bet_category === 'player_prop' && (

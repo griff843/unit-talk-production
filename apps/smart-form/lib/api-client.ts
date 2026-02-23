@@ -7,7 +7,8 @@ import { createComponentLogger } from './logger';
 
 const log = createComponentLogger('api-client');
 
-export interface Capper {
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Renamed to avoid conflict with canonical DB types
+export interface ApiCapper {
   id: string;
   name: string;
   active: boolean;
@@ -15,7 +16,7 @@ export interface Capper {
   discordId?: string;
 }
 
-export interface Game {
+export interface ApiGame {
   id: string;
   sport: string;
   league: string;
@@ -27,6 +28,10 @@ export interface Game {
   matchup?: string;
   is_live?: boolean;
 }
+
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Legacy aliases for backward compatibility
+export type Capper = ApiCapper;
+export type Game = ApiGame;
 
 // SEARCH-CATALOG-CONTRACT-035: Catalog types
 export interface CatalogTeam {
@@ -121,10 +126,7 @@ export interface ApiResponse<T> {
 }
 
 class ApiClient {
-  private async makeRequest<T>(
-    url: string,
-    options: any = {}
-  ): Promise<ApiResponse<T>> {
+  private async makeRequest<T>(url: string, options: any = {}): Promise<ApiResponse<T>> {
     try {
       const response = await fetch(url, {
         ...options,
@@ -142,11 +144,14 @@ class ApiClient {
       const data = await response.json();
       return { data };
     } catch (error) {
-      log.error({
-        error: error instanceof Error ? error.message : 'Unknown error',
-        url,
-        method: options.method || 'GET',
-      }, 'API request failed');
+      log.error(
+        {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          url,
+          method: options.method || 'GET',
+        },
+        'API request failed'
+      );
 
       return {
         error: error instanceof Error ? error.message : 'Request failed',
@@ -161,11 +166,14 @@ class ApiClient {
   /**
    * Unified search across teams, players, and games
    */
-  async searchUnified(query: string, options: {
-    sport?: string;
-    type?: 'player' | 'team' | 'game' | 'all';
-    limit?: number;
-  } = {}): Promise<SearchResult[]> {
+  async searchUnified(
+    query: string,
+    options: {
+      sport?: string;
+      type?: 'player' | 'team' | 'game' | 'all';
+      limit?: number;
+    } = {}
+  ): Promise<SearchResult[]> {
     const params = new URLSearchParams({ q: query });
     if (options.sport) params.set('sport', options.sport);
     if (options.type) params.set('type', options.type);
@@ -205,11 +213,14 @@ class ApiClient {
   /**
    * Fetch players from catalog
    */
-  async fetchCatalogPlayers(sport: string, options: {
-    teamId?: string;
-    query?: string;
-    limit?: number;
-  } = {}): Promise<CatalogPlayer[]> {
+  async fetchCatalogPlayers(
+    sport: string,
+    options: {
+      teamId?: string;
+      query?: string;
+      limit?: number;
+    } = {}
+  ): Promise<CatalogPlayer[]> {
     const params = new URLSearchParams({ sport });
     if (options.teamId) params.set('team_id', options.teamId);
     if (options.query) params.set('q', options.query);
@@ -230,11 +241,14 @@ class ApiClient {
   /**
    * Fetch games from catalog
    */
-  async fetchCatalogGames(sport: string, options: {
-    date?: string;
-    teamId?: string;
-    status?: 'scheduled' | 'in_progress' | 'final' | 'all';
-  } = {}): Promise<CatalogGame[]> {
+  async fetchCatalogGames(
+    sport: string,
+    options: {
+      date?: string;
+      teamId?: string;
+      status?: 'scheduled' | 'in_progress' | 'final' | 'all';
+    } = {}
+  ): Promise<CatalogGame[]> {
     const params = new URLSearchParams({ sport });
     if (options.date) params.set('date', options.date);
     if (options.teamId) params.set('team_id', options.teamId);
@@ -255,12 +269,15 @@ class ApiClient {
   /**
    * Fetch props from catalog
    */
-  async fetchCatalogProps(sport: string, options: {
-    playerName?: string;
-    statType?: string;
-    team?: string;
-    limit?: number;
-  } = {}): Promise<CatalogProp[]> {
+  async fetchCatalogProps(
+    sport: string,
+    options: {
+      playerName?: string;
+      statType?: string;
+      team?: string;
+      limit?: number;
+    } = {}
+  ): Promise<CatalogProp[]> {
     const params = new URLSearchParams({ sport });
     if (options.playerName) params.set('player_name', options.playerName);
     if (options.statType) params.set('stat_type', options.statType);
@@ -289,7 +306,7 @@ class ApiClient {
   async fetchCappers(sport?: string): Promise<Capper[]> {
     const params = new URLSearchParams();
     if (sport) params.set('sport', sport);
-    
+
     const result = await this.makeRequest<{ cappers: Capper[] }>(
       `/api/cappers?${params.toString()}`
     );
@@ -309,9 +326,7 @@ class ApiClient {
     if (teamId) params.set('team_id', teamId);
     if (refresh) params.set('refresh', 'true');
 
-    const result = await this.makeRequest<{ games: Game[] }>(
-      `/api/games?${params.toString()}`
-    );
+    const result = await this.makeRequest<{ games: Game[] }>(`/api/games?${params.toString()}`);
 
     if (result.error) {
       throw new Error(result.error);
@@ -336,9 +351,7 @@ class ApiClient {
     if (options.playerId) params.set('player_id', options.playerId);
     if (options.gameId) params.set('game_id', options.gameId);
 
-    const result = await this.makeRequest<{ props: Prop[] }>(
-      `/api/props?${params.toString()}`
-    );
+    const result = await this.makeRequest<{ props: Prop[] }>(`/api/props?${params.toString()}`);
 
     if (result.error) {
       throw new Error(result.error);
@@ -374,13 +387,10 @@ class ApiClient {
     total_units?: number;
     notes?: string;
   }) {
-    const result = await this.makeRequest(
-      '/api/submit-ticket',
-      {
-        method: 'POST',
-        body: JSON.stringify(ticketData),
-      }
-    );
+    const result = await this.makeRequest('/api/submit-ticket', {
+      method: 'POST',
+      body: JSON.stringify(ticketData),
+    });
 
     if (result.error) {
       throw new Error(result.error);
@@ -399,9 +409,7 @@ class ApiClient {
       throw new Error('Dev routes are not available in production');
     }
 
-    const result = await this.makeRequest(
-      `/api/dev/simulate-bridge?id=${betSlipId}`
-    );
+    const result = await this.makeRequest(`/api/dev/simulate-bridge?id=${betSlipId}`);
 
     if (result.error) {
       throw new Error(result.error);
@@ -416,7 +424,12 @@ export const apiClient = new ApiClient();
 
 // Legacy compatibility functions for existing components
 export const fetchCappers = (sport?: string) => apiClient.fetchCappers(sport);
-export const fetchGames = (sport: string, startDate?: string, endDate?: string, teamId?: string) => {
+export const fetchGames = (
+  sport: string,
+  startDate?: string,
+  endDate?: string,
+  teamId?: string
+) => {
   // Legacy function signature - just use sport and teamId
   return apiClient.fetchGames(sport, teamId);
 };
@@ -440,7 +453,8 @@ export const searchPlayers = async (sport: string, query: string) => {
 };
 
 // Types for backward compatibility
-export type { Capper as DBCapper, Game as DBGame };
+// Capper and Game are already exported above as legacy aliases
+export type { ApiCapper as DBCapper, ApiGame as DBGame };
 export interface DBTeam {
   id: string;
   name: string;

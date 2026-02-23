@@ -182,21 +182,22 @@ const PROVIDERS = [
 
 // ============================================================================
 // TYPES
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Renamed to avoid conflict with canonical DB types
 // ============================================================================
 
-interface Capper {
+interface ManualEntryCapper {
   id: string;
   display_name: string;
 }
 
-interface Team {
+interface ManualEntryTeam {
   id: string;
   name: string;
   abbr: string | null;
   sport: string;
 }
 
-interface Player {
+interface ManualEntryPlayer {
   player_id: string;
   player_name: string;
   team_id: string | null;
@@ -305,18 +306,18 @@ export function SportsbookManualEntry() {
   const builderRef = useRef<HTMLDivElement>(null);
 
   // ---- CAPPER STATE ----
-  const [cappers, setCappers] = useState<Capper[]>([]);
+  const [cappers, setCappers] = useState<ManualEntryCapper[]>([]);
   const [cappersLoading, setCappersLoading] = useState(true);
   const [selectedCapperId, setSelectedCapperId] = useState('');
   const [selectedCapperName, setSelectedCapperName] = useState('');
 
   // ---- TEAMS STATE ----
-  const [teams, setTeams] = useState<Team[]>([]);
+  const [teams, setTeams] = useState<ManualEntryTeam[]>([]);
   const [teamsLoading, setTeamsLoading] = useState(false);
   const [teamSearchQuery, setTeamSearchQuery] = useState('');
 
   // ---- PLAYERS STATE ----
-  const [players, setPlayers] = useState<Player[]>([]);
+  const [players, setPlayers] = useState<ManualEntryPlayer[]>([]);
   const [playersLoading, setPlayersLoading] = useState(false);
   const [playerSearchQuery, setPlayerSearchQuery] = useState('');
 
@@ -504,7 +505,7 @@ export function SportsbookManualEntry() {
           // Map canonical response format to component interface
           // /api/cappers returns { id, name, active, tier, discordId }
           // Component expects { id, display_name }
-          const mappedCappers: Capper[] = (data.cappers || []).map(
+          const mappedCappers: ManualEntryCapper[] = (data.cappers || []).map(
             (c: { id: string; name: string }) => ({
               id: c.id,
               display_name: c.name,
@@ -574,7 +575,7 @@ export function SportsbookManualEntry() {
         const allPlayers = data.players || [];
 
         // Sort by team (home first) then by name
-        allPlayers.sort((a: Player, b: Player) => {
+        allPlayers.sort((a: ManualEntryPlayer, b: ManualEntryPlayer) => {
           // Home team players first
           if (a.team_id === builder.homeTeamId && b.team_id !== builder.homeTeamId) return -1;
           if (b.team_id === builder.homeTeamId && a.team_id !== builder.homeTeamId) return 1;

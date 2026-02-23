@@ -1,8 +1,9 @@
 'use client';
 
-import React from 'react';
-import { Button } from '@/components/ui/button';
 import { Plus, Target, Brain, Flame, Settings, HelpCircle, ExternalLink } from 'lucide-react';
+import React from 'react';
+
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,7 +13,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-interface User {
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Renamed to avoid conflict with canonical UsersRow
+interface DashboardUser {
   id: string;
   username: string;
   tier: 'MEMBER' | 'VIP' | 'VIP_PLUS' | 'BLACK_LABEL' | 'CAPPER' | 'ADMIN';
@@ -22,7 +24,7 @@ interface User {
 }
 
 interface QuickActionsProps {
-  user: User;
+  user: DashboardUser;
 }
 
 export function QuickActions({ user }: QuickActionsProps) {

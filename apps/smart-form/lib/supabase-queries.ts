@@ -1,13 +1,14 @@
 import { supabase } from './supabase';
 import { formatTimeInEST } from './betting-utils';
 
-export interface Capper {
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Renamed to avoid conflict with canonical DB types
+export interface QueryCapper {
   id: string;
   name: string;
   active: boolean;
 }
 
-export interface Team {
+export interface QueryTeam {
   id: string;
   name: string;
   sport: string;
@@ -15,7 +16,7 @@ export interface Team {
   active: boolean;
 }
 
-export interface Player {
+export interface QueryPlayer {
   id: string;
   name: string;
   team_id: string;
@@ -24,7 +25,7 @@ export interface Player {
   position: string;
 }
 
-export interface Game {
+export interface QueryGame {
   id: string;
   sport: string;
   home_team_id: string;
@@ -34,7 +35,7 @@ export interface Game {
   status: string;
 }
 
-export interface RawProp {
+export interface QueryRawProp {
   id: string;
   game_id: string;
   player_id?: string;
@@ -45,6 +46,11 @@ export interface RawProp {
   odds: number;
   status: string;
 }
+
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Legacy aliases for backward compatibility
+export type Capper = QueryCapper;
+export type Team = QueryTeam;
+export type Player = QueryPlayer;
 
 // Type for user row data
 interface UserRow {

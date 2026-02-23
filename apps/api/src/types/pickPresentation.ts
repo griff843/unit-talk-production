@@ -6,9 +6,12 @@
  *
  * DISCORD-UX-OVERHAUL-001: Standardized pick presentation
  * EMBED-PRODUCTION-CONTRACT-030: Production embed format
+ * SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Import canonical types from shared-types
  *
  * @see docs/contracts/PICK_PRESENTATION_STANDARD.md
  */
+
+import type { UnifiedPicksRow } from '@unit-talk/shared-types';
 
 /**
  * Market types for picks
@@ -22,36 +25,20 @@ export type PickMarketType =
   | 'unknown';
 
 /**
- * Unified picks row type from database
- * Simplified type for presentation builder
+ * Unified picks row type from database - extended for presentation
+ * Re-exported from shared-types with presentation-specific fields
  */
-export interface UnifiedPickRow {
+export interface UnifiedPickRow extends Partial<UnifiedPicksRow> {
   id: string;
-  bet_slip_id?: string;
-  user_id?: string;
   sport: string;
-  stat_type?: string;
-  bet_type?: string;
-  selection?: string;
-  line?: number | null;
-  odds?: number;
-  player_name?: string;
-  player_id?: string;
+  // Presentation-specific optional fields
   team?: string;
   matchup?: string;
-  tier?: string;
   unit_size?: number;
-  units?: number;
-  ticket_type?: 'single' | 'parlay';
   leg_index?: number | null;
-  direction?: string;
-  side?: string;
   manual_matchup_home?: string;
   manual_matchup_away?: string;
   manual_fields_blob?: Record<string, unknown>;
-  meta?: Record<string, unknown>;
-  created_at?: string;
-  posted_to_discord?: boolean;
 }
 
 /**

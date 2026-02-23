@@ -1,5 +1,62 @@
+/**
+ * Supabase Types - API specific types and Zod schemas
+ * SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Import canonical types from shared-types
+ */
+
 import { z } from 'zod';
 
+// Import canonical types from shared-types
+import type {
+  Database,
+  RawPropsRow,
+  GamesRow,
+  TeamsRow,
+  PlayersRow,
+  UnifiedPicksRow,
+  UsersRow,
+  AgentHealthRow,
+} from '@unit-talk/shared-types';
+
+// Re-export canonical types
+export type RawProp = RawPropsRow;
+export type Game = GamesRow;
+export type Team = TeamsRow;
+export type Player = PlayersRow;
+export type UnifiedPick = UnifiedPicksRow;
+export type User = UsersRow;
+export type AgentHealth = AgentHealthRow;
+
+// Re-export Database
+export type { Database };
+
+// Local types not in shared-types
+export interface CapperThread {
+  id: string;
+  user_id: string;
+  thread_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AgentLog {
+  id: string;
+  agent: string;
+  level: string;
+  message: string;
+  context?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AgentMetrics {
+  id: string;
+  agent: string;
+  metrics: Record<string, number>;
+  created_at: string;
+  updated_at: string;
+}
+
+// Tables interface using canonical types
 export interface Tables {
   raw_props: {
     Row: RawProp;
@@ -53,147 +110,44 @@ export interface Tables {
   };
 }
 
-export interface RawProp {
-  id: string;
-  game_id: string;
-  player_id: string;
-  stat_type: string; // v3.0.0: prop_type → stat_type
-  player_name: string; // v3.0.0: added for clarity
-  line: number;
-  over_odds: number;
-  under_odds: number;
-  sport: string; // v3.0.0: league → sport
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Game {
-  id: string;
-  sport: string; // v3.0.0: league → sport
-  home_team: string;
-  away_team: string;
-  start_time: string;
-  status: 'scheduled' | 'in_progress' | 'final' | 'postponed' | 'cancelled';
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Team {
-  id: string;
-  name: string;
-  sport: string; // v3.0.0: league → sport
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Player {
-  id: string;
-  name: string; // In v3.0.0, this becomes player_name in raw_props
-  team_id: string;
-  position: string;
-  sport: string; // v3.0.0: added for consistency
-  created_at: string;
-  updated_at: string;
-}
-
-// v3.0.0 Unified Pick Interface
-export interface UnifiedPick {
-  id: string;
-  user_id: string; // Foreign key to users table
-  raw_prop_id?: string; // Optional link to raw_props
-  sport: string;
-  prediction: 'over' | 'under' | 'yes' | 'no';
-  confidence: number;
-  status: 'draft' | 'pending_review' | 'approved' | 'denied' | 'published' | 'settled';
-  result?: 'win' | 'loss' | 'push' | 'pending';
-  tier?: 'S' | 'A' | 'B' | 'C';
-  finalized?: boolean;
-  finalized_at?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-// v3.0.0 User Interface (replaces cappers)
-export interface User {
-  id: string;
-  discord_id: string;
-  username: string;
-  tier: 'Free' | 'Premium' | 'VIP' | 'A' | 'B' | 'C';
-  capper_tier?: 'rookie' | 'pro' | 'elite' | 'legend';
-  status: 'active' | 'inactive' | 'banned';
-  total_picks?: number;
-  win_rate?: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CapperThread {
-  id: string;
-  user_id: string; // v3.0.0: capper_id → user_id
-  thread_id: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface AgentLog {
-  id: string;
-  agent: string;
-  level: string;
-  message: string;
-  context?: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface AgentHealth {
-  id: string;
-  agent: string;
-  status: 'healthy' | 'degraded' | 'unhealthy';
-  details: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface AgentMetrics {
-  id: string;
-  agent: string;
-  metrics: Record<string, number>;
-  created_at: string;
-  updated_at: string;
-}
-
-// v3.0.0 Zod schemas for validation
+// Zod schemas for runtime validation
 export const RawPropSchema = z.object({
   id: z.string().uuid(),
-  game_id: z.string().uuid(),
-  player_id: z.string().uuid(),
-  stat_type: z.string(), // v3.0.0: prop_type → stat_type
-  player_name: z.string(),
-  line: z.number(),
-  over_odds: z.number(),
-  under_odds: z.number(),
-  sport: z.string(), // v3.0.0: added
-  created_at: z.string().datetime(),
-  updated_at: z.string().datetime()
+  game_id: z.string().uuid().nullable(),
+  player_id: z.string().uuid().optional(),
+  stat_type: z.string(),
+  player_name: z.string().nullable(),
+  line: z.number().nullable(),
+  over_odds: z.number().optional(),
+  under_odds: z.number().optional(),
+  sport: z.string().optional(),
+  market_type: z.string(),
+  status: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
 });
 
 export const GameSchema = z.object({
   id: z.string().uuid(),
-  sport: z.string(), // v3.0.0: league → sport
+  sport: z.string(),
+  league: z.string(),
   home_team: z.string(),
   away_team: z.string(),
-  start_time: z.string().datetime(),
-  status: z.enum(['scheduled', 'in_progress', 'final', 'postponed', 'cancelled']),
-  created_at: z.string().datetime(),
-  updated_at: z.string().datetime()
+  game_date: z.string(),
+  start_time: z.string().nullable(),
+  status: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
 });
 
 export const TeamSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
-  sport: z.string(), // v3.0.0: league → sport
-  created_at: z.string().datetime(),
-  updated_at: z.string().datetime()
+  sport: z.string(),
+  abbreviation: z.string(),
+  active: z.boolean(),
+  created_at: z.string(),
+  updated_at: z.string(),
 });
 
 export const PlayerSchema = z.object({
@@ -201,48 +155,45 @@ export const PlayerSchema = z.object({
   name: z.string(),
   team_id: z.string().uuid(),
   position: z.string(),
-  sport: z.string(), // v3.0.0: added for consistency
-  created_at: z.string().datetime(),
-  updated_at: z.string().datetime()
+  sport: z.string(),
+  active: z.boolean(),
+  created_at: z.string(),
+  updated_at: z.string(),
 });
 
-// v3.0.0 Unified Pick Schema
 export const UnifiedPickSchema = z.object({
   id: z.string().uuid(),
-  user_id: z.string().uuid(),
-  raw_prop_id: z.string().uuid().optional(),
-  sport: z.string(),
-  prediction: z.enum(['over', 'under', 'yes', 'no']),
-  confidence: z.number(),
-  status: z.enum(['draft', 'pending_review', 'approved', 'denied', 'published', 'settled']),
-  result: z.enum(['win', 'loss', 'push', 'pending']).optional(),
-  tier: z.enum(['S', 'A', 'B', 'C']).optional(),
-  finalized: z.boolean().optional(),
-  finalized_at: z.string().datetime().optional(),
-  created_at: z.string().datetime(),
-  updated_at: z.string().datetime()
+  player_name: z.string().nullable(),
+  sport: z.string().nullable(),
+  stat_type: z.string().nullable(),
+  line: z.number().nullable(),
+  odds: z.number().nullable(),
+  direction: z.string().nullable(),
+  capper: z.string().nullable(),
+  tier: z.string().nullable(),
+  posted_to_discord: z.boolean(),
+  settlement_status: z.string().nullable(),
+  lifecycle_stage: z.string().nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
 });
 
-// v3.0.0 User Schema
 export const UserSchema = z.object({
   id: z.string().uuid(),
-  discord_id: z.string(),
   username: z.string(),
-  tier: z.enum(['Free', 'Premium', 'VIP', 'A', 'B', 'C']),
-  capper_tier: z.enum(['rookie', 'pro', 'elite', 'legend']).optional(),
-  status: z.enum(['active', 'inactive', 'banned']),
-  total_picks: z.number().optional(),
-  win_rate: z.number().optional(),
-  created_at: z.string().datetime(),
-  updated_at: z.string().datetime()
+  tier: z.string().nullable(),
+  discord_id: z.string().nullable(),
+  active: z.boolean(),
+  created_at: z.string(),
+  updated_at: z.string(),
 });
 
 export const CapperThreadSchema = z.object({
   id: z.string().uuid(),
-  user_id: z.string().uuid(), // v3.0.0: capper_id → user_id
+  user_id: z.string().uuid(),
   thread_id: z.string(),
-  created_at: z.string().datetime(),
-  updated_at: z.string().datetime()
+  created_at: z.string(),
+  updated_at: z.string(),
 });
 
 export const AgentLogSchema = z.object({
@@ -251,30 +202,24 @@ export const AgentLogSchema = z.object({
   level: z.string(),
   message: z.string(),
   context: z.record(z.unknown()).optional(),
-  created_at: z.string().datetime(),
-  updated_at: z.string().datetime()
+  created_at: z.string(),
+  updated_at: z.string(),
 });
 
 export const AgentHealthSchema = z.object({
   id: z.string().uuid(),
-  agent: z.string(),
-  status: z.enum(['healthy', 'degraded', 'unhealthy']),
-  details: z.record(z.unknown()),
-  created_at: z.string().datetime(),
-  updated_at: z.string().datetime()
+  agent_name: z.string(),
+  status: z.string(),
+  last_heartbeat: z.string(),
+  metadata: z.record(z.unknown()).nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
 });
 
 export const AgentMetricsSchema = z.object({
   id: z.string().uuid(),
   agent: z.string(),
   metrics: z.record(z.number()),
-  created_at: z.string().datetime(),
-  updated_at: z.string().datetime()
+  created_at: z.string(),
+  updated_at: z.string(),
 });
-
-// Export Database interface
-export interface Database {
-  public: {
-    Tables: Tables;
-  };
-} 

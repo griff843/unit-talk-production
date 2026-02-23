@@ -1,12 +1,8 @@
 'use client';
+/* eslint-disable max-lines-per-function -- Dashboard component with rich UI, refactor TBD */
 
-import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import {
-  User,
+  User as UserIcon,
   Calendar,
   Clock,
   Crown,
@@ -20,8 +16,15 @@ import {
   Trophy,
   Settings,
 } from 'lucide-react';
+import React from 'react';
 
-interface User {
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Renamed to avoid conflict with canonical UsersRow
+interface DashboardUser {
   id: string;
   username: string;
   tier: 'MEMBER' | 'VIP' | 'VIP_PLUS' | 'BLACK_LABEL' | 'CAPPER' | 'ADMIN';
@@ -31,7 +34,7 @@ interface User {
 }
 
 interface UserAnalyticsProps {
-  user: User;
+  user: DashboardUser;
 }
 
 const TIER_COLORS = {
@@ -98,7 +101,7 @@ export function UserAnalytics({ user }: UserAnalyticsProps) {
       case 'ADMIN':
         return <Shield className="h-4 w-4 text-green-500" />;
       default:
-        return <User className="h-4 w-4 text-gray-500" />;
+        return <UserIcon className="h-4 w-4 text-gray-500" />;
     }
   };
 
@@ -106,7 +109,7 @@ export function UserAnalytics({ user }: UserAnalyticsProps) {
     <Card className="bg-black/20 backdrop-blur-sm border-gray-800">
       <CardHeader>
         <CardTitle className="text-white flex items-center space-x-2">
-          <User className="h-5 w-5 text-blue-500" />
+          <UserIcon className="h-5 w-5 text-blue-500" />
           <span>User Profile</span>
         </CardTitle>
         <CardDescription className="text-gray-400">

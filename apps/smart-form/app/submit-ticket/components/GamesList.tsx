@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Sport } from '../types';
 
-interface Game {
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Renamed to avoid conflict with canonical GamesRow
+interface UIGame {
   id: string;
   homeTeam: string;
   awayTeam: string;
@@ -24,14 +25,23 @@ interface Game {
   away_team_uuid?: string | null;
 }
 
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Legacy alias for backward compatibility
+type Game = UIGame;
+
 interface GamesListProps {
   sport?: Sport;
   gameDate?: string;
   selectedGameId?: string;
-  onSelectGame: (game: Game) => void;
+  onSelectGame: (game: UIGame) => void;
 }
 
-function LocalGameTime({ utcTimestamp, fallbackTime }: { utcTimestamp?: number; fallbackTime?: string }) {
+function LocalGameTime({
+  utcTimestamp,
+  fallbackTime,
+}: {
+  utcTimestamp?: number;
+  fallbackTime?: string;
+}) {
   const [localTime, setLocalTime] = useState<string>('');
 
   useEffect(() => {
@@ -50,7 +60,9 @@ function LocalGameTime({ utcTimestamp, fallbackTime }: { utcTimestamp?: number; 
     }
   }, [utcTimestamp, fallbackTime]);
 
-  return <span className="text-sm text-muted-foreground">{localTime || fallbackTime || 'TBD'}</span>;
+  return (
+    <span className="text-sm text-muted-foreground">{localTime || fallbackTime || 'TBD'}</span>
+  );
 }
 
 function formatOdds(value: number | null | undefined): string {
@@ -154,7 +166,9 @@ export function GamesList({ sport, gameDate, selectedGameId, onSelectGame }: Gam
   if (games.length === 0) {
     return (
       <div className="text-center py-6">
-        <p className="text-sm text-muted-foreground">No games found. Try a different date or sport.</p>
+        <p className="text-sm text-muted-foreground">
+          No games found. Try a different date or sport.
+        </p>
       </div>
     );
   }
@@ -192,7 +206,9 @@ export function GamesList({ sport, gameDate, selectedGameId, onSelectGame }: Gam
                   )}
                 </div>
               </div>
-              <Badge variant="outline" className="text-xs">{game.sport}</Badge>
+              <Badge variant="outline" className="text-xs">
+                {game.sport}
+              </Badge>
             </div>
 
             {/* Inline odds row */}
@@ -201,8 +217,12 @@ export function GamesList({ sport, gameDate, selectedGameId, onSelectGame }: Gam
                 {game.has_spread && (
                   <div className="text-xs text-muted-foreground">
                     <span className="text-muted-foreground/70 mr-1">SPR</span>
-                    <span className="font-medium text-foreground">{formatSpread(game.spread.home)}</span>
-                    <span className="text-muted-foreground/70 ml-0.5">({formatOdds(game.spread.odds)})</span>
+                    <span className="font-medium text-foreground">
+                      {formatSpread(game.spread.home)}
+                    </span>
+                    <span className="text-muted-foreground/70 ml-0.5">
+                      ({formatOdds(game.spread.odds)})
+                    </span>
                   </div>
                 )}
                 {game.has_total && (
@@ -214,9 +234,13 @@ export function GamesList({ sport, gameDate, selectedGameId, onSelectGame }: Gam
                 {game.has_moneyline && (
                   <div className="text-xs text-muted-foreground">
                     <span className="text-muted-foreground/70 mr-1">ML</span>
-                    <span className="font-medium text-foreground">{formatOdds(game.moneyline.home)}</span>
+                    <span className="font-medium text-foreground">
+                      {formatOdds(game.moneyline.home)}
+                    </span>
                     <span className="text-muted-foreground/70 mx-0.5">/</span>
-                    <span className="font-medium text-foreground">{formatOdds(game.moneyline.away)}</span>
+                    <span className="font-medium text-foreground">
+                      {formatOdds(game.moneyline.away)}
+                    </span>
                   </div>
                 )}
               </div>

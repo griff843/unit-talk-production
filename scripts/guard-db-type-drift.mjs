@@ -65,77 +65,9 @@ const SKIP_PATTERNS = [
 ];
 
 // Allowlisted files that are permitted to have these definitions
-// SPRINT-DATABASE-TYPE-CENTRALIZATION-003: These are pending migration
-const ALLOWLIST = [
-  // =========================================================================
-  // SUPABASE-GENERATED FILES (canonical schema - will migrate to shared-types)
-  // =========================================================================
-  'apps/command-center/src/types/database.ts',
-  'apps/command-center/src/types/database-extensions.ts',
-  'apps/discord-bot/src/db/types/supabase-complete.ts',
-
-  // =========================================================================
-  // RE-EXPORT FILES (import from shared-types)
-  // =========================================================================
-  'apps/smart-form/types/database.ts',
-  'apps/command-center/src/types/index.ts',
-
-  // =========================================================================
-  // API TYPE FILES (pending migration - Sprint 4+)
-  // =========================================================================
-  'apps/api/src/db/types/supabase.ts',
-  'apps/api/src/db/types/supabase-types.ts',
-  'apps/api/src/db/types/unified_picks.ts',
-  'apps/api/src/types/supabase.ts',
-  'apps/api/src/types/supabase-types.ts',
-  'apps/api/src/types/enhanced-supabase-types.ts',
-  'apps/api/src/types/picks.ts',
-  'apps/api/src/types/rawProps.ts',
-  'apps/api/src/types/pickPresentation.ts',
-  'apps/api/src/types/smartForm.ts',
-  'apps/api/src/types/shared/activity-types.ts',
-  'apps/api/src/agents/FeedAgent/types.ts',
-  'apps/api/src/agents/SettlementAgent/index.ts',
-  'apps/api/src/utils/normalizers/playerNormalizer.ts',
-  'apps/api/scripts/populate-live-props.ts',
-  'apps/api/src/scripts/edge-validation-report.ts',
-  'apps/api/src/scripts/sgo/market-universe-report.ts',
-  'apps/api/src/scripts/test-edge-engine-v1.ts',
-
-  // =========================================================================
-  // COMMAND CENTER FILES (pending migration - Sprint 4+)
-  // =========================================================================
-  'apps/command-center/src/app/dashboard/ops-submit/useOpsSubmit.ts',
-  'apps/command-center/src/lib/analytics.ts',
-  'apps/command-center/src/lib/middleware/auth.ts',
-  'apps/command-center/src/lib/supabase.ts',
-
-  // =========================================================================
-  // DASHBOARD FILES (pending migration - Sprint 4+)
-  // =========================================================================
-  'apps/dashboard/components/dashboard/CapperProgram.tsx',
-  'apps/dashboard/components/dashboard/PickManagement.tsx',
-  'apps/dashboard/components/dashboard/QuickActions.tsx',
-  'apps/dashboard/components/dashboard/UserAnalytics.tsx',
-
-  // =========================================================================
-  // SMART FORM FILES (pending migration - Sprint 4+)
-  // =========================================================================
-  'apps/smart-form/app/submit-ticket/components/GamesList.tsx',
-  'apps/smart-form/app/submit-ticket/components/LegCard.tsx',
-  'apps/smart-form/app/submit-ticket/components/SmartPlayerInput.tsx',
-  'apps/smart-form/app/submit-ticket/components/SportsbookManualEntry.tsx',
-  'apps/smart-form/app/submit-ticket/lib/services.ts',
-  'apps/smart-form/app/submit-ticket/types.ts',
-  'apps/smart-form/app/submit-ticket/v2/components/BetSlip.tsx',
-  'apps/smart-form/lib/api-client.ts',
-  'apps/smart-form/lib/supabase-queries.ts',
-
-  // =========================================================================
-  // DISCORD BOT FILES (pending migration - Sprint 4+)
-  // =========================================================================
-  'apps/discord-bot/src/services/database.ts',
-];
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: All 59 files migrated to use @unit-talk/shared-types
+// The allowlist is now EMPTY - all canonical types must be imported from shared-types
+const ALLOWLIST = [];
 
 // Check if a path should be skipped
 function shouldSkip(filePath) {

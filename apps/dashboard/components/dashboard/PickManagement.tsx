@@ -1,11 +1,13 @@
 'use client';
 
-import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Target, Plus } from 'lucide-react';
+import React from 'react';
 
-interface User {
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Renamed to avoid conflict with canonical UsersRow
+interface DashboardUser {
   id: string;
   username: string;
   tier: 'MEMBER' | 'VIP' | 'VIP_PLUS' | 'BLACK_LABEL' | 'CAPPER' | 'ADMIN';
@@ -15,10 +17,11 @@ interface User {
 }
 
 interface PickManagementProps {
-  user: User;
+  user: DashboardUser;
 }
 
-export function PickManagement({ user }: PickManagementProps) {
+// eslint-disable-next-line no-unused-vars -- user prop reserved for future personalization
+export function PickManagement({ user: _user }: PickManagementProps) {
   return (
     <div className="space-y-6">
       <Card className="bg-black/20 backdrop-blur-sm border-gray-800">

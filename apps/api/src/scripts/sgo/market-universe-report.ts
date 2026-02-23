@@ -7,6 +7,11 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Use canonical types from shared-types
+import type { PlayersRow } from '@unit-talk/shared-types';
+
+type Player = PlayersRow;
+
 dotenv.config();
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -28,7 +33,9 @@ interface SportStats {
   linkedPercent: number;
 }
 
-interface Player {
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Renamed to avoid conflict with canonical PlayersRow
+// This interface represents participants table records, not players table
+interface ParticipantPlayer {
   id: string;
   external_id: string;
   name: string;
@@ -37,8 +44,8 @@ interface Player {
 
 const PAGE_SIZE = 1000;
 
-async function fetchAllPlayers(client: SupabaseClient): Promise<Player[]> {
-  const players: Player[] = [];
+async function fetchAllPlayers(client: SupabaseClient): Promise<ParticipantPlayer[]> {
+  const players: ParticipantPlayer[] = [];
   let hasMore = true;
   let offset = 0;
 

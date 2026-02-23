@@ -14,22 +14,23 @@
  * - /api/submit-ticket
  */
 
-import { apiClient } from '@/lib/api-client';
+import { apiClient, Game } from '@/lib/api-client';
 import { Sport, TicketLeg } from '../types';
 import { parseLine, parseOdds } from './validation';
 
-export interface Capper {
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Renamed to avoid conflict with canonical DB types
+export interface ServiceCapper {
   id: string;
   name: string;
 }
 
-export interface Team {
+export interface ServiceTeam {
   id: string;
   name: string;
   abbr?: string;
 }
 
-export interface Game {
+export interface ServiceGame {
   id: string;
   home_team: string;
   away_team: string;
@@ -40,7 +41,7 @@ export interface Game {
  * Fetches cappers from /api/cappers
  * V1.1 HARDENED: No fallback, fail-closed
  */
-export async function fetchCappers(): Promise<Capper[]> {
+export async function fetchCappers(): Promise<ServiceCapper[]> {
   const response = await fetch('/api/cappers');
   if (!response.ok) {
     throw new Error(`Failed to fetch cappers: HTTP ${response.status}`);
@@ -56,7 +57,7 @@ export async function fetchCappers(): Promise<Capper[]> {
  * Fetches teams from /api/catalog/teams
  * V1.1 HARDENED: SPEC-TRUE endpoint only
  */
-export async function fetchTeams(sport: Sport): Promise<Team[]> {
+export async function fetchTeams(sport: Sport): Promise<ServiceTeam[]> {
   const response = await fetch(`/api/catalog/teams?sport=${sport}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch teams: HTTP ${response.status}`);
@@ -70,9 +71,7 @@ export async function fetchTeams(sport: Sport): Promise<Team[]> {
  * V1.1 HARDENED: SPEC-TRUE endpoint only
  */
 export async function fetchStatTypes(sport: Sport, betType: string): Promise<string[]> {
-  const response = await fetch(
-    `/api/registry/stat-types?sport=${sport}&bet_type=${betType}`
-  );
+  const response = await fetch(`/api/registry/stat-types?sport=${sport}&bet_type=${betType}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch stat types: HTTP ${response.status}`);
   }
@@ -128,7 +127,7 @@ export async function submitTicket(
     capper_id: capperId,
     sport: legs[0].sport,
     ticket_type: legs.length > 1 ? 'parlay' : 'single',
-    selections: legs.map((leg) => ({
+    selections: legs.map(leg => ({
       sport: leg.sport,
       bet_type: leg.bet_category || 'moneyline',
       stat_type: leg.prop_type || leg.bet_category || 'unknown',

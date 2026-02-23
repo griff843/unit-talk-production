@@ -6,9 +6,10 @@ import type { Pick } from './PickForm';
 
 // ============================================================================
 // SPRINT-OPS-SUBMIT-V2-071B: Ops Submit Hook
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Renamed to avoid conflict with canonical CappersRow
 // ============================================================================
 
-export interface Capper {
+export interface OpsSubmitCapper {
   id: string;
   username: string;
   email: string;
@@ -38,7 +39,7 @@ const defaultPick: Pick = {
 
 interface FormState {
   capperId: string;
-  cappers: Capper[];
+  cappers: OpsSubmitCapper[];
   loadingCappers: boolean;
   sport: string;
   ticketType: 'straight' | 'parlay';
@@ -54,7 +55,7 @@ interface FormState {
 
 function useFormState(): FormState & { setters: Record<string, (v: unknown) => void> } {
   const [capperId, setCapperId] = useState('');
-  const [cappers, setCappers] = useState<Capper[]>([]);
+  const [cappers, setCappers] = useState<OpsSubmitCapper[]>([]);
   const [loadingCappers, setLoadingCappers] = useState(true);
   const [sport, setSport] = useState('NFL');
   const [ticketType, setTicketType] = useState<'straight' | 'parlay'>('straight');

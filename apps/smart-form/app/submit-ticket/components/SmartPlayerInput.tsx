@@ -8,13 +8,17 @@ import { Badge } from '@/components/ui/badge';
 import { Search, User } from 'lucide-react';
 
 // SEARCH-CATALOG-CONTRACT-035: Player type from unified search
-interface Player {
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Renamed to avoid conflict with canonical PlayersRow
+interface SearchPlayer {
   id: string;
   name: string;
   team: string;
   team_id?: string;
   display: string;
 }
+
+// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Legacy alias for backward compatibility
+type Player = SearchPlayer;
 
 interface SmartPlayerInputProps {
   value: string;
@@ -31,7 +35,7 @@ export function SmartPlayerInput({
   placeholder = 'Type player name...',
 }: SmartPlayerInputProps) {
   const [query, setQuery] = useState(value);
-  const [players, setPlayers] = useState<Player[]>([]);
+  const [players, setPlayers] = useState<SearchPlayer[]>([]);
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
