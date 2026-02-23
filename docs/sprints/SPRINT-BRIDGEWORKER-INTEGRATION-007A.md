@@ -18,6 +18,65 @@ single-writer discipline.
 
 ---
 
+## Why This Is Its Own Sprint
+
+BridgeWorker integration is NOT cleanup. It introduces:
+
+1. **New Runtime Writer**: BridgeWorker becomes an active writer to
+   `unified_picks`
+2. **Write Surface Change**: Adds a new code path that creates canonical records
+3. **Lifecycle Integration**: First use of `lifecycleInsert` in a polling worker
+   context
+4. **Startup Behavior Change**: Non-blocking worker promise affects API boot
+   sequence
+5. **Environment Gating**: New `ENABLE_BRIDGE_WORKER` flag controls activation
+
+These changes require explicit governance under SYSTEM_INVARIANTS.md to prevent
+multi-writer drift.
+
+---
+
+## Read/Write Surfaces
+
+### Tables Written (via lifecycle adapters)
+
+| Table           | Operation | Role      | Adapter           |
+| --------------- | --------- | --------- | ----------------- |
+| `unified_picks` | INSERT    | submitter | `lifecycleInsert` |
+
+### Tables Read
+
+| Table           | Operation | Purpose                         |
+| --------------- | --------- | ------------------------------- |
+| `bridge_outbox` | SELECT    | Poll for unprocessed events     |
+| `unified_picks` | SELECT    | Idempotency check (bet_slip_id) |
+| `events`        | SELECT    | Event processing                |
+
+### Write Authority
+
+```
+BridgeWorker
+  └─> handleBridgeOutboxTicketSubmitted()
+        └─> lifecycleInsert(pick, { writerRole: 'submitter' })
+              └─> assertNotFrozen() → AutopilotFrozenError if frozen
+              └─> assertWriterAuthority() → validates submitter role
+              └─> supabase.from('unified_picks').insert()
+```
+
+---
+
+## Risks and Mitigations
+
+| Risk                 | Mitigation                             | Enforcement               |
+| -------------------- | -------------------------------------- | ------------------------- |
+| Multi-writer drift   | lifecycleInsert only, no direct writes | Grep gate, lifecycle gate |
+| Duplicate records    | bet_slip_id check before insert        | Idempotency pattern       |
+| Blocking startup     | workerPromise.catch() pattern          | Non-blocking startup      |
+| Writes during freeze | assertNotFrozen() in lifecycleInsert   | AutopilotFrozenError      |
+| Unbounded polling    | setInterval with 5s cadence            | Rate-limited by design    |
+
+---
+
 ## Scope Definition
 
 ### IN SCOPE
