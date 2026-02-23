@@ -5,7 +5,7 @@ services:
   api:
     build:
       context: ../../
-      dockerfile: infrastructure/docker/Dockerfile.api
+      dockerfile: apps/api/Dockerfile
     container_name: unit-talk-api
     restart: unless-stopped
     ports:
@@ -30,7 +30,7 @@ services:
   discord-bot:
     build:
       context: ../../
-      dockerfile: infrastructure/docker/Dockerfile.discord-bot
+      dockerfile: apps/discord-bot/Dockerfile
     container_name: unit-talk-discord-bot
     restart: unless-stopped
     environment:
@@ -47,7 +47,7 @@ services:
   dashboard:
     build:
       context: ../../
-      dockerfile: infrastructure/docker/Dockerfile.dashboard
+      dockerfile: apps/dashboard/Dockerfile
     container_name: unit-talk-dashboard
     restart: unless-stopped
     ports:
@@ -62,7 +62,7 @@ services:
   smart-form:
     build:
       context: ../../
-      dockerfile: infrastructure/docker/Dockerfile.smart-form
+      dockerfile: apps/smart-form/Dockerfile
     container_name: unit-talk-smart-form
     restart: unless-stopped
     ports:
@@ -78,7 +78,7 @@ services:
   command-center:
     build:
       context: ../../
-      dockerfile: infrastructure/docker/Dockerfile.command-center
+      dockerfile: apps/command-center/Dockerfile
     container_name: unit-talk-command-center
     restart: unless-stopped
     ports:

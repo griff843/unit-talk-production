@@ -5,7 +5,7 @@
  *
  * SPRINT-FOUNDATION-TRUTH-LOCK-094A
  *
- * Validates environment configuration against ENVIRONMENT_CONTRACT.md
+ * Validates environment configuration against docs/ENV_CONTRACT.md
  * Detects missing keys, mismatched Supabase URLs, and configuration drift.
  *
  * Usage:

@@ -222,7 +222,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: infrastructure/docker/Dockerfile.${{ matrix.app }}
+          file: apps/${{ matrix.app }}/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
