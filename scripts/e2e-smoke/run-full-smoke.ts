@@ -18,10 +18,16 @@
  * NO BYPASS PATHS: All assertions are hard requirements.
  */
 
+import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 
 import { createClient } from '@supabase/supabase-js';
+
+// Generate a valid UUID v4
+function generateUUID(): string {
+  return crypto.randomUUID();
+}
 
 // ============================================================
 // CONFIGURATION
@@ -90,7 +96,8 @@ async function stage1_SeedBridgeOutbox(
   traceId: string
 ): Promise<SmokeResult> {
   const startTime = Date.now();
-  const betSlipId = `${SMOKE_PREFIX}slip_${Date.now()}`;
+  // Use proper UUID for bet_slip_id (database requires UUID format)
+  const betSlipId = generateUUID();
 
   try {
     log('INFO', 'Stage 1: Seeding bridge_outbox with test payload');
@@ -99,9 +106,9 @@ async function stage1_SeedBridgeOutbox(
       event_type: 'ticket_submitted',
       bet_slip_id: betSlipId,
       status: 'pending',
-      retry_count: 0,
-      trace_id: traceId,
+      // event_data is the canonical column name (not payload)
       event_data: {
+        trace_id: traceId, // Store trace_id in event_data, not as top-level column
         bet_slip_id: betSlipId,
         capper: 'smoke_test_capper',
         sport: 'NBA',
@@ -121,7 +128,6 @@ async function stage1_SeedBridgeOutbox(
         market_type: 'scheduled',
         game_date: new Date().toISOString().slice(0, 10),
       },
-      created_at: new Date().toISOString(),
     };
 
     const { data, error } = await supabase

@@ -104,8 +104,14 @@ export default async function startWorker() {
       process.exit(0);
     });
 
-    // Wait for worker to complete
-    await workerPromise;
+    // SPRINT-SYNDICATE-CLEANUP-006: Don't block on workerPromise here.
+    // The worker runs in the background. If we await here, subsequent
+    // startup code in index.ts (BridgeWorker, etc.) never runs.
+    // Handle worker errors separately.
+    workerPromise.catch(error => {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('Worker encountered error:', { err: errorMessage });
+    });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error('Failed to start worker:', { err: errorMessage });

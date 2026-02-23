@@ -17,6 +17,7 @@
     "test:integration": "jest --testPathPattern=integration",
     "test:unit": "jest --testPathPattern=unit",
     "lint": "eslint . --ext .ts,.tsx",
+    "lint:prod": "eslint src --ext .ts,.tsx --config .eslintrc.prod.js --max-warnings 10000",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,json}\"",
     "type-check": "tsc --noEmit",

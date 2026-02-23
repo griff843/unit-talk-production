@@ -1,5 +1,7 @@
 /* eslint-disable max-lines, max-lines-per-function, complexity, no-return-await, max-params, no-unused-vars, @typescript-eslint/no-unused-vars */
 import 'dotenv/config';
+import * as crypto from 'crypto';
+
 import { SupabaseClient } from '@supabase/supabase-js';
 
 import { BaseAgent } from '../agents/BaseAgent';
@@ -11,6 +13,7 @@ import {
 } from '../agents/BaseAgent/types';
 import { SyndicateGradingEngine } from '../agents/GradingAgent/scoring/gradingEngine';
 import { AgentInstrumentation, createAgentInstrumentation } from '../lib/AgentInstrumentation';
+import { lifecycleInsert } from '../lib/lifecycle';
 import { withCircuitBreaker, circuitBreaker } from '../services/enhanced-circuit-breaker';
 import { Logger } from '../shared/logger/types';
 import { AgentControlPlane, createAgentControlPlane } from '../temporal/AgentControlPlane';
@@ -949,6 +952,62 @@ export class BridgeWorker extends BaseAgent {
       processed_from_outbox: true,
       original_bet_slip_id: event.metadata?.bet_slip_id,
     };
+
+    // SPRINT-SYNDICATE-CLEANUP-006: Insert unified_picks entry from bridge_outbox
+    // This ensures the full lifecycle: bridge_outbox → unified_picks → grading
+    if (this.hasSupabase()) {
+      const betSlipId = event.aggregate_id || ticketData.bet_slip_id;
+
+      // Check if unified_picks entry already exists (idempotency)
+      const { data: existingPick } = await this.requireSupabase()
+        .from('unified_picks')
+        .select('id')
+        .eq('bet_slip_id', betSlipId)
+        .limit(1);
+
+      if (!existingPick || existingPick.length === 0) {
+        // Create unified_picks entry via lifecycle adapter
+        // Extract first leg data for single picks
+        // Only include fields that 'submitter' role is authorized to write
+        const firstLeg = ticketData.legs?.[0] || {};
+        const pickData = {
+          id: crypto.randomUUID(),
+          bet_slip_id: betSlipId,
+          sport: ticketData.sport || 'NBA',
+          stat_type:
+            firstLeg.stat_type || ticketData.stat_type || ticketData.market_type || 'points',
+          selection: firstLeg.selection || ticketData.selection || 'Unknown',
+          player_name: firstLeg.player_name || ticketData.player_name || null,
+          odds: firstLeg.odds || ticketData.odds || -110,
+          line: firstLeg.line || ticketData.line || null,
+          stake: ticketData.unit_size || ticketData.stake || null,
+          source: 'bridge_outbox',
+          // Note: confidence, workflow_stage, status, game_date are NOT allowed for submitter role
+          // They will be set by the grading workflow or other authorized writers
+        };
+
+        try {
+          await lifecycleInsert(this.requireSupabase(), pickData, {
+            writerRole: 'submitter',
+            traceId: `bridge-outbox-${event.id}`,
+          });
+          this.logger.info('Created unified_picks entry from bridge_outbox', {
+            betSlipId,
+            eventId: event.id,
+          });
+        } catch (insertErr) {
+          this.logger.error('Failed to create unified_picks entry', {
+            error: insertErr instanceof Error ? insertErr.message : String(insertErr),
+            betSlipId,
+          });
+        }
+      } else {
+        this.logger.info('unified_picks entry already exists (idempotent skip)', {
+          betSlipId,
+          existingId: existingPick[0].id,
+        });
+      }
+    }
 
     // Trigger Temporal grading workflow with bridge outbox context
     await this.triggerGradingWorkflow(

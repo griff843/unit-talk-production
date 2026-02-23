@@ -286,6 +286,8 @@ pnpm mcp:supabase     # Supabase schema introspection
 ## 12. References
 
 - **Execution Contract:** `CLAUDE_EXECUTION_CONTRACT.md`
+- **System Invariants:** `docs/SYSTEM_INVARIANTS.md` (fail-open/fail-closed
+  rules)
 - **Sprint Template:** `docs/claude/SPRINT_WORKFLOW_TEMPLATE.md`
 - **Lifecycle Contract:** `docs/contracts/PICK_LIFECYCLE_CONTRACT.md`
 - **Prior Sprints:** `out/sprints/*/`

@@ -16,6 +16,7 @@
     "dev": "npm run dev --workspaces",
     "test": "npm run test --workspaces",
     "lint": "npm run lint --workspaces",
+    "lint:prod": "npm run lint:prod --workspaces --if-present",
     "type-check": "npm run type-check --workspaces --if-present",
     "clean": "npm run clean --workspaces && rm -rf node_modules",
     "start:api": "npm run start --workspace=apps/api",

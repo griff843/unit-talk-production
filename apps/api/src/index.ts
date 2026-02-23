@@ -125,6 +125,61 @@ async function main() {
     } else {
       logger.info('DiscordTicketWorker SKIPPED (ENABLE_DISCORD_TICKET_WORKER not set to true)');
     }
+
+    // SPRINT-SYNDICATE-CLEANUP-006: Start BridgeWorker
+    // Polls bridge_outbox and events tables, triggers grading workflows.
+    // Fail-closed: disabled by default, requires ENABLE_BRIDGE_WORKER=true
+    if (process.env.ENABLE_BRIDGE_WORKER === 'true') {
+      try {
+        const { BridgeWorker } = await import('./workers/BridgeWorker');
+        const { supabase } = await import('./services/supabaseClient');
+        const bridgeWorker = new BridgeWorker(
+          {
+            name: 'BridgeWorker',
+            enabled: true,
+            version: '1.0.0',
+            logLevel: 'info',
+            metrics: { enabled: true, interval: 60000 },
+            retry: {
+              maxRetries: 3,
+              backoffMs: 1000,
+              maxBackoffMs: 30000,
+              enabled: true,
+              maxAttempts: 3,
+              backoff: 1000,
+              exponential: true,
+              jitter: true,
+            },
+            health: { enabled: true, interval: 30000, timeout: 5000 },
+            eventBatchSize: 10,
+            processingInterval: 5000,
+            maxConcurrentEvents: 3,
+            enableBridgeOutbox: true,
+            bridgeOutboxBatchSize: 5,
+          },
+          { logger, supabase }
+        );
+        await bridgeWorker.start();
+
+        // Start process loop - poll bridge_outbox every 5 seconds
+        const processingInterval = 5000;
+        setInterval(async () => {
+          try {
+            await bridgeWorker.run();
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            logger.warn('BridgeWorker processing cycle failed (non-fatal):', { err: msg });
+          }
+        }, processingInterval);
+
+        logger.info('BridgeWorker started with process loop (ENABLE_BRIDGE_WORKER=true)');
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.error('BridgeWorker failed to start (non-fatal):', { err: msg });
+      }
+    } else {
+      logger.info('BridgeWorker SKIPPED (ENABLE_BRIDGE_WORKER not set to true)');
+    }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error('Failed to start Unit Talk Platform:', { err: errorMessage });
