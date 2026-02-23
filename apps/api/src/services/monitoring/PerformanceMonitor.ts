@@ -4,9 +4,16 @@
  * Real-time system health and performance tracking
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy Supabase initialization
+let _supabase: SupabaseClient | null = null;
+function getMonitorSupabase(): SupabaseClient {
+  if (!_supabase) {
+    _supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
+  }
+  return _supabase;
+}
 
 export class PerformanceMonitor {
   private static instance: PerformanceMonitor;
@@ -92,7 +99,7 @@ export class PerformanceMonitor {
       };
       
       // Store metrics
-      await supabase.from('performance_metrics').insert([metrics]);
+      await getMonitorSupabase().from('performance_metrics').insert([metrics]);
       
       console.log(`📊 Metrics collected: ${JSON.stringify(metrics, null, 2)}`);
       
@@ -145,7 +152,7 @@ export class PerformanceMonitor {
     
     // Store alerts
     if (alerts.length > 0) {
-      await supabase.from('performance_alerts').insert(alerts);
+      await getMonitorSupabase().from('performance_alerts').insert(alerts);
       console.log(`🚨 ${alerts.length} alerts triggered`);
     }
   }

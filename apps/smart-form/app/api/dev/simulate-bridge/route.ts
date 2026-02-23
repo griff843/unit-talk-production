@@ -5,15 +5,17 @@ import { createRouteLogger, logValidationError } from '@/lib/logger';
 
 const log = createRouteLogger('POST /api/dev/simulate-bridge', 'POST');
 
-// Only allow in development
-const isDev = process.env.NODE_ENV === 'development';
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
+function isDevMode(): boolean {
+  return process.env.NODE_ENV === 'development';
+}
 
 const SimulateBridgeSchema = z.object({
   bet_slip_id: z.string().uuid('Invalid bet slip ID format'),
 });
 
 export async function POST(request: NextRequest) {
-  if (!isDev) {
+  if (!isDevMode()) {
     return NextResponse.json({
       error: 'Not available in production',
     }, { status: 404 });
@@ -68,7 +70,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  if (!isDev) {
+  if (!isDevMode()) {
     return NextResponse.json({
       error: 'Not available in production',
     }, { status: 404 });

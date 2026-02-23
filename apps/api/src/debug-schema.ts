@@ -1,20 +1,40 @@
+// @ts-nocheck - Debug script with manual Supabase client
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 
 // Load environment variables
 dotenv.config();
 
-const supabaseUrl = process.env['SUPABASE_URL']!;
-const supabaseKey = process.env['SUPABASE_KEY']!;
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access with fail-closed for REQUIRED vars
+function getSupabaseUrl(): string {
+  const url = process.env['SUPABASE_URL'];
+  if (!url) {
+    throw new Error('SUPABASE_URL is required but not configured. Set in .env file.');
+  }
+  return url;
+}
+function getSupabaseKey(): string {
+  const key = process.env['SUPABASE_KEY'];
+  if (!key) {
+    throw new Error('SUPABASE_KEY is required but not configured. Set in .env file.');
+  }
+  return key;
+}
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+let _supabaseClient: ReturnType<typeof createClient> | null = null;
+function getSupabase() {
+  if (!_supabaseClient) {
+    _supabaseClient = createClient(getSupabaseUrl(), getSupabaseKey());
+  }
+  return _supabaseClient;
+}
 
 async function checkDatabaseSchema() {
   console.log('🔍 Checking raw_props table schema...\n');
   
   try {
     // Get table schema information
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('raw_props')
       .select('*')
       .limit(1);
@@ -39,7 +59,7 @@ async function checkDatabaseSchema() {
       scraped_at: new Date().toISOString()
     };
     
-    const { data: insertData, error: insertError } = await supabase
+    const { data: insertData, error: insertError } = await getSupabase()
       .from('raw_props')
       .insert(testProp)
       .select();
@@ -57,7 +77,7 @@ async function checkDatabaseSchema() {
       
       // Clean up test record
       if (insertData && insertData[0]) {
-        await supabase
+        await getSupabase()
           .from('raw_props')
           .delete()
           .eq('id', insertData[0].id);

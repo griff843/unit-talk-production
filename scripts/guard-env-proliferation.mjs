@@ -1,49 +1,69 @@
 #!/usr/bin/env node
 /**
- * SPRINT-ARCHITECTURE-HARDENING-002A: Env Proliferation Guard
+ * SPRINT-SCHEMA-ENV-GATES-002: Env Proliferation Guard
  *
  * Scans the codebase for process.env access outside of allowed locations.
  * This ensures all env access is centralized and build-safe.
  *
- * Usage: node scripts/guard-env-proliferation.mjs [--strict]
+ * Usage: node scripts/guard-env-proliferation.mjs [--warn]
  *
  * Exit codes:
- *   0 = Pass (no violations or only warnings)
- *   1 = Fail (violations found in strict mode)
+ *   0 = Pass (no violations)
+ *   1 = Fail (violations found) - DEFAULT behavior is STRICT
+ *
+ * Use --warn for advisory mode (not recommended for CI)
  */
 
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join, relative } from 'path';
 
-// Configuration
+// SPRINT-SCHEMA-ENV-GATES-002: Explicit allowlist for approved env access surfaces
+// Each entry is documented with rationale for the exception
 const ALLOWED_PATTERNS = [
-  // Config packages are allowed to access process.env
-  'packages/config/',
-  // Build config files
+  // === INFRASTRUCTURE CONFIG (required at module scope) ===
+  'packages/config/',           // Centralized env config package (APPROVED)
+
+  // === BUILD TOOLING (runs at build time, not runtime) ===
   'next.config.js',
   'next.config.mjs',
   'vite.config.ts',
   'vitest.config.ts',
   'playwright.config.ts',
-  'tsconfig.json',
-  '.eslintrc',
-  // Scripts are allowed
-  'scripts/',
-  // Test files
+
+  // === SCRIPTS (CLI tools, not runtime code) ===
+  'scripts/',                   // Build/CI scripts (CLI-only)
+
+  // === TOOLS (CLI-only dev utilities - SPRINT-SCHEMA-ENV-GATES-002 documented exception) ===
+  'tools/',                     // Dev/test CLI utilities, never imported by runtime code
+
+  // === TEST FILES (test-time only, not runtime) ===
   '.test.ts',
   '.test.tsx',
   '.spec.ts',
   '.spec.tsx',
   '__tests__/',
   '__mocks__/',
-  // Node modules (skip entirely)
+
+  // === EXCLUDED DIRECTORIES (not code) ===
   'node_modules/',
-  // Build output (skip entirely)
   'dist/',
   '.next/',
   'out/',
-  // Env files (not code)
   '.env',
+
+  // === ROOT-LEVEL CLI SCRIPTS (not imported by apps) ===
+  'apply-professional-migrations.js',  // One-off migration script
+  'test-optimized-queries.js',         // Dev test script
+  'test-promotion-criteria.js',        // Dev test script
+  'check-grading-status.js',           // Dev test script
+  'complete-grading-final.js',         // Dev test script
+  'quick-stats.js',                    // Dev test script
+  'simple-check.js',                   // Dev test script
+  'test-business-logic-updates.js',    // Dev test script
+
+  // === LEGACY ARCHIVE (not active code) ===
+  'legacy_archive/',
+  'legacy/',
 ];
 
 // Patterns that indicate lazy/safe access (inside functions)
@@ -80,46 +100,28 @@ function isModuleScopeEnvAccess(content, lineNumber, line) {
   // Check if this line is inside a function by looking at context
   const lines = content.split('\n');
   let braceCount = 0;
-  let inFunction = false;
 
+  // Track the brace depth - if braceCount > 0 at the current line, we're inside some scope
   for (let i = 0; i < lineNumber; i++) {
     const currentLine = lines[i];
 
-    // Check for function declarations
-    if (/^(export\s+)?(async\s+)?function\s+/.test(currentLine.trim())) {
-      inFunction = true;
-    }
-    if (/^(export\s+)?(const|let|var)\s+\w+\s*=\s*(async\s+)?\(/.test(currentLine.trim())) {
-      inFunction = true;
-    }
-    if (/constructor\s*\(/.test(currentLine)) {
-      inFunction = true;
-    }
-    if (/^(export\s+)?class\s+/.test(currentLine.trim())) {
-      // Class body - methods inside are functions
-      inFunction = false;
-    }
-    if (/(get|set)\s+\w+\s*\(/.test(currentLine)) {
-      inFunction = true;
+    // Skip comment lines
+    if (currentLine.trim().startsWith('//') || currentLine.trim().startsWith('*')) {
+      continue;
     }
 
-    // Track braces
+    // Count braces on this line
     const openBraces = (currentLine.match(/{/g) || []).length;
     const closeBraces = (currentLine.match(/}/g) || []).length;
     braceCount += openBraces - closeBraces;
-
-    // If we're back to 0 braces, we're at module scope
-    if (braceCount === 0 && i > 0) {
-      inFunction = false;
-    }
   }
 
-  // Check if current line is at module scope (braceCount near 0)
-  // or if it's a const/let/var at module scope
-  const isModuleScope = braceCount <= 1;
+  // SPRINT-SCHEMA-ENV-GATES-002: Module scope = braceCount is 0
+  // If braceCount > 0, we're inside a function, class, if-block, etc.
+  const isModuleScope = braceCount === 0;
   const isConstDecl = /^(export\s+)?(const|let|var)\s+/.test(line.trim());
 
-  return isModuleScope && isConstDecl && !inFunction;
+  return isModuleScope && isConstDecl;
 }
 
 function scanFile(filePath) {
@@ -182,12 +184,14 @@ function walkDir(dir, callback) {
 }
 
 function main() {
-  const isStrict = process.argv.includes('--strict');
+  // SPRINT-SCHEMA-ENV-GATES-002: Strict by default, --warn for advisory
+  const isWarnOnly = process.argv.includes('--warn');
+  const isStrict = !isWarnOnly;
   const rootDir = process.cwd();
 
   console.log(`${BOLD}ENV PROLIFERATION GUARD${RESET}`);
   console.log(`   Scanning: ${rootDir}`);
-  console.log(`   Mode: ${isStrict ? 'STRICT' : 'WARNING'}`);
+  console.log(`   Mode: ${isStrict ? 'STRICT (fail-closed)' : 'WARNING (advisory)'}`);
   console.log('');
 
   const allViolations = [];

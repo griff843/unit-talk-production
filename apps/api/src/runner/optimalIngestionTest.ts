@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 import { BaseAgentConfig } from '../agents/BaseAgent/types';
 import { IngestionAgent } from '../agents/IngestionAgent';
@@ -11,28 +11,29 @@ import { logger } from '../utils/logger';
  * This will fetch props from Optimal API and populate the raw_props table
  */
 
-// Load Supabase credentials from environment
-const supabaseUrl = process.env['SUPABASE_URL'];
-const supabaseKey = process.env['SUPABASE_SERVICE_ROLE_KEY'];
-
-if (!supabaseUrl || !supabaseKey) {
-  console.error('❌ Missing Supabase credentials. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.');
-  process.exit(1);
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy initialization
+let _supabase: SupabaseClient | null = null;
+function getSupabase(): SupabaseClient {
+  if (!_supabase) {
+    const supabaseUrl = process.env['SUPABASE_URL'];
+    const supabaseKey = process.env['SUPABASE_SERVICE_ROLE_KEY'];
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('❌ Missing Supabase credentials. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.');
+      process.exit(1);
+    }
+    _supabase = createClient(supabaseUrl, supabaseKey);
+  }
+  return _supabase;
 }
 
-// Check for Optimal API key
-const optimalApiKey = process.env['OPTIMAL_API_KEY'];
-if (!optimalApiKey) {
-  console.error('❌ Missing OPTIMAL_API_KEY environment variable. Please set it to test Optimal integration.');
-  process.exit(1);
+function getOptimalApiKey(): string {
+  const key = process.env['OPTIMAL_API_KEY'];
+  if (!key) {
+    console.error('❌ Missing OPTIMAL_API_KEY environment variable. Please set it to test Optimal integration.');
+    process.exit(1);
+  }
+  return key;
 }
-
-console.log('✅ Environment variables loaded successfully');
-console.log(`📊 Supabase URL: ${supabaseUrl}`);
-console.log(`🔑 Optimal API Key: ${optimalApiKey.substring(0, 8)}...`);
-
-// Create Supabase client
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Initialize error handler
 const errorHandler = new ErrorHandler(logger);
@@ -72,7 +73,7 @@ const ingestionConfig: BaseAgentConfig & any = {
 };
 
 const deps = {
-  supabase,
+  supabase: getSupabase(),
   logger,
   errorHandler
 };
@@ -82,7 +83,7 @@ const deps = {
  */
 async function checkRawPropsTable(label: string) {
   try {
-    const { error, count } = await supabase
+    const { error, count } = await getSupabase()
       .from('raw_props')
       .select('*', { count: 'exact', head: true });
 
@@ -105,7 +106,7 @@ async function checkRawPropsTable(label: string) {
  */
 async function showRecentProps(limit: number = 5) {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('raw_props')
       .select('player_name, stat_type, line, provider, scraped_at, sport')
       .order('scraped_at', { ascending: false })

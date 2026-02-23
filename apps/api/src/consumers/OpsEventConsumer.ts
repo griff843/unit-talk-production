@@ -17,8 +17,10 @@ import { createLogger } from '../utils/logger';
 
 const logger = createLogger('OpsEventConsumer');
 
-// Poll interval in ms (default 15 seconds)
-const POLL_INTERVAL = parseInt(process.env['OPS_EVENT_POLL_INTERVAL'] || '15000', 10);
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
+function getOpsPollInterval(): number {
+  return parseInt(process.env['OPS_EVENT_POLL_INTERVAL'] || '15000', 10);
+}
 const BATCH_SIZE = 10;
 
 let isRunning = false;
@@ -163,7 +165,7 @@ export async function startOpsEventConsumer(): Promise<void> {
   }
 
   isRunning = true;
-  logger.info('OpsEventConsumer started', { pollInterval: POLL_INTERVAL, batchSize: BATCH_SIZE });
+  logger.info('OpsEventConsumer started', { pollInterval: getOpsPollInterval(), batchSize: BATCH_SIZE });
 
   // Initial processing
   try {
@@ -186,7 +188,7 @@ export async function startOpsEventConsumer(): Promise<void> {
         error: err instanceof Error ? err.message : String(err)
       });
     }
-  }, POLL_INTERVAL);
+  }, getOpsPollInterval());
 }
 
 /**

@@ -16,8 +16,11 @@ import { supabaseClient } from './supabaseClient';
 // stddev ~7). Legacy gates (85/75/70) are structurally unreachable.
 // V2 overrides recalibrate minProfessionalScore and minTier to the V2
 // distribution so shadow promotion decisions become non-zero and controllable.
-// V1 behavior is completely unchanged (USE_V2_GATES=false).
-const USE_V2_GATES = process.env['SCORING_ENGINE_V2'] === 'true';
+// V1 behavior is completely unchanged (useV2Gates()=false).
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
+function useV2Gates(): boolean {
+  return process.env['SCORING_ENGINE_V2'] === 'true';
+}
 
 interface V2GateOverride {
   minProfessionalScore: number;
@@ -360,7 +363,7 @@ class PromotionGatekeeper {
     }> = [];
 
     // V2 gate override (Tranche 7): use recalibrated thresholds when V2 active
-    const v2Override = USE_V2_GATES ? V2_GATE_OVERRIDES[gate.gateId] : undefined;
+    const v2Override = useV2Gates() ? V2_GATE_OVERRIDES[gate.gateId] : undefined;
 
     // Tier check — V2 may relax minTier (e.g. S→A for instant-s-tier)
     const effectiveMinTier = v2Override?.minTier ?? req.minTier;

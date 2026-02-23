@@ -4,8 +4,18 @@ import { OpenAI } from 'openai'; // adjust import if using a helper
 import { buildUnitTalkEmbed } from './embedBuilder';
 // import { env } from '../../../config/env';
 
-const openaiApiKey = process.env.OPENAI_API_KEY;
-const openai = new OpenAI({ apiKey: openaiApiKey! }); // adjust for your setup
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
+function getOpenAIApiKey(): string {
+  return process.env.OPENAI_API_KEY || '';
+}
+
+let _openaiClient: OpenAI | null = null;
+function getOpenAI(): OpenAI {
+  if (!_openaiClient) {
+    _openaiClient = new OpenAI({ apiKey: getOpenAIApiKey() });
+  }
+  return _openaiClient;
+}
 async function getUnitTalkAdvice(eventSummary: string): Promise<string> {
   const prompt = `You are an elite sports betting advisor for a Fortune 100-level betting group. Given this scenario, provide clear, actionable advice as if you are a top-tier human capper (never mention AI or automation):
 
@@ -13,7 +23,7 @@ ${eventSummary}
 
 Respond with one concise paragraph.`;
 
-  const response = await openai.chat.completions.create({
+  const response = await getOpenAI().chat.completions.create({
     model: 'gpt-4o',
     messages: [{ role: 'system', content: prompt }],
     max_tokens: 120,

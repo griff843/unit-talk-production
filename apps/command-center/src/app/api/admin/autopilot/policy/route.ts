@@ -393,7 +393,10 @@ class PolicyService {
 // =============================================================================
 
 // Feature gate: Autopilot requires autopilot_* tables which are not in production schema.
-const AUTOPILOT_ENABLED = process.env.ENABLE_AUTOPILOT === 'true';
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
+function isAutopilotEnabled(): boolean {
+  return process.env.ENABLE_AUTOPILOT === 'true';
+}
 
 function autopilotNotEnabledResponse(): NextResponse {
   return NextResponse.json(
@@ -411,7 +414,7 @@ function autopilotNotEnabledResponse(): NextResponse {
  * Get policy configuration, decisions, and statistics
  */
 export async function GET(request: NextRequest) {
-  if (!AUTOPILOT_ENABLED) {
+  if (!isAutopilotEnabled()) {
     return autopilotNotEnabledResponse();
   }
 
@@ -514,7 +517,7 @@ export async function GET(request: NextRequest) {
  * Update policy settings (mode, freezes)
  */
 export async function POST(request: NextRequest) {
-  if (!AUTOPILOT_ENABLED) {
+  if (!isAutopilotEnabled()) {
     return autopilotNotEnabledResponse();
   }
 

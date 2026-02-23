@@ -303,6 +303,7 @@ export async function emergencyBypass(
   emergencyCode: string,
   justification: string
 ): Promise<AuthContext> {
+  // SPRINT-SCHEMA-ENV-GATES-002: Lazy env access moved inside function
   const validEmergencyCode = process.env.EMERGENCY_BYPASS_CODE;
 
   if (!validEmergencyCode || emergencyCode !== validEmergencyCode) {

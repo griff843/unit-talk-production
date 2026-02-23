@@ -10,15 +10,20 @@ import { supabase } from '@/lib/supabase';
  * Or can be called manually to pull data
  */
 
-const UNIT_TALK_PRODUCTION_URL = process.env.UNIT_TALK_PRODUCTION_URL || 'http://localhost:3000';
-const SYNC_API_KEY = process.env.SYNC_API_KEY || 'dev-sync-key';
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
+function getUnitTalkProductionUrl(): string {
+  return process.env.UNIT_TALK_PRODUCTION_URL || 'http://localhost:3000';
+}
+function getSyncApiKey(): string {
+  return process.env.SYNC_API_KEY || 'dev-sync-key';
+}
 
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
 
     // Simple API key auth for now
-    if (authHeader !== `Bearer ${SYNC_API_KEY}`) {
+    if (authHeader !== `Bearer ${getSyncApiKey()}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

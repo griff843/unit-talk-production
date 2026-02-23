@@ -3,18 +3,25 @@
 require('dotenv').config({ path: '../../.env' });
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  console.error('❌ SPRINT-110A: SUPABASE_URL and SUPABASE_ANON_KEY environment variables are required');
-  process.exit(1);
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy Supabase initialization
+let _supabase = null;
+function getSupabase() {
+  if (!_supabase) {
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('❌ SPRINT-110A: SUPABASE_URL and SUPABASE_ANON_KEY environment variables are required');
+      process.exit(1);
+    }
+    _supabase = createClient(supabaseUrl, supabaseKey);
+  }
+  return _supabase;
 }
 
 async function testSupabaseConnection() {
   console.log('🧪 Testing Supabase Production Database Connection...\n');
 
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const supabase = getSupabase();
 
   // Test core tables that Command Center needs
   const tables = ['users', 'unified_picks', 'agent_health', 'agent_metrics', 'raw_props'];

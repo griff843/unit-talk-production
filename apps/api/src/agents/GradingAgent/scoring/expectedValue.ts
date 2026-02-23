@@ -63,12 +63,15 @@ function deriveWinProbFromOdds(prop: any): number | null {
   return null;
 }
 
-const USE_V2 = process.env.SCORING_ENGINE_V2 === 'true';
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
+function useScoringV2(): boolean {
+  return process.env.SCORING_ENGINE_V2 === 'true';
+}
 
 export function calculateExpectedValue(prop: any): number {
   let winProb: number;
 
-  if (USE_V2) {
+  if (useScoringV2()) {
     // V2 path: derive from devigged odds when projected_win_prob is missing
     winProb = prop.projected_win_prob ?? deriveWinProbFromOdds(prop) ?? 0.5;
   } else {

@@ -13,7 +13,10 @@ import { NextRequest, NextResponse } from 'next/server';
  * Body: { pick_id, drift_mode, reason, retry_type }
  */
 
-const API_BASE_URL = process.env.API_SERVICE_URL || 'http://localhost:3000';
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
+function getApiBaseUrl(): string {
+  return process.env.API_SERVICE_URL || 'http://localhost:3000';
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,8 +47,8 @@ export async function POST(request: NextRequest) {
 
     // Determine which API endpoint to call based on retry_type
     const endpoint = retry_type === 'settlement'
-      ? `${API_BASE_URL}/ops/retry-settlement`
-      : `${API_BASE_URL}/ops/retry-posting`;
+      ? `${getApiBaseUrl()}/ops/retry-settlement`
+      : `${getApiBaseUrl()}/ops/retry-posting`;
 
     // Get operator from request headers or use default
     const operator = request.headers.get('x-user-id') || 'command-center-operator';

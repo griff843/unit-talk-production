@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 dotenv.config();
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 import { BaseAgentConfig } from '../agents/BaseAgent/types';
 import { CampaignAgent } from '../agents/CampaignAgent';
@@ -8,10 +8,16 @@ import { IngestionAgent } from '../agents/IngestionAgent';
 import { ErrorHandler } from '../utils/errorHandler';
 import { logger } from '../utils/logger';
 
-// Load Supabase credentials from environment
-const supabaseUrl = process.env['SUPABASE_URL']!;
-const supabaseKey = process.env['SUPABASE_SERVICE_ROLE_KEY']!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy Supabase initialization
+let _supabase: SupabaseClient | null = null;
+function getSupabase(): SupabaseClient {
+  if (!_supabase) {
+    const supabaseUrl = process.env['SUPABASE_URL']!;
+    const supabaseKey = process.env['SUPABASE_SERVICE_ROLE_KEY']!;
+    _supabase = createClient(supabaseUrl, supabaseKey);
+  }
+  return _supabase;
+}
 
 // Initialize error handler
 const errorHandler = new ErrorHandler(logger);
@@ -40,7 +46,7 @@ const campaignConfig: BaseAgentConfig = {
 };
 
 const deps = {
-  supabase,
+  supabase: getSupabase(),
   logger,
   errorHandler
 };

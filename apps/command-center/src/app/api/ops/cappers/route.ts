@@ -11,12 +11,15 @@ import { NextResponse } from 'next/server';
  * GET /api/ops/cappers
  */
 
-const API_BASE_URL = process.env.API_SERVICE_URL || 'http://localhost:3000';
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
+function getApiBaseUrl(): string {
+  return process.env.API_SERVICE_URL || 'http://localhost:3000';
+}
 
 export async function GET() {
   try {
     // Proxy to API service
-    const apiResponse = await fetch(`${API_BASE_URL}/ops/cappers`, {
+    const apiResponse = await fetch(`${getApiBaseUrl()}/ops/cappers`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

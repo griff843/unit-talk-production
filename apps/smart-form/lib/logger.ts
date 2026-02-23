@@ -1,31 +1,51 @@
 import pino from 'pino';
 
-const isDevelopment = process.env.NODE_ENV === 'development';
-const logLevel = process.env.LOG_LEVEL || (isDevelopment ? 'debug' : 'info');
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
+function isDevelopment(): boolean {
+  return process.env.NODE_ENV === 'development';
+}
+function getLogLevel(): string {
+  return process.env.LOG_LEVEL || (isDevelopment() ? 'debug' : 'info');
+}
 
-// Create base logger configuration
-const logger = pino({
-  level: logLevel,
-  formatters: {
-    level: (label) => ({ level: label.toUpperCase() }),
-  },
-  timestamp: pino.stdTimeFunctions.isoTime,
-  ...(isDevelopment && {
-    transport: {
-      target: 'pino-pretty',
-      options: {
-        colorize: true,
-        ignore: 'pid,hostname',
-        translateTime: 'HH:MM:ss',
-        singleLine: false,
+// Lazy logger initialization
+let _logger: pino.Logger | null = null;
+function getLogger(): pino.Logger {
+  if (!_logger) {
+    _logger = pino({
+      level: getLogLevel(),
+      formatters: {
+        level: (label) => ({ level: label.toUpperCase() }),
       },
-    },
-  }),
-  serializers: {
-    req: pino.stdSerializers.req,
-    res: pino.stdSerializers.res,
-    err: pino.stdSerializers.err,
-  },
+      timestamp: pino.stdTimeFunctions.isoTime,
+      ...(isDevelopment() && {
+        transport: {
+          target: 'pino-pretty',
+          options: {
+            colorize: true,
+            ignore: 'pid,hostname',
+            translateTime: 'HH:MM:ss',
+            singleLine: false,
+          },
+        },
+      }),
+      serializers: {
+        req: pino.stdSerializers.req,
+        res: pino.stdSerializers.res,
+        err: pino.stdSerializers.err,
+      },
+    });
+  }
+  return _logger;
+}
+
+// Export proxy for backward compatibility
+const logger = new Proxy({} as pino.Logger, {
+  get: (_, prop) => {
+    const realLogger = getLogger();
+    const value = (realLogger as any)[prop];
+    return typeof value === 'function' ? value.bind(realLogger) : value;
+  }
 });
 
 // Helper function to create route-specific loggers

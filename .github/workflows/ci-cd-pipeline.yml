@@ -43,18 +43,12 @@ jobs:
       - name: Security audit
         run: npm audit --audit-level=high
 
-      # SPRINT-ARCHITECTURE-HARDENING-002A: CI-enforced guards
-      - name: Guard - Env Proliferation (in-scope only)
-        run: |
-          # Check only in-scope packages (command-center + shared packages)
-          # Full strict mode will be enabled when apps/api is remediated
-          VIOLATIONS=$(npm run guard:env:strict 2>&1 | grep -E "apps\\\\command-center|packages\\\\" || true)
-          if [ -n "$VIOLATIONS" ]; then
-            echo "::error::Env proliferation violations in protected packages:"
-            echo "$VIOLATIONS"
-            exit 1
-          fi
-          echo "✅ In-scope packages have no env proliferation violations"
+      # SPRINT-SCHEMA-ENV-GATES-002: CI-enforced guards (monorepo-wide, no scope filters)
+      - name: Guard - Env Proliferation (strict, monorepo-wide)
+        run: npm run guard:env
+
+      - name: Guard - Schema Types Generation
+        run: npm run schema:types:gen
 
       - name: Guard - Schema Drift Check
         run: npm run schema:check-drift

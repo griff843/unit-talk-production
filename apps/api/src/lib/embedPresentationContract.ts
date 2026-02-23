@@ -780,7 +780,10 @@ export function validateBuildProvenance(commitShort: string, environment: string
  * - true (strict): Block posting if required fields missing, set blocked_reason
  * - false (soft): Allow posting with fallbacks ("TBD"), log warnings
  */
-export const EMBED_STRICT_MODE = process.env['EMBED_STRICT_MODE'] !== 'false';
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
+export function isEmbedStrictMode(): boolean {
+  return process.env['EMBED_STRICT_MODE'] !== 'false';
+}
 
 /**
  * SPRINT-EMBED-MIN-REQ-GATE-ENFORCEMENT-051: Embed readiness result
@@ -963,7 +966,7 @@ function determineReadiness(
  * Validates minimum required fields for Discord embeds.
  */
 export function assertEmbedReadiness(pick: EmbedReadinessPick): EmbedReadinessResult {
-  const mode: 'strict' | 'soft' = EMBED_STRICT_MODE ? 'strict' : 'soft';
+  const mode: 'strict' | 'soft' = isEmbedStrictMode() ? 'strict' : 'soft';
   const league = pick.sport || pick.league;
   const matchup = resolveMatchup(pick);
   const effectiveGameDate = pick.game_date || pick.manual_game_date;
@@ -992,7 +995,7 @@ export default {
   FORBIDDEN_PHRASES,
   FORBIDDEN_FIELD_PATTERNS,
   VALID_MARKET_LABELS,
-  EMBED_STRICT_MODE,
+  isEmbedStrictMode,
   containsForbiddenPhrase,
   containsForbiddenFieldPattern,
   validateEmbedContract,

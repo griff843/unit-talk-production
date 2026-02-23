@@ -10,21 +10,29 @@ import jwt from 'jsonwebtoken';
 import { logger } from '../services/logging.js';
 import { supabase } from '../services/supabaseClient.js';
 
-// Environment variables with proper validation and type safety
-const JWT_SECRET = process.env['JWT_SECRET'];
-const SUPABASE_URL = process.env['SUPABASE_URL'];
-const ENCRYPTION_KEY = process.env['ENCRYPTION_KEY'];
-
-if (!JWT_SECRET) {
-  throw new Error('JWT_SECRET environment variable is required');
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access with validation
+function getJwtSecret(): string {
+  const secret = process.env['JWT_SECRET'];
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is required');
+  }
+  return secret;
 }
 
-if (!SUPABASE_URL) {
-  throw new Error('SUPABASE_URL environment variable is required');
+function getSupabaseUrl(): string {
+  const url = process.env['SUPABASE_URL'];
+  if (!url) {
+    throw new Error('SUPABASE_URL environment variable is required');
+  }
+  return url;
 }
 
-if (!ENCRYPTION_KEY) {
-  throw new Error('ENCRYPTION_KEY environment variable is required');
+function getEncryptionKey(): string {
+  const key = process.env['ENCRYPTION_KEY'];
+  if (!key) {
+    throw new Error('ENCRYPTION_KEY environment variable is required');
+  }
+  return key;
 }
 
 // Types
@@ -124,12 +132,12 @@ export class InputValidator {
 // JWT token management
 export class TokenManager {
   static generateToken(payload: any, expiresIn: string = '24h'): string {
-    return jwt.sign(payload, JWT_SECRET!, { expiresIn: expiresIn as any });
+    return jwt.sign(payload, getJwtSecret(), { expiresIn: expiresIn as any });
   }
 
   static verifyToken(token: string): any {
     try {
-      return jwt.verify(token, JWT_SECRET!);
+      return jwt.verify(token, getJwtSecret());
     } catch (error) {
       logger.warn('Token verification failed', { err: (error as Error).message });
       return null;
@@ -138,7 +146,7 @@ export class TokenManager {
 
   static refreshToken(token: string): string | null {
     try {
-      const decoded = jwt.verify(token, JWT_SECRET!, { ignoreExpiration: true }) as any;
+      const decoded = jwt.verify(token, getJwtSecret(), { ignoreExpiration: true }) as any;
       
       // Check if token is not too old (max 7 days)
       const tokenAge = Date.now() - (decoded.iat * 1000);
@@ -280,7 +288,7 @@ export class SecurityEventLogger {
 export class EncryptionUtils {
   static encrypt(text: string): string {
     try {
-      const key = Buffer.from(ENCRYPTION_KEY!, 'hex');
+      const key = Buffer.from(getEncryptionKey(), 'hex');
       const iv = crypto.randomBytes(16);
       const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
       
@@ -301,7 +309,7 @@ export class EncryptionUtils {
         throw new Error('Invalid encrypted text format');
       }
 
-      const key = Buffer.from(ENCRYPTION_KEY!, 'hex');
+      const key = Buffer.from(getEncryptionKey(), 'hex');
       const iv = Buffer.from(parts[0], 'hex');
       const encrypted = parts[1];
 

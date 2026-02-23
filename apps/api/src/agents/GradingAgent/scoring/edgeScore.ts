@@ -9,7 +9,10 @@
  */
 import { type Tier, scoreOnlyTier, normalizeScore } from './TierScale';
 
-const USE_V2 = process.env.SCORING_ENGINE_V2 === 'true';
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
+function useScoringV2(): boolean {
+  return process.env.SCORING_ENGINE_V2 === 'true';
+}
 
 type RawProp = {
   league: 'NBA' | 'MLB' | 'NHL';
@@ -78,7 +81,7 @@ export function gradePick(prop: RawProp): {
   }
 
   let tier: Tier;
-  if (USE_V2) {
+  if (useScoringV2()) {
     // Canonical TierScale path
     const normalized = normalizeScore(professional_score, 5);
     tier = scoreOnlyTier(normalized);
@@ -100,7 +103,7 @@ export function gradePick(prop: RawProp): {
     tier,
     breakdown: {
       league: prop.league,
-      logic: USE_V2 ? 'modular edge → TierScale' : 'modular edge scoring',
+      logic: useScoringV2() ? 'modular edge → TierScale' : 'modular edge scoring',
     },
   };
 }

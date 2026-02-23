@@ -1,20 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Force dynamic rendering for this route since it uses request parameters
 export const dynamic = 'force-dynamic';
 
-// SPRINT-SUPABASE-ENDPOINT-TRUTH-LOCK-110A: Fail-closed - no hardcoded fallbacks
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error(
-    'SPRINT-110A: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables are required'
-  );
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy Supabase initialization
+let _supabase: SupabaseClient | null = null;
+function getSupabase(): SupabaseClient {
+  if (!_supabase) {
+    // SPRINT-SUPABASE-ENDPOINT-TRUTH-LOCK-110A: Fail-closed - no hardcoded fallbacks
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error(
+        'SPRINT-110A: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables are required'
+      );
+    }
+    _supabase = createClient(supabaseUrl, supabaseKey);
+  }
+  return _supabase;
 }
-
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 interface AnalyticsData {
   performance: {
@@ -67,7 +72,7 @@ export async function GET(request: NextRequest) {
     const startDate = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
 
     // Fetch performance data from daily_picks
-    const { data: picksData, error: picksError } = await supabase
+    const { data: picksData, error: picksError } = await getSupabase()
       .from('daily_picks')
       .select('*')
       .gte('created_at', startDate.toISOString())
@@ -78,7 +83,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch smart form submissions
-    const { data: smartTickets, error: smartError } = await supabase
+    const { data: smartTickets, error: smartError } = await getSupabase()
       .from('smart_tickets')
       .select('*')
       .gte('created_at', startDate.toISOString())

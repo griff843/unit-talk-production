@@ -5,7 +5,10 @@ import { supabase } from '@/lib/supabase';
 import { UnitTalkTracing } from '@/lib/telemetry';
 
 // Feature gate: Replay requires workflow_executions, event_processing_logs tables not in production
-const REPLAY_ENABLED = process.env.ENABLE_REPLAY === 'true';
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
+function isReplayEnabled(): boolean {
+  return process.env.ENABLE_REPLAY === 'true';
+}
 
 function replayNotEnabledResponse(): NextResponse {
   return NextResponse.json(
@@ -41,7 +44,7 @@ interface ReplayResult {
 }
 
 export async function POST(request: NextRequest) {
-  if (!REPLAY_ENABLED) {
+  if (!isReplayEnabled()) {
     return replayNotEnabledResponse();
   }
 

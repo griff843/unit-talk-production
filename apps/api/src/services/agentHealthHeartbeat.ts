@@ -10,8 +10,10 @@
 import { supabase } from './supabaseClient';
 import { logger } from './logging';
 
-// Get commit hash from environment or fallback
-const COMMIT_HASH = process.env.COMMIT_SHA || process.env.VERCEL_GIT_COMMIT_SHA || 'dev';
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
+function getCommitHash(): string {
+  return process.env.COMMIT_SHA || process.env.VERCEL_GIT_COMMIT_SHA || 'dev';
+}
 const HEARTBEAT_INTERVAL_MS = 30000; // 30 seconds
 
 interface AgentHeartbeatMeta {
@@ -74,7 +76,7 @@ class AgentHealthHeartbeat {
       const memoryUsage = process.memoryUsage();
 
       const meta: AgentHeartbeatMeta = getMeta ? getMeta() : {
-        version: COMMIT_HASH,
+        version: getCommitHash(),
         environment: process.env.NODE_ENV || 'development',
         hostname: process.env.HOSTNAME || 'unknown',
         pid: process.pid,
@@ -84,7 +86,7 @@ class AgentHealthHeartbeat {
 
       // Ensure version is always set
       if (!meta.version) {
-        meta.version = COMMIT_HASH;
+        meta.version = getCommitHash();
       }
 
       const now = new Date().toISOString();

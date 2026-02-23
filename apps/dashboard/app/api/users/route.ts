@@ -1,17 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// SPRINT-SUPABASE-ENDPOINT-TRUTH-LOCK-110A: Fail-closed - no hardcoded fallbacks
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error(
-    'SPRINT-110A: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables are required'
-  );
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy Supabase initialization
+let _supabase: SupabaseClient | null = null;
+function getSupabase(): SupabaseClient {
+  if (!_supabase) {
+    // SPRINT-SUPABASE-ENDPOINT-TRUTH-LOCK-110A: Fail-closed - no hardcoded fallbacks
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error(
+        'SPRINT-110A: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables are required'
+      );
+    }
+    _supabase = createClient(supabaseUrl, supabaseKey);
+  }
+  return _supabase;
 }
-
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 interface UserData {
   id: string;
@@ -66,7 +71,7 @@ export async function GET(request: NextRequest) {
 async function handleUserStats(): Promise<NextResponse> {
   try {
     // Fetch all users
-    const { data: users, error: usersError } = await supabase.from('user_profiles').select('*');
+    const { data: users, error: usersError } = await getSupabase().from('user_profiles').select('*');
 
     if (usersError) {
       console.error('[Users API] Error fetching users:', usersError);
@@ -106,16 +111,16 @@ async function handleUserStats(): Promise<NextResponse> {
       (users || []).slice(0, 20).map(async user => {
         // Get user's picks from both daily_picks and smart_tickets
         const [dailyPicks, smartTickets] = await Promise.all([
-          supabase
+          getSupabase()
             .from('daily_picks')
             .select('result, odds, unit_size')
             .eq('capper', user.username)
-            .then(({ data }) => data || []),
-          supabase
+            .then(({ data }: { data: any }) => data || []),
+          getSupabase()
             .from('smart_tickets')
             .select('status, legs')
             .eq('capper', user.username)
-            .then(({ data }) => data || []),
+            .then(({ data }: { data: any }) => data || []),
         ]);
 
         const allPicks = [...dailyPicks, ...smartTickets];
@@ -172,7 +177,7 @@ async function handleUserList(limit: number, offset: number): Promise<NextRespon
       data: users,
       error,
       count,
-    } = await supabase
+    } = await getSupabase()
       .from('user_profiles')
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
@@ -193,12 +198,12 @@ async function handleUserList(limit: number, offset: number): Promise<NextRespon
     const enhancedUsers = await Promise.all(
       (users || []).map(async user => {
         // Get basic pick count quickly
-        const { count: pickCount } = await supabase
+        const { count: pickCount } = await getSupabase()
           .from('daily_picks')
           .select('*', { count: 'exact', head: true })
           .eq('capper', user.username);
 
-        const { count: smartTicketCount } = await supabase
+        const { count: smartTicketCount } = await getSupabase()
           .from('smart_tickets')
           .select('*', { count: 'exact', head: true })
           .eq('capper', user.username);
@@ -330,7 +335,7 @@ export async function POST(request: NextRequest) {
 
 async function handleUpdateUserTier(userId: string, newTier: string): Promise<NextResponse> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('user_profiles')
       .update({ tier: newTier, updated_at: new Date().toISOString() })
       .eq('id', userId)
@@ -356,7 +361,7 @@ async function handleUpdateUserTier(userId: string, newTier: string): Promise<Ne
 
 async function handleUpdateUserStatus(userId: string, newStatus: string): Promise<NextResponse> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('user_profiles')
       .update({ status: newStatus, updated_at: new Date().toISOString() })
       .eq('id', userId)

@@ -396,7 +396,10 @@ class AutopilotService {
 
 // Feature gate: Autopilot requires autopilot_* tables which are not in production schema.
 // Return 503 when feature is not enabled.
-const AUTOPILOT_ENABLED = process.env.ENABLE_AUTOPILOT === 'true';
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
+function isAutopilotEnabled(): boolean {
+  return process.env.ENABLE_AUTOPILOT === 'true';
+}
 
 function autopilotNotEnabledResponse(): NextResponse {
   return NextResponse.json(
@@ -416,7 +419,7 @@ function autopilotNotEnabledResponse(): NextResponse {
  * Get autopilot status, configuration, and dashboard data
  */
 export async function GET(request: NextRequest) {
-  if (!AUTOPILOT_ENABLED) {
+  if (!isAutopilotEnabled()) {
     return autopilotNotEnabledResponse();
   }
 
@@ -526,7 +529,7 @@ export async function GET(request: NextRequest) {
  * Set autopilot mode (with two-step confirm for PROD)
  */
 export async function POST(request: NextRequest) {
-  if (!AUTOPILOT_ENABLED) {
+  if (!isAutopilotEnabled()) {
     return autopilotNotEnabledResponse();
   }
 
@@ -665,7 +668,7 @@ export async function POST(request: NextRequest) {
  * Update autopilot thresholds (admin only)
  */
 export async function PUT(request: NextRequest) {
-  if (!AUTOPILOT_ENABLED) {
+  if (!isAutopilotEnabled()) {
     return autopilotNotEnabledResponse();
   }
 

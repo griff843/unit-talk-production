@@ -32,7 +32,10 @@ export interface ScoringResult {
 /** Max raw professional_score: 5 sub-scores × 0-5 each = 25 */
 const PROFESSIONAL_SCORE_RAW_MAX = 25;
 
-const USE_V2 = process.env.SCORING_ENGINE_V2 === 'true';
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
+function useScoringV2(): boolean {
+  return process.env.SCORING_ENGINE_V2 === 'true';
+}
 
 /**
  * Main scoring entry point.
@@ -60,7 +63,7 @@ export function applyScoringLogic(prop: any) {
     (line_value_score ?? 0) +
     (role_stability ?? 0);
 
-  if (USE_V2) {
+  if (useScoringV2()) {
     return applyScoringV2(prop, {
       trend_score,
       matchup_score,

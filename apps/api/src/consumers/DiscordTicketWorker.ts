@@ -39,9 +39,25 @@ import { createLogger } from '../utils/logger';
 const logger = createLogger('DiscordTicketWorker');
 
 // ---- CONFIG ----
-const POLL_INTERVAL = parseInt(process.env['TICKET_DISCORD_POLL_INTERVAL'] || '10000', 10);
-const BATCH_SIZE = parseInt(process.env['TICKET_DISCORD_BATCH_SIZE'] || '10', 10);
-const DISCORD_WEBHOOK_URL = process.env['DISCORD_WEBHOOK_URL'] || '';
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
+function getTicketPollInterval(): number {
+  return parseInt(process.env['TICKET_DISCORD_POLL_INTERVAL'] || '10000', 10);
+}
+function getTicketBatchSize(): number {
+  return parseInt(process.env['TICKET_DISCORD_BATCH_SIZE'] || '10', 10);
+}
+// Returns undefined if not set (fail-closed: callers must handle)
+function getDiscordWebhookUrl(): string | undefined {
+  return process.env['DISCORD_WEBHOOK_URL'];
+}
+// REQUIRED env var - throws if not configured
+function requireDiscordWebhookUrl(): string {
+  const url = process.env['DISCORD_WEBHOOK_URL'];
+  if (!url) {
+    throw new Error('DISCORD_WEBHOOK_URL is required but not configured. See apps/api/CLAUDE.md for env requirements.');
+  }
+  return url;
+}
 const STALE_CLAIM_THRESHOLD_SECONDS = 60;
 const WORKER_ID = `worker-${process.pid}-${Date.now()}`;
 
@@ -80,9 +96,9 @@ async function writeHeartbeat(
       p_items_processed: itemsProcessed,
       p_last_successful_post_at: lastSuccessfulPostAt?.toISOString() || null,
       p_meta: {
-        poll_interval_ms: POLL_INTERVAL,
-        batch_size: BATCH_SIZE,
-        webhook_configured: !!DISCORD_WEBHOOK_URL,
+        poll_interval_ms: getTicketPollInterval(),
+        batch_size: getTicketBatchSize(),
+        webhook_configured: !!getDiscordWebhookUrl(),
         total_items_processed: totalItemsProcessed,
       },
     });
@@ -101,7 +117,7 @@ async function writeHeartbeat(
  */
 async function claimBatch(): Promise<ClaimedItem[]> {
   const { data, error } = await supabaseClient.rpc('claim_discord_outbox_batch', {
-    p_limit: BATCH_SIZE,
+    p_limit: getTicketBatchSize(),
     p_worker_id: WORKER_ID,
   });
 
@@ -195,14 +211,15 @@ async function postToDiscord(
   embed: object,
   contract: { capper_name?: string; matchup_text?: string }
 ): Promise<PostResult> {
-  if (!DISCORD_WEBHOOK_URL) {
+  if (!getDiscordWebhookUrl()) {
     return {
       success: false,
-      error: buildErrorPayload('WEBHOOK_MISSING', 'DISCORD_WEBHOOK_URL not configured'),
+      error: buildErrorPayload('WEBHOOK_MISSING', 'getDiscordWebhookUrl() not configured'),
     };
   }
   try {
-    const response = await axios.post(`${DISCORD_WEBHOOK_URL}?wait=true`, {
+    // SPRINT-SCHEMA-ENV-GATES-002: Use requireDiscordWebhookUrl for fail-closed posting
+    const response = await axios.post(`${requireDiscordWebhookUrl()}?wait=true`, {
       username: 'Unit Talk Tickets',
       embeds: [embed],
     });
@@ -292,8 +309,8 @@ async function processBatch(): Promise<number> {
   await cleanupNullChannelRows();
 
   // Check webhook before claiming
-  if (!DISCORD_WEBHOOK_URL) {
-    logger.warn('DISCORD_WEBHOOK_URL not set - skipping batch processing');
+  if (!getDiscordWebhookUrl()) {
+    logger.warn('getDiscordWebhookUrl() not set - skipping batch processing');
     return 0;
   }
 
@@ -333,15 +350,15 @@ export async function startDiscordTicketWorker(): Promise<void> {
 
   isRunning = true;
   logger.info('DiscordTicketWorker started', {
-    pollInterval: POLL_INTERVAL,
-    batchSize: BATCH_SIZE,
-    webhookConfigured: !!DISCORD_WEBHOOK_URL,
+    pollInterval: getTicketPollInterval(),
+    batchSize: getTicketBatchSize(),
+    webhookConfigured: !!getDiscordWebhookUrl(),
     workerId: WORKER_ID,
     staleThresholdSeconds: STALE_CLAIM_THRESHOLD_SECONDS,
   });
 
-  if (!DISCORD_WEBHOOK_URL) {
-    logger.warn('DISCORD_WEBHOOK_URL not set - worker will skip processing until configured');
+  if (!getDiscordWebhookUrl()) {
+    logger.warn('getDiscordWebhookUrl() not set - worker will skip processing until configured');
   }
 
   // SPRINT-093: Write initial heartbeat on startup
@@ -373,7 +390,7 @@ export async function startDiscordTicketWorker(): Promise<void> {
       lastErrorTracked = errorMsg;
       await writeHeartbeat(0, errorMsg);
     }
-  }, POLL_INTERVAL);
+  }, getTicketPollInterval());
 }
 
 export async function stopDiscordTicketWorker(): Promise<void> {

@@ -188,11 +188,11 @@ function main() {
   }
 
   if (results.driftDetected) {
-    console.log(`${RED}${BOLD}GATE WARNING${RESET}`);
+    console.log(`${RED}${BOLD}GATE FAILED${RESET}`);
     console.log('   Schema drift detected.');
     console.log('   Run: npx supabase gen types typescript --local > packages/shared-types/src/supabase.ts');
-    // Warning only, don't fail - types regeneration is a manual step
-    process.exit(0);
+    // SPRINT-SCHEMA-ENV-GATES-002: Fail-closed on drift
+    process.exit(1);
   } else {
     console.log(`${GREEN}${BOLD}GATE PASSED${RESET}`);
     console.log('   No schema drift detected.');

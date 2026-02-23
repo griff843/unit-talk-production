@@ -1,18 +1,23 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 import { logger } from '../shared/logger';
 
-// SPRINT-SUPABASE-ENDPOINT-TRUTH-LOCK-110A: Fail-closed - no hardcoded fallbacks
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error(
-    'SPRINT-110A: SUPABASE_URL and SUPABASE_ANON_KEY environment variables are required'
-  );
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy Supabase initialization
+let _supabase: SupabaseClient | null = null;
+function getCapperSupabase(): SupabaseClient {
+  if (!_supabase) {
+    // SPRINT-SUPABASE-ENDPOINT-TRUTH-LOCK-110A: Fail-closed - no hardcoded fallbacks
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error(
+        'SPRINT-110A: SUPABASE_URL and SUPABASE_ANON_KEY environment variables are required'
+      );
+    }
+    _supabase = createClient(supabaseUrl, supabaseKey);
+  }
+  return _supabase;
 }
-
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 export interface CapperStats {
   totalPicks: number;
@@ -75,7 +80,7 @@ export class CapperService {
    */
   async testConnection(): Promise<boolean> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await getCapperSupabase()
         .from('users')
         .select('id')
         .limit(1);
@@ -97,7 +102,7 @@ export class CapperService {
     try {
       this.performanceMetrics.queryCount++;
       
-      const { data, error } = await supabase
+      const { data, error } = await getCapperSupabase()
         .from('users')
         .select('*')
         .eq('discord_id', discordId)
@@ -149,7 +154,7 @@ export class CapperService {
         worst_streak: 0
       };
 
-      const { data, error } = await supabase
+      const { data, error } = await getCapperSupabase()
         .from('users')
         .insert(insertData)
         .select()
@@ -176,7 +181,7 @@ export class CapperService {
     try {
       this.performanceMetrics.queryCount++;
       
-      let query = supabase
+      let query = getCapperSupabase()
         .from('unified_picks')
         .select('*')
         .eq('user_id', capperId)
@@ -220,7 +225,7 @@ export class CapperService {
         units: pickData.units || 1
       };
 
-      const { data, error } = await supabase
+      const { data, error } = await getCapperSupabase()
         .from('unified_picks')
         .insert(enhancedPickData)
         .select()
@@ -244,7 +249,7 @@ export class CapperService {
     try {
       this.performanceMetrics.queryCount++;
       
-      const { data, error } = await supabase
+      const { data, error } = await getCapperSupabase()
         .from('unified_picks')
         .update({
           ...updates,
@@ -271,7 +276,7 @@ export class CapperService {
     try {
       this.performanceMetrics.queryCount++;
       
-      const { error } = await supabase
+      const { error } = await getCapperSupabase()
         .from('unified_picks')
         .delete()
         .eq('id', pickId);
@@ -315,7 +320,7 @@ export class CapperService {
     try {
       this.performanceMetrics.queryCount++;
       
-      const { error } = await supabase
+      const { error } = await getCapperSupabase()
         .from('unified_picks')
         .update({ 
           status: 'published',
@@ -341,7 +346,7 @@ export class CapperService {
     try {
       this.performanceMetrics.queryCount++;
       
-      const { data, error } = await supabase
+      const { data, error } = await getCapperSupabase()
         .from('users')
         .select('*')
         .eq('id', capperId)

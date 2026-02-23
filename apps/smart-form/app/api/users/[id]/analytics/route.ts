@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy Supabase initialization
+let _supabase: SupabaseClient | null = null;
+function getSupabase(): SupabaseClient {
+  if (!_supabase) {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url || !key) {
+      throw new Error('NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are required');
+    }
+    _supabase = createClient(url, key);
+  }
+  return _supabase;
+}
 
 // Enhanced user analytics API with sport-specific performance
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
@@ -20,7 +29,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
     // OPTIMIZED: Use foreign key relationships and sport columns
-    const { data: picks, error } = await supabase
+    const { data: picks, error } = await getSupabase()
       .from('unified_picks')
       .select(
         `
@@ -185,7 +194,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const { preferred_sports, analytics_frequency, notifications_enabled } = body;
 
     // Update user preferences (you can extend this based on your user table structure)
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from('users')
       .update({
         preferred_sports: preferred_sports || null,

@@ -3,13 +3,17 @@ import axios from 'axios'
 import { AlertPayload } from '../../../types/alert'
 // import { env } from '../../../config/env';
 
-const retoolWebhookUrl = process.env.RETOOL_ALERT_WEBHOOK || ''
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
+function getRetoolWebhookUrl(): string {
+  return process.env.RETOOL_ALERT_WEBHOOK || '';
+}
 
 /**
  * Sends an alert with advice to Retool via webhook or API.
  * The Retool dashboard should be set up to receive these for live ops display.
  */
 export async function sendRetoolAlert(alert: AlertPayload, advice: string) {
+  const retoolWebhookUrl = getRetoolWebhookUrl();
   if (!retoolWebhookUrl) {
     throw new Error('No Retool webhook configured. Set RETOOL_ALERT_WEBHOOK in env.')
   }

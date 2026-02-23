@@ -1,15 +1,28 @@
 import pino from 'pino';
 
-const isDev = process.env['NODE_ENV'] !== 'production';
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy logger initialization
+let _logger: pino.Logger | null = null;
+function getLogger(): pino.Logger {
+  if (!_logger) {
+    const isDev = process.env['NODE_ENV'] !== 'production';
+    _logger = isDev
+      ? pino({
+          transport: {
+            target: 'pino-pretty',
+            options: { colorize: true }
+          }
+        })
+      : pino();
+  }
+  return _logger;
+}
 
-export const logger = isDev
-  ? pino({
-      transport: {
-        target: 'pino-pretty',
-        options: { colorize: true }
-      }
-    })
-  : pino();
+// Export a getter that returns the actual pino.Logger for proper typing
+export const logger: pino.Logger = new Proxy({} as pino.Logger, {
+  get(_target, prop: keyof pino.Logger) {
+    return (getLogger() as any)[prop];
+  }
+});
 
 export function logAgentEvent(agent: string, msg: string, meta?: Record<string, unknown>) {
   logger.info({ agent, ...meta }, msg);

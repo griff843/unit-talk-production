@@ -4,36 +4,39 @@ import { createComponentLogger } from './logger';
 
 const log = createComponentLogger('supabase');
 
-// Validate environment variables
-if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-  throw new Error('Missing env.NEXT_PUBLIC_SUPABASE_URL');
-}
-if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-  throw new Error('Missing env.NEXT_PUBLIC_SUPABASE_ANON_KEY');
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env validation (defer to runtime)
+function validateEnv(): { url: string; anonKey: string } {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    throw new Error('Missing env.NEXT_PUBLIC_SUPABASE_URL');
+  }
+  if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    throw new Error('Missing env.NEXT_PUBLIC_SUPABASE_ANON_KEY');
+  }
+  return {
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  };
 }
 
 // Client-side Supabase client (read-only in production)
 export const supabaseClient = (): SupabaseClient<Database> => {
+  const { url, anonKey } = validateEnv();
   const isDev = process.env.NEXT_PUBLIC_DEV_DIRECT_DB === '1';
-  
+
   if (!isDev && typeof window !== 'undefined') {
     log.warn('Client-side direct DB access disabled in production build');
   }
-  
-  return createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        detectSessionInUrl: false,
-      },
-      db: {
-        schema: 'public',
-      },
-    }
-  );
+
+  return createClient<Database>(url, anonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+    db: {
+      schema: 'public',
+    },
+  });
 };
 
 // Server-side Supabase client with service role key
@@ -41,29 +44,41 @@ export const supabaseServer = (): SupabaseClient<Database> => {
   if (typeof window !== 'undefined') {
     throw new Error('supabaseServer() can only be called on the server side');
   }
-  
+
+  const { url } = validateEnv();
+
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     throw new Error('Missing env.SUPABASE_SERVICE_ROLE_KEY for server operations');
   }
-  
-  return createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        detectSessionInUrl: false,
-      },
-      db: {
-        schema: 'public',
-      },
-    }
-  );
+
+  return createClient<Database>(url, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+    db: {
+      schema: 'public',
+    },
+  });
 };
 
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy singleton for legacy export
+let _supabaseSingleton: SupabaseClient<Database> | null = null;
+function getSupabaseSingleton(): SupabaseClient<Database> {
+  if (!_supabaseSingleton) {
+    _supabaseSingleton = supabaseClient();
+  }
+  return _supabaseSingleton;
+}
+
 // Legacy export for backwards compatibility - use with caution
-export const supabase = supabaseClient();
+// Note: This is a getter that lazily initializes the client
+export const supabase = new Proxy({} as SupabaseClient<Database>, {
+  get(_target, prop) {
+    return (getSupabaseSingleton() as any)[prop];
+  },
+});
 
 // Test connection and tables
 export async function testSupabaseConnection() {

@@ -16,7 +16,7 @@ import {
   validatePostingGate,
   validateBuildProvenance,
   assertEmbedReadiness,
-  EMBED_STRICT_MODE,
+  isEmbedStrictMode,
 } from '../../lib/embedPresentationContract';
 import { logger } from '../../services/logging';
 import { supabase } from '../../services/supabaseClient';
@@ -26,8 +26,22 @@ import { parsePromotionPolicyConfig } from '../GradingAgent/scoring/promotionPol
 import { calculateParlayOdds } from '../AlertAgent/parlayEmbedBuilder';
 
 // ---- CONFIG ----
-const DISCORD_WEBHOOK_URL = process.env['DISCORD_WEBHOOK_URL'] || '';
-const PROMOTION_SHADOW_MODE = process.env['PROMOTION_SHADOW_MODE'] !== 'false';
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
+// Returns undefined if not set (fail-closed: callers must handle)
+function getDiscordWebhookUrl(): string | undefined {
+  return process.env['DISCORD_WEBHOOK_URL'];
+}
+// REQUIRED env var - throws if not configured
+function requireDiscordWebhookUrl(): string {
+  const url = process.env['DISCORD_WEBHOOK_URL'];
+  if (!url) {
+    throw new Error('DISCORD_WEBHOOK_URL is required but not configured. See apps/api/CLAUDE.md for env requirements.');
+  }
+  return url;
+}
+function isPromotionShadowMode(): boolean {
+  return process.env['PROMOTION_SHADOW_MODE'] !== 'false';
+}
 
 function formatOdds(odds: number) {
   return odds > 0 ? `+${odds}` : odds;
@@ -318,7 +332,7 @@ function buildEliteEmbed(pick: any) {
  */
 // eslint-disable-next-line max-lines-per-function
 async function postEliteCardToDiscord(pick: any): Promise<string | null> {
-  if (!DISCORD_WEBHOOK_URL) {
+  if (!getDiscordWebhookUrl()) {
     logger.error('No Discord webhook URL set!');
     return null;
   }
@@ -405,7 +419,7 @@ async function postEliteCardToDiscord(pick: any): Promise<string | null> {
     );
 
     // In strict mode, write audit log and set blocked_reason
-    if (EMBED_STRICT_MODE) {
+    if (isEmbedStrictMode()) {
       await supabase.from('audit_log').insert({
         actor: 'DiscordPromotionAgent',
         action: 'EMBED_READINESS_BLOCKED',
@@ -528,7 +542,8 @@ async function postEliteCardToDiscord(pick: any): Promise<string | null> {
     const embed = buildEmbedFromPresentation(presentation);
 
     // PARLAY-DISCORD-GROUPING-001: Use ?wait=true to get message_id
-    const response = await axios.post(`${DISCORD_WEBHOOK_URL}?wait=true`, {
+    // SPRINT-SCHEMA-ENV-GATES-002: Use requireDiscordWebhookUrl for fail-closed posting
+    const response = await axios.post(`${requireDiscordWebhookUrl()}?wait=true`, {
       username: 'Unit Talk Picks',
       embeds: [embed],
     });
@@ -550,7 +565,8 @@ async function postEliteCardToDiscord(pick: any): Promise<string | null> {
         'payload_json',
         JSON.stringify({ username: 'Unit Talk Picks', embeds: [buildEliteEmbed(pick)] })
       );
-      const fallbackResponse = await axios.post(`${DISCORD_WEBHOOK_URL}?wait=true`, form, {
+      // SPRINT-SCHEMA-ENV-GATES-002: Use requireDiscordWebhookUrl for fail-closed posting
+      const fallbackResponse = await axios.post(`${requireDiscordWebhookUrl()}?wait=true`, form, {
         headers: form.getHeaders(),
         maxContentLength: Infinity,
         maxBodyLength: Infinity,
@@ -568,7 +584,7 @@ async function postEliteCardToDiscord(pick: any): Promise<string | null> {
 // PARLAY-DISCORD-FIX-001: Post parlay to Discord
 // PARLAY-DISCORD-GROUPING-001: Returns message_id for storage
 async function postParlayToDiscord(legs: any[]): Promise<string | null> {
-  if (!DISCORD_WEBHOOK_URL) {
+  if (!getDiscordWebhookUrl()) {
     logger.error('No Discord webhook URL set!');
     return null;
   }
@@ -655,7 +671,7 @@ async function postParlayToDiscord(legs: any[]): Promise<string | null> {
         'EMBED-MIN-REQ-051: Parlay leg BLOCKED by embed readiness gate'
       );
 
-      if (EMBED_STRICT_MODE) {
+      if (isEmbedStrictMode()) {
         await supabase.from('audit_log').insert({
           actor: 'DiscordPromotionAgent',
           action: 'EMBED_READINESS_BLOCKED',
@@ -717,7 +733,8 @@ async function postParlayToDiscord(legs: any[]): Promise<string | null> {
 
   try {
     // PARLAY-DISCORD-GROUPING-001: Use ?wait=true to get message_id back
-    const response = await axios.post(`${DISCORD_WEBHOOK_URL}?wait=true`, {
+    // SPRINT-SCHEMA-ENV-GATES-002: Use requireDiscordWebhookUrl for fail-closed posting
+    const response = await axios.post(`${requireDiscordWebhookUrl()}?wait=true`, {
       username: 'Unit Talk Picks',
       embeds: [buildParlayEmbed(legs)],
     });
@@ -977,7 +994,7 @@ async function processCapperPicks(): Promise<number> {
         'PARLAY-DISCORD-GROUPING-001: Posting parlay as SINGLE Discord message'
       );
 
-      if (PROMOTION_SHADOW_MODE) {
+      if (isPromotionShadowMode()) {
         logger.info(
           { betSlipId, legCount: allLegs.length, capper, origin: 'capper' },
           'Shadow mode — skipped capper parlay post'
@@ -1015,7 +1032,7 @@ async function processCapperPicks(): Promise<number> {
       // Single pick — post normally
       if (!(await claimPick(pick.id))) continue;
 
-      if (PROMOTION_SHADOW_MODE) {
+      if (isPromotionShadowMode()) {
         logger.info({ id: pick.id, capper, origin: 'capper' }, 'Shadow mode — skipped capper post');
       } else {
         const messageId = await postEliteCardToDiscord(pick);
@@ -1071,7 +1088,7 @@ async function processSystemPicks(): Promise<number> {
   let processedCount = 0;
   for (const pick of picks) {
     if (!(await claimPick(pick.id))) continue;
-    if (PROMOTION_SHADOW_MODE) {
+    if (isPromotionShadowMode()) {
       logger.info({ id: pick.id, origin: 'system' }, 'Shadow mode — skipped system post');
     } else {
       const messageId = await postEliteCardToDiscord(pick);
@@ -1118,7 +1135,7 @@ async function processLegacyPicks(): Promise<number> {
   let processedCount = 0;
   for (const pick of picks) {
     if (!(await claimPick(pick.id))) continue;
-    if (PROMOTION_SHADOW_MODE) {
+    if (isPromotionShadowMode()) {
       logger.info({ id: pick.id, band: pick.promotion_band }, 'Shadow mode — skipped legacy post');
     } else {
       const messageId = await postEliteCardToDiscord(pick);
@@ -1205,9 +1222,9 @@ export async function getDiscordPublishHealth(): Promise<DiscordPublishHealth> {
 
   // Determine health status
   let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
-  if (config.killSwitch || !DISCORD_WEBHOOK_URL) {
+  if (config.killSwitch || !getDiscordWebhookUrl()) {
     status = 'unhealthy';
-  } else if (PROMOTION_SHADOW_MODE) {
+  } else if (isPromotionShadowMode()) {
     status = 'degraded';
   } else if (oldestPendingMinutes !== null && oldestPendingMinutes > 120) {
     // Picks pending for >2 hours = degraded
@@ -1219,8 +1236,8 @@ export async function getDiscordPublishHealth(): Promise<DiscordPublishHealth> {
     pendingCount,
     recentlyPostedCount,
     oldestPendingMinutes,
-    webhookConfigured: !!DISCORD_WEBHOOK_URL,
-    shadowModeEnabled: PROMOTION_SHADOW_MODE,
+    webhookConfigured: !!getDiscordWebhookUrl(),
+    shadowModeEnabled: isPromotionShadowMode(),
     killSwitchActive: config.killSwitch || false,
     checkedAt: now.toISOString(),
   };

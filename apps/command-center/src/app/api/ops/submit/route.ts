@@ -12,7 +12,10 @@ import { NextRequest, NextResponse } from 'next/server';
  * POST /api/ops/submit
  */
 
-const API_BASE_URL = process.env.API_SERVICE_URL || 'http://localhost:3000';
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
+function getApiBaseUrl(): string {
+  return process.env.API_SERVICE_URL || 'http://localhost:3000';
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,7 +25,7 @@ export async function POST(request: NextRequest) {
     const operator = request.headers.get('x-user-id') || 'command-center-operator';
 
     // Proxy to API service
-    const apiResponse = await fetch(`${API_BASE_URL}/ops/submit`, {
+    const apiResponse = await fetch(`${getApiBaseUrl()}/ops/submit`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

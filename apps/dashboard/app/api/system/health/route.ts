@@ -1,17 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// SPRINT-SUPABASE-ENDPOINT-TRUTH-LOCK-110A: Fail-closed - no hardcoded fallbacks
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error(
-    'SPRINT-110A: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables are required'
-  );
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy Supabase initialization
+let _supabase: SupabaseClient | null = null;
+function getSupabase(): SupabaseClient {
+  if (!_supabase) {
+    // SPRINT-SUPABASE-ENDPOINT-TRUTH-LOCK-110A: Fail-closed - no hardcoded fallbacks
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error(
+        'SPRINT-110A: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables are required'
+      );
+    }
+    _supabase = createClient(supabaseUrl, supabaseKey);
+  }
+  return _supabase;
 }
-
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 interface SystemHealth {
   overall: 'healthy' | 'warning' | 'critical';
@@ -51,7 +56,7 @@ async function checkDatabaseHealth(): Promise<{
   const startTime = Date.now();
 
   try {
-    const { data: _data, error } = await supabase.from('daily_picks').select('id').limit(1);
+    const { data: _data, error } = await getSupabase().from('daily_picks').select('id').limit(1);
 
     const responseTime = Date.now() - startTime;
 
@@ -123,17 +128,17 @@ export async function GET(_request: NextRequest) {
       checkExternalAPI('Odds API', 'https://api.the-odds-api.com/v4/sports'),
       checkExternalAPI('Discord API', 'https://discord.com/api/v10/gateway'),
       // SPRINT-SUPABASE-ENDPOINT-TRUTH-LOCK-110A: Use env var, not hardcoded URL
-      checkExternalAPI('Supabase API', `${supabaseUrl}/rest/v1/`),
+      checkExternalAPI('Supabase API', `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/`),
     ]);
 
     // Get recent system activity
-    const { data: recentActivity, error: activityError } = await supabase
+    const { data: recentActivity, error: activityError } = await getSupabase()
       .from('daily_picks')
       .select('created_at')
       .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
       .order('created_at', { ascending: false });
 
-    const { data: smartFormActivity, error: smartFormError } = await supabase
+    const { data: smartFormActivity, error: smartFormError } = await getSupabase()
       .from('smart_tickets')
       .select('created_at')
       .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())

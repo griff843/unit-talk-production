@@ -10,7 +10,10 @@ import { supabase } from '@/lib/supabase';
 import { UnitTalkTracing } from '@/lib/telemetry';
 
 // Feature gate: Autopilot requires autopilot_* tables which are not in production schema.
-const AUTOPILOT_ENABLED = process.env.ENABLE_AUTOPILOT === 'true';
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
+function isAutopilotEnabled(): boolean {
+  return process.env.ENABLE_AUTOPILOT === 'true';
+}
 
 // =============================================================================
 // ACTION HANDLERS
@@ -21,7 +24,7 @@ const AUTOPILOT_ENABLED = process.env.ENABLE_AUTOPILOT === 'true';
  * Execute autopilot actions
  */
 export async function POST(request: NextRequest) {
-  if (!AUTOPILOT_ENABLED) {
+  if (!isAutopilotEnabled()) {
     return NextResponse.json(
       {
         success: false,

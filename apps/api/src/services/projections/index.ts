@@ -21,8 +21,10 @@ const ACTIVE_MODEL_VERSIONS: Record<string, string> = {
   NHL: 'v1.0.0-nhl-baseline',
 };
 
-/** Environment flag to enable/disable projections */
-const PROJECTIONS_ENABLED = process.env.PROJECTIONS_ENABLED !== 'false';
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
+function isProjectionsEnabled(): boolean {
+  return process.env.PROJECTIONS_ENABLED !== 'false';
+}
 
 // ============================================================================
 // TYPES
@@ -115,7 +117,7 @@ export class ProjectionEngine {
     marketType: string,
     options?: ProjectionOptions
   ): Promise<ProjectionResult | null> {
-    if (!PROJECTIONS_ENABLED) return null;
+    if (!isProjectionsEnabled()) return null;
 
     const sport = options?.sport?.toUpperCase();
     const gameDate = options?.date || new Date().toISOString().split('T')[0];
@@ -155,7 +157,7 @@ export class ProjectionEngine {
     options?: ProjectionOptions
   ): Promise<Map<string, ProjectionResult>> {
     const results = new Map<string, ProjectionResult>();
-    if (!PROJECTIONS_ENABLED || requests.length === 0) return results;
+    if (!isProjectionsEnabled() || requests.length === 0) return results;
 
     const sport = options?.sport?.toUpperCase();
     const gameDate = options?.date || new Date().toISOString().split('T')[0];
@@ -209,7 +211,7 @@ export class ProjectionEngine {
    * Check if projections are available for a sport
    */
   isAvailable(sport: string): boolean {
-    if (!PROJECTIONS_ENABLED) return false;
+    if (!isProjectionsEnabled()) return false;
     return sport.toUpperCase() in ACTIVE_MODEL_VERSIONS;
   }
 
@@ -232,7 +234,7 @@ export class ProjectionEngine {
     modelVersion: string | undefined;
   }> {
     const modelVersion = ACTIVE_MODEL_VERSIONS[sport.toUpperCase()];
-    if (!PROJECTIONS_ENABLED || !modelVersion) {
+    if (!isProjectionsEnabled() || !modelVersion) {
       return { total: 0, byStatType: {}, modelVersion: undefined };
     }
 
@@ -278,4 +280,4 @@ export function resetProjectionEngine(): void {
   _projectionEngine = null;
 }
 
-export { ACTIVE_MODEL_VERSIONS, PROJECTIONS_ENABLED };
+export { ACTIVE_MODEL_VERSIONS, isProjectionsEnabled };

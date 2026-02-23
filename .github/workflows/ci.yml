@@ -159,6 +159,16 @@ jobs:
       - name: Security audit
         run: npm audit --audit-level high
 
+      # SPRINT-SCHEMA-ENV-GATES-002: CI-enforced guards
+      - name: Guard - Env Proliferation (strict, monorepo-wide)
+        run: npm run guard:env
+
+      - name: Guard - Schema Types Generation
+        run: npm run schema:types:gen
+
+      - name: Guard - Schema Drift Check
+        run: npm run schema:check-drift
+
   # Lifecycle Contract Gate
   # LIFECYCLE-WRITE-SURFACE-MIGRATION-038: Enforce single-writer discipline
   lifecycle-gate:

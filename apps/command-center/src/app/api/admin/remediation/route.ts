@@ -386,7 +386,10 @@ class RemediationService {
 // =============================================================================
 
 // Feature gate: Remediation requires remediation_* tables which are not in production schema.
-const REMEDIATION_ENABLED = process.env.ENABLE_REMEDIATION === 'true';
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
+function isRemediationEnabled(): boolean {
+  return process.env.ENABLE_REMEDIATION === 'true';
+}
 
 function remediationNotEnabledResponse(): NextResponse {
   return NextResponse.json(
@@ -404,7 +407,7 @@ function remediationNotEnabledResponse(): NextResponse {
  * Get remediation dashboard data: playbooks, executions, stats
  */
 export async function GET(request: NextRequest) {
-  if (!REMEDIATION_ENABLED) {
+  if (!isRemediationEnabled()) {
     return remediationNotEnabledResponse();
   }
 
@@ -507,7 +510,7 @@ export async function GET(request: NextRequest) {
  * Trigger a playbook execution or approve a pending remediation
  */
 export async function POST(request: NextRequest) {
-  if (!REMEDIATION_ENABLED) {
+  if (!isRemediationEnabled()) {
     return remediationNotEnabledResponse();
   }
 
@@ -644,7 +647,7 @@ export async function POST(request: NextRequest) {
  * Update playbook configuration
  */
 export async function PUT(request: NextRequest) {
-  if (!REMEDIATION_ENABLED) {
+  if (!isRemediationEnabled()) {
     return remediationNotEnabledResponse();
   }
 

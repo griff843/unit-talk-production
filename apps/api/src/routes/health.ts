@@ -13,21 +13,28 @@ const logger = createLogger('Health');
 // SPRINT-SYNDICATE-FOUNDATION-REALIGN-114A: Real Supabase client for health checks
 // NO MOCK DATA - Health must reflect actual database connectivity
 
-// Create real Supabase client - fail-closed if env vars missing
-let supabaseClient: SupabaseClient | null = null;
-let supabaseInitError: string | null = null;
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy Supabase initialization
+let _supabaseClient: SupabaseClient | null = null;
+let _supabaseInitError: string | null = null;
+let _supabaseInitialized = false;
 
-try {
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
-
-  if (supabaseUrl && supabaseKey) {
-    supabaseClient = createClient(supabaseUrl, supabaseKey);
-  } else {
-    supabaseInitError = 'SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not configured';
+function getHealthSupabase(): { client: SupabaseClient | null; error: string | null } {
+  if (_supabaseInitialized) {
+    return { client: _supabaseClient, error: _supabaseInitError };
   }
-} catch (err) {
-  supabaseInitError = err instanceof Error ? err.message : 'Failed to initialize Supabase client';
+  _supabaseInitialized = true;
+  try {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+    if (supabaseUrl && supabaseKey) {
+      _supabaseClient = createClient(supabaseUrl, supabaseKey);
+    } else {
+      _supabaseInitError = 'SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not configured';
+    }
+  } catch (err) {
+    _supabaseInitError = err instanceof Error ? err.message : 'Failed to initialize Supabase client';
+  }
+  return { client: _supabaseClient, error: _supabaseInitError };
 }
 
 // Interface for health check results
@@ -39,13 +46,19 @@ interface SupabaseHealthResult {
 
 const router: Router = Router();
 
-// Redis client with lazy connect for health checks
-const redis = new Redis({
-  host: process.env.REDIS_HOST || 'unit-talk-redis',
-  port: parseInt(process.env.REDIS_PORT || '6379', 10),
-  enableReadyCheck: false,
-  lazyConnect: true,
-});
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy Redis initialization
+let _redis: Redis | null = null;
+function getHealthRedis(): Redis {
+  if (!_redis) {
+    _redis = new Redis({
+      host: process.env.REDIS_HOST || 'unit-talk-redis',
+      port: parseInt(process.env.REDIS_PORT || '6379', 10),
+      enableReadyCheck: false,
+      lazyConnect: true,
+    });
+  }
+  return _redis;
+}
 
 interface HealthStatus {
   status: 'healthy' | 'unhealthy' | 'degraded';
@@ -118,6 +131,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     // Check database - SPRINT-114A: Real connectivity check, no mocks
     const dbStartTime = Date.now();
+    const { client: supabaseClient, error: supabaseInitError } = getHealthSupabase();
     try {
       if (!supabaseClient) {
         // Supabase not configured - report honestly
@@ -152,7 +166,7 @@ router.get('/', async (req: Request, res: Response) => {
     // Check Redis
     const redisStartTime = Date.now();
     try {
-      const redisResult = await redis.ping();
+      const redisResult = await getHealthRedis().ping();
       const redisResponseTime = Date.now() - redisStartTime;
 
       healthStatus.services.redis = {

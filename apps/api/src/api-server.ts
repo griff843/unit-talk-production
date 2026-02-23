@@ -20,7 +20,14 @@ import { createLogger } from './utils/logger';
 const logger = createLogger('API-Server');
 
 const app: Express = express();
-const PORT = process.env.API_PORT || 3000;
+
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
+function getApiPort(): number {
+  return parseInt(process.env.API_PORT || '3000', 10);
+}
+function getSmartFormUrl(): string {
+  return process.env.SMART_FORM_URL || 'http://localhost:3001';
+}
 
 // Middleware
 app.use(
@@ -29,7 +36,7 @@ app.use(
       'http://localhost:3001', // Smart form dev server
       'http://localhost:3002',
       'http://localhost:3003',
-      process.env.SMART_FORM_URL || 'http://localhost:3001',
+      getSmartFormUrl(),
     ],
     credentials: true,
   })
@@ -279,16 +286,16 @@ async function startServer() {
     logger.info('Environment variables validated successfully');
 
     // Start server
-    const server = app.listen(PORT, async () => {
+    const server = app.listen(getApiPort(), async () => {
       logger.info(`🚀 Unit Talk Platform API Server started successfully`, {
-        port: PORT,
+        port: getApiPort(),
         environment: process.env.NODE_ENV || 'development',
         pid: process.pid,
         nodeVersion: process.version,
         endpoints: [
-          `http://localhost:${PORT}`,
-          `http://localhost:${PORT}/api/health`,
-          `http://localhost:${PORT}/api/smart-form/process`,
+          `http://localhost:${getApiPort()}`,
+          `http://localhost:${getApiPort()}/api/health`,
+          `http://localhost:${getApiPort()}/api/smart-form/process`,
         ],
       });
 

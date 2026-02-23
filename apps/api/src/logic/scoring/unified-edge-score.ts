@@ -469,10 +469,13 @@ function calculateLeagueSpecificScore(prop: PropObject | RawProp): {
  * SCORING_ENGINE_V2=false → original config-based thresholds (S≥85, A≥75, B≥65, C≥55).
  * Tranche 2, Stage 1+3 (2026-01-29): Consolidated to TierScale behind feature flag.
  */
-const USE_V2 = process.env.SCORING_ENGINE_V2 === 'true';
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
+function useScoringV2(): boolean {
+  return process.env.SCORING_ENGINE_V2 === 'true';
+}
 
 function determineTier(score: number, config: EdgeScoreConfig): Tier {
-  if (USE_V2) {
+  if (useScoringV2()) {
     return scoreOnlyTier(score);
   }
   // Legacy path (System 2 original thresholds from config)

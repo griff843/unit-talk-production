@@ -8,13 +8,16 @@
  */
 import { type Tier, scoreOnlyTier, normalizeScore } from './TierScale';
 
-const USE_V2 = process.env.SCORING_ENGINE_V2 === 'true';
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
+function useScoringV2(): boolean {
+  return process.env.SCORING_ENGINE_V2 === 'true';
+}
 
 /**
  * @deprecated Prefer canonicalTier() from TierScale.ts for new code.
  */
 export function determineTier(composite_score: number): Tier {
-  if (USE_V2) {
+  if (useScoringV2()) {
     const normalized = normalizeScore(composite_score, 25);
     return scoreOnlyTier(normalized);
   }

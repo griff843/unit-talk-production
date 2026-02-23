@@ -63,7 +63,10 @@ const QuerySchema = z.object({
 
 // Optimal API Configuration - using environment variables
 const OPTIMAL_API_BASE = 'https://api.optimal-bet.com';
-const OPTIMAL_API_KEY = process.env.OPTIMAL_API_KEY;
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
+function getOptimalApiKey(): string | undefined {
+  return process.env.OPTIMAL_API_KEY;
+}
 
 interface OptimalEvent {
   id: string;
@@ -99,8 +102,8 @@ interface OptimalGameLine {
 }
 
 async function makeOptimalRequest<T>(endpoint: string, params?: Record<string, any>): Promise<T> {
-  if (!OPTIMAL_API_KEY) {
-    throw new Error('OPTIMAL_API_KEY environment variable is required');
+  if (!getOptimalApiKey()) {
+    throw new Error('getOptimalApiKey() environment variable is required');
   }
 
   const url = `${OPTIMAL_API_BASE}${endpoint}`;
@@ -110,7 +113,7 @@ async function makeOptimalRequest<T>(endpoint: string, params?: Record<string, a
     const response = await fetch(url, {
       headers: {
         accept: 'application/json',
-        Authorization: `Bearer ${OPTIMAL_API_KEY}`,
+        Authorization: `Bearer ${getOptimalApiKey()}`,
       },
       cache: 'no-store', // Always fetch fresh data
     });
@@ -251,7 +254,7 @@ export async function GET(request: NextRequest) {
     const supabase = supabaseServer();
 
     // Check if we should fetch fresh data from Optimal API
-    if (forceRefresh && OPTIMAL_API_KEY) {
+    if (forceRefresh && getOptimalApiKey()) {
       try {
         log.info('Fetching fresh data from Optimal API');
 
@@ -509,7 +512,7 @@ export async function GET(request: NextRequest) {
       sport,
       team_id,
       refresh: forceRefresh,
-      source: OPTIMAL_API_KEY ? 'optimal_api' : 'database',
+      source: getOptimalApiKey() ? 'optimal_api' : 'database',
     });
 
     return NextResponse.json(
@@ -520,7 +523,7 @@ export async function GET(request: NextRequest) {
           date: today,
           sport,
           team_id: team_id || null,
-          source: OPTIMAL_API_KEY ? 'optimal_api' : 'database',
+          source: getOptimalApiKey() ? 'optimal_api' : 'database',
           timestamp: new Date().toISOString(),
         },
       },

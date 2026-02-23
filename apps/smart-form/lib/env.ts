@@ -2,8 +2,24 @@
 // This is the ONLY acceptable production Supabase host
 export const CANONICAL_SUPABASE_HOST = 'cqfnsozknjzvyiziwicl.supabase.co';
 
-export const NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-export const NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+// SPRINT-SCHEMA-ENV-GATES-002: Lazy env access via getters
+export function getSupabaseUrl(): string {
+  return process.env.NEXT_PUBLIC_SUPABASE_URL!;
+}
+export function getSupabaseAnonKey(): string {
+  return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+}
+
+// Backward compatibility exports - use getters internally
+export const NEXT_PUBLIC_SUPABASE_URL = {
+  toString: () => getSupabaseUrl(),
+  valueOf: () => getSupabaseUrl(),
+} as unknown as string;
+
+export const NEXT_PUBLIC_SUPABASE_ANON_KEY = {
+  toString: () => getSupabaseAnonKey(),
+  valueOf: () => getSupabaseAnonKey(),
+} as unknown as string;
 
 /**
  * SPRINT-SUPABASE-ENDPOINT-TRUTH-LOCK-110A
