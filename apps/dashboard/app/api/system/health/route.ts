@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { NextRequest, NextResponse } from 'next/server';
 
 // SPRINT-SCHEMA-ENV-GATES-002: Lazy Supabase initialization
 let _supabase: SupabaseClient | null = null;
@@ -7,7 +7,8 @@ function getSupabase(): SupabaseClient {
   if (!_supabase) {
     // SPRINT-SUPABASE-ENDPOINT-TRUTH-LOCK-110A: Fail-closed - no hardcoded fallbacks
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const supabaseKey =
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (!supabaseUrl || !supabaseKey) {
       throw new Error(
         'SPRINT-110A: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables are required'
@@ -56,7 +57,8 @@ async function checkDatabaseHealth(): Promise<{
   const startTime = Date.now();
 
   try {
-    const { data: _data, error } = await getSupabase().from('daily_picks').select('id').limit(1);
+    // SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007: Use unified_picks (canonical)
+    const { data: _data, error } = await getSupabase().from('unified_picks').select('id').limit(1);
 
     const responseTime = Date.now() - startTime;
 
@@ -131,9 +133,9 @@ export async function GET(_request: NextRequest) {
       checkExternalAPI('Supabase API', `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/`),
     ]);
 
-    // Get recent system activity
+    // SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007: Use unified_picks (canonical)
     const { data: recentActivity, error: activityError } = await getSupabase()
-      .from('daily_picks')
+      .from('unified_picks')
       .select('created_at')
       .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
       .order('created_at', { ascending: false });

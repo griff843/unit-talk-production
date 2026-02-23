@@ -3,7 +3,12 @@ import 'dotenv/config';
 import { scorePropEdge } from '../../logic/scoring/edgeScoring';
 import { PropObject } from '../../types/propTypes';
 import { BaseAgent } from '../BaseAgent';
-import { BaseAgentConfig, BaseAgentDependencies, AgentMetrics, HealthCheckResult } from '../BaseAgent/types';
+import {
+  BaseAgentConfig,
+  BaseAgentDependencies,
+  AgentMetrics,
+  HealthCheckResult,
+} from '../BaseAgent/types';
 
 export default class ScoringAgent extends BaseAgent {
   constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
@@ -25,34 +30,31 @@ export default class ScoringAgent extends BaseAgent {
       if (!this.hasSupabase()) {
         return {
           status: 'unhealthy',
-          details: { error: 'Supabase client not available' }
+          details: { error: 'Supabase client not available' },
         };
       }
 
       // Test database connection
-      const { error } = await this.requireSupabase()
-        .from('raw_props')
-        .select('id')
-        .limit(1);
+      const { error } = await this.requireSupabase().from('raw_props').select('id').limit(1);
 
       if (error) {
         return {
           status: 'unhealthy',
           timestamp: new Date().toISOString(),
-          details: { database: error.message }
+          details: { database: error.message },
         };
       }
 
       return {
         status: 'healthy',
         timestamp: new Date().toISOString(),
-        details: { database: 'connected' }
+        details: { database: 'connected' },
       };
     } catch (error) {
       return {
         status: 'unhealthy',
         timestamp: new Date().toISOString(),
-        details: { err: error instanceof Error ? error.message : 'Unknown error' }
+        details: { err: error instanceof Error ? error.message : 'Unknown error' },
       };
     }
   }
@@ -85,7 +87,7 @@ export default class ScoringAgent extends BaseAgent {
         errorCount: 0,
         warningCount: 0,
         processingTimeMs: 0,
-        memoryUsageMb: 0
+        memoryUsageMb: 0,
       };
 
       return {
@@ -94,11 +96,11 @@ export default class ScoringAgent extends BaseAgent {
         errorCount,
         warningCount: 0,
         processingTimeMs: baseMetrics.processingTimeMs || 0,
-        memoryUsageMb: baseMetrics.memoryUsageMb || 0
+        memoryUsageMb: baseMetrics.memoryUsageMb || 0,
       };
     } catch (error) {
       this.logger.error('Failed to collect metrics', {
-        err: error instanceof Error ? error.message : 'Unknown error'
+        err: error instanceof Error ? error.message : 'Unknown error',
       });
       const baseMetrics = this.metrics || {
         agentName: this.config.name,
@@ -106,7 +108,7 @@ export default class ScoringAgent extends BaseAgent {
         errorCount: 0,
         warningCount: 0,
         processingTimeMs: 0,
-        memoryUsageMb: 0
+        memoryUsageMb: 0,
       };
 
       return {
@@ -116,7 +118,7 @@ export default class ScoringAgent extends BaseAgent {
         errorCount: 1,
         warningCount: 0,
         processingTimeMs: baseMetrics.processingTimeMs || 0,
-        memoryUsageMb: baseMetrics.memoryUsageMb || 0
+        memoryUsageMb: baseMetrics.memoryUsageMb || 0,
       };
     }
   }
@@ -124,28 +126,28 @@ export default class ScoringAgent extends BaseAgent {
   protected async process(): Promise<void> {
     const logger = this.logger;
 
-    logger.info("🔍 Scanning raw_props for props needing scoring...");
+    logger.info('🔍 Scanning raw_props for props needing scoring...');
 
     if (!this.hasSupabase()) {
-      logger.error("❌ Supabase client not available, cannot fetch props");
+      logger.error('❌ Supabase client not available, cannot fetch props');
       return;
     }
 
     const { data: propsToScore, error } = await this.requireSupabase()
-      .from("raw_props")
-      .select("*")
-      .is("edge_score", null)
+      .from('raw_props')
+      .select('*')
+      .is('edge_score', null)
       .limit(100);
 
     if (error) {
-      logger.error("❌ Failed to fetch props:", {
-        error: error instanceof Error ? error.message : 'Unknown error'
+      logger.error('❌ Failed to fetch props:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
 
     if (!propsToScore || propsToScore.length === 0) {
-      logger.info("✅ No unscored props found. Exiting.");
+      logger.info('✅ No unscored props found. Exiting.');
       return;
     }
 
@@ -164,45 +166,33 @@ export default class ScoringAgent extends BaseAgent {
           tier: result.tier,
           context_tags: result.context_tags,
           edge_breakdown: result.edge_breakdown,
-          is_postable: ["S", "A"].includes(result.tier),
+          is_postable: ['S', 'A'].includes(result.tier),
           updated_at: new Date().toISOString(),
         };
 
         const { error: updateError } = await this.requireSupabase()
-          .from("raw_props")
+          .from('raw_props')
           .update(update)
-          .eq("id", rawProp.id);
+          .eq('id', rawProp.id);
 
         if (updateError) {
           throw updateError;
         }
 
-        if (["S", "A"].includes(result.tier)) {
-          logger.info(`🚀 Promoting ${prop['player_name']} (${prop['market_type']}) to daily_picks`);
-
-          const insert = {
-            ...prop,
-            ...update,
-            source: prop['source'] || "SGO",
-            approved: true,
-            created_at: new Date().toISOString(),
-            promoted_by: "ScoringAgent",
-          };
-
-          const { error: insertError } = await this.requireSupabase()
-            .from("daily_picks")
-            .insert([insert]);
-
-          if (insertError) {
-            logger.warn(`⚠️ Failed to promote prop ID ${rawProp.id} to daily_picks:`, { error: insertError });
-          }
+        // SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007: Skip daily_picks promotion
+        // BridgeWorker is now the canonical ingest path: bridge_outbox → unified_picks
+        // ScoringAgent only scores raw_props, promotion is handled by BridgeWorker
+        if (['S', 'A'].includes(result.tier)) {
+          logger.info(
+            `✅ Scored ${prop['player_name']} (${prop['market_type']}) as ${result.tier} tier - awaiting BridgeWorker ingest`
+          );
         }
 
         successCount++;
       } catch (err) {
         errorCount++;
         logger.error(`❌ Failed to process prop ID ${rawProp.id}:`, {
-          error: err instanceof Error ? err.message : String(err)
+          error: err instanceof Error ? err.message : String(err),
         });
       }
     }

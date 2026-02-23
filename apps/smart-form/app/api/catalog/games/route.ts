@@ -17,7 +17,10 @@ const log = createRouteLogger('GET /api/catalog/games', 'GET');
 
 const QuerySchema = z.object({
   sport: z.string().min(1, 'sport parameter is required'),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullish(),
   team_id: z.string().uuid().nullish(),
   status: z.enum(['scheduled', 'in_progress', 'final', 'all']).default('all'),
   limit: z.coerce.number().min(1).max(100).default(50),
@@ -128,7 +131,8 @@ export async function GET(request: NextRequest) {
     query = query.order('start_time').limit(limit);
 
     const queryResult = await query;
-    let data = queryResult.data;
+    // SPRINT-RUNTIME-TRUTH-008: Use any[] to handle both mv_search_games and games table shapes
+    let data: any[] | null = queryResult.data as any[];
     const error = queryResult.error;
 
     logDatabaseOperation(log, 'SELECT', 'mv_search_games', data, error);
@@ -186,7 +190,9 @@ export async function GET(request: NextRequest) {
           name: awayTeamMeta.names?.long || g.away_team,
           abbr: awayTeamMeta.names?.short || null,
         },
-        display_label: g.display_label || `${awayTeamMeta.names?.short || g.away_team} @ ${homeTeamMeta.names?.short || g.home_team}`,
+        display_label:
+          g.display_label ||
+          `${awayTeamMeta.names?.short || g.away_team} @ ${homeTeamMeta.names?.short || g.home_team}`,
         odds: {
           spread: g.spread || parseFloat(meta.spread) || null,
           total: g.total || parseFloat(meta.total) || null,
@@ -199,9 +205,7 @@ export async function GET(request: NextRequest) {
     // Filter by team_id if provided
     let filteredGames = games;
     if (team_id) {
-      filteredGames = games.filter(
-        g => g.home_team.id === team_id || g.away_team.id === team_id
-      );
+      filteredGames = games.filter(g => g.home_team.id === team_id || g.away_team.id === team_id);
     }
 
     // Cache the result

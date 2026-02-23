@@ -1,11 +1,14 @@
 import 'dotenv/config';
 import { createClient } from '@supabase/supabase-js';
-import { requireSupabase } from '../utils/supabaseUtils';
-import { createLogger } from '../utils/logger';
+
 import { AlertAgent } from '../agents/AlertAgent';
 import { createBaseAgentConfig } from '../agents/BaseAgent/config';
+import { createLogger } from '../utils/logger';
+import { requireSupabase } from '../utils/supabaseUtils';
 
-async function sleep(ms: number) { return new Promise(res => setTimeout(res, ms)); }
+async function sleep(ms: number) {
+  return new Promise(res => setTimeout(res, ms));
+}
 
 async function main() {
   const logger = createLogger('smoke-capper-thread-routing');
@@ -53,12 +56,12 @@ async function main() {
         status: 'open',
         player_name: 'Patrick Mahomes',
         team: 'KC',
-        matchup: 'KC vs BUF'
-      }
+        matchup: 'KC vs BUF',
+      },
     ],
     user_tier: 'vip_plus',
     current_step: 3,
-    completed_steps: [1,2,3],
+    completed_steps: [1, 2, 3],
     status: 'submitted',
     created_at: nowIso,
     updated_at: nowIso,
@@ -67,7 +70,10 @@ async function main() {
   console.log(`\n[1/6] Inserting smart_tickets row id=${ticketId} for capper=${capperHandle}...`);
   const { error: insertTicketErr } = await admin.from('smart_tickets').insert(smartTicket);
   if (insertTicketErr) {
-    console.warn('Insert smart_tickets warning (may already exist or schema differs):', insertTicketErr.message);
+    console.warn(
+      'Insert smart_tickets warning (may already exist or schema differs):',
+      insertTicketErr.message
+    );
   } else {
     console.log('✓ smart_tickets inserted');
   }
@@ -79,7 +85,7 @@ async function main() {
     const resp = await fetch('http://localhost:3000/api/smart-form/process', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ticketId, source: 'smoke' })
+      body: JSON.stringify({ ticketId, source: 'smoke' }),
     });
     const body = await resp.json().catch(() => ({}));
     console.log('API response:', resp.status, body);
@@ -91,7 +97,7 @@ async function main() {
   let pick: any = null;
 
   if (processedViaApi) {
-    // Allow pipeline to store daily_picks and promote to unified_picks
+    // Allow pipeline to store in unified_picks via BridgeWorker
     await sleep(3000);
 
     // 3) Locate the newly created unified_pick for this capper
@@ -107,7 +113,9 @@ async function main() {
   }
 
   if (!processedViaApi || !pick) {
-    console.log('[3/6] API path unavailable; running direct fallback to validate resolver + AlertAgent.');
+    console.log(
+      '[3/6] API path unavailable; running direct fallback to validate resolver + AlertAgent.'
+    );
 
     // Resolve discordId via user_threads by capper handle
     const handle = capperHandle.toLowerCase();
@@ -128,11 +136,19 @@ async function main() {
         console.log('Using known discordId for kingro623/griff843');
       }
     }
-    if (!discordId) throw new Error('Unable to resolve discord_id (DB missing and no known mapping for this capper)');
+    if (!discordId)
+      throw new Error(
+        'Unable to resolve discord_id (DB missing and no known mapping for this capper)'
+      );
 
     // Use CapperThreadResolver ensure via internal function import
     const { capperThreadResolver } = await import('../services/CapperThreadResolver');
-    const ensured = await capperThreadResolver.ensure({ discordId, capperHandle, require: ['picks'], correlationId: ticketId });
+    const ensured = await capperThreadResolver.ensure({
+      discordId,
+      capperHandle,
+      require: ['picks'],
+      correlationId: ticketId,
+    });
     const resolvedThreadId = ensured.picks_thread_id || null;
 
     const fallbackPick = {
@@ -155,7 +171,7 @@ async function main() {
       source: 'smoke_fallback',
       thread_id: resolvedThreadId,
       created_at: new Date().toISOString(),
-      metadata: { ticketId, smoke: true }
+      metadata: { ticketId, smoke: true },
     };
 
     const { data: inserted, error: insErr } = await admin
@@ -167,21 +183,35 @@ async function main() {
     pick = inserted;
   }
 
-  console.log('Found unified_pick:', { id: pick.id, thread_id: pick.thread_id, created_at: pick.created_at });
+  console.log('Found unified_pick:', {
+    id: pick.id,
+    thread_id: pick.thread_id,
+    created_at: pick.created_at,
+  });
   if (pick.thread_id) {
-    console.log(`Resolved thread_id: ${pick.thread_id}${pick.thread_id === expectedThreadId ? ' (matches expected)' : ' (NOTE: differs from expected)'}`);
+    console.log(
+      `Resolved thread_id: ${pick.thread_id}${pick.thread_id === expectedThreadId ? ' (matches expected)' : ' (NOTE: differs from expected)'}`
+    );
   } else {
-    console.warn('thread_id is NULL - resolver did not set it (will still attempt posting after approval)');
+    console.warn(
+      'thread_id is NULL - resolver did not set it (will still attempt posting after approval)'
+    );
   }
 
   // 4) Mark approved and trigger AlertAgent posting
   console.log('[4/6] Marking pick approved (workflow_stage) and invoking AlertAgent posting...');
   // Try to set both workflow_stage and legacy stage/published fields for compatibility
   try {
-    await admin.from('unified_picks').update({ workflow_stage: 'approved', posted_to_discord: false }).eq('id', pick.id);
+    await admin
+      .from('unified_picks')
+      .update({ workflow_stage: 'approved', posted_to_discord: false })
+      .eq('id', pick.id);
   } catch {}
   try {
-    await admin.from('unified_picks').update({ stage: 'approved', published: true, approved_at: new Date().toISOString() }).eq('id', pick.id);
+    await admin
+      .from('unified_picks')
+      .update({ stage: 'approved', published: true, approved_at: new Date().toISOString() })
+      .eq('id', pick.id);
   } catch {}
 
   // Force-run post once using the agent (manual tick)
@@ -218,7 +248,7 @@ async function main() {
   console.log('Thread ID used:', posted?.thread_id || pick.thread_id || null);
   console.log('Discord message ID:', posted?.discord_post_id || null);
   console.log('posted_to_discord:', posted?.posted_to_discord === true);
-  console.log('DLQ entry exists:', (dlq && dlq.length > 0));
+  console.log('DLQ entry exists:', dlq && dlq.length > 0);
 
   console.log('\nFlow confirmation:');
   console.log('- Smart Form submission → processed via API');
@@ -229,8 +259,7 @@ async function main() {
   console.log(`\nDone in ${Date.now() - startTs}ms`);
 }
 
-main().catch((err) => {
+main().catch(err => {
   console.error('Smoke test failed:', err?.message || err);
   process.exit(1);
 });
-

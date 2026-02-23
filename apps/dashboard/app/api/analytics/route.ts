@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { NextRequest, NextResponse } from 'next/server';
 
 // Force dynamic rendering for this route since it uses request parameters
 export const dynamic = 'force-dynamic';
@@ -10,7 +10,8 @@ function getSupabase(): SupabaseClient {
   if (!_supabase) {
     // SPRINT-SUPABASE-ENDPOINT-TRUTH-LOCK-110A: Fail-closed - no hardcoded fallbacks
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const supabaseKey =
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (!supabaseUrl || !supabaseKey) {
       throw new Error(
         'SPRINT-110A: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables are required'
@@ -71,9 +72,9 @@ export async function GET(request: NextRequest) {
       timeframe === '24h' ? 1 : timeframe === '7d' ? 7 : timeframe === '30d' ? 30 : 7;
     const startDate = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
 
-    // Fetch performance data from daily_picks
+    // SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007: Use unified_picks (canonical)
     const { data: picksData, error: picksError } = await getSupabase()
-      .from('daily_picks')
+      .from('unified_picks')
       .select('*')
       .gte('created_at', startDate.toISOString())
       .order('created_at', { ascending: false });

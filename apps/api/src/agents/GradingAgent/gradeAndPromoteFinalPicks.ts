@@ -1,5 +1,11 @@
 // src/agents/GradingAgent/gradeAndPromoteUnifiedPicks.ts
 
+/**
+ * @deprecated SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007
+ * This module is DEPRECATED. BridgeWorker now handles grading directly.
+ * The daily_picks table has been eliminated.
+ */
+
 import { lifecycleInsert } from '../../lib/lifecycle';
 import { logger } from '../../services/logging';
 import { supabase } from '../../services/supabaseClient';
@@ -16,23 +22,14 @@ function validateFinalFields(pick: any): { valid: boolean; missing: string[] } {
   return { valid: missing.length === 0, missing };
 }
 
-/** P-03: Claim the daily_picks row via flag-first UPDATE */
+/**
+ * @deprecated SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007
+ * This function is no longer needed - unified_picks is already the target table.
+ */
 async function claimDailyPick(pickId: string): Promise<boolean> {
-  const { data: claimed, error: claimErr } = await supabase
-    .from('daily_picks')
-    .update({ promoted_to_final: true, promoted_final_at: new Date().toISOString() })
-    .eq('id', pickId)
-    .eq('promoted_to_final', false)
-    .select('id');
-
-  if (claimErr || !claimed || claimed.length === 0) {
-    logger.info(
-      { id: pickId },
-      'Pick already claimed for final or claim failed — skipping (idempotent)'
-    );
-    return false;
-  }
-  return true;
+  // SPRINT-007: Skip claim - picks are already in unified_picks
+  logger.warn({ id: pickId }, 'DEPRECATED: claimDailyPick() - daily_picks eliminated');
+  return true; // Allow processing to continue but no actual claim needed
 }
 
 /** Process a multi-leg ticket (parlay, teaser, roundrobin, sgp) */
@@ -116,21 +113,25 @@ async function processSingleLeg(pick: any): Promise<boolean> {
   return true;
 }
 
+/**
+ * @deprecated SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007
+ * This function is DEPRECATED. BridgeWorker handles grading via SyndicateGradingEngine.
+ */
 export async function gradeAndPromoteUnifiedPicks() {
-  // P-01: Deterministic ordering by id
+  // SPRINT-007: Read from unified_picks instead of daily_picks
+  // Only process picks that haven't been graded yet
   const { data: picks, error } = await supabase
-    .from('daily_picks')
+    .from('unified_picks')
     .select('*')
-    .eq('promoted_to_final', false)
-    .eq('is_valid', true)
+    .is('tier', null)
     .order('id', { ascending: true });
 
   if (error) {
-    logger.error(error, 'Error fetching daily_picks');
+    logger.error(error, 'Error fetching unified_picks for grading');
     return;
   }
   if (!picks || picks.length === 0) {
-    logger.info('No eligible daily_picks found for final grading.');
+    logger.info('No ungraded unified_picks found.');
     return;
   }
 

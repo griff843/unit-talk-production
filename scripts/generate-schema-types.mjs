@@ -29,7 +29,7 @@ const CANONICAL_TABLES = [
   // Additional tables commonly used
   'audit_log',
   'cappers',
-  'daily_picks',
+  // SPRINT-RUNTIME-TRUTH-008: daily_picks removed - unified_picks is canonical
   'smart_tickets',
   'teams',
   'user_profiles',

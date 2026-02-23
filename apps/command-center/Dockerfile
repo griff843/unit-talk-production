@@ -28,6 +28,9 @@ FROM base AS development
 # Copy monorepo root pnpm files (context is repo root)
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
+# SPRINT-RUNTIME-TRUTH-008: Copy tsconfig.base.json for packages
+COPY tsconfig.base.json ./
+
 # Copy all source code first (before pnpm install)
 COPY packages ./packages
 COPY apps/command-center ./apps/command-center
@@ -36,12 +39,24 @@ COPY apps/command-center ./apps/command-center
 # This runs AFTER copying source to create correct symlinks
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
+# SPRINT-RUNTIME-TRUTH-008: Build shared-types before app (monorepo dependency)
+WORKDIR /app/packages/shared-types
+RUN pnpm run build
+
 WORKDIR /app/apps/command-center
 
 # Build Next.js application in production mode
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+# SPRINT-RUNTIME-TRUTH-008: Enable standalone output for Docker
+ENV NEXT_OUTPUT_STANDALONE=true
 RUN pnpm run build
+
+# SPRINT-RUNTIME-TRUTH-008: Copy static assets for standalone mode
+# Next.js standalone output does NOT include .next/static or public/
+RUN mkdir -p .next/standalone/apps/command-center/.next && \
+    cp -r .next/static .next/standalone/apps/command-center/.next/static
+RUN cp -r public .next/standalone/apps/command-center/public 2>/dev/null || true
 
 # Expose port (internal: 3015)
 EXPOSE 3015

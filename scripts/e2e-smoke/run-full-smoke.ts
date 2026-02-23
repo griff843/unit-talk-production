@@ -4,6 +4,7 @@
 /**
  * E2E SMOKE TEST - FULL LIFECYCLE
  * Sprint: SPRINT-E2E-SMOKE-AUTOMATION-005
+ * SPRINT-RUNTIME-TRUTH-008: Deterministic env loading, fail-closed
  * NOTE: eslint rules disabled - this is a script with necessary complexity
  *
  * Orchestrates end-to-end smoke test covering the canonical lifecycle:
@@ -16,11 +17,32 @@
  *
  * FAIL-CLOSED: Any failure exits non-zero.
  * NO BYPASS PATHS: All assertions are hard requirements.
+ * NO SKIP: Missing env must fail closed (non-zero exit).
  */
 
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
+
+// SPRINT-RUNTIME-TRUTH-008: Load .env.smoke for deterministic env
+import * as dotenv from 'dotenv';
+
+const smokeEnvPath = path.resolve(__dirname, '../../.env.smoke');
+if (fs.existsSync(smokeEnvPath)) {
+  dotenv.config({ path: smokeEnvPath });
+  console.log(`[ENV] Loaded environment from: .env.smoke`);
+} else {
+  // If .env.smoke doesn't exist, try root .env as fallback
+  const rootEnvPath = path.resolve(__dirname, '../../.env');
+  if (fs.existsSync(rootEnvPath)) {
+    dotenv.config({ path: rootEnvPath });
+    console.log(`[ENV] Loaded environment from: .env (fallback)`);
+  } else {
+    console.error(`[ERROR] No .env.smoke or .env file found.`);
+    console.error(`[ERROR] Run: node scripts/generate-smoke-env.mjs`);
+    process.exit(1);
+  }
+}
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -541,9 +563,27 @@ async function runSmokeTest(): Promise<void> {
   log('INFO', 'Sprint: SPRINT-E2E-SMOKE-AUTOMATION-005');
   log('INFO', '='.repeat(60));
 
-  // Validate environment
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-    fail('Missing required environment variables: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY');
+  // SPRINT-RUNTIME-TRUTH-008: Validate environment (FAIL-CLOSED, NO SKIP)
+  const missingVars: string[] = [];
+  if (!SUPABASE_URL) missingVars.push('SUPABASE_URL');
+  if (!SUPABASE_SERVICE_KEY) missingVars.push('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (missingVars.length > 0) {
+    console.error('');
+    console.error('='.repeat(60));
+    console.error('FAIL-CLOSED: Missing required environment variables');
+    console.error('='.repeat(60));
+    for (const v of missingVars) {
+      console.error(`  - ${v}`);
+    }
+    console.error('');
+    console.error('To fix:');
+    console.error('  1. Run: node scripts/generate-smoke-env.mjs');
+    console.error('  2. Or manually create .env.smoke with required vars');
+    console.error('');
+    console.error('See: .env.smoke.example for required variables');
+    console.error('='.repeat(60));
+    process.exit(1);
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);

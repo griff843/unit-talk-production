@@ -155,10 +155,19 @@ export interface PlayerProps {
   };
 }
 
-// Database response types
-export type DailyPicksResponse = Database['public']['Tables']['daily_picks']['Row'];
-export type DailyPicksInsert = Database['public']['Tables']['daily_picks']['Insert'];
-export type DailyPicksUpdate = Database['public']['Tables']['daily_picks']['Update'];
+// SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007: daily_picks types deprecated
+// Use unified_picks types instead
+/** @deprecated Use UnifiedPicksResponse */
+export type DailyPicksResponse = Database['public']['Tables']['unified_picks']['Row'];
+/** @deprecated Use UnifiedPicksInsert */
+export type DailyPicksInsert = Database['public']['Tables']['unified_picks']['Insert'];
+/** @deprecated Use UnifiedPicksUpdate */
+export type DailyPicksUpdate = Database['public']['Tables']['unified_picks']['Update'];
+
+// Canonical types for unified_picks
+export type UnifiedPicksResponse = Database['public']['Tables']['unified_picks']['Row'];
+export type UnifiedPicksInsert = Database['public']['Tables']['unified_picks']['Insert'];
+export type UnifiedPicksUpdate = Database['public']['Tables']['unified_picks']['Update'];
 
 export type CapperProfilesResponse = Database['public']['Tables']['capper_profiles']['Row'];
 export type CapperProfilesInsert = Database['public']['Tables']['capper_profiles']['Insert'];

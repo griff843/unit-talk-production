@@ -22,16 +22,17 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const now = new Date();
-const startDate = process.env.CALIBRATION_START ||
+const startDate =
+  process.env.CALIBRATION_START ||
   new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-const endDate = process.env.CALIBRATION_END ||
-  now.toISOString().split('T')[0];
+const endDate = process.env.CALIBRATION_END || now.toISOString().split('T')[0];
 
 interface CalibrationReport {
   timeWindow: { start: string; end: string };
@@ -64,7 +65,9 @@ async function generateReport(): Promise<CalibrationReport> {
 
   if (!SUPABASE_URL || !SUPABASE_KEY) {
     console.log('WARNING: No Supabase credentials. Generating stub report.');
-    warnings.push('NO_DB_ACCESS: Supabase credentials not available. Report contains stub data only.');
+    warnings.push(
+      'NO_DB_ACCESS: Supabase credentials not available. Report contains stub data only.'
+    );
 
     return {
       timeWindow: { start: startDate, end: endDate },
@@ -84,32 +87,51 @@ async function generateReport(): Promise<CalibrationReport> {
 
   // 1. Raw props counts
   const { count: rawTotal } = await supabase
-    .from('raw_props').select('*', { count: 'exact', head: true })
-    .gte('created_at', startDate).lte('created_at', endDate);
+    .from('raw_props')
+    .select('*', { count: 'exact', head: true })
+    .gte('created_at', startDate)
+    .lte('created_at', endDate);
   const { count: rawPromoted } = await supabase
-    .from('raw_props').select('*', { count: 'exact', head: true })
-    .gte('created_at', startDate).lte('created_at', endDate).eq('promoted', true);
+    .from('raw_props')
+    .select('*', { count: 'exact', head: true })
+    .gte('created_at', startDate)
+    .lte('created_at', endDate)
+    .eq('promoted', true);
 
-  // 2. Daily picks counts
+  // 2. SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007: daily_picks eliminated
+  // Using unified_picks workflow_stage for equivalent counts
   const { count: dpTotal } = await supabase
-    .from('daily_picks').select('*', { count: 'exact', head: true })
-    .gte('created_at', startDate).lte('created_at', endDate);
+    .from('unified_picks')
+    .select('*', { count: 'exact', head: true })
+    .gte('created_at', startDate)
+    .lte('created_at', endDate)
+    .not('workflow_stage', 'is', null);
   const { count: dpPromoted } = await supabase
-    .from('daily_picks').select('*', { count: 'exact', head: true })
-    .gte('created_at', startDate).lte('created_at', endDate).eq('promoted_to_final', true);
+    .from('unified_picks')
+    .select('*', { count: 'exact', head: true })
+    .gte('created_at', startDate)
+    .lte('created_at', endDate)
+    .in('workflow_stage', ['approved', 'posted', 'settled']);
 
   // 3. Unified picks counts
   const { count: upTotal } = await supabase
-    .from('unified_picks').select('*', { count: 'exact', head: true })
-    .gte('created_at', startDate).lte('created_at', endDate);
+    .from('unified_picks')
+    .select('*', { count: 'exact', head: true })
+    .gte('created_at', startDate)
+    .lte('created_at', endDate);
   const { count: upPosted } = await supabase
-    .from('unified_picks').select('*', { count: 'exact', head: true })
-    .gte('created_at', startDate).lte('created_at', endDate).eq('posted_to_discord', true);
+    .from('unified_picks')
+    .select('*', { count: 'exact', head: true })
+    .gte('created_at', startDate)
+    .lte('created_at', endDate)
+    .eq('posted_to_discord', true);
 
   // 4. Tier distribution from unified_picks
   const { data: tierData } = await supabase
-    .from('unified_picks').select('tier')
-    .gte('created_at', startDate).lte('created_at', endDate);
+    .from('unified_picks')
+    .select('tier')
+    .gte('created_at', startDate)
+    .lte('created_at', endDate);
   const tierDistribution: Record<string, number> = {};
   (tierData || []).forEach(row => {
     const t = row.tier || 'unknown';
@@ -118,10 +140,14 @@ async function generateReport(): Promise<CalibrationReport> {
 
   // 5. Promotion decisions
   const { data: decisions } = await supabase
-    .from('promotion_decisions').select('decision, approved')
-    .gte('created_at', startDate).lte('created_at', endDate);
+    .from('promotion_decisions')
+    .select('decision, approved')
+    .gte('created_at', startDate)
+    .lte('created_at', endDate);
   const lanes: Record<string, number> = {};
-  let approved = 0, rejected = 0, held = 0;
+  let approved = 0,
+    rejected = 0,
+    held = 0;
   (decisions || []).forEach(d => {
     const lane = d.decision || 'unknown';
     lanes[lane] = (lanes[lane] || 0) + 1;
@@ -131,11 +157,20 @@ async function generateReport(): Promise<CalibrationReport> {
   });
 
   // 6. Settlement data (check if result/status columns exist)
-  let settlementData = { available: false, wins: 0, losses: 0, pushes: 0, winRate: null as number | null, roi: null as number | null };
+  let settlementData = {
+    available: false,
+    wins: 0,
+    losses: 0,
+    pushes: 0,
+    winRate: null as number | null,
+    roi: null as number | null,
+  };
   try {
     const { data: settled } = await supabase
-      .from('unified_picks').select('result')
-      .gte('created_at', startDate).lte('created_at', endDate)
+      .from('unified_picks')
+      .select('result')
+      .gte('created_at', startDate)
+      .lte('created_at', endDate)
       .not('result', 'is', null);
     if (settled && settled.length > 0) {
       const wins = settled.filter(s => s.result === 'win').length;
@@ -144,7 +179,9 @@ async function generateReport(): Promise<CalibrationReport> {
       const total = wins + losses;
       settlementData = {
         available: true,
-        wins, losses, pushes,
+        wins,
+        losses,
+        pushes,
         winRate: total > 0 ? wins / total : null,
         roi: null, // Would need unit size data
       };
@@ -159,11 +196,14 @@ async function generateReport(): Promise<CalibrationReport> {
   const edgeBuckets: Record<string, number> = {};
   try {
     const { data: dfRows } = await supabase
-      .from('promotion_decisions').select('confidence')
-      .gte('created_at', startDate).lte('created_at', endDate);
+      .from('promotion_decisions')
+      .select('confidence')
+      .gte('created_at', startDate)
+      .lte('created_at', endDate);
     (dfRows || []).forEach(row => {
       const conf = row.confidence ?? 0;
-      const bucket = conf >= 0.8 ? '0.8-1.0' : conf >= 0.6 ? '0.6-0.8' : conf >= 0.4 ? '0.4-0.6' : '0.0-0.4';
+      const bucket =
+        conf >= 0.8 ? '0.8-1.0' : conf >= 0.6 ? '0.6-0.8' : conf >= 0.4 ? '0.4-0.6' : '0.0-0.4';
       edgeBuckets[bucket] = (edgeBuckets[bucket] || 0) + 1;
     });
   } catch {
@@ -174,8 +214,10 @@ async function generateReport(): Promise<CalibrationReport> {
   const topTriggeredRules: Array<{ rule: string; count: number }> = [];
   try {
     const { data: dfRows } = await supabase
-      .from('promotion_decisions').select('decision_factors')
-      .gte('created_at', startDate).lte('created_at', endDate)
+      .from('promotion_decisions')
+      .select('decision_factors')
+      .gte('created_at', startDate)
+      .lte('created_at', endDate)
       .not('decision_factors', 'is', null);
     const ruleCounts: Record<string, number> = {};
     (dfRows || []).forEach(row => {
@@ -197,9 +239,21 @@ async function generateReport(): Promise<CalibrationReport> {
 
   return {
     timeWindow: { start: startDate, end: endDate },
-    rawProps: { total: rawTotal || 0, promoted: rawPromoted || 0, notPromoted: (rawTotal || 0) - (rawPromoted || 0) },
-    dailyPicks: { total: dpTotal || 0, promotedToFinal: dpPromoted || 0, notPromoted: (dpTotal || 0) - (dpPromoted || 0) },
-    unifiedPicks: { total: upTotal || 0, postedToDiscord: upPosted || 0, notPosted: (upTotal || 0) - (upPosted || 0) },
+    rawProps: {
+      total: rawTotal || 0,
+      promoted: rawPromoted || 0,
+      notPromoted: (rawTotal || 0) - (rawPromoted || 0),
+    },
+    dailyPicks: {
+      total: dpTotal || 0,
+      promotedToFinal: dpPromoted || 0,
+      notPromoted: (dpTotal || 0) - (dpPromoted || 0),
+    },
+    unifiedPicks: {
+      total: upTotal || 0,
+      postedToDiscord: upPosted || 0,
+      notPosted: (upTotal || 0) - (upPosted || 0),
+    },
     tierDistribution,
     promotionDecisions: { total: (decisions || []).length, approved, rejected, held, lanes },
     settlementData,
@@ -223,17 +277,25 @@ function renderMarkdown(report: CalibrationReport): string {
   lines.push(`## Pipeline Funnel`);
   lines.push(`| Stage | Total | Promoted | Not Promoted |`);
   lines.push(`|-------|-------|----------|--------------|`);
-  lines.push(`| raw_props | ${report.rawProps.total} | ${report.rawProps.promoted} | ${report.rawProps.notPromoted} |`);
-  lines.push(`| daily_picks | ${report.dailyPicks.total} | ${report.dailyPicks.promotedToFinal} | ${report.dailyPicks.notPromoted} |`);
-  lines.push(`| unified_picks | ${report.unifiedPicks.total} | ${report.unifiedPicks.postedToDiscord} | ${report.unifiedPicks.notPosted} |`);
+  lines.push(
+    `| raw_props | ${report.rawProps.total} | ${report.rawProps.promoted} | ${report.rawProps.notPromoted} |`
+  );
+  lines.push(
+    `| daily_picks | ${report.dailyPicks.total} | ${report.dailyPicks.promotedToFinal} | ${report.dailyPicks.notPromoted} |`
+  );
+  lines.push(
+    `| unified_picks | ${report.unifiedPicks.total} | ${report.unifiedPicks.postedToDiscord} | ${report.unifiedPicks.notPosted} |`
+  );
   lines.push('');
 
   lines.push(`## Tier Distribution`);
   lines.push(`| Tier | Count |`);
   lines.push(`|------|-------|`);
-  Object.entries(report.tierDistribution).sort().forEach(([tier, count]) => {
-    lines.push(`| ${tier} | ${count} |`);
-  });
+  Object.entries(report.tierDistribution)
+    .sort()
+    .forEach(([tier, count]) => {
+      lines.push(`| ${tier} | ${count} |`);
+    });
   lines.push('');
 
   lines.push(`## Promotion Decisions`);
@@ -249,8 +311,12 @@ function renderMarkdown(report: CalibrationReport): string {
     lines.push(`- Wins: ${report.settlementData.wins}`);
     lines.push(`- Losses: ${report.settlementData.losses}`);
     lines.push(`- Pushes: ${report.settlementData.pushes}`);
-    lines.push(`- Win Rate: ${report.settlementData.winRate !== null ? (report.settlementData.winRate * 100).toFixed(1) + '%' : 'N/A'}`);
-    lines.push(`- ROI: ${report.settlementData.roi !== null ? (report.settlementData.roi * 100).toFixed(1) + '%' : 'NOT AVAILABLE (requires unit size data)'}`);
+    lines.push(
+      `- Win Rate: ${report.settlementData.winRate !== null ? (report.settlementData.winRate * 100).toFixed(1) + '%' : 'N/A'}`
+    );
+    lines.push(
+      `- ROI: ${report.settlementData.roi !== null ? (report.settlementData.roi * 100).toFixed(1) + '%' : 'NOT AVAILABLE (requires unit size data)'}`
+    );
   } else {
     lines.push(`**NOT AVAILABLE** — no settled picks in time window`);
   }
@@ -259,9 +325,11 @@ function renderMarkdown(report: CalibrationReport): string {
   lines.push(`## Confidence Buckets`);
   lines.push(`| Bucket | Count |`);
   lines.push(`|--------|-------|`);
-  Object.entries(report.edgeBuckets).sort().forEach(([bucket, count]) => {
-    lines.push(`| ${bucket} | ${count} |`);
-  });
+  Object.entries(report.edgeBuckets)
+    .sort()
+    .forEach(([bucket, count]) => {
+      lines.push(`| ${bucket} | ${count} |`);
+    });
   lines.push('');
 
   lines.push(`## Top Triggered Rules`);
@@ -278,7 +346,14 @@ function renderMarkdown(report: CalibrationReport): string {
 
 async function main() {
   const dateStr = new Date().toISOString().split('T')[0];
-  const outputDir = path.join(__dirname, '..', 'out', 'promotion-agent-next', dateStr, 'calibration');
+  const outputDir = path.join(
+    __dirname,
+    '..',
+    'out',
+    'promotion-agent-next',
+    dateStr,
+    'calibration'
+  );
   fs.mkdirSync(outputDir, { recursive: true });
 
   console.log(`=== Promotion Calibration Report ===`);
@@ -296,7 +371,9 @@ async function main() {
   console.log(`Written: ${path.join(outputDir, 'report.md')}`);
 
   // Summary
-  console.log(`\nPipeline Funnel: raw_props(${report.rawProps.total}) → daily_picks(${report.dailyPicks.total}) → unified_picks(${report.unifiedPicks.total})`);
+  console.log(
+    `\nPipeline Funnel: raw_props(${report.rawProps.total}) → daily_picks(${report.dailyPicks.total}) → unified_picks(${report.unifiedPicks.total})`
+  );
   console.log(`Warnings: ${report.warnings.length}`);
   report.warnings.forEach(w => console.log(`  - ${w}`));
 }

@@ -114,11 +114,23 @@ export interface Database {
         };
       };
     };
-    Views: {
-      [_ in never]: never;
-    };
+    // SPRINT-RUNTIME-TRUTH-008: Extend Views from canonical database
+    Views: CanonicalDatabase['public']['Views'];
     Functions: {
-      [_ in never]: never;
+      // SPRINT-RUNTIME-TRUTH-008: Add RPC function types for typed client
+      get_active_cappers: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          id: string;
+          display_name: string;
+          username: string | null;
+          external_id: string | null;
+        }[];
+      };
+      sync_cappers_from_users: {
+        Args: Record<PropertyKey, never>;
+        Returns: number;
+      };
     };
     Enums: {
       [_ in never]: never;

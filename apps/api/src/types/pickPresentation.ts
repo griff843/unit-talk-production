@@ -11,7 +11,7 @@
  * @see docs/contracts/PICK_PRESENTATION_STANDARD.md
  */
 
-import type { UnifiedPicksRow } from '@unit-talk/shared-types';
+// SPRINT-RUNTIME-TRUTH-008: UnifiedPicksRow import removed - using standalone interface
 
 /**
  * Market types for picks
@@ -26,15 +26,29 @@ export type PickMarketType =
 
 /**
  * Unified picks row type from database - extended for presentation
- * Re-exported from shared-types with presentation-specific fields
+ * SPRINT-RUNTIME-TRUTH-008: Standalone interface to avoid Json type conflicts
  */
-export interface UnifiedPickRow extends Partial<UnifiedPicksRow> {
+export interface UnifiedPickRow {
   id: string;
   sport: string;
+  // Core fields from database (nullable to match schema)
+  player_name?: string | null;
+  player_id?: string | null;
+  line?: number | null;
+  odds?: number | null;
+  direction?: string | null;
+  side?: string | null;
+  selection?: string | null;
+  stat_type?: string | null;
+  tier?: string | null;
+  capper_id?: string | null;
+  bet_type?: string | null;
+  meta?: Record<string, unknown> | null;
   // Presentation-specific optional fields
   team?: string;
   matchup?: string;
   unit_size?: number;
+  units?: number;
   leg_index?: number | null;
   manual_matchup_home?: string;
   manual_matchup_away?: string;

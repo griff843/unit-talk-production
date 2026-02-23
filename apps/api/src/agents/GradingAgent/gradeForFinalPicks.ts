@@ -1,23 +1,36 @@
-import { lifecycleInsert } from '../../lib/lifecycle';
+/**
+ * @deprecated SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007
+ * This module is DEPRECATED. BridgeWorker now handles grading directly.
+ * The daily_picks table has been eliminated.
+ */
+
+import { lifecycleInsert, lifecycleUpdate } from '../../lib/lifecycle';
 import { logger } from '../../services/logging';
 import { supabase } from '../../services/supabaseClient';
 
 import { gradePick } from './scoring/edgeScore';
 
+/**
+ * @deprecated Use BridgeWorker for canonical grading flow
+ */
 export async function gradeAndPromoteUnifiedPicks() {
-  // Fetch all eligible daily picks that have NOT been promoted
+  // SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007: Fail-closed
+  logger.warn('DEPRECATED: gradeAndPromoteUnifiedPicks() called from gradeForFinalPicks.ts');
+  logger.warn('BridgeWorker now handles grading: bridge_outbox → unified_picks');
+
+  // Check if there are any ungraded picks in unified_picks that need processing
   const { data: picks, error } = await supabase
-    .from('daily_picks')
+    .from('unified_picks')
     .select('*')
-    .eq('promoted_to_final', false)
-    .eq('is_valid', true);
+    .is('tier', null)
+    .eq('workflow_stage', 'pending');
 
   if (error) {
-    logger.error(error, 'Error fetching daily_picks');
+    logger.error(error, 'Error fetching unified_picks for grading');
     throw error;
   }
   if (!picks || picks.length === 0) {
-    logger.info('No eligible daily_picks found for final grading.');
+    logger.info('No ungraded unified_picks found.');
     return;
   }
 
@@ -27,14 +40,17 @@ export async function gradeAndPromoteUnifiedPicks() {
     try {
       // --- Multi-leg logic for Parlay, Teaser, Round Robin ---
       if (
-        pick.is_parlay || pick.is_teaser || pick.is_rr ||
+        pick.is_parlay ||
+        pick.is_teaser ||
+        pick.is_rr ||
         ['parlay', 'teaser', 'roundrobin', 'sgp'].includes((pick.bet_type || '').toLowerCase())
       ) {
         if (Array.isArray(pick.legs) && pick.legs.length > 1) {
           const legResults: any[] = pick.legs.map((leg: any) => gradePick(leg));
-          const allLegsQualified = legResults.every((result) => ['S', 'A'].includes(result.tier));
+          const allLegsQualified = legResults.every(result => ['S', 'A'].includes(result.tier));
           const ticketScore = Math.round(
-            legResults.reduce((acc, cur) => acc + (cur.professional_score ?? 0), 0) / legResults.length
+            legResults.reduce((acc, cur) => acc + (cur.professional_score ?? 0), 0) /
+              legResults.length
           );
 
           if (allLegsQualified) {
@@ -55,19 +71,35 @@ export async function gradeAndPromoteUnifiedPicks() {
               logger.error({ id: pick.id, error: multiResult.error }, 'Failed to insert multi-leg');
               continue;
             }
-            await supabase.from('daily_picks').update({
-              promoted_to_final: true,
-              promoted_final_at: new Date().toISOString()
-            }).eq('id', pick.id);
+            // SPRINT-007: No longer updating daily_picks - picks are already in unified_picks
+            // SPRINT-RUNTIME-TRUTH-008: Use lifecycle adapter for updates
+            await lifecycleUpdate(
+              supabase,
+              pick.id,
+              {
+                promoted_to_final: true,
+                promoted_final_at: new Date().toISOString(),
+              },
+              { writerRole: 'promoter', traceId: `gradefor-promote-multi-${pick.id}` }
+            );
 
             promotedCount++;
-            logger.info({ id: pick.id, type: pick.bet_type }, 'Multi-leg bet promoted to unified_picks');
+            logger.info(
+              { id: pick.id, type: pick.bet_type },
+              'Multi-leg bet promoted to unified_picks'
+            );
           } else {
-            logger.info({ id: pick.id, type: pick.bet_type }, 'Multi-leg bet not promoted (one or more legs below threshold)');
+            logger.info(
+              { id: pick.id, type: pick.bet_type },
+              'Multi-leg bet not promoted (one or more legs below threshold)'
+            );
           }
           continue;
         }
-        logger.warn({ id: pick.id, type: pick.bet_type }, 'Multi-leg bet missing legs array, skipping');
+        logger.warn(
+          { id: pick.id, type: pick.bet_type },
+          'Multi-leg bet missing legs array, skipping'
+        );
         continue;
       }
 
@@ -89,15 +121,28 @@ export async function gradeAndPromoteUnifiedPicks() {
           logger.error({ id: pick.id, error: singleResult.error }, 'Failed to insert single pick');
           continue;
         }
-        await supabase.from('daily_picks').update({
-          promoted_to_final: true,
-          promoted_final_at: new Date().toISOString()
-        }).eq('id', pick.id);
+        // SPRINT-007: No longer updating daily_picks - picks are already in unified_picks
+        // SPRINT-RUNTIME-TRUTH-008: Use lifecycle adapter for updates
+        await lifecycleUpdate(
+          supabase,
+          pick.id,
+          {
+            promoted_to_final: true,
+            promoted_final_at: new Date().toISOString(),
+          },
+          { writerRole: 'promoter', traceId: `gradefor-promote-single-${pick.id}` }
+        );
 
         promotedCount++;
-        logger.info({ id: pick.id, player: pick.player_name, tier: grade.tier }, 'Promoted to unified_picks');
+        logger.info(
+          { id: pick.id, player: pick.player_name, tier: grade.tier },
+          'Promoted to unified_picks'
+        );
       } else {
-        logger.info({ id: pick.id, player: pick.player_name, tier: grade.tier }, 'Not promoted to unified_picks');
+        logger.info(
+          { id: pick.id, player: pick.player_name, tier: grade.tier },
+          'Not promoted to unified_picks'
+        );
       }
     } catch (err) {
       logger.error({ id: pick.id }, 'Grading error: ', err);

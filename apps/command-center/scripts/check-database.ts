@@ -12,12 +12,12 @@ async function checkDatabase() {
   console.log('🔍 Checking database structure and data...');
 
   try {
-    // Check for existing tables that the command center expects
+    // SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007: Use unified_picks (canonical)
     const tablesToCheck = [
       'agent_health',
       'agent_metrics',
       'security_events',
-      'daily_picks',
+      'unified_picks',
       'raw_props',
       'games',
       'cappers',

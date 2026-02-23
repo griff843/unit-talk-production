@@ -206,7 +206,8 @@ export type Tables = {
   games: Game;
   teams: Team;
   players: Player;
-  daily_picks: DailyPick;
+  /** @deprecated SPRINT-007: Use unified_picks */
+  daily_picks: UnifiedPick;
   unified_picks: UnifiedPick;
   capper_threads: CapperThread;
   agent_logs: AgentLog;

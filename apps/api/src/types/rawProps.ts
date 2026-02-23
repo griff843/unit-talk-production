@@ -4,18 +4,45 @@
 import type { RawPropsRow } from '@unit-talk/shared-types';
 
 /**
- * RawProp - Re-exported from shared-types
- * Use RawPropsRow for strict DB row typing, or RawProp for flexibility
+ * RawPropsRow - Canonical DB row type from shared-types
  */
-export type { RawPropsRow, RawProp } from '@unit-talk/shared-types';
+export type { RawPropsRow };
+
+/**
+ * RawProp - Flexible type for internal prop handling
+ * SPRINT-RUNTIME-TRUTH-008: Made flexible to accommodate different prop sources
+ * The schema has diverged from legacy code - this type bridges the gap
+ */
+export interface RawProp {
+  id: string;
+  // Legacy fields used by FeedAgent
+  player_name?: string;
+  team?: string;
+  opponent?: string;
+  market?: string;
+  line?: number;
+  over?: number;
+  under?: number;
+  market_type?: string;
+  game_time?: string;
+  external_id?: string;
+  external_game_id?: string;
+  provider?: string;
+  scraped_at?: string;
+  matchup?: string;
+  stat_type?: string;
+  over_odds?: number;
+  under_odds?: number;
+  outcomes?: unknown[];
+  is_valid?: boolean;
+  // Allow additional properties
+  [key: string]: unknown;
+}
 
 /**
  * Extended RawProp with additional runtime fields not in DB schema
- * SPRINT-DB-TYPE-ALLOWLIST-BURN-004: outcomes now in RawPropsRow
  */
-export interface ExtendedRawProp extends RawPropsRow {
-  // Optimal-specific fields not in DB
+export interface ExtendedRawProp extends RawProp {
   label?: string;
   abbr?: string;
-  [key: string]: unknown; // For flexibility (extra fields as needed)
 }

@@ -3,7 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 
 import { GradingAgent } from '../agents/GradingAgent';
 import { env } from '../config/env';
-import { lifecycleInsert } from '../lib/lifecycle';
+// SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007: lifecycleInsert no longer used
+// SmartFormBridge enqueues to bridge_outbox; BridgeWorker does the lifecycleInsert
 import { logger } from '../shared/logger';
 // import { Pick } from '../types/pick';
 import { SmartTicket } from '../types/smartForm';
@@ -51,39 +52,35 @@ export class SmartFormBridge {
       }
 
       // 3. Transform to platform format
-      const dailyPick = await this.transformToPlatformFormat(smartTicket, correlationId);
+      const pickData = await this.transformToPlatformFormat(smartTicket, correlationId);
 
       // 4. Generate system insights (for AI training and capper feedback)
-      const insights = await this.generateInsights(smartTicket, dailyPick);
+      const insights = await this.generateInsights(smartTicket, pickData);
 
-      // 5. Store to daily_picks table (auto-approved)
-      const pickId = await this.storeDailyPick(dailyPick);
+      // 5. SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007: Enqueue to bridge_outbox ONLY
+      // Canonical path: bridge_outbox → BridgeWorker → lifecycleInsert → unified_picks
+      // SmartFormBridge must NOT write to unified_picks directly
+      const betSlipId = await this.enqueueToBridgeOutbox(
+        smartTicket,
+        pickData,
+        insights,
+        bridgeLogger
+      );
 
-      // 6. Store insights for system tracking
-      await this.storeInsights(pickId, insights);
-
-      // 7. AUTO-PROMOTE ALL SMART FORM PICKS TO FINAL_PICKS (User-submitted, always promote)
-      await this.promoteToUnifiedPicks(pickId, dailyPick, insights);
-      bridgeLogger.info('Smart form pick auto-promoted to unified_picks', {
-        pickId,
+      bridgeLogger.info('Smart form pick enqueued to bridge_outbox', {
+        betSlipId,
         systemGrade: insights.systemGrade,
-        reviewRequired: insights.systemGrade !== 'S-tier' && insights.systemGrade !== 'A-tier',
+        capper: smartTicket.capper,
       });
 
-      // 8. Route based on market type and game context
-      if (smartTicket.market_type === 'live') {
-        // Route to game thread if game-specific, otherwise capper thread
-        const routingTarget = await this.determineRoutingTarget(smartTicket, capperThreadId);
-        await this.processLivePick(pickId, routingTarget);
-      } else {
-        await this.scheduleForBatchPosting(pickId);
-      }
+      // 6. Store insights for system tracking (linked by bet_slip_id)
+      await this.storeInsights(betSlipId, insights);
 
-      // 8. Update smart form status with insights
+      // 7. Update smart form status with insights
       await this.updateSmartTicketStatus(ticketId, 'processed', insights);
 
       bridgeLogger.info('Smart form bridge processing completed successfully', {
-        pickId,
+        betSlipId,
         marketType: smartTicket.market_type,
         capper: smartTicket.capper,
         insights: insights.systemGrade,
@@ -310,14 +307,14 @@ export class SmartFormBridge {
   }
 
   /**
-   * Transform smart ticket to platform daily_picks format
-   * Maps to actual database schema columns, not the Pick interface
+   * Transform smart ticket to platform pick format
+   * SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007: Now maps to unified_picks
    */
   private async transformToPlatformFormat(
     smartTicket: SmartTicket,
     _correlationId: string
   ): Promise<any> {
-    // Transform to match actual daily_picks table schema
+    // Transform to match unified_picks schema
     const leg = smartTicket.legs[0] as any;
 
     return {
@@ -427,20 +424,87 @@ export class SmartFormBridge {
   }
 
   /**
-   * Store daily pick to database
+   * SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007: Enqueue to bridge_outbox
+   * Canonical path: bridge_outbox → BridgeWorker → lifecycleInsert → unified_picks
+   * SmartFormBridge must NOT write to unified_picks directly.
    */
-  private async storeDailyPick(pick: any): Promise<string> {
-    const { data, error } = await this.supabase
-      .from('daily_picks')
-      .insert(pick)
-      .select('id')
-      .single();
+  private async enqueueToBridgeOutbox(
+    smartTicket: SmartTicket,
+    pickData: any,
+    insights: any,
+    bridgeLogger: typeof logger
+  ): Promise<string> {
+    const betSlipId = `smartform-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    const outboxEntry = {
+      aggregate_id: betSlipId,
+      event_type: 'ticket_submitted',
+      event_data: {
+        // Core pick data
+        player_name: pickData.player_name,
+        sport: pickData.sport,
+        team: pickData.team,
+        stat_type: pickData.stat_type,
+        selection: pickData.outcome,
+        line: pickData.line,
+        odds: pickData.odds,
+        direction: pickData.direction,
+        // Game context
+        game_date: pickData.game_date,
+        matchup: pickData.matchup,
+        capper: pickData.capper,
+        unit_size: pickData.unit_size,
+        stake: pickData.unit_size,
+        bet_type: pickData.bet_type,
+        // Market type for routing
+        market_type: smartTicket.market_type,
+        // Parlay tracking
+        parlay_id: pickData.parlay_id,
+        // Legs array (for BridgeWorker compatibility)
+        legs: smartTicket.legs,
+        // Source tracking
+        source: 'smart_form',
+        // Pre-computed insights (BridgeWorker can use these)
+        pre_graded: {
+          tier: insights.systemGrade,
+          confidence: insights.systemConfidence,
+        },
+      },
+      metadata: {
+        bet_slip_id: betSlipId,
+        source: 'smart_form_bridge',
+        capper: pickData.capper,
+        market_type: smartTicket.market_type,
+      },
+      idempotency_key: betSlipId,
+      status: 'pending',
+      created_at: new Date().toISOString(),
+    };
+
+    const { error } = await this.supabase.from('bridge_outbox').insert(outboxEntry);
 
     if (error) {
-      throw new Error(`Failed to store daily pick: ${error.message}`);
+      throw new Error(`Failed to enqueue to bridge_outbox: ${error.message}`);
     }
 
-    return data.id;
+    bridgeLogger.info('Enqueued ticket to bridge_outbox for BridgeWorker processing', {
+      betSlipId,
+      capper: pickData.capper,
+      marketType: smartTicket.market_type,
+    });
+
+    return betSlipId;
+  }
+
+  /**
+   * @deprecated SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007
+   * Use enqueueToBridgeOutbox instead. Direct unified_picks writes violate canonical path.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private async _deprecatedStoreUnifiedPick(_pickData: any, _insights: any): Promise<string> {
+    throw new Error(
+      'DEPRECATED: Use enqueueToBridgeOutbox - direct unified_picks writes violate canonical path'
+    );
   }
 
   /**
@@ -465,53 +529,24 @@ export class SmartFormBridge {
   }
 
   /**
-   * Process live pick - immediate Discord posting
+   * @deprecated SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007
+   * Live pick routing is now handled by BridgeWorker after processing bridge_outbox.
+   * SmartFormBridge only enqueues to bridge_outbox.
    */
-  private async processLivePick(pickId: string, threadId: string): Promise<void> {
-    // Mark for immediate posting
-    const { error } = await this.supabase
-      .from('daily_picks')
-      .update({
-        status: 'live_ready',
-        thread_id: threadId,
-        scheduled_post_time: new Date().toISOString(), // Post immediately
-      })
-      .eq('id', pickId);
-
-    if (error) {
-      throw new Error(`Failed to mark live pick: ${error.message}`);
-    }
-
-    logger.info('Live pick marked for immediate posting', { pickId, threadId });
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private async _deprecatedProcessLivePick(_pickId: string, _threadId: string): Promise<void> {
+    // Routing is handled by BridgeWorker via bridge_outbox
+    throw new Error('DEPRECATED: processLivePick - routing handled by BridgeWorker');
   }
 
   /**
-   * Schedule pick for 10 AM batch posting
+   * @deprecated SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007
+   * Batch posting scheduling is now handled by BridgeWorker after processing bridge_outbox.
+   * SmartFormBridge only enqueues to bridge_outbox.
    */
-  private async scheduleForBatchPosting(pickId: string): Promise<void> {
-    // Set for 10 AM EST batch posting
-    const tomorrow10AM = new Date();
-    tomorrow10AM.setHours(10, 0, 0, 0);
-    if (tomorrow10AM <= new Date()) {
-      tomorrow10AM.setDate(tomorrow10AM.getDate() + 1);
-    }
-
-    const { error } = await this.supabase
-      .from('daily_picks')
-      .update({
-        status: 'scheduled',
-        scheduled_post_time: tomorrow10AM.toISOString(),
-      })
-      .eq('id', pickId);
-
-    if (error) {
-      throw new Error(`Failed to schedule pick: ${error.message}`);
-    }
-
-    logger.info('Pick scheduled for batch posting', {
-      pickId,
-      scheduledTime: tomorrow10AM.toISOString(),
-    });
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private async _deprecatedScheduleForBatchPosting(_pickId: string): Promise<void> {
+    throw new Error('DEPRECATED: scheduleForBatchPosting - routing handled by BridgeWorker');
   }
 
   /**
@@ -551,109 +586,17 @@ export class SmartFormBridge {
   }
 
   /**
-   * Promote high-quality picks to unified_picks table for AlertAgent processing
+   * @deprecated SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007
+   * This method is no longer used. Picks are now stored directly to unified_picks
+   * via storeUnifiedPick(). Kept for reference during transition period.
    */
-  private async promoteToUnifiedPicks(
-    pickId: string,
-    dailyPick: any,
-    insights: any
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private async _deprecatedPromoteToUnifiedPicks(
+    _pickId: string,
+    _dailyPick: any,
+    _insights: any
   ): Promise<void> {
-    try {
-      // Transform daily_pick to final_pick format matching actual unified_picks schema
-      const finalPick = {
-        id: `final-${pickId}`,
-        daily_pick_id: pickId,
-
-        // Core pick data from daily_picks
-        player_name: dailyPick.player_name,
-        sport: dailyPick.sport,
-        team: dailyPick.team,
-        stat_type: dailyPick.stat_type,
-        outcome: dailyPick.outcome,
-        line: dailyPick.line,
-        odds: dailyPick.odds,
-        direction: dailyPick.direction,
-
-        // Game context
-        game_date: dailyPick.game_date,
-        matchup: dailyPick.matchup,
-        capper: dailyPick.capper,
-        unit_size: dailyPick.unit_size,
-        bet_type: dailyPick.bet_type,
-
-        // Tier and confidence from insights
-        tier: insights.systemGrade,
-        confidence_score: insights.systemConfidence,
-        expected_value_score: insights.expectedValue,
-
-        // Status and routing
-        play_status: 'pending', // Critical: AlertAgent monitors pending picks for live notifications
-        auto_approved: true,
-
-        // Smart form specific tracking
-        parlay_id: dailyPick.parlay_id,
-        is_primary_leg: dailyPick.is_primary_leg,
-
-        // Results (to be filled later)
-        result: null,
-        actual_stat: null,
-        final_result: null,
-
-        // Discord integration
-        posted_to_discord: false,
-        thread_id: null,
-        discord_post_id: null,
-
-        // POSTING-AUTHORITY-001: Origin tagging for posting authority router
-        meta: {
-          pick_origin: 'capper' as const,
-          capper: dailyPick.capper,
-        },
-
-        // Timestamps
-        created_at: new Date().toISOString(),
-      };
-
-      // LIFECYCLE-WRITE-SURFACE-MIGRATION-038: Use lifecycle adapter for insert
-      const result = await lifecycleInsert(
-        this.supabase,
-        finalPick,
-        { writerRole: 'submitter', traceId: `smartform-promote-${pickId}` }
-      );
-
-      if (!result.success) {
-        throw new Error(`Failed to promote to unified_picks: ${result.error}`);
-      }
-
-      // Update daily_picks to mark as promoted
-      await this.supabase
-        .from('daily_picks')
-        .update({
-          promoted_to_final: true,
-          final_pick_id: finalPick.id,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', pickId);
-
-      logger.info('Pick successfully promoted to unified_picks', {
-        dailyPickId: pickId,
-        finalPickId: finalPick.id,
-        tier: insights.systemGrade,
-      });
-    } catch (error) {
-      logger.error('Failed to promote pick to unified_picks', {
-        pickId,
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-      });
-
-      // Don't throw - this shouldn't block the main flow
-      await this.sendSystemAlert('Pick Promotion Failed', {
-        pickId,
-        error: error instanceof Error ? error.message : String(error),
-        systemGrade: insights.systemGrade,
-      });
-    }
+    throw new Error('DEPRECATED: Use storeUnifiedPick() instead - SPRINT-007');
   }
 
   /**

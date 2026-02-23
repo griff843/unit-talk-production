@@ -19,6 +19,7 @@ lerna-debug.log*
 .env.*
 !.env.example
 !.env.template
+!.env.smoke.example
 config/local.json
 config/secrets.json
 *.pem

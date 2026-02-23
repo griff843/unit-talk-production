@@ -142,8 +142,9 @@ export interface ProviderRawProp {
   [key: string]: unknown; // allow for flexible provider responses
 }
 
-// Re-export canonical type for DB operations
-export type { RawPropsRow as RawProp } from '@unit-talk/shared-types';
+// SPRINT-RUNTIME-TRUTH-008: Use flexible RawProp from local types for internal operations
+// The RawPropsRow from shared-types is too strict for provider data handling
+export { RawProp } from '../../types/rawProps';
 
 // --- Normalized Prop (your internal shape) ---
 export interface NormalizedProp {

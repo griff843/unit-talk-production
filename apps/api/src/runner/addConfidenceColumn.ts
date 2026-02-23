@@ -1,22 +1,10 @@
-import { supabase } from '../services/supabaseClient';
+/**
+ * @deprecated SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007
+ * This runner is OBSOLETE. The daily_picks table has been eliminated.
+ * All picks now flow through unified_picks via BridgeWorker.
+ */
 
-async function main() {
-  try {
-    // Add confidence column
-    const { error } = await supabase.rpc('exec', {
-      query: 'ALTER TABLE daily_picks ADD COLUMN IF NOT EXISTS confidence DECIMAL DEFAULT 0;'
-    });
-
-    if (error) {
-      console.error('Error adding confidence column:', error);
-      return;
-    }
-
-    console.log('Successfully added confidence column to daily_picks table');
-
-  } catch (error) {
-    console.error('Error:', error);
-  }
-}
-
-main().catch(console.error); 
+console.log('DEPRECATED: addConfidenceColumn.ts is obsolete.');
+console.log('The daily_picks table has been eliminated (SPRINT-007).');
+console.log('Use unified_picks table which already has all required columns.');
+process.exit(0);

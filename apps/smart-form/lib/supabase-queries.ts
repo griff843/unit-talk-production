@@ -12,17 +12,17 @@ export interface QueryTeam {
   id: string;
   name: string;
   sport: string;
-  abbreviation: string;
-  active: boolean;
+  abbr: string;
+  // SPRINT-RUNTIME-TRUTH-008: active removed (not in current schema)
 }
 
 export interface QueryPlayer {
   id: string;
-  name: string;
-  team_id: string;
+  full_name: string; // SPRINT-RUNTIME-TRUTH-008: renamed from 'name'
+  team_id: string | null;
   sport: string;
-  active: boolean;
-  position: string;
+  active: boolean | null;
+  position: string | null;
 }
 
 export interface QueryGame {
@@ -111,59 +111,61 @@ export const fetchCappers = async () => {
 };
 
 // Fetch teams by sport
+// SPRINT-RUNTIME-TRUTH-008: Removed .eq('active', true) - teams table has no active column
 export const fetchTeams = async (sport: string) => {
   const { data, error } = await supabase
     .from('teams')
-    .select('id, name, sport, abbreviation')
+    .select('id, name, sport, abbr')
     .eq('sport', sport)
-    .eq('active', true)
     .order('name');
 
   if (error) throw error;
-  return data as Team[];
+  return data as QueryTeam[];
 };
 
 // Search teams
+// SPRINT-RUNTIME-TRUTH-008: Removed .eq('active', true) - teams table has no active column
 export const searchTeams = async (query: string, sport: string) => {
   const { data, error } = await supabase
     .from('teams')
-    .select('id, name, sport, abbreviation')
+    .select('id, name, sport, abbr')
     .eq('sport', sport)
-    .eq('active', true)
     .ilike('name', `%${query}%`)
     .order('name')
     .limit(10);
 
   if (error) throw error;
-  return data as Team[];
+  return data as QueryTeam[];
 };
 
 // Fetch players by team
+// SPRINT-RUNTIME-TRUTH-008: Changed order from 'name' to 'full_name'
 export const fetchPlayers = async (teamId: string) => {
   const { data, error } = await supabase
     .from('players')
     .select('*')
     .eq('team_id', teamId)
     .eq('active', true)
-    .order('name');
+    .order('full_name');
 
   if (error) throw error;
-  return data as Player[];
+  return data as QueryPlayer[];
 };
 
 // Search players
+// SPRINT-RUNTIME-TRUTH-008: Changed 'name' to 'full_name', using type assertion for join
 export const searchPlayers = async (query: string, sport: string) => {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('players')
     .select('*, teams!inner(*)')
     .eq('sport', sport)
     .eq('active', true)
-    .ilike('name', `%${query}%`)
-    .order('name')
+    .ilike('full_name', `%${query}%`)
+    .order('full_name')
     .limit(10);
 
   if (error) throw error;
-  return data as (Player & { teams: Team })[];
+  return data as (QueryPlayer & { teams: QueryTeam })[];
 };
 
 // Fetch games by sport and date range
@@ -472,8 +474,9 @@ export const searchProps = async (
 };
 
 // NEW: Cross-sport analytics leveraging sport columns
+// SPRINT-RUNTIME-TRUTH-008: ev_modeling table may not exist - using type assertion
 export const getCrossSportAnalytics = async (userId?: string) => {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('ev_modeling')
     .select(
       `
@@ -493,8 +496,9 @@ export const getCrossSportAnalytics = async (userId?: string) => {
 };
 
 // NEW: Sport-specific contest data
+// SPRINT-RUNTIME-TRUTH-008: contests table may not exist - using type assertion
 export const getSportContests = async (sport?: string) => {
-  let query = supabase
+  let query = (supabase as any)
     .from('contests')
     .select(
       `

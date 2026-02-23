@@ -1,11 +1,12 @@
 // SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Use canonical types from shared-types
+// SPRINT-RUNTIME-TRUTH-008: Removed extends clause to avoid Json type conflicts
 import type { UnifiedPicksRow } from '@unit-talk/shared-types';
 
 /**
  * UnifiedPick - Extended for recap/analytics use cases
- * Base type imported from @unit-talk/shared-types
+ * Standalone interface for internal use (not extending canonical type due to Json compatibility)
  */
-export interface UnifiedPick extends Partial<UnifiedPicksRow> {
+export interface UnifiedPick {
   id: string;
   created_at: string;
   updated_at?: string;
@@ -24,10 +25,15 @@ export interface UnifiedPick extends Partial<UnifiedPicksRow> {
   parlay_id?: string;
   is_sharp_fade?: boolean;
   tags?: string[];
-  // SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Include meta type in index signature
   meta?: Record<string, unknown> | null;
+  data_quality_reasons?: Record<string, unknown> | null;
+  feature_contributions?: Record<string, unknown> | null;
+  manual_fields_blob?: Record<string, unknown> | null;
   [key: string]: string | number | boolean | string[] | Record<string, unknown> | undefined | null;
 }
+
+// Re-export canonical type for code that needs the actual DB shape
+export type { UnifiedPicksRow };
 
 // Enhanced recap interfaces
 export type RecapType = 'daily' | 'weekly' | 'monthly';

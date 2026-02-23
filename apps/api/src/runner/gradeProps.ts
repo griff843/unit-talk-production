@@ -8,7 +8,7 @@ async function main() {
   try {
     // Get picks that need grading
     const { data: picks, error } = await supabase
-      .from('daily_picks')
+      .from('unified_picks')
       .select('*')
       .is('edge_score', null)
       .eq('play_status', 'pending')
@@ -51,7 +51,7 @@ async function main() {
 
         // Update the pick with grading results
         const { error: updateError } = await supabase
-          .from('daily_picks')
+          .from('unified_picks')
           .update({
             edge_score: edgeScore,
             tier,

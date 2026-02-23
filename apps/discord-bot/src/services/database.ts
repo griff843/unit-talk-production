@@ -389,7 +389,7 @@ export class DatabaseService {
       offset?: number;
       tier?: string;
       sport?: string;
-      result?: UnifiedPicksRow['result'];
+      result?: string; // SPRINT-RUNTIME-TRUTH-008: Maps to settlement_status
     } = {}
   ): Promise<UnifiedPicksRow[]> {
     try {

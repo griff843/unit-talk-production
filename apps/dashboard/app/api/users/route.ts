@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { NextRequest, NextResponse } from 'next/server';
 
 // SPRINT-SCHEMA-ENV-GATES-002: Lazy Supabase initialization
 let _supabase: SupabaseClient | null = null;
@@ -7,7 +7,8 @@ function getSupabase(): SupabaseClient {
   if (!_supabase) {
     // SPRINT-SUPABASE-ENDPOINT-TRUTH-LOCK-110A: Fail-closed - no hardcoded fallbacks
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const supabaseKey =
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (!supabaseUrl || !supabaseKey) {
       throw new Error(
         'SPRINT-110A: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables are required'
@@ -71,7 +72,9 @@ export async function GET(request: NextRequest) {
 async function handleUserStats(): Promise<NextResponse> {
   try {
     // Fetch all users
-    const { data: users, error: usersError } = await getSupabase().from('user_profiles').select('*');
+    const { data: users, error: usersError } = await getSupabase()
+      .from('user_profiles')
+      .select('*');
 
     if (usersError) {
       console.error('[Users API] Error fetching users:', usersError);
@@ -109,11 +112,11 @@ async function handleUserStats(): Promise<NextResponse> {
     // Get user pick statistics
     const usersWithStats = await Promise.all(
       (users || []).slice(0, 20).map(async user => {
-        // Get user's picks from both daily_picks and smart_tickets
-        const [dailyPicks, smartTickets] = await Promise.all([
+        // SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007: Use unified_picks (canonical)
+        const [unifiedPicks, smartTickets] = await Promise.all([
           getSupabase()
-            .from('daily_picks')
-            .select('result, odds, unit_size')
+            .from('unified_picks')
+            .select('result, odds, stake')
             .eq('capper', user.username)
             .then(({ data }: { data: any }) => data || []),
           getSupabase()
@@ -123,9 +126,11 @@ async function handleUserStats(): Promise<NextResponse> {
             .then(({ data }: { data: any }) => data || []),
         ]);
 
-        const allPicks = [...dailyPicks, ...smartTickets];
+        const allPicks = [...unifiedPicks, ...smartTickets];
         const completedPicks = allPicks.filter(
-          (pick: Record<string, unknown>) => pick.result || (pick.status && ['won', 'lost', 'settled'].includes(pick.status as string))
+          (pick: Record<string, unknown>) =>
+            pick.result ||
+            (pick.status && ['won', 'lost', 'settled'].includes(pick.status as string))
         );
         const wonPicks = completedPicks.filter(
           (pick: Record<string, unknown>) => pick.result === 'win' || pick.status === 'won'
@@ -197,9 +202,9 @@ async function handleUserList(limit: number, offset: number): Promise<NextRespon
     // Enhance users with pick statistics
     const enhancedUsers = await Promise.all(
       (users || []).map(async user => {
-        // Get basic pick count quickly
+        // SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007: Use unified_picks (canonical)
         const { count: pickCount } = await getSupabase()
-          .from('daily_picks')
+          .from('unified_picks')
           .select('*', { count: 'exact', head: true })
           .eq('capper', user.username);
 

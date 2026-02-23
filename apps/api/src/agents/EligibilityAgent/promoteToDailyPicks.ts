@@ -1,6 +1,16 @@
+/**
+ * @deprecated SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007
+ * This module is DEPRECATED. BridgeWorker is now the canonical ingest path:
+ * bridge_outbox → BridgeWorker → lifecycleInsert → unified_picks
+ *
+ * Do NOT use promoteToDailyPicks(). The daily_picks table has been eliminated.
+ * Picks should flow through BridgeWorker for canonical processing.
+ */
+
 import { logger } from '../../services/logging';
 import { supabase } from '../../services/supabaseClient';
 import { applyScoringLogic } from '../GradingAgent/scoring/applyScoringLogic';
+
 import { runPreScoreGuardrails, runPostScoreGuardrails, hasRejection } from './PromotionGuardrails';
 
 const REQUIRED_PROMOTION_FIELDS = ['player_name', 'sport', 'stat_type', 'line', 'odds'] as const;
@@ -13,34 +23,29 @@ function validatePromotionFields(prop: any): { valid: boolean; missing: string[]
   return { valid: missing.length === 0, missing };
 }
 
-/** P-03: Flag-first claim + insert for a single qualifying prop */
-async function claimAndInsert(prop: any, scored: any): Promise<boolean> {
-  const { data: claimed, error: claimErr } = await supabase
-    .from('raw_props')
-    .update({ promoted: true, promoted_at: new Date().toISOString() })
-    .eq('id', prop.id)
-    .eq('promoted', false)
-    .select('id');
-
-  if (claimErr || !claimed || claimed.length === 0) {
-    logger.info({ id: prop.id }, 'Prop already claimed or claim failed — skipping (idempotent)');
-    return false;
-  }
-
-  const { error: insertErr } = await supabase.from('daily_picks').insert([scored]);
-  if (insertErr) {
-    logger.error(insertErr, `Insert to daily_picks failed for prop_id=${prop.id}`);
-    return false;
-  }
-
-  logger.info(
-    { id: prop.id, player: prop.player_name, tier: scored.tier },
-    'Promoted to daily_picks'
-  );
-  return true;
+/**
+ * @deprecated SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007
+ * This function is DEPRECATED. daily_picks table has been eliminated.
+ * Use BridgeWorker for canonical ingest: bridge_outbox → unified_picks
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function claimAndInsert(_prop: any, _scored: any): Promise<boolean> {
+  // SPRINT-007: daily_picks eliminated - this function is deprecated
+  throw new Error('DEPRECATED: claimAndInsert() - daily_picks eliminated (SPRINT-007)');
 }
 
+/**
+ * @deprecated SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007
+ * This function is DEPRECATED and will throw if called.
+ * Use BridgeWorker for canonical pick ingest.
+ */
 export async function promoteToDailyPicks() {
+  // SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007: Fail-closed
+  logger.warn('DEPRECATED: promoteToDailyPicks() called - this function is no longer supported');
+  logger.warn('Use BridgeWorker for canonical ingest: bridge_outbox → unified_picks');
+  throw new Error('DEPRECATED: promoteToDailyPicks() - Use BridgeWorker instead (SPRINT-007)');
+
+  // Legacy code preserved for reference but unreachable:
   // 1. Fetch eligible raw_props (deterministic order by id — P-01)
   const { data: rawProps, error } = await supabase
     .from('raw_props')
@@ -88,7 +93,12 @@ export async function promoteToDailyPicks() {
     const postGuardrails = runPostScoreGuardrails(scored);
     if (hasRejection(postGuardrails)) {
       logger.warn(
-        { id: prop.id, player: prop.player_name, tier: scored.tier, guardrails: postGuardrails.filter(g => !g.passed) },
+        {
+          id: prop.id,
+          player: prop.player_name,
+          tier: scored.tier,
+          guardrails: postGuardrails.filter(g => !g.passed),
+        },
         'Blocked by post-score guardrail'
       );
       continue;

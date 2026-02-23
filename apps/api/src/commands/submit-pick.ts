@@ -13,7 +13,7 @@ import {
   ModalSubmitInteraction,
   StringSelectMenuInteraction,
   ButtonInteraction,
-  GuildMember
+  GuildMember,
 } from 'discord.js';
 
 import { Database } from '../db/types/supabase';
@@ -21,8 +21,29 @@ import { capperService } from '../services/capperService';
 import { logger } from '../shared/logger';
 import { hasRole } from '../utils/roleUtils';
 
-// Use existing database types
-type DailyPickInsert = Database['public']['Tables']['daily_picks']['Insert'];
+// SPRINT-DAILY-PICKS-CANONICAL-ENFORCEMENT-007: Use flexible type for pick data
+// TODO: Refactor this command to use bridge_outbox → BridgeWorker canonical path
+type PickData = {
+  capper_id: string;
+  capper_discord_id: string;
+  capper_username: string;
+  event_date: string;
+  status: string;
+  pick_type: 'single' | 'parlay';
+  total_legs: number;
+  total_odds: number;
+  total_units: number;
+  analysis?: string | null;
+  legs: Array<{
+    game: string;
+    bet_type: string;
+    selection: string;
+    odds: number;
+  }>;
+  metadata?: Record<string, unknown>;
+};
+/** @deprecated Use bridge_outbox for canonical pick submission */
+type DailyPickInsert = PickData;
 
 // Store temporary data in memory (better than global variables)
 const tempPickData = new Map<string, any>();
@@ -38,18 +59,19 @@ export async function execute(interaction: CommandInteraction) {
     if (!hasRole(member, 'UT Capper')) {
       await interaction.reply({
         content: '❌ You need the **UT Capper** role to submit picks.',
-        ephemeral: true
+        ephemeral: true,
       });
       return;
     }
 
     // Check if user has a capper profile
     const capperProfile = await capperService.getCapperByDiscordId(interaction.user.id);
-    
+
     if (!capperProfile) {
       await interaction.reply({
-        content: '❌ You need to complete capper onboarding first. Use `/capper-onboard` to get started.',
-        ephemeral: true
+        content:
+          '❌ You need to complete capper onboarding first. Use `/capper-onboard` to get started.',
+        ephemeral: true,
       });
       return;
     }
@@ -57,11 +79,12 @@ export async function execute(interaction: CommandInteraction) {
     // Check if user already has picks for today
     const today = new Date().toISOString().split('T')[0];
     const existingPicks = await capperService.getCapperPicks(capperProfile.id, today, 'pending');
-    
+
     if (existingPicks.length >= 3) {
       await interaction.reply({
-        content: '❌ You can only submit up to 3 picks per day. Edit or delete existing picks if needed.',
-        ephemeral: true
+        content:
+          '❌ You can only submit up to 3 picks per day. Edit or delete existing picks if needed.',
+        ephemeral: true,
       });
       return;
     }
@@ -78,23 +101,21 @@ export async function execute(interaction: CommandInteraction) {
         new StringSelectMenuOptionBuilder()
           .setLabel('Parlay')
           .setValue('parlay')
-          .setDescription('Multiple bets combined into one')
+          .setDescription('Multiple bets combined into one'),
       ]);
 
-    const row = new ActionRowBuilder<StringSelectMenuBuilder>()
-      .addComponents(selectMenu);
+    const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
 
     await interaction.reply({
       content: '**📝 Submit New Pick**\n\nChoose the type of pick you want to submit:',
       components: [row],
-      ephemeral: true
+      ephemeral: true,
     });
-
   } catch (error) {
     logger.error('Error in submit-pick command', { error });
     await interaction.reply({
       content: '❌ An error occurred while processing your request.',
-      ephemeral: true
+      ephemeral: true,
     });
   }
 }
@@ -102,7 +123,7 @@ export async function execute(interaction: CommandInteraction) {
 export async function handlePickTypeSelect(interaction: StringSelectMenuInteraction) {
   try {
     const pickType = interaction.values[0] as 'single' | 'parlay';
-    
+
     // Store pick type temporarily
     tempPickData.set(interaction.user.id, { pickType });
 
@@ -115,15 +136,13 @@ export async function handlePickTypeSelect(interaction: StringSelectMenuInteract
     logger.error('Error handling pick type selection', { error });
     await interaction.reply({
       content: '❌ An error occurred while processing your selection.',
-      ephemeral: true
+      ephemeral: true,
     });
   }
 }
 
 async function showSinglePickForm(interaction: StringSelectMenuInteraction) {
-  const modal = new ModalBuilder()
-    .setCustomId('single_pick_modal')
-    .setTitle('Submit Single Pick');
+  const modal = new ModalBuilder().setCustomId('single_pick_modal').setTitle('Submit Single Pick');
 
   const gameInput = new TextInputBuilder()
     .setCustomId('game')
@@ -172,7 +191,7 @@ async function showSinglePickForm(interaction: StringSelectMenuInteraction) {
     new ActionRowBuilder<TextInputBuilder>().addComponents(betTypeInput),
     new ActionRowBuilder<TextInputBuilder>().addComponents(selectionInput),
     new ActionRowBuilder<TextInputBuilder>().addComponents(oddsInput),
-    new ActionRowBuilder<TextInputBuilder>().addComponents(unitsInput)
+    new ActionRowBuilder<TextInputBuilder>().addComponents(unitsInput),
   ];
 
   modal.addComponents(...rows);
@@ -180,9 +199,7 @@ async function showSinglePickForm(interaction: StringSelectMenuInteraction) {
 }
 
 async function showParlayForm(interaction: StringSelectMenuInteraction) {
-  const modal = new ModalBuilder()
-    .setCustomId('parlay_pick_modal')
-    .setTitle('Submit Parlay Pick');
+  const modal = new ModalBuilder().setCustomId('parlay_pick_modal').setTitle('Submit Parlay Pick');
 
   const leg1Input = new TextInputBuilder()
     .setCustomId('leg1')
@@ -224,7 +241,7 @@ async function showParlayForm(interaction: StringSelectMenuInteraction) {
     new ActionRowBuilder<TextInputBuilder>().addComponents(leg2Input),
     new ActionRowBuilder<TextInputBuilder>().addComponents(leg3Input),
     new ActionRowBuilder<TextInputBuilder>().addComponents(unitsInput),
-    new ActionRowBuilder<TextInputBuilder>().addComponents(analysisInput)
+    new ActionRowBuilder<TextInputBuilder>().addComponents(analysisInput),
   ];
 
   modal.addComponents(...rows);
@@ -245,7 +262,7 @@ export async function handleSinglePickModal(interaction: ModalSubmitInteraction)
     if (isNaN(units) || units < 1 || units > 5) {
       await interaction.reply({
         content: '❌ Units must be a number between 1 and 5.',
-        ephemeral: true
+        ephemeral: true,
       });
       return;
     }
@@ -257,7 +274,7 @@ export async function handleSinglePickModal(interaction: ModalSubmitInteraction)
     } catch {
       await interaction.reply({
         content: '❌ Invalid odds format. Use format like -110 or +150.',
-        ephemeral: true
+        ephemeral: true,
       });
       return;
     }
@@ -267,7 +284,7 @@ export async function handleSinglePickModal(interaction: ModalSubmitInteraction)
     if (!capperProfile) {
       await interaction.reply({
         content: '❌ Capper profile not found.',
-        ephemeral: true
+        ephemeral: true,
       });
       return;
     }
@@ -284,28 +301,29 @@ export async function handleSinglePickModal(interaction: ModalSubmitInteraction)
       total_odds: odds,
       total_units: units,
       analysis,
-      legs: [{
-        game,
-        bet_type: betType,
-        selection,
-        odds
-      }],
+      legs: [
+        {
+          game,
+          bet_type: betType,
+          selection,
+          odds,
+        },
+      ],
       metadata: {
         submitted_at: new Date().toISOString(),
-        submitted_by: interaction.user.id
-      }
+        submitted_by: interaction.user.id,
+      },
     };
 
     // Store for preview
     tempPickData.set(interaction.user.id, { ...tempPickData.get(interaction.user.id), pickData });
 
     await showPickPreview(interaction, pickData);
-
   } catch (error) {
     logger.error('Error handling single pick modal', { error });
     await interaction.reply({
       content: '❌ An error occurred while processing your pick.',
-      ephemeral: true
+      ephemeral: true,
     });
   }
 }
@@ -323,24 +341,26 @@ export async function handleParlayPickModal(interaction: ModalSubmitInteraction)
     if (isNaN(units) || units < 1 || units > 5) {
       await interaction.reply({
         content: '❌ Units must be a number between 1 and 5.',
-        ephemeral: true
+        ephemeral: true,
       });
       return;
     }
 
     // Parse legs
     const legs = [leg1, leg2];
-    if (leg3) {legs.push(leg3);}
+    if (leg3) {
+      legs.push(leg3);
+    }
 
     const parsedLegs = legs.map((leg, index) => {
       const parts = leg.split('|').map(p => p.trim());
       if (parts.length !== 4) {
         throw new Error(`Leg ${index + 1} format invalid. Use: Game | Bet Type | Selection | Odds`);
       }
-      
+
       const [game, betType, selection, oddsStr] = parts;
       const odds = parseFloat(oddsStr!.replace(/[+]/g, ''));
-      
+
       if (isNaN(odds)) {
         throw new Error(`Invalid odds in leg ${index + 1}`);
       }
@@ -350,19 +370,20 @@ export async function handleParlayPickModal(interaction: ModalSubmitInteraction)
 
     // Calculate total odds (multiply all odds)
     const totalOdds = parsedLegs.reduce((total, leg) => {
-      const decimal = leg.odds > 0 ? (leg.odds / 100) + 1 : (100 / Math.abs(leg.odds)) + 1;
+      const decimal = leg.odds > 0 ? leg.odds / 100 + 1 : 100 / Math.abs(leg.odds) + 1;
       return total * decimal;
     }, 1);
 
     // Convert back to American odds
-    const americanOdds = totalOdds >= 2 ? Math.round((totalOdds - 1) * 100) : Math.round(-100 / (totalOdds - 1));
+    const americanOdds =
+      totalOdds >= 2 ? Math.round((totalOdds - 1) * 100) : Math.round(-100 / (totalOdds - 1));
 
     // Get capper profile
     const capperProfile = await capperService.getCapperByDiscordId(interaction.user.id);
     if (!capperProfile) {
       await interaction.reply({
         content: '❌ Capper profile not found.',
-        ephemeral: true
+        ephemeral: true,
       });
       return;
     }
@@ -382,20 +403,19 @@ export async function handleParlayPickModal(interaction: ModalSubmitInteraction)
       legs: parsedLegs,
       metadata: {
         submitted_at: new Date().toISOString(),
-        submitted_by: interaction.user.id
-      }
+        submitted_by: interaction.user.id,
+      },
     };
 
     // Store for preview
     tempPickData.set(interaction.user.id, { ...tempPickData.get(interaction.user.id), pickData });
 
     await showPickPreview(interaction, pickData);
-
   } catch (error) {
     logger.error('Error handling parlay pick modal', { error });
     await interaction.reply({
       content: `❌ Error processing parlay: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      ephemeral: true
+      ephemeral: true,
     });
   }
 }
@@ -407,7 +427,11 @@ async function showPickPreview(interaction: ModalSubmitInteraction, pickData: Da
     .addFields(
       { name: 'Type', value: pickData.pick_type.toUpperCase(), inline: true },
       { name: 'Units', value: pickData.total_units.toString(), inline: true },
-      { name: 'Total Odds', value: pickData.total_odds > 0 ? `+${pickData.total_odds}` : pickData.total_odds.toString(), inline: true }
+      {
+        name: 'Total Odds',
+        value: pickData.total_odds > 0 ? `+${pickData.total_odds}` : pickData.total_odds.toString(),
+        inline: true,
+      }
     );
 
   // Add legs
@@ -417,7 +441,7 @@ async function showPickPreview(interaction: ModalSubmitInteraction, pickData: Da
     embed.addFields({
       name: `Pick${legNum}`,
       value: `**${leg.game}**\n${leg.bet_type}: ${leg.selection}\nOdds: ${leg.odds > 0 ? `+${leg.odds}` : leg.odds}`,
-      inline: false
+      inline: false,
     });
   });
 
@@ -435,14 +459,13 @@ async function showPickPreview(interaction: ModalSubmitInteraction, pickData: Da
     .setLabel('❌ Cancel')
     .setStyle(ButtonStyle.Danger);
 
-  const row = new ActionRowBuilder<ButtonBuilder>()
-    .addComponents(confirmButton, cancelButton);
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(confirmButton, cancelButton);
 
   await interaction.reply({
     content: '**Review your pick before submitting:**',
     embeds: [embed],
     components: [row],
-    ephemeral: true
+    ephemeral: true,
   });
 }
 
@@ -453,7 +476,7 @@ export async function handlePickConfirmation(interaction: ButtonInteraction) {
       await interaction.update({
         content: '❌ Pick submission cancelled.',
         embeds: [],
-        components: []
+        components: [],
       });
       return;
     }
@@ -463,18 +486,18 @@ export async function handlePickConfirmation(interaction: ButtonInteraction) {
       if (!userData?.pickData) {
         await interaction.reply({
           content: '❌ Pick data not found. Please try again.',
-          ephemeral: true
+          ephemeral: true,
         });
         return;
       }
 
       // Submit the pick
       const pick = await capperService.createDailyPick(userData.pickData);
-      
+
       if (!pick) {
         throw new Error('Failed to create pick - no pick returned');
       }
-      
+
       // Clean up temp data
       tempPickData.delete(interaction.user.id);
 
@@ -491,14 +514,14 @@ export async function handlePickConfirmation(interaction: ButtonInteraction) {
       await interaction.update({
         content: '',
         embeds: [successEmbed],
-        components: []
+        components: [],
       });
     }
   } catch (error) {
     logger.error('Error handling pick confirmation', { error });
     await interaction.reply({
       content: '❌ An error occurred while submitting your pick.',
-      ephemeral: true
+      ephemeral: true,
     });
   }
 }

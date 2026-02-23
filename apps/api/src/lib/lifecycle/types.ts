@@ -145,6 +145,12 @@ export interface LifecyclePick {
   failed_at?: Date | string;
   freeze_enforced_at?: Date | string;
   meta?: Record<string, unknown>;
+  // SPRINT-RUNTIME-TRUTH-008: Final picks promotion fields
+  promoted_to_final?: boolean;
+  promoted_final_at?: Date | string;
+  // SPRINT-RUNTIME-TRUTH-008: Scheduled pick posting fields
+  message_id?: string;
+  posted_at?: Date | string;
 }
 
 // ============================================================
