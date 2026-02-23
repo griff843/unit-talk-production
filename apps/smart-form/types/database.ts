@@ -1,430 +1,65 @@
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+/**
+ * SPRINT-DATABASE-TYPE-CENTRALIZATION-003: Smart Form Database Types
+ *
+ * Canonical database types are imported from @unit-talk/shared-types.
+ * App-specific extensions and additional tables are defined here.
+ *
+ * RULE: Do NOT redefine canonical table Row types (unified_picks, bridge_outbox, etc.)
+ *       Import them from @unit-talk/shared-types instead.
+ */
 
+// Import canonical types from shared-types
+import type {
+  Database as CanonicalDatabase,
+  Json as CanonicalJson,
+  Tables,
+  TablesInsert,
+  TablesUpdate,
+  UnifiedPicksRow,
+  BridgeOutboxRow,
+  UsersRow,
+  CappersRow,
+  TeamsRow,
+  PlayersRow,
+  GamesRow,
+  RawPropsRow,
+  SmartTicketsRow,
+} from '@unit-talk/shared-types';
+
+// Re-export canonical types for backwards compatibility
+export type {
+  Tables,
+  TablesInsert,
+  TablesUpdate,
+  UnifiedPicksRow,
+  BridgeOutboxRow,
+  UsersRow,
+  CappersRow,
+  TeamsRow,
+  PlayersRow,
+  GamesRow,
+  RawPropsRow,
+  SmartTicketsRow,
+};
+
+// Re-export Json type
+export type Json = CanonicalJson;
+
+// =============================================================================
+// APP-SPECIFIC EXTENDED TYPES
+// These extend the canonical schema with smart-form-specific fields.
+// =============================================================================
+
+/**
+ * Extended Database interface for Smart Form
+ *
+ * This extends the canonical database with additional tables and fields
+ * specific to the Smart Form application.
+ */
 export interface Database {
   public: {
-    Tables: {
-      users: {
-        Row: {
-          id: string;
-          username: string;
-          active: boolean;
-          discord_id?: string | null;
-          tier?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Insert: {
-          id?: string;
-          username: string;
-          active?: boolean;
-          discord_id?: string | null;
-          tier?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          username?: string;
-          active?: boolean;
-          discord_id?: string | null;
-          tier?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-      };
-      cappers: {
-        Row: {
-          id: string;
-          name: string;
-          active: boolean;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Insert: {
-          id?: string;
-          name: string;
-          active?: boolean;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          name?: string;
-          active?: boolean;
-          created_at?: string;
-          updated_at?: string;
-        };
-      };
-      teams: {
-        Row: {
-          id: string;
-          name: string;
-          sport: string;
-          abbreviation: string;
-          active: boolean;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Insert: {
-          id?: string;
-          name: string;
-          sport: string;
-          abbreviation: string;
-          active?: boolean;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          name?: string;
-          sport?: string;
-          abbreviation?: string;
-          active?: boolean;
-          created_at?: string;
-          updated_at?: string;
-        };
-      };
-      players: {
-        Row: {
-          id: string;
-          name: string;
-          team_id: string;
-          sport: string;
-          position: string;
-          active: boolean;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Insert: {
-          id?: string;
-          name: string;
-          team_id: string;
-          sport: string;
-          position: string;
-          active?: boolean;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          name?: string;
-          team_id?: string;
-          sport?: string;
-          position?: string;
-          active?: boolean;
-          created_at?: string;
-          updated_at?: string;
-        };
-      };
-      games: {
-        Row: {
-          id: string;
-          sport: string;
-          league: string;
-          home_team: string;
-          away_team: string;
-          game_date: string;
-          start_time: string | null;
-          commence_time?: string | null;
-          status: string;
-          external_game_id: string | null;
-          meta: Record<string, unknown> | null;
-          moneyline_home?: number | null;
-          moneyline_away?: number | null;
-          spread?: number | null;
-          total?: number | null;
-          spread_odds?: number | null;
-          total_over_odds?: number | null;
-          total_under_odds?: number | null;
-          home_team_meta?: Record<string, unknown> | null;
-          away_team_meta?: Record<string, unknown> | null;
-          matchup?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Insert: {
-          id?: string;
-          sport: string;
-          league: string;
-          home_team: string;
-          away_team: string;
-          game_date: string;
-          start_time: string;
-          status?: string;
-          external_game_id?: string;
-          meta?: Record<string, unknown>;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          sport?: string;
-          league?: string;
-          home_team?: string;
-          away_team?: string;
-          game_date?: string;
-          start_time?: string;
-          status?: string;
-          external_game_id?: string;
-          meta?: Record<string, unknown>;
-          created_at?: string;
-          updated_at?: string;
-        };
-      };
-      raw_props: {
-        Row: {
-          id: string;
-          game_id: string | null;
-          external_game_id?: string | null;
-          player_id?: string | null;
-          team_id?: string | null;
-          player_name?: string | null;
-          team?: string | null;
-          opponent?: string | null;
-          stat_type: string;
-          prop_type?: string | null;
-          market_type: string;
-          line: number | null;
-          odds: number | null;
-          over_odds?: number | null;
-          under_odds?: number | null;
-          confidence?: number | null;
-          expected_value?: number | null;
-          provider?: string | null;
-          sport?: string | null;
-          game_time?: string | null;
-          status: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Insert: {
-          id?: string;
-          game_id?: string | null;
-          external_game_id?: string | null;
-          player_id?: string | null;
-          team_id?: string | null;
-          player_name?: string | null;
-          team?: string | null;
-          opponent?: string | null;
-          stat_type: string;
-          prop_type?: string | null;
-          market_type: string;
-          line?: number | null;
-          odds?: number | null;
-          over_odds?: number | null;
-          under_odds?: number | null;
-          confidence?: number | null;
-          expected_value?: number | null;
-          provider?: string | null;
-          sport?: string | null;
-          game_time?: string | null;
-          status?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          game_id?: string | null;
-          external_game_id?: string | null;
-          player_id?: string | null;
-          team_id?: string | null;
-          player_name?: string | null;
-          team?: string | null;
-          opponent?: string | null;
-          stat_type?: string;
-          prop_type?: string | null;
-          market_type?: string;
-          line?: number | null;
-          odds?: number | null;
-          over_odds?: number | null;
-          under_odds?: number | null;
-          confidence?: number | null;
-          expected_value?: number | null;
-          provider?: string | null;
-          sport?: string | null;
-          game_time?: string | null;
-          status?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-      };
-      bridge_outbox: {
-        Row: {
-          id: string;
-          event_type: string;
-          event_data: Json;
-          bet_slip_id: string;
-          status: string;
-          processed_at?: string | null;
-          retry_count?: number;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Insert: {
-          id?: string;
-          event_type: string;
-          event_data: Json;
-          bet_slip_id: string;
-          status?: string;
-          processed_at?: string | null;
-          retry_count?: number;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          event_type?: string;
-          event_data?: Json;
-          bet_slip_id?: string;
-          status?: string;
-          processed_at?: string | null;
-          retry_count?: number;
-          created_at?: string;
-          updated_at?: string;
-        };
-      };
-      unified_picks: {
-        Row: {
-          id: string;
-          bet_slip_id: string;
-          user_id: string;
-          sport: string;
-          leg_index?: number | null;
-          ticket_type?: string | null;
-          stat_type: string;
-          line?: number | null;
-          odds: number;
-          selection: string;
-          confidence?: number | null;
-          team_id?: string | null;
-          player_id?: string | null;
-          player_name?: string | null;
-          bet_type?: string | null;
-          side?: string | null;
-          source?: string | null;
-          is_live?: boolean | null;
-          meta?: Json | null;
-          manual_matchup_home?: string | null;
-          manual_matchup_away?: string | null;
-          manual_game_date?: string | null;
-          manual_fields_blob?: Json | null;
-          posted_to_discord?: boolean | null;
-          discord_message_id?: string | null;
-          settlement_status?: string | null;
-          settlement_result?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Insert: {
-          id?: string;
-          bet_slip_id: string;
-          user_id: string;
-          sport: string;
-          leg_index?: number | null;
-          ticket_type?: string | null;
-          stat_type: string;
-          line?: number | null;
-          odds: number;
-          selection: string;
-          confidence?: number | null;
-          team_id?: string | null;
-          player_id?: string | null;
-          player_name?: string | null;
-          bet_type?: string | null;
-          side?: string | null;
-          source?: string | null;
-          is_live?: boolean | null;
-          meta?: Json | null;
-          manual_matchup_home?: string | null;
-          manual_matchup_away?: string | null;
-          manual_game_date?: string | null;
-          manual_fields_blob?: Json | null;
-          posted_to_discord?: boolean | null;
-          discord_message_id?: string | null;
-          settlement_status?: string | null;
-          settlement_result?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          bet_slip_id?: string;
-          user_id?: string;
-          sport?: string;
-          leg_index?: number | null;
-          ticket_type?: string | null;
-          stat_type?: string;
-          line?: number | null;
-          odds?: number;
-          selection?: string;
-          confidence?: number | null;
-          team_id?: string | null;
-          player_id?: string | null;
-          player_name?: string | null;
-          bet_type?: string | null;
-          side?: string | null;
-          source?: string | null;
-          is_live?: boolean | null;
-          meta?: Json | null;
-          manual_matchup_home?: string | null;
-          manual_matchup_away?: string | null;
-          manual_game_date?: string | null;
-          manual_fields_blob?: Json | null;
-          posted_to_discord?: boolean | null;
-          discord_message_id?: string | null;
-          settlement_status?: string | null;
-          settlement_result?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-      };
-      smart_tickets: {
-        Row: {
-          id: string;
-          bet_slip_id: string;
-          capper_id: string;
-          sport: string;
-          ticket_type: string;
-          game_selections: Json;
-          parlay_odds?: number | null;
-          total_units: number;
-          status: string;
-          selection_count: number;
-          notes?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Insert: {
-          id?: string;
-          bet_slip_id: string;
-          capper_id: string;
-          sport: string;
-          ticket_type: string;
-          game_selections: Json;
-          parlay_odds?: number | null;
-          total_units?: number;
-          status?: string;
-          selection_count: number;
-          notes?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          bet_slip_id?: string;
-          capper_id?: string;
-          sport?: string;
-          ticket_type?: string;
-          game_selections?: Json;
-          parlay_odds?: number | null;
-          total_units?: number;
-          status?: string;
-          selection_count?: number;
-          notes?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-      };
+    Tables: CanonicalDatabase['public']['Tables'] & {
+      // Additional smart-form specific table: tickets
       tickets: {
         Row: {
           id: string;

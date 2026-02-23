@@ -64,6 +64,8 @@
     "schema:types:gen": "node scripts/generate-schema-types.mjs",
     "schema:check-drift": "node scripts/guard-schema-drift.mjs",
     "schema:verify": "npm run schema:types:gen && npm run schema:check-drift",
+    "guard:db-type-drift": "node scripts/guard-db-type-drift.mjs",
+    "guard:db-type-drift:strict": "node scripts/guard-db-type-drift.mjs --strict",
     "build:sanity": "node scripts/build-sanity.mjs",
     "ops:day": "node ops/day.mjs",
     "session:baseline": "node scripts/claude-session-baseline.mjs",

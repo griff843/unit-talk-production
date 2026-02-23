@@ -32,6 +32,7 @@
     "proof:contracts": "tsx scripts/proof-contracts.ts"
   },
   "dependencies": {
+    "@unit-talk/shared-types": "workspace:*",
     "@hookform/resolvers": "^3.3.4",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-dialog": "^1.0.5",

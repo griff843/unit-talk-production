@@ -2,10 +2,26 @@
  * Database types index - merges generated types with extensions
  *
  * SPRINT-SUPABASE-TYPE-SAFETY-LOCK-106A
+ * SPRINT-DATABASE-TYPE-CENTRALIZATION-003: Canonical Row types from @unit-talk/shared-types
  */
 
 import type { Database as GeneratedDatabase, Json } from './database';
 import type { DatabaseExtensions } from './database-extensions';
+
+// Re-export canonical Row types from shared-types for cross-app compatibility
+export type {
+  UnifiedPicksRow,
+  BridgeOutboxRow,
+  AgentHealthRow,
+  PropSettlementsRow,
+  UsersRow,
+  CappersRow,
+  TeamsRow,
+  PlayersRow,
+  GamesRow,
+  RawPropsRow,
+  SmartTicketsRow,
+} from '@unit-talk/shared-types';
 
 // Re-export Json type
 export type { Json };

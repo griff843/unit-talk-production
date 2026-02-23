@@ -88,6 +88,7 @@
     "ops:db:preflight": "tsx src/scripts/ops/supabase-migration-preflight.ts"
   },
   "dependencies": {
+    "@unit-talk/shared-types": "workspace:*",
     "@anthropic-ai/sdk": "^0.56.0",
     "@notionhq/client": "^2.2.15",
     "@supabase/supabase-js": "^2.50.0",

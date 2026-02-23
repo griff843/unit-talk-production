@@ -10,16 +10,16 @@
  *   npx supabase gen types typescript --project-id <id> > packages/shared-types/src/supabase.ts
  */
 
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[];
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
-// Row interfaces for each table
-interface UnifiedPicksRow {
+// ============================================================================
+// CANONICAL ROW TYPES
+// SPRINT-DATABASE-TYPE-CENTRALIZATION-003: All apps MUST import these types.
+// DO NOT redefine these interfaces in apps/** - use @unit-talk/shared-types.
+// ============================================================================
+
+// Row interfaces for each table - EXPORTED for use across the monorepo
+export interface UnifiedPicksRow {
   id: string;
   created_at: string;
   updated_at: string;
@@ -39,7 +39,7 @@ interface UnifiedPicksRow {
   meta: Record<string, unknown> | null;
 }
 
-interface BridgeOutboxRow {
+export interface BridgeOutboxRow {
   id: string;
   created_at: string;
   updated_at: string;
@@ -49,7 +49,7 @@ interface BridgeOutboxRow {
   processed_at: string | null;
 }
 
-interface AgentHealthRow {
+export interface AgentHealthRow {
   id: string;
   created_at: string;
   updated_at: string;
@@ -59,109 +59,109 @@ interface AgentHealthRow {
   metadata: Record<string, unknown> | null;
 }
 
-interface PropSettlementsRow {
+export interface PropSettlementsRow {
   id: string;
   created_at: string;
   updated_at: string;
 }
 
-interface UsersRow {
+export interface UsersRow {
   id: string;
   created_at: string;
   updated_at: string;
 }
 
-interface RawPropsRow {
+export interface RawPropsRow {
   id: string;
   created_at: string;
   updated_at: string;
 }
 
-interface GamesRow {
+export interface GamesRow {
   id: string;
   created_at: string;
   updated_at: string;
 }
 
-interface PlayersRow {
+export interface PlayersRow {
   id: string;
   created_at: string;
   updated_at: string;
 }
 
-interface ClosingSnapshotsRow {
+export interface ClosingSnapshotsRow {
   id: string;
   created_at: string;
   updated_at: string;
 }
 
-interface AuditLogRow {
+export interface AuditLogRow {
   id: string;
   created_at: string;
   updated_at: string;
 }
 
-interface CappersRow {
+export interface CappersRow {
   id: string;
   created_at: string;
   updated_at: string;
 }
 
-interface DailyPicksRow {
+export interface DailyPicksRow {
   id: string;
   created_at: string;
   updated_at: string;
 }
 
-interface SmartTicketsRow {
+export interface SmartTicketsRow {
   id: string;
   created_at: string;
   updated_at: string;
 }
 
-interface TeamsRow {
+export interface TeamsRow {
   id: string;
   created_at: string;
   updated_at: string;
 }
 
-interface UserProfilesRow {
+export interface UserProfilesRow {
   id: string;
   created_at: string;
   updated_at: string;
 }
 
-interface TicketDiscordOutboxRow {
+export interface TicketDiscordOutboxRow {
   id: string;
   created_at: string;
   updated_at: string;
 }
 
-interface PlayerProjectionsRow {
+export interface PlayerProjectionsRow {
   id: string;
   created_at: string;
   updated_at: string;
 }
 
-interface OpsWorkerHeartbeatsRow {
+export interface OpsWorkerHeartbeatsRow {
   id: string;
   created_at: string;
   updated_at: string;
 }
 
-interface AutopilotDecisionsRow {
+export interface AutopilotDecisionsRow {
   id: string;
   created_at: string;
   updated_at: string;
 }
 
-interface AutopilotPolicyConfigRow {
+export interface AutopilotPolicyConfigRow {
   id: string;
   created_at: string;
   updated_at: string;
 }
 
-interface AutopilotCooldownsRow {
+export interface AutopilotCooldownsRow {
   id: string;
   created_at: string;
   updated_at: string;
@@ -170,132 +170,132 @@ interface AutopilotCooldownsRow {
 export interface Database {
   public: {
     Tables: {
-    unified_picks: {
-      Row: UnifiedPicksRow;
-      Insert: Partial<UnifiedPicksRow>;
-      Update: Partial<UnifiedPicksRow>;
-      Relationships: [];
-    };
-    bridge_outbox: {
-      Row: BridgeOutboxRow;
-      Insert: Partial<BridgeOutboxRow>;
-      Update: Partial<BridgeOutboxRow>;
-      Relationships: [];
-    };
-    agent_health: {
-      Row: AgentHealthRow;
-      Insert: Partial<AgentHealthRow>;
-      Update: Partial<AgentHealthRow>;
-      Relationships: [];
-    };
-    prop_settlements: {
-      Row: PropSettlementsRow;
-      Insert: Partial<PropSettlementsRow>;
-      Update: Partial<PropSettlementsRow>;
-      Relationships: [];
-    };
-    users: {
-      Row: UsersRow;
-      Insert: Partial<UsersRow>;
-      Update: Partial<UsersRow>;
-      Relationships: [];
-    };
-    raw_props: {
-      Row: RawPropsRow;
-      Insert: Partial<RawPropsRow>;
-      Update: Partial<RawPropsRow>;
-      Relationships: [];
-    };
-    games: {
-      Row: GamesRow;
-      Insert: Partial<GamesRow>;
-      Update: Partial<GamesRow>;
-      Relationships: [];
-    };
-    players: {
-      Row: PlayersRow;
-      Insert: Partial<PlayersRow>;
-      Update: Partial<PlayersRow>;
-      Relationships: [];
-    };
-    closing_snapshots: {
-      Row: ClosingSnapshotsRow;
-      Insert: Partial<ClosingSnapshotsRow>;
-      Update: Partial<ClosingSnapshotsRow>;
-      Relationships: [];
-    };
-    audit_log: {
-      Row: AuditLogRow;
-      Insert: Partial<AuditLogRow>;
-      Update: Partial<AuditLogRow>;
-      Relationships: [];
-    };
-    cappers: {
-      Row: CappersRow;
-      Insert: Partial<CappersRow>;
-      Update: Partial<CappersRow>;
-      Relationships: [];
-    };
-    daily_picks: {
-      Row: DailyPicksRow;
-      Insert: Partial<DailyPicksRow>;
-      Update: Partial<DailyPicksRow>;
-      Relationships: [];
-    };
-    smart_tickets: {
-      Row: SmartTicketsRow;
-      Insert: Partial<SmartTicketsRow>;
-      Update: Partial<SmartTicketsRow>;
-      Relationships: [];
-    };
-    teams: {
-      Row: TeamsRow;
-      Insert: Partial<TeamsRow>;
-      Update: Partial<TeamsRow>;
-      Relationships: [];
-    };
-    user_profiles: {
-      Row: UserProfilesRow;
-      Insert: Partial<UserProfilesRow>;
-      Update: Partial<UserProfilesRow>;
-      Relationships: [];
-    };
-    ticket_discord_outbox: {
-      Row: TicketDiscordOutboxRow;
-      Insert: Partial<TicketDiscordOutboxRow>;
-      Update: Partial<TicketDiscordOutboxRow>;
-      Relationships: [];
-    };
-    player_projections: {
-      Row: PlayerProjectionsRow;
-      Insert: Partial<PlayerProjectionsRow>;
-      Update: Partial<PlayerProjectionsRow>;
-      Relationships: [];
-    };
-    ops_worker_heartbeats: {
-      Row: OpsWorkerHeartbeatsRow;
-      Insert: Partial<OpsWorkerHeartbeatsRow>;
-      Update: Partial<OpsWorkerHeartbeatsRow>;
-      Relationships: [];
-    };
-    autopilot_decisions: {
-      Row: AutopilotDecisionsRow;
-      Insert: Partial<AutopilotDecisionsRow>;
-      Update: Partial<AutopilotDecisionsRow>;
-      Relationships: [];
-    };
-    autopilot_policy_config: {
-      Row: AutopilotPolicyConfigRow;
-      Insert: Partial<AutopilotPolicyConfigRow>;
-      Update: Partial<AutopilotPolicyConfigRow>;
-      Relationships: [];
-    };
-    autopilot_cooldowns: {
-      Row: AutopilotCooldownsRow;
-      Insert: Partial<AutopilotCooldownsRow>;
-      Update: Partial<AutopilotCooldownsRow>;
-      Relationships: [];
-    };
+      unified_picks: {
+        Row: UnifiedPicksRow;
+        Insert: Partial<UnifiedPicksRow>;
+        Update: Partial<UnifiedPicksRow>;
+        Relationships: [];
+      };
+      bridge_outbox: {
+        Row: BridgeOutboxRow;
+        Insert: Partial<BridgeOutboxRow>;
+        Update: Partial<BridgeOutboxRow>;
+        Relationships: [];
+      };
+      agent_health: {
+        Row: AgentHealthRow;
+        Insert: Partial<AgentHealthRow>;
+        Update: Partial<AgentHealthRow>;
+        Relationships: [];
+      };
+      prop_settlements: {
+        Row: PropSettlementsRow;
+        Insert: Partial<PropSettlementsRow>;
+        Update: Partial<PropSettlementsRow>;
+        Relationships: [];
+      };
+      users: {
+        Row: UsersRow;
+        Insert: Partial<UsersRow>;
+        Update: Partial<UsersRow>;
+        Relationships: [];
+      };
+      raw_props: {
+        Row: RawPropsRow;
+        Insert: Partial<RawPropsRow>;
+        Update: Partial<RawPropsRow>;
+        Relationships: [];
+      };
+      games: {
+        Row: GamesRow;
+        Insert: Partial<GamesRow>;
+        Update: Partial<GamesRow>;
+        Relationships: [];
+      };
+      players: {
+        Row: PlayersRow;
+        Insert: Partial<PlayersRow>;
+        Update: Partial<PlayersRow>;
+        Relationships: [];
+      };
+      closing_snapshots: {
+        Row: ClosingSnapshotsRow;
+        Insert: Partial<ClosingSnapshotsRow>;
+        Update: Partial<ClosingSnapshotsRow>;
+        Relationships: [];
+      };
+      audit_log: {
+        Row: AuditLogRow;
+        Insert: Partial<AuditLogRow>;
+        Update: Partial<AuditLogRow>;
+        Relationships: [];
+      };
+      cappers: {
+        Row: CappersRow;
+        Insert: Partial<CappersRow>;
+        Update: Partial<CappersRow>;
+        Relationships: [];
+      };
+      daily_picks: {
+        Row: DailyPicksRow;
+        Insert: Partial<DailyPicksRow>;
+        Update: Partial<DailyPicksRow>;
+        Relationships: [];
+      };
+      smart_tickets: {
+        Row: SmartTicketsRow;
+        Insert: Partial<SmartTicketsRow>;
+        Update: Partial<SmartTicketsRow>;
+        Relationships: [];
+      };
+      teams: {
+        Row: TeamsRow;
+        Insert: Partial<TeamsRow>;
+        Update: Partial<TeamsRow>;
+        Relationships: [];
+      };
+      user_profiles: {
+        Row: UserProfilesRow;
+        Insert: Partial<UserProfilesRow>;
+        Update: Partial<UserProfilesRow>;
+        Relationships: [];
+      };
+      ticket_discord_outbox: {
+        Row: TicketDiscordOutboxRow;
+        Insert: Partial<TicketDiscordOutboxRow>;
+        Update: Partial<TicketDiscordOutboxRow>;
+        Relationships: [];
+      };
+      player_projections: {
+        Row: PlayerProjectionsRow;
+        Insert: Partial<PlayerProjectionsRow>;
+        Update: Partial<PlayerProjectionsRow>;
+        Relationships: [];
+      };
+      ops_worker_heartbeats: {
+        Row: OpsWorkerHeartbeatsRow;
+        Insert: Partial<OpsWorkerHeartbeatsRow>;
+        Update: Partial<OpsWorkerHeartbeatsRow>;
+        Relationships: [];
+      };
+      autopilot_decisions: {
+        Row: AutopilotDecisionsRow;
+        Insert: Partial<AutopilotDecisionsRow>;
+        Update: Partial<AutopilotDecisionsRow>;
+        Relationships: [];
+      };
+      autopilot_policy_config: {
+        Row: AutopilotPolicyConfigRow;
+        Insert: Partial<AutopilotPolicyConfigRow>;
+        Update: Partial<AutopilotPolicyConfigRow>;
+        Relationships: [];
+      };
+      autopilot_cooldowns: {
+        Row: AutopilotCooldownsRow;
+        Insert: Partial<AutopilotCooldownsRow>;
+        Update: Partial<AutopilotCooldownsRow>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -305,6 +305,9 @@ export interface Database {
 }
 
 // Re-export for convenience
-export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];
-export type TablesInsert<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Insert'];
-export type TablesUpdate<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Update'];
+export type Tables<T extends keyof Database['public']['Tables']> =
+  Database['public']['Tables'][T]['Row'];
+export type TablesInsert<T extends keyof Database['public']['Tables']> =
+  Database['public']['Tables'][T]['Insert'];
+export type TablesUpdate<T extends keyof Database['public']['Tables']> =
+  Database['public']['Tables'][T]['Update'];

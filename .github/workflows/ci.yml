@@ -169,6 +169,10 @@ jobs:
       - name: Guard - Schema Drift Check
         run: npm run schema:check-drift
 
+      # SPRINT-DATABASE-TYPE-CENTRALIZATION-003: DB type drift guard
+      - name: Guard - DB Type Drift
+        run: npm run guard:db-type-drift:strict
+
   # Lifecycle Contract Gate
   # LIFECYCLE-WRITE-SURFACE-MIGRATION-038: Enforce single-writer discipline
   lifecycle-gate:
