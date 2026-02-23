@@ -1,6 +1,9 @@
 import 'dotenv/config';
+import { getDefaultTelemetry } from '@unit-talk/telemetry';
+
 import { getEnv } from './utils/getEnv';
 import { createLogger } from './utils/logger';
+// SPRINT-SYNDICATE-CLEANUP-006: Telemetry integration
 
 const logger = createLogger('Main');
 
@@ -12,6 +15,20 @@ async function main() {
     // Validate environment variables
     getEnv();
     logger.info('Environment variables loaded successfully');
+
+    // SPRINT-SYNDICATE-CLEANUP-006: Initialize OpenTelemetry (lazy env access)
+    // Fail-open: telemetry init failure is non-fatal
+    try {
+      const telemetry = getDefaultTelemetry();
+      telemetry.initialize();
+      logger.info('OpenTelemetry initialized', {
+        serviceName: process.env.SERVICE_NAME || 'unit-talk-api',
+        environment: process.env.NODE_ENV || 'development',
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.warn('OpenTelemetry initialization failed (non-fatal):', { err: msg });
+    }
 
     // Start both API server and Temporal worker in parallel
     logger.info('Starting API server and Temporal worker...');
@@ -116,13 +133,25 @@ async function main() {
 }
 
 // Handle graceful shutdown
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   logger.info('Received SIGINT, shutting down gracefully...');
+  try {
+    const telemetry = getDefaultTelemetry();
+    await telemetry.shutdown();
+  } catch {
+    // Ignore telemetry shutdown errors
+  }
   process.exit(0);
 });
 
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   logger.info('Received SIGTERM, shutting down gracefully...');
+  try {
+    const telemetry = getDefaultTelemetry();
+    await telemetry.shutdown();
+  } catch {
+    // Ignore telemetry shutdown errors
+  }
   process.exit(0);
 });
 
