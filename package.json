@@ -74,7 +74,8 @@
     "mcp:git": "node scripts/mcp-wrappers/git-mcp.mjs",
     "mcp:workspace": "node scripts/mcp-wrappers/pnpm-workspace-mcp.mjs",
     "mcp:supabase": "node scripts/mcp-wrappers/supabase-schema-mcp.mjs",
-    "mcp:typescript": "node scripts/mcp-wrappers/typescript-lsp-mcp.mjs"
+    "mcp:typescript": "node scripts/mcp-wrappers/typescript-lsp-mcp.mjs",
+    "e2e:smoke:full": "npx tsx scripts/e2e-smoke/run-full-smoke.ts"
   },
   "keywords": [
     "sports-betting",

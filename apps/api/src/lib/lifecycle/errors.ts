@@ -5,12 +5,7 @@
  * Typed errors for lifecycle operations.
  */
 
-import type {
-  LifecycleError,
-  LifecycleErrorCode,
-  LifecycleStage,
-  WriterRole,
-} from './types';
+import type { LifecycleError, LifecycleErrorCode, LifecycleStage, WriterRole } from './types';
 
 /**
  * Base lifecycle error class
@@ -41,11 +36,7 @@ export class LifecycleValidationError extends Error {
  * Invalid transition error (400 Bad Request)
  */
 export class InvalidTransitionError extends LifecycleValidationError {
-  constructor(
-    currentState: LifecycleStage,
-    attemptedState: LifecycleStage,
-    reason?: string
-  ) {
+  constructor(currentState: LifecycleStage, attemptedState: LifecycleStage, reason?: string) {
     super(
       {
         code: 'INVALID_TRANSITION',
@@ -66,11 +57,7 @@ export class InvalidTransitionError extends LifecycleValidationError {
  * Invalid writer error (403 Forbidden)
  */
 export class InvalidWriterError extends LifecycleValidationError {
-  constructor(
-    writerRole: WriterRole,
-    field: string,
-    allowedWriters: WriterRole[]
-  ) {
+  constructor(writerRole: WriterRole, field: string, allowedWriters: WriterRole[]) {
     super(
       {
         code: 'INVALID_WRITER',
@@ -158,7 +145,8 @@ export class BlockedError extends LifecycleValidationError {
       | 'BLOCKED_GAME_STARTED'
       | 'BLOCKED_LINE_STALE'
       | 'BLOCKED_PROMOTION_INELIGIBLE'
-      | 'BLOCKED_RATE_LIMITED',
+      | 'BLOCKED_RATE_LIMITED'
+      | 'BLOCKED_AUTOPILOT_FROZEN',
     message: string
   ) {
     super(
@@ -169,6 +157,42 @@ export class BlockedError extends LifecycleValidationError {
       422
     );
     this.name = 'BlockedError';
+  }
+}
+
+/**
+ * Autopilot frozen error - HARD FAIL-CLOSED
+ * Sprint: SPRINT-E2E-SMOKE-AUTOMATION-005
+ *
+ * Thrown when autopilot is frozen and lifecycle writes are blocked.
+ * This is a HARD blocker - no bypass paths allowed.
+ */
+export class AutopilotFrozenError extends LifecycleValidationError {
+  public readonly freezeReason: string | null;
+  public readonly freezeScope: string | null;
+  public readonly incidentId: string | null;
+
+  constructor(
+    freezeReason: string | null,
+    freezeScope: string | null = null,
+    incidentId: string | null = null
+  ) {
+    super(
+      {
+        code: 'BLOCKED_AUTOPILOT_FROZEN',
+        message: `Autopilot frozen: ${freezeReason || 'System freeze active'}`,
+        details: {
+          reason: freezeReason || 'System freeze active',
+          scope: freezeScope,
+          incidentId,
+        },
+      },
+      503 // Service Unavailable - signals temporary system state
+    );
+    this.name = 'AutopilotFrozenError';
+    this.freezeReason = freezeReason;
+    this.freezeScope = freezeScope;
+    this.incidentId = incidentId;
   }
 }
 

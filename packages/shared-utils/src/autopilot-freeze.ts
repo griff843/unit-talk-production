@@ -68,7 +68,7 @@ function getRedisUrl(): string | undefined {
   return process.env['REDIS_URL'];
 }
 function isLocalFileStateEnabled(): boolean {
-  return process.env['isLocalFileStateEnabled()'] === 'true';
+  return process.env['LOCAL_FILE_STATE'] === 'true';
 }
 
 const DEFAULT_STATE: AutopilotFreezeState = {

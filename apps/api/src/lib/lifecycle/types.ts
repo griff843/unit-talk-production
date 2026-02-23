@@ -54,10 +54,10 @@ export type LifecycleStage =
  * Authorized writer roles for lifecycle field updates
  */
 export type WriterRole =
-  | 'submitter'        // Smart Form
-  | 'promoter'         // PromotionAgent
-  | 'poster'           // DiscordPoster
-  | 'settler'          // SettlementAgent
+  | 'submitter' // Smart Form
+  | 'promoter' // PromotionAgent
+  | 'poster' // DiscordPoster
+  | 'settler' // SettlementAgent
   | 'operator_override'; // Manual override via RPC
 
 // ============================================================
@@ -74,7 +74,8 @@ export type BlockerCode =
   | 'BLOCKED_GAME_STARTED'
   | 'BLOCKED_LINE_STALE'
   | 'BLOCKED_PROMOTION_INELIGIBLE'
-  | 'BLOCKED_RATE_LIMITED';
+  | 'BLOCKED_RATE_LIMITED'
+  | 'BLOCKED_AUTOPILOT_FROZEN';
 
 /**
  * Failure codes - why processing failed
@@ -199,6 +200,9 @@ export interface LifecycleError {
     reason?: string;
     writerRole?: WriterRole;
     allowedWriters?: WriterRole[];
+    // Autopilot freeze details
+    scope?: string | null;
+    incidentId?: string | null;
   };
 }
 
@@ -223,9 +227,9 @@ export interface FieldAuthority {
  * Stuck detection thresholds (in minutes)
  */
 export interface StuckThresholds {
-  submittedToQueued: number;    // 5 minutes
-  queuedToPosted: number;       // 15 minutes
-  postedToSettled: number;      // 1440 minutes (24 hours)
+  submittedToQueued: number; // 5 minutes
+  queuedToPosted: number; // 15 minutes
+  postedToSettled: number; // 1440 minutes (24 hours)
 }
 
 /**
