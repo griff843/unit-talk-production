@@ -1,14 +1,17 @@
 /**
  * V3 Ticket Submission for Smart Form
  *
+ * SPRINT-CANONICAL-SURFACE-ALIGNMENT-114:
+ * Changed from atomic_submit_ticket_v2 RPC (writes to `tickets` table)
+ * to API route that writes to `bridge_outbox` → processed by BridgeWorker
+ * into `unified_picks` (canonical surface).
+ *
  * SPRINT-END-TO-END-TICKET-LIFECYCLE-TRUTH-093 (routing status check)
  * SPRINT-SMARTFORM-UX-REBUILD-080 (original)
  *
- * Calls atomic_submit_ticket_v2 RPC with provider-first model.
  * Fail-closed: Only shows success on 'inserted' or 'exists' status.
  */
 
-import { supabase } from '../supabase';
 import type {
   V3SubmitTicketInput,
   V3SubmitTicketResult,
@@ -232,11 +235,16 @@ export function buildLegPayload(leg: V3TicketLeg): V3LegPayload {
 // ============================================================================
 
 /**
- * Submit a ticket via atomic_submit_ticket_v2 RPC
+ * Submit a ticket via bridge_outbox → unified_picks pipeline
+ *
+ * SPRINT-CANONICAL-SURFACE-ALIGNMENT-114:
+ * Changed from direct atomic_submit_ticket_v2 RPC (writes to tickets table)
+ * to API route that writes to bridge_outbox (processed by BridgeWorker
+ * into unified_picks - the canonical surface).
  *
  * @param input - Ticket submission input
  * @returns Submission result with status and IDs
- * @throws Error if RPC call fails or returns unexpected format
+ * @throws Error if API call fails
  */
 export async function submitTicketV3(input: V3SubmitTicketInput): Promise<V3SubmitTicketResult> {
   // Build leg payloads
@@ -257,49 +265,50 @@ export async function submitTicketV3(input: V3SubmitTicketInput): Promise<V3Subm
     return buildLegPayload(leg as unknown as V3TicketLeg);
   });
 
-  console.log('[V3Submit] Submitting ticket:', {
+  console.log('[V3Submit] Submitting ticket via bridge_outbox:', {
     bet_slip_id: input.bet_slip_id,
     ticket_type: input.ticket_type,
     leg_count: legPayloads.length,
   });
 
-  // Call RPC - using type assertion because RPC is not typed in Database
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase.rpc as any)('atomic_submit_ticket_v2', {
-    p_bet_slip_id: input.bet_slip_id,
-    p_user_id: input.user_id,
-    p_ticket_type: input.ticket_type,
-    p_total_stake: input.total_stake,
-    p_legs: legPayloads,
-    p_source: 'smart_form',
-    p_meta: input.meta || {},
+  // SPRINT-CANONICAL-SURFACE-ALIGNMENT-114:
+  // Call API route instead of RPC to route through bridge_outbox → unified_picks
+  const res = await fetch('/api/v3/submit-ticket', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      bet_slip_id: input.bet_slip_id,
+      user_id: input.user_id,
+      ticket_type: input.ticket_type,
+      total_stake: input.total_stake,
+      legs: legPayloads,
+      meta: input.meta || {},
+    }),
   });
 
-  if (error) {
-    console.error('[V3Submit] RPC error:', error);
-    throw new Error(`Submission failed: ${error.message}`);
+  if (!res.ok) {
+    const errorData = await res
+      .json()
+      .catch(() => ({ error_details: [{ errors: ['Network error'] }] }));
+    console.error('[V3Submit] API error:', { status: res.status, data: errorData });
+
+    // Return error result in expected format
+    return {
+      ticket_id: null,
+      leg_ids: null,
+      status: 'error' as SubmitStatus,
+      error_details: errorData.error_details || [{ leg_index: 0, errors: ['Submission failed'] }],
+    };
   }
 
-  // RPC returns array with single row
-  const responseData = data as Array<{
-    out_ticket_id: string | null;
-    out_leg_ids: string[] | null;
-    out_status: string;
-    out_error_details: V3LegError[] | null;
-  }>;
+  const data = await res.json();
 
-  if (!responseData || !Array.isArray(responseData) || responseData.length === 0) {
-    throw new Error('Unexpected RPC response format: no data returned');
-  }
-
-  const row = responseData[0];
-
-  // Map to result type
+  // Map API response to result type
   const result: V3SubmitTicketResult = {
-    ticket_id: row.out_ticket_id,
-    leg_ids: row.out_leg_ids,
-    status: row.out_status as SubmitStatus,
-    error_details: row.out_error_details,
+    ticket_id: data.ticket_id,
+    leg_ids: data.leg_ids,
+    status: data.status as SubmitStatus,
+    error_details: data.error_details,
   };
 
   console.log('[V3Submit] Result:', {
