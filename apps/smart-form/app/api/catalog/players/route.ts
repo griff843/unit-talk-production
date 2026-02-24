@@ -30,12 +30,21 @@ const log = createRouteLogger('GET /api/catalog/players', 'GET');
  * Added away_team_id and home_team_id for matchup-aware filtering.
  * Fail-closed: if require_matchup=true and no teams provided, return empty.
  */
+// PHASE-0-FIX: Use transform instead of coerce for proper string 'false' handling
+const booleanFromString = z
+  .union([z.boolean(), z.string()])
+  .transform(val => {
+    if (typeof val === 'boolean') return val;
+    return val === 'true' || val === '1';
+  })
+  .default(false);
+
 const QuerySchema = z.object({
   sport: z.string().min(1, 'sport parameter is required'),
   team_id: z.string().nullish(), // Legacy single-team filter (text team ID like "team_nfl_buffalo_bills")
   away_team_id: z.string().nullish(), // Matchup: away team ID
   home_team_id: z.string().nullish(), // Matchup: home team ID
-  require_matchup: z.coerce.boolean().default(false), // Fail-closed: require team filter
+  require_matchup: booleanFromString, // Fail-closed: require team filter (FIXED: string 'false' now works)
   q: z.string().min(2).nullish(),
   limit: z.coerce.number().min(1).max(100).default(50),
 });

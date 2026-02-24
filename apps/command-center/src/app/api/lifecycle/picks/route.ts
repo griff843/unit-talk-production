@@ -1,13 +1,14 @@
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase';
+
 import {
   deriveLifecycleStage,
   buildTimeline,
   needsAttention,
   type LifecycleStage,
 } from '@/lib/lifecycleDisplay';
+import { createClient } from '@/lib/supabase';
 
 /**
  * LIFECYCLE PICKS API
@@ -19,9 +20,9 @@ import {
 
 // Fixed stuck thresholds (in minutes) per sprint constraints
 const STUCK_THRESHOLDS = {
-  SUBMITTED: 5,    // 5 minutes to get queued
-  QUEUED: 15,      // 15 minutes to get posted
-  POSTED: 1440,    // 24 hours to get settled
+  SUBMITTED: 5, // 5 minutes to get queued
+  QUEUED: 15, // 15 minutes to get posted
+  POSTED: 1440, // 24 hours to get settled
 };
 
 interface LifecyclePick {
@@ -92,17 +93,19 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '100', 10);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
+    // PHASE-0-FIX: Use actual column names from schema
     // Fetch picks with lifecycle-relevant fields
     const { data: picksData, error: picksError } = await supabase
       .from('unified_picks')
-      .select(`
+      .select(
+        `
         id,
         user_id,
         selection,
         odds,
         confidence,
         sport,
-        tier_when_placed,
+        tier,
         status,
         promotion_status,
         settlement_status,
@@ -116,12 +119,9 @@ export async function GET(request: NextRequest) {
         promotion_posted_at,
         settled_at,
         blocked_at,
-        failed_at,
-        users!unified_picks_user_id_fkey (
-          username,
-          capper_tier
-        )
-      `)
+        failed_at
+      `
+      )
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -131,9 +131,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform and filter picks
+    // PHASE-0-FIX: Use capper_username directly instead of user join
     let lifecyclePicks: LifecyclePick[] = (picksData || []).map((pick: any) => {
-      const user = Array.isArray(pick.users) ? pick.users[0] : pick.users;
-
       const lifecycleData = {
         status: pick.status,
         promotion_status: pick.promotion_status,
@@ -158,11 +157,11 @@ export async function GET(request: NextRequest) {
         failed_reason: pick.failed_reason,
         stuck_minutes: stuckMinutes,
         needs_attention: needsAttention(lifecycleData),
-        capper: user?.username || 'Unknown',
+        capper: pick.user_id ? `User ${pick.user_id.slice(0, 8)}` : 'Unknown', // PHASE-0-FIX: Use user_id
         sport: pick.sport || 'Unknown',
         selection: pick.selection || '',
         odds: pick.odds || 0,
-        tier: pick.tier_when_placed || user?.capper_tier || 'C',
+        tier: pick.tier || 'C', // PHASE-0-FIX: Use tier column
         confidence: pick.confidence || 50,
         created_at: pick.created_at,
         promotion_queued_at: pick.promotion_queued_at,
@@ -184,14 +183,14 @@ export async function GET(request: NextRequest) {
     }
 
     if (blockerCode) {
-      lifecyclePicks = lifecyclePicks.filter(p =>
-        p.blocked_reason && p.blocked_reason.includes(blockerCode)
+      lifecyclePicks = lifecyclePicks.filter(
+        p => p.blocked_reason && p.blocked_reason.includes(blockerCode)
       );
     }
 
     if (failureCode) {
-      lifecyclePicks = lifecyclePicks.filter(p =>
-        p.failed_reason && p.failed_reason.includes(failureCode)
+      lifecyclePicks = lifecyclePicks.filter(
+        p => p.failed_reason && p.failed_reason.includes(failureCode)
       );
     }
 
@@ -202,10 +201,13 @@ export async function GET(request: NextRequest) {
     // Calculate summary stats
     const summary = {
       total: lifecyclePicks.length,
-      byStage: lifecyclePicks.reduce((acc, p) => {
-        acc[p.lifecycle_stage] = (acc[p.lifecycle_stage] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>),
+      byStage: lifecyclePicks.reduce(
+        (acc, p) => {
+          acc[p.lifecycle_stage] = (acc[p.lifecycle_stage] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>
+      ),
       stuckCount: lifecyclePicks.filter(p => p.stuck_minutes !== undefined).length,
       needsAttentionCount: lifecyclePicks.filter(p => p.needs_attention).length,
     };

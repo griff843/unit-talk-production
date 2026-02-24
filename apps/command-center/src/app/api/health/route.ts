@@ -6,9 +6,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
-import { RBACService, Permission } from '@/lib/rbac';
-import { supabase } from '@/lib/supabase';
 import { validateSupabaseEndpoint, CANONICAL_SUPABASE_HOST } from '@/lib/env';
+import { RBACService, Permission } from '@/lib/rbac';
+import { getRedisClient } from '@/lib/redis';
+import { supabase } from '@/lib/supabase';
 
 interface ComponentHealthStatus {
   component: string;
@@ -264,21 +265,25 @@ async function getBasicHealthCheck(): Promise<NextResponse> {
     health.status = 'degraded';
   }
 
-  // Check Redis connectivity
+  // Check Redis connectivity - PHASE-0-FIX: Real ping, not hardcoded
   try {
-    // Try to get Redis connection status
-    const redisStatus = true; // Assume healthy for now
+    const redis = getRedisClient();
+    const redisStatus = await redis.ping();
     health.services.redis.connected = redisStatus;
     health.services.redis.status = redisStatus ? 'healthy' : 'unhealthy';
     if (!redisStatus) {
+      // Redis is optional for dashboard - degrade but don't fail
       health.status = 'degraded';
+      health.services.redis.error = 'Redis ping failed - caching disabled';
     }
   } catch (error) {
+    // Redis failure is degradation, not critical failure for dashboard
     health.services.redis.status = 'unhealthy';
     health.services.redis.connected = false;
     health.services.redis.error =
       error instanceof Error ? error.message : 'Redis connection failed';
     health.status = 'degraded';
+    console.warn('[CC] Redis health check failed:', error);
   }
 
   // Check agents

@@ -349,26 +349,16 @@ export const dbOperations = {
         .order('created_at', { ascending: false });
 
       if (error) {
-        // FAIL-CLOSED: Database errors are not silently ignored
-        console.error('Database query failed:', error.message);
-        if (getDemoMode()) {
-          console.log('[DEMO_MODE] Falling back to mock users after error');
-          const { mockUsers } = await import('./mockData');
-          return mockUsers;
-        }
+        // PHASE-0-FIX: No silent fallback - surface errors explicitly
+        console.error('[CC] Database query failed:', error.message);
         throw new Error(`Database query failed: ${error.message}`);
       }
 
       console.log(`✅ Retrieved ${data?.length || 0} users from database`);
       return data as unknown as SupabaseUser[];
     } catch (err) {
-      // FAIL-CLOSED: Connection errors are not silently ignored
-      console.error('Database connection failed:', err);
-      if (getDemoMode()) {
-        console.log('[DEMO_MODE] Falling back to mock users after connection error');
-        const { mockUsers } = await import('./mockData');
-        return mockUsers;
-      }
+      // PHASE-0-FIX: No silent fallback - surface errors explicitly
+      console.error('[CC] Database connection failed:', err);
       throw err;
     }
   },
@@ -458,12 +448,8 @@ export const dbOperations = {
         .limit(limit);
 
       if (error) {
-        console.error('unified_picks query failed:', error.message);
-        if (getDemoMode()) {
-          console.log('[DEMO_MODE] Falling back to mock picks after error');
-          const { mockRecentPicks } = await import('./mockData');
-          return mockRecentPicks.slice(0, limit);
-        }
+        // PHASE-0-FIX: No silent fallback - surface errors explicitly
+        console.error('[CC] unified_picks query failed:', error.message);
         throw new Error(`Database query failed: ${error.message}`);
       }
 
@@ -472,12 +458,8 @@ export const dbOperations = {
       console.log(`✅ Retrieved ${picks.length} picks from unified_picks table`);
       return picks;
     } catch (err) {
-      console.error('Database connection failed:', err);
-      if (getDemoMode()) {
-        console.log('[DEMO_MODE] Falling back to mock picks after connection error');
-        const { mockRecentPicks } = await import('./mockData');
-        return mockRecentPicks.slice(0, limit);
-      }
+      // PHASE-0-FIX: No silent fallback - surface errors explicitly
+      console.error('[CC] Database connection failed:', err);
       throw err;
     }
   },
@@ -734,12 +716,8 @@ export const dbOperations = {
       .limit(filters.limit || 100);
 
     if (error) {
-      console.error('Filtered picks query failed:', error.message);
-      if (getDemoMode()) {
-        console.log('[DEMO_MODE] Falling back to mock picks after filter error');
-        const { mockRecentPicks } = await import('./mockData');
-        return mockRecentPicks;
-      }
+      // PHASE-0-FIX: No silent fallback - surface errors explicitly
+      console.error('[CC] Filtered picks query failed:', error.message);
       throw new Error(`Database query failed: ${error.message}`);
     }
 
@@ -907,21 +885,17 @@ export const dbOperations = {
         .order('created_at', { ascending: false });
 
       if (healthError) {
-        console.warn('agent_health query failed, trying agent_metrics:', healthError.message);
+        console.warn('[CC] agent_health query failed, trying agent_metrics:', healthError.message);
 
-        // Fallback to agent_metrics table
+        // Fallback to agent_metrics table (legitimate DB fallback, not mock)
         const { data: metricsData, error: metricsError } = await client
           .from('agent_metrics')
           .select('*')
           .order('created_at', { ascending: false });
 
         if (metricsError) {
-          console.error('agent_metrics query also failed:', metricsError.message);
-          if (getDemoMode()) {
-            console.log('[DEMO_MODE] Falling back to mock agents after error');
-            const { mockAgents } = await import('./mockData');
-            return mockAgents;
-          }
+          // PHASE-0-FIX: No silent fallback to mock - surface errors explicitly
+          console.error('[CC] agent_metrics query also failed:', metricsError.message);
           throw new Error(`Database query failed: ${metricsError.message}`);
         }
 
@@ -936,12 +910,8 @@ export const dbOperations = {
       console.log(`✅ Retrieved ${agents.length} agents from agent_health table`);
       return agents;
     } catch (err) {
-      console.error('Database connection failed:', err);
-      if (getDemoMode()) {
-        console.log('[DEMO_MODE] Falling back to mock agents after connection error');
-        const { mockAgents } = await import('./mockData');
-        return mockAgents;
-      }
+      // PHASE-0-FIX: No silent fallback - surface errors explicitly
+      console.error('[CC] Database connection failed:', err);
       throw err;
     }
   },
@@ -1136,24 +1106,16 @@ export const dbOperations = {
         .limit(limit);
 
       if (error) {
-        console.error('Database query failed:', error.message);
-        if (getDemoMode()) {
-          console.log('[DEMO_MODE] Falling back to mock security events after error');
-          const { mockSecurityEvents } = await import('./mockData');
-          return mockSecurityEvents.slice(0, limit);
-        }
+        // PHASE-0-FIX: No silent fallback - surface errors explicitly
+        console.error('[CC] Security events query failed:', error.message);
         throw new Error(`Database query failed: ${error.message}`);
       }
 
       console.log(`✅ Retrieved ${data?.length || 0} security events from database`);
       return data as unknown as SecurityEvent[];
     } catch (err) {
-      console.error('Database connection failed:', err);
-      if (getDemoMode()) {
-        console.log('[DEMO_MODE] Falling back to mock security events after connection error');
-        const { mockSecurityEvents } = await import('./mockData');
-        return mockSecurityEvents.slice(0, limit);
-      }
+      // PHASE-0-FIX: No silent fallback - surface errors explicitly
+      console.error('[CC] Database connection failed:', err);
       throw err;
     }
   },
@@ -1229,12 +1191,8 @@ export const dbOperations = {
         source: 'database',
       };
     } catch (err) {
-      console.error('Database analytics query failed:', err);
-      if (getDemoMode()) {
-        console.log('[DEMO_MODE] Falling back to mock analytics after error');
-        const { getMockAnalytics } = await import('./mockData');
-        return getMockAnalytics();
-      }
+      // PHASE-0-FIX: No silent fallback - surface errors explicitly
+      console.error('[CC] Database analytics query failed:', err);
       throw err;
     }
   },

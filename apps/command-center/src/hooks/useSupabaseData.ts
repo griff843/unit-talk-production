@@ -1,15 +1,10 @@
 import { useState, useEffect } from 'react';
 
-import {
-  mockUsers,
-  mockAgents,
-  mockSecurityEvents,
-  getMockAnalytics,
-  startLiveDataSimulation,
-} from '@/lib/mockData';
+// PHASE-0-FIX: Removed mock data imports - no silent fallbacks
 import { dbOperations, subscriptions, User, Agent, SecurityEvent } from '@/lib/supabase';
 
 // Custom hook for users data
+// PHASE-0-FIX: No silent mock fallback - errors surface to UI
 export function useUsers() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -18,12 +13,14 @@ export function useUsers() {
   const fetchUsers = async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await dbOperations.getUsers();
       setUsers(data);
     } catch (err) {
-      console.log('Supabase unavailable, using mock data for users');
-      setUsers(mockUsers);
-      setError(null); // Don't show error for mock data
+      // PHASE-0-FIX: Surface error explicitly - no mock fallback
+      console.error('[CC] Failed to fetch users:', err);
+      setError(err as Error);
+      setUsers([]); // Empty state, not mock data
     } finally {
       setLoading(false);
     }
@@ -48,47 +45,38 @@ export function useUsers() {
 }
 
 // Custom hook for agents data with real-time updates
+// PHASE-0-FIX: No silent mock fallback - errors surface to UI
 export function useAgents() {
-  const [agents, setAgents] = useState<Agent[]>([]); // Start empty for faster initial render
-  const [loading, setLoading] = useState(true); // Show loading initially
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [usingMockData, setUsingMockData] = useState(false);
 
   useEffect(() => {
-    // Set mock data immediately for is_instant UI
-    setAgents(mockAgents);
-    setLoading(false);
-    setUsingMockData(true);
-
-    // Then try to fetch real data in background
     async function fetchAgents() {
       try {
+        setLoading(true);
+        setError(null);
         const data = await dbOperations.getAgents();
         setAgents(data);
-        setUsingMockData(false);
       } catch (err) {
-        console.log('Supabase unavailable, continuing with mock data for agents');
-        // Keep mock data if real fetch fails
-        setUsingMockData(true);
-        setError(null);
+        // PHASE-0-FIX: Surface error explicitly - no mock fallback
+        console.error('[CC] Failed to fetch agents:', err);
+        setError(err as Error);
+        setAgents([]); // Empty state, not mock data
+      } finally {
+        setLoading(false);
       }
     }
 
-    // Delay real data fetch to not block initial render
-    const timeoutId = setTimeout(fetchAgents, 100);
-
-    return () => {
-      clearTimeout(timeoutId);
-    };
+    fetchAgents();
   }, []);
 
-  // Separate effect for real-time subscriptions
+  // Real-time subscriptions
   useEffect(() => {
-    if (usingMockData) return;
+    if (agents.length === 0) return;
 
     const subscription = subscriptions.subscribeToAgentStatus(payload => {
       const { eventType, new: newRecord, old: oldRecord } = payload;
-      // Cast to Agent type since real-time payloads come as Record<string, unknown>
       const typedNewRecord = newRecord as Agent;
       const typedOldRecord = oldRecord as Agent;
 
@@ -111,7 +99,7 @@ export function useAgents() {
         subscription.unsubscribe();
       }
     };
-  }, [usingMockData]);
+  }, [agents.length]);
 
   const updateAgentStatus = async (
     id: string,
@@ -119,91 +107,83 @@ export function useAgents() {
     metadata?: Record<string, any>
   ) => {
     try {
-      if (usingMockData) {
-        // Update mock data locally
-        const updatedAgent = {
-          ...mockAgents.find(a => a.id === id)!,
-          status,
-          last_run: new Date().toISOString(),
-        };
-        setAgents(prev => prev.map(agent => (agent.id === id ? updatedAgent : agent)));
-        return updatedAgent;
-      } else {
-        const updatedAgent = await dbOperations.updateAgentStatus(id, status, metadata);
-        setAgents(prev => prev.map(agent => (agent.id === id ? updatedAgent : agent)));
-        return updatedAgent;
-      }
+      const updatedAgent = await dbOperations.updateAgentStatus(id, status, metadata);
+      setAgents(prev => prev.map(agent => (agent.id === id ? updatedAgent : agent)));
+      return updatedAgent;
     } catch (err) {
       setError(err as Error);
       throw err;
     }
   };
 
-  return { agents, loading, error, updateAgentStatus, usingMockData };
+  return { agents, loading, error, updateAgentStatus };
 }
 
 // Custom hook for security events with real-time updates
+// PHASE-0-FIX: No silent mock fallback - errors surface to UI
 export function useSecurityEvents() {
-  const [events, setEvents] = useState<SecurityEvent[]>(mockSecurityEvents); // Start with mock data immediately
-  const [loading, setLoading] = useState(false); // Don't start in loading state
+  const [events, setEvents] = useState<SecurityEvent[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [usingMockData, setUsingMockData] = useState(true); // Start with mock data flag
 
   useEffect(() => {
     async function fetchEvents() {
       try {
         setLoading(true);
+        setError(null);
         const data = await dbOperations.getSecurityEvents();
         setEvents(data);
-        setUsingMockData(false);
       } catch (err) {
-        console.log('Supabase unavailable, continuing with mock data for security events');
-        // Keep existing mock data, don't set it again
-        setUsingMockData(true);
-        setError(null); // Don't show error for mock data
+        // PHASE-0-FIX: Surface error explicitly - no mock fallback
+        console.error('[CC] Failed to fetch security events:', err);
+        setError(err as Error);
+        setEvents([]); // Empty state, not mock data
       } finally {
         setLoading(false);
       }
     }
 
     fetchEvents();
+  }, []);
 
-    // Subscribe to new security events only if not using mock data
-    let subscription: any = null;
-    if (!usingMockData) {
-      subscription = subscriptions.subscribeToSecurityEvents(payload => {
-        if (payload.eventType === 'INSERT') {
-          // Cast to SecurityEvent since real-time payloads come as Record<string, unknown>
-          const newEvent = payload.new as unknown as SecurityEvent;
-          setEvents(prev => [newEvent, ...prev.slice(0, 49)]); // Keep last 50 events
-        }
-      });
-    }
+  // Real-time subscriptions
+  useEffect(() => {
+    if (events.length === 0) return;
+
+    const subscription = subscriptions.subscribeToSecurityEvents(payload => {
+      if (payload.eventType === 'INSERT') {
+        const newEvent = payload.new as unknown as SecurityEvent;
+        setEvents(prev => [newEvent, ...prev.slice(0, 49)]);
+      }
+    });
 
     return () => {
       if (subscription) {
         subscription.unsubscribe();
       }
     };
-  }, [usingMockData]);
+  }, [events.length]);
 
-  return { events, loading, error, usingMockData };
+  return { events, loading, error };
 }
 
 // Custom hook for dashboard analytics
+// PHASE-0-FIX: No silent mock fallback - errors surface to UI
 export function useAnalytics() {
-  const [analytics, setAnalytics] = useState<any>(null); // Start empty for faster render
-  const [loading, setLoading] = useState(true); // Show loading initially
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [usingMockData, setUsingMockData] = useState(false);
 
   const fetchAnalytics = async (isBackground = false) => {
     try {
-      if (!isBackground) setLoading(true);
+      if (!isBackground) {
+        setLoading(true);
+        setError(null);
+      }
       const data = await dbOperations.getAnalytics();
 
-      // Process the data into dashboard metrics (handle both mock and real data)
-      const analyticsData = data as any; // Type assertion for flexibility
+      // Process the data into dashboard metrics
+      const analyticsData = data as any;
 
       const usersByTier =
         analyticsData.users?.reduce(
@@ -276,84 +256,74 @@ export function useAnalytics() {
       };
 
       setAnalytics(processedAnalytics);
-      setUsingMockData(false);
     } catch (err) {
-      console.log('Supabase unavailable, continuing with mock analytics data');
-      // Keep existing mock data, don't set it again
-      setUsingMockData(true);
-      setError(null); // Don't show error for mock data
+      // PHASE-0-FIX: Surface error explicitly - no mock fallback
+      console.error('[CC] Failed to fetch analytics:', err);
+      if (!isBackground) {
+        setError(err as Error);
+      }
     } finally {
       if (!isBackground) setLoading(false);
     }
   };
 
   useEffect(() => {
-    // Set mock data immediately for is_instant UI
-    setAnalytics(getMockAnalytics());
-    setLoading(false);
-    setUsingMockData(true);
-
-    // Then try to fetch real data in background
-    const timeoutId = setTimeout(() => {
-      fetchAnalytics(true); // Background fetch
-    }, 150);
+    fetchAnalytics();
 
     // Refresh analytics every 5 minutes
     const interval = setInterval(() => fetchAnalytics(true), 5 * 60 * 1000);
 
     return () => {
-      clearTimeout(timeoutId);
       clearInterval(interval);
     };
   }, []);
 
-  return { analytics, loading, error, refetch: fetchAnalytics, usingMockData };
+  return { analytics, loading, error, refetch: fetchAnalytics };
 }
 
 // Custom hook for picks data
+// PHASE-0-FIX: No silent mock fallback - errors surface to UI
 export function usePicks(limit = 100) {
   const [picks, setPicks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [usingMockData, setUsingMockData] = useState(false);
 
   useEffect(() => {
     async function fetchPicks() {
       try {
         setLoading(true);
+        setError(null);
         const data = await dbOperations.getPicks(limit);
         setPicks(data);
-        setUsingMockData(false);
       } catch (err) {
-        console.log('Supabase unavailable, using mock data for picks');
-        // Import mock picks data from mockData.ts
-        const { mockRecentPicks } = await import('@/lib/mockData');
-        setPicks(mockRecentPicks.slice(0, limit));
-        setUsingMockData(true);
-        setError(null); // Don't show error for mock data
+        // PHASE-0-FIX: Surface error explicitly - no mock fallback
+        console.error('[CC] Failed to fetch picks:', err);
+        setError(err as Error);
+        setPicks([]); // Empty state, not mock data
       } finally {
         setLoading(false);
       }
     }
 
     fetchPicks();
+  }, [limit]);
 
-    // Subscribe to new picks only if not using mock data
-    let subscription: any = null;
-    if (!usingMockData) {
-      subscription = subscriptions.subscribeToNewPicks(payload => {
-        if (payload.eventType === 'INSERT') {
-          setPicks(prev => [payload.new, ...prev.slice(0, limit - 1)]);
-        }
-      });
-    }
+  // Real-time subscriptions
+  useEffect(() => {
+    if (picks.length === 0) return;
+
+    const subscription = subscriptions.subscribeToNewPicks(payload => {
+      if (payload.eventType === 'INSERT') {
+        setPicks(prev => [payload.new, ...prev.slice(0, limit - 1)]);
+      }
+    });
 
     return () => {
       if (subscription) {
         subscription.unsubscribe();
       }
     };
-  }, [limit, usingMockData]);
+  }, [picks.length, limit]);
 
-  return { picks, loading, error, usingMockData };
+  return { picks, loading, error };
 }
