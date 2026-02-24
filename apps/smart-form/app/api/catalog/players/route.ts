@@ -242,6 +242,50 @@ export async function GET(request: NextRequest) {
       last_updated: p.last_updated,
     }));
 
+    // =========================================================================
+    // SPRINT-SMARTFORM-PLAYER-TEAM-INTEGRITY-090: FAIL-CLOSED TEAM CONSISTENCY
+    // If a team filter is applied, ALL returned players MUST match that team.
+    // Any mismatch indicates data integrity violation - reject with explicit error.
+    // =========================================================================
+    const expectedTeamIds = new Set<string>();
+    if (away_team_id) expectedTeamIds.add(away_team_id);
+    if (home_team_id) expectedTeamIds.add(home_team_id);
+    if (team_id) expectedTeamIds.add(team_id);
+
+    if (expectedTeamIds.size > 0) {
+      const mismatches = players.filter(p => !expectedTeamIds.has(p.team_id));
+      if (mismatches.length > 0) {
+        log.error(
+          {
+            expected_teams: Array.from(expectedTeamIds),
+            mismatched_count: mismatches.length,
+            sample_mismatches: mismatches.slice(0, 5).map(p => ({
+              player_id: p.player_id,
+              player_name: p.player_name,
+              actual_team_id: p.team_id,
+            })),
+          },
+          'FAIL-CLOSED: Team consistency violation detected - players returned outside requested teams'
+        );
+        return NextResponse.json(
+          buildContractError(
+            `Data integrity violation: ${mismatches.length} players returned outside requested teams`,
+            'TEAM_CONSISTENCY_VIOLATION',
+            {
+              expected_teams: Array.from(expectedTeamIds),
+              mismatched_count: mismatches.length,
+              sample_mismatches: mismatches.slice(0, 3).map(p => ({
+                player_id: p.player_id,
+                player_name: p.player_name,
+                actual_team_id: p.team_id,
+              })),
+            }
+          ),
+          { status: 500 }
+        );
+      }
+    }
+
     // Build response with contract metadata
     const response = {
       players,

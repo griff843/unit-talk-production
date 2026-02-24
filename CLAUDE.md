@@ -62,13 +62,17 @@ unit-talk-platform/
 
 ## 3. Canonical Tables
 
-| Table              | Status         | Writer                       |
-| ------------------ | -------------- | ---------------------------- |
-| `unified_picks`    | **CANONICAL**  | API (via lifecycle adapters) |
-| `bridge_outbox`    | ACTIVE         | Smart Form                   |
-| `agent_health`     | ACTIVE         | API Agents                   |
-| `prop_settlements` | ACTIVE         | SettlementAgent              |
-| `daily_picks`      | **DEPRECATED** | NONE                         |
+| Table                     | Status         | Writer                       |
+| ------------------------- | -------------- | ---------------------------- |
+| `unified_picks`           | **CANONICAL**  | API (via lifecycle adapters) |
+| `participants`            | **CANONICAL**  | SGO Sync (players/teams)     |
+| `participant_memberships` | **CANONICAL**  | SGO Sync (player-team links) |
+| `bridge_outbox`           | ACTIVE         | Smart Form                   |
+| `agent_health`            | ACTIVE         | API Agents                   |
+| `prop_settlements`        | ACTIVE         | SettlementAgent              |
+| `daily_picks`             | **DEPRECATED** | NONE                         |
+| `players`                 | **DEPRECATED** | NONE - use `participants`    |
+| `teams`                   | **DEPRECATED** | NONE - use `participants`    |
 
 ---
 

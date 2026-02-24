@@ -503,6 +503,11 @@ export async function GET(request: NextRequest) {
               meta.matchup ||
               `${(game.away_team_meta || meta.away_team_meta)?.names?.long || game.away_team} @ ${(game.home_team_meta || meta.home_team_meta)?.names?.long || game.home_team}`,
             matchup_short: `${(game.away_team_meta || meta.away_team_meta)?.names?.short || game.away_team} @ ${(game.home_team_meta || meta.home_team_meta)?.names?.short || game.home_team}`,
+
+            // SPRINT-CATALOG-PARTICIPANTS-MIGRATION-091: Team UUIDs from meta for player catalog
+            // If meta contains participant IDs, use them; otherwise null (to be resolved by caller)
+            home_team_uuid: (game.home_team_meta || meta.home_team_meta)?.participant_id || null,
+            away_team_uuid: (game.away_team_meta || meta.away_team_meta)?.participant_id || null,
           };
         })
         .filter(game => game !== null) || []; // Filter out games that ended too long ago
