@@ -4,6 +4,12 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { createClient } from '@/lib/supabase';
 
+/**
+ * LLM Requests API Endpoint
+ * SPRINT-DEMO-MODE-REMOVAL: All mock fallbacks removed.
+ * Fail-closed: If database unavailable, return explicit error.
+ */
+
 interface LLMRequest {
   id: string;
   model: string;
@@ -18,66 +24,10 @@ interface LLMRequest {
   type: 'pick-analysis' | 'market-research' | 'user-query' | 'system';
 }
 
-// Mock data for demonstration - in production, this would come from request logs
-const mockRequests: LLMRequest[] = [
-  {
-    id: 'req-001',
-    model: 'GPT-4 Turbo',
-    prompt: "Analyze the betting market for tonight's Lakers vs Warriors game...",
-    response: 'Based on current market conditions and team performance...',
-    tokens: 450,
-    cost: 0.023,
-    responseTime: 1150,
-    status: 'completed',
-    timestamp: new Date().toISOString(),
-    user: 'system',
-    type: 'pick-analysis',
-  },
-  {
-    id: 'req-002',
-    model: 'Claude 3 Sonnet',
-    prompt: 'Generate market insights for NBA player props...',
-    response: 'Player prop analysis reveals significant value...',
-    tokens: 320,
-    cost: 0.016,
-    responseTime: 890,
-    status: 'completed',
-    timestamp: new Date(Date.now() - 180000).toISOString(), // 3 minutes ago
-    user: 'grading-agent',
-    type: 'market-research',
-  },
-  {
-    id: 'req-003',
-    model: 'GPT-3.5 Turbo',
-    prompt: 'What are the key factors for NFL betting this week?',
-    response: 'Key factors include weather conditions, injury reports...',
-    tokens: 180,
-    cost: 0.004,
-    responseTime: 650,
-    status: 'completed',
-    timestamp: new Date(Date.now() - 300000).toISOString(), // 5 minutes ago
-    user: 'user-001',
-    type: 'user-query',
-  },
-  {
-    id: 'req-004',
-    model: 'GPT-4 Turbo',
-    prompt: 'System performance analysis request...',
-    tokens: 120,
-    cost: 0.006,
-    responseTime: 1200,
-    status: 'pending',
-    timestamp: new Date(Date.now() - 60000).toISOString(), // 1 minute ago
-    user: 'system',
-    type: 'system',
-  },
-];
-
 export async function GET(request: NextRequest) {
   try {
     const supabase = createClient();
 
-    // Try to get real LLM request logs from database
     const { data: requests, error } = await supabase
       .from('llm_requests')
       .select('*')
@@ -85,12 +35,15 @@ export async function GET(request: NextRequest) {
       .limit(50);
 
     if (error) {
-      console.log('LLM requests table not found, returning mock data');
-      return NextResponse.json(mockRequests);
+      console.error('[CC] LLM requests query failed:', error.message);
+      return NextResponse.json(
+        { success: false, error: `Database query failed: ${error.message}` },
+        { status: 500 }
+      );
     }
 
     // Transform database records to match interface
-    const transformedRequests =
+    const transformedRequests: LLMRequest[] =
       requests?.map(request => ({
         id: request.id,
         model: request.model_name || 'Unknown Model',
@@ -102,13 +55,20 @@ export async function GET(request: NextRequest) {
         status: request.status || 'completed',
         timestamp: request.created_at || new Date().toISOString(),
         user: request.user_id || 'system',
-        // Note: request_type not in production schema - defaulting to 'system'
         type: 'system',
       })) || [];
 
-    return NextResponse.json(transformedRequests.length > 0 ? transformedRequests : mockRequests);
+    return NextResponse.json({
+      success: true,
+      data: transformedRequests,
+      count: transformedRequests.length,
+      source: 'database',
+    });
   } catch (error) {
-    console.error('Error fetching LLM requests:', error);
-    return NextResponse.json(mockRequests, { status: 200 });
+    console.error('[CC] LLM requests error:', error);
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : 'Internal server error' },
+      { status: 500 }
+    );
   }
 }

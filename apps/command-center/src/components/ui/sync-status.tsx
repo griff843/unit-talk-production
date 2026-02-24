@@ -1,9 +1,10 @@
 'use client';
 
+import { RefreshCw, Wifi, WifiOff, AlertCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
+
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Wifi, WifiOff, Database, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface SyncStatusProps {
@@ -15,7 +16,6 @@ export function SyncStatus({ className }: SyncStatusProps) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [usingMockData, setUsingMockData] = useState(true);
 
   const checkConnection = async () => {
     try {
@@ -33,18 +33,13 @@ export function SyncStatus({ className }: SyncStatusProps) {
 
       if (result.success) {
         setIsConnected(true);
-        setUsingMockData(false);
         setLastSync(new Date());
       } else {
         setIsConnected(false);
-        setUsingMockData(result.usingMockData || true);
-        if (result.message) {
-          console.log('Sync status:', result.message);
-        }
+        setError(result.error || 'Connection failed');
       }
     } catch (err) {
       setIsConnected(false);
-      setUsingMockData(true);
       setError(err instanceof Error ? err.message : 'Connection failed');
     } finally {
       setIsSyncing(false);
@@ -67,22 +62,19 @@ export function SyncStatus({ className }: SyncStatusProps) {
 
   const getStatusColor = () => {
     if (error) return 'destructive';
-    if (isConnected && !usingMockData) return 'default';
-    if (usingMockData) return 'secondary';
+    if (isConnected) return 'default';
     return 'outline';
   };
 
   const getStatusText = () => {
     if (error) return 'Connection Error';
-    if (isConnected && !usingMockData) return 'Live Data';
-    if (usingMockData) return 'Mock Data';
+    if (isConnected) return 'Live Data';
     return 'Disconnected';
   };
 
   const getStatusIcon = () => {
     if (error) return <AlertCircle className="h-3 w-3" />;
-    if (isConnected && !usingMockData) return <Wifi className="h-3 w-3" />;
-    if (usingMockData) return <Database className="h-3 w-3" />;
+    if (isConnected) return <Wifi className="h-3 w-3" />;
     return <WifiOff className="h-3 w-3" />;
   };
 
@@ -114,7 +106,7 @@ export function SyncStatus({ className }: SyncStatusProps) {
 
 // Connection status indicator for the header
 export function ConnectionIndicator() {
-  const [status, setStatus] = useState<'connected' | 'mock' | 'error'>('mock');
+  const [status, setStatus] = useState<'connected' | 'error'>('error');
 
   useEffect(() => {
     const checkStatus = async () => {
@@ -122,10 +114,8 @@ export function ConnectionIndicator() {
         const response = await fetch('/api/sync?source=agents');
         const result = await response.json();
 
-        if (result.success && !result.usingMockData) {
+        if (result.success) {
           setStatus('connected');
-        } else if (result.usingMockData) {
-          setStatus('mock');
         } else {
           setStatus('error');
         }
@@ -144,8 +134,6 @@ export function ConnectionIndicator() {
     switch (status) {
       case 'connected':
         return 'bg-green-500';
-      case 'mock':
-        return 'bg-yellow-500';
       case 'error':
         return 'bg-red-500';
       default:
@@ -156,11 +144,9 @@ export function ConnectionIndicator() {
   const getTooltipText = () => {
     switch (status) {
       case 'connected':
-        return 'Connected to Unit Talk Production';
-      case 'mock':
-        return 'Using mock data - production unavailable';
+        return 'Connected to database';
       case 'error':
-        return 'Connection error';
+        return 'Database connection error';
       default:
         return 'Unknown status';
     }
@@ -169,9 +155,7 @@ export function ConnectionIndicator() {
   return (
     <div className="flex items-center gap-2 text-sm text-muted-foreground" title={getTooltipText()}>
       <div className={cn('w-2 h-2 rounded-full', getIndicatorClass())} />
-      <span className="hidden sm:inline">
-        {status === 'connected' ? 'Production' : status === 'mock' ? 'Demo' : 'Offline'}
-      </span>
+      <span className="hidden sm:inline">{status === 'connected' ? 'Production' : 'Offline'}</span>
     </div>
   );
 }
