@@ -8,21 +8,20 @@ import {
   getRevenueMetrics,
   getPerformanceMetrics,
 } from './databaseMetrics';
-import { getMockSpecificMetric, getComprehensiveMockAnalytics } from './mockAnalytics';
 
 import { MetricType } from '@/types/analytics';
 
 /**
  * Analytics API Endpoint
- * Provides comprehensive dashboard metrics and business intelligence
- * Falls back to mock data when database is unavailable
+ * SPRINT-DEMO-MODE-REMOVAL: All mock fallbacks removed.
+ * Fail-closed: If database unavailable, return explicit error.
  */
 
 // GET /api/analytics - Get analytics data and metrics
 export async function GET(request: NextRequest) {
   try {
     const params = parseRequestParams(request);
-    console.log('📊 GET /api/analytics', params);
+    console.log('[CC] GET /api/analytics', params);
 
     const startDate = calculateStartDate(params.period);
 
@@ -37,11 +36,11 @@ export async function GET(request: NextRequest) {
       params.realtime
     );
   } catch (error) {
-    console.error('❌ GET /api/analytics error:', error);
+    console.error('[CC] GET /api/analytics error:', error);
     return NextResponse.json(
       {
         success: false,
-        error: 'Internal server error',
+        error: error instanceof Error ? error.message : 'Internal server error',
       },
       { status: 500 }
     );
@@ -72,26 +71,14 @@ async function handleSpecificMetric(
   period: string,
   detailed: boolean
 ) {
-  try {
-    const metricData = await getSpecificMetric(metric as MetricType, startDate, detailed);
-    return NextResponse.json({
-      success: true,
-      data: metricData,
-      metric,
-      period,
-      source: 'database',
-    });
-  } catch {
-    console.log('⚠️ Database unavailable for metric:', metric);
-    const mockMetricData = getMockSpecificMetric(metric, period, detailed);
-    return NextResponse.json({
-      success: true,
-      data: mockMetricData,
-      metric,
-      period,
-      source: 'mock',
-    });
-  }
+  const metricData = await getSpecificMetric(metric as MetricType, startDate, detailed);
+  return NextResponse.json({
+    success: true,
+    data: metricData,
+    metric,
+    period,
+    source: 'database',
+  });
 }
 
 // Handle comprehensive analytics requests
@@ -101,42 +88,33 @@ async function handleComprehensiveAnalytics(
   detailed: boolean,
   realtime: boolean
 ) {
-  try {
-    const analytics = await getComprehensiveAnalytics(startDate, detailed, realtime);
+  const analytics = await getComprehensiveAnalytics(startDate, detailed, realtime);
 
-    // Transform for test compatibility
-    const transformedAnalytics = {
-      overview: {
-        totalUsers: analytics.overview?.users || analytics.users?.total || 0,
-        activeUsers: analytics.overview?.activeUsers || analytics.users?.active || 0,
-        totalPicks: analytics.overview?.picks || analytics.picks?.total || 0,
-        totalRevenue: analytics.revenue?.total || 0,
-      },
-      usersByTier: analytics.users?.byTier || { A: 5, B: 3, C: 3 },
-      picksByStatus: analytics.picks?.byStatus || { pending: 2, approved: 8, rejected: 1 },
-      ...analytics,
-    };
+  // Transform for API response
+  const overview = analytics.overview as Record<string, number> | undefined;
+  const users = analytics.users as
+    | { total?: number; active?: number; byTier?: Record<string, number> }
+    | undefined;
+  const picks = analytics.picks as
+    | { total?: number; byStatus?: Record<string, number> }
+    | undefined;
+  const revenue = analytics.revenue as { total?: number } | undefined;
 
-    return NextResponse.json(transformedAnalytics);
-  } catch {
-    console.log('⚠️ Database unavailable, using mock analytics');
-    const mockAnalytics = getComprehensiveMockAnalytics(period, detailed, realtime);
+  const transformedAnalytics = {
+    success: true,
+    overview: {
+      totalUsers: overview?.users || users?.total || 0,
+      activeUsers: overview?.activeUsers || users?.active || 0,
+      totalPicks: overview?.picks || picks?.total || 0,
+      totalRevenue: revenue?.total || 0,
+    },
+    usersByTier: users?.byTier || {},
+    picksByStatus: picks?.byStatus || {},
+    ...analytics,
+    source: 'database',
+  };
 
-    // Transform mock data for test compatibility
-    const transformedMock = {
-      overview: {
-        totalUsers: mockAnalytics.overview?.users || mockAnalytics.users?.total || 0,
-        activeUsers: mockAnalytics.overview?.activeUsers || mockAnalytics.users?.active || 0,
-        totalPicks: mockAnalytics.overview?.picks || mockAnalytics.picks?.total || 0,
-        totalRevenue: mockAnalytics.revenue?.total || 0,
-      },
-      usersByTier: mockAnalytics.users?.byTier || { A: 5, B: 3, C: 3 },
-      picksByStatus: mockAnalytics.picks?.byStatus || { pending: 2, approved: 8, rejected: 1 },
-      ...mockAnalytics,
-    };
-
-    return NextResponse.json(transformedMock);
-  }
+  return NextResponse.json(transformedAnalytics);
 }
 
 // Helper function to get period in milliseconds
@@ -181,13 +159,13 @@ async function getComprehensiveAnalytics(startDate: string, detailed: boolean, r
     getPickMetrics(startDate, detailed),
   ]);
 
-  const analytics: any = {
+  const analytics: Record<string, unknown> = {
     overview: {
       totalUsers: users.total,
       activeUsers: users.active,
       totalPicks: picks.total || picks.recent,
       totalRevenue: 0,
-      users: users.total, // Keep for backwards compatibility
+      users: users.total,
       agents: agents.total,
       healthyAgents: agents.healthy,
       securityEvents: securityEvents.recent,
@@ -200,7 +178,6 @@ async function getComprehensiveAnalytics(startDate: string, detailed: boolean, r
     security: securityEvents,
     picks,
     system: {
-      uptime: Math.floor(Math.random() * 1000000), // Mock uptime in seconds
       status: agents.error > 0 ? 'warning' : 'healthy',
       lastUpdated: new Date().toISOString(),
     },
@@ -208,9 +185,9 @@ async function getComprehensiveAnalytics(startDate: string, detailed: boolean, r
 
   if (realtime) {
     analytics.realtime = {
-      activeConnections: Math.floor(Math.random() * 100) + 50,
-      requestsPerSecond: Math.floor(Math.random() * 50) + 10,
-      avgResponseTime: Math.floor(Math.random() * 100) + 50,
+      activeConnections: 0,
+      requestsPerSecond: 0,
+      avgResponseTime: 0,
     };
   }
 

@@ -6,31 +6,20 @@ import {
 
 import type { Database, Json } from '@/types';
 
-// SPRINT-TRUTH-RESTORATION-001: DEMO_MODE gating for mock data
-// INVARIANT #2: Fail-closed environment - no silent fallbacks
-// INVARIANT #4: No demo mode without explicit DEMO_MODE=true flag
-// SPRINT-ARCHITECTURE-HARDENING-002A: Lazy evaluation (no module-scope env access)
-
 /**
- * Get DEMO_MODE setting lazily (runtime access, not build-time)
+ * SPRINT-DEMO-MODE-REMOVAL: All demo mode code removed.
+ * Fail-closed behavior: If Supabase unavailable, operations fail explicitly.
+ * No silent fallbacks. No mock data substitution.
  */
-function getDemoMode(): boolean {
-  return process.env.DEMO_MODE === 'true';
-}
-
-// Backward compat alias (evaluated lazily via getter)
-const DEMO_MODE = false; // Never accessed directly - use getDemoMode()
 
 /**
  * Fail-closed error for missing Supabase configuration.
- * This error is thrown when DEMO_MODE is not enabled and Supabase env vars are missing.
  */
 class SupabaseConfigurationError extends Error {
   constructor() {
     super(
       'FAIL-CLOSED: Supabase configuration required. ' +
-        'Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY, ' +
-        'or set DEMO_MODE=true for development without Supabase.'
+        'Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.'
     );
     this.name = 'SupabaseConfigurationError';
   }
@@ -96,9 +85,7 @@ function isRecord(value: Json): value is { [key: string]: Json | undefined } {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-// Typed Supabase client - using 'any' to avoid type recursion with merged extension types
-// This is a workaround for "Type instantiation is excessively deep and possibly infinite" errors
-// caused by the database-extensions.ts merge with the generated types
+// Typed Supabase client
 type TypedSupabaseClient = SupabaseClient<Database>;
 
 // Lazy initialization of Supabase client
@@ -108,53 +95,29 @@ let clientInitialized = false;
 
 /**
  * Get Supabase client with fail-closed behavior.
- *
- * INVARIANT #2: Fail-closed - throws if env vars missing and DEMO_MODE not set
- * INVARIANT #4: DEMO_MODE must be explicit for mock data
- *
- * @returns Supabase client (never null in production mode)
- * @throws SupabaseConfigurationError if env vars missing and DEMO_MODE !== 'true'
+ * Throws if env vars missing - no silent fallback.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getSupabaseClient(): any {
-  // Return cached client if already initialized
   if (clientInitialized && client) return client;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    // DEMO_MODE: Explicit flag required for mock data
-    if (getDemoMode()) {
-      console.warn('[DEMO_MODE] Supabase not configured - mock data will be used');
-      console.warn('[DEMO_MODE] This is expected in development without Supabase');
-      clientInitialized = true;
-      client = null; // Null client signals DEMO_MODE to consumer functions
-      return null;
-    }
-
-    // FAIL-CLOSED: No silent fallback without explicit DEMO_MODE
     console.error('FAIL-CLOSED: Supabase configuration required');
     console.error('Missing: NEXT_PUBLIC_SUPABASE_URL and/or NEXT_PUBLIC_SUPABASE_ANON_KEY');
-    console.error('Set DEMO_MODE=true to run without Supabase');
     throw new SupabaseConfigurationError();
   }
 
   client = createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey);
   clientInitialized = true;
-  console.log('✅ Supabase client initialized successfully');
+  console.log('[CC] Supabase client initialized');
   return client;
 }
 
 /**
- * Check if running in DEMO_MODE (explicit mock data mode)
- */
-export function isDemoMode(): boolean {
-  return getDemoMode();
-}
-
-/**
- * Check if Supabase is available (not in DEMO_MODE with missing config)
+ * Check if Supabase is available
  */
 export function isSupabaseAvailable(): boolean {
   if (clientInitialized) return client !== null;
@@ -166,13 +129,10 @@ export function isSupabaseAvailable(): boolean {
 }
 
 // Export the typed client getter function
-// NOTE: Use getSupabaseClient() instead of supabase to get fail-closed behavior
-// The supabase export is a getter that calls getSupabaseClient() lazily
 export { getSupabaseClient };
 export type { TypedSupabaseClient };
 
-// Legacy export for backward compatibility - lazily evaluated via getter
-// Uses a Proxy to defer initialization and enforce fail-closed behavior
+// Legacy export - lazily evaluated via Proxy
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _lazySupabase: any = undefined;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -180,11 +140,6 @@ export const supabase: any = new Proxy({} as TypedSupabaseClient, {
   get(_, prop) {
     if (_lazySupabase === undefined) {
       _lazySupabase = getSupabaseClient();
-    }
-    if (_lazySupabase === null) {
-      // DEMO_MODE is true but no client - throw for direct supabase usage
-      // Code should use dbOperations which handle DEMO_MODE properly
-      throw new SupabaseConfigurationError();
     }
     return _lazySupabase[prop];
   },
@@ -196,8 +151,6 @@ export function createClient() {
 }
 
 // Database schema types
-// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Renamed to avoid conflict with canonical UsersRow
-// Legacy alias User exported below for backward compatibility
 export interface SupabaseUser {
   id: string;
   discord_id: string;
@@ -212,7 +165,6 @@ export interface SupabaseUser {
   revenue: number;
 }
 
-// SPRINT-DB-TYPE-ALLOWLIST-BURN-004: Legacy alias for backward compatibility
 export type User = SupabaseUser;
 
 export interface Pick {
@@ -229,7 +181,6 @@ export interface Pick {
   created_at: string;
   settled_at?: string;
   profit?: number;
-  // Enhanced fields from v3.0.0 unified structure
   capper?: string;
   tier?: string;
   approval_status?: string;
@@ -263,31 +214,23 @@ export interface SecurityEvent {
 // Connection test function
 export async function testDatabaseConnection(): Promise<{
   connected: boolean;
-  demoMode: boolean;
   error?: string;
 }> {
   try {
     const client = getSupabaseClient();
-
-    if (!client) {
-      // Only possible if DEMO_MODE is true
-      console.log('[DEMO_MODE] Database connection test skipped');
-      return { connected: false, demoMode: true };
-    }
-
     const { error } = await client.from('users').select('count').limit(1);
 
     if (error) {
-      console.log('Database connection test failed:', error.message);
-      return { connected: false, demoMode: false, error: error.message };
+      console.error('[CC] Database connection test failed:', error.message);
+      return { connected: false, error: error.message };
     }
 
-    console.log('✅ Database connection successful');
-    return { connected: true, demoMode: false };
+    console.log('[CC] Database connection successful');
+    return { connected: true };
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-    console.log('Database connection test failed:', errorMsg);
-    return { connected: false, demoMode: getDemoMode(), error: errorMsg };
+    console.error('[CC] Database connection test failed:', errorMsg);
+    return { connected: false, error: errorMsg };
   }
 }
 
@@ -295,81 +238,42 @@ export async function testDatabaseConnection(): Promise<{
 export async function checkRequiredTables(): Promise<Record<string, boolean>> {
   const requiredTables = ['users', 'agents', 'security_events'];
   const tableStatus: Record<string, boolean> = {};
+  const client = getSupabaseClient();
 
-  try {
-    const client = getSupabaseClient();
-
-    if (!client) {
-      // DEMO_MODE: All tables marked as unavailable
-      console.log('[DEMO_MODE] Table check skipped - using mock data');
-      requiredTables.forEach(table => {
-        tableStatus[table] = false;
-      });
-      return tableStatus;
-    }
-
-    for (const table of requiredTables) {
-      try {
-        const { error } = await client.from(table).select('*').limit(1);
-        tableStatus[table] = !error;
-      } catch {
-        tableStatus[table] = false;
-      }
-    }
-  } catch {
-    // Client init failed - mark all as unavailable
-    requiredTables.forEach(table => {
+  for (const table of requiredTables) {
+    try {
+      const { error } = await client.from(table).select('*').limit(1);
+      tableStatus[table] = !error;
+    } catch {
       tableStatus[table] = false;
-    });
+    }
   }
 
   return tableStatus;
 }
 
-// Database operations
+// Database operations - all fail-closed, no mock fallbacks
 export const dbOperations = {
   // Users
   async getUsers() {
     const client = getSupabaseClient();
 
-    // DEMO_MODE: Explicit mock data usage
-    if (!client) {
-      if (!getDemoMode()) {
-        throw new SupabaseConfigurationError();
-      }
-      console.log('[DEMO_MODE] Using mock users data');
-      const { mockUsers } = await import('./mockData');
-      return mockUsers;
+    const { data, error } = await client
+      .from('users')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[CC] Database query failed:', error.message);
+      throw new Error(`Database query failed: ${error.message}`);
     }
 
-    try {
-      const { data, error } = await client
-        .from('users')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        // PHASE-0-FIX: No silent fallback - surface errors explicitly
-        console.error('[CC] Database query failed:', error.message);
-        throw new Error(`Database query failed: ${error.message}`);
-      }
-
-      console.log(`✅ Retrieved ${data?.length || 0} users from database`);
-      return data as unknown as SupabaseUser[];
-    } catch (err) {
-      // PHASE-0-FIX: No silent fallback - surface errors explicitly
-      console.error('[CC] Database connection failed:', err);
-      throw err;
-    }
+    console.log(`[CC] Retrieved ${data?.length || 0} users from database`);
+    return data as unknown as SupabaseUser[];
   },
 
   async getUserById(id: string) {
     const client = getSupabaseClient();
-    // FAIL-CLOSED: Requires Supabase (no DEMO_MODE fallback for specific user queries)
-    if (!client) {
-      throw new SupabaseConfigurationError();
-    }
-
     const { data, error } = await client.from('users').select('*').eq('id', id).single();
 
     if (error) throw error;
@@ -378,10 +282,6 @@ export const dbOperations = {
 
   async updateUser(id: string, updates: Partial<SupabaseUser>) {
     const client = getSupabaseClient();
-    // FAIL-CLOSED: Write operations require Supabase (no DEMO_MODE fallback)
-    if (!client) {
-      throw new SupabaseConfigurationError();
-    }
 
     const { data, error } = await client
       .from('users')
@@ -394,77 +294,57 @@ export const dbOperations = {
     return data as unknown as SupabaseUser;
   },
 
-  // Picks - Connect to real Unit Talk unified_picks table (v3.0.0)
+  // Picks
   async getPicks(limit = 100) {
     const client = getSupabaseClient();
 
-    // DEMO_MODE: Explicit mock data usage
-    if (!client) {
-      if (!getDemoMode()) {
-        throw new SupabaseConfigurationError();
-      }
-      console.log('[DEMO_MODE] Using mock picks data');
-      const { mockRecentPicks } = await import('./mockData');
-      return mockRecentPicks.slice(0, limit);
-    }
-
-    try {
-      // Query real unified_picks table with proper relationships
-      const { data, error } = await client
-        .from('unified_picks')
-        .select(
-          `
-          *,
-          users!inner (
-            id,
-            username,
-            tier
-          ),
-          raw_props (
-            id,
-            player_name,
-            team,
-            opponent,
-            prop_type,
-            line,
-            over_odds,
-            under_odds,
-            game_date,
-            games (
-              league,
-              home_team,
-              away_team,
-              start_time
-            ),
-            players (
-              name,
-              position,
-              sport
-            )
-          )
+    const { data, error } = await client
+      .from('unified_picks')
+      .select(
         `
+        *,
+        users!inner (
+          id,
+          username,
+          tier
+        ),
+        raw_props (
+          id,
+          player_name,
+          team,
+          opponent,
+          prop_type,
+          line,
+          over_odds,
+          under_odds,
+          game_date,
+          games (
+            league,
+            home_team,
+            away_team,
+            start_time
+          ),
+          players (
+            name,
+            position,
+            sport
+          )
         )
-        .order('created_at', { ascending: false })
-        .limit(limit);
+      `
+      )
+      .order('created_at', { ascending: false })
+      .limit(limit);
 
-      if (error) {
-        // PHASE-0-FIX: No silent fallback - surface errors explicitly
-        console.error('[CC] unified_picks query failed:', error.message);
-        throw new Error(`Database query failed: ${error.message}`);
-      }
-
-      // Transform unified_picks to Pick interface
-      const picks = this.transformUnifiedPicksToPicks(data);
-      console.log(`✅ Retrieved ${picks.length} picks from unified_picks table`);
-      return picks;
-    } catch (err) {
-      // PHASE-0-FIX: No silent fallback - surface errors explicitly
-      console.error('[CC] Database connection failed:', err);
-      throw err;
+    if (error) {
+      console.error('[CC] unified_picks query failed:', error.message);
+      throw new Error(`Database query failed: ${error.message}`);
     }
+
+    const picks = this.transformUnifiedPicksToPicks(data);
+    console.log(`[CC] Retrieved ${picks.length} picks from unified_picks table`);
+    return picks;
   },
 
-  // Transform unified_picks data to Pick interface (v3.0.0)
   transformUnifiedPicksToPicks(unifiedPicks: UnifiedPickWithRelations[]): Pick[] {
     return unifiedPicks.map(pick => {
       const rawProp = pick.raw_props;
@@ -484,13 +364,12 @@ export const dbOperations = {
         pick_type: rawProp?.prop_type || pick.pick_type || 'prop',
         selection: this.formatPickSelection(pick, rawProp, player),
         odds: this.getPickOdds(pick, rawProp),
-        stake: 100, // Default stake - could be enhanced with user preference
+        stake: 100,
         confidence: pick.confidence || 0,
         status: this.mapUnifiedPickStatus(pick.status, pick.result),
         created_at: pick.created_at,
         settled_at: pick.approved_at || pick.denied_at || undefined,
         profit: this.calculateUnifiedProfit(pick, rawProp),
-        // Additional context from v3.0.0 unified structure
         capper: user?.username || 'Unknown',
         tier: user?.tier || 'Free',
         approval_status: pick.status,
@@ -499,7 +378,6 @@ export const dbOperations = {
     });
   },
 
-  // Enhanced selection formatting for unified structure
   formatPickSelection(
     pick: UnifiedPickWithRelations,
     rawProp: UnifiedPickWithRelations['raw_props'],
@@ -517,7 +395,6 @@ export const dbOperations = {
     return `${playerName} ${propType} - ${prediction || pick.selection || 'N/A'}`;
   },
 
-  // Get odds based on prediction and prop data
   getPickOdds(
     pick: UnifiedPickWithRelations,
     rawProp: UnifiedPickWithRelations['raw_props']
@@ -530,13 +407,10 @@ export const dbOperations = {
       return rawProp.under_odds || 0;
     }
 
-    // Fallback to average if prediction unclear
     return rawProp.over_odds || rawProp.under_odds || 0;
   },
 
-  // Map unified pick status to Command Center format
   mapUnifiedPickStatus(status: string | null, result: string | null): Pick['status'] {
-    // First check result if settled
     if (result) {
       switch (result.toLowerCase()) {
         case 'win':
@@ -550,7 +424,6 @@ export const dbOperations = {
       }
     }
 
-    // Then check approval status
     if (!status) return 'pending';
     switch (status.toLowerCase()) {
       case 'approved':
@@ -564,14 +437,13 @@ export const dbOperations = {
     }
   },
 
-  // Calculate profit from unified structure
   calculateUnifiedProfit(
     pick: UnifiedPickWithRelations,
     rawProp: UnifiedPickWithRelations['raw_props']
   ): number | undefined {
     if (!pick.result || pick.result === 'pending') return undefined;
 
-    const stake = 100; // Default stake
+    const stake = 100;
     const odds = this.getPickOdds(pick, rawProp);
 
     if (pick.result === 'win') {
@@ -580,7 +452,7 @@ export const dbOperations = {
       return -stake;
     }
 
-    return 0; // Push
+    return 0;
   },
 
   mapPickStatus(result: string | null): Pick['status'] {
@@ -605,7 +477,7 @@ export const dbOperations = {
   ): number | undefined {
     if (!pick.result || pick.result === 'pending') return undefined;
 
-    const stake = 100; // Default stake
+    const stake = 100;
     const odds = pick.prediction === 'over' ? rawProp?.over_odds || 0 : rawProp?.under_odds || 0;
 
     if (pick.result === 'win') {
@@ -614,20 +486,11 @@ export const dbOperations = {
       return -stake;
     }
 
-    return 0; // Push
+    return 0;
   },
 
   async getPicksByUser(userId: string) {
     const client = getSupabaseClient();
-
-    // DEMO_MODE: Explicit mock data usage
-    if (!client) {
-      if (!getDemoMode()) {
-        throw new SupabaseConfigurationError();
-      }
-      console.log('[DEMO_MODE] No picks available for user in demo mode');
-      return [];
-    }
 
     const { data, error } = await client
       .from('unified_picks')
@@ -658,7 +521,6 @@ export const dbOperations = {
     return this.transformUnifiedPicksToPicks(data || []);
   },
 
-  // Get picks with enhanced filtering for v3.0.0
   async getPicksWithFilters(
     filters: {
       userId?: string;
@@ -670,16 +532,6 @@ export const dbOperations = {
     } = {}
   ) {
     const client = getSupabaseClient();
-
-    // DEMO_MODE: Explicit mock data usage
-    if (!client) {
-      if (!getDemoMode()) {
-        throw new SupabaseConfigurationError();
-      }
-      console.log('[DEMO_MODE] Using mock picks with filters');
-      const { mockRecentPicks } = await import('./mockData');
-      return mockRecentPicks;
-    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let query: any = client.from('unified_picks').select(`
@@ -704,7 +556,6 @@ export const dbOperations = {
         )
       `);
 
-    // Apply filters
     if (filters.userId) query = query.eq('user_id', filters.userId);
     if (filters.sport) query = query.eq('sport', filters.sport);
     if (filters.status) query = query.eq('status', filters.status);
@@ -716,7 +567,6 @@ export const dbOperations = {
       .limit(filters.limit || 100);
 
     if (error) {
-      // PHASE-0-FIX: No silent fallback - surface errors explicitly
       console.error('[CC] Filtered picks query failed:', error.message);
       throw new Error(`Database query failed: ${error.message}`);
     }
@@ -726,10 +576,6 @@ export const dbOperations = {
 
   async createPick(pick: Omit<Pick, 'id' | 'created_at'>) {
     const client = getSupabaseClient();
-    // FAIL-CLOSED: Write operations require Supabase (no DEMO_MODE fallback)
-    if (!client) {
-      throw new SupabaseConfigurationError();
-    }
 
     const { data, error } = await client
       .from('unified_picks')
@@ -748,175 +594,121 @@ export const dbOperations = {
     return this.transformUnifiedPicksToPicks([data])[0];
   },
 
-  // Pick approval/denial functionality for unified structure
   async approvePick(pickId: string, approvedBy: string) {
     const client = getSupabaseClient();
-    // FAIL-CLOSED: Write operations require Supabase (no DEMO_MODE fallback)
-    if (!client) {
-      throw new SupabaseConfigurationError();
-    }
 
-    try {
-      const { data, error } = await client
-        .from('unified_picks')
-        .update({
-          status: 'approved',
-          approved_by: approvedBy,
-          approved_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', pickId)
-        .select(
-          `
-          *,
-          users!inner (username, tier),
-          raw_props (player_name, prop_type, line, over_odds, under_odds)
+    const { data, error } = await client
+      .from('unified_picks')
+      .update({
+        status: 'approved',
+        approved_by: approvedBy,
+        approved_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', pickId)
+      .select(
         `
-        )
-        .single();
+        *,
+        users!inner (username, tier),
+        raw_props (player_name, prop_type, line, over_odds, under_odds)
+      `
+      )
+      .single();
 
-      if (error) throw error;
+    if (error) throw error;
 
-      console.log(`✅ Pick ${pickId} approved by ${approvedBy}`);
-      return this.transformUnifiedPicksToPicks([data])[0];
-    } catch (err) {
-      console.error('Failed to approve pick:', err);
-      throw new Error(
-        `Failed to approve pick: ${err instanceof Error ? err.message : 'Unknown error'}`
-      );
-    }
+    console.log(`[CC] Pick ${pickId} approved by ${approvedBy}`);
+    return this.transformUnifiedPicksToPicks([data])[0];
   },
 
   async denyPick(pickId: string, deniedBy: string, reason?: string) {
     const client = getSupabaseClient();
-    // FAIL-CLOSED: Write operations require Supabase (no DEMO_MODE fallback)
-    if (!client) {
-      throw new SupabaseConfigurationError();
-    }
 
-    try {
-      const { data, error } = await client
-        .from('unified_picks')
-        .update({
-          status: 'denied',
-          denied_by: deniedBy,
-          denial_reason: reason,
-          denied_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', pickId)
-        .select(
-          `
-          *,
-          users!inner (username, tier),
-          raw_props (player_name, prop_type, line, over_odds, under_odds)
+    const { data, error } = await client
+      .from('unified_picks')
+      .update({
+        status: 'denied',
+        denied_by: deniedBy,
+        denial_reason: reason,
+        denied_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', pickId)
+      .select(
         `
-        )
-        .single();
+        *,
+        users!inner (username, tier),
+        raw_props (player_name, prop_type, line, over_odds, under_odds)
+      `
+      )
+      .single();
 
-      if (error) throw error;
+    if (error) throw error;
 
-      console.log(`✅ Pick ${pickId} denied by ${deniedBy}${reason ? `: ${reason}` : ''}`);
-      return this.transformUnifiedPicksToPicks([data])[0];
-    } catch (err) {
-      console.error('Failed to deny pick:', err);
-      throw new Error(
-        `Failed to deny pick: ${err instanceof Error ? err.message : 'Unknown error'}`
-      );
-    }
+    console.log(`[CC] Pick ${pickId} denied by ${deniedBy}${reason ? `: ${reason}` : ''}`);
+    return this.transformUnifiedPicksToPicks([data])[0];
   },
 
   async updatePickResult(pickId: string, result: 'win' | 'loss' | 'push', actualValue?: number) {
     const client = getSupabaseClient();
-    // FAIL-CLOSED: Write operations require Supabase (no DEMO_MODE fallback)
-    if (!client) {
-      throw new SupabaseConfigurationError();
-    }
 
-    try {
-      const { data, error } = await client
-        .from('unified_picks')
-        .update({
-          result,
-          status: 'settled',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', pickId)
-        .select(
-          `
-          *,
-          users!inner (username, tier),
-          raw_props (player_name, prop_type, line, over_odds, under_odds)
+    const { data, error } = await client
+      .from('unified_picks')
+      .update({
+        result,
+        status: 'settled',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', pickId)
+      .select(
         `
-        )
-        .single();
+        *,
+        users!inner (username, tier),
+        raw_props (player_name, prop_type, line, over_odds, under_odds)
+      `
+      )
+      .single();
 
-      if (error) throw error;
+    if (error) throw error;
 
-      console.log(`✅ Pick ${pickId} result updated to ${result}`);
-      return this.transformUnifiedPicksToPicks([data])[0];
-    } catch (err) {
-      console.error('Failed to update pick result:', err);
-      throw new Error(
-        `Failed to update pick result: ${err instanceof Error ? err.message : 'Unknown error'}`
-      );
-    }
+    console.log(`[CC] Pick ${pickId} result updated to ${result}`);
+    return this.transformUnifiedPicksToPicks([data])[0];
   },
 
-  // Agents - Connect to real Unit Talk agent system
+  // Agents
   async getAgents() {
     const client = getSupabaseClient();
 
-    // DEMO_MODE: Explicit mock data usage
-    if (!client) {
-      if (!getDemoMode()) {
-        throw new SupabaseConfigurationError();
-      }
-      console.log('[DEMO_MODE] Using mock agents data');
-      const { mockAgents } = await import('./mockData');
-      return mockAgents;
-    }
+    // Query real agent_health table
+    const { data: healthData, error: healthError } = await client
+      .from('agent_health')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-    try {
-      // Query real agent_health table from Unit Talk production
-      const { data: healthData, error: healthError } = await client
-        .from('agent_health')
+    if (healthError) {
+      console.warn('[CC] agent_health query failed, trying agent_metrics:', healthError.message);
+
+      // Fallback to agent_metrics table (legitimate DB fallback, not mock)
+      const { data: metricsData, error: metricsError } = await client
+        .from('agent_metrics')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (healthError) {
-        console.warn('[CC] agent_health query failed, trying agent_metrics:', healthError.message);
-
-        // Fallback to agent_metrics table (legitimate DB fallback, not mock)
-        const { data: metricsData, error: metricsError } = await client
-          .from('agent_metrics')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (metricsError) {
-          // PHASE-0-FIX: No silent fallback to mock - surface errors explicitly
-          console.error('[CC] agent_metrics query also failed:', metricsError.message);
-          throw new Error(`Database query failed: ${metricsError.message}`);
-        }
-
-        // Transform agent_metrics to Agent format
-        const agents = this.transformMetricsToAgents(metricsData);
-        console.log(`✅ Retrieved ${agents.length} agents from agent_metrics table`);
-        return agents;
+      if (metricsError) {
+        console.error('[CC] agent_metrics query also failed:', metricsError.message);
+        throw new Error(`Database query failed: ${metricsError.message}`);
       }
 
-      // Transform agent_health to Agent format
-      const agents = this.transformHealthToAgents(healthData);
-      console.log(`✅ Retrieved ${agents.length} agents from agent_health table`);
+      const agents = this.transformMetricsToAgents(metricsData);
+      console.log(`[CC] Retrieved ${agents.length} agents from agent_metrics table`);
       return agents;
-    } catch (err) {
-      // PHASE-0-FIX: No silent fallback - surface errors explicitly
-      console.error('[CC] Database connection failed:', err);
-      throw err;
     }
+
+    const agents = this.transformHealthToAgents(healthData);
+    console.log(`[CC] Retrieved ${agents.length} agents from agent_health table`);
+    return agents;
   },
 
-  // Transform agent_health data to Agent interface
   transformHealthToAgents(healthData: AgentHealthRecord[]): Agent[] {
     const agentMap = new Map<string, Agent>();
 
@@ -938,7 +730,6 @@ export const dbOperations = {
           configuration: details,
         });
       } else {
-        // Update with latest health status
         const agent = agentMap.get(agentName)!;
         if (new Date(health.created_at) > new Date(agent.last_run)) {
           agent.status = status;
@@ -951,7 +742,6 @@ export const dbOperations = {
     return Array.from(agentMap.values());
   },
 
-  // Transform agent_metrics data to Agent interface
   transformMetricsToAgents(metricsData: AgentMetricsRecord[]): Agent[] {
     const agentMap = new Map<string, Agent>();
 
@@ -974,7 +764,6 @@ export const dbOperations = {
           configuration: metrics,
         });
       } else {
-        // Update with latest metrics
         const agent = agentMap.get(agentName)!;
         if (new Date(metric.created_at) > new Date(agent.last_run)) {
           agent.last_run = metric.created_at;
@@ -996,7 +785,6 @@ export const dbOperations = {
     return Array.from(agentMap.values());
   },
 
-  // Helper methods for data transformation
   mapHealthStatus(healthStatus: string): Agent['status'] {
     switch (healthStatus?.toLowerCase()) {
       case 'healthy':
@@ -1033,14 +821,14 @@ export const dbOperations = {
     if (typeof successOps === 'number' && typeof totalOps === 'number' && totalOps > 0) {
       return (successOps / totalOps) * 100;
     }
-    return 85; // Default success rate for healthy agents
+    return 85;
   },
 
   extractResponseTime(details: Record<string, unknown>): number {
     if (!details) return 0;
     if (typeof details.avg_response_time === 'number') return details.avg_response_time;
     if (typeof details.response_time === 'number') return details.response_time;
-    return 150; // Default response time in ms
+    return 150;
   },
 
   extractOperationCount(details: Record<string, unknown>): number {
@@ -1064,10 +852,6 @@ export const dbOperations = {
 
   async updateAgentStatus(id: string, status: Agent['status'], metadata?: Record<string, Json>) {
     const client = getSupabaseClient();
-    // FAIL-CLOSED: Write operations require Supabase (no DEMO_MODE fallback)
-    if (!client) {
-      throw new SupabaseConfigurationError();
-    }
 
     const { data, error } = await client
       .from('agents')
@@ -1088,157 +872,101 @@ export const dbOperations = {
   async getSecurityEvents(limit = 50) {
     const client = getSupabaseClient();
 
-    // DEMO_MODE: Explicit mock data usage
-    if (!client) {
-      if (!getDemoMode()) {
-        throw new SupabaseConfigurationError();
-      }
-      console.log('[DEMO_MODE] Using mock security events');
-      const { mockSecurityEvents } = await import('./mockData');
-      return mockSecurityEvents.slice(0, limit);
+    const { data, error } = await client
+      .from('security_events')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('[CC] Security events query failed:', error.message);
+      throw new Error(`Database query failed: ${error.message}`);
     }
 
-    try {
-      const { data, error } = await client
-        .from('security_events')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(limit);
-
-      if (error) {
-        // PHASE-0-FIX: No silent fallback - surface errors explicitly
-        console.error('[CC] Security events query failed:', error.message);
-        throw new Error(`Database query failed: ${error.message}`);
-      }
-
-      console.log(`✅ Retrieved ${data?.length || 0} security events from database`);
-      return data as unknown as SecurityEvent[];
-    } catch (err) {
-      // PHASE-0-FIX: No silent fallback - surface errors explicitly
-      console.error('[CC] Database connection failed:', err);
-      throw err;
-    }
+    console.log(`[CC] Retrieved ${data?.length || 0} security events from database`);
+    return data as unknown as SecurityEvent[];
   },
 
   async createSecurityEvent(event: Omit<SecurityEvent, 'id' | 'created_at'>) {
     const client = getSupabaseClient();
-    // FAIL-CLOSED: Write operations require Supabase (no DEMO_MODE fallback)
-    if (!client) {
-      throw new SupabaseConfigurationError();
-    }
-
     const { data, error } = await client.from('security_events').insert(event).select().single();
 
     if (error) throw error;
     return data as unknown as SecurityEvent;
   },
 
-  // Analytics - Connect to real Unit Talk production data
+  // Analytics
   async getAnalytics() {
     const client = getSupabaseClient();
 
-    // DEMO_MODE: Explicit mock data usage
-    if (!client) {
-      if (!getDemoMode()) {
-        throw new SupabaseConfigurationError();
-      }
-      console.log('[DEMO_MODE] Using mock analytics data');
-      const { getMockAnalytics } = await import('./mockData');
-      return getMockAnalytics();
-    }
+    // Get real agent health/metrics stats
+    const { data: agentData } = await client
+      .from('agent_health')
+      .select('agent, status, created_at')
+      .order('created_at', { ascending: false });
 
-    try {
-      // Get real agent health/metrics stats
-      const { data: agentData } = await client
-        .from('agent_health')
-        .select('agent, status, created_at')
-        .order('created_at', { ascending: false });
-
-      // Get real unified picks stats with user context
-      const { data: picksData } = await client
-        .from('unified_picks')
-        .select(
-          `
-          id,
-          prediction,
-          confidence,
-          status,
-          result,
-          created_at,
-          users!inner (
-            username,
-            tier
-          )
+    // Get real unified picks stats with user context
+    const { data: picksData } = await client
+      .from('unified_picks')
+      .select(
         `
+        id,
+        prediction,
+        confidence,
+        status,
+        result,
+        created_at,
+        users!inner (
+          username,
+          tier
         )
-        .order('created_at', { ascending: false })
-        .limit(1000); // Get recent picks for analytics
+      `
+      )
+      .order('created_at', { ascending: false })
+      .limit(1000);
 
-      // Get raw props for market data
-      const { data: propsData } = await client
-        .from('raw_props')
-        .select('id, stat_type, created_at')
-        .order('created_at', { ascending: false })
-        .limit(500);
+    // Get raw props for market data
+    const { data: propsData } = await client
+      .from('raw_props')
+      .select('id, stat_type, created_at')
+      .order('created_at', { ascending: false })
+      .limit(500);
 
-      console.log('✅ Retrieved real analytics from production tables');
+    console.log('[CC] Retrieved real analytics from production tables');
 
-      return {
-        users: [], // User analytics not available yet
-        picks: picksData || [],
-        agents: agentData || [],
-        props: propsData || [],
-        source: 'database',
-      };
-    } catch (err) {
-      // PHASE-0-FIX: No silent fallback - surface errors explicitly
-      console.error('[CC] Database analytics query failed:', err);
-      throw err;
-    }
+    return {
+      users: [],
+      picks: picksData || [],
+      agents: agentData || [],
+      props: propsData || [],
+      source: 'database',
+    };
   },
 
   // Database status check
   async getDatabaseStatus() {
     try {
       const client = getSupabaseClient();
-
-      if (!client) {
-        // Only possible if DEMO_MODE is true
-        return {
-          connected: false,
-          demoMode: true,
-          error: null,
-          usingMockData: true,
-        };
-      }
-
       const { error } = await client.from('users').select('count').limit(1);
 
       if (error) {
         return {
           connected: false,
-          demoMode: false,
           error: error.message,
-          usingMockData: getDemoMode(),
         };
       }
 
       return {
         connected: true,
-        demoMode: false,
         error: null,
-        usingMockData: false,
       };
     } catch (err) {
-      // If DEMO_MODE is false, getSupabaseClient() throws - this is correct behavior
       if (err instanceof SupabaseConfigurationError) {
-        throw err; // Re-throw fail-closed error
+        throw err;
       }
       return {
         connected: false,
-        demoMode: getDemoMode(),
         error: err instanceof Error ? err.message : 'Unknown error',
-        usingMockData: getDemoMode(),
       };
     }
   },
@@ -1248,17 +976,10 @@ export const dbOperations = {
 type RealtimePayload<T extends Record<string, unknown> = Record<string, unknown>> =
   RealtimePostgresChangesPayload<T>;
 
-// Real-time subscriptions for Unit Talk production tables
+// Real-time subscriptions - all require Supabase (fail-closed)
 export const subscriptions = {
   subscribeToAgentStatus(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
-    if (!client) {
-      if (getDemoMode()) {
-        console.log('[DEMO_MODE] Subscriptions disabled - no real-time updates');
-        return null;
-      }
-      throw new SupabaseConfigurationError();
-    }
 
     return client
       .channel('agent_status')
@@ -1268,13 +989,6 @@ export const subscriptions = {
 
   subscribeToAgentHealth(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
-    if (!client) {
-      if (getDemoMode()) {
-        console.log('[DEMO_MODE] Subscriptions disabled - no real-time updates');
-        return null;
-      }
-      throw new SupabaseConfigurationError();
-    }
 
     return client
       .channel('agent_health')
@@ -1284,13 +998,6 @@ export const subscriptions = {
 
   subscribeToAgentMetrics(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
-    if (!client) {
-      if (getDemoMode()) {
-        console.log('[DEMO_MODE] Subscriptions disabled - no real-time updates');
-        return null;
-      }
-      throw new SupabaseConfigurationError();
-    }
 
     return client
       .channel('agent_metrics')
@@ -1304,13 +1011,6 @@ export const subscriptions = {
 
   subscribeToSecurityEvents(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
-    if (!client) {
-      if (getDemoMode()) {
-        console.log('[DEMO_MODE] Subscriptions disabled - no real-time updates');
-        return null;
-      }
-      throw new SupabaseConfigurationError();
-    }
 
     return client
       .channel('security_events')
@@ -1324,13 +1024,6 @@ export const subscriptions = {
 
   subscribeToNewPicks(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
-    if (!client) {
-      if (getDemoMode()) {
-        console.log('[DEMO_MODE] Subscriptions disabled - no real-time updates');
-        return null;
-      }
-      throw new SupabaseConfigurationError();
-    }
 
     return client
       .channel('unified_picks')
@@ -1344,13 +1037,6 @@ export const subscriptions = {
 
   subscribeToPickUpdates(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
-    if (!client) {
-      if (getDemoMode()) {
-        console.log('[DEMO_MODE] Subscriptions disabled - no real-time updates');
-        return null;
-      }
-      throw new SupabaseConfigurationError();
-    }
 
     return client
       .channel('unified_picks_updates')
@@ -1364,13 +1050,6 @@ export const subscriptions = {
 
   subscribeToAgentLogs(callback: (payload: RealtimePayload) => void) {
     const client = getSupabaseClient();
-    if (!client) {
-      if (getDemoMode()) {
-        console.log('[DEMO_MODE] Subscriptions disabled - no real-time updates');
-        return null;
-      }
-      throw new SupabaseConfigurationError();
-    }
 
     return client
       .channel('agent_logs')

@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { agentMonitor } from '@/lib/agentMonitoring';
-import { mockAgents, simulateAgentStatusUpdate } from '@/lib/mockData';
 import { redisClient } from '@/lib/redis';
-import { dbOperations, Agent, getSupabaseClient } from '@/lib/supabase';
+import { Agent, getSupabaseClient } from '@/lib/supabase';
 
 /**
  * Agent Status API Endpoint
- * Provides detailed agent status information with live health checks
- * Falls back to mock data when database is unavailable
+ * SPRINT-DEMO-MODE-REMOVAL: All mock fallbacks removed.
+ * Fail-closed: If database unavailable, return explicit error.
  */
 
 export async function GET(request: NextRequest) {
@@ -20,255 +19,216 @@ export async function GET(request: NextRequest) {
     const includeMetrics = searchParams.get('metrics') === 'true';
     const includeHistory = searchParams.get('history') === 'true';
 
-    console.log('📊 GET /api/agents/status', { agentId, agentName, liveHealth, includeMetrics });
+    console.log('[CC] GET /api/agents/status', { agentId, agentName, liveHealth, includeMetrics });
+
+    const client = getSupabaseClient();
 
     // Get specific agent status
     if (agentId || agentName) {
-      try {
-        const client = getSupabaseClient();
-        if (!client) throw new Error('Database unavailable');
+      const identifier = agentId ? 'id' : 'agent';
+      const value = agentId || agentName;
 
-        const identifier = agentId ? 'id' : 'name';
-        const value = agentId || agentName;
+      const { data: agent, error } = await client
+        .from('agent_health')
+        .select('*')
+        .eq(identifier, value)
+        .single();
 
-        const { data: agent, error } = await client
-          .from('agents')
-          .select('*')
-          .eq(identifier, value)
-          .single();
-
-        if (error) throw error;
-
-        // Get live health if requested
-        let liveStatus = null;
-        if (liveHealth) {
-          try {
-            liveStatus = await agentMonitor.checkAgent(agent.name as string);
-
-            // Cache the live status
-            await redisClient.cacheAgentStatus(agent.name as string, liveStatus);
-          } catch (healthError) {
-            console.warn('⚠️ Live health check failed:', healthError);
-          }
-        }
-
-        // Get metrics history if requested
-        let metricsHistory = null;
-        if (includeHistory) {
-          try {
-            // Production schema uses 'agent' not 'agent_name'
-            const { data: history } = await client
-              .from('agent_metrics')
-              .select('*')
-              .eq('agent', agent.name)
-              .order('created_at', { ascending: false })
-              .limit(100);
-
-            metricsHistory = history;
-          } catch (historyError) {
-            console.warn('⚠️ Failed to fetch metrics history:', historyError);
-          }
-        }
-
-        const response = {
-          id: agent.id,
-          name: agent.name,
-          type: agent.type,
-          status: liveStatus?.status || agent.status,
-          health: liveStatus
-            ? {
-                status: liveStatus.status,
-                uptime: liveStatus.details.uptime,
-                lastCheck: liveStatus.lastCheck,
-                responseTime: liveStatus.responseTime,
-                details: liveStatus.details,
-              }
-            : null,
-          metrics: includeMetrics
-            ? {
-                success_rate: agent.success_rate,
-                avg_response_time: agent.avg_response_time,
-                total_operations: agent.total_operations,
-                last_run: agent.last_run,
-              }
-            : null,
-          history: metricsHistory,
-          configuration: agent.configuration,
-          created_at: agent.created_at,
-          updated_at: agent.updated_at,
-        };
-
-        return NextResponse.json({
-          success: true,
-          data: response,
-          source: liveHealth ? 'database+live' : 'database',
-        });
-      } catch (error) {
-        console.log('⚠️ Database unavailable, using mock data');
-        const mockAgent = mockAgents.find(
-          a => (agentId && a.id === agentId) || (agentName && a.name === agentName)
+      if (error) {
+        console.error('[CC] Agent status query failed:', error.message);
+        return NextResponse.json(
+          { success: false, error: error.code === 'PGRST116' ? 'Agent not found' : error.message },
+          { status: error.code === 'PGRST116' ? 404 : 500 }
         );
-
-        if (!mockAgent) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: 'Agent not found',
-            },
-            { status: 404 }
-          );
-        }
-
-        return NextResponse.json({
-          success: true,
-          data: mockAgent,
-          source: 'mock',
-        });
       }
+
+      // Get live health if requested
+      let liveStatus = null;
+      if (liveHealth) {
+        try {
+          liveStatus = await agentMonitor.checkAgent(agent.agent as string);
+          await redisClient.cacheAgentStatus(agent.agent as string, liveStatus);
+        } catch (healthError) {
+          console.warn('[CC] Live health check failed:', healthError);
+        }
+      }
+
+      // Get metrics history if requested
+      let metricsHistory = null;
+      if (includeHistory) {
+        try {
+          const { data: history } = await client
+            .from('agent_metrics')
+            .select('*')
+            .eq('agent', agent.agent)
+            .order('created_at', { ascending: false })
+            .limit(100);
+
+          metricsHistory = history;
+        } catch (historyError) {
+          console.warn('[CC] Failed to fetch metrics history:', historyError);
+        }
+      }
+
+      const details = (agent.details || {}) as Record<string, unknown>;
+      const response = {
+        id: agent.id,
+        name: agent.agent,
+        type: 'system',
+        status: liveStatus?.status || agent.status,
+        health: liveStatus
+          ? {
+              status: liveStatus.status,
+              uptime: liveStatus.details.uptime,
+              lastCheck: liveStatus.lastCheck,
+              responseTime: liveStatus.responseTime,
+              details: liveStatus.details,
+            }
+          : null,
+        metrics: includeMetrics
+          ? {
+              success_rate: details.success_rate,
+              avg_response_time: details.response_time_ms,
+              total_operations: details.total_operations,
+              last_run: agent.last_heartbeat,
+            }
+          : null,
+        history: metricsHistory,
+        configuration: details,
+        created_at: agent.created_at,
+        updated_at: agent.updated_at,
+      };
+
+      return NextResponse.json({
+        success: true,
+        data: response,
+        source: liveHealth ? 'database+live' : 'database',
+      });
     }
 
     // Get all agents status
-    try {
-      const client = getSupabaseClient();
-      if (!client) throw new Error('Database unavailable');
-
-      // Try to get cached status first
-      const cacheKey = `agents:status:${liveHealth ? 'live' : 'db'}`;
-      let agentsStatus = [];
-
-      if (!liveHealth) {
-        const cached = await redisClient.get<any[]>(cacheKey);
-        if (cached) {
-          console.log('🎯 Using cached agents status');
-          agentsStatus = cached;
-        }
-      }
-
-      if (agentsStatus.length === 0) {
-        // Get all agents from database
-        const { data: agents, error } = await client.from('agents').select('*').order('name');
-
-        if (error) throw error;
-
-        agentsStatus = agents.map(agent => ({
-          id: agent.id,
-          name: agent.name,
-          type: agent.type,
-          status: agent.status,
-          last_run: agent.last_run,
-          success_rate: agent.success_rate,
-          avg_response_time: agent.avg_response_time,
-          total_operations: agent.total_operations,
-        }));
-
-        // If live health requested, enhance with real-time data
-        if (liveHealth) {
-          try {
-            console.log('🏥 Performing live health checks for all agents...');
-            const liveStatuses = await agentMonitor.checkAllAgents();
-
-            // Merge live health data
-            agentsStatus = agentsStatus.map(agent => {
-              const liveStatus = liveStatuses.find(live => live.name === agent.name);
-              if (liveStatus) {
-                return {
-                  ...agent,
-                  status: liveStatus.status,
-                  liveHealth: {
-                    uptime: liveStatus.details.uptime,
-                    lastCheck: liveStatus.lastCheck,
-                    responseTime: liveStatus.responseTime,
-                    errors: liveStatus.details.errors,
-                  },
-                };
-              }
-              return agent;
-            });
-
-            // Cache individual statuses
-            for (const status of liveStatuses) {
-              await redisClient.cacheAgentStatus(status.name, status);
-            }
-          } catch (healthError) {
-            console.warn('⚠️ Live health checks failed:', healthError);
-          }
-        } else {
-          // Cache database results for 2 minutes
-          await redisClient.set(cacheKey, agentsStatus, 120);
-        }
-      }
-
-      // Calculate summary metrics
-      const summary = {
-        total: agentsStatus.length,
-        healthy: agentsStatus.filter(a => a.status === 'healthy').length,
-        warning: agentsStatus.filter(a => a.status === 'warning').length,
-        error: agentsStatus.filter(a => a.status === 'error').length,
-        inactive: agentsStatus.filter(a => a.status === 'inactive').length,
-        avgSuccessRate:
-          agentsStatus.reduce((sum, a) => sum + a.success_rate, 0) / agentsStatus.length,
-        avgResponseTime:
-          agentsStatus.reduce((sum, a) => sum + a.avg_response_time, 0) / agentsStatus.length,
+    const cacheKey = `agents:status:${liveHealth ? 'live' : 'db'}`;
+    let agentsStatus: Array<{
+      id: string;
+      name: string;
+      type: string;
+      status: string;
+      last_run: string;
+      success_rate: number;
+      avg_response_time: number;
+      total_operations: number;
+      liveHealth?: {
+        uptime: number;
+        lastCheck: Date;
+        responseTime: number;
+        errors: string[];
       };
+    }> = [];
 
-      const response = includeMetrics
-        ? {
-            agents: agentsStatus,
-            summary,
-            lastUpdated: new Date().toISOString(),
-          }
-        : agentsStatus;
-
-      return NextResponse.json({
-        success: true,
-        data: response,
-        count: agentsStatus.length,
-        source: liveHealth ? 'database+live' : 'database',
-      });
-    } catch (error) {
-      console.log('⚠️ Database unavailable, using mock data');
-      const agentsStatus = [...mockAgents];
-
-      // Simulate updates for mock data
-      agentsStatus.forEach(agent => {
-        if (Math.random() < 0.1) {
-          // 10% chance to update
-          simulateAgentStatusUpdate(agent.id);
-        }
-      });
-
-      const summary = {
-        total: agentsStatus.length,
-        healthy: agentsStatus.filter(a => a.status === 'healthy').length,
-        warning: agentsStatus.filter(a => a.status === 'warning').length,
-        error: agentsStatus.filter(a => a.status === 'error').length,
-        inactive: agentsStatus.filter(a => a.status === 'inactive').length,
-        avgSuccessRate:
-          agentsStatus.reduce((sum, a) => sum + a.success_rate, 0) / agentsStatus.length,
-        avgResponseTime:
-          agentsStatus.reduce((sum, a) => sum + a.avg_response_time, 0) / agentsStatus.length,
-      };
-
-      const response = includeMetrics
-        ? {
-            agents: agentsStatus,
-            summary,
-          }
-        : agentsStatus;
-
-      return NextResponse.json({
-        success: true,
-        data: response,
-        count: agentsStatus.length,
-        source: 'mock',
-      });
+    if (!liveHealth) {
+      const cached = await redisClient.get<typeof agentsStatus>(cacheKey);
+      if (cached) {
+        console.log('[CC] Using cached agents status');
+        agentsStatus = cached;
+      }
     }
+
+    if (agentsStatus.length === 0) {
+      const { data: agents, error } = await client.from('agent_health').select('*').order('agent');
+
+      if (error) {
+        console.error('[CC] Agent status query failed:', error.message);
+        return NextResponse.json(
+          { success: false, error: `Database query failed: ${error.message}` },
+          { status: 500 }
+        );
+      }
+
+      agentsStatus = (agents || []).map(agent => {
+        const details = (agent.details || {}) as Record<string, unknown>;
+        return {
+          id: agent.id as string,
+          name: agent.agent as string,
+          type: 'system',
+          status: agent.status as string,
+          last_run: agent.last_heartbeat as string,
+          success_rate: (details.success_rate as number) ?? 0,
+          avg_response_time: (details.response_time_ms as number) ?? 0,
+          total_operations: (details.total_operations as number) ?? 0,
+        };
+      });
+
+      // If live health requested, enhance with real-time data
+      if (liveHealth) {
+        try {
+          console.log('[CC] Performing live health checks for all agents...');
+          const liveStatuses = await agentMonitor.checkAllAgents();
+
+          // Merge live health data
+          agentsStatus = agentsStatus.map(agent => {
+            const liveStatus = liveStatuses.find(live => live.name === agent.name);
+            if (liveStatus) {
+              return {
+                ...agent,
+                status: liveStatus.status,
+                liveHealth: {
+                  uptime: liveStatus.details.uptime,
+                  lastCheck: liveStatus.lastCheck,
+                  responseTime: liveStatus.responseTime,
+                  errors: liveStatus.details.errors,
+                },
+              };
+            }
+            return agent;
+          });
+
+          // Cache individual statuses
+          for (const status of liveStatuses) {
+            await redisClient.cacheAgentStatus(status.name, status);
+          }
+        } catch (healthError) {
+          console.warn('[CC] Live health checks failed:', healthError);
+        }
+      } else {
+        // Cache database results for 2 minutes
+        await redisClient.set(cacheKey, agentsStatus, 120);
+      }
+    }
+
+    // Calculate summary metrics
+    const total = agentsStatus.length;
+    const summary = {
+      total,
+      healthy: agentsStatus.filter(a => a.status === 'healthy').length,
+      warning: agentsStatus.filter(a => a.status === 'warning').length,
+      error: agentsStatus.filter(a => a.status === 'error').length,
+      inactive: agentsStatus.filter(a => a.status === 'inactive').length,
+      avgSuccessRate:
+        total > 0 ? agentsStatus.reduce((sum, a) => sum + a.success_rate, 0) / total : 0,
+      avgResponseTime:
+        total > 0 ? agentsStatus.reduce((sum, a) => sum + a.avg_response_time, 0) / total : 0,
+    };
+
+    const response = includeMetrics
+      ? {
+          agents: agentsStatus,
+          summary,
+          lastUpdated: new Date().toISOString(),
+        }
+      : agentsStatus;
+
+    return NextResponse.json({
+      success: true,
+      data: response,
+      count: agentsStatus.length,
+      source: liveHealth ? 'database+live' : 'database',
+    });
   } catch (error) {
-    console.error('❌ GET /api/agents/status error:', error);
+    console.error('[CC] GET /api/agents/status error:', error);
     return NextResponse.json(
       {
         success: false,
-        error: 'Internal server error',
+        error: error instanceof Error ? error.message : 'Internal server error',
       },
       { status: 500 }
     );
@@ -281,7 +241,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { action, agents } = body;
 
-    console.log('🎬 POST /api/agents/status - Action:', action);
+    console.log('[CC] POST /api/agents/status - Action:', action);
 
     if (action === 'health-check') {
       // Trigger health check for all or specific agents
@@ -303,11 +263,12 @@ export async function POST(request: NextRequest) {
           data: results,
           message: `Health check completed for ${results.length} agents`,
         });
-      } catch (error) {
+      } catch (healthError) {
+        console.error('[CC] Health check failed:', healthError);
         return NextResponse.json(
           {
             success: false,
-            error: 'Health check failed',
+            error: healthError instanceof Error ? healthError.message : 'Health check failed',
           },
           { status: 500 }
         );
@@ -318,56 +279,49 @@ export async function POST(request: NextRequest) {
       // Bulk status update
       const updates = body.updates || [];
 
-      try {
-        const client = getSupabaseClient();
-        if (!client) throw new Error('Database unavailable');
+      const client = getSupabaseClient();
 
-        const results = [];
-        for (const update of updates) {
-          const { data, error } = await client
-            .from('agents')
-            .update({
-              status: update.status,
-              last_run: new Date().toISOString(),
-            })
-            .eq('name', update.name)
-            .select()
-            .single();
+      const results = [];
+      for (const update of updates) {
+        const { data, error } = await client
+          .from('agent_health')
+          .update({
+            status: update.status,
+            last_heartbeat: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('agent', update.name)
+          .select()
+          .single();
 
-          if (!error) {
-            results.push(data);
-          }
+        if (error) {
+          console.error('[CC] Bulk update failed for agent:', update.name, error.message);
+        } else {
+          results.push(data);
         }
-
-        return NextResponse.json({
-          success: true,
-          data: results,
-          message: `Updated ${results.length} agents`,
-        });
-      } catch (error) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Bulk update failed',
-          },
-          { status: 500 }
-        );
       }
+
+      return NextResponse.json({
+        success: true,
+        data: results,
+        message: `Updated ${results.length} agents`,
+        source: 'database',
+      });
     }
 
     return NextResponse.json(
       {
         success: false,
-        error: 'Invalid action',
+        error: 'Invalid action. Must be one of: health-check, bulk-update',
       },
       { status: 400 }
     );
   } catch (error) {
-    console.error('❌ POST /api/agents/status error:', error);
+    console.error('[CC] POST /api/agents/status error:', error);
     return NextResponse.json(
       {
         success: false,
-        error: 'Internal server error',
+        error: error instanceof Error ? error.message : 'Internal server error',
       },
       { status: 500 }
     );
