@@ -34,11 +34,22 @@ async function testInsert() {
     if (!tierName) return 'C';
     const normalized = tierName.toLowerCase().trim();
     const tierMap: Record<string, string> = {
-      'platinum': 'S', 's': 'S', 'elite': 'S', 'diamond': 'S',
-      'gold': 'A', 'a': 'A', 'premium': 'A',
-      'silver': 'B', 'b': 'B', 'pro': 'B',
-      'bronze': 'C', 'c': 'C', 'standard': 'C',
-      'basic': 'D', 'd': 'D', 'free': 'D',
+      platinum: 'S',
+      s: 'S',
+      elite: 'S',
+      diamond: 'S',
+      gold: 'A',
+      a: 'A',
+      premium: 'A',
+      silver: 'B',
+      b: 'B',
+      pro: 'B',
+      bronze: 'C',
+      c: 'C',
+      standard: 'C',
+      basic: 'D',
+      d: 'D',
+      free: 'D',
     };
     return tierMap[normalized] || 'C';
   };
@@ -72,7 +83,7 @@ async function testInsert() {
       capper_name: capper.username,
       capper_username: capper.username,
       capper_tier: capper.capper_tier || capper.tier || 'C',
-      team_slug: 'team_nba_los_angeles_lakers',
+      team_slug: '95830c8b-e08a-493b-aa83-1b9cbe092593', // Los Angeles Lakers UUID
     },
     manual_matchup_home: 'Los Angeles Lakers',
     manual_matchup_away: 'Boston Celtics',
@@ -105,7 +116,7 @@ async function testInsert() {
     const { data: columns } = await supabase
       .rpc('get_table_columns', { table_name: 'unified_picks' })
       .then(
-        (result) => result,
+        result => result,
         () => ({ data: null, error: null })
       );
     if (columns) {
