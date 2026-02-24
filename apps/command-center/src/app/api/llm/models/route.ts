@@ -1,7 +1,14 @@
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
+
 import { createClient } from '@/lib/supabase';
+
+/**
+ * LLM Models API Endpoint
+ * SPRINT-DEMO-MODE-REMOVAL: All mock data removed.
+ * Fail-closed: If database unavailable, return explicit error.
+ */
 
 interface LLMModel {
   id: string;
@@ -23,96 +30,36 @@ interface LLMModel {
   };
 }
 
-// Mock data for now - in production, this would come from a configuration database
-const mockModels: LLMModel[] = [
-  {
-    id: 'gpt-4-turbo',
-    name: 'GPT-4 Turbo',
-    provider: 'openai',
-    status: 'active',
-    tokensUsed: 45230,
-    tokensLimit: 1000000,
-    requestsToday: 127,
-    avgResponseTime: 1200,
-    cost: 22.15,
-    accuracy: 94.2,
-    lastUsed: new Date().toISOString(),
-    configuration: {
-      temperature: 0.7,
-      maxTokens: 4096,
-      topP: 0.9,
-      frequencyPenalty: 0.1,
-    },
-  },
-  {
-    id: 'claude-3-sonnet',
-    name: 'Claude 3 Sonnet',
-    provider: 'anthropic',
-    status: 'active',
-    tokensUsed: 28450,
-    tokensLimit: 500000,
-    requestsToday: 89,
-    avgResponseTime: 950,
-    cost: 14.25,
-    accuracy: 96.8,
-    lastUsed: new Date(Date.now() - 300000).toISOString(), // 5 minutes ago
-    configuration: {
-      temperature: 0.3,
-      maxTokens: 4096,
-      topP: 0.9,
-      frequencyPenalty: 0.0,
-    },
-  },
-  {
-    id: 'gpt-3.5-turbo',
-    name: 'GPT-3.5 Turbo',
-    provider: 'openai',
-    status: 'active',
-    tokensUsed: 120450,
-    tokensLimit: 2000000,
-    requestsToday: 245,
-    avgResponseTime: 650,
-    cost: 8.33,
-    accuracy: 87.5,
-    lastUsed: new Date(Date.now() - 120000).toISOString(), // 2 minutes ago
-    configuration: {
-      temperature: 0.9,
-      maxTokens: 2048,
-      topP: 0.95,
-      frequencyPenalty: 0.2,
-    },
-  },
-];
-
 export async function GET(request: NextRequest) {
   try {
     const supabase = createClient();
 
-    // Try to get real model configuration from database
-    // For now, return mock data but could be enhanced to store in database
     const { data: models, error } = await supabase
       .from('llm_models')
       .select('*')
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.log('LLM models table not found, returning mock data');
-      return NextResponse.json(mockModels);
+      console.error('[CC] LLM models query failed:', error.message);
+      return NextResponse.json(
+        { success: false, error: `Database query failed: ${error.message}` },
+        { status: 500 }
+      );
     }
 
-    // If we have real data, transform it to match interface
-    const transformedModels =
+    // Transform database records to match interface
+    const transformedModels: LLMModel[] =
       models?.map(model => ({
         id: model.id,
-        name: model.name,
-        provider: model.provider,
+        name: model.name || 'Unknown',
+        provider: model.provider || 'openai',
         status: model.status || 'active',
         tokensUsed: model.tokens_used || 0,
         tokensLimit: model.tokens_limit || 1000000,
         requestsToday: model.requests_today || 0,
-        avgResponseTime: model.avg_response_time || 1000,
+        avgResponseTime: model.avg_response_time || 0,
         cost: model.cost || 0,
-        accuracy: model.accuracy || 90,
+        accuracy: model.accuracy || 0,
         lastUsed: model.last_used || new Date().toISOString(),
         configuration: model.configuration || {
           temperature: 0.7,
@@ -122,9 +69,17 @@ export async function GET(request: NextRequest) {
         },
       })) || [];
 
-    return NextResponse.json(transformedModels.length > 0 ? transformedModels : mockModels);
+    return NextResponse.json({
+      success: true,
+      data: transformedModels,
+      count: transformedModels.length,
+      source: 'database',
+    });
   } catch (error) {
-    console.error('Error fetching LLM models:', error);
-    return NextResponse.json(mockModels, { status: 200 });
+    console.error('[CC] LLM models error:', error);
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : 'Internal server error' },
+      { status: 500 }
+    );
   }
 }

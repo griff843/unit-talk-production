@@ -1,10 +1,13 @@
+'use server';
+
 import { NextRequest, NextResponse } from 'next/server';
 
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase';
 
 /**
  * Audit Trail API Endpoint
- * Comprehensive audit logging and compliance tracking for production systems
+ * SPRINT-DEMO-MODE-REMOVAL: All mock data removed.
+ * Fail-closed: If database unavailable, return explicit error.
  */
 
 interface AuditEvent {
@@ -13,7 +16,7 @@ interface AuditEvent {
   action: string;
   resource: string;
   resource_id?: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   ip_address: string;
   user_agent: string;
   session_id?: string;
@@ -51,116 +54,108 @@ export async function GET(request: NextRequest) {
       offset: parseInt(searchParams.get('offset') || '0'),
     };
 
-    console.log('📋 GET /api/audit', query);
+    const supabase = createClient();
 
-    try {
-      let supabaseQuery = supabase
-        .from('audit_logs')
-        .select('*')
-        .order('timestamp', { ascending: false });
+    let supabaseQuery = supabase
+      .from('audit_logs')
+      .select('*', { count: 'exact' })
+      .order('timestamp', { ascending: false });
 
-      // Apply filters
-      if (query.user_id) {
-        supabaseQuery = supabaseQuery.eq('user_id', query.user_id);
-      }
-      if (query.action) {
-        supabaseQuery = supabaseQuery.eq('action', query.action);
-      }
-      if (query.resource) {
-        supabaseQuery = supabaseQuery.eq('resource', query.resource);
-      }
-      if (query.status) {
-        supabaseQuery = supabaseQuery.eq('status', query.status);
-      }
-      if (query.risk_level) {
-        supabaseQuery = supabaseQuery.eq('risk_level', query.risk_level);
-      }
-      if (query.start_date) {
-        supabaseQuery = supabaseQuery.gte('timestamp', query.start_date);
-      }
-      if (query.end_date) {
-        supabaseQuery = supabaseQuery.lte('timestamp', query.end_date);
-      }
-
-      // Apply pagination
-      supabaseQuery = supabaseQuery.range(query.offset!, query.offset! + query.limit! - 1);
-
-      const { data: auditLogs, error, count } = await supabaseQuery;
-
-      if (error) throw error;
-
-      // Get summary statistics
-      const summaryQuery = supabase.from('audit_logs').select('status, risk_level, action');
-
-      // Apply same filters for summary
-      if (query.user_id) summaryQuery.eq('user_id', query.user_id);
-      if (query.start_date) summaryQuery.gte('timestamp', query.start_date);
-      if (query.end_date) summaryQuery.lte('timestamp', query.end_date);
-
-      const { data: summaryData } = await summaryQuery;
-
-      const summary = {
-        total: summaryData?.length || 0,
-        by_status: summaryData?.reduce((acc: any, log: any) => {
-          acc[log.status] = (acc[log.status] || 0) + 1;
-          return acc;
-        }, {}),
-        by_risk_level: summaryData?.reduce((acc: any, log: any) => {
-          acc[log.risk_level] = (acc[log.risk_level] || 0) + 1;
-          return acc;
-        }, {}),
-        by_action: summaryData?.reduce((acc: any, log: any) => {
-          acc[log.action] = (acc[log.action] || 0) + 1;
-          return acc;
-        }, {}),
-      };
-
-      return NextResponse.json({
-        success: true,
-        data: {
-          logs: auditLogs,
-          summary,
-          pagination: {
-            total: count || 0,
-            limit: query.limit,
-            offset: query.offset,
-            has_more: (count || 0) > query.offset! + query.limit!,
-          },
-        },
-        source: 'database',
-      });
-    } catch (error) {
-      console.log('⚠️ Database unavailable, using mock audit data');
-
-      const mockAuditLogs = generateMockAuditLogs(query);
-
-      return NextResponse.json({
-        success: true,
-        data: {
-          logs: mockAuditLogs.slice(query.offset!, query.offset! + query.limit!),
-          summary: {
-            total: mockAuditLogs.length,
-            by_status: { success: 45, failure: 8, warning: 12 },
-            by_risk_level: { low: 32, medium: 18, high: 12, critical: 3 },
-            by_action: { login: 15, logout: 12, create: 8, update: 20, delete: 5 },
-          },
-          pagination: {
-            total: mockAuditLogs.length,
-            limit: query.limit,
-            offset: query.offset,
-            has_more: mockAuditLogs.length > query.offset! + query.limit!,
-          },
-        },
-        source: 'mock',
-      });
+    // Apply filters
+    if (query.user_id) {
+      supabaseQuery = supabaseQuery.eq('user_id', query.user_id);
     }
-  } catch (error) {
-    console.error('❌ GET /api/audit error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Internal server error',
+    if (query.action) {
+      supabaseQuery = supabaseQuery.eq('action', query.action);
+    }
+    if (query.resource) {
+      supabaseQuery = supabaseQuery.eq('resource', query.resource);
+    }
+    if (query.status) {
+      supabaseQuery = supabaseQuery.eq('status', query.status);
+    }
+    if (query.risk_level) {
+      supabaseQuery = supabaseQuery.eq('risk_level', query.risk_level);
+    }
+    if (query.start_date) {
+      supabaseQuery = supabaseQuery.gte('timestamp', query.start_date);
+    }
+    if (query.end_date) {
+      supabaseQuery = supabaseQuery.lte('timestamp', query.end_date);
+    }
+
+    // Apply pagination
+    supabaseQuery = supabaseQuery.range(query.offset!, query.offset! + query.limit! - 1);
+
+    const { data: auditLogs, error, count } = await supabaseQuery;
+
+    if (error) {
+      console.error('[CC] Audit logs query failed:', error.message);
+      return NextResponse.json(
+        { success: false, error: `Database query failed: ${error.message}` },
+        { status: 500 }
+      );
+    }
+
+    // Get summary statistics
+    const { data: summaryData, error: summaryError } = await supabase
+      .from('audit_logs')
+      .select('status, risk_level, action');
+
+    if (summaryError) {
+      console.error('[CC] Audit summary query failed:', summaryError.message);
+      // Continue without summary - it's supplementary data
+    }
+
+    const summary = {
+      total: summaryData?.length || 0,
+      by_status: summaryData?.reduce(
+        (acc: Record<string, number>, log: { status?: string }) => {
+          if (log.status) {
+            acc[log.status] = (acc[log.status] || 0) + 1;
+          }
+          return acc;
+        },
+        {} as Record<string, number>
+      ),
+      by_risk_level: summaryData?.reduce(
+        (acc: Record<string, number>, log: { risk_level?: string }) => {
+          if (log.risk_level) {
+            acc[log.risk_level] = (acc[log.risk_level] || 0) + 1;
+          }
+          return acc;
+        },
+        {} as Record<string, number>
+      ),
+      by_action: summaryData?.reduce(
+        (acc: Record<string, number>, log: { action?: string }) => {
+          if (log.action) {
+            acc[log.action] = (acc[log.action] || 0) + 1;
+          }
+          return acc;
+        },
+        {} as Record<string, number>
+      ),
+    };
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        logs: auditLogs || [],
+        summary,
+        pagination: {
+          total: count || 0,
+          limit: query.limit,
+          offset: query.offset,
+          has_more: (count || 0) > query.offset! + query.limit!,
+        },
       },
+      source: 'database',
+    });
+  } catch (error) {
+    console.error('[CC] Audit logs error:', error);
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
     );
   }
@@ -182,15 +177,12 @@ export async function POST(request: NextRequest) {
 
     if (missingFields.length > 0) {
       return NextResponse.json(
-        {
-          success: false,
-          error: `Missing required fields: ${missingFields.join(', ')}`,
-        },
+        { success: false, error: `Missing required fields: ${missingFields.join(', ')}` },
         { status: 400 }
       );
     }
 
-    // Validate action and resource
+    // Validate action
     const validActions = [
       'login',
       'logout',
@@ -211,17 +203,13 @@ export async function POST(request: NextRequest) {
 
     if (!validActions.includes(body.action)) {
       return NextResponse.json(
-        {
-          success: false,
-          error: `Invalid action. Must be one of: ${validActions.join(', ')}`,
-        },
+        { success: false, error: `Invalid action. Must be one of: ${validActions.join(', ')}` },
         { status: 400 }
       );
     }
 
     // Calculate risk level if not provided
-    const riskLevel =
-      body.risk_level || calculateRiskLevel(body.action, body.resource, body.details);
+    const riskLevel = body.risk_level || calculateRiskLevel(body.action, body.resource);
 
     const auditEvent: AuditEvent = {
       user_id: body.user_id,
@@ -237,59 +225,40 @@ export async function POST(request: NextRequest) {
       risk_level: riskLevel,
     };
 
-    console.log('📝 POST /api/audit - Creating audit entry:', {
-      action: auditEvent.action,
-      resource: auditEvent.resource,
-      user_id: auditEvent.user_id,
-      risk_level: auditEvent.risk_level,
-    });
+    const supabase = createClient();
 
-    try {
-      const { data, error } = await supabase
-        .from('audit_logs')
-        .insert({ ...auditEvent })
-        .select()
-        .single();
+    const { data, error } = await supabase
+      .from('audit_logs')
+      .insert({ ...auditEvent })
+      .select()
+      .single();
 
-      if (error) throw error;
-
-      // Trigger alerts for high-risk events
-      if (riskLevel === 'critical' || riskLevel === 'high') {
-        await triggerSecurityAlert(auditEvent);
-      }
-
+    if (error) {
+      console.error('[CC] Audit log insert failed:', error.message);
       return NextResponse.json(
-        {
-          success: true,
-          data: data,
-          message: 'Audit entry created successfully',
-          source: 'database',
-        },
-        { status: 201 }
-      );
-    } catch (error) {
-      console.log('⚠️ Database unavailable, logging audit event locally');
-
-      // In production, this would write to local logs, queue for retry, etc.
-      console.log('🗂️ Audit Event (Local):', auditEvent);
-
-      return NextResponse.json(
-        {
-          success: true,
-          data: { ...auditEvent, id: `local-${Date.now()}` },
-          message: 'Audit entry logged locally (database unavailable)',
-          source: 'local',
-        },
-        { status: 201 }
+        { success: false, error: `Failed to create audit entry: ${error.message}` },
+        { status: 500 }
       );
     }
-  } catch (error) {
-    console.error('❌ POST /api/audit error:', error);
+
+    // Trigger alerts for high-risk events
+    if (riskLevel === 'critical' || riskLevel === 'high') {
+      await triggerSecurityAlert(supabase, auditEvent);
+    }
+
     return NextResponse.json(
       {
-        success: false,
-        error: 'Internal server error',
+        success: true,
+        data: data,
+        message: 'Audit entry created successfully',
+        source: 'database',
       },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error('[CC] Audit log POST error:', error);
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
     );
   }
@@ -298,8 +267,7 @@ export async function POST(request: NextRequest) {
 // Helper functions
 function calculateRiskLevel(
   action: string,
-  resource: string,
-  details?: any
+  resource: string
 ): 'low' | 'medium' | 'high' | 'critical' {
   // High-risk actions
   if (['delete', 'emergency_stop', 'maintenance_mode'].includes(action)) {
@@ -324,11 +292,13 @@ function calculateRiskLevel(
   return 'low';
 }
 
-async function triggerSecurityAlert(auditEvent: AuditEvent) {
+async function triggerSecurityAlert(
+  supabase: ReturnType<typeof createClient>,
+  auditEvent: AuditEvent
+) {
   try {
-    // Production schema: type (enum), severity (enum), description, ip_address, user_id, metadata
     const alert = {
-      type: 'suspicious_activity' as const, // Map security_audit to production enum
+      type: 'suspicious_activity' as const,
       severity: (auditEvent.risk_level === 'critical' ? 'critical' : 'high') as
         | 'low'
         | 'medium'
@@ -345,54 +315,12 @@ async function triggerSecurityAlert(auditEvent: AuditEvent) {
       },
     };
 
-    await supabase.from('security_events').insert(alert);
+    const { error } = await supabase.from('security_events').insert(alert);
 
-    // In production, this would also send notifications via email, Slack, etc.
-    console.log('🚨 Security alert triggered for audit event:', auditEvent.id);
+    if (error) {
+      console.error('[CC] Failed to insert security alert:', error.message);
+    }
   } catch (error) {
-    console.error('❌ Failed to trigger security alert:', error);
+    console.error('[CC] Failed to trigger security alert:', error);
   }
-}
-
-function generateMockAuditLogs(query: AuditQuery): AuditEvent[] {
-  const actions = ['login', 'logout', 'create', 'update', 'delete', 'execute'];
-  const resources = ['users', 'agents', 'system', 'analytics', 'security'];
-  const statuses: ('success' | 'failure' | 'warning')[] = [
-    'success',
-    'success',
-    'success',
-    'failure',
-    'warning',
-  ];
-  const riskLevels: ('low' | 'medium' | 'high' | 'critical')[] = [
-    'low',
-    'low',
-    'medium',
-    'medium',
-    'high',
-    'critical',
-  ];
-  const users = ['admin-1', 'operator-2', 'viewer-3', 'admin-4'];
-
-  const logs: AuditEvent[] = [];
-
-  for (let i = 0; i < 100; i++) {
-    const timestamp = new Date(Date.now() - i * 60000).toISOString();
-
-    logs.push({
-      id: `mock-${i}`,
-      user_id: users[Math.floor(Math.random() * users.length)],
-      action: actions[Math.floor(Math.random() * actions.length)],
-      resource: resources[Math.floor(Math.random() * resources.length)],
-      resource_id: `resource-${Math.floor(Math.random() * 1000)}`,
-      details: { mock: true, index: i },
-      ip_address: `192.168.1.${Math.floor(Math.random() * 255)}`,
-      user_agent: 'Unit Talk Command Center/1.0',
-      timestamp,
-      status: statuses[Math.floor(Math.random() * statuses.length)],
-      risk_level: riskLevels[Math.floor(Math.random() * riskLevels.length)],
-    });
-  }
-
-  return logs;
 }

@@ -1,7 +1,14 @@
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
+
 import { createClient } from '@/lib/supabase';
+
+/**
+ * Grading Picks API Endpoint
+ * SPRINT-DEMO-MODE-REMOVAL: All mock data removed.
+ * Fail-closed: If database unavailable, return explicit error.
+ */
 
 interface GradingPickData {
   id: string;
@@ -32,7 +39,6 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = createClient();
 
-    // Get grading_status picks from unified_picks with enhanced grading data
     const { data: picksData, error: picksError } = await supabase
       .from('unified_picks')
       .select(
@@ -71,129 +77,82 @@ export async function GET(request: NextRequest) {
       .limit(100);
 
     if (picksError) {
-      throw new Error(`Failed to fetch grading_status picks: ${picksError.message}`);
+      console.error('[CC] Grading picks query failed:', picksError.message);
+      return NextResponse.json(
+        { success: false, error: `Database query failed: ${picksError.message}` },
+        { status: 500 }
+      );
     }
 
-    // Transform picks data into grading format
-    const gradingData: GradingPickData[] = (picksData || []).map((pick: any, index) => {
-      const user = Array.isArray(pick.users) ? pick.users[0] : pick.users;
-      const rawProp = Array.isArray(pick.raw_props) ? pick.raw_props[0] : pick.raw_props;
+    // Transform picks data into grading format using real data only
+    const gradingData: GradingPickData[] = (picksData || []).map(
+      (pick: Record<string, unknown>) => {
+        const user = Array.isArray(pick.users) ? pick.users[0] : pick.users;
+        const rawProp = Array.isArray(pick.raw_props) ? pick.raw_props[0] : pick.raw_props;
+        const userObj = user as Record<string, unknown> | undefined;
+        const rawPropObj = rawProp as Record<string, unknown> | undefined;
 
-      // Calculate synthetic grading metrics based on real data
-      const confidence = typeof pick.confidence === 'number' ? pick.confidence : 50;
-      const baseScore = confidence / 10;
-      const tierMultiplier =
-        pick.tier_when_placed === 'A'
-          ? 1.2
-          : pick.tier_when_placed === 'B'
-            ? 1.1
-            : pick.tier_when_placed === 'S'
-              ? 1.5
-              : 1.0;
-      const gradingScore = Math.round(baseScore * tierMultiplier * 10) / 10;
+        const confidence = typeof pick.confidence === 'number' ? pick.confidence : 0;
+        const gradingScore =
+          typeof pick.grading_score === 'number' ? pick.grading_score : confidence / 10;
+        const riskScore =
+          typeof pick.risk_assessment === 'number'
+            ? pick.risk_assessment
+            : Math.max(0, 10 - confidence / 10);
+        const expectedValue = typeof pick.expected_value === 'number' ? pick.expected_value : 0;
 
-      const riskScore = Math.max(0, Math.min(10, 10 - confidence / 10 + Math.random() * 2 - 1));
+        return {
+          id: `grading-${pick.id}`,
+          pickId: String(pick.id || ''),
+          capper: (userObj?.username as string) || 'Unknown',
+          selection: String(pick.selection || ''),
+          sport: String(pick.sport || rawPropObj?.sport || 'Unknown'),
+          odds: typeof pick.odds === 'number' ? pick.odds : 0,
+          confidence: confidence,
+          tier: String(pick.tier_when_placed || userObj?.capper_tier || 'C'),
+          gradingScore: Math.round(gradingScore * 10) / 10,
+          riskScore: Math.round(riskScore * 10) / 10,
+          expectedValue: Math.round(expectedValue * 100) / 100,
+          marketMovement:
+            typeof rawPropObj?.market_movement === 'number' ? rawPropObj.market_movement : 0,
+          status:
+            pick.workflow_stage === 'approved' || pick.workflow_stage === 'published'
+              ? ('graded' as const)
+              : pick.workflow_stage === 'pending_review'
+                ? ('pending' as const)
+                : ('graded' as const),
+          gradedAt: pick.workflow_stage === 'approved' ? String(pick.updated_at) : undefined,
+          gradedBy: 'GradingAgent',
+          notes:
+            pick.workflow_stage === 'rejected'
+              ? 'Below confidence threshold'
+              : gradingScore > 8
+                ? 'High value pick'
+                : gradingScore > 6
+                  ? 'Acceptable risk profile'
+                  : undefined,
+          metadata: {
+            modelVersion: 'v2.1',
+            processingTime: 0,
+            dataPoints: 0,
+            confidence: Math.round(confidence),
+          },
+        };
+      }
+    );
 
-      const expectedValue = gradingScore * 0.15 + (Math.random() * 0.3 - 0.15);
-
-      return {
-        id: `grading-${pick.id}`,
-        pickId: String(pick.id || ''),
-        capper: user?.username || 'Unknown Capper',
-        selection: String(pick.selection || ''),
-        sport: String(pick.sport || rawProp?.sport || 'Unknown'),
-        odds: typeof pick.odds === 'number' ? pick.odds : 0,
-        confidence: confidence,
-        tier: String(pick.tier_when_placed || user?.capper_tier || 'C'),
-        gradingScore: gradingScore,
-        riskScore: Math.round(riskScore * 10) / 10,
-        expectedValue: Math.round(expectedValue * 100) / 100,
-        marketMovement:
-          typeof rawProp?.market_movement === 'number'
-            ? rawProp.market_movement
-            : Math.random() * 20 - 10,
-        status:
-          pick.workflow_stage === 'approved' || pick.workflow_stage === 'published'
-            ? ('graded' as const)
-            : pick.workflow_stage === 'pending_review'
-              ? ('pending' as const)
-              : ('graded' as const),
-        gradedAt: pick.workflow_stage === 'approved' ? String(pick.updated_at) : undefined,
-        gradedBy: 'GradingAgent-v2.1',
-        notes:
-          pick.workflow_stage === 'rejected'
-            ? 'Below confidence threshold'
-            : gradingScore > 8
-              ? 'High value pick with strong fundamentals'
-              : gradingScore > 6
-                ? 'Solid pick with acceptable risk profile'
-                : 'Standard pick requiring additional analysis',
-        metadata: {
-          modelVersion: 'v2.1.3',
-          processingTime: Math.round(800 + Math.random() * 800), // 800-1600ms
-          dataPoints: Math.round(15 + Math.random() * 25), // 15-40 data points
-          confidence: Math.round((gradingScore / 10) * 100),
-        },
-      };
+    return NextResponse.json({
+      success: true,
+      data: gradingData,
+      count: gradingData.length,
+      source: 'database',
     });
-
-    return NextResponse.json(gradingData);
   } catch (error) {
-    console.error('Error fetching grading picks:', error);
-
-    // Return mock data on error
-    const mockGradingData: GradingPickData[] = [
-      {
-        id: 'grading-001',
-        pickId: 'pick-001',
-        capper: 'Griff843',
-        selection: 'LeBron James Over 25.5 Points',
-        sport: 'NBA',
-        odds: -110,
-        confidence: 85,
-        tier: 'A',
-        gradingScore: 8.7,
-        riskScore: 2.3,
-        expectedValue: 1.45,
-        marketMovement: -2.5,
-        status: 'graded',
-        gradedAt: new Date(Date.now() - 3600000).toISOString(),
-        gradedBy: 'GradingAgent-v2.1',
-        notes: 'High value pick with strong fundamentals',
-        metadata: {
-          modelVersion: 'v2.1.3',
-          processingTime: 1200,
-          dataPoints: 28,
-          confidence: 87,
-        },
-      },
-      {
-        id: 'grading-002',
-        pickId: 'pick-002',
-        capper: 'Vicgo',
-        selection: 'Stephen Curry Over 4.5 Three-Pointers',
-        sport: 'NBA',
-        odds: +120,
-        confidence: 78,
-        tier: 'A',
-        gradingScore: 7.9,
-        riskScore: 3.1,
-        expectedValue: 1.12,
-        marketMovement: +1.5,
-        status: 'graded',
-        gradedAt: new Date(Date.now() - 7200000).toISOString(),
-        gradedBy: 'GradingAgent-v2.1',
-        notes: 'Solid pick with acceptable risk profile',
-        metadata: {
-          modelVersion: 'v2.1.3',
-          processingTime: 950,
-          dataPoints: 22,
-          confidence: 79,
-        },
-      },
-    ];
-
-    return NextResponse.json(mockGradingData);
+    console.error('[CC] Grading picks error:', error);
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : 'Internal server error' },
+      { status: 500 }
+    );
   }
 }
 
@@ -203,15 +162,16 @@ export async function POST(request: NextRequest) {
     const { pickId, action } = body;
 
     if (!pickId || !action) {
-      return NextResponse.json({ error: 'pickId and action are required' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: 'pickId and action are required' },
+        { status: 400 }
+      );
     }
 
     const supabase = createClient();
 
-    // Handle different grading actions
     switch (action) {
       case 'regrade':
-        // Trigger re-grading of a specific pick
         const { error: regradeError } = await supabase
           .from('unified_picks')
           .update({
@@ -221,7 +181,11 @@ export async function POST(request: NextRequest) {
           .eq('id', pickId);
 
         if (regradeError) {
-          throw new Error(`Failed to regrade pick: ${regradeError.message}`);
+          console.error('[CC] Regrade failed:', regradeError.message);
+          return NextResponse.json(
+            { success: false, error: `Failed to regrade pick: ${regradeError.message}` },
+            { status: 500 }
+          );
         }
 
         return NextResponse.json({
@@ -231,7 +195,6 @@ export async function POST(request: NextRequest) {
         });
 
       case 'approve':
-        // Approve a grading_status pick
         const { error: approveError } = await supabase
           .from('unified_picks')
           .update({
@@ -241,7 +204,11 @@ export async function POST(request: NextRequest) {
           .eq('id', pickId);
 
         if (approveError) {
-          throw new Error(`Failed to approve grading_status pick: ${approveError.message}`);
+          console.error('[CC] Approve failed:', approveError.message);
+          return NextResponse.json(
+            { success: false, error: `Failed to approve pick: ${approveError.message}` },
+            { status: 500 }
+          );
         }
 
         return NextResponse.json({
@@ -251,7 +218,6 @@ export async function POST(request: NextRequest) {
         });
 
       case 'reject':
-        // Reject a grading_status pick
         const { error: rejectError } = await supabase
           .from('unified_picks')
           .update({
@@ -261,7 +227,11 @@ export async function POST(request: NextRequest) {
           .eq('id', pickId);
 
         if (rejectError) {
-          throw new Error(`Failed to reject grading_status pick: ${rejectError.message}`);
+          console.error('[CC] Reject failed:', rejectError.message);
+          return NextResponse.json(
+            { success: false, error: `Failed to reject pick: ${rejectError.message}` },
+            { status: 500 }
+          );
         }
 
         return NextResponse.json({
@@ -271,7 +241,6 @@ export async function POST(request: NextRequest) {
         });
 
       case 'publish':
-        // Publish an approved pick
         const { error: publishError } = await supabase
           .from('unified_picks')
           .update({
@@ -281,7 +250,11 @@ export async function POST(request: NextRequest) {
           .eq('id', pickId);
 
         if (publishError) {
-          throw new Error(`Failed to publish pick: ${publishError.message}`);
+          console.error('[CC] Publish failed:', publishError.message);
+          return NextResponse.json(
+            { success: false, error: `Failed to publish pick: ${publishError.message}` },
+            { status: 500 }
+          );
         }
 
         return NextResponse.json({
@@ -291,15 +264,15 @@ export async function POST(request: NextRequest) {
         });
 
       default:
-        return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
+        return NextResponse.json(
+          { success: false, error: `Unknown action: ${action}` },
+          { status: 400 }
+        );
     }
   } catch (error) {
-    console.error('Error processing grading action:', error);
+    console.error('[CC] Grading action error:', error);
     return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-      },
+      { success: false, error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
     );
   }

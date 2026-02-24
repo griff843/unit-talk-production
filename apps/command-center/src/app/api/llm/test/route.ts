@@ -1,7 +1,14 @@
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
+
 import { createClient } from '@/lib/supabase';
+
+/**
+ * LLM Test API Endpoint
+ * SPRINT-DEMO-MODE-REMOVAL: All mock/simulation removed.
+ * Fail-closed: If LLM integration not configured, return explicit error.
+ */
 
 interface TestRequest {
   modelId: string;
@@ -26,99 +33,70 @@ export async function POST(request: NextRequest) {
     const { modelId, prompt } = body;
 
     if (!modelId || !prompt) {
-      return NextResponse.json({ error: 'modelId and prompt are required' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: 'modelId and prompt are required' },
+        { status: 400 }
+      );
     }
 
-    const startTime = Date.now();
+    const supabase = createClient();
 
-    // Simulate LLM API call - in production, this would call actual LLM APIs
-    const mockResponse = await simulateLLMCall(modelId, prompt);
+    // Check if the model exists and has credentials configured
+    const { data: model, error: modelError } = await supabase
+      .from('llm_models')
+      .select('*')
+      .eq('id', modelId)
+      .single();
 
-    const responseTime = Date.now() - startTime;
-
-    // Calculate estimated cost based on model and tokens
-    const estimatedTokens = prompt.length / 4 + mockResponse.length / 4; // Rough estimation
-    const costPerToken = getCostPerToken(modelId);
-    const estimatedCost = (estimatedTokens * costPerToken) / 1000;
-
-    const testResult: TestResponse = {
-      id: `test-${Date.now()}`,
-      modelId,
-      prompt,
-      response: mockResponse,
-      tokens: Math.round(estimatedTokens),
-      cost: Number(estimatedCost.toFixed(4)),
-      responseTime,
-      status: 'completed',
-      timestamp: new Date().toISOString(),
-    };
-
-    // Try to save test result to database
-    try {
-      const supabase = createClient();
-      await supabase.from('llm_requests').insert({
-        id: testResult.id,
-        model_name: modelId,
-        prompt: prompt,
-        response: mockResponse,
-        tokens_used: testResult.tokens,
-        cost: testResult.cost,
-        response_time_ms: responseTime,
-        status: 'completed',
-        request_type: 'system',
-        user_id: 'test-user',
-        created_at: testResult.timestamp,
-      });
-    } catch (dbError) {
-      console.log('Could not save test result to database:', dbError);
-      // Continue anyway - this is just for logging
+    if (modelError || !model) {
+      console.error('[CC] LLM model not found:', modelId);
+      return NextResponse.json(
+        { success: false, error: `Model not found: ${modelId}` },
+        { status: 404 }
+      );
     }
 
-    return NextResponse.json(testResult);
-  } catch (error) {
-    console.error('Error testing LLM model:', error);
-
+    // Fail-closed: LLM integration not implemented
+    // Real implementation would call OpenAI/Anthropic APIs here
+    console.error('[CC] LLM test endpoint called but integration not configured');
     return NextResponse.json(
       {
-        id: `error-${Date.now()}`,
-        modelId: 'unknown',
-        prompt: '',
-        response: `Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`,
-        tokens: 0,
-        cost: 0,
-        responseTime: 0,
-        status: 'error',
-        timestamp: new Date().toISOString(),
+        success: false,
+        error:
+          'LLM integration not configured. This endpoint requires actual LLM API credentials to be set up.',
+        modelId,
+        model: model.name,
+        provider: model.provider,
       },
+      { status: 501 }
+    );
+
+    // NOTE: When LLM integration is implemented, the above error should be
+    // replaced with actual API calls. Example structure:
+    //
+    // const startTime = Date.now();
+    // const llmResponse = await callLLMProvider(model.provider, modelId, prompt);
+    // const responseTime = Date.now() - startTime;
+    //
+    // const testResult: TestResponse = {
+    //   id: `test-${Date.now()}`,
+    //   modelId,
+    //   prompt,
+    //   response: llmResponse.text,
+    //   tokens: llmResponse.usage.totalTokens,
+    //   cost: calculateCost(model, llmResponse.usage),
+    //   responseTime,
+    //   status: 'completed',
+    //   timestamp: new Date().toISOString(),
+    // };
+    //
+    // await supabase.from('llm_requests').insert({ ... });
+    // return NextResponse.json({ success: true, data: testResult });
+  } catch (error) {
+    console.error('[CC] LLM test error:', error);
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
     );
   }
-}
-
-async function simulateLLMCall(modelId: string, prompt: string): Promise<string> {
-  // Simulate API latency
-  await new Promise(resolve => setTimeout(resolve, Math.random() * 2000 + 500));
-
-  const modelResponses: Record<string, string> = {
-    'gpt-4-turbo': `GPT-4 Turbo Response: Based on your prompt "${prompt.substring(0, 50)}...", here's a comprehensive analysis. This model excels at complex reasoning and provides detailed, nuanced responses suitable for sophisticated betting analysis and market research.`,
-
-    'claude-3-sonnet': `Claude 3 Sonnet Response: Analyzing "${prompt.substring(0, 50)}..." - I can provide highly accurate and contextual insights. This model is optimized for analytical tasks and maintains excellent performance across various sports betting scenarios.`,
-
-    'gpt-3.5-turbo': `GPT-3.5 Turbo Response: For "${prompt.substring(0, 50)}..." - This is a quick and efficient response. While faster and more cost-effective, this model still provides solid analysis for standard betting queries and user interactions.`,
-
-    default: `Test Response: Successfully processed prompt "${prompt.substring(0, 50)}...". Model ${modelId} is responding normally with appropriate latency and token usage.`,
-  };
-
-  return modelResponses[modelId] || modelResponses.default;
-}
-
-function getCostPerToken(modelId: string): number {
-  const costs: Record<string, number> = {
-    'gpt-4-turbo': 0.00003, // $0.03 per 1K tokens
-    'claude-3-sonnet': 0.000015, // $0.015 per 1K tokens
-    'gpt-3.5-turbo': 0.000002, // $0.002 per 1K tokens
-    default: 0.00001,
-  };
-
-  return costs[modelId] || costs.default;
 }

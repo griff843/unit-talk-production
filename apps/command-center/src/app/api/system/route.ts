@@ -1,22 +1,21 @@
+'use server';
+
 import { NextRequest, NextResponse } from 'next/server';
 
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase';
 
 /**
  * System Configuration API Endpoint
- * Handles system-wide configuration, emergency controls, and operational management
+ * SPRINT-DEMO-MODE-REMOVAL: All default/mock fallbacks removed.
+ * Fail-closed: If database unavailable, return explicit error.
  *
- * NOTE: system_config, system_status, system_logs tables may not exist in production.
- * Using 'any' casts to avoid type recursion with merged database types.
+ * NOTE: system_config, system_status, system_logs tables required in production.
  */
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const dbClient = supabase as any;
 
 interface SystemConfig {
   id: string;
   key: string;
-  value: any;
+  value: unknown;
   type: 'string' | 'number' | 'boolean' | 'json';
   category: 'general' | 'security' | 'performance' | 'alerts' | 'emergency';
   description?: string;
@@ -44,51 +43,58 @@ export async function GET(request: NextRequest) {
     const key = searchParams.get('key');
     const includeStatus = searchParams.get('status') === 'true';
 
-    console.log('⚙️ GET /api/system', { category, key, includeStatus });
-
-    const response: any = {};
+    const supabase = createClient();
+    const response: {
+      configuration?: Record<string, unknown>;
+      status?: SystemStatus;
+    } = {};
 
     // Get specific configuration key
     if (key) {
-      try {
-        const { data, error } = await dbClient
-          .from('system_config')
-          .select('*')
-          .eq('key', key)
-          .single();
+      const { data, error } = await supabase
+        .from('system_config')
+        .select('*')
+        .eq('key', key)
+        .single();
 
-        if (error) throw error;
-
-        return NextResponse.json({
-          success: true,
-          data: data,
-          source: 'database',
-        });
-      } catch (error) {
-        // Return default/mock value for missing keys
-        const defaultConfig = getDefaultConfig(key);
-        return NextResponse.json({
-          success: true,
-          data: defaultConfig,
-          source: 'default',
-        });
+      if (error) {
+        console.error('[CC] System config query failed:', error.message);
+        return NextResponse.json(
+          { success: false, error: `Failed to get config '${key}': ${error.message}` },
+          { status: 500 }
+        );
       }
+
+      return NextResponse.json({
+        success: true,
+        data: data,
+        source: 'database',
+      });
     }
 
     // Get configuration by category or all
-    try {
-      let query = dbClient.from('system_config').select('*');
+    let query = supabase.from('system_config').select('*');
 
-      if (category) {
-        query = query.eq('category', category);
-      }
+    if (category) {
+      query = query.eq('category', category);
+    }
 
-      const { data: configs, error } = await query.order('category', { ascending: true });
+    const { data: configs, error: configError } = await query.order('category', {
+      ascending: true,
+    });
 
-      if (error) throw error;
+    if (configError) {
+      console.error('[CC] System config list query failed:', configError.message);
+      return NextResponse.json(
+        { success: false, error: `Failed to get system config: ${configError.message}` },
+        { status: 500 }
+      );
+    }
 
-      response.configuration = configs.reduce((acc: any, config: any) => {
-        acc[config.key] = {
+    response.configuration = (configs || []).reduce(
+      (acc: Record<string, unknown>, config: Record<string, unknown>) => {
+        const configKey = config.key as string;
+        acc[configKey] = {
           value: config.value,
           type: config.type,
           category: config.category,
@@ -96,22 +102,26 @@ export async function GET(request: NextRequest) {
           updated_at: config.updated_at,
         };
         return acc;
-      }, {});
-    } catch (error) {
-      console.log('⚠️ Database unavailable, using default configuration');
-      response.configuration = getDefaultSystemConfig(category || undefined);
-    }
+      },
+      {}
+    );
 
     // Get system status if requested
     if (includeStatus) {
-      try {
-        const { data: status, error } = await dbClient.from('system_status').select('*').single();
+      const { data: status, error: statusError } = await supabase
+        .from('system_status')
+        .select('*')
+        .single();
 
-        if (error) throw error;
-        response.status = status;
-      } catch (error) {
-        response.status = getDefaultSystemStatus();
+      if (statusError) {
+        console.error('[CC] System status query failed:', statusError.message);
+        return NextResponse.json(
+          { success: false, error: `Failed to get system status: ${statusError.message}` },
+          { status: 500 }
+        );
       }
+
+      response.status = status as SystemStatus;
     }
 
     return NextResponse.json({
@@ -120,12 +130,9 @@ export async function GET(request: NextRequest) {
       source: 'database',
     });
   } catch (error) {
-    console.error('❌ GET /api/system error:', error);
+    console.error('[CC] System GET error:', error);
     return NextResponse.json(
-      {
-        success: false,
-        error: 'Internal server error',
-      },
+      { success: false, error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
     );
   }
@@ -137,27 +144,24 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { action, config, key, value, category } = body;
 
-    console.log('🎬 POST /api/system', { action, key, category });
+    const supabase = createClient();
 
     // Handle system actions
     if (action) {
       switch (action) {
         case 'emergency_stop':
-          return await handleEmergencyStop();
+          return await handleEmergencyStop(supabase);
         case 'maintenance_mode':
-          return await handleMaintenanceMode(body.enabled);
+          return await handleMaintenanceMode(supabase, body.enabled);
         case 'restart_agents':
-          return await handleAgentRestart(body.agentIds);
+          return await handleAgentRestart(supabase, body.agentIds);
         case 'clear_cache':
           return await handleClearCache();
         case 'backup_config':
-          return await handleBackupConfig();
+          return await handleBackupConfig(supabase);
         default:
           return NextResponse.json(
-            {
-              success: false,
-              error: `Unknown action: ${action}`,
-            },
+            { success: false, error: `Unknown action: ${action}` },
             { status: 400 }
           );
       }
@@ -168,36 +172,33 @@ export async function POST(request: NextRequest) {
       const configUpdate: Partial<SystemConfig> = {
         key,
         value,
-        type: typeof value === 'object' ? 'json' : (typeof value as any),
+        type:
+          typeof value === 'object' ? 'json' : (typeof value as 'string' | 'number' | 'boolean'),
         category: category || 'general',
         environment: process.env.NODE_ENV || 'development',
         updated_at: new Date().toISOString(),
       };
 
-      try {
-        const { data, error } = await dbClient
-          .from('system_config')
-          .upsert(configUpdate)
-          .select()
-          .single();
+      const { data, error } = await supabase
+        .from('system_config')
+        .upsert(configUpdate)
+        .select()
+        .single();
 
-        if (error) throw error;
-
-        return NextResponse.json({
-          success: true,
-          data: data,
-          message: `Configuration '${key}' updated successfully`,
-          source: 'database',
-        });
-      } catch (error) {
+      if (error) {
+        console.error('[CC] System config update failed:', error.message);
         return NextResponse.json(
-          {
-            success: false,
-            error: `Failed to update configuration: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          },
+          { success: false, error: `Failed to update configuration: ${error.message}` },
           { status: 500 }
         );
       }
+
+      return NextResponse.json({
+        success: true,
+        data: data,
+        message: `Configuration '${key}' updated successfully`,
+        source: 'database',
+      });
     }
 
     // Handle bulk configuration update
@@ -205,255 +206,185 @@ export async function POST(request: NextRequest) {
       const updates = Object.entries(config).map(([configKey, configValue]) => ({
         key: configKey,
         value: configValue,
-        type: typeof configValue === 'object' ? 'json' : (typeof configValue as any),
+        type:
+          typeof configValue === 'object'
+            ? 'json'
+            : (typeof configValue as 'string' | 'number' | 'boolean'),
         category: category || 'general',
         environment: process.env.NODE_ENV || 'development',
         updated_at: new Date().toISOString(),
       }));
 
-      try {
-        const { data, error } = await dbClient.from('system_config').upsert(updates).select();
+      const { data, error } = await supabase.from('system_config').upsert(updates).select();
 
-        if (error) throw error;
-
-        return NextResponse.json({
-          success: true,
-          data: data,
-          message: `${updates.length} configurations updated successfully`,
-          source: 'database',
-        });
-      } catch (error) {
+      if (error) {
+        console.error('[CC] System config bulk update failed:', error.message);
         return NextResponse.json(
-          {
-            success: false,
-            error: `Failed to update configurations: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          },
+          { success: false, error: `Failed to update configurations: ${error.message}` },
           { status: 500 }
         );
       }
+
+      return NextResponse.json({
+        success: true,
+        data: data,
+        message: `${updates.length} configurations updated successfully`,
+        source: 'database',
+      });
     }
 
     return NextResponse.json(
-      {
-        success: false,
-        error: 'Missing required parameters',
-      },
+      { success: false, error: 'Missing required parameters' },
       { status: 400 }
     );
   } catch (error) {
-    console.error('❌ POST /api/system error:', error);
+    console.error('[CC] System POST error:', error);
     return NextResponse.json(
-      {
-        success: false,
-        error: 'Internal server error',
-      },
+      { success: false, error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
     );
   }
 }
 
 // Emergency system control functions
-async function handleEmergencyStop(): Promise<NextResponse> {
-  try {
-    console.log('🚨 Emergency stop activated');
+async function handleEmergencyStop(
+  supabase: ReturnType<typeof createClient>
+): Promise<NextResponse> {
+  console.log('[CC] Emergency stop activated');
 
-    // Update system status
-    await dbClient.from('system_status').upsert({
-      emergency_stop: true,
-      last_updated: new Date().toISOString(),
-      updated_by: 'system',
-    });
+  const { error: statusError } = await supabase.from('system_status').upsert({
+    emergency_stop: true,
+    last_updated: new Date().toISOString(),
+    updated_by: 'system',
+  });
 
-    // Log the emergency stop
-    await dbClient.from('system_logs').insert({
-      level: 'critical',
-      message: 'Emergency stop activated',
-      metadata: { action: 'emergency_stop', timestamp: new Date().toISOString() },
-    });
-
-    return NextResponse.json({
-      success: true,
-      message: 'Emergency stop activated successfully',
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
+  if (statusError) {
+    console.error('[CC] Failed to update system status:', statusError.message);
     return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to activate emergency stop',
-      },
+      { success: false, error: `Failed to activate emergency stop: ${statusError.message}` },
       { status: 500 }
     );
   }
+
+  const { error: logError } = await supabase.from('system_logs').insert({
+    level: 'critical',
+    message: 'Emergency stop activated',
+    metadata: { action: 'emergency_stop', timestamp: new Date().toISOString() },
+  });
+
+  if (logError) {
+    console.error('[CC] Failed to log emergency stop:', logError.message);
+    // Continue - logging failure shouldn't block emergency stop
+  }
+
+  return NextResponse.json({
+    success: true,
+    message: 'Emergency stop activated successfully',
+    timestamp: new Date().toISOString(),
+  });
 }
 
-async function handleMaintenanceMode(enabled: boolean): Promise<NextResponse> {
-  try {
-    console.log(`🔧 Maintenance mode ${enabled ? 'enabled' : 'disabled'}`);
+async function handleMaintenanceMode(
+  supabase: ReturnType<typeof createClient>,
+  enabled: boolean
+): Promise<NextResponse> {
+  console.log(`[CC] Maintenance mode ${enabled ? 'enabled' : 'disabled'}`);
 
-    await dbClient.from('system_status').upsert({
-      maintenance_mode: enabled,
-      last_updated: new Date().toISOString(),
-      updated_by: 'admin',
-    });
+  const { error } = await supabase.from('system_status').upsert({
+    maintenance_mode: enabled,
+    last_updated: new Date().toISOString(),
+    updated_by: 'admin',
+  });
 
-    return NextResponse.json({
-      success: true,
-      message: `Maintenance mode ${enabled ? 'enabled' : 'disabled'}`,
-      maintenance_mode: enabled,
-    });
-  } catch (error) {
+  if (error) {
+    console.error('[CC] Failed to update maintenance mode:', error.message);
     return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to update maintenance mode',
-      },
+      { success: false, error: `Failed to update maintenance mode: ${error.message}` },
       { status: 500 }
     );
   }
+
+  return NextResponse.json({
+    success: true,
+    message: `Maintenance mode ${enabled ? 'enabled' : 'disabled'}`,
+    maintenance_mode: enabled,
+  });
 }
 
-async function handleAgentRestart(agentIds?: string[]): Promise<NextResponse> {
-  try {
-    console.log('🔄 Restarting agents:', agentIds || 'all');
+async function handleAgentRestart(
+  supabase: ReturnType<typeof createClient>,
+  agentIds?: string[]
+): Promise<NextResponse> {
+  console.log('[CC] Restarting agents:', agentIds || 'all');
 
-    let query = dbClient.from('agents').update({
-      status: 'healthy',
-      last_run: new Date().toISOString(),
-    });
+  let query = supabase.from('agents').update({
+    status: 'healthy',
+    last_run: new Date().toISOString(),
+  });
 
-    if (agentIds && agentIds.length > 0) {
-      query = query.in('id', agentIds);
-    }
+  if (agentIds && agentIds.length > 0) {
+    query = query.in('id', agentIds);
+  }
 
-    const { data, error } = await query.select();
+  const { data, error } = await query.select();
 
-    if (error) throw error;
-
-    return NextResponse.json({
-      success: true,
-      message: `${data?.length || 0} agents restarted successfully`,
-      restarted_agents: data?.length || 0,
-    });
-  } catch (error) {
+  if (error) {
+    console.error('[CC] Failed to restart agents:', error.message);
     return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to restart agents',
-      },
+      { success: false, error: `Failed to restart agents: ${error.message}` },
       { status: 500 }
     );
   }
+
+  return NextResponse.json({
+    success: true,
+    message: `${data?.length || 0} agents restarted successfully`,
+    restarted_agents: data?.length || 0,
+  });
 }
 
 async function handleClearCache(): Promise<NextResponse> {
-  try {
-    console.log('🧹 Clearing system cache');
+  console.log('[CC] Clear cache requested');
 
-    // In a real implementation, this would clear Redis cache, CDN cache, etc.
-    // For now, we'll just log the action
+  // Fail-closed: Cache clearing requires Redis/external cache integration
+  return NextResponse.json(
+    {
+      success: false,
+      error: 'Cache clearing not configured. Redis integration required.',
+    },
+    { status: 501 }
+  );
+}
 
-    return NextResponse.json({
-      success: true,
-      message: 'System cache cleared successfully',
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
+async function handleBackupConfig(
+  supabase: ReturnType<typeof createClient>
+): Promise<NextResponse> {
+  console.log('[CC] Creating configuration backup');
+
+  const { data: configs, error } = await supabase.from('system_config').select('*');
+
+  if (error) {
+    console.error('[CC] Failed to fetch configs for backup:', error.message);
     return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to clear cache',
-      },
+      { success: false, error: `Failed to create backup: ${error.message}` },
       { status: 500 }
     );
   }
-}
 
-async function handleBackupConfig(): Promise<NextResponse> {
-  try {
-    console.log('💾 Creating configuration backup');
-
-    const { data: configs, error } = await dbClient.from('system_config').select('*');
-
-    if (error) throw error;
-
-    // In production, this would save to S3, backup storage, etc.
-    const backup = {
-      timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV,
-      version: process.env.APP_VERSION || '1.0.0',
-      configurations: configs,
-    };
-
-    return NextResponse.json({
-      success: true,
-      message: 'Configuration backup created successfully',
-      backup_size: configs?.length || 0,
-      timestamp: backup.timestamp,
-    });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to create configuration backup',
-      },
-      { status: 500 }
-    );
-  }
-}
-
-// Default configurations
-function getDefaultConfig(key: string): SystemConfig {
-  const defaults: Record<string, Partial<SystemConfig>> = {
-    rate_limit_requests_per_minute: { value: 100, type: 'number', category: 'performance' },
-    max_concurrent_agents: { value: 10, type: 'number', category: 'performance' },
-    alert_notification_enabled: { value: true, type: 'boolean', category: 'alerts' },
-    maintenance_mode: { value: false, type: 'boolean', category: 'general' },
-    emergency_stop: { value: false, type: 'boolean', category: 'emergency' },
+  // Note: In production, this would save to S3/backup storage
+  // For now, just return the data for client-side download
+  const backup = {
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
+    version: process.env.APP_VERSION || '1.0.0',
+    configurations: configs,
   };
 
-  return {
-    id: `default-${key}`,
-    key,
-    value: defaults[key]?.value || null,
-    type: defaults[key]?.type || 'string',
-    category: defaults[key]?.category || 'general',
-    description: `Default configuration for ${key}`,
-    environment: process.env.NODE_ENV || 'development',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
-}
-
-function getDefaultSystemConfig(category?: string) {
-  const config = {
-    rate_limit_requests_per_minute: 100,
-    max_concurrent_agents: 10,
-    alert_notification_enabled: true,
-    maintenance_mode: false,
-    emergency_stop: false,
-    real_time_updates: true,
-    agent_orchestration: true,
-  };
-
-  if (category) {
-    return Object.fromEntries(
-      Object.entries(config).filter(([key]) => getDefaultConfig(key).category === category)
-    );
-  }
-
-  return config;
-}
-
-function getDefaultSystemStatus(): SystemStatus {
-  return {
-    maintenance_mode: false,
-    emergency_stop: false,
-    rate_limiting: true,
-    agent_orchestration: true,
-    real_time_updates: true,
-    alert_notifications: true,
-    last_updated: new Date().toISOString(),
-    updated_by: 'system',
-  };
+  return NextResponse.json({
+    success: true,
+    message: 'Configuration backup created successfully',
+    backup_size: configs?.length || 0,
+    timestamp: backup.timestamp,
+    data: backup,
+  });
 }
