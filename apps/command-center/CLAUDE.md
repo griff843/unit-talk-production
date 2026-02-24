@@ -1,15 +1,15 @@
 # CLAUDE.md - Command Center
 
-> **Sprint**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A
-> **Status**: AUTHORITATIVE
-> **Role**: READ-ONLY DASHBOARD
-> **Last Updated**: 2026-02-22
+> **Sprint**: SPRINT-DEMO-MODE-REMOVAL **Status**: AUTHORITATIVE **Role**:
+> READ-ONLY DASHBOARD **Last Updated**: 2026-02-23
 
 ---
 
 ## Overview
 
-The Command Center is the operational monitoring dashboard. It provides real-time visibility into system health, agent status, and pipeline events. **This service is READ-ONLY** - it does not write to business tables.
+The Command Center is the operational monitoring dashboard. It provides
+real-time visibility into system health, agent status, and pipeline events.
+**This service is READ-ONLY** - it does not write to business tables.
 
 ---
 
@@ -44,21 +44,21 @@ The Command Center is the operational monitoring dashboard. It provides real-tim
 
 ### Read Access
 
-| Table | Purpose |
-|-------|---------|
+| Table           | Purpose                    |
+| --------------- | -------------------------- |
 | `unified_picks` | Display picks in dashboard |
-| `agent_health` | Agent status monitoring |
-| `agent_metrics` | Performance metrics |
-| `agent_logs` | Log visualization |
-| `users` | User info display |
+| `agent_health`  | Agent status monitoring    |
+| `agent_metrics` | Performance metrics        |
+| `agent_logs`    | Log visualization          |
+| `users`         | User info display          |
 
 ### Control Endpoints (API Proxy)
 
-| Endpoint | Action | Proxied To |
-|----------|--------|------------|
-| `POST /api/agents/:id/restart` | Restart agent | API service |
-| `POST /api/admin/freeze` | Emergency freeze | API service |
-| `POST /api/admin/safe-mode` | Safe mode toggle | API service |
+| Endpoint                       | Action           | Proxied To  |
+| ------------------------------ | ---------------- | ----------- |
+| `POST /api/agents/:id/restart` | Restart agent    | API service |
+| `POST /api/admin/freeze`       | Emergency freeze | API service |
+| `POST /api/admin/safe-mode`    | Safe mode toggle | API service |
 
 ---
 
@@ -66,41 +66,40 @@ The Command Center is the operational monitoring dashboard. It provides real-tim
 
 ### All Profiles
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `NODE_ENV` | Yes | `development`, `test`, `production` |
-| `DEMO_MODE` | No | Default: `false`. Set `true` for mock data |
+| Variable   | Required | Description                         |
+| ---------- | -------- | ----------------------------------- |
+| `NODE_ENV` | Yes      | `development`, `test`, `production` |
 
 ### Local Profile
 
-| Variable | Required | Source |
-|----------|----------|--------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Yes | `.env` |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | `.env` |
+| Variable                        | Required | Source |
+| ------------------------------- | -------- | ------ |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Yes      | `.env` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes      | `.env` |
 
 ### Docker Profile
 
-| Variable | Required | Source |
-|----------|----------|--------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Build args |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Build args |
+| Variable                        | Required | Source     |
+| ------------------------------- | -------- | ---------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Yes      | Build args |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes      | Build args |
 
 **Note**: `NEXT_PUBLIC_*` vars are embedded at BUILD time, not runtime.
 
 ### CI Profile
 
-| Variable | Required | Notes |
-|----------|----------|-------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Placeholder | Build-only |
+| Variable                        | Required    | Notes      |
+| ------------------------------- | ----------- | ---------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Placeholder | Build-only |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Placeholder | Build-only |
 
 ### Production Profile
 
-| Variable | Required | Source |
-|----------|----------|--------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Baked into image |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Baked into image |
-| `NEXT_PUBLIC_API_URL` | Yes | Baked into image |
+| Variable                        | Required | Source           |
+| ------------------------------- | -------- | ---------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Yes      | Baked into image |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes      | Baked into image |
+| `NEXT_PUBLIC_API_URL`           | Yes      | Baked into image |
 
 ---
 
@@ -148,8 +147,7 @@ GET /api/health
   "status": "healthy",
   "service": "command-center",
   "supabase": "connected",
-  "demoMode": false,
-  "timestamp": "2026-02-22T12:00:00Z"
+  "timestamp": "2026-02-23T12:00:00Z"
 }
 ```
 
@@ -170,22 +168,21 @@ curl https://command.unit-talk.com/api/health
 
 ## Common Failure Modes
 
-| Failure | Cause | Prevention |
-|---------|-------|------------|
-| Silent mock fallback | Missing Supabase config | `DEMO_MODE` gating + fail-closed |
-| Build-time secret access | Requiring service-role at build | Only use anon key in frontend |
-| Supabase host mismatch | Wrong project URL | Canonical host validation |
-| Stale dashboard data | Subscription disconnect | Real-time reconnection logic |
-| API proxy failure | API service down | Health check + error boundary |
+| Failure                    | Cause                           | Prevention                    |
+| -------------------------- | ------------------------------- | ----------------------------- |
+| SupabaseConfigurationError | Missing Supabase config         | Fail-closed, explicit error   |
+| Build-time secret access   | Requiring service-role at build | Only use anon key in frontend |
+| Supabase host mismatch     | Wrong project URL               | Canonical host validation     |
+| Stale dashboard data       | Subscription disconnect         | Real-time reconnection logic  |
+| API proxy failure          | API service down                | Health check + error boundary |
 
-### DEMO_MODE Behavior
+### Fail-Closed Behavior
 
 ```typescript
-// If DEMO_MODE=false (default) and Supabase config missing:
+// If Supabase config missing:
 // → SupabaseConfigurationError thrown (fail-closed)
-
-// If DEMO_MODE=true and Supabase config missing:
-// → Mock data returned (development only)
+// → No mock data, no silent fallbacks
+// → Explicit error surfaced to user
 ```
 
 ---
@@ -210,5 +207,4 @@ curl https://command.unit-talk.com/api/health
 
 ---
 
-**Document Owner**: Engineering Team
-**Last Audit**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A
+**Document Owner**: Engineering Team **Last Audit**: SPRINT-DEMO-MODE-REMOVAL
