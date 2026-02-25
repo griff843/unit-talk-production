@@ -79,6 +79,96 @@ export const DiscordEnvSchema = z.object({
 });
 
 /**
+ * Discord routing mode enum.
+ * SPRINT-B4-DISCORD-CANARY-ROUTING-004
+ */
+export const DiscordModeSchema = z.enum(['canary', 'production']);
+export type DiscordMode = z.infer<typeof DiscordModeSchema>;
+
+/**
+ * Discord routing channel names.
+ * Maps to production webhook env var names.
+ */
+export const DISCORD_PRODUCTION_CHANNELS = [
+  'TRADER_INSIGHTS',
+  'BEST_BETS',
+  'STRATEGY_LAB',
+  'FREE_DAILY_PICKS',
+  'VIP_LOUNGE',
+  'INFO_CENTER',
+] as const;
+export type DiscordProductionChannel = (typeof DISCORD_PRODUCTION_CHANNELS)[number];
+
+/**
+ * Discord routing environment variables (optional for CI builds).
+ * SPRINT-B4-DISCORD-CANARY-ROUTING-004
+ */
+export const DiscordRoutingEnvSchema = z.object({
+  DISCORD_MODE: DiscordModeSchema.optional(),
+  DISCORD_CANARY_WEBHOOK_URL: z.string().url().optional(),
+  DISCORD_WEBHOOK_TRADER_INSIGHTS: z.string().url().optional(),
+  DISCORD_WEBHOOK_BEST_BETS: z.string().url().optional(),
+  DISCORD_WEBHOOK_STRATEGY_LAB: z.string().url().optional(),
+  DISCORD_WEBHOOK_FREE_DAILY_PICKS: z.string().url().optional(),
+  DISCORD_WEBHOOK_VIP_LOUNGE: z.string().url().optional(),
+  DISCORD_WEBHOOK_INFO_CENTER: z.string().url().optional(),
+});
+
+/**
+ * Runtime Discord routing environment variables.
+ * FAIL-CLOSED: Mode MUST be set and appropriate webhooks MUST be configured.
+ * SPRINT-B4-DISCORD-CANARY-ROUTING-004
+ *
+ * Routing Contract:
+ * - mode=canary → ALL posts go to DISCORD_CANARY_WEBHOOK_URL
+ * - mode=production → posts route to explicit per-channel webhooks
+ * - Misconfiguration → fail-closed (boot failure)
+ */
+export const RuntimeDiscordRoutingEnvSchema = z
+  .object({
+    DISCORD_MODE: DiscordModeSchema,
+    DISCORD_CANARY_WEBHOOK_URL: z.string().url().optional(),
+    DISCORD_WEBHOOK_TRADER_INSIGHTS: z.string().url().optional(),
+    DISCORD_WEBHOOK_BEST_BETS: z.string().url().optional(),
+    DISCORD_WEBHOOK_STRATEGY_LAB: z.string().url().optional(),
+    DISCORD_WEBHOOK_FREE_DAILY_PICKS: z.string().url().optional(),
+    DISCORD_WEBHOOK_VIP_LOUNGE: z.string().url().optional(),
+    DISCORD_WEBHOOK_INFO_CENTER: z.string().url().optional(),
+  })
+  // eslint-disable-next-line complexity -- SPRINT-B4: conditional validation requires multiple branches
+  .superRefine((data, ctx) => {
+    if (data.DISCORD_MODE === 'canary') {
+      // Canary mode: require canary webhook URL
+      if (!data.DISCORD_CANARY_WEBHOOK_URL) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'DISCORD_CANARY_WEBHOOK_URL is required when DISCORD_MODE=canary',
+          path: ['DISCORD_CANARY_WEBHOOK_URL'],
+        });
+      }
+    } else if (data.DISCORD_MODE === 'production') {
+      // Production mode: require ALL production channel webhooks
+      const missing: string[] = [];
+      if (!data.DISCORD_WEBHOOK_TRADER_INSIGHTS) missing.push('DISCORD_WEBHOOK_TRADER_INSIGHTS');
+      if (!data.DISCORD_WEBHOOK_BEST_BETS) missing.push('DISCORD_WEBHOOK_BEST_BETS');
+      if (!data.DISCORD_WEBHOOK_STRATEGY_LAB) missing.push('DISCORD_WEBHOOK_STRATEGY_LAB');
+      if (!data.DISCORD_WEBHOOK_FREE_DAILY_PICKS) missing.push('DISCORD_WEBHOOK_FREE_DAILY_PICKS');
+      if (!data.DISCORD_WEBHOOK_VIP_LOUNGE) missing.push('DISCORD_WEBHOOK_VIP_LOUNGE');
+      if (!data.DISCORD_WEBHOOK_INFO_CENTER) missing.push('DISCORD_WEBHOOK_INFO_CENTER');
+
+      if (missing.length > 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Missing production webhook URLs: ${missing.join(', ')}. All production webhooks are required when DISCORD_MODE=production`,
+          path: ['DISCORD_MODE'],
+        });
+      }
+    }
+  });
+
+export type RuntimeDiscordRoutingEnv = z.infer<typeof RuntimeDiscordRoutingEnvSchema>;
+
+/**
  * External API keys.
  */
 export const ExternalApiEnvSchema = z.object({
@@ -205,6 +295,7 @@ export const ApiEnvSchema = CoreEnvSchema.merge(DatabaseEnvSchema)
   .merge(TemporalEnvSchema)
   .merge(RedisEnvSchema)
   .merge(DiscordEnvSchema)
+  .merge(DiscordRoutingEnvSchema)
   .merge(ExternalApiEnvSchema)
   .merge(ScoringEnvSchema)
   .merge(PortfolioEnvSchema)

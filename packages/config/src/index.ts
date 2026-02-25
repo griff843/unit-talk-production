@@ -35,6 +35,14 @@ export {
   // Runtime-required schemas
   RuntimeDatabaseEnvSchema,
   RuntimeDiscordEnvSchema,
+  // Discord routing (SPRINT-B4-DISCORD-CANARY-ROUTING-004)
+  DiscordModeSchema,
+  DiscordRoutingEnvSchema,
+  RuntimeDiscordRoutingEnvSchema,
+  DISCORD_PRODUCTION_CHANNELS,
+  type DiscordMode,
+  type DiscordProductionChannel,
+  type RuntimeDiscordRoutingEnv,
   // Combined schemas
   ApiEnvSchema,
   FrontendEnvSchema,

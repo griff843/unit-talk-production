@@ -3,10 +3,12 @@
 /**
  * CI Gates Verification Script
  * Sprint: SPRINT-B3-OUTBOX-DETERMINISM-002
+ * Sprint: SPRINT-B4-DISCORD-CANARY-ROUTING-004
  * Purpose: Verify deployment gates pass before production release
  *
  * Gates:
  *   1. Outbox Health - No stale events (> 2 min), no dead-letter events
+ *   2. Discord Routing - Mode configured and appropriate webhooks set
  *
  * Usage:
  *   npx tsx apps/api/src/scripts/verify-gates.ts
@@ -22,6 +24,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
+import {
+  validateDiscordRoutingConfig,
+  resolveDiscordRoutingConfig,
+} from '../config/discordRouting';
 
 // Force TypeScript to treat this as a module (not a script)
 export {};
@@ -129,6 +136,40 @@ async function checkOutboxHealthGate(supabase: SupabaseClient): Promise<GateResu
   };
 }
 
+/**
+ * Gate 2: Discord Routing
+ * Checks DISCORD_MODE is set and appropriate webhooks are configured.
+ * Per SPRINT-B4: mode=canary requires canary URL, mode=production requires all channel URLs.
+ */
+function checkDiscordRoutingGate(): GateResult {
+  const config = resolveDiscordRoutingConfig();
+  const issues = validateDiscordRoutingConfig();
+
+  if (issues.length === 0) {
+    return {
+      name: 'Discord Routing',
+      passed: true,
+      message: `Discord routing configured correctly (mode: ${config.mode})`,
+      details: {
+        mode: config.mode,
+        has_canary_url: !!config.canaryWebhookUrl,
+        production_webhooks_configured: Object.values(config.productionWebhooks).filter(Boolean)
+          .length,
+      },
+    };
+  }
+
+  return {
+    name: 'Discord Routing',
+    passed: false,
+    message: issues.join('; '),
+    details: {
+      mode: config.mode || 'NOT SET',
+      issues,
+    },
+  };
+}
+
 // ============================================================
 // Main
 // ============================================================
@@ -191,6 +232,32 @@ async function runGatesVerification(): Promise<void> {
     });
     report.all_passed = false;
     console.log(`Gate 1: Outbox Health`);
+    console.log(`  Status: ❌ ERROR`);
+    console.log(`  Message: ${errorMessage}`);
+  }
+
+  // Gate 2: Discord Routing (SPRINT-B4-DISCORD-CANARY-ROUTING-004)
+  try {
+    const discordGate = checkDiscordRoutingGate();
+    report.gates.push(discordGate);
+    if (!discordGate.passed) {
+      report.all_passed = false;
+    }
+    console.log(`\nGate 2: Discord Routing`);
+    console.log(`  Status: ${discordGate.passed ? '✅ PASS' : '❌ FAIL'}`);
+    console.log(`  Message: ${discordGate.message}`);
+    if (discordGate.details) {
+      console.log(`  Details: mode=${discordGate.details.mode}`);
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    report.gates.push({
+      name: 'Discord Routing',
+      passed: false,
+      message: `Gate error: ${errorMessage}`,
+    });
+    report.all_passed = false;
+    console.log(`\nGate 2: Discord Routing`);
     console.log(`  Status: ❌ ERROR`);
     console.log(`  Message: ${errorMessage}`);
   }
