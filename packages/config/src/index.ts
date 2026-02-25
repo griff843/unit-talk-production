@@ -4,43 +4,80 @@
  *
  * Sprint: SPRINT-ENV-BUILD-TRUTH-LOCK
  * Sprint: SPRINT-SYNDICATE-FOUNDATION-REALIGN-114A
+ * Sprint: SPRINT-B1-ENV-HARDENING-001B
  */
 
-// Environment schema and validation
-export * from './env-schema';
-
-// Re-export commonly used items explicitly for better discoverability
+// Environment profiles
 export {
-  // Schemas
+  EnvProfileSchema,
+  type EnvProfile,
+  type ProcessEnvType,
+  getEnvProfile,
+  isRuntimeProfile,
+} from './env-profiles';
+
+// Schemas
+export {
+  // Base schemas
+  CoreEnvSchema,
+  DatabaseEnvSchema,
+  NextPublicEnvSchema,
+  TemporalEnvSchema,
+  RedisEnvSchema,
+  DiscordEnvSchema,
+  ExternalApiEnvSchema,
+  ScoringEnvSchema,
+  PortfolioEnvSchema,
+  SecurityEnvSchema,
+  ShadowModeEnvSchema,
+  DevEnvSchema,
+  CiEnvSchema,
+  // Runtime-required schemas
+  RuntimeDatabaseEnvSchema,
+  RuntimeDiscordEnvSchema,
+  // Combined schemas
   ApiEnvSchema,
   FrontendEnvSchema,
   DiscordBotEnvSchema,
-  // Validation functions
+  RuntimeApiEnvSchema,
+  RuntimeDiscordBotEnvSchema,
+  // Types
+  type ApiEnv,
+  type FrontendEnv,
+  type DiscordBotEnv,
+  type RuntimeApiEnv,
+  type RuntimeDiscordBotEnv,
+} from './schemas';
+
+// Validators
+export {
+  // Core validators
   validateEnv,
+  validateRuntimeEnv,
   checkEnv,
-  getEnvProfile,
-  validateSupabaseHost,
-  // App validators
+  // Profile-aware validators
+  validateApiEnv,
+  validateDiscordEnv,
+  // App-specific validators
   validateApiServiceEnv,
   validateFrontendEnv,
   validateDiscordBotEnv,
   checkAppEnv,
-  // Env getters (safe vs secrets)
-  getPublicEnv,
-  getServerEnv,
-  getServiceEnv,
-  // Constants
-  CANONICAL_SUPABASE_HOST,
-  // Types
-  type EnvProfile,
-  type ApiEnv,
-  type FrontendEnv,
-  type DiscordBotEnv,
+  type EnvCheckResult,
+} from './validators';
+
+// Helpers
+export {
   type PublicEnv,
   type ServerEnv,
   type ServiceEnv,
-  type EnvCheckResult,
-} from './env-schema';
+  getPublicEnv,
+  getServerEnv,
+  getServiceEnv,
+} from './helpers';
+
+// Supabase validation
+export { CANONICAL_SUPABASE_HOST, validateSupabaseHost } from './supabase-host';
 
 // Legacy export for compatibility
 export const config = 'shared-config';
