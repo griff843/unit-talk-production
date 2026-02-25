@@ -95,6 +95,7 @@
     "npm": ">=8.0.0"
   },
   "devDependencies": {
+    "@commitlint/config-conventional": "^20.4.2",
     "@types/bcryptjs": "^2.4.6",
     "@types/jest": "^30.0.0",
     "@types/node": "^20.19.9",
