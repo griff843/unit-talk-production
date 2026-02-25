@@ -55,8 +55,9 @@ interface EventRecord {
   max_retries: number;
 }
 
-// Cloud-canonical columns per parity-gate-001 + COLUMN-DRIFT-001 discovery
-const BRIDGE_OUTBOX_MAX_RETRIES = 3;
+// SPRINT-B3-OUTBOX-DETERMINISM-002: Retry cap per OUTBOX-002 audit gap
+// Max retries increased from 3 to 5 per doctrine requirement
+const BRIDGE_OUTBOX_MAX_RETRIES = 5;
 
 interface BridgeOutboxRecord {
   id: string;
