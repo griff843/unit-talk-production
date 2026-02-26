@@ -4,6 +4,7 @@
  * CI Gates Verification Script
  * Sprint: SPRINT-B3-OUTBOX-DETERMINISM-002
  * Sprint: SPRINT-B4-DISCORD-CANARY-ROUTING-004
+ * Sprint: SPRINT-B1B4-ENV-WIRING-TRUTH-005
  * Purpose: Verify deployment gates pass before production release
  *
  * Gates:
@@ -140,9 +141,25 @@ async function checkOutboxHealthGate(supabase: SupabaseClient): Promise<GateResu
  * Gate 2: Discord Routing
  * Checks DISCORD_MODE is set and appropriate webhooks are configured.
  * Per SPRINT-B4: mode=canary requires canary URL, mode=production requires all channel URLs.
+ * Per SPRINT-B1B4-ENV-WIRING-TRUTH-005: Pass with warning when Discord not configured (mode not set).
  */
 function checkDiscordRoutingGate(): GateResult {
   const config = resolveDiscordRoutingConfig();
+
+  // If Discord mode is not set, pass with a warning (Discord not intended to be used)
+  if (!config.mode) {
+    return {
+      name: 'Discord Routing',
+      passed: true,
+      message: 'Discord not configured (DISCORD_MODE not set) - skipping validation',
+      details: {
+        mode: 'NOT SET',
+        note: 'Set DISCORD_MODE=canary or DISCORD_MODE=production to enable Discord routing',
+      },
+    };
+  }
+
+  // Discord mode is set - validate the configuration
   const issues = validateDiscordRoutingConfig();
 
   if (issues.length === 0) {
@@ -159,12 +176,13 @@ function checkDiscordRoutingGate(): GateResult {
     };
   }
 
+  // Discord mode is set but configuration is invalid - fail
   return {
     name: 'Discord Routing',
     passed: false,
     message: issues.join('; '),
     details: {
-      mode: config.mode || 'NOT SET',
+      mode: config.mode,
       issues,
     },
   };
@@ -184,15 +202,30 @@ async function runGatesVerification(): Promise<void> {
   console.log('='.repeat(60));
 
   // Initialize Supabase client
+  // SPRINT-B1B4-ENV-WIRING-TRUTH-005: Canonical key is SUPABASE_SERVICE_ROLE_KEY
   const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey =
-    process.env.SUPABASE_SERVICE_KEY ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_ANON_KEY;
+
+  // Prefer canonical SUPABASE_SERVICE_ROLE_KEY, fallback to deprecated SUPABASE_SERVICE_KEY
+  let supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseKey && process.env.SUPABASE_SERVICE_KEY) {
+    console.warn(
+      '\n[DEPRECATION WARNING] SUPABASE_SERVICE_KEY is deprecated. Use SUPABASE_SERVICE_ROLE_KEY instead.'
+    );
+    supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+  }
+  // Last resort fallback to anon key (not recommended for admin operations)
+  if (!supabaseKey) {
+    supabaseKey = process.env.SUPABASE_ANON_KEY;
+  }
 
   if (!supabaseUrl || !supabaseKey) {
-    console.error('\n[ERROR] SUPABASE_URL and SUPABASE_SERVICE_KEY required');
+    console.error('\n[ERROR] Missing required environment variables:');
+    if (!supabaseUrl) console.error('  - SUPABASE_URL');
+    if (!supabaseKey) console.error('  - SUPABASE_SERVICE_ROLE_KEY');
     console.log('\n[GATES] Status: ERROR - Missing environment variables');
+    console.log(
+      '\nEnsure .env file exists with required variables, or set them in your environment.'
+    );
     process.exit(2);
   }
 

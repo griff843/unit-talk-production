@@ -15,8 +15,10 @@ lerna-debug.log*
 .npm/
 
 # Environment and configuration files
+# SPRINT-B1B4-ENV-WIRING-TRUTH-005: Comprehensive env file blocking
 .env
 .env.*
+*.env
 !.env.example
 !.env.template
 !.env.smoke.example

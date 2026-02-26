@@ -70,6 +70,7 @@ export function resolveDiscordRoutingConfig(): DiscordRoutingConfig {
     FREE_DAILY_PICKS: process.env['DISCORD_WEBHOOK_FREE_DAILY_PICKS'] || null,
     VIP_LOUNGE: process.env['DISCORD_WEBHOOK_VIP_LOUNGE'] || null,
     INFO_CENTER: process.env['DISCORD_WEBHOOK_INFO_CENTER'] || null,
+    RECAPS: process.env['DISCORD_WEBHOOK_RECAPS'] || null,
   };
 
   // Legacy webhook URL (for backward compatibility)
@@ -220,6 +221,7 @@ export function parseDiscordRoutingEnv() {
     DISCORD_WEBHOOK_FREE_DAILY_PICKS: process.env['DISCORD_WEBHOOK_FREE_DAILY_PICKS'],
     DISCORD_WEBHOOK_VIP_LOUNGE: process.env['DISCORD_WEBHOOK_VIP_LOUNGE'],
     DISCORD_WEBHOOK_INFO_CENTER: process.env['DISCORD_WEBHOOK_INFO_CENTER'],
+    DISCORD_WEBHOOK_RECAPS: process.env['DISCORD_WEBHOOK_RECAPS'],
   });
 }
 

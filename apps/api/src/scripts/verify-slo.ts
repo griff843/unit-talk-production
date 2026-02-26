@@ -3,6 +3,7 @@
 /**
  * CI SLO Verification Script
  * Sprint: SPRINT-B7-VERIFY-SLO-REAL-003
+ * Sprint: SPRINT-B1B4-ENV-WIRING-TRUTH-005
  * Purpose: Verify Service Level Objectives before production release
  *
  * SLOs Verified:
@@ -316,14 +317,30 @@ async function checkOutboxHealthRpc(supabase: SupabaseClient): Promise<SloResult
 // ============================================================
 
 async function runSloVerification(): Promise<SloReport> {
+  // SPRINT-B1B4-ENV-WIRING-TRUTH-005: Canonical key is SUPABASE_SERVICE_ROLE_KEY
   const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey =
-    process.env.SUPABASE_SERVICE_KEY ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_ANON_KEY;
+
+  // Prefer canonical SUPABASE_SERVICE_ROLE_KEY, fallback to deprecated SUPABASE_SERVICE_KEY
+  let supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseKey && process.env.SUPABASE_SERVICE_KEY) {
+    console.warn(
+      '[DEPRECATION WARNING] SUPABASE_SERVICE_KEY is deprecated. Use SUPABASE_SERVICE_ROLE_KEY instead.'
+    );
+    supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+  }
+  // Last resort fallback to anon key (not recommended for admin operations)
+  if (!supabaseKey) {
+    supabaseKey = process.env.SUPABASE_ANON_KEY;
+  }
 
   if (!supabaseUrl || !supabaseKey) {
-    throw new Error('SUPABASE_URL and SUPABASE_SERVICE_KEY required');
+    const missing: string[] = [];
+    if (!supabaseUrl) missing.push('SUPABASE_URL');
+    if (!supabaseKey) missing.push('SUPABASE_SERVICE_ROLE_KEY');
+    throw new Error(
+      `Missing required environment variables: ${missing.join(', ')}. ` +
+        'Ensure .env file exists with required variables.'
+    );
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey);

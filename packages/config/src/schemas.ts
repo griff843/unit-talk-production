@@ -96,6 +96,7 @@ export const DISCORD_PRODUCTION_CHANNELS = [
   'FREE_DAILY_PICKS',
   'VIP_LOUNGE',
   'INFO_CENTER',
+  'RECAPS',
 ] as const;
 export type DiscordProductionChannel = (typeof DISCORD_PRODUCTION_CHANNELS)[number];
 
@@ -112,6 +113,7 @@ export const DiscordRoutingEnvSchema = z.object({
   DISCORD_WEBHOOK_FREE_DAILY_PICKS: z.string().url().optional(),
   DISCORD_WEBHOOK_VIP_LOUNGE: z.string().url().optional(),
   DISCORD_WEBHOOK_INFO_CENTER: z.string().url().optional(),
+  DISCORD_WEBHOOK_RECAPS: z.string().url().optional(),
 });
 
 /**
@@ -134,6 +136,7 @@ export const RuntimeDiscordRoutingEnvSchema = z
     DISCORD_WEBHOOK_FREE_DAILY_PICKS: z.string().url().optional(),
     DISCORD_WEBHOOK_VIP_LOUNGE: z.string().url().optional(),
     DISCORD_WEBHOOK_INFO_CENTER: z.string().url().optional(),
+    DISCORD_WEBHOOK_RECAPS: z.string().url().optional(),
   })
   // eslint-disable-next-line complexity -- SPRINT-B4: conditional validation requires multiple branches
   .superRefine((data, ctx) => {
@@ -155,6 +158,7 @@ export const RuntimeDiscordRoutingEnvSchema = z
       if (!data.DISCORD_WEBHOOK_FREE_DAILY_PICKS) missing.push('DISCORD_WEBHOOK_FREE_DAILY_PICKS');
       if (!data.DISCORD_WEBHOOK_VIP_LOUNGE) missing.push('DISCORD_WEBHOOK_VIP_LOUNGE');
       if (!data.DISCORD_WEBHOOK_INFO_CENTER) missing.push('DISCORD_WEBHOOK_INFO_CENTER');
+      if (!data.DISCORD_WEBHOOK_RECAPS) missing.push('DISCORD_WEBHOOK_RECAPS');
 
       if (missing.length > 0) {
         ctx.addIssue({
