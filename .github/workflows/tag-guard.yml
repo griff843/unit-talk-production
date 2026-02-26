@@ -1,0 +1,149 @@
+# TAG TRUTH ENFORCEMENT: Tag Guard Workflow
+# Reference: governance/release/TAG_TRUTH_ENFORCEMENT_v1.0.md
+#
+# This workflow validates governed tags on push.
+# It ensures:
+# 1. Closeout marker exists at the tag SHA
+# 2. All required gates pass
+# 3. No governed tags exist without proper governance artifacts
+
+name: Tag Guard
+
+on:
+  push:
+    tags:
+      - "PHASE*"
+      - "SPRINT*"
+      - "GOVERNANCE*"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout at tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Extract tag name
+        id: tag
+        run: |
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          echo "name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "Validating governed tag: $TAG_NAME"
+
+      - name: Validate closeout marker exists
+        run: |
+          TAG_NAME="${{ steps.tag.outputs.name }}"
+          CLOSEOUT_FILE="governance/closeouts/${TAG_NAME}.md"
+
+          echo "=========================================="
+          echo "TAG GUARD: Validating $TAG_NAME"
+          echo "=========================================="
+          echo ""
+          echo "Checking for closeout marker: $CLOSEOUT_FILE"
+
+          if [ ! -f "$CLOSEOUT_FILE" ]; then
+            echo ""
+            echo "=========================================="
+            echo "VALIDATION FAILED"
+            echo "=========================================="
+            echo ""
+            echo "ERROR: Closeout marker not found!"
+            echo "Expected: $CLOSEOUT_FILE"
+            echo ""
+            echo "Governed tags MUST have a closeout marker."
+            echo "Reference: governance/release/TAG_TRUTH_ENFORCEMENT_v1.0.md"
+            echo ""
+            echo "This tag is INVALID and should be deleted."
+            exit 1
+          fi
+
+          echo "Closeout marker found: $CLOSEOUT_FILE"
+          echo ""
+          echo "Closeout marker contents:"
+          echo "----------------------------------------"
+          cat "$CLOSEOUT_FILE"
+          echo "----------------------------------------"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run required gates
+        run: |
+          TAG_NAME="${{ steps.tag.outputs.name }}"
+
+          echo ""
+          echo "=========================================="
+          echo "Running required gates for: $TAG_NAME"
+          echo "=========================================="
+          echo ""
+
+          # Gate 1: TypeCheck
+          echo ">>> Gate 1: TypeCheck"
+          pnpm type-check || {
+            echo "GATE FAILED: TypeCheck"
+            echo "Tag $TAG_NAME is INVALID - gates do not pass"
+            exit 1
+          }
+          echo "Gate 1: PASS"
+
+          # Gate 2: Lint
+          echo ""
+          echo ">>> Gate 2: Lint"
+          pnpm lint || {
+            echo "GATE FAILED: Lint"
+            echo "Tag $TAG_NAME is INVALID - gates do not pass"
+            exit 1
+          }
+          echo "Gate 2: PASS"
+
+          # Gate 3: Phase-specific gates
+          if echo "$TAG_NAME" | grep -qE '^PHASE1'; then
+            echo ""
+            echo ">>> Gate 3: Phase 1 Runtime Truth Gate"
+            if [ -f "scripts/gates/phase1-runtime-truth-gate.ts" ]; then
+              npx tsx scripts/gates/phase1-runtime-truth-gate.ts || {
+                echo "GATE FAILED: Phase 1 Runtime Truth Gate"
+                echo "Tag $TAG_NAME is INVALID - gates do not pass"
+                exit 1
+              }
+              echo "Gate 3: PASS"
+            else
+              echo "WARNING: Phase 1 gate script not found"
+            fi
+          fi
+
+          echo ""
+          echo "=========================================="
+          echo "TAG GUARD: VALIDATION PASSED"
+          echo "=========================================="
+          echo ""
+          echo "Tag: $TAG_NAME"
+          echo "SHA: $(git rev-parse HEAD)"
+          echo "Status: VALID"
+          echo ""
+
+      - name: Report validation success
+        run: |
+          TAG_NAME="${{ steps.tag.outputs.name }}"
+          echo "Tag $TAG_NAME has been validated successfully."
+          echo ""
+          echo "Validation summary:"
+          echo "- Closeout marker: PRESENT"
+          echo "- TypeCheck: PASS"
+          echo "- Lint: PASS"
+          echo "- Tag Guard: PASS"

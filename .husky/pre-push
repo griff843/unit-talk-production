@@ -1,0 +1,41 @@
+#!/usr/bin/env sh
+# TAG TRUTH ENFORCEMENT: Pre-Push Guard
+# Reference: governance/release/TAG_TRUTH_ENFORCEMENT_v1.0.md
+#
+# This hook blocks local pushes of governed tags.
+# Governed tags (PHASE*, SPRINT*, GOVERNANCE*) MUST be CI-minted only.
+
+# Read stdin for refs being pushed
+while read local_ref local_sha remote_ref remote_sha; do
+  # Check if this is a tag push
+  if echo "$remote_ref" | grep -q "^refs/tags/"; then
+    # Extract tag name
+    tag_name="${remote_ref#refs/tags/}"
+
+    # Check if tag matches governed patterns
+    if echo "$tag_name" | grep -qE "^(PHASE|SPRINT|GOVERNANCE)"; then
+      echo ""
+      echo "=========================================="
+      echo "TAG TRUTH ENFORCEMENT: BLOCKED"
+      echo "=========================================="
+      echo ""
+      echo "ERROR: Governed tags are CI-minted only."
+      echo ""
+      echo "Tag: $tag_name"
+      echo "Pattern: PHASE*, SPRINT*, GOVERNANCE*"
+      echo ""
+      echo "Governed tags cannot be pushed locally."
+      echo "Instead:"
+      echo "  1. Create closeout marker: governance/closeouts/<TAG>.md"
+      echo "  2. Commit and push to main"
+      echo "  3. CI will mint the tag automatically"
+      echo ""
+      echo "Reference: governance/release/TAG_TRUTH_ENFORCEMENT_v1.0.md"
+      echo "=========================================="
+      echo ""
+      exit 1
+    fi
+  fi
+done
+
+exit 0
