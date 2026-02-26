@@ -32,7 +32,8 @@ function getHealthSupabase(): { client: SupabaseClient | null; error: string | n
       _supabaseInitError = 'SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not configured';
     }
   } catch (err) {
-    _supabaseInitError = err instanceof Error ? err.message : 'Failed to initialize Supabase client';
+    _supabaseInitError =
+      err instanceof Error ? err.message : 'Failed to initialize Supabase client';
   }
   return { client: _supabaseClient, error: _supabaseInitError };
 }
@@ -233,8 +234,8 @@ router.get('/', async (req: Request, res: Response) => {
       services: healthStatus.services,
     });
 
-    const statusCode =
-      healthStatus.status === 'healthy' ? 200 : healthStatus.status === 'degraded' ? 200 : 503;
+    // PHASE1-ENFORCEMENT-LOCK-001: Binary health (200 only if fully healthy)
+    const statusCode = healthStatus.status === 'healthy' ? 200 : 503;
 
     res.status(statusCode).json(healthStatus);
   } catch (error) {

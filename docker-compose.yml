@@ -297,6 +297,8 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3000
+      # PHASE1-ENFORCEMENT-LOCK-001: Mark container execution
+      - DOCKER_CONTAINER=true
       # SPRINT-DB-MODE-TRUTH-LOCK-095A: DB_MODE from env file (cloud or local)
       - DB_MODE=${DB_MODE:-cloud}
       # DATABASE_URL only set via .env for local mode
@@ -343,6 +345,8 @@ services:
       - .env
     environment:
       - NODE_ENV=development
+      # PHASE1-ENFORCEMENT-LOCK-001: Mark container execution
+      - DOCKER_CONTAINER=true
       # SPRINT-DB-MODE-TRUTH-LOCK-095A: DB_MODE from env file (cloud or local)
       - DB_MODE=${DB_MODE:-cloud}
       # DATABASE_URL only set via .env for local mode
@@ -381,6 +385,8 @@ services:
       - .env
     environment:
       - NODE_ENV=development
+      # PHASE1-ENFORCEMENT-LOCK-001: Mark container execution
+      - DOCKER_CONTAINER=true
       # SPRINT-DB-MODE-TRUTH-LOCK-095A: DB_MODE from env file (cloud or local)
       - DB_MODE=${DB_MODE:-cloud}
       # DATABASE_URL only set via .env for local mode
@@ -422,6 +428,8 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+      # PHASE1-ENFORCEMENT-LOCK-001: Mark container execution
+      - DOCKER_CONTAINER=true
       # SPRINT-DB-MODE-TRUTH-LOCK-095A: DB_MODE from env file (cloud or local)
       - DB_MODE=${DB_MODE:-cloud}
       - PORT=3021
@@ -462,6 +470,8 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+      # PHASE1-ENFORCEMENT-LOCK-001: Mark container execution
+      - DOCKER_CONTAINER=true
       # SPRINT-DB-MODE-TRUTH-LOCK-095A: DB_MODE from env file (cloud or local)
       - DB_MODE=${DB_MODE:-cloud}
       - PORT=3000
@@ -502,6 +512,8 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+      # PHASE1-ENFORCEMENT-LOCK-001: Mark container execution
+      - DOCKER_CONTAINER=true
       # SPRINT-DB-MODE-TRUTH-LOCK-095A: DB_MODE from env file (cloud or local)
       - DB_MODE=${DB_MODE:-cloud}
       - PORT=3015

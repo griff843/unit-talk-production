@@ -1,15 +1,28 @@
 import { BotConfig } from '../src/types';
 
+// PHASE1-ENFORCEMENT-LOCK-001: Fail-closed validation for required secrets
+const REQUIRED_SECRETS = [
+  'DISCORD_TOKEN',
+  'DISCORD_CLIENT_ID',
+  'SUPABASE_URL',
+  'SUPABASE_ANON_KEY',
+];
+const missingSecrets = REQUIRED_SECRETS.filter(key => !process.env[key as keyof NodeJS.ProcessEnv]);
+if (missingSecrets.length > 0 && process.env.NODE_ENV !== 'test') {
+  throw new Error(`PHASE1: Missing required secrets: ${missingSecrets.join(', ')}`);
+}
+
 export const botConfig: BotConfig = {
   prefix: '!',
+  // PHASE1: No fallbacks for required secrets
   discord: {
-    token: process.env.DISCORD_TOKEN || '',
-    clientId: process.env.DISCORD_CLIENT_ID || '',
+    token: process.env.DISCORD_TOKEN as string,
+    clientId: process.env.DISCORD_CLIENT_ID as string,
     guildId: process.env.DISCORD_GUILD_ID || '',
   },
   supabase: {
-    url: process.env.SUPABASE_URL || '',
-    key: process.env.SUPABASE_ANON_KEY || '',
+    url: process.env.SUPABASE_URL as string,
+    key: process.env.SUPABASE_ANON_KEY as string,
     serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
   },
   roles: {

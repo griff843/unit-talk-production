@@ -102,7 +102,14 @@ function getEnvConfig() {
       securityHeadersEnabled: process.env.SECURITY_HEADERS_ENABLED !== 'false',
     },
     security: {
-      nextAuthSecret: process.env.NEXTAUTH_SECRET || 'fallback-secret-for-dev',
+      // PHASE1-ENFORCEMENT-LOCK-001: No fallback for secrets in production
+      nextAuthSecret:
+        process.env.NEXTAUTH_SECRET ||
+        (process.env.NODE_ENV === 'production'
+          ? (() => {
+              throw new Error('PHASE1: NEXTAUTH_SECRET required in production');
+            })()
+          : 'dev-only-secret'),
     },
     features: {
       analyticsEnabled: process.env.ANALYTICS_ENABLED !== 'false',

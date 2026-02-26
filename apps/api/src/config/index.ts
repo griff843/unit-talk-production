@@ -1,6 +1,6 @@
 /**
  * Unit Talk API - Configuration Adapter
- * 
+ *
  * This adapter provides API-specific configuration by importing from the
  * centralized environment configuration. This follows SaaS-level monorepo
  * best practices by maintaining a single source of truth while providing
@@ -55,8 +55,21 @@ try {
         autoBackupEnabled: process.env.AUTO_BACKUP_ENABLED !== 'false',
       },
       security: {
-        jwtSecret: process.env.JWT_SECRET || 'fallback-secret-for-development-only-32chars',
-        encryptionKey: process.env.ENCRYPTION_KEY || 'fallback-encryption-key-32-chars',
+        // PHASE1-ENFORCEMENT-LOCK-001: No fallback for secrets in production
+        jwtSecret:
+          process.env.JWT_SECRET ||
+          (process.env.NODE_ENV === 'production'
+            ? (() => {
+                throw new Error('PHASE1: JWT_SECRET required in production');
+              })()
+            : 'dev-only-jwt-secret-32-characters'),
+        encryptionKey:
+          process.env.ENCRYPTION_KEY ||
+          (process.env.NODE_ENV === 'production'
+            ? (() => {
+                throw new Error('PHASE1: ENCRYPTION_KEY required in production');
+              })()
+            : 'dev-only-encryption-key-32chars'),
       },
       features: {
         autoGradingEnabled: process.env.AUTO_GRADING_ENABLED !== 'false',
@@ -266,29 +279,29 @@ export const config = {
   NODE_ENV: apiConfig.nodeEnv,
   LOG_LEVEL: apiConfig.logLevel,
   DEBUG_MODE: apiConfig.debugMode,
-  
+
   // Database
   SUPABASE_URL: apiConfig.database.supabaseUrl,
   SUPABASE_SERVICE_ROLE_KEY: apiConfig.database.supabaseServiceRoleKey,
   SUPABASE_ANON_KEY: apiConfig.database.supabaseAnonKey,
-  
+
   // API Keys
   OPTIMAL_API_KEY: apiConfig.apiKeys.optimal,
   ODDS_API_KEY: apiConfig.apiKeys.odds,
-  
+
   // Discord
   DISCORD_BOT_TOKEN: apiConfig.discord.botToken,
   DISCORD_CLIENT_ID: apiConfig.discord.clientId,
   DISCORD_GUILD_ID: apiConfig.discord.guildId,
-  
+
   // Temporal
   TEMPORAL_ADDRESS: apiConfig.temporal.address,
   TEMPORAL_NAMESPACE: apiConfig.temporal.namespace,
   TEMPORAL_TASK_QUEUE: apiConfig.temporal.taskQueue,
-  
+
   // Redis
   REDIS_URL: apiConfig.redis.url,
-  
+
   // Security
   JWT_SECRET: apiConfig.security.jwtSecret,
   ENCRYPTION_KEY: apiConfig.security.encryptionKey,

@@ -1,20 +1,14 @@
-import express, { Request, Response, Router } from 'express';
-import { HealthChecker, PerformanceMonitor, logger } from '../utils/enterpriseErrorHandling';
-import { SupabaseService } from '../services/supabase';
-import Redis from 'ioredis';
+/* eslint-disable max-lines, max-lines-per-function */
+// Pre-existing file structure exceeds line limits - refactor deferred
 import os from 'os';
 import { performance } from 'perf_hooks';
-import {
-  toISOString,
-  toDate,
-  getHours,
-  getMinutes,
-  getFullYear,
-  getMonth,
-  getDate,
-  setDate,
-  toLocaleDateString,
-} from '../utils/dateUtils';
+
+import express, { Request, Response, Router } from 'express';
+import Redis from 'ioredis';
+
+import { SupabaseService } from '../services/supabase';
+import { toISOString } from '../utils/dateUtils';
+import { HealthChecker, PerformanceMonitor, logger } from '../utils/enterpriseErrorHandling';
 
 const router: Router = express.Router();
 const healthChecker = new HealthChecker();
@@ -27,7 +21,8 @@ initializeHealthChecks();
 router.get('/health', async (_req: Request, res: Response) => {
   try {
     const health = await healthChecker.getOverallHealth();
-    const statusCode = health.status === 'healthy' ? 200 : health.status === 'degraded' ? 200 : 503;
+    // PHASE1-ENFORCEMENT-LOCK-001: Binary health (200 only if fully healthy)
+    const statusCode = health.status === 'healthy' ? 200 : 503;
 
     res.status(statusCode).json({
       status: health.status,
@@ -55,7 +50,8 @@ router.get('/health/detailed', async (_req: Request, res: Response) => {
     const systemMetrics = getSystemMetrics();
     const performanceMetrics = performanceMonitor.getAllMetrics();
 
-    const statusCode = health.status === 'healthy' ? 200 : health.status === 'degraded' ? 200 : 503;
+    // PHASE1-ENFORCEMENT-LOCK-001: Binary health (200 only if fully healthy)
+    const statusCode = health.status === 'healthy' ? 200 : 503;
 
     res.status(statusCode).json({
       status: health.status,
@@ -165,7 +161,7 @@ function initializeHealthChecks(): void {
     const startTime = performance.now();
     try {
       const supabaseService = new SupabaseService();
-      const { data, error } = await supabaseService.client
+      const { data: _data, error } = await supabaseService.client
         .from('user_profiles')
         .select('count')
         .limit(1);

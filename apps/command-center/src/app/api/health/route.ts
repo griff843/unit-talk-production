@@ -310,8 +310,8 @@ async function getBasicHealthCheck(): Promise<NextResponse> {
 
   const totalResponseTime = Date.now() - startTime;
 
-  // Return appropriate HTTP status code
-  const httpStatus = health.status === 'healthy' ? 200 : health.status === 'degraded' ? 200 : 503;
+  // PHASE1-ENFORCEMENT-LOCK-001: Binary health (200 only if fully healthy)
+  const httpStatus = health.status === 'healthy' ? 200 : 503;
 
   return NextResponse.json(health, {
     status: httpStatus,

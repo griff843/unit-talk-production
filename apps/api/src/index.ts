@@ -1,3 +1,10 @@
+// PHASE1-ENFORCEMENT-LOCK-001: Block production mode outside Docker
+if (process.env.NODE_ENV === 'production' && process.env.DOCKER_CONTAINER !== 'true') {
+  process.stderr.write('PHASE1: Production mode requires Docker. Set DOCKER_CONTAINER=true.\n');
+  process.stderr.write('Direct npm start / node execution is forbidden in production.\n');
+  process.exit(1);
+}
+
 import 'dotenv/config';
 import { getDefaultTelemetry } from '@unit-talk/telemetry';
 
