@@ -89,6 +89,15 @@ jobs:
         if: steps.detect.outputs.has_closeouts == 'true'
         run: pnpm install --frozen-lockfile --ignore-scripts
 
+      - name: Build packages
+        if: steps.detect.outputs.has_closeouts == 'true'
+        run: |
+          # Build shared packages first (required for type-check)
+          pnpm --filter @unit-talk/shared-types build || true
+          pnpm --filter @unit-talk/shared-utils build || true
+          pnpm --filter @unit-talk/config build || true
+          pnpm --filter @unit-talk/telemetry build || true
+
       - name: Process closeout markers and mint tags
         if: steps.detect.outputs.has_closeouts == 'true'
         env:
