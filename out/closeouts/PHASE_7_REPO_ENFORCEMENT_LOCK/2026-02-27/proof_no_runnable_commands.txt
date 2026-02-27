@@ -1,0 +1,32 @@
+Runnable Command Block Scan Results
+====================================
+
+Scan Date: 2026-02-27 (UTC)
+Target File: governance/closeouts/PHASE_7_REPO_ENFORCEMENT_LOCK.md
+
+Patterns Scanned (line-start patterns):
+  - pnpm
+  - npm
+  - yarn
+  - git
+  - docker
+  - kubectl
+  - curl
+  - Invoke-WebRequest
+  - Bash(
+  - BEGIN:VEVENT
+
+Scan Command:
+grep -nE "^(pnpm|npm|yarn|git|docker|kubectl|curl|Invoke-WebRequest|Bash\(|BEGIN:VEVENT)" <file>
+
+Results:
+--------
+
+NO RUNNABLE COMMANDS FOUND
+
+The closeout marker contains no executable command blocks.
+Document is design-only governance text.
+
+SCAN RESULT: PASS
+
+End of Scan
