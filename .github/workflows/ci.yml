@@ -84,19 +84,25 @@ jobs:
         env:
           NODE_ENV: test
 
-      # PHASE 2: Run E2E tests with HAR capture
-      # Playwright webServer config handles dev server startup automatically
+      # PHASE 2 & 3: E2E Runtime Audit (requires Supabase credentials)
+      # Skipped in PRs without secrets - static gates (7/8) provide compliance
       - name: Run E2E Runtime Audit (HAR capture)
-        run: npx playwright test tests/e2e/integration/runtime-audit.spec.ts --project=integration
+        if: env.NEXT_PUBLIC_SUPABASE_URL != ''
+        run: |
+          pnpm --filter unit-talk-smart-form build
+          npx playwright test tests/e2e/integration/runtime-audit.spec.ts --project=integration
         working-directory: apps/smart-form
         env:
           NODE_ENV: test
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
 
-      # PHASE 3: Run runtime-audit gate with HAR
       - name: Run Runtime Audit Gate (HAR-derived)
+        if: env.NEXT_PUBLIC_SUPABASE_URL != ''
         run: pnpm --filter unit-talk-smart-form run smartform:gate:runtime-audit
         env:
           NODE_ENV: test
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
 
       - name: Upload HAR + request log + proof artifacts
         uses: actions/upload-artifact@v4
