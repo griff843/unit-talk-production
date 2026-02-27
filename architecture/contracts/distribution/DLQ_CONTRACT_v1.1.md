@@ -178,7 +178,27 @@ Otherwise ⇒ FAIL.
 
 ---
 
-# 11. Final Declaration
+# 11. Threshold and Freeze Code Authority
+
+Any threshold or freeze-eligible condition references SLO_REGISTRY_TABLE_v1.1
+(no local thresholds). Any freeze reason references canonical codes only via
+FREEZE_REASON_CODE_CANON_v1.0.
+
+---
+
+# 12. Canonical Binding
+
+- CONSTITUTION_v1.0 (supreme design-layer authority)
+- OPERATIONAL_AUDIT_LOG_CONTRACT_v1.1 (deterministic ordering and integrity)
+- FREEZE_DETECTION_LAW_v1.1 (freeze trigger law)
+- FREEZE_AUTHORITY_MODEL_v1.1 (freeze authority)
+- FREEZE_REASON_CODE_CANON_v1.0 (canonical freeze enum authority)
+- SLO_REGISTRY_TABLE_v1.1 (threshold authority)
+- UNKNOWN_STATE_POLICY_v1.1 (unknown-state gating and escalation)
+
+---
+
+# 13. Final Declaration
 
 DLQ under Clean-Room Doctrine is:
 

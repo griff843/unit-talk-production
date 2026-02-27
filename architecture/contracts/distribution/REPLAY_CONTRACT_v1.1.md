@@ -188,7 +188,19 @@ Otherwise ⇒ FAIL.
 
 ---
 
-# 12. Final Declaration
+# 12. Canonical Binding
+
+- CONSTITUTION_v1.0 (supreme design-layer authority)
+- OPERATIONAL_AUDIT_LOG_CONTRACT_v1.1 (deterministic ordering and integrity)
+- FREEZE_DETECTION_LAW_v1.1 (freeze trigger law)
+- FREEZE_AUTHORITY_MODEL_v1.1 (freeze authority)
+- FREEZE_REASON_CODE_CANON_v1.0 (canonical freeze enum authority)
+- SLO_REGISTRY_TABLE_v1.1 (threshold authority)
+- UNKNOWN_STATE_POLICY_v1.1 (unknown-state gating and escalation)
+
+---
+
+# 13. Final Declaration
 
 Replay under Clean-Room Doctrine is:
 

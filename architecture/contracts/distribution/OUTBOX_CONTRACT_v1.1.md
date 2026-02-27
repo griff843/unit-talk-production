@@ -402,7 +402,31 @@ If any item is not satisfied ⇒ FAIL.
 
 ---
 
-# 17. Final Declaration
+# 17. Operational State Gating
+
+Outbound distribution MUST halt when operational state is FROZEN or UNKNOWN,
+governed by FREEZE_DETECTION_LAW_v1.1 and UNKNOWN_STATE_POLICY_v1.1.
+
+Any audit ordering or integrity violation MUST halt distribution and force
+freeze using: freeze_reason_code = AUDIT_LOG_INTEGRITY_FAIL (canonical via
+FREEZE_REASON_CODE_CANON_v1.0), with ordering governed by
+OPERATIONAL_AUDIT_LOG_CONTRACT_v1.1.
+
+---
+
+# 18. Canonical Binding
+
+- CONSTITUTION_v1.0 (supreme design-layer authority)
+- OPERATIONAL_AUDIT_LOG_CONTRACT_v1.1 (deterministic ordering and integrity)
+- FREEZE_DETECTION_LAW_v1.1 (freeze trigger law)
+- FREEZE_AUTHORITY_MODEL_v1.1 (freeze authority)
+- FREEZE_REASON_CODE_CANON_v1.0 (canonical freeze enum authority)
+- SLO_REGISTRY_TABLE_v1.1 (threshold authority)
+- UNKNOWN_STATE_POLICY_v1.1 (unknown-state gating and escalation)
+
+---
+
+# 19. Final Declaration
 
 The Outbox is a deterministic, append-only intent ledger.
 

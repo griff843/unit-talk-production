@@ -1,0 +1,47 @@
+warning: in the working copy of 'apps/api/src/agents/GradingAgent/GradingAgent.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/src/lib/lifecycle/types.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/src/lib/lifecycle/write-adapter.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/src/workers/BridgeWorker.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'architecture/contracts/distribution/CONSUMER_CONTRACT_v1.1.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'architecture/contracts/distribution/DLQ_CONTRACT_v1.1.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'architecture/contracts/distribution/ENVIRONMENT_DETERMINISM_CONTRACT_v1.1.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'architecture/contracts/distribution/OUTBOX_CONTRACT_v1.1.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'architecture/contracts/distribution/RECEIPT_VERIFICATION_CONTRACT_v1.1.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'architecture/contracts/distribution/REPLAY_CONTRACT_v1.1.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'architecture/contracts/distribution/RETRY_POLICY_CONTRACT_v1.1.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'architecture/contracts/distribution/ROUTING_POLICY_CONTRACT_v1.1.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'governance/platform-constitution/PLATFORM_CONSTITUTION_v1.0.md', LF will be replaced by CRLF the next time Git touches it
+ apps/api/src/agents/AlertAgent/index.ts            |  61 ++++----
+ apps/api/src/agents/DiscordPromotionAgent/index.ts |  20 +--
+ apps/api/src/agents/GradingAgent/GradingAgent.ts   |  54 +++----
+ apps/api/src/agents/RecapAgent/index.ts            |  15 +-
+ apps/api/src/lib/discordReceiptContract.ts         |  24 ++--
+ apps/api/src/lib/lifecycle/idempotency.ts          | 148 +++++++++++++------
+ .../src/lib/lifecycle/single-writer-allowlist.ts   | 128 +++--------------
+ apps/api/src/lib/lifecycle/types.ts                |  66 ++++++++-
+ apps/api/src/lib/lifecycle/write-adapter.ts        | 104 ++++++++++----
+ apps/api/src/promotion/PublishGuard.ts             |  36 ++---
+ apps/api/src/routes/ops.ts                         |  36 +++--
+ .../src/scripts/backfill-feature-contributions.ts  |  25 ++--
+ apps/api/src/scripts/discord-canary-webhook.ts     |  17 +--
+ apps/api/src/services/AutoRecheckService.ts        |  56 ++++----
+ apps/api/src/services/PickMonitoringService.ts     |  24 ++--
+ apps/api/src/services/ProfessionalPropProcessor.ts |  21 +--
+ apps/api/src/services/STierEnforcer.ts             |  26 ++--
+ apps/api/src/services/capperService.ts             | 105 +++++++++-----
+ apps/api/src/utils/optimizedInsertions.ts          |  64 ++++-----
+ apps/api/src/workers/BridgeWorker.ts               |  35 ++---
+ .../distribution/CONSUMER_CONTRACT_v1.1.md         |  20 ++-
+ .../contracts/distribution/DLQ_CONTRACT_v1.1.md    |  20 ++-
+ .../ENVIRONMENT_DETERMINISM_CONTRACT_v1.1.md       |  14 +-
+ .../contracts/distribution/OUTBOX_CONTRACT_v1.1.md |  22 ++-
+ .../RECEIPT_VERIFICATION_CONTRACT_v1.1.md          |  20 ++-
+ .../contracts/distribution/REPLAY_CONTRACT_v1.1.md |  14 +-
+ .../distribution/RETRY_POLICY_CONTRACT_v1.1.md     |  20 ++-
+ .../distribution/ROUTING_POLICY_CONTRACT_v1.1.md   |  14 +-
+ governance/RATIFICATION_RECORD_v1.0.md             | 157 +++++++++++++++++++++
+ governance/decision-log/DECISION_LOG_v1.0-DRAFT.md |   0
+ governance/platform-constitution/AMENDMENT_LOG.md  |   0
+ .../platform-constitution/METRICS_CHARTER_v1.0.md  |   0
+ .../PLATFORM_CONSTITUTION_v1.0.md                  |   2 +-
+ 33 files changed, 905 insertions(+), 463 deletions(-)
