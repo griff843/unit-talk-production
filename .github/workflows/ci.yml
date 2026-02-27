@@ -80,13 +80,13 @@ jobs:
 
       # PHASE 1: Run static gates (7 gates that don't require HAR)
       - name: Run Static Gates (7/8)
-        run: pnpm --filter smart-form run smartform:gates:static
+        run: pnpm --filter unit-talk-smart-form run smartform:gates:static
         env:
           NODE_ENV: test
 
       # PHASE 2: Run E2E tests with HAR capture
       - name: Start dev server for E2E
-        run: pnpm --filter smart-form run dev &
+        run: pnpm --filter unit-talk-smart-form run dev &
         env:
           NODE_ENV: test
 
@@ -101,7 +101,7 @@ jobs:
 
       # PHASE 3: Run runtime-audit gate with HAR
       - name: Run Runtime Audit Gate (HAR-derived)
-        run: pnpm --filter smart-form run smartform:gate:runtime-audit
+        run: pnpm --filter unit-talk-smart-form run smartform:gate:runtime-audit
         env:
           NODE_ENV: test
 
