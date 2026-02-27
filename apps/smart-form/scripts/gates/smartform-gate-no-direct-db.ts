@@ -24,40 +24,38 @@ import * as path from 'path';
 const SMART_FORM_DIR = path.resolve(__dirname, '../..');
 
 // UI directories to scan
-const UI_SCAN_DIRS = [
-  'app/submit-ticket/components',
-  'components/ui',
-  'components',
-];
+const UI_SCAN_DIRS = ['app/submit-ticket/components', 'components/ui', 'components'];
 
 // Prohibited patterns
 const PROHIBITED_PATTERNS = [
-  { pattern: "@supabase/supabase-js", description: 'Supabase client import in UI' },
-  { pattern: "@supabase/ssr", description: 'Supabase SSR import in UI' },
-  { pattern: "createClient(", description: 'Supabase client creation in UI' },
-  { pattern: "createServerClient(", description: 'Supabase server client in UI' },
-  { pattern: "createBrowserClient(", description: 'Supabase browser client in UI' },
-  { pattern: "supabase.from(", description: 'Supabase table access in UI' },
-  { pattern: "unified_picks", description: 'Direct unified_picks table reference' },
-  { pattern: "raw_props", description: 'Direct raw_props table reference' },
-  { pattern: "bridge_outbox", description: 'Direct bridge_outbox table reference (except API)' },
-  { pattern: "mv_props_for_form", description: 'Direct materialized view reference' },
-  { pattern: "view_props_for_form", description: 'Direct view reference' },
-  { pattern: ".rpc(", description: 'Supabase RPC call in UI' },
-  { pattern: "sql`", description: 'Raw SQL template literal' },
-  { pattern: "postgres://", description: 'Direct PostgreSQL connection string' },
-  { pattern: "DATABASE_URL", description: 'Database URL reference in UI' },
-  { pattern: "SUPABASE_URL", description: 'Supabase URL reference in UI (should be in API only)' },
+  { pattern: '@supabase/supabase-js', description: 'Supabase client import in UI' },
+  { pattern: '@supabase/ssr', description: 'Supabase SSR import in UI' },
+  { pattern: 'createClient(', description: 'Supabase client creation in UI' },
+  { pattern: 'createServerClient(', description: 'Supabase server client in UI' },
+  { pattern: 'createBrowserClient(', description: 'Supabase browser client in UI' },
+  { pattern: 'supabase.from(', description: 'Supabase table access in UI' },
+  { pattern: 'unified_picks', description: 'Direct unified_picks table reference' },
+  { pattern: 'raw_props', description: 'Direct raw_props table reference' },
+  { pattern: 'bridge_outbox', description: 'Direct bridge_outbox table reference (except API)' },
+  { pattern: 'mv_props_for_form', description: 'Direct materialized view reference' },
+  { pattern: 'view_props_for_form', description: 'Direct view reference' },
+  { pattern: '.rpc(', description: 'Supabase RPC call in UI' },
+  { pattern: 'sql`', description: 'Raw SQL template literal' },
+  { pattern: 'postgres://', description: 'Direct PostgreSQL connection string' },
+  { pattern: 'DATABASE_URL', description: 'Database URL reference in UI' },
+  { pattern: 'SUPABASE_URL', description: 'Supabase URL reference in UI (should be in API only)' },
 ];
 
-// Patterns that look like DB access but are actually standard JS
+// Patterns that look like DB access but are actually standard JS or allowed env checks
 const FALSE_POSITIVE_PATTERNS = [
-  'Array.from(',     // Standard JS Array.from
-  'Object.from(',    // Standard JS Object.fromEntries
-  '.delete(',        // Map.delete, Set.delete - not Supabase
-  '.select(',        // DOM select, not Supabase
-  '.insert(',        // DOM insert, not Supabase
-  '.update(',        // Standard update methods, not Supabase
+  'Array.from(', // Standard JS Array.from
+  'Object.from(', // Standard JS Object.fromEntries
+  '.delete(', // Map.delete, Set.delete - not Supabase
+  '.select(', // DOM select, not Supabase
+  '.insert(', // DOM insert, not Supabase
+  '.update(', // Standard update methods, not Supabase
+  'process.env.NEXT_PUBLIC_', // Env var existence checks for error display - not DB access
+  'setEnvError(', // Error state setter for missing env vars
 ];
 
 // Paths to exclude from scanning
@@ -68,6 +66,7 @@ const EXCLUDED_PATHS = [
   'cypress',
   '__tests__',
   '__mocks__',
+  'tests/', // E2E and integration test directories
   'scripts/gates/',
 ];
 

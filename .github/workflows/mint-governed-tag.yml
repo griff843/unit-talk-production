@@ -12,6 +12,13 @@ on:
       - main
     paths:
       - "governance/closeouts/*.md"
+  workflow_dispatch:
+    inputs:
+      force_check:
+        description: "Check all unprocessed closeout markers"
+        required: false
+        default: "true"
+        type: boolean
 
 permissions:
   contents: write
@@ -29,8 +36,25 @@ jobs:
       - name: Detect new closeout markers
         id: detect
         run: |
-          # Get list of added closeout files in this push
-          ADDED_FILES=$(git diff --name-only --diff-filter=A HEAD~1 HEAD -- 'governance/closeouts/*.md' || true)
+          # For workflow_dispatch, check ALL closeout files for unminted tags
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual trigger: checking all closeout markers..."
+            git fetch --tags
+            ADDED_FILES=""
+            for file in governance/closeouts/*.md; do
+              if [ -f "$file" ]; then
+                TAG_NAME=$(basename "$file" .md)
+                if ! git tag -l "$TAG_NAME" | grep -q "^$TAG_NAME$"; then
+                  echo "Found unminted closeout: $file -> $TAG_NAME"
+                  ADDED_FILES="$ADDED_FILES$file"$'\n'
+                fi
+              fi
+            done
+            ADDED_FILES=$(echo "$ADDED_FILES" | sed '/^$/d')
+          else
+            # Get list of added closeout files in this push
+            ADDED_FILES=$(git diff --name-only --diff-filter=A HEAD~1 HEAD -- 'governance/closeouts/*.md' || true)
+          fi
 
           if [ -z "$ADDED_FILES" ]; then
             echo "No new closeout markers detected"
@@ -57,9 +81,9 @@ jobs:
 
       - name: Setup pnpm
         if: steps.detect.outputs.has_closeouts == 'true'
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
         with:
-          version: 8
+          version: 9
 
       - name: Install dependencies
         if: steps.detect.outputs.has_closeouts == 'true'

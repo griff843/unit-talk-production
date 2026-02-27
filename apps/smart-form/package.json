@@ -20,8 +20,8 @@
     "smartform:gate:no-dev-routes": "tsx scripts/gates/smartform-gate-no-dev-routes.ts",
     "smartform:gate:no-direct-db": "tsx scripts/gates/smartform-gate-no-direct-db.ts",
     "smartform:gate:no-fallback": "tsx scripts/gates/smartform-gate-no-fallback.ts",
-    "smartform:gates:static": "npm run smartform:gate:nomocks && npm run smartform:gate:nobypass && npm run smartform:gate:endpoints && npm run smartform:gate:contracts && npm run smartform:gate:no-dev-routes && npm run smartform:gate:no-direct-db && npm run smartform:gate:no-fallback",
-    "smartform:gates": "npm run smartform:gates:static && npm run smartform:gate:runtime-audit",
+    "smartform:gates:static": "pnpm run smartform:gate:nomocks && pnpm run smartform:gate:nobypass && pnpm run smartform:gate:endpoints && pnpm run smartform:gate:contracts && pnpm run smartform:gate:no-dev-routes && pnpm run smartform:gate:no-direct-db && pnpm run smartform:gate:no-fallback",
+    "smartform:gates": "pnpm run smartform:gates:static && pnpm run smartform:gate:runtime-audit",
     "test:e2e": "playwright test --project=contracts",
     "test:e2e:integration": "playwright test --project=integration",
     "test:e2e:all": "playwright test",
@@ -89,6 +89,7 @@
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
     "ts-node": "^10.9.2",
+    "tsx": "^4.6.0",
     "typescript": "^5.3.3"
   }
 }

@@ -34,6 +34,7 @@ const PROHIBITED_PATTERNS = [
 ];
 
 // Paths to exclude from scanning (normalized to forward slashes)
+// Test fixtures and test directories are allowed to have mock data
 const EXCLUDED_PATHS = [
   '.spec.',
   '.test.',
@@ -41,6 +42,7 @@ const EXCLUDED_PATHS = [
   'jest.',
   '__tests__',
   '__mocks__',
+  'tests/', // E2E and integration test directories
   'scripts/gates', // This file itself
   'node_modules',
 ];

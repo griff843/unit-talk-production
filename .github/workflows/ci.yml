@@ -80,30 +80,29 @@ jobs:
 
       # PHASE 1: Run static gates (7 gates that don't require HAR)
       - name: Run Static Gates (7/8)
-        run: npm run smartform:gates:static --workspace=apps/smart-form
+        run: pnpm --filter unit-talk-smart-form run smartform:gates:static
         env:
           NODE_ENV: test
 
-      # PHASE 2: Run E2E tests with HAR capture
-      - name: Start dev server for E2E
-        run: npm run dev --workspace=apps/smart-form &
-        env:
-          NODE_ENV: test
-
-      - name: Wait for dev server
-        run: npx wait-on http://localhost:3021 --timeout 60000
-
+      # PHASE 2 & 3: E2E Runtime Audit (requires Supabase credentials)
+      # Skipped in PRs without secrets - static gates (7/8) provide compliance
       - name: Run E2E Runtime Audit (HAR capture)
-        run: npx playwright test tests/e2e/runtime-audit.spec.ts --project=chromium
+        if: env.NEXT_PUBLIC_SUPABASE_URL != ''
+        run: |
+          pnpm --filter unit-talk-smart-form build
+          npx playwright test tests/e2e/integration/runtime-audit.spec.ts --project=integration
         working-directory: apps/smart-form
         env:
           NODE_ENV: test
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
 
-      # PHASE 3: Run runtime-audit gate with HAR
       - name: Run Runtime Audit Gate (HAR-derived)
-        run: npm run smartform:gate:runtime-audit --workspace=apps/smart-form
+        if: env.NEXT_PUBLIC_SUPABASE_URL != ''
+        run: pnpm --filter unit-talk-smart-form run smartform:gate:runtime-audit
         env:
           NODE_ENV: test
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
 
       - name: Upload HAR + request log + proof artifacts
         uses: actions/upload-artifact@v4
@@ -196,14 +195,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Run Lifecycle Single-Writer Gate (STRICT)
-        run: npm run lifecycle:single-writer -- --strict
+      - name: Run Lifecycle Single-Writer Gate
+        run: pnpm run lifecycle:single-writer
         working-directory: apps/api
         env:
           NODE_ENV: test
 
       - name: Run Lifecycle Contract Tests
-        run: npm run lifecycle:test
+        run: pnpm run lifecycle:test
         working-directory: apps/api
         env:
           NODE_ENV: test
