@@ -94,7 +94,7 @@ jobs:
         run: npx wait-on http://localhost:3021 --timeout 60000
 
       - name: Run E2E Runtime Audit (HAR capture)
-        run: npx playwright test tests/e2e/runtime-audit.spec.ts --project=chromium
+        run: npx playwright test tests/e2e/integration/runtime-audit.spec.ts --project=integration
         working-directory: apps/smart-form
         env:
           NODE_ENV: test
