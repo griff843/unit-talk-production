@@ -1,0 +1,34 @@
+On branch docs/taxonomy-lock-001
+Your branch is ahead of 'origin/docs/taxonomy-lock-001' by 4 commits.
+  (use "git push" to publish your local commits)
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   apps/api/src/agents/AlertAgent/index.ts
+	modified:   apps/api/src/agents/DiscordPromotionAgent/index.ts
+	modified:   apps/api/src/agents/GradingAgent/GradingAgent.ts
+	modified:   apps/api/src/agents/RecapAgent/index.ts
+	modified:   apps/api/src/lib/discordReceiptContract.ts
+	modified:   apps/api/src/lib/lifecycle/idempotency.ts
+	modified:   apps/api/src/lib/lifecycle/single-writer-allowlist.ts
+	modified:   apps/api/src/lib/lifecycle/types.ts
+	modified:   apps/api/src/lib/lifecycle/write-adapter.ts
+	modified:   apps/api/src/promotion/PublishGuard.ts
+	modified:   apps/api/src/routes/ops.ts
+	modified:   apps/api/src/scripts/backfill-feature-contributions.ts
+	modified:   apps/api/src/scripts/discord-canary-webhook.ts
+	modified:   apps/api/src/services/AutoRecheckService.ts
+	modified:   apps/api/src/services/PickMonitoringService.ts
+	modified:   apps/api/src/services/ProfessionalPropProcessor.ts
+	modified:   apps/api/src/services/STierEnforcer.ts
+	modified:   apps/api/src/services/capperService.ts
+	modified:   apps/api/src/utils/optimizedInsertions.ts
+	modified:   apps/api/src/workers/BridgeWorker.ts
+	modified:   governance/RATIFICATION_RECORD_v1.0.md
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	supabase/migrations/20260226100000_lifecycle_guard_enforcement.sql
+
+no changes added to commit (use "git add" and/or "git commit -a")

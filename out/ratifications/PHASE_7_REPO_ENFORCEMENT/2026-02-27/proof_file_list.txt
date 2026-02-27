@@ -1,0 +1,5 @@
+7bf87158 docs(contracts): add Phase 7 repo enforcement contracts [PHASE_7]
+
+-rw-r--r-- 1 griff 197609  9606 Feb 27 01:15 architecture/contracts/repo-truth/ENFORCEMENT_SURFACE_MAP_v1.0.md
+-rw-r--r-- 1 griff 197609 10192 Feb 27 01:15 architecture/contracts/repo-truth/FAIL_CLOSED_BOOT_SPEC_v1.0.md
+-rw-r--r-- 1 griff 197609 10566 Feb 27 01:15 architecture/contracts/repo-truth/PROOF_RECEIPTS_STANDARD_v1.0.md
