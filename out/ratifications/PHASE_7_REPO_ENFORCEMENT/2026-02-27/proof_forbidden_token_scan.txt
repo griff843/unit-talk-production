@@ -1,0 +1,51 @@
+Forbidden Drafting Marker Scan Results
+=======================================
+
+Scan Date: 2026-02-27 (UTC)
+Phase: Phase 7 — Repo Enforcement Contracts
+
+Target Files:
+  - architecture/contracts/repo-truth/ENFORCEMENT_SURFACE_MAP_v1.0.md
+  - architecture/contracts/repo-truth/FAIL_CLOSED_BOOT_SPEC_v1.0.md
+  - architecture/contracts/repo-truth/PROOF_RECEIPTS_STANDARD_v1.0.md
+
+Patterns Scanned:
+  - TODO
+  - TBD
+  - PLACEHOLDER
+  - lorem ipsum
+  - we can later
+  - eventually
+  - might
+  - should probably
+
+Scan Command:
+grep -nEi "TODO|TBD|PLACEHOLDER|lorem ipsum|we can later|eventually|might|should probably" <files>
+
+Results:
+--------
+
+ENFORCEMENT_SURFACE_MAP_v1.0.md:104: "| CV-002 | Forbidden Tokens | No TODO/TBD/PLACEHOLDER markers |"
+FAIL_CLOSED_BOOT_SPEC_v1.0.md:143: "- Configuration MUST NOT contain placeholder values"
+
+Analysis:
+---------
+
+Both matches are FALSE POSITIVES:
+
+1. Line 104 in ENFORCEMENT_SURFACE_MAP_v1.0.md
+   - Context: Contract compliance check table
+   - Full text: Describes what the forbidden token check scans for
+   - Classification: PROHIBITION RULE (governance language)
+
+2. Line 143 in FAIL_CLOSED_BOOT_SPEC_v1.0.md
+   - Context: Configuration validation rules
+   - Full text: Prohibits placeholder values in configuration
+   - Classification: PROHIBITION RULE (configuration requirement)
+
+Verdict: NO FORBIDDEN DRAFTING MARKERS FOUND
+         (2 false positives excluded - prohibition rules, not drafting markers)
+
+SCAN RESULT: PASS
+
+End of Scan

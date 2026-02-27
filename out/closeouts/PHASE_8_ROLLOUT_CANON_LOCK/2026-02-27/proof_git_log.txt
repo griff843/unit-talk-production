@@ -1,0 +1,10 @@
+80460e40 docs(governance): ratify PHASE_8 rollout canon contracts [PHASE_8]
+4bbff3b2 docs(governance): PHASE_7 closeout marker for CI-minted tag [PHASE_7-CLOSEOUT]
+3c1721c3 docs(governance): ratify PHASE_7 repo enforcement contracts [PHASE_7]
+7bf87158 docs(contracts): add Phase 7 repo enforcement contracts [PHASE_7]
+d17433e1 docs(governance): PHASE_6A closeout with deletion reconciliation [PHASE_6A-CLOSEOUT]
+e43d41ab docs(governance): complete PHASE_6A constitution conformity sweep [PHASE_6A]
+c0f7f78e docs(governance): ratify constitution v1.0 [PHASE_6]
+bcf86ca2 docs(taxonomy): migrate docs to canonical structure (no deletes)
+0886670c feat(governance): implement tag truth enforcement CI system
+273f7103 fix(ops): phase1 runtime truth enforcement

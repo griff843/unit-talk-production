@@ -1,0 +1,28 @@
+=== PROOF: FAIL-CLOSED BOOT BEHAVIOR ===
+Command: cd apps/api && npx tsx scripts/test-boot-fail.ts
+Process Exit Code: 2 (BP_ENV precondition failure)
+Date: 2026-02-27
+
+=== FAIL-CLOSED BOOT TEST ===
+Test: Missing ENV_IDENTITY and NODE_ENV
+
+=== FAIL-CLOSED BOOT RECEIPT ===
+Contract: FAIL_CLOSED_BOOT_SPEC_v1.0 | Timestamp: 2026-02-27T14:43:08.795Z | Duration: 2ms
+Success: FAIL | Exit Code: 2
+Environment: UNKNOWN | Rollout Mode: UNKNOWN
+--- Precondition Checks ---
+[FAIL] BP_ENV
+  - ENV_IDENTITY: FAIL: ENV_IDENTITY is required but not set
+  - NODE_ENV: FAIL: NODE_ENV is required but not set
+  - PORT: OK
+  - ROLLOUT_MODE: OK
+--- Mode Validation ---
+=== ROLLOUT MODE VALIDATION RECEIPT ===
+Timestamp: 2026-02-27T14:43:08.797Z | Contract: ROLLOUT_MODE_CANON_v1.0
+Environment: UNKNOWN | Mode: UNKNOWN
+Matrix Status: UNKNOWN_MODE | SHADOW in PROD: PASS
+Valid: FAIL | Error: UNKNOWN mode: "undefined". Valid: DORMANT, SHADOW, CANARY, ENFORCED, LOCKED
+=== END RECEIPT ===
+=== END RECEIPT ===
+
+Final Exit Code: 2

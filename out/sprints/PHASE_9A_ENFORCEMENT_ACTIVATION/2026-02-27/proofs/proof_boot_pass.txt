@@ -1,0 +1,34 @@
+=== PROOF: BOOT PASS BEHAVIOR ===
+Command: cd apps/api && npx tsx scripts/test-boot-pass.ts
+Process Exit Code: 0 (success)
+Date: 2026-02-27
+
+=== BOOT PASS TEST ===
+Test: Valid dev environment (ENV_IDENTITY=dev, NODE_ENV=development, ROLLOUT_MODE=DORMANT)
+
+=== FAIL-CLOSED BOOT RECEIPT ===
+Contract: FAIL_CLOSED_BOOT_SPEC_v1.0 | Timestamp: 2026-02-27T14:44:03.316Z | Duration: 2ms
+Success: PASS | Exit Code: 0
+Environment: dev | Rollout Mode: DORMANT
+--- Precondition Checks ---
+[PASS] BP_ENV
+  - ENV_IDENTITY: OK
+  - NODE_ENV: OK
+  - PORT: OK
+  - ROLLOUT_MODE: OK
+[PASS] BP_SECRET
+[PASS] BP_CONFIG
+  - ROLLOUT_MODE_MATRIX: OK
+  - NO_SHADOW_IN_PROD: OK
+--- Mode Validation ---
+=== ROLLOUT MODE VALIDATION RECEIPT ===
+Timestamp: 2026-02-27T14:44:03.319Z | Contract: ROLLOUT_MODE_CANON_v1.0
+Environment: dev | Mode: DORMANT
+Matrix Status: ALLOWED | SHADOW in PROD: PASS
+Valid: PASS
+=== END RECEIPT ===
+=== END RECEIPT ===
+
+Final Exit Code: 0
+
+RESULT: Boot sequence PASSED - service would reach "ready" boundary

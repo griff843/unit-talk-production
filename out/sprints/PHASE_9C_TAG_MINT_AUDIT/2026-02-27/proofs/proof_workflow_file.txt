@@ -1,0 +1,183 @@
+# TAG TRUTH ENFORCEMENT: CI Auto-Mint Workflow
+# Reference: governance/release/TAG_TRUTH_ENFORCEMENT_v1.0.md
+#
+# This workflow detects closeout markers merged to main and mints governed tags.
+# Humans MUST NOT create governed tags - CI is the sole authority.
+
+name: Mint Governed Tag
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "governance/closeouts/*.md"
+
+permissions:
+  contents: write
+
+jobs:
+  mint-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Detect new closeout markers
+        id: detect
+        run: |
+          # Get list of added closeout files in this push
+          ADDED_FILES=$(git diff --name-only --diff-filter=A HEAD~1 HEAD -- 'governance/closeouts/*.md' || true)
+
+          if [ -z "$ADDED_FILES" ]; then
+            echo "No new closeout markers detected"
+            echo "has_closeouts=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Detected closeout markers:"
+          echo "$ADDED_FILES"
+
+          # Store as multiline output
+          echo "has_closeouts=true" >> $GITHUB_OUTPUT
+          {
+            echo "files<<EOF"
+            echo "$ADDED_FILES"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: Setup Node.js
+        if: steps.detect.outputs.has_closeouts == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup pnpm
+        if: steps.detect.outputs.has_closeouts == 'true'
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        if: steps.detect.outputs.has_closeouts == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Process closeout markers and mint tags
+        if: steps.detect.outputs.has_closeouts == 'true'
+        env:
+          CLOSEOUT_FILES: ${{ steps.detect.outputs.files }}
+        run: |
+          set -e
+
+          # Pattern for valid governed tag names
+          TAG_PATTERN='^(PHASE|SPRINT|GOVERNANCE)[A-Z0-9._-]+$'
+
+          echo "$CLOSEOUT_FILES" | while read -r file; do
+            if [ -z "$file" ]; then
+              continue
+            fi
+
+            echo "=========================================="
+            echo "Processing: $file"
+            echo "=========================================="
+
+            # Derive tag name from filename (strip path and .md extension)
+            FILENAME=$(basename "$file")
+            TAG_NAME="${FILENAME%.md}"
+
+            echo "Derived tag name: $TAG_NAME"
+
+            # Validate tag name matches governed patterns
+            if ! echo "$TAG_NAME" | grep -qE "$TAG_PATTERN"; then
+              echo "ERROR: Tag name '$TAG_NAME' does not match governed pattern"
+              echo "Expected pattern: $TAG_PATTERN"
+              exit 1
+            fi
+
+            echo "Tag name validated: $TAG_NAME"
+
+            # Check if tag already exists
+            if git tag -l "$TAG_NAME" | grep -q "^$TAG_NAME$"; then
+              echo "WARNING: Tag $TAG_NAME already exists, skipping"
+              continue
+            fi
+
+            # Run required gates
+            echo ""
+            echo "Running required gates..."
+            echo ""
+
+            # Gate 1: TypeCheck
+            echo ">>> Gate 1: TypeCheck"
+            pnpm type-check || {
+              echo "GATE FAILED: TypeCheck"
+              exit 1
+            }
+            echo "Gate 1: PASS"
+
+            # Gate 2: Lint
+            echo ""
+            echo ">>> Gate 2: Lint"
+            pnpm lint || {
+              echo "GATE FAILED: Lint"
+              exit 1
+            }
+            echo "Gate 2: PASS"
+
+            # Gate 3: Phase-specific gates (if applicable)
+            if echo "$TAG_NAME" | grep -qE '^PHASE1'; then
+              echo ""
+              echo ">>> Gate 3: Phase 1 Runtime Truth Gate"
+              if [ -f "scripts/gates/phase1-runtime-truth-gate.ts" ]; then
+                npx tsx scripts/gates/phase1-runtime-truth-gate.ts || {
+                  echo "GATE FAILED: Phase 1 Runtime Truth Gate"
+                  exit 1
+                }
+                echo "Gate 3: PASS"
+              else
+                echo "WARNING: Phase 1 gate script not found, skipping"
+              fi
+            fi
+
+            echo ""
+            echo "All gates passed!"
+            echo ""
+
+            # Get current SHA
+            CURRENT_SHA=$(git rev-parse HEAD)
+
+            # Create annotated tag
+            echo "Creating annotated tag: $TAG_NAME -> $CURRENT_SHA"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+
+            # Build tag message using heredoc
+            TAG_MSG=$(cat <<TAGMSG
+          CI-minted governed tag
+
+          Closeout marker: $file
+          SHA: $CURRENT_SHA
+          Minted by: GitHub Actions
+          Reference: governance/release/TAG_TRUTH_ENFORCEMENT_v1.0.md
+
+          Gates executed: TypeCheck PASS, Lint PASS
+          TAGMSG
+            )
+
+            git tag -a "$TAG_NAME" -m "$TAG_MSG"
+
+            # Push tag
+            echo "Pushing tag: $TAG_NAME"
+            git push origin "$TAG_NAME"
+
+            echo ""
+            echo "Successfully minted tag: $TAG_NAME"
+            echo ""
+          done
+
+          echo "=========================================="
+          echo "Tag minting complete"
+          echo "=========================================="

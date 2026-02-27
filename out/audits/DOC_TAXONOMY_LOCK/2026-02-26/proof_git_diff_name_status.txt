@@ -1,0 +1,29 @@
+warning: in the working copy of 'apps/api/src/agents/GradingAgent/GradingAgent.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/src/lib/lifecycle/types.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/src/lib/lifecycle/write-adapter.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/src/workers/BridgeWorker.ts', LF will be replaced by CRLF the next time Git touches it
+M	apps/api/src/agents/AlertAgent/index.ts
+M	apps/api/src/agents/DiscordPromotionAgent/index.ts
+M	apps/api/src/agents/GradingAgent/GradingAgent.ts
+M	apps/api/src/agents/RecapAgent/index.ts
+M	apps/api/src/lib/discordReceiptContract.ts
+M	apps/api/src/lib/lifecycle/idempotency.ts
+M	apps/api/src/lib/lifecycle/single-writer-allowlist.ts
+M	apps/api/src/lib/lifecycle/types.ts
+M	apps/api/src/lib/lifecycle/write-adapter.ts
+M	apps/api/src/promotion/PublishGuard.ts
+M	apps/api/src/routes/ops.ts
+M	apps/api/src/scripts/backfill-feature-contributions.ts
+M	apps/api/src/scripts/discord-canary-webhook.ts
+M	apps/api/src/services/AutoRecheckService.ts
+M	apps/api/src/services/PickMonitoringService.ts
+M	apps/api/src/services/ProfessionalPropProcessor.ts
+M	apps/api/src/services/STierEnforcer.ts
+M	apps/api/src/services/capperService.ts
+M	apps/api/src/utils/optimizedInsertions.ts
+M	apps/api/src/workers/BridgeWorker.ts
+D	docs/phases/phase-4-operational-determinism/DETERMINISTIC_EXECUTION_MODEL_v1.0.md
+D	docs/phases/phase-4-operational-determinism/OPERATIONAL_TRUTH_SOURCES_v1.0.md
+D	docs/phases/phase-4-operational-determinism/RUNTIME_CONFIGURATION_CONTRACT_v1.0.md
+D	docs/phases/phase-4-operational-determinism/_INDEX.md
+M	governance/RATIFICATION_RECORD_v1.0.md

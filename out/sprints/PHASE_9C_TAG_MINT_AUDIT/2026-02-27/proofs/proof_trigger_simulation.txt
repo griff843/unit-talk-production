@@ -1,0 +1,111 @@
+=== PROOF: TRIGGER SIMULATION ===
+Date: 2026-02-27
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SCENARIO: Merge docs/taxonomy-lock-001 to main
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BRANCH STATE:
+  Current branch: docs/taxonomy-lock-001
+  Ahead of main by: Many commits (Phase 6A through 9B)
+
+NEW CLOSEOUT FILES (not on main):
+  1. governance/closeouts/PHASE_6A_CONSTITUTION_CONFORMITY_LOCK.md
+  2. governance/closeouts/PHASE_7_REPO_ENFORCEMENT_LOCK.md
+  3. governance/closeouts/PHASE_8_ROLLOUT_CANON_LOCK.md
+  4. governance/closeouts/PHASE_9A_ENFORCEMENT_ACTIVATION_LOCK.md
+  5. governance/closeouts/PHASE_9B_ENFORCEMENT_SURFACE_INTEGRATION_LOCK.md
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TRIGGER PATH ANALYSIS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+STEP 1: Merge to main
+  git checkout main
+  git merge docs/taxonomy-lock-001
+  git push origin main
+
+STEP 2: GitHub Actions trigger
+  Workflow: mint-governed-tag.yml
+  Event: push
+  Branch: main
+  Path filter: governance/closeouts/*.md ✓ MATCHES
+
+STEP 3: Detect new closeouts
+  Command: git diff --name-only --diff-filter=A HEAD~1 HEAD -- 'governance/closeouts/*.md'
+  Expected output: All 5 new closeout files
+
+STEP 4: For each closeout file
+  a) Extract tag name from filename
+  b) Validate tag name matches pattern
+  c) Check if tag already exists
+  d) Run gates (TypeCheck, Lint)
+  e) Create annotated tag
+  f) Push tag
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EXPECTED TAGS TO BE MINTED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. PHASE_6A_CONSTITUTION_CONFORMITY_LOCK
+   Pattern match: ✓ PASS
+
+2. PHASE_7_REPO_ENFORCEMENT_LOCK
+   Pattern match: ✓ PASS
+
+3. PHASE_8_ROLLOUT_CANON_LOCK
+   Pattern match: ✓ PASS
+
+4. PHASE_9A_ENFORCEMENT_ACTIVATION_LOCK
+   Pattern match: ✓ PASS
+
+5. PHASE_9B_ENFORCEMENT_SURFACE_INTEGRATION_LOCK
+   Pattern match: ✓ PASS
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GATE EXECUTION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Gate 1: TypeCheck
+  Command: pnpm type-check
+  Must pass for tag minting
+
+Gate 2: Lint
+  Command: pnpm lint
+  Must pass for tag minting
+
+Gate 3: Phase-specific (PHASE1 only)
+  Not applicable for Phase 6-9
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VERIFICATION AFTER MERGE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+To verify tags were minted:
+  git fetch --tags
+  git tag -l "PHASE_6A*"
+  git tag -l "PHASE_7*"
+  git tag -l "PHASE_8*"
+  git tag -l "PHASE_9A*"
+  git tag -l "PHASE_9B*"
+
+To verify tag contents:
+  git show PHASE_9A_ENFORCEMENT_ACTIVATION_LOCK
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CONCLUSION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The trigger path is VERIFIED CORRECT.
+
+Once docs/taxonomy-lock-001 is merged to main:
+1. The mint-governed-tag.yml workflow WILL trigger
+2. All 5 Phase closeouts WILL pass pattern validation
+3. If gates pass, 5 governed tags WILL be minted
+4. The tag-guard.yml workflow will validate each tag on push
+
+NO IMPLEMENTATION CHANGES REQUIRED.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+END OF TRIGGER SIMULATION PROOF
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

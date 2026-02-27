@@ -1,0 +1,46 @@
+Runnable Command Scan
+==================
+
+Date: 2026-02-27 (UTC)
+Category: PR_CONTRACT
+Generator: grep scan
+
+---
+
+Scanning for runnable command blocks in Phase 8 contracts.
+Looking for line-start command patterns:
+- pnpm/npm/yarn commands at line start
+- git commands at line start
+- docker commands at line start
+
+Files scanned:
+- architecture/contracts/repo-truth/ROLLOUT_MODE_CANON_v1.0.md
+- architecture/contracts/repo-truth/ENFORCEMENT_ACTIVATION_LAW_v1.0.md
+- architecture/contracts/repo-truth/CANARY_SCOPE_AND_RECEIPTS_CONTRACT_v1.0.md
+- architecture/contracts/repo-truth/PHASE_8_ROLLOUT_CANON_RATIFICATION_v1.0.md
+
+---
+
+Scan Results:
+
+Pattern: pnpm/npm/yarn commands
+  No matches found
+
+Pattern: git commands
+  No matches found
+
+Pattern: docker commands
+  No matches found
+
+---
+
+Result: PASS (no runnable command blocks found)
+
+Notes:
+- Contracts contain no executable shell commands
+- Contracts are design-only documents
+- No package manager, version control, or container commands present
+
+---
+
+End of Runnable Command Scan

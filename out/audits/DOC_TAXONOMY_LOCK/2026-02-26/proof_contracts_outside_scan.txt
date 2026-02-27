@@ -1,0 +1,15 @@
+./CLAUDE_EXECUTION_CONTRACT.md
+./docs/CLAUDE_OS_GOVERNANCE_CONTRACT.md
+./docs/contracts/DISCORD_EMBED_CONTRACT.md
+./docs/contracts/DISCORD_EMBED_CONTRACT_STUB.md
+./docs/contracts/PICK_LIFECYCLE_CONTRACT.md
+./docs/contracts/PICK_LIFECYCLE_CONTRACT_STUB.md
+./docs/contracts/SEARCH_CATALOG_CONTRACT_V1.md
+./docs/contracts/SEARCH_CATALOG_CONTRACT_V1_STUB.md
+./docs/contracts/SMARTFORM_DATA_CONTRACT_V1.md
+./docs/contracts/SMARTFORM_DATA_CONTRACT_V1_STUB.md
+./docs/contracts/SMARTFORM_DATA_CONTRACT_V2.md
+./docs/contracts/SMARTFORM_DATA_CONTRACT_V2_STUB.md
+./docs/ENV_CONTRACT.md
+./docs/phases/phase-4-operational-determinism/RUNTIME_CONFIGURATION_CONTRACT_v1.0.md
+./docs/smart-form/SMARTFORM_DATA_CONTRACT_PROPOSAL.md

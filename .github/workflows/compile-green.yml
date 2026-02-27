@@ -4,45 +4,53 @@ on:
   push:
     branches:
       - main
-      - 'hotfix/**'
-      - 'fix/**'
+      - "hotfix/**"
+      - "fix/**"
     paths:
-      - 'apps/api/**/*.ts'
-      - 'apps/api/**/*.tsx'
-      - 'apps/api/tsconfig.json'
-      - 'apps/api/package.json'
-      - 'packages/**/*.ts'
-      - 'packages/**/*.tsx'
+      - "apps/api/**/*.ts"
+      - "apps/api/**/*.tsx"
+      - "apps/api/tsconfig.json"
+      - "apps/api/package.json"
+      - "packages/**/*.ts"
+      - "packages/**/*.tsx"
   pull_request:
     paths:
-      - 'apps/api/**/*.ts'
-      - 'apps/api/**/*.tsx'
-      - 'apps/api/tsconfig.json'
-      - 'apps/api/package.json'
-      - 'packages/**/*.ts'
-      - 'packages/**/*.tsx'
+      - "apps/api/**/*.ts"
+      - "apps/api/**/*.tsx"
+      - "apps/api/tsconfig.json"
+      - "apps/api/package.json"
+      - "packages/**/*.ts"
+      - "packages/**/*.tsx"
+
+env:
+  PNPM_VERSION: "10.29.3"
 
 jobs:
   compile-green-api:
     name: TypeScript Compile Check (apps/api)
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: TypeScript compile check (apps/api)
-        run: npm run -w apps/api build:typecheck
-        
+        run: pnpm --filter api type-check
+
       - name: Report success
         if: success()
         run: |
@@ -59,43 +67,53 @@ jobs:
   compile-green-command-center:
     name: TypeScript Compile Check (apps/command-center)
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: TypeScript compile check (apps/command-center)
-        run: npm run -w apps/command-center build:typecheck || echo "⚠️ Command Center type check skipped (optional)"
+        run: pnpm --filter command-center type-check || echo "⚠️ Command Center type check skipped (optional)"
         continue-on-error: true
 
   compile-green-discord-bot:
     name: TypeScript Compile Check (apps/discord-bot)
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: TypeScript compile check (apps/discord-bot)
-        run: npm run -w apps/discord-bot build:typecheck || echo "⚠️ Discord Bot type check skipped (optional)"
+        run: pnpm --filter discord-bot type-check || echo "⚠️ Discord Bot type check skipped (optional)"
         continue-on-error: true
 
   summary:
@@ -103,7 +121,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [compile-green-api]
     if: always()
-    
+
     steps:
       - name: Check results
         run: |
@@ -112,11 +130,10 @@ jobs:
           echo ""
           echo "✅ apps/api: ${{ needs.compile-green-api.result }}"
           echo ""
-          
+
           if [ "${{ needs.compile-green-api.result }}" != "success" ]; then
             echo "❌ Critical compilation failures detected"
             exit 1
           fi
-          
-          echo "✅ All critical compile checks passed!"
 
+          echo "✅ All critical compile checks passed!"

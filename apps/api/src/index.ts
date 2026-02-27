@@ -1,15 +1,33 @@
-// PHASE1-ENFORCEMENT-LOCK-001: Block production mode outside Docker
-if (process.env.NODE_ENV === 'production' && process.env.DOCKER_CONTAINER !== 'true') {
-  process.stderr.write('PHASE1: Production mode requires Docker. Set DOCKER_CONTAINER=true.\n');
-  process.stderr.write('Direct npm start / node execution is forbidden in production.\n');
-  process.exit(1);
-}
+/**
+ * PHASE_9A_ENFORCEMENT_ACTIVATION
+ *
+ * Unit Talk Platform API Entry Point
+ *
+ * This is the main entry point for the API service. It enforces fail-closed
+ * boot behavior per FAIL_CLOSED_BOOT_SPEC_v1.0 and ROLLOUT_MODE_CANON_v1.0.
+ *
+ * Boot sequence:
+ * 1. Load dotenv (must be first for env var access)
+ * 2. Execute fail-closed boot enforcement
+ * 3. If boot fails, process exits with appropriate code
+ * 4. If boot passes, continue to normal startup
+ */
 
 import 'dotenv/config';
 import { getDefaultTelemetry } from '@unit-talk/telemetry';
 
+import { enforceFailClosedBoot } from './lib/enforcement';
 import { getEnv } from './utils/getEnv';
 import { createLogger } from './utils/logger';
+
+// PHASE_9A: Fail-Closed Boot Enforcement
+// This MUST be imported and executed before any other business logic.
+// If enforcement fails, the process will exit with the appropriate code.
+
+// Execute fail-closed boot sequence immediately
+// This validates: ENV_IDENTITY, NODE_ENV, secrets, rollout mode matrix
+// If ANY precondition fails, process.exit() is called with appropriate code
+const bootResult = enforceFailClosedBoot();
 // SPRINT-SYNDICATE-CLEANUP-006: Telemetry integration
 
 const logger = createLogger('Main');
@@ -17,9 +35,15 @@ const logger = createLogger('Main');
 // eslint-disable-next-line max-lines-per-function, complexity -- Main startup orchestrates multiple services
 async function main() {
   try {
-    logger.info('Starting Unit Talk Platform...');
+    // PHASE_9A: Log boot enforcement result context
+    logger.info('Starting Unit Talk Platform...', {
+      phase9a_enforcement: 'PASSED',
+      environment: bootResult.environment,
+      rolloutMode: bootResult.rolloutMode,
+      bootDurationMs: bootResult.durationMs,
+    });
 
-    // Validate environment variables
+    // Validate environment variables (secondary validation for backwards compatibility)
     getEnv();
     logger.info('Environment variables loaded successfully');
 

@@ -1,0 +1,28 @@
+Proof File List
+==================
+
+Date: 2026-02-27 (UTC)
+Category: PR_CONTRACT
+Generator: Manual audit
+
+---
+
+Phase 8 Contract Files:
+
+1. architecture/contracts/repo-truth/ROLLOUT_MODE_CANON_v1.0.md
+2. architecture/contracts/repo-truth/ENFORCEMENT_ACTIVATION_LAW_v1.0.md
+3. architecture/contracts/repo-truth/CANARY_SCOPE_AND_RECEIPTS_CONTRACT_v1.0.md
+4. architecture/contracts/repo-truth/PHASE_8_ROLLOUT_CANON_RATIFICATION_v1.0.md
+
+---
+
+File Statistics:
+  236 architecture/contracts/repo-truth/ROLLOUT_MODE_CANON_v1.0.md
+  286 architecture/contracts/repo-truth/ENFORCEMENT_ACTIVATION_LAW_v1.0.md
+  299 architecture/contracts/repo-truth/CANARY_SCOPE_AND_RECEIPTS_CONTRACT_v1.0.md
+  264 architecture/contracts/repo-truth/PHASE_8_ROLLOUT_CANON_RATIFICATION_v1.0.md
+ 1085 total
+
+---
+
+End of Proof File List

@@ -1,0 +1,46 @@
+=== PHASE_9A NO SHADOW IN PROD ENFORCEMENT PROOF ===
+Timestamp: 2026-02-27
+Contract: ROLLOUT_MODE_CANON_v1.0
+
+--- Absolute Prohibition Statement ---
+
+Per ROLLOUT_MODE_CANON_v1.0 Section 5.2:
+"PROD MUST NOT support SHADOW mode. This is absolute and non-negotiable."
+
+--- Implementation Guard ---
+
+File: apps/api/src/lib/enforcement/rollout-mode.ts
+
+Function: validateRolloutMode(rawMode, rawEnvironment)
+- Returns isShadowInProd: true if violation detected
+- Returns matrixStatus: 'PROHIBITED' for prod+SHADOW combination
+- Returns valid: false for any prohibited combination
+
+--- Allowed Mode Matrix (Enforced) ---
+
+ALLOWED_MODE_MATRIX['prod'] = {
+  DORMANT:  'ALLOWED',
+  SHADOW:   'PROHIBITED',  <-- ABSOLUTE PROHIBITION
+  CANARY:   'ALLOWED',
+  ENFORCED: 'ALLOWED',
+  LOCKED:   'ALLOWED',
+}
+
+--- Boot Enforcement Integration ---
+
+File: apps/api/src/lib/enforcement/fail-closed-boot.ts
+
+Function: checkConfigPreconditions(environment)
+- Calls validateRolloutMode() to check matrix
+- If modeValidation.isShadowInProd is true:
+  - Adds check failure: NO_SHADOW_IN_PROD = FAIL
+  - Boot sequence fails with EXIT_CODE 4 (configuration failure)
+  - Process exits before any business logic runs
+
+--- Contract Compliance ---
+
+[PASS] ROLLOUT_MODE_CANON_v1.0 Section 5.2: SHADOW prohibited in prod
+[PASS] FAIL_CLOSED_BOOT_SPEC_v1.0: No graceful degradation
+[PASS] ENFORCEMENT_ACTIVATION_LAW_v1.0 EA-004: Production MUST NOT run SHADOW
+
+=== END NO SHADOW IN PROD ENFORCEMENT PROOF ===

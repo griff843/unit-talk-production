@@ -1,0 +1,36 @@
+
+> @unit-talk/platform@1.0.0 type-check
+> npm run type-check --workspaces --if-present
+
+
+> unit-talk-platform@1.0.0 type-check
+> tsc --noEmit
+
+
+> unit-talk-command-center@1.0.0 type-check
+> tsc --noEmit
+
+
+> unit-talk-frontend@0.1.0 type-check
+> tsc --noEmit
+
+
+> unit-talk-custom-bot@1.0.0 type-check
+> tsc --noEmit
+
+
+> unit-talk-smart-form@0.1.0 type-check
+> tsc --noEmit
+
+
+> @unit-talk/config@1.0.0 type-check
+> tsc --noEmit
+
+
+> @unit-talk/shared-types@1.0.0 type-check
+> tsc --noEmit
+
+
+> @unit-talk/shared-utils@1.0.0 type-check
+> tsc --noEmit
+

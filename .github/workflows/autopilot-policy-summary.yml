@@ -1,0 +1,56 @@
+# Autopilot Policy Acceptance Summary
+# This workflow provides the required check for branch protection
+# Runs on all PRs to main/develop. If autopilot policy files changed,
+# the full autopilot-policy-acceptance.yml workflow does detailed checks.
+
+name: autopilot-policy-summary
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # This job provides the autopilot-policy-acceptance-summary check
+  autopilot-policy-acceptance-summary:
+    name: autopilot-policy-acceptance-summary
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if autopilot policy files changed
+        id: check
+        run: |
+          # Get changed files in this PR
+          CHANGED=$(git diff --name-only origin/main...HEAD)
+
+          # Check if any autopilot policy files changed
+          AUTOPILOT_CHANGED=false
+          for file in $CHANGED; do
+            case "$file" in
+              apps/api/src/lib/AutopilotPolicyEngine.ts)
+                AUTOPILOT_CHANGED=true ;;
+              apps/api/src/lib/AutopilotEnforcement.ts)
+                AUTOPILOT_CHANGED=true ;;
+              apps/command-center/src/app/api/admin/autopilot/*)
+                AUTOPILOT_CHANGED=true ;;
+              scripts/db/phase4_autopilot_policy.sql)
+                AUTOPILOT_CHANGED=true ;;
+              scripts/verify-phase4-autopilot-policy.ts)
+                AUTOPILOT_CHANGED=true ;;
+            esac
+          done
+
+          echo "autopilot_changed=$AUTOPILOT_CHANGED" >> $GITHUB_OUTPUT
+
+      - name: Report status
+        run: |
+          if [[ "${{ steps.check.outputs.autopilot_changed }}" == "true" ]]; then
+            echo "⚠️ Autopilot policy files changed - detailed checks run in autopilot-policy-acceptance.yml"
+          else
+            echo "✅ No autopilot policy files changed - check passes"
+          fi
+          echo "autopilot-policy-acceptance-summary check completed"
+          exit 0

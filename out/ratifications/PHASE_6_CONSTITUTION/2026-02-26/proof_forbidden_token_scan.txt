@@ -1,0 +1,32 @@
+Forbidden Drafting Marker Scan Results
+=======================================
+
+Scan Date: 2026-02-26 (UTC)
+Target Files:
+  - architecture/CONSTITUTION_v1.0.md
+  - governance/ratifications/PHASE_6_CONSTITUTION_RATIFICATION_v1.0.md
+
+Patterns Scanned:
+  - TODO
+  - TBD
+  - PLACEHOLDER
+  - lorem ipsum
+  - we can later
+  - eventually
+  - might
+  - should probably
+
+Results:
+--------
+
+architecture/CONSTITUTION_v1.0.md:661: "No field may contain placeholder values."
+
+Analysis: This is a FALSE POSITIVE.
+- Line 661 is part of Section 13.2 "Required Fields"
+- The full sentence is a Constitutional PROHIBITION rule: "No field may contain placeholder values."
+- This is governance language prohibiting placeholders, NOT a drafting marker
+- The word "placeholder" appears as part of a mandatory rule, not as incomplete work
+
+Verdict: NO FORBIDDEN DRAFTING MARKERS FOUND
+
+SCAN RESULT: PASS

@@ -1,0 +1,618 @@
+diff --git a/apps/api/src/index.ts b/apps/api/src/index.ts
+index 9a3a8e56..64c3281c 100644
+--- a/apps/api/src/index.ts
++++ b/apps/api/src/index.ts
+@@ -1,15 +1,33 @@
+-// PHASE1-ENFORCEMENT-LOCK-001: Block production mode outside Docker
+-if (process.env.NODE_ENV === 'production' && process.env.DOCKER_CONTAINER !== 'true') {
+-  process.stderr.write('PHASE1: Production mode requires Docker. Set DOCKER_CONTAINER=true.\n');
+-  process.stderr.write('Direct npm start / node execution is forbidden in production.\n');
+-  process.exit(1);
+-}
++/**
++ * PHASE_9A_ENFORCEMENT_ACTIVATION
++ *
++ * Unit Talk Platform API Entry Point
++ *
++ * This is the main entry point for the API service. It enforces fail-closed
++ * boot behavior per FAIL_CLOSED_BOOT_SPEC_v1.0 and ROLLOUT_MODE_CANON_v1.0.
++ *
++ * Boot sequence:
++ * 1. Load dotenv (must be first for env var access)
++ * 2. Execute fail-closed boot enforcement
++ * 3. If boot fails, process exits with appropriate code
++ * 4. If boot passes, continue to normal startup
++ */
+ 
+ import 'dotenv/config';
+ import { getDefaultTelemetry } from '@unit-talk/telemetry';
+ 
++import { enforceFailClosedBoot } from './lib/enforcement';
+ import { getEnv } from './utils/getEnv';
+ import { createLogger } from './utils/logger';
++
++// PHASE_9A: Fail-Closed Boot Enforcement
++// This MUST be imported and executed before any other business logic.
++// If enforcement fails, the process will exit with the appropriate code.
++
++// Execute fail-closed boot sequence immediately
++// This validates: ENV_IDENTITY, NODE_ENV, secrets, rollout mode matrix
++// If ANY precondition fails, process.exit() is called with appropriate code
++const bootResult = enforceFailClosedBoot();
+ // SPRINT-SYNDICATE-CLEANUP-006: Telemetry integration
+ 
+ const logger = createLogger('Main');
+@@ -17,9 +35,15 @@ const logger = createLogger('Main');
+ // eslint-disable-next-line max-lines-per-function, complexity -- Main startup orchestrates multiple services
+ async function main() {
+   try {
+-    logger.info('Starting Unit Talk Platform...');
+-
+-    // Validate environment variables
++    // PHASE_9A: Log boot enforcement result context
++    logger.info('Starting Unit Talk Platform...', {
++      phase9a_enforcement: 'PASSED',
++      environment: bootResult.environment,
++      rolloutMode: bootResult.rolloutMode,
++      bootDurationMs: bootResult.durationMs,
++    });
++
++    // Validate environment variables (secondary validation for backwards compatibility)
+     getEnv();
+     logger.info('Environment variables loaded successfully');
+ 
+diff --git a/apps/api/src/lib/enforcement/fail-closed-boot.ts b/apps/api/src/lib/enforcement/fail-closed-boot.ts
+new file mode 100644
+index 00000000..d05bc4ea
+--- /dev/null
++++ b/apps/api/src/lib/enforcement/fail-closed-boot.ts
+@@ -0,0 +1,301 @@
++/**
++ * FAIL_CLOSED_BOOT_SPEC_v1.0 Implementation
++ * PHASE_9A_ENFORCEMENT_ACTIVATION
++ *
++ * Fail-closed boot behavior for the API service.
++ * Every precondition failure results in HALT.
++ *
++ * Exit Codes: 0=success, 2=env, 3=secret, 4=config, 5=db, 6=deps
++ */
++
++/* eslint-disable no-console */
++
++import {
++  validateRolloutMode,
++  parseRolloutMode,
++  parseEnvironment,
++  generateModeValidationReceipt,
++  type Environment,
++  type RolloutMode,
++  type ModeValidationResult,
++} from './rollout-mode';
++
++// Exit codes per FAIL_CLOSED_BOOT_SPEC_v1.0 Section 11.3
++export const EXIT_CODES = {
++  SUCCESS: 0,
++  GENERAL_FAILURE: 1,
++  ENV_FAILURE: 2,
++  SECRET_FAILURE: 3,
++  CONFIG_FAILURE: 4,
++  DB_FAILURE: 5,
++  DEPS_FAILURE: 6,
++} as const;
++
++export type ExitCode = (typeof EXIT_CODES)[keyof typeof EXIT_CODES];
++
++export const BOOT_PRECONDITIONS = {
++  BP_ENV: 'BP_ENV',
++  BP_SECRET: 'BP_SECRET',
++  BP_CONFIG: 'BP_CONFIG',
++  BP_DB: 'BP_DB',
++  BP_DEPS: 'BP_DEPS',
++} as const;
++
++export type BootPrecondition = (typeof BOOT_PRECONDITIONS)[keyof typeof BOOT_PRECONDITIONS];
++
++// Required env vars validators
++const ENV_VALIDATORS: Record<
++  string,
++  { required: boolean; validator: (v?: string) => boolean; errorMsg: string }
++> = {
++  ENV_IDENTITY: {
++    required: true,
++    validator: v => ['dev', 'staging', 'prod'].includes(v?.toLowerCase() ?? ''),
++    errorMsg: 'ENV_IDENTITY MUST be set to dev, staging, or prod',
++  },
++  NODE_ENV: {
++    required: true,
++    validator: v => ['development', 'test', 'production', 'staging'].includes(v ?? ''),
++    errorMsg: 'NODE_ENV MUST be development, test, staging, or production',
++  },
++  PORT: {
++    required: false,
++    validator: v => !v || (!isNaN(Number(v)) && Number(v) > 0 && Number(v) < 65536),
++    errorMsg: 'PORT MUST be a valid port number (1-65535)',
++  },
++  ROLLOUT_MODE: {
++    required: false,
++    validator: v =>
++      !v || ['DORMANT', 'SHADOW', 'CANARY', 'ENFORCED', 'LOCKED'].includes(v.toUpperCase()),
++    errorMsg: 'ROLLOUT_MODE MUST be DORMANT, SHADOW, CANARY, ENFORCED, or LOCKED',
++  },
++};
++
++const SECRETS_BY_ENV: Record<string, string[]> = {
++  all: [],
++  dev: [],
++  staging: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'],
++  prod: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_ANON_KEY'],
++};
++
++export interface BootCheckResult {
++  category: BootPrecondition;
++  passed: boolean;
++  checks: Array<{ name: string; passed: boolean; error?: string }>;
++  exitCode: ExitCode;
++}
++
++export interface BootSequenceResult {
++  success: boolean;
++  exitCode: ExitCode;
++  environment: Environment | null;
++  rolloutMode: RolloutMode | 'UNKNOWN';
++  modeValidation: ModeValidationResult;
++  checks: BootCheckResult[];
++  timestamp: string;
++  durationMs: number;
++}
++
++function checkEnvPreconditions(): BootCheckResult {
++  const checks: BootCheckResult['checks'] = [];
++  for (const [name, cfg] of Object.entries(ENV_VALIDATORS)) {
++    // eslint-disable-next-line security/detect-object-injection
++    const value = process.env[name];
++    if (cfg.required && !value) {
++      checks.push({ name, passed: false, error: `${name} is required but not set` });
++    } else if (!cfg.validator(value)) {
++      checks.push({ name, passed: false, error: cfg.errorMsg });
++    } else {
++      checks.push({ name, passed: true });
++    }
++  }
++  const allPassed = checks.every(c => c.passed);
++  return {
++    category: BOOT_PRECONDITIONS.BP_ENV,
++    passed: allPassed,
++    checks,
++    exitCode: allPassed ? 0 : 2,
++  };
++}
++
++function checkSecretsPreconditions(env: Environment | null): BootCheckResult {
++  const checks: BootCheckResult['checks'] = [];
++  // eslint-disable-next-line security/detect-object-injection
++  const required = [...SECRETS_BY_ENV.all, ...(env ? SECRETS_BY_ENV[env] : [])];
++  for (const name of required) {
++    // eslint-disable-next-line security/detect-object-injection
++    const val = process.env[name];
++    if (!val || val.trim() === '') {
++      checks.push({
++        name,
++        passed: false,
++        error: `Secret ${name} required in ${env ?? 'unknown'} but not set`,
++      });
++    } else {
++      checks.push({ name, passed: true });
++    }
++  }
++  const allPassed = checks.every(c => c.passed);
++  return {
++    category: BOOT_PRECONDITIONS.BP_SECRET,
++    passed: allPassed,
++    checks,
++    exitCode: allPassed ? 0 : 3,
++  };
++}
++
++function checkConfigPreconditions(env: Environment | null): BootCheckResult {
++  const checks: BootCheckResult['checks'] = [];
++  const modeValidation = validateRolloutMode(process.env.ROLLOUT_MODE, process.env.ENV_IDENTITY);
++  checks.push({
++    name: 'ROLLOUT_MODE_MATRIX',
++    passed: modeValidation.valid,
++    error: modeValidation.error,
++  });
++  checks.push({
++    name: 'NO_SHADOW_IN_PROD',
++    passed: !modeValidation.isShadowInProd,
++    error: modeValidation.isShadowInProd ? 'SHADOW mode PROHIBITED in production' : undefined,
++  });
++  if (env === 'prod') {
++    const dockerOk = process.env.DOCKER_CONTAINER === 'true';
++    checks.push({
++      name: 'DOCKER_CONTAINER_REQUIRED',
++      passed: dockerOk,
++      error: dockerOk ? undefined : 'Production requires Docker. Set DOCKER_CONTAINER=true.',
++    });
++  }
++  const allPassed = checks.every(c => c.passed);
++  return {
++    category: BOOT_PRECONDITIONS.BP_CONFIG,
++    passed: allPassed,
++    checks,
++    exitCode: allPassed ? 0 : 4,
++  };
++}
++
++function buildFailResult(
++  exitCode: ExitCode,
++  env: Environment | null,
++  checks: BootCheckResult[],
++  startTime: number
++): BootSequenceResult {
++  return {
++    success: false,
++    exitCode,
++    environment: env,
++    rolloutMode: 'UNKNOWN',
++    modeValidation: validateRolloutMode(process.env.ROLLOUT_MODE, process.env.ENV_IDENTITY),
++    checks,
++    timestamp: new Date().toISOString(),
++    durationMs: Date.now() - startTime,
++  };
++}
++
++/** Execute the fail-closed boot sequence. Returns result (does not exit). */
++export function executeBootSequence(): BootSequenceResult {
++  const startTime = Date.now();
++  const checks: BootCheckResult[] = [];
++
++  const envCheck = checkEnvPreconditions();
++  checks.push(envCheck);
++  if (!envCheck.passed) return buildFailResult(envCheck.exitCode, null, checks, startTime);
++
++  const env = parseEnvironment(process.env.ENV_IDENTITY);
++
++  const secretCheck = checkSecretsPreconditions(env);
++  checks.push(secretCheck);
++  if (!secretCheck.passed) return buildFailResult(secretCheck.exitCode, env, checks, startTime);
++
++  const configCheck = checkConfigPreconditions(env);
++  checks.push(configCheck);
++  if (!configCheck.passed) return buildFailResult(configCheck.exitCode, env, checks, startTime);
++
++  const mode = parseRolloutMode(process.env.ROLLOUT_MODE || 'DORMANT');
++  return {
++    success: true,
++    exitCode: 0,
++    environment: env,
++    rolloutMode: mode === 'UNKNOWN' ? 'DORMANT' : (mode as RolloutMode),
++    modeValidation: validateRolloutMode(
++      process.env.ROLLOUT_MODE || 'DORMANT',
++      process.env.ENV_IDENTITY
++    ),
++    checks,
++    timestamp: new Date().toISOString(),
++    durationMs: Date.now() - startTime,
++  };
++}
++
++function logBootFailure(result: BootSequenceResult): void {
++  console.error(
++    '\n================================================================================'
++  );
++  console.error('[PHASE_9A] FAIL-CLOSED BOOT: PRECONDITION FAILURE');
++  console.error('================================================================================');
++  console.error(
++    `Timestamp: ${result.timestamp} | Exit Code: ${result.exitCode} | Duration: ${result.durationMs}ms\n`
++  );
++  for (const check of result.checks) {
++    console.error(`${check.passed ? '[PASS]' : '[FAIL]'} ${check.category}`);
++    for (const sub of check.checks) {
++      if (!sub.passed) console.error(`  [XX] ${sub.name}: ${sub.error}`);
++    }
++  }
++  console.error(
++    '\nPer FAIL_CLOSED_BOOT_SPEC_v1.0: Service MUST NOT start with failed preconditions.'
++  );
++  console.error(
++    '================================================================================\n'
++  );
++}
++
++/** Enforce fail-closed boot. Exits process on failure. */
++export function enforceFailClosedBoot(): BootSequenceResult {
++  const result = executeBootSequence();
++  if (!result.success) {
++    logBootFailure(result);
++    process.exit(result.exitCode);
++  }
++  console.log('\n[PHASE_9A] FAIL-CLOSED BOOT: ALL PRECONDITIONS PASSED');
++  console.log(
++    `  Environment: ${result.environment} | Rollout Mode: ${result.rolloutMode} | Duration: ${result.durationMs}ms\n`
++  );
++  return result;
++}
++
++/** Generate a deterministic proof receipt (no secret values). */
++export function generateBootReceipt(result: BootSequenceResult): string {
++  const lines = [
++    '=== FAIL-CLOSED BOOT RECEIPT ===',
++    `Contract: FAIL_CLOSED_BOOT_SPEC_v1.0 | Timestamp: ${result.timestamp} | Duration: ${result.durationMs}ms`,
++    `Success: ${result.success ? 'PASS' : 'FAIL'} | Exit Code: ${result.exitCode}`,
++    `Environment: ${result.environment ?? 'UNKNOWN'} | Rollout Mode: ${result.rolloutMode}`,
++    '--- Precondition Checks ---',
++  ];
++  for (const check of result.checks) {
++    lines.push(`[${check.passed ? 'PASS' : 'FAIL'}] ${check.category}`);
++    for (const sub of check.checks) {
++      lines.push(
++        `  - ${sub.name}: ${sub.passed ? 'OK' : 'FAIL'}${sub.error ? `: ${sub.error}` : ''}`
++      );
++    }
++  }
++  lines.push(
++    '--- Mode Validation ---',
++    generateModeValidationReceipt(result.modeValidation),
++    '=== END RECEIPT ==='
++  );
++  return lines.join('\n');
++}
++
++// Re-exports
++export {
++  validateRolloutMode,
++  parseRolloutMode,
++  parseEnvironment,
++  generateModeValidationReceipt,
++  type RolloutMode,
++  type Environment,
++  type ModeValidationResult,
++} from './rollout-mode';
+diff --git a/apps/api/src/lib/enforcement/index.ts b/apps/api/src/lib/enforcement/index.ts
+new file mode 100644
+index 00000000..2a8548e0
+--- /dev/null
++++ b/apps/api/src/lib/enforcement/index.ts
+@@ -0,0 +1,45 @@
++/**
++ * PHASE_9A_ENFORCEMENT_ACTIVATION
++ *
++ * Enforcement Module Index
++ *
++ * This module exports all enforcement-related functionality required by
++ * Phase 7 and Phase 8 contracts:
++ *
++ * - FAIL_CLOSED_BOOT_SPEC_v1.0
++ * - ROLLOUT_MODE_CANON_v1.0
++ * - ENFORCEMENT_ACTIVATION_LAW_v1.0
++ *
++ * Ratified: 2026-02-27
++ */
++
++// Fail-Closed Boot (BP_ENV, BP_SECRET, BP_CONFIG, BP_DB, BP_DEPS)
++export {
++  enforceFailClosedBoot,
++  executeBootSequence,
++  generateBootReceipt,
++  EXIT_CODES,
++  BOOT_PRECONDITIONS,
++  type BootCheckResult,
++  type BootSequenceResult,
++  type ExitCode,
++  type BootPrecondition,
++} from './fail-closed-boot';
++
++// Rollout Mode Canon
++export {
++  validateRolloutMode,
++  parseRolloutMode,
++  parseEnvironment,
++  assertNoShadowInProd,
++  generateModeValidationReceipt,
++  isValidRolloutMode,
++  isValidEnvironment,
++  ROLLOUT_MODES,
++  ENVIRONMENTS,
++  UNKNOWN_MODE,
++  type RolloutMode,
++  type Environment,
++  type ModeValidationResult,
++  type UnknownMode,
++} from './rollout-mode';
+diff --git a/apps/api/src/lib/enforcement/rollout-mode.ts b/apps/api/src/lib/enforcement/rollout-mode.ts
+new file mode 100644
+index 00000000..710926e4
+--- /dev/null
++++ b/apps/api/src/lib/enforcement/rollout-mode.ts
+@@ -0,0 +1,153 @@
++/**
++ * ROLLOUT_MODE_CANON_v1.0 Implementation
++ * PHASE_9A_ENFORCEMENT_ACTIVATION
++ *
++ * Rollout mode canonical enum and allowed matrix.
++ * ABSOLUTE PROHIBITION: SHADOW mode is PROHIBITED in production.
++ */
++
++// Closed enums per contract
++export const ROLLOUT_MODES = ['DORMANT', 'SHADOW', 'CANARY', 'ENFORCED', 'LOCKED'] as const;
++export type RolloutMode = (typeof ROLLOUT_MODES)[number];
++
++export const ENVIRONMENTS = ['dev', 'staging', 'prod'] as const;
++export type Environment = (typeof ENVIRONMENTS)[number];
++
++export const UNKNOWN_MODE = 'UNKNOWN' as const;
++export type UnknownMode = typeof UNKNOWN_MODE;
++
++// Allowed Mode Matrix per ROLLOUT_MODE_CANON_v1.0 Section 5.1
++type MatrixStatus = 'ALLOWED' | 'NOT_ALLOWED' | 'PROHIBITED';
++const ALLOWED_MODE_MATRIX: Record<Environment, Record<RolloutMode, MatrixStatus>> = {
++  dev: {
++    DORMANT: 'ALLOWED',
++    SHADOW: 'ALLOWED',
++    CANARY: 'NOT_ALLOWED',
++    ENFORCED: 'NOT_ALLOWED',
++    LOCKED: 'NOT_ALLOWED',
++  },
++  staging: {
++    DORMANT: 'ALLOWED',
++    SHADOW: 'ALLOWED',
++    CANARY: 'ALLOWED',
++    ENFORCED: 'NOT_ALLOWED',
++    LOCKED: 'NOT_ALLOWED',
++  },
++  prod: {
++    DORMANT: 'ALLOWED',
++    SHADOW: 'PROHIBITED',
++    CANARY: 'ALLOWED',
++    ENFORCED: 'ALLOWED',
++    LOCKED: 'ALLOWED',
++  },
++};
++
++export function isValidRolloutMode(value: string): value is RolloutMode {
++  return ROLLOUT_MODES.includes(value as RolloutMode);
++}
++
++export function isValidEnvironment(value: string): value is Environment {
++  return ENVIRONMENTS.includes(value as Environment);
++}
++
++export function parseRolloutMode(value: string | undefined): RolloutMode | UnknownMode {
++  if (!value) return UNKNOWN_MODE;
++  const upper = value.toUpperCase();
++  return isValidRolloutMode(upper) ? upper : UNKNOWN_MODE;
++}
++
++export function parseEnvironment(value: string | undefined): Environment | null {
++  if (!value) return null;
++  const lower = value.toLowerCase();
++  return isValidEnvironment(lower) ? lower : null;
++}
++
++export interface ModeValidationResult {
++  valid: boolean;
++  mode: RolloutMode | UnknownMode;
++  environment: Environment | null;
++  matrixStatus: MatrixStatus | 'UNKNOWN_MODE' | 'UNKNOWN_ENV';
++  error?: string;
++  isShadowInProd: boolean;
++}
++
++/** Validate rollout mode against environment using the allowed matrix. */
++export function validateRolloutMode(
++  rawMode: string | undefined,
++  rawEnv: string | undefined
++): ModeValidationResult {
++  const mode = parseRolloutMode(rawMode);
++  const env = parseEnvironment(rawEnv);
++
++  if (mode === UNKNOWN_MODE) {
++    return {
++      valid: false,
++      mode,
++      environment: env,
++      matrixStatus: 'UNKNOWN_MODE',
++      isShadowInProd: false,
++      error: `UNKNOWN mode: "${rawMode}". Valid: ${ROLLOUT_MODES.join(', ')}`,
++    };
++  }
++  if (env === null) {
++    return {
++      valid: false,
++      mode,
++      environment: env,
++      matrixStatus: 'UNKNOWN_ENV',
++      isShadowInProd: false,
++      error: `UNKNOWN environment: "${rawEnv}". Valid: ${ENVIRONMENTS.join(', ')}`,
++    };
++  }
++
++  // eslint-disable-next-line security/detect-object-injection
++  const matrixStatus = ALLOWED_MODE_MATRIX[env][mode];
++  const isShadowInProd = env === 'prod' && mode === 'SHADOW';
++
++  if (isShadowInProd) {
++    return {
++      valid: false,
++      mode,
++      environment: env,
++      matrixStatus: 'PROHIBITED',
++      isShadowInProd: true,
++      error: 'FATAL: SHADOW mode PROHIBITED in production per ROLLOUT_MODE_CANON_v1.0 Section 5.2',
++    };
++  }
++  if (matrixStatus === 'NOT_ALLOWED') {
++    return {
++      valid: false,
++      mode,
++      environment: env,
++      matrixStatus,
++      isShadowInProd: false,
++      error: `Mode ${mode} is NOT_ALLOWED in ${env} environment per allowed matrix.`,
++    };
++  }
++  return { valid: true, mode, environment: env, matrixStatus, isShadowInProd: false };
++}
++
++/** Hard guard against SHADOW mode in production. Throws on violation. */
++export function assertNoShadowInProd(
++  mode: RolloutMode | UnknownMode,
++  env: Environment | null
++): void {
++  if (env === 'prod' && mode === 'SHADOW') {
++    throw new Error(
++      '[PHASE_9A] FATAL: SHADOW mode detected in production. Per ROLLOUT_MODE_CANON_v1.0: PROHIBITED.'
++    );
++  }
++}
++
++/** Generate a deterministic proof receipt for mode validation (no secrets). */
++export function generateModeValidationReceipt(result: ModeValidationResult): string {
++  const lines = [
++    '=== ROLLOUT MODE VALIDATION RECEIPT ===',
++    `Timestamp: ${new Date().toISOString()} | Contract: ROLLOUT_MODE_CANON_v1.0`,
++    `Environment: ${result.environment ?? 'UNKNOWN'} | Mode: ${result.mode}`,
++    `Matrix Status: ${result.matrixStatus} | SHADOW in PROD: ${result.isShadowInProd ? 'VIOLATION' : 'PASS'}`,
++    `Valid: ${result.valid ? 'PASS' : 'FAIL'}${result.error ? ` | Error: ${result.error}` : ''}`,
++    '=== END RECEIPT ===',
++  ];
++  return lines.join('\n');
++}
+diff --git a/apps/api/src/utils/getEnv.ts b/apps/api/src/utils/getEnv.ts
+index b380f522..e17d3aa3 100644
+--- a/apps/api/src/utils/getEnv.ts
++++ b/apps/api/src/utils/getEnv.ts
+@@ -1,9 +1,16 @@
+ // /utils/getEnv.ts
++//
++// PHASE_9A_ENFORCEMENT_ACTIVATION: This module provides secondary env validation
++// for backwards compatibility. The primary enforcement is in lib/enforcement/fail-closed-boot.ts
+ 
+ import { z } from 'zod';
+ 
+ const envSchema = z.object({
+-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
++  // PHASE_9A: ENV_IDENTITY is the authoritative environment identifier
++  ENV_IDENTITY: z.enum(['dev', 'staging', 'prod']).optional(),
++  NODE_ENV: z.enum(['development', 'production', 'test', 'staging']).default('development'),
++  // PHASE_9A: ROLLOUT_MODE for rollout canon enforcement
++  ROLLOUT_MODE: z.enum(['DORMANT', 'SHADOW', 'CANARY', 'ENFORCED', 'LOCKED']).optional(),
+   TEMPORAL_TASK_QUEUE: z.string().default('unit-talk-main'),
+   TEMPORAL_SERVER_URL: z.string().default('localhost:7233'),
+   TEMPORAL_UI_URL: z.string().default('http://localhost:8080'),
+@@ -12,7 +19,7 @@ const envSchema = z.object({
+   SUPABASE_ANON_KEY: z.string().optional(),
+   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
+   METRICS_ENABLED: z.coerce.boolean().default(true),
+-  HEALTH_CHECK_INTERVAL: z.coerce.number().default(30000)
++  HEALTH_CHECK_INTERVAL: z.coerce.number().default(30000),
+ });
+ 
+ export type Env = z.infer<typeof envSchema>;
+@@ -35,4 +42,4 @@ export function getEnv(): Env {
+     }
+     process.exit(1);
+   }
+-}
+\ No newline at end of file
++}

@@ -1,0 +1,39 @@
+ M apps/api/src/agents/AlertAgent/index.ts
+ M apps/api/src/agents/DiscordPromotionAgent/index.ts
+ M apps/api/src/agents/GradingAgent/GradingAgent.ts
+ M apps/api/src/agents/RecapAgent/index.ts
+ M apps/api/src/lib/discordReceiptContract.ts
+ M apps/api/src/lib/lifecycle/idempotency.ts
+ M apps/api/src/lib/lifecycle/single-writer-allowlist.ts
+ M apps/api/src/lib/lifecycle/types.ts
+ M apps/api/src/lib/lifecycle/write-adapter.ts
+ M apps/api/src/promotion/PublishGuard.ts
+ M apps/api/src/routes/ops.ts
+ M apps/api/src/scripts/backfill-feature-contributions.ts
+ M apps/api/src/scripts/discord-canary-webhook.ts
+ M apps/api/src/services/AutoRecheckService.ts
+ M apps/api/src/services/PickMonitoringService.ts
+ M apps/api/src/services/ProfessionalPropProcessor.ts
+ M apps/api/src/services/STierEnforcer.ts
+ M apps/api/src/services/capperService.ts
+ M apps/api/src/utils/optimizedInsertions.ts
+ M apps/api/src/workers/BridgeWorker.ts
+A  docs/phases/phase-4-operational-determinism/DETERMINISTIC_EXECUTION_MODEL_v1.0.md
+A  docs/phases/phase-4-operational-determinism/OPERATIONAL_TRUTH_SOURCES_v1.0.md
+A  docs/phases/phase-4-operational-determinism/RUNTIME_CONFIGURATION_CONTRACT_v1.0.md
+A  docs/phases/phase-4-operational-determinism/_INDEX.md
+ M governance/RATIFICATION_RECORD_v1.0.md
+?? architecture/_archive/
+?? architecture/canonical-data-model/README.md
+?? architecture/contracts/
+?? architecture/data-model/
+?? architecture/distribution/
+?? architecture/overview/
+?? architecture/state-machines/PICK_LIFECYCLE_v1.0.md
+?? docs/contracts/DISCORD_EMBED_CONTRACT_STUB.md
+?? docs/contracts/PICK_LIFECYCLE_CONTRACT_STUB.md
+?? docs/phases/phase-4-operational-determinism/README.md
+?? governance/_archive/
+?? governance/vision/
+?? supabase/migrations/20260226100000_lifecycle_guard_enforcement.sql
+?? templates/

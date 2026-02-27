@@ -18,6 +18,7 @@ import * as notificationActivities from './agents/NotificationAgent/activities';
 import * as operatorActivities from './agents/OperatorAgent/activities';
 import * as playerEnrichmentActivities from './agents/PlayerEnrichmentAgent/activities';
 import * as recapActivities from './agents/RecapAgent/activities/index';
+import { enforceFailClosedBoot } from './lib/enforcement';
 import startAllWorkflows from './scripts/start-all-workflows';
 import { agentHealthHeartbeat } from './services/agentHealthHeartbeat';
 import { ErrorHandler } from './utils/errorHandling';
@@ -121,7 +122,9 @@ export default async function startWorker() {
 }
 
 // If this file is run directly, start the worker
+// PHASE_9B: Enforce fail-closed boot before any business logic
 if (require.main === module) {
+  enforceFailClosedBoot();
   startWorker().catch(async error => {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error('Unhandled error:', { error: errorMessage });

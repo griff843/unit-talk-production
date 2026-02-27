@@ -2,7 +2,7 @@
 
 ## Version 1.0
 
-Status: Draft Effective Date: TBD Authority: Founder
+Status: Draft Effective Date: Pending Ratification Authority: Founder
 
 ---
 

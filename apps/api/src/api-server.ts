@@ -5,6 +5,7 @@ import cors from 'cors';
 import express, { Express } from 'express';
 
 import { validateDbMode } from './config/dbMode';
+import { enforceFailClosedBoot } from './lib/enforcement';
 import healthRouter from './routes/health';
 import opsRouter from './routes/ops';
 import opsDiscordRoutingRouter from './routes/ops-discord-routing';
@@ -332,7 +333,9 @@ async function startServer() {
 }
 
 // Start server if this file is run directly
+// PHASE_9B: Enforce fail-closed boot before any business logic
 if (require.main === module) {
+  enforceFailClosedBoot();
   startServer();
 }
 

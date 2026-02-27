@@ -1,0 +1,30 @@
+Closeout File List
+==================
+
+Date: 2026-02-27 (UTC)
+Category: PR_TAG
+Generator: Manual audit
+
+---
+
+Phase 8 Contract Files Created:
+
+1. architecture/contracts/repo-truth/ROLLOUT_MODE_CANON_v1.0.md
+2. architecture/contracts/repo-truth/ENFORCEMENT_ACTIVATION_LAW_v1.0.md
+3. architecture/contracts/repo-truth/CANARY_SCOPE_AND_RECEIPTS_CONTRACT_v1.0.md
+4. architecture/contracts/repo-truth/PHASE_8_ROLLOUT_CANON_RATIFICATION_v1.0.md
+
+Governance Files Created:
+
+5. governance/ratifications/PHASE_8_ROLLOUT_CANON_RATIFICATION_v1.0.md
+6. governance/closeouts/PHASE_8_ROLLOUT_CANON_LOCK.md
+
+Proof Bundles:
+
+7. out/contracts/PHASE_8_ROLLOUT_CANON/2026-02-27/
+8. out/ratifications/PHASE_8_ROLLOUT_CANON/2026-02-27/
+9. out/closeouts/PHASE_8_ROLLOUT_CANON_LOCK/2026-02-27/
+
+---
+
+End of Closeout File List

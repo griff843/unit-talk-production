@@ -1,0 +1,77 @@
+warning: in the working copy of 'apps/api/src/worker.ts', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/api/src/api-server.ts b/apps/api/src/api-server.ts
+index 3a7efabf..69b39884 100644
+--- a/apps/api/src/api-server.ts
++++ b/apps/api/src/api-server.ts
+@@ -5,6 +5,7 @@ import cors from 'cors';
+ import express, { Express } from 'express';
+ 
+ import { validateDbMode } from './config/dbMode';
++import { enforceFailClosedBoot } from './lib/enforcement';
+ import healthRouter from './routes/health';
+ import opsRouter from './routes/ops';
+ import opsDiscordRoutingRouter from './routes/ops-discord-routing';
+@@ -332,7 +333,9 @@ async function startServer() {
+ }
+ 
+ // Start server if this file is run directly
++// PHASE_9B: Enforce fail-closed boot before any business logic
+ if (require.main === module) {
++  enforceFailClosedBoot();
+   startServer();
+ }
+ 
+diff --git a/apps/api/src/worker.ts b/apps/api/src/worker.ts
+index 4c6a7659..06b23aa9 100644
+--- a/apps/api/src/worker.ts
++++ b/apps/api/src/worker.ts
+@@ -1,6 +1,8 @@
+ import 'dotenv/config';
+ import { Worker, NativeConnection } from '@temporalio/worker';
+ 
++import { enforceFailClosedBoot } from './lib/enforcement';
++
+ // Import base activities
+ import * as healthMonitoringActivities from './activities/healthMonitoring';
+ import * as mainOperatorActivities from './activities/operator';
+@@ -121,7 +123,9 @@ export default async function startWorker() {
+ }
+ 
+ // If this file is run directly, start the worker
++// PHASE_9B: Enforce fail-closed boot before any business logic
+ if (require.main === module) {
++  enforceFailClosedBoot();
+   startWorker().catch(async error => {
+     const errorMessage = error instanceof Error ? error.message : String(error);
+     logger.error('Unhandled error:', { error: errorMessage });
+diff --git a/apps/api/src/workers/start-all-agents.ts b/apps/api/src/workers/start-all-agents.ts
+index 13984b55..998784c2 100644
+--- a/apps/api/src/workers/start-all-agents.ts
++++ b/apps/api/src/workers/start-all-agents.ts
+@@ -1,7 +1,7 @@
+ import 'dotenv/config';
+ import { Worker } from '@temporalio/worker';
+ 
+-// import { getEnv } from '../utils/getEnv';
++import { enforceFailClosedBoot } from '../lib/enforcement';
+ 
+ // Import base activities
+ import * as alertActivities from '../agents/AlertAgent/activities';
+@@ -162,13 +162,15 @@ export default async function startAllAgents() {
+ }
+ 
+ // If this file is run directly, start the worker
++// PHASE_9B: Enforce fail-closed boot before any business logic
+ if (require.main === module) {
++  enforceFailClosedBoot();
+   logger.info('Starting Unit Talk Master Worker...');
+   logger.info('Task Queue: unit-talk-main');
+-  logger.info('Environment:', { 
++  logger.info('Environment:', {
+     nodeEnv: process.env.NODE_ENV,
+     temporalAddress: process.env.TEMPORAL_ADDRESS,
+-    logLevel: process.env.LOG_LEVEL 
++    logLevel: process.env.LOG_LEVEL
+   });
+ 
+   startAllAgents().catch(async (error) => {

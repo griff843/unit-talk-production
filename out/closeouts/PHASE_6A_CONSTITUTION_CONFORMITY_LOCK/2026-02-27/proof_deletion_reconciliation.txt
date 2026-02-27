@@ -1,0 +1,59 @@
+Deletion Reconciliation for Commit e43d41ab
+============================================
+
+Audit Date: 2026-02-27 (UTC)
+Commit: e43d41ab
+Branch: docs/taxonomy-lock-001
+
+---
+
+GIT-TRACKED DELETIONS (from git show e43d41ab --name-status | grep "^D"):
+
+D  governance/decision-log/DECISION_LOG_v1.0-DRAFT.md
+D  governance/platform-constitution/AMENDMENT_LOG.md
+D  governance/platform-constitution/METRICS_CHARTER_v1.0.md
+
+Total git-tracked deletions: 3
+
+---
+
+UNTRACKED FILE REMOVALS (never in git history):
+
+Verification command: git log --all --oneline -- "<path>"
+Result: No commits found (files were never tracked)
+
+Files removed from filesystem but never tracked:
+1. architecture/contracts/repository/BUILD_RUNTIME_SEPARATION_LAW_v1.0.md
+2. architecture/contracts/repository/CONFIG_INJECTION_DETERMINISM_CONTRACT_v1.0.md
+3. architecture/contracts/repository/DOCKER_RUNTIME_AUTHORITY_CONTRACT_v1.0.md
+4. architecture/contracts/repository/ENVIRONMENT_TRUTH_SOURCE_CONTRACT_v1.0.md
+5. architecture/contracts/repository/PHASE_5_REPOSITORY_TRUTH_RATIFICATION_v1.0.md
+6. governance/closeouts/PHASE2-CANONICAL-STATE-RATIFIED-001.md
+
+Total untracked removals: 6
+
+---
+
+CURRENT STATE VERIFICATION:
+
+Command: ls architecture/contracts/repository/ 2>/dev/null
+Result: Directory does not exist
+
+Command: ls governance/closeouts/PHASE2-CANONICAL-STATE-RATIFIED-001.md 2>/dev/null
+Result: File does not exist
+
+---
+
+RECONCILIATION SUMMARY:
+
+Original claim: "Deleted 9 empty files"
+Corrected statement: "3 git-tracked deletions + 6 untracked filesystem removals"
+
+The original claim conflated git-tracked deletions with local filesystem removals.
+This reconciliation document provides auditable evidence of the true state.
+
+---
+
+VERIFICATION RESULT: RECONCILED
+
+End of Reconciliation
