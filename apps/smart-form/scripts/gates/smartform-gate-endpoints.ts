@@ -32,23 +32,27 @@ import * as path from 'path';
 const SMART_FORM_DIR = path.resolve(__dirname, '../..');
 
 // SPEC-TRUE: Only these endpoint patterns are allowed
+// Updated per SPRINT-CANONICAL-SURFACE-ALIGNMENT-114 and SPRINT-092
 const APPROVED_ENDPOINTS = [
-  '/api/catalog/',      // All catalog endpoints (teams, players, props, games, leagues)
-  '/api/registry/',     // Registry endpoints (stat-types, sports)
-  '/api/search',        // Unified search endpoint
-  '/api/normalize',     // Normalization endpoint
-  '/api/cappers',       // Capper selection
-  '/api/submit-ticket', // Core submission
-  '/api/version',       // Build/version info
+  '/api/catalog/', // All catalog endpoints (teams, players, props, games, leagues)
+  '/api/registry/', // Registry endpoints (stat-types, sports)
+  '/api/search', // Unified search endpoint
+  '/api/normalize', // Normalization endpoint
+  '/api/cappers', // Capper selection
+  '/api/submit-ticket', // Core submission (legacy)
+  '/api/v3/submit-ticket', // V3 submission via bridge_outbox (SPRINT-CANONICAL-SURFACE-ALIGNMENT-114)
+  '/api/discord-outbox/', // Discord channel routing (SPRINT-092)
+  '/api/ops/', // Operational endpoints (health, routing status)
+  '/api/version', // Build/version info
 ];
 
 // EXPLICITLY PROHIBITED - these are violations
 const PROHIBITED_ENDPOINTS = [
-  '/api/dev/',          // Dev routes not in spec
-  '/api/teams',         // Use /api/catalog/teams
-  '/api/players',       // Use /api/catalog/players
-  '/api/props',         // Use /api/catalog/props
-  '/api/games',         // Use /api/catalog/games
+  '/api/dev/', // Dev routes not in spec
+  '/api/teams', // Use /api/catalog/teams
+  '/api/players', // Use /api/catalog/players
+  '/api/props', // Use /api/catalog/props
+  '/api/games', // Use /api/catalog/games
 ];
 
 // Paths to exclude from scanning
@@ -59,6 +63,7 @@ const EXCLUDED_PATHS = [
   'cypress',
   '__tests__',
   '__mocks__',
+  'tests/', // E2E and integration test directories
   'scripts/gates/', // Don't scan gate scripts themselves
 ];
 
