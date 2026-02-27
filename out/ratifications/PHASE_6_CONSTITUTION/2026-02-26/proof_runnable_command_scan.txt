@@ -1,0 +1,29 @@
+Runnable Command Block Scan Results
+====================================
+
+Scan Date: 2026-02-26 (UTC)
+Target Files:
+  - architecture/CONSTITUTION_v1.0.md
+  - governance/ratifications/PHASE_6_CONSTITUTION_RATIFICATION_v1.0.md
+
+Patterns Scanned (line-start patterns):
+  - pnpm
+  - npm
+  - yarn
+  - git
+  - docker
+  - kubectl
+  - curl
+  - Invoke-WebRequest
+  - Bash(
+  - BEGIN:VEVENT
+
+Results:
+--------
+
+NO MATCHES FOUND
+
+The Constitution and Ratification Record contain no executable command blocks.
+Both files are design-only governance documents.
+
+SCAN RESULT: PASS

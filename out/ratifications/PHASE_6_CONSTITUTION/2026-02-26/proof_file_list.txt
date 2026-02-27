@@ -1,0 +1,17 @@
+Files Changed for PHASE_6 Constitution Ratification
+===================================================
+
+Target Files (to be committed):
+1. architecture/CONSTITUTION_v1.0.md (NEW - Constitution document)
+2. governance/ratifications/PHASE_6_CONSTITUTION_RATIFICATION_v1.0.md (NEW - Ratification record)
+
+Proof Bundle Files:
+- out/ratifications/PHASE_6_CONSTITUTION/2026-02-26/proof_git_status.txt
+- out/ratifications/PHASE_6_CONSTITUTION/2026-02-26/proof_git_diff.txt
+- out/ratifications/PHASE_6_CONSTITUTION/2026-02-26/proof_file_list.txt
+- out/ratifications/PHASE_6_CONSTITUTION/2026-02-26/proof_forbidden_token_scan.txt
+- out/ratifications/PHASE_6_CONSTITUTION/2026-02-26/proof_runnable_command_scan.txt
+- out/ratifications/PHASE_6_CONSTITUTION/2026-02-26/proof_header_snippet.txt
+- out/ratifications/PHASE_6_CONSTITUTION/2026-02-26/RATIFICATION_RESULT.md
+
+Note: Other files in working tree are from prior session work and are NOT included in this commit.

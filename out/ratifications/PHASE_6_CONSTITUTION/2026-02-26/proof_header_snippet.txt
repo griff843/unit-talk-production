@@ -1,0 +1,26 @@
+Constitution Header Verification
+=================================
+
+File: architecture/CONSTITUTION_v1.0.md
+Scan Date: 2026-02-26 (UTC)
+
+Header Content (Lines 1-10):
+----------------------------
+
+# CONSTITUTION_v1.0
+
+Unit Talk – Clean-Room Doctrine
+Supreme Design-Layer Authority
+Status: RATIFIED
+Ratified: 2026-02-26 (UTC)
+Enforcement State: RATIFIED
+
+---
+
+Verification:
+-------------
+[X] Status field shows: RATIFIED
+[X] Ratified date shows: 2026-02-26 (UTC)
+[X] Enforcement State shows: RATIFIED
+
+HEADER VERIFICATION: PASS
