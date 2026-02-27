@@ -1,0 +1,10 @@
+On branch docs/taxonomy-lock-001
+Your branch is up to date with 'origin/docs/taxonomy-lock-001'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	new file:   architecture/contracts/repo-truth/CANARY_SCOPE_AND_RECEIPTS_CONTRACT_v1.0.md
+	new file:   architecture/contracts/repo-truth/ENFORCEMENT_ACTIVATION_LAW_v1.0.md
+	new file:   architecture/contracts/repo-truth/PHASE_8_ROLLOUT_CANON_RATIFICATION_v1.0.md
+	new file:   architecture/contracts/repo-truth/ROLLOUT_MODE_CANON_v1.0.md
+

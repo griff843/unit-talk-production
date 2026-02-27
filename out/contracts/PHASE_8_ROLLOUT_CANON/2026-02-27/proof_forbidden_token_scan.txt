@@ -1,0 +1,48 @@
+Forbidden Token Scan
+==================
+
+Date: 2026-02-27 (UTC)
+Category: PR_CONTRACT
+Generator: grep scan
+
+---
+
+Scanning for forbidden drafting markers in Phase 8 contracts:
+- TODO
+- TBD
+- PLACEHOLDER
+- FIXME
+- XXX
+
+Files scanned:
+- architecture/contracts/repo-truth/ROLLOUT_MODE_CANON_v1.0.md
+- architecture/contracts/repo-truth/ENFORCEMENT_ACTIVATION_LAW_v1.0.md
+- architecture/contracts/repo-truth/CANARY_SCOPE_AND_RECEIPTS_CONTRACT_v1.0.md
+- architecture/contracts/repo-truth/PHASE_8_ROLLOUT_CANON_RATIFICATION_v1.0.md
+
+---
+
+Scan Results:
+
+Token: TODO
+  No matches found
+
+Token: TBD
+  No matches found
+
+Token: PLACEHOLDER
+  No matches found
+
+Token: FIXME
+  No matches found
+
+Token: XXX
+  No matches found
+
+---
+
+Result: PASS (no forbidden drafting markers found)
+
+---
+
+End of Forbidden Token Scan
