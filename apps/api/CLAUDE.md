@@ -1,15 +1,15 @@
 # CLAUDE.md - API Service
 
-> **Sprint**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A
-> **Status**: AUTHORITATIVE
-> **Role**: CANONICAL WRITER
-> **Last Updated**: 2026-02-22
+> **Sprint**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A **Status**: AUTHORITATIVE
+> **Role**: CANONICAL WRITER **Last Updated**: 2026-02-22
 
 ---
 
 ## Overview
 
-The API is the **canonical writer** for all business tables. It owns agent orchestration, grading, settlement, and the data pipeline. All writes to `unified_picks` MUST go through this service via lifecycle adapters.
+The API is the **canonical writer** for all business tables. It owns agent
+orchestration, grading, settlement, and the data pipeline. All writes to
+`unified_picks` MUST go through this service via lifecycle adapters.
 
 ---
 
@@ -38,12 +38,12 @@ The API is the **canonical writer** for all business tables. It owns agent orche
 
 ### Write Authority
 
-| Table | Writer Role | Adapter |
-|-------|-------------|---------|
-| `unified_picks` | submitter, promoter, poster, settler | `lifecycleInsert`, `lifecycleUpdate` |
-| `prop_settlements` | settler | `lifecycleSettle` |
-| `agent_health` | agents | Direct (internal table) |
-| `agent_metrics` | agents | Direct (internal table) |
+| Table              | Writer Role                          | Adapter                              |
+| ------------------ | ------------------------------------ | ------------------------------------ |
+| `unified_picks`    | submitter, promoter, poster, settler | `lifecycleInsert`, `lifecycleUpdate` |
+| `prop_settlements` | settler                              | `lifecycleSettle`                    |
+| `agent_health`     | agents                               | Direct (internal table)              |
+| `agent_metrics`    | agents                               | Direct (internal table)              |
 
 ### Read Access
 
@@ -67,47 +67,47 @@ await lifecycleUpdate(supabase, id, data, { writerRole: 'poster' });
 
 ### All Profiles
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `NODE_ENV` | Yes | `development`, `test`, `production` |
-| `PORT` | No | Default: 3000 |
+| Variable   | Required | Description                         |
+| ---------- | -------- | ----------------------------------- |
+| `NODE_ENV` | Yes      | `development`, `test`, `production` |
+| `PORT`     | No       | Default: 3000                       |
 
 ### Local Profile
 
-| Variable | Required | Source |
-|----------|----------|--------|
-| `SUPABASE_URL` | Yes | `.env` |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes | `.env` |
+| Variable                    | Required | Source |
+| --------------------------- | -------- | ------ |
+| `SUPABASE_URL`              | Yes      | `.env` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes      | `.env` |
 
 ### Docker Profile
 
-| Variable | Required | Source |
-|----------|----------|--------|
-| `SUPABASE_URL` | Yes | `docker-compose.yml` |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes | `docker-compose.yml` |
-| `REDIS_URL` | Yes | `redis://redis:6379` |
+| Variable                    | Required | Source               |
+| --------------------------- | -------- | -------------------- |
+| `SUPABASE_URL`              | Yes      | `docker-compose.yml` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes      | `docker-compose.yml` |
+| `REDIS_URL`                 | Yes      | `redis://redis:6379` |
 
 ### CI Profile
 
-| Variable | Required | Notes |
-|----------|----------|-------|
-| `CI` | Yes | Set automatically |
-| `SUPABASE_URL` | Placeholder | Build-only |
+| Variable       | Required    | Notes             |
+| -------------- | ----------- | ----------------- |
+| `CI`           | Yes         | Set automatically |
+| `SUPABASE_URL` | Placeholder | Build-only        |
 
 ### Production Profile
 
-| Variable | Required | Source |
-|----------|----------|--------|
-| `SUPABASE_URL` | Yes | K8s Secrets |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes | K8s Secrets |
-| `REDIS_URL` | Yes | K8s Secrets |
-| `JWT_SECRET` | Yes | K8s Secrets |
-| `DISCORD_TOKEN` | Yes | K8s Secrets |
-| `DISCORD_WEBHOOK_URL` | Yes | K8s Secrets |
+| Variable                    | Required | Source      |
+| --------------------------- | -------- | ----------- |
+| `SUPABASE_URL`              | Yes      | K8s Secrets |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes      | K8s Secrets |
+| `REDIS_URL`                 | Yes      | K8s Secrets |
+| `JWT_SECRET`                | Yes      | K8s Secrets |
+| `DISCORD_TOKEN`             | Yes      | K8s Secrets |
+| `DISCORD_WEBHOOK_URL`       | Yes      | K8s Secrets |
 
 ---
 
-## Commands
+## Development Commands
 
 ### Development
 
@@ -174,13 +174,13 @@ curl https://api.unit-talk.com/health
 
 ## Common Failure Modes
 
-| Failure | Cause | Prevention |
-|---------|-------|------------|
+| Failure                      | Cause                       | Prevention                                             |
+| ---------------------------- | --------------------------- | ------------------------------------------------------ |
 | Direct `unified_picks` write | Bypassing lifecycle adapter | CI gate: `npm run lifecycle:single-writer -- --strict` |
-| Missing env var | Incomplete configuration | Zod validation at boot |
-| Supabase host mismatch | Wrong project URL | Canonical host validation |
-| Settlement double-write | Race condition | Idempotency via `atomicClaimForPost` |
-| Agent health stale | Agent crash | Health check polling |
+| Missing env var              | Incomplete configuration    | Zod validation at boot                                 |
+| Supabase host mismatch       | Wrong project URL           | Canonical host validation                              |
+| Settlement double-write      | Race condition              | Idempotency via `atomicClaimForPost`                   |
+| Agent health stale           | Agent crash                 | Health check polling                                   |
 
 ---
 
@@ -199,11 +199,11 @@ import { BaseAgent } from '../BaseAgent';
 
 ### Agent Categories
 
-| Category | Agents |
-|----------|--------|
-| Business Intelligence | GradingAgent, AnalyticsAgent, AlertAgent, FeedAgent, RecapAgent |
-| Operational | NotificationAgent, ContestAgent, PlayerEnrichmentAgent, AuditAgent |
-| Lifecycle | DiscordPromotionAgent, SettlementAgent |
+| Category              | Agents                                                             |
+| --------------------- | ------------------------------------------------------------------ |
+| Business Intelligence | GradingAgent, AnalyticsAgent, AlertAgent, FeedAgent, RecapAgent    |
+| Operational           | NotificationAgent, ContestAgent, PlayerEnrichmentAgent, AuditAgent |
+| Lifecycle             | DiscordPromotionAgent, SettlementAgent                             |
 
 ---
 
@@ -217,5 +217,5 @@ import { BaseAgent } from '../BaseAgent';
 
 ---
 
-**Document Owner**: Engineering Team
-**Last Audit**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A
+**Document Owner**: Engineering Team **Last Audit**:
+SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A

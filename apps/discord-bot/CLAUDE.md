@@ -1,15 +1,15 @@
 # CLAUDE.md - Discord Bot
 
-> **Sprint**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A
-> **Status**: AUTHORITATIVE
-> **Role**: DISCORD INTEGRATION
-> **Last Updated**: 2026-02-22
+> **Sprint**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A **Status**: AUTHORITATIVE
+> **Role**: DISCORD INTEGRATION **Last Updated**: 2026-02-22
 
 ---
 
 ## Overview
 
-The Discord Bot handles user interactions through Discord. It provides slash commands, notifications, and thread management. This service reads data via the API and Supabase but does not write directly to business tables.
+The Discord Bot handles user interactions through Discord. It provides slash
+commands, notifications, and thread management. This service reads data via the
+API and Supabase but does not write directly to business tables.
 
 ---
 
@@ -37,17 +37,17 @@ The Discord Bot handles user interactions through Discord. It provides slash com
 
 ### Write Authority
 
-| Table | Purpose | Notes |
-|-------|---------|-------|
+| Table           | Purpose         | Notes               |
+| --------------- | --------------- | ------------------- |
 | `user_profiles` | Discord linking | Via onboarding only |
 
 ### Read Access
 
-| Table | Purpose |
-|-------|---------|
-| `user_profiles` | User lookup |
-| `unified_picks` | Display user picks |
-| `cappers` | Capper stats display |
+| Table           | Purpose              |
+| --------------- | -------------------- |
+| `user_profiles` | User lookup          |
+| `unified_picks` | Display user picks   |
+| `cappers`       | Capper stats display |
 
 ### API Integration
 
@@ -66,49 +66,49 @@ const response = await fetch(`${API_URL}/api/picks/${pickId}`);
 
 ### All Profiles
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `NODE_ENV` | Yes | `development`, `test`, `production` |
-| `DISCORD_TOKEN` | Yes | Bot authentication |
-| `DISCORD_CLIENT_ID` | Yes | Application ID |
-| `DISCORD_GUILD_ID` | No | Development server |
+| Variable            | Required | Description                         |
+| ------------------- | -------- | ----------------------------------- |
+| `NODE_ENV`          | Yes      | `development`, `test`, `production` |
+| `DISCORD_TOKEN`     | Yes      | Bot authentication                  |
+| `DISCORD_CLIENT_ID` | Yes      | Application ID                      |
+| `DISCORD_GUILD_ID`  | No       | Development server                  |
 
 ### Local Profile
 
-| Variable | Required | Source |
-|----------|----------|--------|
-| `DISCORD_TOKEN` | Yes | `.env` |
-| `SUPABASE_URL` | Yes | `.env` |
-| `SUPABASE_ANON_KEY` | Yes | `.env` |
+| Variable            | Required | Source |
+| ------------------- | -------- | ------ |
+| `DISCORD_TOKEN`     | Yes      | `.env` |
+| `SUPABASE_URL`      | Yes      | `.env` |
+| `SUPABASE_ANON_KEY` | Yes      | `.env` |
 
 ### Docker Profile
 
-| Variable | Required | Source |
-|----------|----------|--------|
-| `DISCORD_TOKEN` | Yes | `docker-compose.yml` |
-| `SUPABASE_URL` | Yes | `docker-compose.yml` |
-| `API_URL` | Yes | `http://api:3000` |
+| Variable        | Required | Source               |
+| --------------- | -------- | -------------------- |
+| `DISCORD_TOKEN` | Yes      | `docker-compose.yml` |
+| `SUPABASE_URL`  | Yes      | `docker-compose.yml` |
+| `API_URL`       | Yes      | `http://api:3000`    |
 
 ### CI Profile
 
-| Variable | Required | Notes |
-|----------|----------|-------|
-| `DISCORD_TOKEN` | No | Disabled in CI |
+| Variable        | Required | Notes          |
+| --------------- | -------- | -------------- |
+| `DISCORD_TOKEN` | No       | Disabled in CI |
 
 ### Production Profile
 
-| Variable | Required | Source |
-|----------|----------|--------|
-| `DISCORD_TOKEN` | Yes | K8s Secrets |
-| `DISCORD_CLIENT_ID` | Yes | K8s Secrets |
-| `SUPABASE_URL` | Yes | K8s Secrets |
-| `SUPABASE_ANON_KEY` | Yes | K8s Secrets |
-| `API_URL` | Yes | K8s ConfigMap |
-| `DEFAULT_DISCORD_TICKET_CHANNEL_ID` | Yes | K8s ConfigMap |
+| Variable                            | Required | Source        |
+| ----------------------------------- | -------- | ------------- |
+| `DISCORD_TOKEN`                     | Yes      | K8s Secrets   |
+| `DISCORD_CLIENT_ID`                 | Yes      | K8s Secrets   |
+| `SUPABASE_URL`                      | Yes      | K8s Secrets   |
+| `SUPABASE_ANON_KEY`                 | Yes      | K8s Secrets   |
+| `API_URL`                           | Yes      | K8s ConfigMap |
+| `DEFAULT_DISCORD_TICKET_CHANNEL_ID` | Yes      | K8s ConfigMap |
 
 ---
 
-## Commands
+## Development Commands
 
 ### Development
 
@@ -171,25 +171,25 @@ curl http://localhost:3020/health
 
 ## Common Failure Modes
 
-| Failure | Cause | Prevention |
-|---------|-------|------------|
-| Bot offline | Invalid token | Token validation at startup |
-| Command timeout | Slow API response | 3-second acknowledgment rule |
-| Rate limiting | Too many requests | Graceful rate limit handling |
-| Thread creation fail | Missing permissions | Permission pre-check |
-| User lookup fail | Discord ID mismatch | Verified linking flow |
+| Failure              | Cause               | Prevention                   |
+| -------------------- | ------------------- | ---------------------------- |
+| Bot offline          | Invalid token       | Token validation at startup  |
+| Command timeout      | Slow API response   | 3-second acknowledgment rule |
+| Rate limiting        | Too many requests   | Graceful rate limit handling |
+| Thread creation fail | Missing permissions | Permission pre-check         |
+| User lookup fail     | Discord ID mismatch | Verified linking flow        |
 
 ---
 
 ## Key Commands
 
-| Command | Purpose |
-|---------|---------|
-| `/submit-pick` | Submit picks |
-| `/capper-stats` | View statistics |
-| `/ask-unit-talk` | AI Q&A |
-| `/upgrade` | Tier management |
-| `/recap` | Daily/weekly recaps |
+| Command          | Purpose             |
+| ---------------- | ------------------- |
+| `/submit-pick`   | Submit picks        |
+| `/capper-stats`  | View statistics     |
+| `/ask-unit-talk` | AI Q&A              |
+| `/upgrade`       | Tier management     |
+| `/recap`         | Daily/weekly recaps |
 
 ---
 
@@ -212,5 +212,5 @@ curl http://localhost:3020/health
 
 ---
 
-**Document Owner**: Engineering Team
-**Last Audit**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A
+**Document Owner**: Engineering Team **Last Audit**:
+SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A

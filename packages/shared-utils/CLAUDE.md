@@ -1,15 +1,14 @@
 # CLAUDE.md - Shared Utils Package
 
-> **Sprint**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A
-> **Status**: AUTHORITATIVE
-> **Role**: SHARED UTILITIES
-> **Last Updated**: 2026-02-22
+> **Sprint**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A **Status**: AUTHORITATIVE
+> **Role**: SHARED UTILITIES **Last Updated**: 2026-02-22
 
 ---
 
 ## Overview
 
-The shared-utils package provides utility functions used across services. Key functionality includes the Redis-backed autopilot freeze mechanism.
+The shared-utils package provides utility functions used across services. Key
+functionality includes the Redis-backed autopilot freeze mechanism.
 
 ---
 
@@ -41,7 +40,7 @@ import {
   getAutopilotStateAsync,
   setAutopilotState,
   isRedisHealthy,
-  disconnectRedis
+  disconnectRedis,
 } from '@unit-talk/shared-utils';
 ```
 
@@ -64,11 +63,11 @@ if (frozen) {
 
 ### Storage
 
-| Environment | Storage | Fallback |
-|-------------|---------|----------|
-| Production | Redis | Frozen (fail-closed) |
-| Local (LOCAL_FILE_STATE=true) | File | None |
-| CI | None | Not frozen |
+| Environment                   | Storage | Fallback             |
+| ----------------------------- | ------- | -------------------- |
+| Production                    | Redis   | Frozen (fail-closed) |
+| Local (LOCAL_FILE_STATE=true) | File    | None                 |
+| CI                            | None    | Not frozen           |
 
 ### Fail-Closed Behavior
 
@@ -81,22 +80,22 @@ if (frozen) {
 
 ### Environment Variables
 
-| Variable | Purpose |
-|----------|---------|
-| `REDIS_URL` | Redis connection string |
+| Variable           | Purpose                         |
+| ------------------ | ------------------------------- |
+| `REDIS_URL`        | Redis connection string         |
 | `LOCAL_FILE_STATE` | Use file-based state (dev only) |
 
 ---
 
 ## Invariants Enforced
 
-| Invariant | Enforcement |
-|-----------|-------------|
+| Invariant                  | Enforcement                           |
+| -------------------------- | ------------------------------------- |
 | #2 Fail-Closed Environment | Redis failure → frozen (safe default) |
 
 ---
 
-## Commands
+## Development Commands
 
 ```bash
 # Type check
@@ -119,5 +118,5 @@ pnpm --filter shared-utils test
 
 ---
 
-**Document Owner**: Engineering Team
-**Last Audit**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A
+**Document Owner**: Engineering Team **Last Audit**:
+SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A

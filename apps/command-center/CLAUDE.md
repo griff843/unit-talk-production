@@ -103,7 +103,7 @@ real-time visibility into system health, agent status, and pipeline events.
 
 ---
 
-## Commands
+## Development Commands
 
 ### Development
 

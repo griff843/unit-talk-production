@@ -1,15 +1,14 @@
 # CLAUDE.md - Telemetry Package
 
-> **Sprint**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A
-> **Status**: AUTHORITATIVE
-> **Role**: OBSERVABILITY
-> **Last Updated**: 2026-02-22
+> **Sprint**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A **Status**: AUTHORITATIVE
+> **Role**: OBSERVABILITY **Last Updated**: 2026-02-22
 
 ---
 
 ## Overview
 
-The telemetry package provides OpenTelemetry instrumentation for distributed tracing, metrics, and logging across all services.
+The telemetry package provides OpenTelemetry instrumentation for distributed
+tracing, metrics, and logging across all services.
 
 ---
 
@@ -37,7 +36,11 @@ The telemetry package provides OpenTelemetry instrumentation for distributed tra
 import { initTracing, getTracer, withSpan } from '@unit-talk/telemetry';
 
 // Metrics
-import { initMetrics, createCounter, createHistogram } from '@unit-talk/telemetry';
+import {
+  initMetrics,
+  createCounter,
+  createHistogram,
+} from '@unit-talk/telemetry';
 
 // Logging
 import { createLogger, withCorrelationId } from '@unit-talk/telemetry';
@@ -55,12 +58,12 @@ import { initTracing, initMetrics } from '@unit-talk/telemetry';
 // At service startup
 initTracing({
   serviceName: 'api',
-  endpoint: process.env.OTEL_EXPORTER_ENDPOINT
+  endpoint: process.env.OTEL_EXPORTER_ENDPOINT,
 });
 
 initMetrics({
   serviceName: 'api',
-  port: 9090
+  port: 9090,
 });
 ```
 
@@ -69,7 +72,7 @@ initMetrics({
 ```typescript
 import { withSpan } from '@unit-talk/telemetry';
 
-const result = await withSpan('processGrading', async (span) => {
+const result = await withSpan('processGrading', async span => {
   span.setAttribute('pickId', pickId);
   return await gradePick(pick);
 });
@@ -89,24 +92,24 @@ logger.info('Processing pick', { pickId, correlationId });
 
 ## Metrics Endpoints
 
-| Service | Port | Path |
-|---------|------|------|
-| API | 9090 | `/metrics` |
+| Service | Port | Path       |
+| ------- | ---- | ---------- |
+| API     | 9090 | `/metrics` |
 | Workers | 9091 | `/metrics` |
 
 ---
 
 ## Environment Variables
 
-| Variable | Purpose | Default |
-|----------|---------|---------|
-| `OTEL_EXPORTER_ENDPOINT` | OpenTelemetry collector | None |
-| `OTEL_SERVICE_NAME` | Service identifier | Package name |
-| `PROMETHEUS_PORT` | Metrics port | 9090 |
+| Variable                 | Purpose                 | Default      |
+| ------------------------ | ----------------------- | ------------ |
+| `OTEL_EXPORTER_ENDPOINT` | OpenTelemetry collector | None         |
+| `OTEL_SERVICE_NAME`      | Service identifier      | Package name |
+| `PROMETHEUS_PORT`        | Metrics port            | 9090         |
 
 ---
 
-## Commands
+## Development Commands
 
 ```bash
 # Type check
@@ -128,5 +131,5 @@ pnpm --filter telemetry test
 
 ---
 
-**Document Owner**: Engineering Team
-**Last Audit**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A
+**Document Owner**: Engineering Team **Last Audit**:
+SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A

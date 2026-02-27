@@ -1,17 +1,18 @@
 # CLAUDE.md - Smart Form
 
-> **Sprint**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A
-> **Status**: AUTHORITATIVE
-> **Role**: BRIDGE OUTBOX WRITER
-> **Last Updated**: 2026-02-22
+> **Sprint**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A **Status**: AUTHORITATIVE
+> **Role**: BRIDGE OUTBOX WRITER **Last Updated**: 2026-02-22
 
 ---
 
 ## Overview
 
-The Smart Form is a multi-step ticket submission application. It handles form validation and writes events to `bridge_outbox`. The API's BridgeWorker processes these events and creates picks in `unified_picks`.
+The Smart Form is a multi-step ticket submission application. It handles form
+validation and writes events to `bridge_outbox`. The API's BridgeWorker
+processes these events and creates picks in `unified_picks`.
 
-**This service writes ONLY to `bridge_outbox` - never directly to `unified_picks`.**
+**This service writes ONLY to `bridge_outbox` - never directly to
+`unified_picks`.**
 
 ---
 
@@ -40,17 +41,17 @@ The Smart Form is a multi-step ticket submission application. It handles form va
 
 ### Write Authority
 
-| Table | Purpose | Idempotency Key |
-|-------|---------|-----------------|
-| `bridge_outbox` | Ticket events | `bet_slip_id` |
+| Table           | Purpose       | Idempotency Key |
+| --------------- | ------------- | --------------- |
+| `bridge_outbox` | Ticket events | `bet_slip_id`   |
 
 ### Read Access
 
-| Table | Purpose |
-|-------|---------|
-| `cappers` | Capper selection dropdown |
-| `sports` | Sport selection |
-| `bet_types` | Bet type selection |
+| Table       | Purpose                   |
+| ----------- | ------------------------- |
+| `cappers`   | Capper selection dropdown |
+| `sports`    | Sport selection           |
+| `bet_types` | Bet type selection        |
 
 ### Forbidden
 
@@ -63,7 +64,7 @@ await supabase.from('bridge_outbox').insert({
   event_type: 'ticket_submitted',
   payload: ticketData,
   bet_slip_id: uniqueId, // Idempotency key
-  status: 'pending'
+  status: 'pending',
 });
 ```
 
@@ -73,43 +74,43 @@ await supabase.from('bridge_outbox').insert({
 
 ### All Profiles
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `NODE_ENV` | Yes | `development`, `test`, `production` |
+| Variable   | Required | Description                         |
+| ---------- | -------- | ----------------------------------- |
+| `NODE_ENV` | Yes      | `development`, `test`, `production` |
 
 ### Local Profile
 
-| Variable | Required | Source |
-|----------|----------|--------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Yes | `.env` |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | `.env` |
+| Variable                        | Required | Source |
+| ------------------------------- | -------- | ------ |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Yes      | `.env` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes      | `.env` |
 
 ### Docker Profile
 
-| Variable | Required | Source |
-|----------|----------|--------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Build args |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Build args |
+| Variable                        | Required | Source     |
+| ------------------------------- | -------- | ---------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Yes      | Build args |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes      | Build args |
 
 **Note**: `NEXT_PUBLIC_*` vars are embedded at BUILD time, not runtime.
 
 ### CI Profile
 
-| Variable | Required | Notes |
-|----------|----------|-------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Placeholder | Build-only |
+| Variable                        | Required    | Notes      |
+| ------------------------------- | ----------- | ---------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Placeholder | Build-only |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Placeholder | Build-only |
 
 ### Production Profile
 
-| Variable | Required | Source |
-|----------|----------|--------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Baked into image |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Baked into image |
+| Variable                        | Required | Source           |
+| ------------------------------- | -------- | ---------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Yes      | Baked into image |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes      | Baked into image |
 
 ---
 
-## Commands
+## Development Commands
 
 ### Development
 
@@ -167,13 +168,13 @@ curl https://forms.unit-talk.com/api/health
 
 ## Common Failure Modes
 
-| Failure | Cause | Prevention |
-|---------|-------|------------|
-| Direct unified_picks write | Wrong table target | Code review + lint rules |
-| Duplicate submission | Missing idempotency | `bet_slip_id` unique constraint |
-| Build-time secret access | Requiring service-role | Only use anon key |
-| Form validation bypass | Client-side only | Server-side Zod validation |
-| Bridge event lost | No retry mechanism | BridgeWorker retry with backoff |
+| Failure                    | Cause                  | Prevention                      |
+| -------------------------- | ---------------------- | ------------------------------- |
+| Direct unified_picks write | Wrong table target     | Code review + lint rules        |
+| Duplicate submission       | Missing idempotency    | `bet_slip_id` unique constraint |
+| Build-time secret access   | Requiring service-role | Only use anon key               |
+| Form validation bypass     | Client-side only       | Server-side Zod validation      |
+| Bridge event lost          | No retry mechanism     | BridgeWorker retry with backoff |
 
 ---
 
@@ -222,5 +223,5 @@ bridge_outbox event marked processed
 
 ---
 
-**Document Owner**: Engineering Team
-**Last Audit**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A
+**Document Owner**: Engineering Team **Last Audit**:
+SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A

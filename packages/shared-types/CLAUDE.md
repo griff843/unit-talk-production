@@ -1,15 +1,14 @@
 # CLAUDE.md - Shared Types Package
 
-> **Sprint**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A
-> **Status**: AUTHORITATIVE
-> **Role**: TYPE DEFINITIONS
-> **Last Updated**: 2026-02-22
+> **Sprint**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A **Status**: AUTHORITATIVE
+> **Role**: TYPE DEFINITIONS **Last Updated**: 2026-02-22
 
 ---
 
 ## Overview
 
-The shared-types package provides centralized TypeScript type definitions for the entire platform. All services import types from here to ensure consistency.
+The shared-types package provides centralized TypeScript type definitions for
+the entire platform. All services import types from here to ensure consistency.
 
 ---
 
@@ -36,7 +35,11 @@ The shared-types package provides centralized TypeScript type definitions for th
 import { BaseAgentConfig, AgentStatus } from '@unit-talk/shared-types';
 
 // Pick types
-import { UnifiedPick, PickStatus, LifecycleStage } from '@unit-talk/shared-types';
+import {
+  UnifiedPick,
+  PickStatus,
+  LifecycleStage,
+} from '@unit-talk/shared-types';
 
 // User types
 import { User, UserTier, CapperProfile } from '@unit-talk/shared-types';
@@ -52,13 +55,13 @@ import { Settlement, SettlementStatus } from '@unit-talk/shared-types';
 
 ## Type Categories
 
-| Category | Purpose | Key Types |
-|----------|---------|-----------|
-| Agent | Agent configuration | `BaseAgentConfig`, `AgentStatus`, `AgentHealth` |
-| Pick | Pick lifecycle | `UnifiedPick`, `PickStatus`, `LifecycleStage` |
-| User | User management | `User`, `UserTier`, `CapperProfile` |
-| Event | Bridge events | `BridgeOutboxEvent`, `EventType` |
-| Settlement | Settlements | `Settlement`, `SettlementStatus` |
+| Category   | Purpose             | Key Types                                       |
+| ---------- | ------------------- | ----------------------------------------------- |
+| Agent      | Agent configuration | `BaseAgentConfig`, `AgentStatus`, `AgentHealth` |
+| Pick       | Pick lifecycle      | `UnifiedPick`, `PickStatus`, `LifecycleStage`   |
+| User       | User management     | `User`, `UserTier`, `CapperProfile`             |
+| Event      | Bridge events       | `BridgeOutboxEvent`, `EventType`                |
+| Settlement | Settlements         | `Settlement`, `SettlementStatus`                |
 
 ---
 
@@ -89,14 +92,14 @@ const validatedPick = UnifiedPickSchema.parse(rawData);
 
 ## Invariants Enforced
 
-| Invariant | Enforcement |
-|-----------|-------------|
-| #10 Schema Single Source of Truth | Centralized type definitions |
-| #7 State Machine Validity | `LifecycleStage` enum with valid transitions |
+| Invariant                         | Enforcement                                  |
+| --------------------------------- | -------------------------------------------- |
+| #10 Schema Single Source of Truth | Centralized type definitions                 |
+| #7 State Machine Validity         | `LifecycleStage` enum with valid transitions |
 
 ---
 
-## Commands
+## Development Commands
 
 ```bash
 # Type check
@@ -115,5 +118,5 @@ pnpm --filter shared-types build
 
 ---
 
-**Document Owner**: Engineering Team
-**Last Audit**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A
+**Document Owner**: Engineering Team **Last Audit**:
+SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A

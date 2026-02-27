@@ -1,15 +1,15 @@
 # CLAUDE.md - Dashboard
 
-> **Sprint**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A
-> **Status**: AUTHORITATIVE
-> **Role**: READ-ONLY ANALYTICS
-> **Last Updated**: 2026-02-22
+> **Sprint**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A **Status**: AUTHORITATIVE
+> **Role**: READ-ONLY ANALYTICS **Last Updated**: 2026-02-22
 
 ---
 
 ## Overview
 
-The Dashboard is the analytics and management frontend. It provides read-only visualization of platform data including user analytics, capper performance, and contest metrics. **This service is READ-ONLY**.
+The Dashboard is the analytics and management frontend. It provides read-only
+visualization of platform data including user analytics, capper performance, and
+contest metrics. **This service is READ-ONLY**.
 
 ---
 
@@ -44,13 +44,13 @@ The Dashboard is the analytics and management frontend. It provides read-only vi
 
 ### Read Access
 
-| Table | Purpose |
-|-------|---------|
-| `unified_picks` | Analytics data |
-| `users` | User display |
-| `cappers` | Capper stats |
-| `contests` | Contest data |
-| `analytics` | Dashboard metrics |
+| Table           | Purpose           |
+| --------------- | ----------------- |
+| `unified_picks` | Analytics data    |
+| `users`         | User display      |
+| `cappers`       | Capper stats      |
+| `contests`      | Contest data      |
+| `analytics`     | Dashboard metrics |
 
 ---
 
@@ -58,44 +58,44 @@ The Dashboard is the analytics and management frontend. It provides read-only vi
 
 ### All Profiles
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `NODE_ENV` | Yes | `development`, `test`, `production` |
+| Variable   | Required | Description                         |
+| ---------- | -------- | ----------------------------------- |
+| `NODE_ENV` | Yes      | `development`, `test`, `production` |
 
 ### Local Profile
 
-| Variable | Required | Source |
-|----------|----------|--------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Yes | `.env` |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | `.env` |
+| Variable                        | Required | Source |
+| ------------------------------- | -------- | ------ |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Yes      | `.env` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes      | `.env` |
 
 ### Docker Profile
 
-| Variable | Required | Source |
-|----------|----------|--------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Build args |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Build args |
+| Variable                        | Required | Source     |
+| ------------------------------- | -------- | ---------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Yes      | Build args |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes      | Build args |
 
 **Note**: `NEXT_PUBLIC_*` vars are embedded at BUILD time, not runtime.
 
 ### CI Profile
 
-| Variable | Required | Notes |
-|----------|----------|-------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Placeholder | Build-only |
+| Variable                        | Required    | Notes      |
+| ------------------------------- | ----------- | ---------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Placeholder | Build-only |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Placeholder | Build-only |
 
 ### Production Profile
 
-| Variable | Required | Source |
-|----------|----------|--------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Baked into image |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Baked into image |
-| `NEXT_PUBLIC_API_URL` | Yes | Baked into image |
+| Variable                        | Required | Source           |
+| ------------------------------- | -------- | ---------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Yes      | Baked into image |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes      | Baked into image |
+| `NEXT_PUBLIC_API_URL`           | Yes      | Baked into image |
 
 ---
 
-## Commands
+## Development Commands
 
 ### Development
 
@@ -152,12 +152,12 @@ curl https://dashboard.unit-talk.com/api/system/health
 
 ## Common Failure Modes
 
-| Failure | Cause | Prevention |
-|---------|-------|------------|
+| Failure                  | Cause                           | Prevention                    |
+| ------------------------ | ------------------------------- | ----------------------------- |
 | Build-time secret access | Requiring service-role at build | Only use anon key in frontend |
-| Supabase host mismatch | Wrong project URL | Canonical host validation |
-| Stale analytics | Data sync issue | Real-time subscriptions |
-| Auth redirect loop | Session handling bug | Middleware auth checks |
+| Supabase host mismatch   | Wrong project URL               | Canonical host validation     |
+| Stale analytics          | Data sync issue                 | Real-time subscriptions       |
+| Auth redirect loop       | Session handling bug            | Middleware auth checks        |
 
 ---
 
@@ -181,5 +181,5 @@ curl https://dashboard.unit-talk.com/api/system/health
 
 ---
 
-**Document Owner**: Engineering Team
-**Last Audit**: SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A
+**Document Owner**: Engineering Team **Last Audit**:
+SPRINT-CLAUDE-CONTRACT-UNIFICATION-115A
