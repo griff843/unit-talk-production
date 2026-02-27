@@ -1,0 +1,3 @@
+architecture/contracts/repo-truth/ENFORCEMENT_SURFACE_MAP_v1.0.md
+architecture/contracts/repo-truth/FAIL_CLOSED_BOOT_SPEC_v1.0.md
+architecture/contracts/repo-truth/PROOF_RECEIPTS_STANDARD_v1.0.md
