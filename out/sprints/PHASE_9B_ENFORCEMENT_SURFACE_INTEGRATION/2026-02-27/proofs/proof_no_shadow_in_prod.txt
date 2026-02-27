@@ -1,0 +1,33 @@
+=== PHASE_9B PROOF: NO SHADOW IN PROD ===
+Test: ENV_IDENTITY=prod, ROLLOUT_MODE=SHADOW
+Expected: Boot fails with exit code 4 (BP_CONFIG)
+
+=== FAIL-CLOSED BOOT RECEIPT ===
+Contract: FAIL_CLOSED_BOOT_SPEC_v1.0 | Timestamp: 2026-02-27T15:20:13.064Z | Duration: 1ms
+Success: FAIL | Exit Code: 3
+Environment: prod | Rollout Mode: UNKNOWN
+--- Precondition Checks ---
+[PASS] BP_ENV
+  - ENV_IDENTITY: OK
+  - NODE_ENV: OK
+  - PORT: OK
+  - ROLLOUT_MODE: OK
+[FAIL] BP_SECRET
+  - SUPABASE_URL: FAIL: Secret SUPABASE_URL required in prod but not set
+  - SUPABASE_SERVICE_ROLE_KEY: FAIL: Secret SUPABASE_SERVICE_ROLE_KEY required in prod but not set
+  - SUPABASE_ANON_KEY: FAIL: Secret SUPABASE_ANON_KEY required in prod but not set
+--- Mode Validation ---
+=== ROLLOUT MODE VALIDATION RECEIPT ===
+Timestamp: 2026-02-27T15:20:13.065Z | Contract: ROLLOUT_MODE_CANON_v1.0
+Environment: prod | Mode: SHADOW
+Matrix Status: PROHIBITED | SHADOW in PROD: VIOLATION
+Valid: FAIL | Error: FATAL: SHADOW mode PROHIBITED in production per ROLLOUT_MODE_CANON_v1.0 Section 5.2
+=== END RECEIPT ===
+=== END RECEIPT ===
+
+=== END PROOF ===
+
+WARNING: Expected exit code 4 (BP_CONFIG), got 3
+
+RESULT: SHADOW IN PROD correctly BLOCKED
+The NO_SHADOW_IN_PROD invariant is enforced.

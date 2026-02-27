@@ -1,0 +1,31 @@
+=== PHASE_9B PROOF: WORKER BOOT PASS BEHAVIOR ===
+Entrypoint: apps/api/src/worker.ts
+Test: Valid dev environment
+Expected: Boot passes, exit code 0
+
+=== FAIL-CLOSED BOOT RECEIPT ===
+Contract: FAIL_CLOSED_BOOT_SPEC_v1.0 | Timestamp: 2026-02-27T15:19:55.621Z | Duration: 3ms
+Success: PASS | Exit Code: 0
+Environment: dev | Rollout Mode: DORMANT
+--- Precondition Checks ---
+[PASS] BP_ENV
+  - ENV_IDENTITY: OK
+  - NODE_ENV: OK
+  - PORT: OK
+  - ROLLOUT_MODE: OK
+[PASS] BP_SECRET
+[PASS] BP_CONFIG
+  - ROLLOUT_MODE_MATRIX: OK
+  - NO_SHADOW_IN_PROD: OK
+--- Mode Validation ---
+=== ROLLOUT MODE VALIDATION RECEIPT ===
+Timestamp: 2026-02-27T15:19:55.623Z | Contract: ROLLOUT_MODE_CANON_v1.0
+Environment: dev | Mode: DORMANT
+Matrix Status: ALLOWED | SHADOW in PROD: PASS
+Valid: PASS
+=== END RECEIPT ===
+=== END RECEIPT ===
+
+=== END PROOF ===
+
+RESULT: Worker boot sequence PASSED - worker would start processing

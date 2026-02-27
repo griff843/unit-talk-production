@@ -1,0 +1,27 @@
+=== PHASE_9B PROOF: API BOOT FAIL BEHAVIOR ===
+Entrypoint: apps/api/src/index.ts (via api-server.ts)
+Test: Missing ENV_IDENTITY, NODE_ENV
+Expected: Boot fails, exit code 2 (BP_ENV)
+
+=== FAIL-CLOSED BOOT RECEIPT ===
+Contract: FAIL_CLOSED_BOOT_SPEC_v1.0 | Timestamp: 2026-02-27T15:19:44.262Z | Duration: 1ms
+Success: FAIL | Exit Code: 2
+Environment: UNKNOWN | Rollout Mode: UNKNOWN
+--- Precondition Checks ---
+[FAIL] BP_ENV
+  - ENV_IDENTITY: FAIL: ENV_IDENTITY is required but not set
+  - NODE_ENV: FAIL: NODE_ENV is required but not set
+  - PORT: OK
+  - ROLLOUT_MODE: OK
+--- Mode Validation ---
+=== ROLLOUT MODE VALIDATION RECEIPT ===
+Timestamp: 2026-02-27T15:19:44.263Z | Contract: ROLLOUT_MODE_CANON_v1.0
+Environment: UNKNOWN | Mode: UNKNOWN
+Matrix Status: UNKNOWN_MODE | SHADOW in PROD: PASS
+Valid: FAIL | Error: UNKNOWN mode: "undefined". Valid: DORMANT, SHADOW, CANARY, ENFORCED, LOCKED
+=== END RECEIPT ===
+=== END RECEIPT ===
+
+=== END PROOF ===
+
+RESULT: API boot sequence FAILED with exit code 2 - service blocked
