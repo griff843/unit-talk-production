@@ -1,0 +1,1819 @@
+warning: in the working copy of 'apps/api/src/agents/GradingAgent/GradingAgent.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/src/lib/lifecycle/types.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/src/lib/lifecycle/write-adapter.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/api/src/workers/BridgeWorker.ts', LF will be replaced by CRLF the next time Git touches it
+diff --git a/apps/api/src/agents/AlertAgent/index.ts b/apps/api/src/agents/AlertAgent/index.ts
+index 28873de9..0c829c23 100644
+--- a/apps/api/src/agents/AlertAgent/index.ts
++++ b/apps/api/src/agents/AlertAgent/index.ts
+@@ -10,6 +10,7 @@ import {
+   HealthStatus,
+ } from '../BaseAgent/types';
+ import { parsePromotionPolicyConfig } from '../GradingAgent/scoring/promotionPolicy';
++import { lifecycleUpdate } from '../../lib/lifecycle';
+ 
+ import { getAdviceForPick } from './adviceEngine';
+ import { buildAlertEmbed } from './embedBuilder';
+@@ -609,6 +610,7 @@ export class AlertAgent extends BaseAgent {
+    * Stage 6 — Claim-first idempotency for Discord posting.
+    * @deprecated POSTING-AUTHORITY-LOCKDOWN-033: AlertAgent MUST NOT set posted_to_discord=true
+    * Only DiscordPromotionAgent has authority to claim picks for Discord posting.
++   * Sprint: PHASE2-CANONICAL-STATE-LOCK-001 - Dead code removed to satisfy single-writer gate.
+    */
+   private async claimPickForDiscord(pickId: string): Promise<boolean> {
+     // POSTING-AUTHORITY-LOCKDOWN-033: HARD LOCK — AlertAgent may NEVER set posted_to_discord=true
+@@ -618,25 +620,6 @@ export class AlertAgent extends BaseAgent {
+       'POSTING-AUTHORITY-LOCKDOWN-033: BLOCKED — AlertAgent attempted to claim pick for Discord. Only DiscordPromotionAgent may do this.'
+     );
+     return false;
+-
+-    // === DEAD CODE BELOW (preserved for rollback reference) ===
+-    if (!this.hasSupabase()) return false;
+-
+-    const { data: claimed, error: claimErr } = await this.requireSupabase()
+-      .from('unified_picks')
+-      .update({ posted_to_discord: true, updated_at: new Date().toISOString() })
+-      .eq('id', pickId)
+-      .eq('posted_to_discord', false)
+-      .select('id');
+-
+-    if (claimErr || !claimed || claimed.length === 0) {
+-      this.logger.info(
+-        { id: pickId },
+-        'Pick already claimed by another agent — skipping (idempotent)'
+-      );
+-      return false;
+-    }
+-    return true;
+   }
+ 
+   /**
+@@ -772,6 +755,7 @@ export class AlertAgent extends BaseAgent {
+   /**
+    * Update pick with Discord posting information
+    * @deprecated Stage 6 — prefer claimPickForDiscord() + updatePickDiscordPostId()
++   * Sprint: PHASE2-CANONICAL-STATE-LOCK-001 - Migrated to lifecycleUpdate
+    */
+   private async updatePickWithDiscordInfo(
+     pickId: string,
+@@ -784,22 +768,28 @@ export class AlertAgent extends BaseAgent {
+       return;
+     }
+ 
+-    const updateData: any = {
++    const updateData: Record<string, unknown> = {
+       posted_to_discord: status === 'posted',
+       updated_at: new Date().toISOString(),
+     };
+ 
+     if (messageId) updateData.discord_post_id = messageId;
+ 
+-    const { error } = await this.requireSupabase()
+-      .from('unified_picks')
+-      .update(updateData)
+-      .eq('id', pickId);
++    const result = await lifecycleUpdate(
++      this.requireSupabase(),
++      pickId,
++      updateData,
++      {
++        writerRole: 'poster',
++        traceId: `alert-agent-update-discord-info-${pickId}`,
++        skipTransitionValidation: true,
++      }
++    );
+ 
+-    if (error) {
++    if (!result.success) {
+       this.logger.error('Failed to update pick Discord info', {
+         pickId,
+-        error: error.message,
++        error: result.error,
+       });
+     }
+   }
+@@ -807,17 +797,24 @@ export class AlertAgent extends BaseAgent {
+   /**
+    * Stage 6 — Update discord_post_id after successful claim + post.
+    * Does NOT touch posted_to_discord (already set by claimPickForDiscord).
++   * Sprint: PHASE2-CANONICAL-STATE-LOCK-001 - Migrated to lifecycleUpdate
+    */
+   private async updatePickDiscordPostId(pickId: string, messageId: string): Promise<void> {
+     if (!this.hasSupabase()) return;
+ 
+-    const { error } = await this.requireSupabase()
+-      .from('unified_picks')
+-      .update({ discord_post_id: messageId, updated_at: new Date().toISOString() })
+-      .eq('id', pickId);
++    const result = await lifecycleUpdate(
++      this.requireSupabase(),
++      pickId,
++      { discord_post_id: messageId, updated_at: new Date().toISOString() },
++      {
++        writerRole: 'poster',
++        traceId: `alert-agent-update-discord-post-id-${pickId}`,
++        skipTransitionValidation: true,
++      }
++    );
+ 
+-    if (error) {
+-      this.logger.error('Failed to update discord_post_id', { pickId, error: error.message });
++    if (!result.success) {
++      this.logger.error('Failed to update discord_post_id', { pickId, error: result.error });
+     }
+   }
+ 
+diff --git a/apps/api/src/agents/DiscordPromotionAgent/index.ts b/apps/api/src/agents/DiscordPromotionAgent/index.ts
+index 4b124307..d136be84 100644
+--- a/apps/api/src/agents/DiscordPromotionAgent/index.ts
++++ b/apps/api/src/agents/DiscordPromotionAgent/index.ts
+@@ -818,17 +818,19 @@ async function resetPostingOnFailure(
+   reason: string
+ ): Promise<void> {
+   try {
+-    const { error } = await supabase
+-      .from('unified_picks')
+-      .update({
+-        posted_to_discord: false,
+-        promotion_posted_at: null,
+-      })
+-      .eq('id', pickId);
++    // SPRINT: PHASE2-CANONICAL-STATE-LOCK-001 - Use lifecycle adapter
++    const result = await lifecycleUpdate(supabase, pickId, {
++      posted_to_discord: false,
++      promotion_posted_at: null,
++    }, {
++      writerRole: 'poster',
++      traceId: `dpa-reset-posting-${pickId}`,
++      skipTransitionValidation: true, // Reset operation, not a stage transition
++    });
+ 
+-    if (error) {
++    if (!result.success) {
+       logger.error(
+-        { pickId, error: error.message },
++        { pickId, error: result.error },
+         'REAL-DISCORD-RECEIPT-049: Failed to reset posting claim'
+       );
+     } else {
+diff --git a/apps/api/src/agents/GradingAgent/GradingAgent.ts b/apps/api/src/agents/GradingAgent/GradingAgent.ts
+index 720ad415..caabe902 100644
+--- a/apps/api/src/agents/GradingAgent/GradingAgent.ts
++++ b/apps/api/src/agents/GradingAgent/GradingAgent.ts
+@@ -1,6 +1,7 @@
+ /* eslint-disable max-lines, max-lines-per-function, complexity, no-undef, no-return-await, no-unused-vars, max-depth, @typescript-eslint/no-unused-vars */
+ import { randomUUID } from 'crypto';
+ 
++import { lifecycleInsert } from '../../lib/lifecycle';
+ import {
+   ProfessionalPropProcessor,
+   ProfessionalPropResult,
+@@ -728,35 +729,38 @@ export class GradingAgent extends BaseAgent {
+       const pickSide = prop.line > 0 ? 'over' : 'under';
+       const selection = `${prop.player_name} ${prop.stat_type} ${pickSide} ${Math.abs(prop.line)}`;
+ 
++      // SPRINT: PHASE2-CANONICAL-STATE-LOCK-001 - Use lifecycle adapter
+       // Insert into unified_picks with actual v3.0.0 schema
+-      const { error } = await this.requireSupabase()
+-        .from('unified_picks')
+-        .insert({
+-          id: randomUUID(),
+-          user_id: systemUser.id,
+-          pick_type: 'parlay', // Valid pick_type from schema analysis
+-          selection: selection,
+-          odds: prop.odds || prop.over_odds || -110,
+-          stake: result.positionSize * 100, // Convert position size to dollar stake
+-          potential_payout: result.positionSize * 100 * (1 + Math.abs(result.kellyFraction)),
+-          player_name: prop.player_name,
+-          stat_type: prop.stat_type,
+-          line: prop.line,
+-          over_odds: prop.over_odds,
+-          under_odds: prop.under_odds,
+-          sport: prop.sport || 'Unknown',
+-          game_date: prop.game_date,
+-          confidence: result.confidence,
+-          tier_when_placed: result.tier,
+-          kelly_bet_size: result.kellyFraction,
+-          promotion_band: result.promotionBand || null,
+-          created_at: new Date().toISOString(),
+-        });
++      const pickId = randomUUID();
++      const insertResult = await lifecycleInsert(this.requireSupabase(), {
++        id: pickId,
++        user_id: systemUser.id,
++        pick_type: 'parlay', // Valid pick_type from schema analysis
++        selection: selection,
++        odds: prop.odds || prop.over_odds || -110,
++        stake: result.positionSize * 100, // Convert position size to dollar stake
++        potential_payout: result.positionSize * 100 * (1 + Math.abs(result.kellyFraction)),
++        player_name: prop.player_name,
++        stat_type: prop.stat_type,
++        line: prop.line,
++        over_odds: prop.over_odds,
++        under_odds: prop.under_odds,
++        sport: prop.sport || 'Unknown',
++        game_date: prop.game_date,
++        confidence: result.confidence,
++        tier_when_placed: result.tier,
++        kelly_bet_size: result.kellyFraction,
++        promotion_band: result.promotionBand || null,
++        created_at: new Date().toISOString(),
++      }, {
++        writerRole: 'promoter',
++        traceId: `grading-promote-${result.propId}`,
++      });
+ 
+-      if (error) {
++      if (!insertResult.success) {
+         this.logger.error('❌ Failed to promote prop to unified_picks', {
+           propId: result.propId,
+-          error: error.message,
++          error: insertResult.error,
+         });
+       } else {
+         this.logger.info('✅ Prop promoted to unified_picks', {
+diff --git a/apps/api/src/agents/RecapAgent/index.ts b/apps/api/src/agents/RecapAgent/index.ts
+index 9f684b34..0de36d57 100644
+--- a/apps/api/src/agents/RecapAgent/index.ts
++++ b/apps/api/src/agents/RecapAgent/index.ts
+@@ -1,6 +1,7 @@
+ import { toISOString } from '../../utils/dateUtils';
+ import { BaseAgent } from '../BaseAgent/index';
+ import { BaseAgentConfig, BaseAgentDependencies } from '../BaseAgent/types';
++import { lifecycleUpdate } from '../../lib/lifecycle';
+ 
+ import { RecapFormatter } from './recapFormatter';
+ import { RecapService } from './recapService';
+@@ -675,13 +676,15 @@ export class RecapAgent extends BaseAgent implements RecapAgentType {
+         updateData.message_id = messageId || `fallback_${Date.now()}`;
+       }
+ 
+-      const { error } = await supabase
+-        .from('unified_picks')
+-        .update(updateData)
+-        .eq('id', pickId);
++      // SPRINT: PHASE2-CANONICAL-STATE-LOCK-001 - Use lifecycle adapter
++      const result = await lifecycleUpdate(supabase, pickId, updateData, {
++        writerRole: 'poster',
++        traceId: `recap-discord-info-${pickId}`,
++        skipTransitionValidation: true, // Discord info update, not a stage transition
++      });
+ 
+-      if (error) {
+-        throw error;
++      if (!result.success) {
++        throw new Error(result.error || 'lifecycleUpdate failed');
+       }
+ 
+       this.logger.info('Updated pick with Discord info', {
+diff --git a/apps/api/src/lib/discordReceiptContract.ts b/apps/api/src/lib/discordReceiptContract.ts
+index b995ac47..b08050a3 100644
+--- a/apps/api/src/lib/discordReceiptContract.ts
++++ b/apps/api/src/lib/discordReceiptContract.ts
+@@ -15,6 +15,7 @@
+ import { supabase } from '../services/supabaseClient';
+ import { getBuildInfo } from './buildInfo';
+ import { logger } from '../services/logging';
++import { lifecycleUpdate } from './lifecycle';
+ 
+ /**
+  * Discord receipt data structure
+@@ -86,17 +87,18 @@ export async function persistDiscordReceipt(
+       if (error.code === '42P01' || error.message.includes('does not exist')) {
+         logger.warn('discord_receipts table not found, updating unified_picks directly');
+ 
+-        const { error: updateError } = await supabase
+-          .from('unified_picks')
+-          .update({
+-            posted_to_discord: true,
+-            discord_post_id: receipt.discord_message_id,
+-            updated_at: new Date().toISOString(),
+-          })
+-          .eq('id', receipt.pick_id);
+-
+-        if (updateError) {
+-          throw updateError;
++        // SPRINT: PHASE2-CANONICAL-STATE-LOCK-001 - Use lifecycle adapter
++        const result = await lifecycleUpdate(supabase, receipt.pick_id, {
++          posted_to_discord: true,
++          discord_post_id: receipt.discord_message_id,
++          updated_at: new Date().toISOString(),
++        }, {
++          writerRole: 'poster',
++          traceId: `discord-receipt-fallback-${receipt.pick_id}`,
++        });
++
++        if (!result.success) {
++          throw new Error(result.error || 'lifecycleUpdate failed');
+         }
+ 
+         return {
+diff --git a/apps/api/src/lib/lifecycle/idempotency.ts b/apps/api/src/lib/lifecycle/idempotency.ts
+index fb67ded4..7259656f 100644
+--- a/apps/api/src/lib/lifecycle/idempotency.ts
++++ b/apps/api/src/lib/lifecycle/idempotency.ts
+@@ -1,6 +1,7 @@
+ /**
+  * IDEMPOTENCY GUARDS
+  * Sprint: LIFECYCLE-CONTRACT-LOCK-037
++ * Sprint: PHASE2-CANONICAL-STATE-LOCK-001 (DB-level enforcement via context flag)
+  *
+  * Ensures operations are idempotent - same input = same output.
+  * Prevents duplicate submissions, posts, and settlements.
+@@ -10,6 +11,42 @@ import type { SupabaseClient } from '@supabase/supabase-js';
+ import { logger } from '../../services/logging';
+ import { IdempotencyError } from './errors';
+ 
++// ============================================================
++// DB CONTEXT FLAG - LIFECYCLE GUARD BYPASS
++// Sprint: PHASE2-CANONICAL-STATE-LOCK-001
++// ============================================================
++
++/**
++ * Wraps a DB operation with lifecycle adapter context flag.
++ * The DB trigger (lifecycle_guard_unified_picks) checks this flag
++ * and allows writes only when set to 'true'.
++ */
++async function withLifecycleContext<T>(
++  supabase: SupabaseClient,
++  traceId: string,
++  operation: () => Promise<T>
++): Promise<T> {
++  const { error: setError } = await supabase.rpc('set_lifecycle_context', { p_enabled: true });
++  if (setError) {
++    logger.warn(
++      { traceId, error: setError.message },
++      'IDEMPOTENCY: Failed to set lifecycle context (migration may not be applied)'
++    );
++  }
++
++  try {
++    return await operation();
++  } finally {
++    const { error: resetError } = await supabase.rpc('set_lifecycle_context', { p_enabled: false });
++    if (resetError) {
++      logger.warn(
++        { traceId, error: resetError.message },
++        'IDEMPOTENCY: Failed to reset lifecycle context'
++      );
++    }
++  }
++}
++
+ // ============================================================
+ // TYPES
+ // ============================================================
+@@ -143,16 +180,20 @@ export async function atomicClaimForPost(
+   supabase: SupabaseClient,
+   pickId: string
+ ): Promise<{ claimed: boolean; messageId?: string }> {
+-  // Atomic update: only succeeds if not already posted
+-  const { data, error } = await supabase
+-    .from('unified_picks')
+-    .update({
+-      posted_to_discord: true,
+-      promotion_posted_at: new Date().toISOString(),
+-    })
+-    .eq('id', pickId)
+-    .eq('posted_to_discord', false)
+-    .select('id');
++  const traceId = `atomic-claim-post-${pickId}`;
++
++  // Atomic update with lifecycle context: only succeeds if not already posted
++  const { data, error } = await withLifecycleContext(supabase, traceId, async () => {
++    return await supabase
++      .from('unified_picks')
++      .update({
++        posted_to_discord: true,
++        promotion_posted_at: new Date().toISOString(),
++      })
++      .eq('id', pickId)
++      .eq('posted_to_discord', false)
++      .select('id');
++  });
+ 
+   if (error) {
+     logger.error(
+@@ -181,15 +222,20 @@ export async function atomicClaimParlayForPost(
+   supabase: SupabaseClient,
+   pickIds: string[]
+ ): Promise<{ claimed: boolean; claimedCount: number }> {
+-  const { data, error } = await supabase
+-    .from('unified_picks')
+-    .update({
+-      posted_to_discord: true,
+-      promotion_posted_at: new Date().toISOString(),
+-    })
+-    .in('id', pickIds)
+-    .eq('posted_to_discord', false)
+-    .select('id');
++  const traceId = `atomic-claim-parlay-${pickIds[0] || 'unknown'}`;
++
++  // Atomic update with lifecycle context
++  const { data, error } = await withLifecycleContext(supabase, traceId, async () => {
++    return await supabase
++      .from('unified_picks')
++      .update({
++        posted_to_discord: true,
++        promotion_posted_at: new Date().toISOString(),
++      })
++      .in('id', pickIds)
++      .eq('posted_to_discord', false)
++      .select('id');
++  });
+ 
+   if (error) {
+     logger.error(
+@@ -305,16 +351,20 @@ export async function atomicClaimForSettle(
+     settlement_source?: string;
+   }
+ ): Promise<{ claimed: boolean }> {
+-  // Atomic update: only succeeds if not already settled
+-  const { data, error } = await supabase
+-    .from('unified_picks')
+-    .update({
+-      ...settlement,
+-      settled_at: new Date().toISOString(),
+-    })
+-    .eq('id', pickId)
+-    .in('settlement_status', ['pending', null])
+-    .select('id');
++  const traceId = `atomic-claim-settle-${pickId}`;
++
++  // Atomic update with lifecycle context: only succeeds if not already settled
++  const { data, error } = await withLifecycleContext(supabase, traceId, async () => {
++    return await supabase
++      .from('unified_picks')
++      .update({
++        ...settlement,
++        settled_at: new Date().toISOString(),
++      })
++      .eq('id', pickId)
++      .in('settlement_status', ['pending', null])
++      .select('id');
++  });
+ 
+   if (error) {
+     logger.error(
+@@ -483,14 +533,16 @@ export async function resetPostingClaim(
+     meta_discord_receipt: pick.meta?.discord_receipt,
+   };
+ 
+-  // Reset the posting claim (clear flags to allow re-posting)
+-  const { error: updateError } = await supabase
+-    .from('unified_picks')
+-    .update({
+-      posted_to_discord: false,
+-      promotion_posted_at: null,
+-    })
+-    .in('id', parlayLegIds);
++  // Reset the posting claim with lifecycle context (clear flags to allow re-posting)
++  const { error: updateError } = await withLifecycleContext(supabase, traceId, async () => {
++    return await supabase
++      .from('unified_picks')
++      .update({
++        posted_to_discord: false,
++        promotion_posted_at: null,
++      })
++      .in('id', parlayLegIds);
++  });
+ 
+   if (updateError) {
+     logger.error({ pickId, error: updateError.message, traceId }, 'RESET: Update failed');
+@@ -622,16 +674,18 @@ export async function resetSettlementForRetry(
+     status: pick.status,
+   };
+ 
+-  // Reset to pending state (allows re-settlement)
+-  const { error: updateError } = await supabase
+-    .from('unified_picks')
+-    .update({
+-      settlement_status: 'pending',
+-      settlement_result: null,
+-      settled_at: null,
+-      status: 'pending',
+-    })
+-    .eq('id', pickId);
++  // Reset to pending state with lifecycle context (allows re-settlement)
++  const { error: updateError } = await withLifecycleContext(supabase, traceId, async () => {
++    return await supabase
++      .from('unified_picks')
++      .update({
++        settlement_status: 'pending',
++        settlement_result: null,
++        settled_at: null,
++        status: 'pending',
++      })
++      .eq('id', pickId);
++  });
+ 
+   if (updateError) {
+     logger.error({ pickId, error: updateError.message, traceId }, 'RESET: Update failed');
+diff --git a/apps/api/src/lib/lifecycle/single-writer-allowlist.ts b/apps/api/src/lib/lifecycle/single-writer-allowlist.ts
+index 48ca7aee..6bde7c4f 100644
+--- a/apps/api/src/lib/lifecycle/single-writer-allowlist.ts
++++ b/apps/api/src/lib/lifecycle/single-writer-allowlist.ts
+@@ -22,8 +22,9 @@ export interface AllowlistEntry {
+ /**
+  * ALLOWLIST - Files pending migration to lifecycle adapters
+  * Sprint: SPRINT-SINGLE-WRITER-SETTLEMENT-GUARD-071A (2026-02-20)
++ * Sprint: PHASE2-CANONICAL-STATE-LOCK-001 (2026-02-26) - ALL MIGRATIONS COMPLETE
+  *
+- * Previous migration history (completed):
++ * Migration history:
+  * - LIFECYCLE-MIGRATE-001: DiscordPromotionAgent/index.ts → atomicClaimForPost + lifecycleUpdate
+  * - LIFECYCLE-MIGRATE-002: GradingAgent/gradeAndPromoteFinalPicks.ts → lifecycleInsert
+  * - LIFECYCLE-MIGRATE-003: GradingAgent/gradeForFinalPicks.ts → lifecycleInsert
+@@ -31,115 +32,26 @@ export interface AllowlistEntry {
+  * - LIFECYCLE-MIGRATE-005: scripts/smoke-capper-thread-routing.ts → exempt via gate pattern (smoke test)
+  * - LIFECYCLE-MIGRATE-006: services/SmartFormBridge.ts → lifecycleInsert
+  * - LIFECYCLE-MIGRATE-007: SettlementAgent/index.ts → lifecycleSettle (071A)
+- *
+- * NEW VIOLATIONS DISCOVERED (071A multi-line gate enhancement):
+- * These files were not caught by the original same-line gate pattern.
+- * Each requires migration to lifecycle adapters in future sprints.
++ * - PHASE2-CANONICAL-STATE-LOCK-001: All 16 remaining files migrated (2026-02-26)
++ *   - AlertAgent/index.ts → lifecycleUpdate (poster)
++ *   - RecapAgent/index.ts → lifecycleUpdate (poster)
++ *   - PickMonitoringService.ts → lifecycleUpdate (operator_override)
++ *   - STierEnforcer.ts → lifecycleUpdate (promoter)
++ *   - discordReceiptContract.ts → lifecycleUpdate (poster)
++ *   - backfill-feature-contributions.ts → lifecycleUpdate (operator_override)
++ *   - GradingAgent/GradingAgent.ts → lifecycleInsert (promoter)
++ *   - optimizedInsertions.ts → lifecycleInsert (promoter)
++ *   - discord-canary-webhook.ts → lifecycleInsert (operator_override)
++ *   - DiscordPromotionAgent/index.ts → lifecycleUpdate (poster)
++ *   - capperService.ts → lifecycleInsert/Update (submitter) + logical delete
++ *   - AutoRecheckService.ts → lifecycleUpdate (operator_override/promoter)
++ *   - ProfessionalPropProcessor.ts → lifecycleInsert (promoter)
++ *   - PublishGuard.ts → lifecycleUpdate (promoter)
++ *   - BridgeWorker.ts → lifecycleUpdate (promoter)
++ *   - routes/ops.ts → lifecycleUpdate (operator_override) - logical delete
+  */
+ export const SINGLE_WRITER_ALLOWLIST: AllowlistEntry[] = [
+-  // === AGENTS (P0 - high priority) ===
+-  {
+-    file: 'agents/AlertAgent/index.ts',
+-    reason: 'Multi-line writes for Discord posting (dead code at 626, active at 795, 815)',
+-    migrationTicket: 'SPRINT-SINGLE-WRITER-AGENT-MIGRATION-072',
+-    targetDate: '2026-02-25',
+-  },
+-  {
+-    file: 'agents/DiscordPromotionAgent/index.ts',
+-    reason: 'Multi-line write for resetting posted status',
+-    migrationTicket: 'SPRINT-SINGLE-WRITER-AGENT-MIGRATION-072',
+-    targetDate: '2026-02-25',
+-  },
+-  {
+-    file: 'agents/GradingAgent/GradingAgent.ts',
+-    reason: 'Multi-line insert for pick promotion',
+-    migrationTicket: 'SPRINT-SINGLE-WRITER-AGENT-MIGRATION-072',
+-    targetDate: '2026-02-25',
+-  },
+-  {
+-    file: 'agents/RecapAgent/index.ts',
+-    reason: 'Multi-line update for Discord info',
+-    migrationTicket: 'SPRINT-SINGLE-WRITER-AGENT-MIGRATION-072',
+-    targetDate: '2026-02-25',
+-  },
+-  // === SERVICES (P1 - medium priority) ===
+-  {
+-    file: 'services/AutoRecheckService.ts',
+-    reason: 'Multi-line updates for recheck operations (3 locations)',
+-    migrationTicket: 'SPRINT-SINGLE-WRITER-SERVICES-MIGRATION-073',
+-    targetDate: '2026-02-28',
+-  },
+-  {
+-    file: 'services/capperService.ts',
+-    reason: 'Multi-line CRUD operations (insert, update, delete)',
+-    migrationTicket: 'SPRINT-SINGLE-WRITER-SERVICES-MIGRATION-073',
+-    targetDate: '2026-02-28',
+-  },
+-  {
+-    file: 'services/PickMonitoringService.ts',
+-    reason: 'Multi-line update for monitoring',
+-    migrationTicket: 'SPRINT-SINGLE-WRITER-SERVICES-MIGRATION-073',
+-    targetDate: '2026-02-28',
+-  },
+-  {
+-    file: 'services/ProfessionalPropProcessor.ts',
+-    reason: 'Multi-line insert for prop promotion',
+-    migrationTicket: 'SPRINT-SINGLE-WRITER-SERVICES-MIGRATION-073',
+-    targetDate: '2026-02-28',
+-  },
+-  {
+-    file: 'services/STierEnforcer.ts',
+-    reason: 'Multi-line update for S-tier enforcement',
+-    migrationTicket: 'SPRINT-SINGLE-WRITER-SERVICES-MIGRATION-073',
+-    targetDate: '2026-02-28',
+-  },
+-  // === LIB/PROMOTION (P1) ===
+-  {
+-    file: 'lib/discordReceiptContract.ts',
+-    reason: 'Multi-line update for Discord receipt',
+-    migrationTicket: 'SPRINT-SINGLE-WRITER-SERVICES-MIGRATION-073',
+-    targetDate: '2026-02-28',
+-  },
+-  {
+-    file: 'promotion/PublishGuard.ts',
+-    reason: 'Multi-line updates for publish guard (2 locations)',
+-    migrationTicket: 'SPRINT-SINGLE-WRITER-SERVICES-MIGRATION-073',
+-    targetDate: '2026-02-28',
+-  },
+-  // === WORKERS (P1) ===
+-  {
+-    file: 'workers/BridgeWorker.ts',
+-    reason: 'Multi-line update in bridge processing',
+-    migrationTicket: 'SPRINT-SINGLE-WRITER-SERVICES-MIGRATION-073',
+-    targetDate: '2026-02-28',
+-  },
+-  // === UTILS (P2 - lower priority) ===
+-  {
+-    file: 'utils/optimizedInsertions.ts',
+-    reason: 'Multi-line insert/update for optimized operations',
+-    migrationTicket: 'SPRINT-SINGLE-WRITER-UTILS-MIGRATION-074',
+-    targetDate: '2026-03-05',
+-  },
+-  // === ROUTES (P2 - admin operations) ===
+-  {
+-    file: 'routes/ops.ts',
+-    reason: 'Multi-line delete for admin operations',
+-    migrationTicket: 'SPRINT-SINGLE-WRITER-UTILS-MIGRATION-074',
+-    targetDate: '2026-03-05',
+-  },
+-  // === SCRIPTS (P3 - utility scripts) ===
+-  {
+-    file: 'scripts/backfill-feature-contributions.ts',
+-    reason: 'Multi-line update for backfill',
+-    migrationTicket: 'SPRINT-SINGLE-WRITER-UTILS-MIGRATION-074',
+-    targetDate: '2026-03-05',
+-  },
+-  {
+-    file: 'scripts/discord-canary-webhook.ts',
+-    reason: 'Multi-line insert for canary testing',
+-    migrationTicket: 'SPRINT-SINGLE-WRITER-UTILS-MIGRATION-074',
+-    targetDate: '2026-03-05',
+-  },
++  // ✅ EMPTY - All files migrated per PHASE2-CANONICAL-STATE-LOCK-001
+ ];
+ 
+ /**
+diff --git a/apps/api/src/lib/lifecycle/types.ts b/apps/api/src/lib/lifecycle/types.ts
+index f80694d8..09287c6b 100644
+--- a/apps/api/src/lib/lifecycle/types.ts
++++ b/apps/api/src/lib/lifecycle/types.ts
+@@ -12,8 +12,9 @@
+ 
+ /**
+  * Pick outcome status - final result of the bet
++ * Sprint: PHASE2-CANONICAL-STATE-LOCK-001 - Extended with operational statuses
+  */
+-export type PickStatus = 'pending' | 'won' | 'lost' | 'push' | 'void' | 'cancelled';
++export type PickStatus = 'pending' | 'won' | 'lost' | 'push' | 'void' | 'cancelled' | 'suspended' | 'published' | 'approved' | 'active';
+ 
+ /**
+  * Settlement processing status
+@@ -121,7 +122,8 @@ export interface LifecycleState {
+ }
+ 
+ /**
+- * Minimal pick record for lifecycle operations
++ * Pick record for lifecycle operations
++ * Sprint: PHASE2-CANONICAL-STATE-LOCK-001 - Extended with all unified_picks fields
+  */
+ export interface LifecyclePick {
+   id: string;
+@@ -132,11 +134,13 @@ export interface LifecyclePick {
+   settlement_status: SettlementStatus;
+   posted_to_discord: boolean;
+   discord_message_id?: string;
++  discord_post_id?: string; // Alternate field name for discord_message_id
+   settlement_result?: 'win' | 'loss' | 'push';
+   settlement_frozen?: boolean;
+   blocked_reason?: string;
+   failed_reason?: string;
+   created_at: Date | string;
++  updated_at?: Date | string;
+   placed_at?: Date | string;
+   promotion_queued_at?: Date | string;
+   promotion_posted_at?: Date | string;
+@@ -151,6 +155,64 @@ export interface LifecyclePick {
+   // SPRINT-RUNTIME-TRUTH-008: Scheduled pick posting fields
+   message_id?: string;
+   posted_at?: Date | string;
++  // PHASE2-CANONICAL-STATE-LOCK-001: Extended fields for lifecycle adapters
++  user_id?: string;
++  tier?: string;
++  tier_when_placed?: string;
++  published?: boolean;
++  published_at?: Date | string;
++  confidence?: number;
++  professional_score?: number;
++  workflow_stage?: string;
++  promotion_band?: string | null;
++  kelly_bet_size?: number;
++  kelly_fraction?: number;
++  devigged_edge?: number;
++  position_size?: number;
++  feature_contributions?: Record<string, unknown>;
++  risk_assessment?: Record<string, unknown>;
++  professional_insights?: Record<string, unknown>;
++  clv_tracking_id?: string;
++  // Cancellation fields
++  cancellation_reason?: string;
++  cancelled_at?: Date | string;
++  cancelled_by?: string;
++  // Suspension fields
++  suspension_reason?: string;
++  suspended_at?: Date | string;
++  suspended_by?: string;
++  // Tier adjustment fields
++  tier_adjustment_reason?: string;
++  tier_adjusted_at?: Date | string;
++  adjusted_by?: string;
++  // Size adjustment fields
++  size_adjustment_reason?: string;
++  size_adjusted_at?: Date | string;
++  // Shadow mode fields
++  shadow_mode?: boolean;
++  shadow_logged_at?: Date | string;
++  // Additional pick data fields
++  pick_type?: string;
++  selection?: string;
++  odds?: number;
++  stake?: number;
++  potential_payout?: number;
++  player_name?: string;
++  stat_type?: string;
++  line?: number;
++  over_odds?: number;
++  under_odds?: number;
++  sport?: string;
++  game_date?: string;
++  team?: string;
++  opponent?: string;
++  raw_prop_id?: string;
++  prediction?: string;
++  source?: string;
++  units?: number;
++  processing_time?: number;
++  // Allow additional fields for flexibility
++  [key: string]: unknown;
+ }
+ 
+ // ============================================================
+diff --git a/apps/api/src/lib/lifecycle/write-adapter.ts b/apps/api/src/lib/lifecycle/write-adapter.ts
+index ab65e7e0..890dd701 100644
+--- a/apps/api/src/lib/lifecycle/write-adapter.ts
++++ b/apps/api/src/lib/lifecycle/write-adapter.ts
+@@ -3,11 +3,13 @@
+  * LIFECYCLE WRITE ADAPTER
+  * Sprint: LIFECYCLE-CONTRACT-LOCK-037
+  * Sprint: SPRINT-E2E-SMOKE-AUTOMATION-005 (freeze guard hardening)
++ * Sprint: PHASE2-CANONICAL-STATE-LOCK-001 (DB-level enforcement via context flag)
+  *
+  * Adapts Supabase writes to enforce lifecycle validation.
+  * All writes to unified_picks MUST go through this adapter.
+  *
+  * INVARIANT: Autopilot freeze blocks ALL writes (hard fail-closed)
++ * INVARIANT: DB trigger requires lifecycle.adapter_context for writes
+  * NOTE: eslint rules disabled - lifecycle functions require validation complexity
+  */
+ 
+@@ -42,6 +44,47 @@ async function assertNotFrozen(traceId: string): Promise<void> {
+   }
+ }
+ 
++// ============================================================
++// DB CONTEXT FLAG - LIFECYCLE GUARD BYPASS
++// Sprint: PHASE2-CANONICAL-STATE-LOCK-001
++// ============================================================
++
++/**
++ * Wraps a DB operation with lifecycle adapter context flag.
++ * The DB trigger (lifecycle_guard_unified_picks) checks this flag
++ * and allows writes only when set to 'true'.
++ *
++ * Uses try/finally to ensure context is always reset.
++ */
++async function withLifecycleContext<T>(
++  supabase: SupabaseClient,
++  traceId: string,
++  operation: () => Promise<T>
++): Promise<T> {
++  // Set context flag to allow DB writes
++  const { error: setError } = await supabase.rpc('set_lifecycle_context', { p_enabled: true });
++  if (setError) {
++    logger.warn(
++      { traceId, error: setError.message },
++      'LIFECYCLE: Failed to set context flag (migration may not be applied)'
++    );
++    // Continue anyway - trigger may not exist in dev/test environments
++  }
++
++  try {
++    return await operation();
++  } finally {
++    // Always reset context flag
++    const { error: resetError } = await supabase.rpc('set_lifecycle_context', { p_enabled: false });
++    if (resetError) {
++      logger.warn(
++        { traceId, error: resetError.message },
++        'LIFECYCLE: Failed to reset context flag'
++      );
++    }
++  }
++}
++
+ // ============================================================
+ // TYPES
+ // ============================================================
+@@ -86,26 +129,28 @@ export async function lifecycleInsert(
+     // 2. For insert, we're going DRAFT -> SUBMITTED (implicit)
+     // No current state to validate against
+ 
+-    // 3. Perform the insert
+-    const { data, error } = await supabase.from('unified_picks').insert(pick).select('id').single();
++    // 3. Perform the insert with lifecycle context flag
++    const result = await withLifecycleContext(supabase, traceId, async () => {
++      return await supabase.from('unified_picks').insert(pick).select('id').single();
++    });
+ 
+-    if (error) {
+-      logger.error({ traceId, pickId: pick.id, error: error.message }, 'LIFECYCLE: Insert failed');
++    if (result.error) {
++      logger.error({ traceId, pickId: pick.id, error: result.error.message }, 'LIFECYCLE: Insert failed');
+       return {
+         success: false,
+-        error: error.message,
++        error: result.error.message,
+         validationPassed: true, // Validation passed, DB failed
+       };
+     }
+ 
+     logger.info(
+-      { traceId, pickId: data.id, writer: context.writerRole },
++      { traceId, pickId: result.data.id, writer: context.writerRole },
+       'LIFECYCLE: Insert succeeded'
+     );
+ 
+     return {
+       success: true,
+-      pickId: data.id,
++      pickId: result.data.id,
+       validationPassed: true,
+     };
+   } catch (err) {
+@@ -182,11 +227,13 @@ export async function lifecycleUpdate(
+       validateInvariants(nextState);
+     }
+ 
+-    // 4. Perform the update
+-    const { error: updateError } = await supabase
+-      .from('unified_picks')
+-      .update(updates)
+-      .eq('id', pickId);
++    // 4. Perform the update with lifecycle context flag
++    const { error: updateError } = await withLifecycleContext(supabase, traceId, async () => {
++      return await supabase
++        .from('unified_picks')
++        .update(updates)
++        .eq('id', pickId);
++    });
+ 
+     if (updateError) {
+       logger.error({ traceId, pickId, error: updateError.message }, 'LIFECYCLE: Update failed');
+@@ -242,16 +289,18 @@ export async function lifecycleClaimForPosting(
+     // Validate writer is poster
+     assertWriterAuthority(writerRole, ['posted_to_discord']);
+ 
+-    // Atomic claim: only update if not already claimed
+-    const { data, error } = await supabase
+-      .from('unified_picks')
+-      .update({
+-        posted_to_discord: true,
+-        promotion_posted_at: new Date().toISOString(),
+-      })
+-      .eq('id', pickId)
+-      .eq('posted_to_discord', false)
+-      .select('id');
++    // Atomic claim: only update if not already claimed (with lifecycle context flag)
++    const { data, error } = await withLifecycleContext(supabase, traceId, async () => {
++      return await supabase
++        .from('unified_picks')
++        .update({
++          posted_to_discord: true,
++          promotion_posted_at: new Date().toISOString(),
++        })
++        .eq('id', pickId)
++        .eq('posted_to_discord', false)
++        .select('id');
++    });
+ 
+     if (error) {
+       logger.error({ traceId, pickId, error: error.message }, 'LIFECYCLE: Claim failed');
+@@ -356,10 +405,13 @@ export async function lifecycleSettle(
+                 : 'pending',
+     };
+ 
+-    const { error: updateError } = await supabase
+-      .from('unified_picks')
+-      .update(updates)
+-      .eq('id', pickId);
++    // Perform settlement with lifecycle context flag
++    const { error: updateError } = await withLifecycleContext(supabase, traceId, async () => {
++      return await supabase
++        .from('unified_picks')
++        .update(updates)
++        .eq('id', pickId);
++    });
+ 
+     if (updateError) {
+       logger.error({ traceId, pickId, error: updateError.message }, 'LIFECYCLE: Settlement failed');
+diff --git a/apps/api/src/promotion/PublishGuard.ts b/apps/api/src/promotion/PublishGuard.ts
+index 161665e9..93e878a4 100644
+--- a/apps/api/src/promotion/PublishGuard.ts
++++ b/apps/api/src/promotion/PublishGuard.ts
+@@ -7,6 +7,7 @@
+ import { createLogger } from '../utils/logger';
+ import { shadowMode, shadowWritePick, shadowPublishPreview, type ShadowPick, type ShadowAction } from '../shadow/ShadowMode';
+ import { supabase as supabaseClient } from '../services/supabaseClient';
++import { lifecycleUpdate } from '../lib/lifecycle';
+ 
+ import { autopilotGuard } from '../lib/AutopilotGuard';
+ 
+@@ -151,16 +152,17 @@ class PublishGuardService {
+     let channelsNotified: string[] = [];
+ 
+     if (decision.approved && (decision.lane === 'instant' || decision.lane === 'scheduled')) {
++      // SPRINT: PHASE2-CANONICAL-STATE-LOCK-001 - Use lifecycle adapter
+       // Mark as published in unified_picks
+       if (decision.pick.id) {
+-        await supabaseClient
+-          .from('unified_picks')
+-          .update({
+-            published: true,
+-            published_at: new Date().toISOString(),
+-            tier: options.tier || decision.pick.tier
+-          })
+-          .eq('id', decision.pick.id);
++        await lifecycleUpdate(supabaseClient, decision.pick.id, {
++          published: true,
++          published_at: new Date().toISOString(),
++          tier: options.tier || decision.pick.tier
++        }, {
++          writerRole: 'promoter',
++          traceId: `publish-guard-${decision.pick.id}`,
++        });
+       }
+ 
+       // Publish to configured channels
+@@ -237,14 +239,16 @@ class PublishGuardService {
+    */
+   private async ensureShadowPickNotPublished(pickId: string): Promise<void> {
+     try {
+-      await supabaseClient
+-        .from('unified_picks')
+-        .update({
+-          published: false,
+-          shadow_mode: true,
+-          shadow_logged_at: new Date().toISOString()
+-        })
+-        .eq('id', pickId);
++      // SPRINT: PHASE2-CANONICAL-STATE-LOCK-001 - Use lifecycle adapter
++      await lifecycleUpdate(supabaseClient, pickId, {
++        published: false,
++        shadow_mode: true,
++        shadow_logged_at: new Date().toISOString()
++      }, {
++        writerRole: 'promoter',
++        traceId: `shadow-mode-${pickId}`,
++        skipTransitionValidation: true, // Shadow mode update, not a stage transition
++      });
+     } catch (error) {
+       this.logger.error('Failed to update shadow pick status', { error, pickId });
+     }
+diff --git a/apps/api/src/routes/ops.ts b/apps/api/src/routes/ops.ts
+index ddf4ec17..b6b7995f 100644
+--- a/apps/api/src/routes/ops.ts
++++ b/apps/api/src/routes/ops.ts
+@@ -1526,28 +1526,46 @@ router.delete('/gauntlet/cleanup', gauntletGate, async (req, res) => {
+ 
+   try {
+     const { supabaseClient } = await import('../services/supabaseClient');
++    const { lifecycleUpdate } = await import('../lib/lifecycle');
+ 
+-    const { data, error } = await supabaseClient
++    // SPRINT: PHASE2-CANONICAL-STATE-LOCK-001 - Use lifecycle adapter
++    // Convert to logical deletion (set status to 'cancelled') instead of physical DELETE
++
++    // First fetch all GAUNTLET_TEST pick IDs
++    const { data: picks, error: fetchError } = await supabaseClient
+       .from('unified_picks')
+-      .delete()
+-      .eq('source', 'GAUNTLET_TEST')
+-      .select('id');
++      .select('id')
++      .eq('source', 'GAUNTLET_TEST');
+ 
+-    if (error) {
++    if (fetchError) {
+       return res.status(500).json({
+         success: false,
+-        error: error.message,
++        error: fetchError.message,
+         correlationId,
+         timestamp: new Date().toISOString(),
+       });
+     }
+ 
+-    const deletedCount = data?.length || 0;
+-    logger.info({ correlationId, deletedCount }, 'GAUNTLET: Cleanup completed');
++    // Logically delete each pick by setting status to 'cancelled'
++    let cancelledCount = 0;
++    for (const pick of picks || []) {
++      const result = await lifecycleUpdate(supabaseClient, pick.id, {
++        status: 'cancelled',
++        cancellation_reason: 'GAUNTLET_TEST cleanup',
++        cancelled_at: new Date().toISOString(),
++      }, {
++        writerRole: 'operator_override',
++        traceId: `gauntlet-cleanup-${pick.id}`,
++        skipTransitionValidation: true,
++      });
++      if (result.success) cancelledCount++;
++    }
++
++    logger.info({ correlationId, cancelledCount }, 'GAUNTLET: Cleanup completed (logical delete)');
+ 
+     res.json({
+       success: true,
+-      deleted_count: deletedCount,
++      deleted_count: cancelledCount,
+       correlationId,
+       timestamp: new Date().toISOString(),
+     });
+diff --git a/apps/api/src/scripts/backfill-feature-contributions.ts b/apps/api/src/scripts/backfill-feature-contributions.ts
+index c5f26b77..bf818d50 100644
+--- a/apps/api/src/scripts/backfill-feature-contributions.ts
++++ b/apps/api/src/scripts/backfill-feature-contributions.ts
+@@ -26,6 +26,7 @@ import * as path from 'path';
+ // Import grading engine for replay
+ import { SyndicateGradingEngine } from '../agents/GradingAgent/scoring/gradingEngine';
+ import type { GradingFeatureSet } from '../types/GradingFeatureSet';
++import { lifecycleUpdate } from '../lib/lifecycle';
+ 
+ const supabaseUrl = process.env.SUPABASE_URL;
+ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+@@ -228,19 +229,21 @@ async function runBackfill() {
+           );
+           stats.updated++;
+         } else {
++          // SPRINT: PHASE2-CANONICAL-STATE-LOCK-001 - Use lifecycle adapter
+           // Update ONLY feature_contributions (not score or tier)
+-          const { error: updateErr } = await supabase
+-            .from('unified_picks')
+-            .update({
+-              feature_contributions: contributions,
+-              // DO NOT update professional_score or tier
+-            })
+-            .eq('id', pick.id);
+-
+-          if (updateErr) {
++          const result = await lifecycleUpdate(supabase, pick.id, {
++            feature_contributions: contributions,
++            // DO NOT update professional_score or tier
++          }, {
++            writerRole: 'operator_override',
++            traceId: `backfill-feature-contrib-${pick.id}`,
++            skipTransitionValidation: true, // Backfill doesn't change stage
++          });
++
++          if (!result.success) {
+             stats.errors++;
+-            stats.error_details.push({ id: pick.id, error: updateErr.message });
+-            console.log(`    ❌ Update failed for ${pick.id}: ${updateErr.message}`);
++            stats.error_details.push({ id: pick.id, error: result.error || 'lifecycleUpdate failed' });
++            console.log(`    ❌ Update failed for ${pick.id}: ${result.error}`);
+           } else {
+             stats.updated++;
+             if (stats.updated % 100 === 0) {
+diff --git a/apps/api/src/scripts/discord-canary-webhook.ts b/apps/api/src/scripts/discord-canary-webhook.ts
+index 39606765..a1ef8d82 100644
+--- a/apps/api/src/scripts/discord-canary-webhook.ts
++++ b/apps/api/src/scripts/discord-canary-webhook.ts
+@@ -13,6 +13,7 @@ import { v4 as uuidv4 } from 'uuid';
+ import { createClient } from '@supabase/supabase-js';
+ import { buildProductionFooter } from '../lib/embedPresentationContract';
+ import { getBuildInfo } from '../lib/buildInfo';
++import { lifecycleInsert } from '../lib/lifecycle';
+ 
+ // ---- CONFIG ----
+ const DISCORD_WEBHOOK_URL = process.env['DISCORD_WEBHOOK_URL'] || '';
+@@ -215,17 +216,17 @@ async function main() {
+       },
+     };
+ 
+-    const { data: insertedPick, error: insertError } = await supabase
+-      .from('unified_picks')
+-      .insert(pickInsert)
+-      .select()
+-      .single();
++    // SPRINT: PHASE2-CANONICAL-STATE-LOCK-001 - Use lifecycle adapter
++    const insertResult = await lifecycleInsert(supabase, pickInsert, {
++      writerRole: 'operator_override',
++      traceId: `canary-webhook-${pickId}`,
++    });
+ 
+-    if (insertError) {
+-      console.log(` Warning: Failed to insert pick record: ${insertError.message}`);
++    if (!insertResult.success) {
++      console.log(` Warning: Failed to insert pick record: ${insertResult.error}`);
+       console.log('   (This is OK - the Discord post still succeeded)');
+     } else {
+-      console.log(` Pick record inserted: ${insertedPick.id}`);
++      console.log(` Pick record inserted: ${insertResult.pickId}`);
+     }
+ 
+     // Output proof summary
+diff --git a/apps/api/src/services/AutoRecheckService.ts b/apps/api/src/services/AutoRecheckService.ts
+index b039febf..c6c4b319 100644
+--- a/apps/api/src/services/AutoRecheckService.ts
++++ b/apps/api/src/services/AutoRecheckService.ts
+@@ -5,6 +5,7 @@
+ 
+ import { Logger, createLogger } from '../utils/logger';
+ import { supabaseClient } from './supabaseClient';
++import { lifecycleUpdate } from '../lib/lifecycle';
+ import { promotionGatekeeper } from './PromotionGatekeeper';
+ import { sTierEnforcer } from './STierEnforcer';
+ import { portfolioRiskManager } from './PortfolioRiskManager';
+@@ -587,41 +588,42 @@ class AutoRecheckService {
+     );
+ 
+     try {
++      // SPRINT: PHASE2-CANONICAL-STATE-LOCK-001 - Use lifecycle adapters
+       switch (action.type) {
+         case 'cancel':
+-          await supabaseClient
+-            .from('unified_picks')
+-            .update({
+-              status: 'cancelled',
+-              cancellation_reason: action.reason,
+-              cancelled_at: new Date().toISOString(),
+-              cancelled_by: 'AutoRecheckService'
+-            })
+-            .eq('id', pick.id);
++          await lifecycleUpdate(supabaseClient, pick.id, {
++            status: 'cancelled',
++            cancellation_reason: action.reason,
++            cancelled_at: new Date().toISOString(),
++            cancelled_by: 'AutoRecheckService'
++          }, {
++            writerRole: 'operator_override',
++            traceId: `recheck-cancel-${pick.id}`,
++          });
+           break;
+ 
+         case 'tier_change':
+-          await supabaseClient
+-            .from('unified_picks')
+-            .update({
+-              tier: action.changes.newTier,
+-              tier_adjustment_reason: action.reason,
+-              tier_adjusted_at: new Date().toISOString(),
+-              adjusted_by: 'AutoRecheckService'
+-            })
+-            .eq('id', pick.id);
++          await lifecycleUpdate(supabaseClient, pick.id, {
++            tier: action.changes.newTier,
++            tier_adjustment_reason: action.reason,
++            tier_adjusted_at: new Date().toISOString(),
++            adjusted_by: 'AutoRecheckService'
++          }, {
++            writerRole: 'promoter',
++            traceId: `recheck-tier-${pick.id}`,
++          });
+           break;
+ 
+         case 'adjust_size':
+-          await supabaseClient
+-            .from('unified_picks')
+-            .update({
+-              position_size: action.changes.newSize,
+-              size_adjustment_reason: action.reason,
+-              size_adjusted_at: new Date().toISOString(),
+-              adjusted_by: 'AutoRecheckService'
+-            })
+-            .eq('id', pick.id);
++          await lifecycleUpdate(supabaseClient, pick.id, {
++            position_size: action.changes.newSize,
++            size_adjustment_reason: action.reason,
++            size_adjusted_at: new Date().toISOString(),
++            adjusted_by: 'AutoRecheckService'
++          }, {
++            writerRole: 'operator_override',
++            traceId: `recheck-size-${pick.id}`,
++          });
+           break;
+ 
+         case 'republish':
+diff --git a/apps/api/src/services/PickMonitoringService.ts b/apps/api/src/services/PickMonitoringService.ts
+index 4ebd9fcf..c780bfdd 100644
+--- a/apps/api/src/services/PickMonitoringService.ts
++++ b/apps/api/src/services/PickMonitoringService.ts
+@@ -7,6 +7,7 @@ import { Logger, createLogger } from '../utils/logger';
+ import { supabaseClient } from './supabaseClient';
+ import { autoRecheckService } from './AutoRecheckService';
+ import { publishGuard } from '../promotion/PublishGuard';
++import { lifecycleUpdate } from '../lib/lifecycle';
+ 
+ export interface MonitoredPick {
+   id: string;
+@@ -474,15 +475,20 @@ class PickMonitoringService {
+     pick.status = 'suspended';
+ 
+     try {
+-      await supabaseClient
+-        .from('unified_picks')
+-        .update({
+-          status: 'suspended',
+-          suspension_reason: reason,
+-          suspended_at: new Date().toISOString(),
+-          suspended_by: 'PickMonitoringService'
+-        })
+-        .eq('id', pickId);
++      // SPRINT: PHASE2-CANONICAL-STATE-LOCK-001 - Use lifecycle adapter
++      const result = await lifecycleUpdate(supabaseClient, pickId, {
++        status: 'suspended',
++        suspension_reason: reason,
++        suspended_at: new Date().toISOString(),
++        suspended_by: 'PickMonitoringService'
++      }, {
++        writerRole: 'operator_override',
++        traceId: `pick-monitoring-suspend-${pickId}`,
++      });
++
++      if (!result.success) {
++        throw new Error(result.error || 'lifecycleUpdate failed');
++      }
+ 
+       this.logger.info('Pick suspended', { pickId, reason });
+     } catch (error) {
+diff --git a/apps/api/src/services/ProfessionalPropProcessor.ts b/apps/api/src/services/ProfessionalPropProcessor.ts
+index a55eef8f..9663c0c5 100644
+--- a/apps/api/src/services/ProfessionalPropProcessor.ts
++++ b/apps/api/src/services/ProfessionalPropProcessor.ts
+@@ -13,6 +13,7 @@
+  */
+ 
+ import { SyndicateGradingEngine } from '../agents/GradingAgent/scoring/gradingEngine';
++import { lifecycleInsert } from '../lib/lifecycle';
+ import { createLogger } from '../utils/logger';
+ 
+ import { CLVTrackingService } from './clv/CLVTrackingService';
+@@ -361,17 +362,21 @@ export class ProfessionalPropProcessor {
+       risk_assessment: riskAssessment
+     };
+ 
+-    const { data, error } = await supabaseClient
+-      .from('unified_picks')
+-      .insert(unifiedPick)
+-      .select('id')
+-      .single();
++    // SPRINT: PHASE2-CANONICAL-STATE-LOCK-001 - Use lifecycle adapter
++    const pickId = crypto.randomUUID();
++    const result = await lifecycleInsert(supabaseClient, {
++      id: pickId,
++      ...unifiedPick
++    }, {
++      writerRole: 'promoter',
++      traceId: `prop-processor-${rawProp.id}`,
++    });
+ 
+-    if (error) {
+-      throw new Error(`Failed to create unified pick: ${error.message}`);
++    if (!result.success) {
++      throw new Error(`Failed to create unified pick: ${result.error}`);
+     }
+ 
+-    return data.id;
++    return result.pickId || pickId;
+   }
+ 
+   /**
+diff --git a/apps/api/src/services/STierEnforcer.ts b/apps/api/src/services/STierEnforcer.ts
+index 4b35b1e0..d4c87422 100644
+--- a/apps/api/src/services/STierEnforcer.ts
++++ b/apps/api/src/services/STierEnforcer.ts
+@@ -5,6 +5,7 @@
+ 
+ import { Logger, createLogger } from '../utils/logger';
+ import { supabaseClient } from './supabaseClient';
++import { lifecycleUpdate } from '../lib/lifecycle';
+ 
+ export interface STierRequirements {
+   // Core S-tier Requirements
+@@ -453,16 +454,21 @@ class STierEnforcer {
+    */
+   private async applyTierAdjustment(pick: any, newTier: string, reasoning: string): Promise<void> {
+     try {
+-      await supabaseClient
+-        .from('unified_picks')
+-        .update({
+-          tier: newTier,
+-          tier_adjustment_reason: reasoning,
+-          tier_adjusted_at: new Date().toISOString(),
+-          adjusted_by: 'STierEnforcer'
+-        })
+-        .eq('id', pick.id);
+-        
++      // SPRINT: PHASE2-CANONICAL-STATE-LOCK-001 - Use lifecycle adapter
++      const result = await lifecycleUpdate(supabaseClient, pick.id, {
++        tier: newTier,
++        tier_adjustment_reason: reasoning,
++        tier_adjusted_at: new Date().toISOString(),
++        adjusted_by: 'STierEnforcer'
++      }, {
++        writerRole: 'promoter',
++        traceId: `stier-enforce-${pick.id}`,
++      });
++
++      if (!result.success) {
++        throw new Error(result.error || 'lifecycleUpdate failed');
++      }
++
+       this.logger.info('Tier adjustment applied', {
+         pickId: pick.id,
+         oldTier: pick.tier,
+diff --git a/apps/api/src/services/capperService.ts b/apps/api/src/services/capperService.ts
+index 4246c742..7ee02336 100644
+--- a/apps/api/src/services/capperService.ts
++++ b/apps/api/src/services/capperService.ts
+@@ -1,5 +1,6 @@
+ import { createClient, SupabaseClient } from '@supabase/supabase-js';
+ 
++import { lifecycleInsert, lifecycleUpdate } from '../lib/lifecycle';
+ import { logger } from '../shared/logger';
+ 
+ // SPRINT-SCHEMA-ENV-GATES-002: Lazy Supabase initialization
+@@ -215,9 +216,10 @@ export class CapperService {
+   async submitPick(pickData: PickData): Promise<PickData | null> {
+     try {
+       this.performanceMetrics.queryCount++;
+-      
++
+       const enhancedPickData = {
+         ...pickData,
++        id: pickData.id || crypto.randomUUID(),
+         status: pickData.status || 'pending',
+         created_at: new Date().toISOString(),
+         updated_at: new Date().toISOString(),
+@@ -225,16 +227,18 @@ export class CapperService {
+         units: pickData.units || 1
+       };
+ 
+-      const { data, error } = await getCapperSupabase()
+-        .from('unified_picks')
+-        .insert(enhancedPickData)
+-        .select()
+-        .single();
++      // SPRINT: PHASE2-CANONICAL-STATE-LOCK-001 - Use lifecycle adapter
++      const result = await lifecycleInsert(getCapperSupabase(), enhancedPickData as any, {
++        writerRole: 'submitter',
++        traceId: `capper-submit-${enhancedPickData.id}`,
++      });
+ 
+-      if (error) throw error;
++      if (!result.success) {
++        throw new Error(result.error || 'lifecycleInsert failed');
++      }
+ 
+-      logger.info('Pick submitted successfully', { pickId: data.id });
+-      return data as PickData;
++      logger.info('Pick submitted successfully', { pickId: result.pickId });
++      return { ...enhancedPickData, id: result.pickId || enhancedPickData.id } as PickData;
+     } catch (error) {
+       this.performanceMetrics.errorCount++;
+       logger.error('Error submitting pick', { error, pickData });
+@@ -248,19 +252,27 @@ export class CapperService {
+   async updatePick(pickId: string, updates: Partial<PickData>): Promise<PickData | null> {
+     try {
+       this.performanceMetrics.queryCount++;
+-      
+-      const { data, error } = await getCapperSupabase()
++
++      // SPRINT: PHASE2-CANONICAL-STATE-LOCK-001 - Use lifecycle adapter
++      const result = await lifecycleUpdate(getCapperSupabase(), pickId, {
++        ...updates,
++        updated_at: new Date().toISOString()
++      } as any, {
++        writerRole: 'submitter',
++        traceId: `capper-update-${pickId}`,
++      });
++
++      if (!result.success) {
++        throw new Error(result.error || 'lifecycleUpdate failed');
++      }
++
++      // Fetch updated record to return
++      const { data } = await getCapperSupabase()
+         .from('unified_picks')
+-        .update({
+-          ...updates,
+-          updated_at: new Date().toISOString()
+-        })
++        .select('*')
+         .eq('id', pickId)
+-        .select()
+         .single();
+ 
+-      if (error) throw error;
+-
+       return data as PickData;
+     } catch (error) {
+       this.performanceMetrics.errorCount++;
+@@ -275,15 +287,22 @@ export class CapperService {
+   async deletePick(pickId: string): Promise<boolean> {
+     try {
+       this.performanceMetrics.queryCount++;
+-      
+-      const { error } = await getCapperSupabase()
+-        .from('unified_picks')
+-        .delete()
+-        .eq('id', pickId);
+ 
+-      if (error) throw error;
++      // SPRINT: PHASE2-CANONICAL-STATE-LOCK-001 - Use lifecycle adapter
++      // Convert to logical deletion (set status to 'cancelled') instead of physical DELETE
++      const result = await lifecycleUpdate(getCapperSupabase(), pickId, {
++        status: 'cancelled',
++        updated_at: new Date().toISOString()
++      }, {
++        writerRole: 'operator_override',
++        traceId: `capper-delete-${pickId}`,
++      });
++
++      if (!result.success) {
++        throw new Error(result.error || 'lifecycleUpdate failed');
++      }
+ 
+-      logger.info('Pick deleted successfully', { pickId });
++      logger.info('Pick cancelled (logical delete) successfully', { pickId });
+       return true;
+     } catch (error) {
+       this.performanceMetrics.errorCount++;
+@@ -319,19 +338,33 @@ export class CapperService {
+   async finalizePicks(pickIds: string[]): Promise<boolean> {
+     try {
+       this.performanceMetrics.queryCount++;
+-      
+-      const { error } = await getCapperSupabase()
+-        .from('unified_picks')
+-        .update({ 
+-          status: 'published',
+-          updated_at: new Date().toISOString()
+-        })
+-        .in('id', pickIds);
+ 
+-      if (error) throw error;
++      // SPRINT: PHASE2-CANONICAL-STATE-LOCK-001 - Use lifecycle adapter
++      // Must update each pick individually as lifecycle adapter doesn't support bulk updates
++      const updateTime = new Date().toISOString();
++      const results = await Promise.all(
++        pickIds.map(pickId =>
++          lifecycleUpdate(getCapperSupabase(), pickId, {
++            status: 'published',
++            updated_at: updateTime
++          }, {
++            writerRole: 'submitter',
++            traceId: `capper-finalize-${pickId}`,
++          })
++        )
++      );
+ 
+-      logger.info('Picks finalized successfully', { count: pickIds.length });
+-      return true;
++      const failures = results.filter(r => !r.success);
++      if (failures.length > 0) {
++        logger.warn('Some picks failed to finalize', {
++          total: pickIds.length,
++          failed: failures.length,
++          errors: failures.map(f => f.error)
++        });
++      }
++
++      logger.info('Picks finalized successfully', { count: pickIds.length - failures.length });
++      return failures.length === 0;
+     } catch (error) {
+       this.performanceMetrics.errorCount++;
+       logger.error('Error finalizing picks', { error, pickIds });
+diff --git a/apps/api/src/utils/optimizedInsertions.ts b/apps/api/src/utils/optimizedInsertions.ts
+index c7cdd73e..708d945c 100644
+--- a/apps/api/src/utils/optimizedInsertions.ts
++++ b/apps/api/src/utils/optimizedInsertions.ts
+@@ -1,15 +1,19 @@
+ /**
+  * Optimized Database Insertion Helpers
+- * Handles schema cache issues with split insertion approach
++ * SPRINT: PHASE2-CANONICAL-STATE-LOCK-001 - Uses lifecycle adapters
+  */
+ 
+ import { randomUUID } from 'crypto';
++import { lifecycleInsert } from '../lib/lifecycle';
+ 
+ 
+ // Optimized Professional Pick Insertion
++// SPRINT: PHASE2-CANONICAL-STATE-LOCK-001 - Use lifecycle adapter for all unified_picks writes
+ export async function insertProfessionalPick(supabase: any, pick: any) {
+-  // Split into base and professional data
+-  const baseData = {
++  // Combine base and professional data into single insert
++  const pickId = randomUUID();
++  const pickData: any = {
++    id: pickId,
+     player_name: pick.player_name,
+     stat_type: pick.stat_type,
+     line: pick.line,
+@@ -19,41 +23,27 @@ export async function insertProfessionalPick(supabase: any, pick: any) {
+     tier: pick.tier,
+     created_at: pick.created_at || new Date().toISOString()
+   };
+-  
+-  // Insert base record first
+-  const { data: inserted, error: insertError } = await supabase
+-    .from('unified_picks')
+-    .insert([baseData])
+-    .select('id')
+-    .single();
+-    
+-  if (insertError) {
+-    throw new Error(`Failed to insert base pick: ${insertError.message}`);
+-  }
+-  
+-  // Update with professional data if available
+-  if (pick.professional_score !== undefined) {
+-    const professionalData: any = {};
+-    
+-    if (pick.professional_score !== undefined) professionalData.professional_score = pick.professional_score;
+-    if (pick.devigged_edge !== undefined) professionalData.devigged_edge = pick.devigged_edge;
+-    if (pick.clv_tracking_id !== undefined) professionalData.clv_tracking_id = pick.clv_tracking_id;
+-    if (pick.kelly_fraction !== undefined) professionalData.kelly_fraction = pick.kelly_fraction;
+-    if (pick.processing_time !== undefined) professionalData.processing_time = pick.processing_time;
+-    if (pick.published !== undefined) professionalData.published = pick.auto_approved;
+-    if (pick.feature_contributions !== undefined) professionalData.feature_contributions = pick.feature_contributions;
+-    
+-    const { error: updateError } = await supabase
+-      .from('unified_picks')
+-      .update(professionalData)
+-      .eq('id', inserted.id);
+-      
+-    if (updateError) {
+-      console.warn(`Professional data update warning: ${updateError.message}`);
+-    }
++
++  // Add professional data if available
++  if (pick.professional_score !== undefined) pickData.professional_score = pick.professional_score;
++  if (pick.devigged_edge !== undefined) pickData.devigged_edge = pick.devigged_edge;
++  if (pick.clv_tracking_id !== undefined) pickData.clv_tracking_id = pick.clv_tracking_id;
++  if (pick.kelly_fraction !== undefined) pickData.kelly_fraction = pick.kelly_fraction;
++  if (pick.processing_time !== undefined) pickData.processing_time = pick.processing_time;
++  if (pick.published !== undefined) pickData.published = pick.auto_approved;
++  if (pick.feature_contributions !== undefined) pickData.feature_contributions = pick.feature_contributions;
++
++  // Use lifecycle adapter for insert
++  const result = await lifecycleInsert(supabase, pickData, {
++    writerRole: 'promoter',
++    traceId: `optimized-insert-${pickId}`,
++  });
++
++  if (!result.success) {
++    throw new Error(`Failed to insert pick: ${result.error}`);
+   }
+-  
+-  return inserted.id;
++
++  return result.pickId || pickId;
+ }
+ 
+ // Optimized CLV Tracking Insertion
+diff --git a/apps/api/src/workers/BridgeWorker.ts b/apps/api/src/workers/BridgeWorker.ts
+index 9fa0fe64..d3a8f68b 100644
+--- a/apps/api/src/workers/BridgeWorker.ts
++++ b/apps/api/src/workers/BridgeWorker.ts
+@@ -13,7 +13,7 @@ import {
+ } from '../agents/BaseAgent/types';
+ import { SyndicateGradingEngine } from '../agents/GradingAgent/scoring/gradingEngine';
+ import { AgentInstrumentation, createAgentInstrumentation } from '../lib/AgentInstrumentation';
+-import { lifecycleInsert } from '../lib/lifecycle';
++import { lifecycleInsert, lifecycleUpdate } from '../lib/lifecycle';
+ import { withCircuitBreaker, circuitBreaker } from '../services/enhanced-circuit-breaker';
+ import { Logger } from '../shared/logger/types';
+ import { AgentControlPlane, createAgentControlPlane } from '../temporal/AgentControlPlane';
+@@ -731,26 +731,27 @@ export class BridgeWorker extends BaseAgent {
+           // Map tier to DB-allowed values (S, A, B, C, F, null — no D)
+           const dbTier = result.tier === 'D' ? 'C' : result.tier;
+ 
++          // SPRINT: PHASE2-CANONICAL-STATE-LOCK-001 - Use lifecycle adapter
+           // Update the existing unified_picks row with grading results
+-          const { error: updateErr } = await db
+-            .from('unified_picks')
+-            .update({
+-              promotion_band: result.promotionBand || null,
+-              tier: dbTier,
+-              professional_score: isNaN(result.finalScore) ? null : result.finalScore,
+-              confidence:
+-                result.confidence > 1
+-                  ? Math.round(result.confidence)
+-                  : Math.round(result.confidence * 10),
+-              workflow_stage: 'approved',
+-              updated_at: new Date().toISOString(),
+-            })
+-            .eq('id', pick.id);
++          const updateResult = await lifecycleUpdate(db, pick.id, {
++            promotion_band: result.promotionBand || null,
++            tier: dbTier,
++            professional_score: isNaN(result.finalScore) ? null : result.finalScore,
++            confidence:
++              result.confidence > 1
++                ? Math.round(result.confidence)
++                : Math.round(result.confidence * 10),
++            workflow_stage: 'approved',
++            updated_at: new Date().toISOString(),
++          }, {
++            writerRole: 'promoter',
++            traceId: `bridge-grade-${pick.id}`,
++          });
+ 
+-          if (updateErr) {
++          if (!updateResult.success) {
+             this.logger.error('Failed to update unified_picks with grading result', {
+               pickId: pick.id,
+-              error: updateErr.message,
++              error: updateResult.error,
+             });
+           } else {
+             results.push({
+diff --git a/governance/RATIFICATION_RECORD_v1.0.md b/governance/RATIFICATION_RECORD_v1.0.md
+index e69de29b..35c0586a 100644
+--- a/governance/RATIFICATION_RECORD_v1.0.md
++++ b/governance/RATIFICATION_RECORD_v1.0.md
+@@ -0,0 +1,157 @@
++# PHASE2_CANONICAL_STATE_RATIFICATION_v1.0
++
++Status: RATIFIED  
++Date: 2026-02-26  
++Sprint Reference: PHASE2-CANONICAL-STATE-LOCK-001  
++
++---
++
++# 1. Purpose
++
++This document formally ratifies the Canonical State Model of Unit Talk following completion of:
++
++PHASE2-CANONICAL-STATE-AUDIT-001  
++PHASE2-CANONICAL-STATE-LOCK-001  
++
++All canonical state invariants are now enforced at both application and database layers.
++
++This document freezes the model.
++
++---
++
++# 2. Canonical Writer Definitions
++
++## 2.1 Lifecycle Writer (Authoritative State Owner)
++
++The Lifecycle Adapter is the **only permitted writer** of canonical pick lifecycle fields, including but not limited to:
++
++- promotion_status
++- posted_to_discord
++- discord_message_id
++- tier
++- lifecycle_state transitions
++
++No other service, agent, or script may directly mutate these fields.
++
++Enforcement Layers:
++- Application strict single-writer gate
++- Empty allowlist (no temporary exemptions)
++- Database-level trigger protection
++- Context-bound mutation guard via `set_lifecycle_context()`
++
++This writer authority is now immutable unless superseded by a formal governance amendment.
++
++---
++
++## 2.2 Settlement Writer (Finalization Authority)
++
++Settlement logic is the sole authority for:
++
++- settled_at
++- final_result
++- settlement_status
++- immutable outcome fields
++
++Post-finalization mutation is prohibited except through audited admin mutation path.
++
++Settlement immutability is enforced by:
++- DB triggers
++- Application guards
++- Audit logging
++
++---
++
++# 3. Database Privilege Model
++
++## 3.1 Role Enforcement
++
++The following principles are now enforced:
++
++1. No generic service role may directly update canonical lifecycle fields.
++2. Mutation must pass through lifecycle context guard.
++3. Unauthorized direct SQL update attempts are rejected at DB layer.
++4. Secrets cannot fallback to mock values.
++5. No warn-pass configuration is permitted in production.
++
++---
++
++## 3.2 Allowlist Status
++
++Previous temporary allowlist entries (16 files) have been fully migrated to lifecycle adapters.
++
++Allowlist is now:
++
++EMPTY.
++
++Reintroduction requires:
++- Governance decision log entry
++- Formal migration ticket
++- Explicit expiry date
++- Ratification document update
++
++---
++
++# 4. Invariant Compliance
++
++All 10 Phase 2 canonical invariants now PASS without conditional language.
++
++- Exactly one lifecycle writer exists
++- Exactly one settlement writer exists
++- DB privilege enforcement active
++- No alternate canonical mutation path
++- No legacy tables reintroducing alternate truth
++- Side effects do not mutate canonical state
++
++---
++
++# 5. Freeze Declaration
++
++The Canonical State Model is now frozen under Clean-Room Doctrine.
++
++No additional lifecycle mutation surfaces may be introduced without:
++
++1. Governance proposal
++2. Formal audit
++3. Enforcement update
++4. Ratification amendment
++
++---
++
++# 6. Roadmap Status Update
++
++Phase 2 Canonical State Enforcement: COMPLETE  
++Phase 2 Canonical State Ratification: COMPLETE  
++
++The system now has:
++
++- Runtime Truth Lock
++- Canonical State Lock
++
++---
++
++# 7. Next Phase
++
++Next phase per Master Roadmap:
++
++PHASE3 — Outbox & Event Determinism Design (Design Only)
++
++No coding permitted until design artifacts are completed and ratified.
++
++---
++
++End of Document.
++# Closeout: PHASE2-CANONICAL-STATE-RATIFIED-001
++
++Date: 2026-02-26
++
++Scope:
++- Ratify Phase 2 Canonical State Model (design freeze + governance ratification)
++
++Gates:
++- docs:validate
++- tag truth enforcement (CI-minted governed tags)
++
++Result: PASS
++
++Artifacts:
++- governance/ratifications/PHASE2_CANONICAL_STATE_RATIFICATION_v1.0.md
+\ No newline at end of file
