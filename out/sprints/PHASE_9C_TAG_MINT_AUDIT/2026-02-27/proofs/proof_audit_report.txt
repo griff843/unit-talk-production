@@ -1,0 +1,113 @@
+=== PHASE 9C: GOVERNED TAG MINTING TRUTH AUDIT ===
+Date: 2026-02-27
+Branch: docs/taxonomy-lock-001
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 1: TAG-RELATED WORKFLOWS DISCOVERED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+WORKFLOW 1: mint-governed-tag.yml
+─────────────────────────────────────────────────
+File Path: .github/workflows/mint-governed-tag.yml
+Purpose: Auto-mint governed tags when closeout markers merged to main
+Trigger Conditions:
+  - on: push
+  - branches: [main]
+  - paths: [governance/closeouts/*.md]
+Tag Naming Logic:
+  - Derives tag name from filename: basename "$file" sans .md extension
+  - Pattern validation: ^(PHASE|SPRINT|GOVERNANCE)[A-Z0-9._-]+$
+Would Trigger on docs/taxonomy-lock-001: NO (main branch only)
+Requires Main Branch: YES
+
+WORKFLOW 2: tag-guard.yml
+─────────────────────────────────────────────────
+File Path: .github/workflows/tag-guard.yml
+Purpose: Validate governed tags on push (post-mint verification)
+Trigger Conditions:
+  - on: push
+  - tags: [PHASE*, SPRINT*, GOVERNANCE*]
+Tag Naming Logic:
+  - Validates closeout marker exists at tag SHA
+  - Runs gates (TypeCheck, Lint)
+Would Trigger on docs/taxonomy-lock-001: N/A (tag push trigger)
+Requires Main Branch: NO (validates any tag push)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 2: LOCAL ENFORCEMENT MECHANISM
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+File Path: .husky/pre-push
+Purpose: Block local governed tag pushes
+Blocked Patterns: ^(PHASE|SPRINT|GOVERNANCE)
+Behavior: exit 1 with error message for any governed tag push
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 3: GOVERNANCE DOCUMENTATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+File: governance/release/TAG_TRUTH_ENFORCEMENT_v1.0.md
+Status: Draft (Ratifiable)
+Key Requirements:
+  - Humans MUST NOT create/push governed tags
+  - CI MUST refuse to mint without passing gates
+  - CI MUST refuse to mint without closeout marker
+  - Tags without closeout markers are INVALID
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 4: CLOSEOUT MARKER ANALYSIS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CLOSEOUTS ON MAIN BRANCH:
+  1. TAG-TRUTH-ENFORCEMENT-CI-AUTOMINT-001.md
+     - Tag: (none - pattern mismatch, starts with TAG not PHASE/SPRINT/GOVERNANCE)
+
+CLOSEOUTS ON docs/taxonomy-lock-001 (NOT ON MAIN):
+  1. PHASE_6A_CONSTITUTION_CONFORMITY_LOCK.md
+  2. PHASE_7_REPO_ENFORCEMENT_LOCK.md
+  3. PHASE_8_ROLLOUT_CANON_LOCK.md
+  4. PHASE_9A_ENFORCEMENT_ACTIVATION_LOCK.md
+  5. PHASE_9B_ENFORCEMENT_SURFACE_INTEGRATION_LOCK.md
+
+ALL ABOVE MATCH PATTERN: ^(PHASE|SPRINT|GOVERNANCE)[A-Z0-9._-]+$
+  - PHASE_6A... ✓
+  - PHASE_7... ✓
+  - PHASE_8... ✓
+  - PHASE_9A... ✓
+  - PHASE_9B... ✓
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 5: EXISTING GOVERNED TAGS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Total PHASE* tags: 7
+Total SPRINT* tags: 78
+Total GOVERNANCE* tags: 2
+
+Note: Most existing tags were created BEFORE the TAG_TRUTH_ENFORCEMENT
+system was implemented. The system was added in commit 0886670c.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 6: DETERMINATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FINDING: A) CI minting EXISTS and was NOT triggered
+
+REASON: The mint-governed-tag.yml workflow is correctly configured
+and fully functional. It requires closeout markers to be merged to
+the main branch before triggering. The Phase 6A-9B closeouts are
+currently on feature branch docs/taxonomy-lock-001 and have not
+been merged to main.
+
+The workflow will mint tags correctly when:
+1. docs/taxonomy-lock-001 is merged to main
+2. CI detects new governance/closeouts/*.md files
+3. CI validates tag names match pattern
+4. CI runs required gates (TypeCheck, Lint)
+5. CI creates and pushes annotated tags
+
+NO IMPLEMENTATION REQUIRED - System functions as designed.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+END OF AUDIT REPORT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

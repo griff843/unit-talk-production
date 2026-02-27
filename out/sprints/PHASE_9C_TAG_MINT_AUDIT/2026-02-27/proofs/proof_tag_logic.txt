@@ -1,0 +1,63 @@
+=== PROOF: TAG NAMING AND VALIDATION LOGIC ===
+Date: 2026-02-27
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TAG DERIVATION LOGIC (from mint-governed-tag.yml)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Derive tag name from filename (strip path and .md extension)
+FILENAME=$(basename "$file")
+TAG_NAME="${FILENAME%.md}"
+
+Example:
+  Input: governance/closeouts/PHASE_9A_ENFORCEMENT_ACTIVATION_LOCK.md
+  FILENAME: PHASE_9A_ENFORCEMENT_ACTIVATION_LOCK.md
+  TAG_NAME: PHASE_9A_ENFORCEMENT_ACTIVATION_LOCK
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TAG PATTERN VALIDATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Pattern: ^(PHASE|SPRINT|GOVERNANCE)[A-Z0-9._-]+$
+
+Breakdown:
+  ^ - Start of string
+  (PHASE|SPRINT|GOVERNANCE) - Must start with one of these
+  [A-Z0-9._-]+ - Followed by uppercase letters, numbers, dots, underscores, hyphens
+  $ - End of string
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VALIDATION TESTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+VALID TAGS:
+  PHASE_9A_ENFORCEMENT_ACTIVATION_LOCK ✓
+  PHASE_9B_ENFORCEMENT_SURFACE_INTEGRATION_LOCK ✓
+  PHASE_6A_CONSTITUTION_CONFORMITY_LOCK ✓
+  PHASE_7_REPO_ENFORCEMENT_LOCK ✓
+  PHASE_8_ROLLOUT_CANON_LOCK ✓
+  SPRINT-BUILD-TEST-001 ✓
+  GOVERNANCE-BASELINE-1.0 ✓
+
+INVALID TAGS:
+  TAG-TRUTH-ENFORCEMENT-CI-AUTOMINT-001 ✗ (starts with TAG)
+  lowercase-sprint-001 ✗ (lowercase letters)
+  PHASE 9A ✗ (contains space)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TAG CREATION COMMAND
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+git config user.name "github-actions[bot]"
+git config user.email "github-actions[bot]@users.noreply.github.com"
+git tag -a "$TAG_NAME" -m "$TAG_MSG"
+git push origin "$TAG_NAME"
+
+Notes:
+  - Annotated tag (-a flag)
+  - Message includes: closeout file, SHA, minted by, reference, gates passed
+  - Pushed immediately after creation
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+END OF TAG LOGIC PROOF
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
