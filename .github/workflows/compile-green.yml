@@ -46,7 +46,7 @@ jobs:
           cache: "pnpm"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: TypeScript compile check (apps/api)
         run: pnpm --filter api type-check
@@ -84,7 +84,7 @@ jobs:
           cache: "pnpm"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: TypeScript compile check (apps/command-center)
         run: pnpm --filter command-center type-check || echo "⚠️ Command Center type check skipped (optional)"
@@ -110,7 +110,7 @@ jobs:
           cache: "pnpm"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: TypeScript compile check (apps/discord-bot)
         run: pnpm --filter discord-bot type-check || echo "⚠️ Discord Bot type check skipped (optional)"
