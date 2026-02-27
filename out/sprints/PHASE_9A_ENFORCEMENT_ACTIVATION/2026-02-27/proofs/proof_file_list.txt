@@ -1,0 +1,35 @@
+=== PHASE_9A ENFORCEMENT ACTIVATION - FILE LIST ===
+Timestamp: 2026-02-27
+Contract: PHASE_9A_ENFORCEMENT_ACTIVATION
+Commit: 5891361b
+
+--- New Files Created ---
+apps/api/src/lib/enforcement/rollout-mode.ts
+  - Implements ROLLOUT_MODE_CANON_v1.0
+  - Closed enum: DORMANT, SHADOW, CANARY, ENFORCED, LOCKED
+  - Environment-to-mode allowed matrix
+  - NO SHADOW IN PROD hard guard
+  - Mode validation with deterministic receipts
+
+apps/api/src/lib/enforcement/fail-closed-boot.ts
+  - Implements FAIL_CLOSED_BOOT_SPEC_v1.0
+  - BP_ENV: Environment precondition check
+  - BP_SECRET: Secrets precondition check (masked)
+  - BP_CONFIG: Configuration precondition check
+  - Exit codes: 0=success, 2=env, 3=secret, 4=config, 5=db, 6=deps
+  - Boot sequence enforcement with deterministic receipts
+
+apps/api/src/lib/enforcement/index.ts
+  - Module index exporting all enforcement functionality
+
+--- Modified Files ---
+apps/api/src/index.ts
+  - Integrated enforceFailClosedBoot() at startup
+  - Boot enforcement runs BEFORE any business logic
+  - Process exits with appropriate code on failure
+
+apps/api/src/utils/getEnv.ts
+  - Added ENV_IDENTITY and ROLLOUT_MODE to schema
+  - Secondary validation for backwards compatibility
+
+=== END FILE LIST ===

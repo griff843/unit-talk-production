@@ -1,0 +1,46 @@
+=== PHASE_9A ENV CONTRACT EVALUATION ===
+Timestamp: 2026-02-27
+Contract: FAIL_CLOSED_BOOT_SPEC_v1.0
+
+--- Environment Variables Contract ---
+
+| Variable                   | Category  | Requirement                           | Exit Code |
+|----------------------------|-----------|---------------------------------------|-----------|
+| ENV_IDENTITY               | BP_ENV    | MUST be dev, staging, or prod         | 2         |
+| NODE_ENV                   | BP_ENV    | MUST be development/test/staging/prod | 2         |
+| PORT                       | BP_ENV    | MUST be valid port (1-65535)          | 2         |
+| ROLLOUT_MODE               | BP_CONFIG | MUST be from closed enum or default   | 4         |
+| SUPABASE_URL               | BP_SECRET | Required in staging/prod              | 3         |
+| SUPABASE_SERVICE_ROLE_KEY  | BP_SECRET | Required in staging/prod              | 3         |
+| SUPABASE_ANON_KEY          | BP_SECRET | Required in prod                      | 3         |
+| DOCKER_CONTAINER           | BP_CONFIG | MUST be 'true' in prod                | 4         |
+
+--- Rollout Mode Allowed Matrix ---
+
+| Environment | DORMANT | SHADOW         | CANARY      | ENFORCED    | LOCKED      |
+|-------------|---------|----------------|-------------|-------------|-------------|
+| dev         | ALLOWED | ALLOWED        | NOT ALLOWED | NOT ALLOWED | NOT ALLOWED |
+| staging     | ALLOWED | ALLOWED        | ALLOWED     | NOT ALLOWED | NOT ALLOWED |
+| prod        | ALLOWED | **PROHIBITED** | ALLOWED     | ALLOWED     | ALLOWED     |
+
+--- Exit Code Convention ---
+
+| Code | Meaning                            |
+|------|-----------------------------------|
+| 0    | Success (boot complete)            |
+| 1    | General boot failure               |
+| 2    | Environment precondition failure   |
+| 3    | Secret precondition failure        |
+| 4    | Configuration precondition failure |
+| 5    | Database precondition failure      |
+| 6    | Dependency precondition failure    |
+
+--- Implementation Location ---
+
+File: apps/api/src/lib/enforcement/fail-closed-boot.ts
+- checkEnvPreconditions(): BP_ENV validation
+- checkSecretsPreconditions(): BP_SECRET validation (masked)
+- checkConfigPreconditions(): BP_CONFIG + rollout mode validation
+- enforceFailClosedBoot(): Main entry point, calls process.exit() on failure
+
+=== END ENV CONTRACT EVALUATION ===
