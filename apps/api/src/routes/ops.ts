@@ -12,6 +12,7 @@ import crypto from 'crypto';
 import { Connection, Client } from '@temporalio/client';
 import express, { Router } from 'express';
 
+import { operatorAuth, AuthenticatedRequest } from '../middleware/operatorAuth';
 import { getEnv } from '../utils/getEnv';
 import { createLogger } from '../utils/logger';
 
@@ -354,25 +355,16 @@ router.delete('/cleanup/:runId', async (req, res) => {
  * - Inserts audit_log operator action entry
  * - Returns structured success/error JSON
  */
-router.post('/settle', async (req, res) => {
+router.post('/settle', operatorAuth, async (req: AuthenticatedRequest, res) => {
   const correlationId = `ops-settle-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
 
   try {
     const { pick_id, result, actual_value, notes } = req.body;
 
-    // SPRINT-STRUCTURAL-REINFORCEMENT-P0-002: Fix CRIT-003 - Operator spoofing
-    // Get operator from authenticated context, not client body
-    const authenticatedOperator = req.headers['x-operator-id'] as string | undefined;
-    if (!authenticatedOperator && process.env.NODE_ENV === 'production') {
-      logger.warn('Settlement attempted without authenticated operator', { correlationId });
-      return res.status(401).json({
-        success: false,
-        error: 'Authenticated operator identity required (x-operator-id header)',
-        correlationId,
-        timestamp: new Date().toISOString(),
-      });
-    }
-    const operator = authenticatedOperator || 'system';
+    // SPRINT-STRUCTURAL-REINFORCEMENT-P0-003: Operator Identity Truth Lock
+    // Authority derived from JWT principal ONLY (via operatorAuth middleware)
+    // x-operator-id header is ignored for authorization (spoof attempts logged by middleware)
+    const operator = req.authenticatedOperatorId || 'system';
 
     // Input validation
     if (!pick_id) {
@@ -506,24 +498,15 @@ router.post('/settle', async (req, res) => {
  * - Handles parlay legs atomically
  * - Inserts audit_log entry
  */
-router.post('/retry-posting', async (req, res) => {
+router.post('/retry-posting', operatorAuth, async (req: AuthenticatedRequest, res) => {
   const correlationId = `ops-retry-posting-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
 
   try {
     const { pick_id, reason, drift_mode } = req.body;
 
-    // SPRINT-STRUCTURAL-REINFORCEMENT-P0-002: Fix CRIT-003 - Operator spoofing
-    const authenticatedOperator = req.headers['x-operator-id'] as string | undefined;
-    if (!authenticatedOperator && process.env.NODE_ENV === 'production') {
-      logger.warn('Retry-posting attempted without authenticated operator', { correlationId });
-      return res.status(401).json({
-        success: false,
-        error: 'Authenticated operator identity required (x-operator-id header)',
-        correlationId,
-        timestamp: new Date().toISOString(),
-      });
-    }
-    const operator = authenticatedOperator || 'system';
+    // SPRINT-STRUCTURAL-REINFORCEMENT-P0-003: Operator Identity Truth Lock
+    // Authority derived from JWT principal ONLY (via operatorAuth middleware)
+    const operator = req.authenticatedOperatorId || 'system';
 
     // Input validation
     if (!pick_id) {
@@ -639,24 +622,15 @@ router.post('/retry-posting', async (req, res) => {
  * - Resets settlement_status to pending
  * - Inserts audit_log entry
  */
-router.post('/retry-settlement', async (req, res) => {
+router.post('/retry-settlement', operatorAuth, async (req: AuthenticatedRequest, res) => {
   const correlationId = `ops-retry-settlement-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
 
   try {
     const { pick_id, reason, drift_mode } = req.body;
 
-    // SPRINT-STRUCTURAL-REINFORCEMENT-P0-002: Fix CRIT-003 - Operator spoofing
-    const authenticatedOperator = req.headers['x-operator-id'] as string | undefined;
-    if (!authenticatedOperator && process.env.NODE_ENV === 'production') {
-      logger.warn('Retry-settlement attempted without authenticated operator', { correlationId });
-      return res.status(401).json({
-        success: false,
-        error: 'Authenticated operator identity required (x-operator-id header)',
-        correlationId,
-        timestamp: new Date().toISOString(),
-      });
-    }
-    const operator = authenticatedOperator || 'system';
+    // SPRINT-STRUCTURAL-REINFORCEMENT-P0-003: Operator Identity Truth Lock
+    // Authority derived from JWT principal ONLY (via operatorAuth middleware)
+    const operator = req.authenticatedOperatorId || 'system';
 
     // Input validation
     if (!pick_id) {

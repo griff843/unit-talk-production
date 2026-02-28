@@ -1,5 +1,6 @@
-/* eslint-disable max-lines */
+/* eslint-disable max-lines, max-lines-per-function */
 // Pre-existing max-lines issue - documented for SPRINT-093
+// max-lines-per-function: processItem requires complete idempotency flow with logging
 /**
  * DiscordTicketWorker — Polls ticket_discord_outbox and posts Discord embeds.
  *
@@ -78,6 +79,7 @@ let totalItemsProcessed = 0;
 interface ClaimedItem extends OutboxItem {
   discord_channel_id: string;
   retry_count: number;
+  publish_token?: string; // SPRINT-P0-003: Durable intent token set during claim
 }
 
 // ---- HEARTBEAT ----
@@ -139,9 +141,10 @@ interface ReleaseClaimOpts {
   errorMsg?: string;
   skipped?: boolean; // SPRINT-P0-002: For idempotency guard tracking
   reason?: string; // SPRINT-P0-002: Reason for skipping (e.g., IDEMPOTENCY_GUARD)
+  publishToken?: string; // SPRINT-P0-003: Publish token for verification
 }
 
-/** SPRINT-092: Release claim after processing */
+/** SPRINT-092/P0-003: Release claim after processing with publish_token verification */
 async function releaseClaim(
   outboxId: string,
   success: boolean,
@@ -153,6 +156,7 @@ async function releaseClaim(
     p_discord_message_id: opts.messageId || null,
     p_discord_channel_id: opts.channelId || null,
     p_error: opts.errorMsg || null,
+    p_publish_token: opts.publishToken || null, // SPRINT-P0-003: Token verification
   });
   if (error) {
     logger.error('Failed to release claim', { outbox_id: outboxId, error: error.message });
@@ -265,8 +269,18 @@ async function postToDiscord(
 }
 
 async function processItem(item: ClaimedItem): Promise<boolean> {
-  // SPRINT-STRUCTURAL-REINFORCEMENT-P0-002: Fix B4 - Worker crash duplicate
-  // Idempotency guard: Check if this ticket already has a Discord message
+  // SPRINT-P0-003: Log publish_token for tracing (durable intent marker)
+  const publishToken = item.publish_token;
+  logger.debug('Processing claimed item', {
+    outbox_id: item.outbox_id,
+    ticket_id: item.ticket_id,
+    publish_token: publishToken,
+  });
+
+  // SPRINT-STRUCTURAL-REINFORCEMENT-P0-002/P0-003: Idempotency guard
+  // Check if this ticket already has a Discord message (DB-level truth)
+  // This is the CRASH WINDOW SAFETY: If crash happened after POST but before
+  // our release_claim, the retry will find the message_id already exists.
   const { data: existingPost } = await supabaseClient
     .from('ticket_discord_outbox')
     .select('discord_message_id')
@@ -279,12 +293,14 @@ async function processItem(item: ClaimedItem): Promise<boolean> {
       outbox_id: item.outbox_id,
       ticket_id: item.ticket_id,
       existing_message_id: existingPost.discord_message_id,
+      publish_token: publishToken,
     });
     // Release claim as success - this is idempotent, not an error
     await releaseClaim(item.outbox_id, true, {
       messageId: existingPost.discord_message_id,
       skipped: true,
       reason: 'IDEMPOTENCY_GUARD',
+      publishToken,
     });
     return true;
   }
@@ -298,28 +314,36 @@ async function processItem(item: ClaimedItem): Promise<boolean> {
       `Missing: ${contract.missingFields.join(', ')}`,
       {
         missing_fields: contract.missingFields,
+        publish_token: publishToken,
       }
     );
     logger.error('Contract violation', {
       outbox_id: item.outbox_id,
       ticket_id: item.ticket_id,
       missing_fields: contract.missingFields,
+      publish_token: publishToken,
     });
-    await releaseClaim(item.outbox_id, false, { errorMsg });
+    await releaseClaim(item.outbox_id, false, { errorMsg, publishToken });
     return false;
   }
 
   // Build embed
   const embed = buildTicketEmbed(item, contract);
 
-  // Post to Discord
+  // SPRINT-P0-003: POST to Discord
+  // The publish_token was set BEFORE this POST (during claim).
+  // If we crash after POST but before release_claim, the retry will:
+  // 1. Reset the stale claim (clears publish_token)
+  // 2. Re-claim with a new publish_token
+  // 3. Hit the idempotency check above (discord_message_id exists)
   const result = await postToDiscord(item, embed, contract);
 
-  // Release claim with result
+  // Release claim with result and publish_token for verification
   await releaseClaim(item.outbox_id, result.success, {
     messageId: result.messageId,
     channelId: result.channelId || item.discord_channel_id,
     errorMsg: result.error,
+    publishToken,
   });
 
   return result.success;

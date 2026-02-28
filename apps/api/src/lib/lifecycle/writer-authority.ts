@@ -1,5 +1,7 @@
-/* eslint-disable no-console, security/detect-object-injection */
+/* eslint-disable no-console, security/detect-object-injection, max-lines, max-params */
 // Console used for admin override logging; object injection is controlled input
+// max-lines: Security-critical module with field authority definitions + permission validation
+// max-params: logOperatorSpoofAttempt requires all context for proper audit logging
 /**
  * WRITER AUTHORITY GUARD
  * Sprint: LIFECYCLE-CONTRACT-LOCK-037
@@ -7,6 +9,9 @@
  * Enforces single-writer discipline for lifecycle fields.
  * Every write to lifecycle fields MUST pass through this guard.
  */
+
+import { SecurityEventLogger } from '../../security';
+import { supabase } from '../../services/supabaseClient';
 
 import { InvalidWriterError } from './errors';
 
@@ -456,4 +461,98 @@ export function sanitizeAdminOverride<T extends Record<string, unknown>>(
   }
 
   return meta;
+}
+
+// ============================================================
+// OPERATOR SPOOF DETECTION
+// SPRINT-STRUCTURAL-REINFORCEMENT-P0-003: Operator Identity Truth Lock
+// ============================================================
+
+/**
+ * Log operator spoof attempt to security_events table.
+ *
+ * Called when x-operator-id header is present but differs from the
+ * authenticated user ID (derived from JWT). The header is IGNORED
+ * for authorization, but the attempt is logged for audit.
+ *
+ * @param authenticatedId - The real user ID from JWT authentication
+ * @param spoofedId - The x-operator-id header value (ignored for auth)
+ * @param endpoint - The API endpoint being accessed
+ * @param ip - Client IP address
+ * @param userAgent - Client User-Agent header
+ */
+export async function logOperatorSpoofAttempt(
+  authenticatedId: string,
+  spoofedId: string,
+  endpoint: string,
+  ip: string,
+  userAgent?: string
+): Promise<void> {
+  console.warn(
+    `[SPOOF_ATTEMPT] Operator spoof detected: authenticated=${authenticatedId}, spoofed=${spoofedId}, endpoint=${endpoint}`
+  );
+
+  try {
+    await SecurityEventLogger.logEvent({
+      type: 'operator_spoof_attempt',
+      userId: authenticatedId,
+      ip,
+      userAgent,
+      details: {
+        authenticatedUserId: authenticatedId,
+        spoofedOperatorId: spoofedId,
+        endpoint,
+        headerIgnored: true,
+        severity: 'high',
+        message:
+          'x-operator-id header value was ignored. Authority derived from JWT principal only.',
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error(`[SPOOF_ATTEMPT] Failed to log security event: ${err}`);
+  }
+}
+
+/**
+ * Validate operator has required permission for privileged operations.
+ * Combines authentication (already done) with authorization (permission check).
+ *
+ * @param operatorId - The authenticated operator ID (from JWT)
+ * @param requiredPermission - The permission required for the operation
+ * @returns Object with hasPermission boolean and optional reason
+ */
+export async function validateOperatorPermission(
+  operatorId: string,
+  requiredPermission: AdminPermission
+): Promise<{ hasPermission: boolean; reason?: string }> {
+  // In non-production, allow with logging
+  if (process.env.NODE_ENV !== 'production') {
+    console.warn(
+      `[OPERATOR_PERMISSION] Non-production: allowing ${requiredPermission} for ${operatorId}`
+    );
+    return { hasPermission: true, reason: 'non-production-bypass' };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('user_permissions')
+      .select('id')
+      .eq('user_id', operatorId)
+      .eq('permission', requiredPermission)
+      .maybeSingle();
+
+    if (error) {
+      console.error(`[OPERATOR_PERMISSION] Permission check error: ${JSON.stringify(error)}`);
+      return { hasPermission: false, reason: 'permission-check-failed' };
+    }
+
+    return {
+      hasPermission: !!data,
+      reason: data ? 'permission-granted' : 'permission-denied',
+    };
+  } catch (err) {
+    console.error(`[OPERATOR_PERMISSION] Unexpected error: ${err}`);
+    return { hasPermission: false, reason: 'unexpected-error' };
+  }
 }
