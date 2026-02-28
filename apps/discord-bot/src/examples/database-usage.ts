@@ -6,7 +6,6 @@
  */
 
 import { databaseService, UserTier } from '../services/database';
-import { logger } from '../utils/logger';
 import {
   toISOString,
   toDate,
@@ -16,6 +15,7 @@ import {
   getMonth,
   getDate,
 } from '../utils/dateUtils';
+import { logger } from '../utils/logger';
 
 /**
  * Example: User Profile Management

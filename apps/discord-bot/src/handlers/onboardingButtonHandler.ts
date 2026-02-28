@@ -6,9 +6,10 @@ import {
   ButtonStyle,
   Client,
 } from 'discord.js';
-import { logger } from '../utils/logger';
-import { OnboardingService } from '../services/onboardingService';
+
 import { DMService } from '../services/dmService';
+import { OnboardingService } from '../services/onboardingService';
+import { logger } from '../utils/logger';
 
 /**
  * Elite Trial Onboarding Button Handler
@@ -104,7 +105,8 @@ export class OnboardingButtonHandler {
             userId: interaction.user.id,
           });
           await interaction.reply({
-            content: 'I apologize, but this feature is currently being updated. Please contact support if you need assistance.',
+            content:
+              'I apologize, but this feature is currently being updated. Please contact support if you need assistance.',
             ephemeral: true,
           });
       }
@@ -118,7 +120,8 @@ export class OnboardingButtonHandler {
 
       if (!interaction.replied && !interaction.deferred) {
         await interaction.reply({
-          content: 'An error occurred. Your Unit Talk Concierge has been notified and will assist you shortly.',
+          content:
+            'An error occurred. Your Unit Talk Concierge has been notified and will assist you shortly.',
           ephemeral: true,
         });
       }
@@ -134,12 +137,12 @@ export class OnboardingButtonHandler {
       .setTitle('🎯 Your First VIP Pick is Ready!')
       .setDescription(
         `**${interaction.user.username}**, your concierge here with your first exclusive pick.\n\n` +
-        `**Today's VIP Intelligence Alert:**\n` +
-        `🏀 **Lakers vs Warriors** (8:00 PM ET)\n` +
-        `📊 **Pick:** Under 223.5 (-110)\n` +
-        `⭐ **Edge Score:** 8.7/10 (S-Tier)\n\n` +
-        `**Why this pick?** Our analysis shows strong historical patterns when these teams play with similar total lines. ` +
-        `Plus, both teams have been hitting unders at 68% over their last 10 games.`
+          `**Today's VIP Intelligence Alert:**\n` +
+          `🏀 **Lakers vs Warriors** (8:00 PM ET)\n` +
+          `📊 **Pick:** Under 223.5 (-110)\n` +
+          `⭐ **Edge Score:** 8.7/10 (S-Tier)\n\n` +
+          `**Why this pick?** Our analysis shows strong historical patterns when these teams play with similar total lines. ` +
+          `Plus, both teams have been hitting unders at 68% over their last 10 games.`
       )
       .addFields(
         {
@@ -154,7 +157,8 @@ export class OnboardingButtonHandler {
         },
         {
           name: '💡 How to Use This',
-          value: 'Head to your sportsbook and place this bet. Then come back and use `/submit-pick` to track your results with us!',
+          value:
+            'Head to your sportsbook and place this bet. Then come back and use `/submit-pick` to track your results with us!',
           inline: false,
         }
       )
@@ -190,8 +194,8 @@ export class OnboardingButtonHandler {
       .setTitle('🗺️ Your Elite Server Navigation Guide')
       .setDescription(
         `**${interaction.user.username}**, let me show you around your new home.\n\n` +
-        `As a trial member, you have **exclusive access** to areas most people never see. ` +
-        `Here's your personal guide to navigating like a VIP:`
+          `As a trial member, you have **exclusive access** to areas most people never see. ` +
+          `Here's your personal guide to navigating like a VIP:`
       )
       .addFields(
         {
@@ -204,7 +208,7 @@ export class OnboardingButtonHandler {
           inline: false,
         },
         {
-          name: '💎 What You\'re Missing (VIP+ Preview)',
+          name: "💎 What You're Missing (VIP+ Preview)",
           value: [
             '• **<#1288612794584924171>** - VIP+ Arena (ultimate tier)',
             '• **<#1288613114815840466>** - Exclusive insights and analysis',
@@ -218,7 +222,7 @@ export class OnboardingButtonHandler {
             '• Use `/ask-unit-talk` anywhere - I can answer strategy questions',
             '• Check pins in channels for important announcements',
             '• React with 🔥 on picks you like - cappers notice!',
-            '• Use `/capper-stats` to see who\'s hot right now',
+            "• Use `/capper-stats` to see who's hot right now",
           ].join('\n'),
           inline: false,
         }
@@ -252,18 +256,18 @@ export class OnboardingButtonHandler {
   private async handleVIPPlusPreview(interaction: ButtonInteraction): Promise<void> {
     const embed = new EmbedBuilder()
       .setColor('#FFD700')
-      .setTitle('👑 VIP+ Elite: What You\'re Missing')
+      .setTitle("👑 VIP+ Elite: What You're Missing")
       .setDescription(
         `**${interaction.user.username}**, since you're a valued trial member, here's an exclusive preview of what our VIP+ Elite members are getting right now...\n\n` +
-        `**🔥 LIVE VIP+ Algorithm Pick** (Posted 15 minutes ago):\n` +
-        `🏈 **Chiefs vs Bills** - *[Details hidden - VIP+ only]*\n` +
-        `💎 **Edge Score:** 9.2/10 (S+ Tier)\n` +
-        `📈 **Historical:** 87% win rate on this pattern\n\n` +
-        `*This is the kind of intelligence that separates VIP+ from everyone else...*`
+          `**🔥 LIVE VIP+ Algorithm Pick** (Posted 15 minutes ago):\n` +
+          `🏈 **Chiefs vs Bills** - *[Details hidden - VIP+ only]*\n` +
+          `💎 **Edge Score:** 9.2/10 (S+ Tier)\n` +
+          `📈 **Historical:** 87% win rate on this pattern\n\n` +
+          `*This is the kind of intelligence that separates VIP+ from everyone else...*`
       )
       .addFields(
         {
-          name: '💎 Exclusive VIP+ Features You Don\'t Have',
+          name: "💎 Exclusive VIP+ Features You Don't Have",
           value: [
             '• **Premium Analysis** - Enhanced betting intelligence',
             '• **Whale Tracking** - Follow the biggest money movements',
@@ -283,7 +287,8 @@ export class OnboardingButtonHandler {
         },
         {
           name: '⏰ Special Trial Offer',
-          value: '**Upgrade to VIP+ during your trial and save 30% for 3 months.** This offer expires when your trial ends.',
+          value:
+            '**Upgrade to VIP+ during your trial and save 30% for 3 months.** This offer expires when your trial ends.',
           inline: false,
         }
       )
@@ -319,8 +324,8 @@ export class OnboardingButtonHandler {
       .setTitle('📚 Master Your VIP Command Suite')
       .setDescription(
         `**${interaction.user.username}**, these slash commands are your secret weapons. ` +
-        `Most members don't use them properly - here's how to maximize your edge:\n\n` +
-        `**💡 Pro Tip:** Start typing \`/\` in any channel to see all available commands!`
+          `Most members don't use them properly - here's how to maximize your edge:\n\n` +
+          `**💡 Pro Tip:** Start typing \`/\` in any channel to see all available commands!`
       )
       .addFields(
         {
@@ -348,14 +353,14 @@ export class OnboardingButtonHandler {
           value: [
             '1. **Try this now:** `/ask-unit-talk What makes Unit Talk different?`',
             '2. **Then try:** `/capper-stats` (see all our experts)',
-            '3. **Practice:** `/submit-pick` on today\'s game',
+            "3. **Practice:** `/submit-pick` on today's game",
             '',
             '**Your concierge tip:** Use these commands in VIP channels for priority responses!',
           ].join('\n'),
           inline: false,
         }
       )
-      .setFooter({ text: 'Unit Talk Concierge • Master these and you\'ll bet like a pro' })
+      .setFooter({ text: "Unit Talk Concierge • Master these and you'll bet like a pro" })
       .setTimestamp();
 
     const components = [
@@ -387,18 +392,18 @@ export class OnboardingButtonHandler {
       .setTitle('⚙️ Customize Your Elite Experience')
       .setDescription(
         `**${interaction.user.username}**, let me personalize your Unit Talk experience.\n\n` +
-        `**Your preferences help me serve you better:**\n` +
-        `• More relevant picks and analysis\n` +
-        `• Customized alerts and notifications\n` +
-        `• Better follow-up recommendations\n\n` +
-        `**What sports interest you most?** (Choose all that apply)`
+          `**Your preferences help me serve you better:**\n` +
+          `• More relevant picks and analysis\n` +
+          `• Customized alerts and notifications\n` +
+          `• Better follow-up recommendations\n\n` +
+          `**What sports interest you most?** (Choose all that apply)`
       )
       .addFields(
         {
           name: '🏆 Available Sports',
           value: [
             '🏈 **NFL** - Professional football',
-            '🏀 **NBA** - Professional basketball', 
+            '🏀 **NBA** - Professional basketball',
             '⚾ **MLB** - Major League Baseball',
             '🏒 **NHL** - National Hockey League',
             '⚽ **Soccer** - International and MLS',
@@ -458,8 +463,8 @@ export class OnboardingButtonHandler {
       .setTitle('🚀 Ready to Keep Your Edge?')
       .setDescription(
         `**Excellent choice, ${interaction.user.username}!**\n\n` +
-        `Your concierge is excited to continue working with you. Here's how to upgrade and keep your elite access:\n\n` +
-        `**🎯 Your VIP Upgrade Benefits:**`
+          `Your concierge is excited to continue working with you. Here's how to upgrade and keep your elite access:\n\n` +
+          `**🎯 Your VIP Upgrade Benefits:**`
       )
       .addFields(
         {
@@ -525,8 +530,8 @@ export class OnboardingButtonHandler {
       .setTitle('👑 VIP+ Elite: Premium Features')
       .setDescription(
         `**${interaction.user.username}**, interested in our premium tier?\n\n` +
-        `VIP+ Elite is our highest tier with exclusive features. ` +
-        `Since you're a trial member, here's information about what VIP+ includes:`
+          `VIP+ Elite is our highest tier with exclusive features. ` +
+          `Since you're a trial member, here's information about what VIP+ includes:`
       )
       .addFields(
         {
@@ -595,7 +600,7 @@ export class OnboardingButtonHandler {
       .setTitle('⏰ Need More Time? I Understand')
       .setDescription(
         `**${interaction.user.username}**, your concierge understands that 7 days can feel rushed for such an important decision.\n\n` +
-        `While I can't extend trials automatically, here's what I can do for you:`
+          `While I can't extend trials automatically, here's what I can do for you:`
       )
       .addFields(
         {
@@ -610,20 +615,21 @@ export class OnboardingButtonHandler {
         {
           name: '💡 In the Meantime',
           value: [
-            '• Make sure you\'ve tried all the slash commands',
+            "• Make sure you've tried all the slash commands",
             '• Check out both VIP channels you have access to',
-            '• Review your pick performance if you\'ve been tracking',
+            "• Review your pick performance if you've been tracking",
             '• Ask me any questions using `/ask-unit-talk`',
           ].join('\n'),
           inline: false,
         },
         {
           name: '⚡ Quick Decision Helper',
-          value: 'The biggest question: **"Am I making better betting decisions with Unit Talk than without it?"** If yes, the choice is clear.',
+          value:
+            'The biggest question: **"Am I making better betting decisions with Unit Talk than without it?"** If yes, the choice is clear.',
           inline: false,
         }
       )
-      .setFooter({ text: 'Unit Talk Concierge • I\'m here to help you decide' })
+      .setFooter({ text: "Unit Talk Concierge • I'm here to help you decide" })
       .setTimestamp();
 
     const components = [
@@ -649,7 +655,10 @@ export class OnboardingButtonHandler {
   /**
    * Handle motivation selection - The key to personalized onboarding
    */
-  private async handleMotivationSelection(interaction: ButtonInteraction, motivation: string): Promise<void> {
+  private async handleMotivationSelection(
+    interaction: ButtonInteraction,
+    motivation: string
+  ): Promise<void> {
     try {
       // Store the user's motivation choice (in production, save to database)
       logger.info('[ONBOARDING_BUTTONS] User selected motivation', {
@@ -660,12 +669,12 @@ export class OnboardingButtonHandler {
 
       // Get motivation display names
       const motivationNames = {
-        'losing_money': 'Stop Losing, Start Winning',
-        'need_analysis': 'Institutional-Grade Intelligence', 
-        'learn_strategy': 'Betting Education Mastery',
-        'community': 'Elite Betting Community',
-        'profit_system': 'Consistent Profit Engine',
-        'expert_picks': 'Expert Capper Network',
+        losing_money: 'Stop Losing, Start Winning',
+        need_analysis: 'Institutional-Grade Intelligence',
+        learn_strategy: 'Betting Education Mastery',
+        community: 'Elite Betting Community',
+        profit_system: 'Consistent Profit Engine',
+        expert_picks: 'Expert Capper Network',
       };
 
       const themeName = motivationNames[motivation] || 'Personalized Experience';
@@ -676,10 +685,10 @@ export class OnboardingButtonHandler {
         .setTitle('🎯 Perfect! Your Experience is Being Personalized')
         .setDescription(
           `**${interaction.user.username}**, excellent choice!\n\n` +
-          `I'm now personalizing your entire 7-day Unit Talk experience around:\n` +
-          `**🌟 ${themeName}**\n\n` +
-          `Everything you receive over the next week will be tailored specifically to help you achieve this goal. ` +
-          `Your personalized journey starts in just a moment...`
+            `I'm now personalizing your entire 7-day Unit Talk experience around:\n` +
+            `**🌟 ${themeName}**\n\n` +
+            `Everything you receive over the next week will be tailored specifically to help you achieve this goal. ` +
+            `Your personalized journey starts in just a moment...`
         )
         .addFields(
           {
@@ -694,8 +703,9 @@ export class OnboardingButtonHandler {
           },
           {
             name: '💡 Your Concierge Promise',
-            value: `Over the next 7 days, I'll focus entirely on helping you ${this.getGoalDescription(motivation)}. ` +
-                   `This isn't generic onboarding - this is your personal journey to success.`,
+            value:
+              `Over the next 7 days, I'll focus entirely on helping you ${this.getGoalDescription(motivation)}. ` +
+              `This isn't generic onboarding - this is your personal journey to success.`,
             inline: false,
           }
         )
@@ -723,7 +733,6 @@ export class OnboardingButtonHandler {
           });
         }
       }, 3000); // 3 second delay to build anticipation
-
     } catch (error) {
       logger.error('[ONBOARDING_BUTTONS] Error handling motivation selection', {
         error: error instanceof Error ? error.message : String(error),
@@ -744,13 +753,13 @@ export class OnboardingButtonHandler {
   private async handlePersonalizedStart(interaction: ButtonInteraction): Promise<void> {
     // Extract motivation from button ID
     const motivation = interaction.customId.replace('personalized_', '').replace('_start', '');
-    
+
     const embed = new EmbedBuilder()
       .setColor('#4169E1')
       .setTitle('🎯 Your Personalized Journey Begins!')
       .setDescription(
         `**${interaction.user.username}**, your concierge here with your first personalized action.\n\n` +
-        `Based on your goal of ${this.getGoalDescription(motivation)}, here's exactly what you should do first:`
+          `Based on your goal of ${this.getGoalDescription(motivation)}, here's exactly what you should do first:`
       )
       .addFields(
         {
@@ -792,12 +801,12 @@ export class OnboardingButtonHandler {
    */
   private getGoalDescription(motivation: string): string {
     const goals = {
-      'losing_money': 'stopping losses and building consistent profits',
-      'need_analysis': 'gaining access to institutional-grade betting intelligence',
-      'learn_strategy': 'mastering winning strategies from expert bettors',
-      'community': 'connecting with a community of successful bettors',
-      'profit_system': 'building a systematic approach to consistent profits',
-      'expert_picks': 'following verified expert picks and analysis',
+      losing_money: 'stopping losses and building consistent profits',
+      need_analysis: 'gaining access to institutional-grade betting intelligence',
+      learn_strategy: 'mastering winning strategies from expert bettors',
+      community: 'connecting with a community of successful bettors',
+      profit_system: 'building a systematic approach to consistent profits',
+      expert_picks: 'following verified expert picks and analysis',
     };
     return goals[motivation] || goals['losing_money'];
   }
@@ -807,12 +816,18 @@ export class OnboardingButtonHandler {
    */
   private getFirstPersonalizedAction(motivation: string): string {
     const actions = {
-      'losing_money': '**Try `/ask-unit-talk`** and ask: "What\'s the biggest mistake losing bettors make?" - Learn what to avoid immediately.',
-      'need_analysis': '**Use `/ask-unit-talk`** and ask: "How does your edge scoring system work?" - Understand our analytical advantage.',
-      'learn_strategy': '**Ask `/ask-unit-talk`**: "What\'s the first strategy every successful bettor learns?" - Start your education.',
-      'community': '**Head to <#1288610443723538584>** and introduce yourself - Tell us your betting background and goals.',
-      'profit_system': '**Try `/ask-unit-talk`** and ask: "How do I start building a systematic betting approach?" - Learn the framework.',
-      'expert_picks': '**Use `/capper-stats`** to see our top performers - Identify which experts match your style.',
+      losing_money:
+        '**Try `/ask-unit-talk`** and ask: "What\'s the biggest mistake losing bettors make?" - Learn what to avoid immediately.',
+      need_analysis:
+        '**Use `/ask-unit-talk`** and ask: "How does your edge scoring system work?" - Understand our analytical advantage.',
+      learn_strategy:
+        '**Ask `/ask-unit-talk`**: "What\'s the first strategy every successful bettor learns?" - Start your education.',
+      community:
+        '**Head to <#1288610443723538584>** and introduce yourself - Tell us your betting background and goals.',
+      profit_system:
+        '**Try `/ask-unit-talk`** and ask: "How do I start building a systematic betting approach?" - Learn the framework.',
+      expert_picks:
+        '**Use `/capper-stats`** to see our top performers - Identify which experts match your style.',
     };
     return actions[motivation] || actions['losing_money'];
   }
@@ -822,12 +837,18 @@ export class OnboardingButtonHandler {
    */
   private getPersonalizedReasoning(motivation: string): string {
     const reasoning = {
-      'losing_money': 'Most losing bettors make the same fundamental mistakes. Understanding these immediately protects your bankroll while you learn.',
-      'need_analysis': 'Our edge scoring is what separates Unit Talk from everyone else. Understanding how it works gives you is_instant analytical advantage.',
-      'learn_strategy': 'There\'s a foundational strategy that every profitable bettor uses. Master this first, everything else builds on top.',
-      'community': 'The community is where the real value happens. Introduce yourself and you\'ll get personalized advice from successful members.',
-      'profit_system': 'Consistent profits come from systems, not luck. Learning our framework gives you the structure for long-term success.',
-      'expert_picks': 'Not all cappers are equal. Finding the right match for your style and bankroll is crucial for following expert picks successfully.',
+      losing_money:
+        'Most losing bettors make the same fundamental mistakes. Understanding these immediately protects your bankroll while you learn.',
+      need_analysis:
+        'Our edge scoring is what separates Unit Talk from everyone else. Understanding how it works gives you is_instant analytical advantage.',
+      learn_strategy:
+        "There's a foundational strategy that every profitable bettor uses. Master this first, everything else builds on top.",
+      community:
+        "The community is where the real value happens. Introduce yourself and you'll get personalized advice from successful members.",
+      profit_system:
+        'Consistent profits come from systems, not luck. Learning our framework gives you the structure for long-term success.',
+      expert_picks:
+        'Not all cappers are equal. Finding the right match for your style and bankroll is crucial for following expert picks successfully.',
     };
     return reasoning[motivation] || reasoning['losing_money'];
   }

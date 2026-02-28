@@ -1,8 +1,8 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
+import { botConfig } from '../config';
 import { Database } from '../db/types/supabase-complete';
 import { UserProfile, UserTier } from '../types/index';
-import { logger } from '../utils/logger';
-import { botConfig } from '../config';
 import {
   toISOString,
   toDate,
@@ -12,6 +12,8 @@ import {
   getMonth,
   getDate,
 } from '../utils/dateUtils';
+import { logger } from '../utils/logger';
+
 import {
   databaseService,
   UserProfileRow,

@@ -7,10 +7,12 @@ import {
   ModalSubmitInteraction,
   AutocompleteInteraction,
 } from 'discord.js';
-import { SupabaseService } from '../services/supabase';
+
 import { PermissionsService } from '../services/permissions';
-import { CommandHandler } from './commandHandler';
+import { SupabaseService } from '../services/supabase';
 import { logger } from '../utils/logger';
+
+import { CommandHandler } from './commandHandler';
 
 export class InteractionHandler {
   private client: Client;
@@ -99,7 +101,7 @@ export class InteractionHandler {
         'prefs_', // Preference buttons
         'comm_', // Communication preference buttons
       ];
-      
+
       if (personalizedOnboardingPrefixes.some(prefix => customId.startsWith(prefix))) {
         logger.info(`🎩 Routing to personalized onboarding handler: ${customId}`);
         const onboardingHandler = new OnboardingButtonHandler(this.client);
@@ -771,7 +773,7 @@ export class InteractionHandler {
 
     // Process form fields and update configuration
     const updates: Record<string, string> = {};
-    fields.fields.forEach((field) => {
+    fields.fields.forEach(field => {
       // Only process text input fields that have a value property
       if ('value' in field) {
         updates[field.customId] = field.value;

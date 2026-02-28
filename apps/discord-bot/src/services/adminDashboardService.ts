@@ -9,13 +9,15 @@ import {
   GuildMember,
   ComponentType,
 } from 'discord.js';
-import { SupabaseService } from './supabase';
-import { PermissionsService } from './permissions';
+
 // import { ComprehensiveOnboardingService } from './comprehensiveOnboardingService'; // REMOVED - using new OnboardingService
-import { AdvancedAnalyticsService } from './advancedAnalyticsService';
-import { logger } from '../utils/logger';
 import { botConfig } from '../config';
 import { defaultOnboardingConfig, OnboardingConfig } from '../config/onboardingConfig';
+import { logger } from '../utils/logger';
+
+import { AdvancedAnalyticsService } from './advancedAnalyticsService';
+import { PermissionsService } from './permissions';
+import { SupabaseService } from './supabase';
 
 export interface AdminDashboardStats {
   onboarding: {

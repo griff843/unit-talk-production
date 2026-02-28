@@ -1,5 +1,6 @@
-import { CommandInteraction, ButtonInteraction } from 'discord.js';
 import {
+  CommandInteraction,
+  ButtonInteraction,
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   EmbedBuilder,
@@ -10,6 +11,10 @@ import {
   ChannelType,
   AttachmentBuilder,
 } from 'discord.js';
+
+import { AIAnalysisService } from '../services/aiAnalysis';
+import { SportsDataService } from '../services/sportsData';
+import { ValidationService } from '../services/validation';
 import {
   PickData,
   EnhancedTicketFormData,
@@ -20,9 +25,6 @@ import {
   UserTier,
   SearchResults,
 } from '../types';
-import { SportsDataService } from '../services/sportsData';
-import { AIAnalysisService } from '../services/aiAnalysis';
-import { ValidationService } from '../services/validation';
 
 // Mock services initialization
 const sportsDataService = new SportsDataService();

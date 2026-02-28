@@ -7,8 +7,9 @@ import {
   TextChannel,
   Colors,
 } from 'discord.js';
-import { logger } from '../utils/logger';
+
 import { botConfig } from '../config/botConfig';
+import { logger } from '../utils/logger';
 
 export class WelcomeService {
   constructor() {

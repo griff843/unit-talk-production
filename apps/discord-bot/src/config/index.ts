@@ -1,14 +1,15 @@
 /**
  * Unit Talk Discord Bot - Configuration Adapter
- * 
+ *
  * This adapter provides Discord Bot-specific configuration by importing from the
  * centralized environment configuration. This follows SaaS-level monorepo
  * best practices by maintaining a single source of truth while providing
  * application-specific interfaces.
  */
 
-import { env } from './environment';
 import { BotConfig } from '../types/index';
+
+import { env } from './environment';
 
 // =============================================================================
 // DISCORD BOT CONFIGURATION USING CENTRALIZED ENV
@@ -124,27 +125,27 @@ export interface DiscordBotConfiguration {
     announcements: string;
     general: string;
     welcome: string;
-    
+
     // Pick Channels
     freePicks: string;
     vipPicks: string;
     vipPlusPicks: string;
-    
+
     // VIP Arena (2x XP)
     vipGeneral: string;
     vipStrategyRoom: string;
-    
+
     // VIP+ Arena (2.5x XP)
     vipPlusGeneral: string;
     vipPlusStrategyRoom: string;
     vipPlusExclusiveInsights: string;
     vipPlusTraderInsights: string;
-    
+
     // Support & Community
     support: string;
     threads: string;
     sportsTalk: string;
-    
+
     // Staff
     admin: string;
     botLogs: string;
@@ -333,20 +334,20 @@ class DiscordBotConfig implements DiscordBotConfiguration {
   // Integrations
   get integrations() {
     const integrations: DiscordBotConfiguration['integrations'] = {};
-    
+
     if (env.all.NOTION_TOKEN) {
       integrations.notion = {
         token: env.all.NOTION_TOKEN,
       };
     }
-    
+
     if (env.all.DISCORD_ALERT_WEBHOOK && env.all.ALERTS_CHANNEL_ID) {
       integrations.webhooks = {
         discordAlert: env.all.DISCORD_ALERT_WEBHOOK,
         alertsChannelId: env.all.ALERTS_CHANNEL_ID,
       };
     }
-    
+
     return integrations;
   }
 

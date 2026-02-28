@@ -1,9 +1,10 @@
 import { ChatInputCommandInteraction } from 'discord.js';
+
 import { COMMAND_CONFIG } from '../config/commands';
-import { logger } from '../utils/logger';
 import { SupabaseService } from '../services/supabase';
-import { getUserTier } from '../utils/roleUtils';
 import { toGuildMember } from '../utils/discordUtils';
+import { logger } from '../utils/logger';
+import { getUserTier } from '../utils/roleUtils';
 
 export class CommandHandler {
   private commands: Map<string, any> = new Map();

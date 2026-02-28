@@ -10,15 +10,17 @@ import {
   TextInputBuilder,
   TextInputStyle,
 } from 'discord.js';
-import { SupabaseService } from './supabase';
-import { PermissionsService } from './permissions';
-import { KeywordEmojiDMService } from './keywordEmojiDMService';
-import { AutomatedThreadService } from './automatedThreadService';
-import { VIPNotificationService } from './vipNotificationService';
-import { ConfigUpdate, QuickEditSession } from '../types';
-import { logger } from '../utils/logger';
+
 import { botConfig } from '../config';
+import { ConfigUpdate, QuickEditSession } from '../types';
 import { toISOString } from '../utils/dateUtils';
+import { logger } from '../utils/logger';
+
+import { AutomatedThreadService } from './automatedThreadService';
+import { KeywordEmojiDMService } from './keywordEmojiDMService';
+import { PermissionsService } from './permissions';
+import { SupabaseService } from './supabase';
+import { VIPNotificationService } from './vipNotificationService';
 
 export class QuickEditConfigService {
   private client: Client;

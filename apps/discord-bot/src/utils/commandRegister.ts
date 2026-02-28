@@ -1,8 +1,11 @@
-import { Client, REST, Routes, SlashCommandBuilder } from 'discord.js';
-import { botConfig } from '../config';
-import { logger } from './logger';
 import fs from 'fs';
 import path from 'path';
+
+import { Client, REST, Routes, SlashCommandBuilder } from 'discord.js';
+
+import { botConfig } from '../config';
+
+import { logger } from './logger';
 
 // Extend Client type to include commands
 interface ExtendedClient extends Client {

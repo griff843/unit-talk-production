@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import Redis from 'ioredis';
-import { RateLimiterRedis, RateLimiterMemory } from 'rate-limiter-flexible';
 import Joi from 'joi';
-import { logger } from '../utils/enterpriseErrorHandling';
+import { RateLimiterRedis, RateLimiterMemory } from 'rate-limiter-flexible';
+
 import {
   toISOString,
   toDate,
@@ -14,6 +14,7 @@ import {
   setDate,
   toLocaleDateString,
 } from '../utils/dateUtils';
+import { logger } from '../utils/enterpriseErrorHandling';
 
 // Redis client for rate limiting
 const redis = new Redis({

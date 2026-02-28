@@ -1,5 +1,6 @@
-import { CommandInteraction, ButtonInteraction } from 'discord.js';
 import {
+  CommandInteraction,
+  ButtonInteraction,
   SlashCommandBuilder,
   EmbedBuilder,
   ActionRowBuilder,
@@ -9,6 +10,7 @@ import {
   ChatInputCommandInteraction,
   TextChannel,
 } from 'discord.js';
+
 import { logger } from '../utils/logger';
 
 export const data = new SlashCommandBuilder()

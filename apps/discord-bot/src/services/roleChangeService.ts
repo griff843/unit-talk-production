@@ -1,10 +1,11 @@
-import { GuildMember, EmbedBuilder, TextChannel } from 'discord.js';
-import { logger } from '../utils/logger';
+import { GuildMember, EmbedBuilder, TextChannel, Client } from 'discord.js';
+
 import { botConfig } from '../config';
+import { logger } from '../utils/logger';
 import { getUserTier, handleRoleUpgradeWithDelay, setOptimisticTier } from '../utils/roleUtils';
-import { Client } from 'discord.js';
-import { VIPNotificationService } from './vipNotificationService';
+
 import { OnboardingService } from './onboardingService';
+import { VIPNotificationService } from './vipNotificationService';
 
 export class RoleChangeService {
   private client: Client;

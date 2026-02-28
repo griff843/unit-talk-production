@@ -7,11 +7,9 @@ import {
   ButtonStyle,
   TextChannel,
 } from 'discord.js';
-import { SupabaseService } from './supabase';
-import { PermissionsService } from './permissions';
-import { UserTier, VIPNotificationSequence } from '../types/index';
-import { logger } from '../utils/logger';
+
 import { botConfig } from '../config';
+import { UserTier, VIPNotificationSequence } from '../types/index';
 import {
   toISOString,
   toDate,
@@ -21,6 +19,10 @@ import {
   getMonth,
   getDate,
 } from '../utils/dateUtils';
+import { logger } from '../utils/logger';
+
+import { PermissionsService } from './permissions';
+import { SupabaseService } from './supabase';
 
 export class VIPNotificationService {
   private client: Client;

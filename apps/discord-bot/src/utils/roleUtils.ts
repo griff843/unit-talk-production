@@ -1,5 +1,7 @@
 import { GuildMember, PartialGuildMember, Guild } from 'discord.js';
+
 import { ROLE_NAMES } from '../config/onboarding.prompts';
+
 import { logger } from './logger';
 
 // Recent upgrades cache for optimistic tier updates

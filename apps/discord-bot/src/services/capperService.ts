@@ -1,13 +1,4 @@
 import {
-  databaseService,
-  CappersRow,
-  CappersInsert,
-  CappersUpdate,
-  CapperEvaluationsRow,
-  CapperEvaluationsInsert,
-} from './database';
-import { logger } from '../utils/logger';
-import {
   toISOString,
   toDate,
   getHours,
@@ -16,6 +7,16 @@ import {
   getMonth,
   getDate,
 } from '../utils/dateUtils';
+import { logger } from '../utils/logger';
+
+import {
+  databaseService,
+  CappersRow,
+  CappersInsert,
+  CappersUpdate,
+  CapperEvaluationsRow,
+  CapperEvaluationsInsert,
+} from './database';
 
 export interface CapperStats {
   totalPicks: number;
@@ -323,7 +324,12 @@ export class CapperService {
         .eq('capper_id', capperId);
 
       // Aggregate totals from daily rollup rows
-      let totalPicks = 0, wins = 0, losses = 0, pushes = 0, totalUnits = 0, roi = 0;
+      let totalPicks = 0,
+        wins = 0,
+        losses = 0,
+        pushes = 0,
+        totalUnits = 0,
+        roi = 0;
       if (rollup && rollup.length > 0) {
         for (const row of rollup) {
           totalPicks += row.picks || 0;

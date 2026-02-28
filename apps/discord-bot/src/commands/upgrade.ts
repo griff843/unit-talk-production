@@ -1,5 +1,6 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
 import { CommandInteraction, EmbedBuilder } from 'discord.js';
+
 import { VIP_PLUS_MARKETING_CONFIG } from '../config/commands';
 
 export const data = new SlashCommandBuilder()

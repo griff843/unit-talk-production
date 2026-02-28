@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, PermissionFlagsBits } from 'discord.js';
-import { OnboardingService } from '../services/onboardingService';
+
 import { DMService } from '../services/dmService';
+import { OnboardingService } from '../services/onboardingService';
 import { logger } from '../utils/logger';
 
 export const data = new SlashCommandBuilder()
@@ -42,7 +43,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     const testMode = interaction.options.getBoolean('test') || false;
 
     // Only allow self-targeting unless user has admin permissions
-    if (targetUser.id !== interaction.user.id && !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
+    if (
+      targetUser.id !== interaction.user.id &&
+      !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
+    ) {
       await interaction.editReply({
         content: '❌ You can only start onboarding for yourself unless you have admin permissions.',
       });
@@ -64,22 +68,25 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     // Start the personalized onboarding sequence
     await onboardingService.handleUserOnboarding(targetUser, onboardingType, testMode);
 
-    const modeText = testMode ? ' (Test mode - immediate delivery)' : ' (Normal mode - timed delivery)';
-    
+    const modeText = testMode
+      ? ' (Test mode - immediate delivery)'
+      : ' (Normal mode - timed delivery)';
+
     // Create type-specific descriptions
     const typeDescriptions = {
-      'trial': `🎩 **Personal WHY Discovery** - Your concierge will ask what brought you to Unit Talk, then create a completely personalized 7-day experience based on your specific goals`,
-      'capper': `🏆 **Capper Network Welcome** - Professional onboarding for verified cappers with dashboard access and capper responsibilities`,
-      'admin': `🛡️ **Admin Access Setup** - Complete admin tools overview and platform management capabilities`,
-      'vip': `👑 **VIP Professional Status** - Enhanced member experience with premium features and priority support`,
-      'vip_plus': `💎 **VIP+ Elite Experience** - Ultimate tier with algorithm picks, whale tracking, and exclusive intelligence`,
-      'free': `🎉 **Unit Talk Community** - Welcome to the community with server navigation and upgrade opportunities`,
+      trial: `🎩 **Personal WHY Discovery** - Your concierge will ask what brought you to Unit Talk, then create a completely personalized 7-day experience based on your specific goals`,
+      capper: `🏆 **Capper Network Welcome** - Professional onboarding for verified cappers with dashboard access and capper responsibilities`,
+      admin: `🛡️ **Admin Access Setup** - Complete admin tools overview and platform management capabilities`,
+      vip: `👑 **VIP Professional Status** - Enhanced member experience with premium features and priority support`,
+      vip_plus: `💎 **VIP+ Elite Experience** - Ultimate tier with algorithm picks, whale tracking, and exclusive intelligence`,
+      free: `🎉 **Unit Talk Community** - Welcome to the community with server navigation and upgrade opportunities`,
     };
-    
+
     await interaction.editReply({
-      content: `✅ **${onboardingType.toUpperCase()} onboarding started** for ${targetUser.username}!${modeText}\n\n` +
-               `${typeDescriptions[onboardingType] || typeDescriptions['trial']}\n\n` +
-               `*Check your DMs to experience the personalized onboarding!*`,
+      content:
+        `✅ **${onboardingType.toUpperCase()} onboarding started** for ${targetUser.username}!${modeText}\n\n` +
+        `${typeDescriptions[onboardingType] || typeDescriptions['trial']}\n\n` +
+        `*Check your DMs to experience the personalized onboarding!*`,
     });
 
     logger.info('[ELITE_ONBOARDING] Personalized onboarding initiated successfully', {
@@ -88,7 +95,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       onboardingType,
       testMode,
     });
-
   } catch (error) {
     logger.error('[TRIAL_ONBOARDING] Error starting trial onboarding', {
       error: error instanceof Error ? error.message : String(error),
@@ -97,7 +103,8 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     });
 
     await interaction.editReply({
-      content: '❌ An error occurred while starting the onboarding process. Your Unit Talk Concierge has been notified.',
+      content:
+        '❌ An error occurred while starting the onboarding process. Your Unit Talk Concierge has been notified.',
     });
   }
 }

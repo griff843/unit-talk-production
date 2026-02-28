@@ -1,7 +1,8 @@
-import { supabaseService } from './supabase';
-import { agentService } from './agents';
-import { logger } from '../utils/logger';
 import { toISOString } from '../utils/dateUtils';
+import { logger } from '../utils/logger';
+
+import { agentService } from './agents';
+import { supabaseService } from './supabase';
 
 export interface AgentHealthStatus {
   agentId: string;

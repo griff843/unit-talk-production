@@ -6,11 +6,9 @@ import {
   ButtonBuilder,
   ButtonStyle,
 } from 'discord.js';
-import { SupabaseService } from './supabase';
-import { UserTier, DMTrigger, DMTemplate, DMConditions } from '../types';
-import { PermissionUtils } from '../utils/permissions';
-import { logger } from '../utils/logger';
+
 import { botConfig } from '../config';
+import { UserTier, DMTrigger, DMTemplate, DMConditions } from '../types';
 import {
   toISOString,
   toDate,
@@ -20,6 +18,10 @@ import {
   getMonth,
   getDate,
 } from '../utils/dateUtils';
+import { logger } from '../utils/logger';
+import { PermissionUtils } from '../utils/permissions';
+
+import { SupabaseService } from './supabase';
 
 export class DMService {
   private client: Client;

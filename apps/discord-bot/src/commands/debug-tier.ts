@@ -1,7 +1,13 @@
-import { CommandInteraction, ButtonInteraction } from 'discord.js';
-import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
-import { getUserTier, getTierDisplayName, getTierColor } from '../utils/roleUtils';
+import {
+  CommandInteraction,
+  ButtonInteraction,
+  SlashCommandBuilder,
+  ChatInputCommandInteraction,
+  EmbedBuilder,
+} from 'discord.js';
+
 import logger from '../utils/logger';
+import { getUserTier, getTierDisplayName, getTierColor } from '../utils/roleUtils';
 
 export const data = new SlashCommandBuilder()
   .setName('debug-tier')

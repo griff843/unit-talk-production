@@ -6,10 +6,11 @@ import {
   ButtonBuilder,
   ButtonStyle,
 } from 'discord.js';
+
 import { SupabaseService } from '../services/supabase';
+import { toGuildMember } from '../utils/discordUtils';
 import { logger } from '../utils/logger';
 import { getUserTier } from '../utils/roleUtils';
-import { toGuildMember } from '../utils/discordUtils';
 
 const supabaseService = new SupabaseService();
 

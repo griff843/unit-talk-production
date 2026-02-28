@@ -1,10 +1,12 @@
 import { REST, Routes } from 'discord.js';
+
+import * as commandModules from '../commands';
 import { botConfig } from '../config';
-import { logger } from './logger';
 import { COMMAND_CONFIG } from '../config/commands';
 
+import { logger } from './logger';
+
 // Import all commands
-import * as commandModules from '../commands';
 
 const commands = Object.entries(COMMAND_CONFIG)
   .filter(([_, config]) => config.enabled)

@@ -149,6 +149,10 @@ jobs:
       - name: Lint code
         run: npm run lint
 
+      # STRUCTURAL-DOMINANCE-FINALIZE-006: Legacy Quarantine warning budget
+      - name: Guard - Discord Bot Lint Budget
+        run: pnpm --filter discord-bot run lint:budget
+
       - name: Format check
         run: npm run format:check
 

@@ -16,6 +16,7 @@ import {
   ForumChannel,
   Guild,
 } from 'discord.js';
+
 import { logger } from '../utils/logger';
 
 export interface EnhancedFeature {

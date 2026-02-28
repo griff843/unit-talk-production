@@ -1,4 +1,3 @@
-import { SupabaseService } from './supabase';
 import {
   UserPickSubmission,
   GradingResult,
@@ -8,7 +7,6 @@ import {
   RiskAssessment,
   UserTier,
 } from '../types';
-import { logger } from '../utils/logger';
 import {
   toISOString,
   toDate,
@@ -18,6 +16,9 @@ import {
   getMonth,
   getDate,
 } from '../utils/dateUtils';
+import { logger } from '../utils/logger';
+
+import { SupabaseService } from './supabase';
 
 export class PickGradingService {
   private supabaseService: SupabaseService;
@@ -198,7 +199,8 @@ export class PickGradingService {
    * Calculate overall confidence professional_score
    */
   private calculateConfidence(factors: GradingFactor[]): number {
-    const avgScore = factors.reduce((sum, factor) => sum + (factor.professional_score || 0), 0) / factors.length;
+    const avgScore =
+      factors.reduce((sum, factor) => sum + (factor.professional_score || 0), 0) / factors.length;
     const consistency = this.calculateConsistency(factors);
 
     return Math.round((avgScore * 0.7 + consistency * 0.3) * 100) / 100;
@@ -209,10 +211,14 @@ export class PickGradingService {
    */
   private calculateConsistency(factors: GradingFactor[]): number {
     const scores = factors.map(f => f.professional_score);
-    const mean = scores.reduce((sum: number, professional_score) => sum + (professional_score || 0), 0) / scores.length;
-    const variance =
-      scores.reduce((sum: number, professional_score) => sum + Math.pow((professional_score || 0) - mean, 2), 0) /
+    const mean =
+      scores.reduce((sum: number, professional_score) => sum + (professional_score || 0), 0) /
       scores.length;
+    const variance =
+      scores.reduce(
+        (sum: number, professional_score) => sum + Math.pow((professional_score || 0) - mean, 2),
+        0
+      ) / scores.length;
     const standardDeviation = Math.sqrt(variance);
 
     // Lower standard deviation = higher consistency
@@ -243,7 +249,12 @@ export class PickGradingService {
     // Factor breakdown
     feedback += `**Key Factors:**\n`;
     factors.forEach(factor => {
-      const emoji = (factor.professional_score || 0) >= 70 ? '✅' : (factor.professional_score || 0) >= 50 ? '⚠️' : '❌';
+      const emoji =
+        (factor.professional_score || 0) >= 70
+          ? '✅'
+          : (factor.professional_score || 0) >= 50
+            ? '⚠️'
+            : '❌';
       feedback += `${emoji} ${factor.name}: ${Math.round(factor.professional_score || 0)}% - ${factor.description}\n`;
     });
 
@@ -395,7 +406,11 @@ export class PickGradingService {
   /**
    * Analyze pick timing factors
    */
-  public analyzePickTiming(pick: UserPickSubmission): { score: number; professional_score: number; timing: string } {
+  public analyzePickTiming(pick: UserPickSubmission): {
+    score: number;
+    professional_score: number;
+    timing: string;
+  } {
     // Simple timing analysis - in a real implementation, this would analyze
     // when the pick was made relative to game time, line movements, etc.
     const now = toISOString(new Date());
@@ -412,7 +427,11 @@ export class PickGradingService {
   /**
    * Assess pick risk factors
    */
-  public assessPickRisk(pick: UserPickSubmission): { score: number; professional_score: number; description: string } {
+  public assessPickRisk(pick: UserPickSubmission): {
+    score: number;
+    professional_score: number;
+    description: string;
+  } {
     // Simple risk assessment based on units and confidence
     const units = pick.units || 1;
     const confidence = pick.confidence || 50;

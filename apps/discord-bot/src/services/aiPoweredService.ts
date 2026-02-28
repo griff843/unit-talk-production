@@ -1,3 +1,4 @@
+import axios from 'axios';
 import {
   Client,
   GuildMember,
@@ -6,12 +7,9 @@ import {
   ButtonBuilder,
   ButtonStyle,
 } from 'discord.js';
-import { SupabaseService } from './supabase';
-import { PermissionsService } from './permissions';
-import { AICoachingSession, AIGradingResult, MultiLangResponse, UserTier } from '../types';
-import { logger } from '../utils/logger';
+
 import { botConfig } from '../config';
-import axios from 'axios';
+import { AICoachingSession, AIGradingResult, MultiLangResponse, UserTier } from '../types';
 import {
   toISOString,
   toDate,
@@ -23,6 +21,10 @@ import {
   setDate,
   toLocaleDateString,
 } from '../utils/dateUtils';
+import { logger } from '../utils/logger';
+
+import { PermissionsService } from './permissions';
+import { SupabaseService } from './supabase';
 
 export class AIPoweredService {
   private client: Client;
@@ -108,7 +110,9 @@ export class AIPoweredService {
         await this.sendGradingResultDM(member, gradingResult);
       }
 
-      logger.info(`AI grading_status pick ${pickData.id} with professional_score ${gradingResult.grade}`);
+      logger.info(
+        `AI grading_status pick ${pickData.id} with professional_score ${gradingResult.grade}`
+      );
       return gradingResult;
     } catch (error) {
       logger.error('Failed to grade pick with AI:', error);

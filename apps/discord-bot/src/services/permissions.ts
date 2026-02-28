@@ -1,8 +1,7 @@
 import { GuildMember } from 'discord.js';
-import { UserTier, UserPermissions } from '../types/';
+
 import { botConfig } from '../config';
-import { supabaseService } from './supabase';
-import { logger } from '../utils/logger';
+import { UserTier, UserPermissions } from '../types/';
 import {
   toISOString,
   toDate,
@@ -12,6 +11,9 @@ import {
   getMonth,
   getDate,
 } from '../utils/dateUtils';
+import { logger } from '../utils/logger';
+
+import { supabaseService } from './supabase';
 
 export class PermissionsService {
   /**

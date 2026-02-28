@@ -5,6 +5,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
 } from 'discord.js';
+
 import { UserProfile, UserTier } from '../types/index';
 
 export const COLORS = {

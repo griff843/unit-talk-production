@@ -8,12 +8,14 @@ import {
   ButtonStyle,
   GuildMember,
 } from 'discord.js';
-import { SupabaseService } from './supabase';
-import { GameThread } from '../types';
-import { PermissionUtils } from '../utils/permissions';
-import { logger } from '../utils/logger';
+
 import { botConfig } from '../config';
+import { GameThread } from '../types';
 import { toISOString, toLocaleTimeString } from '../utils/dateUtils';
+import { logger } from '../utils/logger';
+import { PermissionUtils } from '../utils/permissions';
+
+import { SupabaseService } from './supabase';
 
 export class ThreadService {
   private client: Client;

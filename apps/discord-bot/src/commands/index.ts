@@ -8,18 +8,18 @@ export * as trends from './trends';
 export * as recap from './recap';
 
 // Commands with hyphens need special handling
-import * as testOnboarding from './test-onboarding';
-import * as debugTier from './debug-tier';
-import * as capperOnboard from './capper-onboard';
-import * as capperStats from './capper-stats';
-import * as enhancedPick from './enhanced-pick';
-import * as pickResult from './pick-result';
-import * as topPlays from './top-plays';
 import * as alertsSetup from './alerts-setup';
 import * as askAi from './ask-ai';
-import * as heatSignal from './heat-signal';
+import * as capperOnboard from './capper-onboard';
+import * as capperStats from './capper-stats';
+import * as debugTier from './debug-tier';
 import * as edgeTracker from './edge-tracker';
+import * as enhancedPick from './enhanced-pick';
+import * as heatSignal from './heat-signal';
+import * as pickResult from './pick-result';
 import * as startTrialOnboarding from './start-trial-onboarding';
+import * as testOnboarding from './test-onboarding';
+import * as topPlays from './top-plays';
 
 // Create an object with the command names as they appear in config
 const commands = {

@@ -1,5 +1,6 @@
-import { SupabaseService } from './supabase';
 import { logger } from '../utils/logger';
+
+import { SupabaseService } from './supabase';
 
 interface TrendAnalysis {
   sport: string;
