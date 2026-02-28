@@ -3,11 +3,8 @@ name: Go Live - Full Production Deployment
 on:
   workflow_dispatch:
     inputs:
-      skip_migrations:
-        description: "Skip migrations (use if already applied)"
-        required: false
-        type: boolean
-        default: false
+      # REMOVED: skip_migrations - SPRINT-STRUCTURAL-REINFORCEMENT-P0-002: Fix CRIT-007
+      # Migrations are MANDATORY for all production deployments to prevent schema drift
       skip_build:
         description: "Skip Docker build (use existing images)"
         required: false
@@ -87,10 +84,10 @@ jobs:
   # STAGE 1: Apply Database Migrations
   # ============================================================================
   migrations:
-    name: 1. Apply Migrations
+    name: 1. Apply Migrations (MANDATORY)
     runs-on: ubuntu-latest
     needs: [preflight]
-    if: inputs.skip_migrations != true
+    # SPRINT-STRUCTURAL-REINFORCEMENT-P0-002: Migrations always run - no skip option
     outputs:
       migration_status: ${{ steps.migrate.outputs.status }}
       verify_status: ${{ steps.verify.outputs.verify_status }}

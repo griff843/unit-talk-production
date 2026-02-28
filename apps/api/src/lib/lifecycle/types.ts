@@ -97,7 +97,8 @@ export type InvalidCode =
   | 'INVALID_WRITER'
   | 'INVALID_TIMESTAMP'
   | 'INVALID_IDEMPOTENCY'
-  | 'INVALID_STATE';
+  | 'INVALID_STATE'
+  | 'CONCURRENT_MODIFICATION'; // SPRINT-P0-002: Optimistic locking failure
 
 export type LifecycleErrorCode = BlockerCode | FailureCode | InvalidCode;
 
@@ -200,8 +201,10 @@ export interface LifecycleError {
   code: LifecycleErrorCode;
   message: string;
   details?: {
-    currentState?: LifecycleStage;
+    currentState?: LifecycleStage | unknown; // SPRINT-P0-002: Allow any for optimistic locking context
     attemptedState?: LifecycleStage;
+    attemptedUpdates?: unknown; // SPRINT-P0-002: For concurrent modification error
+    pickId?: string; // SPRINT-P0-002: For concurrent modification error
     field?: string;
     reason?: string;
     writerRole?: WriterRole;

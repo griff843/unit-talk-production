@@ -197,6 +197,30 @@ export class AutopilotFrozenError extends LifecycleValidationError {
 }
 
 /**
+ * Concurrent modification error - optimistic locking failed (409 Conflict)
+ * SPRINT-STRUCTURAL-REINFORCEMENT-P0-002: Fix CRIT-001 - TOCTOU race
+ */
+export class ConcurrentModificationError extends LifecycleValidationError {
+  constructor(
+    pickId: string,
+    details: { currentState?: unknown; attemptedUpdates?: unknown } = {}
+  ) {
+    super(
+      {
+        code: 'CONCURRENT_MODIFICATION',
+        message: `Pick ${pickId} was modified by another process during update`,
+        details: {
+          pickId,
+          ...details,
+        },
+      },
+      409 // Conflict
+    );
+    this.name = 'ConcurrentModificationError';
+  }
+}
+
+/**
  * Failure error - processing failed
  */
 export class FailedError extends LifecycleValidationError {

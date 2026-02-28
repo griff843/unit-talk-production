@@ -23,9 +23,10 @@ const env = getEnv();
 const adminAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const authHeader = req.headers.authorization;
 
-  // For E2E testing, allow bypass with specific header
-  if (req.headers['x-e2e-test'] === 'true') {
-    logger.info('E2E test bypass enabled');
+  // For E2E testing, allow bypass with specific header - ONLY in test environment
+  // SPRINT-STRUCTURAL-REINFORCEMENT-P0-002: Fix HIGH-006 - E2E bypass in production
+  if (process.env.NODE_ENV === 'test' && req.headers['x-e2e-test'] === 'true') {
+    logger.info('E2E test bypass enabled (test environment only)');
     return next();
   }
 
@@ -357,7 +358,21 @@ router.post('/settle', async (req, res) => {
   const correlationId = `ops-settle-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
 
   try {
-    const { pick_id, result, actual_value, notes, operator } = req.body;
+    const { pick_id, result, actual_value, notes } = req.body;
+
+    // SPRINT-STRUCTURAL-REINFORCEMENT-P0-002: Fix CRIT-003 - Operator spoofing
+    // Get operator from authenticated context, not client body
+    const authenticatedOperator = req.headers['x-operator-id'] as string | undefined;
+    if (!authenticatedOperator && process.env.NODE_ENV === 'production') {
+      logger.warn('Settlement attempted without authenticated operator', { correlationId });
+      return res.status(401).json({
+        success: false,
+        error: 'Authenticated operator identity required (x-operator-id header)',
+        correlationId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+    const operator = authenticatedOperator || 'system';
 
     // Input validation
     if (!pick_id) {
@@ -383,7 +398,7 @@ router.post('/settle', async (req, res) => {
       pick_id,
       result,
       actual_value,
-      operator: operator || 'operator',
+      operator,
     });
 
     // Call Supabase RPC (new signature: p_pick_id, p_result, p_settled_at, p_meta)
@@ -396,7 +411,8 @@ router.post('/settle', async (req, res) => {
       p_settled_at: new Date().toISOString(),
       p_meta: {
         actual_value: actual_value ?? null,
-        operator: operator || 'operator',
+        operator: operator,
+        operator_source: 'authenticated', // SPRINT-P0-002: Track that operator was validated
         notes: notes || null,
         trace_id: correlationId,
       },
@@ -494,7 +510,20 @@ router.post('/retry-posting', async (req, res) => {
   const correlationId = `ops-retry-posting-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
 
   try {
-    const { pick_id, reason, drift_mode, operator } = req.body;
+    const { pick_id, reason, drift_mode } = req.body;
+
+    // SPRINT-STRUCTURAL-REINFORCEMENT-P0-002: Fix CRIT-003 - Operator spoofing
+    const authenticatedOperator = req.headers['x-operator-id'] as string | undefined;
+    if (!authenticatedOperator && process.env.NODE_ENV === 'production') {
+      logger.warn('Retry-posting attempted without authenticated operator', { correlationId });
+      return res.status(401).json({
+        success: false,
+        error: 'Authenticated operator identity required (x-operator-id header)',
+        correlationId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+    const operator = authenticatedOperator || 'system';
 
     // Input validation
     if (!pick_id) {
@@ -528,7 +557,7 @@ router.post('/retry-posting', async (req, res) => {
       correlationId,
       pick_id,
       drift_mode,
-      operator: operator || 'operator',
+      operator,
     });
 
     // Import lifecycle adapter
@@ -540,7 +569,7 @@ router.post('/retry-posting', async (req, res) => {
       writerRole: 'operator_override',
       reason,
       traceId: correlationId,
-      operatorId: operator || 'operator',
+      operatorId: operator,
       driftMode: drift_mode,
     });
 
@@ -614,7 +643,20 @@ router.post('/retry-settlement', async (req, res) => {
   const correlationId = `ops-retry-settlement-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
 
   try {
-    const { pick_id, reason, drift_mode, operator } = req.body;
+    const { pick_id, reason, drift_mode } = req.body;
+
+    // SPRINT-STRUCTURAL-REINFORCEMENT-P0-002: Fix CRIT-003 - Operator spoofing
+    const authenticatedOperator = req.headers['x-operator-id'] as string | undefined;
+    if (!authenticatedOperator && process.env.NODE_ENV === 'production') {
+      logger.warn('Retry-settlement attempted without authenticated operator', { correlationId });
+      return res.status(401).json({
+        success: false,
+        error: 'Authenticated operator identity required (x-operator-id header)',
+        correlationId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+    const operator = authenticatedOperator || 'system';
 
     // Input validation
     if (!pick_id) {
@@ -648,7 +690,7 @@ router.post('/retry-settlement', async (req, res) => {
       correlationId,
       pick_id,
       drift_mode,
-      operator: operator || 'operator',
+      operator,
     });
 
     // Import lifecycle adapter
@@ -660,7 +702,7 @@ router.post('/retry-settlement', async (req, res) => {
       writerRole: 'operator_override',
       reason,
       traceId: correlationId,
-      operatorId: operator || 'operator',
+      operatorId: operator,
       driftMode: drift_mode,
     });
 

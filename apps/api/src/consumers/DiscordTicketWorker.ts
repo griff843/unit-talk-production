@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+// Pre-existing max-lines issue - documented for SPRINT-093
 /**
  * DiscordTicketWorker — Polls ticket_discord_outbox and posts Discord embeds.
  *
@@ -54,7 +56,9 @@ function getDiscordWebhookUrl(): string | undefined {
 function requireDiscordWebhookUrl(): string {
   const url = process.env['DISCORD_WEBHOOK_URL'];
   if (!url) {
-    throw new Error('DISCORD_WEBHOOK_URL is required but not configured. See apps/api/CLAUDE.md for env requirements.');
+    throw new Error(
+      'DISCORD_WEBHOOK_URL is required but not configured. See apps/api/CLAUDE.md for env requirements.'
+    );
   }
   return url;
 }
@@ -133,6 +137,8 @@ interface ReleaseClaimOpts {
   messageId?: string;
   channelId?: string;
   errorMsg?: string;
+  skipped?: boolean; // SPRINT-P0-002: For idempotency guard tracking
+  reason?: string; // SPRINT-P0-002: Reason for skipping (e.g., IDEMPOTENCY_GUARD)
 }
 
 /** SPRINT-092: Release claim after processing */
@@ -259,6 +265,30 @@ async function postToDiscord(
 }
 
 async function processItem(item: ClaimedItem): Promise<boolean> {
+  // SPRINT-STRUCTURAL-REINFORCEMENT-P0-002: Fix B4 - Worker crash duplicate
+  // Idempotency guard: Check if this ticket already has a Discord message
+  const { data: existingPost } = await supabaseClient
+    .from('ticket_discord_outbox')
+    .select('discord_message_id')
+    .eq('ticket_id', item.ticket_id)
+    .not('discord_message_id', 'is', null)
+    .maybeSingle();
+
+  if (existingPost?.discord_message_id) {
+    logger.info('IDEMPOTENCY: Discord message already exists for ticket, skipping duplicate post', {
+      outbox_id: item.outbox_id,
+      ticket_id: item.ticket_id,
+      existing_message_id: existingPost.discord_message_id,
+    });
+    // Release claim as success - this is idempotent, not an error
+    await releaseClaim(item.outbox_id, true, {
+      messageId: existingPost.discord_message_id,
+      skipped: true,
+      reason: 'IDEMPOTENCY_GUARD',
+    });
+    return true;
+  }
+
   // Validate contract (capper, matchup required)
   const contract = validateTicketContract(item);
 

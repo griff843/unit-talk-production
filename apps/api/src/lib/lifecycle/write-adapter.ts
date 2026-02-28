@@ -182,11 +182,27 @@ export async function lifecycleUpdate(
       validateInvariants(nextState);
     }
 
-    // 4. Perform the update
-    const { error: updateError } = await supabase
+    // 4. Perform the update with optimistic locking
+    // SPRINT-STRUCTURAL-REINFORCEMENT-P0-002: Fix CRIT-001 - TOCTOU race
+    // Add WHERE guards to detect concurrent modifications
+    const updateQuery = supabase
       .from('unified_picks')
-      .update(updates)
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', pickId);
+
+    // Add optimistic locks on critical state fields that could cause corruption
+    // These guards ensure the row hasn't changed since we read it
+    if (currentPick.settlement_status !== undefined) {
+      updateQuery.eq('settlement_status', currentPick.settlement_status);
+    }
+    if (currentPick.posted_to_discord !== undefined) {
+      updateQuery.eq('posted_to_discord', currentPick.posted_to_discord);
+    }
+
+    const { data: updatedRows, error: updateError } = await updateQuery.select('id');
 
     if (updateError) {
       logger.error({ traceId, pickId, error: updateError.message }, 'LIFECYCLE: Update failed');
@@ -195,6 +211,30 @@ export async function lifecycleUpdate(
         error: updateError.message,
         validationPassed: true, // Validation passed, DB failed
       };
+    }
+
+    // Check if the update actually modified any rows (optimistic lock check)
+    if (!updatedRows || updatedRows.length === 0) {
+      logger.warn(
+        {
+          traceId,
+          pickId,
+          currentState: {
+            settlement_status: currentPick.settlement_status,
+            posted_to_discord: currentPick.posted_to_discord,
+          },
+        },
+        'LIFECYCLE: Concurrent modification detected - pick state changed during update'
+      );
+      // Import error dynamically to avoid circular dependency
+      const { ConcurrentModificationError } = await import('./errors');
+      throw new ConcurrentModificationError(pickId, {
+        currentState: {
+          settlement_status: currentPick.settlement_status,
+          posted_to_discord: currentPick.posted_to_discord,
+        },
+        attemptedUpdates: updates,
+      });
     }
 
     logger.info(

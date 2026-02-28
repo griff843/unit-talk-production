@@ -40,7 +40,12 @@ export {
   getWriterAuthorityMap,
   getFieldsByWriter,
   getImmutableFields,
+  // SPRINT-STRUCTURAL-REINFORCEMENT-P0-002: Admin override permission validation
+  ADMIN_PERMISSIONS,
+  validateAdminOverridePermission,
+  sanitizeAdminOverride,
 } from './writer-authority';
+export type { AdminPermission } from './writer-authority';
 
 // Write Adapter
 export {
@@ -77,4 +82,9 @@ export type {
 
 // Single-Writer Gate
 export { runSingleWriterGate } from './single-writer-gate';
-export { isFileAllowlisted, getAllowlistEntry, getAllowlistCount, generateMigrationReport } from './single-writer-allowlist';
+export {
+  isFileAllowlisted,
+  getAllowlistEntry,
+  getAllowlistCount,
+  generateMigrationReport,
+} from './single-writer-allowlist';

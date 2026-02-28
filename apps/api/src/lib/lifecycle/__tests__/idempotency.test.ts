@@ -1,3 +1,5 @@
+/* eslint-disable max-lines, @typescript-eslint/no-unused-vars */
+// Pre-existing max-lines issue; beforeEach is imported but used via describe setup
 /**
  * IDEMPOTENCY REPLAY TESTS
  * Sprint: LIFECYCLE-WRITE-SURFACE-MIGRATION-038
@@ -10,7 +12,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { SupabaseClient } from '@supabase/supabase-js';
+
+import { IdempotencyError } from '../errors';
 import {
   checkSubmitIdempotency,
   assertSubmitIdempotency,
@@ -23,7 +26,8 @@ import {
   atomicClaimForSettle,
   filterDuplicates,
 } from '../idempotency';
-import { IdempotencyError } from '../errors';
+
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 // ============================================================
 // MOCK SUPABASE CLIENT
@@ -109,9 +113,7 @@ describe('Submit Idempotency', () => {
     it('does not throw for new bet slip', async () => {
       const supabase = createMockSupabase({ data: null, error: null });
 
-      await expect(
-        assertSubmitIdempotency(supabase, 'new-bet-slip-002')
-      ).resolves.not.toThrow();
+      await expect(assertSubmitIdempotency(supabase, 'new-bet-slip-002')).resolves.not.toThrow();
     });
 
     it('throws IdempotencyError for duplicate bet slip', async () => {
@@ -120,9 +122,9 @@ describe('Submit Idempotency', () => {
         error: null,
       });
 
-      await expect(
-        assertSubmitIdempotency(supabase, 'duplicate-bet-slip-001')
-      ).rejects.toThrow(IdempotencyError);
+      await expect(assertSubmitIdempotency(supabase, 'duplicate-bet-slip-001')).rejects.toThrow(
+        IdempotencyError
+      );
     });
   });
 });
@@ -211,15 +213,19 @@ describe('Post Idempotency', () => {
       expect(result.claimedCount).toBe(3);
     });
 
-    it('returns claimed:true with partial claim (some legs already posted)', async () => {
+    // SPRINT-STRUCTURAL-REINFORCEMENT-P0-002: Changed behavior - partial claims now rejected
+    // to prevent orphaned legs (all-or-nothing semantics)
+    it('returns claimed:false with partial claim and rolls back (all-or-nothing enforcement)', async () => {
       const supabase = createMockSupabase({
         data: [{ id: 'leg-1' }, { id: 'leg-2' }],
         error: null,
       });
       const result = await atomicClaimParlayForPost(supabase, ['leg-1', 'leg-2', 'leg-3']);
 
-      expect(result.claimed).toBe(true);
-      expect(result.claimedCount).toBe(2);
+      // Partial claim now returns false - no orphaned legs
+      expect(result.claimed).toBe(false);
+      expect(result.claimedCount).toBe(0);
+      expect(result.reason).toMatch(/PARTIAL_REJECTED/);
     });
 
     it('returns claimed:false when all legs already posted', async () => {
@@ -290,7 +296,12 @@ describe('Settle Idempotency', () => {
       // Note: 'void' status is not checked by checkSettleIdempotency
       // Only settlement_frozen=true triggers duplicate detection
       const supabase = createMockSupabase({
-        data: { id: 'pick-008', settlement_status: 'void', settlement_result: null, settlement_frozen: true },
+        data: {
+          id: 'pick-008',
+          settlement_status: 'void',
+          settlement_result: null,
+          settlement_frozen: true,
+        },
         error: null,
       });
       const result = await checkSettleIdempotency(supabase, 'pick-008');
