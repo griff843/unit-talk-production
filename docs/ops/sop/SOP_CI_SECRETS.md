@@ -102,6 +102,45 @@ If the Supabase GitHub App is not properly configured:
 
 ---
 
+## Repository Secrets vs Environment Secrets
+
+### Repository Secrets
+
+- Available to all workflows in the repository
+- Used for: E2E CI, Smart Form gates, general CI/CD
+- Configured at: Settings > Secrets > Actions > Repository secrets
+
+### Environment Secrets
+
+- Scoped to specific deployment environments (staging, production)
+- Used for: Deployment workflows with environment protection rules
+- Configured at: Settings > Environments > [env] > Secrets
+
+### How Workflows Resolve Secrets
+
+```yaml
+# Repository secret - available to all jobs
+secrets.SUPABASE_URL
+
+# Environment secret - requires `environment:` declaration
+jobs:
+  deploy:
+    environment: production  # Unlocks environment secrets
+    steps:
+      - run: echo "${{ secrets.PROD_SECRET }}"
+```
+
+### Current Configuration
+
+| Workflow           | Secret Scope | Environment        |
+| ------------------ | ------------ | ------------------ |
+| E2E CI             | Repository   | N/A                |
+| Smart Form Gates   | Repository   | N/A                |
+| Supabase Migration | Repository   | staging/production |
+| Deploy             | Environment  | staging/production |
+
+---
+
 ## How to Configure Secrets
 
 ### Step 1: Navigate to Repository Settings

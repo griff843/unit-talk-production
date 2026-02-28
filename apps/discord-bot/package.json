@@ -12,6 +12,7 @@
     "test:coverage": "jest --coverage",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
+    "lint:budget": "node scripts/lint-budget.js",
     "format": "prettier --write src/**/*.ts",
     "typecheck": "tsc --noEmit",
     "type-check": "tsc --noEmit",
