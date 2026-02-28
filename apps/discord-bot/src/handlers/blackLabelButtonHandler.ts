@@ -9,8 +9,9 @@ import {
   TextInputBuilder,
   TextInputStyle,
 } from 'discord.js';
-import { getUserTier } from '../utils/roleUtils';
+
 import { logger } from '../utils/logger';
+import { getUserTier } from '../utils/roleUtils';
 
 export class BlackLabelButtonHandler {
   private static instance: BlackLabelButtonHandler;

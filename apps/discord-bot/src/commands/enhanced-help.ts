@@ -5,8 +5,9 @@ import {
   ButtonBuilder,
   ButtonStyle,
 } from 'discord.js';
-import { getUserTier, getTierDisplayName } from '../utils/roleUtils';
+
 import { logger } from '../utils/logger';
+import { getUserTier, getTierDisplayName } from '../utils/roleUtils';
 
 export const enhancedHelp = {
   data: new SlashCommandBuilder()

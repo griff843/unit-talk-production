@@ -1,9 +1,11 @@
 import { GuildMember } from 'discord.js';
-import { UserTier, UserPermissions, CooldownData } from '../types/';
+
 import { botConfig } from '../config';
 import { supabaseService } from '../services/supabase';
-import { logger } from './logger';
+import { UserTier, UserPermissions, CooldownData } from '../types/';
+
 import { toISOString } from './dateUtils';
+import { logger } from './logger';
 
 export class PermissionUtils {
   private static cooldowns = new Map<string, CooldownData>();

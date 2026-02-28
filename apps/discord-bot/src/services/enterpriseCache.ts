@@ -1,4 +1,5 @@
 import Redis from 'ioredis';
+
 import { logger, withErrorHandling } from '../utils/enterpriseErrorHandling';
 
 export interface CacheOptions {

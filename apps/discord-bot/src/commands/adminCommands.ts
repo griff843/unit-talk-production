@@ -1,5 +1,6 @@
-import { CommandInteraction, ButtonInteraction } from 'discord.js';
 import {
+  CommandInteraction,
+  ButtonInteraction,
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
@@ -9,6 +10,7 @@ import {
   ButtonStyle,
   GuildMember,
 } from 'discord.js';
+
 import { AdminDashboardService } from '../services/adminDashboardService';
 // import { ComprehensiveOnboardingService } from '../services/comprehensiveOnboardingService'; // REMOVED - using new OnboardingService
 import { AdvancedAnalyticsService } from '../services/advancedAnalyticsService';

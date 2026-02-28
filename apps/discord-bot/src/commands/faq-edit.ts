@@ -1,11 +1,13 @@
-import { CommandInteraction, ButtonInteraction } from 'discord.js';
 import {
+  CommandInteraction,
+  ButtonInteraction,
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   ComponentType,
   EmbedBuilder,
 } from 'discord.js';
+
 import { FAQService, FAQItem } from '../services/faqService';
 import { logger } from '../utils/logger';
 

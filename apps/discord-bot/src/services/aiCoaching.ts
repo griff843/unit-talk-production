@@ -1,7 +1,6 @@
-import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
-import { logger } from '../utils/logger';
-import { databaseService, UserTier } from './database';
+import OpenAI from 'openai';
+
 import {
   toISOString,
   toDate,
@@ -13,6 +12,9 @@ import {
   setDate,
   toLocaleDateString,
 } from '../utils/dateUtils';
+import { logger } from '../utils/logger';
+
+import { databaseService, UserTier } from './database';
 
 export interface AIAnalysisRequest {
   question: string;

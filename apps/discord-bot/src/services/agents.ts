@@ -1,6 +1,6 @@
 import axios from 'axios';
+
 import { botConfig } from '../config';
-import { logger } from '../utils/logger';
 import {
   toISOString,
   toDate,
@@ -12,6 +12,7 @@ import {
   setDate,
   toLocaleDateString,
 } from '../utils/dateUtils';
+import { logger } from '../utils/logger';
 
 export interface AgentHealthCheck {
   status: 'healthy' | 'unhealthy';

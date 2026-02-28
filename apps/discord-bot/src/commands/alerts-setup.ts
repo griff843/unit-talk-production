@@ -1,5 +1,6 @@
-import { CommandInteraction, ButtonInteraction } from 'discord.js';
 import {
+  CommandInteraction,
+  ButtonInteraction,
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   EmbedBuilder,
@@ -9,8 +10,9 @@ import {
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
 } from 'discord.js';
-import { getUserTier, hasMinimumTier } from '../utils/roleUtils';
+
 import { logger } from '../utils/logger';
+import { getUserTier, hasMinimumTier } from '../utils/roleUtils';
 
 export const data = new SlashCommandBuilder()
   .setName('alerts-setup')

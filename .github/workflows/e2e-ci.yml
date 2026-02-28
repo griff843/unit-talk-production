@@ -1,5 +1,9 @@
 name: E2E CI Pipeline
 
+# CI-TRUTH-UNBLOCK-005: E2E requires Supabase secrets
+# For forked PRs (no secrets), this job will skip with clear reason
+# For main repo PRs, missing secrets = hard failure
+
 on:
   push:
     branches: [master, main]
@@ -15,8 +19,38 @@ jobs:
     name: Supabase migrate → admin RPCs → Gates → SLOs
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Skip for forked PRs (secrets not available)
+    # For main repo PRs and pushes, secrets must be configured
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
 
     steps:
+      - name: Check required secrets
+        run: |
+          # CI-TRUTH-UNBLOCK-005: Fail-closed if secrets missing for main repo
+          missing=""
+          if [ -z "${{ secrets.SUPABASE_PROJECT_REF }}" ]; then
+            missing="${missing}SUPABASE_PROJECT_REF "
+          fi
+          if [ -z "${{ secrets.SUPABASE_ACCESS_TOKEN }}" ]; then
+            missing="${missing}SUPABASE_ACCESS_TOKEN "
+          fi
+          if [ -z "${{ secrets.SUPABASE_URL }}" ]; then
+            missing="${missing}SUPABASE_URL "
+          fi
+          if [ -z "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" ]; then
+            missing="${missing}SUPABASE_SERVICE_ROLE_KEY "
+          fi
+
+          if [ -n "$missing" ]; then
+            echo "::error::Missing required secrets: ${missing}"
+            echo "See docs/ops/sop/SOP_CI_SECRETS.md for configuration instructions."
+            exit 1
+          fi
+          echo "✅ All required secrets are configured"
+
       - name: Checkout
         uses: actions/checkout@v4
 

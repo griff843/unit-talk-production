@@ -1,5 +1,6 @@
-import { CommandInteraction, ButtonInteraction } from 'discord.js';
 import {
+  CommandInteraction,
+  ButtonInteraction,
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   EmbedBuilder,
@@ -7,8 +8,9 @@ import {
   ButtonBuilder,
   ButtonStyle,
 } from 'discord.js';
-import { getUserTier } from '../utils/roleUtils';
+
 import { logger } from '../utils/logger';
+import { getUserTier } from '../utils/roleUtils';
 
 export const data = new SlashCommandBuilder()
   .setName('sample-picks')

@@ -5,6 +5,7 @@ import {
   TextChannel,
   Colors,
 } from 'discord.js';
+
 import { logger } from '../utils/logger';
 
 export class ContentButtonHandler {

@@ -6,10 +6,8 @@ import {
   ButtonBuilder,
   ButtonStyle,
 } from 'discord.js';
-import { DMService } from './dmService';
-import { databaseService } from './database';
+
 import { UserTier, OnboardingSequence, OnboardingMessage } from '../types';
-import { logger } from '../utils/logger';
 import {
   toISOString,
   toDate,
@@ -19,6 +17,10 @@ import {
   getMonth,
   getDate,
 } from '../utils/dateUtils';
+import { logger } from '../utils/logger';
+
+import { databaseService } from './database';
+import { DMService } from './dmService';
 
 export class OnboardingService {
   private client: Client;
@@ -117,7 +119,7 @@ export class OnboardingService {
 
       // Determine user type and create appropriate sequence
       const userType = this.determineUserType(tier);
-      
+
       switch (userType) {
         case 'capper':
           sequence = this.createCapperSequence(user);
@@ -267,7 +269,7 @@ export class OnboardingService {
    */
   private determineUserType(tier: string): string {
     const lowerTier = tier.toLowerCase();
-    
+
     // Map different tier variations to user types
     if (lowerTier.includes('capper') || lowerTier.includes('expert')) {
       return 'capper';
@@ -284,7 +286,7 @@ export class OnboardingService {
     if (lowerTier === 'vip') {
       return 'vip';
     }
-    
+
     return 'free'; // Default fallback
   }
 
@@ -304,26 +306,24 @@ export class OnboardingService {
             .setTitle('🎩 Welcome to Unit Talk - Your Personal Concierge')
             .setDescription(
               `**Hello ${user.username}**, I'm your Unit Talk Concierge.\n\n` +
-              `I'm here to create a **completely personalized** 7-day experience just for you. ` +
-              `But first, I need to understand what brought you here.\n\n` +
-              `**Why did you decide to try Unit Talk today?**\n` +
-              `*Click the option that best describes you - this shapes your entire experience:*`
+                `I'm here to create a **completely personalized** 7-day experience just for you. ` +
+                `But first, I need to understand what brought you here.\n\n` +
+                `**Why did you decide to try Unit Talk today?**\n` +
+                `*Click the option that best describes you - this shapes your entire experience:*`
             )
-            .addFields(
-              {
-                name: '🎯 Choose Your Primary Goal',
-                value: [
-                  '**Select what matters most to you:**',
-                  '• Tired of losing money on bets',
-                  '• Need better analysis and insights', 
-                  '• Want to learn winning strategies',
-                  '• Looking for a betting community',
-                  '• Seeking consistent profit system',
-                  '• Want access to expert picks',
-                ].join('\n'),
-                inline: false,
-              }
-            )
+            .addFields({
+              name: '🎯 Choose Your Primary Goal',
+              value: [
+                '**Select what matters most to you:**',
+                '• Tired of losing money on bets',
+                '• Need better analysis and insights',
+                '• Want to learn winning strategies',
+                '• Looking for a betting community',
+                '• Seeking consistent profit system',
+                '• Want access to expert picks',
+              ].join('\n'),
+              inline: false,
+            })
             .setFooter({ text: 'Unit Talk Concierge • Your answer personalizes everything' })
             .setTimestamp(),
           components: [
@@ -395,9 +395,9 @@ export class OnboardingService {
             .setTitle('🏆 Welcome to the Unit Talk Capper Network')
             .setDescription(
               `**${user.username}**, welcome to the elite capper network.\n\n` +
-              `As a verified capper, you're now part of Unit Talk's expert intelligence team. ` +
-              `Your picks and analysis will help members make smarter betting decisions.\n\n` +
-              `**Your capper dashboard and tools are ready.**`
+                `As a verified capper, you're now part of Unit Talk's expert intelligence team. ` +
+                `Your picks and analysis will help members make smarter betting decisions.\n\n` +
+                `**Your capper dashboard and tools are ready.**`
             )
             .addFields(
               {
@@ -478,9 +478,9 @@ export class OnboardingService {
             .setTitle('🛡️ Unit Talk Admin Access Granted')
             .setDescription(
               `**${user.username}**, welcome to the Unit Talk administration team.\n\n` +
-              `You now have admin access to manage the Unit Talk ecosystem. ` +
-              `Your role is crucial in maintaining the quality and integrity of our platform.\n\n` +
-              `**Your admin dashboard and tools are active.**`
+                `You now have admin access to manage the Unit Talk ecosystem. ` +
+                `Your role is crucial in maintaining the quality and integrity of our platform.\n\n` +
+                `**Your admin dashboard and tools are active.**`
             )
             .addFields(
               {
@@ -561,9 +561,9 @@ export class OnboardingService {
             .setTitle('🎩 Welcome to Your Elite 7-Day Experience')
             .setDescription(
               `**Hello ${user.username}**, I'm your Unit Talk Concierge.\n\n` +
-              `For the next 7 days, you have **exclusive access** to our complete VIP intelligence system for just $1. ` +
-              `I'll personally guide you through everything and ensure you experience why Unit Talk members never want to leave.\n\n` +
-              `**What makes us different?** We don't just give you picks – we give you the **edge**.`
+                `For the next 7 days, you have **exclusive access** to our complete VIP intelligence system for just $1. ` +
+                `I'll personally guide you through everything and ensure you experience why Unit Talk members never want to leave.\n\n` +
+                `**What makes us different?** We don't just give you picks – we give you the **edge**.`
             )
             .addFields(
               {
@@ -572,7 +572,7 @@ export class OnboardingService {
                   '• **Live VIP Picks** - Real-time intelligence from our expert cappers',
                   '• **Advanced Analytics** - Edge scoring system that filters only the best',
                   '• **Exclusive Channels** - VIP-only discussions and insights',
-                  '• **Personal Concierge** - That\'s me, available throughout your trial',
+                  "• **Personal Concierge** - That's me, available throughout your trial",
                   '• **Premium Commands** - Full access to our slash command suite',
                 ].join('\n'),
                 inline: false,
@@ -617,8 +617,8 @@ export class OnboardingService {
             .setTitle('🎩 Day 2: How Was Your First Day?')
             .setDescription(
               `**${user.username}**, your concierge here with your Day 2 check-in.\n\n` +
-              `Yesterday you gained access to our elite system. Today, let me show you something **most members miss** on their first day – our powerful slash command system.\n\n` +
-              `**Did you know?** You can get is_instant analysis on any game with just a few keystrokes.`
+                `Yesterday you gained access to our elite system. Today, let me show you something **most members miss** on their first day – our powerful slash command system.\n\n` +
+                `**Did you know?** You can get is_instant analysis on any game with just a few keystrokes.`
             )
             .addFields(
               {
@@ -633,7 +633,8 @@ export class OnboardingService {
               },
               {
                 name: '🔥 What VIP+ Members Are Saying Today:',
-                value: '"*Just hit another +280 pick from the algo. This system is unreal.*" - @Mike_VIP+',
+                value:
+                  '"*Just hit another +280 pick from the algo. This system is unreal.*" - @Mike_VIP+',
                 inline: false,
               }
             )
@@ -659,16 +660,16 @@ export class OnboardingService {
           delay: 345600, // 4 days (96 hours)
           embed: new EmbedBuilder()
             .setColor('#FFD700')
-            .setTitle('🎩 Final Days: Don\'t Lose Your Edge')
+            .setTitle("🎩 Final Days: Don't Lose Your Edge")
             .setDescription(
               `**${user.username}**, your concierge with an important update.\n\n` +
-              `Your elite trial ends in **2 days**. I wanted to personally reach out because ` +
-              `I've seen your engagement and I know you understand the value here.\n\n` +
-              `**Here's what happens if you don't upgrade:**`
+                `Your elite trial ends in **2 days**. I wanted to personally reach out because ` +
+                `I've seen your engagement and I know you understand the value here.\n\n` +
+                `**Here's what happens if you don't upgrade:**`
             )
             .addFields(
               {
-                name: '❌ What You\'ll Lose:',
+                name: "❌ What You'll Lose:",
                 value: [
                   '• Access to VIP picks (back to free picks only)',
                   '• Your personal concierge service (me)',
@@ -1037,16 +1038,15 @@ export class OnboardingService {
 
       // Generate personalized content based on their WHY
       const personalizedSequence = this.generatePersonalizedContent(user, motivation);
-      
+
       // Start the personalized journey
       await this.sendSequenceWithDelays(user, personalizedSequence);
-      
+
       logger.info('[ONBOARDING] Motivation-driven sequence started', {
         userId: user.id,
         motivation,
         messageCount: personalizedSequence.messages.length,
       });
-
     } catch (error) {
       logger.error('[ONBOARDING] Error creating motivation-driven sequence', {
         error: error instanceof Error ? error.message : String(error),
@@ -1061,7 +1061,7 @@ export class OnboardingService {
    */
   private generatePersonalizedContent(user: User, motivation: string): OnboardingSequence {
     const motivationTemplates = {
-      'losing_money': {
+      losing_money: {
         theme: 'Stop Losing, Start Winning',
         color: '#DC143C',
         day1Focus: 'profit protection and edge systems',
@@ -1070,16 +1070,16 @@ export class OnboardingService {
         testimonials: 'members who stopped losing and started winning',
         features: 'edge scoring, bankroll protection, profit tracking',
       },
-      'need_analysis': {
+      need_analysis: {
         theme: 'Institutional-Grade Intelligence',
-        color: '#4169E1', 
+        color: '#4169E1',
         day1Focus: 'advanced analytics and data insights',
         day2Focus: 'analysis frameworks and tools',
         day5Focus: 'sophisticated betting intelligence',
         testimonials: 'members who improved their analysis',
         features: 'algorithm picks, data visualization, market analysis',
       },
-      'learn_strategy': {
+      learn_strategy: {
         theme: 'Betting Education Mastery',
         color: '#228B22',
         day1Focus: 'learning paths and expert guidance',
@@ -1088,7 +1088,7 @@ export class OnboardingService {
         testimonials: 'members who became expert bettors',
         features: 'strategy guides, expert mentoring, skill tracking',
       },
-      'community': {
+      community: {
         theme: 'Elite Betting Community',
         color: '#FF8C00',
         day1Focus: 'community connections and discussions',
@@ -1097,7 +1097,7 @@ export class OnboardingService {
         testimonials: 'members who found their betting family',
         features: 'VIP channels, expert access, community events',
       },
-      'profit_system': {
+      profit_system: {
         theme: 'Consistent Profit Engine',
         color: '#32CD32',
         day1Focus: 'systematic profit generation',
@@ -1106,7 +1106,7 @@ export class OnboardingService {
         testimonials: 'members generating consistent profits',
         features: 'profit systems, ROI tracking, scaling strategies',
       },
-      'expert_picks': {
+      expert_picks: {
         theme: 'Expert Capper Network',
         color: '#8A2BE2',
         day1Focus: 'expert picks and capper insights',
@@ -1118,7 +1118,7 @@ export class OnboardingService {
     };
 
     const template = motivationTemplates[motivation] || motivationTemplates['losing_money'];
-    
+
     const messages: OnboardingMessage[] = [
       // Day 1: Personalized Welcome
       {
@@ -1131,9 +1131,9 @@ export class OnboardingService {
           .setTitle(`🎩 ${template.theme} - Your Personal Journey Begins`)
           .setDescription(
             `**${user.username}**, I completely understand.\n\n` +
-            `You're here because you want ${this.getMotivationDescription(motivation)}. ` +
-            `That's exactly what I'm going to help you achieve over the next 7 days.\n\n` +
-            `**I've personalized your entire experience around ${template.day1Focus}.**`
+              `You're here because you want ${this.getMotivationDescription(motivation)}. ` +
+              `That's exactly what I'm going to help you achieve over the next 7 days.\n\n` +
+              `**I've personalized your entire experience around ${template.day1Focus}.**`
           )
           .addFields(
             {
@@ -1146,7 +1146,7 @@ export class OnboardingService {
               value: [
                 '• **Right now:** Get your first personalized recommendation',
                 '• **Tomorrow:** Deep dive into what matters most to you',
-                '• **Day 5:** Secure your edge before it\'s gone',
+                "• **Day 5:** Secure your edge before it's gone",
                 '• **Throughout:** Everything tailored to your goals',
               ].join('\n'),
               inline: false,
@@ -1178,9 +1178,9 @@ export class OnboardingService {
           .setTitle(`🎯 Day 2: Mastering ${template.day2Focus}`)
           .setDescription(
             `**${user.username}**, your concierge here with your personalized Day 2 focus.\n\n` +
-            `Yesterday I introduced you to Unit Talk. Today, let's dive deep into ${template.day2Focus} ` +
-            `– the specific area that will transform your betting.\n\n` +
-            `**Here's what successful members like you focus on:**`
+              `Yesterday I introduced you to Unit Talk. Today, let's dive deep into ${template.day2Focus} ` +
+              `– the specific area that will transform your betting.\n\n` +
+              `**Here's what successful members like you focus on:**`
           )
           .addFields(
             {
@@ -1220,13 +1220,13 @@ export class OnboardingService {
           .setTitle(`🔥 Don't Lose Your ${template.theme}`)
           .setDescription(
             `**${user.username}**, this is it – your final 2 days.\n\n` +
-            `Over the past 5 days, you've experienced ${template.day5Focus}. ` +
-            `You know what Unit Talk can do for your specific goals.\n\n` +
-            `**Here's what happens if you don't upgrade:**`
+              `Over the past 5 days, you've experienced ${template.day5Focus}. ` +
+              `You know what Unit Talk can do for your specific goals.\n\n` +
+              `**Here's what happens if you don't upgrade:**`
           )
           .addFields(
             {
-              name: '❌ What You\'ll Lose',
+              name: "❌ What You'll Lose",
               value: this.getPersonalizedLossMessage(motivation),
               inline: false,
             },
@@ -1237,7 +1237,8 @@ export class OnboardingService {
             },
             {
               name: '🎁 Special Offer (Expires in 48 Hours)',
-              value: 'Upgrade now and get **25% off for 3 months** - exclusive to trial members who share your goals.',
+              value:
+                'Upgrade now and get **25% off for 3 months** - exclusive to trial members who share your goals.',
               inline: false,
             }
           )
@@ -1275,12 +1276,12 @@ export class OnboardingService {
    */
   private getMotivationDescription(motivation: string): string {
     const descriptions = {
-      'losing_money': 'to stop losing money and start winning consistently',
-      'need_analysis': 'better analysis and data-driven insights',
-      'learn_strategy': 'to learn winning strategies from experts',
-      'community': 'to connect with a community of successful bettors',
-      'profit_system': 'a consistent system for generating profits',
-      'expert_picks': 'access to verified expert picks and analysis',
+      losing_money: 'to stop losing money and start winning consistently',
+      need_analysis: 'better analysis and data-driven insights',
+      learn_strategy: 'to learn winning strategies from experts',
+      community: 'to connect with a community of successful bettors',
+      profit_system: 'a consistent system for generating profits',
+      expert_picks: 'access to verified expert picks and analysis',
     };
     return descriptions[motivation] || descriptions['losing_money'];
   }
@@ -1290,37 +1291,37 @@ export class OnboardingService {
    */
   private getPersonalizedFeatures(motivation: string): string {
     const features = {
-      'losing_money': [
+      losing_money: [
         '• **Edge Scoring System** - Only bet when you have the advantage',
         '• **Bankroll Protection** - Never risk more than you can afford',
         '• **Win Rate Tracking** - See your improvement in real-time',
         '• **Loss Prevention Alerts** - Stop bad streaks before they start',
       ].join('\n'),
-      'need_analysis': [
+      need_analysis: [
         '• **Algorithm Intelligence** - AI-powered betting analysis',
         '• **Market Data Insights** - Institutional-grade information',
         '• **Trend Analysis Tools** - Spot opportunities before others',
         '• **Performance Analytics** - Data-driven decision making',
       ].join('\n'),
-      'learn_strategy': [
+      learn_strategy: [
         '• **Expert Strategy Guides** - Learn from profitable bettors',
         '• **Interactive Tutorials** - Hands-on learning experience',
         '• **Personal Mentoring** - Direct access to successful cappers',
         '• **Skill Development Tracking** - Monitor your progress',
       ].join('\n'),
-      'community': [
+      community: [
         '• **VIP Community Channels** - Connect with like-minded bettors',
         '• **Expert Interactions** - Chat directly with successful cappers',
         '• **Member Support Network** - Help and advice from peers',
         '• **Exclusive Events** - Community contests and meetups',
       ].join('\n'),
-      'profit_system': [
+      profit_system: [
         '• **Systematic Approach** - Consistent profit generation methods',
         '• **ROI Optimization** - Maximize returns on every bet',
         '• **Scaling Strategies** - Grow your profits systematically',
         '• **Profit Tracking** - Monitor your wealth building journey',
       ].join('\n'),
-      'expert_picks': [
+      expert_picks: [
         '• **Verified Capper Network** - Proven track records only',
         '• **Expert Analysis** - Detailed reasoning behind every pick',
         '• **Performance Transparency** - Full win/loss records',
@@ -1335,12 +1336,18 @@ export class OnboardingService {
    */
   private getPersonalizedTestimonial(motivation: string): string {
     const testimonials = {
-      'losing_money': 'I was losing $500/month before Unit Talk. Now I\'m up $2,100 in 3 months. The edge system changed everything.',
-      'need_analysis': 'The analysis here is next level. I finally understand WHY bets win or lose instead of just guessing.',
-      'learn_strategy': 'Went from complete beginner to confident bettor in 2 months. The education system is incredible.',
-      'community': 'Found my betting family here. The community support and shared knowledge is priceless.',
-      'profit_system': 'Following their profit system, I\'ve had 8 profitable months in a row. It actually works.',
-      'expert_picks': 'The cappers here are the real deal. 73% win rate following their picks over 6 months.',
+      losing_money:
+        "I was losing $500/month before Unit Talk. Now I'm up $2,100 in 3 months. The edge system changed everything.",
+      need_analysis:
+        'The analysis here is next level. I finally understand WHY bets win or lose instead of just guessing.',
+      learn_strategy:
+        'Went from complete beginner to confident bettor in 2 months. The education system is incredible.',
+      community:
+        'Found my betting family here. The community support and shared knowledge is priceless.',
+      profit_system:
+        "Following their profit system, I've had 8 profitable months in a row. It actually works.",
+      expert_picks:
+        'The cappers here are the real deal. 73% win rate following their picks over 6 months.',
     };
     return testimonials[motivation] || testimonials['losing_money'];
   }
@@ -1350,37 +1357,37 @@ export class OnboardingService {
    */
   private getPersonalizedNextSteps(motivation: string): string {
     const steps = {
-      'losing_money': [
+      losing_money: [
         '1. **Use `/ask-unit-talk`** - Ask about bankroll management strategies',
         '2. **Check your edge scores** - Only bet when advantage is clear',
         '3. **Track everything** - Use `/submit-pick` to monitor progress',
         '4. **Join profit discussions** - Learn from profitable members',
       ].join('\n'),
-      'need_analysis': [
+      need_analysis: [
         '1. **Try `/ask-unit-talk`** - Get analysis on any upcoming game',
         '2. **Explore the algorithm** - See how AI evaluates opportunities',
         '3. **Use analysis tools** - Access market data and insights',
         '4. **Study successful picks** - Learn analysis patterns',
       ].join('\n'),
-      'learn_strategy': [
+      learn_strategy: [
         '1. **Start with `/ask-unit-talk`** - Ask about basic betting strategies',
         '2. **Follow expert reasoning** - See how pros think through bets',
         '3. **Practice with guidance** - Submit picks for feedback',
         '4. **Join strategy discussions** - Learn from member conversations',
       ].join('\n'),
-      'community': [
+      community: [
         '1. **Introduce yourself** - Share your betting background in VIP chat',
         '2. **Engage with posts** - React and comment on member picks',
         '3. **Ask questions** - The community loves helping newcomers',
         '4. **Share your wins** - Celebrate successes with the group',
       ].join('\n'),
-      'profit_system': [
+      profit_system: [
         '1. **Learn the system** - Use `/ask-unit-talk` about profit strategies',
         '2. **Start systematic betting** - Follow the proven framework',
         '3. **Track ROI progress** - Monitor your profit growth',
         '4. **Scale gradually** - Increase stakes as profits grow',
       ].join('\n'),
-      'expert_picks': [
+      expert_picks: [
         '1. **Follow top cappers** - Check `/capper-stats` for leaders',
         '2. **Study pick reasoning** - Learn why experts choose bets',
         '3. **Ask capper questions** - Direct interaction available',
@@ -1395,12 +1402,12 @@ export class OnboardingService {
    */
   private getPersonalizedLossMessage(motivation: string): string {
     const losses = {
-      'losing_money': 'Back to losing money with random betting and no edge protection',
-      'need_analysis': 'Back to betting blind without proper data and insights',
-      'learn_strategy': 'Back to guessing instead of using proven winning strategies',
-      'community': 'Back to betting alone without support and shared knowledge',
-      'profit_system': 'Back to inconsistent results without a systematic approach',
-      'expert_picks': 'Back to amateur picks instead of verified expert analysis',
+      losing_money: 'Back to losing money with random betting and no edge protection',
+      need_analysis: 'Back to betting blind without proper data and insights',
+      learn_strategy: 'Back to guessing instead of using proven winning strategies',
+      community: 'Back to betting alone without support and shared knowledge',
+      profit_system: 'Back to inconsistent results without a systematic approach',
+      expert_picks: 'Back to amateur picks instead of verified expert analysis',
     };
     return losses[motivation] || losses['losing_money'];
   }
@@ -1410,12 +1417,12 @@ export class OnboardingService {
    */
   private getPersonalizedUpgradeMessage(motivation: string): string {
     const upgrades = {
-      'losing_money': 'Permanent access to edge protection and profit strategies',
-      'need_analysis': 'Unlimited algorithm analysis and market intelligence',
-      'learn_strategy': 'Complete strategy education and expert mentoring',
-      'community': 'Lifetime membership in the elite betting community',
-      'profit_system': 'Full systematic profit framework and ROI optimization',
-      'expert_picks': 'Unlimited access to all expert cappers and their analysis',
+      losing_money: 'Permanent access to edge protection and profit strategies',
+      need_analysis: 'Unlimited algorithm analysis and market intelligence',
+      learn_strategy: 'Complete strategy education and expert mentoring',
+      community: 'Lifetime membership in the elite betting community',
+      profit_system: 'Full systematic profit framework and ROI optimization',
+      expert_picks: 'Unlimited access to all expert cappers and their analysis',
     };
     return upgrades[motivation] || upgrades['losing_money'];
   }

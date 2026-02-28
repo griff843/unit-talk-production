@@ -11,13 +11,13 @@ import {
   PartialUser,
   VoiceState,
 } from 'discord.js';
-import { SupabaseService } from '../services/supabase';
+
 import { DMService } from '../services/dmService';
 import { OnboardingService } from '../services/onboardingService';
-import { VIPNotificationService } from '../services/vipNotificationService';
 import { RoleChangeService } from '../services/roleChangeService';
+import { SupabaseService } from '../services/supabase';
+import { VIPNotificationService } from '../services/vipNotificationService';
 import { UserTier } from '../types/index';
-import { logger } from '../utils/logger';
 import {
   toISOString,
   toDate,
@@ -29,6 +29,7 @@ import {
   setDate,
   toLocaleDateString,
 } from '../utils/dateUtils';
+import { logger } from '../utils/logger';
 
 export class EventHandler {
   private client: Client;

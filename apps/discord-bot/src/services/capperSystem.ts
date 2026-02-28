@@ -1,4 +1,5 @@
 import { Client } from 'discord.js';
+
 import { logger } from '../utils/logger';
 
 export interface CapperSystemConfig {

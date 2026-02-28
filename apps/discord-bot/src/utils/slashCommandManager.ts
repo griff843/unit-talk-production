@@ -1,8 +1,10 @@
-import { Client, REST, Routes, SlashCommandBuilder, ApplicationCommandData } from 'discord.js';
 import { readdirSync, statSync } from 'fs';
 import { join } from 'path';
-import { logger } from '../utils/logger';
+
+import { Client, REST, Routes, SlashCommandBuilder, ApplicationCommandData } from 'discord.js';
+
 import { botConfig } from '../config';
+import { logger } from '../utils/logger';
 
 export interface CommandDefinition {
   name: string;

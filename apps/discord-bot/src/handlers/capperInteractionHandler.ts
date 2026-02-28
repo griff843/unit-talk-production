@@ -1,5 +1,6 @@
-import { CommandInteraction, ButtonInteraction } from 'discord.js';
 import {
+  CommandInteraction,
+  ButtonInteraction,
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
@@ -10,8 +11,9 @@ import {
   TextInputStyle,
   ChatInputCommandInteraction,
 } from 'discord.js';
-import { CapperSystem } from '../services/capperSystem';
+
 import { capperService } from '../services/capperService';
+import { CapperSystem } from '../services/capperSystem';
 import { logger } from '../utils/logger';
 
 export async function handleCapperInteraction(

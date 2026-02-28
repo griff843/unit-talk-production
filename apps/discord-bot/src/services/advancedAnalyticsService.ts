@@ -1,5 +1,5 @@
 import { Client, GuildMember, User } from 'discord.js';
-import { SupabaseService } from './supabase';
+
 import {
   toISOString,
   toDate,
@@ -11,6 +11,8 @@ import {
   setDate,
   toLocaleDateString,
 } from '../utils/dateUtils';
+
+import { SupabaseService } from './supabase';
 
 /**
  * Analytics event interface

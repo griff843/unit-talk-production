@@ -1,8 +1,13 @@
-import { CommandInteraction, ButtonInteraction } from 'discord.js';
-import { SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
+import {
+  CommandInteraction,
+  ButtonInteraction,
+  SlashCommandBuilder,
+  ChatInputCommandInteraction,
+} from 'discord.js';
+
+import { permissionsService } from '../services/permissions';
 import { supabaseService } from '../services/supabase';
 import { createUserStatsEmbed } from '../utils/embeds';
-import { permissionsService } from '../services/permissions';
 import { logger } from '../utils/logger';
 
 export const data = new SlashCommandBuilder()

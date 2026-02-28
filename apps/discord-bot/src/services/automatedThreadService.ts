@@ -7,11 +7,9 @@ import {
   ButtonBuilder,
   ButtonStyle,
 } from 'discord.js';
-import { SupabaseService } from './supabase';
-import { PermissionsService } from './permissions';
-import { GameThread, ThreadLinkingRule, CrossPostConfig } from '../types';
-import { logger } from '../utils/logger';
+
 import { botConfig } from '../config';
+import { GameThread, ThreadLinkingRule, CrossPostConfig } from '../types';
 import {
   toISOString,
   toDate,
@@ -23,6 +21,10 @@ import {
   setDate,
   toLocaleDateString,
 } from '../utils/dateUtils';
+import { logger } from '../utils/logger';
+
+import { PermissionsService } from './permissions';
+import { SupabaseService } from './supabase';
 
 export class AutomatedThreadService {
   private client: Client;
@@ -390,7 +392,11 @@ export class AutomatedThreadService {
         .setTimestamp();
 
       if (updateData.professional_score) {
-        updateEmbed.addFields({ name: 'Score', value: updateData.professional_score, inline: true });
+        updateEmbed.addFields({
+          name: 'Score',
+          value: updateData.professional_score,
+          inline: true,
+        });
       }
       if (updateData.quarter) {
         updateEmbed.addFields({ name: 'Quarter', value: updateData.quarter, inline: true });

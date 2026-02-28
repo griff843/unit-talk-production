@@ -8,16 +8,9 @@ import {
   ButtonStyle,
   PermissionFlagsBits,
 } from 'discord.js';
-import { SupabaseService } from './supabase';
-import { PermissionsService } from './permissions';
-import { AdvancedAnalyticsService } from './advancedAnalyticsService';
-import { KeywordEmojiDMService } from './keywordEmojiDMService';
-import { AutomatedThreadService } from './automatedThreadService';
-import { VIPNotificationService } from './vipNotificationService';
-import { AIPoweredService } from './aiPoweredService';
-import { AdminOverride, ConfigUpdate, SystemCommand, ExtendedSystemCommand } from '../types';
-import { logger } from '../utils/logger';
+
 import { botConfig } from '../config';
+import { AdminOverride, ConfigUpdate, SystemCommand, ExtendedSystemCommand } from '../types';
 import {
   toISOString,
   toDate,
@@ -29,6 +22,15 @@ import {
   setDate,
   toLocaleDateString,
 } from '../utils/dateUtils';
+import { logger } from '../utils/logger';
+
+import { AdvancedAnalyticsService } from './advancedAnalyticsService';
+import { AIPoweredService } from './aiPoweredService';
+import { AutomatedThreadService } from './automatedThreadService';
+import { KeywordEmojiDMService } from './keywordEmojiDMService';
+import { PermissionsService } from './permissions';
+import { SupabaseService } from './supabase';
+import { VIPNotificationService } from './vipNotificationService';
 
 export class AdminOverrideService {
   private client: Client;
