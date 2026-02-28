@@ -40,6 +40,9 @@ COMMENT ON COLUMN ticket_discord_outbox.publish_token_at IS
 -- 2. UPDATE CLAIM RPC TO SET PUBLISH_TOKEN
 -- ============================================================================
 
+-- Drop existing function first (return type changed from original)
+DROP FUNCTION IF EXISTS claim_discord_outbox_batch(INTEGER, TEXT);
+
 CREATE OR REPLACE FUNCTION claim_discord_outbox_batch(
   p_limit INTEGER DEFAULT 10,
   p_worker_id TEXT DEFAULT 'default'
@@ -122,6 +125,9 @@ COMMENT ON FUNCTION claim_discord_outbox_batch IS
 -- 3. UPDATE RELEASE RPC TO CLEAR PUBLISH_TOKEN
 -- ============================================================================
 
+-- Drop existing function first (adding new parameter changes signature)
+DROP FUNCTION IF EXISTS release_discord_outbox_claim(UUID, BOOLEAN, TEXT, TEXT, TEXT);
+
 CREATE OR REPLACE FUNCTION release_discord_outbox_claim(
   p_outbox_id UUID,
   p_success BOOLEAN,
@@ -174,7 +180,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-COMMENT ON FUNCTION release_discord_outbox_claim IS
+COMMENT ON FUNCTION release_discord_outbox_claim(UUID, BOOLEAN, TEXT, TEXT, TEXT, UUID) IS
   'SPRINT-P0-003: Release claim and clear publish_token. Supports optional token verification.';
 
 -- ============================================================================
