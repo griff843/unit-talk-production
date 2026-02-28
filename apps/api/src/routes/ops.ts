@@ -1140,6 +1140,192 @@ router.get('/cappers', async (req, res) => {
 });
 
 // ============================================================================
+// CANARY PUBLISH ENDPOINT — REAL DISCORD POST TO CANARY SURFACE
+// Sprint: CANARY-LIFECYCLE-TRIGGER-008
+// ============================================================================
+
+/**
+ * POST /ops/canary/publish-one - Publish exactly 1 pick to CANARY surface
+ *
+ * Sprint: CANARY-LIFECYCLE-TRIGGER-008
+ *
+ * Publishes exactly ONE pick through the REAL lifecycle pipeline to CANARY surface.
+ * Creates execution_events BEFORE Discord POST, updates AFTER with real snowflake.
+ *
+ * Requirements:
+ * - DISCORD_MODE=canary (fail-closed)
+ * - operatorAuth required (JWT principal)
+ * - Idempotent: second call returns success with idempotent=true
+ *
+ * Body:
+ * {
+ *   "pick_id": "uuid",           // optional - if not provided, selects 1 eligible pick
+ *   "dry_run": false             // optional - if true, validates but doesn't post
+ * }
+ *
+ * Response:
+ * {
+ *   "status": "success|noop|error",
+ *   "pick_id": "uuid",
+ *   "execution_event_id": "uuid",
+ *   "discord_message_id": "123456789012345678",
+ *   "target_surface": "CANARY",
+ *   "idempotent": true|false,
+ *   "publish_latency_ms": 234,
+ *   "correlationId": "ops-canary-publish-...",
+ *   "timestamp": "2026-02-28T..."
+ * }
+ */
+router.post('/canary/publish-one', operatorAuth, async (req: AuthenticatedRequest, res) => {
+  const correlationId = `ops-canary-publish-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+
+  try {
+    const { pick_id, dry_run = false } = req.body;
+    const operator = req.authenticatedOperatorId || 'system';
+
+    logger.info('CANARY-PUBLISH: Request received', {
+      correlationId,
+      pick_id,
+      dry_run,
+      operator,
+    });
+
+    // ---- Step 1: FAIL-CLOSED - Require canary mode ----
+    const { resolveDiscordRoutingConfig } = await import('../config/discordRouting');
+    const routingConfig = resolveDiscordRoutingConfig();
+
+    if (routingConfig.mode !== 'canary') {
+      logger.warn('CANARY-PUBLISH: Rejected - mode is not canary', {
+        correlationId,
+        current_mode: routingConfig.mode,
+      });
+
+      return res.status(403).json({
+        status: 'error',
+        error: 'DISCORD_MODE must be "canary" to use this endpoint',
+        current_mode: routingConfig.mode,
+        target_surface: 'CANARY',
+        idempotent: false,
+        correlationId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // ---- Step 2: Security logging ----
+    const { SecurityEventLogger } = await import('../security');
+    await SecurityEventLogger.logEvent({
+      type: 'canary_publish_initiated',
+      userId: operator,
+      details: {
+        pick_id: pick_id || 'auto-select',
+        dry_run,
+        correlation_id: correlationId,
+        discord_mode: routingConfig.mode,
+      },
+      timestamp: new Date().toISOString(),
+    });
+
+    // ---- Step 3: Get Supabase client ----
+    const { supabaseClient } = await import('../services/supabaseClient');
+
+    // ---- Step 4: Select pick (by ID or auto-select 1) ----
+    let targetPickId = pick_id;
+
+    if (!targetPickId) {
+      const { data: picks } = await supabaseClient
+        .from('unified_picks')
+        .select('id')
+        .eq('posted_to_discord', false)
+        .limit(1);
+
+      if (!picks?.length) {
+        logger.info('CANARY-PUBLISH: No eligible picks found', { correlationId });
+
+        return res.json({
+          status: 'noop',
+          reason: 'NO_ELIGIBLE_PICK',
+          target_surface: 'CANARY',
+          idempotent: false,
+          correlationId,
+          timestamp: new Date().toISOString(),
+        });
+      }
+      targetPickId = picks[0].id;
+    }
+
+    logger.info('CANARY-PUBLISH: Target pick selected', {
+      correlationId,
+      pick_id: targetPickId,
+      auto_selected: !pick_id,
+    });
+
+    // ---- Step 5: Call core publisher ----
+    const { publishOneToCanary } = await import('../lib/canaryPublisher');
+
+    const result = await publishOneToCanary(supabaseClient, {
+      pickId: targetPickId,
+      correlationId,
+      operatorId: operator,
+      dryRun: dry_run,
+    });
+
+    // ---- Step 6: Log completion ----
+    if (result.success) {
+      await SecurityEventLogger.logEvent({
+        type: 'canary_publish_completed',
+        userId: operator,
+        details: {
+          pick_id: targetPickId,
+          discord_message_id: result.discordMessageId,
+          execution_event_id: result.executionEventId,
+          idempotent: result.idempotent,
+          publish_latency_ms: result.publishLatencyMs,
+          correlation_id: correlationId,
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    logger.info('CANARY-PUBLISH: Request completed', {
+      correlationId,
+      success: result.success,
+      idempotent: result.idempotent,
+    });
+
+    // ---- Step 7: Return structured response ----
+    res.json({
+      status: result.success ? 'success' : 'error',
+      pick_id: targetPickId,
+      execution_event_id: result.executionEventId,
+      discord_message_id: result.discordMessageId,
+      target_surface: 'CANARY',
+      idempotent: result.idempotent,
+      publish_latency_ms: result.publishLatencyMs,
+      reason: result.reason,
+      error: result.error,
+      correlationId,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    logger.error('CANARY-PUBLISH: Unexpected error', {
+      correlationId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+
+    res.status(500).json({
+      status: 'error',
+      error: 'Internal server error during canary publish',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      target_surface: 'CANARY',
+      idempotent: false,
+      correlationId,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+// ============================================================================
 // GAUNTLET ENDPOINTS — GATED BY GAUNTLET_MODE=true
 // Sprint: FULL-CHAIN-STAGING-GAUNTLET-041
 // ============================================================================
