@@ -37,7 +37,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
+          # SPRINT-007: Removed cache since this workflow only uses Supabase CLI
 
       - name: Mask secrets
         # SPRINT-007: Use environment secrets directly
