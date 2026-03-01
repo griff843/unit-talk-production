@@ -4,7 +4,7 @@
  *
  * Tests for the POST /ops/canary/publish-one endpoint and publishOneToCanary helper.
  */
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect } from 'vitest';
 
 import type { CanaryPublishParams, CanaryPublishResult } from '../../src/lib/canaryPublisher';
 
