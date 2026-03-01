@@ -40,9 +40,9 @@ jobs:
           cache: "npm"
 
       - name: Mask secrets
+        # SPRINT-007: Use environment secrets directly
         run: |
-          echo "::add-mask::${{ secrets.SUPABASE_SERVICE_ROLE_KEY_STAGING }}"
-          echo "::add-mask::${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}"
+          echo "::add-mask::${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
@@ -51,16 +51,12 @@ jobs:
 
       - name: Set environment variables
         id: env
+        # SPRINT-007: Use environment secrets directly - workflow already uses
+        # `environment: ${{ inputs.environment }}` so secrets resolve per-env
         run: |
-          if [ "${{ inputs.environment }}" == "staging" ]; then
-            echo "SUPABASE_URL=${{ secrets.SUPABASE_URL_STAGING }}" >> $GITHUB_OUTPUT
-            echo "SUPABASE_SERVICE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY_STAGING }}" >> $GITHUB_OUTPUT
-            echo "SUPABASE_PROJECT_REF=${{ secrets.SUPABASE_PROJECT_REF_STAGING }}" >> $GITHUB_OUTPUT
-          else
-            echo "SUPABASE_URL=${{ secrets.SUPABASE_URL_PROD }}" >> $GITHUB_OUTPUT
-            echo "SUPABASE_SERVICE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}" >> $GITHUB_OUTPUT
-            echo "SUPABASE_PROJECT_REF=${{ secrets.SUPABASE_PROJECT_REF_PROD }}" >> $GITHUB_OUTPUT
-          fi
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> $GITHUB_OUTPUT
+          echo "SUPABASE_SERVICE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> $GITHUB_OUTPUT
+          echo "SUPABASE_PROJECT_REF=${{ secrets.SUPABASE_PROJECT_REF }}" >> $GITHUB_OUTPUT
 
       - name: Link Supabase project
         run: |
