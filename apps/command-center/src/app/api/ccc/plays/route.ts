@@ -71,7 +71,8 @@ export async function GET(request: Request) {
         p_market_devig,
         devig_method,
         consensus_weights_json,
-        probability_model_version
+        probability_model_version,
+        event_id
       `
       )
       .order('computed_at', { ascending: false })
@@ -95,6 +96,7 @@ export async function GET(request: Request) {
         eliminationBanner: {
           totalRemoved: 0,
           removedByReason: {
+            NO_EVENT_LINK: 0,
             MISSING_PRIMITIVE: 0,
             INSUFFICIENT_BOOKS: 0,
             HIGH_UNCERTAINTY: 0,
