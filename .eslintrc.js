@@ -185,15 +185,45 @@ module.exports = {
         'no-console': 'off',
       },
     },
-    // Test files
+    // Test directory files (broader pattern for non-standard naming like load-tests.ts)
+    // LINT-TEST-ENV-FIX-001: recognize jest globals, WebSocket, relax quality rules
+    {
+      files: ['apps/api/test/**/*.ts', 'apps/api/test/**/*.tsx'],
+      env: {
+        jest: true,
+        node: true,
+      },
+      globals: {
+        WebSocket: 'readonly',
+      },
+      rules: {
+        '@typescript-eslint/no-explicit-any': 'off',
+        'max-lines-per-function': 'off',
+        'max-lines': 'off',
+        complexity: 'off',
+        'max-depth': 'off',
+        'max-params': 'off',
+        'no-console': 'off',
+        'security/detect-object-injection': 'off',
+        'security/detect-non-literal-fs-filename': 'off',
+      },
+    },
+    // Test files (by naming convention)
     {
       files: ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.spec.tsx'],
       env: {
         jest: true,
       },
+      globals: {
+        WebSocket: 'readonly',
+      },
       rules: {
         '@typescript-eslint/no-explicit-any': 'off',
         'max-lines-per-function': 'off',
+        'max-lines': 'off',
+        complexity: 'off',
+        'max-depth': 'off',
+        'no-console': 'off',
       },
     },
     // Configuration files
