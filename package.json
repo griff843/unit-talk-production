@@ -69,6 +69,7 @@
     "guard:db-type-drift:strict": "node scripts/guard-db-type-drift.mjs --strict",
     "guard:canonical": "node scripts/guard-canonical-unified-only.mjs",
     "guard:canonical:strict": "node scripts/guard-canonical-unified-only.mjs --strict",
+    "quarantine:governance": "node scripts/quarantine-governance-gate.mjs",
     "build:sanity": "node scripts/build-sanity.mjs",
     "ops:day": "node ops/day.mjs",
     "session:baseline": "node scripts/claude-session-baseline.mjs",

@@ -177,7 +177,7 @@ jobs:
         run: npm run guard:db-type-drift:strict
 
   # Quarantine Enforcement Gate
-  # QUARANTINE-ENFORCEMENT-LOCK-005: Constitutional quarantine discipline
+  # QUARANTINE-GOVERNANCE-ENFORCEMENT-006: Governance-level quarantine discipline
   quarantine-gate:
     name: Quarantine Enforcement Gate
     runs-on: ubuntu-latest
@@ -190,17 +190,27 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Run Quarantine Gate
+      - name: Run Local Quarantine Gate (legacy)
         run: node apps/api/scripts/quarantine-gate.mjs
         env:
           CI: true
 
-      - name: Upload Quarantine Report
+      - name: Run Quarantine Governance Gate
+        run: node scripts/quarantine-governance-gate.mjs
+        env:
+          CI: true
+
+      - name: Upload Quarantine Reports
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: quarantine-report
-          path: out/ci/quarantine_report.md
+          path: |
+            out/ci/quarantine_report.md
+            out/ci/quarantine_governance_report.md
+            out/ci/proof_test_inventory.json
+            out/ci/proof_quarantine_percentage.json
+            out/ci/proof_sla_check.json
           retention-days: 30
 
   # Lifecycle Contract Gate

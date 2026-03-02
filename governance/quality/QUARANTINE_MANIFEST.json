@@ -1,0 +1,538 @@
+{
+  "version": "1.0",
+  "max_percentage": 15,
+  "max_days": 30,
+  "temporary_waiver": {
+    "active": true,
+    "reason": "QUARANTINE-GOVERNANCE-ENFORCEMENT-006: Initial governance gate deployment. Current quarantine pool (31%) exceeds 15% cap. Waiver permits CI passage while enforcing no-growth.",
+    "baseline_percentage": 31.0,
+    "baseline_count": 58,
+    "issued_date": "2026-03-01",
+    "expiration_date": "2026-03-31",
+    "approved_by": "Engineering Team"
+  },
+  "tests": [
+    {
+      "file_path": "apps/api/test/__quarantine__/agents/AgentInfrastructureTests.test.ts",
+      "reason": "OBSOLETE_API",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-001",
+      "category": "agents"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/agents/AgentPerformanceTests.test.ts",
+      "reason": "OBSOLETE_API",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-001",
+      "category": "agents"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/agents/AgentSubsystemTests.test.ts",
+      "reason": "OBSOLETE_API",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-001",
+      "category": "agents"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/agents/NewAgentsTestSuite.test.ts",
+      "reason": "OBSOLETE_API",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-001",
+      "category": "agents"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/agents/channels.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "agents"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/agents/contestAgent.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "agents"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/agents/gradingAgent.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "agents"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/agents/marketingAgent.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "agents"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/agents/mlbEnrichment.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "agents"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/agents/NotificationAgent.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "agents"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/agents/optimal.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "agents"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/ai/cache.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "ai"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/ai/routing.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "ai"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/commands/ask-unit-talk.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "commands"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/commands/capper-onboard.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "commands"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/commands/capper-stats.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "commands"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/commands/delete-pick.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "commands"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/commands/edit-pick.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "commands"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/commands/ev-report.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "commands"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/commands/submit-pick.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "commands"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/commands/trend-breaker.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "commands"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/e2e/advanced-features.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "e2e"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/e2e/daily-workflows.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "e2e"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/e2e/onboarding.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "e2e"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/e2e/ui-components.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "e2e"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/integration/ai-integration.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "integration"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/integration/ai-platform-integration.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "integration"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/integration/discord-db-integration.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "integration"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/integration/discord-integration.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "integration"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/integration/frontend-api-integration.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "integration"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/integration/monitoring-integration.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "integration"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/integration/notification-integration.test.ts",
+      "reason": "DEPENDENCY_MISSING",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-003",
+      "category": "integration"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/integration/odds-integration.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "integration"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/integration/supabase-integration.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "integration"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/integration/system-integration.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "integration"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/logic/zoneThreat.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "logic"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/logic/zoneThreatIntegration.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "logic"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/mocks/supabase-mock.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "mocks"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/performance/cache-performance.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "performance"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/performance/load-balancer-performance.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "performance"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/professional/clv-tracking.golden.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "professional"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/professional/debug-logging.golden.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "professional"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/professional/devigging.golden.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "professional"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/professional/enhanced-scoring.golden.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "professional"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/professional/integration.golden.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "professional"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/professional/tier-assignment.golden.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "professional"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/schema/v3-schema-compliance.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "schema"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/scoring/postingGovernance.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "scoring"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/scoring/promotionPolicy.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "scoring"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/services/PortfolioRiskManager.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "services"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/services/PromotionGatekeeper.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "services"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/services/RollingMetricsService.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "services"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/services/STierEnforcer.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "services"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/shadow-mode/shadow-integration.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "shadow-mode"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/shadow-mode/shadow-mode.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "shadow-mode"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/shared/errors/index.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "shared"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/unit/ml-pipeline.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "unit"
+    },
+    {
+      "file_path": "apps/api/test/__quarantine__/unit/risk-manager.test.ts",
+      "reason": "TYPE_DRIFT",
+      "date_quarantined": "2026-02-28",
+      "owner": "Engineering Team",
+      "restoration_deadline": "2026-04-01",
+      "related_issue": "TST-002",
+      "category": "unit"
+    }
+  ]
+}
