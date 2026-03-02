@@ -1,0 +1,431 @@
+#!/usr/bin/env node
+/**
+ * CCC-COMPRESSION-VALIDATION-003
+ * Replay V3 Scoring with Probability Computation
+ *
+ * This version actually computes probability primitives from provider_offers
+ * instead of returning fail-closed for all legs.
+ */
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+const MODEL_NAME = 'v3_scoring_adapter';
+const MODEL_VERSION = 'v1.0.0';
+const PROBABILITY_MODEL_VERSION = 'prob_v1.0.0';
+const MIN_BOOKS_FOR_CONSENSUS = 2;
+
+/**
+ * Convert American odds to implied probability
+ */
+function americanToImplied(odds) {
+  if (odds === null || odds === undefined) return null;
+  if (odds >= 100) {
+    return 100 / (odds + 100);
+  } else {
+    return Math.abs(odds) / (Math.abs(odds) + 100);
+  }
+}
+
+/**
+ * Power devig method - removes vig assuming all outcomes scaled equally
+ */
+function powerDevig(probs) {
+  const total = probs.reduce((sum, p) => sum + p, 0);
+  if (total <= 0) return probs;
+  return probs.map(p => p / total);
+}
+
+/**
+ * Compute consensus probability from multiple book offers
+ */
+function computeConsensus(offers, selection) {
+  if (!offers || offers.length === 0) return null;
+
+  const bookProbs = [];
+  const weights = [];
+
+  // Weight by provider (pinnacle gets higher weight)
+  const providerWeights = {
+    'pinnacle': 1.5,
+    'fanduel': 1.0,
+    'draftkings': 1.0,
+    'betmgm': 0.9,
+  };
+
+  for (const offer of offers) {
+    let odds = null;
+    if (selection === 'home' || selection === 'away') {
+      odds = selection === 'home' ? offer.home_odds : offer.away_odds;
+    } else if (selection === 'over') {
+      odds = offer.over_odds;
+    } else if (selection === 'under') {
+      odds = offer.under_odds;
+    }
+
+    if (odds === null || odds === undefined) continue;
+
+    const implied = americanToImplied(odds);
+    if (implied === null) continue;
+
+    const weight = providerWeights[offer.provider] || 1.0;
+    bookProbs.push(implied);
+    weights.push(weight);
+  }
+
+  if (bookProbs.length < MIN_BOOKS_FOR_CONSENSUS) {
+    return null;
+  }
+
+  // Weighted average
+  let weightedSum = 0;
+  let totalWeight = 0;
+  for (let i = 0; i < bookProbs.length; i++) {
+    weightedSum += bookProbs[i] * weights[i];
+    totalWeight += weights[i];
+  }
+
+  const rawProb = weightedSum / totalWeight;
+
+  // Power devig (2-way market)
+  const oppositeProb = 1 - rawProb;
+  const [deviggedProb] = powerDevig([rawProb, oppositeProb]);
+
+  return {
+    p_market_devig: deviggedProb,
+    books_used: bookProbs.length,
+    consensus_weights: weights,
+    raw_implied: rawProb,
+  };
+}
+
+/**
+ * Fetch provider_offers for a leg
+ */
+async function fetchBookOffers(eventId, marketTypeId) {
+  const { data, error } = await supabase
+    .from('provider_offers')
+    .select('*')
+    .eq('event_id', eventId)
+    .eq('market_type_id', marketTypeId)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (error) {
+    console.warn(`Failed to fetch offers: ${error.message}`);
+    return [];
+  }
+
+  // Dedupe by provider (keep most recent)
+  const byProvider = new Map();
+  for (const offer of (data || [])) {
+    if (!byProvider.has(offer.provider)) {
+      byProvider.set(offer.provider, offer);
+    }
+  }
+  return Array.from(byProvider.values());
+}
+
+/**
+ * Compute probability primitives for a leg
+ */
+async function computeProbabilityForLeg(leg) {
+  // Missing market_type_id = fail-closed
+  if (!leg.market_type_id) {
+    return {
+      p_final: null, p_market_devig: null, uncertainty_final: null,
+      edge_final: null, clv_forecast: null, devig_method: null,
+      consensus_weights_json: null, probability_model_version: null,
+      books_used: 0, probability_fail_reason: 'MISSING_MARKET_TYPE_ID',
+    };
+  }
+
+  // Missing event_id = fail-closed
+  if (!leg.event_id) {
+    return {
+      p_final: null, p_market_devig: null, uncertainty_final: null,
+      edge_final: null, clv_forecast: null, devig_method: null,
+      consensus_weights_json: null, probability_model_version: null,
+      books_used: 0, probability_fail_reason: 'MISSING_EVENT_ID',
+    };
+  }
+
+  // Fetch offers
+  const offers = await fetchBookOffers(leg.event_id, leg.market_type_id);
+
+  if (offers.length < MIN_BOOKS_FOR_CONSENSUS) {
+    return {
+      p_final: null, p_market_devig: null, uncertainty_final: null,
+      edge_final: null, clv_forecast: null, devig_method: null,
+      consensus_weights_json: null, probability_model_version: null,
+      books_used: offers.length,
+      probability_fail_reason: `INSUFFICIENT_BOOKS:${offers.length}<${MIN_BOOKS_FOR_CONSENSUS}`,
+    };
+  }
+
+  // Compute consensus
+  const consensus = computeConsensus(offers, leg.selection);
+
+  if (!consensus) {
+    return {
+      p_final: null, p_market_devig: null, uncertainty_final: null,
+      edge_final: null, clv_forecast: null, devig_method: null,
+      consensus_weights_json: null, probability_model_version: null,
+      books_used: offers.length, probability_fail_reason: 'CONSENSUS_COMPUTATION_FAILED',
+    };
+  }
+
+  // Compute edge: our implied prob vs market prob
+  const marketProb = consensus.p_market_devig;
+  const playerOdds = leg.provider_odds ?? leg.effective_value?.odds;
+  const playerImplied = playerOdds ? americanToImplied(playerOdds) : null;
+
+  let edgeFinal = null;
+  if (playerImplied !== null && marketProb !== null) {
+    edgeFinal = marketProb - playerImplied; // Positive = value
+  }
+
+  // Uncertainty: variance across books
+  const uncertainty = 1 / Math.sqrt(consensus.books_used);
+
+  // CLV forecast (simplified): assume line moves toward true prob
+  const clvForecast = edgeFinal !== null ? edgeFinal * 0.5 : null;
+
+  return {
+    p_final: marketProb,
+    p_market_devig: marketProb,
+    uncertainty_final: uncertainty,
+    edge_final: edgeFinal,
+    clv_forecast: clvForecast,
+    devig_method: 'power',
+    consensus_weights_json: JSON.stringify(consensus.consensus_weights),
+    probability_model_version: PROBABILITY_MODEL_VERSION,
+    books_used: consensus.books_used,
+    probability_fail_reason: null,
+  };
+}
+
+/**
+ * Build feature vector
+ */
+function buildFeatureVector(leg) {
+  const effective = leg.effective_value || {};
+  const line = leg.provider_line ?? effective.line ?? null;
+  const odds = leg.provider_odds ?? effective.odds ?? null;
+
+  return {
+    line,
+    odds,
+    selection: leg.selection,
+    provider: effective.provider ?? null,
+  };
+}
+
+/**
+ * Score a leg with probability
+ */
+function scoreLeg(features, probability) {
+  const odds = features.odds ?? -110;
+  const oddsScore = odds < 0 ?
+    Math.max(20, Math.min(70, 100 + odds * 0.3)) :
+    Math.min(80, 50 + odds * 0.1);
+  const compositeScore = oddsScore;
+
+  let tier;
+  if (compositeScore >= 75) tier = 'S';
+  else if (compositeScore >= 60) tier = 'A';
+  else if (compositeScore >= 45) tier = 'B';
+  else if (compositeScore >= 30) tier = 'C';
+  else tier = 'D';
+
+  const confidence = Math.min(0.95, Math.max(0.3, compositeScore / 100));
+  const promotionBand = (tier === 'S' || tier === 'A') ? 'HARD' : (tier === 'B' ? 'SOFT' : 'NO_POST');
+
+  return {
+    edge_score: compositeScore,
+    confidence_score: confidence,
+    tier,
+    promotion_band: promotionBand,
+    kelly_fraction: Math.max(0, (compositeScore / 100 - 0.5) * 0.5),
+    expected_value: (compositeScore / 100 - 0.5) * 100,
+    feature_contributions: { odds_score: oddsScore },
+    // Probability fields
+    p_final: probability.p_final,
+    uncertainty_final: probability.uncertainty_final,
+    edge_final: probability.edge_final,
+    clv_forecast: probability.clv_forecast,
+    p_market_devig: probability.p_market_devig,
+    devig_method: probability.devig_method,
+    consensus_weights_json: probability.consensus_weights_json,
+    probability_model_version: probability.probability_model_version,
+    books_used: probability.books_used,
+    probability_fail_reason: probability.probability_fail_reason,
+  };
+}
+
+/**
+ * Compute feature hash
+ */
+function computeFeatureHash(features) {
+  const json = JSON.stringify(features, Object.keys(features).sort());
+  let hash = 0;
+  for (let i = 0; i < json.length; i++) {
+    hash = ((hash << 5) - hash) + json.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return `fv_${Math.abs(hash).toString(16).padStart(8, '0')}`;
+}
+
+/**
+ * Main replay function
+ */
+async function runReplay() {
+  console.log('═══════════════════════════════════════════════════════════════');
+  console.log('  CCC-COMPRESSION-VALIDATION-003');
+  console.log('  REPLAY V3 SCORING WITH PROBABILITY');
+  console.log('═══════════════════════════════════════════════════════════════');
+  console.log('Started:', new Date().toISOString());
+  console.log('');
+
+  // Get legs with event_id (these can have probabilities computed)
+  const { data: legs, error } = await supabase
+    .from('ticket_legs')
+    .select('*')
+    .not('event_id', 'is', null)
+    .not('market_type_id', 'is', null)
+    .limit(50);
+
+  if (error) {
+    throw new Error(`Failed to query ticket_legs: ${error.message}`);
+  }
+
+  console.log(`Found ${legs?.length || 0} ticket_legs with event_id`);
+
+  if (!legs || legs.length === 0) {
+    console.log('No legs to process');
+    return { processed: 0, withProbability: 0 };
+  }
+
+  // Process each leg
+  const results = [];
+  let withProbability = 0;
+
+  for (const leg of legs) {
+    const probability = await computeProbabilityForLeg(leg);
+    const features = buildFeatureVector(leg);
+    const score = scoreLeg(features, probability);
+    const featureHash = computeFeatureHash(features);
+
+    console.log(`\n--- Leg ${leg.id.substring(0, 8)}... ---`);
+    console.log(`   event_id: ${leg.event_id.substring(0, 8)}...`);
+    console.log(`   market_type_id: ${leg.market_type_id}`);
+    console.log(`   selection: ${leg.selection}`);
+    console.log(`   books_used: ${probability.books_used}`);
+    console.log(`   p_final: ${probability.p_final?.toFixed(4) ?? 'null'}`);
+    console.log(`   edge_final: ${probability.edge_final?.toFixed(4) ?? 'null'}`);
+    console.log(`   fail_reason: ${probability.probability_fail_reason || 'none'}`);
+
+    if (probability.p_final !== null) {
+      withProbability++;
+    }
+
+    results.push({
+      legId: leg.id,
+      features: { ...features, feature_vector_hash: featureHash },
+      score,
+    });
+  }
+
+  // Update scored_legs via RPC
+  console.log('\n═══════════════════════════════════════════════════════════════');
+  console.log('  UPDATING SCORED_LEGS');
+  console.log('═══════════════════════════════════════════════════════════════');
+
+  const legIds = results.map(r => r.legId);
+  const featureVectors = results.map(r => r.features);
+  const scores = results.map(r => r.score);
+
+  const { data: rpcResult, error: rpcError } = await supabase.rpc('score_ticket_legs_v3', {
+    p_leg_ids: legIds,
+    p_model_name: MODEL_NAME,
+    p_model_version: MODEL_VERSION,
+    p_feature_vectors: featureVectors,
+    p_scores: scores,
+    p_computed_at: new Date().toISOString(),
+  });
+
+  if (rpcError) {
+    console.log(`RPC error: ${rpcError.message}`);
+    console.log('Attempting direct upsert...');
+
+    // Fallback: direct upsert
+    for (const r of results) {
+      const { error: upsertErr } = await supabase
+        .from('scored_legs')
+        .upsert({
+          leg_id: r.legId,
+          model_name: MODEL_NAME,
+          model_version: MODEL_VERSION,
+          feature_vector: r.features,
+          computed_at: new Date().toISOString(),
+          edge_score: r.score.edge_score,
+          confidence_score: r.score.confidence_score,
+          tier: r.score.tier,
+          promotion_band: r.score.promotion_band,
+          kelly_fraction: r.score.kelly_fraction,
+          expected_value: r.score.expected_value,
+          p_final: r.score.p_final,
+          p_market_devig: r.score.p_market_devig,
+          uncertainty_final: r.score.uncertainty_final,
+          edge_final: r.score.edge_final,
+          clv_forecast: r.score.clv_forecast,
+          devig_method: r.score.devig_method,
+          books_used: r.score.books_used,
+          probability_fail_reason: r.score.probability_fail_reason,
+        }, { onConflict: 'leg_id,model_name' });
+
+      if (upsertErr) {
+        console.log(`   ⚠ Upsert error for ${r.legId.substring(0, 8)}: ${upsertErr.message}`);
+      }
+    }
+  } else {
+    console.log('RPC result:', JSON.stringify(rpcResult, null, 2));
+  }
+
+  // Verify results
+  console.log('\n═══════════════════════════════════════════════════════════════');
+  console.log('  VERIFICATION');
+  console.log('═══════════════════════════════════════════════════════════════');
+
+  const { count: scoredCount } = await supabase.from('scored_legs').select('*', { count: 'exact', head: true });
+  const { count: withProbCount } = await supabase.from('scored_legs').select('*', { count: 'exact', head: true }).not('p_final', 'is', null);
+
+  console.log(`\nTotal scored_legs: ${scoredCount}`);
+  console.log(`With p_final (non-null): ${withProbCount}`);
+
+  // Sample with probability
+  const { data: sample } = await supabase
+    .from('scored_legs')
+    .select('leg_id, tier, p_final, edge_final, uncertainty_final, clv_forecast, books_used')
+    .not('p_final', 'is', null)
+    .limit(10);
+
+  console.log(`\nSample scored_legs with probability:`);
+  console.log(JSON.stringify(sample, null, 2));
+
+  console.log('\n═══════════════════════════════════════════════════════════════');
+  console.log('  REPLAY COMPLETE');
+  console.log('═══════════════════════════════════════════════════════════════\n');
+
+  return { processed: legs.length, withProbability };
+}
+
+runReplay()
+  .then(result => {
+    console.log('Final result:', JSON.stringify(result, null, 2));
+    process.exit(0);
+  })
+  .catch(err => {
+    console.error('ERROR:', err.message);
+    process.exit(1);
+  });

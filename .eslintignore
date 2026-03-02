@@ -128,3 +128,9 @@ unit-talk-smart form/
 # Generated types (can cause eslint memory issues / SIGKILL)
 apps/command-center/src/types/database*.ts
 apps/command-center/src/types/index.ts
+
+# Quarantined tests (intentionally excluded from CI/lint)
+apps/api/test/__quarantine__/
+
+# Scripts (utility/ops scripts, not production code)
+apps/api/scripts/

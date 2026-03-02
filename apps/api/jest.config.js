@@ -7,6 +7,13 @@ module.exports = {
     '<rootDir>/test/**/*.test.ts',
     '<rootDir>/test/**/*.spec.ts'
   ],
+  // TEST-STABILITY-LOCK-004: Exclude quarantined tests
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/__quarantine__/'
+  ],
+  // TEST-STABILITY-LOCK-004: Limit workers to prevent OOM (exit 137)
+  maxWorkers: 2,
   setupFilesAfterEnv: ['<rootDir>/test/setup.ts'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',

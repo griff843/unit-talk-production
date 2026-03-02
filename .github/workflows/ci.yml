@@ -176,6 +176,33 @@ jobs:
       - name: Guard - DB Type Drift
         run: npm run guard:db-type-drift:strict
 
+  # Quarantine Enforcement Gate
+  # QUARANTINE-ENFORCEMENT-LOCK-005: Constitutional quarantine discipline
+  quarantine-gate:
+    name: Quarantine Enforcement Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Run Quarantine Gate
+        run: node apps/api/scripts/quarantine-gate.mjs
+        env:
+          CI: true
+
+      - name: Upload Quarantine Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quarantine-report
+          path: out/ci/quarantine_report.md
+          retention-days: 30
+
   # Lifecycle Contract Gate
   # LIFECYCLE-WRITE-SURFACE-MIGRATION-038: Enforce single-writer discipline
   lifecycle-gate:
@@ -261,7 +288,7 @@ jobs:
   test:
     name: Test Suite
     runs-on: ubuntu-latest
-    needs: [lifecycle-gate, smoke-test-verify]
+    needs: [quarantine-gate, lifecycle-gate, smoke-test-verify]
     services:
       postgres:
         image: postgres:15

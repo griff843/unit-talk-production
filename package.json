@@ -114,11 +114,11 @@
   "lint-staged": {
     "*.{ts,tsx}": [
       "prettier --write",
-      "eslint --fix --ignore-pattern 'apps/command-center/src/types/database*.ts' --ignore-pattern 'apps/command-center/src/types/index.ts'"
+      "eslint --fix --ignore-pattern 'apps/command-center/src/types/database*.ts' --ignore-pattern 'apps/command-center/src/types/index.ts' --ignore-pattern 'apps/api/test/__quarantine__/**' --ignore-pattern 'apps/api/scripts/**'"
     ],
     "*.{js,jsx}": [
       "prettier --write",
-      "eslint --fix"
+      "eslint --fix --ignore-pattern 'apps/api/scripts/**'"
     ],
     "*.{json,md,yml,yaml}": [
       "prettier --write"

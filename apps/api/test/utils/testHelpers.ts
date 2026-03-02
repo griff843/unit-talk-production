@@ -1,16 +1,18 @@
+/* eslint-env jest */
 import { BaseAgentDependencies, BaseAgentConfig } from '../../src/agents/BaseAgent/types';
 import { Logger } from '../../src/shared/logger/types';
-import { setupTestDatabase } from '../config/supabase.test';
+// TEST-STABILITY-LOCK-004: Renamed to avoid Jest treating as test file
+import { setupTestDatabase } from '../config/supabaseMock';
 
 // Mock data
 export const mockUsers = [
   { id: 'user1', name: 'Test User 1', tier: 'basic' },
-  { id: 'user2', name: 'Test User 2', tier: 'vip' }
+  { id: 'user2', name: 'Test User 2', tier: 'vip' },
 ];
 
 export const mockCappers = [
   { id: 'capper1', name: 'Test Capper 1', rating: 4.5 },
-  { id: 'capper2', name: 'Test Capper 2', rating: 4.8 }
+  { id: 'capper2', name: 'Test Capper 2', rating: 4.8 },
 ];
 
 export const mockPicks = [
@@ -22,7 +24,7 @@ export const mockPicks = [
     market_type: 'Player Props',
     line: 25.5,
     odds: -110,
-    status: 'pending'
+    status: 'pending',
   },
   {
     id: 'pick2',
@@ -32,8 +34,8 @@ export const mockPicks = [
     market_type: 'Game Lines',
     line: 8.5,
     odds: -105,
-    status: 'completed'
-  }
+    status: 'completed',
+  },
 ];
 
 // Mock logger
@@ -44,7 +46,7 @@ const createMockLogger = (): Logger => {
     warn: jest.fn(),
     debug: jest.fn(),
     setLevel: jest.fn(),
-    child: jest.fn().mockImplementation(() => createMockLogger())
+    child: jest.fn().mockImplementation(() => createMockLogger()),
   };
   return logger;
 };
@@ -54,7 +56,7 @@ const mockLogger = createMockLogger();
 // Mock error handler
 const mockErrorHandler = {
   handleError: jest.fn(),
-  withRetry: jest.fn((fn: any) => fn())
+  withRetry: jest.fn((fn: any) => fn()),
 };
 
 export function createTestDependencies(): BaseAgentDependencies {
@@ -63,7 +65,7 @@ export function createTestDependencies(): BaseAgentDependencies {
   return {
     supabase: mockSupabase,
     logger: mockLogger,
-    errorHandler: mockErrorHandler
+    errorHandler: mockErrorHandler,
   };
 }
 
@@ -75,15 +77,15 @@ export function createTestConfig(overrides: Partial<BaseAgentConfig> = {}): Base
     logLevel: 'info',
     metrics: {
       enabled: true,
-      interval: 60000
+      interval: 60000,
     },
-    ...overrides
+    ...overrides,
   };
 }
 
 export function setupTestData() {
   const { client: mockSupabase, store } = setupTestDatabase();
-  
+
   // Populate test data
   store.insert('users', mockUsers);
   store.insert('cappers', mockCappers);
@@ -113,19 +115,19 @@ export function createMockInteraction(data: any = {}) {
       get: jest.fn(),
       getString: jest.fn(),
       getNumber: jest.fn(),
-      getBoolean: jest.fn()
+      getBoolean: jest.fn(),
     },
     member: {
       roles: {
-        cache: new Map()
-      }
+        cache: new Map(),
+      },
     },
     guild: {
       roles: {
-        cache: new Map()
-      }
+        cache: new Map(),
+      },
     },
-    ...data
+    ...data,
   };
 }
 
@@ -134,17 +136,17 @@ export function createMockDiscordClient(data: any = {}) {
   return {
     guilds: {
       cache: new Map(),
-      fetch: jest.fn()
+      fetch: jest.fn(),
     },
     channels: {
       cache: new Map(),
-      fetch: jest.fn()
+      fetch: jest.fn(),
     },
     users: {
       cache: new Map(),
-      fetch: jest.fn()
+      fetch: jest.fn(),
     },
-    ...data
+    ...data,
   };
 }
 
@@ -154,18 +156,18 @@ export function createMockMessage(data: any = {}) {
     content: '',
     author: {
       id: 'test-user-id',
-      bot: false
+      bot: false,
     },
     channel: {
       send: jest.fn(),
-      id: 'test-channel-id'
+      id: 'test-channel-id',
     },
     guild: {
-      id: 'test-guild-id'
+      id: 'test-guild-id',
     },
     reply: jest.fn(),
     delete: jest.fn(),
-    ...data
+    ...data,
   };
 }
 
@@ -175,7 +177,7 @@ export function createMockWebhook(data: any = {}) {
     send: jest.fn(),
     edit: jest.fn(),
     delete: jest.fn(),
-    ...data
+    ...data,
   };
 }
 
@@ -185,7 +187,7 @@ export function createMockRole(data: any = {}) {
     id: 'test-role-id',
     name: 'Test Role',
     permissions: BigInt(0),
-    ...data
+    ...data,
   };
 }
 
@@ -197,9 +199,9 @@ export function createMockChannel(data: any = {}) {
     type: 0, // Text channel
     send: jest.fn(),
     messages: {
-      fetch: jest.fn()
+      fetch: jest.fn(),
     },
-    ...data
+    ...data,
   };
 }
 
@@ -211,18 +213,18 @@ export function createMockGuild(data: any = {}) {
     roles: {
       cache: new Map(),
       create: jest.fn(),
-      fetch: jest.fn()
+      fetch: jest.fn(),
     },
     channels: {
       cache: new Map(),
       create: jest.fn(),
-      fetch: jest.fn()
+      fetch: jest.fn(),
     },
     members: {
       cache: new Map(),
-      fetch: jest.fn()
+      fetch: jest.fn(),
     },
-    ...data
+    ...data,
   };
 }
 
@@ -234,9 +236,9 @@ export function createMockButtonInteraction(data: any = {}) {
     component: {
       type: 2, // Button
       customId: 'test-button-id',
-      label: 'Test Button'
+      label: 'Test Button',
     },
-    ...data
+    ...data,
   };
 }
 
@@ -249,9 +251,9 @@ export function createMockSelectMenuInteraction(data: any = {}) {
     component: {
       type: 3, // Select Menu
       customId: 'test-select-id',
-      options: [{ label: 'Test Option', value: 'test-value' }]
+      options: [{ label: 'Test Option', value: 'test-value' }],
     },
-    ...data
+    ...data,
   };
 }
 
@@ -261,9 +263,9 @@ export function createMockModalInteraction(data: any = {}) {
     ...createMockInteraction(),
     customId: 'test-modal-id',
     fields: {
-      getTextInputValue: jest.fn()
+      getTextInputValue: jest.fn(),
     },
-    ...data
+    ...data,
   };
 }
 
@@ -274,9 +276,9 @@ export function createMockCommandInteraction(data: any = {}) {
     commandName: 'test-command',
     options: {
       ...createMockInteraction().options,
-      _hoistedOptions: []
+      _hoistedOptions: [],
     },
-    ...data
+    ...data,
   };
 }
 
@@ -287,7 +289,7 @@ export function createMockContextMenuInteraction(data: any = {}) {
     commandName: 'test-context-menu',
     targetId: 'test-target-id',
     targetType: 3, // Message
-    ...data
+    ...data,
   };
 }
 
@@ -298,9 +300,9 @@ export function createMockAutocompleteInteraction(data: any = {}) {
     commandName: 'test-command',
     options: {
       ...createMockInteraction().options,
-      getFocused: jest.fn()
+      getFocused: jest.fn(),
     },
     respond: jest.fn(),
-    ...data
+    ...data,
   };
-} 
+}

@@ -1,4 +1,5 @@
 /* eslint-disable max-lines -- pre-existing, refactor in separate sprint */
+import { settleExecutionTelemetry } from '../../lib/executionTelemetry';
 import { lifecycleSettle } from '../../lib/lifecycle';
 import { BaseAgent } from '../BaseAgent/index';
 import {
@@ -47,6 +48,16 @@ interface PropSettlement extends Partial<PropSettlementsRow> {
   settlement_result?: 'win' | 'loss' | 'push' | 'void';
   confidence: number;
 }
+
+// DATA-MOAT-V3-INTEGRATION-001: Loss attribution types
+type LossClassification =
+  | 'PROJECTION_MISS'
+  | 'VARIANCE'
+  | 'EXECUTION_MISS'
+  | 'NEWS_MISS'
+  | 'CORRELATION_MISS'
+  | 'PRICE_MISS'
+  | 'UNKNOWN';
 
 export class SettlementAgent extends BaseAgent {
   private settlementMetrics: SettlementMetrics;
@@ -522,6 +533,7 @@ export class SettlementAgent extends BaseAgent {
    * SPRINT-SINGLE-WRITER-SETTLEMENT-GUARD-071A: Uses lifecycleSettle adapter
    * to enforce single-writer discipline and transition validation.
    */
+  // eslint-disable-next-line max-lines-per-function, complexity
   private async updateUnifiedPickSettlement(prop: any, settlement: PropSettlement): Promise<void> {
     if (!this.hasSupabase()) return;
 
@@ -572,6 +584,22 @@ export class SettlementAgent extends BaseAgent {
           });
         } else {
           this.logger.debug(`✅ Pick settled via lifecycle adapter: ${finalPick.id}`);
+
+          // EXECUTION-TELEMETRY-ACTIVATION-003: Update execution telemetry with CLV
+          await settleExecutionTelemetry(
+            this.requireSupabase(),
+            finalPick.id,
+            finalPick.line, // entry line
+            finalPick.closing_line, // closing line (may be null)
+            finalPick.odds, // entry odds
+            finalPick.closing_odds, // closing odds (may be null)
+            finalPick.side || finalPick.selection // bet side (OVER/UNDER/HOME/AWAY)
+          );
+
+          // DATA-MOAT-V3-INTEGRATION-001: Attribute losses for learning loop
+          if (settlement.settlement_result === 'loss') {
+            await this.attributeLoss(finalPick.id, settlement, prop);
+          }
         }
       }
     } catch (error) {
@@ -597,6 +625,118 @@ export class SettlementAgent extends BaseAgent {
     // Implementation for settlement validation
     this.logger.debug('🔍 Validating existing settlements...');
     // This would implement settlement accuracy validation
+  }
+
+  /**
+   * DATA-MOAT-V3-INTEGRATION-001: Classify loss per LOSS_POSTMORTEM_ENGINE_v1.md
+   *
+   * Categories:
+   * - PROJECTION_MISS: Model overestimated edge (EV > 0 but loss)
+   * - VARIANCE: Within expected variance bounds (|EV| < 5%)
+   * - EXECUTION_MISS: Slippage or timing issue
+   * - NEWS_MISS: Breaking news not captured
+   * - CORRELATION_MISS: Correlated losses in same event
+   * - PRICE_MISS: Line moved against us (CLV negative)
+   * - UNKNOWN: Insufficient data
+   */
+  // eslint-disable-next-line max-lines-per-function, complexity
+  private async attributeLoss(
+    pickId: string,
+    _settlement: { settlement_result?: string; actual_value?: number },
+    _prop: PropSettlement
+  ): Promise<void> {
+    if (!this.hasSupabase()) return;
+
+    try {
+      let classification: LossClassification = 'UNKNOWN';
+      const notes: string[] = [];
+
+      // Query feature_snapshot for this pick if available
+      const { data: pick } = await this.requireSupabase()
+        .from('unified_picks')
+        .select('feature_snapshot_id, ev, clv_at_bet, kelly_bet_size, edge_breakdown')
+        .eq('id', pickId)
+        .single();
+
+      // DATA-MOAT-ACTIVATION-002: Comprehensive loss classification
+      // Every loss MUST receive a classification (fail-closed requirement)
+      if (pick?.feature_snapshot_id) {
+        const { data: featureSnapshot } = await this.requireSupabase()
+          .from('feature_snapshots')
+          .select('feature_vector, clv_at_bet, clv_at_close')
+          .eq('id', pick.feature_snapshot_id)
+          .single();
+
+        const ev = pick.ev ?? (pick.edge_breakdown as { ev?: number } | null)?.ev ?? 0;
+        const clvAtBet = featureSnapshot?.clv_at_bet ?? pick.clv_at_bet ?? 0;
+        const clvAtClose = featureSnapshot?.clv_at_close ?? 0;
+
+        // Priority-ordered classification (first match wins)
+        // Category 1: PRICE_MISS - CLV at close is significantly negative
+        if (clvAtClose < -3 || clvAtBet < -3) {
+          classification = 'PRICE_MISS';
+          notes.push(`clv_at_bet=${clvAtBet.toFixed(2)}%,clv_at_close=${clvAtClose.toFixed(2)}%`);
+        }
+        // Category 2: VARIANCE - EV close to zero, normal variance
+        else if (Math.abs(ev) < 3) {
+          classification = 'VARIANCE';
+          notes.push(`ev=${ev.toFixed(2)}% within variance bounds`);
+        }
+        // Category 3: PROJECTION_MISS - positive EV but loss
+        else if (ev > 0) {
+          classification = 'PROJECTION_MISS';
+          notes.push(`ev=${ev.toFixed(2)}% but outcome=loss`);
+        }
+        // Category 4: Negative EV that wasn't caught by PRICE_MISS
+        else if (ev < 0) {
+          classification = 'PROJECTION_MISS';
+          notes.push(`negative_ev=${ev.toFixed(2)}%`);
+        }
+        // Fallback: should never reach but ensures classification
+        else {
+          classification = 'UNKNOWN';
+          notes.push('edge_case_classification');
+        }
+
+        // Note: EXECUTION_MISS, NEWS_MISS, CORRELATION_MISS require additional
+        // data sources not currently available. Future enhancement.
+      } else {
+        // No feature snapshot: classify as UNKNOWN but log for investigation
+        classification = 'UNKNOWN';
+        notes.push('no_feature_snapshot_available');
+      }
+
+      // INVARIANT: classification MUST be set at this point
+      if (!classification) {
+        classification = 'UNKNOWN';
+        notes.push('classification_fallback_triggered');
+        this.logger.warn(`⚠️ Loss classification fallback triggered for ${pickId}`);
+      }
+
+      // Store the classification
+      const { error } = await this.requireSupabase()
+        .from('prop_settlements')
+        .update({
+          loss_classification: classification,
+          attribution_timestamp: new Date().toISOString(),
+        })
+        .eq('final_pick_id', pickId);
+
+      if (error) {
+        this.logger.warn(`⚠️ Failed to store loss classification for ${pickId}`, {
+          error: error.message,
+        });
+      } else {
+        this.logger.info(`📊 Loss attributed: ${pickId} → ${classification}`, {
+          notes: notes.join(', '),
+        });
+      }
+    } catch (error) {
+      // Non-blocking: log error but don't fail settlement
+      this.logger.warn(`⚠️ Error attributing loss for ${pickId}`, {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
   }
 
   /**

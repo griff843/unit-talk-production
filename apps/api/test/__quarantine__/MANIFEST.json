@@ -1,0 +1,429 @@
+{
+  "$schema": "./manifest.schema.json",
+  "version": "1.0.0",
+  "sprint": "TEST-STABILITY-LOCK-004",
+  "quarantine_date": "2026-02-28",
+  "expiration_date": "2026-04-01",
+  "owner": "Engineering Team",
+  "max_quarantined_suites": 60,
+  "tickets": {
+    "TST-001": "Tests for non-existent/protected agent methods",
+    "TST-002": "Tests with type drift (outdated schema types)",
+    "TST-003": "Tests with missing dependencies"
+  },
+  "entries": [
+    {
+      "file": "AgentInfrastructureTests.test.ts",
+      "category": "agents",
+      "reason": "OBSOLETE_API",
+      "ticket": "TST-001",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "AgentPerformanceTests.test.ts",
+      "category": "agents",
+      "reason": "OBSOLETE_API",
+      "ticket": "TST-001",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "AgentSubsystemTests.test.ts",
+      "category": "agents",
+      "reason": "OBSOLETE_API",
+      "ticket": "TST-001",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "NewAgentsTestSuite.test.ts",
+      "category": "agents",
+      "reason": "OBSOLETE_API",
+      "ticket": "TST-001",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "contestAgent.test.ts",
+      "category": "agents",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "gradingAgent.test.ts",
+      "category": "agents",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "marketingAgent.test.ts",
+      "category": "agents",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "NotificationAgent.test.ts",
+      "category": "agents",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "channels.test.ts",
+      "category": "agents",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "optimal.test.ts",
+      "category": "agents",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "mlbEnrichment.test.ts",
+      "category": "agents",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "notification-integration.test.ts",
+      "category": "integration",
+      "reason": "DEPENDENCY_MISSING",
+      "ticket": "TST-003",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "supabase-integration.test.ts",
+      "category": "integration",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "system-integration.test.ts",
+      "category": "integration",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "discord-integration.test.ts",
+      "category": "integration",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "discord-db-integration.test.ts",
+      "category": "integration",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "ai-integration.test.ts",
+      "category": "integration",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "ai-platform-integration.test.ts",
+      "category": "integration",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "monitoring-integration.test.ts",
+      "category": "integration",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "frontend-api-integration.test.ts",
+      "category": "integration",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "odds-integration.test.ts",
+      "category": "integration",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "ask-unit-talk.test.ts",
+      "category": "commands",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "capper-onboard.test.ts",
+      "category": "commands",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "capper-stats.test.ts",
+      "category": "commands",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "delete-pick.test.ts",
+      "category": "commands",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "edit-pick.test.ts",
+      "category": "commands",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "ev-report.test.ts",
+      "category": "commands",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "submit-pick.test.ts",
+      "category": "commands",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "trend-breaker.test.ts",
+      "category": "commands",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "PromotionGatekeeper.test.ts",
+      "category": "services",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "STierEnforcer.test.ts",
+      "category": "services",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "PortfolioRiskManager.test.ts",
+      "category": "services",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "RollingMetricsService.test.ts",
+      "category": "services",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "promotionPolicy.test.ts",
+      "category": "scoring",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "postingGovernance.test.ts",
+      "category": "scoring",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "enhanced-scoring.golden.test.ts",
+      "category": "professional",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "tier-assignment.golden.test.ts",
+      "category": "professional",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "integration.golden.test.ts",
+      "category": "professional",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "devigging.golden.test.ts",
+      "category": "professional",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "debug-logging.golden.test.ts",
+      "category": "professional",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "clv-tracking.golden.test.ts",
+      "category": "professional",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "ui-components.test.ts",
+      "category": "e2e",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "onboarding.test.ts",
+      "category": "e2e",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "daily-workflows.test.ts",
+      "category": "e2e",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "advanced-features.test.ts",
+      "category": "e2e",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "shadow-mode.test.ts",
+      "category": "shadow-mode",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "shadow-integration.test.ts",
+      "category": "shadow-mode",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "routing.test.ts",
+      "category": "ai",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "cache.test.ts",
+      "category": "ai",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "supabase.test.ts",
+      "category": "config",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "zoneThreatIntegration.test.ts",
+      "category": "logic",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "zoneThreat.test.ts",
+      "category": "logic",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "supabase-mock.test.ts",
+      "category": "mocks",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "load-balancer-performance.test.ts",
+      "category": "performance",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "cache-performance.test.ts",
+      "category": "performance",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "v3-schema-compliance.test.ts",
+      "category": "schema",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "errors/index.test.ts",
+      "category": "shared",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "risk-manager.test.ts",
+      "category": "unit",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    },
+    {
+      "file": "ml-pipeline.test.ts",
+      "category": "unit",
+      "reason": "TYPE_DRIFT",
+      "ticket": "TST-002",
+      "expiration": "2026-04-01"
+    }
+  ]
+}

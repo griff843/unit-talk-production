@@ -47,6 +47,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Operations',
     items: [
       { name: 'Overview', href: '/dashboard', icon: BarChart3 },
+      { name: 'Command Center', href: '/dashboard/capper-command-center', icon: Command },
       { name: 'Settlement', href: '/dashboard/settlement', icon: Gavel },
       { name: 'PicksHQ', href: '/dashboard/picks', icon: Target },
       { name: 'Grading HQ', href: '/dashboard/grading', icon: Timer },

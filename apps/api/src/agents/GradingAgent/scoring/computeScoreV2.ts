@@ -10,16 +10,18 @@
  * Created: 2026-01-29 (Tranche 3, Stage 3 — Scoring Rebuild)
  */
 
-import type { GradingFeatureSet } from '../../../types/GradingFeatureSet';
-import type { CoreScoringWeights } from '../../../scoring/config/weights/types';
 import { getSportWeights } from '../../../scoring/config/weights';
-import { type Tier, canonicalTier } from './TierScale';
+
 import {
   FEATURE_REGISTRY,
   extractFeatureVector,
   type FeatureRegistryEntry,
-  type FeatureVectorEntry,
+  type FeatureVectorEntry as _FeatureVectorEntry,
 } from './featureRegistry';
+import { type Tier, canonicalTier } from './TierScale';
+
+import type { CoreScoringWeights } from '../../../scoring/config/weights/types';
+import type { GradingFeatureSet } from '../../../types/GradingFeatureSet';
 
 // ─── Result Types ───────────────────────────────────────────────────────────
 
@@ -48,6 +50,11 @@ export interface ComputeScoreV2Result {
   breakdown: Record<string, FeatureBreakdown>;
   /** Per-feature data availability audit */
   feature_audit: Record<string, FeatureAuditEntry>;
+  // DATA-MOAT-V3-INTEGRATION-001: Feature snapshot linkage for reproducibility
+  /** UUID of feature_snapshot record (required for promotion) */
+  featureSnapshotId?: string;
+  /** SHA-256 hash of feature vector (required for reproducibility) */
+  featureVectorHash?: string;
 }
 
 // ─── Edge & Risk Derivation ─────────────────────────────────────────────────
@@ -105,6 +112,7 @@ function deriveRisk(features: GradingFeatureSet): number {
  *
  * Deterministic: no randomness, no time-based jitter. Same input → same output.
  */
+// eslint-disable-next-line max-lines-per-function
 export function computeScoreV2(features: GradingFeatureSet): ComputeScoreV2Result {
   const sport = features.sport || features.league || 'NBA';
   const weights = getSportWeights(sport);
@@ -180,8 +188,12 @@ export function computeScoreV2(features: GradingFeatureSet): ComputeScoreV2Resul
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 /** Look up the weight for a feature from sport-specific weights. */
-function getWeight(weights: ReturnType<typeof getSportWeights>, entry: FeatureRegistryEntry): number {
+function getWeight(
+  weights: ReturnType<typeof getSportWeights>,
+  entry: FeatureRegistryEntry
+): number {
   const key = entry.weightKey as keyof CoreScoringWeights;
+  // eslint-disable-next-line security/detect-object-injection -- Type-safe keyof access
   const w = weights[key];
   return typeof w === 'number' ? w : 0;
 }

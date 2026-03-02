@@ -70,6 +70,7 @@
     "lifecycle:gate": "tsx src/lib/lifecycle/ci-gate.ts",
     "lifecycle:test": "npx vitest run src/lib/lifecycle/__tests__/lifecycle.test.ts",
     "lifecycle:single-writer": "tsx src/lib/lifecycle/single-writer-gate.ts src",
+    "quarantine:gate": "node scripts/quarantine-gate.mjs",
     "db:migrate:critical": "tsx scripts/execute-database-migration.ts",
     "db:validate:schema": "tsx scripts/execute-database-migration.ts --validate-only",
     "syndicate:start": "tsx src/scripts/start-syndicate.ts",
@@ -173,7 +174,7 @@
   },
   "lint-staged": {
     "*.{ts,tsx}": [
-      "eslint --fix",
+      "eslint --fix --ignore-pattern 'test/__quarantine__/**' --ignore-pattern 'scripts/**'",
       "prettier --write"
     ],
     "*.{json,md}": [

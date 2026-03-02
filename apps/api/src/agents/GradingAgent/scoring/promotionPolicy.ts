@@ -15,9 +15,33 @@
  * Updated: 2026-01-29 (Tranche 10 — Controlled Promotion Enablement)
  */
 
-import type { ComputeScoreV2Result, FeatureAuditEntry } from './computeScoreV2';
-import { getRegistryEntry } from './featureRegistry';
+import { UNCERTAINTY_THRESHOLDS } from '../../../lib/probability';
+
 import { stableHash } from './canaryRouter';
+import { getRegistryEntry } from './featureRegistry';
+
+import type { ComputeScoreV2Result, FeatureAuditEntry } from './computeScoreV2';
+
+// =============================================================================
+// PROBABILITY GATES (INTELLIGENCE-PROBABILITY-FOUNDATION-001)
+// =============================================================================
+
+/**
+ * Probability primitives required for promotion.
+ * All fields are fail-closed: if any is missing or invalid, promotion is blocked.
+ */
+export interface ProbabilityPrimitives {
+  /** Calibrated model probability (0-1) */
+  pFinal: number | null;
+  /** Model uncertainty (0-1, lower is better) */
+  uncertaintyFinal: number | null;
+  /** Devigged market consensus probability (0-1) */
+  pMarketDevig: number | null;
+  /** True edge = P_final - P_market_devig */
+  edgeFinal: number | null;
+  /** Predicted CLV (-1 to 1) */
+  clvForecast: number | null;
+}
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -51,6 +75,11 @@ export interface PromotionPolicyConfig {
   canaryPercent: number;
   /** CSV of sports allowed for promotion canary (PROMOTION_CANARY_SPORTS) */
   canarySports: string[];
+  // DATA-MOAT-ACTIVATION-002: Feature snapshot gate is now CONSTITUTIONAL
+  // Always enforced in production. Cannot be disabled.
+  // Legacy flag kept for backwards compatibility but ignored.
+  /** @deprecated Always true. Feature snapshot required for promotion. */
+  featureSnapshotGateEnabled: true;
 }
 
 // ─── Environment Parsing ────────────────────────────────────────────────────
@@ -74,13 +103,20 @@ export function parsePromotionPolicyConfig(
   const hardMinConf = Number.isNaN(hardMinConfRaw) ? 7 : Math.max(0, Math.min(10, hardMinConfRaw));
 
   const canaryPercentRaw = parseInt(env.PROMOTION_CANARY_PERCENT || '0', 10);
-  const canaryPercent = Number.isNaN(canaryPercentRaw) ? 0 : Math.max(0, Math.min(100, canaryPercentRaw));
+  const canaryPercent = Number.isNaN(canaryPercentRaw)
+    ? 0
+    : Math.max(0, Math.min(100, canaryPercentRaw));
 
   const canarySportsRaw = env.PROMOTION_CANARY_SPORTS || '';
   const canarySports = canarySportsRaw
     .split(',')
-    .map((s) => s.trim().toUpperCase())
-    .filter((s) => s.length > 0);
+    .map(s => s.trim().toUpperCase())
+    .filter(s => s.length > 0);
+
+  // DATA-MOAT-ACTIVATION-002: Feature snapshot gate is CONSTITUTIONAL
+  // Always enabled. Cannot be disabled in production.
+  // Env var ignored - kept only for documentation that it was once optional.
+  const featureSnapshotGateEnabled = true as const;
 
   return {
     policyEnabled,
@@ -91,6 +127,7 @@ export function parsePromotionPolicyConfig(
     hardMinConf,
     canaryPercent,
     canarySports,
+    featureSnapshotGateEnabled,
   };
 }
 
@@ -103,9 +140,7 @@ const CRITICAL_GROUPS = ['market', 'core'] as const;
  * Check if any critical-group features used fallback values.
  * Returns the list of features with data gaps.
  */
-export function findCriticalDataGaps(
-  featureAudit: Record<string, FeatureAuditEntry>
-): string[] {
+export function findCriticalDataGaps(featureAudit: Record<string, FeatureAuditEntry>): string[] {
   const gaps: string[] = [];
   for (const [name, entry] of Object.entries(featureAudit)) {
     if (!entry.fallbackUsed) continue;
@@ -135,6 +170,77 @@ export function evToDecimal(evPercent: number): number {
   return evPercent / 100;
 }
 
+// ─── Probability Validation (INTELLIGENCE-PROBABILITY-FOUNDATION-001) ───────
+
+/**
+ * Validate probability primitives for promotion.
+ * Returns validation errors if any required field is missing or invalid.
+ *
+ * CONSTITUTIONAL GATE: Probability primitives are REQUIRED for promotion.
+ * This is fail-closed: missing primitives = promotion blocked.
+ */
+// eslint-disable-next-line complexity
+export function validateProbabilityPrimitives(
+  primitives: ProbabilityPrimitives | undefined,
+  band: PromotionBand
+): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+
+  if (!primitives) {
+    errors.push('probability_primitives_missing');
+    return { valid: false, errors };
+  }
+
+  // Gate 8a: P_final must be present and in valid range
+  if (primitives.pFinal === null || primitives.pFinal === undefined) {
+    errors.push('p_final_missing');
+  } else if (primitives.pFinal < 0 || primitives.pFinal > 1) {
+    errors.push('p_final_invalid_range');
+  }
+
+  // Gate 8b: uncertainty_final must be present and within band threshold
+  if (primitives.uncertaintyFinal === null || primitives.uncertaintyFinal === undefined) {
+    errors.push('uncertainty_final_missing');
+  } else if (primitives.uncertaintyFinal < 0 || primitives.uncertaintyFinal > 1) {
+    errors.push('uncertainty_final_invalid_range');
+  } else {
+    // Band-specific uncertainty thresholds
+    if (band === 'HARD' && primitives.uncertaintyFinal > UNCERTAINTY_THRESHOLDS.HARD_MAX) {
+      errors.push(
+        `uncertainty_exceeds_hard_threshold:${primitives.uncertaintyFinal.toFixed(4)}>${UNCERTAINTY_THRESHOLDS.HARD_MAX}`
+      );
+    } else if (band === 'SOFT' && primitives.uncertaintyFinal > UNCERTAINTY_THRESHOLDS.SOFT_MAX) {
+      errors.push(
+        `uncertainty_exceeds_soft_threshold:${primitives.uncertaintyFinal.toFixed(4)}>${UNCERTAINTY_THRESHOLDS.SOFT_MAX}`
+      );
+    }
+  }
+
+  // Gate 8c: p_market_devig must be present
+  if (primitives.pMarketDevig === null || primitives.pMarketDevig === undefined) {
+    errors.push('p_market_devig_missing');
+  } else if (primitives.pMarketDevig < 0 || primitives.pMarketDevig > 1) {
+    errors.push('p_market_devig_invalid_range');
+  }
+
+  // Gate 8d: edge_final should be consistent with p_final - p_market_devig
+  if (
+    primitives.edgeFinal !== null &&
+    primitives.pFinal !== null &&
+    primitives.pMarketDevig !== null
+  ) {
+    const expectedEdge = primitives.pFinal - primitives.pMarketDevig;
+    const edgeDiff = Math.abs(primitives.edgeFinal - expectedEdge);
+    if (edgeDiff > 0.001) {
+      errors.push(
+        `edge_inconsistent:expected=${expectedEdge.toFixed(4)},got=${primitives.edgeFinal.toFixed(4)}`
+      );
+    }
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
 // ─── Canary Gating ──────────────────────────────────────────────────────────
 
 /**
@@ -159,6 +265,7 @@ export function passesPromotionCanary(
  * Classify a V2 scoring result into HARD, SOFT, or NONE band.
  * This is pure classification — does not consider env flags or canary.
  */
+// eslint-disable-next-line complexity
 export function classifyBand(
   result: ComputeScoreV2Result,
   config: PromotionPolicyConfig
@@ -208,16 +315,23 @@ export function classifyBand(
  * Fail-closed: if policy is disabled, kill switch is on, or required fields
  * are missing → promote=false, band=NONE.
  *
- * @param result  - V2 scoring result from computeScoreV2
- * @param sport   - Sport code (e.g. 'NBA')
- * @param pickId  - Unique pick identifier (for canary hashing)
- * @param config  - Policy configuration (defaults to env parsing)
+ * INTELLIGENCE-PROBABILITY-FOUNDATION-001:
+ * Probability primitives (p_final, uncertainty_final, p_market_devig) are now
+ * REQUIRED for promotion. This is a CONSTITUTIONAL gate that cannot be disabled.
+ *
+ * @param result      - V2 scoring result from computeScoreV2
+ * @param sport       - Sport code (e.g. 'NBA')
+ * @param pickId      - Unique pick identifier (for canary hashing)
+ * @param config      - Policy configuration (defaults to env parsing)
+ * @param probability - Probability primitives (REQUIRED for promotion)
  */
+// eslint-disable-next-line max-lines-per-function, max-params, complexity
 export function evaluatePromotion(
   result: ComputeScoreV2Result,
   sport: string,
   pickId: string,
-  config?: PromotionPolicyConfig
+  config?: PromotionPolicyConfig,
+  probability?: ProbabilityPrimitives
 ): PromotionDecision {
   const cfg = config || parsePromotionPolicyConfig();
   const reasons: string[] = [];
@@ -280,6 +394,46 @@ export function evaluatePromotion(
     reasons.push('hard_only_enforced');
     notes.push(`PROMOTION_HARD_ONLY=true — only HARD band can promote (got: ${band})`);
     return { promote: false, band, reason_codes: reasons, notes };
+  }
+
+  // Gate 7: Feature snapshot integrity (CONSTITUTIONAL - DATA-MOAT-ACTIVATION-002)
+  // ALWAYS ENFORCED. This gate cannot be disabled in production.
+  // Fail-closed: require feature_snapshot_id for data moat compliance
+  // This is a non-negotiable invariant for the promotion system.
+  if (!result.featureSnapshotId) {
+    reasons.push('feature_snapshot_missing');
+    notes.push(
+      'CONSTITUTIONAL GATE: No feature_snapshot_id linked — fail-closed for data moat integrity'
+    );
+    return { promote: false, band, reason_codes: reasons, notes };
+  }
+  if (!result.featureVectorHash) {
+    reasons.push('feature_hash_missing');
+    notes.push(
+      'CONSTITUTIONAL GATE: Feature vector hash not computed — fail-closed for reproducibility'
+    );
+    return { promote: false, band, reason_codes: reasons, notes };
+  }
+  notes.push(
+    `data_moat:snapshot_id=${result.featureSnapshotId.slice(0, 8)}...,hash=${result.featureVectorHash.slice(0, 8)}...`
+  );
+
+  // Gate 8: Probability primitives (CONSTITUTIONAL - INTELLIGENCE-PROBABILITY-FOUNDATION-001)
+  // ALWAYS ENFORCED. This gate cannot be disabled in production.
+  // Fail-closed: require p_final, uncertainty_final, p_market_devig for Intelligence Superiority.
+  const probValidation = validateProbabilityPrimitives(probability, band);
+  if (!probValidation.valid) {
+    reasons.push(...probValidation.errors);
+    notes.push(
+      'CONSTITUTIONAL GATE: Probability primitives missing or invalid — fail-closed for Intelligence Superiority'
+    );
+    return { promote: false, band, reason_codes: reasons, notes };
+  }
+  // Log probability metrics for audit trail
+  if (probability) {
+    notes.push(
+      `probability:p_final=${probability.pFinal?.toFixed(4)},uncertainty=${probability.uncertaintyFinal?.toFixed(4)},edge=${probability.edgeFinal?.toFixed(4)}`
+    );
   }
 
   // Decision based on band
