@@ -1,0 +1,41 @@
+# Unit Talk OS — CI Failure Detection → Sprint Blocked
+# When a CI workflow fails on a branch associated with an active sprint,
+# flag the sprint and its tasks as potentially blocked.
+#
+# SETUP REQUIRED:
+# 1. Add NOTION_API_KEY as a repository secret
+# 2. Sprint Registry "Git Branch" field must match the branch name
+# 3. This workflow triggers AFTER your main CI workflow completes
+
+name: Notion CI Failure Detection
+
+on:
+  workflow_run:
+    workflows: ["CI"] # Change this to match your actual CI workflow name
+    types:
+      - completed
+
+env:
+  NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+  SPRINT_REGISTRY_DB: "52d622d5-2eaf-4e6d-8930-7b8274b8ab84"
+  TASK_REGISTRY_DB: "42d94858-efe9-43ff-a973-bc8a9da98f53"
+
+jobs:
+  check-failure:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Flag Sprint as Blocked
+        run: node .github/scripts/notion-ci-failure.js
+        env:
+          BRANCH_NAME: ${{ github.event.workflow_run.head_branch }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}

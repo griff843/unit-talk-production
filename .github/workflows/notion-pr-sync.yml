@@ -1,0 +1,39 @@
+# Unit Talk OS — PR → Task Status Sync
+# When a PR is opened, merged, or closed, update the corresponding Task Registry entry in Notion.
+#
+# SETUP REQUIRED:
+# 1. Add NOTION_API_KEY as a repository secret (Settings → Secrets → Actions)
+# 2. Your Notion integration must have access to the Unit Talk OS workspace
+# 3. PR descriptions should include a line like: Notion-Task: https://www.notion.so/<task-page-id>
+#    OR the PR title should match a Task Title in the Task Registry
+
+name: Notion PR → Task Sync
+
+on:
+  pull_request:
+    types: [opened, closed, reopened]
+
+env:
+  NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+  TASK_REGISTRY_DB: "42d94858-efe9-43ff-a973-bc8a9da98f53"
+
+jobs:
+  sync-task:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Sync PR to Notion Task
+        run: node .github/scripts/notion-pr-sync.js
+        env:
+          PR_ACTION: ${{ github.event.action }}
+          PR_MERGED: ${{ github.event.pull_request.merged }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_BODY: ${{ github.event.pull_request.body }}
