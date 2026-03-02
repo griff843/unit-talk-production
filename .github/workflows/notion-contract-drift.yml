@@ -1,0 +1,43 @@
+# Unit Talk OS — Contract Drift Detection
+# When files in the contracts/ directory are modified, check the Contract Index.
+# If a locked contract is modified, flag as a CRITICAL governance violation.
+#
+# SETUP REQUIRED:
+# 1. Add NOTION_API_KEY as a repository secret
+# 2. Contract Index "Repo Path" field must match the file paths in the contracts/ directory
+# 3. Optionally add DISCORD_WEBHOOK_URL secret for critical drift alerts
+
+name: Notion Contract Drift Detection
+
+on:
+  push:
+    paths:
+      - "contracts/**"
+    branches:
+      - main
+      - master
+
+env:
+  NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+  CONTRACT_INDEX_DB: "0a7d4850-38fa-4d19-9377-6440dba6fc32"
+  DECISION_LOG_DB: "cf5d6124-149e-4c17-ade1-3c64a09820f8"
+  SPRINT_REGISTRY_DB: "52d622d5-2eaf-4e6d-8930-7b8274b8ab84"
+
+jobs:
+  detect-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2 # Need previous commit to diff
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Detect Contract Drift
+        run: node .github/scripts/notion-contract-drift.js
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}

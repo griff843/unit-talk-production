@@ -310,7 +310,7 @@ function scoreLeg(features: FeatureVector, probability: ProbabilityResult): Scor
   else if (compositeScore >= 60) tier = 'A';
   else if (compositeScore >= 45) tier = 'B';
   else if (compositeScore >= 30) tier = 'C';
-  else tier = 'D';
+  else tier = 'F';
 
   const confidence = Math.min(0.95, Math.max(0.3, compositeScore / 100));
   const promotionBand = tier === 'S' || tier === 'A' ? 'HARD' : tier === 'B' ? 'SOFT' : 'NO_POST';
@@ -454,34 +454,33 @@ async function runReplay(): Promise<{
   console.log('  UPDATING SCORED_LEGS');
   console.log('═══════════════════════════════════════════════════════════════');
 
-  for (const r of results) {
-    const { error: upsertErr } = await supabase.from('scored_legs').upsert(
-      {
-        leg_id: r.legId,
-        model_name: MODEL_NAME,
-        model_version: MODEL_VERSION,
-        feature_vector: r.features,
-        computed_at: new Date().toISOString(),
-        edge_score: r.score.edge_score,
-        confidence_score: r.score.confidence_score,
-        tier: r.score.tier,
-        promotion_band: r.score.promotion_band,
-        kelly_fraction: r.score.kelly_fraction,
-        expected_value: r.score.expected_value,
-        p_final: r.score.p_final,
-        p_market_devig: r.score.p_market_devig,
-        uncertainty_final: r.score.uncertainty_final,
-        edge_final: r.score.edge_final,
-        clv_forecast: r.score.clv_forecast,
-        devig_method: r.score.devig_method,
-        books_used: r.score.books_used,
-        probability_fail_reason: r.score.probability_fail_reason,
-      },
-      { onConflict: 'leg_id,model_name' }
-    );
+  const computedAt = new Date().toISOString();
 
-    if (upsertErr) {
-      console.log(`   ⚠ Upsert error for ${r.legId.substring(0, 8)}: ${upsertErr.message}`);
+  for (const r of results) {
+    const { error: insertErr } = await supabase.from('scored_legs').insert({
+      leg_id: r.legId,
+      model_name: MODEL_NAME,
+      model_version: MODEL_VERSION,
+      feature_contributions: r.features,
+      computed_at: computedAt,
+      edge_score: r.score.edge_score,
+      confidence_score: r.score.confidence_score,
+      tier: r.score.tier,
+      promotion_band: r.score.promotion_band,
+      kelly_fraction: r.score.kelly_fraction,
+      expected_value: r.score.expected_value,
+      p_final: r.score.p_final,
+      p_market_devig: r.score.p_market_devig,
+      uncertainty_final: r.score.uncertainty_final,
+      edge_final: r.score.edge_final,
+      clv_forecast: r.score.clv_forecast,
+      devig_method: r.score.devig_method,
+      consensus_weights_json: r.score.consensus_weights_json,
+      probability_model_version: r.score.probability_model_version,
+    });
+
+    if (insertErr) {
+      console.log(`   ⚠ Insert error for ${r.legId.substring(0, 8)}: ${insertErr.message}`);
     }
   }
 

@@ -46,8 +46,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-
-
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -66,6 +64,7 @@ interface ActionState {
 
 const ELIMINATION_LABELS: Record<EliminationReason, { label: string; icon: typeof AlertTriangle }> =
   {
+    NO_EVENT_LINK: { label: 'No Event Link', icon: Ban },
     MISSING_PRIMITIVE: { label: 'Missing Data', icon: AlertTriangle },
     INSUFFICIENT_BOOKS: { label: 'Few Books', icon: AlertTriangle },
     HIGH_UNCERTAINTY: { label: 'High Uncertainty', icon: AlertTriangle },

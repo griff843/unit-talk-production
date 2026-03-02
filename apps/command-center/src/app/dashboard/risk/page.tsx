@@ -1,0 +1,448 @@
+'use client';
+
+/**
+ * Risk Engine Dashboard
+ * Sprint: RISK-ENGINE-FOUNDATION-001
+ *
+ * Displays real-time risk state:
+ * - Exposure card (total kelly, breach status, per-event breakdown)
+ * - Drift card (brier score, calibration gap, sample size)
+ * - Risk events timeline
+ * - Engine config
+ */
+
+import {
+  RefreshCw,
+  Shield,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Activity,
+  TrendingUp,
+  BarChart3,
+} from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+interface ExposureState {
+  total_kelly_exposure: number;
+  total_pending_legs: number;
+  total_pending_events: number;
+  exposure_by_event: Record<string, number>;
+  max_single_event: { event_id: string; exposure: number } | null;
+  herfindahl_index: number;
+  breaches: {
+    dimension: string;
+    key: string;
+    current: number;
+    limit: number;
+    severity: string;
+  }[];
+  computed_at: string;
+}
+
+interface DriftState {
+  global_brier: number | null;
+  calibration_gap: number | null;
+  win_rate_actual: number | null;
+  win_rate_predicted: number | null;
+  sample_size: number;
+  blocked: boolean;
+  computed_at: string;
+}
+
+interface RiskEvent {
+  id: string;
+  event_type: string;
+  severity: string;
+  pick_id: string | null;
+  decision: string;
+  reason_codes: string[];
+  trace_id: string | null;
+  created_at: string;
+}
+
+interface RiskDashboardData {
+  exposure: ExposureState | null;
+  drift: DriftState | null;
+  config: Record<string, { value: number; description: string | null }>;
+  events: RiskEvent[];
+  eventCounts: Record<string, number>;
+  lastUpdated: string | null;
+}
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+function severityColor(severity: string): string {
+  switch (severity) {
+    case 'emergency':
+      return 'bg-red-600 text-white';
+    case 'critical':
+      return 'bg-red-500 text-white';
+    case 'warning':
+      return 'bg-yellow-500 text-black';
+    case 'info':
+      return 'bg-blue-500 text-white';
+    default:
+      return 'bg-gray-500 text-white';
+  }
+}
+
+function decisionBadge(decision: string) {
+  if (decision === 'ALLOW') {
+    return <Badge className="bg-emerald-600 text-white">ALLOW</Badge>;
+  }
+  if (decision === 'BLOCK') {
+    return <Badge className="bg-red-600 text-white">BLOCK</Badge>;
+  }
+  return <Badge variant="outline">{decision}</Badge>;
+}
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+}
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
+
+export default function RiskDashboardPage() {
+  const [data, setData] = useState<RiskDashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/risk/dashboard');
+      const json = await res.json();
+      if (!json.success) {
+        setError(json.message || 'Failed to load risk data');
+        return;
+      }
+      setData(json.data);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Network error');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 30_000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
+
+  return (
+    <div className="space-y-6 p-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Shield className="h-6 w-6 text-primary" />
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Risk Engine</h1>
+            <p className="text-sm text-muted-foreground">
+              Exposure enforcement, drift throttle, promotion blocking
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {data?.lastUpdated && (
+            <span className="text-xs text-muted-foreground">
+              Last: {formatTime(data.lastUpdated)}
+            </span>
+          )}
+          <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {error && (
+        <Card className="border-red-500/50 bg-red-500/10">
+          <CardContent className="p-4 flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-red-500" />
+            <span className="text-sm text-red-400">{error}</span>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Top Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Exposure Card */}
+        <ExposureCard exposure={data?.exposure ?? null} />
+
+        {/* Drift Card */}
+        <DriftCard drift={data?.drift ?? null} />
+
+        {/* Engine Status Card */}
+        <EngineStatusCard config={data?.config ?? {}} eventCounts={data?.eventCounts ?? {}} />
+      </div>
+
+      {/* Events Timeline */}
+      <EventsTimeline events={data?.events ?? []} />
+    </div>
+  );
+}
+
+// ============================================================================
+// SUB-COMPONENTS
+// ============================================================================
+
+function ExposureCard({ exposure }: { exposure: ExposureState | null }) {
+  const hasBreaches = (exposure?.breaches?.length ?? 0) > 0;
+  const borderClass = hasBreaches ? 'border-red-500/50' : 'border-emerald-500/30';
+
+  return (
+    <Card className={borderClass}>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Exposure
+          </CardTitle>
+          {hasBreaches ? (
+            <Badge className="bg-red-600 text-white">BREACH</Badge>
+          ) : (
+            <Badge className="bg-emerald-600 text-white">OK</Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {!exposure ? (
+          <p className="text-sm text-muted-foreground">No exposure data yet</p>
+        ) : (
+          <>
+            <div>
+              <div className="text-2xl font-bold">{exposure.total_kelly_exposure.toFixed(4)}</div>
+              <p className="text-xs text-muted-foreground">Total Kelly Exposure</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div>
+                <span className="text-muted-foreground">Pending Legs:</span>{' '}
+                <span className="font-medium">{exposure.total_pending_legs}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Events:</span>{' '}
+                <span className="font-medium">{exposure.total_pending_events}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">HHI:</span>{' '}
+                <span className="font-medium">{exposure.herfindahl_index.toFixed(3)}</span>
+              </div>
+              {exposure.max_single_event && (
+                <div>
+                  <span className="text-muted-foreground">Max Event:</span>{' '}
+                  <span className="font-medium">
+                    {exposure.max_single_event.exposure.toFixed(4)}
+                  </span>
+                </div>
+              )}
+            </div>
+            {hasBreaches && (
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-red-400">Breaches:</p>
+                {exposure.breaches.map((b, i) => (
+                  <div key={i} className="text-xs text-red-300">
+                    {b.dimension}:{b.key} = {b.current.toFixed(4)} &gt; {b.limit}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function DriftCard({ drift }: { drift: DriftState | null }) {
+  const isBlocked = drift?.blocked ?? false;
+  const borderClass = isBlocked ? 'border-orange-500/50' : 'border-emerald-500/30';
+
+  return (
+    <Card className={borderClass}>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Activity className="h-4 w-4" />
+            Model Drift
+          </CardTitle>
+          {isBlocked ? (
+            <Badge className="bg-orange-600 text-white">THROTTLED</Badge>
+          ) : drift ? (
+            <Badge className="bg-emerald-600 text-white">OK</Badge>
+          ) : (
+            <Badge variant="outline">NO DATA</Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {!drift ? (
+          <p className="text-sm text-muted-foreground">No drift data yet</p>
+        ) : (
+          <>
+            <div>
+              <div className="text-2xl font-bold">{drift.global_brier?.toFixed(4) ?? 'N/A'}</div>
+              <p className="text-xs text-muted-foreground">Brier Score</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div>
+                <span className="text-muted-foreground">Cal. Gap:</span>{' '}
+                <span className="font-medium">{drift.calibration_gap?.toFixed(4) ?? 'N/A'}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Sample:</span>{' '}
+                <span className="font-medium">{drift.sample_size}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Win (Pred):</span>{' '}
+                <span className="font-medium">{drift.win_rate_predicted?.toFixed(3) ?? '?'}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Win (Actual):</span>{' '}
+                <span className="font-medium">{drift.win_rate_actual?.toFixed(3) ?? '?'}</span>
+              </div>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function EngineStatusCard({
+  config,
+  eventCounts,
+}: {
+  config: Record<string, { value: number; description: string | null }>;
+  eventCounts: Record<string, number>;
+}) {
+  const isEnabled = (config.engine_enabled?.value ?? 1) === 1;
+  const blocked = eventCounts['PROMOTION_BLOCKED'] ?? 0;
+  const allowed = eventCounts['PROMOTION_ALLOWED'] ?? 0;
+  const errors = eventCounts['ENGINE_ERROR'] ?? 0;
+
+  return (
+    <Card className={isEnabled ? 'border-emerald-500/30' : 'border-yellow-500/50'}>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            Engine Status
+          </CardTitle>
+          {isEnabled ? (
+            <Badge className="bg-emerald-600 text-white">ACTIVE</Badge>
+          ) : (
+            <Badge className="bg-yellow-600 text-black">DISABLED</Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div>
+            <div className="text-lg font-bold text-emerald-400">{allowed}</div>
+            <p className="text-[10px] text-muted-foreground">Allowed</p>
+          </div>
+          <div>
+            <div className="text-lg font-bold text-red-400">{blocked}</div>
+            <p className="text-[10px] text-muted-foreground">Blocked</p>
+          </div>
+          <div>
+            <div className="text-lg font-bold text-orange-400">{errors}</div>
+            <p className="text-[10px] text-muted-foreground">Errors</p>
+          </div>
+        </div>
+        <div className="space-y-1 text-xs">
+          <p className="font-medium text-muted-foreground">Thresholds:</p>
+          <div className="grid grid-cols-2 gap-1">
+            <span>Kelly High: {config.total_kelly_high?.value ?? '?'}</span>
+            <span>Kelly Crit: {config.total_kelly_critical?.value ?? '?'}</span>
+            <span>Event Lim: {config.event_kelly_limit?.value ?? '?'}</span>
+            <span>Drift Block: {config.drift_brier_block?.value ?? '?'}</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function EventsTimeline({ events }: { events: RiskEvent[] }) {
+  if (events.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">Risk Events</CardTitle>
+          <CardDescription>No risk events recorded yet</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <TrendingUp className="h-4 w-4" />
+          Risk Events
+        </CardTitle>
+        <CardDescription>Recent promotion decisions and risk alerts</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2 max-h-[400px] overflow-y-auto">
+          {events.map(event => (
+            <div
+              key={event.id}
+              className="flex items-center gap-3 p-2 rounded-md bg-muted/30 text-sm"
+            >
+              <div className="flex-shrink-0">
+                {event.decision === 'ALLOW' ? (
+                  <CheckCircle className="h-4 w-4 text-emerald-500" />
+                ) : event.decision === 'BLOCK' ? (
+                  <XCircle className="h-4 w-4 text-red-500" />
+                ) : (
+                  <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{event.event_type.replace(/_/g, ' ')}</span>
+                  {decisionBadge(event.decision)}
+                  <Badge className={severityColor(event.severity)} variant="outline">
+                    {event.severity}
+                  </Badge>
+                </div>
+                {event.reason_codes?.length > 0 && (
+                  <p className="text-xs text-muted-foreground truncate mt-0.5">
+                    {event.reason_codes.join(', ')}
+                  </p>
+                )}
+              </div>
+              <div className="flex-shrink-0 text-xs text-muted-foreground">
+                {formatTime(event.created_at)}
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

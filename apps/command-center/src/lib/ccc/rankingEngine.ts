@@ -54,6 +54,7 @@ export const DEFAULT_GATE_CONFIG: GateConfig = {
 };
 
 export type EliminationReason =
+  | 'NO_EVENT_LINK'
   | 'MISSING_PRIMITIVE'
   | 'INSUFFICIENT_BOOKS'
   | 'HIGH_UNCERTAINTY'
@@ -86,6 +87,9 @@ export interface ScoredLegInput {
   provider?: string;
   leg_status?: string;
   ticket_status?: string;
+
+  // Event linkage (EVENT-LINKED-COVERAGE-RAISE-006)
+  event_id?: string | null;
 
   // Scoring fields
   model_name?: string;
@@ -162,6 +166,16 @@ export interface CCCResponse {
  * Check if a leg passes all auto-disqualification gates
  */
 export function checkGates(leg: ScoredLegInput, config: GateConfig): EliminationResult {
+  // Gate 0: No event link — manual leg cannot have consensus-scored primitives (fail-closed)
+  // EVENT-LINKED-COVERAGE-RAISE-006: Classify manual legs explicitly before generic MISSING_PRIMITIVE
+  if (leg.event_id == null) {
+    return {
+      eliminated: true,
+      reason: 'NO_EVENT_LINK',
+      detail: 'Manual leg — no event_id, cannot compute market consensus',
+    };
+  }
+
   // Gate 1: Missing primitives (fail-closed)
   if (
     leg.p_final == null ||
@@ -342,6 +356,7 @@ export function processPlays(
   topN: number = 10
 ): CCCResponse {
   const eliminationCounts: Record<EliminationReason, number> = {
+    NO_EVENT_LINK: 0,
     MISSING_PRIMITIVE: 0,
     INSUFFICIENT_BOOKS: 0,
     HIGH_UNCERTAINTY: 0,

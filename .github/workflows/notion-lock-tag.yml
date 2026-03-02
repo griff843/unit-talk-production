@@ -1,0 +1,36 @@
+# Unit Talk OS — Lock Tag Detection → Sprint Status = Locked
+# When a git tag matching LOCK-* is pushed, find the corresponding Sprint Registry entry
+# and set its Status to Locked. If all sprints for a phase are locked, lock the phase too.
+#
+# SETUP REQUIRED:
+# 1. Add NOTION_API_KEY as a repository secret
+# 2. Sprint Registry "Lock Tag" field must match the git tag name exactly
+
+name: Notion Lock Tag Detection
+
+on:
+  push:
+    tags:
+      - "LOCK-*"
+
+env:
+  NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+  SPRINT_REGISTRY_DB: "52d622d5-2eaf-4e6d-8930-7b8274b8ab84"
+  PHASE_REGISTRY_DB: "9f28632b-d98b-4a3d-aff3-86ff945711e9"
+
+jobs:
+  lock-sprint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Process Lock Tag
+        run: node .github/scripts/notion-lock-tag.js
+        env:
+          TAG_NAME: ${{ github.ref_name }}
