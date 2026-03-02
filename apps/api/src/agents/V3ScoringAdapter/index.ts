@@ -1,4 +1,4 @@
-/* eslint-disable max-lines */
+/* eslint-disable max-lines, complexity, max-lines-per-function */
 /**
  * V3ScoringAdapter - Canonical V3 Scoring Ingestion
  *
@@ -29,6 +29,7 @@ import {
   type ProbabilityOutputOk as _ProbabilityOutputOk,
   type ProbabilityOutputFail,
 } from '../../lib/probability';
+import { RiskEngine } from '../../services/RiskEngine';
 import { scoreOnlyTier, type Tier } from '../GradingAgent/scoring/TierScale';
 
 // Model identification for scored_legs
@@ -74,7 +75,7 @@ export interface ScoringOutput {
   edge_score: number;
   confidence_score: number;
   tier: Tier;
-  promotion_band: 'HARD' | 'SOFT' | 'NO_POST';
+  promotion_band: 'HARD' | 'SOFT' | 'NO_POST' | 'RISK_BLOCKED';
   kelly_fraction: number;
   expected_value: number;
   feature_contributions: Record<string, number>;
@@ -445,6 +446,27 @@ export async function scoreTicketLegsV3(
 
     // Score with probability
     const score = scoreLeg(features, probability);
+
+    // RISK-ENGINE-FOUNDATION-001: Pre-flight risk check
+    // If the leg would be promoted (HARD/SOFT), check risk engine.
+    // If risk engine blocks, override promotion_band to RISK_BLOCKED.
+    if (score.promotion_band === 'HARD' || score.promotion_band === 'SOFT') {
+      try {
+        const riskEngine = RiskEngine.getInstance();
+        const riskDecision = await riskEngine.evaluateForPromotion(
+          supabase,
+          leg.id,
+          Number(score.kelly_fraction) || 0,
+          leg.event_id ?? undefined
+        );
+        if (!riskDecision.allowed) {
+          score.promotion_band = 'RISK_BLOCKED';
+        }
+      } catch {
+        // FAIL-CLOSED: risk engine error → block promotion
+        score.promotion_band = 'RISK_BLOCKED';
+      }
+    }
 
     // DATA-MOAT-V3-INTEGRATION-001: Compute deterministic hash for reproducibility
     const featureHash = computeFeatureVectorHash(features as Record<string, unknown>);

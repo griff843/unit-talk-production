@@ -60,6 +60,7 @@ const NAV_SECTIONS: NavSection[] = [
       { name: 'Data Flow', href: '/dashboard/data-flow', icon: Database },
       { name: 'API Health', href: '/dashboard/api-health', icon: Wifi },
       { name: 'Events Stream', href: '/dashboard/events', icon: Layers },
+      { name: 'Risk Engine', href: '/dashboard/risk', icon: Shield },
     ],
   },
   {
