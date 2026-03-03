@@ -10,17 +10,18 @@ import { AgentConfig } from '../types/agent';
 import { ValidationError } from './errorHandling';
 import { createLogger } from './logger';
 
-
 const logger = createLogger('ConfigLoader');
 
 const BaseAgentConfigSchema = z.object({
   name: z.string(),
   enabled: z.boolean(),
   healthCheckInterval: z.number().optional(),
-  metricsConfig: z.object({
-    interval: z.number(),
-    prefix: z.string()
-  }).optional()
+  metricsConfig: z
+    .object({
+      interval: z.number(),
+      prefix: z.string(),
+    })
+    .optional(),
 });
 
 const EnvConfigSchema = z.object({
@@ -57,7 +58,7 @@ export class ConfigLoader {
         SUPABASE_KEY: env['SUPABASE_KEY'],
         LOG_LEVEL: env['LOG_LEVEL'],
         METRICS_ENABLED: env['METRICS_ENABLED'],
-        HEALTH_CHECK_INTERVAL: env['HEALTH_CHECK_INTERVAL']
+        HEALTH_CHECK_INTERVAL: env['HEALTH_CHECK_INTERVAL'],
       });
 
       logger.info('Environment configuration loaded successfully');
@@ -98,7 +99,7 @@ export class ConfigLoader {
       // Then validate against specific agent schema
       const agentConfig = schema.parse({
         ...baseConfig,
-        ...configData
+        ...configData,
       });
 
       // Cache the config
@@ -108,9 +109,13 @@ export class ConfigLoader {
       return agentConfig;
     } catch (error) {
       if (error instanceof Error) {
-        logger.error(`Failed to load configuration for agent ${agentName}:`, { error: error.message });
+        logger.error(`Failed to load configuration for agent ${agentName}:`, {
+          error: error.message,
+        });
       } else {
-        logger.error(`Failed to load configuration for agent ${agentName}:`, { error: String(error) });
+        logger.error(`Failed to load configuration for agent ${agentName}:`, {
+          error: String(error),
+        });
       }
       throw error;
     }
@@ -146,8 +151,10 @@ export function validateBaseConfig(config: unknown): AgentConfig {
 }
 
 export function validateHealthCheckInterval(config: AgentConfig): void {
-  if (config.healthCheckInterval !== undefined && 
-      (typeof config.healthCheckInterval !== 'number' || config.healthCheckInterval < 0)) {
+  if (
+    config.healthCheckInterval !== undefined &&
+    (typeof config.healthCheckInterval !== 'number' || config.healthCheckInterval < 0)
+  ) {
     throw new ValidationError('Health check interval must be a positive number');
   }
 }
@@ -161,4 +168,4 @@ export function validateMetricsConfig(config: AgentConfig): void {
       throw new ValidationError('Metrics prefix must be a non-empty string');
     }
   }
-} 
+}

@@ -39,7 +39,13 @@ export function runPreScoreGuardrails(prop: any): GuardrailResult[] {
 
   // G-01: Invalid/missing odds
   const odds = prop.odds;
-  if (odds === undefined || odds === null || typeof odds !== 'number' || isNaN(odds) || odds === 0) {
+  if (
+    odds === undefined ||
+    odds === null ||
+    typeof odds !== 'number' ||
+    isNaN(odds) ||
+    odds === 0
+  ) {
     results.push({
       gate: 'G-01:invalid_odds',
       passed: false,

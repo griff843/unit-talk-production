@@ -14,10 +14,10 @@ export const allowedMarkets = [
   'Anytime Touchdown Scorer',
   'Anytime Home Run',
   'First Basket Scorer',
-  'Anytime Goal Scorer'
+  'Anytime Goal Scorer',
 ] as const;
 
-export type AllowedMarket = typeof allowedMarkets[number];
+export type AllowedMarket = (typeof allowedMarkets)[number];
 
 /**
  * Schema for incoming raw prop data.
@@ -57,11 +57,14 @@ export async function normalizePublicProps(
     try {
       if (!allowedMarkets.includes(prop.market_type as AllowedMarket)) {
         if (enableLogging) {
-          await logCoverage({
-            provider,
-            data: prop,
-            timestamp: new Date().toISOString()
-          }, supabase);
+          await logCoverage(
+            {
+              provider,
+              data: prop,
+              timestamp: new Date().toISOString(),
+            },
+            supabase
+          );
         }
         continue;
       }
@@ -73,7 +76,7 @@ export async function normalizePublicProps(
         parsed.player_name,
         parsed.market_type,
         parsed.line ?? 'NA',
-        parsed.book_name
+        parsed.book_name,
       ].join('-');
 
       normalized.push({
@@ -88,15 +91,18 @@ export async function normalizePublicProps(
         provider,
         game_time: parsed.game_date,
         scraped_at: new Date().toISOString(),
-        is_valid: true
+        is_valid: true,
       });
     } catch (err) {
       if (enableLogging) {
-        await logCoverage({
-          provider,
-          data: prop,
-          timestamp: new Date().toISOString()
-        }, supabase);
+        await logCoverage(
+          {
+            provider,
+            data: prop,
+            timestamp: new Date().toISOString(),
+          },
+          supabase
+        );
       }
     }
   }

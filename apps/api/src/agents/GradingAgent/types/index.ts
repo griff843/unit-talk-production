@@ -45,9 +45,11 @@ export const PickSchema = IdentifiableSchema.extend({
   legs: z.array(PickLegSchema).optional(),
   promoted_to_final: z.boolean(),
   is_valid: z.boolean(),
-}).merge(TimestampedSchema).extend({
-  promoted_final_at: z.string().datetime().optional(),
-});
+})
+  .merge(TimestampedSchema)
+  .extend({
+    promoted_final_at: z.string().datetime().optional(),
+  });
 
 export type Pick = z.infer<typeof PickSchema>;
 
@@ -82,7 +84,7 @@ export const GradingEventSchema = BaseEventSchema.extend({
     'grading_completed',
     'grading_failed',
     'pick_promoted',
-    'pick_rejected'
+    'pick_rejected',
   ]),
   data: z.object({
     pick: PickSchema,
@@ -110,11 +112,13 @@ export const GradingAgentConfigSchema = z.object({
   matchupWeight: z.number(),
   trendWeight: z.number(),
   expectedValueWeight: z.number(),
-  rules: z.record(z.object({
-    enabled: z.boolean(),
-    weight: z.number(),
-    threshold: z.number(),
-  })),
+  rules: z.record(
+    z.object({
+      enabled: z.boolean(),
+      weight: z.number(),
+      threshold: z.number(),
+    })
+  ),
 });
 
 export type GradingAgentConfig = z.infer<typeof GradingAgentConfigSchema>;

@@ -14,12 +14,7 @@
 /**
  * Desired state for an agent (operator-requested)
  */
-export type AgentDesiredState =
-  | 'stopped'
-  | 'running'
-  | 'paused'
-  | 'draining'
-  | 'killed';
+export type AgentDesiredState = 'stopped' | 'running' | 'paused' | 'draining' | 'killed';
 
 /**
  * Current state of an agent (actual runtime state)

@@ -1,9 +1,4 @@
-import {
-  SlashCommandBuilder,
-  CommandInteraction,
-  EmbedBuilder,
-  GuildMember
-} from 'discord.js';
+import { SlashCommandBuilder, CommandInteraction, EmbedBuilder, GuildMember } from 'discord.js';
 
 import { capperService } from '../services/capperService';
 import { logger } from '../shared/logger';
@@ -20,7 +15,7 @@ export async function execute(interaction: CommandInteraction) {
     if (!hasRole(member, 'UT Capper')) {
       await interaction.reply({
         content: '❌ You need the **UT Capper** role to edit picks.',
-        ephemeral: true
+        ephemeral: true,
       });
       return;
     }
@@ -29,8 +24,9 @@ export async function execute(interaction: CommandInteraction) {
     const capperProfile = await capperService.getCapperByDiscordId(interaction.user.id);
     if (!capperProfile) {
       await interaction.reply({
-        content: '❌ You need to complete capper onboarding first. Use `/capper-onboard` to get started.',
-        ephemeral: true
+        content:
+          '❌ You need to complete capper onboarding first. Use `/capper-onboard` to get started.',
+        ephemeral: true,
       });
       return;
     }
@@ -42,7 +38,7 @@ export async function execute(interaction: CommandInteraction) {
     if (picks.length === 0) {
       await interaction.reply({
         content: '❌ You have no pending picks to edit for today.',
-        ephemeral: true
+        ephemeral: true,
       });
       return;
     }
@@ -55,27 +51,30 @@ export async function execute(interaction: CommandInteraction) {
 
     picks.forEach((pick: any, index: number) => {
       const legs = pick.legs as any[];
-      const legText = legs.map((leg: any) => `${leg.selection} (${leg.odds > 0 ? '+' : ''}${leg.odds})`).join('\n');
+      const legText = legs
+        .map((leg: any) => `${leg.selection} (${leg.odds > 0 ? '+' : ''}${leg.odds})`)
+        .join('\n');
 
       embed.addFields({
         name: `Pick ${index + 1} - ${pick.pick_type.toUpperCase()}`,
         value: `${legText}\nUnits: ${pick.total_units}`,
-        inline: false
+        inline: false,
       });
     });
 
-    embed.setFooter({ text: 'Use the edit-pick command with specific pick details to modify a pick.' });
+    embed.setFooter({
+      text: 'Use the edit-pick command with specific pick details to modify a pick.',
+    });
 
     await interaction.reply({
       embeds: [embed],
-      ephemeral: true
+      ephemeral: true,
     });
-
   } catch (error) {
     logger.error('Error in edit-pick command', { error });
     await interaction.reply({
       content: '❌ An error occurred while fetching your picks.',
-      ephemeral: true
+      ephemeral: true,
     });
   }
 }

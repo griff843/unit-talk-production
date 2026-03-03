@@ -8,6 +8,7 @@
  */
 
 import { Clock, CheckCircle, XCircle, AlertTriangle, Ban, MessageSquare } from 'lucide-react';
+
 import { StageBadge } from '@/components/ui/LifecycleBadge';
 import { type LifecycleStage, STAGE_COLORS } from '@/lib/lifecycleDisplay';
 
@@ -88,9 +89,7 @@ export function LifecycleTimeline({
 }: LifecycleTimelineProps) {
   if (events.length === 0) {
     return (
-      <div className="text-center py-6 text-muted-foreground">
-        No timeline events available
-      </div>
+      <div className="text-center py-6 text-muted-foreground">No timeline events available</div>
     );
   }
 
@@ -153,15 +152,11 @@ export function LifecycleTimeline({
                 <div className="text-xs text-muted-foreground mt-1">
                   {date} at {time}
                   {duration && (
-                    <span className="ml-2 text-blue-600 dark:text-blue-400">
-                      (+{duration})
-                    </span>
+                    <span className="ml-2 text-blue-600 dark:text-blue-400">(+{duration})</span>
                   )}
                 </div>
                 {event.reason && (
-                  <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                    {event.reason}
-                  </p>
+                  <p className="text-xs text-red-600 dark:text-red-400 mt-1">{event.reason}</p>
                 )}
               </div>
             </div>

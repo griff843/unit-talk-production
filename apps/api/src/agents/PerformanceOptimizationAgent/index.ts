@@ -125,7 +125,7 @@ export class PerformanceOptimizationAgent extends BaseAgent {
 
   constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
     super(config, deps);
-    
+
     this.performanceMetrics = {
       ...this.metrics,
       systemCpuUsage: 0,
@@ -139,7 +139,7 @@ export class PerformanceOptimizationAgent extends BaseAgent {
       throughput: 0,
       bottlenecksDetected: 0,
       optimizationsApplied: 0,
-      resourceUtilization: 0
+      resourceUtilization: 0,
     };
 
     this.systemHealth = {
@@ -148,7 +148,7 @@ export class PerformanceOptimizationAgent extends BaseAgent {
       components: [],
       bottlenecks: [],
       recommendations: [],
-      lastUpdated: new Date()
+      lastUpdated: new Date(),
     };
 
     // Initialize subsystems
@@ -166,7 +166,7 @@ export class PerformanceOptimizationAgent extends BaseAgent {
       this.systemMonitor.initialize(),
       this.performanceOptimizer.initialize(),
       this.bottleneckDetector.initialize(),
-      this.resourceManager.initialize()
+      this.resourceManager.initialize(),
     ]);
 
     // Load historical data
@@ -179,34 +179,33 @@ export class PerformanceOptimizationAgent extends BaseAgent {
 
   protected async process(): Promise<void> {
     this.logger.info('🔄 Running PerformanceOptimizationAgent cycle...');
-    
+
     const cycleStartTime = Date.now();
 
     try {
       // 1. Collect system metrics
       await this.collectSystemMetrics();
-      
+
       // 2. Monitor component health
       await this.monitorComponentHealth();
-      
+
       // 3. Detect performance bottlenecks
       await this.detectBottlenecks();
-      
+
       // 4. Generate optimization recommendations
       await this.generateOptimizationRecommendations();
-      
+
       // 5. Apply automated optimizations
       await this.applyAutomatedOptimizations();
-      
+
       // 6. Update resource predictions
       await this.updateResourcePredictions();
-      
+
       // 7. Generate performance report
       await this.generatePerformanceReport();
-
     } catch (error) {
       this.logger.error('❌ Error in performance optimization cycle', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -218,7 +217,7 @@ export class PerformanceOptimizationAgent extends BaseAgent {
       cycleTimeMs: cycleTime,
       systemHealthScore: this.systemHealth.professional_score,
       bottlenecksDetected: this.performanceMetrics.bottlenecksDetected,
-      optimizationsApplied: this.performanceMetrics.optimizationsApplied
+      optimizationsApplied: this.performanceMetrics.optimizationsApplied,
     });
   }
 
@@ -228,7 +227,7 @@ export class PerformanceOptimizationAgent extends BaseAgent {
 
     try {
       const metrics = await this.systemMonitor.collectMetrics();
-      
+
       // Update performance metrics
       this.performanceMetrics.systemCpuUsage = metrics.cpu.usage;
       this.performanceMetrics.systemMemoryUsage = metrics.memory.usage;
@@ -238,9 +237,9 @@ export class PerformanceOptimizationAgent extends BaseAgent {
       this.performanceMetrics.cacheHitRate = metrics.cache.hitRate;
       this.performanceMetrics.errorRate = metrics.application.errorRate;
       this.performanceMetrics.throughput = metrics.application.throughput;
-      
+
       // Calculate resource utilization
-      this.performanceMetrics.resourceUtilization = 
+      this.performanceMetrics.resourceUtilization =
         (metrics.cpu.usage + metrics.memory.usage + metrics.disk.usage) / 3;
 
       // Store metrics for trend analysis
@@ -250,12 +249,11 @@ export class PerformanceOptimizationAgent extends BaseAgent {
         cpu: metrics.cpu.usage,
         memory: metrics.memory.usage,
         disk: metrics.disk.usage,
-        cacheHitRate: metrics.cache.hitRate
+        cacheHitRate: metrics.cache.hitRate,
       });
-
     } catch (error) {
       this.logger.error('❌ Failed to collect system metrics', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -269,16 +267,16 @@ export class PerformanceOptimizationAgent extends BaseAgent {
         this.systemMonitor.checkCacheHealth(),
         this.systemMonitor.checkAgentHealth(),
         this.systemMonitor.checkNetworkHealth(),
-        this.systemMonitor.checkStorageHealth()
+        this.systemMonitor.checkStorageHealth(),
       ]);
 
       const components: ComponentHealth[] = [];
       let overallScore = 100;
-      
+
       componentChecks.forEach((check, index) => {
         const componentNames = ['database', 'cache', 'agents', 'network', 'storage'];
         const componentName = componentNames[index];
-        
+
         if (check.status === 'fulfilled') {
           const health = check.value;
           components.push({
@@ -286,9 +284,9 @@ export class PerformanceOptimizationAgent extends BaseAgent {
             status: health.status,
             metrics: health.metrics,
             lastCheck: new Date(),
-            issues: health.issues
+            issues: health.issues,
           });
-          
+
           // Update overall professional_score
           if (health.status === 'warning') overallScore -= 10;
           else if (health.status === 'critical') overallScore -= 25;
@@ -298,7 +296,7 @@ export class PerformanceOptimizationAgent extends BaseAgent {
             status: 'critical',
             metrics: {},
             lastCheck: new Date(),
-            issues: ['Health check failed']
+            issues: ['Health check failed'],
           });
           overallScore -= 25;
         }
@@ -313,12 +311,11 @@ export class PerformanceOptimizationAgent extends BaseAgent {
       this.logger.debug('✅ Component health monitoring completed', {
         overallScore,
         status: this.systemHealth.status,
-        components: components.length
+        components: components.length,
       });
-
     } catch (error) {
       this.logger.error('❌ Failed to monitor component health', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -335,7 +332,7 @@ export class PerformanceOptimizationAgent extends BaseAgent {
         database: this.performanceMetrics.databaseQueryTime,
         cache: this.performanceMetrics.cacheHitRate,
         errorRate: this.performanceMetrics.errorRate,
-        throughput: this.performanceMetrics.throughput
+        throughput: this.performanceMetrics.throughput,
       });
 
       let newBottlenecks = 0;
@@ -346,7 +343,7 @@ export class PerformanceOptimizationAgent extends BaseAgent {
         if (!this.activeBottlenecks.has(bottleneck.id)) {
           this.activeBottlenecks.set(bottleneck.id, bottleneck);
           newBottlenecks++;
-          
+
           if (bottleneck.severity === 'critical' || bottleneck.severity === 'high') {
             await this.sendBottleneckAlert(bottleneck);
           }
@@ -369,12 +366,11 @@ export class PerformanceOptimizationAgent extends BaseAgent {
       this.logger.debug('✅ Bottleneck detection completed', {
         activeBottlenecks: this.activeBottlenecks.size,
         newBottlenecks,
-        resolvedBottlenecks
+        resolvedBottlenecks,
       });
-
     } catch (error) {
       this.logger.error('❌ Failed to detect bottlenecks', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -387,7 +383,7 @@ export class PerformanceOptimizationAgent extends BaseAgent {
         metrics: this.performanceMetrics,
         bottlenecks: Array.from(this.activeBottlenecks.values()),
         systemHealth: this.systemHealth,
-        baseline: this.performanceBaseline
+        baseline: this.performanceBaseline,
       });
 
       // Prioritize recommendations
@@ -399,8 +395,8 @@ export class PerformanceOptimizationAgent extends BaseAgent {
       this.systemHealth.recommendations = prioritizedRecommendations;
 
       // Log high priority recommendations
-      const highPriorityRecs = prioritizedRecommendations.filter(r => 
-        r.priority === 'critical' || r.priority === 'high'
+      const highPriorityRecs = prioritizedRecommendations.filter(
+        r => r.priority === 'critical' || r.priority === 'high'
       );
 
       for (const rec of highPriorityRecs) {
@@ -408,18 +404,17 @@ export class PerformanceOptimizationAgent extends BaseAgent {
           type: rec.type,
           component: rec.component,
           title: rec.title,
-          expectedImpact: rec.expectedImpact
+          expectedImpact: rec.expectedImpact,
         });
       }
 
       this.logger.debug('✅ Optimization recommendations generated', {
         totalRecommendations: recommendations.length,
-        highPriority: highPriorityRecs.length
+        highPriority: highPriorityRecs.length,
       });
-
     } catch (error) {
       this.logger.error('❌ Failed to generate optimization recommendations', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -429,30 +424,30 @@ export class PerformanceOptimizationAgent extends BaseAgent {
 
     try {
       let optimizationsApplied = 0;
-      
+
       for (const recommendation of this.systemHealth.recommendations) {
         // Only apply safe, automated optimizations
-        const automatedActions = recommendation.actions.filter(a => 
-          a.automated && a.safetyRating >= 0.8
+        const automatedActions = recommendation.actions.filter(
+          a => a.automated && a.safetyRating >= 0.8
         );
 
         if (automatedActions.length > 0 && recommendation.priority !== 'low') {
           const result = await this.performanceOptimizer.applyOptimization(recommendation);
-          
+
           this.optimizationHistory.push(result);
-          
+
           if (result.status === 'applied') {
             optimizationsApplied++;
             this.logger.info('✅ Optimization applied successfully', {
               recommendationId: recommendation.id,
               component: recommendation.component,
-              impact: result.impact
+              impact: result.impact,
             });
           } else {
             this.logger.warn('⚠️ Optimization failed', {
               recommendationId: recommendation.id,
               status: result.status,
-              notes: result.notes
+              notes: result.notes,
             });
           }
         }
@@ -466,12 +461,11 @@ export class PerformanceOptimizationAgent extends BaseAgent {
       }
 
       this.logger.debug('✅ Automated optimizations completed', {
-        optimizationsApplied
+        optimizationsApplied,
       });
-
     } catch (error) {
       this.logger.error('❌ Failed to apply automated optimizations', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -483,7 +477,7 @@ export class PerformanceOptimizationAgent extends BaseAgent {
       const predictions = await this.resourceManager.generatePredictions({
         currentMetrics: this.performanceMetrics,
         historicalData: await this.getHistoricalMetrics(),
-        timeHorizons: [60, 180, 720] // 1 hour, 3 hours, 12 hours
+        timeHorizons: [60, 180, 720], // 1 hour, 3 hours, 12 hours
       });
 
       // Check for predicted resource exhaustion
@@ -499,10 +493,9 @@ export class PerformanceOptimizationAgent extends BaseAgent {
         JSON.stringify(predictions),
         1800 // 30 minutes TTL
       );
-
     } catch (error) {
       this.logger.error('❌ Failed to update resource predictions', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -513,7 +506,7 @@ export class PerformanceOptimizationAgent extends BaseAgent {
     try {
       const trends = await this.analyzePerformanceTrends();
       const predictions = await this.getResourcePredictions();
-      
+
       const report: PerformanceReport = {
         timestamp: new Date(),
         systemHealth: this.systemHealth,
@@ -521,22 +514,20 @@ export class PerformanceOptimizationAgent extends BaseAgent {
         optimizationResults: this.optimizationHistory.slice(-10),
         resourcePredictions: predictions,
         alertsSent: await this.getAlertCount(),
-        summaryInsights: await this.generateSummaryInsights()
+        summaryInsights: await this.generateSummaryInsights(),
       };
 
       // Store report
       await withCircuitBreaker.supabase(
         async () => {
           if (this.hasSupabase()) {
-            await this.requireSupabase()
-              .from('performance_reports')
-              .insert({
-                timestamp: report.timestamp.toISOString(),
-                system_health_score: report.systemHealth.professional_score,
-                bottlenecks_count: report.systemHealth.bottlenecks.length,
-                recommendations_count: report.systemHealth.recommendations.length,
-                report_data: report
-              });
+            await this.requireSupabase().from('performance_reports').insert({
+              timestamp: report.timestamp.toISOString(),
+              system_health_score: report.systemHealth.professional_score,
+              bottlenecks_count: report.systemHealth.bottlenecks.length,
+              recommendations_count: report.systemHealth.recommendations.length,
+              report_data: report,
+            });
           }
         },
         async () => {
@@ -554,12 +545,11 @@ export class PerformanceOptimizationAgent extends BaseAgent {
       this.logger.debug('✅ Performance report generated', {
         healthScore: report.systemHealth.professional_score,
         trends: report.performanceTrends.length,
-        recommendations: report.systemHealth.recommendations.length
+        recommendations: report.systemHealth.recommendations.length,
       });
-
     } catch (error) {
       this.logger.error('❌ Failed to generate performance report', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -578,9 +568,9 @@ export class PerformanceOptimizationAgent extends BaseAgent {
       component: bottleneck.component,
       severity: bottleneck.severity,
       description: bottleneck.description,
-      impact: bottleneck.impact
+      impact: bottleneck.impact,
     });
-    
+
     // This would integrate with alerting system
   }
 
@@ -588,7 +578,7 @@ export class PerformanceOptimizationAgent extends BaseAgent {
     this.logger.info('✅ Performance bottleneck resolved', {
       type: bottleneck.type,
       component: bottleneck.component,
-      resolvedAfter: Date.now() - bottleneck.detectedAt.getTime()
+      resolvedAfter: Date.now() - bottleneck.detectedAt.getTime(),
     });
   }
 
@@ -598,7 +588,7 @@ export class PerformanceOptimizationAgent extends BaseAgent {
       currentUsage: prediction.currentUsage,
       predictedUsage: prediction.predictedUsage,
       timeHorizon: prediction.timeHorizon,
-      confidence: prediction.confidence
+      confidence: prediction.confidence,
     });
   }
 
@@ -615,7 +605,7 @@ export class PerformanceOptimizationAgent extends BaseAgent {
         database: metrics.database.avgQueryTime,
         cache: metrics.cache.hitRate,
         errorRate: metrics.application.errorRate,
-        throughput: metrics.application.throughput
+        throughput: metrics.application.throughput,
       }),
       86400 // 24 hours TTL
     );
@@ -630,32 +620,43 @@ export class PerformanceOptimizationAgent extends BaseAgent {
   private async analyzePerformanceTrends(): Promise<PerformanceTrend[]> {
     const historical = await this.getHistoricalMetrics();
     const trends: PerformanceTrend[] = [];
-    
+
     if (historical.length < 2) return trends;
-    
-    const metrics = ['cpu', 'memory', 'disk', 'network', 'database', 'cache', 'errorRate', 'throughput'];
-    
+
+    const metrics = [
+      'cpu',
+      'memory',
+      'disk',
+      'network',
+      'database',
+      'cache',
+      'errorRate',
+      'throughput',
+    ];
+
     for (const metric of metrics) {
       const values = historical.map(h => h[metric]).filter(v => v !== undefined);
       if (values.length >= 2) {
         const recent = values.slice(-10);
         const older = values.slice(-20, -10);
-        
+
         const recentAvg = recent.reduce((sum, val) => sum + val, 0) / recent.length;
-        const olderAvg = older.length > 0 ? older.reduce((sum, val) => sum + val, 0) / older.length : recentAvg;
-        
+        const olderAvg =
+          older.length > 0 ? older.reduce((sum, val) => sum + val, 0) / older.length : recentAvg;
+
         const changePercentage = olderAvg !== 0 ? ((recentAvg - olderAvg) / olderAvg) * 100 : 0;
-        
+
         trends.push({
           metric,
-          direction: changePercentage > 2 ? 'improving' : changePercentage < -2 ? 'degrading' : 'stable',
+          direction:
+            changePercentage > 2 ? 'improving' : changePercentage < -2 ? 'degrading' : 'stable',
           changePercentage: Math.abs(changePercentage),
           timeframe: '1h',
-          significance: Math.min(1, Math.abs(changePercentage) / 10)
+          significance: Math.min(1, Math.abs(changePercentage) / 10),
         });
       }
     }
-    
+
     return trends;
   }
 
@@ -671,7 +672,7 @@ export class PerformanceOptimizationAgent extends BaseAgent {
 
   private async generateSummaryInsights(): Promise<string[]> {
     const insights: string[] = [];
-    
+
     if (this.systemHealth.professional_score >= 90) {
       insights.push('System performance is excellent with no major issues detected');
     } else if (this.systemHealth.professional_score >= 70) {
@@ -681,16 +682,20 @@ export class PerformanceOptimizationAgent extends BaseAgent {
     } else {
       insights.push('System performance is critical - immediate attention required');
     }
-    
+
     if (this.activeBottlenecks.size > 0) {
       insights.push(`${this.activeBottlenecks.size} active performance bottlenecks detected`);
     }
-    
+
     if (this.systemHealth.recommendations.length > 0) {
-      const highPriority = this.systemHealth.recommendations.filter(r => r.priority === 'high' || r.priority === 'critical').length;
-      insights.push(`${this.systemHealth.recommendations.length} optimization recommendations available (${highPriority} high priority)`);
+      const highPriority = this.systemHealth.recommendations.filter(
+        r => r.priority === 'high' || r.priority === 'critical'
+      ).length;
+      insights.push(
+        `${this.systemHealth.recommendations.length} optimization recommendations available (${highPriority} high priority)`
+      );
     }
-    
+
     return insights;
   }
 
@@ -709,7 +714,7 @@ export class PerformanceOptimizationAgent extends BaseAgent {
           database: 100,
           cache: 0.8,
           errorRate: 0.01,
-          throughput: 100
+          throughput: 100,
         };
       }
     } catch (error) {
@@ -743,21 +748,21 @@ export class PerformanceOptimizationAgent extends BaseAgent {
 
   protected async cleanup(): Promise<void> {
     this.logger.info('🧹 PerformanceOptimizationAgent cleanup...');
-    
+
     // Save performance baseline
     await redisCache.set(
       'performance:baseline',
       JSON.stringify(this.performanceBaseline),
       86400 // 24 hours TTL
     );
-    
+
     // Save optimization history
     await redisCache.set(
       'performance:optimization_history',
       JSON.stringify(this.optimizationHistory),
       86400 // 24 hours TTL
     );
-    
+
     // Save active bottlenecks
     for (const [id, bottleneck] of this.activeBottlenecks) {
       await redisCache.set(
@@ -766,24 +771,24 @@ export class PerformanceOptimizationAgent extends BaseAgent {
         86400 // 24 hours TTL
       );
     }
-    
+
     await Promise.all([
       this.systemMonitor.cleanup(),
       this.performanceOptimizer.cleanup(),
       this.bottleneckDetector.cleanup(),
-      this.resourceManager.cleanup()
+      this.resourceManager.cleanup(),
     ]);
-    
+
     this.activeBottlenecks.clear();
     this.optimizationHistory.length = 0;
-    
+
     this.logger.info('✅ PerformanceOptimizationAgent cleanup complete');
   }
 
   protected async collectMetrics(): Promise<BaseMetrics> {
     return {
       ...this.performanceMetrics,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024,
     };
   }
 
@@ -793,27 +798,31 @@ export class PerformanceOptimizationAgent extends BaseAgent {
     // Check subsystem health
     checks.push({
       component: 'system_monitor',
-      status: await this.systemMonitor.isHealthy() ? 'healthy' : 'unhealthy'
+      status: (await this.systemMonitor.isHealthy()) ? 'healthy' : 'unhealthy',
     });
 
     checks.push({
       component: 'performance_optimizer',
-      status: await this.performanceOptimizer.isHealthy() ? 'healthy' : 'unhealthy'
+      status: (await this.performanceOptimizer.isHealthy()) ? 'healthy' : 'unhealthy',
     });
 
     checks.push({
       component: 'bottleneck_detector',
-      status: await this.bottleneckDetector.isHealthy() ? 'healthy' : 'unhealthy'
+      status: (await this.bottleneckDetector.isHealthy()) ? 'healthy' : 'unhealthy',
     });
 
     checks.push({
       component: 'resource_manager',
-      status: await this.resourceManager.isHealthy() ? 'healthy' : 'unhealthy'
+      status: (await this.resourceManager.isHealthy()) ? 'healthy' : 'unhealthy',
     });
 
     const healthyComponents = checks.filter(c => c.status === 'healthy').length;
-    const overallStatus = healthyComponents === checks.length ? 'healthy' : 
-                         healthyComponents >= checks.length / 2 ? 'degraded' : 'unhealthy';
+    const overallStatus =
+      healthyComponents === checks.length
+        ? 'healthy'
+        : healthyComponents >= checks.length / 2
+          ? 'degraded'
+          : 'unhealthy';
 
     return {
       status: overallStatus,
@@ -823,8 +832,8 @@ export class PerformanceOptimizationAgent extends BaseAgent {
         systemHealth: this.systemHealth,
         metrics: this.performanceMetrics,
         activeBottlenecks: this.activeBottlenecks.size,
-        optimizationHistory: this.optimizationHistory.length
-      }
+        optimizationHistory: this.optimizationHistory.length,
+      },
     };
   }
 

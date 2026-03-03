@@ -57,107 +57,113 @@ export function SmartSearch({
     setQuery(value);
   }, [value]);
 
-  const performSearch = useCallback(async (searchQuery: string) => {
-    if (searchQuery.length < 2) {
-      setResults([]);
-      setIsOpen(false);
+  const performSearch = useCallback(
+    async (searchQuery: string) => {
+      if (searchQuery.length < 2) {
+        setResults([]);
+        setIsOpen(false);
+        setError(null);
+        return;
+      }
+
+      // Cancel any pending request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
+
+      setIsLoading(true);
       setError(null);
-      return;
-    }
 
-    // Cancel any pending request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    abortControllerRef.current = new AbortController();
-    const signal = abortControllerRef.current.signal;
+      try {
+        let searchResults: SmartSearchItem[] = [];
 
-    setIsLoading(true);
-    setError(null);
+        if (searchType === 'teams') {
+          // V1.1 HARDENED: Use SPEC-TRUE /api/catalog/teams endpoint
+          const params = new URLSearchParams();
+          if (sport) params.set('sport', sport);
+          params.set('q', searchQuery);
 
-    try {
-      let searchResults: SmartSearchItem[] = [];
+          const response = await fetch(`/api/catalog/teams?${params}`, { signal });
 
-      if (searchType === 'teams') {
-        // V1.1 HARDENED: Use SPEC-TRUE /api/catalog/teams endpoint
-        const params = new URLSearchParams();
-        if (sport) params.set('sport', sport);
-        params.set('q', searchQuery);
+          if (signal.aborted) return;
 
-        const response = await fetch(`/api/catalog/teams?${params}`, { signal });
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || `Teams API error: ${response.status}`);
+          }
 
+          const data = await response.json();
+          searchResults = (data.teams || []).map((team: any) => ({
+            id: team.team_uuid || team.id,
+            name: team.name,
+            type: 'team' as const,
+            sport: team.sport,
+            abbreviation: team.abbr || team.abbreviation,
+          }));
+        } else if (searchType === 'players') {
+          // V1.1 HARDENED: Use SPEC-TRUE /api/catalog/players endpoint
+          const params = new URLSearchParams();
+          if (sport) params.set('sport', sport);
+          params.set('q', searchQuery);
+
+          const response = await fetch(`/api/catalog/players?${params}`, { signal });
+
+          if (signal.aborted) return;
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || `Players API error: ${response.status}`);
+          }
+
+          const data = await response.json();
+          searchResults = (data.players || []).map((player: any) => ({
+            id: player.name, // Use name as ID (raw_props doesn't have player UUIDs)
+            name: player.name,
+            type: 'player' as const,
+            sport: sport,
+            team: player.team,
+          }));
+
+          // V1.1 COMPLIANCE: Apply team filter for cascading (Section 3)
+          if (teamFilter && teamFilter.length > 0) {
+            searchResults = searchResults.filter(
+              item =>
+                item.team &&
+                teamFilter.some(
+                  t =>
+                    item.team?.toLowerCase().includes(t.toLowerCase()) ||
+                    t.toLowerCase().includes(item.team?.toLowerCase() || '')
+                )
+            );
+          }
+        } else if (searchType === 'games') {
+          // Games are fetched separately via games endpoint
+          // This search type may be deprecated in favor of game selection UI
+          searchResults = [];
+        }
+
+        if (!signal.aborted) {
+          setResults(searchResults.slice(0, 10)); // Limit to 10 results
+          setIsOpen(searchResults.length > 0);
+        }
+      } catch (err) {
         if (signal.aborted) return;
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.message || `Teams API error: ${response.status}`);
+        const errorMessage = err instanceof Error ? err.message : 'Search failed';
+        console.error('[SmartSearch] Error:', errorMessage);
+        setError(errorMessage);
+        setResults([]);
+        setIsOpen(false);
+      } finally {
+        if (!signal.aborted) {
+          setIsLoading(false);
         }
-
-        const data = await response.json();
-        searchResults = (data.teams || []).map((team: any) => ({
-          id: team.team_uuid || team.id,
-          name: team.name,
-          type: 'team' as const,
-          sport: team.sport,
-          abbreviation: team.abbr || team.abbreviation,
-        }));
-      } else if (searchType === 'players') {
-        // V1.1 HARDENED: Use SPEC-TRUE /api/catalog/players endpoint
-        const params = new URLSearchParams();
-        if (sport) params.set('sport', sport);
-        params.set('q', searchQuery);
-
-        const response = await fetch(`/api/catalog/players?${params}`, { signal });
-
-        if (signal.aborted) return;
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.message || `Players API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        searchResults = (data.players || []).map((player: any) => ({
-          id: player.name, // Use name as ID (raw_props doesn't have player UUIDs)
-          name: player.name,
-          type: 'player' as const,
-          sport: sport,
-          team: player.team,
-        }));
-
-        // V1.1 COMPLIANCE: Apply team filter for cascading (Section 3)
-        if (teamFilter && teamFilter.length > 0) {
-          searchResults = searchResults.filter(item =>
-            item.team && teamFilter.some(t =>
-              item.team?.toLowerCase().includes(t.toLowerCase()) ||
-              t.toLowerCase().includes(item.team?.toLowerCase() || '')
-            )
-          );
-        }
-      } else if (searchType === 'games') {
-        // Games are fetched separately via games endpoint
-        // This search type may be deprecated in favor of game selection UI
-        searchResults = [];
       }
-
-      if (!signal.aborted) {
-        setResults(searchResults.slice(0, 10)); // Limit to 10 results
-        setIsOpen(searchResults.length > 0);
-      }
-    } catch (err) {
-      if (signal.aborted) return;
-
-      const errorMessage = err instanceof Error ? err.message : 'Search failed';
-      console.error('[SmartSearch] Error:', errorMessage);
-      setError(errorMessage);
-      setResults([]);
-      setIsOpen(false);
-    } finally {
-      if (!signal.aborted) {
-        setIsLoading(false);
-      }
-    }
-  }, [searchType, sport, teamFilter]);
+    },
+    [searchType, sport, teamFilter]
+  );
 
   // Debounced search
   useEffect(() => {
@@ -212,7 +218,12 @@ export function SmartSearch({
             className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         )}
@@ -222,8 +233,19 @@ export function SmartSearch({
         <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-b-md shadow-lg z-50 p-2">
           <div className="flex items-center gap-2 text-gray-500 text-sm">
             <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+              />
             </svg>
             Searching...
           </div>

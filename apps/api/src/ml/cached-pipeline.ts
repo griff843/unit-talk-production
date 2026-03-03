@@ -1,5 +1,5 @@
-import { FeatureSet, PredictionResult } from '../types/ml';
 import { MLPredictionCache } from '../cache/enhanced-cache';
+import { FeatureSet, PredictionResult } from '../types/ml';
 
 export class CachedMLPipeline {
   private cache: MLPredictionCache;
@@ -19,8 +19,8 @@ export class CachedMLPipeline {
           ...cached,
           metadata: {
             ...cached.metadata,
-            cached: true
-          }
+            cached: true,
+          },
         };
       }
 
@@ -34,8 +34,8 @@ export class CachedMLPipeline {
         ...prediction,
         metadata: {
           ...prediction.metadata,
-          cached: false
-        }
+          cached: false,
+        },
       };
     } catch (error) {
       throw new Error(`Failed to get prediction: ${error}`);
@@ -52,8 +52,8 @@ export class CachedMLPipeline {
       metadata: {
         modelVersion: '1.0.0',
         timestamp: new Date().toISOString(),
-        cached: false
-      }
+        cached: false,
+      },
     };
   }
-} 
+}

@@ -18,10 +18,10 @@ export class UserProfileManager {
 
   async initialize(): Promise<void> {
     this.logger.info('👤 Initializing UserProfileManager');
-    
+
     // Create database tables if they don't exist
     await this.ensureDatabaseSchema();
-    
+
     // Load active profiles into cache
     await this.loadActiveProfiles();
   }
@@ -36,25 +36,27 @@ export class UserProfileManager {
       experienceLevel: 'beginner', // Will be updated based on interaction
       engagementScore: 0.5, // Starting neutral
       learningVelocity: 0,
-      responsePatterns: [{
-        averageResponseTime: 0,
-        responseConsistency: 0,
-        engagementTrend: 'stable',
-        timeOfDayActivity: {},
-        dayOfWeekActivity: {}
-      }],
+      responsePatterns: [
+        {
+          averageResponseTime: 0,
+          responseConsistency: 0,
+          engagementTrend: 'stable',
+          timeOfDayActivity: {},
+          dayOfWeekActivity: {},
+        },
+      ],
       commandProficiency: {
         commandsUsed: [],
         successRate: 0,
         errorPatterns: [],
         helpRequestFrequency: 0,
-        advancedFeatureUsage: 0
+        advancedFeatureUsage: 0,
       },
       timezoneBehavior: {
         detectedTimezone: 'UTC',
         activeHours: [],
         peakActivityTime: '12:00',
-        weekendPattern: 'same'
+        weekendPattern: 'same',
       },
       socialInteraction: {
         messageCount: 0,
@@ -62,7 +64,7 @@ export class UserProfileManager {
         reactionsReceived: 0,
         questionsAsked: 0,
         helpProvided: 0,
-        channelsActive: []
+        channelsActive: [],
       },
       conversionLikelihood: 0.1, // Start low
       churnRisk: 0.5, // Start neutral
@@ -72,21 +74,21 @@ export class UserProfileManager {
         completedSteps: [],
         stuckPoints: [],
         timeInStage: 0,
-        progressScore: 0
+        progressScore: 0,
       },
       preferences: {
         communicationStyle: 'detailed',
         learningPace: 'moderate',
         notificationTiming: 'immediate',
         contentType: 'beginner',
-        interactionMode: 'guided'
+        interactionMode: 'guided',
       },
-      interventionHistory: []
+      interventionHistory: [],
     };
 
     // Store in database
     await this.saveProfile(profile);
-    
+
     // Cache profile
     this.profileCache.set(userId, profile);
 
@@ -131,7 +133,7 @@ export class UserProfileManager {
       userId,
       engagementScore: profile.engagementScore,
       experienceLevel: profile.experienceLevel,
-      conversionLikelihood: profile.conversionLikelihood
+      conversionLikelihood: profile.conversionLikelihood,
     });
   }
 
@@ -157,7 +159,7 @@ export class UserProfileManager {
     if (!profile) return;
 
     profile.socialInteraction.reactionsGiven++;
-    
+
     // Positive reactions boost engagement
     if (reactionData.sentiment === 'positive') {
       profile.engagementScore = Math.min(profile.engagementScore + 0.05, 1.0);
@@ -177,13 +179,13 @@ export class UserProfileManager {
 
     // Update activity patterns
     profile.timezoneBehavior.activeHours.push(hour);
-    
+
     // Update day of week activity
-    profile.responsePatterns[0].dayOfWeekActivity[day] = 
+    profile.responsePatterns[0].dayOfWeekActivity[day] =
       (profile.responsePatterns[0].dayOfWeekActivity[day] || 0) + 1;
 
     // Update time of day activity
-    profile.responsePatterns[0].timeOfDayActivity[hour.toString()] = 
+    profile.responsePatterns[0].timeOfDayActivity[hour.toString()] =
       (profile.responsePatterns[0].timeOfDayActivity[hour.toString()] || 0) + 1;
 
     // Detect timezone
@@ -199,14 +201,16 @@ export class UserProfileManager {
 
     // Update engagement trend
     profile.responsePatterns[0].engagementTrend = behaviorAnalysis.engagementTrend;
-    
+
     // Update learning velocity
     profile.learningVelocity = behaviorAnalysis.learningVelocity;
 
     // Update response patterns
     if (behaviorAnalysis.responsePatterns) {
-      profile.responsePatterns[0].averageResponseTime = behaviorAnalysis.responsePatterns.averageResponseTime;
-      profile.responsePatterns[0].responseConsistency = behaviorAnalysis.responsePatterns.consistency;
+      profile.responsePatterns[0].averageResponseTime =
+        behaviorAnalysis.responsePatterns.averageResponseTime;
+      profile.responsePatterns[0].responseConsistency =
+        behaviorAnalysis.responsePatterns.consistency;
     }
 
     await this.saveProfile(profile);
@@ -221,13 +225,13 @@ export class UserProfileManager {
 
     // Recalculate engagement professional_score
     profile.engagementScore = await this.calculateEngagementScore(profile);
-    
+
     // Recalculate conversion likelihood
     profile.conversionLikelihood = await this.calculateConversionLikelihood(profile);
-    
+
     // Recalculate churn risk
     profile.churnRisk = await this.calculateChurnRisk(profile);
-    
+
     // Update onboarding progress
     profile.onboardingStage.progressScore = await this.calculateProgressScore(profile);
 
@@ -253,17 +257,18 @@ export class UserProfileManager {
 
   async getActiveUsers(): Promise<UserBehaviorProfile[]> {
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000); // Last 24 hours
-    return this.getAllProfiles().then(profiles => 
+    return this.getAllProfiles().then(profiles =>
       profiles.filter(profile => profile.lastActivity > cutoff)
     );
   }
 
-  async getConversionCandidates(): Promise<Array<{id: string, profile: UserBehaviorProfile}>> {
+  async getConversionCandidates(): Promise<Array<{ id: string; profile: UserBehaviorProfile }>> {
     const profiles = await this.getAllProfiles();
     return profiles
-      .filter(profile => 
-        profile.conversionLikelihood > 0.7 && 
-        profile.onboardingStage.currentStage !== 'active_user'
+      .filter(
+        profile =>
+          profile.conversionLikelihood > 0.7 &&
+          profile.onboardingStage.currentStage !== 'active_user'
       )
       .map(profile => ({ id: profile.userId, profile }));
   }
@@ -271,20 +276,20 @@ export class UserProfileManager {
   async generateInsights(): Promise<OnboardingMetrics> {
     const profiles = await this.getAllProfiles();
     const activeProfiles = await this.getActiveUsers();
-    
-    const completedOnboarding = profiles.filter(p => 
-      p.onboardingStage.currentStage === 'active_user'
+
+    const completedOnboarding = profiles.filter(
+      p => p.onboardingStage.currentStage === 'active_user'
     ).length;
 
-    const conversions = profiles.filter(p => 
-      p.conversionLikelihood > 0.8
-    ).length;
+    const conversions = profiles.filter(p => p.conversionLikelihood > 0.8).length;
 
     const avgCompletionTime = this.calculateAverageCompletionTime(profiles);
     const conversionRate = profiles.length > 0 ? conversions / profiles.length : 0;
     const churnRate = this.calculateChurnRate(profiles);
-    const avgEngagement = profiles.length > 0 ? 
-      profiles.reduce((sum, p) => sum + p.engagementScore, 0) / profiles.length : 0;
+    const avgEngagement =
+      profiles.length > 0
+        ? profiles.reduce((sum, p) => sum + p.engagementScore, 0) / profiles.length
+        : 0;
 
     const insights: OnboardingMetrics = {
       totalUsers: profiles.length,
@@ -296,7 +301,7 @@ export class UserProfileManager {
       engagementScore: avgEngagement,
       interventionSuccess: this.calculateInterventionSuccess(profiles),
       commonStuckPoints: this.identifyCommonStuckPoints(profiles),
-      bestPerformingFlows: this.identifyBestFlows(profiles)
+      bestPerformingFlows: this.identifyBestFlows(profiles),
     };
 
     // Cache insights
@@ -319,10 +324,7 @@ export class UserProfileManager {
     await withCircuitBreaker.supabase(
       async () => {
         // Check if onboarding_profiles table exists
-        const { error } = await this.supabase!
-          .from('onboarding_profiles')
-          .select('count')
-          .limit(1);
+        const { error } = await this.supabase!.from('onboarding_profiles').select('count').limit(1);
 
         if (error && error.message.includes('relation')) {
           this.logger.info('📋 Creating onboarding_profiles table');
@@ -340,8 +342,7 @@ export class UserProfileManager {
 
     await withCircuitBreaker.supabase(
       async () => {
-        const { data: profiles, error } = await this.supabase!
-          .from('onboarding_profiles')
+        const { data: profiles, error } = await this.supabase!.from('onboarding_profiles')
           .select('*')
           .gte('last_activity', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()) // Last 7 days
           .limit(100);
@@ -351,7 +352,7 @@ export class UserProfileManager {
             const profile = this.deserializeProfile(profileData);
             this.profileCache.set(profile.userId, profile);
           }
-          
+
           this.logger.info(`✅ Loaded ${profiles.length} active profiles into cache`);
         }
       },
@@ -368,22 +369,21 @@ export class UserProfileManager {
 
     await withCircuitBreaker.supabase(
       async () => {
-        const { error } = await this.supabase!
-          .from('onboarding_profiles')
-          .upsert(serializedProfile);
+        const { error } =
+          await this.supabase!.from('onboarding_profiles').upsert(serializedProfile);
 
         if (error) {
           this.logger.error('❌ Failed to save profile', {
             userId: profile.userId,
-            error: error.message
+            error: error.message,
           });
         }
       },
       async () => {
         this.logger.warn('⚠️ Cannot save profile, Supabase circuit breaker open', {
-          userId: profile.userId
+          userId: profile.userId,
         });
-        
+
         // Cache the profile for later sync
         await redisCache.set(
           `profile:pending:${profile.userId}`,
@@ -399,8 +399,7 @@ export class UserProfileManager {
 
     return await withCircuitBreaker.supabase(
       async () => {
-        const { data, error } = await this.supabase!
-          .from('onboarding_profiles')
+        const { data, error } = await this.supabase!.from('onboarding_profiles')
           .select('*')
           .eq('user_id', userId)
           .single();
@@ -420,7 +419,10 @@ export class UserProfileManager {
     );
   }
 
-  private async updateEngagementScore(profile: UserBehaviorProfile, data: MessageAnalysis): Promise<void> {
+  private async updateEngagementScore(
+    profile: UserBehaviorProfile,
+    data: MessageAnalysis
+  ): Promise<void> {
     let scoreChange = 0;
 
     // Positive sentiment increases engagement
@@ -444,14 +446,17 @@ export class UserProfileManager {
     profile.engagementScore = Math.max(0, Math.min(1, profile.engagementScore + scoreChange));
   }
 
-  private async updateExperienceLevel(profile: UserBehaviorProfile, data: MessageAnalysis): Promise<void> {
+  private async updateExperienceLevel(
+    profile: UserBehaviorProfile,
+    data: MessageAnalysis
+  ): Promise<void> {
     if (data.complexity === 'advanced' && profile.experienceLevel === 'beginner') {
       profile.experienceLevel = 'intermediate';
     } else if (data.complexity === 'basic' && profile.experienceLevel === 'advanced') {
       // Don't downgrade, might be explaining to someone
       return;
     }
-    
+
     // Upgrade based on consistent advanced interactions
     if (data.complexity === 'advanced' && profile.experienceLevel === 'intermediate') {
       const recentAdvanced = profile.socialInteraction.messageCount > 10;
@@ -461,7 +466,10 @@ export class UserProfileManager {
     }
   }
 
-  private async updateLearningMetrics(profile: UserBehaviorProfile, data: MessageAnalysis): Promise<void> {
+  private async updateLearningMetrics(
+    profile: UserBehaviorProfile,
+    data: MessageAnalysis
+  ): Promise<void> {
     if (data.learningIndicators.length > 0) {
       const learningBoost = data.learningIndicators.length * 0.1;
       profile.learningVelocity = Math.min(1, profile.learningVelocity + learningBoost);
@@ -473,12 +481,16 @@ export class UserProfileManager {
     }
   }
 
-  private async updateConversionLikelihood(profile: UserBehaviorProfile, data: MessageAnalysis): Promise<void> {
+  private async updateConversionLikelihood(
+    profile: UserBehaviorProfile,
+    data: MessageAnalysis
+  ): Promise<void> {
     let likelihoodChange = 0;
 
     // Conversion signals directly increase likelihood
     data.conversionSignals.forEach(signal => {
-      const strength = signal.strength === 'strong' ? 0.2 : signal.strength === 'moderate' ? 0.1 : 0.05;
+      const strength =
+        signal.strength === 'strong' ? 0.2 : signal.strength === 'moderate' ? 0.1 : 0.05;
       likelihoodChange += strength;
     });
 
@@ -489,10 +501,16 @@ export class UserProfileManager {
     if (profile.learningVelocity > 0.7) likelihoodChange += 0.05;
 
     // Apply changes
-    profile.conversionLikelihood = Math.max(0, Math.min(1, profile.conversionLikelihood + likelihoodChange));
+    profile.conversionLikelihood = Math.max(
+      0,
+      Math.min(1, profile.conversionLikelihood + likelihoodChange)
+    );
   }
 
-  private async updateChurnRisk(profile: UserBehaviorProfile, data: MessageAnalysis): Promise<void> {
+  private async updateChurnRisk(
+    profile: UserBehaviorProfile,
+    data: MessageAnalysis
+  ): Promise<void> {
     let riskChange = 0;
 
     // Frustration increases churn risk
@@ -502,7 +520,8 @@ export class UserProfileManager {
     if (data.sentiment === 'negative' || data.sentiment === 'frustrated') riskChange += 0.05;
 
     // Long time without activity increases risk
-    const daysSinceLastActivity = (Date.now() - profile.lastActivity.getTime()) / (1000 * 60 * 60 * 24);
+    const daysSinceLastActivity =
+      (Date.now() - profile.lastActivity.getTime()) / (1000 * 60 * 60 * 24);
     if (daysSinceLastActivity > 3) riskChange += 0.1;
 
     // Positive engagement decreases risk
@@ -521,16 +540,16 @@ export class UserProfileManager {
   private async detectTimezone(profile: UserBehaviorProfile): Promise<void> {
     const hourCounts = profile.responsePatterns[0].timeOfDayActivity;
     const hours = Object.keys(hourCounts).map(Number);
-    
+
     if (hours.length < 5) return; // Need more data
-    
+
     // Find peak activity hour
-    const peakHour = hours.reduce((peak, hour) => 
+    const peakHour = hours.reduce((peak, hour) =>
       hourCounts[hour.toString()] > hourCounts[peak.toString()] ? hour : peak
     );
-    
+
     profile.timezoneBehavior.peakActivityTime = `${peakHour}:00`;
-    
+
     // Estimate timezone based on peak activity (very basic estimation)
     if (peakHour >= 9 && peakHour <= 17) {
       profile.timezoneBehavior.detectedTimezone = 'UTC-5'; // EST work hours
@@ -545,7 +564,7 @@ export class UserProfileManager {
       questionQuality: Math.min(profile.socialInteraction.questionsAsked / 5, 1),
       learningVelocity: profile.learningVelocity,
       reactionActivity: Math.min(profile.socialInteraction.reactionsGiven / 5, 1),
-      responseConsistency: profile.responsePatterns[0].responseConsistency || 0.5
+      responseConsistency: profile.responsePatterns[0].responseConsistency || 0.5,
     };
 
     return (
@@ -563,7 +582,7 @@ export class UserProfileManager {
       learning: profile.learningVelocity,
       timeSpent: Math.min((Date.now() - profile.joinDate.getTime()) / (7 * 24 * 60 * 60 * 1000), 1), // Weeks since join, capped at 1
       experienceMatch: profile.experienceLevel === 'intermediate' ? 1 : 0.8, // Intermediate users convert best
-      progressScore: profile.onboardingStage.progressScore
+      progressScore: profile.onboardingStage.progressScore,
     };
 
     return (
@@ -576,23 +595,25 @@ export class UserProfileManager {
   }
 
   private async calculateChurnRisk(profile: UserBehaviorProfile): Promise<number> {
-    const daysSinceLastActivity = (Date.now() - profile.lastActivity.getTime()) / (1000 * 60 * 60 * 24);
+    const daysSinceLastActivity =
+      (Date.now() - profile.lastActivity.getTime()) / (1000 * 60 * 60 * 24);
     const daysSinceJoin = (Date.now() - profile.joinDate.getTime()) / (1000 * 60 * 60 * 24);
-    
+
     const factors = {
       inactivity: Math.min(daysSinceLastActivity / 7, 1), // Risk increases with days inactive
       lowEngagement: 1 - profile.engagementScore,
       earlyStage: daysSinceJoin < 3 ? 0.3 : 0, // Higher risk in first 3 days
       stuckInOnboarding: profile.onboardingStage.stuckPoints.length * 0.1,
-      interventionFailures: profile.interventionHistory.filter(i => i.outcome === 'failed').length * 0.1
+      interventionFailures:
+        profile.interventionHistory.filter(i => i.outcome === 'failed').length * 0.1,
     };
 
     return Math.min(
       factors.inactivity * 0.4 +
-      factors.lowEngagement * 0.3 +
-      factors.earlyStage +
-      factors.stuckInOnboarding +
-      factors.interventionFailures,
+        factors.lowEngagement * 0.3 +
+        factors.earlyStage +
+        factors.stuckInOnboarding +
+        factors.interventionFailures,
       1
     );
   }
@@ -603,10 +624,11 @@ export class UserProfileManager {
       tutorial: 0.4,
       first_picks: 0.6,
       upgrade_consideration: 0.8,
-      active_user: 1.0
+      active_user: 1.0,
     };
 
-    const baseScore = stageWeights[profile.onboardingStage.currentStage as keyof typeof stageWeights] || 0;
+    const baseScore =
+      stageWeights[profile.onboardingStage.currentStage as keyof typeof stageWeights] || 0;
     const completionBonus = profile.onboardingStage.completedSteps.length * 0.05;
     const stuckPenalty = profile.onboardingStage.stuckPoints.length * 0.1;
 
@@ -634,7 +656,7 @@ export class UserProfileManager {
 
   private identifyCommonStuckPoints(profiles: UserBehaviorProfile[]): Record<string, number> {
     const stuckPoints: Record<string, number> = {};
-    
+
     profiles.forEach(profile => {
       profile.onboardingStage.stuckPoints.forEach(point => {
         stuckPoints[point] = (stuckPoints[point] || 0) + 1;
@@ -646,9 +668,8 @@ export class UserProfileManager {
 
   private identifyBestFlows(profiles: UserBehaviorProfile[]): string[] {
     // const _successful = profiles.filter(p => // Unused variable removed
-    profiles.filter(p => 
-      p.onboardingStage.currentStage === 'active_user' && 
-      p.conversionLikelihood > 0.8
+    profiles.filter(
+      p => p.onboardingStage.currentStage === 'active_user' && p.conversionLikelihood > 0.8
     );
 
     // This would analyze successful user journeys to identify best flows
@@ -673,7 +694,7 @@ export class UserProfileManager {
       onboarding_stage: JSON.stringify(profile.onboardingStage),
       preferences: JSON.stringify(profile.preferences),
       intervention_history: JSON.stringify(profile.interventionHistory),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     };
   }
 
@@ -694,7 +715,7 @@ export class UserProfileManager {
       lastActivity: new Date(data.last_activity),
       onboardingStage: JSON.parse(data.onboarding_stage || '{}'),
       preferences: JSON.parse(data.preferences || '{}'),
-      interventionHistory: JSON.parse(data.intervention_history || '[]')
+      interventionHistory: JSON.parse(data.intervention_history || '[]'),
     };
   }
 

@@ -36,10 +36,10 @@ export const ModelConfigSchema = z.object({
     totalPredictions: z.number().int().nonnegative(),
     correctPredictions: z.number().int().nonnegative(),
     avgConfidence: z.number().min(0).max(1),
-    successRate: z.number().min(0).max(1)
+    successRate: z.number().min(0).max(1),
   }),
   costPerToken: z.number().positive(),
-  maxRequestsPerMinute: z.number().int().positive()
+  maxRequestsPerMinute: z.number().int().positive(),
 });
 
 // Model Performance Metrics
@@ -74,7 +74,7 @@ export const AIAdviceSchema = z.object({
   temperature: z.number().min(0).max(2),
   processingTime: z.number().nonnegative(),
   fallbackUsed: z.boolean(),
-  consensusScore: z.number().min(0).max(1).optional()
+  consensusScore: z.number().min(0).max(1).optional(),
 });
 
 // Consensus Advice Response
@@ -93,7 +93,7 @@ export const ConsensusAdviceSchema = z.object({
   agreement: z.number().min(0).max(1),
   models: z.array(z.string()),
   reasoning: z.array(z.string()),
-  conflictFlags: z.array(z.string())
+  conflictFlags: z.array(z.string()),
 });
 
 // Market Context Types
@@ -110,7 +110,7 @@ export const MarketContextSchema = z.object({
   volatility: z.number().min(0).max(1),
   sentiment: z.number().min(-1).max(1),
   timeOfDay: z.enum(['market_hours', 'evening', 'overnight']),
-  dayOfWeek: z.string()
+  dayOfWeek: z.string(),
 });
 
 // OpenAI Types
@@ -125,7 +125,7 @@ export const OpenAIConfigSchema = z.object({
   apiKey: z.string(),
   organization: z.string().optional(),
   maxRetries: z.number().int().positive().optional(),
-  timeout: z.number().positive().optional()
+  timeout: z.number().positive().optional(),
 });
 
 // Anthropic Types
@@ -138,7 +138,7 @@ export interface AnthropicConfig {
 export const AnthropicConfigSchema = z.object({
   apiKey: z.string(),
   maxRetries: z.number().int().positive().optional(),
-  timeout: z.number().positive().optional()
+  timeout: z.number().positive().optional(),
 });
 
 // Circuit Breaker Types
@@ -151,7 +151,7 @@ export interface CircuitBreakerConfig {
 export const CircuitBreakerConfigSchema = z.object({
   failureThreshold: z.number().int().positive(),
   resetTimeout: z.number().positive(),
-  halfOpenTimeout: z.number().positive()
+  halfOpenTimeout: z.number().positive(),
 });
 
 // Rate Limiter Types
@@ -164,7 +164,7 @@ export interface RateLimiterConfig {
 export const RateLimiterConfigSchema = z.object({
   maxRequests: z.number().int().positive(),
   timeWindow: z.number().positive(),
-  retryAfter: z.number().positive()
+  retryAfter: z.number().positive(),
 });
 
 // AI Service Error Types
@@ -239,4 +239,4 @@ export class TimeoutError extends AIServiceError {
     );
     this.name = 'TimeoutError';
   }
-} 
+}

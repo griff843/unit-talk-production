@@ -1,4 +1,3 @@
-
 // Common type definitions for Unit Talk Production v3
 export interface BaseConfig {
   name: string;

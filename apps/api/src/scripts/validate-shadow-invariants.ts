@@ -2,7 +2,7 @@
 
 /**
  * Shadow Mode Invariants Validation
- * 
+ *
  * Production safety validation ensuring:
  * 1. Shadow mode NEVER publishes publicly ✅
  * 2. Live mode NEVER bypasses safety checks ✅
@@ -36,9 +36,8 @@ class ShadowInvariantsValidator {
       await this.testShadowMode();
       await this.testLiveMode();
       await this.testDatabaseInvariants();
-      
+
       this.generateReport();
-      
     } catch (error) {
       logger.error('❌ Validation failed with error:', error);
       process.exit(1);
@@ -47,33 +46,33 @@ class ShadowInvariantsValidator {
 
   private async testShadowMode(): Promise<void> {
     logger.info('🔒 Testing Shadow Mode (SHADOW_MODE=true)');
-    
+
     // Force shadow mode for this test
     const originalShadowMode = process.env.SHADOW_MODE;
     process.env.SHADOW_MODE = 'true';
-    
+
     try {
       const shadowService = new (ShadowModeService as any)();
-      
+
       // INVARIANT 1: Shadow mode is properly detected
       const isShadowMode = shadowService.isShadowMode();
       this.addResult({
         passed: isShadowMode,
         testName: 'Shadow Mode Detection',
         details: `Shadow mode detected: ${isShadowMode}`,
-        critical: true
+        critical: true,
       });
 
       // INVARIANT 2: All public actions are blocked
       const publishBlocked = shadowService.shouldSkipPublicAction('publish');
       const alertBlocked = shadowService.shouldSkipPublicAction('alert');
       const webhookBlocked = shadowService.shouldSkipPublicAction('webhook');
-      
+
       this.addResult({
         passed: publishBlocked && alertBlocked && webhookBlocked,
         testName: 'Public Action Blocking',
         details: `All public actions blocked: ${publishBlocked && alertBlocked && webhookBlocked}`,
-        critical: true
+        critical: true,
       });
 
       // INVARIANT 3: Shadow logging works
@@ -83,7 +82,7 @@ class ShadowInvariantsValidator {
         player: 'Shadow Test Player',
         tier: 'A',
         confidence: 85,
-        professionalScore: 0.82
+        professionalScore: 0.82,
       };
 
       let shadowLogged = false;
@@ -98,7 +97,7 @@ class ShadowInvariantsValidator {
         passed: shadowLogged,
         testName: 'Shadow Logging Functionality',
         details: `Shadow pick logged: ${shadowLogged}`,
-        critical: true
+        critical: true,
       });
 
       // INVARIANT 4: Verify shadow_decisions table receives data
@@ -112,9 +111,8 @@ class ShadowInvariantsValidator {
         passed: !shadowError && shadowData && shadowData.length > 0,
         testName: 'Shadow Database Logging',
         details: `Shadow data in database: ${!shadowError && shadowData?.length > 0}`,
-        critical: true
+        critical: true,
       });
-
     } finally {
       // Restore original environment
       if (originalShadowMode !== undefined) {
@@ -127,33 +125,33 @@ class ShadowInvariantsValidator {
 
   private async testLiveMode(): Promise<void> {
     logger.info('🌐 Testing Live Mode (SHADOW_MODE=false)');
-    
+
     // Force live mode for this test
     const originalShadowMode = process.env.SHADOW_MODE;
     process.env.SHADOW_MODE = 'false';
-    
+
     try {
       const shadowService = new (ShadowModeService as any)();
-      
+
       // INVARIANT 5: Live mode is properly detected
       const isShadowMode = shadowService.isShadowMode();
       this.addResult({
         passed: !isShadowMode,
         testName: 'Live Mode Detection',
         details: `Live mode detected: ${!isShadowMode}`,
-        critical: true
+        critical: true,
       });
 
       // INVARIANT 6: Public actions are allowed in live mode
       const publishAllowed = !shadowService.shouldSkipPublicAction('publish');
       const alertAllowed = !shadowService.shouldSkipPublicAction('alert');
       const webhookAllowed = !shadowService.shouldSkipPublicAction('webhook');
-      
+
       this.addResult({
         passed: publishAllowed && alertAllowed && webhookAllowed,
         testName: 'Public Action Allowance',
         details: `All public actions allowed: ${publishAllowed && alertAllowed && webhookAllowed}`,
-        critical: false
+        critical: false,
       });
 
       // INVARIANT 7: Live mode still logs to shadow tables for audit
@@ -162,7 +160,7 @@ class ShadowInvariantsValidator {
         market: 'live-validation',
         player: 'Live Test Player',
         tier: 'B',
-        confidence: 72
+        confidence: 72,
       };
 
       let liveLogged = false;
@@ -177,9 +175,8 @@ class ShadowInvariantsValidator {
         passed: liveLogged,
         testName: 'Live Mode Audit Logging',
         details: `Live mode logs to shadow tables: ${liveLogged}`,
-        critical: false
+        critical: false,
       });
-
     } finally {
       // Restore original environment
       if (originalShadowMode !== undefined) {
@@ -195,23 +192,20 @@ class ShadowInvariantsValidator {
 
     // INVARIANT 8: shadow_decisions table exists and is accessible
     try {
-      const { data, error } = await supabaseClient
-        .from('shadow_decisions')
-        .select('id')
-        .limit(1);
+      const { data, error } = await supabaseClient.from('shadow_decisions').select('id').limit(1);
 
       this.addResult({
         passed: !error,
         testName: 'Shadow Decisions Table',
         details: error ? `Table error: ${error.message}` : 'Table accessible',
-        critical: true
+        critical: true,
       });
     } catch (error) {
       this.addResult({
         passed: false,
         testName: 'Shadow Decisions Table',
         details: `Table check failed: ${error}`,
-        critical: true
+        critical: true,
       });
     }
 
@@ -226,14 +220,14 @@ class ShadowInvariantsValidator {
         passed: !error,
         testName: 'Unified Picks Table Schema',
         details: error ? `Schema error: ${error.message}` : 'Required columns accessible',
-        critical: true
+        critical: true,
       });
     } catch (error) {
       this.addResult({
         passed: false,
         testName: 'Unified Picks Table Schema',
         details: `Schema check failed: ${error}`,
-        critical: true
+        critical: true,
       });
     }
 
@@ -248,14 +242,14 @@ class ShadowInvariantsValidator {
         passed: !error,
         testName: 'Professional Grading Columns',
         details: error ? `Migration needed: ${error.message}` : 'Professional columns available',
-        critical: false
+        critical: false,
       });
     } catch (error) {
       this.addResult({
         passed: false,
         testName: 'Professional Grading Columns',
         details: `Migration check failed: ${error}`,
-        critical: false
+        critical: false,
       });
     }
 
@@ -271,29 +265,29 @@ class ShadowInvariantsValidator {
         .limit(10);
 
       const recentActivity = data && data.length > 0;
-      
+
       this.addResult({
         passed: !error,
         testName: 'Shadow Activity Logging',
         details: `Recent activity: ${recentActivity ? data.length + ' entries' : 'none'} (${!error ? 'accessible' : 'error'})`,
-        critical: false
+        critical: false,
       });
     } catch (error) {
       this.addResult({
         passed: false,
         testName: 'Shadow Activity Logging',
         details: `Activity check failed: ${error}`,
-        critical: false
+        critical: false,
       });
     }
   }
 
   private addResult(result: ValidationResult): void {
     this.results.push(result);
-    
+
     const status = result.passed ? '✅' : '❌';
     const criticality = result.critical ? '[CRITICAL]' : '[INFO]';
-    
+
     logger.info(`${status} ${criticality} ${result.testName}: ${result.details}`);
   }
 
@@ -308,7 +302,7 @@ class ShadowInvariantsValidator {
     logger.info('    SHADOW MODE INVARIANTS VALIDATION REPORT');
     logger.info('═'.repeat(60));
     logger.info(`📊 Total Tests: ${totalTests}`);
-    logger.info(`✅ Passed: ${passedTests} (${((passedTests/totalTests)*100).toFixed(1)}%)`);
+    logger.info(`✅ Passed: ${passedTests} (${((passedTests / totalTests) * 100).toFixed(1)}%)`);
     logger.info(`❌ Failed: ${totalTests - passedTests}`);
     logger.info(`🚨 Critical Failures: ${criticalFailures}`);
     logger.info(`⚠️  Non-Critical Failures: ${nonCriticalFailures}`);
@@ -332,7 +326,7 @@ class ShadowInvariantsValidator {
 
     // Final verdict
     const productionReady = criticalFailures === 0;
-    
+
     logger.info('🚀 PRODUCTION READINESS ASSESSMENT:');
     if (productionReady) {
       logger.info('   ✅ PASS - System meets all critical safety requirements');

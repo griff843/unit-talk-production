@@ -1,16 +1,16 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-import { 
-  UnifiedPick, 
-  RecapSummary, 
-  CapperStats, 
-  TierStats, 
+import {
+  UnifiedPick,
+  RecapSummary,
+  CapperStats,
+  TierStats,
   HotStreak,
   ParlayGroup,
   MicroRecapData,
   RoiWatcherState,
   RecapConfig,
-  RecapError
+  RecapError,
 } from '../../types/picks';
 
 /**
@@ -24,10 +24,7 @@ export class RecapService {
   private lastMicroRecapSent: Date | null = null;
 
   constructor(config?: Partial<RecapConfig>) {
-    this.supabase = createClient(
-      process.env['SUPABASE_URL']!,
-      process.env['SUPABASE_ANON_KEY']!
-    );
+    this.supabase = createClient(process.env['SUPABASE_URL']!, process.env['SUPABASE_ANON_KEY']!);
 
     this.config = {
       legendFooter: process.env['LEGEND_FOOTER'] === 'true',
@@ -40,7 +37,7 @@ export class RecapService {
       slashCommands: process.env['SLASH_COMMANDS'] === 'true',
       metricsEnabled: process.env['METRICS_ENABLED'] !== 'false',
       metricsPort: parseInt(process.env['METRICS_PORT'] || '3001'),
-      ...config
+      ...config,
     };
 
     this.roiWatcherState = {
@@ -48,7 +45,7 @@ export class RecapService {
       lastRoiCheck: new Date().toISOString(),
       lastMicroRecapSent: '',
       picksProcessedToday: 0,
-      thresholdBreached: false
+      thresholdBreached: false,
     };
   }
 
@@ -58,18 +55,18 @@ export class RecapService {
   async initialize(): Promise<void> {
     try {
       await this.testConnection();
-      
+
       if (this.config.microRecap) {
         await this.initializeRoiWatcher();
       }
-      
+
       console.log('RecapService initialized successfully');
     } catch (error) {
       throw new RecapError({
         code: 'INIT_FAILED',
         message: `Failed to initialize RecapService: ${error}`,
         timestamp: new Date().toISOString(),
-        severity: 'high'
+        severity: 'high',
       });
     }
   }
@@ -78,11 +75,8 @@ export class RecapService {
    * Test database connection
    */
   async testConnection(): Promise<void> {
-    const { error } = await this.supabase
-      .from('unified_picks')
-      .select('id')
-      .limit(1);
-    
+    const { error } = await this.supabase.from('unified_picks').select('id').limit(1);
+
     if (error) {
       throw new Error(`Database connection failed: ${error.message}`);
     }
@@ -94,7 +88,7 @@ export class RecapService {
   async getDailyRecapData(date: string): Promise<RecapSummary | null> {
     try {
       const startTime = Date.now();
-      
+
       // Query picks for the specific date
       const { data: picks, error } = await this.supabase
         .from('unified_picks')
@@ -104,8 +98,12 @@ export class RecapService {
         .in('play_status', ['settled', 'graded'])
         .not('outcome', 'is', null);
 
-      if (error) {throw error;}
-      if (!picks || picks.length === 0) {return null;}
+      if (error) {
+        throw error;
+      }
+      if (!picks || picks.length === 0) {
+        return null;
+      }
 
       const summary = await this.processRecapData(picks, 'daily', date);
       summary.metadata = {
@@ -118,8 +116,8 @@ export class RecapService {
           microRecap: this.config.microRecap,
           clvDelta: this.config.clvDelta,
           streakSparkline: this.config.streakSparkline,
-          notionSync: this.config.notionSync
-        }
+          notionSync: this.config.notionSync,
+        },
       };
 
       return summary;
@@ -129,7 +127,7 @@ export class RecapService {
         message: `Failed to get daily recap data: ${error}`,
         timestamp: new Date().toISOString(),
         context: { date },
-        severity: 'high'
+        severity: 'high',
       });
     }
   }
@@ -147,8 +145,12 @@ export class RecapService {
         .in('play_status', ['settled', 'graded'])
         .not('outcome', 'is', null);
 
-      if (error) {throw error;}
-      if (!picks || picks.length === 0) {return null;}
+      if (error) {
+        throw error;
+      }
+      if (!picks || picks.length === 0) {
+        return null;
+      }
 
       return await this.processRecapData(picks, 'weekly', startDate);
     } catch (error) {
@@ -157,7 +159,7 @@ export class RecapService {
         message: `Failed to get weekly recap data: ${error}`,
         timestamp: new Date().toISOString(),
         context: { startDate, endDate },
-        severity: 'high'
+        severity: 'high',
       });
     }
   }
@@ -175,8 +177,12 @@ export class RecapService {
         .in('play_status', ['settled', 'graded'])
         .not('outcome', 'is', null);
 
-      if (error) {throw error;}
-      if (!picks || picks.length === 0) {return null;}
+      if (error) {
+        throw error;
+      }
+      if (!picks || picks.length === 0) {
+        return null;
+      }
 
       return await this.processRecapData(picks, 'monthly', startDate);
     } catch (error) {
@@ -185,7 +191,7 @@ export class RecapService {
         message: `Failed to get monthly recap data: ${error}`,
         timestamp: new Date().toISOString(),
         context: { startDate, endDate },
-        severity: 'high'
+        severity: 'high',
       });
     }
   }
@@ -249,7 +255,7 @@ export class RecapService {
       ...(bestPick && { bestPick }),
       ...(worstPick && { worstPick }),
       ...(biggestWin && { biggestWin }),
-      ...(badBeat && { badBeat })
+      ...(badBeat && { badBeat }),
     };
   }
 
@@ -258,7 +264,7 @@ export class RecapService {
    */
   private async calculateCapperStats(picks: UnifiedPick[]): Promise<CapperStats[]> {
     const capperMap = new Map<string, UnifiedPick[]>();
-    
+
     // Group picks by capper
     picks.forEach(pick => {
       const tags = Array.isArray(pick.tags) ? pick.tags : [];
@@ -270,7 +276,7 @@ export class RecapService {
     });
 
     const capperStats: CapperStats[] = [];
-    
+
     for (const [capper, capperPicks] of Array.from(capperMap.entries())) {
       const wins = capperPicks.filter(p => p.outcome === 'win').length;
       const losses = capperPicks.filter(p => p.outcome === 'loss').length;
@@ -280,17 +286,18 @@ export class RecapService {
         const profitLoss = typeof pick['profit_loss'] === 'number' ? pick['profit_loss'] : 0;
         return sum + profitLoss;
       }, 0);
-      const winRate = (wins + losses) > 0 ? (wins / (wins + losses)) * 100 : 0;
+      const winRate = wins + losses > 0 ? (wins / (wins + losses)) * 100 : 0;
       const roi = totalUnits > 0 ? (netUnits / totalUnits) * 100 : 0;
       const avgEdge = this.calculateAverageEdge(capperPicks);
       const avgClvDelta = this.config.clvDelta ? this.calculateAverageClv(capperPicks) : undefined;
-      
+
       // Calculate current streak
       const streak = this.calculateCurrentStreak(capperPicks);
-      
+
       // Generate sparkline if enabled
-      const streakSparkline = this.config.streakSparkline ? 
-        this.generateStreakSparkline(capperPicks) : undefined;
+      const streakSparkline = this.config.streakSparkline
+        ? this.generateStreakSparkline(capperPicks)
+        : undefined;
 
       // Find best and worst picks
       const bestPick = this.findBestPick(capperPicks);
@@ -312,7 +319,7 @@ export class RecapService {
         streakType: streak.type,
         ...(streakSparkline && { streakSparkline }),
         ...(bestPick && { bestPick }),
-        ...(worstPick && { worstPick })
+        ...(worstPick && { worstPick }),
       });
     }
 
@@ -324,7 +331,7 @@ export class RecapService {
    */
   private calculateTierStats(picks: UnifiedPick[]): TierStats[] {
     const tierMap = new Map<string, UnifiedPick[]>();
-    
+
     picks.forEach(pick => {
       const tier = pick.tier || 'Unknown';
       if (!tierMap.has(tier)) {
@@ -334,7 +341,7 @@ export class RecapService {
     });
 
     const tierStats: TierStats[] = [];
-    
+
     for (const [tier, tierPicks] of Array.from(tierMap.entries())) {
       const wins = tierPicks.filter(p => p.outcome === 'win').length;
       const losses = tierPicks.filter(p => p.outcome === 'loss').length;
@@ -344,7 +351,7 @@ export class RecapService {
         const profitLoss = typeof pick['profit_loss'] === 'number' ? pick['profit_loss'] : 0;
         return sum + profitLoss;
       }, 0);
-      const winRate = (wins + losses) > 0 ? (wins / (wins + losses)) * 100 : 0;
+      const winRate = wins + losses > 0 ? (wins / (wins + losses)) * 100 : 0;
       const roi = totalUnits > 0 ? (netUnits / totalUnits) * 100 : 0;
       const avgEdge = this.calculateAverageEdge(tierPicks);
 
@@ -358,7 +365,7 @@ export class RecapService {
         totalUnits,
         netUnits,
         roi,
-        avgEdge
+        avgEdge,
       });
     }
 
@@ -370,7 +377,7 @@ export class RecapService {
    */
   private calculateHotStreaks(picks: UnifiedPick[], capperStats: CapperStats[]): HotStreak[] {
     const hotStreaks: HotStreak[] = [];
-    
+
     capperStats.forEach(capper => {
       if (capper.currentStreak >= 3 && capper.streakType === 'win') {
         const capperPicks = picks.filter(p => {
@@ -390,7 +397,7 @@ export class RecapService {
           }, 0),
           startDate: streakPicks[streakPicks.length - 1]?.created_at || '',
           endDate: streakPicks[0]?.created_at || '',
-          picks: streakPicks
+          picks: streakPicks,
         });
       }
     });
@@ -404,7 +411,7 @@ export class RecapService {
   async getParlayGroups(startDate: string, endDate?: string): Promise<ParlayGroup[]> {
     try {
       const endDateStr = endDate || startDate;
-      
+
       const { data: picks, error } = await this.supabase
         .from('unified_picks')
         .select('*')
@@ -413,8 +420,12 @@ export class RecapService {
         .not('parlay_id', 'is', null)
         .in('play_status', ['settled', 'graded']);
 
-      if (error) {throw error;}
-      if (!picks || picks.length === 0) {return [];}
+      if (error) {
+        throw error;
+      }
+      if (!picks || picks.length === 0) {
+        return [];
+      }
 
       // Group by parlay_id
       const parlayMap = new Map<string, UnifiedPick[]>();
@@ -427,7 +438,7 @@ export class RecapService {
       });
 
       const parlayGroups: ParlayGroup[] = [];
-      
+
       for (const [parlayId, parlayPicks] of Array.from(parlayMap.entries())) {
         const totalOdds = this.calculateParlayOdds(parlayPicks);
         const units = parlayPicks[0]?.units || 1;
@@ -445,7 +456,9 @@ export class RecapService {
           ...(profit_loss !== undefined && { profit_loss }),
           ...(capper && { capper }),
           ...(parlayPicks[0]?.created_at && { created_at: parlayPicks[0]?.created_at }),
-          ...(typeof parlayPicks[0]?.['settled_at'] === 'string' && { settled_at: parlayPicks[0]?.['settled_at'] })
+          ...(typeof parlayPicks[0]?.['settled_at'] === 'string' && {
+            settled_at: parlayPicks[0]?.['settled_at'],
+          }),
         });
       }
 
@@ -456,7 +469,7 @@ export class RecapService {
         message: `Failed to get parlay groups: ${error}`,
         timestamp: new Date().toISOString(),
         context: { startDate, endDate },
-        severity: 'medium'
+        severity: 'medium',
       });
     }
   }
@@ -465,8 +478,10 @@ export class RecapService {
    * Real-time ROI monitoring for micro-recaps
    */
   async checkRoiThreshold(): Promise<MicroRecapData | null> {
-    if (!this.config.microRecap) {return null;}
-    
+    if (!this.config.microRecap) {
+      return null;
+    }
+
     try {
       // Check cooldown
       if (this.lastMicroRecapSent) {
@@ -478,30 +493,34 @@ export class RecapService {
 
       const today = new Date().toISOString().split('T')[0]!;
       const dailyData = await this.getDailyRecapData(today);
-      
-      if (!dailyData) {return null;}
+
+      if (!dailyData) {
+        return null;
+      }
 
       const roiChange = Math.abs(dailyData.roi - this.roiWatcherState.currentDailyRoi);
-      
+
       if (roiChange >= this.config.roiThreshold) {
         this.lastMicroRecapSent = new Date();
-        
+
         return {
           trigger: 'roi_threshold',
           dailyRoi: dailyData.roi,
           roiChange,
           winLoss: `${dailyData.wins}W-${dailyData.losses}L`,
           unitBreakdown: {
-            solo: dailyData.totalUnits - (dailyData.tierBreakdown.find(t => t.tier.includes('Parlay'))?.totalUnits || 0),
+            solo:
+              dailyData.totalUnits -
+              (dailyData.tierBreakdown.find(t => t.tier.includes('Parlay'))?.totalUnits || 0),
             parlay: dailyData.tierBreakdown.find(t => t.tier.includes('Parlay'))?.totalUnits || 0,
-            total: dailyData.totalUnits
+            total: dailyData.totalUnits,
           },
           topCapper: {
             name: dailyData.capperBreakdown[0]?.capper || 'Unknown',
             netUnits: dailyData.capperBreakdown[0]?.netUnits || 0,
-            winRate: dailyData.capperBreakdown[0]?.winRate || 0
+            winRate: dailyData.capperBreakdown[0]?.winRate || 0,
           },
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         };
       }
 
@@ -517,11 +536,13 @@ export class RecapService {
    * Check if last pick of day was grading_status
    */
   async checkLastPickGraded(): Promise<MicroRecapData | null> {
-    if (!this.config.microRecap) {return null;}
-    
+    if (!this.config.microRecap) {
+      return null;
+    }
+
     try {
       const today = new Date().toISOString().split('T')[0]!;
-      
+
       // Get all picks for today
       const { data: picks, error } = await this.supabase
         .from('unified_picks')
@@ -530,16 +551,22 @@ export class RecapService {
         .lt('created_at', `${today}T23:59:59Z`)
         .order('created_at', { ascending: false });
 
-      if (error) {throw error;}
-      if (!picks || picks.length === 0) {return null;}
+      if (error) {
+        throw error;
+      }
+      if (!picks || picks.length === 0) {
+        return null;
+      }
 
       // Check if all picks are grading_status
       const pendingPicks = picks.filter(p => p.play_status === 'pending' || !p.outcome);
-      
+
       if (pendingPicks.length === 0) {
         // All picks grading_status, trigger micro-recap
         const dailyData = await this.getDailyRecapData(today);
-        if (!dailyData) {return null;}
+        if (!dailyData) {
+          return null;
+        }
 
         return {
           trigger: 'last_pick_graded',
@@ -547,16 +574,18 @@ export class RecapService {
           roiChange: 0,
           winLoss: `${dailyData.wins}W-${dailyData.losses}L`,
           unitBreakdown: {
-            solo: dailyData.totalUnits - (dailyData.tierBreakdown.find(t => t.tier.includes('Parlay'))?.totalUnits || 0),
+            solo:
+              dailyData.totalUnits -
+              (dailyData.tierBreakdown.find(t => t.tier.includes('Parlay'))?.totalUnits || 0),
             parlay: dailyData.tierBreakdown.find(t => t.tier.includes('Parlay'))?.totalUnits || 0,
-            total: dailyData.totalUnits
+            total: dailyData.totalUnits,
           },
           topCapper: {
             name: dailyData.capperBreakdown[0]?.capper || 'Unknown',
             netUnits: dailyData.capperBreakdown[0]?.netUnits || 0,
-            winRate: dailyData.capperBreakdown[0]?.winRate || 0
+            winRate: dailyData.capperBreakdown[0]?.winRate || 0,
           },
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         };
       }
 
@@ -573,7 +602,7 @@ export class RecapService {
   private async initializeRoiWatcher(): Promise<void> {
     const today = new Date().toISOString().split('T')[0]!;
     const dailyData = await this.getDailyRecapData(today);
-    
+
     if (dailyData) {
       this.roiWatcherState.currentDailyRoi = dailyData.roi;
       this.roiWatcherState.picksProcessedToday = dailyData.totalPicks;
@@ -610,53 +639,77 @@ export class RecapService {
       clv_delta: raw.clv_delta,
       grade_timestamp: raw.grade_timestamp,
       sport: raw.sport,
-      league: raw.league
+      league: raw.league,
     };
   }
 
   private extractCapper(tags: string[]): string {
-    const capperTag = tags.find(tag => 
-      ['griff', 'ace', 'maya', 'unit talk'].some(capper => 
-        tag.toLowerCase().includes(capper)
-      )
+    const capperTag = tags.find(tag =>
+      ['griff', 'ace', 'maya', 'unit talk'].some(capper => tag.toLowerCase().includes(capper))
     );
-    
+
     if (capperTag) {
-      if (capperTag.toLowerCase().includes('griff')) {return 'Griff';}
-      if (capperTag.toLowerCase().includes('ace')) {return 'Ace';}
-      if (capperTag.toLowerCase().includes('maya')) {return 'Maya';}
-      if (capperTag.toLowerCase().includes('unit talk')) {return 'Unit Talk';}
+      if (capperTag.toLowerCase().includes('griff')) {
+        return 'Griff';
+      }
+      if (capperTag.toLowerCase().includes('ace')) {
+        return 'Ace';
+      }
+      if (capperTag.toLowerCase().includes('maya')) {
+        return 'Maya';
+      }
+      if (capperTag.toLowerCase().includes('unit talk')) {
+        return 'Unit Talk';
+      }
     }
-    
+
     return 'Unit Talk';
   }
 
   private calculateUnits(tier?: string, edgeScore?: number): number {
-    if (tier === 'S') {return 2;}
-    if (tier === 'A+') {return 1.5;}
-    if (tier === 'A') {return 1;}
-    if (edgeScore && edgeScore > 20) {return 1.5;}
+    if (tier === 'S') {
+      return 2;
+    }
+    if (tier === 'A+') {
+      return 1.5;
+    }
+    if (tier === 'A') {
+      return 1;
+    }
+    if (edgeScore && edgeScore > 20) {
+      return 1.5;
+    }
     return 1;
   }
 
   private buildMatchup(pick: any): string {
-    if (pick.matchup) {return pick.matchup;}
-    if (pick.team_name) {return pick.team_name;}
-    if (pick.player_name) {return pick.player_name;}
+    if (pick.matchup) {
+      return pick.matchup;
+    }
+    if (pick.team_name) {
+      return pick.team_name;
+    }
+    if (pick.player_name) {
+      return pick.player_name;
+    }
     return 'Unknown';
   }
 
   private calculateAverageEdge(picks: UnifiedPick[]): number {
     const validPicks = picks.filter(p => typeof p.edge_score === 'number');
-    if (validPicks.length === 0) {return 0;}
-    
+    if (validPicks.length === 0) {
+      return 0;
+    }
+
     const totalEdge = validPicks.reduce((sum, pick) => sum + (pick.edge_score || 0), 0);
     return totalEdge / validPicks.length;
   }
 
   private calculateAverageClv(picks: UnifiedPick[]): number {
     const validPicks = picks.filter(p => typeof p['clv_delta'] === 'number');
-    if (validPicks.length === 0) {return 0;}
+    if (validPicks.length === 0) {
+      return 0;
+    }
 
     const totalClv = validPicks.reduce((sum, pick) => {
       const clvDelta = typeof pick['clv_delta'] === 'number' ? pick['clv_delta'] : 0;
@@ -665,20 +718,35 @@ export class RecapService {
     return totalClv / validPicks.length;
   }
 
-  private calculateCurrentStreak(picks: UnifiedPick[]): { type: 'win' | 'loss' | 'none'; length: number } {
-    if (picks.length === 0) {return { type: 'none', length: 0 };}
+  private calculateCurrentStreak(picks: UnifiedPick[]): {
+    type: 'win' | 'loss' | 'none';
+    length: number;
+  } {
+    if (picks.length === 0) {
+      return { type: 'none', length: 0 };
+    }
 
     const sortedPicks = picks
       .filter(p => p.outcome && p.outcome !== 'push' && p.outcome !== 'pending')
       .sort((a, b) => {
-        const aDate = typeof a['settled_at'] === 'string' ? a['settled_at'] :
-                      typeof a.created_at === 'string' ? a.created_at : '';
-        const bDate = typeof b['settled_at'] === 'string' ? b['settled_at'] :
-                      typeof b.created_at === 'string' ? b.created_at : '';
+        const aDate =
+          typeof a['settled_at'] === 'string'
+            ? a['settled_at']
+            : typeof a.created_at === 'string'
+              ? a.created_at
+              : '';
+        const bDate =
+          typeof b['settled_at'] === 'string'
+            ? b['settled_at']
+            : typeof b.created_at === 'string'
+              ? b.created_at
+              : '';
         return new Date(bDate).getTime() - new Date(aDate).getTime();
       });
 
-    if (sortedPicks.length === 0) {return { type: 'none', length: 0 };}
+    if (sortedPicks.length === 0) {
+      return { type: 'none', length: 0 };
+    }
 
     const latestOutcome = sortedPicks[0]!.outcome;
     let streakLength = 1;
@@ -693,7 +761,7 @@ export class RecapService {
 
     return {
       type: latestOutcome === 'win' ? 'win' : 'loss',
-      length: streakLength
+      length: streakLength,
     };
   }
 
@@ -701,10 +769,18 @@ export class RecapService {
     const sortedPicks = picks
       .filter(p => p.outcome === streakType)
       .sort((a, b) => {
-        const aDate = typeof a['settled_at'] === 'string' ? a['settled_at'] :
-                      typeof a.created_at === 'string' ? a.created_at : '';
-        const bDate = typeof b['settled_at'] === 'string' ? b['settled_at'] :
-                      typeof b.created_at === 'string' ? b.created_at : '';
+        const aDate =
+          typeof a['settled_at'] === 'string'
+            ? a['settled_at']
+            : typeof a.created_at === 'string'
+              ? a.created_at
+              : '';
+        const bDate =
+          typeof b['settled_at'] === 'string'
+            ? b['settled_at']
+            : typeof b.created_at === 'string'
+              ? b.created_at
+              : '';
         return new Date(bDate).getTime() - new Date(aDate).getTime();
       });
 
@@ -724,21 +800,34 @@ export class RecapService {
     const recentPicks = picks
       .filter(p => p.outcome && p.outcome !== 'push')
       .sort((a, b) => {
-        const aDate = typeof a['settled_at'] === 'string' ? a['settled_at'] :
-                      typeof a.created_at === 'string' ? a.created_at : '';
-        const bDate = typeof b['settled_at'] === 'string' ? b['settled_at'] :
-                      typeof b.created_at === 'string' ? b.created_at : '';
+        const aDate =
+          typeof a['settled_at'] === 'string'
+            ? a['settled_at']
+            : typeof a.created_at === 'string'
+              ? a.created_at
+              : '';
+        const bDate =
+          typeof b['settled_at'] === 'string'
+            ? b['settled_at']
+            : typeof b.created_at === 'string'
+              ? b.created_at
+              : '';
         return new Date(aDate).getTime() - new Date(bDate).getTime();
       })
       .slice(-10); // Last 10 picks
 
-    return recentPicks.map(pick => {
-      switch (pick.outcome) {
-        case 'win': return '▲';
-        case 'loss': return '▼';
-        default: return '●';
-      }
-    }).join('');
+    return recentPicks
+      .map(pick => {
+        switch (pick.outcome) {
+          case 'win':
+            return '▲';
+          case 'loss':
+            return '▼';
+          default:
+            return '●';
+        }
+      })
+      .join('');
   }
 
   private findBestPick(picks: UnifiedPick[]): UnifiedPick | undefined {
@@ -780,14 +869,18 @@ export class RecapService {
 
   private calculateParlayOdds(picks: UnifiedPick[]): number {
     return picks.reduce((totalOdds, pick) => {
-      const decimalOdds = pick.odds > 0 ? (pick.odds / 100) + 1 : (100 / Math.abs(pick.odds)) + 1;
+      const decimalOdds = pick.odds > 0 ? pick.odds / 100 + 1 : 100 / Math.abs(pick.odds) + 1;
       return totalOdds * decimalOdds;
     }, 1);
   }
 
   private determineParlayOutcome(picks: UnifiedPick[]): 'win' | 'loss' | 'push' | 'pending' {
-    if (picks.some(p => p.outcome === 'pending')) {return 'pending';}
-    if (picks.some(p => p.outcome === 'loss')) {return 'loss';}
+    if (picks.some(p => p.outcome === 'pending')) {
+      return 'pending';
+    }
+    if (picks.some(p => p.outcome === 'loss')) {
+      return 'loss';
+    }
     if (picks.every(p => p.outcome === 'win' || p.outcome === 'push')) {
       return picks.some(p => p.outcome === 'push') ? 'push' : 'win';
     }

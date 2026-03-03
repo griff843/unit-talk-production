@@ -1,13 +1,16 @@
-import { proxyActivities, defineSignal, defineQuery, setHandler, condition, sleep } from '@temporalio/workflow';
+import {
+  proxyActivities,
+  defineSignal,
+  defineQuery,
+  setHandler,
+  condition,
+  sleep,
+} from '@temporalio/workflow';
 
 import type * as activities from '../activities';
 
 // Proxy activities
-const { 
-  // processDailyPickBatch,
-  // processLivePick,
-  // monitorSmartFormHealth 
-} = proxyActivities<typeof activities>({
+const _activities = proxyActivities<typeof activities>({
   startToCloseTimeout: '10 minutes',
   retry: {
     initialInterval: '1 second',
@@ -42,13 +45,19 @@ export async function smartFormDailyBatchWorkflow(): Promise<void> {
     isPaused: false,
     lastBatchTime: null,
     processedPicksToday: 0,
-    errors: []
+    errors: [],
   };
 
   // Set up signal handlers
-  setHandler(pauseSignal, () => { status.isPaused = true; });
-  setHandler(resumeSignal, () => { status.isPaused = false; });
-  setHandler(emergencyStopSignal, () => { status.isRunning = false; });
+  setHandler(pauseSignal, () => {
+    status.isPaused = true;
+  });
+  setHandler(resumeSignal, () => {
+    status.isPaused = false;
+  });
+  setHandler(emergencyStopSignal, () => {
+    status.isRunning = false;
+  });
   setHandler(getStatusQuery, () => status);
 
   while (status.isRunning) {
@@ -57,19 +66,21 @@ export async function smartFormDailyBatchWorkflow(): Promise<void> {
       const now = new Date();
       const target = new Date();
       target.setUTCHours(15, 0, 0, 0); // 10 AM EST = 3 PM UTC
-      
+
       // If we've passed today's target, set for tomorrow
       if (now >= target) {
         target.setUTCDate(target.getUTCDate() + 1);
       }
-      
+
       const sleepDuration = target.getTime() - now.getTime();
       await sleep(sleepDuration);
 
       // Check if paused
       await condition(() => !status.isPaused);
-      
-      if (!status.isRunning) {break;}
+
+      if (!status.isRunning) {
+        break;
+      }
 
       // Process daily batch
       try {
@@ -83,24 +94,22 @@ export async function smartFormDailyBatchWorkflow(): Promise<void> {
         // });
         status.lastBatchTime = new Date().toISOString();
         status.processedPicksToday = 1;
-        
+
         // Clear old errors on successful run
         status.errors = [];
-        
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         const errorMsg = `Daily batch failed: ${errorMessage}`;
         status.errors.push(errorMsg);
-        
+
         // Keep only last 5 errors
         if (status.errors.length > 5) {
           status.errors = status.errors.slice(-5);
         }
       }
-
     } catch (error) {
       status.errors.push(`Workflow err: ${error instanceof Error ? error.message : String(error)}`);
-      
+
       // Wait 1 hour before retrying on workflow errors
       await sleep('1 hour');
     }
@@ -117,7 +126,7 @@ export async function smartFormLivePickWorkflow(_pickId: string): Promise<void> 
     isPaused: false,
     lastBatchTime: new Date().toISOString(),
     processedPicksToday: 0,
-    errors: []
+    errors: [],
   };
 
   setHandler(getStatusQuery, () => status);
@@ -133,7 +142,6 @@ export async function smartFormLivePickWorkflow(_pickId: string): Promise<void> 
     //   pickData: {}
     // });
     status.processedPicksToday = 1;
-    
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     status.errors.push(errorMessage);
@@ -153,20 +161,28 @@ export async function smartFormHealthMonitorWorkflow(): Promise<void> {
     isPaused: false,
     lastBatchTime: null,
     processedPicksToday: 0,
-    errors: []
+    errors: [],
   };
 
-  setHandler(pauseSignal, () => { status.isPaused = true; });
-  setHandler(resumeSignal, () => { status.isPaused = false; });
-  setHandler(emergencyStopSignal, () => { status.isRunning = false; });
+  setHandler(pauseSignal, () => {
+    status.isPaused = true;
+  });
+  setHandler(resumeSignal, () => {
+    status.isPaused = false;
+  });
+  setHandler(emergencyStopSignal, () => {
+    status.isRunning = false;
+  });
   setHandler(getStatusQuery, () => status);
 
   while (status.isRunning) {
     try {
       // Check if paused
       await condition(() => !status.isPaused);
-      
-      if (!status.isRunning) {break;}
+
+      if (!status.isRunning) {
+        break;
+      }
 
       // Run health check
       // const healthResult = await monitorSmartFormHealth({
@@ -179,11 +195,10 @@ export async function smartFormHealthMonitorWorkflow(): Promise<void> {
 
       // Sleep for 5 minutes between health checks
       await sleep('5 minutes');
-
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       status.errors.push(`Health check failed: ${errorMessage}`);
-      
+
       // Wait 2 minutes before retrying on errors
       await sleep('2 minutes');
     }

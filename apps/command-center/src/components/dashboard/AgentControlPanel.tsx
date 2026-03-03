@@ -13,19 +13,6 @@
  * @module AgentControlPanel
  */
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import {
   Play,
   Pause,
@@ -40,12 +27,22 @@ import {
   Shield,
   ShieldAlert,
 } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useState, useEffect } from 'react';
+
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  useAgentControl,
-  type AgentControlInfo,
-  type AgentState,
-} from '@/hooks/useAgentControl';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/components/ui/use-toast';
+import { useAgentControl, type AgentControlInfo, type AgentState } from '@/hooks/useAgentControl';
 
 interface AgentControlPanelProps {
   className?: string;
@@ -254,27 +251,16 @@ export function AgentControlPanel({ className = '' }: AgentControlPanelProps) {
             <Shield className="w-6 h-6" />
             Agent Control Plane
           </h2>
-          <p className="text-muted-foreground">
-            Phase 1 - Real enforcement with RBAC
-          </p>
+          <p className="text-muted-foreground">Phase 1 - Real enforcement with RBAC</p>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fetchAgents()}
-            disabled={loading}
-          >
+          <Button variant="outline" size="sm" onClick={() => fetchAgents()} disabled={loading}>
             <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
 
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => setEmergencyDialogOpen(true)}
-          >
+          <Button variant="destructive" size="sm" onClick={() => setEmergencyDialogOpen(true)}>
             <ShieldAlert className="w-4 h-4 mr-2" />
             Emergency Stop
           </Button>
@@ -359,7 +345,7 @@ export function AgentControlPanel({ className = '' }: AgentControlPanelProps) {
             </div>
           ) : (
             <div className="space-y-3">
-              {agents.map((agent) => (
+              {agents.map(agent => (
                 <div
                   key={agent.agentId}
                   className="flex items-center justify-between p-4 rounded-lg border bg-muted/20 hover:bg-muted/40 transition-colors"
@@ -516,8 +502,8 @@ export function AgentControlPanel({ className = '' }: AgentControlPanelProps) {
             <DialogDescription>
               {!pendingKillConfirmation ? (
                 <>
-                  This will immediately terminate the agent. This action cannot be undone.
-                  A reason is required for audit purposes.
+                  This will immediately terminate the agent. This action cannot be undone. A reason
+                  is required for audit purposes.
                 </>
               ) : (
                 <>
@@ -535,7 +521,7 @@ export function AgentControlPanel({ className = '' }: AgentControlPanelProps) {
                   <label className="text-sm font-medium">Reason (required)</label>
                   <Input
                     value={killReason}
-                    onChange={(e) => setKillReason(e.target.value)}
+                    onChange={e => setKillReason(e.target.value)}
                     placeholder="Enter reason for killing this agent..."
                   />
                 </div>
@@ -592,8 +578,8 @@ export function AgentControlPanel({ className = '' }: AgentControlPanelProps) {
               Emergency Stop All Agents
             </DialogTitle>
             <DialogDescription>
-              This will immediately stop ALL running agents. This is a critical operation
-              and requires super_admin role.
+              This will immediately stop ALL running agents. This is a critical operation and
+              requires super_admin role.
             </DialogDescription>
           </DialogHeader>
 
@@ -602,7 +588,7 @@ export function AgentControlPanel({ className = '' }: AgentControlPanelProps) {
               <label className="text-sm font-medium">Reason (required)</label>
               <Input
                 value={emergencyReason}
-                onChange={(e) => setEmergencyReason(e.target.value)}
+                onChange={e => setEmergencyReason(e.target.value)}
                 placeholder="Enter reason for emergency stop..."
               />
             </div>

@@ -21,7 +21,16 @@ export type PickStatus = z.infer<typeof PickStatus>;
 export const PickType = z.enum(['single', 'parlay']);
 export type PickType = z.infer<typeof PickType>;
 
-export const UserTier = z.enum(['member', 'trial', 'vip', 'vip_plus', 'capper', 'staff', 'admin', 'owner']);
+export const UserTier = z.enum([
+  'member',
+  'trial',
+  'vip',
+  'vip_plus',
+  'capper',
+  'staff',
+  'admin',
+  'owner',
+]);
 export type UserTier = z.infer<typeof UserTier>;
 
 export const SubscriptionTier = z.enum(['FREE', 'PREMIUM', 'VIP', 'VIP_PLUS']);
@@ -54,7 +63,7 @@ export const UnifiedPickSchema = z.object({
   league: z.string(),
   confidence: z.number(),
   analysis: z.string().nullable(),
-  metadata: z.record(z.unknown()).nullable()
+  metadata: z.record(z.unknown()).nullable(),
 });
 
 export const DailyPickSchema = z.object({
@@ -74,7 +83,7 @@ export const DailyPickSchema = z.object({
   thread_id: z.string().nullable(),
   message_id: z.string().nullable(),
   legs: z.array(z.record(z.unknown())),
-  metadata: z.record(z.unknown()).nullable()
+  metadata: z.record(z.unknown()).nullable(),
 });
 
 export const UserProfileSchema = z.object({
@@ -88,7 +97,7 @@ export const UserProfileSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
   last_active: z.string(),
-  metadata: z.record(z.unknown())
+  metadata: z.record(z.unknown()),
 });
 
 export const CapperProfileSchema = z.object({
@@ -110,7 +119,7 @@ export const CapperProfileSchema = z.object({
   current_streak: z.number(),
   best_streak: z.number(),
   worst_streak: z.number(),
-  metadata: z.record(z.unknown()).nullable()
+  metadata: z.record(z.unknown()).nullable(),
 });
 
 export const TrendAnalysisSchema = z.object({
@@ -124,7 +133,7 @@ export const TrendAnalysisSchema = z.object({
   avg_performance: z.number(),
   edge_volatility: z.number(),
   confidence: z.number(),
-  metadata: z.record(z.unknown()).nullable()
+  metadata: z.record(z.unknown()).nullable(),
 });
 
 // --- Type Definitions ---
@@ -141,12 +150,41 @@ export interface Database {
     Tables: {
       unified_picks: {
         Row: UnifiedPick;
-        Insert: Partial<UnifiedPick> & Pick<UnifiedPick, 'capper_id' | 'player_id' | 'game_id' | 'stat_type' | 'line' | 'odds' | 'stake' | 'payout' | 'result' | 'actual_value' | 'tier' | 'ticket_type' | 'sport' | 'league' | 'confidence'>;
+        Insert: Partial<UnifiedPick> &
+          Pick<
+            UnifiedPick,
+            | 'capper_id'
+            | 'player_id'
+            | 'game_id'
+            | 'stat_type'
+            | 'line'
+            | 'odds'
+            | 'stake'
+            | 'payout'
+            | 'result'
+            | 'actual_value'
+            | 'tier'
+            | 'ticket_type'
+            | 'sport'
+            | 'league'
+            | 'confidence'
+          >;
         Update: Partial<UnifiedPick>;
       };
       daily_picks: {
         Row: DailyPick;
-        Insert: Partial<DailyPick> & Pick<DailyPick, 'capper_id' | 'capper_discord_id' | 'capper_username' | 'event_date' | 'pick_type' | 'total_legs' | 'total_odds' | 'total_units'>;
+        Insert: Partial<DailyPick> &
+          Pick<
+            DailyPick,
+            | 'capper_id'
+            | 'capper_discord_id'
+            | 'capper_username'
+            | 'event_date'
+            | 'pick_type'
+            | 'total_legs'
+            | 'total_odds'
+            | 'total_units'
+          >;
         Update: Partial<DailyPick>;
       };
       user_profiles: {
@@ -161,7 +199,17 @@ export interface Database {
       };
       trend_analysis: {
         Row: TrendAnalysis;
-        Insert: Partial<TrendAnalysis> & Pick<TrendAnalysis, 'player_id' | 'stat_type' | 'trend_direction' | 'streak_length' | 'avg_performance' | 'edge_volatility' | 'confidence'>;
+        Insert: Partial<TrendAnalysis> &
+          Pick<
+            TrendAnalysis,
+            | 'player_id'
+            | 'stat_type'
+            | 'trend_direction'
+            | 'streak_length'
+            | 'avg_performance'
+            | 'edge_volatility'
+            | 'confidence'
+          >;
         Update: Partial<TrendAnalysis>;
       };
     };
@@ -203,14 +251,20 @@ export function validateTrendAnalysis(data: unknown): TrendAnalysis {
 
 // --- Error Types ---
 export class SupabaseValidationError extends Error {
-  constructor(message: string, public zodError: z.ZodError) {
+  constructor(
+    message: string,
+    public zodError: z.ZodError
+  ) {
     super(message);
     this.name = 'SupabaseValidationError';
   }
 }
 
 export class SupabaseQueryError extends Error {
-  constructor(message: string, public _error: unknown) {
+  constructor(
+    message: string,
+    public _error: unknown
+  ) {
     super(message);
     this.name = 'SupabaseQueryError';
   }
@@ -239,4 +293,4 @@ export async function safeQuery<T>(
     }
     throw _err;
   }
-} 
+}

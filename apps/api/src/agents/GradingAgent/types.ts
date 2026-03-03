@@ -70,4 +70,4 @@ export class GradingError extends Error {
       this.details = data.details;
     }
   }
-} 
+}

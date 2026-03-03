@@ -85,10 +85,7 @@ export class Logger {
   }
 
   // Log method execution with timing
-  async logExecution<T>(
-    methodName: string,
-    operation: () => Promise<T>
-  ): Promise<T> {
+  async logExecution<T>(methodName: string, operation: () => Promise<T>): Promise<T> {
     const start = Date.now();
     try {
       const result = await operation();
@@ -97,11 +94,7 @@ export class Logger {
       return result;
     } catch (error) {
       const duration = Date.now() - start;
-      this.error(
-        `${methodName} failed`,
-        error as Error,
-        { duration }
-      );
+      this.error(`${methodName} failed`, error as Error, { duration });
       throw error;
     }
   }
@@ -125,7 +118,7 @@ export const logger = new Logger('app');
 // Export types
 export * from './types';
 
-// Export Logger interface for compatibility  
+// Export Logger interface for compatibility
 export interface LoggerInterface {
   debug: LogMethod;
   info: LogMethod;
@@ -135,4 +128,4 @@ export interface LoggerInterface {
   setLevel?(level: LogLevel): void;
 }
 
-// LogMethod is imported from types.ts 
+// LogMethod is imported from types.ts

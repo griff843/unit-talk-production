@@ -24,7 +24,7 @@ async function validateEnvironment(): Promise<ValidationResult[]> {
     'SUPABASE_SERVICE_ROLE_KEY',
     'TEMPORAL_TASK_QUEUE',
     'TEMPORAL_ADDRESS',
-    'TEMPORAL_NAMESPACE'
+    'TEMPORAL_NAMESPACE',
   ];
 
   for (const varName of requiredVars) {
@@ -37,7 +37,7 @@ async function validateEnvironment(): Promise<ValidationResult[]> {
     'OPTIMAL_API_KEY',
     'TWILIO_ACCOUNT_SID',
     'TWILIO_AUTH_TOKEN',
-    'TWILIO_FROM_NUMBER'
+    'TWILIO_FROM_NUMBER',
   ];
 
   for (const varName of optionalVars) {
@@ -60,7 +60,7 @@ function validateEnvVar(varName: string, required: unknown): ValidationResult {
     return {
       success: false,
       message: `Required environment variable ${varName} is missing`,
-      details: { varName, required }
+      details: { varName, required },
     };
   }
 
@@ -68,14 +68,14 @@ function validateEnvVar(varName: string, required: unknown): ValidationResult {
     return {
       success: true,
       message: `Optional environment variable ${varName} is not set`,
-      details: { varName, required }
+      details: { varName, required },
     };
   }
 
   return {
     success: true,
     message: `Environment variable ${varName} is set`,
-    details: { varName, required }
+    details: { varName, required },
   };
 }
 
@@ -88,20 +88,20 @@ async function validateSupabaseConnection(): Promise<ValidationResult> {
       return {
         success: false,
         message: 'Failed to connect to Supabase',
-        details: { error: error.message }
+        details: { error: error.message },
       };
     }
 
     return {
       success: true,
       message: 'Successfully connected to Supabase',
-      details: { data }
+      details: { data },
     };
   } catch (error) {
     return {
       success: false,
       message: 'Failed to connect to Supabase',
-      details: { err: error instanceof Error ? error.message : String(error) }
+      details: { err: error instanceof Error ? error.message : String(error) },
     };
   }
 }
@@ -112,46 +112,48 @@ async function validateTemporalConnection(): Promise<ValidationResult> {
     return {
       success: true,
       message: 'Temporal connection validation not implemented yet',
-      details: { temporalAddress: process.env.TEMPORAL_ADDRESS || 'localhost:7233' }
+      details: { temporalAddress: process.env.TEMPORAL_ADDRESS || 'localhost:7233' },
     };
   } catch (error) {
     return {
       success: false,
       message: 'Failed to connect to Temporal',
-      details: { err: error instanceof Error ? error.message : String(error) }
+      details: { err: error instanceof Error ? error.message : String(error) },
     };
   }
 }
 
 if (require.main === module) {
-  validateEnvironment().then((results) => {
-    const failures = results.filter(r => !r.success);
+  validateEnvironment()
+    .then(results => {
+      const failures = results.filter(r => !r.success);
 
-    for (const result of results) {
-      if (result.success) {
-        logger.info(result.message, result.details);
-      } else {
-        logger.error(result.message, result.details);
+      for (const result of results) {
+        if (result.success) {
+          logger.info(result.message, result.details);
+        } else {
+          logger.error(result.message, result.details);
+        }
       }
-    }
 
-    if (failures.length > 0) {
-      logger.error('Environment validation failed', {
-        failureCount: failures.length,
-        totalChecks: results.length
+      if (failures.length > 0) {
+        logger.error('Environment validation failed', {
+          failureCount: failures.length,
+          totalChecks: results.length,
+        });
+        process.exit(1);
+      }
+
+      logger.info('Environment validation passed', {
+        totalChecks: results.length,
+      });
+    })
+    .catch(error => {
+      logger.error('Failed to validate environment', {
+        error: error instanceof Error ? error.message : String(error),
       });
       process.exit(1);
-    }
-
-    logger.info('Environment validation passed', {
-      totalChecks: results.length
     });
-  }).catch((error) => {
-    logger.error('Failed to validate environment', {
-      error: error instanceof Error ? error.message : String(error)
-    });
-    process.exit(1);
-  });
 }
 
 export { validateEnvironment };

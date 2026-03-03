@@ -1,9 +1,9 @@
 /**
  * Discord Bot Integration Service
- * 
+ *
  * Provides integration with the Discord bot for sending messages,
  * managing channels, and handling Discord-related operations.
- * 
+ *
  * @module services/DiscordBotIntegration
  * @since Phase 4 - Compile Green Stabilization
  */
@@ -53,7 +53,7 @@ export class DiscordBotIntegration {
 
   /**
    * Send a message to a Discord channel or thread
-   * 
+   *
    * @param message - Message payload
    * @returns Promise resolving to message ID
    */
@@ -63,7 +63,7 @@ export class DiscordBotIntegration {
     console.log('[DiscordBotIntegration] Sending message:', {
       content: message.content.substring(0, 100),
       channelId: message.channelId,
-      threadId: message.threadId
+      threadId: message.threadId,
     });
 
     // Return a mock message ID
@@ -72,27 +72,27 @@ export class DiscordBotIntegration {
 
   /**
    * Send a message to a capper's thread
-   * 
+   *
    * @param capperName - Name of the capper
    * @param content - Message content
    * @returns Promise resolving to message ID
    */
   async sendToCapperThread(capperName: string, content: string): Promise<string> {
     const threadId = env.capperThreads[capperName];
-    
+
     if (!threadId) {
       throw new Error(`No thread ID configured for capper: ${capperName}`);
     }
 
     return this.sendMessage({
       content,
-      threadId
+      threadId,
     });
   }
 
   /**
    * Send an alert to the alerts channel
-   * 
+   *
    * @param content - Alert content
    * @param embed - Optional embed for rich formatting
    * @returns Promise resolving to message ID
@@ -107,13 +107,13 @@ export class DiscordBotIntegration {
     return this.sendMessage({
       content,
       channelId,
-      embeds: embed ? [embed] : undefined
+      embeds: embed ? [embed] : undefined,
     });
   }
 
   /**
    * Send a system alert to the system alerts thread
-   * 
+   *
    * @param content - Alert content
    * @returns Promise resolving to message ID
    */
@@ -126,13 +126,13 @@ export class DiscordBotIntegration {
 
     return this.sendMessage({
       content,
-      threadId
+      threadId,
     });
   }
 
   /**
    * Create a Discord embed for a pick
-   * 
+   *
    * @param pick - Pick data
    * @returns Discord embed
    */
@@ -145,20 +145,20 @@ export class DiscordBotIntegration {
         {
           name: 'Over Odds',
           value: pick.over_odds?.toString() || 'N/A',
-          inline: true
+          inline: true,
         },
         {
           name: 'Under Odds',
           value: pick.under_odds?.toString() || 'N/A',
-          inline: true
+          inline: true,
         },
         {
           name: 'Sport',
           value: pick.sport || 'N/A',
-          inline: true
-        }
+          inline: true,
+        },
       ],
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -174,7 +174,7 @@ export class DiscordBotIntegration {
       hedge: 0xffa500, // Orange
       middle: 0x0000ff, // Blue
       injury: 0xff0000, // Red
-      steam: 0x800080  // Purple
+      steam: 0x800080, // Purple
     };
 
     return {
@@ -183,9 +183,9 @@ export class DiscordBotIntegration {
       color: colors[alertType as keyof typeof colors] || 0x808080,
       fields: data.fields || [],
       footer: {
-        text: 'Unit Talk Alert System'
+        text: 'Unit Talk Alert System',
       },
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -203,7 +203,7 @@ export class DiscordBotIntegration {
     console.log('[DiscordBotIntegration] Creating forum thread:', {
       forumId,
       name,
-      content: content.substring(0, 100)
+      content: content.substring(0, 100),
     });
 
     // Return a mock thread ID
@@ -220,7 +220,7 @@ export class DiscordBotIntegration {
   async postPlainText(channelId: string, content: string): Promise<string> {
     return this.sendMessage({
       content,
-      channelId
+      channelId,
     });
   }
 }
@@ -232,7 +232,7 @@ let discordBotInstance: DiscordBotIntegration | null = null;
 
 /**
  * Get or create the singleton DiscordBotIntegration instance
- * 
+ *
  * @returns DiscordBotIntegration instance
  */
 export function getDiscordBot(): DiscordBotIntegration {
@@ -256,4 +256,3 @@ export function resetDiscordBot(): void {
 export const discordBotIntegration = getDiscordBot();
 
 export default DiscordBotIntegration;
-

@@ -1,13 +1,14 @@
 /**
  * Shadow Mode Configuration Validator
- * 
+ *
  * Validates shadow mode setup and ensures production safety invariants
  * before deployment. Critical for preventing accidental public posting
  * in shadow mode or bypassing safety checks in live mode.
  */
 
-import { createLogger } from '../utils/logger';
 import { supabase as supabaseClient } from '../services/supabaseClient';
+import { createLogger } from '../utils/logger';
+
 import { shadowMode } from './ShadowMode';
 
 export interface ShadowModeValidationResult {
@@ -63,25 +64,25 @@ export class ShadowModeValidator {
       databaseChecks: {
         shadowTableExists: false,
         unifiedPicksTableExists: false,
-        migrationApplied: false
+        migrationApplied: false,
       },
       configurationChecks: {
         environmentConfigured: false,
         discordConfigured: false,
-        cleanupConfigured: false
+        cleanupConfigured: false,
       },
       invariantChecks: {
         publishGuardActive: false,
         shadowLoggingActive: false,
-        publicActionBlocking: false
-      }
+        publicActionBlocking: false,
+      },
     };
 
     // Run all validation checks
     await Promise.all([
       this.validateDatabaseSetup(result),
       this.validateConfiguration(result),
-      this.validateInvariants(result)
+      this.validateInvariants(result),
     ]);
 
     // Determine overall validity
@@ -91,7 +92,7 @@ export class ShadowModeValidator {
       valid: result.valid,
       mode: result.mode,
       errors: result.errors.length,
-      warnings: result.warnings.length
+      warnings: result.warnings.length,
     });
 
     return result;
@@ -109,7 +110,9 @@ export class ShadowModeValidator {
         .limit(1);
 
       if (shadowError && shadowError.code === 'PGRST116') {
-        result.errors.push('shadow_decisions table does not exist - run migration 004_professional_grading_columns.sql');
+        result.errors.push(
+          'shadow_decisions table does not exist - run migration 004_professional_grading_columns.sql'
+        );
         result.databaseChecks.shadowTableExists = false;
       } else if (shadowError) {
         result.warnings.push(`Error checking shadow_decisions table: ${shadowError.message}`);
@@ -151,13 +154,14 @@ export class ShadowModeValidator {
       }
 
       // Check for shadow cleanup function
-      const { data: cleanupFunction, error: cleanupError } = await supabaseClient
-        .rpc('cleanup_old_shadow_data', { max_days: 1 });
+      const { data: cleanupFunction, error: cleanupError } = await supabaseClient.rpc(
+        'cleanup_old_shadow_data',
+        { max_days: 1 }
+      );
 
       if (cleanupError && cleanupError.message?.includes('does not exist')) {
         result.warnings.push('Shadow cleanup function not found - manual cleanup required');
       }
-
     } catch (error) {
       result.errors.push(`Database validation failed: ${error}`);
     }
@@ -228,7 +232,7 @@ export class ShadowModeValidator {
       // Test publish guard is active
       const publishGuardActive = this.testPublishGuard();
       result.invariantChecks.publishGuardActive = publishGuardActive;
-      
+
       if (!publishGuardActive) {
         result.errors.push('Publish guard is not active - critical safety failure');
       }
@@ -236,7 +240,7 @@ export class ShadowModeValidator {
       // Test shadow logging functionality
       const shadowLoggingActive = await this.testShadowLogging();
       result.invariantChecks.shadowLoggingActive = shadowLoggingActive;
-      
+
       if (!shadowLoggingActive) {
         result.errors.push('Shadow logging is not working - audit trail compromised');
       }
@@ -245,7 +249,7 @@ export class ShadowModeValidator {
       if (result.mode === 'shadow') {
         const publicActionBlocking = this.testPublicActionBlocking();
         result.invariantChecks.publicActionBlocking = publicActionBlocking;
-        
+
         if (!publicActionBlocking) {
           result.errors.push('CRITICAL: Public actions not blocked in shadow mode');
         }
@@ -253,7 +257,6 @@ export class ShadowModeValidator {
         // In live mode, public actions should be allowed
         result.invariantChecks.publicActionBlocking = !shadowMode.shouldSkipPublicAction('publish');
       }
-
     } catch (error) {
       result.errors.push(`Invariant validation failed: ${error}`);
     }
@@ -284,12 +287,12 @@ export class ShadowModeValidator {
         sport: 'TEST',
         market: 'validation-test',
         player: 'Test Player',
-        tier: 'TEST'
+        tier: 'TEST',
       };
 
       // Try to write a test shadow pick
       await shadowMode.shadowWritePick(testPick, 'rejected-gate', ['validation-test']);
-      
+
       // If no error thrown, logging is working
       return true;
     } catch (error) {
@@ -319,7 +322,7 @@ export class ShadowModeValidator {
    */
   public generateValidationReport(result: ShadowModeValidationResult): string {
     const lines: string[] = [];
-    
+
     lines.push('═══════════════════════════════════════');
     lines.push('    SHADOW MODE VALIDATION REPORT');
     lines.push('═══════════════════════════════════════');
@@ -396,18 +399,19 @@ export class ShadowModeValidator {
    */
   public async quickValidation(): Promise<{ valid: boolean; criticalErrors: string[] }> {
     const result = await this.validateShadowModeSetup();
-    
+
     // Identify critical errors that block deployment
-    const criticalErrors = result.errors.filter(error => 
-      error.includes('CRITICAL') || 
-      error.includes('shadow_decisions table does not exist') ||
-      error.includes('Publish guard is not active') ||
-      error.includes('Public actions not blocked')
+    const criticalErrors = result.errors.filter(
+      error =>
+        error.includes('CRITICAL') ||
+        error.includes('shadow_decisions table does not exist') ||
+        error.includes('Publish guard is not active') ||
+        error.includes('Public actions not blocked')
     );
 
     return {
       valid: criticalErrors.length === 0,
-      criticalErrors
+      criticalErrors,
     };
   }
 }
@@ -420,9 +424,9 @@ export async function runShadowModeValidation(): Promise<void> {
   const validator = ShadowModeValidator.getInstance();
   const result = await validator.validateShadowModeSetup();
   const report = validator.generateValidationReport(result);
-  
+
   console.log(report);
-  
+
   if (!result.valid) {
     process.exit(1);
   }

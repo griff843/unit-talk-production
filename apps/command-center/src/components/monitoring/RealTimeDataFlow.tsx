@@ -31,7 +31,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/lib/supabase';
 
-
 interface DataFlowMetrics {
   feedIngestion: {
     propsReceived: number;

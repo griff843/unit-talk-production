@@ -285,7 +285,7 @@ export async function generateRecapReport(options: RecapReportOptions): Promise<
       summary,
       markdown: renderMarkdown(summary, mode === 'weekly'),
       picks_count: 0,
-      date_range: { start: dateStart, end: dateEnd }
+      date_range: { start: dateStart, end: dateEnd },
     };
   }
 
@@ -297,7 +297,7 @@ export async function generateRecapReport(options: RecapReportOptions): Promise<
     summary,
     markdown,
     picks_count: picks.length,
-    date_range: { start: dateStart, end: dateEnd }
+    date_range: { start: dateStart, end: dateEnd },
   };
 }
 

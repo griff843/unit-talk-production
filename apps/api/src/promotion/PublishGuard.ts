@@ -4,11 +4,16 @@
  * Phase 6.5: All side effects now go through AutopilotGuard
  */
 
-import { createLogger } from '../utils/logger';
-import { shadowMode, shadowWritePick, shadowPublishPreview, type ShadowPick, type ShadowAction } from '../shadow/ShadowMode';
-import { supabase as supabaseClient } from '../services/supabaseClient';
-
 import { autopilotGuard } from '../lib/AutopilotGuard';
+import { supabase as supabaseClient } from '../services/supabaseClient';
+import {
+  shadowMode,
+  shadowWritePick,
+  shadowPublishPreview,
+  type ShadowPick,
+  type ShadowAction,
+} from '../shadow/ShadowMode';
+import { createLogger } from '../utils/logger';
 
 // NOTE: shadowMode is imported for internal logging only.
 // ALL gating decisions MUST go through AutopilotGuard (Phase 6.5 requirement).
@@ -65,8 +70,8 @@ class PublishGuardService {
       metadata: {
         lane: decision.lane,
         tier: options.tier,
-        player: decision.pick?.player_name
-      }
+        player: decision.pick?.player_name,
+      },
     });
 
     this.logger.info('Processing promotion decision via AutopilotGuard', {
@@ -75,7 +80,7 @@ class PublishGuardService {
       player: decision.pick?.player_name,
       autopilotAllowed: guardResult.allowed,
       autopilotMode: guardResult.mode,
-      autopilotDecision: guardResult.decision
+      autopilotDecision: guardResult.decision,
     });
 
     // Prepare shadow pick data for logging
@@ -124,13 +129,13 @@ class PublishGuardService {
     this.logger.info('Shadow mode promotion logged', {
       action: shadowAction,
       reasons: reasons.slice(0, 3), // First 3 reasons for brevity
-      previewSent: channelsNotified.length > 0
+      previewSent: channelsNotified.length > 0,
     });
 
     return {
       published: false,
       shadowLogged: true,
-      channelsNotified
+      channelsNotified,
     };
   }
 
@@ -158,7 +163,7 @@ class PublishGuardService {
           .update({
             published: true,
             published_at: new Date().toISOString(),
-            tier: options.tier || decision.pick.tier
+            tier: options.tier || decision.pick.tier,
           })
           .eq('id', decision.pick.id);
       }
@@ -176,13 +181,13 @@ class PublishGuardService {
     this.logger.info('Normal mode promotion processed', {
       published,
       channelsNotified,
-      action: shadowAction
+      action: shadowAction,
     });
 
     return {
       published,
       shadowLogged: true,
-      channelsNotified
+      channelsNotified,
     };
   }
 
@@ -213,7 +218,7 @@ class PublishGuardService {
       chaosMuted: pick.chaos_muted,
       steamMuted: pick.steam_muted,
       isInstant: options.isInstant,
-      groupKey: options.groupKey
+      groupKey: options.groupKey,
     };
   }
 
@@ -242,7 +247,7 @@ class PublishGuardService {
         .update({
           published: false,
           shadow_mode: true,
-          shadow_logged_at: new Date().toISOString()
+          shadow_logged_at: new Date().toISOString(),
         })
         .eq('id', pickId);
     } catch (error) {
@@ -283,7 +288,7 @@ class PublishGuardService {
       action: 'DB_POSTED_MUTATION',
       agent_name: 'PublishGuard.handleRecheckDecision',
       pick_id: pickId,
-      metadata: { recheckType, validationStatus, action }
+      metadata: { recheckType, validationStatus, action },
     });
 
     // Always log to shadow for analysis
@@ -319,7 +324,7 @@ class PublishGuardService {
         await shadowWritePick(shadowPick, 'rejected-recheck', [
           `${recheckType}: ${validationStatus}`,
           `EV: ${metrics.evAtRecheck || 'N/A'}`,
-          `CLV: ${metrics.clvAtRecheck || 'N/A'}`
+          `CLV: ${metrics.clvAtRecheck || 'N/A'}`,
         ]);
       }
     }
@@ -330,7 +335,7 @@ class PublishGuardService {
       validationStatus,
       action,
       autopilotAllowed: guardResult.allowed,
-      autopilotMode: guardResult.mode
+      autopilotMode: guardResult.mode,
     });
   }
 
@@ -350,7 +355,7 @@ class PublishGuardService {
       action: 'DISCORD_ALERT',
       agent_name: 'PublishGuard.handleAlertDecision',
       pick_id: pickId,
-      metadata: { alertType, severity, message }
+      metadata: { alertType, severity, message },
     });
 
     // Always log to shadow for analysis
@@ -364,13 +369,7 @@ class PublishGuardService {
       .single();
 
     if (shadowPick) {
-      await shadowMode.shadowWriteAlert(
-        shadowPick.id,
-        alertType,
-        severity,
-        message,
-        data
-      );
+      await shadowMode.shadowWriteAlert(shadowPick.id, alertType, severity, message, data);
     }
 
     // Only process actual alert if AutopilotGuard allows
@@ -378,7 +377,7 @@ class PublishGuardService {
       this.logger.info('Processing alert (AutopilotGuard allowed)', {
         pickId,
         alertType,
-        severity
+        severity,
       });
       // Would trigger actual alert mechanisms here
     } else {
@@ -387,7 +386,7 @@ class PublishGuardService {
         alertType,
         severity,
         reason: guardResult.reason,
-        mode: guardResult.mode
+        mode: guardResult.mode,
       });
     }
   }
@@ -397,15 +396,17 @@ class PublishGuardService {
    * Phase 6.5: Delegates to AutopilotGuard - the sole authority for side effects
    * @deprecated Use autopilotGuard.assertMayPerformSideEffect() directly
    */
-  public async shouldSkipPublicAction(actionType: 'publish' | 'alert' | 'webhook'): Promise<boolean> {
+  public async shouldSkipPublicAction(
+    actionType: 'publish' | 'alert' | 'webhook'
+  ): Promise<boolean> {
     const actionMap: Record<string, 'DISCORD_POST' | 'DISCORD_ALERT' | 'WEBHOOK_CALL'> = {
       publish: 'DISCORD_POST',
       alert: 'DISCORD_ALERT',
-      webhook: 'WEBHOOK_CALL'
+      webhook: 'WEBHOOK_CALL',
     };
     const result = await autopilotGuard.assertMayPerformSideEffect({
       action: actionMap[actionType] || 'WEBHOOK_CALL',
-      agent_name: 'PublishGuard.shouldSkipPublicAction'
+      agent_name: 'PublishGuard.shouldSkipPublicAction',
     });
     return !result.allowed;
   }

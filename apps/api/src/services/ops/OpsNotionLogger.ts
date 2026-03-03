@@ -14,7 +14,9 @@
  */
 
 import { Client } from '@notionhq/client';
+
 import { makeLogger } from '../../utils/logger';
+
 import { NotionPayload, NotificationResult, IncidentRecord } from './OpsIncidentRouter';
 
 const logger = makeLogger('OpsNotionLogger');
@@ -33,14 +35,14 @@ interface NotionPageProperties {
   'Incident ID': { title: Array<{ text: { content: string } }> };
   'SLO Name': { rich_text: Array<{ text: { content: string } }> };
   'SLO ID': { rich_text: Array<{ text: { content: string } }> };
-  'Severity': { select: { name: string } };
-  'Status': { select: { name: string } };
+  Severity: { select: { name: string } };
+  Status: { select: { name: string } };
   'Opened At': { date: { start: string } };
   'Acknowledged At': { date: { start: string } | null };
   'Resolved At': { date: { start: string } | null };
   'Trigger Value': { number: number };
   'Trigger Threshold': { number: number };
-  'Environment': { select: { name: string } };
+  Environment: { select: { name: string } };
   'Correlation ID': { rich_text: Array<{ text: { content: string } }> };
 }
 
@@ -86,10 +88,7 @@ export class OpsNotionLogger {
   /**
    * Retry with exponential backoff
    */
-  private async retryWithBackoff<T>(
-    operation: () => Promise<T>,
-    attempt: number = 1
-  ): Promise<T> {
+  private async retryWithBackoff<T>(operation: () => Promise<T>, attempt: number = 1): Promise<T> {
     try {
       return await operation();
     } catch (error) {
@@ -107,9 +106,12 @@ export class OpsNotionLogger {
 
       const delay = Math.pow(this.config.backoffMultiplier, attempt - 1) * 1000;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      logger.warn(`Notion operation failed (attempt ${attempt}/${this.config.maxRetries}), retrying in ${delay}ms`, {
-        error: errorMessage,
-      });
+      logger.warn(
+        `Notion operation failed (attempt ${attempt}/${this.config.maxRetries}), retrying in ${delay}ms`,
+        {
+          error: errorMessage,
+        }
+      );
 
       await new Promise(resolve => setTimeout(resolve, delay));
       return this.retryWithBackoff(operation, attempt + 1);
@@ -225,7 +227,7 @@ export class OpsNotionLogger {
     try {
       await this.retryWithBackoff(async () => {
         const updateProps: Record<string, unknown> = {
-          'Status': { select: { name: incident.status.toUpperCase() } },
+          Status: { select: { name: incident.status.toUpperCase() } },
         };
 
         if (incident.acknowledged_at) {
@@ -281,10 +283,10 @@ export class OpsNotionLogger {
       'SLO ID': {
         rich_text: [{ text: { content: incident.slo_id } }],
       },
-      'Severity': {
+      Severity: {
         select: { name: incident.severity.toUpperCase() },
       },
-      'Status': {
+      Status: {
         select: { name: incident.status.toUpperCase() },
       },
       'Opened At': {
@@ -293,16 +295,14 @@ export class OpsNotionLogger {
       'Acknowledged At': incident.acknowledged_at
         ? { date: { start: incident.acknowledged_at } }
         : null,
-      'Resolved At': incident.resolved_at
-        ? { date: { start: incident.resolved_at } }
-        : null,
+      'Resolved At': incident.resolved_at ? { date: { start: incident.resolved_at } } : null,
       'Trigger Value': {
         number: incident.trigger_value,
       },
       'Trigger Threshold': {
         number: incident.trigger_threshold,
       },
-      'Environment': {
+      Environment: {
         select: { name: environment.toUpperCase() },
       },
       'Correlation ID': {
@@ -428,10 +428,7 @@ export function getOpsNotionLogger(): OpsNotionLogger {
   return loggerInstance;
 }
 
-export function initializeOpsNotionLogger(
-  apiKey: string,
-  databaseId: string
-): OpsNotionLogger {
+export function initializeOpsNotionLogger(apiKey: string, databaseId: string): OpsNotionLogger {
   const notionLogger = getOpsNotionLogger();
   notionLogger.initialize(apiKey, databaseId);
   return notionLogger;

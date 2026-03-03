@@ -2,7 +2,7 @@
 
 /**
  * Automated Batch Migration Runner
- * 
+ *
  * Runs the batched migration automatically with proper delays
  * and progress monitoring. Stops automatically when complete.
  */
@@ -36,7 +36,7 @@ async function automatedBatchRunner() {
   try {
     // 1. Initial state check
     console.log('\n📊 Step 1: Analyzing migration requirements...');
-    
+
     const initialProgress = await getProgress();
     console.log(`🔥 Current state:`);
     console.log(`  Total props: ${initialProgress.totalProps}`);
@@ -51,11 +51,11 @@ async function automatedBatchRunner() {
 
     const estimatedBatches = Math.ceil(initialProgress.oldProps / BATCH_SIZE);
     console.log(`📋 Migration plan: ~${estimatedBatches} batches of ${BATCH_SIZE} records`);
-    console.log(`⏱️ Estimated time: ~${Math.ceil(estimatedBatches * 3 / 60)} minutes`);
+    console.log(`⏱️ Estimated time: ~${Math.ceil((estimatedBatches * 3) / 60)} minutes`);
 
     // 2. Automated batch processing
     console.log('\n🔄 Step 2: Starting automated batch migration...');
-    
+
     let batchCount = 0;
     let lastProgress = initialProgress;
 
@@ -68,7 +68,7 @@ async function automatedBatchRunner() {
       try {
         // Execute single batch migration
         const batchResult = await executeBatch(BATCH_SIZE);
-        
+
         if (batchResult.recordsMigrated === 0) {
           console.log('✅ No more records to migrate - batch complete!');
           break;
@@ -82,8 +82,11 @@ async function automatedBatchRunner() {
         console.log(`  ✅ Migrated: ${batchResult.recordsMigrated} records`);
         console.log(`  ⏱️ Batch time: ${batchTime}ms`);
         console.log(`  📊 Remaining: ${currentProgress.oldProps} old props`);
-        
-        const progressPercent = ((initialProgress.oldProps - currentProgress.oldProps) / initialProgress.oldProps * 100).toFixed(1);
+
+        const progressPercent = (
+          ((initialProgress.oldProps - currentProgress.oldProps) / initialProgress.oldProps) *
+          100
+        ).toFixed(1);
         console.log(`  📈 Progress: ${progressPercent}% complete`);
 
         // Safety check for infinite loops
@@ -99,14 +102,13 @@ async function automatedBatchRunner() {
           console.log(`  ⏳ Waiting ${DELAY_BETWEEN_BATCHES}ms before next batch...`);
           await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
         }
-
       } catch (batchError) {
         console.error(`❌ Batch ${batchCount} failed:`, batchError);
-        
+
         // Longer delay after error
         console.log('⏳ Waiting 5 seconds after error before retry...');
         await new Promise(resolve => setTimeout(resolve, 5000));
-        
+
         // Don't count failed batches
         batchCount--;
         continue;
@@ -115,7 +117,7 @@ async function automatedBatchRunner() {
 
     // 3. Final verification
     console.log('\n📊 Step 3: Final migration results...');
-    
+
     const finalProgress = await getProgress();
     const totalMigrated = initialProgress.oldProps - finalProgress.oldProps;
     const performanceImprovement = ((totalMigrated / initialProgress.totalProps) * 100).toFixed(1);
@@ -137,11 +139,13 @@ async function automatedBatchRunner() {
       console.log(`\n⚠️ Partial migration: ${finalProgress.oldProps} old records remain`);
       console.log('💡 Run script again to continue migration');
     }
-
   } catch (error) {
-    console.error('\n❌ Automated migration failed:', error instanceof Error ? error.message : 'Unknown error');
+    console.error(
+      '\n❌ Automated migration failed:',
+      error instanceof Error ? error.message : 'Unknown error'
+    );
     console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
-    
+
     console.log('\n🛠️ Recovery options:');
     console.log('1. Check database connection and permissions');
     console.log('2. Try manual batch scripts with smaller batch sizes');
@@ -151,22 +155,22 @@ async function automatedBatchRunner() {
 
 async function getProgress(): Promise<MigrationProgress> {
   const cutoffDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  
-  const { count: totalProps } = await supabaseClient
-    .from('raw_props')
-    .select('*', { count: 'exact', head: true }) || { count: 0 };
 
-  const { count: oldProps } = await supabaseClient
+  const { count: totalProps } = (await supabaseClient
+    .from('raw_props')
+    .select('*', { count: 'exact', head: true })) || { count: 0 };
+
+  const { count: oldProps } = (await supabaseClient
     .from('raw_props')
     .select('*', { count: 'exact', head: true })
-    .lt('game_date', cutoffDate) || { count: 0 };
+    .lt('game_date', cutoffDate)) || { count: 0 };
 
-  const { count: historicalProps } = await supabaseClient
+  const { count: historicalProps } = (await supabaseClient
     .from('raw_props_historical')
-    .select('*', { count: 'exact', head: true }) || { count: 0 };
+    .select('*', { count: 'exact', head: true })) || { count: 0 };
 
   const currentProps = (totalProps || 0) - (oldProps || 0);
-  const percentComplete = totalProps ? ((totalProps - oldProps) / totalProps * 100) : 100;
+  const percentComplete = totalProps ? ((totalProps - oldProps) / totalProps) * 100 : 100;
 
   return {
     totalProps: totalProps || 0,
@@ -174,13 +178,13 @@ async function getProgress(): Promise<MigrationProgress> {
     currentProps,
     historicalProps: historicalProps || 0,
     batchesCompleted: 0,
-    percentComplete
+    percentComplete,
   };
 }
 
 async function executeBatch(batchSize: number): Promise<{ recordsMigrated: number }> {
   const cutoffDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  
+
   // Get batch of old records to migrate
   const { data: recordsToMigrate, error: selectError } = await supabaseClient
     .from('raw_props')
@@ -203,7 +207,10 @@ async function executeBatch(batchSize: number): Promise<{ recordsMigrated: numbe
     .insert(recordsToMigrate);
 
   if (insertError) {
-    if (!insertError.message.includes('duplicate key') && !insertError.message.includes('already exists')) {
+    if (
+      !insertError.message.includes('duplicate key') &&
+      !insertError.message.includes('already exists')
+    ) {
       throw new Error(`Failed to insert into historical: ${insertError.message}`);
     }
   }
@@ -229,7 +236,7 @@ if (require.main === module) {
       console.log('\n✅ Automated batch migration completed');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('\n💥 Automated migration crashed:', error);
       process.exit(1);
     });

@@ -80,10 +80,11 @@ export async function getNbaRosters(): Promise<NbaRosterPlayer[]> {
 
     // NBA teams (30 teams)
     const teamIds = [
-      1610612737, 1610612738, 1610612751, 1610612766, 1610612741, 1610612739, 1610612742, 1610612743,
-      1610612765, 1610612744, 1610612745, 1610612754, 1610612746, 1610612747, 1610612763, 1610612748,
-      1610612749, 1610612750, 1610612740, 1610612752, 1610612760, 1610612753, 1610612755, 1610612756,
-      1610612757, 1610612758, 1610612759, 1610612761, 1610612762, 1610612764
+      1610612737, 1610612738, 1610612751, 1610612766, 1610612741, 1610612739, 1610612742,
+      1610612743, 1610612765, 1610612744, 1610612745, 1610612754, 1610612746, 1610612747,
+      1610612763, 1610612748, 1610612749, 1610612750, 1610612740, 1610612752, 1610612760,
+      1610612753, 1610612755, 1610612756, 1610612757, 1610612758, 1610612759, 1610612761,
+      1610612762, 1610612764,
     ];
 
     const allPlayers: NbaRosterPlayer[] = [];
@@ -106,7 +107,6 @@ export async function getNbaRosters(): Promise<NbaRosterPlayer[]> {
 
         // Rate limiting
         await new Promise(resolve => setTimeout(resolve, 200));
-
       } catch (error) {
         logger.error(`Error fetching NBA roster for team ${teamId}:`, error);
       }
@@ -114,7 +114,6 @@ export async function getNbaRosters(): Promise<NbaRosterPlayer[]> {
 
     logger.info(`Fetched ${allPlayers.length} NBA players from rosters`);
     return allPlayers;
-
   } catch (error) {
     logger.error('Error fetching NBA rosters:', error);
     throw error;
@@ -125,13 +124,12 @@ export async function getNbaRosters(): Promise<NbaRosterPlayer[]> {
  * Convert NBA roster player to standardized format
  */
 export function convertNbaRosterPlayer(player: NbaRosterPlayer) {
-  const heightCm = player.heightFeet && player.heightInches
-    ? Math.round((player.heightFeet * 12 + player.heightInches) * 2.54)
-    : null;
+  const heightCm =
+    player.heightFeet && player.heightInches
+      ? Math.round((player.heightFeet * 12 + player.heightInches) * 2.54)
+      : null;
 
-  const weightKg = player.weightPounds
-    ? Math.round(player.weightPounds * 0.453592)
-    : null;
+  const weightKg = player.weightPounds ? Math.round(player.weightPounds * 0.453592) : null;
 
   return {
     external_id: player.personId.toString(),
@@ -143,7 +141,7 @@ export function convertNbaRosterPlayer(player: NbaRosterPlayer) {
     photo_url: null, // Will be enriched separately
     position: player.pos || null,
     jersey_number: player.jersey || null,
-    active: player.isActive
+    active: player.isActive,
   };
 }
 
@@ -171,11 +169,13 @@ export async function getNbaHeadshot(playerName: string): Promise<string | null>
     const response = await fetch(searchUrl);
 
     if (!response.ok) {
-      console.log(`NBA API request failed for ${playerName}: ${response.status} ${response.statusText}`);
+      console.log(
+        `NBA API request failed for ${playerName}: ${response.status} ${response.statusText}`
+      );
       return null;
     }
 
-    const data = await response.json() as BallDontLieResponse;
+    const data = (await response.json()) as BallDontLieResponse;
 
     if (!data.data || data.data.length === 0) {
       console.log(`No NBA player found for name: ${playerName}`);
@@ -183,10 +183,13 @@ export async function getNbaHeadshot(playerName: string): Promise<string | null>
     }
 
     // Find best match
-    const player = data.data.find(p =>
-      firstName && p.first_name.toLowerCase() === firstName.toLowerCase() &&
-      p.last_name.toLowerCase() === lastName.toLowerCase()
-    ) || data.data[0];
+    const player =
+      data.data.find(
+        p =>
+          firstName &&
+          p.first_name.toLowerCase() === firstName.toLowerCase() &&
+          p.last_name.toLowerCase() === lastName.toLowerCase()
+      ) || data.data[0];
 
     if (!player) {
       console.log(`No valid player data found for: ${playerName}`);
@@ -198,7 +201,6 @@ export async function getNbaHeadshot(playerName: string): Promise<string | null>
 
     console.log(`Found NBA headshot for ${playerName} (ID: ${player.id}): ${headshotUrl}`);
     return headshotUrl;
-
   } catch (error) {
     console.error(`Error fetching NBA headshot for ${playerName}:`, error);
     return null;
@@ -229,11 +231,13 @@ export async function getNbaPhysicals(playerName: string): Promise<PlayerPhysica
     const response = await fetch(searchUrl);
 
     if (!response.ok) {
-      console.log(`NBA API request failed for ${playerName}: ${response.status} ${response.statusText}`);
+      console.log(
+        `NBA API request failed for ${playerName}: ${response.status} ${response.statusText}`
+      );
       return { height_cm: null, weight_kg: null, birthday: null };
     }
 
-    const data = await response.json() as BallDontLieResponse;
+    const data = (await response.json()) as BallDontLieResponse;
 
     if (!data.data || data.data.length === 0) {
       console.log(`No NBA player found for name: ${playerName}`);
@@ -241,10 +245,13 @@ export async function getNbaPhysicals(playerName: string): Promise<PlayerPhysica
     }
 
     // Find best match
-    const player = data.data.find(p =>
-      firstName && p.first_name.toLowerCase() === firstName.toLowerCase() &&
-      p.last_name.toLowerCase() === lastName.toLowerCase()
-    ) || data.data[0];
+    const player =
+      data.data.find(
+        p =>
+          firstName &&
+          p.first_name.toLowerCase() === firstName.toLowerCase() &&
+          p.last_name.toLowerCase() === lastName.toLowerCase()
+      ) || data.data[0];
 
     if (!player) {
       console.log(`No valid player data found for: ${playerName}`);
@@ -252,9 +259,10 @@ export async function getNbaPhysicals(playerName: string): Promise<PlayerPhysica
     }
 
     // Parse physical attributes
-    const height_cm = (player.height_feet && player.height_inches !== undefined)
-      ? PlayerPhysicalUtils.feetInchesToCm(player.height_feet, player.height_inches)
-      : null;
+    const height_cm =
+      player.height_feet && player.height_inches !== undefined
+        ? PlayerPhysicalUtils.feetInchesToCm(player.height_feet, player.height_inches)
+        : null;
 
     const weight_kg = player.weight_pounds
       ? PlayerPhysicalUtils.poundsToKg(player.weight_pounds)
@@ -268,16 +276,18 @@ export async function getNbaPhysicals(playerName: string): Promise<PlayerPhysica
       const statsResponse = await fetch(statsUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Referer': 'https://www.nba.com/',
-        }
+          Referer: 'https://www.nba.com/',
+        },
       });
 
       if (statsResponse.ok) {
-        const statsData = await statsResponse.json() as NbaStatsResponse;
-        if (statsData.resultSets &&
-            statsData.resultSets[0] &&
-            statsData.resultSets[0].rowSet &&
-            statsData.resultSets[0].rowSet[0]) {
+        const statsData = (await statsResponse.json()) as NbaStatsResponse;
+        if (
+          statsData.resultSets &&
+          statsData.resultSets[0] &&
+          statsData.resultSets[0].rowSet &&
+          statsData.resultSets[0].rowSet[0]
+        ) {
           const playerInfo = statsData.resultSets[0].rowSet[0];
           const birthDateStr = playerInfo[7]; // BIRTHDATE is typically at index 7
           if (typeof birthDateStr === 'string') {
@@ -292,19 +302,19 @@ export async function getNbaPhysicals(playerName: string): Promise<PlayerPhysica
     const result: PlayerPhysicals = {
       height_cm,
       weight_kg,
-      birthday
+      birthday,
     };
 
     console.log(`Found NBA physicals for ${playerName}:`, {
-      height: (player.height_feet && player.height_inches !== undefined)
-        ? `${player.height_feet}'${player.height_inches}" (${height_cm}cm)`
-        : 'N/A',
+      height:
+        player.height_feet && player.height_inches !== undefined
+          ? `${player.height_feet}'${player.height_inches}" (${height_cm}cm)`
+          : 'N/A',
       weight: player.weight_pounds ? `${player.weight_pounds}lbs (${weight_kg}kg)` : 'N/A',
-      birthday: birthday || 'N/A'
+      birthday: birthday || 'N/A',
     });
 
     return result;
-
   } catch (error) {
     console.error(`Error fetching NBA physicals for ${playerName}:`, error);
     return { height_cm: null, weight_kg: null, birthday: null };

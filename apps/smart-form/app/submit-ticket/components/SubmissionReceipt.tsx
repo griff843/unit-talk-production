@@ -51,8 +51,12 @@ export function SubmissionReceipt({ data, onSubmitAnother }: SubmissionReceiptPr
           <div className="bg-gray-50 rounded-lg p-4 mb-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Ticket ID</p>
-                <p className="text-sm font-mono font-semibold text-gray-900 mt-1">{data.bet_slip_id}</p>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  Ticket ID
+                </p>
+                <p className="text-sm font-mono font-semibold text-gray-900 mt-1">
+                  {data.bet_slip_id}
+                </p>
               </div>
               <Button
                 variant="ghost"
@@ -88,7 +92,9 @@ export function SubmissionReceipt({ data, onSubmitAnother }: SubmissionReceiptPr
             </div>
             <div className="p-3 rounded-lg border border-gray-100">
               <p className="text-xs text-gray-500">Selections</p>
-              <p className="text-sm font-medium text-gray-900 mt-0.5">{data.selection_count} leg{data.selection_count !== 1 ? 's' : ''}</p>
+              <p className="text-sm font-medium text-gray-900 mt-0.5">
+                {data.selection_count} leg{data.selection_count !== 1 ? 's' : ''}
+              </p>
             </div>
             <div className="p-3 rounded-lg border border-gray-100">
               <p className="text-xs text-gray-500">Status</p>
@@ -98,10 +104,12 @@ export function SubmissionReceipt({ data, onSubmitAnother }: SubmissionReceiptPr
             </div>
           </div>
 
-
           {/* Actions */}
           <div className="space-y-3">
-            <Button onClick={onSubmitAnother} className="w-full py-3 text-base font-semibold bg-blue-600 hover:bg-blue-700">
+            <Button
+              onClick={onSubmitAnother}
+              className="w-full py-3 text-base font-semibold bg-blue-600 hover:bg-blue-700"
+            >
               <RotateCcw className="h-4 w-4 mr-2" />
               Submit Another Ticket
             </Button>

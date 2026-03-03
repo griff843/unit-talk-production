@@ -59,9 +59,7 @@ async function backfillBatch(offset: number, limit: number): Promise<number> {
       metadata: prop.metadata,
     };
 
-    const { error: insertError } = await supabase
-      .from('market_props')
-      .insert(marketProp);
+    const { error: insertError } = await supabase.from('market_props').insert(marketProp);
 
     if (insertError) {
       if (insertError.code === '23505' || insertError.message.includes('duplicate')) {
@@ -89,7 +87,7 @@ async function backfillAll() {
   while (true) {
     console.log(`Processing batch starting at offset ${offset}...`);
     const processed = await backfillBatch(offset, batchSize);
-    
+
     if (processed === 0) {
       break;
     }
@@ -124,4 +122,3 @@ backfillAll().catch(error => {
   console.error('Fatal error:', error);
   process.exit(1);
 });
-

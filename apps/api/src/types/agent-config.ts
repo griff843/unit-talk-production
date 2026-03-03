@@ -29,23 +29,33 @@ export const AgentConfigSchema = z.object({
   version: z.string(),
   description: z.string(),
   logLevel: z.enum(['error', 'warn', 'info', 'debug']).optional(),
-  circuitBreaker: z.object({
-    failureThreshold: z.number().positive().optional(),
-    resetTimeout: z.number().positive().optional()
-  }).optional(),
-  metrics: z.object({
-    enabled: z.boolean(),
-    interval: z.number().positive()
-  }).optional(),
-  health: z.object({
-    enabled: z.boolean(),
-    interval: z.number().positive(),
-    checks: z.array(z.object({
-      name: z.string(),
-      check: z.function().returns(z.promise(z.boolean())),
-      timeout: z.number().positive().optional()
-    })).optional()
-  }).optional()
+  circuitBreaker: z
+    .object({
+      failureThreshold: z.number().positive().optional(),
+      resetTimeout: z.number().positive().optional(),
+    })
+    .optional(),
+  metrics: z
+    .object({
+      enabled: z.boolean(),
+      interval: z.number().positive(),
+    })
+    .optional(),
+  health: z
+    .object({
+      enabled: z.boolean(),
+      interval: z.number().positive(),
+      checks: z
+        .array(
+          z.object({
+            name: z.string(),
+            check: z.function().returns(z.promise(z.boolean())),
+            timeout: z.number().positive().optional(),
+          })
+        )
+        .optional(),
+    })
+    .optional(),
 });
 
 export interface FeedAgentConfig extends AgentConfig {
@@ -62,10 +72,12 @@ export const FeedAgentConfigSchema = AgentConfigSchema.extend({
   feedSources: z.array(z.string()),
   updateInterval: z.number().positive(),
   batchSize: z.number().positive(),
-  retryConfig: z.object({
-    maxRetries: z.number().int().positive(),
-    backoffMs: z.number().positive()
-  }).optional()
+  retryConfig: z
+    .object({
+      maxRetries: z.number().int().positive(),
+      backoffMs: z.number().positive(),
+    })
+    .optional(),
 });
 
 export interface AlertAgentConfig extends AgentConfig {
@@ -93,23 +105,31 @@ export interface AlertAgentConfig extends AgentConfig {
 export const AlertAgentConfigSchema = AgentConfigSchema.extend({
   alertTypes: z.array(z.string()),
   channels: z.object({
-    discord: z.object({
-      webhookUrl: z.string().url(),
-      roleId: z.string().optional()
-    }).optional(),
-    slack: z.object({
-      webhookUrl: z.string().url(),
-      channel: z.string()
-    }).optional(),
-    email: z.object({
-      recipients: z.array(z.string().email()),
-      from: z.string().email()
-    }).optional()
+    discord: z
+      .object({
+        webhookUrl: z.string().url(),
+        roleId: z.string().optional(),
+      })
+      .optional(),
+    slack: z
+      .object({
+        webhookUrl: z.string().url(),
+        channel: z.string(),
+      })
+      .optional(),
+    email: z
+      .object({
+        recipients: z.array(z.string().email()),
+        from: z.string().email(),
+      })
+      .optional(),
   }),
-  throttling: z.object({
-    maxAlerts: z.number().positive(),
-    windowMs: z.number().positive()
-  }).optional()
+  throttling: z
+    .object({
+      maxAlerts: z.number().positive(),
+      windowMs: z.number().positive(),
+    })
+    .optional(),
 });
 
 export interface GradingAgentConfig extends AgentConfig {
@@ -130,20 +150,24 @@ export interface GradingAgentConfig extends AgentConfig {
 }
 
 export const GradingAgentConfigSchema = AgentConfigSchema.extend({
-  models: z.array(z.object({
-    name: z.string(),
-    version: z.string(),
-    path: z.string()
-  })),
+  models: z.array(
+    z.object({
+      name: z.string(),
+      version: z.string(),
+      path: z.string(),
+    })
+  ),
   thresholds: z.object({
     confidence: z.number().min(0).max(1),
-    quality: z.number().min(0).max(1)
+    quality: z.number().min(0).max(1),
   }),
   features: z.array(z.string()),
-  validation: z.object({
-    enabled: z.boolean(),
-    sampleSize: z.number().positive()
-  }).optional()
+  validation: z
+    .object({
+      enabled: z.boolean(),
+      sampleSize: z.number().positive(),
+    })
+    .optional(),
 });
 
 export function createAgentConfig(config: Partial<AgentConfig>): AgentConfig {
@@ -154,12 +178,12 @@ export function createAgentConfig(config: Partial<AgentConfig>): AgentConfig {
     logLevel: 'info',
     metrics: {
       enabled: true,
-      interval: 60000
-    }
+      interval: 60000,
+    },
   };
 
   return {
     ...defaultConfig,
-    ...config
+    ...config,
   };
-} 
+}

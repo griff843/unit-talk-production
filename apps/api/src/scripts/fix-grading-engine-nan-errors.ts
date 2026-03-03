@@ -2,7 +2,7 @@
 
 /**
  * Fix GradingEngine NaN Calculation Errors
- * 
+ *
  * Patches the gradingEngine.ts with safe mathematical operations
  * to prevent NaN errors in scoring calculations
  */
@@ -17,15 +17,18 @@ config();
 async function fixGradingEngineNaNErrors() {
   console.log('🔧 FIXING GRADING ENGINE NaN CALCULATION ERRORS');
   console.log('==============================================');
-  
+
   try {
-    const gradingEnginePath = join(process.cwd(), 'src/agents/GradingAgent/scoring/gradingEngine.ts');
-    
+    const gradingEnginePath = join(
+      process.cwd(),
+      'src/agents/GradingAgent/scoring/gradingEngine.ts'
+    );
+
     console.log('📖 Reading gradingEngine.ts...');
     let content = readFileSync(gradingEnginePath, 'utf8');
-    
+
     console.log('🔧 Applying NaN error fixes...');
-    
+
     // 1. Add safe number utility functions at the top
     const safeNumberUtilities = `
 /**
@@ -63,7 +66,8 @@ function safeWeight(weights: any, key: string, defaultValue: number = 1): number
     if (importsEndIndex === -1) {
       throw new Error('Could not find SyndicateGradingEngine class declaration');
     }
-    content = content.slice(0, importsEndIndex) + safeNumberUtilities + content.slice(importsEndIndex);
+    content =
+      content.slice(0, importsEndIndex) + safeNumberUtilities + content.slice(importsEndIndex);
 
     // 2. Fix calculateCoreScore method
     content = content.replace(
@@ -262,7 +266,7 @@ function safeWeight(weights: any, key: string, defaultValue: number = 1): number
     // Write the fixed content back
     console.log('💾 Writing fixed gradingEngine.ts...');
     writeFileSync(gradingEnginePath, content);
-    
+
     console.log('✅ GradingEngine NaN error fixes applied successfully!');
     console.log('\n🔧 FIXES APPLIED:');
     console.log('  ✓ Added safe number utility functions');
@@ -273,12 +277,11 @@ function safeWeight(weights: any, key: string, defaultValue: number = 1): number
     console.log('  ✓ Fixed calculateRiskScore with safe operations');
     console.log('  ✓ Fixed calculateCompositeScore with safe multiplications');
     console.log('  ✓ Fixed Kelly calculation with safe division');
-    
+
     console.log('\n📊 NEXT STEPS:');
     console.log('  1. Test the grading engine with diagnose-grading-system.ts');
     console.log('  2. Run GradingAgent to verify calculations work correctly');
     console.log('  3. Clear existing edge_score values and re-grade all props');
-    
   } catch (error) {
     console.error('❌ Fix process failed:', error);
     throw error;
@@ -292,7 +295,7 @@ if (require.main === module) {
       console.log('\n✅ NaN error fixes completed successfully');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('💥 Fix process failed:', error);
       process.exit(1);
     });

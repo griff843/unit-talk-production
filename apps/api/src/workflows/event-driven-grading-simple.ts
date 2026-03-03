@@ -1,9 +1,9 @@
 /**
  * Production-Ready Event-Driven Grading Workflow
- * 
+ *
  * Enhanced Temporal workflow with idempotent processing, professional grading integration,
  * and comprehensive error handling for the Unit Talk betting intelligence platform.
- * 
+ *
  * Features:
  * - Idempotent processing using unique keys (bet_slip_id)
  * - Integration with ProfessionalPropProcessor for grading
@@ -94,7 +94,12 @@ export interface GradingWorkflowResult {
     error?: string;
   }>;
   alertsGenerated: Array<{
-    type: 'high_tier' | 'injury_opportunity' | 'line_movement' | 'hedge_opportunity' | 'middle_opportunity';
+    type:
+      | 'high_tier'
+      | 'injury_opportunity'
+      | 'line_movement'
+      | 'hedge_opportunity'
+      | 'middle_opportunity';
     confidence: number;
     priority: 'critical' | 'high' | 'normal' | 'low';
     metadata: any;
@@ -118,7 +123,7 @@ export interface GradingWorkflowResult {
 
 /**
  * Production Event-Driven Grading Workflow with Idempotent Processing
- * 
+ *
  * This workflow processes betting tickets through professional grading with:
  * - Idempotent processing using bet_slip_id as unique key
  * - Individual leg processing with circuit breaker protection
@@ -130,14 +135,15 @@ export async function eventDrivenGradingWorkflow(
   params: EventDrivenGradingWorkflowParams
 ): Promise<GradingWorkflowResult> {
   const startTime = Date.now();
-  const { ticketId, betSlipId, eventData, idempotencyKey, replayContext, processingOptions } = params;
+  const { ticketId, betSlipId, eventData, idempotencyKey, replayContext, processingOptions } =
+    params;
   const workflowId = `grading-${betSlipId}-${Date.now()}`;
-  
+
   let stepsCompleted = 0;
   let errors = 0;
-  let retriesAttempted = 0;
+  const retriesAttempted = 0;
   let idempotencyChecks = 0;
-  
+
   try {
     // Step 1: Idempotency Check
     idempotencyChecks++;
@@ -153,7 +159,7 @@ export async function eventDrivenGradingWorkflow(
           retriesAttempted: 0,
           idempotencyChecks: 1,
           professionalFeaturesUsed: 0,
-        }
+        },
       };
     }
     stepsCompleted++;
@@ -176,7 +182,7 @@ export async function eventDrivenGradingWorkflow(
     for (const [index, selection] of selections.entries()) {
       const legId = `${betSlipId}-leg-${index}`;
       const legStartTime = Date.now();
-      
+
       try {
         // Check if leg already processed (idempotency)
         const existingLegResult = await checkExistingLegGrading(legId);
@@ -197,7 +203,7 @@ export async function eventDrivenGradingWorkflow(
           legId,
           processingOptions?.enableProfessionalFeatures !== false
         );
-        
+
         if (legGradingResult.professionalScore) {
           professionalFeaturesUsed++;
         }
@@ -214,11 +220,11 @@ export async function eventDrivenGradingWorkflow(
         });
 
         stepsCompleted++;
-
       } catch (legError) {
         errors++;
-        const errorMessage = legError instanceof Error ? legError.message : 'Unknown leg processing error';
-        
+        const errorMessage =
+          legError instanceof Error ? legError.message : 'Unknown leg processing error';
+
         legsProcessed.push({
           legId,
           ...selection,
@@ -272,23 +278,24 @@ export async function eventDrivenGradingWorkflow(
         idempotencyChecks,
         professionalFeaturesUsed,
       },
-      replayInfo: replayContext ? {
-        isReplay: true,
-        originalWorkflowId: replayContext.originalEventId,
-        replayReason: replayContext.replayReason,
-        replayedBy: replayContext.replayed_by,
-      } : undefined,
+      replayInfo: replayContext
+        ? {
+            isReplay: true,
+            originalWorkflowId: replayContext.originalEventId,
+            replayReason: replayContext.replayReason,
+            replayedBy: replayContext.replayed_by,
+          }
+        : undefined,
     };
 
     await storeWorkflowResult(result);
     stepsCompleted++;
 
     return result;
-
   } catch (error) {
     errors++;
     const errorMessage = error instanceof Error ? error.message : 'Unknown workflow error';
-    
+
     // Store failed workflow result for idempotency
     const failedResult: GradingWorkflowResult = {
       workflowId,
@@ -312,16 +319,18 @@ export async function eventDrivenGradingWorkflow(
         idempotencyChecks,
         professionalFeaturesUsed: 0,
       },
-      replayInfo: replayContext ? {
-        isReplay: true,
-        originalWorkflowId: replayContext.originalEventId,
-        replayReason: replayContext.replayReason,
-        replayedBy: replayContext.replayed_by,
-      } : undefined,
+      replayInfo: replayContext
+        ? {
+            isReplay: true,
+            originalWorkflowId: replayContext.originalEventId,
+            replayReason: replayContext.replayReason,
+            replayedBy: replayContext.replayed_by,
+          }
+        : undefined,
     };
 
     await storeWorkflowResult(failedResult);
-    
+
     throw new Error(`Grading workflow failed for ${betSlipId}: ${errorMessage}`);
   }
 }
@@ -364,7 +373,7 @@ export async function replayGradingWorkflow(
         },
         priority: replayOptions.priority || 'normal',
       });
-      
+
       results.push(result);
     } catch (error) {
       errors.push({
@@ -427,7 +436,7 @@ export interface WorkflowControlResult {
 
 export async function pauseWorkflows(workflowIds: string[]): Promise<WorkflowControlResult> {
   let affectedWorkflows = 0;
-  
+
   for (const workflowId of workflowIds) {
     try {
       // Update workflow status to paused in database
@@ -437,7 +446,7 @@ export async function pauseWorkflows(workflowIds: string[]): Promise<WorkflowCon
       console.warn(`Failed to pause workflow ${workflowId}:`, error);
     }
   }
-  
+
   return {
     success: affectedWorkflows > 0,
     message: `Paused ${affectedWorkflows}/${workflowIds.length} workflows`,
@@ -456,7 +465,7 @@ export async function resumeWorkflows(workflowIds: string[]): Promise<WorkflowCo
 
 export async function cancelWorkflows(workflowIds: string[]): Promise<WorkflowControlResult> {
   let affectedWorkflows = 0;
-  
+
   for (const workflowId of workflowIds) {
     try {
       // Update workflow status to cancelled in database
@@ -466,7 +475,7 @@ export async function cancelWorkflows(workflowIds: string[]): Promise<WorkflowCo
       console.warn(`Failed to cancel workflow ${workflowId}:`, error);
     }
   }
-  
+
   return {
     success: affectedWorkflows > 0,
     message: `Cancelled ${affectedWorkflows}/${workflowIds.length} workflows`,
@@ -482,10 +491,13 @@ export async function cancelWorkflows(workflowIds: string[]): Promise<WorkflowCo
 /**
  * Check if a workflow has already been processed for the given bet_slip_id and idempotency key
  */
-async function checkExistingWorkflow(betSlipId: string, idempotencyKey: string): Promise<GradingWorkflowResult | null> {
+async function checkExistingWorkflow(
+  betSlipId: string,
+  idempotencyKey: string
+): Promise<GradingWorkflowResult | null> {
   // Simulate database lookup - would query workflow_executions table
   // SELECT * FROM workflow_executions WHERE bet_slip_id = ? AND idempotency_key = ? AND status = 'completed'
-  
+
   // For now, return null to indicate no existing workflow
   // In production, this would check the database for existing completed workflows
   return null;
@@ -495,9 +507,9 @@ async function checkExistingWorkflow(betSlipId: string, idempotencyKey: string):
  * Record workflow execution start for tracking and idempotency
  */
 async function recordWorkflowExecution(
-  workflowId: string, 
-  betSlipId: string, 
-  idempotencyKey: string, 
+  workflowId: string,
+  betSlipId: string,
+  idempotencyKey: string,
   params: EventDrivenGradingWorkflowParams
 ): Promise<void> {
   // Simulate database insert - would insert into workflow_executions table
@@ -534,13 +546,19 @@ async function processLegWithCircuitBreaker(
     // 2. Run through ProfessionalPropProcessor
     // 3. Apply circuit breaker protection for external API calls
     // 4. Use all 8 professional features if enabled
-    
+
     const baseScore = Math.random() * 100;
-    const tier = baseScore > 85 ? 'S-tier' : 
-                 baseScore > 70 ? 'A-tier' : 
-                 baseScore > 55 ? 'B-tier' : 
-                 baseScore > 40 ? 'C-tier' : 'D-tier';
-    
+    const tier =
+      baseScore > 85
+        ? 'S-tier'
+        : baseScore > 70
+          ? 'A-tier'
+          : baseScore > 55
+            ? 'B-tier'
+            : baseScore > 40
+              ? 'C-tier'
+              : 'D-tier';
+
     return {
       tier,
       confidence: Math.min(baseScore / 100, 0.95),
@@ -561,7 +579,11 @@ async function processLegWithCircuitBreaker(
 /**
  * Store individual leg grading result with idempotency key
  */
-async function storeLegGradingResult(legId: string, gradingResult: any, betSlipId: string): Promise<void> {
+async function storeLegGradingResult(
+  legId: string,
+  gradingResult: any,
+  betSlipId: string
+): Promise<void> {
   // Simulate database insert for leg results
   // INSERT INTO leg_grading_results (leg_id, bet_slip_id, grading_result, status, processed_at)
   console.log(`Storing leg grading result for ${legId} (bet_slip_id: ${betSlipId})`);
@@ -570,7 +592,10 @@ async function storeLegGradingResult(legId: string, gradingResult: any, betSlipI
 /**
  * Calculate combined grading result from all processed legs
  */
-async function calculateCombinedGrading(legsProcessed: any[], eventData: any): Promise<{
+async function calculateCombinedGrading(
+  legsProcessed: any[],
+  eventData: any
+): Promise<{
   tier: 'S-tier' | 'A-tier' | 'B-tier' | 'C-tier' | 'D-tier';
   confidence: number;
   edgeScore: number;
@@ -590,16 +615,26 @@ async function calculateCombinedGrading(legsProcessed: any[], eventData: any): P
   }
 
   // Simple average for now - in production would use sophisticated combination logic
-  const avgConfidence = completedLegs.reduce((sum, leg) => sum + leg.gradingResult.confidence, 0) / completedLegs.length;
-  const avgEdgeScore = completedLegs.reduce((sum, leg) => sum + leg.gradingResult.edgeScore, 0) / completedLegs.length;
-  
-  const combinedTier = avgEdgeScore > 80 ? 'S-tier' :
-                      avgEdgeScore > 65 ? 'A-tier' :
-                      avgEdgeScore > 50 ? 'B-tier' :
-                      avgEdgeScore > 35 ? 'C-tier' : 'D-tier';
+  const avgConfidence =
+    completedLegs.reduce((sum, leg) => sum + leg.gradingResult.confidence, 0) /
+    completedLegs.length;
+  const avgEdgeScore =
+    completedLegs.reduce((sum, leg) => sum + leg.gradingResult.edgeScore, 0) / completedLegs.length;
 
-  const professionalScore = completedLegs.some(leg => leg.gradingResult.professionalScore) ?
-    Math.floor(avgEdgeScore * 1.2) : undefined;
+  const combinedTier =
+    avgEdgeScore > 80
+      ? 'S-tier'
+      : avgEdgeScore > 65
+        ? 'A-tier'
+        : avgEdgeScore > 50
+          ? 'B-tier'
+          : avgEdgeScore > 35
+            ? 'C-tier'
+            : 'D-tier';
+
+  const professionalScore = completedLegs.some(leg => leg.gradingResult.professionalScore)
+    ? Math.floor(avgEdgeScore * 1.2)
+    : undefined;
 
   return {
     tier: combinedTier,
@@ -607,16 +642,18 @@ async function calculateCombinedGrading(legsProcessed: any[], eventData: any): P
     edgeScore: Math.floor(avgEdgeScore),
     processedAt: new Date().toISOString(),
     professionalScore,
-    featureContributions: professionalScore ? {
-      steamDetection: Math.random() * 20,
-      closingLinePrediction: Math.random() * 20,
-      optimalTiming: Math.random() * 15,
-      lineShoppingEdge: Math.random() * 15,
-      publicSharpSplit: Math.random() * 10,
-      marketTimingAdvantage: Math.random() * 10,
-      injuryTimingEdge: Math.random() * 5,
-      crossMarketDiscrepancy: Math.random() * 5,
-    } : undefined,
+    featureContributions: professionalScore
+      ? {
+          steamDetection: Math.random() * 20,
+          closingLinePrediction: Math.random() * 20,
+          optimalTiming: Math.random() * 15,
+          lineShoppingEdge: Math.random() * 15,
+          publicSharpSplit: Math.random() * 10,
+          marketTimingAdvantage: Math.random() * 10,
+          injuryTimingEdge: Math.random() * 5,
+          crossMarketDiscrepancy: Math.random() * 5,
+        }
+      : undefined,
   };
 }
 
@@ -628,13 +665,20 @@ async function generateGradingAlerts(
   legsProcessed: any[],
   eventData: any,
   isReplay: boolean
-): Promise<Array<{
-  type: 'high_tier' | 'injury_opportunity' | 'line_movement' | 'hedge_opportunity' | 'middle_opportunity';
-  confidence: number;
-  priority: 'critical' | 'high' | 'normal' | 'low';
-  metadata: any;
-  generated_at: string;
-}>> {
+): Promise<
+  Array<{
+    type:
+      | 'high_tier'
+      | 'injury_opportunity'
+      | 'line_movement'
+      | 'hedge_opportunity'
+      | 'middle_opportunity';
+    confidence: number;
+    priority: 'critical' | 'high' | 'normal' | 'low';
+    metadata: any;
+    generated_at: string;
+  }>
+> {
   const alerts = [];
   const now = new Date().toISOString();
 
@@ -643,7 +687,7 @@ async function generateGradingAlerts(
     alerts.push({
       type: 'high_tier' as const,
       confidence: gradingResult.confidence,
-      priority: gradingResult.tier === 'S-tier' ? 'critical' : 'high' as const,
+      priority: gradingResult.tier === 'S-tier' ? 'critical' : ('high' as const),
       metadata: {
         tier: gradingResult.tier,
         edgeScore: gradingResult.edgeScore,
@@ -658,7 +702,11 @@ async function generateGradingAlerts(
   }
 
   // Check for injury opportunities in the event data
-  if (eventData.selections?.some((sel: any) => sel.injury_status || sel.player_status === 'questionable')) {
+  if (
+    eventData.selections?.some(
+      (sel: any) => sel.injury_status || sel.player_status === 'questionable'
+    )
+  ) {
     alerts.push({
       type: 'injury_opportunity' as const,
       confidence: 0.8,
@@ -703,13 +751,18 @@ async function storeWorkflowResult(result: GradingWorkflowResult): Promise<void>
   // Simulate database upsert for workflow results
   // INSERT INTO workflow_results (workflow_id, bet_slip_id, idempotency_key, result, status, completed_at)
   // ON CONFLICT (bet_slip_id, idempotency_key) DO UPDATE SET result = EXCLUDED.result
-  console.log(`Storing workflow result for ${result.betSlipId} with status: ${result.processingStatus}`);
+  console.log(
+    `Storing workflow result for ${result.betSlipId} with status: ${result.processingStatus}`
+  );
 }
 
 /**
  * Update workflow status for pause/resume/cancel operations
  */
-async function updateWorkflowStatus(workflowId: string, status: 'paused' | 'cancelled' | 'resumed'): Promise<void> {
+async function updateWorkflowStatus(
+  workflowId: string,
+  status: 'paused' | 'cancelled' | 'resumed'
+): Promise<void> {
   // Simulate database update
   // UPDATE workflow_executions SET status = ?, updated_at = NOW() WHERE workflow_id = ?
   console.log(`Updating workflow ${workflowId} status to: ${status}`);

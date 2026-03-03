@@ -13,10 +13,10 @@ const logger = createLogger('WorkflowStarterCLI');
 
 async function main() {
   const args = process.argv.slice(2);
-  
+
   logger.info('🚀 Unit Talk Workflow Starter CLI');
   logger.info('==================================');
-  
+
   if (args.includes('--help') || args.includes('-h')) {
     // eslint-disable-next-line no-console
     console.log(`
@@ -34,32 +34,31 @@ Examples:
     `);
     process.exit(0);
   }
-  
+
   const options = {
     criticalOnly: args.includes('--critical-only'),
-    dryRun: args.includes('--dry-run')
+    dryRun: args.includes('--dry-run'),
   };
-  
+
   if (options.criticalOnly) {
     logger.info('🎯 Starting CRITICAL workflows only');
   }
-  
+
   if (options.dryRun) {
     logger.info('🧪 DRY RUN mode - no workflows will actually start');
   }
-  
+
   try {
     await startAllWorkflows(options);
-    
+
     logger.info('✅ Workflow startup completed!');
     logger.info('📊 Access Temporal UI: http://localhost:8088');
     logger.info('🏈 NFL Preseason: Data ingestion should start within 1 minute');
-    
+
     process.exit(0);
-    
   } catch (error) {
-    logger.error('❌ Workflow startup failed:', { 
-      error: error instanceof Error ? error.message : String(error) 
+    logger.error('❌ Workflow startup failed:', {
+      error: error instanceof Error ? error.message : String(error),
     });
     process.exit(1);
   }

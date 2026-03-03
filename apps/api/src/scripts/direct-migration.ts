@@ -2,7 +2,7 @@
 
 /**
  * Direct Data Migration
- * 
+ *
  * Directly migrate old props to historical table using simple approach
  */
 
@@ -22,9 +22,9 @@ async function directMigration() {
 
   try {
     // 1. Get current state
-    const { count: totalProps } = await supabaseClient
+    const { count: totalProps } = (await supabaseClient
       .from('raw_props')
-      .select('*', { count: 'exact', head: true }) || { count: 0 };
+      .select('*', { count: 'exact', head: true })) || { count: 0 };
 
     console.log(`Current total props: ${totalProps}`);
 
@@ -32,10 +32,10 @@ async function directMigration() {
     const cutoffDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     console.log(`Cutoff date: ${cutoffDate}`);
 
-    const { count: oldPropsCount } = await supabaseClient
+    const { count: oldPropsCount } = (await supabaseClient
       .from('raw_props')
       .select('*', { count: 'exact', head: true })
-      .lt('game_date', cutoffDate) || { count: 0 };
+      .lt('game_date', cutoffDate)) || { count: 0 };
 
     console.log(`Old props to migrate: ${oldPropsCount}`);
 
@@ -79,7 +79,10 @@ async function directMigration() {
         if (insertError) {
           console.error('❌ Failed to insert into historical table:', insertError.message);
           // If it's a duplicate key error, that's okay - the records already exist
-          if (!insertError.message.includes('duplicate key') && !insertError.message.includes('already exists')) {
+          if (
+            !insertError.message.includes('duplicate key') &&
+            !insertError.message.includes('already exists')
+          ) {
             break;
           }
           console.log('ℹ️ Records already exist in historical table, continuing with deletion...');
@@ -102,7 +105,6 @@ async function directMigration() {
 
         // Short delay between batches
         await new Promise(resolve => setTimeout(resolve, 200));
-
       } catch (batchError) {
         console.error('❌ Batch error:', batchError);
         break;
@@ -111,19 +113,19 @@ async function directMigration() {
 
     // 4. Final verification
     console.log('\n📊 Final verification...');
-    
-    const { count: finalTotal } = await supabaseClient
-      .from('raw_props')
-      .select('*', { count: 'exact', head: true }) || { count: 0 };
 
-    const { count: remainingOld } = await supabaseClient
+    const { count: finalTotal } = (await supabaseClient
+      .from('raw_props')
+      .select('*', { count: 'exact', head: true })) || { count: 0 };
+
+    const { count: remainingOld } = (await supabaseClient
       .from('raw_props')
       .select('*', { count: 'exact', head: true })
-      .lt('game_date', cutoffDate) || { count: 0 };
+      .lt('game_date', cutoffDate)) || { count: 0 };
 
-    const { count: historicalCount } = await supabaseClient
+    const { count: historicalCount } = (await supabaseClient
       .from('raw_props_historical')
-      .select('*', { count: 'exact', head: true }) || { count: 0 };
+      .select('*', { count: 'exact', head: true })) || { count: 0 };
 
     console.log(`\n📈 MIGRATION RESULTS:`);
     console.log(`🔥 Hot tier (raw_props): ${finalTotal} records`);
@@ -141,9 +143,11 @@ async function directMigration() {
     } else {
       console.log('\n⚠️ No records were migrated');
     }
-
   } catch (error) {
-    console.error('\n❌ Migration failed:', error instanceof Error ? error.message : 'Unknown error');
+    console.error(
+      '\n❌ Migration failed:',
+      error instanceof Error ? error.message : 'Unknown error'
+    );
     console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
   }
 }
@@ -155,7 +159,7 @@ if (require.main === module) {
       console.log('\n✅ Migration process completed');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('\n💥 Migration crashed:', error);
       process.exit(1);
     });

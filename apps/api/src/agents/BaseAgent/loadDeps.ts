@@ -8,13 +8,12 @@ import { makeLogger } from '../../utils/logger';
 
 import { BaseAgentDependencies } from './types';
 
-
 export async function loadBaseAgentDependencies(): Promise<BaseAgentDependencies> {
   const supabaseUrl = env.supabase.url;
   const supabaseServiceRoleKey = env.supabase.serviceRoleKey;
 
   const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
-    auth: { persistSession: false }
+    auth: { persistSession: false },
   });
 
   const logger = makeLogger('BaseAgent');

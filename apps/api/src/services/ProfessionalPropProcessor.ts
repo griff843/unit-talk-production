@@ -1,14 +1,14 @@
 // @ts-nocheck
 /**
  * Professional Prop Processor
- * 
+ *
  * Ensures ALL props receive full professional treatment:
  * - Devigging FIRST (removes hidden vig)
  * - CLV tracking (monitors line movement)
  * - Professional grading (45+ factors)
  * - Risk assessment (Kelly sizing)
  * - Performance monitoring
- * 
+ *
  * This is the MISSING LINK between raw props and professional insights.
  */
 
@@ -53,7 +53,7 @@ export class ProfessionalPropProcessor {
     auto_approve_threshold: 3.0, // S/A tier auto-approved
     require_admin_review: ['B', 'C', 'D'],
     max_batch_size: 50,
-    timeout_ms: 30000 // 30 second timeout per prop
+    timeout_ms: 30000, // 30 second timeout per prop
   };
 
   private constructor() {
@@ -73,7 +73,9 @@ export class ProfessionalPropProcessor {
   /**
    * Main entry point - processes raw props through professional system
    */
-  async processRawProps(options?: Partial<PropProcessingOptions>): Promise<ProfessionalPropResult[]> {
+  async processRawProps(
+    options?: Partial<PropProcessingOptions>
+  ): Promise<ProfessionalPropResult[]> {
     const config = { ...this.defaultOptions, ...options };
     const results: ProfessionalPropResult[] = [];
 
@@ -82,7 +84,7 @@ export class ProfessionalPropProcessor {
     try {
       // 1. Get unprocessed raw props
       const rawProps = await this.getUnprocessedRawProps(config.max_batch_size);
-      
+
       if (rawProps.length === 0) {
         this.logger.info('No unprocessed props found');
         return results;
@@ -95,23 +97,24 @@ export class ProfessionalPropProcessor {
         try {
           const result = await this.processIndividualProp(rawProp, config);
           results.push(result);
-          
+
           // Mark raw prop as processed
           await this.markRawPropProcessed(rawProp.id);
-          
         } catch (error) {
           this.logger.error(`Failed to process prop ${rawProp.id}`, error);
-          await this.markRawPropError(rawProp.id, error instanceof Error ? error.message : String(error));
+          await this.markRawPropError(
+            rawProp.id,
+            error instanceof Error ? error.message : String(error)
+          );
         }
       }
 
       this.logger.info(`Successfully processed ${results.length}/${rawProps.length} props`);
-      
+
       // 3. Generate processing summary
       await this.generateProcessingSummary(results);
 
       return results;
-
     } catch (error) {
       this.logger.error('Professional prop processing failed', error);
       throw error;
@@ -122,7 +125,7 @@ export class ProfessionalPropProcessor {
    * Process individual raw prop through complete professional pipeline
    */
   private async processIndividualProp(
-    rawProp: RawProp, 
+    rawProp: RawProp,
     config: PropProcessingOptions
   ): Promise<ProfessionalPropResult> {
     const startTime = Date.now();
@@ -133,12 +136,12 @@ export class ProfessionalPropProcessor {
 
       // STEP 1: DEVIG ODDS (CRITICAL - ALL SHARP SYSTEMS DO THIS FIRST)
       const deviggingResult = await this.deviggOdds(rawProp);
-      propLogger.info('Devigging completed', { 
+      propLogger.info('Devigging completed', {
         totalVig: (deviggingResult.totalVig || 0).toFixed(2) + '%',
         trueProbabilities: {
           over: (deviggingResult.outcome1?.trueProb || 0).toFixed(3),
-          under: (deviggingResult.outcome2?.trueProb || 0).toFixed(3)
-        }
+          under: (deviggingResult.outcome2?.trueProb || 0).toFixed(3),
+        },
       });
 
       // STEP 2: START CLV TRACKING
@@ -150,7 +153,7 @@ export class ProfessionalPropProcessor {
       propLogger.info('Professional grading completed', {
         finalScore: gradingResult.finalScore.toFixed(2),
         tier: gradingResult.tier,
-        confidence: (gradingResult.confidence * 100).toFixed(1) + '%'
+        confidence: (gradingResult.confidence * 100).toFixed(1) + '%',
       });
 
       // STEP 4: RISK ASSESSMENT
@@ -173,7 +176,7 @@ export class ProfessionalPropProcessor {
         pickId,
         processingTime: `${processingTime}ms`,
         autoApproved,
-        tier: gradingResult.tier
+        tier: gradingResult.tier,
       });
 
       return {
@@ -186,14 +189,13 @@ export class ProfessionalPropProcessor {
         professional_insights: gradingResult.professionalInsights,
         clv_tracking_id: clvTrackingId,
         auto_approved: autoApproved,
-        processing_time: processingTime
+        processing_time: processingTime,
       };
-
     } catch (error) {
       const processingTime = Date.now() - startTime;
-      propLogger.error('Professional processing failed', { 
+      propLogger.error('Professional processing failed', {
         error: error instanceof Error ? error.message : String(error),
-        processingTime: `${processingTime}ms`
+        processingTime: `${processingTime}ms`,
       });
       throw error;
     }
@@ -205,7 +207,7 @@ export class ProfessionalPropProcessor {
   private async deviggOdds(rawProp: RawProp) {
     return this.deviggingService.devigTwoWay({
       odds1: rawProp.over_odds,
-      odds2: rawProp.under_odds
+      odds2: rawProp.under_odds,
     });
   }
 
@@ -234,7 +236,7 @@ export class ProfessionalPropProcessor {
         prediction === 'over' ? option1TrueProb : option2TrueProb,
         betOdds,
         false
-      )
+      ),
     });
 
     return rawProp.id; // Use prop ID as CLV tracking ID
@@ -252,39 +254,47 @@ export class ProfessionalPropProcessor {
       statType: rawProp.stat_type,
       playerName: rawProp.player_name,
       line: rawProp.line,
-      
+
       // Original odds
       overOdds: rawProp.over_odds,
       underOdds: rawProp.under_odds,
-      
+
       // 🆕 DEVIGGED DATA (CRITICAL FOR PROFESSIONAL GRADING)
       devigged: {
         totalVig: deviggingResult.totalVig,
         overTrueProb: deviggingResult.option1TrueProb,
         underTrueProb: deviggingResult.option2TrueProb,
         trueEdge: {
-          over: this.deviggingService.calculateEdge(deviggingResult.option1TrueProb, rawProp.over_odds, false),
-          under: this.deviggingService.calculateEdge(deviggingResult.option2TrueProb, rawProp.under_odds, false)
-        }
+          over: this.deviggingService.calculateEdge(
+            deviggingResult.option1TrueProb,
+            rawProp.over_odds,
+            false
+          ),
+          under: this.deviggingService.calculateEdge(
+            deviggingResult.option2TrueProb,
+            rawProp.under_odds,
+            false
+          ),
+        },
       },
-      
+
       // Market context
       marketType: 'player_props',
       gameTime: new Date(Date.now() + 4 * 60 * 60 * 1000),
-      
+
       // Professional indicators (would be populated by data feeds)
       steamMove: false,
       sharpAction: 0.5,
       publicBetting: 0.5,
       lineMovement: 0,
-      
+
       // Default values for comprehensive grading
       playerForm: 0.7,
       matchupRating: 0.6,
       injuryImpact: 0,
       weatherImpact: 0,
       venueAdvantage: 0,
-      motivation: 0.5
+      motivation: 0.5,
     };
 
     // Use the professional grading engine
@@ -301,7 +311,7 @@ export class ProfessionalPropProcessor {
       risk_score: gradingResult.riskScore,
       correlation_risk: gradingResult.correlationRisk,
       portfolio_impact: gradingResult.portfolioImpact || 0,
-      max_exposure: Math.min(gradingResult.kellyFraction * 0.25, 0.05) // 5% max position
+      max_exposure: Math.min(gradingResult.kellyFraction * 0.25, 0.05), // 5% max position
     };
   }
 
@@ -313,7 +323,7 @@ export class ProfessionalPropProcessor {
     if (gradingResult.tier === 'S' || gradingResult.tier === 'A') {
       return gradingResult.finalScore >= config.auto_approve_threshold;
     }
-    
+
     // All other tiers require manual review
     return false;
   }
@@ -328,21 +338,22 @@ export class ProfessionalPropProcessor {
     clvTrackingId: string,
     autoApproved: boolean
   ): Promise<string> {
-    
     // Determine prediction based on best edge
     const overEdge = gradingResult.professionalInsights?.devigged?.trueEdge?.over || 0;
     const underEdge = gradingResult.professionalInsights?.devigged?.trueEdge?.under || 0;
     const prediction = overEdge > underEdge ? 'over' : 'under';
 
-    const unifiedPick: Partial<UnifiedPick & { 
-      professional_score: number;
-      devigged_edge: number;
-      kelly_fraction: number;
-      professional_insights: any;
-      clv_tracking_id: string;
-      feature_contributions: any;
-      risk_assessment: any;
-    }> = {
+    const unifiedPick: Partial<
+      UnifiedPick & {
+        professional_score: number;
+        devigged_edge: number;
+        kelly_fraction: number;
+        professional_insights: any;
+        clv_tracking_id: string;
+        feature_contributions: any;
+        risk_assessment: any;
+      }
+    > = {
       raw_prop_id: rawProp.id,
       user_id: 'system',
       sport: rawProp.sport,
@@ -350,7 +361,7 @@ export class ProfessionalPropProcessor {
       confidence: gradingResult.confidence,
       status: autoApproved ? 'approved' : 'pending_review',
       tier: gradingResult.tier,
-      
+
       // 🆕 PROFESSIONAL DATA
       professional_score: gradingResult.finalScore,
       devigged_edge: gradingResult.edgeScore,
@@ -358,7 +369,7 @@ export class ProfessionalPropProcessor {
       professional_insights: gradingResult.professionalInsights,
       clv_tracking_id: clvTrackingId,
       feature_contributions: gradingResult.featureContributions,
-      risk_assessment: riskAssessment
+      risk_assessment: riskAssessment,
     };
 
     const { data, error } = await supabaseClient
@@ -399,9 +410,9 @@ export class ProfessionalPropProcessor {
   private async markRawPropProcessed(propId: string): Promise<void> {
     const { error } = await supabaseClient
       .from('raw_props')
-      .update({ 
+      .update({
         processed_at: new Date().toISOString(),
-        processed_by: 'professional_system'
+        processed_by: 'professional_system',
       })
       .eq('id', propId);
 
@@ -416,9 +427,9 @@ export class ProfessionalPropProcessor {
   private async markRawPropError(propId: string, errorMessage: string): Promise<void> {
     const { error } = await supabaseClient
       .from('raw_props')
-      .update({ 
+      .update({
         error_message: errorMessage,
-        error_at: new Date().toISOString()
+        error_at: new Date().toISOString(),
       })
       .eq('id', propId);
 
@@ -440,23 +451,22 @@ export class ProfessionalPropProcessor {
         A: results.filter(r => r.tier === 'A').length,
         B: results.filter(r => r.tier === 'B').length,
         C: results.filter(r => r.tier === 'C').length,
-        D: results.filter(r => r.tier === 'D').length
+        D: results.filter(r => r.tier === 'D').length,
       },
       avg_processing_time: results.reduce((sum, r) => sum + r.processing_time, 0) / results.length,
-      avg_professional_score: results.reduce((sum, r) => sum + r.professionalScore, 0) / results.length,
-      avg_confidence: results.reduce((sum, r) => sum + r.confidence, 0) / results.length
+      avg_professional_score:
+        results.reduce((sum, r) => sum + r.professionalScore, 0) / results.length,
+      avg_confidence: results.reduce((sum, r) => sum + r.confidence, 0) / results.length,
     };
 
     this.logger.info('Professional processing summary', summary);
 
     // Store summary for monitoring
-    await supabaseClient
-      .from('processing_logs')
-      .insert({
-        processor: 'professional_prop_processor',
-        summary,
-        processed_at: new Date().toISOString()
-      });
+    await supabaseClient.from('processing_logs').insert({
+      processor: 'professional_prop_processor',
+      summary,
+      processed_at: new Date().toISOString(),
+    });
   }
 
   /**
@@ -486,7 +496,7 @@ export class ProfessionalPropProcessor {
       over_odds: smartTicket.over_odds || -110,
       under_odds: smartTicket.under_odds || -110,
       created_at: smartTicket.created_at,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     };
 
     // Process through professional pipeline
@@ -507,7 +517,7 @@ export class ProfessionalPropProcessor {
       over_odds: features.market?.odds || features.odds || -110,
       under_odds: features.market?.odds || features.odds || -110,
       created_at: features.timestamp || new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     };
 
     // Process through professional pipeline
@@ -527,8 +537,10 @@ export class ProfessionalPropProcessor {
 
     return {
       recent_runs: stats,
-      avg_processing_time: stats?.reduce((sum, s) => sum + (s.summary?.avg_processing_time || 0), 0) / (stats?.length || 1),
-      total_processed: stats?.reduce((sum, s) => sum + (s.summary?.total_processed || 0), 0) || 0
+      avg_processing_time:
+        stats?.reduce((sum, s) => sum + (s.summary?.avg_processing_time || 0), 0) /
+        (stats?.length || 1),
+      total_processed: stats?.reduce((sum, s) => sum + (s.summary?.total_processed || 0), 0) || 0,
     };
   }
 }

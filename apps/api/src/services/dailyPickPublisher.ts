@@ -1,9 +1,8 @@
 import { Client, TextChannel, EmbedBuilder } from 'discord.js';
 
+import { autopilotGuard } from '../lib/AutopilotGuard';
 import { logger } from '../shared/logger';
 import { getTierColor } from '../utils/roleUtils';
-
-import { autopilotGuard } from '../lib/AutopilotGuard';
 
 import { capperService } from './capperService';
 
@@ -82,12 +81,11 @@ export class DailyPickPublisher {
 
       logger.info('Daily pick publishing completed', {
         totalPicks: picks.length,
-        cappers: picksByCapper.size
+        cappers: picksByCapper.size,
       });
-
     } catch (error) {
       logger.error('Error during daily pick publishing', {
-        err: error instanceof Error ? error.message : String(error)
+        err: error instanceof Error ? error.message : String(error),
       });
     } finally {
       this.isRunning = false;
@@ -107,7 +105,11 @@ export class DailyPickPublisher {
         action: 'DISCORD_POST',
         agent_name: 'DailyPickPublisher',
         pick_id: firstPick.id,
-        metadata: { capper_id: firstPick.capper_id, pick_count: picks.length, tier: firstPick.tier }
+        metadata: {
+          capper_id: firstPick.capper_id,
+          pick_count: picks.length,
+          tier: firstPick.tier,
+        },
       });
 
       if (!guardResult.allowed) {
@@ -115,7 +117,7 @@ export class DailyPickPublisher {
           capper_id: firstPick.capper_id,
           pick_count: picks.length,
           reason: guardResult.reason,
-          mode: guardResult.mode
+          mode: guardResult.mode,
         });
         return;
       }
@@ -125,7 +127,7 @@ export class DailyPickPublisher {
 
       if (!capperProfile) {
         logger.error('Capper profile not found', {
-          capperId: firstPick.capper_id
+          capperId: firstPick.capper_id,
         });
         return;
       }
@@ -133,7 +135,11 @@ export class DailyPickPublisher {
       const embed = new EmbedBuilder()
         .setTitle(`🎯 ${capperProfile.display_name || 'Capper'}'s Picks`)
         .setColor(getTierColor(capperProfile.tier || 'rookie'))
-        .addFields({ name: 'Tier', value: (capperProfile.tier || 'rookie').toUpperCase(), inline: true })
+        .addFields({
+          name: 'Tier',
+          value: (capperProfile.tier || 'rookie').toUpperCase(),
+          inline: true,
+        })
         .setTimestamp();
 
       // Add each pick
@@ -146,7 +152,7 @@ export class DailyPickPublisher {
             embed.addFields({
               name: `Pick ${index + 1}.${legIndex + 1} - ${leg.bet_type.toUpperCase()} (${pick.total_units} units)`,
               value: pickText,
-              inline: false
+              inline: false,
             });
           });
         }
@@ -158,12 +164,11 @@ export class DailyPickPublisher {
       await capperService.logAnalyticsEvent('picks_published', {
         capper_id: firstPick!.capper_id,
         pick_count: picks.length,
-        total_units: picks.reduce((sum: number, p: Pick) => sum + p.total_units, 0)
+        total_units: picks.reduce((sum: number, p: Pick) => sum + p.total_units, 0),
       });
-
     } catch (error) {
       logger.error('Error publishing capper picks', {
-        err: error instanceof Error ? error.message : String(error)
+        err: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -171,7 +176,7 @@ export class DailyPickPublisher {
   getStatus() {
     return {
       running: this.isRunning,
-      nextRun: 'Manual trigger only'
+      nextRun: 'Manual trigger only',
     };
   }
 }

@@ -23,14 +23,14 @@ export interface UnitTalkAlert {
 function getAlertStyle(type: UnitTalkAlert['type']) {
   switch (type) {
     case 'injury':
-      return { color: 0xED4245, emoji: '🚨', title: 'Critical Injury Impact' };
+      return { color: 0xed4245, emoji: '🚨', title: 'Critical Injury Impact' };
     case 'line_move':
-      return { color: 0xFFA500, emoji: '🔥', title: 'Significant Line Movement' };
+      return { color: 0xffa500, emoji: '🔥', title: 'Significant Line Movement' };
     case 'middling':
       return { color: 0x2ecc71, emoji: '💰', title: 'Middling/Arb Opportunity' };
     case 'info':
     default:
-      return { color: 0x5865F2, emoji: '💡', title: 'Unit Talk Advice' };
+      return { color: 0x5865f2, emoji: '💡', title: 'Unit Talk Advice' };
   }
 }
 
@@ -45,15 +45,32 @@ export function buildUnitTalkAlertEmbed(alert: UnitTalkAlert) {
     .setTimestamp(alert.timestamp ? new Date(alert.timestamp) : new Date());
 
   // Add core fields
-  if (alert.market) {embed.addFields({ name: 'Market', value: alert.market, inline: true });}
-  if (alert.player) {embed.addFields({ name: 'Player', value: alert.player, inline: true });}
-  if (alert.team) {embed.addFields({ name: 'Team', value: alert.team, inline: true });}
-  if (alert.oldLine || alert.oldOdds)
-    {embed.addFields({ name: 'Old Line', value: `${alert.oldLine ?? ''} / ${alert.oldOdds ?? ''}`.trim(), inline: true });}
-  if (alert.newLine || alert.newOdds)
-    {embed.addFields({ name: 'New Line', value: `${alert.newLine ?? ''} / ${alert.newOdds ?? ''}`.trim(), inline: true });}
-  if (alert.impact)
-    {embed.addFields({ name: 'Impact', value: `**${alert.impact}**`, inline: true });}
+  if (alert.market) {
+    embed.addFields({ name: 'Market', value: alert.market, inline: true });
+  }
+  if (alert.player) {
+    embed.addFields({ name: 'Player', value: alert.player, inline: true });
+  }
+  if (alert.team) {
+    embed.addFields({ name: 'Team', value: alert.team, inline: true });
+  }
+  if (alert.oldLine || alert.oldOdds) {
+    embed.addFields({
+      name: 'Old Line',
+      value: `${alert.oldLine ?? ''} / ${alert.oldOdds ?? ''}`.trim(),
+      inline: true,
+    });
+  }
+  if (alert.newLine || alert.newOdds) {
+    embed.addFields({
+      name: 'New Line',
+      value: `${alert.newLine ?? ''} / ${alert.newOdds ?? ''}`.trim(),
+      inline: true,
+    });
+  }
+  if (alert.impact) {
+    embed.addFields({ name: 'Impact', value: `**${alert.impact}**`, inline: true });
+  }
 
   // Add extra fields if provided
   if (alert.extraFields && Array.isArray(alert.extraFields)) {
@@ -74,17 +91,21 @@ export async function sendDiscordNotification(
   }
 
   const embed = {
-    embeds: [{
-      title: payload.title || 'Notification',
-      description: payload.message,
-      color: 5814783, // Default blue color
-      fields: payload.meta ? Object.entries(payload.meta).map(([key, value]) => ({
-        name: key,
-        value: String(value),
-        inline: true
-      })) : [],
-      timestamp: new Date().toISOString()
-    }]
+    embeds: [
+      {
+        title: payload.title || 'Notification',
+        description: payload.message,
+        color: 5814783, // Default blue color
+        fields: payload.meta
+          ? Object.entries(payload.meta).map(([key, value]) => ({
+              name: key,
+              value: String(value),
+              inline: true,
+            }))
+          : [],
+        timestamp: new Date().toISOString(),
+      },
+    ],
   };
 
   // Handle channel-specific options
@@ -95,7 +116,7 @@ export async function sendDiscordNotification(
   const response = await fetch(config.webhookUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(embed)
+    body: JSON.stringify(embed),
   });
 
   if (!response.ok) {

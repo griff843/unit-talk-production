@@ -44,7 +44,6 @@ import {
 } from '@/components/ui/table';
 import { supabase } from '@/lib/supabase';
 
-
 // NOTE: agent_logs table may not exist in production
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const dbClient = supabase as any;

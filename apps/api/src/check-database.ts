@@ -9,10 +9,7 @@ async function checkDatabase() {
 
   try {
     // Initialize Supabase client
-    const supabase = createClient(
-      process.env['SUPABASE_URL']!,
-      process.env['SUPABASE_KEY']!
-    );
+    const supabase = createClient(process.env['SUPABASE_URL']!, process.env['SUPABASE_KEY']!);
 
     // Check total count
     const { count, error: countError } = await supabase
@@ -44,7 +41,9 @@ async function checkDatabase() {
     if (optimalProps && optimalProps.length > 0) {
       console.log('\n📋 Recent Optimal props:');
       optimalProps.forEach((prop, index) => {
-        console.log(`${index + 1}. ${prop.player_name} - ${prop.stat_type} ${prop.line} (${prop.sport}) - ${prop.created_at}`);
+        console.log(
+          `${index + 1}. ${prop.player_name} - ${prop.stat_type} ${prop.line} (${prop.sport}) - ${prop.created_at}`
+        );
       });
     } else {
       console.log('⚠️ No Optimal props found in database');
@@ -70,7 +69,6 @@ async function checkDatabase() {
         console.log(`${index + 1}. ${prop.player_name} - ${prop.provider} - ${prop.created_at}`);
       });
     }
-
   } catch (error) {
     console.error('❌ Database check failed:', error);
   }

@@ -36,7 +36,9 @@ export class ProductionRedisService {
       logger.info('Redis connected successfully');
     } catch (error) {
       this.isRedisAvailable = false;
-      logger.warn('Redis not available, using memory cache fallback', { error: (error as Error).message });
+      logger.warn('Redis not available, using memory cache fallback', {
+        error: (error as Error).message,
+      });
     }
   }
 
@@ -47,10 +49,12 @@ export class ProductionRedisService {
         return result === 'PONG';
       } catch (error) {
         this.isRedisAvailable = false;
-        logger.warn('Redis health check failed, switching to fallback', { error: (error as Error).message });
+        logger.warn('Redis health check failed, switching to fallback', {
+          error: (error as Error).message,
+        });
       }
     }
-    
+
     // Memory cache is always available
     return true;
   }
@@ -71,7 +75,7 @@ export class ProductionRedisService {
     }
 
     // Fallback to memory cache
-    const expires = ttl ? Date.now() + (ttl * 1000) : undefined;
+    const expires = ttl ? Date.now() + ttl * 1000 : undefined;
     this.memoryCache.set(key, { value, expires });
   }
 
@@ -118,7 +122,10 @@ export class ProductionRedisService {
         const result = await this.redis.exists(key);
         return result === 1;
       } catch (error) {
-        logger.warn('Redis EXISTS failed, using fallback', { key, error: (error as Error).message });
+        logger.warn('Redis EXISTS failed, using fallback', {
+          key,
+          error: (error as Error).message,
+        });
         this.isRedisAvailable = false;
       }
     }
@@ -139,7 +146,7 @@ export class ProductionRedisService {
     return {
       redis: this.isRedisAvailable,
       fallback: !this.isRedisAvailable,
-      mode: this.isRedisAvailable ? 'Redis' : 'Memory Cache'
+      mode: this.isRedisAvailable ? 'Redis' : 'Memory Cache',
     };
   }
 
@@ -160,7 +167,7 @@ export class ProductionRedisService {
     return {
       mode: 'memory',
       cacheSize: this.memoryCache.size,
-      memoryUsage: process.memoryUsage()
+      memoryUsage: process.memoryUsage(),
     };
   }
 

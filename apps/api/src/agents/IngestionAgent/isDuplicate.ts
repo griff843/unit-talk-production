@@ -8,7 +8,10 @@ import { RawProp } from './types';
  * @param supabase - Supabase client instance
  * @returns Promise<boolean> - True if duplicate exists
  */
-export async function isDuplicateRawProp(prop: RawProp, supabase: SupabaseClient): Promise<boolean> {
+export async function isDuplicateRawProp(
+  prop: RawProp,
+  supabase: SupabaseClient
+): Promise<boolean> {
   try {
     // Primary duplicate check: external_game_id + player_name + stat_type + line
     const { data: primaryCheck } = await supabase
@@ -64,7 +67,6 @@ export async function isDuplicateRawProp(prop: RawProp, supabase: SupabaseClient
     }
 
     return false;
-
   } catch (error) {
     // Log error but don't fail the ingestion process
     console.error('Error checking for duplicates:', error);
@@ -79,7 +81,9 @@ export async function isDuplicateRawProp(prop: RawProp, supabase: SupabaseClient
 export async function isDuplicateRawPropLegacy(_prop: RawProp): Promise<boolean> {
   // This would need to import supabase, but we'll make it return false for now
   // to avoid breaking existing code during migration
-  console.warn('isDuplicateRawPropLegacy is deprecated. Use isDuplicateRawProp with supabase parameter.');
+  console.warn(
+    'isDuplicateRawPropLegacy is deprecated. Use isDuplicateRawProp with supabase parameter.'
+  );
   return false;
 }
 
@@ -89,7 +93,10 @@ export async function isDuplicateRawPropLegacy(_prop: RawProp): Promise<boolean>
  * @param supabase - Supabase client instance
  * @returns Promise<RawProp[]> - Array of duplicate props
  */
-export async function findDuplicateProps(prop: RawProp, supabase: SupabaseClient): Promise<RawProp[]> {
+export async function findDuplicateProps(
+  prop: RawProp,
+  supabase: SupabaseClient
+): Promise<RawProp[]> {
   try {
     const { data, error } = await supabase
       .from('raw_props')
@@ -103,7 +110,6 @@ export async function findDuplicateProps(prop: RawProp, supabase: SupabaseClient
     }
 
     return data || [];
-
   } catch (error) {
     console.error('Error finding duplicate props:', error);
     return [];
@@ -121,7 +127,7 @@ export function createDeduplicationKey(prop: RawProp): string {
     prop.player_name || 'no-player',
     prop.stat_type || 'no-stat',
     prop.line?.toString() || 'no-line',
-    prop.provider || 'no-provider'
+    prop.provider || 'no-provider',
   ];
 
   return keyParts.join('|').toLowerCase();

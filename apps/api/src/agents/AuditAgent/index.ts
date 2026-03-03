@@ -1,10 +1,14 @@
 import * as crypto from 'crypto';
 
 import { BaseAgent } from '../BaseAgent/index';
-import { BaseAgentConfig, BaseAgentDependencies, HealthStatus, BaseMetrics } from '../BaseAgent/types';
+import {
+  BaseAgentConfig,
+  BaseAgentDependencies,
+  HealthStatus,
+  BaseMetrics,
+} from '../BaseAgent/types';
 
 import { AuditIncident, AuditIncidentSchema } from './types';
-
 
 /**
  * AuditAgent
@@ -26,15 +30,15 @@ export class AuditAgent extends BaseAgent {
       const incidents: AuditIncident[] = [];
 
       // 1. Picks with missing required fields
-      incidents.push(...await this.checkForMissingFields());
+      incidents.push(...(await this.checkForMissingFields()));
       // 2. Picks stuck in invalid statuses or missing grades
-      incidents.push(...await this.checkForStuckOrUngraded());
+      incidents.push(...(await this.checkForStuckOrUngraded()));
       // 3. Duplicate external_ids in picks
-      incidents.push(...await this.checkForDuplicatePicks());
+      incidents.push(...(await this.checkForDuplicatePicks()));
       // 4. Stale or orphaned records (e.g. old, ungraded, not updated)
-      incidents.push(...await this.checkForStaleRecords());
+      incidents.push(...(await this.checkForStaleRecords()));
       // 5. (Optional) Any failed/incomplete agent tasks
-      incidents.push(...await this.checkForFailedTasks());
+      incidents.push(...(await this.checkForFailedTasks()));
 
       // Log all incidents to Supabase
       for (const incident of incidents) {
@@ -47,10 +51,12 @@ export class AuditAgent extends BaseAgent {
         await this.notifyOperatorAgent(critical);
       }
 
-      this.logger.info(`AuditAgent: Audit complete. Total incidents: ${incidents.length}, Critical: ${critical.length}`);
+      this.logger.info(
+        `AuditAgent: Audit complete. Total incidents: ${incidents.length}, Critical: ${critical.length}`
+      );
     } catch (err) {
       this.logger.error('AuditAgent: Audit failed', {
-        error: err instanceof Error ? err.message : 'Unknown error'
+        error: err instanceof Error ? err.message : 'Unknown error',
       });
       throw err;
     }
@@ -64,7 +70,7 @@ export class AuditAgent extends BaseAgent {
       severity: data.severity || 'low',
       description: data.description || 'Unspecified audit incident',
       timestamp: data.timestamp || new Date(),
-      ...data
+      ...data,
     });
   }
 
@@ -81,20 +87,22 @@ export class AuditAgent extends BaseAgent {
 
     if (error) {
       this.logger.error('checkForMissingFields failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return [];
     }
     for (const row of data ?? []) {
-      incidents.push(this.createAuditIncident({
-        id: `missing_field_${row.id}`,
-        type: 'integrity',
-        tableName: 'unified_picks',
-        row_id: row.id,
-        description: `Pick is missing required field(s): ${!row.player_name ? 'player_name' : ''}${!row.line ? ', line' : ''}${!row.odds ? ', odds' : ''}`,
-        severity: 'warning',
-        detectedAt: new Date().toISOString()
-      }));
+      incidents.push(
+        this.createAuditIncident({
+          id: `missing_field_${row.id}`,
+          type: 'integrity',
+          tableName: 'unified_picks',
+          row_id: row.id,
+          description: `Pick is missing required field(s): ${!row.player_name ? 'player_name' : ''}${!row.line ? ', line' : ''}${!row.odds ? ', odds' : ''}`,
+          severity: 'warning',
+          detectedAt: new Date().toISOString(),
+        })
+      );
     }
     return incidents;
   }
@@ -113,20 +121,22 @@ export class AuditAgent extends BaseAgent {
 
     if (error) {
       this.logger.error('checkForStuckOrUngraded failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return [];
     }
     for (const row of data ?? []) {
-      incidents.push(this.createAuditIncident({
-        id: `stuck_pending_${row.id}`,
-        type: 'integrity',
-        tableName: 'unified_picks',
-        row_id: row.id,
-        description: `Pick stuck in ${row.status} >48h`,
-        severity: 'critical',
-        detectedAt: new Date().toISOString()
-      }));
+      incidents.push(
+        this.createAuditIncident({
+          id: `stuck_pending_${row.id}`,
+          type: 'integrity',
+          tableName: 'unified_picks',
+          row_id: row.id,
+          description: `Pick stuck in ${row.status} >48h`,
+          severity: 'critical',
+          detectedAt: new Date().toISOString(),
+        })
+      );
     }
     return incidents;
   }
@@ -141,20 +151,22 @@ export class AuditAgent extends BaseAgent {
 
     if (error) {
       this.logger.error('checkForDuplicatePicks failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return [];
     }
     for (const row of data ?? []) {
-      incidents.push(this.createAuditIncident({
-        id: `duplicate_external_id_${row.id}`,
-        type: 'integrity',
-        tableName: 'unified_picks',
-        row_id: row.id,
-        description: `Duplicate external_id found: ${row.external_id}`,
-        severity: 'critical',
-        detectedAt: new Date().toISOString()
-      }));
+      incidents.push(
+        this.createAuditIncident({
+          id: `duplicate_external_id_${row.id}`,
+          type: 'integrity',
+          tableName: 'unified_picks',
+          row_id: row.id,
+          description: `Duplicate external_id found: ${row.external_id}`,
+          severity: 'critical',
+          detectedAt: new Date().toISOString(),
+        })
+      );
     }
     return incidents;
   }
@@ -173,20 +185,22 @@ export class AuditAgent extends BaseAgent {
 
     if (error) {
       this.logger.error('checkForStaleRecords failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return [];
     }
     for (const row of data ?? []) {
-      incidents.push(this.createAuditIncident({
-        id: `stale_pick_${row.id}`,
-        type: 'integrity',
-        tableName: 'unified_picks',
-        row_id: row.id,
-        description: `Stale pick: status=${row.status}, created_at=${row.created_at}`,
-        severity: 'warning',
-        detectedAt: new Date().toISOString()
-      }));
+      incidents.push(
+        this.createAuditIncident({
+          id: `stale_pick_${row.id}`,
+          type: 'integrity',
+          tableName: 'unified_picks',
+          row_id: row.id,
+          description: `Stale pick: status=${row.status}, created_at=${row.created_at}`,
+          severity: 'warning',
+          detectedAt: new Date().toISOString(),
+        })
+      );
     }
     return incidents;
   }
@@ -204,20 +218,22 @@ export class AuditAgent extends BaseAgent {
 
     if (error) {
       this.logger.error('checkForFailedTasks failed', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return [];
     }
     for (const row of data ?? []) {
-      incidents.push(this.createAuditIncident({
-        id: `failed_agent_task_${row.id}`,
-        type: 'integrity',
-        tableName: 'agent_tasks',
-        row_id: row.id,
-        description: `Agent task failed: ${row.agent} - ${row.error_message ?? ''}`,
-        severity: 'critical',
-        detectedAt: new Date().toISOString()
-      }));
+      incidents.push(
+        this.createAuditIncident({
+          id: `failed_agent_task_${row.id}`,
+          type: 'integrity',
+          tableName: 'agent_tasks',
+          row_id: row.id,
+          description: `Agent task failed: ${row.agent} - ${row.error_message ?? ''}`,
+          severity: 'critical',
+          detectedAt: new Date().toISOString(),
+        })
+      );
     }
     return incidents;
   }
@@ -227,7 +243,7 @@ export class AuditAgent extends BaseAgent {
     // (Stub) You can push to a queue, send webhook, or upsert to a monitored table.
     this.logger.info('Escalating critical audit incidents to OperatorAgent', {
       incident_count: criticalIncidents.length,
-      ids: criticalIncidents.map(i => i.row_id)
+      ids: criticalIncidents.map(i => i.row_id),
     });
     // Example: await this.supabase.from('operator_incidents').insert(criticalIncidents)
     // Or: trigger webhook/alert/Discord
@@ -250,7 +266,7 @@ export class AuditAgent extends BaseAgent {
     return {
       status: 'healthy',
       timestamp: new Date().toISOString(),
-      details: {}
+      details: {},
     };
   }
 
@@ -262,7 +278,7 @@ export class AuditAgent extends BaseAgent {
       errorCount: 0,
       warningCount: 0,
       processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024,
     };
   }
 }

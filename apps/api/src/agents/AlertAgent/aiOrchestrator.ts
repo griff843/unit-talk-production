@@ -70,7 +70,7 @@ class CircuitBreaker {
   isOpen(modelId: string): boolean {
     const failures = this.failures.get(modelId) || 0;
     const lastFailure = this.lastFailure.get(modelId) || 0;
-    
+
     if (failures >= this.failureThreshold) {
       if (Date.now() - lastFailure > this.resetTimeout) {
         this.reset(modelId);
@@ -104,7 +104,6 @@ export class AIOrchestrator {
   private performanceCache: Map<string, ModelPerformance> = new Map();
   private circuitBreaker: CircuitBreaker = new CircuitBreaker();
   private requestCounts: Map<string, { count: number; resetTime: number }> = new Map();
-
 
   constructor() {
     // Handle missing API keys gracefully for testing
@@ -142,8 +141,8 @@ export class AIOrchestrator {
         totalPredictions: 0,
         correctPredictions: 0,
         avgConfidence: 0.72,
-        successRate: 0.985
-      }
+        successRate: 0.985,
+      },
     });
 
     // GPT-4 Configuration (Fallback)
@@ -165,9 +164,9 @@ export class AIOrchestrator {
         lastUpdated: new Date().toISOString(),
         totalPredictions: 0,
         correctPredictions: 0,
-        avgConfidence: 0.70,
-        successRate: 0.98
-      }
+        avgConfidence: 0.7,
+        successRate: 0.98,
+      },
     });
 
     // GPT-3.5 Turbo Configuration (Fast fallback)
@@ -190,8 +189,8 @@ export class AIOrchestrator {
         totalPredictions: 0,
         correctPredictions: 0,
         avgConfidence: 0.62,
-        successRate: 0.97
-      }
+        successRate: 0.97,
+      },
     });
 
     // TODO: Add Claude-3 when SDK is available
@@ -258,7 +257,7 @@ export class AIOrchestrator {
     const errors: string[] = [];
 
     // Query multiple models in parallel
-    const promises = availableModels.slice(0, 3).map(async (model) => {
+    const promises = availableModels.slice(0, 3).map(async model => {
       try {
         if (this.circuitBreaker.isOpen(model.id)) {
           throw new Error(`Circuit breaker open for ${model.id}`);
@@ -301,7 +300,7 @@ export class AIOrchestrator {
     // Score models based on multiple factors
     const scoredModels = availableModels.map(model => ({
       model,
-      score: this.calculateModelScore(model, pick)
+      score: this.calculateModelScore(model, pick),
     }));
 
     // Sort by score (highest first)
@@ -317,7 +316,7 @@ export class AIOrchestrator {
     modelScore += model.performance.accuracy * 0.4;
 
     // Latency score (20% weight) - lower is better
-    const latencyScore = Math.max(0, 1 - (model.performance.avgLatency / 5000));
+    const latencyScore = Math.max(0, 1 - model.performance.avgLatency / 5000);
     modelScore += latencyScore * 0.2;
 
     // Error rate score (20% weight) - lower is better
@@ -328,7 +327,7 @@ export class AIOrchestrator {
     modelScore += model.performance.successRate * 0.1;
 
     // Cost efficiency (10% weight) - lower cost is better for similar performance
-    const costScore = Math.max(0, 1 - (model.costPerToken / 0.0001));
+    const costScore = Math.max(0, 1 - model.costPerToken / 0.0001);
     modelScore += costScore * 0.1;
 
     // Tier-specific adjustments
@@ -342,17 +341,18 @@ export class AIOrchestrator {
 
   public getAvailableModels(): ModelConfig[] {
     return Array.from(this.models.values())
-      .filter(model =>
-        model.enabled &&
-        !this.circuitBreaker.isOpen(model.id) &&
-        this.checkRateLimit(model.id)
+      .filter(
+        model =>
+          model.enabled && !this.circuitBreaker.isOpen(model.id) && this.checkRateLimit(model.id)
       )
       .sort((a, b) => a.priority - b.priority);
   }
 
   private checkRateLimit(modelId: string): boolean {
     const model = this.models.get(modelId);
-    if (!model) {return false;}
+    if (!model) {
+      return false;
+    }
 
     const now = Date.now();
     const minute = Math.floor(now / 60000);
@@ -377,23 +377,26 @@ export class AIOrchestrator {
 
     try {
       if (model.provider === 'openai') {
-        const completion = await this.openai.chat.completions.create({
-          model: model.model,
-          messages: [
-            {
-              role: 'system',
-              content: this.getSystemPrompt()
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          temperature,
-          max_tokens: model.maxTokens
-        }, {
-          timeout: 30000 // 30 second timeout
-        });
+        const completion = await this.openai.chat.completions.create(
+          {
+            model: model.model,
+            messages: [
+              {
+                role: 'system',
+                content: this.getSystemPrompt(),
+              },
+              {
+                role: 'user',
+                content: prompt,
+              },
+            ],
+            temperature,
+            max_tokens: model.maxTokens,
+          },
+          {
+            timeout: 30000, // 30 second timeout
+          }
+        );
 
         response = completion.choices[0]?.message?.content || 'No response generated';
       } else if (model.provider === 'anthropic') {
@@ -446,7 +449,9 @@ Pick Details:
 - Tags: ${Array.isArray(pick.tags) ? pick.tags.join(', ') : 'None'}
 `;
 
-    return basePrompt + `
+    return (
+      basePrompt +
+      `
 Please provide your analysis and recommendation in the following format:
 
 **RECOMMENDATION**: [HOLD/HEDGE/FADE]
@@ -454,7 +459,8 @@ Please provide your analysis and recommendation in the following format:
 **REASONING**: [Detailed analysis]
 **RISK FACTORS**: [Key risks to consider]
 **ACTION**: [Specific next steps]
-`;
+`
+    );
   }
 
   private adjustTemperature(model: ModelConfig, pick: UnifiedPick): number {
@@ -469,19 +475,24 @@ Please provide your analysis and recommendation in the following format:
     return Math.max(0.1, Math.min(1.0, temperature));
   }
 
-  private parseAdviceResponse(response: string, modelId: string, temperature: number, processingTime: number): AIAdvice {
+  private parseAdviceResponse(
+    response: string,
+    modelId: string,
+    temperature: number,
+    processingTime: number
+  ): AIAdvice {
     // Extract recommendation
     const recommendationMatch = response.match(/\*\*RECOMMENDATION\*\*:\s*([A-Z]+)/i);
     const recommendation = recommendationMatch ? recommendationMatch[1] : 'HOLD';
-    
+
     // Extract confidence
     const confidenceMatch = response.match(/\*\*CONFIDENCE\*\*:\s*(\d+)/);
     const confidence = confidenceMatch?.[1] ? parseInt(confidenceMatch[1]) / 100 : 0.5;
-    
+
     // Extract reasoning
     const reasoningMatch = response.match(/\*\*REASONING\*\*:\s*([^*]+)/);
     const reasoning = reasoningMatch?.[1]?.trim() || 'No detailed reasoning provided';
-    
+
     return {
       advice: `**${recommendation}** - ${reasoning}`,
       confidence,
@@ -489,7 +500,7 @@ Please provide your analysis and recommendation in the following format:
       model: modelId,
       temperature,
       processingTime,
-      fallbackUsed: false
+      fallbackUsed: false,
     };
   }
 
@@ -499,16 +510,20 @@ Please provide your analysis and recommendation in the following format:
     let confidence = 0.3;
 
     if (pick.is_sharp_fade) {
-      advice = '**FADE** - Sharp money indicates line movement against this pick. Consider fading or avoiding.';
+      advice =
+        '**FADE** - Sharp money indicates line movement against this pick. Consider fading or avoiding.';
       confidence = 0.6;
     } else if (pick.tier === 'S' || pick.tier === 'A') {
-      advice = '**HOLD** - High-tier pick with strong edge score. Monitor for optimal entry timing.';
+      advice =
+        '**HOLD** - High-tier pick with strong edge score. Monitor for optimal entry timing.';
       confidence = 0.5;
     } else if (pick.edge_score && pick.edge_score < 10) {
-      advice = '**HEDGE** - Low edge professional_score suggests limited value. Consider hedging or reducing position size.';
+      advice =
+        '**HEDGE** - Low edge professional_score suggests limited value. Consider hedging or reducing position size.';
       confidence = 0.4;
     } else {
-      advice = '**HOLD** - Standard pick with moderate edge. Follow your bankroll management rules.';
+      advice =
+        '**HOLD** - Standard pick with moderate edge. Follow your bankroll management rules.';
       confidence = 0.3;
     }
 
@@ -519,7 +534,7 @@ Please provide your analysis and recommendation in the following format:
       model: 'fallback-rules',
       temperature: 0,
       processingTime: 0,
-      fallbackUsed: true
+      fallbackUsed: true,
     };
   }
 
@@ -539,7 +554,7 @@ Please provide your analysis and recommendation in the following format:
         agreement: 1.0,
         models: [response.model],
         reasoning: [response.reasoning],
-        conflictFlags: []
+        conflictFlags: [],
       };
     }
 
@@ -550,70 +565,74 @@ Please provide your analysis and recommendation in the following format:
     });
 
     // Calculate agreement
-    const recommendationCounts = recommendations.reduce((acc, rec) => {
-      if (rec) {
-        acc[rec] = (acc[rec] || 0) + 1;
-      }
-      return acc;
-    }, {} as Record<string, number>);
+    const recommendationCounts = recommendations.reduce(
+      (acc, rec) => {
+        if (rec) {
+          acc[rec] = (acc[rec] || 0) + 1;
+        }
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
-    const mostCommon = Object.entries(recommendationCounts)
-      .sort(([,a], [,b]) => b - a)[0];
+    const mostCommon = Object.entries(recommendationCounts).sort(([, a], [, b]) => b - a)[0];
 
     if (!mostCommon) {
       throw new Error('Unable to determine consensus recommendation');
     }
 
     const agreement = mostCommon[1] / responses.length;
-    
+
     // Calculate weighted confidence
     const avgConfidence = responses.reduce((sum, r) => sum + r.confidence, 0) / responses.length;
-    
+
     // Identify conflicts
     const conflictFlags: string[] = [];
     if (agreement < 0.6) {
       conflictFlags.push('LOW_CONSENSUS');
     }
-    
-    const confidenceRange = Math.max(...responses.map(r => r.confidence)) - 
-                           Math.min(...responses.map(r => r.confidence));
+
+    const confidenceRange =
+      Math.max(...responses.map(r => r.confidence)) - Math.min(...responses.map(r => r.confidence));
     if (confidenceRange > 0.4) {
       conflictFlags.push('HIGH_CONFIDENCE_VARIANCE');
     }
 
     return {
-      primaryAdvice: mostCommon ? `**${mostCommon[0]}** - Consensus recommendation from ${responses.length} models` : '',
+      primaryAdvice: mostCommon
+        ? `**${mostCommon[0]}** - Consensus recommendation from ${responses.length} models`
+        : '',
       confidence: avgConfidence * agreement, // Reduce confidence if low agreement
       agreement,
       models: responses.map(r => r.model),
       reasoning: responses.map(r => r.reasoning),
-      conflictFlags
+      conflictFlags,
     };
   }
 
   private updateModelPerformance(modelId: string, success: boolean, latency: number): void {
     const model = this.models.get(modelId);
-    if (!model) {return;}
+    if (!model) {
+      return;
+    }
 
     const perf = model.performance;
     perf.totalPredictions++;
-    
+
     if (success) {
       perf.correctPredictions++;
       this.circuitBreaker.recordSuccess(modelId);
     } else {
       this.circuitBreaker.recordFailure(modelId);
     }
-    
+
     // Update running averages
     perf.accuracy = perf.correctPredictions / perf.totalPredictions;
     perf.avgLatency = (perf.avgLatency + latency) / 2;
-    perf.successRate = success ? 
-      (perf.successRate * 0.9 + 0.1) : 
-      (perf.successRate * 0.9);
-    
+    perf.successRate = success ? perf.successRate * 0.9 + 0.1 : perf.successRate * 0.9;
+
     perf.lastUpdated = new Date().toISOString();
-    
+
     // Cache the performance data
     this.performanceCache.set(modelId, { ...perf });
   }
@@ -660,7 +679,9 @@ Please provide your analysis and recommendation in the following format:
   async switchToBackupModel(primaryModelId: string): Promise<string> {
     // Find the next available model with highest priority
     const availableModels = Array.from(this.models.entries())
-      .filter(([id, model]) => id !== primaryModelId && model.enabled && !this.circuitBreaker.isOpen(id))
+      .filter(
+        ([id, model]) => id !== primaryModelId && model.enabled && !this.circuitBreaker.isOpen(id)
+      )
       .sort(([, a], [, b]) => b.priority - a.priority);
 
     if (availableModels.length > 0) {

@@ -16,20 +16,20 @@ on:
   pull_request:
     branches: [main, develop]
     paths:
-      - 'apps/api/src/lib/AutopilotPolicyEngine.ts'
-      - 'apps/api/src/lib/AutopilotEnforcement.ts'
-      - 'apps/command-center/src/app/api/admin/autopilot/**'
-      - 'scripts/db/phase4_autopilot_policy.sql'
-      - 'scripts/verify-phase4-autopilot-policy.ts'
-      - '.github/workflows/autopilot-policy-acceptance.yml'
+      - "apps/api/src/lib/AutopilotPolicyEngine.ts"
+      - "apps/api/src/lib/AutopilotEnforcement.ts"
+      - "apps/command-center/src/app/api/admin/autopilot/**"
+      - "scripts/db/phase4_autopilot_policy.sql"
+      - "scripts/verify-phase4-autopilot-policy.ts"
+      - ".github/workflows/autopilot-policy-acceptance.yml"
   push:
     branches: [main]
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Target environment for verification'
+        description: "Target environment for verification"
         required: true
-        default: 'staging'
+        default: "staging"
         type: choice
         options:
           - local
@@ -38,7 +38,8 @@ on:
           - production
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: "20"
+  PNPM_VERSION: "10.29.3"
   VERIFICATION_ENV: ${{ github.event.inputs.environment || 'staging' }}
 
 jobs:
@@ -52,31 +53,40 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "pnpm"
+
+      - name: Verify lockfile exists (fail-closed)
+        run: |
+          test -f pnpm-lock.yaml || { echo "ERROR: pnpm-lock.yaml not found"; exit 1; }
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Check Policy Engine compilation
         run: |
           echo "Checking AutopilotPolicyEngine.ts compilation..."
-          npx tsc --noEmit apps/api/src/lib/AutopilotPolicyEngine.ts --skipLibCheck || exit 1
+          pnpm exec tsc --noEmit apps/api/src/lib/AutopilotPolicyEngine.ts --skipLibCheck || exit 1
           echo "✓ AutopilotPolicyEngine.ts compiles successfully"
 
       - name: Check Enforcement module compilation
         run: |
           echo "Checking AutopilotEnforcement.ts compilation..."
-          npx tsc --noEmit apps/api/src/lib/AutopilotEnforcement.ts --skipLibCheck || exit 1
+          pnpm exec tsc --noEmit apps/api/src/lib/AutopilotEnforcement.ts --skipLibCheck || exit 1
           echo "✓ AutopilotEnforcement.ts compiles successfully"
 
       - name: Check verification script compilation
         run: |
           echo "Checking verification script compilation..."
-          npx tsc --project scripts/tsconfig.json --noEmit || exit 1
+          pnpm exec tsc --project scripts/tsconfig.json --noEmit || exit 1
           echo "✓ Verification script compiles successfully"
 
   # ============================================================================
@@ -90,19 +100,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Run Policy Engine tests
         run: |
           echo "Running Policy Engine unit tests..."
-          cd apps/api && npm run test -- --testPathPattern="autopilot" --passWithNoTests || true
+          cd apps/api && pnpm run test -- --testPathPattern="autopilot" --passWithNoTests || true
           echo "Policy Engine tests complete (failures do not block acceptance)"
         env:
           CI: true
@@ -228,25 +243,30 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Run verification script
         run: |
           echo "Running Phase 4 verification against ${{ env.VERIFICATION_ENV }}..."
-          npx ts-node scripts/verify-phase4-autopilot-policy.ts
+          pnpm exec ts-node scripts/verify-phase4-autopilot-policy.ts
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           VERIFICATION_ENV: ${{ env.VERIFICATION_ENV }}
-          OUTPUT_JSON: 'true'
-          VERBOSE: 'true'
+          OUTPUT_JSON: "true"
+          VERBOSE: "true"
 
       - name: Upload verification report
         uses: actions/upload-artifact@v4

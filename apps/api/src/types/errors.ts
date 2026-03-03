@@ -91,14 +91,14 @@ export function handleError(error: unknown, _context?: string): BaseError {
       message: error.message,
       code: error.name,
       stack: error.stack || '',
-      context: { originalError: error.constructor.name }
+      context: { originalError: error.constructor.name },
     };
   }
-  
+
   return {
     message: String(error),
     code: 'UNKNOWN_ERROR',
-    context: { originalValue: error }
+    context: { originalValue: error },
   };
 }
 
@@ -107,37 +107,37 @@ export const errorSchema = z.object({
   message: z.string(),
   code: z.string().optional(),
   stack: z.string().optional(),
-  context: z.record(z.unknown()).optional()
+  context: z.record(z.unknown()).optional(),
 });
 
 export const validationErrorSchema = z.object({
   message: z.string(),
   code: z.literal('VALIDATION_ERROR'),
-  context: z.record(z.unknown()).optional()
+  context: z.record(z.unknown()).optional(),
 });
 
 export const databaseErrorSchema = z.object({
   message: z.string(),
   code: z.literal('DATABASE_ERROR'),
-  context: z.record(z.unknown()).optional()
+  context: z.record(z.unknown()).optional(),
 });
 
 export const agentErrorSchema = z.object({
   message: z.string(),
   code: z.literal('AGENT_ERROR'),
-  context: z.record(z.unknown()).optional()
+  context: z.record(z.unknown()).optional(),
 });
 
 export const workflowErrorSchema = z.object({
   message: z.string(),
   code: z.literal('WORKFLOW_ERROR'),
-  context: z.record(z.unknown()).optional()
+  context: z.record(z.unknown()).optional(),
 });
 
 export const externalServiceErrorSchema = z.object({
   message: z.string(),
   code: z.literal('EXTERNAL_SERVICE_ERROR'),
-  context: z.record(z.unknown()).optional()
+  context: z.record(z.unknown()).optional(),
 });
 
 // Type guards

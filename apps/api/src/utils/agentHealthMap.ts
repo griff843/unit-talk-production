@@ -1,5 +1,5 @@
 // /utils/agentHealthMap.ts
 
-import type { AgentHealthReport } from '../types/agent'
+import type { AgentHealthReport } from '../types/agent';
 
-export const agentHealthMap: Record<string, AgentHealthReport> = {}
+export const agentHealthMap: Record<string, AgentHealthReport> = {};

@@ -36,7 +36,7 @@ export function validateRawProp(prop: any): ValidationResult {
   return {
     isValid: errors.length === 0,
     errors,
-    warnings
+    warnings,
   };
 }
 
@@ -96,7 +96,7 @@ export function normalizeRawProp(prop: any): NormalizationResult {
     fair_odds: prop.fair_odds || null,
     source: prop.source || null,
     odds: prop.odds || null,
-    outcome: prop.outcome || null
+    outcome: prop.outcome || null,
   };
 
   // Always log that we generated a new UUID
@@ -113,6 +113,6 @@ export function normalizeRawProp(prop: any): NormalizationResult {
   return {
     normalizedProp,
     changes,
-    warnings
+    warnings,
   };
 }

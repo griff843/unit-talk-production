@@ -18,17 +18,17 @@ export async function enrichAllPlayersActivity(
 ): Promise<void> {
   try {
     const { league } = params;
-    const logMessage = league 
+    const logMessage = league
       ? `Starting ${league} player enrichment activity`
       : 'Starting multi-league player enrichment activity';
-    
-    logger.info(logMessage, { 
+
+    logger.info(logMessage, {
       activityId: params.activityId,
-      league: league || 'ALL'
+      league: league || 'ALL',
     });
 
     const summary = await enrichAllPlayers(league);
-    
+
     logger.info('Player enrichment activity completed', {
       activityId: params.activityId,
       league: league || 'ALL',
@@ -37,21 +37,21 @@ export async function enrichAllPlayersActivity(
         successful: summary.successfulEnrichments,
         notFound: summary.notFound,
         errors: summary.errors,
-        leagueBreakdown: summary.leagueBreakdown
-      }
+        leagueBreakdown: summary.leagueBreakdown,
+      },
     });
 
     if (summary.errors > 0) {
       logger.warn('Player enrichment completed with errors', {
         activityId: params.activityId,
-        errorDetails: summary.errorDetails
+        errorDetails: summary.errorDetails,
       });
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     logger.error('Player enrichment activity failed', {
       activityId: params.activityId,
-      err: errorMessage
+      err: errorMessage,
     });
     throw error;
   }
@@ -65,23 +65,23 @@ export async function enrichPlayerByIdActivity(
 ): Promise<void> {
   try {
     const { playerId } = params;
-    
+
     logger.info('Starting player enrichment by ID activity', {
       activityId: params.activityId,
-      playerId
+      playerId,
     });
 
     const result = await enrichPlayerById(playerId);
-    
+
     if (result) {
       logger.info('Player enrichment by ID completed successfully', {
         activityId: params.activityId,
-        playerId
+        playerId,
       });
     } else {
       logger.warn('Player enrichment by ID failed - player not found or no headshot available', {
         activityId: params.activityId,
-        playerId
+        playerId,
       });
     }
   } catch (error) {
@@ -89,7 +89,7 @@ export async function enrichPlayerByIdActivity(
     logger.error('Player enrichment by ID activity failed', {
       activityId: params.activityId,
       playerId: params.playerId,
-      err: errorMessage
+      err: errorMessage,
     });
     throw error;
   }
@@ -103,11 +103,11 @@ export async function getPlayerHeadshotActivity(
 ): Promise<string | null> {
   try {
     const { playerName, league } = params;
-    
+
     logger.info(`Starting ${league} headshot retrieval activity`, {
       activityId: params.activityId,
       playerName,
-      league
+      league,
     });
 
     let result: string | null = null;
@@ -128,19 +128,19 @@ export async function getPlayerHeadshotActivity(
       default:
         throw new Error(`Unsupported league: ${league}`);
     }
-    
+
     if (result) {
       logger.info(`${league} headshot retrieval completed successfully`, {
         activityId: params.activityId,
         playerName,
         league,
-        headshotUrl: result
+        headshotUrl: result,
       });
     } else {
       logger.warn(`No ${league} headshot found for player`, {
         activityId: params.activityId,
         playerName,
-        league
+        league,
       });
     }
 
@@ -151,7 +151,7 @@ export async function getPlayerHeadshotActivity(
       activityId: params.activityId,
       playerName: params.playerName,
       league: params.league,
-      error: errorMessage
+      error: errorMessage,
     });
     throw error;
   }
@@ -163,7 +163,7 @@ export async function getMlbHeadshotActivity(
 ): Promise<string | null> {
   return getPlayerHeadshotActivity({
     ...params,
-    league: 'MLB'
+    league: 'MLB',
   });
 }
 
@@ -172,7 +172,7 @@ export async function getNbaHeadshotActivity(
 ): Promise<string | null> {
   return getPlayerHeadshotActivity({
     ...params,
-    league: 'NBA'
+    league: 'NBA',
   });
 }
 
@@ -181,7 +181,7 @@ export async function getNflHeadshotActivity(
 ): Promise<string | null> {
   return getPlayerHeadshotActivity({
     ...params,
-    league: 'NFL'
+    league: 'NFL',
   });
 }
 
@@ -190,6 +190,6 @@ export async function getNhlHeadshotActivity(
 ): Promise<string | null> {
   return getPlayerHeadshotActivity({
     ...params,
-    league: 'NHL'
+    league: 'NHL',
   });
 }

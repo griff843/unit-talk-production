@@ -9,6 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+
 import { getSupabaseClient } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
@@ -79,10 +80,7 @@ export async function POST(request: NextRequest) {
     const { pick_id, result, actual_value, notes, operator } = body;
 
     if (!pick_id) {
-      return NextResponse.json(
-        { success: false, error: 'pick_id is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: 'pick_id is required' }, { status: 400 });
     }
 
     if (!result || !['win', 'loss', 'push'].includes(result)) {
@@ -105,10 +103,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (error) {
-      return NextResponse.json(
-        { success: false, error: error.message },
-        { status: 500 }
-      );
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
     const rpcResult = data as Record<string, unknown> | null;

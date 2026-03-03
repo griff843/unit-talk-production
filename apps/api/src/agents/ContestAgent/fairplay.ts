@@ -7,7 +7,6 @@ import { Logger, makeLogger } from '../../utils/logger';
 
 import { Participant, FairPlayViolation, ContestAgentConfig } from './types';
 
-
 // Validation schemas
 const fairPlayViolationSchema = z.object({
   ruleId: z.string().uuid(),
@@ -16,7 +15,7 @@ const fairPlayViolationSchema = z.object({
   severity: z.enum(['low', 'medium', 'high', 'critical']),
   evidence: z.record(z.any()),
   action: z.string(),
-  status: z.enum(['pending', 'resolved', 'appealed'])
+  status: z.enum(['pending', 'resolved', 'appealed']),
 });
 
 interface BettingEvidence {
@@ -97,25 +96,25 @@ export class FairPlayMonitor {
       violationsDetected: new Counter({
         name: 'fairplay_violations_total',
         help: 'Total number of fair play violations detected',
-        labelNames: ['severity', 'type']
+        labelNames: ['severity', 'type'],
       }),
       activeMonitors: new Gauge({
         name: 'fairplay_active_monitors',
-        help: 'Number of active fair play monitoring sessions'
+        help: 'Number of active fair play monitoring sessions',
       }),
       checkLatency: new Histogram({
         name: 'fairplay_check_duration_seconds',
         help: 'Duration of fair play checks',
-        buckets: [0.1, 0.5, 1, 2, 5]
+        buckets: [0.1, 0.5, 1, 2, 5],
       }),
       falsePositiveRate: new Gauge({
         name: 'fairplay_false_positive_rate',
-        help: 'Rate of false positive detections'
+        help: 'Rate of false positive detections',
       }),
       appealRate: new Gauge({
         name: 'fairplay_appeal_rate',
-        help: 'Rate of violation appeals'
-      })
+        help: 'Rate of violation appeals',
+      }),
     };
   }
 
@@ -124,11 +123,15 @@ export class FairPlayMonitor {
       // Subscribe to participant activity updates
       this.supabase
         .channel('participant_activity')
-        .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table: 'participant_activity'
-        }, this.handleActivityUpdate.bind(this))
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'participant_activity',
+          },
+          this.handleActivityUpdate.bind(this)
+        )
         .subscribe();
 
       // Load active contests for monitoring
@@ -137,15 +140,19 @@ export class FairPlayMonitor {
         .select('id, fairPlayConfig')
         .eq('status', 'active');
 
-      if (error) {throw error;}
+      if (error) {
+        throw error;
+      }
 
       this.metrics.activeMonitors.set(contests?.length || 0);
 
       this.logger.info('FairPlayMonitor initialized successfully', {
-        activeContests: contests?.length
+        activeContests: contests?.length,
       });
     } catch (error) {
-      this.errorHandler.handleError(error as Error, { context: 'Failed to initialize fair play monitor' });
+      this.errorHandler.handleError(error as Error, {
+        context: 'Failed to initialize fair play monitor',
+      });
       throw error;
     }
   }
@@ -158,7 +165,9 @@ export class FairPlayMonitor {
   private async handleActivityUpdate(payload: any): Promise<void> {
     try {
       const { new: activity } = payload;
-      if (!activity) {return;}
+      if (!activity) {
+        return;
+      }
 
       const startTime = process.hrtime();
 
@@ -169,14 +178,16 @@ export class FairPlayMonitor {
         .eq('id', activity.participantId)
         .single();
 
-      if (participantError) {throw participantError;}
+      if (participantError) {
+        throw participantError;
+      }
 
       // Run all checks
       await Promise.all([
         this.checkMultipleAccounts(participant),
         this.checkBettingPatterns(participant),
         this.checkCollusion(participant),
-        this.checkTimeAnomaly(participant)
+        this.checkTimeAnomaly(participant),
       ]);
 
       const [seconds, nanoseconds] = process.hrtime(startTime);
@@ -197,7 +208,9 @@ export class FairPlayMonitor {
       .eq('participant_id', participantId)
       .order('timestamp', { ascending: true });
 
-    if (error) {throw error;}
+    if (error) {
+      throw error;
+    }
 
     const patterns = this.analyzePatterns(history || []);
     this.patternCache.set(participantId, patterns);
@@ -221,7 +234,7 @@ export class FairPlayMonitor {
         type,
         frequency: events.length / (history.length || 1),
         timestamps: events.map(e => new Date(e.timestamp)),
-        values: events.map(e => e.value)
+        values: events.map(e => e.value),
       });
     }
 
@@ -235,18 +248,18 @@ export class FairPlayMonitor {
     try {
       const fullViolation: FairPlayViolation = {
         ...violation,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
       // Validate violation data
       await fairPlayViolationSchema.parseAsync(fullViolation);
 
       // Insert violation record
-      const { error } = await this.supabase
-        .from('fairplay_violations')
-        .insert(fullViolation);
+      const { error } = await this.supabase.from('fairplay_violations').insert(fullViolation);
 
-      if (error) {throw error;}
+      if (error) {
+        throw error;
+      }
 
       // Update participant's fair play professional_score
       const scoreReduction = this.calculateScoreReduction(violation.severity);
@@ -255,13 +268,13 @@ export class FairPlayMonitor {
       // Update metrics
       this.metrics.violationsDetected.inc({
         severity: violation.severity,
-        type: violation.type
+        type: violation.type,
       });
 
       this.logger.warn('Fair play violation detected', {
         participantId: participant.id,
         severity: violation.severity,
-        type: violation.type
+        type: violation.type,
       });
     } catch (error) {
       this.errorHandler.handleError(error as Error, { context: 'Failed to report violation' });
@@ -273,7 +286,7 @@ export class FairPlayMonitor {
       low: 5,
       medium: 10,
       high: 20,
-      critical: 40
+      critical: 40,
     };
     return reductions[severity as keyof typeof reductions] || 5;
   }
@@ -285,7 +298,9 @@ export class FairPlayMonitor {
       .eq('id', participantId)
       .single();
 
-    if (error) {throw error;}
+    if (error) {
+      throw error;
+    }
 
     const newScore = Math.max(0, (participant?.fairPlayScore || 100) - reduction);
 
@@ -307,7 +322,9 @@ export class FairPlayMonitor {
         .order('timestamp', { ascending: false })
         .limit(100);
 
-      if (!ipHistory?.length) {return;}
+      if (!ipHistory?.length) {
+        return;
+      }
 
       const ipAddresses = Array.from(new Set(ipHistory.map(h => h.ip_address)));
 
@@ -317,7 +334,9 @@ export class FairPlayMonitor {
         .in('ip_address', ipAddresses)
         .neq('participant_id', participant.id);
 
-      if (!relatedParticipants?.length) {return;}
+      if (!relatedParticipants?.length) {
+        return;
+      }
 
       // Group by participant to calculate IP overlap
       const participantIPs = new Map<string, Set<string>>();
@@ -332,7 +351,8 @@ export class FairPlayMonitor {
         const overlapCount = Array.from(ips).filter(ip => ipAddresses.includes(ip)).length;
         const overlapPercentage = overlapCount / Math.max(ips.size, ipAddresses.length);
 
-        if (overlapPercentage > 0.8) { // High IP overlap threshold
+        if (overlapPercentage > 0.8) {
+          // High IP overlap threshold
           // Check for additional indicators
           const result = await this.analyzeAccountRelationship(participant.id, relatedId);
 
@@ -342,9 +362,11 @@ export class FairPlayMonitor {
               description: 'Multiple account relationship detected',
               severity: result.severity === 'critical' ? 'high' : result.severity,
               evidence: [
-                ...Object.entries(result.evidence).map(([key, value]) => `${key}: ${JSON.stringify(value)}`),
-                `ipOverlap: ${overlapPercentage}`
-              ]
+                ...Object.entries(result.evidence).map(
+                  ([key, value]) => `${key}: ${JSON.stringify(value)}`
+                ),
+                `ipOverlap: ${overlapPercentage}`,
+              ],
             });
           }
         }
@@ -353,7 +375,9 @@ export class FairPlayMonitor {
       const [seconds, nanoseconds] = process.hrtime(startTime);
       this.metrics.checkLatency.observe(seconds + nanoseconds / 1e9);
     } catch (error) {
-      this.errorHandler.handleError(error as Error, { context: 'Failed to check multiple accounts' });
+      this.errorHandler.handleError(error as Error, {
+        context: 'Failed to check multiple accounts',
+      });
     }
   }
 
@@ -364,31 +388,37 @@ export class FairPlayMonitor {
     // Get activity patterns for both accounts
     const [participantPatterns, relatedPatterns] = await Promise.all([
       this.loadParticipantHistory(participantId),
-      this.loadParticipantHistory(relatedId)
+      this.loadParticipantHistory(relatedId),
     ]);
 
     // Check for suspicious patterns
     const indicators = {
       alternatingActivity: this.checkAlternatingActivity(participantPatterns, relatedPatterns),
       similarBehavior: this.checkBehaviorSimilarity(participantPatterns, relatedPatterns),
-      resourceSharing: await this.checkResourceSharing(participantId, relatedId)
+      resourceSharing: await this.checkResourceSharing(participantId, relatedId),
     };
 
     // Calculate confidence based on indicators
-    const confidence = Object.values(indicators).filter(Boolean).length / Object.keys(indicators).length;
+    const confidence =
+      Object.values(indicators).filter(Boolean).length / Object.keys(indicators).length;
 
     // Determine severity
     let severity: 'low' | 'medium' | 'high' | 'critical';
-    if (confidence > 0.8) {severity = 'critical';}
-    else if (confidence > 0.6) {severity = 'high';}
-    else if (confidence > 0.4) {severity = 'medium';}
-    else {severity = 'low';}
+    if (confidence > 0.8) {
+      severity = 'critical';
+    } else if (confidence > 0.6) {
+      severity = 'high';
+    } else if (confidence > 0.4) {
+      severity = 'medium';
+    } else {
+      severity = 'low';
+    }
 
     return {
       isViolation: confidence > 0.4,
       confidence,
       evidence: indicators,
-      severity
+      severity,
     };
   }
 
@@ -399,7 +429,7 @@ export class FairPlayMonitor {
     // Combine all timestamps
     const allTimestamps = [
       ...patterns1.flatMap(p => p.timestamps),
-      ...patterns2.flatMap(p => p.timestamps)
+      ...patterns2.flatMap(p => p.timestamps),
     ].sort((a, b) => a.getTime() - b.getTime());
 
     // Check for alternating pattern
@@ -409,8 +439,10 @@ export class FairPlayMonitor {
 
     for (let i = 1; i < allTimestamps.length; i++) {
       const currentTimestamp = allTimestamps[i];
-      if (!currentTimestamp) {continue;}
-      const isAccount1 = patterns1.some(p => 
+      if (!currentTimestamp) {
+        continue;
+      }
+      const isAccount1 = patterns1.some(p =>
         p.timestamps.some(t => t.getTime() === currentTimestamp.getTime())
       );
       const currentAccountId = isAccount1 ? '1' : '2';
@@ -433,7 +465,9 @@ export class FairPlayMonitor {
     // Compare patterns of same type
     const similarities = patterns1.map(p1 => {
       const p2 = patterns2.find(p2 => p2.type === p1.type);
-      if (!p2) {return 0;}
+      if (!p2) {
+        return 0;
+      }
 
       // Compare frequency
       const freqSimilarity = 1 - Math.abs(p1.frequency - p2.frequency);
@@ -457,7 +491,9 @@ export class FairPlayMonitor {
     let norm1 = 0;
     let norm2 = 0;
 
-    for (const bucket of Array.from(new Set([...Object.keys(histogram1), ...Object.keys(histogram2)]))) {
+    for (const bucket of Array.from(
+      new Set([...Object.keys(histogram1), ...Object.keys(histogram2)])
+    )) {
       const bucketNum = parseInt(bucket, 10);
       const v1 = histogram1[bucketNum] || 0;
       const v2 = histogram2[bucketNum] || 0;
@@ -491,7 +527,9 @@ export class FairPlayMonitor {
       .select('resource_id, resource_type, participant_id')
       .or(`participant_id.eq.${participantId1},participant_id.eq.${participantId2}`);
 
-    if (!resources?.length) {return false;}
+    if (!resources?.length) {
+      return false;
+    }
 
     // Group by resource
     const resourceGroups = resources.reduce((groups, r) => {
@@ -502,9 +540,7 @@ export class FairPlayMonitor {
     }, new Map<string, Set<string>>());
 
     // Count shared resources
-    const sharedCount = Array.from(resourceGroups.values())
-      .filter(group => group.size > 1)
-      .length;
+    const sharedCount = Array.from(resourceGroups.values()).filter(group => group.size > 1).length;
 
     return sharedCount > 0;
   }
@@ -514,7 +550,9 @@ export class FairPlayMonitor {
       const patterns = await this.loadParticipantHistory(participant.id);
       const bettingPatterns = patterns.filter(p => p.type === 'bet_placed');
 
-      if (bettingPatterns.length < 10) {return;} // Not enough data
+      if (bettingPatterns.length < 10) {
+        return;
+      } // Not enough data
 
       // Analyze betting patterns
       const result = this.analyzeBettingBehavior(bettingPatterns);
@@ -524,11 +562,15 @@ export class FairPlayMonitor {
           type: 'betting_patterns',
           description: 'Suspicious betting patterns detected',
           severity: result.severity === 'critical' ? 'high' : result.severity,
-          evidence: Object.entries(result.evidence).map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
+          evidence: Object.entries(result.evidence).map(
+            ([key, value]) => `${key}: ${JSON.stringify(value)}`
+          ),
         });
       }
     } catch (error) {
-      this.errorHandler?.handleError(error as Error, { context: 'Failed to check betting patterns' });
+      this.errorHandler?.handleError(error as Error, {
+        context: 'Failed to check betting patterns',
+      });
     }
   }
 
@@ -543,7 +585,8 @@ export class FairPlayMonitor {
     });
 
     const timeVariance = this.calculateVariance(timeDiffs);
-    if (timeVariance < 1000) { // Suspiciously consistent timing
+    if (timeVariance < 1000) {
+      // Suspiciously consistent timing
       evidence.consistentTiming = timeVariance;
       suspiciousFactors++;
     }
@@ -553,10 +596,11 @@ export class FairPlayMonitor {
     const sizeVariance = this.calculateVariance(betSizes);
     const avgBetSize = betSizes.reduce((a, b) => a + b, 0) / betSizes.length;
 
-    if (sizeVariance < avgBetSize * 0.1) { // Very consistent bet sizes
+    if (sizeVariance < avgBetSize * 0.1) {
+      // Very consistent bet sizes
       evidence.consistentSizes = {
         variance: sizeVariance,
-        average: avgBetSize
+        average: avgBetSize,
       };
       suspiciousFactors++;
     }
@@ -571,16 +615,21 @@ export class FairPlayMonitor {
     // Calculate confidence and severity
     const confidence = suspiciousFactors / 3;
     let severity: 'low' | 'medium' | 'high' | 'critical';
-    if (confidence > 0.8) {severity = 'critical';}
-    else if (confidence > 0.6) {severity = 'high';}
-    else if (confidence > 0.4) {severity = 'medium';}
-    else {severity = 'low';}
+    if (confidence > 0.8) {
+      severity = 'critical';
+    } else if (confidence > 0.6) {
+      severity = 'high';
+    } else if (confidence > 0.4) {
+      severity = 'medium';
+    } else {
+      severity = 'low';
+    }
 
     return {
       isViolation: confidence > 0.4,
       confidence,
       evidence,
-      severity
+      severity,
     };
   }
 
@@ -596,16 +645,18 @@ export class FairPlayMonitor {
   private findRapidSequences(timestamps: Date[], threshold: number): number[][] {
     const sequences: number[][] = [];
     let currentSequence: number[] = [];
-    
+
     for (let i = 1; i < timestamps.length; i++) {
       const current = timestamps[i];
-      const previous = timestamps[i-1];
-      if (!current || !previous) {continue;}
+      const previous = timestamps[i - 1];
+      if (!current || !previous) {
+        continue;
+      }
 
       const timeDiff = current.getTime() - previous.getTime();
       if (timeDiff < threshold) {
         if (currentSequence.length === 0) {
-          currentSequence.push(i-1);
+          currentSequence.push(i - 1);
         }
         currentSequence.push(i);
       } else if (currentSequence.length > 0) {
@@ -631,16 +682,23 @@ export class FairPlayMonitor {
         .order('timestamp', { ascending: false })
         .limit(100);
 
-      if (!bets?.length) {return;}
+      if (!bets?.length) {
+        return;
+      }
 
       // Find related bets from other participants
       const { data: relatedBets } = await this.supabase
         .from('participant_bets')
         .select('*')
         .neq('participant_id', participant.id)
-        .in('event_id', bets.map(b => b.event_id));
+        .in(
+          'event_id',
+          bets.map(b => b.event_id)
+        );
 
-      if (!relatedBets?.length) {return;}
+      if (!relatedBets?.length) {
+        return;
+      }
 
       // Analyze for collusion patterns
       const result = this.analyzeCollusionPatterns(bets, relatedBets);
@@ -650,7 +708,9 @@ export class FairPlayMonitor {
           type: 'collusion',
           description: 'Potential collusion detected',
           severity: result.severity === 'critical' ? 'high' : result.severity,
-          evidence: Object.entries(result.evidence).map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
+          evidence: Object.entries(result.evidence).map(
+            ([key, value]) => `${key}: ${JSON.stringify(value)}`
+          ),
         });
       }
     } catch (error) {
@@ -658,10 +718,7 @@ export class FairPlayMonitor {
     }
   }
 
-  private analyzeCollusionPatterns(
-    participantBets: any[],
-    relatedBets: any[]
-  ): DetectionResult {
+  private analyzeCollusionPatterns(participantBets: any[], relatedBets: any[]): DetectionResult {
     const evidence: BettingEvidence = {};
     let suspiciousFactors = 0;
 
@@ -677,11 +734,14 @@ export class FairPlayMonitor {
     let complementaryCount = 0;
     participantBets.forEach(bet => {
       const relatedEventBets = eventBets.get(bet.event_id) || [];
-      const hasComplement = relatedEventBets.some(rb => 
-        rb.bet_type === this.getComplementaryBet(bet.bet_type) &&
-        Math.abs(rb.timestamp - bet.timestamp) < 60000 // Within 1 minute
+      const hasComplement = relatedEventBets.some(
+        rb =>
+          rb.bet_type === this.getComplementaryBet(bet.bet_type) &&
+          Math.abs(rb.timestamp - bet.timestamp) < 60000 // Within 1 minute
       );
-      if (hasComplement) {complementaryCount++;}
+      if (hasComplement) {
+        complementaryCount++;
+      }
     });
 
     if (complementaryCount > participantBets.length * 0.3) {
@@ -689,7 +749,7 @@ export class FairPlayMonitor {
         frequency: complementaryCount / participantBets.length,
         correlation: complementaryCount > participantBets.length * 0.5 ? 0.8 : 0.5,
         count: complementaryCount,
-        total: participantBets.length
+        total: participantBets.length,
       };
       suspiciousFactors++;
     }
@@ -703,14 +763,17 @@ export class FairPlayMonitor {
       });
     });
 
-    const frequentCounterparties = Array.from(counterparties.entries())
-      .filter(([_, count]) => count > participantBets.length * 0.2);
+    const frequentCounterparties = Array.from(counterparties.entries()).filter(
+      ([_, count]) => count > participantBets.length * 0.2
+    );
 
     if (frequentCounterparties.length > 0) {
-      evidence.frequentCounterparties = frequentCounterparties.map(([participantId, frequency]) => ({
-        participantId,
-        frequency
-      }));
+      evidence.frequentCounterparties = frequentCounterparties.map(
+        ([participantId, frequency]) => ({
+          participantId,
+          frequency,
+        })
+      );
       suspiciousFactors++;
     }
 
@@ -724,24 +787,29 @@ export class FairPlayMonitor {
     // Calculate confidence and severity
     const confidence = suspiciousFactors / 3;
     let severity: 'low' | 'medium' | 'high' | 'critical';
-    if (confidence > 0.8) {severity = 'critical';}
-    else if (confidence > 0.6) {severity = 'high';}
-    else if (confidence > 0.4) {severity = 'medium';}
-    else {severity = 'low';}
+    if (confidence > 0.8) {
+      severity = 'critical';
+    } else if (confidence > 0.6) {
+      severity = 'high';
+    } else if (confidence > 0.4) {
+      severity = 'medium';
+    } else {
+      severity = 'low';
+    }
 
     return {
       isViolation: confidence > 0.4,
       confidence,
       evidence,
-      severity
+      severity,
     };
   }
 
   private getComplementaryBet(betType: string): string {
     const complements: Record<string, string> = {
-      'win': 'lose',
-      'over': 'under',
-      'buy': 'sell',
+      win: 'lose',
+      over: 'under',
+      buy: 'sell',
       // Add more bet type complements as needed
     };
     return complements[betType] || '';
@@ -769,9 +837,7 @@ export class FairPlayMonitor {
       .map(([counterpartyId, profits]) => {
         const correlation = this.calculateCorrelation(
           profits,
-          relatedBets
-            .filter(rb => rb.participant_id === counterpartyId)
-            .map(rb => rb.profit)
+          relatedBets.filter(rb => rb.participant_id === counterpartyId).map(rb => rb.profit)
         );
         return { counterpartyId, correlation };
       })
@@ -779,13 +845,15 @@ export class FairPlayMonitor {
 
     return {
       suspicious: suspiciousCorrelations.length > 0,
-      evidence: { suspiciousCorrelations }
+      evidence: { suspiciousCorrelations },
     };
   }
 
   private calculateCorrelation(x: number[], y: number[]): number {
     const n = Math.min(x.length, y.length);
-    if (n < 2) {return 0;}
+    if (n < 2) {
+      return 0;
+    }
 
     const xMean = x.reduce((a, b) => a + b, 0) / n;
     const yMean = y.reduce((a, b) => a + b, 0) / n;
@@ -797,7 +865,9 @@ export class FairPlayMonitor {
     for (let i = 0; i < n; i++) {
       const xVal = x[i];
       const yVal = y[i];
-      if (xVal === undefined || yVal === undefined) {continue;}
+      if (xVal === undefined || yVal === undefined) {
+        continue;
+      }
 
       const xDiff = xVal - xMean;
       const yDiff = yVal - yMean;
@@ -821,7 +891,9 @@ export class FairPlayMonitor {
           type: 'time_anomalies',
           description: 'Time-based anomalies detected',
           severity: result.severity === 'critical' ? 'high' : result.severity,
-          evidence: Object.entries(result.evidence).map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
+          evidence: Object.entries(result.evidence).map(
+            ([key, value]) => `${key}: ${JSON.stringify(value)}`
+          ),
         });
       }
     } catch (error) {
@@ -850,7 +922,7 @@ export class FairPlayMonitor {
       evidence.unusualHours = {
         percentage: unusualHourActivity / totalActivity,
         hours: [1, 2, 3, 4, 5], // Unusual hours (1 AM to 5 AM)
-        distribution: hourDistribution
+        distribution: hourDistribution,
       };
       suspiciousFactors++;
     }
@@ -866,7 +938,7 @@ export class FairPlayMonitor {
         averageMs: reactionTimes.reduce((a, b) => a + b, 0) / reactionTimes.length,
         consistency: reactionTimes.length / patterns.length,
         count: reactionTimes.length,
-        times: reactionTimes
+        times: reactionTimes,
       };
       suspiciousFactors++;
     }
@@ -874,16 +946,15 @@ export class FairPlayMonitor {
     // Check for perfect timing patterns
     const timingVariance = patterns
       .filter(p => p.type === 'bet_placed')
-      .map(p => this.calculateVariance(
-        p.timestamps.map(t => t.getTime())
-      ))
+      .map(p => this.calculateVariance(p.timestamps.map(t => t.getTime())))
       .reduce((a, b) => Math.min(a, b), Infinity);
 
-    if (timingVariance < 50) { // Suspiciously consistent
+    if (timingVariance < 50) {
+      // Suspiciously consistent
       evidence.perfectTiming = {
         frequency: patterns.filter(p => p.type === 'bet_placed').length,
         accuracy: timingVariance < 10 ? 0.9 : 0.7,
-        variance: timingVariance
+        variance: timingVariance,
       };
       suspiciousFactors++;
     }
@@ -891,16 +962,21 @@ export class FairPlayMonitor {
     // Calculate confidence and severity
     const confidence = suspiciousFactors / 3;
     let severity: 'low' | 'medium' | 'high' | 'critical';
-    if (confidence > 0.8) {severity = 'critical';}
-    else if (confidence > 0.6) {severity = 'high';}
-    else if (confidence > 0.4) {severity = 'medium';}
-    else {severity = 'low';}
+    if (confidence > 0.8) {
+      severity = 'critical';
+    } else if (confidence > 0.6) {
+      severity = 'high';
+    } else if (confidence > 0.4) {
+      severity = 'medium';
+    } else {
+      severity = 'low';
+    }
 
     return {
       isViolation: confidence > 0.4,
       confidence,
       evidence,
-      severity
+      severity,
     };
   }
 
@@ -912,14 +988,16 @@ export class FairPlayMonitor {
         .select('id')
         .limit(1);
 
-      if (dbError) {throw dbError;}
+      if (dbError) {
+        throw dbError;
+      }
 
       // Get detection statistics
       const stats = {
         totalChecks: (await this.metrics.checkLatency.get()).values?.length || 0,
         violationsDetected: (await this.metrics.violationsDetected.get()).values?.[0]?.value || 0,
         falsePositiveRate: (await this.metrics.falsePositiveRate.get()).values?.[0]?.value || 0,
-        averageLatency: 0 // Will calculate if histogram has values
+        averageLatency: 0, // Will calculate if histogram has values
       };
 
       // Calculate average latency from histogram if available
@@ -930,22 +1008,23 @@ export class FairPlayMonitor {
         stats.averageLatency = count > 0 ? sum / count : 0;
       }
 
-      const status = stats.averageLatency < 2 && stats.falsePositiveRate < 0.1
-        ? 'healthy'
-        : 'degraded';
+      const status =
+        stats.averageLatency < 2 && stats.falsePositiveRate < 0.1 ? 'healthy' : 'degraded';
 
       return {
         status,
         details: {
           ...stats,
-          patternCacheSize: this.patternCache.size
-        }
+          patternCacheSize: this.patternCache.size,
+        },
       };
     } catch (error) {
-      this.errorHandler.handleError(error instanceof Error ? error : new Error('Health check failed'));
+      this.errorHandler.handleError(
+        error instanceof Error ? error : new Error('Health check failed')
+      );
       return {
         status: 'unhealthy',
-        details: { err: error instanceof Error ? error.message : 'Unknown error' }
+        details: { err: error instanceof Error ? error.message : 'Unknown error' },
       };
     }
   }
@@ -961,7 +1040,7 @@ export class FairPlayMonitor {
     return {
       errors: Math.floor(violationsCount * 0.1), // Assume 10% are critical
       warnings: Math.floor(violationsCount * 0.9), // Assume 90% are warnings
-      successes: successCount
+      successes: successCount,
     };
   }
-} 
+}

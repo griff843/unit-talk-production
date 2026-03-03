@@ -15,17 +15,17 @@ export interface TestWorkflowOutput {
  */
 export async function testWorkflow(input: TestWorkflowInput): Promise<TestWorkflowOutput> {
   log.info('Test workflow started', { input });
-  
+
   // Simple processing
   await new Promise(resolve => setTimeout(resolve, 1000));
-  
+
   const result: TestWorkflowOutput = {
     success: true,
     message: `Processed: ${input.message}`,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   };
-  
+
   log.info('Test workflow completed', { result });
-  
+
   return result;
 }

@@ -2,7 +2,7 @@
 
 /**
  * Production Readiness Proof Bundle Generator
- * 
+ *
  * Generates comprehensive verification bundle with:
  * 1. SQL deltas for all database changes
  * 2. Shadow mode validation results
@@ -113,7 +113,7 @@ class ProductionReadinessBundleGenerator {
         totalTasks: 8,
         completedTasks: 0,
         readinessScore: 0,
-        criticalIssues: 0
+        criticalIssues: 0,
       },
       tasks: [],
       sqlDeltas: [],
@@ -122,25 +122,25 @@ class ProductionReadinessBundleGenerator {
         performance: {
           backfillSpeed: 0,
           shadowModeLatency: 0,
-          apiResponseTime: 0
+          apiResponseTime: 0,
         },
         reliability: {
           shadowTestsPassRate: 0,
           temporalHealthStatus: 'unknown',
-          professionalGradingSuccessRate: 0
+          professionalGradingSuccessRate: 0,
         },
         security: {
           temporalClientSecured: false,
           shadowModeEnabled: false,
-          auditLoggingActive: false
-        }
+          auditLoggingActive: false,
+        },
       },
       deployment: {
         database: [],
         application: [],
         security: [],
-        monitoring: []
-      }
+        monitoring: [],
+      },
     };
   }
 
@@ -156,7 +156,7 @@ class ProductionReadinessBundleGenerator {
     await this.generateDeploymentChecklist();
     await this.calculateReadinessScore();
     await this.writeBundle();
-    
+
     logger.info('✅ Production Readiness Bundle generated successfully');
     logger.info(`📁 Output directory: ${this.outputDir}`);
   }
@@ -182,13 +182,13 @@ class ProductionReadinessBundleGenerator {
       evidence: [
         'migrations/001_professional_grading.sql exists',
         'Migration includes IF NOT EXISTS clauses',
-        'Rollback SQL provided'
+        'Rollback SQL provided',
       ],
       sqlChanges: [
         'ALTER TABLE raw_props ADD COLUMN processed_at TIMESTAMP',
         'ALTER TABLE raw_props ADD COLUMN pro_attempts INTEGER DEFAULT 0',
-        'ALTER TABLE raw_props ADD COLUMN processing_error TEXT'
-      ]
+        'ALTER TABLE raw_props ADD COLUMN processing_error TEXT',
+      ],
     });
 
     // Task 2: Orchestrator fixes
@@ -200,8 +200,8 @@ class ProductionReadinessBundleGenerator {
       evidence: [
         'apps/api/src/temporal/workflows/SyndicateScheduler.ts includes professional grading',
         'Professional grading integrated in workflow orchestration',
-        'Hot-reloading worker process operational'
-      ]
+        'Hot-reloading worker process operational',
+      ],
     });
 
     // Task 3: Backfill processing
@@ -213,14 +213,14 @@ class ProductionReadinessBundleGenerator {
       evidence: [
         'apps/api/src/scripts/mark-props-processed.ts created and tested',
         'Processed 1,000 props at 245.8 props/sec with 100% success rate',
-        'Uses existing database columns for compatibility'
+        'Uses existing database columns for compatibility',
       ],
       testResults: {
         propsProcessed: 1000,
         processingRate: 245.8,
         successRate: 100,
-        errors: 0
-      }
+        errors: 0,
+      },
     });
 
     // Task 4: Shadow mode invariants
@@ -233,14 +233,14 @@ class ProductionReadinessBundleGenerator {
         'apps/api/src/shadow/ system implemented',
         '81.8% test pass rate (9/11 tests passing)',
         'All critical safety tests pass',
-        'Shadow mode blocks public actions correctly'
+        'Shadow mode blocks public actions correctly',
       ],
       testResults: {
         totalTests: 11,
         passedTests: 9,
         passRate: 81.8,
-        criticalFailures: 1
-      }
+        criticalFailures: 1,
+      },
     });
 
     // Task 5: Temporal security
@@ -253,8 +253,8 @@ class ProductionReadinessBundleGenerator {
         'apps/command-center/src/app/api/temporal/workflows/route.ts created',
         'apps/command-center/src/app/api/temporal/health/route.ts created',
         'Frontend now uses secure API routes instead of direct client connections',
-        'TypeScript compilation clean'
-      ]
+        'TypeScript compilation clean',
+      ],
     });
 
     // Task 6: Current task
@@ -267,8 +267,8 @@ class ProductionReadinessBundleGenerator {
         'Production readiness bundle generated',
         'SQL deltas documented',
         'Validation results compiled',
-        'Deployment checklist created'
-      ]
+        'Deployment checklist created',
+      ],
     });
   }
 
@@ -298,7 +298,7 @@ class ProductionReadinessBundleGenerator {
         DROP COLUMN IF EXISTS kelly_fraction,
         DROP COLUMN IF EXISTS clv_tracking_id;
       `,
-      applied: false // Needs to be applied to Supabase
+      applied: false, // Needs to be applied to Supabase
     });
 
     // Shadow mode tables
@@ -322,7 +322,7 @@ class ProductionReadinessBundleGenerator {
         );
       `,
       rollback: `DROP TABLE IF EXISTS shadow_decisions;`,
-      applied: true // Already exists in Supabase
+      applied: true, // Already exists in Supabase
     });
 
     // Add missing unified_picks column
@@ -338,7 +338,7 @@ class ProductionReadinessBundleGenerator {
         ALTER TABLE unified_picks 
         DROP COLUMN IF EXISTS published;
       `,
-      applied: false // Needs to be applied to fix critical test failure
+      applied: false, // Needs to be applied to fix critical test failure
     });
   }
 
@@ -351,7 +351,7 @@ class ProductionReadinessBundleGenerator {
       test: 'Shadow mode blocks all public actions',
       passed: true,
       critical: true,
-      details: 'All public actions (publish, alert, webhook) are blocked in shadow mode'
+      details: 'All public actions (publish, alert, webhook) are blocked in shadow mode',
     });
 
     this.bundle.validations.push({
@@ -359,7 +359,7 @@ class ProductionReadinessBundleGenerator {
       test: 'Live mode allows public actions',
       passed: true,
       critical: false,
-      details: 'All public actions are allowed in live mode'
+      details: 'All public actions are allowed in live mode',
     });
 
     this.bundle.validations.push({
@@ -367,7 +367,7 @@ class ProductionReadinessBundleGenerator {
       test: 'Shadow decisions table accessible',
       passed: true,
       critical: true,
-      details: 'Shadow decisions table exists and is accessible'
+      details: 'Shadow decisions table exists and is accessible',
     });
 
     this.bundle.validations.push({
@@ -376,7 +376,7 @@ class ProductionReadinessBundleGenerator {
       passed: false,
       critical: true,
       details: 'Missing published column in unified_picks table',
-      evidence: 'column "published" does not exist'
+      evidence: 'column "published" does not exist',
     });
 
     this.bundle.validations.push({
@@ -384,7 +384,7 @@ class ProductionReadinessBundleGenerator {
       test: 'Professional grading columns',
       passed: false,
       critical: false,
-      details: 'Professional grading columns need to be applied to Supabase'
+      details: 'Professional grading columns need to be applied to Supabase',
     });
 
     this.bundle.validations.push({
@@ -392,7 +392,7 @@ class ProductionReadinessBundleGenerator {
       test: 'Temporal client moved server-side',
       passed: true,
       critical: true,
-      details: 'Temporal client connections secured via API routes'
+      details: 'Temporal client connections secured via API routes',
     });
   }
 
@@ -403,21 +403,21 @@ class ProductionReadinessBundleGenerator {
     this.bundle.metrics.performance = {
       backfillSpeed: 245.8, // props/sec from actual test run
       shadowModeLatency: 50, // estimated ms
-      apiResponseTime: 100 // estimated ms
+      apiResponseTime: 100, // estimated ms
     };
 
     // Reliability metrics
     this.bundle.metrics.reliability = {
       shadowTestsPassRate: 81.8, // 9/11 tests passing
       professionalGradingSuccessRate: 100, // 100% success in test run
-      temporalHealthStatus: 'healthy'
+      temporalHealthStatus: 'healthy',
     };
 
     // Security metrics
     this.bundle.metrics.security = {
       temporalClientSecured: true, // Moved server-side
       shadowModeEnabled: true, // Shadow mode system operational
-      auditLoggingActive: true // Shadow decisions logging active
+      auditLoggingActive: true, // Shadow decisions logging active
     };
   }
 
@@ -430,19 +430,19 @@ class ProductionReadinessBundleGenerator {
         item: 'Apply professional grading migration to Supabase',
         status: 'pending',
         evidence: 'Migration SQL ready in bundle',
-        notes: 'Run migration SQL against production Supabase instance'
+        notes: 'Run migration SQL against production Supabase instance',
       },
       {
         item: 'Add published column to unified_picks table',
         status: 'pending',
         evidence: 'SQL in bundle',
-        notes: 'Critical for shadow mode validation tests'
+        notes: 'Critical for shadow mode validation tests',
       },
       {
         item: 'Verify shadow_decisions table exists',
         status: 'complete',
-        evidence: 'Table accessible in current tests'
-      }
+        evidence: 'Table accessible in current tests',
+      },
     ];
 
     // Application checklist
@@ -450,23 +450,23 @@ class ProductionReadinessBundleGenerator {
       {
         item: 'Professional grading system operational',
         status: 'complete',
-        evidence: '1,000 props processed at 245.8/sec with 100% success'
+        evidence: '1,000 props processed at 245.8/sec with 100% success',
       },
       {
         item: 'Shadow mode system functional',
         status: 'complete',
-        evidence: '81.8% test pass rate, all critical tests pass'
+        evidence: '81.8% test pass rate, all critical tests pass',
       },
       {
         item: 'Temporal client security fixed',
         status: 'complete',
-        evidence: 'Client moved server-side, API routes created'
+        evidence: 'Client moved server-side, API routes created',
       },
       {
         item: 'TypeScript compilation clean',
         status: 'complete',
-        evidence: 'npm run type-check passes'
-      }
+        evidence: 'npm run type-check passes',
+      },
     ];
 
     // Security checklist
@@ -474,18 +474,18 @@ class ProductionReadinessBundleGenerator {
       {
         item: 'Temporal client connections secured',
         status: 'complete',
-        evidence: 'Direct client access removed from frontend'
+        evidence: 'Direct client access removed from frontend',
       },
       {
         item: 'Shadow mode blocks public actions',
         status: 'complete',
-        evidence: 'All public action blocking tests pass'
+        evidence: 'All public action blocking tests pass',
       },
       {
         item: 'Audit logging operational',
         status: 'complete',
-        evidence: 'Shadow decisions table logging verified'
-      }
+        evidence: 'Shadow decisions table logging verified',
+      },
     ];
 
     // Monitoring checklist
@@ -493,18 +493,18 @@ class ProductionReadinessBundleGenerator {
       {
         item: 'Professional grading metrics collection',
         status: 'complete',
-        evidence: 'Processing speed and success rate tracked'
+        evidence: 'Processing speed and success rate tracked',
       },
       {
         item: 'Shadow mode health monitoring',
         status: 'complete',
-        evidence: 'Test suite provides health validation'
+        evidence: 'Test suite provides health validation',
       },
       {
         item: 'Temporal workflow monitoring',
         status: 'complete',
-        evidence: 'Command Center provides workflow visibility'
-      }
+        evidence: 'Command Center provides workflow visibility',
+      },
     ];
   }
 
@@ -513,23 +513,26 @@ class ProductionReadinessBundleGenerator {
 
     const completedTasks = this.bundle.tasks.filter(t => t.status === 'completed').length;
     const criticalIssues = this.bundle.validations.filter(v => !v.passed && v.critical).length;
-    
+
     // Base professional_score from completed tasks (80%)
     const taskScore = (completedTasks / this.bundle.summary.totalTasks) * 80;
-    
+
     // Deduct for critical issues (up to 20 points per critical issue)
     const issueDeduction = Math.min(criticalIssues * 20, 80);
-    
+
     // Add reliability bonus (up to 20 points)
     const reliabilityBonus = this.bundle.metrics.reliability.shadowTestsPassRate > 80 ? 15 : 0;
-    
-    const readinessScore = Math.max(0, Math.min(100, taskScore - issueDeduction + reliabilityBonus));
+
+    const readinessScore = Math.max(
+      0,
+      Math.min(100, taskScore - issueDeduction + reliabilityBonus)
+    );
 
     this.bundle.summary = {
       totalTasks: this.bundle.tasks.length,
       completedTasks,
       readinessScore: Math.round(readinessScore),
-      criticalIssues
+      criticalIssues,
     };
   }
 
@@ -545,7 +548,7 @@ class ProductionReadinessBundleGenerator {
       .filter(delta => !delta.applied)
       .map(delta => `-- ${delta.description}\n${delta.sql}`)
       .join('\n\n');
-    
+
     const migrationPath = path.join(this.outputDir, 'apply-migrations.sql');
     await fs.writeFile(migrationPath, migrationSql);
 
@@ -554,7 +557,7 @@ class ProductionReadinessBundleGenerator {
       .filter(delta => delta.rollback && !delta.applied)
       .map(delta => `-- Rollback: ${delta.description}\n${delta.rollback}`)
       .join('\n\n');
-    
+
     const rollbackPath = path.join(this.outputDir, 'rollback-migrations.sql');
     await fs.writeFile(rollbackPath, rollbackSql);
 
@@ -580,24 +583,36 @@ class ProductionReadinessBundleGenerator {
     return `# Production Deployment Checklist
 
 ## Database Tasks
-${this.bundle.deployment.database.map(item => 
-  `- [${item.status === 'complete' ? 'x' : ' '}] ${item.item}${item.notes ? `\n  - Notes: ${item.notes}` : ''}`
-).join('\n')}
+${this.bundle.deployment.database
+  .map(
+    item =>
+      `- [${item.status === 'complete' ? 'x' : ' '}] ${item.item}${item.notes ? `\n  - Notes: ${item.notes}` : ''}`
+  )
+  .join('\n')}
 
 ## Application Tasks  
-${this.bundle.deployment.application.map(item => 
-  `- [${item.status === 'complete' ? 'x' : ' '}] ${item.item}${item.notes ? `\n  - Notes: ${item.notes}` : ''}`
-).join('\n')}
+${this.bundle.deployment.application
+  .map(
+    item =>
+      `- [${item.status === 'complete' ? 'x' : ' '}] ${item.item}${item.notes ? `\n  - Notes: ${item.notes}` : ''}`
+  )
+  .join('\n')}
 
 ## Security Tasks
-${this.bundle.deployment.security.map(item => 
-  `- [${item.status === 'complete' ? 'x' : ' '}] ${item.item}${item.notes ? `\n  - Notes: ${item.notes}` : ''}`
-).join('\n')}
+${this.bundle.deployment.security
+  .map(
+    item =>
+      `- [${item.status === 'complete' ? 'x' : ' '}] ${item.item}${item.notes ? `\n  - Notes: ${item.notes}` : ''}`
+  )
+  .join('\n')}
 
 ## Monitoring Tasks
-${this.bundle.deployment.monitoring.map(item => 
-  `- [${item.status === 'complete' ? 'x' : ' '}] ${item.item}${item.notes ? `\n  - Notes: ${item.notes}` : ''}`
-).join('\n')}
+${this.bundle.deployment.monitoring
+  .map(
+    item =>
+      `- [${item.status === 'complete' ? 'x' : ' '}] ${item.item}${item.notes ? `\n  - Notes: ${item.notes}` : ''}`
+  )
+  .join('\n')}
 `;
   }
 
@@ -616,10 +631,17 @@ ${this.bundle.deployment.monitoring.map(item =>
 
 ### Critical Issues: ${this.bundle.summary.criticalIssues}
 
-${this.bundle.summary.criticalIssues > 0 ? `
+${
+  this.bundle.summary.criticalIssues > 0
+    ? `
 **Critical Issues Requiring Attention:**
-${this.bundle.validations.filter(v => !v.passed && v.critical).map(v => `- ${v.test}: ${v.details}`).join('\n')}
-` : '**✅ No critical issues detected**'}
+${this.bundle.validations
+  .filter(v => !v.passed && v.critical)
+  .map(v => `- ${v.test}: ${v.details}`)
+  .join('\n')}
+`
+    : '**✅ No critical issues detected**'
+}
 
 ### Key Achievements
 - Professional grading system: **${this.bundle.metrics.reliability.professionalGradingSuccessRate}%** success rate
@@ -636,11 +658,13 @@ ${this.bundle.validations.filter(v => !v.passed && v.critical).map(v => `- ${v.t
 ### Production Readiness Assessment
 ${this.bundle.summary.readinessScore >= 85 ? '✅ **READY FOR DEPLOYMENT**' : this.bundle.summary.readinessScore >= 70 ? '⚠️ **READY WITH CAVEATS**' : '❌ **NOT READY FOR DEPLOYMENT**'}
 
-${this.bundle.summary.readinessScore >= 85 ? 
-  'System meets all critical requirements for production deployment.' : 
-  this.bundle.summary.readinessScore >= 70 ?
-    'System is functionally ready but requires attention to identified issues before deployment.' :
-    'Critical issues must be resolved before production deployment.'}
+${
+  this.bundle.summary.readinessScore >= 85
+    ? 'System meets all critical requirements for production deployment.'
+    : this.bundle.summary.readinessScore >= 70
+      ? 'System is functionally ready but requires attention to identified issues before deployment.'
+      : 'Critical issues must be resolved before production deployment.'
+}
 `;
   }
 }

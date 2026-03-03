@@ -43,9 +43,7 @@ export class EnhancedMLPipeline {
 
       // Get predictions from all models
       const predictions = await Promise.all(
-        Array.from(this.models.values()).map(model =>
-          this.getPrediction(model, processedFeatures)
-        )
+        Array.from(this.models.values()).map(model => this.getPrediction(model, processedFeatures))
       );
 
       // Aggregate predictions
@@ -90,8 +88,8 @@ export class EnhancedMLPipeline {
       metadata: {
         modelVersion: model.version,
         timestamp: new Date().toISOString(),
-        cached: false
-      }
+        cached: false,
+      },
     };
   }
 
@@ -112,4 +110,4 @@ export class EnhancedMLPipeline {
   private async trackMetrics(_features: FeatureSet, _prediction: PredictionResult): Promise<void> {
     // Implementation would track metrics
   }
-} 
+}

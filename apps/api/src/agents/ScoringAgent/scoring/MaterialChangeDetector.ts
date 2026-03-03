@@ -1,9 +1,9 @@
 /**
  * Material Change Detector
- * 
+ *
  * Stub implementation for TypeScript compilation.
  * Detects material changes in prop lines, odds, and market conditions.
- * 
+ *
  * @module MaterialChangeDetector
  */
 
@@ -99,32 +99,32 @@ export class MaterialChangeDetector {
     if (this.initialized) {
       return;
     }
-    
+
     logger.info('Initializing MaterialChangeDetector...');
     this.initialized = true;
   }
 
   /**
    * Record a prop snapshot
-   * 
+   *
    * @param snapshot - Current prop state
    */
   recordSnapshot(snapshot: PropSnapshot): void {
     const history = this.snapshots.get(snapshot.propId) || [];
     history.push(snapshot);
-    
+
     // Keep last 100 snapshots per prop
     if (history.length > 100) {
       history.shift();
     }
-    
+
     this.snapshots.set(snapshot.propId, history);
     logger.debug('Recorded snapshot', { propId: snapshot.propId, historyLength: history.length });
   }
 
   /**
    * Detect material changes for a prop
-   * 
+   *
    * @param propId - Prop identifier
    * @param currentSnapshot - Current prop state
    * @returns Array of detected material changes
@@ -145,7 +145,7 @@ export class MaterialChangeDetector {
 
     // Stub implementation - detect basic line movement
     // TODO: Implement full material change detection algorithm
-    
+
     // Line movement detection
     const lineDelta = Math.abs(currentSnapshot.line - lastSnapshot.line);
     if (lineDelta >= 0.5) {
@@ -183,7 +183,7 @@ export class MaterialChangeDetector {
     }
 
     this.recordSnapshot(currentSnapshot);
-    
+
     if (changes.length > 0) {
       logger.info('Material changes detected', { propId, changeCount: changes.length });
 
@@ -202,7 +202,7 @@ export class MaterialChangeDetector {
 
   /**
    * Get change history for a prop
-   * 
+   *
    * @param propId - Prop identifier
    * @returns Array of snapshots
    */
@@ -212,7 +212,7 @@ export class MaterialChangeDetector {
 
   /**
    * Clear history for a prop
-   * 
+   *
    * @param propId - Prop identifier
    */
   clearHistory(propId: string): void {
@@ -244,4 +244,3 @@ export function getMaterialChangeDetector(): MaterialChangeDetector {
   }
   return detectorInstance;
 }
-

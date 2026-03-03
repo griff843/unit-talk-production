@@ -92,4 +92,4 @@ export interface OptimizationResult {
     algorithm: string;
     iterations: number;
   };
-} 
+}

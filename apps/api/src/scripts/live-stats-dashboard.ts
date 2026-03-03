@@ -159,7 +159,7 @@ async function fetchDashboardStats(client: Client): Promise<DashboardStats> {
   const bySport: Record<string, number> = {};
   const byBookmaker: Record<string, number> = {};
 
-  breakdownResult.rows.forEach((row) => {
+  breakdownResult.rows.forEach(row => {
     bySport[row.sport] = (bySport[row.sport] || 0) + parseInt(row.prop_count);
     byBookmaker[row.bookmaker] = (byBookmaker[row.bookmaker] || 0) + parseInt(row.prop_count);
   });
@@ -191,7 +191,7 @@ async function fetchDashboardStats(client: Client): Promise<DashboardStats> {
   `;
 
   const moversResult = await client.query(moversQuery);
-  const topMovers = moversResult.rows.map((row) => ({
+  const topMovers = moversResult.rows.map(row => ({
     playerName: row.player_name,
     sport: row.sport,
     lineMovement: parseFloat(row.line_movement),
@@ -206,7 +206,8 @@ async function fetchDashboardStats(client: Client): Promise<DashboardStats> {
   const avgInterval = parseFloat(qualityStats.avg_interval) || 0;
   const gapsDetected = parseInt(qualityStats.gap_count) || 0;
   const totalIntervals = parseInt(qualityStats.total_intervals) || 0;
-  const reliability = totalIntervals > 0 ? ((totalIntervals - gapsDetected) / totalIntervals) * 100 : 0;
+  const reliability =
+    totalIntervals > 0 ? ((totalIntervals - gapsDetected) / totalIntervals) * 100 : 0;
 
   return {
     timestamp: new Date(),
@@ -252,7 +253,9 @@ function displayDashboard(stats: DashboardStats): void {
   console.log('-'.repeat(80));
   console.log(`Total Snapshots:     ${stats.polling.totalSnapshots.toLocaleString()}`);
   console.log(`Unique Props:        ${stats.polling.uniqueProps.toLocaleString()}`);
-  console.log(`Props with Movement: ${stats.polling.propsWithMovement.toLocaleString()} (${stats.polling.movementPercentage.toFixed(1)}%)`);
+  console.log(
+    `Props with Movement: ${stats.polling.propsWithMovement.toLocaleString()} (${stats.polling.movementPercentage.toFixed(1)}%)`
+  );
   console.log(`Avg Snapshots/Prop:  ${stats.polling.averageSnapshotsPerProp.toFixed(1)}`);
 
   // Change indicator
@@ -271,8 +274,8 @@ function displayDashboard(stats: DashboardStats): void {
   console.log(`Total today:     ${stats.lineChanges.totalToday}`);
 
   // Quality Metrics
-  const qualityStatus = stats.quality.reliability >= 90 ? '✅' :
-                        stats.quality.reliability >= 75 ? '⚠️' : '❌';
+  const qualityStatus =
+    stats.quality.reliability >= 90 ? '✅' : stats.quality.reliability >= 75 ? '⚠️' : '❌';
   console.log('\n⏱️  DATA QUALITY');
   console.log('-'.repeat(80));
   console.log(`Average Interval: ${stats.quality.averageInterval.toFixed(1)}s (target: 60s)`);
@@ -307,7 +310,9 @@ function displayDashboard(stats: DashboardStats): void {
     stats.topMovers.forEach((mover, idx) => {
       const direction = mover.lineMovement > 0 ? '📈' : '📉';
       console.log(`${idx + 1}. ${direction} ${mover.playerName} (${mover.sport})`);
-      console.log(`   Movement: ${mover.lineMovement > 0 ? '+' : ''}${mover.lineMovement.toFixed(2)} | Snapshots: ${mover.snapshotCount}`);
+      console.log(
+        `   Movement: ${mover.lineMovement > 0 ? '+' : ''}${mover.lineMovement.toFixed(2)} | Snapshots: ${mover.snapshotCount}`
+      );
     });
   }
 
@@ -318,7 +323,8 @@ function displayDashboard(stats: DashboardStats): void {
 
 async function runDashboard(intervalSeconds: number = 60): Promise<void> {
   // Use Supabase pooler URL (production database)
-  const connectionString = process.env.DATABASE_POOLER_URL ||
+  const connectionString =
+    process.env.DATABASE_POOLER_URL ||
     'postgresql://postgres.cqfnsozknjzvyiziwicl:Adalise843!@aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require';
 
   const client = new Client({
@@ -346,7 +352,6 @@ async function runDashboard(intervalSeconds: number = 60): Promise<void> {
         console.error('❌ Error fetching stats:', error);
       }
     }, intervalSeconds * 1000);
-
   } catch (error) {
     console.error('❌ Error starting dashboard:', error);
     throw error;
@@ -356,13 +361,13 @@ async function runDashboard(intervalSeconds: number = 60): Promise<void> {
 
 // Parse command line arguments
 const args = process.argv.slice(2);
-const intervalArg = args.find((arg) => arg.startsWith('--interval='));
+const intervalArg = args.find(arg => arg.startsWith('--interval='));
 const intervalSeconds = intervalArg ? parseInt(intervalArg.split('=')[1]) : 60;
 
 // Main execution
 if (require.main === module) {
   console.log(`Starting dashboard with ${intervalSeconds}s refresh interval...`);
-  runDashboard(intervalSeconds).catch((error) => {
+  runDashboard(intervalSeconds).catch(error => {
     console.error('❌ Fatal error:', error);
     process.exit(1);
   });

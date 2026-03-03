@@ -1,7 +1,6 @@
+import { autopilotGuard } from '../../lib/AutopilotGuard';
 import { BaseAgent } from '../BaseAgent';
 import { BaseAgentConfig, BaseAgentDependencies, HealthCheckResult } from '../BaseAgent/types';
-
-import { autopilotGuard } from '../../lib/AutopilotGuard';
 
 // import { logger } from '../../shared/logger';
 
@@ -29,7 +28,9 @@ export class NotificationAgent extends BaseAgent {
   }
 
   async initialize(): Promise<void> {
-    if (this.isInitialized) {return;}
+    if (this.isInitialized) {
+      return;
+    }
     // Notification agent initialization
     this.isInitialized = true;
   }
@@ -45,7 +46,7 @@ export class NotificationAgent extends BaseAgent {
   async checkHealth(): Promise<HealthCheckResult> {
     return {
       status: this.isInitialized ? 'healthy' : 'unhealthy',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -58,7 +59,7 @@ export class NotificationAgent extends BaseAgent {
     const guardResult = await autopilotGuard.assertMayPerformSideEffect({
       action: 'NOTIFICATION_SEND',
       agent_name: 'NotificationAgent',
-      metadata: { type: payload.type, recipient: payload.recipient, subject: payload.subject }
+      metadata: { type: payload.type, recipient: payload.recipient, subject: payload.subject },
     });
 
     if (!guardResult.allowed) {
@@ -66,7 +67,7 @@ export class NotificationAgent extends BaseAgent {
         type: payload.type,
         recipient: payload.recipient,
         reason: guardResult.reason,
-        mode: guardResult.mode
+        mode: guardResult.mode,
       });
       return;
     }
@@ -93,14 +94,14 @@ export class NotificationAgent extends BaseAgent {
       // Log success
       this.logger.info('Notification sent successfully', {
         type: payload.type,
-        recipient: payload.recipient
+        recipient: payload.recipient,
       });
     } catch (error) {
       // Log error
       this.logger.error('Failed to send notification', {
         error,
         type: payload.type,
-        recipient: payload.recipient
+        recipient: payload.recipient,
       });
       throw error;
     }
@@ -128,7 +129,9 @@ export class NotificationAgent extends BaseAgent {
 
   private async sendEmail(payload: NotificationPayload): Promise<void> {
     // Implementation would send email
-    this.logger.info(`Sending email to ${payload.recipient} with subject '${payload.subject || ''}' and message: ${payload.message}`);
+    this.logger.info(
+      `Sending email to ${payload.recipient} with subject '${payload.subject || ''}' and message: ${payload.message}`
+    );
   }
 
   private async sendSMS(payload: NotificationPayload): Promise<void> {
@@ -138,6 +141,8 @@ export class NotificationAgent extends BaseAgent {
 
   private async sendSlack(payload: NotificationPayload): Promise<void> {
     // Implementation would send Slack message
-    this.logger.info(`Sending Slack message to ${payload.recipient} with message: ${payload.message}`);
+    this.logger.info(
+      `Sending Slack message to ${payload.recipient} with message: ${payload.message}`
+    );
   }
 }

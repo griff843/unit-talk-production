@@ -32,7 +32,10 @@ function main() {
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
 
   const logs: string[] = [];
-  const log = (msg: string) => { console.log(msg); logs.push(msg); };
+  const log = (msg: string) => {
+    console.log(msg);
+    logs.push(msg);
+  };
 
   log('================================================================');
   log('  TRANCHE 7 — STAGE 2: SETTLEMENT ACTIVATION PROOF');
@@ -54,15 +57,36 @@ function main() {
 
     // Check for key structural elements
     const checks = [
-      { name: 'CREATE TABLE game_results', found: sql.includes('CREATE TABLE IF NOT EXISTS game_results') },
-      { name: 'CREATE TABLE prop_settlements', found: sql.includes('CREATE TABLE IF NOT EXISTS prop_settlements') },
-      { name: 'CREATE TABLE settlement_log', found: sql.includes('CREATE TABLE IF NOT EXISTS settlement_log') },
-      { name: 'ALTER TABLE raw_props (settlement cols)', found: sql.includes('ALTER TABLE raw_props') && sql.includes('settlement_status') },
-      { name: 'ALTER TABLE unified_picks (settlement cols)', found: sql.includes('ALTER TABLE unified_picks') && sql.includes('actual_outcome') },
+      {
+        name: 'CREATE TABLE game_results',
+        found: sql.includes('CREATE TABLE IF NOT EXISTS game_results'),
+      },
+      {
+        name: 'CREATE TABLE prop_settlements',
+        found: sql.includes('CREATE TABLE IF NOT EXISTS prop_settlements'),
+      },
+      {
+        name: 'CREATE TABLE settlement_log',
+        found: sql.includes('CREATE TABLE IF NOT EXISTS settlement_log'),
+      },
+      {
+        name: 'ALTER TABLE raw_props (settlement cols)',
+        found: sql.includes('ALTER TABLE raw_props') && sql.includes('settlement_status'),
+      },
+      {
+        name: 'ALTER TABLE unified_picks (settlement cols)',
+        found: sql.includes('ALTER TABLE unified_picks') && sql.includes('actual_outcome'),
+      },
       { name: 'IF NOT EXISTS guards', found: sql.includes('IF NOT EXISTS') },
-      { name: 'No DROP statements', found: !sql.includes('DROP TABLE') && !sql.includes('DROP COLUMN') },
+      {
+        name: 'No DROP statements',
+        found: !sql.includes('DROP TABLE') && !sql.includes('DROP COLUMN'),
+      },
       { name: 'calculate_bet_result function', found: sql.includes('calculate_bet_result') },
-      { name: 'settlement_summary_by_sport view', found: sql.includes('settlement_summary_by_sport') },
+      {
+        name: 'settlement_summary_by_sport view',
+        found: sql.includes('settlement_summary_by_sport'),
+      },
     ];
 
     let allPass = true;
@@ -130,30 +154,81 @@ function main() {
   }
 
   const mockSettlements: MockSettlement[] = [
-    { pickId: 'SIM-001', sport: 'NBA', player: 'Luka Doncic', result: 'win', settlementLatencyMin: 45 },
-    { pickId: 'SIM-002', sport: 'NBA', player: 'Jayson Tatum', result: 'loss', settlementLatencyMin: 52 },
+    {
+      pickId: 'SIM-001',
+      sport: 'NBA',
+      player: 'Luka Doncic',
+      result: 'win',
+      settlementLatencyMin: 45,
+    },
+    {
+      pickId: 'SIM-002',
+      sport: 'NBA',
+      player: 'Jayson Tatum',
+      result: 'loss',
+      settlementLatencyMin: 52,
+    },
     { pickId: 'SIM-003', sport: 'NBA', player: 'SGA', result: 'win', settlementLatencyMin: 38 },
     { pickId: 'SIM-004', sport: 'NBA', player: 'Jokic', result: 'win', settlementLatencyMin: 120 },
-    { pickId: 'SIM-005', sport: 'NBA', player: 'Giannis', result: 'push', settlementLatencyMin: 55 },
+    {
+      pickId: 'SIM-005',
+      sport: 'NBA',
+      player: 'Giannis',
+      result: 'push',
+      settlementLatencyMin: 55,
+    },
     { pickId: 'SIM-006', sport: 'MLB', player: 'Ohtani', result: 'win', settlementLatencyMin: 180 },
     { pickId: 'SIM-007', sport: 'MLB', player: 'Judge', result: 'loss', settlementLatencyMin: 165 },
     { pickId: 'SIM-008', sport: 'MLB', player: 'Betts', result: 'win', settlementLatencyMin: 200 },
     { pickId: 'SIM-009', sport: 'MLB', player: 'Cole', result: 'loss', settlementLatencyMin: 190 },
     { pickId: 'SIM-010', sport: 'MLB', player: 'Soto', result: 'void', settlementLatencyMin: 30 },
-    { pickId: 'SIM-011', sport: 'NFL', player: 'Mahomes', result: 'win', settlementLatencyMin: 240 },
+    {
+      pickId: 'SIM-011',
+      sport: 'NFL',
+      player: 'Mahomes',
+      result: 'win',
+      settlementLatencyMin: 240,
+    },
     { pickId: 'SIM-012', sport: 'NFL', player: 'Henry', result: 'loss', settlementLatencyMin: 255 },
     { pickId: 'SIM-013', sport: 'NFL', player: 'Chase', result: 'win', settlementLatencyMin: 230 },
     { pickId: 'SIM-014', sport: 'NFL', player: 'Allen', result: 'win', settlementLatencyMin: 245 },
     { pickId: 'SIM-015', sport: 'NFL', player: 'Kelce', result: 'loss', settlementLatencyMin: 260 },
-    { pickId: 'SIM-016', sport: 'NHL', player: 'McDavid', result: 'win', settlementLatencyMin: 150 },
-    { pickId: 'SIM-017', sport: 'NHL', player: 'Matthews', result: 'loss', settlementLatencyMin: 160 },
-    { pickId: 'SIM-018', sport: 'NHL', player: 'Draisaitl', result: 'win', settlementLatencyMin: 145 },
+    {
+      pickId: 'SIM-016',
+      sport: 'NHL',
+      player: 'McDavid',
+      result: 'win',
+      settlementLatencyMin: 150,
+    },
+    {
+      pickId: 'SIM-017',
+      sport: 'NHL',
+      player: 'Matthews',
+      result: 'loss',
+      settlementLatencyMin: 160,
+    },
+    {
+      pickId: 'SIM-018',
+      sport: 'NHL',
+      player: 'Draisaitl',
+      result: 'win',
+      settlementLatencyMin: 145,
+    },
     { pickId: 'SIM-019', sport: 'NHL', player: 'Makar', result: 'push', settlementLatencyMin: 155 },
-    { pickId: 'SIM-020', sport: 'NHL', player: 'Pastrnak', result: 'win', settlementLatencyMin: 170 },
+    {
+      pickId: 'SIM-020',
+      sport: 'NHL',
+      player: 'Pastrnak',
+      result: 'win',
+      settlementLatencyMin: 170,
+    },
   ];
 
   // Compute simulated metrics
-  const bySport: Record<string, { win: number; loss: number; push: number; void: number; total: number }> = {};
+  const bySport: Record<
+    string,
+    { win: number; loss: number; push: number; void: number; total: number }
+  > = {};
   const latencies: number[] = [];
 
   for (const s of mockSettlements) {
@@ -168,18 +243,25 @@ function main() {
 
   log('  Settlement Simulation Results:');
   log('  ' + '-'.repeat(60));
-  log(`  ${'Sport'.padEnd(8)} | ${'Win'.padStart(4)} | ${'Loss'.padStart(4)} | ${'Push'.padStart(4)} | ${'Void'.padStart(4)} | ${'Total'.padStart(5)} | ${'Win%'.padStart(6)}`);
+  log(
+    `  ${'Sport'.padEnd(8)} | ${'Win'.padStart(4)} | ${'Loss'.padStart(4)} | ${'Push'.padStart(4)} | ${'Void'.padStart(4)} | ${'Total'.padStart(5)} | ${'Win%'.padStart(6)}`
+  );
   log('  ' + '-'.repeat(60));
 
-  let totalWin = 0, totalAll = 0;
+  let totalWin = 0,
+    totalAll = 0;
   for (const [sport, counts] of Object.entries(bySport).sort()) {
     const winRate = counts.total > 0 ? ((counts.win / counts.total) * 100).toFixed(1) : '0.0';
-    log(`  ${sport.padEnd(8)} | ${String(counts.win).padStart(4)} | ${String(counts.loss).padStart(4)} | ${String(counts.push).padStart(4)} | ${String(counts.void).padStart(4)} | ${String(counts.total).padStart(5)} | ${winRate.padStart(5)}%`);
+    log(
+      `  ${sport.padEnd(8)} | ${String(counts.win).padStart(4)} | ${String(counts.loss).padStart(4)} | ${String(counts.push).padStart(4)} | ${String(counts.void).padStart(4)} | ${String(counts.total).padStart(5)} | ${winRate.padStart(5)}%`
+    );
     totalWin += counts.win;
     totalAll += counts.total;
   }
   log('  ' + '-'.repeat(60));
-  log(`  ${'ALL'.padEnd(8)} | ${String(totalWin).padStart(4)} | ${String(totalAll - totalWin - 2 - 1).padStart(4)} | ${String(2).padStart(4)} | ${String(1).padStart(4)} | ${String(totalAll).padStart(5)} | ${((totalWin / totalAll) * 100).toFixed(1).padStart(5)}%`);
+  log(
+    `  ${'ALL'.padEnd(8)} | ${String(totalWin).padStart(4)} | ${String(totalAll - totalWin - 2 - 1).padStart(4)} | ${String(2).padStart(4)} | ${String(1).padStart(4)} | ${String(totalAll).padStart(5)} | ${((totalWin / totalAll) * 100).toFixed(1).padStart(5)}%`
+  );
   log('');
 
   log('  Settlement Latency (simulated):');
@@ -274,10 +356,7 @@ function main() {
     ],
   };
 
-  fs.writeFileSync(
-    path.join(outDir, 'settlement_proof.json'),
-    JSON.stringify(proofData, null, 2),
-  );
+  fs.writeFileSync(path.join(outDir, 'settlement_proof.json'), JSON.stringify(proofData, null, 2));
 
   fs.writeFileSync(path.join(outDir, 'PROOF.txt'), logs.join('\n'));
 

@@ -85,7 +85,7 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
 
   constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
     super(config, deps);
-    
+
     this.analyticsMetrics = {
       ...this.metrics,
       predictionsGenerated: 0,
@@ -96,7 +96,7 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
       predictionLatency: 0,
       accuracyTrend: 0,
       confidenceScore: 0,
-      marketInsights: 0
+      marketInsights: 0,
     };
 
     // Initialize subsystems
@@ -114,7 +114,7 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
       this.marketForecaster.initialize(),
       this.modelManager.initialize(),
       this.dataProcessor.initialize(),
-      this.predictionEngine.initialize()
+      this.predictionEngine.initialize(),
     ]);
 
     // Load existing predictions and insights
@@ -127,34 +127,33 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
 
   protected async process(): Promise<void> {
     this.logger.info('🔄 Running PredictiveAnalyticsAgent cycle...');
-    
+
     const cycleStartTime = Date.now();
 
     try {
       // 1. Process new data
       await this.processIncomingData();
-      
+
       // 2. Update and retrain models
       await this.updateModels();
-      
+
       // 3. Generate market predictions
       await this.generateMarketPredictions();
-      
+
       // 4. Identify market insights and anomalies
       await this.identifyMarketInsights();
-      
+
       // 5. Validate existing predictions
       await this.validateExistingPredictions();
-      
+
       // 6. Update model performance metrics
       await this.updateModelPerformance();
-      
+
       // 7. Generate forecasting insights
       await this.generateForecastingInsights();
-
     } catch (error) {
       this.logger.error('❌ Error in predictive analytics cycle', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -166,7 +165,7 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
       cycleTimeMs: cycleTime,
       predictionsGenerated: this.analyticsMetrics.predictionsGenerated,
       insightsGenerated: this.analyticsMetrics.marketInsights,
-      forecastAccuracy: this.analyticsMetrics.forecastAccuracy
+      forecastAccuracy: this.analyticsMetrics.forecastAccuracy,
     });
   }
 
@@ -177,17 +176,16 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
     try {
       const rawData = await this.fetchMarketData();
       const processedData = await this.dataProcessor.processMarketData(rawData);
-      
+
       this.analyticsMetrics.dataPointsProcessed += processedData.length;
-      
+
       // Store processed data for model training
       await this.storeProcessedData(processedData);
-      
-      this.logger.info(`✅ Processed ${processedData.length} data points`);
 
+      this.logger.info(`✅ Processed ${processedData.length} data points`);
     } catch (error) {
       this.logger.error('❌ Failed to process incoming data', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -197,28 +195,27 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
 
     try {
       const modelUpdateStartTime = Date.now();
-      
+
       // Check which models need updating
       const modelsToUpdate = await this.modelManager.identifyModelsForUpdate();
-      
+
       for (const modelId of modelsToUpdate) {
         await this.modelManager.updateModel(modelId);
         this.analyticsMetrics.modelsDeployed++;
       }
-      
+
       // Retrain models with new data if needed
       const retrainingNeeded = await this.modelManager.checkRetrainingNeeds();
       if (retrainingNeeded.length > 0) {
         await this.modelManager.retrainModels(retrainingNeeded);
       }
-      
-      this.analyticsMetrics.modelTrainingTime = Date.now() - modelUpdateStartTime;
-      
-      this.logger.info(`✅ Updated ${modelsToUpdate.length} models`);
 
+      this.analyticsMetrics.modelTrainingTime = Date.now() - modelUpdateStartTime;
+
+      this.logger.info(`✅ Updated ${modelsToUpdate.length} models`);
     } catch (error) {
       this.logger.error('❌ Failed to update models', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -228,46 +225,44 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
 
     try {
       const predictionStartTime = Date.now();
-      
+
       // Get active markets for prediction
       const activeMarkets = await this.getActiveMarkets();
-      
+
       const newPredictions: MarketPrediction[] = [];
-      
+
       for (const market of activeMarkets) {
         try {
           const prediction = await this.predictionEngine.generatePrediction(market);
-          
+
           if (prediction && prediction.confidence > 0.6) {
             newPredictions.push(prediction);
             this.activePredictions.set(prediction.predictionId, prediction);
           }
-          
         } catch (error) {
           this.logger.warn('⚠️ Failed to generate prediction for market', {
             marketId: market.id,
-            error: error instanceof Error ? error.message : 'Unknown error'
+            error: error instanceof Error ? error.message : 'Unknown error',
           });
         }
       }
-      
+
       // Store predictions
       await this.storePredictions(newPredictions);
-      
+
       this.analyticsMetrics.predictionsGenerated += newPredictions.length;
       this.analyticsMetrics.predictionLatency = Date.now() - predictionStartTime;
-      
+
       // Calculate confidence metrics
       if (newPredictions.length > 0) {
-        this.analyticsMetrics.confidenceScore = newPredictions
-          .reduce((sum, pred) => sum + pred.confidence, 0) / newPredictions.length;
+        this.analyticsMetrics.confidenceScore =
+          newPredictions.reduce((sum, pred) => sum + pred.confidence, 0) / newPredictions.length;
       }
-      
-      this.logger.info(`✅ Generated ${newPredictions.length} market predictions`);
 
+      this.logger.info(`✅ Generated ${newPredictions.length} market predictions`);
     } catch (error) {
       this.logger.error('❌ Failed to generate market predictions', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -277,23 +272,23 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
 
     try {
       const insights: MarketInsight[] = [];
-      
+
       // Detect market trends
       const trendInsights = await this.marketForecaster.detectTrends();
       insights.push(...trendInsights);
-      
+
       // Identify anomalies
       const anomalyInsights = await this.marketForecaster.detectAnomalies();
       insights.push(...anomalyInsights);
-      
+
       // Find arbitrage opportunities
       const opportunityInsights = await this.marketForecaster.identifyOpportunities();
       insights.push(...opportunityInsights);
-      
+
       // Assess market risks
       const riskInsights = await this.marketForecaster.assessMarketRisks();
       insights.push(...riskInsights);
-      
+
       // Store insights by market
       for (const insight of insights) {
         for (const marketId of insight.affectedMarkets) {
@@ -302,20 +297,21 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
           this.marketInsights.set(marketId, marketInsights);
         }
       }
-      
+
       this.analyticsMetrics.marketInsights += insights.length;
-      
+
       // Process critical insights immediately
       const criticalInsights = insights.filter(i => i.severity === 'critical');
       if (criticalInsights.length > 0) {
         await this.processCriticalInsights(criticalInsights);
       }
-      
-      this.logger.info(`✅ Identified ${insights.length} market insights (${criticalInsights.length} critical)`);
 
+      this.logger.info(
+        `✅ Identified ${insights.length} market insights (${criticalInsights.length} critical)`
+      );
     } catch (error) {
       this.logger.error('❌ Failed to identify market insights', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -327,7 +323,7 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
       const currentTime = new Date();
       let validatedCount = 0;
       let expiredCount = 0;
-      
+
       for (const [predictionId, prediction] of this.activePredictions) {
         // Remove expired predictions
         if (prediction.expiresAt < currentTime) {
@@ -335,7 +331,7 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
           expiredCount++;
           continue;
         }
-        
+
         // Validate prediction accuracy if outcome is available
         const actualOutcome = await this.getActualOutcome(prediction);
         if (actualOutcome) {
@@ -344,12 +340,11 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
           validatedCount++;
         }
       }
-      
-      this.logger.info(`✅ Validated ${validatedCount} predictions, expired ${expiredCount}`);
 
+      this.logger.info(`✅ Validated ${validatedCount} predictions, expired ${expiredCount}`);
     } catch (error) {
       this.logger.error('❌ Failed to validate predictions', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -359,24 +354,23 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
 
     try {
       const models = await this.modelManager.getAllModels();
-      
+
       for (const model of models) {
         const performance = await this.modelManager.calculateModelPerformance(model.modelId);
         this.modelPerformance.set(model.modelId, performance);
       }
-      
+
       // Calculate overall forecast accuracy
       const performances = Array.from(this.modelPerformance.values());
       if (performances.length > 0) {
-        this.analyticsMetrics.forecastAccuracy = performances
-          .reduce((sum, perf) => sum + perf.accuracy, 0) / performances.length;
+        this.analyticsMetrics.forecastAccuracy =
+          performances.reduce((sum, perf) => sum + perf.accuracy, 0) / performances.length;
       }
-      
-      this.logger.info(`✅ Updated performance for ${performances.length} models`);
 
+      this.logger.info(`✅ Updated performance for ${performances.length} models`);
     } catch (error) {
       this.logger.error('❌ Failed to update model performance', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -395,24 +389,24 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
         accuracyTrends: await this.getAccuracyTrends(),
         topPerformingModels: await this.getTopPerformingModels(),
         marketOpportunities: await this.getMarketOpportunities(),
-        riskAlerts: await this.getRiskAlerts()
+        riskAlerts: await this.getRiskAlerts(),
       };
 
       // Store insights
       await withCircuitBreaker.supabase(
         async () => {
           if (this.hasSupabase()) {
-            await this.requireSupabase()
-              .from('predictive_insights')
-              .insert({
-                timestamp: new Date().toISOString(),
-                insights,
-                metrics: this.analyticsMetrics
-              });
+            await this.requireSupabase().from('predictive_insights').insert({
+              timestamp: new Date().toISOString(),
+              insights,
+              metrics: this.analyticsMetrics,
+            });
           }
         },
         async () => {
-          this.logger.warn('⚠️ Failed to store forecasting insights, Supabase circuit breaker open');
+          this.logger.warn(
+            '⚠️ Failed to store forecasting insights, Supabase circuit breaker open'
+          );
         }
       );
 
@@ -426,12 +420,11 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
       this.logger.info('✅ Generated and stored forecasting insights', {
         predictions: insights.totalPredictions,
         accuracy: insights.forecastAccuracy,
-        confidence: insights.averageConfidence
+        confidence: insights.averageConfidence,
       });
-
     } catch (error) {
       this.logger.error('❌ Failed to generate forecasting insights', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -477,7 +470,7 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
     return [
       { id: 'market_1', gameId: 'game_123', betType: 'moneyline', status: 'active' },
       { id: 'market_2', gameId: 'game_124', betType: 'spread', status: 'active' },
-      { id: 'market_3', gameId: 'game_125', betType: 'total', status: 'active' }
+      { id: 'market_3', gameId: 'game_125', betType: 'total', status: 'active' },
     ];
   }
 
@@ -506,7 +499,7 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
         type: insight.type,
         description: insight.description,
         affectedMarkets: insight.affectedMarkets.length,
-        confidence: insight.confidence
+        confidence: insight.confidence,
       });
 
       // This would trigger immediate notifications or alerts
@@ -524,7 +517,9 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
     actualOutcome: any
   ): Promise<number> {
     // Calculate accuracy based on predicted vs actual outcome
-    const predictionError = Math.abs(prediction.predictedOutcome.winProbability - actualOutcome.actualProbability);
+    const predictionError = Math.abs(
+      prediction.predictedOutcome.winProbability - actualOutcome.actualProbability
+    );
     return Math.max(0, 1 - predictionError);
   }
 
@@ -539,7 +534,7 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
       accuracy,
       modelUsed: prediction.modelUsed,
       confidence: prediction.confidence,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
     await redisCache.set(
@@ -551,61 +546,65 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
 
   private async getModelPerformanceSummary(): Promise<any> {
     const performances = Array.from(this.modelPerformance.values());
-    
+
     return {
       totalModels: performances.length,
-      averageAccuracy: performances.length > 0 ? 
-        performances.reduce((sum, p) => sum + p.accuracy, 0) / performances.length : 0,
-      topPerformer: performances.reduce((best, current) => 
-        current.accuracy > best.accuracy ? current : best, performances[0] || { modelId: 'none', accuracy: 0 })
+      averageAccuracy:
+        performances.length > 0
+          ? performances.reduce((sum, p) => sum + p.accuracy, 0) / performances.length
+          : 0,
+      topPerformer: performances.reduce(
+        (best, current) => (current.accuracy > best.accuracy ? current : best),
+        performances[0] || { modelId: 'none', accuracy: 0 }
+      ),
     };
   }
 
   private async getMarketTrendSummary(): Promise<any> {
     const allInsights = Array.from(this.marketInsights.values()).flat();
     const trendInsights = allInsights.filter(i => i.type === 'trend');
-    
+
     return {
       totalTrends: trendInsights.length,
       bullishTrends: trendInsights.filter(i => i.description.includes('bullish')).length,
       bearishTrends: trendInsights.filter(i => i.description.includes('bearish')).length,
-      neutralTrends: trendInsights.filter(i => i.description.includes('neutral')).length
+      neutralTrends: trendInsights.filter(i => i.description.includes('neutral')).length,
     };
   }
 
   private async getPredictionDistribution(): Promise<any> {
     const predictions = Array.from(this.activePredictions.values());
-    
+
     return {
       byConfidence: {
         high: predictions.filter(p => p.confidence > 0.8).length,
         medium: predictions.filter(p => p.confidence >= 0.6 && p.confidence <= 0.8).length,
-        low: predictions.filter(p => p.confidence < 0.6).length
+        low: predictions.filter(p => p.confidence < 0.6).length,
       },
       byBetType: this.groupPredictionsByBetType(predictions),
-      byTimeHorizon: this.groupPredictionsByTimeHorizon(predictions)
+      byTimeHorizon: this.groupPredictionsByTimeHorizon(predictions),
     };
   }
 
   private groupPredictionsByBetType(predictions: MarketPrediction[]): any {
     const groups: Record<string, number> = {};
-    
+
     predictions.forEach(p => {
       groups[p.betType] = (groups[p.betType] || 0) + 1;
     });
-    
+
     return groups;
   }
 
   private groupPredictionsByTimeHorizon(predictions: MarketPrediction[]): any {
     const groups = { short: 0, medium: 0, long: 0 };
-    
+
     predictions.forEach(p => {
       if (p.timeHorizon <= 60) groups.short++;
       else if (p.timeHorizon <= 300) groups.medium++;
       else groups.long++;
     });
-    
+
     return groups;
   }
 
@@ -615,7 +614,7 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
       trend: 'improving',
       changeRate: 0.05,
       lastWeekAccuracy: 0.72,
-      currentAccuracy: this.analyticsMetrics.forecastAccuracy
+      currentAccuracy: this.analyticsMetrics.forecastAccuracy,
     };
   }
 
@@ -626,7 +625,7 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
       .map(p => ({
         modelId: p.modelId,
         accuracy: p.accuracy,
-        trend: p.performanceTrend
+        trend: p.performanceTrend,
       }));
   }
 
@@ -639,7 +638,7 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
         description: i.description,
         confidence: i.confidence,
         markets: i.affectedMarkets.length,
-        timeframe: i.timeframe
+        timeframe: i.timeframe,
       }));
   }
 
@@ -652,14 +651,14 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
         description: i.description,
         severity: i.severity,
         markets: i.affectedMarkets.length,
-        recommendations: i.recommendations
+        recommendations: i.recommendations,
       }));
   }
 
   private async loadActivePredictions(): Promise<void> {
     try {
       const cachedPredictions = await redisCache.getPattern('prediction:*');
-      
+
       for (const [key, data] of cachedPredictions) {
         const prediction = JSON.parse(data);
         prediction.createdAt = new Date(prediction.createdAt);
@@ -676,7 +675,7 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
   private async loadMarketInsights(): Promise<void> {
     try {
       const cachedInsights = await redisCache.getPattern('insights:market:*');
-      
+
       for (const [key, data] of cachedInsights) {
         const marketId = key.split(':').pop();
         if (marketId) {
@@ -697,7 +696,7 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
   private async loadModelPerformance(): Promise<void> {
     try {
       const cachedPerformance = await redisCache.getPattern('model:performance:*');
-      
+
       for (const [key, data] of cachedPerformance) {
         const modelId = key.split(':').pop();
         if (modelId) {
@@ -715,7 +714,7 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
 
   protected async cleanup(): Promise<void> {
     this.logger.info('🧹 PredictiveAnalyticsAgent cleanup...');
-    
+
     // Save active predictions
     for (const [predictionId, prediction] of this.activePredictions) {
       await redisCache.set(
@@ -724,7 +723,7 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
         86400 // 24 hours TTL
       );
     }
-    
+
     // Save market insights
     for (const [marketId, insights] of this.marketInsights) {
       await redisCache.set(
@@ -733,7 +732,7 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
         86400 // 24 hours TTL
       );
     }
-    
+
     // Save model performance
     for (const [modelId, performance] of this.modelPerformance) {
       await redisCache.set(
@@ -742,25 +741,25 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
         86400 // 24 hours TTL
       );
     }
-    
+
     await Promise.all([
       this.marketForecaster.cleanup(),
       this.modelManager.cleanup(),
       this.dataProcessor.cleanup(),
-      this.predictionEngine.cleanup()
+      this.predictionEngine.cleanup(),
     ]);
-    
+
     this.activePredictions.clear();
     this.marketInsights.clear();
     this.modelPerformance.clear();
-    
+
     this.logger.info('✅ PredictiveAnalyticsAgent cleanup complete');
   }
 
   protected async collectMetrics(): Promise<BaseMetrics> {
     return {
       ...this.analyticsMetrics,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024,
     };
   }
 
@@ -770,27 +769,31 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
     // Check subsystem health
     checks.push({
       component: 'market_forecaster',
-      status: await this.marketForecaster.isHealthy() ? 'healthy' : 'unhealthy'
+      status: (await this.marketForecaster.isHealthy()) ? 'healthy' : 'unhealthy',
     });
 
     checks.push({
       component: 'model_manager',
-      status: await this.modelManager.isHealthy() ? 'healthy' : 'unhealthy'
+      status: (await this.modelManager.isHealthy()) ? 'healthy' : 'unhealthy',
     });
 
     checks.push({
       component: 'data_processor',
-      status: await this.dataProcessor.isHealthy() ? 'healthy' : 'unhealthy'
+      status: (await this.dataProcessor.isHealthy()) ? 'healthy' : 'unhealthy',
     });
 
     checks.push({
       component: 'prediction_engine',
-      status: await this.predictionEngine.isHealthy() ? 'healthy' : 'unhealthy'
+      status: (await this.predictionEngine.isHealthy()) ? 'healthy' : 'unhealthy',
     });
 
     const healthyComponents = checks.filter(c => c.status === 'healthy').length;
-    const overallStatus = healthyComponents === checks.length ? 'healthy' : 
-                         healthyComponents >= checks.length / 2 ? 'degraded' : 'unhealthy';
+    const overallStatus =
+      healthyComponents === checks.length
+        ? 'healthy'
+        : healthyComponents >= checks.length / 2
+          ? 'degraded'
+          : 'unhealthy';
 
     return {
       status: overallStatus,
@@ -799,8 +802,8 @@ export class PredictiveAnalyticsAgent extends BaseAgent {
         checks,
         metrics: this.analyticsMetrics,
         activePredictions: this.activePredictions.size,
-        marketInsights: Array.from(this.marketInsights.values()).flat().length
-      }
+        marketInsights: Array.from(this.marketInsights.values()).flat().length,
+      },
     };
   }
 }

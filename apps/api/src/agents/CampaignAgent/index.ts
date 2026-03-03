@@ -3,7 +3,7 @@ import {
   BaseAgentConfig,
   BaseAgentDependencies,
   HealthStatus,
-  BaseMetrics
+  BaseMetrics,
 } from '../BaseAgent/types';
 
 import { CampaignConfig, CampaignParams } from './types';
@@ -17,13 +17,13 @@ export class CampaignAgent extends BaseAgent {
 
   protected async initialize(): Promise<void> {
     this.deps.logger.info('Initializing CampaignAgent...');
-    
+
     try {
       await this.validateDependencies();
       this.deps.logger.info('CampaignAgent initialized successfully');
     } catch (error) {
       this.deps.logger.error('Failed to initialize CampaignAgent:', {
-        err: error instanceof Error ? error.message : String(error)
+        err: error instanceof Error ? error.message : String(error),
       });
       throw error;
     }
@@ -31,10 +31,7 @@ export class CampaignAgent extends BaseAgent {
 
   private async validateDependencies(): Promise<void> {
     // Verify access to required tables
-    const { error } = await this.deps.supabase
-      .from('promotions')
-      .select('id')
-      .limit(1);
+    const { error } = await this.deps.supabase.from('promotions').select('id').limit(1);
 
     if (error) {
       throw new Error(`Failed to access promotions table: ${error.message}`);
@@ -49,7 +46,7 @@ export class CampaignAgent extends BaseAgent {
       await this.cleanupExpired();
     } catch (error) {
       this.deps.logger.error('Error in CampaignAgent process:', {
-        err: error instanceof Error ? error.message : String(error)
+        err: error instanceof Error ? error.message : String(error),
       });
       throw error;
     }
@@ -78,7 +75,7 @@ export class CampaignAgent extends BaseAgent {
       this.deps.logger.info('CampaignAgent cleanup completed');
     } catch (error) {
       this.deps.logger.error('Error during CampaignAgent cleanup:', {
-        err: error instanceof Error ? error.message : String(error)
+        err: error instanceof Error ? error.message : String(error),
       });
       throw error;
     }
@@ -86,12 +83,9 @@ export class CampaignAgent extends BaseAgent {
 
   public async checkHealth(): Promise<HealthStatus> {
     const errors: string[] = [];
-    
+
     try {
-      const { error } = await this.deps.supabase
-        .from('promotions')
-        .select('id')
-        .limit(1);
+      const { error } = await this.deps.supabase.from('promotions').select('id').limit(1);
 
       if (error) {
         errors.push(`Database connectivity issue: ${error.message}`);
@@ -103,7 +97,7 @@ export class CampaignAgent extends BaseAgent {
     return {
       status: errors.length > 0 ? 'unhealthy' : 'healthy',
       timestamp: new Date().toISOString(),
-      details: { errors }
+      details: { errors },
     };
   }
 
@@ -112,7 +106,11 @@ export class CampaignAgent extends BaseAgent {
       .from('promotions')
       .select('active, applied_count');
 
-    const totalApplied = promoStats?.reduce((sum: number, p: { applied_count?: number }) => sum + (p.applied_count || 0), 0) || 0;
+    const totalApplied =
+      promoStats?.reduce(
+        (sum: number, p: { applied_count?: number }) => sum + (p.applied_count || 0),
+        0
+      ) || 0;
 
     return {
       agentName: 'CampaignAgent',
@@ -120,7 +118,7 @@ export class CampaignAgent extends BaseAgent {
       errorCount: 0,
       warningCount: 0,
       processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024,
     };
   }
 
@@ -165,12 +163,12 @@ export class CampaignAgent extends BaseAgent {
       type: config.type,
       value: config.value,
       conditions: config.conditions,
-      active: true
+      active: true,
     });
 
     if (result.error) {
       this.deps.logger.error('Failed to insert promotion', {
-        error: result.error?.message || 'Unknown database error'
+        error: result.error?.message || 'Unknown database error',
       });
       throw result.error;
     }
@@ -181,7 +179,7 @@ export class CampaignAgent extends BaseAgent {
   private async applyPromotion(promo: any): Promise<void> {
     // Apply promotion logic here
     this.deps.logger.info(`Applying promotion: ${promo.name}`);
-    
+
     // Update applied count
     await this.deps.supabase
       .from('promotions')
@@ -202,7 +200,7 @@ export class CampaignAgent extends BaseAgent {
         metrics: {
           enabled: true,
           interval: 60,
-          port: 9090
+          port: 9090,
         },
         retry: {
           enabled: true,
@@ -212,15 +210,15 @@ export class CampaignAgent extends BaseAgent {
           maxAttempts: 3,
           backoff: 1000,
           exponential: true,
-          jitter: false
+          jitter: false,
         },
         health: {
           enabled: true,
           interval: 30,
           timeout: 5000,
           checkDb: true,
-          checkExternal: false
-        }
+          checkExternal: false,
+        },
       };
       instance = new CampaignAgent(config, dependencies);
     }
@@ -239,7 +237,7 @@ export function initializeCampaignAgent(dependencies: BaseAgentDependencies): Ca
     metrics: {
       enabled: true,
       interval: 60,
-      port: 9090
+      port: 9090,
     },
     retry: {
       enabled: true,
@@ -249,15 +247,15 @@ export function initializeCampaignAgent(dependencies: BaseAgentDependencies): Ca
       maxAttempts: 3,
       backoff: 1000,
       exponential: true,
-      jitter: false
+      jitter: false,
     },
     health: {
       enabled: true,
       interval: 30,
       timeout: 5000,
       checkDb: true,
-      checkExternal: false
-    }
+      checkExternal: false,
+    },
   };
   return new CampaignAgent(config, dependencies);
 }

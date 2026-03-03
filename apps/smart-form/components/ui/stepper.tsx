@@ -42,10 +42,7 @@ export function Stepper({
           return (
             <li
               key={step.name}
-              className={cn(
-                'relative flex-1',
-                stepIdx !== steps.length - 1 && 'pr-8 sm:pr-12'
-              )}
+              className={cn('relative flex-1', stepIdx !== steps.length - 1 && 'pr-8 sm:pr-12')}
             >
               {/* Connector line */}
               {stepIdx !== steps.length - 1 && (
@@ -53,12 +50,7 @@ export function Stepper({
                   className="absolute top-4 left-0 -ml-px mt-0.5 w-full h-0.5 hidden sm:block"
                   aria-hidden="true"
                 >
-                  <div
-                    className={cn(
-                      'h-full',
-                      completed ? 'bg-blue-600' : 'bg-gray-200'
-                    )}
-                  />
+                  <div className={cn('h-full', completed ? 'bg-blue-600' : 'bg-gray-200')} />
                 </div>
               )}
 
@@ -158,12 +150,7 @@ export function StepperCompact({
               <span className="hidden sm:inline">{step.title}</span>
             </div>
             {idx < steps.length - 1 && (
-              <div
-                className={cn(
-                  'h-0.5 w-4',
-                  completed ? 'bg-blue-600' : 'bg-gray-200'
-                )}
-              />
+              <div className={cn('h-0.5 w-4', completed ? 'bg-blue-600' : 'bg-gray-200')} />
             )}
           </React.Fragment>
         );

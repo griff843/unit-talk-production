@@ -44,20 +44,17 @@ export class HealthMonitor {
     this.checks.set('database', async (): Promise<HealthCheck> => {
       const start = Date.now();
       try {
-        const { error } = await supabase
-          .from('users')
-          .select('count')
-          .limit(1);
+        const { error } = await supabase.from('users').select('count').limit(1);
 
         const responseTime = Date.now() - start;
-        
+
         if (error) {
           return {
             name: 'database',
             status: 'fail',
             responseTime,
             message: 'Database connection failed',
-            details: error
+            details: error,
           };
         }
 
@@ -65,7 +62,7 @@ export class HealthMonitor {
           name: 'database',
           status: responseTime > 1000 ? 'warn' : 'pass',
           responseTime,
-          message: responseTime > 1000 ? 'Slow database response' : 'Database healthy'
+          message: responseTime > 1000 ? 'Slow database response' : 'Database healthy',
         };
       } catch (error) {
         return {
@@ -73,7 +70,7 @@ export class HealthMonitor {
           status: 'fail',
           responseTime: Date.now() - start,
           message: 'Database check failed',
-          details: error
+          details: error,
         };
       }
     });
@@ -92,7 +89,7 @@ export class HealthMonitor {
           status: usagePercent > 90 ? 'fail' : usagePercent > 70 ? 'warn' : 'pass',
           responseTime: Date.now() - start,
           message: `Memory usage: ${heapUsedMB}MB / ${heapTotalMB}MB (${usagePercent.toFixed(1)}%)`,
-          details: memUsage
+          details: memUsage,
         };
       } catch (error) {
         return {
@@ -100,7 +97,7 @@ export class HealthMonitor {
           status: 'fail',
           responseTime: Date.now() - start,
           message: 'Memory check failed',
-          details: error
+          details: error,
         };
       }
     });
@@ -114,7 +111,7 @@ export class HealthMonitor {
           name: 'disk',
           status: 'pass',
           responseTime: Date.now() - start,
-          message: 'Disk space healthy'
+          message: 'Disk space healthy',
         };
       } catch (error) {
         return {
@@ -122,7 +119,7 @@ export class HealthMonitor {
           status: 'fail',
           responseTime: Date.now() - start,
           message: 'Disk check failed',
-          details: error
+          details: error,
         };
       }
     });
@@ -137,7 +134,7 @@ export class HealthMonitor {
           name: 'agents',
           status: 'pass',
           responseTime: Date.now() - start,
-          message: 'All agents operational'
+          message: 'All agents operational',
         };
       } catch (error) {
         return {
@@ -145,7 +142,7 @@ export class HealthMonitor {
           status: 'fail',
           responseTime: Date.now() - start,
           message: 'Agent system check failed',
-          details: error
+          details: error,
         };
       }
     });
@@ -161,7 +158,7 @@ export class HealthMonitor {
           status: 'fail' as const,
           responseTime: 0,
           message: 'Health check failed',
-          details: error
+          details: error,
         };
       }
     });
@@ -184,7 +181,7 @@ export class HealthMonitor {
       timestamp: new Date().toISOString(),
       checks,
       uptime: Date.now() - this.startTime,
-      version: process.env['npm_package_version'] || '1.0.0'
+      version: process.env['npm_package_version'] || '1.0.0',
     };
 
     // Log health status
@@ -193,9 +190,9 @@ export class HealthMonitor {
     } else if (overallStatus === 'degraded') {
       logger.warn('System health degraded', { healthStatus });
     } else {
-      logger.info('System health check passed', { 
+      logger.info('System health check passed', {
         status: overallStatus,
-        uptime: healthStatus.uptime 
+        uptime: healthStatus.uptime,
       });
     }
 
@@ -208,7 +205,7 @@ export class HealthMonitor {
 
   async startPeriodicChecks(intervalMs: number = 60000): Promise<void> {
     logger.info('Starting periodic health checks', { intervalMs });
-    
+
     setInterval(async () => {
       try {
         await this.performHealthCheck();
@@ -227,17 +224,19 @@ export class PerformanceMonitor {
     if (!this.metrics.has(name)) {
       this.metrics.set(name, []);
     }
-    
+
     const values = this.metrics.get(name)!;
     values.push(value);
-    
+
     // Keep only last 100 values
     if (values.length > 100) {
       values.shift();
     }
   }
 
-  static getMetricStats(name: string): { avg: number; min: number; max: number; count: number } | null {
+  static getMetricStats(
+    name: string
+  ): { avg: number; min: number; max: number; count: number } | null {
     const values = this.metrics.get(name);
     if (!values || values.length === 0) {
       return null;
@@ -248,17 +247,17 @@ export class PerformanceMonitor {
       avg: sum / values.length,
       min: Math.min(...values),
       max: Math.max(...values),
-      count: values.length
+      count: values.length,
     };
   }
 
   static getAllMetrics(): Record<string, any> {
     const result: Record<string, any> = {};
-    
+
     for (const [name] of this.metrics) {
       result[name] = this.getMetricStats(name);
     }
-    
+
     return result;
   }
 
@@ -270,13 +269,13 @@ export class PerformanceMonitor {
 // Request timing middleware
 export const performanceMiddleware = (req: any, res: any, next: any): void => {
   const start = Date.now();
-  
+
   res.on('finish', () => {
     const duration = Date.now() - start;
     PerformanceMonitor.recordMetric('request_duration', duration);
     PerformanceMonitor.recordMetric(`${req.method}_${req.route?.path || req.path}`, duration);
   });
-  
+
   next();
 };
 
@@ -290,9 +289,9 @@ export class ErrorTracker {
       error: {
         message: error.message,
         stack: error.stack,
-        name: error.name
+        name: error.name,
       },
-      context
+      context,
     });
 
     // Keep only last 50 errors
@@ -310,10 +309,10 @@ export class ErrorTracker {
   static getErrorStats(): { total: number; recent: number } {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     const recentErrors = this.errors.filter(e => e.timestamp > oneHourAgo);
-    
+
     return {
       total: this.errors.length,
-      recent: recentErrors.length
+      recent: recentErrors.length,
     };
   }
 
@@ -326,5 +325,5 @@ export default {
   HealthMonitor,
   PerformanceMonitor,
   ErrorTracker,
-  performanceMiddleware
+  performanceMiddleware,
 };

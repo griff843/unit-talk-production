@@ -11,34 +11,31 @@ import { createLogger } from '../utils/logger';
 dotenv.config();
 
 const logger = createLogger('PerformanceMonitoring');
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_ANON_KEY!
-);
+const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
 
 interface PerformanceMetrics {
   timestamp: string;
-  
+
   // System Performance
   processing_speed_ms: number;
   error_rate_percent: number;
   throughput_props_per_hour: number;
   memory_usage_mb: number;
   cpu_usage_percent: number;
-  
+
   // Professional System Metrics
   rule_compliance_rate: number;
   avg_professional_score: number;
   avg_devigged_edge: number;
   auto_approval_rate: number;
   clv_tracking_success_rate: number;
-  
+
   // Business Metrics
   total_picks_processed: number;
   tier_distribution: Record<string, number>;
   avg_kelly_fraction: number;
   total_bankroll_exposure: number;
-  
+
   // Data Quality
   data_completeness_score: number;
   outlier_detection_rate: number;
@@ -48,12 +45,12 @@ interface PerformanceMetrics {
 async function createPerformanceMonitoringDashboard() {
   console.log('📊 CREATING PERFORMANCE MONITORING DASHBOARD');
   console.log('='.repeat(70));
-  
+
   try {
     // Step 1: Create performance metrics table
     console.log('🔧 STEP 1: CREATING PERFORMANCE METRICS INFRASTRUCTURE');
     console.log('─'.repeat(50));
-    
+
     const metricsTableSQL = `
 -- Performance monitoring table
 CREATE TABLE IF NOT EXISTS performance_metrics (
@@ -115,13 +112,13 @@ CREATE INDEX IF NOT EXISTS idx_performance_alerts_triggered_at ON performance_al
 `;
 
     console.log('📋 Performance monitoring tables schema created');
-    
+
     // Step 2: Collect current system metrics
     console.log('\n📊 STEP 2: COLLECTING CURRENT SYSTEM METRICS');
     console.log('─'.repeat(50));
-    
+
     const metrics = await collectCurrentMetrics();
-    
+
     console.log('📈 CURRENT SYSTEM PERFORMANCE:');
     console.log(`   ⚡ Processing Speed: ${metrics.processing_speed_ms}ms avg`);
     console.log(`   📊 Rule Compliance: ${metrics.rule_compliance_rate.toFixed(1)}%`);
@@ -129,11 +126,11 @@ CREATE INDEX IF NOT EXISTS idx_performance_alerts_triggered_at ON performance_al
     console.log(`   💰 Devigged Edge: ${(metrics.avg_devigged_edge * 100).toFixed(2)}% avg`);
     console.log(`   🏆 Auto-Approval Rate: ${metrics.auto_approval_rate.toFixed(1)}%`);
     console.log(`   📈 CLV Success Rate: ${metrics.clv_tracking_success_rate.toFixed(1)}%`);
-    
+
     // Step 3: Create monitoring functions
     console.log('\n🔧 STEP 3: CREATING MONITORING FUNCTIONS');
     console.log('─'.repeat(50));
-    
+
     const monitoringFunctions = `
 /**
  * Performance Monitoring Functions
@@ -309,15 +306,16 @@ export const performanceMonitor = PerformanceMonitor.getInstance();
 `;
 
     // Save monitoring functions
-    const monitoringPath = 'C:\\Users\\griff\\Desktop\\Unit Talk Production v3\\unit-talk-production\\apps\\api\\src\\services\\monitoring\\PerformanceMonitor.ts';
+    const monitoringPath =
+      'C:\\Users\\griff\\Desktop\\Unit Talk Production v3\\unit-talk-production\\apps\\api\\src\\services\\monitoring\\PerformanceMonitor.ts';
     require('fs').writeFileSync(monitoringPath, monitoringFunctions);
-    
+
     console.log('✅ Performance monitoring functions created');
-    
+
     // Step 4: Create dashboard visualization
     console.log('\n📊 STEP 4: CREATING DASHBOARD VISUALIZATION');
     console.log('─'.repeat(50));
-    
+
     const dashboardHTML = `
 <!DOCTYPE html>
 <html>
@@ -460,15 +458,16 @@ export const performanceMonitor = PerformanceMonitor.getInstance();
 </html>`;
 
     // Save dashboard
-    const dashboardPath = 'C:\\Users\\griff\\Desktop\\Unit Talk Production v3\\unit-talk-production\\apps\\api\\performance-dashboard.html';
+    const dashboardPath =
+      'C:\\Users\\griff\\Desktop\\Unit Talk Production v3\\unit-talk-production\\apps\\api\\performance-dashboard.html';
     require('fs').writeFileSync(dashboardPath, dashboardHTML);
-    
+
     console.log('✅ Dashboard HTML created at performance-dashboard.html');
-    
+
     console.log('\n' + '='.repeat(70));
     console.log('🎉 PERFORMANCE MONITORING DASHBOARD CREATED!');
     console.log('='.repeat(70));
-    
+
     console.log('✅ MONITORING INFRASTRUCTURE READY:');
     console.log('   📊 Real-time metrics collection and storage');
     console.log('   🚨 Automated alerting with severity levels');
@@ -476,20 +475,19 @@ export const performanceMonitor = PerformanceMonitor.getInstance();
     console.log('   🎯 Rule compliance monitoring');
     console.log('   💰 Business metrics tracking');
     console.log('   🔍 Data quality assessment');
-    
+
     console.log('\n🚀 DASHBOARD FEATURES:');
     console.log('   📊 Live performance metrics display');
     console.log('   📈 Historical trend charts');
     console.log('   🎯 Tier distribution visualization');
     console.log('   🚨 Active alerts monitoring');
     console.log('   ⚡ Real-time system health indicators');
-    
+
     console.log('\n📋 NEXT STEPS:');
     console.log('   1. Start monitoring: performanceMonitor.startMonitoring(5)');
     console.log('   2. Open dashboard: performance-dashboard.html');
     console.log('   3. Configure alert thresholds as needed');
     console.log('   4. Integrate with production deployment');
-    
   } catch (error) {
     console.error('❌ Dashboard creation failed:', error);
     throw error;
@@ -498,70 +496,84 @@ export const performanceMonitor = PerformanceMonitor.getInstance();
 
 async function collectCurrentMetrics(): Promise<PerformanceMetrics> {
   const startTime = Date.now();
-  
+
   // Collect system metrics
   const { count: totalPicks } = await supabase
     .from('unified_picks')
     .select('*', { count: 'exact', head: true });
-    
+
   const { count: professionalPicks } = await supabase
     .from('unified_picks')
     .select('*', { count: 'exact', head: true })
     .not('professional_score', 'is', null);
-    
+
   const { count: clvEntries } = await supabase
     .from('clv_tracking')
     .select('*', { count: 'exact', head: true });
-    
+
   // Professional system metrics
   const { data: scoringData } = await supabase
     .from('unified_picks')
     .select('professional_score, devigged_edge, tier, published, kelly_fraction')
     .not('professional_score', 'is', null);
-    
+
   const processingTime = Date.now() - startTime;
-  
+
   // Calculate tier distribution
-  const tierCounts = (scoringData || []).reduce((acc, item) => {
-    const tier = item.tier || 'Unknown';
-    acc[tier] = (acc[tier] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-  
+  const tierCounts = (scoringData || []).reduce(
+    (acc, item) => {
+      const tier = item.tier || 'Unknown';
+      acc[tier] = (acc[tier] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
+
   return {
     timestamp: new Date().toISOString(),
-    
+
     // System Performance
     processing_speed_ms: processingTime,
     error_rate_percent: 0, // Would be calculated from error logs
     throughput_props_per_hour: 0, // Would be calculated from processing history
     memory_usage_mb: 0, // Would use process.memoryUsage()
     cpu_usage_percent: 0, // Would use system monitoring
-    
+
     // Professional System Metrics
     rule_compliance_rate: totalPicks ? (professionalPicks / totalPicks) * 100 : 0,
-    avg_professional_score: (scoringData || []).reduce((sum, item) => sum + (item.professional_score || 0), 0) / ((scoringData || []).length || 1),
-    avg_devigged_edge: (scoringData || []).reduce((sum, item) => sum + (item.devigged_edge || 0), 0) / ((scoringData || []).length || 1),
-    auto_approval_rate: (scoringData || []).filter(item => item.published).length / ((scoringData || []).length || 1) * 100,
+    avg_professional_score:
+      (scoringData || []).reduce((sum, item) => sum + (item.professional_score || 0), 0) /
+      ((scoringData || []).length || 1),
+    avg_devigged_edge:
+      (scoringData || []).reduce((sum, item) => sum + (item.devigged_edge || 0), 0) /
+      ((scoringData || []).length || 1),
+    auto_approval_rate:
+      ((scoringData || []).filter(item => item.published).length /
+        ((scoringData || []).length || 1)) *
+      100,
     clv_tracking_success_rate: clvEntries ? (clvEntries / (totalPicks || 1)) * 100 : 0,
-    
+
     // Business Metrics
     total_picks_processed: totalPicks || 0,
     tier_distribution: tierCounts,
-    avg_kelly_fraction: (scoringData || []).reduce((sum, item) => sum + (item.kelly_fraction || 0), 0) / ((scoringData || []).length || 1),
+    avg_kelly_fraction:
+      (scoringData || []).reduce((sum, item) => sum + (item.kelly_fraction || 0), 0) /
+      ((scoringData || []).length || 1),
     total_bankroll_exposure: 0, // Would be calculated from position sizes
-    
+
     // Data Quality
     data_completeness_score: professionalPicks ? (professionalPicks / (totalPicks || 1)) * 100 : 0,
     outlier_detection_rate: 0, // Would be calculated from validation logic
-    validation_failure_rate: 0 // Would be calculated from processing logs
+    validation_failure_rate: 0, // Would be calculated from processing logs
   };
 }
 
-createPerformanceMonitoringDashboard().then(() => {
-  console.log('\n✅ PERFORMANCE MONITORING DASHBOARD COMPLETE');
-  process.exit(0);
-}).catch(error => {
-  console.error('\n❌ Dashboard creation failed:', error);
-  process.exit(1);
-});
+createPerformanceMonitoringDashboard()
+  .then(() => {
+    console.log('\n✅ PERFORMANCE MONITORING DASHBOARD COMPLETE');
+    process.exit(0);
+  })
+  .catch(error => {
+    console.error('\n❌ Dashboard creation failed:', error);
+    process.exit(1);
+  });

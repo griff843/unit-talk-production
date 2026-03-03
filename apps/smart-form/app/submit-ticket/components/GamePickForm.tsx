@@ -91,10 +91,18 @@ export function GamePickForm({
       switch (effectiveBetType) {
         case 'spread':
           setOdds(game.spread.odds?.toString() || '-110');
-          setLine(value === 'home' ? game.spread.home?.toString() || '0' : game.spread.away?.toString() || '0');
+          setLine(
+            value === 'home'
+              ? game.spread.home?.toString() || '0'
+              : game.spread.away?.toString() || '0'
+          );
           break;
         case 'moneyline':
-          setOdds(value === 'home' ? game.moneyline.home?.toString() || '-110' : game.moneyline.away?.toString() || '+110');
+          setOdds(
+            value === 'home'
+              ? game.moneyline.home?.toString() || '-110'
+              : game.moneyline.away?.toString() || '+110'
+          );
           setLine('');
           break;
         case 'total':
@@ -170,7 +178,9 @@ export function GamePickForm({
             className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           >
             {LEG_BET_TYPES.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
             ))}
           </select>
         </div>
@@ -185,7 +195,9 @@ export function GamePickForm({
         >
           <option value="">Choose your pick</option>
           {availableSelections.map(opt => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
           ))}
         </select>
       </div>
@@ -193,12 +205,26 @@ export function GamePickForm({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs font-medium text-muted-foreground mb-1 block">Odds</label>
-          <Input type="number" placeholder="-110" value={odds} onChange={e => setOdds(e.target.value)} />
+          <Input
+            type="number"
+            placeholder="-110"
+            value={odds}
+            onChange={e => setOdds(e.target.value)}
+          />
         </div>
-        {(effectiveBetType === 'spread' || effectiveBetType === 'total' || effectiveBetType === 'team_total' || effectiveBetType === 'player_prop') && (
+        {(effectiveBetType === 'spread' ||
+          effectiveBetType === 'total' ||
+          effectiveBetType === 'team_total' ||
+          effectiveBetType === 'player_prop') && (
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Line</label>
-            <Input type="number" step="0.5" placeholder="8.5" value={line} onChange={e => setLine(e.target.value)} />
+            <Input
+              type="number"
+              step="0.5"
+              placeholder="8.5"
+              value={line}
+              onChange={e => setLine(e.target.value)}
+            />
           </div>
         )}
       </div>

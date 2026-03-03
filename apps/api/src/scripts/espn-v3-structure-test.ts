@@ -108,7 +108,6 @@ async function testV3Structure() {
     } else {
       console.log(`Alternate endpoint failed: ${altRes.status}`);
     }
-
   } catch (err) {
     console.error('Error:', err);
   }

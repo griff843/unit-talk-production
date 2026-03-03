@@ -164,4 +164,4 @@ export interface PipelineConfig {
       latency: number;
     };
   };
-} 
+}

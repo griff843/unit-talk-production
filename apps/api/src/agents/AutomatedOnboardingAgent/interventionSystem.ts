@@ -26,33 +26,32 @@ export class InterventionSystem {
 
   async initialize(): Promise<void> {
     this.logger.info('🚨 Initializing InterventionSystem');
-    
+
     // Load intervention rules
     await this.loadInterventionRules();
-    
+
     // Load pending interventions from cache
     await this.loadPendingInterventions();
-    
+
     // Start intervention scheduler
     this.startInterventionScheduler();
   }
 
   async assessIntervention(
-    userId: string, 
+    userId: string,
     behaviorData: MessageAnalysis
   ): Promise<InterventionType | null> {
-    
     // Check each intervention rule
     for (const [ruleId, rule] of this.interventionRules) {
       const shouldTrigger = await this.evaluateRule(rule, userId, behaviorData);
-      
+
       if (shouldTrigger) {
         this.logger.info('🎯 Intervention rule triggered', {
           userId,
           ruleId,
-          interventionType: rule.interventionType.type
+          interventionType: rule.interventionType.type,
         });
-        
+
         return rule.interventionType;
       }
     }
@@ -61,11 +60,10 @@ export class InterventionSystem {
   }
 
   async scheduleIntervention(
-    userId: string, 
+    userId: string,
     intervention: InterventionType,
     delay: number = 0
   ): Promise<string> {
-    
     const interventionId = `intervention_${userId}_${Date.now()}`;
     const scheduledTime = new Date(Date.now() + delay);
 
@@ -77,11 +75,11 @@ export class InterventionSystem {
       priority: this.getPriorityScore(intervention),
       attempts: 0,
       maxAttempts: this.getMaxAttempts(intervention),
-      context: await this.gatherInterventionContext(userId, intervention)
+      context: await this.gatherInterventionContext(userId, intervention),
     };
 
     this.pendingInterventions.set(interventionId, pendingIntervention);
-    
+
     // Cache for persistence
     await this.cachePendingIntervention(pendingIntervention);
 
@@ -90,7 +88,7 @@ export class InterventionSystem {
       userId,
       type: intervention.type,
       urgency: intervention.urgency,
-      scheduledTime: scheduledTime.toISOString()
+      scheduledTime: scheduledTime.toISOString(),
     });
 
     return interventionId;
@@ -98,13 +96,16 @@ export class InterventionSystem {
 
   async getPendingInterventions(): Promise<PendingIntervention[]> {
     const now = new Date();
-    
+
     return Array.from(this.pendingInterventions.values())
       .filter(intervention => intervention.scheduledTime <= now)
       .sort((a, b) => b.priority - a.priority); // Higher priority first
   }
 
-  async markCompleted(interventionId: string, outcome: 'successful' | 'failed' | 'ignored' = 'successful'): Promise<void> {
+  async markCompleted(
+    interventionId: string,
+    outcome: 'successful' | 'failed' | 'ignored' = 'successful'
+  ): Promise<void> {
     const intervention = this.pendingInterventions.get(interventionId);
     if (!intervention) return;
 
@@ -116,14 +117,14 @@ export class InterventionSystem {
       trigger: 'system_assessment',
       response: `Intervention ${outcome}`,
       outcome,
-      followUpNeeded: outcome === 'failed'
+      followUpNeeded: outcome === 'failed',
     };
 
     await this.recordInterventionHistory(intervention.userId, record);
 
     // Remove from pending
     this.pendingInterventions.delete(interventionId);
-    
+
     // Remove from cache
     await redisCache.del(`intervention:pending:${interventionId}`);
 
@@ -131,7 +132,7 @@ export class InterventionSystem {
       interventionId,
       userId: intervention.userId,
       outcome,
-      type: intervention.type.type
+      type: intervention.type.type,
     });
 
     // Schedule follow-up if needed
@@ -150,16 +151,16 @@ export class InterventionSystem {
         conditions: {
           frustrationThreshold: 0.3,
           repeatedQuestions: 2,
-          timeWindow: 600000 // 10 minutes
+          timeWindow: 600000, // 10 minutes
         },
         interventionType: {
           type: 'confusion_help',
           urgency: 'high',
           timing: 'immediate',
-          method: 'dm'
+          method: 'dm',
         },
         cooldownMs: 1800000, // 30 minutes
-        maxPerDay: 3
+        maxPerDay: 3,
       },
       {
         id: 'engagement_drop',
@@ -168,16 +169,16 @@ export class InterventionSystem {
         conditions: {
           engagementDrop: 0.3,
           inactivityHours: 24,
-          previousEngagement: 0.7
+          previousEngagement: 0.7,
         },
         interventionType: {
           type: 'engagement_boost',
           urgency: 'medium',
           timing: 'scheduled',
-          method: 'dm'
+          method: 'dm',
         },
         cooldownMs: 3600000, // 1 hour
-        maxPerDay: 2
+        maxPerDay: 2,
       },
       {
         id: 'conversion_opportunity',
@@ -186,16 +187,16 @@ export class InterventionSystem {
         conditions: {
           conversionSignals: 2,
           engagementScore: 0.8,
-          timeInOnboarding: 3 // days
+          timeInOnboarding: 3, // days
         },
         interventionType: {
           type: 'conversion_prompt',
           urgency: 'low',
           timing: 'optimal_moment',
-          method: 'dm'
+          method: 'dm',
         },
         cooldownMs: 86400000, // 24 hours
-        maxPerDay: 1
+        maxPerDay: 1,
       },
       {
         id: 'churn_risk',
@@ -204,16 +205,16 @@ export class InterventionSystem {
         conditions: {
           churnRisk: 0.7,
           inactivityDays: 3,
-          failedInterventions: 2
+          failedInterventions: 2,
         },
         interventionType: {
           type: 'churn_prevention',
           urgency: 'critical',
           timing: 'immediate',
-          method: 'dm'
+          method: 'dm',
         },
         cooldownMs: 43200000, // 12 hours
-        maxPerDay: 1
+        maxPerDay: 1,
       },
       {
         id: 'learning_acceleration',
@@ -222,17 +223,17 @@ export class InterventionSystem {
         conditions: {
           learningVelocity: 0.8,
           engagementScore: 0.9,
-          questionsAsked: 5
+          questionsAsked: 5,
         },
         interventionType: {
           type: 'learning_acceleration',
           urgency: 'low',
           timing: 'optimal_moment',
-          method: 'dm'
+          method: 'dm',
         },
         cooldownMs: 172800000, // 48 hours
-        maxPerDay: 1
-      }
+        maxPerDay: 1,
+      },
     ];
 
     for (const rule of rules) {
@@ -246,7 +247,7 @@ export class InterventionSystem {
     try {
       // Note: getPattern not available on RedisEnhancedCache, would need to implement pattern-based loading
       const cachedInterventions: [string, string][] = [];
-      
+
       for (const [_key, data] of cachedInterventions) {
         const intervention = JSON.parse(data);
         intervention.scheduledTime = new Date(intervention.scheduledTime);
@@ -256,7 +257,7 @@ export class InterventionSystem {
       this.logger.info(`📋 Loaded ${this.pendingInterventions.size} pending interventions`);
     } catch (error) {
       this.logger.warn('⚠️ Failed to load pending interventions from cache', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -272,21 +273,20 @@ export class InterventionSystem {
 
   private async processDueInterventions(): Promise<void> {
     const dueInterventions = await this.getPendingInterventions();
-    
+
     if (dueInterventions.length > 0) {
       this.logger.debug(`⏰ Processing ${dueInterventions.length} due interventions`);
     }
-    
+
     // Process interventions will be handled by the main agent
     // This just identifies which ones are due
   }
 
   private async evaluateRule(
-    rule: InterventionRule, 
-    userId: string, 
+    rule: InterventionRule,
+    userId: string,
     behaviorData: MessageAnalysis
   ): Promise<boolean> {
-    
     // Check cooldown
     if (await this.isInCooldown(rule.id, userId)) {
       return false;
@@ -301,30 +301,29 @@ export class InterventionSystem {
     switch (rule.id) {
       case 'confusion_detection':
         return await this.evaluateConfusionRule(rule, userId, behaviorData);
-      
+
       case 'engagement_drop':
         return await this.evaluateEngagementRule(rule, userId, behaviorData);
-      
+
       case 'conversion_opportunity':
         return await this.evaluateConversionRule(rule, userId, behaviorData);
-      
+
       case 'churn_risk':
         return await this.evaluateChurnRule(rule, userId, behaviorData);
-      
+
       case 'learning_acceleration':
         return await this.evaluateLearningRule(rule, userId, behaviorData);
-      
+
       default:
         return false;
     }
   }
 
   private async evaluateConfusionRule(
-    rule: InterventionRule, 
-    userId: string, 
+    rule: InterventionRule,
+    userId: string,
     data: MessageAnalysis
   ): Promise<boolean> {
-    
     const frustrationLevel = data.frustrationIndicators.length > 0 ? 0.5 : 0;
     const hasConfusion = data.sentiment === 'confused';
     const repeatedQuestions = await this.countRecentQuestions(userId, rule.conditions.timeWindow);
@@ -337,11 +336,10 @@ export class InterventionSystem {
   }
 
   private async evaluateEngagementRule(
-    rule: InterventionRule, 
-    userId: string, 
+    rule: InterventionRule,
+    userId: string,
     data: MessageAnalysis
   ): Promise<boolean> {
-    
     // Would need to access user profile for engagement metrics
     // For now, simulate based on behavior data
     const lowEngagement = data.sentiment === 'negative' || data.frustrationIndicators.length > 0;
@@ -351,11 +349,10 @@ export class InterventionSystem {
   }
 
   private async evaluateConversionRule(
-    rule: InterventionRule, 
-    _userId: string, 
+    rule: InterventionRule,
+    _userId: string,
     data: MessageAnalysis
   ): Promise<boolean> {
-    
     const conversionSignals = data.conversionSignals.length;
     const positiveEngagement = data.sentiment === 'positive' && data.learningIndicators.length > 0;
 
@@ -363,11 +360,10 @@ export class InterventionSystem {
   }
 
   private async evaluateChurnRule(
-    _rule: InterventionRule, 
-    _userId: string, 
+    _rule: InterventionRule,
+    _userId: string,
     data: MessageAnalysis
   ): Promise<boolean> {
-    
     const highFrustration = data.frustrationIndicators.length >= 2;
     const negativePattern = data.sentiment === 'frustrated' || data.sentiment === 'negative';
     const inactivity = await this.getInactivityDays(_userId);
@@ -376,11 +372,10 @@ export class InterventionSystem {
   }
 
   private async evaluateLearningRule(
-    _rule: InterventionRule, 
-    _userId: string, 
+    _rule: InterventionRule,
+    _userId: string,
     data: MessageAnalysis
   ): Promise<boolean> {
-    
     const strongLearning = data.learningIndicators.length >= 2;
     const highEngagement = data.sentiment === 'positive' && data.questions.length > 0;
     const advancedQuestions = data.complexity === 'advanced';
@@ -390,25 +385,25 @@ export class InterventionSystem {
 
   private async isInCooldown(ruleId: string, userId: string): Promise<boolean> {
     const lastTrigger = await redisCache.get(`intervention:cooldown:${ruleId}:${userId}`);
-    
+
     if (!lastTrigger) return false;
-    
+
     const rule = this.interventionRules.get(ruleId);
     if (!rule) return false;
-    
+
     const lastTriggerTime = new Date(lastTrigger);
     const cooldownEnd = new Date(lastTriggerTime.getTime() + rule.cooldownMs);
-    
+
     return Date.now() < cooldownEnd.getTime();
   }
 
   private async exceedsDailyLimit(ruleId: string, userId: string): Promise<boolean> {
     const today = new Date().toDateString();
     const todayCount = await redisCache.get(`intervention:daily:${ruleId}:${userId}:${today}`);
-    
+
     const rule = this.interventionRules.get(ruleId);
     if (!rule) return false;
-    
+
     return parseInt(todayCount || '0') >= rule.maxPerDay;
   }
 
@@ -420,9 +415,9 @@ export class InterventionSystem {
 
   private async getInactivityHours(userId: string): Promise<number> {
     const lastActivity = await redisCache.get(`user:last_activity:${userId}`);
-    
+
     if (!lastActivity) return 0;
-    
+
     const lastActivityTime = new Date(lastActivity);
     return (Date.now() - lastActivityTime.getTime()) / (1000 * 60 * 60);
   }
@@ -437,7 +432,7 @@ export class InterventionSystem {
       critical: 100,
       high: 75,
       medium: 50,
-      low: 25
+      low: 25,
     };
 
     const typeScores = {
@@ -445,7 +440,7 @@ export class InterventionSystem {
       confusion_help: 15,
       engagement_boost: 10,
       conversion_prompt: 5,
-      learning_acceleration: 5
+      learning_acceleration: 5,
     };
 
     return (urgencyScores[intervention.urgency] || 0) + (typeScores[intervention.type] || 0);
@@ -457,20 +452,23 @@ export class InterventionSystem {
       confusion_help: 2,
       engagement_boost: 2,
       conversion_prompt: 1,
-      learning_acceleration: 1
+      learning_acceleration: 1,
     };
 
     return attemptLimits[intervention.type] || 1;
   }
 
-  private async gatherInterventionContext(userId: string, intervention: InterventionType): Promise<any> {
+  private async gatherInterventionContext(
+    userId: string,
+    intervention: InterventionType
+  ): Promise<any> {
     // Gather relevant context for the intervention
     return {
       userId,
       interventionType: intervention.type,
       timestamp: new Date().toISOString(),
       userActivity: await this.getUserActivitySummary(userId),
-      previousInterventions: await this.getRecentInterventions(userId)
+      previousInterventions: await this.getRecentInterventions(userId),
     };
   }
 
@@ -478,24 +476,22 @@ export class InterventionSystem {
     // Get recent activity summary
     return {
       lastActivity: await redisCache.get(`user:last_activity:${userId}`),
-      messageCount: await redisCache.get(`user:message_count:${userId}`) || '0',
-      engagementScore: await redisCache.get(`user:engagement:${userId}`) || '0.5'
+      messageCount: (await redisCache.get(`user:message_count:${userId}`)) || '0',
+      engagementScore: (await redisCache.get(`user:engagement:${userId}`)) || '0.5',
     };
   }
 
   private async getRecentInterventions(userId: string): Promise<InterventionRecord[]> {
     const history = this.userInterventionHistory.get(userId) || [];
     const last24Hours = Date.now() - 24 * 60 * 60 * 1000;
-    
-    return history.filter(intervention => 
-      intervention.timestamp.getTime() > last24Hours
-    );
+
+    return history.filter(intervention => intervention.timestamp.getTime() > last24Hours);
   }
 
   private async cachePendingIntervention(intervention: PendingIntervention): Promise<void> {
     const serialized = {
       ...intervention,
-      scheduledTime: intervention.scheduledTime.toISOString()
+      scheduledTime: intervention.scheduledTime.toISOString(),
     };
 
     await redisCache.set(
@@ -505,21 +501,25 @@ export class InterventionSystem {
     );
   }
 
-  private async recordInterventionHistory(userId: string, record: InterventionRecord): Promise<void> {
+  private async recordInterventionHistory(
+    userId: string,
+    record: InterventionRecord
+  ): Promise<void> {
     const history = this.userInterventionHistory.get(userId) || [];
     history.push(record);
-    
+
     // Keep only last 50 interventions
     if (history.length > 50) {
       history.splice(0, history.length - 50);
     }
-    
+
     this.userInterventionHistory.set(userId, history);
 
     // Set cooldown
-    const rule = Array.from(this.interventionRules.values())
-      .find(r => r.interventionType.type === record.type.type);
-    
+    const rule = Array.from(this.interventionRules.values()).find(
+      r => r.interventionType.type === record.type.type
+    );
+
     if (rule) {
       await redisCache.set(
         `intervention:cooldown:${rule.id}:${userId}`,
@@ -529,7 +529,8 @@ export class InterventionSystem {
 
       // Increment daily counter
       const today = new Date().toDateString();
-      const currentCount = await redisCache.get(`intervention:daily:${rule.id}:${userId}:${today}`) || '0';
+      const currentCount =
+        (await redisCache.get(`intervention:daily:${rule.id}:${userId}:${today}`)) || '0';
       await redisCache.set(
         `intervention:daily:${rule.id}:${userId}:${today}`,
         (parseInt(currentCount) + 1).toString(),
@@ -540,13 +541,13 @@ export class InterventionSystem {
 
   private async scheduleFollowUp(intervention: PendingIntervention): Promise<void> {
     const followUpDelay = Math.pow(2, intervention.attempts) * 1800000; // Exponential backoff starting at 30 minutes
-    
+
     const followUp: PendingIntervention = {
       ...intervention,
       id: `followup_${intervention.id}_${intervention.attempts + 1}`,
       scheduledTime: new Date(Date.now() + followUpDelay),
       attempts: intervention.attempts + 1,
-      priority: intervention.priority - 10 // Lower priority for follow-ups
+      priority: intervention.priority - 10, // Lower priority for follow-ups
     };
 
     this.pendingInterventions.set(followUp.id, followUp);
@@ -556,7 +557,7 @@ export class InterventionSystem {
       originalId: intervention.id,
       followUpId: followUp.id,
       attempt: followUp.attempts,
-      delay: followUpDelay
+      delay: followUpDelay,
     });
   }
 

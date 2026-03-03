@@ -1,4 +1,3 @@
-
 import { BaseConfig } from './common';
 
 export interface AgentConfig extends BaseConfig {

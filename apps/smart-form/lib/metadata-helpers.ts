@@ -98,10 +98,7 @@ export interface MetadataErrorBody {
  * Build a standard fail-closed error body.
  * Code should be one of: TEAMS_METADATA_UNAVAILABLE, PLAYERS_METADATA_UNAVAILABLE, etc.
  */
-export function metadataError(
-  code: string,
-  message: string,
-): MetadataErrorBody {
+export function metadataError(code: string, message: string): MetadataErrorBody {
   return {
     error: 'Metadata unavailable',
     message,
@@ -118,7 +115,7 @@ export function metadataError(
  */
 export function validateBooleanColumn(
   data: Record<string, unknown>[] | null,
-  column: string,
+  column: string
 ): string | null {
   if (!data || data.length === 0) return null; // empty set — caller decides if that's an error
   if (typeof data[0][column] !== 'boolean') {
@@ -130,7 +127,14 @@ export function validateBooleanColumn(
 // ---------- Known-sport zero-row gate ----------
 
 const EXPECTED_TEAM_SPORTS = new Set([
-  'NFL', 'NBA', 'MLB', 'NHL', 'NCAAB', 'NCAAF', 'WNBA', 'Soccer',
+  'NFL',
+  'NBA',
+  'MLB',
+  'NHL',
+  'NCAAB',
+  'NCAAF',
+  'WNBA',
+  'Soccer',
 ]);
 
 /**

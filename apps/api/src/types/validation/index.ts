@@ -1,4 +1,3 @@
-
 import { z } from 'zod';
 
 import { ValidationError, DatabaseError } from '../../utils/errorHandling';
@@ -127,4 +126,4 @@ export const AlertSchema = z.object({
   timestamp: z.string().datetime(),
   metadata: z.record(z.unknown()).optional(),
   channels: z.array(z.enum(['email', 'slack', 'discord', 'pagerduty'])),
-}); 
+});

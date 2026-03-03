@@ -14,8 +14,15 @@ interface CoverageResult {
 }
 
 const REQUIRED_MARKETS = [
-  'points', 'rebounds', 'assists', 'threes', 'blocks',
-  'steals', 'turnovers', 'doubleDouble', 'tripleDouble'
+  'points',
+  'rebounds',
+  'assists',
+  'threes',
+  'blocks',
+  'steals',
+  'turnovers',
+  'doubleDouble',
+  'tripleDouble',
 ];
 
 /**
@@ -24,16 +31,17 @@ const REQUIRED_MARKETS = [
  * @param supabase - Supabase client instance
  * @returns Coverage metrics
  */
-export async function logCoverage(log: CoverageLog, supabase: SupabaseClient): Promise<CoverageResult> {
+export async function logCoverage(
+  log: CoverageLog,
+  supabase: SupabaseClient
+): Promise<CoverageResult> {
   try {
     // Log to database
-    const { error } = await supabase
-      .from('coverage_logs')
-      .insert({
-        provider: log.provider,
-        data: log.data,
-        timestamp: log.timestamp
-      });
+    const { error } = await supabase.from('coverage_logs').insert({
+      provider: log.provider,
+      data: log.data,
+      timestamp: log.timestamp,
+    });
 
     if (error) {
       console.error('Error logging coverage:', error);
@@ -61,13 +69,13 @@ export async function logCoverage(log: CoverageLog, supabase: SupabaseClient): P
 
     return {
       covered: covered.size,
-      missing: Array.from(missing)
+      missing: Array.from(missing),
     };
   } catch (err) {
     console.error('Failed to log coverage:', err);
     return {
       covered: 0,
-      missing: REQUIRED_MARKETS
+      missing: REQUIRED_MARKETS,
     };
   }
-} 
+}

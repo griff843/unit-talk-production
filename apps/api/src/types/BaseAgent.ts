@@ -15,7 +15,7 @@ export abstract class BaseAgent {
     errorCount: 0,
     status: 'idle',
     agentName: '',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
   protected healthCheckInterval?: NodeJS.Timeout;
   protected metricsInterval?: NodeJS.Timeout;
@@ -38,7 +38,9 @@ export abstract class BaseAgent {
       this.status = health.status;
       await this.recordHealth(health);
     } catch (error) {
-      this.logger.error('Health check failed:', { err: error instanceof Error ? error.message : String(error) });
+      this.logger.error('Health check failed:', {
+        err: error instanceof Error ? error.message : String(error),
+      });
       this.status = 'unhealthy';
     }
   }
@@ -48,34 +50,44 @@ export abstract class BaseAgent {
       this.metrics = await this.collectMetrics();
       await this.recordMetrics(this.metrics);
     } catch (error) {
-      this.logger.error('Metrics collection failed:', { err: error instanceof Error ? error.message : String(error) });
+      this.logger.error('Metrics collection failed:', {
+        err: error instanceof Error ? error.message : String(error),
+      });
       this.metrics.status = 'unhealthy';
     }
   }
 
   private async recordHealth(health: HealthCheckResult): Promise<void> {
     try {
-      await this.supabase.from('agent_health').insert([{
-        agent: this.config.name,
-        status: health.status,
-        details: health.details,
-        timestamp: health.timestamp || new Date().toISOString()
-      }]);
+      await this.supabase.from('agent_health').insert([
+        {
+          agent: this.config.name,
+          status: health.status,
+          details: health.details,
+          timestamp: health.timestamp || new Date().toISOString(),
+        },
+      ]);
     } catch (error) {
-      this.logger.error('Failed to record health check:', { err: error instanceof Error ? error.message : String(error) });
+      this.logger.error('Failed to record health check:', {
+        err: error instanceof Error ? error.message : String(error),
+      });
       this.status = 'unhealthy';
     }
   }
 
   private async recordMetrics(metrics: AgentMetrics): Promise<void> {
     try {
-      await this.supabase.from('agent_metrics').insert([{
-        agent: this.config.name,
-        ...metrics,
-        timestamp: new Date().toISOString()
-      }]);
+      await this.supabase.from('agent_metrics').insert([
+        {
+          agent: this.config.name,
+          ...metrics,
+          timestamp: new Date().toISOString(),
+        },
+      ]);
     } catch (error) {
-      this.logger.error('Failed to record metrics:', { err: error instanceof Error ? error.message : String(error) });
+      this.logger.error('Failed to record metrics:', {
+        err: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
@@ -104,20 +116,28 @@ export abstract class BaseAgent {
       this.logger.info(`${this.config.name} started successfully`);
     } catch (error) {
       this.status = 'unhealthy';
-      this.logger.error(`Failed to start ${this.config.name}:`, { error: error instanceof Error ? error.message : String(error) });
+      this.logger.error(`Failed to start ${this.config.name}:`, {
+        error: error instanceof Error ? error.message : String(error),
+      });
       throw error;
     }
   }
 
   public async stop(): Promise<void> {
     try {
-      if (this.healthCheckInterval) {clearInterval(this.healthCheckInterval);}
-      if (this.metricsInterval) {clearInterval(this.metricsInterval);}
+      if (this.healthCheckInterval) {
+        clearInterval(this.healthCheckInterval);
+      }
+      if (this.metricsInterval) {
+        clearInterval(this.metricsInterval);
+      }
       await this.cleanup();
       this.status = 'idle';
       this.logger.info(`${this.config.name} stopped successfully`);
     } catch (error) {
-      this.logger.error(`Failed to stop ${this.config.name}:`, { error: error instanceof Error ? error.message : String(error) });
+      this.logger.error(`Failed to stop ${this.config.name}:`, {
+        error: error instanceof Error ? error.message : String(error),
+      });
       throw error;
     }
   }
@@ -129,4 +149,4 @@ export interface BaseAgentDependencies {
   supabase: SupabaseClient;
   logger?: ReturnType<typeof createLogger>;
   config: AgentConfig;
-} 
+}

@@ -17,7 +17,11 @@ import 'dotenv/config';
  *   FORCE_UPDATE=true - Overwrite existing non-null values
  */
 
-import { enrichAllPlayers, SupportedLeague, EnrichmentSummary } from '../agents/PlayerEnrichmentAgent';
+import {
+  enrichAllPlayers,
+  SupportedLeague,
+  EnrichmentSummary,
+} from '../agents/PlayerEnrichmentAgent';
 
 /**
  * Display help information
@@ -69,19 +73,21 @@ API SOURCES:
  * Format and display enrichment summary
  */
 function displaySummary(summary: EnrichmentSummary, league?: SupportedLeague) {
-  const title = league ? `${league} Player Enrichment Summary` : 'Multi-League Player Enrichment Summary';
-  
+  const title = league
+    ? `${league} Player Enrichment Summary`
+    : 'Multi-League Player Enrichment Summary';
+
   console.log(`\n${'='.repeat(60)}`);
   console.log(`🏆 ${title}`);
   console.log(`${'='.repeat(60)}`);
-  
+
   // Overall stats
   console.log(`\n📊 OVERALL STATISTICS:`);
   console.log(`   Total Processed: ${summary.totalProcessed}`);
   console.log(`   Successful Updates: ${summary.successfulEnrichments}`);
   console.log(`   No Data Found: ${summary.notFound}`);
   console.log(`   Errors: ${summary.errors}`);
-  
+
   if (summary.totalProcessed > 0) {
     const successRate = ((summary.successfulEnrichments / summary.totalProcessed) * 100).toFixed(1);
     console.log(`   Success Rate: ${successRate}%`);
@@ -93,15 +99,18 @@ function displaySummary(summary: EnrichmentSummary, league?: SupportedLeague) {
     { key: 'headshot', label: 'Headshots', icon: '📸' },
     { key: 'height_cm', label: 'Height (cm)', icon: '📏' },
     { key: 'weight_kg', label: 'Weight (kg)', icon: '⚖️' },
-    { key: 'birthday', label: 'Birthday', icon: '🎂' }
+    { key: 'birthday', label: 'Birthday', icon: '🎂' },
   ];
 
   fields.forEach(({ key, label, icon }) => {
     const stats = summary.fieldBreakdown[key];
     if (stats.processed > 0) {
-      const successRate = stats.processed > 0 ? ((stats.successful / stats.processed) * 100).toFixed(1) : '0.0';
+      const successRate =
+        stats.processed > 0 ? ((stats.successful / stats.processed) * 100).toFixed(1) : '0.0';
       console.log(`   ${icon} ${label}:`);
-      console.log(`      Processed: ${stats.processed} | Successful: ${stats.successful} | Not Found: ${stats.notFound} | Errors: ${stats.errors} | Success: ${successRate}%`);
+      console.log(
+        `      Processed: ${stats.processed} | Successful: ${stats.successful} | Not Found: ${stats.notFound} | Errors: ${stats.errors} | Success: ${successRate}%`
+      );
     }
   });
 
@@ -109,13 +118,15 @@ function displaySummary(summary: EnrichmentSummary, league?: SupportedLeague) {
   if (!league) {
     console.log(`\n🏟️ LEAGUE BREAKDOWN:`);
     const leagues: SupportedLeague[] = ['MLB', 'NBA', 'NFL', 'NHL'];
-    
+
     leagues.forEach(leagueKey => {
       const stats = summary.leagueBreakdown[leagueKey];
       if (stats.processed > 0) {
         const successRate = ((stats.successful / stats.processed) * 100).toFixed(1);
         console.log(`   ${leagueKey}:`);
-        console.log(`      Processed: ${stats.processed} | Successful: ${stats.successful} | Not Found: ${stats.notFound} | Errors: ${stats.errors} | Success: ${successRate}%`);
+        console.log(
+          `      Processed: ${stats.processed} | Successful: ${stats.successful} | Not Found: ${stats.notFound} | Errors: ${stats.errors} | Success: ${successRate}%`
+        );
       }
     });
   }
@@ -126,14 +137,14 @@ function displaySummary(summary: EnrichmentSummary, league?: SupportedLeague) {
     summary.errorDetails.slice(0, 10).forEach((error, index) => {
       console.log(`   ${index + 1}. ${error}`);
     });
-    
+
     if (summary.errorDetails.length > 10) {
       console.log(`   ... and ${summary.errorDetails.length - 10} more errors`);
     }
   }
 
   console.log(`\n${'='.repeat(60)}`);
-  
+
   // Final status
   if (summary.errors === 0) {
     console.log(`✅ Enrichment completed successfully!`);
@@ -142,7 +153,7 @@ function displaySummary(summary: EnrichmentSummary, league?: SupportedLeague) {
   } else {
     console.log(`❌ Enrichment failed. Check error details above.`);
   }
-  
+
   console.log(`${'='.repeat(60)}\n`);
 }
 
@@ -151,7 +162,7 @@ function displaySummary(summary: EnrichmentSummary, league?: SupportedLeague) {
  */
 async function main() {
   const args = process.argv.slice(2);
-  
+
   // Handle help flag
   if (args.includes('--help') || args.includes('-h')) {
     showHelp();
@@ -179,28 +190,27 @@ async function main() {
   console.log(`   Target: ${league || 'All Leagues'}`);
   console.log(`   Force Update: ${forceUpdate ? 'Enabled' : 'Disabled'}`);
   console.log(`   Fields: Headshots, Height, Weight, Birthday`);
-  
+
   const startTime = Date.now();
 
   try {
     // Run enrichment
     const summary = await enrichAllPlayers(league);
-    
+
     const endTime = Date.now();
     const duration = ((endTime - startTime) / 1000).toFixed(2);
-    
+
     // Display results
     displaySummary(summary, league);
-    
+
     console.log(`⏱️  Total execution time: ${duration} seconds\n`);
-    
+
     // Exit with appropriate code
     process.exit(summary.errors > 0 ? 1 : 0);
-    
   } catch (error) {
     const endTime = Date.now();
     const duration = ((endTime - startTime) / 1000).toFixed(2);
-    
+
     console.error(`\n❌ Fatal error during enrichment:`, error);
     console.log(`⏱️  Execution time before failure: ${duration} seconds\n`);
     process.exit(1);
@@ -214,7 +224,7 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 // Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
+process.on('uncaughtException', error => {
   console.error('Uncaught Exception:', error);
   process.exit(1);
 });

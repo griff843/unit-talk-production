@@ -8,11 +8,21 @@
  * Retry calls API endpoint (Command Center remains READ-ONLY).
  */
 
+import {
+  AlertTriangle,
+  Clock,
+  RefreshCw,
+  Info,
+  RotateCcw,
+  CheckCircle,
+  XCircle,
+} from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
-import { AlertTriangle, Clock, RefreshCw, Info, RotateCcw, CheckCircle, XCircle } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { StageBadge } from '@/components/ui/LifecycleBadge';
 import {
   Table,
   TableBody,
@@ -21,7 +31,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { StageBadge } from '@/components/ui/LifecycleBadge';
 import { type LifecycleStage } from '@/lib/lifecycleDisplay';
 
 interface StuckPick {
@@ -243,9 +252,7 @@ export function StuckPicksPanel() {
                 </Badge>
               )}
             </CardTitle>
-            <CardDescription>
-              Picks exceeding transition thresholds
-            </CardDescription>
+            <CardDescription>Picks exceeding transition thresholds</CardDescription>
           </div>
           <Button variant="outline" size="sm" onClick={fetchStuckPicks}>
             <RefreshCw className="h-4 w-4 mr-2" />
@@ -308,7 +315,7 @@ export function StuckPicksPanel() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {stuckPicks.map((pick) => {
+                {stuckPicks.map(pick => {
                   const retryState = retryStates[pick.pickId];
                   const canRetry = pick.stage !== 'POSTED'; // Settlement retries handled elsewhere
 
@@ -341,7 +348,10 @@ export function StuckPicksPanel() {
                             Queued
                           </span>
                         ) : retryState?.status === 'error' ? (
-                          <span className="flex items-center text-red-500 text-sm" title={retryState.message}>
+                          <span
+                            className="flex items-center text-red-500 text-sm"
+                            title={retryState.message}
+                          >
                             <XCircle className="h-3 w-3 mr-1" />
                             Failed
                           </span>
@@ -356,9 +366,7 @@ export function StuckPicksPanel() {
                             Retry
                           </Button>
                         ) : (
-                          <span className="text-xs text-muted-foreground">
-                            Settlement
-                          </span>
+                          <span className="text-xs text-muted-foreground">Settlement</span>
                         )}
                       </TableCell>
                     </TableRow>
@@ -375,13 +383,11 @@ export function StuckPicksPanel() {
             <div className="flex items-start gap-2">
               <Info className="h-4 w-4 text-blue-500 mt-0.5" />
               <div className="text-sm">
-                <span className="font-medium text-blue-700 dark:text-blue-400">
-                  Retry Actions:
-                </span>
+                <span className="font-medium text-blue-700 dark:text-blue-400">Retry Actions:</span>
                 <p className="text-blue-600 dark:text-blue-300">
-                  Retry resets the posting claim via API (Command Center remains read-only).
-                  The pick will be re-queued for Discord posting by DiscordPromotionAgent.
-                  POSTED stage picks require settlement intervention via /ops/retry-settlement.
+                  Retry resets the posting claim via API (Command Center remains read-only). The
+                  pick will be re-queued for Discord posting by DiscordPromotionAgent. POSTED stage
+                  picks require settlement intervention via /ops/retry-settlement.
                 </p>
               </div>
             </div>

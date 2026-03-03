@@ -22,19 +22,19 @@ export const EXPOSURE_LIMITS = {
   MIN_ROUND_ROBIN_LEGS: 2,
 
   // Portfolio Layer (from PortfolioRiskManager)
-  MAX_SINGLE_POSITION: 0.25,        // 25% max single position
-  MAX_GAME_EXPOSURE: 0.40,          // 40% max single game
-  MAX_PLAYER_EXPOSURE: 0.30,        // 30% max single player
-  MAX_SAME_GAME_POSITIONS: 4,       // Max 4 per game
-  MAX_SAME_PLAYER_POSITIONS: 2,     // Max 2 per player
-  DAILY_VAR_LIMIT: 0.15,            // 15% daily VaR
-  MAX_CORRELATION_THRESHOLD: 0.70,  // 70% correlation
+  MAX_SINGLE_POSITION: 0.25, // 25% max single position
+  MAX_GAME_EXPOSURE: 0.4, // 40% max single game
+  MAX_PLAYER_EXPOSURE: 0.3, // 30% max single player
+  MAX_SAME_GAME_POSITIONS: 4, // Max 4 per game
+  MAX_SAME_PLAYER_POSITIONS: 2, // Max 2 per player
+  DAILY_VAR_LIMIT: 0.15, // 15% daily VaR
+  MAX_CORRELATION_THRESHOLD: 0.7, // 70% correlation
 
   // Daily Exposure (from ExposureTrackingService)
-  DAILY_EXPOSURE_DOLLARS: 50000,    // $50k daily limit
-  MAX_KELLY_RISK: 0.25,             // 25% max Kelly
-  CORRELATION_LIMIT: 0.60,          // 60% correlation
-  HIGH_CONCENTRATION_THRESHOLD: 0.40, // 40% concentration
+  DAILY_EXPOSURE_DOLLARS: 50000, // $50k daily limit
+  MAX_KELLY_RISK: 0.25, // 25% max Kelly
+  CORRELATION_LIMIT: 0.6, // 60% correlation
+  HIGH_CONCENTRATION_THRESHOLD: 0.4, // 40% concentration
 } as const;
 
 // ============================================================
@@ -89,7 +89,11 @@ export interface TicketContext {
 
 export class ExposureGate {
   private supabase: SupabaseClient;
-  private logger: { info: (...args: any[]) => void; error: (...args: any[]) => void; warn: (...args: any[]) => void };
+  private logger: {
+    info: (...args: any[]) => void;
+    error: (...args: any[]) => void;
+    warn: (...args: any[]) => void;
+  };
 
   // Configurable limits (can be overridden by operator)
   private limits: { [K in keyof typeof EXPOSURE_LIMITS]: number } = { ...EXPOSURE_LIMITS };
@@ -118,22 +122,27 @@ export class ExposureGate {
       const currentExposure = await this.getCurrentExposure(capperId);
 
       // Calculate proposed exposure (pure calculation)
-      const proposedExposure = this.calculateProposedExposure(
-        currentExposure,
-        proposedPicks
-      );
+      const proposedExposure = this.calculateProposedExposure(currentExposure, proposedPicks);
 
       // Check all limits (deterministic)
       // PARLAY-EXPOSURE-FIX-001: Pass ticketContext for proper parlay handling
-      const limitCheck = this.checkAllLimits(currentExposure, proposedExposure, proposedPicks, ticketContext);
+      const limitCheck = this.checkAllLimits(
+        currentExposure,
+        proposedExposure,
+        proposedPicks,
+        ticketContext
+      );
 
-      this.logger.info({
-        capperId,
-        approved: limitCheck.approved,
-        limitingFactor: limitCheck.limitingFactor,
-        currentUnits: currentExposure.dailyUnits,
-        proposedUnits: proposedExposure.dailyUnits,
-      }, 'EXPOSURE-GATE: Check completed');
+      this.logger.info(
+        {
+          capperId,
+          approved: limitCheck.approved,
+          limitingFactor: limitCheck.limitingFactor,
+          currentUnits: currentExposure.dailyUnits,
+          proposedUnits: proposedExposure.dailyUnits,
+        },
+        'EXPOSURE-GATE: Check completed'
+      );
 
       return {
         ...limitCheck,
@@ -288,7 +297,8 @@ export class ExposureGate {
     ticketContext?: TicketContext
   ): { approved: boolean; reason: string; limitingFactor: ExposureLimitType | null } {
     // PARLAY-EXPOSURE-FIX-001: Determine if this is a multi-leg ticket
-    const isMultiLegTicket = ticketContext?.ticket_type &&
+    const isMultiLegTicket =
+      ticketContext?.ticket_type &&
       ['parlay', 'teaser', 'round_robin'].includes(ticketContext.ticket_type);
 
     // Check daily exposure limit
@@ -356,7 +366,7 @@ export class ExposureGate {
         if (concentrationRatio > this.limits.HIGH_CONCENTRATION_THRESHOLD) {
           return {
             approved: false,
-            reason: `Sport ${sport} concentration at ${(concentrationRatio * 100).toFixed(1)}% exceeds ${(this.limits.HIGH_CONCENTRATION_THRESHOLD * 100)}% limit`,
+            reason: `Sport ${sport} concentration at ${(concentrationRatio * 100).toFixed(1)}% exceeds ${this.limits.HIGH_CONCENTRATION_THRESHOLD * 100}% limit`,
             limitingFactor: 'sport_concentration_exceeded',
           };
         }
@@ -371,7 +381,7 @@ export class ExposureGate {
       if (positionRatio > this.limits.MAX_SINGLE_POSITION) {
         return {
           approved: false,
-          reason: `Single position of ${pick.units} units (${(positionRatio * 100).toFixed(1)}% of daily budget) exceeds ${(this.limits.MAX_SINGLE_POSITION * 100)}% limit`,
+          reason: `Single position of ${pick.units} units (${(positionRatio * 100).toFixed(1)}% of daily budget) exceeds ${this.limits.MAX_SINGLE_POSITION * 100}% limit`,
           limitingFactor: 'single_position_exceeded',
         };
       }
@@ -426,31 +436,40 @@ export class ExposureGate {
     this.limits = { ...this.limits, ...overrides };
 
     // AUDIT LOG: Override applied
-    this.logger.warn({
-      event: 'EXPOSURE_OVERRIDE_APPLIED',
-      operatorId: options.operatorId,
-      reason: options.reason,
-      overrides,
-      originalLimits,
-      startTime: startTime.toISOString(),
-      expiresAt: expiresAt.toISOString(),
-      maxDurationMinutes: maxDuration,
-    }, 'EXPOSURE-GATE: Limits overridden by operator (TIME-BOXED)');
+    this.logger.warn(
+      {
+        event: 'EXPOSURE_OVERRIDE_APPLIED',
+        operatorId: options.operatorId,
+        reason: options.reason,
+        overrides,
+        originalLimits,
+        startTime: startTime.toISOString(),
+        expiresAt: expiresAt.toISOString(),
+        maxDurationMinutes: maxDuration,
+      },
+      'EXPOSURE-GATE: Limits overridden by operator (TIME-BOXED)'
+    );
 
     // Auto-restore timer
-    const autoRestoreTimer = setTimeout(() => {
-      this.limits = originalLimits;
+    const autoRestoreTimer = setTimeout(
+      () => {
+        this.limits = originalLimits;
 
-      // AUDIT LOG: Auto-restored
-      this.logger.warn({
-        event: 'EXPOSURE_OVERRIDE_AUTO_RESTORED',
-        operatorId: options.operatorId,
-        reason: 'Time limit expired',
-        restoredTo: originalLimits,
-        overrideAppliedAt: startTime.toISOString(),
-        restoredAt: new Date().toISOString(),
-      }, 'EXPOSURE-GATE: Limits auto-restored after time limit');
-    }, maxDuration * 60 * 1000);
+        // AUDIT LOG: Auto-restored
+        this.logger.warn(
+          {
+            event: 'EXPOSURE_OVERRIDE_AUTO_RESTORED',
+            operatorId: options.operatorId,
+            reason: 'Time limit expired',
+            restoredTo: originalLimits,
+            overrideAppliedAt: startTime.toISOString(),
+            restoredAt: new Date().toISOString(),
+          },
+          'EXPOSURE-GATE: Limits auto-restored after time limit'
+        );
+      },
+      maxDuration * 60 * 1000
+    );
 
     return {
       expiresAt,
@@ -462,15 +481,18 @@ export class ExposureGate {
         this.limits = originalLimits;
 
         // AUDIT LOG: Manual restore
-        this.logger.info({
-          event: 'EXPOSURE_OVERRIDE_MANUAL_RESTORED',
-          operatorId: options.operatorId,
-          restoredTo: originalLimits,
-          overrideAppliedAt: startTime.toISOString(),
-          restoredAt: new Date().toISOString(),
-          timeActiveMinutes: (Date.now() - startTime.getTime()) / 60000,
-        }, 'EXPOSURE-GATE: Limits manually restored by operator');
-      }
+        this.logger.info(
+          {
+            event: 'EXPOSURE_OVERRIDE_MANUAL_RESTORED',
+            operatorId: options.operatorId,
+            restoredTo: originalLimits,
+            overrideAppliedAt: startTime.toISOString(),
+            restoredAt: new Date().toISOString(),
+            timeActiveMinutes: (Date.now() - startTime.getTime()) / 60000,
+          },
+          'EXPOSURE-GATE: Limits manually restored by operator'
+        );
+      },
     };
   }
 

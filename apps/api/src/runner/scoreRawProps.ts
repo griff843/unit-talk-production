@@ -55,7 +55,7 @@ async function main() {
     .update({
       edge_score: null,
       tier: null,
-      auto_approved: false
+      auto_approved: false,
     })
     .not('edge_score', 'is', null);
 
@@ -69,21 +69,29 @@ async function main() {
     .select('*')
     .is('edge_score', null);
 
-  if (error) {throw error;}
+  if (error) {
+    throw error;
+  }
   if (!props?.length) {
     console.log('No unscored props.');
     return;
   }
 
-  let updated = 0, failed = 0;
+  let updated = 0,
+    failed = 0;
   for (const prop of props) {
     try {
       console.log('Calculating edge professional_score for prop:', prop);
       const edge_score = calcEdgeScore(prop);
-      const tier = edge_score >= 23 ? 'S'
-                : edge_score >= 20 ? 'A'
-                : edge_score >= 15 ? 'B'
-                : edge_score >= 10 ? 'C'
+      const tier =
+        edge_score >= 23
+          ? 'S'
+          : edge_score >= 20
+            ? 'A'
+            : edge_score >= 15
+              ? 'B'
+              : edge_score >= 10
+                ? 'C'
                 : 'D';
       const published = edge_score >= 20;
 

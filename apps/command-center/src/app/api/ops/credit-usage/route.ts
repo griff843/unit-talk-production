@@ -9,6 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+
 import { getSupabaseClient } from '@/lib/supabase';
 
 interface ProviderUsage {
@@ -122,14 +123,17 @@ export async function GET(request: NextRequest) {
     const ingestionLogs = (ingestionLogsRaw || []) as unknown as IngestionLogRow[];
 
     // Process provider data from ingestion logs
-    const providerMap = new Map<string, {
-      requests24h: number;
-      creditsUsed24h: number;
-      costUsd24h: number;
-      errors24h: number;
-      totalLatency: number;
-      lastRequest: string | null;
-    }>();
+    const providerMap = new Map<
+      string,
+      {
+        requests24h: number;
+        creditsUsed24h: number;
+        costUsd24h: number;
+        errors24h: number;
+        totalLatency: number;
+        lastRequest: string | null;
+      }
+    >();
 
     // Initialize from known providers in api_health_status
     for (const health of apiHealth) {
@@ -185,7 +189,8 @@ export async function GET(request: NextRequest) {
     for (const [providerName, data] of providerMap.entries()) {
       const healthRecord = apiHealth.find(h => h.provider === providerName);
       const errorRate = data.requests24h > 0 ? (data.errors24h / data.requests24h) * 100 : 0;
-      const avgLatency = data.requests24h > 0 ? Math.round(data.totalLatency / data.requests24h) : null;
+      const avgLatency =
+        data.requests24h > 0 ? Math.round(data.totalLatency / data.requests24h) : null;
 
       let status: ProviderUsage['status'] = 'unknown';
       if (healthRecord) {
@@ -298,7 +303,9 @@ export async function GET(request: NextRequest) {
       correlation_id: correlationId,
     };
 
-    console.log(`💳 Credit usage: ${totalRequests24h} requests, ${totalCreditsUsed24h} credits in 24h [${correlationId}] in ${Date.now() - startTime}ms`);
+    console.log(
+      `💳 Credit usage: ${totalRequests24h} requests, ${totalCreditsUsed24h} credits in 24h [${correlationId}] in ${Date.now() - startTime}ms`
+    );
 
     return NextResponse.json(response, {
       headers: {

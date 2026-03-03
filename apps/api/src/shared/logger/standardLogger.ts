@@ -10,7 +10,7 @@ export function withLogging<T extends { new (...args: any[]): {} }>(constructor:
     constructor(...args: any[]) {
       super(...args);
       this.logger = createStandardLogger({
-        level: process.env.LOG_LEVEL as LogLevel || 'info'
+        level: (process.env.LOG_LEVEL as LogLevel) || 'info',
       });
     }
   };
@@ -21,7 +21,7 @@ export function logMethod(operationName: string) {
   return function (_target: any, _propertyKey: string, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value;
 
-    descriptor.value = async function(...args: any[]): Promise<void> {
+    descriptor.value = async function (...args: any[]): Promise<void> {
       const logger = (this as any).logger || createStandardLogger();
 
       try {
@@ -32,7 +32,7 @@ export function logMethod(operationName: string) {
       } catch (error) {
         logger.error(`Error in ${operationName}`, {
           error: error instanceof Error ? error.message : String(error),
-          args
+          args,
         });
         throw error;
       }
@@ -40,4 +40,4 @@ export function logMethod(operationName: string) {
 
     return descriptor;
   };
-} 
+}

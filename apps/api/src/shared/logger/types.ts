@@ -17,7 +17,14 @@ export interface LogEntry {
     name: string;
   };
   args?: unknown[];
-  [key: string]: string | number | boolean | LogLevel | unknown[] | { message: string; stack?: string; name: string } | undefined;
+  [key: string]:
+    | string
+    | number
+    | boolean
+    | LogLevel
+    | unknown[]
+    | { message: string; stack?: string; name: string }
+    | undefined;
 }
 
 export interface LogMethod {

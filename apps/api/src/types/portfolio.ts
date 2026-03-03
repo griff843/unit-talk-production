@@ -48,7 +48,7 @@ export interface PositionAdjustment {
   adjustment: number;
 }
 
-export type PortfolioStrategy = 
+export type PortfolioStrategy =
   | 'risk_parity'
   | 'mean_variance'
   | 'kelly_criterion'
@@ -122,4 +122,4 @@ export interface PortfolioAnalytics {
   allocation: PortfolioAllocation;
   rebalancingHistory: RebalancingEvent[];
   optimizationHistory: OptimizationResult[];
-} 
+}

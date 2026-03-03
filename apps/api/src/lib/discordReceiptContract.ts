@@ -12,9 +12,10 @@
  * - gauntlet_run_id
  */
 
-import { supabase } from '../services/supabaseClient';
-import { getBuildInfo } from './buildInfo';
 import { logger } from '../services/logging';
+import { supabase } from '../services/supabaseClient';
+
+import { getBuildInfo } from './buildInfo';
 
 /**
  * Discord receipt data structure
@@ -50,9 +51,7 @@ export function generateWebhookReceiptId(): string {
 /**
  * Persist Discord receipt to database
  */
-export async function persistDiscordReceipt(
-  receipt: DiscordReceipt
-): Promise<ReceiptResult> {
+export async function persistDiscordReceipt(receipt: DiscordReceipt): Promise<ReceiptResult> {
   const buildInfo = getBuildInfo('receipt-contract');
 
   try {
@@ -136,9 +135,7 @@ export async function persistDiscordReceipt(
 /**
  * Query receipt by pick ID
  */
-export async function getReceiptByPickId(
-  pickId: string
-): Promise<DiscordReceipt | null> {
+export async function getReceiptByPickId(pickId: string): Promise<DiscordReceipt | null> {
   try {
     // Try discord_receipts table first
     const { data, error } = await supabase

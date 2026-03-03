@@ -104,7 +104,7 @@ async function refreshAllMVs(): Promise<RefreshResult[]> {
     const duration = Date.now() - startTime;
     console.log(`[refresh-search-mvs] ✓ All MVs refreshed in ${duration}ms`);
 
-    return SEARCH_MVS.map((mv) => ({
+    return SEARCH_MVS.map(mv => ({
       view: mv,
       success: true,
       duration_ms: duration / SEARCH_MVS.length,
@@ -155,8 +155,8 @@ async function main() {
   console.log('\n' + '='.repeat(60));
   console.log('Summary:');
 
-  const successful = results.filter((r) => r.success);
-  const failed = results.filter((r) => !r.success);
+  const successful = results.filter(r => r.success);
+  const failed = results.filter(r => !r.success);
 
   console.log(`  Successful: ${successful.length}`);
   console.log(`  Failed: ${failed.length}`);
@@ -164,7 +164,7 @@ async function main() {
 
   if (failed.length > 0) {
     console.log('\nFailed MVs:');
-    failed.forEach((r) => {
+    failed.forEach(r => {
       console.log(`  - ${r.view}: ${r.error}`);
     });
   }
@@ -175,7 +175,7 @@ async function main() {
   process.exit(failed.length > 0 ? 1 : 0);
 }
 
-main().catch((error) => {
+main().catch(error => {
   console.error('Fatal error:', error);
   process.exit(1);
 });

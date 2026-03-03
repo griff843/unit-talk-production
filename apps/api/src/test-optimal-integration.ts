@@ -11,10 +11,7 @@ async function testOptimalIntegration() {
 
   try {
     // Initialize Supabase client
-    const supabase = createClient(
-      process.env['SUPABASE_URL']!,
-      process.env['SUPABASE_KEY']!
-    );
+    const supabase = createClient(process.env['SUPABASE_URL']!, process.env['SUPABASE_KEY']!);
 
     console.log('1️⃣ Fetching props from Optimal API...');
     const props = await fetchOptimalProps('MLB');
@@ -31,12 +28,9 @@ async function testOptimalIntegration() {
 
     console.log('3️⃣ Testing database insertion of first 5 props...');
     const testProps = props.slice(0, 5);
-    
+
     // Insert props directly into database
-    const { data, error } = await supabase
-      .from('raw_props')
-      .insert(testProps)
-      .select();
+    const { data, error } = await supabase.from('raw_props').insert(testProps).select();
 
     if (error) {
       console.error('❌ Database insertion failed:', error);
@@ -45,15 +39,15 @@ async function testOptimalIntegration() {
 
     console.log('✅ Database insertion successful!');
     console.log(`📊 Inserted ${data?.length || 0} props into database`);
-    console.log('📋 Inserted prop IDs:', data?.map(p => p.id));
+    console.log(
+      '📋 Inserted prop IDs:',
+      data?.map(p => p.id)
+    );
 
     // Clean up test data
     if (data && data.length > 0) {
       const ids = data.map(p => p.id);
-      await supabase
-        .from('raw_props')
-        .delete()
-        .in('id', ids);
+      await supabase.from('raw_props').delete().in('id', ids);
       console.log('🧹 Cleaned up test data');
     }
 
@@ -62,7 +56,6 @@ async function testOptimalIntegration() {
     console.log(`   • Fetched: ${props.length} props from Optimal API`);
     console.log(`   • Tested: ${testProps.length} props for database insertion`);
     console.log(`   • Status: ✅ All systems working correctly`);
-
   } catch (error) {
     console.error('❌ Integration test failed:', error);
     process.exit(1);

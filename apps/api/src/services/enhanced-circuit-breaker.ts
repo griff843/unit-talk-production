@@ -55,7 +55,7 @@ export class EnhancedCircuitBreaker extends EventEmitter {
 
   constructor(defaultConfig?: Partial<ServiceConfig>) {
     super();
-    
+
     this.defaultConfig = {
       name: 'default',
       failureThreshold: 5,
@@ -65,7 +65,7 @@ export class EnhancedCircuitBreaker extends EventEmitter {
       retryAttempts: 3,
       backoffMultiplier: 2,
       circuitBreakerEnabled: true,
-      ...defaultConfig
+      ...defaultConfig,
     };
 
     // Start metrics cleanup interval
@@ -81,7 +81,7 @@ export class EnhancedCircuitBreaker extends EventEmitter {
     const serviceConfig: ServiceConfig = {
       ...this.defaultConfig,
       name: serviceName,
-      ...config
+      ...config,
     };
 
     const status: ServiceStatus = {
@@ -96,15 +96,15 @@ export class EnhancedCircuitBreaker extends EventEmitter {
         timeoutRequests: 0,
         circuitBreakerTrips: 0,
         averageResponseTime: 0,
-        recentErrors: []
-      }
+        recentErrors: [],
+      },
     };
 
     this.services.set(serviceName, status);
-    
+
     logger.info('🔌 Service registered with circuit breaker', {
       serviceName,
-      config: serviceConfig
+      config: serviceConfig,
     });
   }
 
@@ -117,17 +117,17 @@ export class EnhancedCircuitBreaker extends EventEmitter {
     fallback?: () => Promise<T>
   ): Promise<T> {
     const service = this.getOrCreateService(serviceName);
-    
+
     // Check if circuit breaker should block the call
     if (this.shouldBlockCall(service)) {
       const error = new Error(`Circuit breaker OPEN for service: ${serviceName}`);
       this.emit('callBlocked', { serviceName, error });
-      
+
       if (fallback) {
         logger.warn('🚫 Circuit breaker blocked call, using fallback', { serviceName });
         return fallback();
       }
-      
+
       throw error;
     }
 
@@ -150,30 +150,29 @@ export class EnhancedCircuitBreaker extends EventEmitter {
       // Execute with timeout
       const result = await Promise.race([
         operation(),
-        new Promise<never>((_, reject) => 
+        new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('Operation timeout')), service.config.timeoutMs)
-        )
+        ),
       ]);
 
       // Record success
       this.recordSuccess(service, Date.now() - startTime);
       return result;
-
     } catch (error) {
       const isTimeout = error instanceof Error && error.message === 'Operation timeout';
-      
+
       // Record failure
       this.recordFailure(service, error, isTimeout ? 'timeout' : 'error');
 
       // Check if we should retry
       if (attempt < service.config.retryAttempts && !this.shouldOpenCircuit(service)) {
         const delay = this.calculateBackoffDelay(attempt, service.config.backoffMultiplier);
-        
+
         logger.warn('🔄 Retrying operation after failure', {
           serviceName: service.name,
           attempt,
           delay,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
 
         await new Promise(resolve => setTimeout(resolve, delay));
@@ -190,7 +189,7 @@ export class EnhancedCircuitBreaker extends EventEmitter {
         logger.error('💥 Operation failed, using fallback', {
           serviceName: service.name,
           attempt,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
         return fallback();
       }
@@ -234,10 +233,10 @@ export class EnhancedCircuitBreaker extends EventEmitter {
    */
   private recordSuccess(service: ServiceStatus, responseTime: number): void {
     service.metrics.successRequests++;
-    
+
     // Update average response time
     const total = service.metrics.successRequests + service.metrics.failedRequests;
-    service.metrics.averageResponseTime = 
+    service.metrics.averageResponseTime =
       (service.metrics.averageResponseTime * (total - 1) + responseTime) / total;
 
     // If in half-open state and success, close the circuit
@@ -248,7 +247,7 @@ export class EnhancedCircuitBreaker extends EventEmitter {
     this.emit('operationSuccess', {
       serviceName: service.name,
       responseTime,
-      state: service.state
+      state: service.state,
     });
   }
 
@@ -261,7 +260,7 @@ export class EnhancedCircuitBreaker extends EventEmitter {
     type: 'timeout' | 'error' | 'rejection'
   ): void {
     service.metrics.failedRequests++;
-    
+
     if (type === 'timeout') {
       service.metrics.timeoutRequests++;
     }
@@ -270,7 +269,7 @@ export class EnhancedCircuitBreaker extends EventEmitter {
     service.metrics.recentErrors.push({
       timestamp: Date.now(),
       error: error instanceof Error ? error.message : String(error),
-      type
+      type,
     });
 
     // Keep only last 50 errors
@@ -282,7 +281,7 @@ export class EnhancedCircuitBreaker extends EventEmitter {
       serviceName: service.name,
       error,
       type,
-      state: service.state
+      state: service.state,
     });
   }
 
@@ -321,13 +320,13 @@ export class EnhancedCircuitBreaker extends EventEmitter {
       serviceName: service.name,
       recentFailures: this.getRecentFailureCount(service),
       recentRequests: this.getRecentRequestCount(service),
-      nextRetryTime: new Date(service.nextRetryTime).toISOString()
+      nextRetryTime: new Date(service.nextRetryTime).toISOString(),
     });
 
     this.emit('circuitOpened', {
       serviceName: service.name,
       metrics: service.metrics,
-      nextRetryTime: service.nextRetryTime
+      nextRetryTime: service.nextRetryTime,
     });
   }
 
@@ -339,12 +338,12 @@ export class EnhancedCircuitBreaker extends EventEmitter {
     service.lastStateChange = Date.now();
 
     logger.info('🔄 Circuit breaker HALF-OPEN', {
-      serviceName: service.name
+      serviceName: service.name,
     });
 
     this.emit('circuitHalfOpened', {
       serviceName: service.name,
-      metrics: service.metrics
+      metrics: service.metrics,
     });
   }
 
@@ -357,12 +356,12 @@ export class EnhancedCircuitBreaker extends EventEmitter {
     service.nextRetryTime = undefined;
 
     logger.info('✅ Circuit breaker CLOSED', {
-      serviceName: service.name
+      serviceName: service.name,
     });
 
     this.emit('circuitClosed', {
       serviceName: service.name,
-      metrics: service.metrics
+      metrics: service.metrics,
     });
   }
 
@@ -389,9 +388,7 @@ export class EnhancedCircuitBreaker extends EventEmitter {
    */
   private getRecentFailureCount(service: ServiceStatus): number {
     const fiveMinutesAgo = Date.now() - 300000;
-    return service.metrics.recentErrors.filter(
-      error => error.timestamp > fiveMinutesAgo
-    ).length;
+    return service.metrics.recentErrors.filter(error => error.timestamp > fiveMinutesAgo).length;
   }
 
   /**
@@ -409,7 +406,7 @@ export class EnhancedCircuitBreaker extends EventEmitter {
    */
   private cleanupOldErrors(): void {
     const oneHourAgo = Date.now() - 3600000;
-    
+
     for (const service of this.services.values()) {
       service.metrics.recentErrors = service.metrics.recentErrors.filter(
         error => error.timestamp > oneHourAgo
@@ -423,7 +420,7 @@ export class EnhancedCircuitBreaker extends EventEmitter {
   public getAllServiceStatus(): ServiceStatus[] {
     return Array.from(this.services.values()).map(service => ({
       ...service,
-      metrics: { ...service.metrics }
+      metrics: { ...service.metrics },
     }));
   }
 
@@ -443,9 +440,9 @@ export class EnhancedCircuitBreaker extends EventEmitter {
     if (service) {
       this.closeCircuit(service);
       service.metrics.recentErrors = [];
-      
+
       logger.info('🔄 Service circuit breaker manually reset', { serviceName });
-      
+
       this.emit('serviceReset', { serviceName });
     }
   }
@@ -466,12 +463,12 @@ export class EnhancedCircuitBreaker extends EventEmitter {
       const recentFailures = this.getRecentFailureCount(service);
       const recentRequests = this.getRecentRequestCount(service);
       const failureRate = recentRequests > 0 ? recentFailures / recentRequests : 0;
-      
+
       return {
         name: service.name,
         state: service.state,
         healthy: service.state !== 'OPEN' && failureRate < 0.5,
-        failureRate
+        failureRate,
       };
     });
 
@@ -479,7 +476,7 @@ export class EnhancedCircuitBreaker extends EventEmitter {
 
     return {
       healthy: overallHealthy,
-      services: serviceHealths
+      services: serviceHealths,
     };
   }
 }
@@ -492,55 +489,52 @@ circuitBreaker.registerService('openai', {
   failureThreshold: 3,
   resetTimeoutMs: 30000, // 30 seconds
   timeoutMs: 15000, // 15 seconds
-  retryAttempts: 2
+  retryAttempts: 2,
 });
 
 circuitBreaker.registerService('discord', {
   failureThreshold: 5,
   resetTimeoutMs: 60000, // 1 minute
   timeoutMs: 10000, // 10 seconds
-  retryAttempts: 3
+  retryAttempts: 3,
 });
 
 circuitBreaker.registerService('supabase', {
   failureThreshold: 3,
   resetTimeoutMs: 15000, // 15 seconds
   timeoutMs: 5000, // 5 seconds
-  retryAttempts: 2
+  retryAttempts: 2,
 });
 
 circuitBreaker.registerService('redis', {
   failureThreshold: 5,
   resetTimeoutMs: 30000, // 30 seconds
   timeoutMs: 3000, // 3 seconds
-  retryAttempts: 2
+  retryAttempts: 2,
 });
 
 // Service wrapper functions for easy integration
 export const withCircuitBreaker = {
   openai: <T>(operation: () => Promise<T>, fallback?: () => Promise<T>) =>
     circuitBreaker.executeCall('openai', operation, fallback),
-    
+
   discord: <T>(operation: () => Promise<T>, fallback?: () => Promise<T>) =>
     circuitBreaker.executeCall('discord', operation, fallback),
-    
+
   supabase: <T>(operation: () => Promise<T>, fallback?: () => Promise<T>) =>
     circuitBreaker.executeCall('supabase', operation, fallback),
-    
+
   redis: <T>(operation: () => Promise<T>, fallback?: () => Promise<T>) =>
-    circuitBreaker.executeCall('redis', operation, fallback)
+    circuitBreaker.executeCall('redis', operation, fallback),
 };
 
 // Decorator for automatic circuit breaker integration
 export function CircuitBreakerProtected(serviceName: string) {
   return function (_target: any, _propertyName: string, descriptor: PropertyDescriptor) {
     const method = descriptor.value;
-    
+
     descriptor.value = async function (...args: any[]) {
-      return circuitBreaker.executeCall(
-        serviceName,
-        () => method.apply(this, args)
-      );
+      return circuitBreaker.executeCall(serviceName, () => method.apply(this, args));
     };
   };
 }

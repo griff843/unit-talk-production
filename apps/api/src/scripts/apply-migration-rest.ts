@@ -29,18 +29,18 @@ async function applyMigration() {
 
   try {
     console.log('⏳ Executing SQL via Management API...');
-    
+
     const response = await fetch(
       `https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`,
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${SUPABASE_ACCESS_TOKEN}`,
+          Authorization: `Bearer ${SUPABASE_ACCESS_TOKEN}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          query: migrationSQL
-        })
+          query: migrationSQL,
+        }),
       }
     );
 
@@ -53,7 +53,6 @@ async function applyMigration() {
     const result = await response.json();
     console.log('✅ Migration applied successfully!\n');
     console.log('Response:', JSON.stringify(result, null, 2));
-
   } catch (error: any) {
     console.error('❌ Migration failed:', error.message);
     throw error;
@@ -66,4 +65,3 @@ applyMigration().catch(error => {
   console.error('Fatal error:', error);
   process.exit(1);
 });
-

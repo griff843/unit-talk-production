@@ -96,13 +96,20 @@ export async function getNflHeadshot(playerName: string): Promise<string | null>
     const response = await fetch(searchUrl);
 
     if (!response.ok) {
-      logger.warn(`ESPN API request failed for ${playerName}: ${response.status} ${response.statusText}`);
+      logger.warn(
+        `ESPN API request failed for ${playerName}: ${response.status} ${response.statusText}`
+      );
       return null;
     }
 
-    const data = await response.json() as { results: EspnPlayerSearchResponse[] };
+    const data = (await response.json()) as { results: EspnPlayerSearchResponse[] };
 
-    if (!data.results || data.results.length === 0 || !data.results[0]?.athletes || data.results[0].athletes.length === 0) {
+    if (
+      !data.results ||
+      data.results.length === 0 ||
+      !data.results[0]?.athletes ||
+      data.results[0].athletes.length === 0
+    ) {
       logger.warn(`No NFL player found for name: ${playerName}`);
       return null;
     }
@@ -124,7 +131,6 @@ export async function getNflHeadshot(playerName: string): Promise<string | null>
 
     logger.info(`Found NFL headshot for ${playerName} (ID: ${player.id}): ${headshotUrl}`);
     return headshotUrl;
-
   } catch (error) {
     logger.error(`Error fetching NFL headshot for ${playerName}:`, error);
     return null;
@@ -145,13 +151,20 @@ export async function getNflPhysicals(playerName: string): Promise<PlayerPhysica
     const response = await fetch(searchUrl);
 
     if (!response.ok) {
-      logger.warn(`ESPN API request failed for ${playerName}: ${response.status} ${response.statusText}`);
+      logger.warn(
+        `ESPN API request failed for ${playerName}: ${response.status} ${response.statusText}`
+      );
       return { height_cm: null, weight_kg: null, birthday: null };
     }
 
-    const data = await response.json() as { results: EspnPlayerSearchResponse[] };
+    const data = (await response.json()) as { results: EspnPlayerSearchResponse[] };
 
-    if (!data.results || data.results.length === 0 || !data.results[0]?.athletes || data.results[0].athletes.length === 0) {
+    if (
+      !data.results ||
+      data.results.length === 0 ||
+      !data.results[0]?.athletes ||
+      data.results[0].athletes.length === 0
+    ) {
       logger.warn(`No NFL player found for name: ${playerName}`);
       return { height_cm: null, weight_kg: null, birthday: null };
     }
@@ -168,9 +181,7 @@ export async function getNflPhysicals(playerName: string): Promise<PlayerPhysica
       ? Math.round(player.height * 2.54) // Convert inches to cm
       : null;
 
-    const weight_kg = player.weight
-      ? PlayerPhysicalUtils.poundsToKg(player.weight)
-      : null;
+    const weight_kg = player.weight ? PlayerPhysicalUtils.poundsToKg(player.weight) : null;
 
     const birthday = player.dateOfBirth
       ? PlayerPhysicalUtils.parseBirthday(player.dateOfBirth)
@@ -179,17 +190,16 @@ export async function getNflPhysicals(playerName: string): Promise<PlayerPhysica
     const result: PlayerPhysicals = {
       height_cm,
       weight_kg,
-      birthday
+      birthday,
     };
 
     logger.info(`Found NFL physicals for ${playerName}:`, {
       height: player.height ? `${player.height}" (${height_cm}cm)` : 'N/A',
       weight: player.weight ? `${player.weight}lbs (${weight_kg}kg)` : 'N/A',
-      birthday: birthday || 'N/A'
+      birthday: birthday || 'N/A',
     });
 
     return result;
-
   } catch (error) {
     logger.error(`Error fetching NFL physicals for ${playerName}:`, error);
     return { height_cm: null, weight_kg: null, birthday: null };
@@ -205,10 +215,38 @@ export async function getNflRosters(): Promise<NflRosterPlayer[]> {
 
     // NFL team abbreviations
     const teams = [
-      'ARI', 'ATL', 'BAL', 'BUF', 'CAR', 'CHI', 'CIN', 'CLE', 'DAL', 'DEN',
-      'DET', 'GB', 'HOU', 'IND', 'JAX', 'KC', 'LV', 'LAC', 'LAR', 'MIA',
-      'MIN', 'NE', 'NO', 'NYG', 'NYJ', 'PHI', 'PIT', 'SF', 'SEA', 'TB',
-      'TEN', 'WAS'
+      'ARI',
+      'ATL',
+      'BAL',
+      'BUF',
+      'CAR',
+      'CHI',
+      'CIN',
+      'CLE',
+      'DAL',
+      'DEN',
+      'DET',
+      'GB',
+      'HOU',
+      'IND',
+      'JAX',
+      'KC',
+      'LV',
+      'LAC',
+      'LAR',
+      'MIA',
+      'MIN',
+      'NE',
+      'NO',
+      'NYG',
+      'NYJ',
+      'PHI',
+      'PIT',
+      'SF',
+      'SEA',
+      'TB',
+      'TEN',
+      'WAS',
     ];
 
     const allPlayers: NflRosterPlayer[] = [];
@@ -233,7 +271,6 @@ export async function getNflRosters(): Promise<NflRosterPlayer[]> {
 
         // Rate limiting
         await new Promise(resolve => setTimeout(resolve, 300));
-
       } catch (error) {
         logger.error(`Error fetching NFL roster for team ${team}:`, error);
       }
@@ -241,7 +278,6 @@ export async function getNflRosters(): Promise<NflRosterPlayer[]> {
 
     logger.info(`Fetched ${allPlayers.length} NFL players from rosters`);
     return allPlayers;
-
   } catch (error) {
     logger.error('Error fetching NFL rosters:', error);
     throw error;
@@ -265,6 +301,6 @@ export function convertNflRosterPlayer(player: NflRosterPlayer) {
     photo_url: player.headshot?.href || null,
     position: player.position?.name || null,
     jersey_number: player.jersey || null,
-    active: player.active
+    active: player.active,
   };
 }

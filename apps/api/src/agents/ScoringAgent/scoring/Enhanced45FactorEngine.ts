@@ -1,9 +1,9 @@
 /**
  * Enhanced 45-Factor Scoring Engine
- * 
+ *
  * Stub implementation for TypeScript compilation.
  * TODO: Implement full 45-factor scoring algorithm
- * 
+ *
  * @module Enhanced45FactorEngine
  */
 
@@ -98,7 +98,7 @@ export class Enhanced45FactorEngine {
     if (this.initialized) {
       return;
     }
-    
+
     logger.info('Initializing Enhanced45FactorEngine...');
     this.initialized = true;
   }
@@ -190,7 +190,7 @@ export class Enhanced45FactorEngine {
 
   /**
    * Batch score multiple props
-   * 
+   *
    * @param inputs - Array of prop features
    * @returns Array of scoring results
    */
@@ -221,4 +221,3 @@ export function getEnhanced45FactorEngine(): Enhanced45FactorEngine {
   }
   return engineInstance;
 }
-

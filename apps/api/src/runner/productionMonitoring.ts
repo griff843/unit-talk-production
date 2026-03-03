@@ -1,9 +1,9 @@
 /**
  * Production Monitoring Dashboard
- * 
+ *
  * Real-time monitoring and alerting for production Unit Talk platform.
  * Monitors agents, database, applications, and system health.
- * 
+ *
  * Usage: npx tsx src/runner/productionMonitoring.ts
  */
 
@@ -89,19 +89,19 @@ class ProductionMonitoringDashboard {
     console.log('🚀 Initializing real-time monitoring and alerting...\n');
 
     this.isRunning = true;
-    
+
     // Initial metrics collection
     await this.collectMetrics();
     this.displayDashboard();
-    
+
     // Start monitoring loops
     this.startMetricsCollection();
     this.startHealthChecks();
     this.startAlertMonitoring();
-    
+
     console.log('✅ Production monitoring is fully operational!');
     console.log('💡 Press Ctrl+C to stop monitoring\n');
-    
+
     // Keep alive
     this.keepAlive();
   }
@@ -118,49 +118,49 @@ class ProductionMonitoringDashboard {
   private startMetricsCollection(): void {
     const collectLoop = async () => {
       if (!this.isRunning) return;
-      
+
       try {
         await this.collectMetrics();
         this.displayDashboard();
       } catch (error) {
         logger.error('Metrics collection failed', error);
       }
-      
+
       setTimeout(collectLoop, 30000); // Every 30 seconds
     };
-    
+
     setTimeout(collectLoop, 30000);
   }
 
   private startHealthChecks(): void {
     const healthLoop = async () => {
       if (!this.isRunning) return;
-      
+
       try {
         await this.performHealthChecks();
       } catch (error) {
         logger.error('Health check failed', error);
       }
-      
+
       setTimeout(healthLoop, 60000); // Every 60 seconds
     };
-    
+
     setTimeout(healthLoop, 60000);
   }
 
   private startAlertMonitoring(): void {
     const alertLoop = async () => {
       if (!this.isRunning) return;
-      
+
       try {
         await this.checkAlerts();
       } catch (error) {
         logger.error('Alert monitoring failed', error);
       }
-      
+
       setTimeout(alertLoop, 15000); // Every 15 seconds
     };
-    
+
     setTimeout(alertLoop, 15000);
   }
 
@@ -341,10 +341,12 @@ class ProductionMonitoringDashboard {
 
     // Clear screen
     console.clear();
-    
+
     console.log('='.repeat(100));
     console.log('📊 UNIT TALK PRODUCTION MONITORING DASHBOARD');
-    console.log(`🕐 ${this.metrics.timestamp.toLocaleString()} | Status: ${this.getOverallHealth()}`);
+    console.log(
+      `🕐 ${this.metrics.timestamp.toLocaleString()} | Status: ${this.getOverallHealth()}`
+    );
     console.log('='.repeat(100));
 
     // Agents Status
@@ -354,7 +356,9 @@ class ProductionMonitoringDashboard {
       const status = agent.status === 'running' ? '✅' : '❌';
       const health = agent.health === 'healthy' ? '💚' : agent.health === 'degraded' ? '💛' : '❤️';
       const uptime = Math.floor(agent.uptime / 1000);
-      console.log(`${status} ${health} ${agent.name.padEnd(20)} | Uptime: ${uptime}s | Errors: ${agent.errorCount}`);
+      console.log(
+        `${status} ${health} ${agent.name.padEnd(20)} | Uptime: ${uptime}s | Errors: ${agent.errorCount}`
+      );
     });
 
     // Database Status
@@ -372,7 +376,9 @@ class ProductionMonitoringDashboard {
     this.metrics.applications.forEach(app => {
       const status = app.status === 'running' ? '✅' : '❌';
       const uptime = Math.floor(app.uptime / 1000);
-      console.log(`${status} ${app.name.padEnd(20)} | Port: ${app.port || 'N/A'} | Response: ${app.responseTime}ms | Uptime: ${uptime}s`);
+      console.log(
+        `${status} ${app.name.padEnd(20)} | Port: ${app.port || 'N/A'} | Response: ${app.responseTime}ms | Uptime: ${uptime}s`
+      );
     });
 
     // Grading Pipeline
@@ -388,7 +394,16 @@ class ProductionMonitoringDashboard {
     console.log('\n🎯 TIER DISTRIBUTION:');
     console.log('-'.repeat(80));
     Object.entries(this.metrics.grading.tierDistribution).forEach(([tier, percentage]) => {
-      const icon = tier === 'S' ? '🌟' : tier === 'A' ? '⭐' : tier === 'B' ? '🔸' : tier === 'C' ? '🔹' : '◽';
+      const icon =
+        tier === 'S'
+          ? '🌟'
+          : tier === 'A'
+            ? '⭐'
+            : tier === 'B'
+              ? '🔸'
+              : tier === 'C'
+                ? '🔹'
+                : '◽';
       console.log(`${icon} ${tier}-Tier: ${percentage}%`);
     });
 
@@ -408,12 +423,12 @@ class ProductionMonitoringDashboard {
 
   private getOverallHealth(): string {
     if (!this.metrics) return '🔄 INITIALIZING';
-    
+
     const runningAgents = this.metrics.agents.filter(a => a.status === 'running').length;
     const totalAgents = this.metrics.agents.length;
     const runningApps = this.metrics.applications.filter(a => a.status === 'running').length;
     const totalApps = this.metrics.applications.length;
-    
+
     if (runningAgents === totalAgents && runningApps === totalApps) {
       return '🟢 HEALTHY';
     } else if (runningAgents >= totalAgents * 0.8 && runningApps >= totalApps * 0.8) {

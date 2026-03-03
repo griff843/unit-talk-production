@@ -3,7 +3,7 @@
  * CLV Alert Service
  * Monitors CLV performance and alerts admin when thresholds are breached
  * Private alerts only - never shown to public users
- * 
+ *
  * @module CLVAlertService
  */
 
@@ -13,8 +13,8 @@ import { supabaseClient } from '../supabaseClient';
 
 export interface AlertThresholds {
   critical: {
-    clv: number;        // CLV below this for X hours
-    duration: number;   // Hours
+    clv: number; // CLV below this for X hours
+    duration: number; // Hours
   };
   warning: {
     clv: number;
@@ -46,29 +46,29 @@ export interface CLVAlert {
 export class CLVAlertService {
   private static instance: CLVAlertService;
   private logger: any;
-  
+
   // Default thresholds (configurable)
   private thresholds: AlertThresholds = {
     critical: {
-      clv: -2,      // -2% CLV
-      duration: 24  // 24 hours
+      clv: -2, // -2% CLV
+      duration: 24, // 24 hours
     },
     warning: {
-      clv: 0,       // 0% CLV
-      duration: 72  // 3 days
+      clv: 0, // 0% CLV
+      duration: 72, // 3 days
     },
     investigate: {
-      clv: 2,       // 2% CLV (below target)
-      duration: 168 // 7 days
-    }
+      clv: 2, // 2% CLV (below target)
+      duration: 168, // 7 days
+    },
   };
-  
+
   // Alert channels
   private alertChannels = {
     discord: process.env.ADMIN_DISCORD_WEBHOOK,
     email: process.env.ADMIN_ALERT_EMAIL,
     slack: process.env.ADMIN_SLACK_WEBHOOK,
-    sms: process.env.ADMIN_ALERT_PHONE
+    sms: process.env.ADMIN_ALERT_PHONE,
   };
 
   private constructor() {
@@ -93,21 +93,20 @@ export class CLVAlertService {
       await this.checkCriticalThreshold();
       await this.checkWarningThreshold();
       await this.checkInvestigateThreshold();
-      
+
       // Check for rapid decline
       await this.checkRapidDecline();
-      
+
       // Check market-specific issues
       await this.checkMarketSpecificIssues();
-      
+
       // Check book-specific issues
       await this.checkBookSpecificIssues();
-
     } catch (error) {
       this.logger.error('CLV monitoring failed', error);
       // Send alert about monitoring failure itself
       await this.sendAlert('critical', 'CLV monitoring system failure', {
-        error: error.message
+        error: error.message,
       });
     }
   }
@@ -121,8 +120,11 @@ export class CLVAlertService {
     );
 
     if (performance.avgCLV < this.thresholds.critical.clv) {
-      const existingAlert = await this.getExistingAlert('critical', this.thresholds.critical.duration);
-      
+      const existingAlert = await this.getExistingAlert(
+        'critical',
+        this.thresholds.critical.duration
+      );
+
       if (!existingAlert) {
         await this.createAndSendAlert({
           level: 'critical',
@@ -130,8 +132,8 @@ export class CLVAlertService {
           details: {
             currentCLV: performance.avgCLV,
             duration: this.thresholds.critical.duration,
-            trend: performance.trend
-          }
+            trend: performance.trend,
+          },
         });
       }
     }
@@ -146,8 +148,11 @@ export class CLVAlertService {
     );
 
     if (performance.avgCLV < this.thresholds.warning.clv) {
-      const existingAlert = await this.getExistingAlert('warning', this.thresholds.warning.duration);
-      
+      const existingAlert = await this.getExistingAlert(
+        'warning',
+        this.thresholds.warning.duration
+      );
+
       if (!existingAlert) {
         await this.createAndSendAlert({
           level: 'warning',
@@ -155,8 +160,8 @@ export class CLVAlertService {
           details: {
             currentCLV: performance.avgCLV,
             duration: this.thresholds.warning.duration,
-            trend: performance.trend
-          }
+            trend: performance.trend,
+          },
         });
       }
     }
@@ -171,8 +176,11 @@ export class CLVAlertService {
     );
 
     if (performance.avgCLV < this.thresholds.investigate.clv) {
-      const existingAlert = await this.getExistingAlert('investigate', this.thresholds.investigate.duration);
-      
+      const existingAlert = await this.getExistingAlert(
+        'investigate',
+        this.thresholds.investigate.duration
+      );
+
       if (!existingAlert) {
         await this.createAndSendAlert({
           level: 'investigate',
@@ -180,8 +188,8 @@ export class CLVAlertService {
           details: {
             currentCLV: performance.avgCLV,
             duration: this.thresholds.investigate.duration,
-            trend: performance.trend
-          }
+            trend: performance.trend,
+          },
         });
       }
     }
@@ -195,12 +203,13 @@ export class CLVAlertService {
     const last24h = await clvTrackingService.getRecentPerformance(24);
     const previous24h = await clvTrackingService.getCLVStats({
       startDate: new Date(Date.now() - 48 * 60 * 60 * 1000),
-      endDate: new Date(Date.now() - 24 * 60 * 60 * 1000)
+      endDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
     });
 
     const decline = previous24h.avgCLVPercentage - last24h.avgCLV;
-    
-    if (decline > 3) { // 3% drop in 24h
+
+    if (decline > 3) {
+      // 3% drop in 24h
       await this.createAndSendAlert({
         level: 'warning',
         message: `Rapid CLV decline: -${decline.toFixed(2)}% in 24h`,
@@ -208,8 +217,8 @@ export class CLVAlertService {
           currentCLV: last24h.avgCLV,
           duration: 24,
           trend: 'declining',
-          previousCLV: previous24h.avgCLVPercentage
-        }
+          previousCLV: previous24h.avgCLVPercentage,
+        },
       });
     }
   }
@@ -219,11 +228,11 @@ export class CLVAlertService {
    */
   private async checkMarketSpecificIssues(): Promise<void> {
     const stats = await clvTrackingService.getCLVStats({
-      startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
     });
 
     const problematicMarkets: string[] = [];
-    
+
     // Check each sport/market combination
     for (const [market, metrics] of stats.byMarket) {
       if (metrics.count > 20 && metrics.avgCLV < -1) {
@@ -239,8 +248,8 @@ export class CLVAlertService {
           currentCLV: stats.avgCLVPercentage,
           duration: 168,
           trend: 'stable',
-          affectedMarkets: problematicMarkets
-        }
+          affectedMarkets: problematicMarkets,
+        },
       });
     }
   }
@@ -250,11 +259,11 @@ export class CLVAlertService {
    */
   private async checkBookSpecificIssues(): Promise<void> {
     const stats = await clvTrackingService.getCLVStats({
-      startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
     });
 
     const problematicBooks: string[] = [];
-    
+
     // Check each book
     for (const [book, metrics] of stats.byBook) {
       if (metrics.count > 30 && metrics.avgCLV < -2) {
@@ -270,8 +279,8 @@ export class CLVAlertService {
           currentCLV: stats.avgCLVPercentage,
           duration: 168,
           trend: 'stable',
-          affectedBooks: problematicBooks
-        }
+          affectedBooks: problematicBooks,
+        },
       });
     }
   }
@@ -294,7 +303,9 @@ export class CLVAlertService {
   /**
    * Create and send alert
    */
-  private async createAndSendAlert(alert: Omit<CLVAlert, 'id' | 'createdAt' | 'acknowledged' | 'acknowledgedBy' | 'acknowledgedAt'>): Promise<void> {
+  private async createAndSendAlert(
+    alert: Omit<CLVAlert, 'id' | 'createdAt' | 'acknowledged' | 'acknowledgedBy' | 'acknowledgedAt'>
+  ): Promise<void> {
     // Save to database
     const { data, error } = await supabaseClient
       .from('clv_alerts')
@@ -303,7 +314,7 @@ export class CLVAlertService {
         message: alert.message,
         details: alert.details,
         createdAt: new Date().toISOString(),
-        acknowledged: false
+        acknowledged: false,
       })
       .select()
       .single();
@@ -354,24 +365,24 @@ export class CLVAlertService {
    */
   private formatAlertMessage(level: string, message: string, details: any): string {
     const emoji = level === 'critical' ? '🚨' : level === 'warning' ? '⚠️' : '🔍';
-    
+
     let formatted = `${emoji} **CLV ALERT - ${level.toUpperCase()}**\n\n`;
     formatted += `${message}\n\n`;
     formatted += `**Details:**\n`;
     formatted += `• Current CLV: ${details.currentCLV?.toFixed(2)}%\n`;
     formatted += `• Duration: ${details.duration}h\n`;
     formatted += `• Trend: ${details.trend}\n`;
-    
+
     if (details.affectedMarkets?.length > 0) {
       formatted += `• Affected Markets: ${details.affectedMarkets.join(', ')}\n`;
     }
-    
+
     if (details.affectedBooks?.length > 0) {
       formatted += `• Affected Books: ${details.affectedBooks.join(', ')}\n`;
     }
-    
+
     formatted += `\n_Time: ${new Date().toISOString()}_`;
-    
+
     return formatted;
   }
 
@@ -381,19 +392,21 @@ export class CLVAlertService {
   private async sendDiscordAlert(level: string, message: string): Promise<void> {
     if (!this.alertChannels.discord) return;
 
-    const color = level === 'critical' ? 0xFF0000 : level === 'warning' ? 0xFFFF00 : 0x0000FF;
+    const color = level === 'critical' ? 0xff0000 : level === 'warning' ? 0xffff00 : 0x0000ff;
 
     try {
       await fetch(this.alertChannels.discord, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          embeds: [{
-            color,
-            description: message,
-            timestamp: new Date().toISOString()
-          }]
-        })
+          embeds: [
+            {
+              color,
+              description: message,
+              timestamp: new Date().toISOString(),
+            },
+          ],
+        }),
       });
     } catch (error) {
       this.logger.error('Failed to send Discord alert', error);
@@ -430,8 +443,8 @@ export class CLVAlertService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: message,
-          icon_emoji: level === 'critical' ? ':rotating_light:' : ':warning:'
-        })
+          icon_emoji: level === 'critical' ? ':rotating_light:' : ':warning:',
+        }),
       });
     } catch (error) {
       this.logger.error('Failed to send Slack alert', error);
@@ -447,7 +460,7 @@ export class CLVAlertService {
       .update({
         acknowledged: true,
         acknowledgedBy: userId,
-        acknowledgedAt: new Date().toISOString()
+        acknowledgedAt: new Date().toISOString(),
       })
       .eq('id', alertId);
   }

@@ -26,7 +26,8 @@ export interface ErrorRecoveryAction {
 export class ProductionErrorHandler {
   private static instance: ProductionErrorHandler;
   private errorCounts: Map<string, number> = new Map();
-  private circuitBreakers: Map<string, { failures: number; lastFailure: Date; isOpen: boolean }> = new Map();
+  private circuitBreakers: Map<string, { failures: number; lastFailure: Date; isOpen: boolean }> =
+    new Map();
 
   private constructor() {}
 
@@ -45,13 +46,12 @@ export class ProductionErrorHandler {
     context: ErrorContext,
     recoveryAction?: ErrorRecoveryAction
   ): Promise<{ recovered: boolean; result?: any; finalError?: Error }> {
-    
     // Log the error with full context
     this.logError(error, context);
-    
+
     // Update error tracking
     this.trackError(context.operation, context.severity);
-    
+
     // Check circuit breaker
     if (this.isCircuitOpen(context.operation)) {
       logger.error(`Circuit breaker open for ${context.operation}, aborting`);
@@ -75,17 +75,16 @@ export class ProductionErrorHandler {
     operation: 'devigging' | 'clv_tracking' | 'professional_grading' | 'database_operation',
     pickData?: any
   ): Promise<{ recovered: boolean; result?: any }> {
-    
     const context: ErrorContext = {
       operation: `professional_system.${operation}`,
       pickId: pickData?.id,
       metadata: { pickData, operation },
-      severity: operation === 'database_operation' ? 'critical' : 'high'
+      severity: operation === 'database_operation' ? 'critical' : 'high',
     };
 
     // Operation-specific recovery strategies
     let recoveryAction: ErrorRecoveryAction;
-    
+
     switch (operation) {
       case 'devigging':
         recoveryAction = {
@@ -97,20 +96,20 @@ export class ProductionErrorHandler {
               trueProb: 0.5,
               fairOdds: -110,
               edge: 0.01, // Conservative 1% edge
-              totalVig: 0.045
+              totalVig: 0.045,
             };
-          }
+          },
         };
         break;
-        
+
       case 'clv_tracking':
         recoveryAction = {
           action: 'retry',
           maxRetries: 3,
-          delay: 1000
+          delay: 1000,
         };
         break;
-        
+
       case 'professional_grading':
         recoveryAction = {
           action: 'fallback',
@@ -121,17 +120,17 @@ export class ProductionErrorHandler {
               overallScore: 2.0, // Conservative professional_score
               tier: 'C',
               confidence: 0.5,
-              contributions: { fallback: true }
+              contributions: { fallback: true },
             };
-          }
+          },
         };
         break;
-        
+
       case 'database_operation':
         recoveryAction = {
           action: 'retry',
           maxRetries: 5,
-          delay: 2000
+          delay: 2000,
         };
         break;
     }
@@ -151,16 +150,16 @@ export class ProductionErrorHandler {
         name: error.name || 'UnknownError',
         message: error.message || 'No error message',
         stack: error.stack || 'No stack trace',
-        code: error.code || null
+        code: error.code || null,
       },
       context: {
         userId: context.userId,
         pickId: context.pickId,
         sessionId: context.sessionId,
-        metadata: context.metadata
+        metadata: context.metadata,
       },
       environment: process.env.NODE_ENV,
-      version: process.env.npm_package_version || 'unknown'
+      version: process.env.npm_package_version || 'unknown',
     };
 
     // Log based on severity
@@ -193,16 +192,20 @@ export class ProductionErrorHandler {
 
     // Update circuit breaker for critical/high severity errors
     if (severity === 'critical' || severity === 'high') {
-      const breaker = this.circuitBreakers.get(operation) || { failures: 0, lastFailure: new Date(), isOpen: false };
+      const breaker = this.circuitBreakers.get(operation) || {
+        failures: 0,
+        lastFailure: new Date(),
+        isOpen: false,
+      };
       breaker.failures++;
       breaker.lastFailure = new Date();
-      
+
       // Open circuit if too many failures
       if (breaker.failures >= 5) {
         breaker.isOpen = true;
         logger.error(`Circuit breaker opened for ${operation} after ${breaker.failures} failures`);
       }
-      
+
       this.circuitBreakers.set(operation, breaker);
     }
   }
@@ -235,11 +238,10 @@ export class ProductionErrorHandler {
     context: ErrorContext,
     recoveryAction: ErrorRecoveryAction
   ): Promise<{ recovered: boolean; result?: any; finalError?: Error }> {
-    
     switch (recoveryAction.action) {
       case 'retry':
         return await this.attemptRetry(error, context, recoveryAction);
-        
+
       case 'fallback':
         if (recoveryAction.fallbackFn) {
           try {
@@ -252,11 +254,11 @@ export class ProductionErrorHandler {
           }
         }
         break;
-        
+
       case 'abort':
         logger.error(`Operation ${context.operation} aborted due to error`);
         return { recovered: false, finalError: error };
-        
+
       case 'escalate':
         await this.escalateError(error, context);
         return { recovered: false, finalError: error };
@@ -273,27 +275,29 @@ export class ProductionErrorHandler {
     context: ErrorContext,
     recoveryAction: ErrorRecoveryAction
   ): Promise<{ recovered: boolean; result?: any; finalError?: Error }> {
-    
     const maxRetries = recoveryAction.maxRetries || 3;
     const baseDelay = recoveryAction.delay || 1000;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       const delay = baseDelay * Math.pow(2, attempt - 1); // Exponential backoff
-      
-      logger.info(`Retry attempt ${attempt}/${maxRetries} for ${context.operation} (delay: ${delay}ms)`);
-      
+
+      logger.info(
+        `Retry attempt ${attempt}/${maxRetries} for ${context.operation} (delay: ${delay}ms)`
+      );
+
       await new Promise(resolve => setTimeout(resolve, delay));
-      
+
       try {
         // This would need to be implemented per operation
         // For now, just simulate success/failure
-        if (Math.random() > 0.7) { // 30% success rate for demo
+        if (Math.random() > 0.7) {
+          // 30% success rate for demo
           logger.info(`Retry successful for ${context.operation} on attempt ${attempt}`);
           return { recovered: true, result: { retrySuccessful: true, attempt } };
         }
       } catch (retryError) {
         logger.error(`Retry attempt ${attempt} failed for ${context.operation}:`, retryError);
-        
+
         if (attempt === maxRetries) {
           return { recovered: false, finalError: retryError as Error };
         }
@@ -310,22 +314,27 @@ export class ProductionErrorHandler {
     error: Error,
     context: ErrorContext
   ): Promise<{ recovered: boolean; result?: any; finalError?: Error }> {
-    
     switch (context.severity) {
       case 'critical':
         // Critical errors require immediate attention
         await this.escalateError(error, context);
         return { recovered: false, finalError: error };
-        
+
       case 'high':
         // High severity - try basic retry
-        return await this.attemptRetry(error, context, { action: 'retry', maxRetries: 2, delay: 1000 });
-        
+        return await this.attemptRetry(error, context, {
+          action: 'retry',
+          maxRetries: 2,
+          delay: 1000,
+        });
+
       case 'medium':
         // Medium severity - log and continue
-        logger.warn(`Medium severity error in ${context.operation}, continuing with degraded functionality`);
+        logger.warn(
+          `Medium severity error in ${context.operation}, continuing with degraded functionality`
+        );
         return { recovered: true, result: { degraded: true } };
-        
+
       case 'low':
         // Low severity - just log
         logger.info(`Low severity error in ${context.operation}, minor impact`);
@@ -343,12 +352,12 @@ export class ProductionErrorHandler {
       operation: context.operation,
       error: error.message,
       context: context.metadata,
-      requiresImmediateAttention: true
+      requiresImmediateAttention: true,
     };
 
     // Send to ops team (would integrate with PagerDuty, Slack, etc.)
     logger.error('ESCALATING ERROR TO OPS TEAM:', escalationData);
-    
+
     // In production, this would send alerts via:
     // - PagerDuty API
     // - Slack webhooks
@@ -365,20 +374,20 @@ export class ProductionErrorHandler {
     // - New Relic
     // - Sentry
     // - Application Insights
-    
+
     // For now, just log
     logger.info('Error sent to monitoring (placeholder):', {
       operation: errorData.operation,
       severity: errorData.severity,
-      timestamp: errorData.timestamp
+      timestamp: errorData.timestamp,
     });
   }
 
   /**
    * Get error statistics
    */
-  public getErrorStats(): { 
-    totalErrors: number; 
+  public getErrorStats(): {
+    totalErrors: number;
     errorsByOperation: Record<string, number>;
     circuitBreakerStatus: Record<string, { isOpen: boolean; failures: number }>;
   } {
@@ -394,14 +403,14 @@ export class ProductionErrorHandler {
     for (const [operation, breaker] of this.circuitBreakers.entries()) {
       circuitBreakerStatus[operation] = {
         isOpen: breaker.isOpen,
-        failures: breaker.failures
+        failures: breaker.failures,
       };
     }
 
     return {
       totalErrors,
       errorsByOperation,
-      circuitBreakerStatus
+      circuitBreakerStatus,
     };
   }
 }

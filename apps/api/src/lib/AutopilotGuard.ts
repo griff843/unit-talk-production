@@ -17,10 +17,11 @@
  * Every decision is logged to `autopilot_decisions` table for audit trail.
  */
 
-import { createLogger } from '../utils/logger';
+import { createHash } from 'crypto';
+
 import { supabase as supabaseClient } from '../services/supabaseClient';
 import { shadowMode } from '../shadow/ShadowMode';
-import { createHash } from 'crypto';
+import { createLogger } from '../utils/logger';
 
 // ============================================================================
 // Types
@@ -95,7 +96,7 @@ export class AutopilotGuard {
     this.logger.info('AutopilotGuard initialized', {
       mode: this.mode,
       canaryPercentage: this.canaryPercentage,
-      shadowMode: shadowMode.isShadowMode()
+      shadowMode: shadowMode.isShadowMode(),
     });
   }
 
@@ -128,7 +129,7 @@ export class AutopilotGuard {
       this.logger.debug('Evaluating side effect', {
         action: context.action,
         agent: context.agent_name,
-        contextHash
+        contextHash,
       });
 
       // Determine decision based on mode
@@ -147,24 +148,23 @@ export class AutopilotGuard {
         mode: result.mode,
         reason: result.reason,
         evidenceId,
-        durationMs: duration
+        durationMs: duration,
       });
 
       return result;
-
     } catch (error) {
       // FAIL-CLOSED: On any error, reject the side effect
       this.logger.error('AutopilotGuard evaluation failed - REJECTING (fail-closed)', {
         action: context?.action ?? 'unknown',
         agent: context?.agent_name ?? 'unknown',
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
 
       result = {
         allowed: false,
         decision: 'UNKNOWN',
         reason: `Evaluation error (fail-closed): ${error instanceof Error ? error.message : String(error)}`,
-        mode: this.mode
+        mode: this.mode,
       };
 
       // Still try to log the failure (only if context is valid)
@@ -206,7 +206,7 @@ export class AutopilotGuard {
         allowed: false,
         decision: 'REJECT',
         reason: 'Autopilot mode is OFF - all side effects blocked',
-        mode
+        mode,
       };
     }
 
@@ -215,7 +215,7 @@ export class AutopilotGuard {
         allowed: false,
         decision: 'REJECT',
         reason: 'Autopilot mode is LOG_ONLY - side effects logged but not executed',
-        mode
+        mode,
       };
     }
 
@@ -228,7 +228,7 @@ export class AutopilotGuard {
         reason: shouldAllow
           ? `Canary mode - action allowed (${this.canaryPercentage}% rollout)`
           : `Canary mode - action not in rollout group (${this.canaryPercentage}% rollout)`,
-        mode
+        mode,
       };
     }
 
@@ -244,7 +244,7 @@ export class AutopilotGuard {
           allowed: false,
           decision: 'REJECT',
           reason: 'Shadow mode is active - public actions blocked',
-          mode
+          mode,
         };
       }
 
@@ -252,7 +252,7 @@ export class AutopilotGuard {
         allowed: true,
         decision: 'ALLOW',
         reason: 'Autopilot mode is PROD - side effect allowed',
-        mode
+        mode,
       };
     }
 
@@ -261,7 +261,7 @@ export class AutopilotGuard {
       allowed: false,
       decision: 'UNKNOWN',
       reason: `Unknown autopilot mode: ${mode}`,
-      mode
+      mode,
     };
   }
 
@@ -301,8 +301,8 @@ export class AutopilotGuard {
           channelId: context.channel_id,
           recipientId: context.recipient_id,
           metadata: context.metadata,
-          evaluatedAt: new Date().toISOString()
-        }
+          evaluatedAt: new Date().toISOString(),
+        },
       };
 
       const { data, error } = await supabaseClient
@@ -319,7 +319,7 @@ export class AutopilotGuard {
       return data?.id;
     } catch (error) {
       this.logger.warn('Error logging autopilot decision', {
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       return undefined;
     }
@@ -334,7 +334,7 @@ export class AutopilotGuard {
       pick_id: context.pick_id,
       agent_name: context.agent_name,
       channel_id: context.channel_id,
-      recipient_id: context.recipient_id
+      recipient_id: context.recipient_id,
     });
     return createHash('sha256').update(hashInput).digest('hex').substring(0, 16);
   }
@@ -417,7 +417,7 @@ export class AutopilotGuard {
       mode: this.mode,
       canaryPercentage: this.canaryPercentage,
       shadowMode: shadowMode.isShadowMode(),
-      ready: true
+      ready: true,
     };
   }
 }
@@ -429,9 +429,7 @@ export class AutopilotGuard {
 export const autopilotGuard = AutopilotGuard.getInstance();
 
 // Convenience function for inline usage
-export async function assertMayPerformSideEffect(
-  context: SideEffectContext
-): Promise<GuardResult> {
+export async function assertMayPerformSideEffect(context: SideEffectContext): Promise<GuardResult> {
   return autopilotGuard.assertMayPerformSideEffect(context);
 }
 

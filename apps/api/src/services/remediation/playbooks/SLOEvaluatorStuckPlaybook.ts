@@ -10,7 +10,7 @@
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { BasePlaybook } from './BasePlaybook';
+
 import {
   ActionRecord,
   ExecutionContext,
@@ -18,6 +18,8 @@ import {
   ExecutionType,
   PlaybookId,
 } from '../types';
+
+import { BasePlaybook } from './BasePlaybook';
 
 // ============================================================================
 // SLOEvaluatorStuckPlaybook Class
@@ -59,26 +61,32 @@ export class SLOEvaluatorStuckPlaybook extends BasePlaybook {
     try {
       // Step 1: Check current workflow status
       const workflowStatus = await this.checkWorkflowStatus();
-      actions.push(this.createAction('check_workflow_status', true, {
-        targetKnob: 'WORKFLOW_STATUS',
-        previousValue: workflowStatus,
-      }));
+      actions.push(
+        this.createAction('check_workflow_status', true, {
+          targetKnob: 'WORKFLOW_STATUS',
+          previousValue: workflowStatus,
+        })
+      );
 
       // Step 2: Check agent registry
       const agentStatus = await this.checkAgentStatus();
-      actions.push(this.createAction('check_agent_status', true, {
-        targetKnob: 'AGENT_ENABLED',
-        previousValue: agentStatus,
-      }));
+      actions.push(
+        this.createAction('check_agent_status', true, {
+          targetKnob: 'AGENT_ENABLED',
+          previousValue: agentStatus,
+        })
+      );
 
       // Step 3: Determine if action is needed
       const needsRestart = this.evaluateRestartNeed(workflowStatus, agentStatus);
 
       if (!needsRestart) {
         this.logger.info('SLO evaluator appears healthy, no action needed');
-        actions.push(this.createAction('evaluate_health', true, {
-          newValue: 'healthy, no action needed',
-        }));
+        actions.push(
+          this.createAction('evaluate_health', true, {
+            newValue: 'healthy, no action needed',
+          })
+        );
         return this.createSuccessResult(actions, dryRun, context);
       }
 
@@ -89,10 +97,12 @@ export class SLOEvaluatorStuckPlaybook extends BasePlaybook {
           disabledAgents: agentStatus.disabled,
         });
 
-        actions.push(this.createAction('restart_evaluator', true, {
-          targetKnob: 'WORKFLOW_STATUS',
-          newValue: 'Would restart (dry run)',
-        }));
+        actions.push(
+          this.createAction('restart_evaluator', true, {
+            targetKnob: 'WORKFLOW_STATUS',
+            newValue: 'Would restart (dry run)',
+          })
+        );
 
         return this.createSuccessResult(actions, dryRun, context);
       }
@@ -100,27 +110,34 @@ export class SLOEvaluatorStuckPlaybook extends BasePlaybook {
       // Mark stale workflows for restart
       if (workflowStatus.stale.length > 0) {
         const restartResult = await this.markWorkflowsForRestart(workflowStatus.stale);
-        actions.push(this.createAction('mark_workflows_stale', restartResult.success, {
-          targetKnob: 'WORKFLOW_STATUS',
-          previousValue: workflowStatus.stale,
-          newValue: 'terminated',
-          error: restartResult.error,
-        }));
+        actions.push(
+          this.createAction('mark_workflows_stale', restartResult.success, {
+            targetKnob: 'WORKFLOW_STATUS',
+            previousValue: workflowStatus.stale,
+            newValue: 'terminated',
+            error: restartResult.error,
+          })
+        );
 
         if (!restartResult.success) {
-          return this.createFailedResult(restartResult.error || 'Failed to restart workflows', dryRun);
+          return this.createFailedResult(
+            restartResult.error || 'Failed to restart workflows',
+            dryRun
+          );
         }
       }
 
       // Re-enable disabled agents if needed
       if (agentStatus.disabled.length > 0) {
         const enableResult = await this.enableAgents(agentStatus.disabled);
-        actions.push(this.createAction('enable_agents', enableResult.success, {
-          targetKnob: 'AGENT_ENABLED',
-          previousValue: agentStatus.disabled,
-          newValue: 'enabled',
-          error: enableResult.error,
-        }));
+        actions.push(
+          this.createAction('enable_agents', enableResult.success, {
+            targetKnob: 'AGENT_ENABLED',
+            previousValue: agentStatus.disabled,
+            newValue: 'enabled',
+            error: enableResult.error,
+          })
+        );
 
         if (!enableResult.success) {
           this.logger.warn('Failed to re-enable some agents', { error: enableResult.error });
@@ -129,10 +146,12 @@ export class SLOEvaluatorStuckPlaybook extends BasePlaybook {
 
       // Trigger reconciliation
       const reconcileResult = await this.triggerReconciliation();
-      actions.push(this.createAction('trigger_reconciliation', reconcileResult.success, {
-        newValue: reconcileResult.reconciled,
-        error: reconcileResult.error,
-      }));
+      actions.push(
+        this.createAction('trigger_reconciliation', reconcileResult.success, {
+          newValue: reconcileResult.reconciled,
+          error: reconcileResult.error,
+        })
+      );
 
       this.logger.info('SLO evaluator recovery completed', {
         incidentId: context.incident_id,
@@ -145,9 +164,11 @@ export class SLOEvaluatorStuckPlaybook extends BasePlaybook {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('Failed to execute SLO evaluator recovery', { error: errorMessage });
 
-      actions.push(this.createAction('recovery_failed', false, {
-        error: errorMessage,
-      }));
+      actions.push(
+        this.createAction('recovery_failed', false, {
+          error: errorMessage,
+        })
+      );
 
       return this.createFailedResult(errorMessage, dryRun);
     }
@@ -179,14 +200,11 @@ export class SLOEvaluatorStuckPlaybook extends BasePlaybook {
       total: workflows.length,
       running: workflows.filter(w => w.status === 'running').length,
       stale: workflows
-        .filter(w =>
-          w.status === 'running' &&
-          new Date(w.last_heartbeat_at).getTime() < staleThreshold
+        .filter(
+          w => w.status === 'running' && new Date(w.last_heartbeat_at).getTime() < staleThreshold
         )
         .map(w => w.workflow_id),
-      failed: workflows
-        .filter(w => w.status === 'failed')
-        .map(w => w.workflow_id),
+      failed: workflows.filter(w => w.status === 'failed').map(w => w.workflow_id),
     };
   }
 
@@ -264,9 +282,7 @@ export class SLOEvaluatorStuckPlaybook extends BasePlaybook {
   /**
    * Enable disabled agents
    */
-  private async enableAgents(
-    agentNames: string[]
-  ): Promise<{ success: boolean; error?: string }> {
+  private async enableAgents(agentNames: string[]): Promise<{ success: boolean; error?: string }> {
     try {
       const { error } = await this.supabase
         .from('agent_registry')
@@ -331,7 +347,7 @@ export class SLOEvaluatorStuckPlaybook extends BasePlaybook {
       '   - Temporal worker health',
       '',
       '4. To disable agents again if needed:',
-      '   UPDATE agent_registry SET enabled = false WHERE agent_name ILIKE \'%slo%\';',
+      "   UPDATE agent_registry SET enabled = false WHERE agent_name ILIKE '%slo%';",
       '',
       `Incident ID: ${context.incident_id}`,
     ];
@@ -348,23 +364,23 @@ export class SLOEvaluatorStuckPlaybook extends BasePlaybook {
       '',
       '1. Check workflow registry:',
       '   SELECT * FROM workflow_registry',
-      '   WHERE agent_name ILIKE \'%slo%\'',
+      "   WHERE agent_name ILIKE '%slo%'",
       '   ORDER BY last_heartbeat_at DESC;',
       '',
       '2. Check for stale workflows (no heartbeat in 5min):',
       '   SELECT * FROM workflow_registry',
-      '   WHERE status = \'running\'',
-      '   AND last_heartbeat_at < NOW() - INTERVAL \'5 minutes\';',
+      "   WHERE status = 'running'",
+      "   AND last_heartbeat_at < NOW() - INTERVAL '5 minutes';",
       '',
       '3. Manually terminate stale workflows:',
-      '   SELECT unregister_workflow(\'<workflow_id>\', \'terminated\');',
+      "   SELECT unregister_workflow('<workflow_id>', 'terminated');",
       '',
       '4. Check agent registry:',
-      '   SELECT * FROM agent_registry WHERE agent_name ILIKE \'%slo%\';',
+      "   SELECT * FROM agent_registry WHERE agent_name ILIKE '%slo%';",
       '',
       '5. Re-enable agents if disabled:',
       '   UPDATE agent_registry SET enabled = true',
-      '   WHERE agent_name ILIKE \'%slo%\';',
+      "   WHERE agent_name ILIKE '%slo%';",
       '',
       '6. Trigger reconciliation:',
       '   SELECT reconcile_workflow_registry(300);',

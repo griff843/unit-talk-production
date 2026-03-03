@@ -9,7 +9,7 @@ export class DiscordInteractionHandler {
   private logger: Logger;
   private activeInteractions: Map<string, ActiveInteraction> = new Map();
   private embedTemplates: Map<string, EmbedTemplate> = new Map();
-  
+
   constructor(logger: Logger) {
     this.logger = logger;
     this.initializeEmbedTemplates();
@@ -17,13 +17,13 @@ export class DiscordInteractionHandler {
 
   async initialize(): Promise<void> {
     this.logger.info('🎮 Initializing Discord Interaction Handler...');
-    
+
     // Load interaction templates
     await this.loadInteractionTemplates();
-    
+
     // Initialize reaction tracking
     await this.setupReactionTracking();
-    
+
     this.logger.info('✅ Discord Interaction Handler initialized');
   }
 
@@ -38,7 +38,7 @@ export class DiscordInteractionHandler {
     try {
       const welcomeEmbed = this.createWelcomeEmbed(userProfile);
       const interactionButtons = this.createWelcomeButtons();
-      
+
       const interaction: DiscordInteraction = {
         id: `welcome-${userId}-${Date.now()}`,
         userId,
@@ -47,7 +47,7 @@ export class DiscordInteractionHandler {
         components: interactionButtons,
         expectedResponses: ['🎯', '📚', '💰', '🏆'],
         timeout: 300000, // 5 minutes
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       };
 
       // Track this interaction
@@ -55,19 +55,19 @@ export class DiscordInteractionHandler {
         interaction,
         startTime: Date.now(),
         responses: [],
-        completed: false
+        completed: false,
       });
 
       this.logger.info('🎯 Created welcome interaction', {
         userId,
-        interactionId: interaction.id
+        interactionId: interaction.id,
       });
 
       return interaction;
     } catch (error) {
       this.logger.error('❌ Failed to create welcome interaction:', {
         userId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -77,14 +77,14 @@ export class DiscordInteractionHandler {
    * Creates a learning step interaction
    */
   async createLearningStepInteraction(
-    userId: string, 
-    stepData: any, 
+    userId: string,
+    stepData: any,
     userProgress: any
   ): Promise<DiscordInteraction> {
     try {
       const stepEmbed = this.createStepEmbed(stepData, userProgress);
       const stepComponents = this.createStepComponents(stepData);
-      
+
       const interaction: DiscordInteraction = {
         id: `step-${stepData.id}-${userId}-${Date.now()}`,
         userId,
@@ -97,21 +97,21 @@ export class DiscordInteractionHandler {
         metadata: {
           stepId: stepData.id,
           pathId: userProgress.current_path,
-          difficulty: stepData.difficulty
-        }
+          difficulty: stepData.difficulty,
+        },
       };
 
       this.activeInteractions.set(interaction.id, {
         interaction,
         startTime: Date.now(),
         responses: [],
-        completed: false
+        completed: false,
       });
 
       this.logger.info('📚 Created learning step interaction', {
         userId,
         stepId: stepData.id,
-        interactionId: interaction.id
+        interactionId: interaction.id,
       });
 
       return interaction;
@@ -119,7 +119,7 @@ export class DiscordInteractionHandler {
       this.logger.error('❌ Failed to create learning step interaction:', {
         userId,
         stepId: stepData.id,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -129,18 +129,18 @@ export class DiscordInteractionHandler {
    * Processes user response to an interaction
    */
   async processInteractionResponse(
-    interactionId: string, 
-    responseType: string, 
+    interactionId: string,
+    responseType: string,
     responseData: any
   ): Promise<InteractionResult> {
     try {
       const activeInteraction = this.activeInteractions.get(interactionId);
-      
+
       if (!activeInteraction) {
         return {
           success: false,
           error: 'Interaction not found or expired',
-          nextAction: 'restart'
+          nextAction: 'restart',
         };
       }
 
@@ -148,15 +148,19 @@ export class DiscordInteractionHandler {
       activeInteraction.responses.push({
         type: responseType,
         data: responseData,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       // Analyze response
-      const analysisResult = await this.analyzeResponse(activeInteraction, responseType, responseData);
-      
+      const analysisResult = await this.analyzeResponse(
+        activeInteraction,
+        responseType,
+        responseData
+      );
+
       // Determine next action
       const nextAction = this.determineNextAction(activeInteraction, analysisResult);
-      
+
       // Update interaction state
       if (nextAction.type === 'complete') {
         activeInteraction.completed = true;
@@ -167,7 +171,7 @@ export class DiscordInteractionHandler {
         interactionId,
         responseType,
         nextAction: nextAction.type,
-        userId: activeInteraction.interaction.userId
+        userId: activeInteraction.interaction.userId,
       });
 
       return {
@@ -175,19 +179,19 @@ export class DiscordInteractionHandler {
         analysisResult,
         nextAction: nextAction.type,
         nextInteraction: nextAction.nextInteraction,
-        feedback: this.generateUserFeedback(analysisResult)
+        feedback: this.generateUserFeedback(analysisResult),
       };
     } catch (error) {
       this.logger.error('❌ Failed to process interaction response:', {
         interactionId,
         responseType,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
-      
+
       return {
         success: false,
         error: 'Failed to process response',
-        nextAction: 'retry'
+        nextAction: 'retry',
       };
     }
   }
@@ -196,8 +200,8 @@ export class DiscordInteractionHandler {
    * Creates adaptive follow-up interactions based on user behavior
    */
   async createAdaptiveFollowUp(
-    userId: string, 
-    behaviorData: any, 
+    userId: string,
+    behaviorData: any,
     adaptationRecommendation: any
   ): Promise<DiscordInteraction | null> {
     try {
@@ -207,7 +211,7 @@ export class DiscordInteractionHandler {
 
       const adaptiveEmbed = this.createAdaptiveEmbed(behaviorData, adaptationRecommendation);
       const adaptiveComponents = this.createAdaptiveComponents(adaptationRecommendation);
-      
+
       const interaction: DiscordInteraction = {
         id: `adaptive-${userId}-${Date.now()}`,
         userId,
@@ -219,28 +223,28 @@ export class DiscordInteractionHandler {
         createdAt: new Date().toISOString(),
         metadata: {
           adaptationType: adaptationRecommendation.type,
-          confidence: adaptationRecommendation.confidence
-        }
+          confidence: adaptationRecommendation.confidence,
+        },
       };
 
       this.activeInteractions.set(interaction.id, {
         interaction,
         startTime: Date.now(),
         responses: [],
-        completed: false
+        completed: false,
       });
 
       this.logger.info('🎯 Created adaptive follow-up interaction', {
         userId,
         adaptationType: adaptationRecommendation.type,
-        confidence: adaptationRecommendation.confidence
+        confidence: adaptationRecommendation.confidence,
       });
 
       return interaction;
     } catch (error) {
       this.logger.error('❌ Failed to create adaptive follow-up:', {
         userId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return null;
     }
@@ -250,23 +254,24 @@ export class DiscordInteractionHandler {
     // Welcome embed template
     this.embedTemplates.set('welcome', {
       title: '🎯 Welcome to Unit Talk Professional Betting Community!',
-      description: 'Let\'s start your journey to profitable sports betting',
+      description: "Let's start your journey to profitable sports betting",
       color: 0x00ff00,
       fields: [
         {
           name: '💎 What Makes Us Special',
-          value: '✅ Verified Professional Cappers\n✅ 100% Transparent Records\n✅ Real-Time Analytics\n✅ Community-First Approach',
-          inline: false
+          value:
+            '✅ Verified Professional Cappers\n✅ 100% Transparent Records\n✅ Real-Time Analytics\n✅ Community-First Approach',
+          inline: false,
         },
         {
           name: '🚀 Your Journey Starts Now',
           value: 'React below to personalize your learning experience!',
-          inline: false
-        }
+          inline: false,
+        },
       ],
       footer: {
-        text: 'Unit Talk - Where Professionals Share Their Edge'
-      }
+        text: 'Unit Talk - Where Professionals Share Their Edge',
+      },
     });
 
     // Learning step template
@@ -276,19 +281,19 @@ export class DiscordInteractionHandler {
       color: 0x0099ff,
       fields: [],
       footer: {
-        text: 'Unit Talk Professional Learning Path'
-      }
+        text: 'Unit Talk Professional Learning Path',
+      },
     });
 
     // Progress template
     this.embedTemplates.set('progress', {
       title: '📊 Your Progress',
-      description: 'See how far you\'ve come!',
+      description: "See how far you've come!",
       color: 0xffaa00,
       fields: [],
       footer: {
-        text: 'Keep up the great work!'
-      }
+        text: 'Keep up the great work!',
+      },
     });
   }
 
@@ -304,7 +309,7 @@ export class DiscordInteractionHandler {
 
   private createWelcomeEmbed(userProfile: any): any {
     const template = this.embedTemplates.get('welcome')!;
-    
+
     return {
       ...template,
       description: `Welcome ${userProfile.username || 'Future Pro'}! ${template.description}`,
@@ -312,11 +317,12 @@ export class DiscordInteractionHandler {
         ...template.fields,
         {
           name: '🎯 Quick Setup',
-          value: 'React with your experience level:\n🔰 Complete Beginner\n📈 Some Experience\n🎯 Looking to Improve\n💎 Want Pro Strategies',
-          inline: false
-        }
+          value:
+            'React with your experience level:\n🔰 Complete Beginner\n📈 Some Experience\n🎯 Looking to Improve\n💎 Want Pro Strategies',
+          inline: false,
+        },
       ],
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -329,28 +335,28 @@ export class DiscordInteractionHandler {
             type: 2, // Button
             style: 1, // Primary
             label: '🎯 Start Learning',
-            custom_id: 'start_learning'
+            custom_id: 'start_learning',
           },
           {
             type: 2, // Button
             style: 2, // Secondary
             label: '📊 View Cappers',
-            custom_id: 'view_cappers'
+            custom_id: 'view_cappers',
           },
           {
             type: 2, // Button
             style: 3, // Success
             label: '💰 Calculator',
-            custom_id: 'bankroll_calculator'
-          }
-        ]
-      }
+            custom_id: 'bankroll_calculator',
+          },
+        ],
+      },
     ];
   }
 
   private createStepEmbed(stepData: any, userProgress: any): any {
     const template = this.embedTemplates.get('learning_step')!;
-    
+
     return {
       ...template,
       title: stepData.title,
@@ -359,27 +365,27 @@ export class DiscordInteractionHandler {
         {
           name: '📈 Progress',
           value: `Step ${userProgress.current_step_number || 1} of ${userProgress.total_steps || 6}`,
-          inline: true
+          inline: true,
         },
         {
           name: '⏱️ Estimated Time',
           value: `${stepData.estimated_time} minutes`,
-          inline: true
+          inline: true,
         },
         {
           name: '🎯 Learning Objective',
           value: stepData.learning_objective || 'Master this concept',
-          inline: false
+          inline: false,
         },
-        ...(stepData.content.discord_embed?.fields || [])
+        ...(stepData.content.discord_embed?.fields || []),
       ],
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
   private createStepComponents(stepData: any): any[] {
     const components = [];
-    
+
     if (stepData.interactive_elements?.buttons) {
       components.push({
         type: 1, // Action Row
@@ -388,34 +394,34 @@ export class DiscordInteractionHandler {
             type: 2, // Button
             style: 1, // Primary
             label: '✅ I Understand',
-            custom_id: `understand_${stepData.id}`
+            custom_id: `understand_${stepData.id}`,
           },
           {
             type: 2, // Button
             style: 2, // Secondary
             label: '❓ Need Help',
-            custom_id: `help_${stepData.id}`
+            custom_id: `help_${stepData.id}`,
           },
           {
             type: 2, // Button
             style: 3, // Success
             label: '➡️ Next Step',
-            custom_id: `next_${stepData.id}`
-          }
-        ]
+            custom_id: `next_${stepData.id}`,
+          },
+        ],
       });
     }
-    
+
     return components;
   }
 
   private getExpectedResponses(stepData: any): string[] {
     const responses = ['✅', '❓'];
-    
+
     if (stepData.content.reactions) {
       responses.push(...stepData.content.reactions);
     }
-    
+
     return responses;
   }
 
@@ -426,22 +432,22 @@ export class DiscordInteractionHandler {
   ): Promise<ResponseAnalysis> {
     const interaction = activeInteraction.interaction;
     const responseTime = Date.now() - activeInteraction.startTime;
-    
+
     // Analyze response quality
     const quality = this.assessResponseQuality(responseType, responseData, interaction);
-    
+
     // Check completion criteria
     const meetsCompletion = this.checkCompletionCriteria(activeInteraction, responseType);
-    
+
     // Calculate engagement professional_score
     const engagementScore = this.calculateEngagementScore(activeInteraction, responseTime);
-    
+
     return {
       quality,
       engagementScore,
       responseTime,
       meetsCompletion,
-      nextSuggestion: this.suggestNextAction(quality, engagementScore, meetsCompletion)
+      nextSuggestion: this.suggestNextAction(quality, engagementScore, meetsCompletion),
     };
   }
 
@@ -453,81 +459,91 @@ export class DiscordInteractionHandler {
       return {
         type: 'complete',
         confidence: 0.9,
-        reasoning: 'User demonstrated understanding'
+        reasoning: 'User demonstrated understanding',
       };
     }
-    
+
     if (analysisResult.quality < 0.5) {
       return {
         type: 'retry',
         confidence: 0.8,
         reasoning: 'Response quality below threshold',
-        nextInteraction: this.createRetryInteraction(activeInteraction)
+        nextInteraction: this.createRetryInteraction(activeInteraction),
       };
     }
-    
+
     return {
       type: 'continue',
       confidence: 0.7,
-      reasoning: 'Proceeding to next step'
+      reasoning: 'Proceeding to next step',
     };
   }
 
-  private assessResponseQuality(responseType: string, responseData: any, interaction: DiscordInteraction): number {
+  private assessResponseQuality(
+    responseType: string,
+    responseData: any,
+    interaction: DiscordInteraction
+  ): number {
     // Simple quality assessment - in production this would be more sophisticated
     if (responseType === 'reaction' && interaction.expectedResponses.includes(responseData.emoji)) {
       return 0.8;
     }
-    
+
     if (responseType === 'message' && responseData.content.length > 10) {
       return 0.9;
     }
-    
+
     if (responseType === 'button') {
       return 0.7;
     }
-    
+
     return 0.5;
   }
 
-  private checkCompletionCriteria(activeInteraction: ActiveInteraction, responseType: string): boolean {
+  private checkCompletionCriteria(
+    activeInteraction: ActiveInteraction,
+    responseType: string
+  ): boolean {
     const interaction = activeInteraction.interaction;
-    
+
     // Check if minimum responses received
     if (activeInteraction.responses.length < 1) {
       return false;
     }
-    
+
     // Check specific completion criteria based on interaction type
     if (interaction.type === 'welcome') {
       return activeInteraction.responses.some(r => r.type === 'reaction' || r.type === 'button');
     }
-    
+
     return true;
   }
 
-  private calculateEngagementScore(activeInteraction: ActiveInteraction, responseTime: number): number {
+  private calculateEngagementScore(
+    activeInteraction: ActiveInteraction,
+    responseTime: number
+  ): number {
     const interaction = activeInteraction.interaction;
     const responseCount = activeInteraction.responses.length;
-    const timeScore = Math.max(0, 1 - (responseTime / interaction.timeout));
+    const timeScore = Math.max(0, 1 - responseTime / interaction.timeout);
     const responseScore = Math.min(1, responseCount / 2);
-    
-    return (timeScore * 0.6) + (responseScore * 0.4);
+
+    return timeScore * 0.6 + responseScore * 0.4;
   }
 
   private suggestNextAction(quality: number, engagement: number, meetsCompletion: boolean): string {
     if (meetsCompletion && quality > 0.8) {
       return 'proceed_to_next';
     }
-    
+
     if (quality < 0.5) {
       return 'provide_clarification';
     }
-    
+
     if (engagement < 0.4) {
       return 'increase_engagement';
     }
-    
+
     return 'continue_current';
   }
 
@@ -535,7 +551,7 @@ export class DiscordInteractionHandler {
     return {
       type: 'clarification',
       message: 'Let me explain that differently...',
-      simplified: true
+      simplified: true,
     };
   }
 
@@ -548,23 +564,25 @@ export class DiscordInteractionHandler {
         {
           name: '📊 What I Noticed',
           value: adaptationRecommendation.reasoning,
-          inline: false
+          inline: false,
         },
         {
           name: '🎯 Suggested Improvement',
-          value: adaptationRecommendation.actions.map((action: any) => `• ${action.action}`).join('\n'),
-          inline: false
+          value: adaptationRecommendation.actions
+            .map((action: any) => `• ${action.action}`)
+            .join('\n'),
+          inline: false,
         },
         {
           name: '❓ Apply Changes?',
           value: 'React ✅ to apply or ❌ to keep current settings',
-          inline: false
-        }
+          inline: false,
+        },
       ],
       footer: {
-        text: `Confidence: ${Math.round(adaptationRecommendation.confidence * 100)}%`
+        text: `Confidence: ${Math.round(adaptationRecommendation.confidence * 100)}%`,
       },
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -577,35 +595,35 @@ export class DiscordInteractionHandler {
             type: 2, // Button
             style: 3, // Success
             label: '✅ Apply Changes',
-            custom_id: 'apply_adaptation'
+            custom_id: 'apply_adaptation',
           },
           {
             type: 2, // Button
             style: 4, // Danger
             label: '❌ Keep Current',
-            custom_id: 'reject_adaptation'
+            custom_id: 'reject_adaptation',
           },
           {
             type: 2, // Button
             style: 2, // Secondary
             label: '🤔 Tell Me More',
-            custom_id: 'explain_adaptation'
-          }
-        ]
-      }
+            custom_id: 'explain_adaptation',
+          },
+        ],
+      },
     ];
   }
 
   private generateUserFeedback(analysisResult: ResponseAnalysis): string {
     if (analysisResult.quality > 0.8) {
-      return '🎉 Excellent! You\'re mastering this concept!';
+      return "🎉 Excellent! You're mastering this concept!";
     }
-    
+
     if (analysisResult.quality > 0.6) {
-      return '👍 Good progress! Let\'s continue building on this.';
+      return "👍 Good progress! Let's continue building on this.";
     }
-    
-    return '💪 Let\'s work on this together. I\'m here to help!';
+
+    return "💪 Let's work on this together. I'm here to help!";
   }
 
   async cleanup(): Promise<void> {

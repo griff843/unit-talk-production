@@ -6,7 +6,6 @@ import { fetchUnifiedData } from '../FeedAgent/dataSourceRouter';
 import { DataProvider } from './types';
 // import { fetchOptimalProps } from '../FeedAgent/optimal'; // Unused import
 
-
 /**
  * Fetch raw props from a specific data provider
  * @param provider - The data provider configuration
@@ -18,29 +17,28 @@ export async function fetchRawProps(provider: DataProvider): Promise<RawProp[]> 
   }
 
   try {
-  // Handle different provider types
-  switch (provider.name.toLowerCase()) {
-    case 'optimal':
-      console.log(`[fetchRawProps] Fetching from Optimal provider`);
-      return await fetchFromOptimal(provider);
+    // Handle different provider types
+    switch (provider.name.toLowerCase()) {
+      case 'optimal':
+        console.log(`[fetchRawProps] Fetching from Optimal provider`);
+        return await fetchFromOptimal(provider);
 
-    case 'sportsgameodds':
-    case 'sgo':
-      console.log(`[fetchRawProps] Fetching from SportsGameOdds provider`);
-      return await fetchFromSGO(provider);
+      case 'sportsgameodds':
+      case 'sgo':
+        console.log(`[fetchRawProps] Fetching from SportsGameOdds provider`);
+        return await fetchFromSGO(provider);
 
-    case 'oddsapi':
-      console.log(`[fetchRawProps] Fetching from OddsAPI provider`);
-      return await fetchFromOddsAPI(provider);
-      
+      case 'oddsapi':
+        console.log(`[fetchRawProps] Fetching from OddsAPI provider`);
+        return await fetchFromOddsAPI(provider);
+
       case 'pinnacle':
         return await fetchFromPinnacle(provider);
-      
+
       default:
         console.warn(`Unknown provider: ${provider.name}, returning mock data`);
         return await fetchMockData(provider);
     }
-    
   } catch (error) {
     console.error(`Failed to fetch from provider ${provider.name}:`, error);
     throw error;
@@ -58,44 +56,42 @@ async function fetchFromOptimal(_provider: DataProvider): Promise<RawProp[]> {
     // Updated leagues to include ALL major sports
     const leagues = ['NFL', 'NBA', 'MLB', 'NHL', 'NCAAF', 'NCAAB', 'WNBA'];
     const allProps: RawProp[] = [];
-    
+
     for (const league of leagues) {
       try {
         console.log(`[IngestionAgent] Fetching ${league} props via unified router`);
-        
+
         // Use unified data router for intelligent API selection
         const response = await fetchUnifiedData({
           sport: league,
           marketType: 'player-props',
-          date: currentDate
+          date: currentDate,
         });
 
         if (response.data && response.data.length > 0) {
           allProps.push(...response.data);
-          console.log(`[IngestionAgent] Fetched ${response.data.length} ${league} props from ${response.source}`);
+          console.log(
+            `[IngestionAgent] Fetched ${response.data.length} ${league} props from ${response.source}`
+          );
         }
-        
+
         // Small delay between league requests to be respectful
         if (leagues.indexOf(league) < leagues.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
-        
       } catch (error) {
         console.error(`[IngestionAgent] Failed to fetch ${league}:`, error);
         // Continue with other leagues even if one fails
       }
     }
-    
+
     console.log(`[IngestionAgent] Total props fetched: ${allProps.length}`);
     return allProps;
-    
   } catch (error) {
     console.error('[IngestionAgent] Unified fetch failed:', error);
     throw error;
   }
 }
-
-
 
 /**
  * Placeholder for SGO provider - implement when ready
@@ -190,8 +186,8 @@ async function fetchMockData(provider: DataProvider): Promise<RawProp[]> {
       updated_at: null,
       is_alt_line: null,
       is_primary: null,
-      is_valid: undefined
-    }
+      is_valid: undefined,
+    },
   ];
 
   return mockData;

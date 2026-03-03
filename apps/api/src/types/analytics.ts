@@ -147,4 +147,4 @@ export interface TrendAnalysis {
   marketTrend: string;
   competitiveTrend: string;
   confidence: number;
-} 
+}

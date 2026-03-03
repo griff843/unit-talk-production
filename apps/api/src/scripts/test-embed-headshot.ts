@@ -2,10 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { buildPickPresentation } from '../services/pickPresentationBuilder';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
 async function main() {
   // Find a recent LeBron James pick

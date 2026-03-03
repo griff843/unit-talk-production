@@ -146,7 +146,7 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
     case 'REMOVE_LEG':
       return {
         ...state,
-        legs: state.legs.filter((l) => l.id !== action.legId),
+        legs: state.legs.filter(l => l.id !== action.legId),
       };
 
     case 'RESET_WIZARD':

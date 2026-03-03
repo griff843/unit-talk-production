@@ -12,12 +12,15 @@ async function main() {
 
   const client = await pool.connect();
 
-  const { rows } = await client.query(`
+  const { rows } = await client.query(
+    `
     SELECT id, bet_slip_id, leg_index, ticket_type, meta
     FROM unified_picks
     WHERE bet_slip_id = $1
     ORDER BY leg_index
-  `, [PARLAY_ID]);
+  `,
+    [PARLAY_ID]
+  );
 
   console.log(`Parlay ${PARLAY_ID}:\n`);
   rows.forEach(p => {

@@ -1,4 +1,3 @@
-
 import twilio from 'twilio';
 
 import { env } from '../config/env';
@@ -31,7 +30,7 @@ export class SMSService {
       const result = await this.client.messages.create({
         body: message,
         from: this.fromNumber,
-        to
+        to,
       });
 
       logger.info('SMS sent successfully:', result.sid);
@@ -43,11 +42,15 @@ export class SMSService {
   }
 
   async healthCheck(): Promise<boolean> {
-    if (!this.client) {return false;}
-    
+    if (!this.client) {
+      return false;
+    }
+
     try {
       const accountSid = env.TWILIO_ACCOUNT_SID;
-      if (!accountSid) {return false;}
+      if (!accountSid) {
+        return false;
+      }
       await this.client.api.accounts(accountSid).fetch();
       return true;
     } catch (error) {

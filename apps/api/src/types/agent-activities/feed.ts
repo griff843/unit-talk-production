@@ -11,18 +11,19 @@ export interface FeedAgentActivities {
     feedId: string;
     transformations: string[];
     options?: Record<string, unknown>;
-  }): Promise<ActivityResult<{
-    itemsProcessed: number;
-    duration: number;
-    timestamp: string;
-  }>>;
+  }): Promise<
+    ActivityResult<{
+      itemsProcessed: number;
+      duration: number;
+      timestamp: string;
+    }>
+  >;
 
-  monitorFeeds(params: {
-    sources: string[];
-    interval?: number;
-  }): Promise<ActivityResult<{
-    activeSources: number;
-    totalItems: number;
-    timestamp: string;
-  }>>;
-} 
+  monitorFeeds(params: { sources: string[]; interval?: number }): Promise<
+    ActivityResult<{
+      activeSources: number;
+      totalItems: number;
+      timestamp: string;
+    }>
+  >;
+}

@@ -22,7 +22,10 @@ import * as path from 'path';
 // ============================================================================
 
 const API_BASE = process.env.API_BASE_URL || 'http://localhost:3001';
-const PROOF_DIR = path.resolve(__dirname, '../../../../../out/sprints/FULL-CHAIN-STAGING-GAUNTLET-041/2026-02-18/proofs');
+const PROOF_DIR = path.resolve(
+  __dirname,
+  '../../../../../out/sprints/FULL-CHAIN-STAGING-GAUNTLET-041/2026-02-18/proofs'
+);
 
 interface ScenarioResult {
   scenario: string;
@@ -56,7 +59,7 @@ async function apiCall(
     method,
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer admin-gauntlet',
+      Authorization: 'Bearer admin-gauntlet',
       'X-E2E-Test': 'true',
     },
   };
@@ -169,7 +172,7 @@ async function scenario1_HappyPathSingle(): Promise<ScenarioResult> {
       details: `settlement_status=${pick?.settlement_status}, settlement_result=${pick?.settlement_result}, posted=${pick?.posted_to_discord}`,
     });
 
-    const passed = checks.every((c) => c.passed);
+    const passed = checks.every(c => c.passed);
     return { scenario: 'S1: Happy Path Single', passed, checks };
   } catch (error) {
     return {
@@ -268,7 +271,7 @@ async function scenario2_HappyPathParlay(): Promise<ScenarioResult> {
       details: `shared=${sameMessageId}`,
     });
 
-    const passed = checks.every((c) => c.passed);
+    const passed = checks.every(c => c.passed);
     return { scenario: 'S2: Happy Path Parlay', passed, checks };
   } catch (error) {
     return {
@@ -307,7 +310,7 @@ async function scenario3_DuplicateSubmit(): Promise<ScenarioResult> {
       details: `status=${dupRes.status}, error=${(dupRes.data as any)?.error || 'N/A'}`,
     });
 
-    const passed = checks.every((c) => c.passed);
+    const passed = checks.every(c => c.passed);
     return { scenario: 'S3: Duplicate Submit', passed, checks };
   } catch (error) {
     return {
@@ -325,7 +328,9 @@ async function scenario4_DuplicatePost(): Promise<ScenarioResult> {
 
   try {
     // Setup: Create and queue pick
-    const injectRes = await apiCall('POST', '/ops/gauntlet/inject-pick', { bet_slip_id: betSlipId });
+    const injectRes = await apiCall('POST', '/ops/gauntlet/inject-pick', {
+      bet_slip_id: betSlipId,
+    });
     const pickId = (injectRes.data as any).pick_id;
     await apiCall('POST', '/ops/gauntlet/queue-pick', { pick_id: pickId });
 
@@ -355,7 +360,7 @@ async function scenario4_DuplicatePost(): Promise<ScenarioResult> {
       details: `original=${firstMessageId}, current=${pick?.discord_message_id}`,
     });
 
-    const passed = checks.every((c) => c.passed);
+    const passed = checks.every(c => c.passed);
     return { scenario: 'S4: Duplicate Post', passed, checks };
   } catch (error) {
     return {
@@ -373,7 +378,9 @@ async function scenario5_DuplicateSettle(): Promise<ScenarioResult> {
 
   try {
     // Setup: Create, queue, and post pick
-    const injectRes = await apiCall('POST', '/ops/gauntlet/inject-pick', { bet_slip_id: betSlipId });
+    const injectRes = await apiCall('POST', '/ops/gauntlet/inject-pick', {
+      bet_slip_id: betSlipId,
+    });
     const pickId = (injectRes.data as any).pick_id;
     await apiCall('POST', '/ops/gauntlet/queue-pick', { pick_id: pickId });
     await apiCall('POST', '/ops/gauntlet/post-pick', { pick_id: pickId });
@@ -409,7 +416,7 @@ async function scenario5_DuplicateSettle(): Promise<ScenarioResult> {
       details: `expected=win, actual=${pick?.settlement_result}`,
     });
 
-    const passed = checks.every((c) => c.passed);
+    const passed = checks.every(c => c.passed);
     return { scenario: 'S5: Duplicate Settle', passed, checks };
   } catch (error) {
     return {
@@ -427,7 +434,9 @@ async function scenario6_OutOfOrderPost(): Promise<ScenarioResult> {
 
   try {
     // Step 1: Create pick (SUBMITTED, not QUEUED)
-    const injectRes = await apiCall('POST', '/ops/gauntlet/inject-pick', { bet_slip_id: betSlipId });
+    const injectRes = await apiCall('POST', '/ops/gauntlet/inject-pick', {
+      bet_slip_id: betSlipId,
+    });
     const pickId = (injectRes.data as any).pick_id;
     checks.push({
       name: 'Create pick (SUBMITTED)',
@@ -454,7 +463,7 @@ async function scenario6_OutOfOrderPost(): Promise<ScenarioResult> {
       details: `post_status=${postRes.status}, posted_to_discord=${pick?.posted_to_discord}, promotion_status=${pick?.promotion_status}`,
     });
 
-    const passed = checks.every((c) => c.passed);
+    const passed = checks.every(c => c.passed);
     return { scenario: 'S6: Out-of-Order Post', passed, checks };
   } catch (error) {
     return {
@@ -472,7 +481,9 @@ async function scenario7_FailureRecovery(): Promise<ScenarioResult> {
 
   try {
     // Step 1: Create and queue pick
-    const injectRes = await apiCall('POST', '/ops/gauntlet/inject-pick', { bet_slip_id: betSlipId });
+    const injectRes = await apiCall('POST', '/ops/gauntlet/inject-pick', {
+      bet_slip_id: betSlipId,
+    });
     const pickId = (injectRes.data as any).pick_id;
     await apiCall('POST', '/ops/gauntlet/queue-pick', { pick_id: pickId });
 
@@ -500,7 +511,7 @@ async function scenario7_FailureRecovery(): Promise<ScenarioResult> {
       details: `posted_to_discord=${pick?.posted_to_discord}, promotion_status=${pick?.promotion_status}`,
     });
 
-    const passed = checks.every((c) => c.passed);
+    const passed = checks.every(c => c.passed);
     return { scenario: 'S7: Failure Recovery', passed, checks };
   } catch (error) {
     return {
@@ -518,7 +529,9 @@ async function scenario8_DiscordReceipt(): Promise<ScenarioResult> {
 
   try {
     // Step 1: Full happy path
-    const injectRes = await apiCall('POST', '/ops/gauntlet/inject-pick', { bet_slip_id: betSlipId });
+    const injectRes = await apiCall('POST', '/ops/gauntlet/inject-pick', {
+      bet_slip_id: betSlipId,
+    });
     const pickId = (injectRes.data as any).pick_id;
     await apiCall('POST', '/ops/gauntlet/queue-pick', { pick_id: pickId });
     await apiCall('POST', '/ops/gauntlet/post-pick', { pick_id: pickId });
@@ -542,7 +555,7 @@ async function scenario8_DiscordReceipt(): Promise<ScenarioResult> {
       details: `meta.discord_receipt=${JSON.stringify(pick?.meta?.discord_receipt || null)}`,
     });
 
-    const passed = checks.every((c) => c.passed);
+    const passed = checks.every(c => c.passed);
     return { scenario: 'S8: Discord Receipt', passed, checks };
   } catch (error) {
     return {
@@ -560,7 +573,9 @@ async function scenario9_BackfillReplay(): Promise<ScenarioResult> {
 
   try {
     // Step 1: Create pick
-    const injectRes = await apiCall('POST', '/ops/gauntlet/inject-pick', { bet_slip_id: betSlipId });
+    const injectRes = await apiCall('POST', '/ops/gauntlet/inject-pick', {
+      bet_slip_id: betSlipId,
+    });
     const pickId = (injectRes.data as any).pick_id;
     checks.push({
       name: 'Create pick',
@@ -569,7 +584,9 @@ async function scenario9_BackfillReplay(): Promise<ScenarioResult> {
     });
 
     // Step 2: Try to create again (simulate backfill replay)
-    const replayRes = await apiCall('POST', '/ops/gauntlet/inject-pick', { bet_slip_id: betSlipId });
+    const replayRes = await apiCall('POST', '/ops/gauntlet/inject-pick', {
+      bet_slip_id: betSlipId,
+    });
     checks.push({
       name: 'Replay rejected (idempotent)',
       passed: replayRes.status === 409,
@@ -584,7 +601,7 @@ async function scenario9_BackfillReplay(): Promise<ScenarioResult> {
       details: `pick exists=${getRes.status === 200}`,
     });
 
-    const passed = checks.every((c) => c.passed);
+    const passed = checks.every(c => c.passed);
     return { scenario: 'S9: Backfill Replay', passed, checks };
   } catch (error) {
     return {
@@ -625,7 +642,7 @@ async function scenario10_DriftDetection(): Promise<ScenarioResult> {
       details: hasDrift ? `DRIFT FOUND: ${JSON.stringify(driftConditions)}` : 'Clean state',
     });
 
-    const passed = checks.every((c) => c.passed);
+    const passed = checks.every(c => c.passed);
     return { scenario: 'S10: Drift Detection', passed, checks };
   } catch (error) {
     return {
@@ -693,7 +710,7 @@ async function runGauntlet(): Promise<void> {
 
   // Final summary
   logSection('SUMMARY');
-  const passedCount = results.filter((r) => r.passed).length;
+  const passedCount = results.filter(r => r.passed).length;
   const totalCount = results.length;
 
   log(`Results: ${passedCount}/${totalCount} scenarios passed`);
@@ -713,7 +730,7 @@ async function runGauntlet(): Promise<void> {
     `Failed: ${totalCount - passedCount}`,
     '',
     'SCENARIO RESULTS:',
-    ...results.map((r) => `  ${r.passed ? 'PASS' : 'FAIL'} - ${r.scenario}`),
+    ...results.map(r => `  ${r.passed ? 'PASS' : 'FAIL'} - ${r.scenario}`),
     '',
     `OVERALL: ${passedCount === totalCount ? 'PASS' : 'FAIL'}`,
   ].join('\n');
@@ -736,7 +753,7 @@ async function runGauntlet(): Promise<void> {
 }
 
 // Run
-runGauntlet().catch((error) => {
+runGauntlet().catch(error => {
   console.error('Fatal error:', error);
   process.exit(1);
 });

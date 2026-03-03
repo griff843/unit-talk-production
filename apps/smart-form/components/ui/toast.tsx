@@ -136,11 +136,7 @@ interface ToastDescriptionProps {
 
 const ToastDescription = React.forwardRef<HTMLDivElement, ToastDescriptionProps>(
   ({ className, children, ...props }, ref) => (
-    <ToastDescriptionPrimitive
-      ref={ref}
-      className={cn('text-sm opacity-90', className)}
-      {...props}
-    >
+    <ToastDescriptionPrimitive ref={ref} className={cn('text-sm opacity-90', className)} {...props}>
       {children}
     </ToastDescriptionPrimitive>
   )

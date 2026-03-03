@@ -1,7 +1,7 @@
 /**
  * Enhanced Scoring Engine
  * Implements professional capper analysis techniques based on capper insights analysis
- * 
+ *
  * Key enhancements:
  * - Handedness split analysis (8% weight for MLB)
  * - Recent trend analysis (7% weight)
@@ -22,7 +22,7 @@ import type {
   EnhancedScoringResult,
   SportSpecificWeights,
   ContextualMultipliers,
-  PerformanceMetrics
+  PerformanceMetrics,
 } from './types/enhancedScoring';
 
 // Export the types for external use
@@ -52,7 +52,10 @@ export class EnhancedScoringEngine {
     }
 
     // Calculate new enhanced components
-    const handednessSplitsScore = await this.calculateHandednessSplitsScore(playerData, gameContext);
+    const handednessSplitsScore = await this.calculateHandednessSplitsScore(
+      playerData,
+      gameContext
+    );
     const recentTrendsScore = await this.calculateRecentTrendsScore(playerData);
     const headToHeadScore = await this.calculateHeadToHeadScore(playerData, gameContext);
     const rosterStabilityScore = await this.calculateRosterStabilityScore(gameContext);
@@ -63,14 +66,14 @@ export class EnhancedScoringEngine {
     const contextMultiplier = this.getContextualMultiplier(gameContext);
 
     // Calculate weighted professional_score
-    const enhancedScore = (
-      (handednessSplitsScore * weights.handednessSplits) +
-      (recentTrendsScore * weights.recentTrendAnalysis) +
-      (headToHeadScore * weights.headToHeadHistory) +
-      (rosterStabilityScore * weights.rosterStabilityScore) +
-      (bullpenQualityScore * weights.bullpenQualityScore) +
-      (advancedSplitsScore * weights.advancedSplitAnalysis)
-    ) * contextMultiplier;
+    const enhancedScore =
+      (handednessSplitsScore * weights.handednessSplits +
+        recentTrendsScore * weights.recentTrendAnalysis +
+        headToHeadScore * weights.headToHeadHistory +
+        rosterStabilityScore * weights.rosterStabilityScore +
+        bullpenQualityScore * weights.bullpenQualityScore +
+        advancedSplitsScore * weights.advancedSplitAnalysis) *
+      contextMultiplier;
 
     // Generate insights
     const result: EnhancedScoringResult = {
@@ -80,35 +83,35 @@ export class EnhancedScoringEngine {
       rosterStabilityScore,
       bullpenQualityScore,
       advancedSplitsScore,
-      
+
       handednessAdvantage: this.determineHandednessAdvantage(handednessSplitsScore),
       trendMomentum: this.determineTrendMomentum(recentTrendsScore),
       historicalEdge: this.determineHistoricalEdge(headToHeadScore),
       teamStability: this.determineTeamStability(rosterStabilityScore),
       bullpenReliability: this.determineBullpenReliability(bullpenQualityScore),
       situationalEdge: this.determineSituationalEdge(advancedSplitsScore),
-      
+
       enhancedScore,
       confidenceLevel: this.calculateConfidenceLevel(enhancedScore, [
         handednessSplitsScore,
         recentTrendsScore,
-        headToHeadScore
+        headToHeadScore,
       ]),
       riskAssessment: this.assessRisk(enhancedScore, rosterStabilityScore),
-      
+
       keyFactors: this.generateKeyFactors({
         handednessSplitsScore,
         recentTrendsScore,
         headToHeadScore,
         rosterStabilityScore,
         bullpenQualityScore,
-        advancedSplitsScore
+        advancedSplitsScore,
       }),
       warnings: this.generateWarnings(rosterStabilityScore, bullpenQualityScore),
       recommendations: this.generateRecommendations(enhancedScore, {
         handednessAdvantage: this.determineHandednessAdvantage(handednessSplitsScore),
-        trendMomentum: this.determineTrendMomentum(recentTrendsScore)
-      })
+        trendMomentum: this.determineTrendMomentum(recentTrendsScore),
+      }),
     };
 
     return result;
@@ -118,17 +121,14 @@ export class EnhancedScoringEngine {
    * Calculate handedness splits professional_score (8% weight for MLB)
    * Based on batter vs LHP/RHP and pitcher vs LHB/RHB performance
    */
-  private async calculateHandednessSplitsScore(
-    playerData: any,
-    gameContext: any
-  ): Promise<number> {
+  private async calculateHandednessSplitsScore(playerData: any, gameContext: any): Promise<number> {
     // Gracefully handle missing pitcher data
     const { player, opposingPitcher } = playerData || {};
     if (!opposingPitcher || !opposingPitcher.id) {
       // Return neutral professional_score when pitcher data unavailable
       return 50;
     }
-    
+
     const pitcherHand = opposingPitcher?.throwing_hand || 'R';
     const batterHand = player?.batting_hand || 'R';
 
@@ -149,22 +149,24 @@ export class EnhancedScoringEngine {
     // Add historical splits data if available
     const batterSplits = await this.getBatterHandednessSplits(player.id);
     if (batterSplits) {
-      const relevantSplit = pitcherHand === 'L' ? batterSplits.batterVsLHP : batterSplits.batterVsRHP;
-      
-      if (relevantSplit.ops > 0.800) professional_score += 20;
-      else if (relevantSplit.ops > 0.750) professional_score += 10;
-      else if (relevantSplit.ops < 0.650) professional_score -= 15;
-      else if (relevantSplit.ops < 0.700) professional_score -= 8;
+      const relevantSplit =
+        pitcherHand === 'L' ? batterSplits.batterVsLHP : batterSplits.batterVsRHP;
+
+      if (relevantSplit.ops > 0.8) professional_score += 20;
+      else if (relevantSplit.ops > 0.75) professional_score += 10;
+      else if (relevantSplit.ops < 0.65) professional_score -= 15;
+      else if (relevantSplit.ops < 0.7) professional_score -= 8;
     }
 
     const pitcherSplits = await this.getPitcherHandednessSplits(opposingPitcher.id);
     if (pitcherSplits) {
-      const relevantSplit = batterHand === 'L' ? pitcherSplits.pitcherVsLHB : pitcherSplits.pitcherVsRHB;
-      
-      if (relevantSplit.era < 3.00) professional_score -= 15;
-      else if (relevantSplit.era < 3.50) professional_score -= 8;
-      else if (relevantSplit.era > 4.50) professional_score += 15;
-      else if (relevantSplit.era > 4.00) professional_score += 8;
+      const relevantSplit =
+        batterHand === 'L' ? pitcherSplits.pitcherVsLHB : pitcherSplits.pitcherVsRHB;
+
+      if (relevantSplit.era < 3.0) professional_score -= 15;
+      else if (relevantSplit.era < 3.5) professional_score -= 8;
+      else if (relevantSplit.era > 4.5) professional_score += 15;
+      else if (relevantSplit.era > 4.0) professional_score += 8;
     }
 
     return Math.max(0, Math.min(100, professional_score));
@@ -192,14 +194,13 @@ export class EnhancedScoringEngine {
     const last15Performance = this.normalizePerformance(trends.last15Games);
     const last30Performance = this.normalizePerformance(trends.last30Games);
 
-    const trendScore = (
-      (last3Performance * last3Weight) +
-      (last7Performance * last7Weight) +
-      (last15Performance * last15Weight) +
-      (last30Performance * last30Weight)
-    );
+    const trendScore =
+      last3Performance * last3Weight +
+      last7Performance * last7Weight +
+      last15Performance * last15Weight +
+      last30Performance * last30Weight;
 
-    professional_score = 50 + (trendScore * 50); // Convert to 0-100 scale
+    professional_score = 50 + trendScore * 50; // Convert to 0-100 scale
 
     // Apply trend direction bonus/penalty
     if (trends.trendDirection === 'improving') professional_score += 10;
@@ -216,29 +217,26 @@ export class EnhancedScoringEngine {
    * Calculate head-to-head professional_score (4% weight)
    * Based on historical player vs pitcher performance
    */
-  private async calculateHeadToHeadScore(
-    playerData: any,
-    gameContext: any
-  ): Promise<number> {
+  private async calculateHeadToHeadScore(playerData: any, gameContext: any): Promise<number> {
     const h2h = await this.getHeadToHeadHistory(
       playerData.player.id,
       playerData.opposingPitcher?.id
     );
-    
+
     if (!h2h || h2h.playerVsPitcher.atBats < 5) return 50;
 
     let professional_score = 50;
     const { playerVsPitcher } = h2h;
 
     // Historical performance analysis (key capper insight)
-    if (playerVsPitcher.avg > 0.350) professional_score += 25;
-    else if (playerVsPitcher.avg > 0.300) professional_score += 15;
-    else if (playerVsPitcher.avg < 0.200) professional_score -= 20;
-    else if (playerVsPitcher.avg < 0.250) professional_score -= 10;
+    if (playerVsPitcher.avg > 0.35) professional_score += 25;
+    else if (playerVsPitcher.avg > 0.3) professional_score += 15;
+    else if (playerVsPitcher.avg < 0.2) professional_score -= 20;
+    else if (playerVsPitcher.avg < 0.25) professional_score -= 10;
 
     // Power analysis
     if (playerVsPitcher.homeRuns > 0 && playerVsPitcher.atBats <= 10) professional_score += 15;
-    
+
     // Strikeout analysis
     const kRate = playerVsPitcher.strikeouts / playerVsPitcher.atBats;
     if (kRate < 0.15) professional_score += 10;
@@ -246,9 +244,11 @@ export class EnhancedScoringEngine {
 
     // Recent meetings matter more
     if (h2h.recentPerformance.length > 0) {
-      const recentAvg = h2h.recentPerformance.reduce((sum, game) => sum + (game.avg || 0), 0) / h2h.recentPerformance.length;
-      if (recentAvg > 0.400) professional_score += 10;
-      else if (recentAvg < 0.200) professional_score -= 10;
+      const recentAvg =
+        h2h.recentPerformance.reduce((sum, game) => sum + (game.avg || 0), 0) /
+        h2h.recentPerformance.length;
+      if (recentAvg > 0.4) professional_score += 10;
+      else if (recentAvg < 0.2) professional_score -= 10;
     }
 
     return Math.max(0, Math.min(100, professional_score));
@@ -267,7 +267,8 @@ export class EnhancedScoringEngine {
     // Trade deadline impact (key capper insight)
     if (stability.recentTrades.tradeDeadlineActivity) {
       const playersLost = stability.recentTrades.playersLost;
-      if (playersLost >= 5) professional_score -= 25; // "Minnesota traded away ten players"
+      if (playersLost >= 5)
+        professional_score -= 25; // "Minnesota traded away ten players"
       else if (playersLost >= 3) professional_score -= 15;
       else if (playersLost >= 1) professional_score -= 8;
     }
@@ -305,10 +306,7 @@ export class EnhancedScoringEngine {
    * Calculate advanced splits professional_score (5% weight)
    * Based on monthly, park, weather, and situational performance
    */
-  private async calculateAdvancedSplitsScore(
-    playerData: any,
-    gameContext: any
-  ): Promise<number> {
+  private async calculateAdvancedSplitsScore(playerData: any, gameContext: any): Promise<number> {
     const splits = await this.getAdvancedSplits(playerData.player.id);
     if (!splits) return 50;
 
@@ -353,60 +351,60 @@ export class EnhancedScoringEngine {
     return {
       MLB: {
         // NEW: Enhanced components based on capper insights
-        handednessSplits: 0.08,      // Major factor in MLB
-        recentTrendAnalysis: 0.07,   // Performance over recent games
-        headToHeadHistory: 0.04,     // Player vs player history
-        rosterStabilityScore: 0.03,  // Trade/chemistry impact
-        bullpenQualityScore: 0.03,   // Relief pitcher strength
+        handednessSplits: 0.08, // Major factor in MLB
+        recentTrendAnalysis: 0.07, // Performance over recent games
+        headToHeadHistory: 0.04, // Player vs player history
+        rosterStabilityScore: 0.03, // Trade/chemistry impact
+        bullpenQualityScore: 0.03, // Relief pitcher strength
         advancedSplitAnalysis: 0.05, // Monthly, park, situational splits
-        
+
         // ADJUSTED: Core features (reduced to make room)
-        expectedValue: 0.18,         // Was 0.22
-        lineMovement: 0.08,          // Was 0.10
-        matchupRating: 0.11,         // Was 0.13
-        playerForm: 0.07,            // Was 0.09
-        injuryImpact: 0.06,          // Was 0.07
-        weatherImpact: 0.04,         // Increased for MLB
-        
+        expectedValue: 0.18, // Was 0.22
+        lineMovement: 0.08, // Was 0.10
+        matchupRating: 0.11, // Was 0.13
+        playerForm: 0.07, // Was 0.09
+        injuryImpact: 0.06, // Was 0.07
+        weatherImpact: 0.04, // Increased for MLB
+
         // Market intelligence (slightly reduced)
-        marketIntelligence: 0.12,    // Was 0.15
-        sharpMoney: 0.08,            // Was 0.10
-        volumeProfile: 0.06,         // Was 0.07
-        closingLineValue: 0.10,      // Was 0.12
-        
+        marketIntelligence: 0.12, // Was 0.15
+        sharpMoney: 0.08, // Was 0.10
+        volumeProfile: 0.06, // Was 0.07
+        closingLineValue: 0.1, // Was 0.12
+
         // Professional features (maintained)
         steamDetection: 0.025,
-        closingLinePrediction: 0.020,
+        closingLinePrediction: 0.02,
         optimalTiming: 0.015,
         lineShoppingEdge: 0.015,
-        publicVsSharpSplit: 0.020,
-        marketTimingAdvantage: 0.010,
-        injuryTimingEdge: 0.010,
+        publicVsSharpSplit: 0.02,
+        marketTimingAdvantage: 0.01,
+        injuryTimingEdge: 0.01,
         crossMarketDiscrepancy: 0.005,
-        
+
         // Context (adjusted)
-        playerFatigue: 0.04,         // Was 0.05
-        venueAdvantage: 0.05,        // Increased for MLB park factors
-        refereeImpact: 0.01,         // Reduced for MLB (umpires less impact)
-        paceImpact: 0.02,           // Reduced for MLB
-        motivationalFactors: 0.03,   // Increased for rivalry/revenge games
-        
+        playerFatigue: 0.04, // Was 0.05
+        venueAdvantage: 0.05, // Increased for MLB park factors
+        refereeImpact: 0.01, // Reduced for MLB (umpires less impact)
+        paceImpact: 0.02, // Reduced for MLB
+        motivationalFactors: 0.03, // Increased for rivalry/revenge games
+
         // Risk factors (maintained)
         correlationRisk: 0.09,
         volatility: 0.07,
-        portfolioImpact: 0.10,
-        
+        portfolioImpact: 0.1,
+
         // ML ensemble (slightly reduced)
-        neuralNetwork: 0.15,         // Was 0.18
-        gradientBoosting: 0.18,      // Was 0.22
-        randomForest: 0.10,          // Was 0.13
-        ensemble: 0.22               // Was 0.27
+        neuralNetwork: 0.15, // Was 0.18
+        gradientBoosting: 0.18, // Was 0.22
+        randomForest: 0.1, // Was 0.13
+        ensemble: 0.22, // Was 0.27
       },
-      
+
       // Other sports maintain current weights for now
       NBA: {} as EnhancedScoringWeights,
       NFL: {} as EnhancedScoringWeights,
-      NHL: {} as EnhancedScoringWeights
+      NHL: {} as EnhancedScoringWeights,
     };
   }
 
@@ -415,17 +413,19 @@ export class EnhancedScoringEngine {
    */
   private initializeContextualMultipliers(): ContextualMultipliers {
     return {
-      deadlineImpact: 1.2,      // Trade deadline effects
-      weatherGames: 1.5,        // Weather impact on totals
-      revengeGames: 1.1,        // Motivational factors
-      playoffRace: 1.3,         // Late season implications
-      rookieDebut: 1.4,         // First-time situations
-      streakSituations: 1.2     // Hot/cold streaks
+      deadlineImpact: 1.2, // Trade deadline effects
+      weatherGames: 1.5, // Weather impact on totals
+      revengeGames: 1.1, // Motivational factors
+      playoffRace: 1.3, // Late season implications
+      rookieDebut: 1.4, // First-time situations
+      streakSituations: 1.2, // Hot/cold streaks
     };
   }
 
   // Helper methods for scoring analysis
-  private determineHandednessAdvantage(score: number): 'strong' | 'moderate' | 'slight' | 'neutral' | 'disadvantage' {
+  private determineHandednessAdvantage(
+    score: number
+  ): 'strong' | 'moderate' | 'slight' | 'neutral' | 'disadvantage' {
     if (score >= 80) return 'strong';
     if (score >= 70) return 'moderate';
     if (score >= 60) return 'slight';
@@ -441,7 +441,9 @@ export class EnhancedScoringEngine {
     return 'cold';
   }
 
-  private determineHistoricalEdge(score: number): 'strong_batter' | 'slight_batter' | 'neutral' | 'slight_pitcher' | 'strong_pitcher' {
+  private determineHistoricalEdge(
+    score: number
+  ): 'strong_batter' | 'slight_batter' | 'neutral' | 'slight_pitcher' | 'strong_pitcher' {
     if (score >= 75) return 'strong_batter';
     if (score >= 60) return 'slight_batter';
     if (score >= 40) return 'neutral';
@@ -449,7 +451,9 @@ export class EnhancedScoringEngine {
     return 'strong_pitcher';
   }
 
-  private determineTeamStability(score: number): 'very_stable' | 'stable' | 'moderate' | 'unstable' | 'very_unstable' {
+  private determineTeamStability(
+    score: number
+  ): 'very_stable' | 'stable' | 'moderate' | 'unstable' | 'very_unstable' {
     if (score >= 85) return 'very_stable';
     if (score >= 70) return 'stable';
     if (score >= 50) return 'moderate';
@@ -457,7 +461,9 @@ export class EnhancedScoringEngine {
     return 'very_unstable';
   }
 
-  private determineBullpenReliability(score: number): 'elite' | 'strong' | 'average' | 'weak' | 'poor' {
+  private determineBullpenReliability(
+    score: number
+  ): 'elite' | 'strong' | 'average' | 'weak' | 'poor' {
     if (score >= 85) return 'elite';
     if (score >= 70) return 'strong';
     if (score >= 50) return 'average';
@@ -465,7 +471,9 @@ export class EnhancedScoringEngine {
     return 'poor';
   }
 
-  private determineSituationalEdge(score: number): 'strong' | 'moderate' | 'slight' | 'neutral' | 'negative' {
+  private determineSituationalEdge(
+    score: number
+  ): 'strong' | 'moderate' | 'slight' | 'neutral' | 'negative' {
     if (score >= 75) return 'strong';
     if (score >= 65) return 'moderate';
     if (score >= 55) return 'slight';
@@ -477,10 +485,10 @@ export class EnhancedScoringEngine {
     // Higher confidence when multiple components agree
     const scoreVariance = this.calculateVariance(componentScores);
     const baseConfidence = enhancedScore;
-    
+
     // Lower variance = higher confidence
     const variancePenalty = scoreVariance > 20 ? 10 : scoreVariance > 15 ? 5 : 0;
-    
+
     return Math.max(0, Math.min(100, baseConfidence - variancePenalty));
   }
 
@@ -492,40 +500,40 @@ export class EnhancedScoringEngine {
 
   private generateKeyFactors(scores: any): string[] {
     const factors: string[] = [];
-    
+
     if (scores.handednessSplitsScore >= 70) factors.push('Favorable handedness matchup');
     if (scores.recentTrendsScore >= 75) factors.push('Player in excellent recent form');
     if (scores.headToHeadScore >= 70) factors.push('Strong historical vs opponent');
     if (scores.rosterStabilityScore <= 40) factors.push('Team roster disruption');
     if (scores.bullpenQualityScore <= 40) factors.push('Weakened bullpen');
     if (scores.advancedSplitsScore >= 70) factors.push('Favorable situational splits');
-    
+
     return factors;
   }
 
   private generateWarnings(stabilityScore: number, bullpenScore: number): string[] {
     const warnings: string[] = [];
-    
+
     if (stabilityScore <= 30) warnings.push('Significant roster instability - use caution');
     if (bullpenScore <= 30) warnings.push('Bullpen concerns may affect game length props');
-    
+
     return warnings;
   }
 
   private generateRecommendations(score: number, context: any): string[] {
     const recommendations: string[] = [];
-    
+
     if (score >= 75) recommendations.push('Strong play - consider higher confidence');
     else if (score <= 30) recommendations.push('Weak setup - consider avoiding');
-    
+
     if (context.handednessAdvantage === 'strong') {
       recommendations.push('Leverage handedness advantage');
     }
-    
+
     if (context.trendMomentum === 'hot') {
       recommendations.push('Player trending upward - good timing');
     }
-    
+
     return recommendations;
   }
 
@@ -545,7 +553,10 @@ export class EnhancedScoringEngine {
     return null;
   }
 
-  private async getHeadToHeadHistory(playerId: string, pitcherId: string): Promise<HeadToHeadHistory | null> {
+  private async getHeadToHeadHistory(
+    playerId: string,
+    pitcherId: string
+  ): Promise<HeadToHeadHistory | null> {
     // TODO: Implement head-to-head historical data
     return null;
   }
@@ -572,11 +583,11 @@ export class EnhancedScoringEngine {
 
   private getContextualMultiplier(gameContext: any): number {
     let multiplier = 1.0;
-    
+
     if (gameContext.isTradeDeadline) multiplier *= this.contextualMultipliers.deadlineImpact;
     if (gameContext.hasSignificantWeather) multiplier *= this.contextualMultipliers.weatherGames;
     if (gameContext.isRevengeGame) multiplier *= this.contextualMultipliers.revengeGames;
-    
+
     return multiplier;
   }
 

@@ -40,7 +40,7 @@ export class PerformanceAnalyzer {
   private betHistory: BetResult[] = [];
   private performanceCache: Map<string, PerformanceMetrics> = new Map();
   private lastCacheUpdate: string = new Date().toISOString();
-  
+
   constructor() {
     // Initialize performance analyzer
   }
@@ -50,29 +50,36 @@ export class PerformanceAnalyzer {
    */
   public async recordBetResult(betResult: BetResult): Promise<void> {
     this.betHistory.push(betResult);
-    
+
     // Clear cache to force recalculation
     this.performanceCache.clear();
-    
+
     // Log performance milestone
     if (this.betHistory.length % 100 === 0) {
       console.log(`📊 Performance milestone: ${this.betHistory.length}
 } bets recorded`);
       const metrics = await this.getPerformanceMetrics();
-      console.log(`Current ROI: ${metrics.roi.toFixed(2)}%, Win Rate: ${(metrics.winRate * 100).toFixed(1)}%`);
+      console.log(
+        `Current ROI: ${metrics.roi.toFixed(2)}%, Win Rate: ${(metrics.winRate * 100).toFixed(1)}%`
+      );
     }
   }
 
   /**
    * Get comprehensive performance metrics
    */
-  public async getPerformanceMetrics(timeframe: 'all' | '30d' | '7d' = 'all'): Promise<PerformanceMetrics> {
+  public async getPerformanceMetrics(
+    timeframe: 'all' | '30d' | '7d' = 'all'
+  ): Promise<PerformanceMetrics> {
     const cacheKey = `metrics_${timeframe}
 }`;
-    
+
     // Check cache
-    if (this.performanceCache.has(cacheKey) &&
-        (Date.now() - new Date(this.lastCacheUpdate).getTime()) < 5 * 60 * 1000) { // 5 min cache
+    if (
+      this.performanceCache.has(cacheKey) &&
+      Date.now() - new Date(this.lastCacheUpdate).getTime() < 5 * 60 * 1000
+    ) {
+      // 5 min cache
       return this.performanceCache.get(cacheKey)!;
     }
 
@@ -83,40 +90,38 @@ export class PerformanceAnalyzer {
       const days = timeframe === '30d' ? 30 : 7;
       cutoffDate.setDate(cutoffDate.getDate() - days);
 
-      filteredBets = this.betHistory.filter(bet =>
-        new Date(bet.timestamp) >= cutoffDate
-      );
+      filteredBets = this.betHistory.filter(bet => new Date(bet.timestamp) >= cutoffDate);
     }
-    
+
     if (filteredBets.length === 0) {
       return this.getDefaultMetrics();
     }
-    
+
     // Calculate metrics
     const totalBets = filteredBets.length;
     const wins = filteredBets.filter(bet => bet.result > 0).length;
     const winRate = wins / totalBets;
-    
+
     const totalProfit = filteredBets.reduce((sum, bet) => sum + bet.profit, 0);
     const totalStake = filteredBets.reduce((sum, bet) => sum + bet.positionSize, 0);
     const roi = totalStake > 0 ? (totalProfit / totalStake) * 100 : 0;
     const avgStake = totalStake / totalBets;
-    
+
     // Risk-adjusted metrics
     const returns = filteredBets.map(bet => bet.profit / bet.positionSize);
     const avgReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
     const volatility = this.calculateVolatility(returns);
     const sharpeRatio = volatility > 0 ? avgReturn / volatility : 0;
-    
+
     const maxDrawdown = this.calculateMaxDrawdown(filteredBets);
     const profitFactor = this.calculateProfitFactor(filteredBets);
 
     // Tier analysis
     const tierPerformance = this.analyzeTierPerformance(filteredBets);
-    const bestTier = Object.entries(tierPerformance)
-      .sort((a, b) => b[1].roi - a[1].roi)[0]?.[0] || 'N/A';
-    const worstTier = Object.entries(tierPerformance)
-      .sort((a, b) => a[1].roi - b[1].roi)[0]?.[0] || 'N/A';
+    const bestTier =
+      Object.entries(tierPerformance).sort((a, b) => b[1].roi - a[1].roi)[0]?.[0] || 'N/A';
+    const worstTier =
+      Object.entries(tierPerformance).sort((a, b) => a[1].roi - b[1].roi)[0]?.[0] || 'N/A';
 
     // Recent form (last 10 bets)
     const recentBets = filteredBets.slice(-10);
@@ -143,7 +148,7 @@ export class PerformanceAnalyzer {
       recentForm,
       byTier: tierPerformance,
       bySport: sportPerformance,
-      byMarket: marketPerformance
+      byMarket: marketPerformance,
     };
 
     // Cache results
@@ -163,24 +168,24 @@ export class PerformanceAnalyzer {
     trend: Array<{ date: string; accuracy: number }>;
   }> {
     let bets = this.betHistory;
-    
+
     if (modelType) {
       bets = bets.filter(bet => bet.modelUsed === modelType);
     }
-    
+
     if (bets.length === 0) {
       return {
         overall: 0,
         byTier: {},
         byConfidence: {},
-        trend: []
+        trend: [],
       };
     }
-    
+
     // Overall accuracy
     const correctPredictions = bets.filter(bet => bet.result > 0).length;
     const overall = correctPredictions / bets.length;
-    
+
     // Accuracy by tier
     const byTier: Record<string, number> = {};
     const tierGroups = this.groupBy(bets, bet => bet.tier);
@@ -188,16 +193,16 @@ export class PerformanceAnalyzer {
       const tierCorrect = tierBets.filter(bet => bet.result > 0).length;
       byTier[tier] = tierCorrect / tierBets.length;
     });
-    
+
     // Accuracy by confidence ranges
     const byConfidence: Record<string, number> = {};
     const confidenceRanges = [
       { range: '80%+', filter: (bet: BetResult) => bet.confidence >= 80 },
       { range: '70-80%', filter: (bet: BetResult) => bet.confidence >= 70 && bet.confidence < 80 },
       { range: '60-70%', filter: (bet: BetResult) => bet.confidence >= 60 && bet.confidence < 70 },
-      { range: '<60%', filter: (bet: BetResult) => bet.confidence < 60 }
+      { range: '<60%', filter: (bet: BetResult) => bet.confidence < 60 },
     ];
-    
+
     confidenceRanges.forEach(({ range, filter }) => {
       const rangeBets = bets.filter(filter);
       if (rangeBets.length > 0) {
@@ -205,15 +210,15 @@ export class PerformanceAnalyzer {
         byConfidence[range] = rangeCorrect / rangeBets.length;
       }
     });
-    
+
     // Accuracy trend (last 30 days)
     const trend = this.calculateAccuracyTrend(bets);
-    
+
     return {
       overall,
       byTier,
       byConfidence,
-      trend
+      trend,
     };
   }
 
@@ -241,7 +246,7 @@ export class PerformanceAnalyzer {
       confidence: gradingResult.confidence,
       expectedValue: gradingResult.edgeScore || 0,
       timestamp: new Date().toISOString(),
-      modelUsed: 'syndicate_grading_engine'
+      modelUsed: 'syndicate_grading_engine',
     };
 
     await this.recordBetResult(betResult);
@@ -253,11 +258,11 @@ export class PerformanceAnalyzer {
   public async getModelComparison(): Promise<Record<string, PerformanceMetrics>> {
     const modelGroups = this.groupBy(this.betHistory, bet => bet.modelUsed);
     const comparison: Record<string, PerformanceMetrics> = {};
-    
+
     for (const [model, bets] of Object.entries(modelGroups)) {
       comparison[model] = await this.calculateMetricsForBets(bets);
     }
-    
+
     return comparison;
   }
 
@@ -278,8 +283,10 @@ export class PerformanceAnalyzer {
 
   // Private helper methods
   private calculateVolatility(returns: number[]): number {
-    if (returns.length < 2) {return 0;}
-    
+    if (returns.length < 2) {
+      return 0;
+    }
+
     const mean = returns.reduce((sum, r) => sum + r, 0) / returns.length;
     const variance = returns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / returns.length;
     return Math.sqrt(variance);
@@ -289,7 +296,7 @@ export class PerformanceAnalyzer {
     let peak = 0;
     let maxDrawdown = 0;
     let runningTotal = 0;
-    
+
     for (const bet of bets) {
       runningTotal += bet.profit;
       if (runningTotal > peak) {
@@ -298,33 +305,35 @@ export class PerformanceAnalyzer {
       const drawdown = peak > 0 ? (peak - runningTotal) / peak : 0;
       maxDrawdown = Math.max(maxDrawdown, drawdown);
     }
-    
+
     return maxDrawdown;
   }
 
   private calculateProfitFactor(bets: BetResult[]): number {
     const wins = bets.filter(bet => bet.result > 0);
     const losses = bets.filter(bet => bet.result <= 0);
-    
+
     const totalWins = wins.reduce((sum, bet) => sum + bet.profit, 0);
     const totalLosses = Math.abs(losses.reduce((sum, bet) => sum + bet.profit, 0));
-    
+
     return totalLosses > 0 ? totalWins / totalLosses : totalWins > 0 ? 999 : 0;
   }
 
-  private analyzeTierPerformance(bets: BetResult[]): Record<string, { count: number; winRate: number; roi: number }> {
+  private analyzeTierPerformance(
+    bets: BetResult[]
+  ): Record<string, { count: number; winRate: number; roi: number }> {
     const tierGroups = this.groupBy(bets, bet => bet.tier);
     const tierPerformance: Record<string, { count: number; winRate: number; roi: number }> = {};
-    
+
     Object.entries(tierGroups).forEach(([tier, tierBets]) => {
       const wins = tierBets.filter(bet => bet.result > 0).length;
       const totalProfit = tierBets.reduce((sum, bet) => sum + bet.profit, 0);
       const totalStake = tierBets.reduce((sum, bet) => sum + bet.positionSize, 0);
-      
+
       tierPerformance[tier] = {
         count: tierBets.length,
         winRate: wins / tierBets.length,
-        roi: totalStake > 0 ? (totalProfit / totalStake) * 100 : 0
+        roi: totalStake > 0 ? (totalProfit / totalStake) * 100 : 0,
       };
     });
 
@@ -342,7 +351,7 @@ export class PerformanceAnalyzer {
     return Object.entries(dailyGroups)
       .map(([date, dayBets]) => ({
         date,
-        accuracy: dayBets.filter(bet => bet.result > 0).length / dayBets.length
+        accuracy: dayBets.filter(bet => bet.result > 0).length / dayBets.length,
       }))
       .sort((a, b) => a.date.localeCompare(b.date))
       .slice(-30); // Last 30 days
@@ -371,10 +380,10 @@ export class PerformanceAnalyzer {
     const profitFactor = this.calculateProfitFactor(bets);
 
     const tierPerformance = this.analyzeTierPerformance(bets);
-    const bestTier = Object.entries(tierPerformance)
-      .sort((a, b) => b[1].roi - a[1].roi)[0]?.[0] || 'N/A';
-    const worstTier = Object.entries(tierPerformance)
-      .sort((a, b) => a[1].roi - b[1].roi)[0]?.[0] || 'N/A';
+    const bestTier =
+      Object.entries(tierPerformance).sort((a, b) => b[1].roi - a[1].roi)[0]?.[0] || 'N/A';
+    const worstTier =
+      Object.entries(tierPerformance).sort((a, b) => a[1].roi - b[1].roi)[0]?.[0] || 'N/A';
 
     // Added: analyze performance by sport and market
     const sportPerformance = this.analyzeSportPerformance(bets);
@@ -397,11 +406,13 @@ export class PerformanceAnalyzer {
       worstTier,
       recentForm,
       bySport: sportPerformance,
-      byMarket: marketPerformance
+      byMarket: marketPerformance,
     };
   }
 
-  private analyzeSportPerformance(bets: BetResult[]): Record<string, { count: number; winRate: number; roi: number }> {
+  private analyzeSportPerformance(
+    bets: BetResult[]
+  ): Record<string, { count: number; winRate: number; roi: number }> {
     const sportGroups = this.groupBy(bets, bet => bet.sport);
     const sportPerformance: Record<string, { count: number; winRate: number; roi: number }> = {};
 
@@ -413,14 +424,16 @@ export class PerformanceAnalyzer {
       sportPerformance[sport] = {
         count: sportBets.length,
         winRate: wins / sportBets.length,
-        roi: totalStake > 0 ? (totalProfit / totalStake) * 100 : 0
+        roi: totalStake > 0 ? (totalProfit / totalStake) * 100 : 0,
       };
     });
 
     return sportPerformance;
   }
 
-  private analyzeMarketPerformance(bets: BetResult[]): Record<string, { count: number; winRate: number; roi: number }> {
+  private analyzeMarketPerformance(
+    bets: BetResult[]
+  ): Record<string, { count: number; winRate: number; roi: number }> {
     const marketGroups = this.groupBy(bets, bet => bet.marketType);
     const marketPerformance: Record<string, { count: number; winRate: number; roi: number }> = {};
 
@@ -432,7 +445,7 @@ export class PerformanceAnalyzer {
       marketPerformance[market] = {
         count: marketBets.length,
         winRate: wins / marketBets.length,
-        roi: totalStake > 0 ? (totalProfit / totalStake) * 100 : 0
+        roi: totalStake > 0 ? (totalProfit / totalStake) * 100 : 0,
       };
     });
 
@@ -451,16 +464,21 @@ export class PerformanceAnalyzer {
       avgStake: 0,
       bestTier: 'N/A',
       worstTier: 'N/A',
-      recentForm: 0
+      recentForm: 0,
     };
   }
 
   private groupBy<T>(array: T[], keyFn: (item: T) => string): Record<string, T[]> {
-    return array.reduce((groups, item) => {
-      const key = keyFn(item);
-      if (!groups[key]) {groups[key] = [];}
-      groups[key].push(item);
-      return groups;
-    }, {} as Record<string, T[]>);
+    return array.reduce(
+      (groups, item) => {
+        const key = keyFn(item);
+        if (!groups[key]) {
+          groups[key] = [];
+        }
+        groups[key].push(item);
+        return groups;
+      },
+      {} as Record<string, T[]>
+    );
   }
 }

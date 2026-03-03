@@ -21,7 +21,9 @@ export async function dedupePublicProps(
   supabase: SupabaseClient
 ): Promise<RawProp[]> {
   try {
-    if (props.length === 0) {return [];}
+    if (props.length === 0) {
+      return [];
+    }
 
     // Chunk keys if needed (to avoid .in() limits)
     const uniqueKeys = props.map(p => p.external_id).filter(Boolean) as string[];
@@ -35,11 +37,14 @@ export async function dedupePublicProps(
         .in('external_id', chunk);
 
       if (error) {
-        await logCoverage({
-          provider,
-          data: { chunk, error: error.message },
-          timestamp: new Date().toISOString()
-        }, supabase);
+        await logCoverage(
+          {
+            provider,
+            data: { chunk, error: error.message },
+            timestamp: new Date().toISOString(),
+          },
+          supabase
+        );
         // Optionally: continue instead of breaking (if partial dedupe is OK)
         throw error;
       }
@@ -48,26 +53,32 @@ export async function dedupePublicProps(
 
     const deduped = props.filter(p => !existingKeys.has(p.external_id ?? ''));
     if (deduped.length !== props.length) {
-      await logCoverage({
-        provider,
-        data: {
-          originalCount: props.length,
-          dedupedCount: deduped.length,
-          filtered: props.length - deduped.length
+      await logCoverage(
+        {
+          provider,
+          data: {
+            originalCount: props.length,
+            dedupedCount: deduped.length,
+            filtered: props.length - deduped.length,
+          },
+          timestamp: new Date().toISOString(),
         },
-        timestamp: new Date().toISOString()
-      }, supabase);
+        supabase
+      );
     }
 
     return deduped;
   } catch (err) {
-    await logCoverage({
-      provider,
-      data: {
-        error: err instanceof Error ? err.message : String(err)
+    await logCoverage(
+      {
+        provider,
+        data: {
+          error: err instanceof Error ? err.message : String(err),
+        },
+        timestamp: new Date().toISOString(),
       },
-      timestamp: new Date().toISOString()
-    }, supabase);
+      supabase
+    );
     return [];
   }
 }

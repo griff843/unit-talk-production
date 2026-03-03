@@ -28,9 +28,9 @@ export async function fetchFromProviderActivity(input: FetchProviderInput): Prom
   try {
     const response = await fetch(url, {
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      }
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
     });
 
     const latencyMs = Date.now() - startTime;
@@ -56,7 +56,7 @@ export async function fetchFromProviderActivity(input: FetchProviderInput): Prom
           latencyMs,
           timestamp,
           statusCode: response.status,
-          ...(responseBody !== undefined && { responseText: responseBody })
+          ...(responseBody !== undefined && { responseText: responseBody }),
         };
       }
     } else {
@@ -67,7 +67,7 @@ export async function fetchFromProviderActivity(input: FetchProviderInput): Prom
         latencyMs,
         timestamp,
         statusCode: response.status,
-        ...(responseBody !== undefined && { responseText: responseBody })
+        ...(responseBody !== undefined && { responseText: responseBody }),
       };
     }
 
@@ -78,7 +78,7 @@ export async function fetchFromProviderActivity(input: FetchProviderInput): Prom
         latencyMs,
         timestamp,
         statusCode: response.status,
-        ...(responseBody !== undefined && { responseText: responseBody })
+        ...(responseBody !== undefined && { responseText: responseBody }),
       };
     }
 
@@ -87,15 +87,14 @@ export async function fetchFromProviderActivity(input: FetchProviderInput): Prom
       data: odds,
       latencyMs,
       timestamp,
-      statusCode: response.status
+      statusCode: response.status,
     };
-
   } catch (error) {
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown fetch error',
       latencyMs: Date.now() - startTime,
-      timestamp
+      timestamp,
     };
   }
 }

@@ -2,7 +2,7 @@
 
 /**
  * Fix Remaining GradingEngine NaN Calculation Errors
- * 
+ *
  * Addresses specific NaN errors still occurring in the scoring calculations
  */
 
@@ -16,15 +16,18 @@ config();
 async function fixRemainingNaNErrors() {
   console.log('🔧 FIXING REMAINING GRADING ENGINE NaN ERRORS');
   console.log('==============================================');
-  
+
   try {
-    const gradingEnginePath = join(process.cwd(), 'src/agents/GradingAgent/scoring/gradingEngine.ts');
-    
+    const gradingEnginePath = join(
+      process.cwd(),
+      'src/agents/GradingAgent/scoring/gradingEngine.ts'
+    );
+
     console.log('📖 Reading gradingEngine.ts...');
     let content = readFileSync(gradingEnginePath, 'utf8');
-    
+
     console.log('🔧 Applying additional NaN error fixes...');
-    
+
     // 1. Fix compositeScore additions with safe operations
     console.log('  → Fixing compositeScore additions');
     content = content.replace(
@@ -167,7 +170,7 @@ async function fixRemainingNaNErrors() {
     // Write the fixed content back
     console.log('💾 Writing enhanced fixes to gradingEngine.ts...');
     writeFileSync(gradingEnginePath, content);
-    
+
     console.log('✅ Remaining NaN error fixes applied successfully!');
     console.log('\n🔧 ADDITIONAL FIXES APPLIED:');
     console.log('  ✓ Safe compositeScore additions');
@@ -180,7 +183,6 @@ async function fixRemainingNaNErrors() {
     console.log('  ✓ Safe Kelly component calculations');
     console.log('  ✓ Safe risk adjustment calculations');
     console.log('  ✓ Enhanced ML predictions safety checks');
-    
   } catch (error) {
     console.error('❌ Fix process failed:', error);
     throw error;
@@ -194,7 +196,7 @@ if (require.main === module) {
       console.log('\n✅ Remaining NaN error fixes completed successfully');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('💥 Fix process failed:', error);
       process.exit(1);
     });

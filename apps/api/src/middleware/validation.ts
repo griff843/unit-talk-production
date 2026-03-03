@@ -54,9 +54,11 @@ export const pickSubmissionSchema = z.object({
     confidence: z.number().min(1).max(10).optional(),
     reasoning: z.string().max(1000).optional(),
   }),
-  params: z.object({
-    userId: commonSchemas.discordId.optional(),
-  }).optional(),
+  params: z
+    .object({
+      userId: commonSchemas.discordId.optional(),
+    })
+    .optional(),
 });
 
 // User profile validation
@@ -152,9 +154,8 @@ export const validateRequest = (schema: z.ZodSchema) => {
       logger.error('Validation middleware err:', error);
       res.status(500).json({
         err: 'Internal validation error',
-        message: 'Please try again later'
+        message: 'Please try again later',
       });
-      
     }
   };
 };
@@ -190,7 +191,7 @@ export const sqlInjectionProtection = (req: Request, res: Response, next: NextFu
   if (checkForSQLInjection(requestData)) {
     res.status(400).json({
       error: 'Request contains potentially malicious SQL patterns',
-      code: 'SQL_INJECTION_DETECTED'
+      code: 'SQL_INJECTION_DETECTED',
     });
     return;
   }
@@ -200,6 +201,7 @@ export const sqlInjectionProtection = (req: Request, res: Response, next: NextFu
 
 // XSS protection
 export const xssProtection = (req: Request, res: Response, next: NextFunction): void => {
+  /* eslint-disable security/detect-unsafe-regex -- intentionally complex for XSS protection */
   const xssPatterns = [
     /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
     /javascript:/gi,
@@ -209,6 +211,7 @@ export const xssProtection = (req: Request, res: Response, next: NextFunction): 
     /onclick\s*=/gi,
     /onmouseover\s*=/gi,
   ];
+  /* eslint-enable security/detect-unsafe-regex */
 
   const checkForXSS = (obj: unknown): boolean => {
     if (typeof obj === 'string') {
@@ -231,7 +234,7 @@ export const xssProtection = (req: Request, res: Response, next: NextFunction): 
   if (checkForXSS(requestData)) {
     res.status(400).json({
       error: 'Request contains potentially malicious XSS patterns',
-      code: 'XSS_DETECTED'
+      code: 'XSS_DETECTED',
     });
     return;
   }
@@ -255,7 +258,11 @@ export const fileUploadValidation = (options: {
     }
 
     const { maxSize = 5 * 1024 * 1024, allowedTypes = [], maxFiles = 1 } = options;
-    const files = (req as Request & { files?: { [fieldname: string]: Array<{ size: number; mimetype: string }> } }).files;
+    const files = (
+      req as Request & {
+        files?: { [fieldname: string]: Array<{ size: number; mimetype: string }> };
+      }
+    ).files;
 
     if (!files || Object.keys(files).length === 0) {
       return next();

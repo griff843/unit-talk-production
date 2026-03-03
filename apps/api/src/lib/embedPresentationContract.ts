@@ -22,7 +22,7 @@ export const FORBIDDEN_PHRASES = [
   'LOCK OF THE WEEK',
   'GUARANTEED',
   'GUARANTEED WIN',
-  'CAN\'T LOSE',
+  "CAN'T LOSE",
   'FREE MONEY',
   '100% SURE',
   'ABSOLUTE LOCK',
@@ -217,7 +217,9 @@ export function validateProductionEmbed(embed: any): ProductionValidationResult 
         }
         const forbiddenPattern = containsForbiddenFieldPattern(field.name);
         if (forbiddenPattern) {
-          violations.push(`Field[${i}].name "${field.name}" contains forbidden pattern: "${forbiddenPattern}"`);
+          violations.push(
+            `Field[${i}].name "${field.name}" contains forbidden pattern: "${forbiddenPattern}"`
+          );
         }
       }
 
@@ -275,10 +277,7 @@ export function validateProductionEmbed(embed: any): ProductionValidationResult 
  */
 export function buildProductionFooter(gauntletRunId?: string): string {
   const buildInfo = getBuildInfo('embed-builder');
-  const parts = [
-    `build:${buildInfo.commitShort}`,
-    `env:${buildInfo.environment}`,
-  ];
+  const parts = [`build:${buildInfo.commitShort}`, `env:${buildInfo.environment}`];
 
   if (gauntletRunId) {
     parts.push(`run:${gauntletRunId}`);
@@ -291,37 +290,39 @@ export function buildProductionFooter(gauntletRunId?: string): string {
 /**
  * Build a compliant embed with proper footer
  */
-export function buildCompliantEmbed(
-  options: {
-    title: string;
-    description?: string;
-    color?: number;
-    fields?: Array<{ name: string; value: string; inline?: boolean }>;
-    image?: { url: string };
-    thumbnail?: { url: string };
-    gauntletRunId?: string;
-  }
-): any {
+export function buildCompliantEmbed(options: {
+  title: string;
+  description?: string;
+  color?: number;
+  fields?: Array<{ name: string; value: string; inline?: boolean }>;
+  image?: { url: string };
+  thumbnail?: { url: string };
+  gauntletRunId?: string;
+}): any {
   const buildInfo = getBuildInfo('embed-builder');
   const footerText = formatEmbedFooter(buildInfo, options.gauntletRunId);
 
   // Validate title doesn't have forbidden phrases
   const forbiddenCheck = containsForbiddenPhrase(options.title);
   if (forbiddenCheck) {
-    throw new Error(`PRESENTATION_CONTRACT_VIOLATION: Title contains forbidden phrase "${forbiddenCheck}"`);
+    throw new Error(
+      `PRESENTATION_CONTRACT_VIOLATION: Title contains forbidden phrase "${forbiddenCheck}"`
+    );
   }
 
   if (options.description) {
     const descCheck = containsForbiddenPhrase(options.description);
     if (descCheck) {
-      throw new Error(`PRESENTATION_CONTRACT_VIOLATION: Description contains forbidden phrase "${descCheck}"`);
+      throw new Error(
+        `PRESENTATION_CONTRACT_VIOLATION: Description contains forbidden phrase "${descCheck}"`
+      );
     }
   }
 
   return {
     title: options.title,
     description: options.description,
-    color: options.color ?? 0x00AA00,
+    color: options.color ?? 0x00aa00,
     fields: options.fields ?? [],
     image: options.image,
     thumbnail: options.thumbnail,
@@ -336,11 +337,7 @@ export function buildCompliantEmbed(
  * Get pick embed title based on tier and type
  * This replaces legacy "LOCK OF THE DAY" language
  */
-export function getCompliantPickTitle(
-  tier: string,
-  isParlay: boolean,
-  legCount?: number
-): string {
+export function getCompliantPickTitle(tier: string, isParlay: boolean, legCount?: number): string {
   if (isParlay && legCount) {
     const tierEmoji = getTierEmoji(tier);
     return `${tierEmoji} ${tier.toUpperCase()} PARLAY • ${legCount} Legs`;
@@ -382,7 +379,7 @@ export function getTierColor(tier: string): number {
     case 'S':
     case 'S+':
     case 'S-TIER':
-      return 0xFF5252; // Red
+      return 0xff5252; // Red
     case 'A':
     case 'A+':
     case 'A-TIER':
@@ -401,7 +398,22 @@ export function getTierColor(tier: string): number {
  * Ensures market labels match expected patterns for each market type
  */
 export const VALID_MARKET_LABELS: Record<string, string[]> = {
-  player_prop: ['PTS', 'AST', 'REB', '3PM', 'STL', 'BLK', 'TO', 'PRA', 'P+R', 'P+A', 'R+A', 'DD', 'TD', 'Player Prop'],
+  player_prop: [
+    'PTS',
+    'AST',
+    'REB',
+    '3PM',
+    'STL',
+    'BLK',
+    'TO',
+    'PRA',
+    'P+R',
+    'P+A',
+    'R+A',
+    'DD',
+    'TD',
+    'Player Prop',
+  ],
   spread: ['Spread'],
   moneyline: ['Moneyline', 'ML'],
   total: ['Game Total', 'Total'],
@@ -423,8 +435,8 @@ export function validateMarketLabel(
   }
 
   // Check if the label matches any valid pattern (case-insensitive)
-  const isValid = validLabels.some(
-    (valid) => marketLabel.toUpperCase().includes(valid.toUpperCase())
+  const isValid = validLabels.some(valid =>
+    marketLabel.toUpperCase().includes(valid.toUpperCase())
   );
 
   if (!isValid) {
@@ -459,16 +471,15 @@ const VALID_THUMBNAIL_PATTERNS = [
 /**
  * EMBED-FIX-031: Validate thumbnail URL matches expected patterns
  */
-export function validateThumbnailUrl(
-  thumbnailUrl: string | undefined | null
-): { valid: boolean; warning?: string } {
+export function validateThumbnailUrl(thumbnailUrl: string | undefined | null): {
+  valid: boolean;
+  warning?: string;
+} {
   if (!thumbnailUrl) {
     return { valid: true, warning: 'No thumbnail URL provided' };
   }
 
-  const matchesPattern = VALID_THUMBNAIL_PATTERNS.some((pattern) =>
-    pattern.test(thumbnailUrl)
-  );
+  const matchesPattern = VALID_THUMBNAIL_PATTERNS.some(pattern => pattern.test(thumbnailUrl));
 
   if (!matchesPattern) {
     return {
@@ -695,7 +706,9 @@ export function validatePostingGate(pick: {
         violations.push('PLAYER_PROP_MISSING_PLAYER: Player name required for player prop bets');
       }
       if (!effectiveDirection) {
-        violations.push('PLAYER_PROP_MISSING_DIRECTION: Direction (over/under) required for player prop bets');
+        violations.push(
+          'PLAYER_PROP_MISSING_DIRECTION: Direction (over/under) required for player prop bets'
+        );
       }
       if (effectiveLine === null || effectiveLine === undefined) {
         violations.push('PLAYER_PROP_MISSING_LINE: Line required for player prop bets');
@@ -725,7 +738,9 @@ export function validatePostingGate(pick: {
         violations.push('TEAM_TOTAL_MISSING_TEAM: Team name required for team total bets');
       }
       if (!effectiveDirection) {
-        violations.push('TEAM_TOTAL_MISSING_DIRECTION: Direction (over/under) required for team total bets');
+        violations.push(
+          'TEAM_TOTAL_MISSING_DIRECTION: Direction (over/under) required for team total bets'
+        );
       }
       if (effectiveLine === null || effectiveLine === undefined) {
         violations.push('TEAM_TOTAL_MISSING_LINE: Line required for team total bets');
@@ -752,7 +767,10 @@ export function validatePostingGate(pick: {
  * EMBED-TRUTH-FIX-031: Validate build provenance
  * Returns false if build SHA is "unknown" in production environment
  */
-export function validateBuildProvenance(commitShort: string, environment: string): {
+export function validateBuildProvenance(
+  commitShort: string,
+  environment: string
+): {
   valid: boolean;
   error?: string;
 } {
@@ -760,7 +778,8 @@ export function validateBuildProvenance(commitShort: string, environment: string
   if (environment === 'production' && (commitShort === 'unknown' || !commitShort)) {
     return {
       valid: false,
-      error: 'BUILD_SHA_UNKNOWN: Build provenance required in production. Set GIT_COMMIT_SHORT env var.',
+      error:
+        'BUILD_SHA_UNKNOWN: Build provenance required in production. Set GIT_COMMIT_SHORT env var.',
     };
   }
 
@@ -927,7 +946,11 @@ function checkMissingFields(
 /**
  * SPRINT-EMBED-MIN-REQ-051: Check for content violations
  */
-function checkContentViolations(pick: EmbedReadinessPick, league: string | null | undefined, matchup: string | null): string[] {
+function checkContentViolations(
+  pick: EmbedReadinessPick,
+  league: string | null | undefined,
+  matchup: string | null
+): string[] {
   const violations: string[] = [];
   const fieldsToCheck = { league, matchup, selection: pick.selection, title: pick.title };
   const undefinedFields = findUndefinedStrings(fieldsToCheck);

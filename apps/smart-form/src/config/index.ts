@@ -1,6 +1,6 @@
 /**
  * Unit Talk Smart Form - Configuration Adapter
- * 
+ *
  * This adapter provides Smart Form-specific configuration by importing from the
  * centralized environment configuration. This follows SaaS-level monorepo
  * best practices by maintaining a single source of truth while providing

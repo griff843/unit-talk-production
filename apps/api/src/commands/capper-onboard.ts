@@ -10,13 +10,13 @@ import {
   StringSelectMenuOptionBuilder,
   ModalSubmitInteraction,
   StringSelectMenuInteraction,
-  GuildMember
+  GuildMember,
 } from 'discord.js';
-import { capperService } from '../services/capperService';
-import { CapperProfile } from '../types/capper';
-import { logger } from '../shared/logger';
-import { hasRole } from '../utils/roleUtils';
 
+import { capperService } from '../services/capperService';
+import { logger } from '../shared/logger';
+import { CapperProfile } from '../types/capper';
+import { hasRole } from '../utils/roleUtils';
 
 export const data = new SlashCommandBuilder()
   .setName('capper-onboard')
@@ -28,14 +28,17 @@ export async function execute(interaction: CommandInteraction) {
     const member = interaction.member as GuildMember;
     if (!hasRole(member, 'UT Capper')) {
       await interaction.reply({
-        content: '❌ You need the **UT Capper** role to complete onboarding. Please contact an admin.',
-        ephemeral: true
+        content:
+          '❌ You need the **UT Capper** role to complete onboarding. Please contact an admin.',
+        ephemeral: true,
       });
       return;
     }
 
     // Check if user already has a profile
-    const existingProfile = await capperService.getCapperByDiscordId(interaction.user.id) as CapperProfile | null;
+    const existingProfile = (await capperService.getCapperByDiscordId(
+      interaction.user.id
+    )) as CapperProfile | null;
     if (existingProfile) {
       const embed = new EmbedBuilder()
         .setTitle('✅ Already Onboarded')
@@ -50,7 +53,7 @@ export async function execute(interaction: CommandInteraction) {
 
       await interaction.reply({
         embeds: [embed],
-        ephemeral: true
+        ephemeral: true,
       });
       return;
     }
@@ -71,23 +74,22 @@ export async function execute(interaction: CommandInteraction) {
         new StringSelectMenuOptionBuilder()
           .setLabel('Elite')
           .setValue('elite')
-          .setDescription('Top-tier capper with exceptional performance')
+          .setDescription('Top-tier capper with exceptional performance'),
       ]);
 
-    const row = new ActionRowBuilder<StringSelectMenuBuilder>()
-      .addComponents(selectMenu);
+    const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
 
     await interaction.reply({
-      content: '**🎯 Capper Onboarding**\n\nWelcome to UT Cappers! Please select your tier to get started:',
+      content:
+        '**🎯 Capper Onboarding**\n\nWelcome to UT Cappers! Please select your tier to get started:',
       components: [row],
-      ephemeral: true
+      ephemeral: true,
     });
-
   } catch (error) {
     logger.error('Error in capper-onboard command', { error });
     await interaction.reply({
       content: '❌ An error occurred during onboarding.',
-      ephemeral: true
+      ephemeral: true,
     });
   }
 }
@@ -136,17 +138,16 @@ export async function handleTierSelect(interaction: StringSelectMenuInteraction)
       new ActionRowBuilder<TextInputBuilder>().addComponents(displayNameInput),
       new ActionRowBuilder<TextInputBuilder>().addComponents(bioInput),
       new ActionRowBuilder<TextInputBuilder>().addComponents(specialtiesInput),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(experienceInput)
+      new ActionRowBuilder<TextInputBuilder>().addComponents(experienceInput),
     ];
 
     modal.addComponents(...rows);
     await interaction.showModal(modal);
-
   } catch (error) {
     logger.error('Error handling tier selection', { error });
     await interaction.reply({
       content: '❌ An error occurred while processing your selection.',
-      ephemeral: true
+      ephemeral: true,
     });
   }
 }
@@ -163,7 +164,10 @@ export async function handleOnboardModal(interaction: ModalSubmitInteraction) {
 
     // Parse specialties
     const specialties = specialtiesStr
-      ? specialtiesStr.split(',').map(s => s.trim()).filter(s => s.length > 0)
+      ? specialtiesStr
+          .split(',')
+          .map(s => s.trim())
+          .filter(s => s.length > 0)
       : [];
 
     // Parse experience
@@ -181,7 +185,7 @@ export async function handleOnboardModal(interaction: ModalSubmitInteraction) {
       name: displayName,
       username: interaction.user.username,
       displayName: displayName,
-      tier: tier
+      tier: tier,
     });
 
     // Success response
@@ -194,9 +198,12 @@ export async function handleOnboardModal(interaction: ModalSubmitInteraction) {
         { name: 'Profile ID', value: profile?.id || 'Unknown', inline: true },
         { name: 'Status', value: 'ACTIVE', inline: true }
       )
-      .addFields(
-        { name: 'Next Steps', value: '• Use `/submit-pick` to submit your first pick\n• Use `/my-picks` to view your picks\n• Use `/my-stats` to track your performance', inline: false }
-      )
+      .addFields({
+        name: 'Next Steps',
+        value:
+          '• Use `/submit-pick` to submit your first pick\n• Use `/my-picks` to view your picks\n• Use `/my-stats` to track your performance',
+        inline: false,
+      })
       .setTimestamp();
 
     if (specialties.length > 0) {
@@ -205,14 +212,13 @@ export async function handleOnboardModal(interaction: ModalSubmitInteraction) {
 
     await interaction.reply({
       embeds: [successEmbed],
-      ephemeral: true
+      ephemeral: true,
     });
-
   } catch (error) {
     logger.error('Error handling onboard modal', { error });
     await interaction.reply({
       content: '❌ An error occurred while creating your profile. Please try again.',
-      ephemeral: true
+      ephemeral: true,
     });
   }
 }

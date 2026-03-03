@@ -7,8 +7,8 @@
  * - Single row per agent (no insert spam)
  */
 
-import { supabase } from './supabaseClient';
 import { logger } from './logging';
+import { supabase } from './supabaseClient';
 
 // SPRINT-SCHEMA-ENV-GATES-002: Lazy env access
 function getCommitHash(): string {
@@ -75,14 +75,16 @@ class AgentHealthHeartbeat {
       const uptimeSeconds = Math.floor((Date.now() - startTime) / 1000);
       const memoryUsage = process.memoryUsage();
 
-      const meta: AgentHeartbeatMeta = getMeta ? getMeta() : {
-        version: getCommitHash(),
-        environment: process.env.NODE_ENV || 'development',
-        hostname: process.env.HOSTNAME || 'unknown',
-        pid: process.pid,
-        uptime_seconds: uptimeSeconds,
-        memory_mb: Math.round(memoryUsage.heapUsed / 1024 / 1024)
-      };
+      const meta: AgentHeartbeatMeta = getMeta
+        ? getMeta()
+        : {
+            version: getCommitHash(),
+            environment: process.env.NODE_ENV || 'development',
+            hostname: process.env.HOSTNAME || 'unknown',
+            pid: process.pid,
+            uptime_seconds: uptimeSeconds,
+            memory_mb: Math.round(memoryUsage.heapUsed / 1024 / 1024),
+          };
 
       // Ensure version is always set
       if (!meta.version) {
@@ -107,21 +109,19 @@ class AgentHealthHeartbeat {
             status,
             details: meta,
             last_heartbeat: now,
-            updated_at: now
+            updated_at: now,
           })
           .eq('agent', agentName);
         error = result.error;
       } else {
         // Insert new row
-        const result = await supabase
-          .from('agent_health')
-          .insert({
-            agent: agentName,
-            status,
-            details: meta,
-            last_heartbeat: now,
-            updated_at: now
-          });
+        const result = await supabase.from('agent_health').insert({
+          agent: agentName,
+          status,
+          details: meta,
+          last_heartbeat: now,
+          updated_at: now,
+        });
         error = result.error;
       }
 
@@ -133,7 +133,10 @@ class AgentHealthHeartbeat {
       logger.debug({ agentName, status }, 'Heartbeat sent');
       return true;
     } catch (err) {
-      logger.error({ agentName, error: err instanceof Error ? err.message : String(err) }, 'Heartbeat error');
+      logger.error(
+        { agentName, error: err instanceof Error ? err.message : String(err) },
+        'Heartbeat error'
+      );
       return false;
     }
   }
@@ -186,7 +189,7 @@ export async function startServiceHeartbeats(): Promise<void> {
     'grading-agent',
     'settlement-agent',
     'alert-agent',
-    'scoring-agent'
+    'scoring-agent',
   ];
 
   // Only start heartbeats for services that are actually running in this process

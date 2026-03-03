@@ -1,9 +1,9 @@
 import { proxyActivities } from '@temporalio/workflow';
 
+import { supabaseClient } from '../../../services/supabaseClient';
 import { RawProp } from '../../../types/rawProps';
 import { fetchRawProps } from '../../IngestionAgent/fetchRawProps';
 import { fetchUnifiedData, fetchUnifiedSettlement } from '../dataSourceRouter';
-import { supabaseClient } from '../../../services/supabaseClient';
 // Note: Using console.log instead of Logger to avoid import issues
 
 // Enhanced error handling with circuit breaker
@@ -28,7 +28,7 @@ function calculateBackoff(attempt: number): number {
 function checkCircuitBreaker(provider: string): boolean {
   const state = circuitBreakers.get(provider);
   if (!state) return true;
-  
+
   if (state.isOpen) {
     const now = Date.now();
     if (now - state.lastFailureTime > CIRCUIT_BREAKER_TIMEOUT) {
@@ -39,7 +39,7 @@ function checkCircuitBreaker(provider: string): boolean {
     }
     return false;
   }
-  
+
   return true;
 }
 
@@ -47,12 +47,12 @@ function recordFailure(provider: string): void {
   const state = circuitBreakers.get(provider) || { failures: 0, lastFailureTime: 0, isOpen: false };
   state.failures++;
   state.lastFailureTime = Date.now();
-  
+
   if (state.failures >= CIRCUIT_BREAKER_THRESHOLD) {
     state.isOpen = true;
     console.error(`Circuit breaker opened for ${provider} after ${state.failures} failures`);
   }
-  
+
   circuitBreakers.set(provider, state);
 }
 
@@ -82,17 +82,17 @@ export function getProviderHealth(): {
 } {
   const providers: Record<string, ProviderHealth> = {};
   const circuitBreakersObj: Record<string, CircuitBreakerState> = {};
-  
+
   // Convert provider health map to object
   for (const [provider, health] of providerHealthMap.entries()) {
     providers[provider] = health;
   }
-  
+
   // Convert circuit breakers map to object
   for (const [provider, state] of circuitBreakers.entries()) {
     circuitBreakersObj[provider] = state;
   }
-  
+
   return { providers, circuitBreakers: circuitBreakersObj };
 }
 
@@ -111,8 +111,8 @@ export async function fetchFromProviderActivity(provider: string): Promise<RawPr
       headers: {},
       rateLimit: {
         requests: 100,
-        window: 60000
-      }
+        window: 60000,
+      },
     };
 
     const result = await fetchRawProps(providerConfig);
@@ -120,7 +120,7 @@ export async function fetchFromProviderActivity(provider: string): Promise<RawPr
     // Ensure all RawProp objects have required id field
     const propsWithIds = result.map(prop => ({
       ...prop,
-      id: prop.id || crypto.randomUUID()
+      id: prop.id || crypto.randomUUID(),
     }));
 
     return propsWithIds;
@@ -136,38 +136,47 @@ export async function ingestUnifiedData(params: {
   batchSize: number;
   timeout: number;
   includeSettlement?: boolean;
-}): Promise<{ success: boolean; count: number; source: string; error?: string; propCount?: number; batchId?: string }> {
+}): Promise<{
+  success: boolean;
+  count: number;
+  source: string;
+  error?: string;
+  propCount?: number;
+  batchId?: string;
+}> {
   const provider = `${params.league.toLowerCase()}-ingestion`;
   let attempt = 0;
   const maxAttempts = 3;
-  
+
   // Check circuit breaker
   if (!checkCircuitBreaker(provider)) {
     return {
       success: false,
       count: 0,
       source: 'circuit-breaker',
-      error: 'Circuit breaker is open - too many recent failures'
+      error: 'Circuit breaker is open - too many recent failures',
     };
   }
-  
+
   while (attempt < maxAttempts) {
     try {
-      console.log(`[FeedAgent] Starting unified ingestion for ${params.league} (attempt ${attempt + 1})`);
-      
+      console.log(
+        `[FeedAgent] Starting unified ingestion for ${params.league} (attempt ${attempt + 1})`
+      );
+
       // Fetch data from unified router
       const response = await fetchUnifiedData({
         sport: params.league,
-        marketType: 'player-props'
+        marketType: 'player-props',
       });
-      
+
       console.log(`[FeedAgent] Fetched ${response.data.length} props from ${response.source}`);
-      
+
       // **CRITICAL FIX: Actually persist data to database**
       if (response.data.length > 0) {
         const batchId = crypto.randomUUID();
         const timestamp = new Date();
-        
+
         // Extract unique games from the props
         const gamesMap = new Map();
         response.data.forEach(prop => {
@@ -184,31 +193,29 @@ export async function ingestUnifiedData(params: {
               updated_at: timestamp.toISOString(),
               metadata: {
                 source: response.source,
-                batch_id: batchId
-              }
+                batch_id: batchId,
+              },
             });
           }
         });
-        
+
         // Insert games if any were found
         if (gamesMap.size > 0) {
           const games = Array.from(gamesMap.values());
           console.log(`[FeedAgent] Inserting ${games.length} unique games`);
-          
-          const { error: gamesError } = await supabaseClient
-            .from('games')
-            .upsert(games, { 
-              onConflict: 'external_game_id',
-              ignoreDuplicates: true 
-            });
-            
+
+          const { error: gamesError } = await supabaseClient.from('games').upsert(games, {
+            onConflict: 'external_game_id',
+            ignoreDuplicates: true,
+          });
+
           if (gamesError) {
             console.warn(`[FeedAgent] Games insert warning:`, gamesError);
           } else {
             console.log(`[FeedAgent] Successfully stored ${games.length} games`);
           }
         }
-        
+
         // Prepare props for insertion with proper structure
         const propsForDB = response.data.map(prop => ({
           id: crypto.randomUUID(),
@@ -235,76 +242,80 @@ export async function ingestUnifiedData(params: {
             source: response.source,
             batch_id: batchId,
             processing_time_ms: response.metadata.processingTimeMs,
-            league: params.league
-          }
+            league: params.league,
+          },
         }));
-        
+
         // Insert in batches to handle large datasets
         const batchSize = params.batchSize || 100;
         let insertedCount = 0;
-        
+
         for (let i = 0; i < propsForDB.length; i += batchSize) {
           const batch = propsForDB.slice(i, i + batchSize);
-          
-          const { error: insertError } = await supabaseClient
-            .from('raw_props')
-            .insert(batch);
-            
+
+          const { error: insertError } = await supabaseClient.from('raw_props').insert(batch);
+
           if (insertError) {
-            console.error(`[FeedAgent] Database insert failed for batch ${Math.floor(i/batchSize) + 1}:`, insertError);
+            console.error(
+              `[FeedAgent] Database insert failed for batch ${Math.floor(i / batchSize) + 1}:`,
+              insertError
+            );
             throw new Error(`Database insert failed: ${insertError.message}`);
           }
-          
+
           insertedCount += batch.length;
-          console.log(`[FeedAgent] Inserted batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(propsForDB.length/batchSize)} (${insertedCount} total)`);
+          console.log(
+            `[FeedAgent] Inserted batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(propsForDB.length / batchSize)} (${insertedCount} total)`
+          );
         }
-        
-        console.log(`[FeedAgent] Successfully persisted ${insertedCount} props to database with batch_id: ${batchId}`);
-        
+
+        console.log(
+          `[FeedAgent] Successfully persisted ${insertedCount} props to database with batch_id: ${batchId}`
+        );
+
         // Update provider health
         recordSuccess(provider);
         const health: ProviderHealth = {
           provider,
           lastSuccess: new Date(),
           status: 'healthy',
-          consecutiveFailures: 0
+          consecutiveFailures: 0,
         };
         providerHealthMap.set(provider, health);
-        
+
         return {
           success: true,
           count: insertedCount,
           source: response.source,
           propCount: insertedCount,
-          batchId
+          batchId,
         };
       } else {
         console.warn(`[FeedAgent] No props received from ${response.source} for ${params.league}`);
         return {
           success: true,
           count: 0,
-          source: response.source
+          source: response.source,
         };
       }
-      
     } catch (error) {
       attempt++;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error(`[FeedAgent] Attempt ${attempt} failed for ${params.league}:`, errorMessage);
-      
+
       // Record failure for circuit breaker
       recordFailure(provider);
-      
+
       // Update provider health
       const health: ProviderHealth = {
         provider,
         lastSuccess: providerHealthMap.get(provider)?.lastSuccess || null,
         status: attempt >= maxAttempts ? 'failed' : 'degraded',
         consecutiveFailures: attempt,
-        lastError: errorMessage
+        lastError: errorMessage,
       };
       providerHealthMap.set(provider, health);
-      
+
       if (attempt < maxAttempts) {
         const backoffMs = calculateBackoff(attempt - 1);
         console.log(`[FeedAgent] Waiting ${backoffMs}ms before retry ${attempt + 1}`);
@@ -314,17 +325,17 @@ export async function ingestUnifiedData(params: {
           success: false,
           count: 0,
           source: 'failed',
-          error: `All ${maxAttempts} attempts failed. Last error: ${errorMessage}`
+          error: `All ${maxAttempts} attempts failed. Last error: ${errorMessage}`,
         };
       }
     }
   }
-  
+
   return {
     success: false,
     count: 0,
     source: 'exhausted',
-    error: 'Maximum retry attempts exhausted'
+    error: 'Maximum retry attempts exhausted',
   };
 }
 
@@ -334,20 +345,26 @@ export const activities = proxyActivities({
   retry: {
     maximumAttempts: 3,
     initialInterval: '1s',
-  }
+  },
 });
 
 // Feed activity for schedule workflows
-export async function fetchFeed(params: { league: string; isPeakTime?: boolean; timestamp?: string }): Promise<{ success: boolean; message: string; data?: any }> {
+export async function fetchFeed(params: {
+  league: string;
+  isPeakTime?: boolean;
+  timestamp?: string;
+}): Promise<{ success: boolean; message: string; data?: any }> {
   try {
-    console.log(`[FeedAgent] Fetching ${params.league} feed data (peak time: ${params.isPeakTime || false})`);
-    
+    console.log(
+      `[FeedAgent] Fetching ${params.league} feed data (peak time: ${params.isPeakTime || false})`
+    );
+
     // Fetch unified data for the league
     const response = await fetchUnifiedData({
       sport: params.league,
-      marketType: 'player-props'
+      marketType: 'player-props',
     });
-    
+
     return {
       success: true,
       message: `Successfully fetched ${response.data.length} items for ${params.league}`,
@@ -356,16 +373,16 @@ export async function fetchFeed(params: { league: string; isPeakTime?: boolean; 
         count: response.data.length,
         source: response.source,
         isPeakTime: params.isPeakTime || false,
-        timestamp: params.timestamp || new Date().toISOString()
-      }
+        timestamp: params.timestamp || new Date().toISOString(),
+      },
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(`[FeedAgent] Failed to fetch feed for ${params.league}:`, errorMessage);
-    
+
     return {
       success: false,
-      message: `Failed to fetch feed for ${params.league}: ${errorMessage}`
+      message: `Failed to fetch feed for ${params.league}: ${errorMessage}`,
     };
   }
 }
@@ -373,10 +390,12 @@ export async function fetchFeed(params: { league: string; isPeakTime?: boolean; 
 // Remove duplicate function - using the one defined earlier
 
 // Missing activities that Temporal workflows are trying to call
-export async function checkQuotaStatus(params: { provider: string }): Promise<{ success: boolean; usage?: any; error?: string }> {
+export async function checkQuotaStatus(params: {
+  provider: string;
+}): Promise<{ success: boolean; usage?: any; error?: string }> {
   try {
     console.log(`[FeedAgent] Checking quota status for ${params.provider}`);
-    
+
     // Implement actual quota checking logic here
     // For now, return a basic response
     return {
@@ -384,34 +403,36 @@ export async function checkQuotaStatus(params: { provider: string }): Promise<{ 
       usage: {
         remaining: 9999, // Placeholder
         used: 1,
-        resetTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-      }
+        resetTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      },
     };
   } catch (error) {
     console.error(`[FeedAgent] Quota check failed:`, error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
 }
 
-export async function getLiveGames(params?: any): Promise<{ success: boolean; games: any[]; error?: string }> {
+export async function getLiveGames(
+  params?: any
+): Promise<{ success: boolean; games: any[]; error?: string }> {
   try {
     console.log(`[FeedAgent] Fetching live games`);
-    
+
     // Implement actual live games detection
     // For now, return empty array
     return {
       success: true,
-      games: []
+      games: [],
     };
   } catch (error) {
     console.error(`[FeedAgent] Live games fetch failed:`, error);
     return {
       success: false,
       games: [],
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
 }

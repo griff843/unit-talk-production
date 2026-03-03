@@ -23,13 +23,16 @@ export const DEFAULT_VALIDATION_OPTIONS: PickValidationOptions = {
   minOdds: -1000,
   maxOdds: 1000,
   allowedSports: ['NFL', 'NBA', 'MLB', 'NHL', 'NCAAF', 'NCAAB', 'Soccer', 'Tennis', 'Golf'],
-  submissionCutoffHour: 9
+  submissionCutoffHour: 9,
 };
 
 /**
  * Validates a single pick leg
  */
-export function validatePickLeg(leg: PickLeg, options: PickValidationOptions = DEFAULT_VALIDATION_OPTIONS): ValidationResult {
+export function validatePickLeg(
+  leg: PickLeg,
+  options: PickValidationOptions = DEFAULT_VALIDATION_OPTIONS
+): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -67,19 +70,25 @@ export function validatePickLeg(leg: PickLeg, options: PickValidationOptions = D
     errors.push('Units must be a valid number');
   } else {
     if (leg.units < options.minUnitsPerPick || leg.units > options.maxUnitsPerPick) {
-      errors.push(`Units must be between ${options.minUnitsPerPick} and ${options.maxUnitsPerPick}`);
+      errors.push(
+        `Units must be between ${options.minUnitsPerPick} and ${options.maxUnitsPerPick}`
+      );
     }
   }
 
   // Validate sport is allowed
   if (leg.sport && !options.allowedSports.includes(leg.sport)) {
-    errors.push(`Sport "${leg.sport}" is not allowed. Allowed sports: ${options.allowedSports.join(', ')}`);
+    errors.push(
+      `Sport "${leg.sport}" is not allowed. Allowed sports: ${options.allowedSports.join(', ')}`
+    );
   }
 
   // Validate market type
   const validMarketTypes = ['spread', 'total', 'moneyline', 'player_prop'];
   if (leg.market_type && !validMarketTypes.includes(leg.market_type)) {
-    errors.push(`Invalid market type "${leg.market_type}". Valid types: ${validMarketTypes.join(', ')}`);
+    errors.push(
+      `Invalid market type "${leg.market_type}". Valid types: ${validMarketTypes.join(', ')}`
+    );
   }
 
   // Validate player prop specific fields
@@ -108,20 +117,23 @@ export function validatePickLeg(leg: PickLeg, options: PickValidationOptions = D
     warnings.push('Very low odds - consider the risk/reward');
   }
   if (leg.units > 5) {
-    warnings.push('High unit bet - ensure you\'re confident');
+    warnings.push("High unit bet - ensure you're confident");
   }
 
   return {
     isValid: errors.length === 0,
     errors,
-    warnings
+    warnings,
   };
 }
 
 /**
  * Validates multiple pick legs for parlay
  */
-export function validateParlay(legs: PickLeg[], options: PickValidationOptions = DEFAULT_VALIDATION_OPTIONS): ValidationResult {
+export function validateParlay(
+  legs: PickLeg[],
+  options: PickValidationOptions = DEFAULT_VALIDATION_OPTIONS
+): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -196,14 +208,17 @@ export function validateParlay(legs: PickLeg[], options: PickValidationOptions =
   return {
     isValid: errors.length === 0,
     errors,
-    warnings
+    warnings,
   };
 }
 
 /**
  * Validates submission timing
  */
-export function validateSubmissionTiming(eventDate: string, options: PickValidationOptions = DEFAULT_VALIDATION_OPTIONS): ValidationResult {
+export function validateSubmissionTiming(
+  eventDate: string,
+  options: PickValidationOptions = DEFAULT_VALIDATION_OPTIONS
+): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -213,11 +228,17 @@ export function validateSubmissionTiming(eventDate: string, options: PickValidat
   cutoffTime.setHours(options.submissionCutoffHour, 0, 0, 0);
 
   const eventDateObj = new Date(eventDate);
-  const eventDateOnly = new Date(eventDateObj.getFullYear(), eventDateObj.getMonth(), eventDateObj.getDate());
+  const eventDateOnly = new Date(
+    eventDateObj.getFullYear(),
+    eventDateObj.getMonth(),
+    eventDateObj.getDate()
+  );
 
   // Check if submission is after cutoff for today's games
   if (eventDateOnly.getTime() === today.getTime() && now > cutoffTime) {
-    errors.push(`Submissions for today's games closed at ${options.submissionCutoffHour}:00 AM. Please submit picks for tomorrow's slate.`);
+    errors.push(
+      `Submissions for today's games closed at ${options.submissionCutoffHour}:00 AM. Please submit picks for tomorrow's slate.`
+    );
   }
 
   // Check if event date is in the past
@@ -234,14 +255,15 @@ export function validateSubmissionTiming(eventDate: string, options: PickValidat
 
   // Warning if submitting very close to cutoff
   const timeUntilCutoff = cutoffTime.getTime() - now.getTime();
-  if (eventDateOnly.getTime() === today.getTime() && timeUntilCutoff < 30 * 60 * 1000) { // 30 minutes
+  if (eventDateOnly.getTime() === today.getTime() && timeUntilCutoff < 30 * 60 * 1000) {
+    // 30 minutes
     warnings.push('Submitting close to cutoff time - ensure you have enough time to review');
   }
 
   return {
     isValid: errors.length === 0,
     errors,
-    warnings
+    warnings,
   };
 }
 
@@ -262,14 +284,14 @@ export function calculateParlayOdds(legs: PickLeg[]): number {
   // Convert American odds to decimal, multiply, then convert back
   const decimalOdds = legs.map(leg => {
     if (leg.odds > 0) {
-      return (leg.odds / 100) + 1;
+      return leg.odds / 100 + 1;
     } else {
-      return (100 / Math.abs(leg.odds)) + 1;
+      return 100 / Math.abs(leg.odds) + 1;
     }
   });
 
   const combinedDecimal = decimalOdds.reduce((product, odds) => product * odds, 1);
-  
+
   // Convert back to American odds
   if (combinedDecimal >= 2) {
     return Math.round((combinedDecimal - 1) * 100);

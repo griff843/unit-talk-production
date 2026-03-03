@@ -22,7 +22,7 @@ export class MarketingAgent extends BaseAgent {
   async checkHealth(): Promise<HealthCheckResult> {
     return {
       status: 'healthy',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -44,13 +44,13 @@ export class MarketingAgent extends BaseAgent {
       // Log success
       this.deps.logger.info('Campaign created successfully', {
         campaignId: campaign.id,
-        type: campaign.type
+        type: campaign.type,
       });
     } catch (error) {
       // Log error
       this.deps.logger.error('Failed to create campaign', {
         error,
-        campaignId: campaign.id
+        campaignId: campaign.id,
       });
       throw error;
     }
@@ -70,13 +70,13 @@ export class MarketingAgent extends BaseAgent {
       // Log success
       this.deps.logger.info('Referral program created successfully', {
         programId: program.id,
-        rewards: program.rewards
+        rewards: program.rewards,
       });
     } catch (error) {
       // Log error
       this.deps.logger.error('Failed to create referral program', {
         error,
-        programId: program.id
+        programId: program.id,
       });
       throw error;
     }
@@ -96,13 +96,13 @@ export class MarketingAgent extends BaseAgent {
       // Log success
       this.deps.logger.info('Engagement metrics tracked successfully', {
         metricsId: metrics.id,
-        period: metrics.period
+        period: metrics.period,
       });
     } catch (error) {
       // Log error
       this.deps.logger.error('Failed to track engagement metrics', {
         error,
-        metricsId: metrics.id
+        metricsId: metrics.id,
       });
       throw error;
     }
@@ -143,4 +143,4 @@ export class MarketingAgent extends BaseAgent {
   private async generateInsights(_metrics: EngagementMetrics): Promise<void> {
     // Implementation would generate insights
   }
-} 
+}

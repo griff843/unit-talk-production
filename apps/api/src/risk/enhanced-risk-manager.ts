@@ -22,8 +22,8 @@ export class EnhancedRiskManager {
       maxDrawdown,
       metadata: {
         calculationDate: new Date().toISOString(),
-        modelVersion: '1.0.0'
-      }
+        modelVersion: '1.0.0',
+      },
     };
   }
 
@@ -40,8 +40,8 @@ export class EnhancedRiskManager {
       winProbability,
       metadata: {
         calculationDate: new Date().toISOString(),
-        modelVersion: '1.0.0'
-      }
+        modelVersion: '1.0.0',
+      },
     };
   }
 
@@ -96,4 +96,4 @@ export class EnhancedRiskManager {
     // Implementation would calculate Win Probability
     return 0.6;
   }
-} 
+}

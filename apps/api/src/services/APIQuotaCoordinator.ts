@@ -1,9 +1,9 @@
 /**
  * API Quota Coordinator
- * 
+ *
  * Stub implementation for TypeScript compilation.
  * Coordinates API quota management across providers.
- * 
+ *
  * @module APIQuotaCoordinator
  */
 
@@ -43,12 +43,17 @@ export interface APIQuotaCoordinator {
   recordUsage(provider: string, count?: number): Promise<void>;
   getStatus(provider: string): Promise<QuotaStatus>;
   resetQuota(provider: string): Promise<void>;
-  requestAPIAccess(provider: string, endpoint: string, priority: number, metadata: Record<string, any>): Promise<{ allowed: boolean; reason?: string }>;
+  requestAPIAccess(
+    provider: string,
+    endpoint: string,
+    priority: number,
+    metadata: Record<string, any>
+  ): Promise<{ allowed: boolean; reason?: string }>;
 }
 
 /**
  * In-Memory API Quota Coordinator
- * 
+ *
  * Stub implementation - provides minimal quota management for compilation
  */
 class InMemoryAPIQuotaCoordinator implements APIQuotaCoordinator {
@@ -57,7 +62,7 @@ class InMemoryAPIQuotaCoordinator implements APIQuotaCoordinator {
 
   constructor() {
     logger.info('InMemoryAPIQuotaCoordinator initialized (stub)');
-    
+
     // Default quotas for common providers
     this.quotas.set('odds-api', {
       provider: 'odds-api',
@@ -76,16 +81,24 @@ class InMemoryAPIQuotaCoordinator implements APIQuotaCoordinator {
     }
 
     const usage = this.getOrCreateUsage(provider);
-    
+
     // Check daily limit
     if (usage.daily >= config.dailyLimit) {
-      logger.warn('Daily quota exceeded', { provider, usage: usage.daily, limit: config.dailyLimit });
+      logger.warn('Daily quota exceeded', {
+        provider,
+        usage: usage.daily,
+        limit: config.dailyLimit,
+      });
       return false;
     }
 
     // Check monthly limit
     if (usage.monthly >= config.monthlyLimit) {
-      logger.warn('Monthly quota exceeded', { provider, usage: usage.monthly, limit: config.monthlyLimit });
+      logger.warn('Monthly quota exceeded', {
+        provider,
+        usage: usage.monthly,
+        limit: config.monthlyLimit,
+      });
       return false;
     }
 
@@ -96,8 +109,13 @@ class InMemoryAPIQuotaCoordinator implements APIQuotaCoordinator {
     const usage = this.getOrCreateUsage(provider);
     usage.daily += count;
     usage.monthly += count;
-    
-    logger.debug('Quota usage recorded', { provider, count, daily: usage.daily, monthly: usage.monthly });
+
+    logger.debug('Quota usage recorded', {
+      provider,
+      count,
+      daily: usage.daily,
+      monthly: usage.monthly,
+    });
   }
 
   async getStatus(provider: string): Promise<QuotaStatus> {
@@ -108,9 +126,9 @@ class InMemoryAPIQuotaCoordinator implements APIQuotaCoordinator {
       requestsPerSecond: 10,
       burstLimit: 50,
     };
-    
+
     const usage = this.getOrCreateUsage(provider);
-    
+
     return {
       provider,
       dailyUsed: usage.daily,
@@ -149,12 +167,12 @@ class InMemoryAPIQuotaCoordinator implements APIQuotaCoordinator {
 
   private getOrCreateUsage(provider: string): { daily: number; monthly: number; lastReset: Date } {
     let usage = this.usage.get(provider);
-    
+
     if (!usage) {
       usage = { daily: 0, monthly: 0, lastReset: new Date() };
       this.usage.set(provider, usage);
     }
-    
+
     // Reset daily if needed
     const now = new Date();
     const hoursSinceReset = (now.getTime() - usage.lastReset.getTime()) / (1000 * 60 * 60);
@@ -162,7 +180,7 @@ class InMemoryAPIQuotaCoordinator implements APIQuotaCoordinator {
       usage.daily = 0;
       usage.lastReset = now;
     }
-    
+
     return usage;
   }
 }
@@ -171,4 +189,3 @@ class InMemoryAPIQuotaCoordinator implements APIQuotaCoordinator {
  * Singleton API quota coordinator instance
  */
 export const apiQuotaCoordinator: APIQuotaCoordinator = new InMemoryAPIQuotaCoordinator();
-

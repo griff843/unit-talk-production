@@ -31,19 +31,13 @@ export class DatabaseError extends BaseError {
 }
 
 export class AuthenticationError extends BaseError {
-  constructor(
-    message: string,
-    details?: Record<string, unknown>
-  ) {
+  constructor(message: string, details?: Record<string, unknown>) {
     super(message, 'AUTHENTICATION_ERROR', details);
   }
 }
 
 export class AuthorizationError extends BaseError {
-  constructor(
-    message: string,
-    details?: Record<string, unknown>
-  ) {
+  constructor(message: string, details?: Record<string, unknown>) {
     super(message, 'AUTHORIZATION_ERROR', details);
   }
 }
@@ -124,12 +118,14 @@ export function handleError(error: unknown): BaseError {
   if (error instanceof BaseError) {
     return error;
   }
-  
+
   if (error instanceof Error) {
     return new BaseError(error.message, 'UNKNOWN_ERROR', { originalError: error.name });
   }
-  
-  return new BaseError('An unknown error occurred', 'UNKNOWN_ERROR', { originalError: String(error) });
+
+  return new BaseError('An unknown error occurred', 'UNKNOWN_ERROR', {
+    originalError: String(error),
+  });
 }
 
 // Error logging utility
@@ -140,7 +136,7 @@ export function logError(error: BaseError, context?: Record<string, unknown>): v
     code: error.code,
     details: error.details,
     context,
-    stack: error.stack
+    stack: error.stack,
   });
 }
 
@@ -158,8 +154,8 @@ export function createErrorResponse(error: BaseError): ErrorResponse {
     error: {
       code: error.code,
       message: error.message,
-      ...(error.details && { details: error.details })
-    }
+      ...(error.details && { details: error.details }),
+    },
   };
 }
 

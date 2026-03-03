@@ -2123,9 +2123,8 @@ export class SyndicateGradingEngine {
   public async triggerFeedbackLoop(): Promise<void> {
     try {
       // Dynamically import to avoid circular dependency
-      const { feedbackLoopService } = await import(
-        '../../../services/feedback/FeedbackLoopService'
-      );
+      const { feedbackLoopService } =
+        await import('../../../services/feedback/FeedbackLoopService');
       await feedbackLoopService.runFeedbackLoop();
     } catch (error) {
       console.error('Feedback loop failed:', error);

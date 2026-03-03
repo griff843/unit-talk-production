@@ -1,0 +1,21 @@
+{
+  "extends": ["next/core-web-vitals"],
+  "rules": {
+    "no-console": "off",
+    "no-undef": "off",
+    "no-unused-vars": "off",
+    "curly": "off",
+    "require-await": "off",
+    "no-redeclare": "off",
+    "import/no-anonymous-default-export": "off",
+    "react/no-unescaped-entities": "off"
+  },
+  "globals": {
+    "React": "readonly",
+    "NodeJS": "readonly",
+    "localStorage": "readonly",
+    "window": "readonly",
+    "document": "readonly",
+    "fetch": "readonly"
+  }
+}

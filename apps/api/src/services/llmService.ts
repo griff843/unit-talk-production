@@ -6,7 +6,6 @@ import { logger } from '../shared/logger';
 
 import { LLMCircuitBreaker } from './llmCircuitBreaker';
 
-
 interface LLMConfig {
   provider: 'openai' | 'anthropic';
   model: string;
@@ -51,17 +50,17 @@ export class LLMService {
     maxTokens: 1000,
     topP: 1,
     frequencyPenalty: 0,
-    presencePenalty: 0
+    presencePenalty: 0,
   };
 
   private constructor() {
     // Initialize providers
     this.openai = new OpenAI({
-      apiKey: env.OPENAI_API_KEY
+      apiKey: env.OPENAI_API_KEY,
     });
 
     this.anthropic = new Anthropic({
-      apiKey: env.ANTHROPIC_API_KEY
+      apiKey: env.ANTHROPIC_API_KEY,
     });
 
     // Initialize circuit breaker
@@ -70,7 +69,7 @@ export class LLMService {
       resetTimeout: 60000,
       dailyTokenQuota: 1000000,
       maxConcurrentRequests: 50,
-      timeoutMs: 30000
+      timeoutMs: 30000,
     });
   }
 
@@ -119,10 +118,14 @@ export class LLMService {
       max_tokens: config.maxTokens,
       top_p: config.topP,
       frequency_penalty: config.frequencyPenalty,
-      presence_penalty: config.presencePenalty
+      presence_penalty: config.presencePenalty,
     });
 
-    const tokenUsage = completion.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+    const tokenUsage = completion.usage || {
+      prompt_tokens: 0,
+      completion_tokens: 0,
+      total_tokens: 0,
+    };
     const cost = this.calculateOpenAICost(config.model, tokenUsage.total_tokens);
 
     return {
@@ -132,12 +135,12 @@ export class LLMService {
       tokenUsage: {
         prompt: tokenUsage.prompt_tokens,
         completion: tokenUsage.completion_tokens,
-        total: tokenUsage.total_tokens
+        total: tokenUsage.total_tokens,
       },
       metadata: {
         latency: Date.now() - startTime,
-        cost
-      }
+        cost,
+      },
     };
   }
 
@@ -153,8 +156,8 @@ export class LLMService {
       temperature: config.temperature,
       messages: messages.map(msg => ({
         role: msg.role,
-        content: msg.content
-      }))
+        content: msg.content,
+      })),
     });
 
     const response = message.content[0];
@@ -166,7 +169,7 @@ export class LLMService {
     const tokenUsage = {
       prompt: this.estimateTokens(messages),
       completion: this.estimateTokens([{ role: 'assistant', content: response.text }]),
-      total: 0
+      total: 0,
     };
     tokenUsage.total = tokenUsage.prompt + tokenUsage.completion;
 
@@ -179,15 +182,16 @@ export class LLMService {
       tokenUsage,
       metadata: {
         latency: Date.now() - startTime,
-        cost
-      }
+        cost,
+      },
     };
   }
 
   private async getFallbackResponse(_request: LLMRequest): Promise<LLMResponse> {
     // Implement rule-based or template fallback
-    const fallbackResponse = 'I apologize, but I am currently experiencing technical difficulties. Please try again later.';
-    
+    const fallbackResponse =
+      'I apologize, but I am currently experiencing technical difficulties. Please try again later.';
+
     return {
       content: fallbackResponse,
       model: 'fallback',
@@ -195,12 +199,12 @@ export class LLMService {
       tokenUsage: {
         prompt: 0,
         completion: 0,
-        total: 0
+        total: 0,
       },
       metadata: {
         latency: 0,
-        cost: 0
-      }
+        cost: 0,
+      },
     };
   }
 
@@ -213,7 +217,7 @@ export class LLMService {
     const rates: Record<string, { input: number; output: number }> = {
       'gpt-4-turbo-preview': { input: 0.01, output: 0.03 },
       'gpt-4': { input: 0.03, output: 0.06 },
-      'gpt-3.5-turbo': { input: 0.0015, output: 0.002 }
+      'gpt-3.5-turbo': { input: 0.0015, output: 0.002 },
     };
 
     const rate = rates[model] || rates['gpt-3.5-turbo'];
@@ -223,10 +227,10 @@ export class LLMService {
   private calculateAnthropicCost(model: string, tokens: number): number {
     const rates: Record<string, number> = {
       'claude-3-opus-20240229': 0.015,
-      'claude-3-sonnet-20240229': 0.003
+      'claude-3-sonnet-20240229': 0.003,
     };
 
     const rate = rates[model] || 0.003;
     return (tokens * rate) / 1000;
   }
-} 
+}

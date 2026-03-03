@@ -1,15 +1,15 @@
 /**
  * Optimal API Integration for Unit Talk Platform
- * 
+ *
  * This module provides integration with the Optimal API for fetching sports betting props.
  * Based on the API documentation at: https://optimal-bet-api.readme.io/reference/getsportsbooks
- * 
+ *
  * API Endpoints:
  * - GET /v1/playerPropTypes - Get available prop types
  * - GET /v1/playerProps/{sport} - Get player props for a sport
- * - GET /v1/gamelines/{sport} - Get game lines for a sport  
+ * - GET /v1/gamelines/{sport} - Get game lines for a sport
  * - GET /v1/events - Get available events
- * 
+ *
  * Key Features:
  * - Rate limiting (900 requests per hour)
  * - Error handling and retry logic
@@ -27,7 +27,7 @@ import { RawProp } from '../../types/rawProps';
 const RATE_LIMIT = {
   maxRequests: 900,
   windowMs: 3600000, // 1 hour
-  requestQueue: [] as number[]
+  requestQueue: [] as number[],
 };
 
 // API Configuration
@@ -35,12 +35,12 @@ const API_CONFIG = {
   baseUrl: 'https://api.optimal-bet.com',
   timeout: 30000,
   retryAttempts: 3,
-  retryDelay: 1000
+  retryDelay: 1000,
 };
 
 // Supported sports (based on API endpoints)
 const SUPPORTED_SPORTS = ['NFL', 'NBA', 'MLB', 'NHL'] as const;
-type SupportedSport = typeof SUPPORTED_SPORTS[number];
+type SupportedSport = (typeof SUPPORTED_SPORTS)[number];
 
 // Interfaces for API responses
 interface OptimalPlayerPropType {
@@ -152,12 +152,12 @@ interface OptimalGameLine {
  */
 function canMakeRequest(): boolean {
   const now = Date.now();
-  
+
   // Remove requests outside the current window
   RATE_LIMIT.requestQueue = RATE_LIMIT.requestQueue.filter(
     timestamp => now - timestamp < RATE_LIMIT.windowMs
   );
-  
+
   return RATE_LIMIT.requestQueue.length < RATE_LIMIT.maxRequests;
 }
 
@@ -173,12 +173,12 @@ export function getRateLimitStatus() {
   const requestsInWindow = RATE_LIMIT.requestQueue.filter(
     timestamp => now - timestamp < RATE_LIMIT.windowMs
   ).length;
-  
+
   return {
     requestsInWindow,
     maxRequests: RATE_LIMIT.maxRequests,
     windowMs: RATE_LIMIT.windowMs,
-    canMakeRequest: requestsInWindow < RATE_LIMIT.maxRequests
+    canMakeRequest: requestsInWindow < RATE_LIMIT.maxRequests,
   };
 }
 
@@ -187,31 +187,35 @@ export function getRateLimitStatus() {
  */
 async function makeOptimalRequest<T>(endpoint: string, params?: Record<string, any>): Promise<T> {
   const apiKey = process.env['OPTIMAL_API_KEY'];
-  
+
   if (!apiKey) {
     throw new Error('OPTIMAL_API_KEY environment variable is required');
   }
 
   if (!canMakeRequest()) {
     const firstRequest = RATE_LIMIT.requestQueue[0];
-    const waitTime = firstRequest ? Math.ceil((RATE_LIMIT.windowMs - (Date.now() - firstRequest)) / 1000) : 60;
-    throw new Error(`Rate limit exceeded. Please wait ${waitTime} seconds before making another request.`);
+    const waitTime = firstRequest
+      ? Math.ceil((RATE_LIMIT.windowMs - (Date.now() - firstRequest)) / 1000)
+      : 60;
+    throw new Error(
+      `Rate limit exceeded. Please wait ${waitTime} seconds before making another request.`
+    );
   }
 
   const url = `${API_CONFIG.baseUrl}${endpoint}`;
-  
+
   try {
     recordRequest();
-    
+
     const response: AxiosResponse<T> = await axios.get(url, {
       headers: {
-        'accept': 'application/json',
+        accept: 'application/json',
         // Note: Update authentication method based on actual API requirements
         // Common patterns: 'Authorization': `Bearer ${apiKey}` or 'X-API-Key': apiKey
-        'Authorization': `Bearer ${apiKey}`
+        Authorization: `Bearer ${apiKey}`,
       },
       params,
-      timeout: API_CONFIG.timeout
+      timeout: API_CONFIG.timeout,
     });
 
     return response.data;
@@ -227,7 +231,7 @@ async function makeOptimalRequest<T>(endpoint: string, params?: Record<string, a
         statusText,
         url,
         responseData,
-        message
+        message,
       });
 
       throw new Error(`Optimal API request failed (${status}): ${message}`);
@@ -255,22 +259,30 @@ export async function fetchPlayerPropTypes(): Promise<OptimalPlayerPropType[]> {
 /**
  * Fetch player props for a specific sport and event
  */
-export async function fetchPlayerProps(sport: string, eventId: string): Promise<OptimalPlayerProp[]> {
+export async function fetchPlayerProps(
+  sport: string,
+  eventId: string
+): Promise<OptimalPlayerProp[]> {
   console.log(`[Optimal] Fetching player props for ${sport} event ${eventId}...`);
 
   try {
-    const response = await makeOptimalRequest<OptimalPlayerPropsResponse>(`/v1/playerProps/${sport}`, {
-      eventId
-    });
+    const response = await makeOptimalRequest<OptimalPlayerPropsResponse>(
+      `/v1/playerProps/${sport}`,
+      {
+        eventId,
+      }
+    );
 
     console.log(`[Optimal] Raw response structure for ${sport} event ${eventId}:`, {
       hasPlayers: !!response.players,
       playersCount: response.players?.length || 0,
-      samplePlayer: response.players?.[0] ? {
-        name: response.players[0].name,
-        team: response.players[0].team,
-        offersCount: response.players[0].offers?.length || 0
-      } : null
+      samplePlayer: response.players?.[0]
+        ? {
+            name: response.players[0].name,
+            team: response.players[0].team,
+            offersCount: response.players[0].offers?.length || 0,
+          }
+        : null,
     });
 
     // Convert the new format to legacy format with proper odds parsing
@@ -279,19 +291,21 @@ export async function fetchPlayerProps(sport: string, eventId: string): Promise<
     if (response.players && Array.isArray(response.players)) {
       for (const player of response.players) {
         if (player.offers && Array.isArray(player.offers)) {
-          
           // Group offers by propType and line to combine over/under odds
-          const offersByPropAndLine = new Map<string, {
-            propType: string;
-            line: number;
-            over_odds?: number;
-            under_odds?: number;
-            sportsbook: string;
-            timestamp?: string;
-            over_sportsbook?: string;
-            under_sportsbook?: string;
-          }>();
-          
+          const offersByPropAndLine = new Map<
+            string,
+            {
+              propType: string;
+              line: number;
+              over_odds?: number;
+              under_odds?: number;
+              sportsbook: string;
+              timestamp?: string;
+              over_sportsbook?: string;
+              under_sportsbook?: string;
+            }
+          >();
+
           // First pass: group by propType and line only (not by sportsbook)
           const propLineOffers = new Map<string, OptimalOffer[]>();
           for (const offer of player.offers) {
@@ -301,16 +315,16 @@ export async function fetchPlayerProps(sport: string, eventId: string): Promise<
             }
             propLineOffers.get(key)!.push(offer);
           }
-          
+
           // Second pass: create best odds combinations
           for (const [propLineKey, offers] of propLineOffers) {
             const [propType, lineStr] = propLineKey.split('-');
             const line = parseFloat(lineStr);
-            
+
             // Find best over and under odds
             const overOffers = offers.filter(o => o.offerType === 'over');
             const underOffers = offers.filter(o => o.offerType === 'under');
-            
+
             // Get best over odds (most positive for favorites, least negative for underdogs)
             let bestOverOffer: OptimalOffer | null = null;
             if (overOffers.length > 0) {
@@ -319,7 +333,7 @@ export async function fetchPlayerProps(sport: string, eventId: string): Promise<
                 return current.oddsAmerican > best.oddsAmerican ? current : best;
               });
             }
-            
+
             // Get best under odds (most positive for favorites, least negative for underdogs)
             let bestUnderOffer: OptimalOffer | null = null;
             if (underOffers.length > 0) {
@@ -328,7 +342,7 @@ export async function fetchPlayerProps(sport: string, eventId: string): Promise<
                 return current.oddsAmerican > best.oddsAmerican ? current : best;
               });
             }
-            
+
             // Create prop entry if we have at least one side
             if (bestOverOffer || bestUnderOffer) {
               const combinedOffer = {
@@ -339,36 +353,44 @@ export async function fetchPlayerProps(sport: string, eventId: string): Promise<
                 sportsbook: bestOverOffer ? bestOverOffer.sportsbook : bestUnderOffer!.sportsbook,
                 over_sportsbook: bestOverOffer ? bestOverOffer.sportsbook : undefined,
                 under_sportsbook: bestUnderOffer ? bestUnderOffer.sportsbook : undefined,
-                timestamp: bestOverOffer?.timestamp || bestUnderOffer?.timestamp
+                timestamp: bestOverOffer?.timestamp || bestUnderOffer?.timestamp,
               };
-              
+
               const key = `${propType}-${line}-combined`;
               offersByPropAndLine.set(key, combinedOffer);
             }
           }
-          
+
           // Convert to legacy format with smart defaults for missing sides
           for (const [key, groupedOffer] of offersByPropAndLine) {
             let over_odds = groupedOffer.over_odds;
             let under_odds = groupedOffer.under_odds;
-            
+
             // If we only have one side, estimate the other side using fair market assumptions
             if (over_odds && !under_odds) {
               // Convert American odds to probability, then back to opposite side
-              const overProb = over_odds > 0 ? 100 / (over_odds + 100) : Math.abs(over_odds) / (Math.abs(over_odds) + 100);
+              const overProb =
+                over_odds > 0
+                  ? 100 / (over_odds + 100)
+                  : Math.abs(over_odds) / (Math.abs(over_odds) + 100);
               const underProb = 1 - overProb;
-              under_odds = underProb > 0.5 ? 
-                Math.round(-(underProb / (1 - underProb)) * 100) : 
-                Math.round((1 - underProb) / underProb * 100);
+              under_odds =
+                underProb > 0.5
+                  ? Math.round(-(underProb / (1 - underProb)) * 100)
+                  : Math.round(((1 - underProb) / underProb) * 100);
             } else if (under_odds && !over_odds) {
               // Convert American odds to probability, then back to opposite side
-              const underProb = under_odds > 0 ? 100 / (under_odds + 100) : Math.abs(under_odds) / (Math.abs(under_odds) + 100);
+              const underProb =
+                under_odds > 0
+                  ? 100 / (under_odds + 100)
+                  : Math.abs(under_odds) / (Math.abs(under_odds) + 100);
               const overProb = 1 - underProb;
-              over_odds = overProb > 0.5 ? 
-                Math.round(-(overProb / (1 - overProb)) * 100) : 
-                Math.round((1 - overProb) / overProb * 100);
+              over_odds =
+                overProb > 0.5
+                  ? Math.round(-(overProb / (1 - overProb)) * 100)
+                  : Math.round(((1 - overProb) / overProb) * 100);
             }
-            
+
             // Only include if we have at least one real odds value
             if (groupedOffer.over_odds || groupedOffer.under_odds) {
               legacyProps.push({
@@ -383,12 +405,13 @@ export async function fetchPlayerProps(sport: string, eventId: string): Promise<
                 line: groupedOffer.line,
                 over_odds: over_odds || -110, // Default if still missing
                 under_odds: under_odds || -110, // Default if still missing
-                sportsbook: groupedOffer.over_sportsbook && groupedOffer.under_sportsbook ? 
-                  `${groupedOffer.over_sportsbook}/${groupedOffer.under_sportsbook}` : 
-                  groupedOffer.sportsbook,
+                sportsbook:
+                  groupedOffer.over_sportsbook && groupedOffer.under_sportsbook
+                    ? `${groupedOffer.over_sportsbook}/${groupedOffer.under_sportsbook}`
+                    : groupedOffer.sportsbook,
                 market: groupedOffer.propType,
                 created_at: groupedOffer.timestamp || new Date().toISOString(),
-                updated_at: groupedOffer.timestamp || new Date().toISOString()
+                updated_at: groupedOffer.timestamp || new Date().toISOString(),
               });
             }
           }
@@ -396,7 +419,9 @@ export async function fetchPlayerProps(sport: string, eventId: string): Promise<
       }
     }
 
-    console.log(`[Optimal] Converted ${legacyProps.length} complete props (with both over/under odds) from ${response.players?.length || 0} players for ${sport} event ${eventId}`);
+    console.log(
+      `[Optimal] Converted ${legacyProps.length} complete props (with both over/under odds) from ${response.players?.length || 0} players for ${sport} event ${eventId}`
+    );
     return legacyProps;
   } catch (error) {
     console.error(`[Optimal] Error fetching props for ${sport} event ${eventId}:`, error);
@@ -433,7 +458,7 @@ export async function fetchEvents(): Promise<OptimalEvent[]> {
  */
 export async function fetchGameLines(sport: SupportedSport): Promise<OptimalGameLine[]> {
   console.log(`[Optimal] Fetching game lines for ${sport}...`);
-  
+
   try {
     const gameLines = await makeOptimalRequest<OptimalGameLine[]>(`/v1/gamelines/${sport}`);
     console.log(`[Optimal] Fetched ${gameLines.length} game lines for ${sport}`);
@@ -491,7 +516,9 @@ function convertOptimalPropToRawProp(prop: OptimalPlayerProp): RawProp {
     game_time: prop.game_time || new Date().toISOString(),
     scraped_at: new Date().toISOString(),
     created_at: new Date().toISOString(),
-    game_date: prop.game_time ? prop.game_time.split('T')[0] : new Date().toISOString().split('T')[0],
+    game_date: prop.game_time
+      ? prop.game_time.split('T')[0]
+      : new Date().toISOString().split('T')[0],
 
     // Teams
     home_team: null,
@@ -526,7 +553,7 @@ function convertOptimalPropToRawProp(prop: OptimalPlayerProp): RawProp {
     market_type: null,
     outcomes: undefined,
     player_id: undefined,
-    player_slug: undefined, 
+    player_slug: undefined,
     external_id: undefined,
     league: undefined,
     fair_odds: undefined,
@@ -548,7 +575,7 @@ function convertOptimalPropToRawProp(prop: OptimalPlayerProp): RawProp {
     updated_at: null,
     is_alt_line: null,
     is_primary: null,
-    is_valid: undefined
+    is_valid: undefined,
   };
 }
 
@@ -588,7 +615,7 @@ function convertOptimalPropToRawProp(prop: OptimalPlayerProp): RawProp {
  * Clear rate limit cache (for testing)
  */
 export function clearRateLimitCache(): void {
-        RATE_LIMIT.requestQueue = [];
+  RATE_LIMIT.requestQueue = [];
 }
 
 /**
@@ -612,20 +639,22 @@ export async function fetchOptimalProps(sport: string, date?: string): Promise<R
     // Check rate limit
     const rateLimitStatus = getRateLimitStatus();
     if (!rateLimitStatus.canMakeRequest) {
-      console.warn(`[Optimal] Rate limit exceeded. ${rateLimitStatus.requestsInWindow}/${rateLimitStatus.maxRequests} requests used`);
+      console.warn(
+        `[Optimal] Rate limit exceeded. ${rateLimitStatus.requestsInWindow}/${rateLimitStatus.maxRequests} requests used`
+      );
       return [];
     }
 
     // Map sport name to Optimal API format
     const sportMapping: { [key: string]: SupportedSport } = {
-      'NBA': 'NBA',
-      'NFL': 'NFL',
-      'MLB': 'MLB',
-      'NHL': 'NHL',
-      'nba': 'NBA',
-      'nfl': 'NFL',
-      'mlb': 'MLB',
-      'nhl': 'NHL'
+      NBA: 'NBA',
+      NFL: 'NFL',
+      MLB: 'MLB',
+      NHL: 'NHL',
+      nba: 'NBA',
+      nfl: 'NFL',
+      mlb: 'MLB',
+      nhl: 'NHL',
     };
 
     const optimalSport = sportMapping[sport];
@@ -638,8 +667,8 @@ export async function fetchOptimalProps(sport: string, date?: string): Promise<R
     const events = await fetchEvents();
 
     // Filter events for the requested sport
-    const sportEvents = events.filter(event =>
-      event.league.toUpperCase() === optimalSport.toUpperCase()
+    const sportEvents = events.filter(
+      event => event.league.toUpperCase() === optimalSport.toUpperCase()
     );
 
     if (sportEvents.length === 0) {
@@ -664,7 +693,6 @@ export async function fetchOptimalProps(sport: string, date?: string): Promise<R
 
     console.log(`[Optimal] Successfully fetched ${rawProps.length} props for ${sport}`);
     return rawProps;
-
   } catch (error) {
     console.error(`[Optimal] Error fetching props for ${sport}:`, error);
     return [];

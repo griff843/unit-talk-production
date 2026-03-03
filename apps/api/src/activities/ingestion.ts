@@ -18,9 +18,9 @@ export async function ingestOptimalProps(params: {
   cycleCount: number;
 }): Promise<{ success: boolean; propsIngested: number; errors: string[] }> {
   try {
-    logger.info(`🔄 Ingesting Optimal props for ${params.league}`, { 
-      league: params.league, 
-      cycleCount: params.cycleCount 
+    logger.info(`🔄 Ingesting Optimal props for ${params.league}`, {
+      league: params.league,
+      cycleCount: params.cycleCount,
     });
 
     const apiKey = process.env['OPTIMAL_API_KEY'];
@@ -30,8 +30,8 @@ export async function ingestOptimalProps(params: {
 
     // Make API call to Optimal
     const response = await axios.get(`https://api.optimal.com/props/${params.league}`, {
-      headers: { 'Authorization': `Bearer ${apiKey}` },
-      timeout: 10000
+      headers: { Authorization: `Bearer ${apiKey}` },
+      timeout: 10000,
     });
 
     const props = response.data?.props || [];
@@ -41,24 +41,22 @@ export async function ingestOptimalProps(params: {
     // Insert props into raw_props table
     for (const prop of props) {
       try {
-        const { error } = await supabase
-          .from('raw_props')
-          .insert({
-            id: `optimal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            external_game_id: prop.game_id || `game-${Date.now()}`,
-            player_name: prop.player_name,
-            team: prop.team,
-            stat_type: prop.prop_type,
-            line: prop.line,
-            over_odds: prop.over_odds ?? 0,
-            under_odds: prop.under_odds ?? 0,
-            provider: 'Optimal',
-            game_time: prop.game_time || new Date().toISOString(),
-            scraped_at: new Date().toISOString(),
-            sport: params.league,
-            league: params.league,
-            created_at: new Date().toISOString()
-          });
+        const { error } = await supabase.from('raw_props').insert({
+          id: `optimal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          external_game_id: prop.game_id || `game-${Date.now()}`,
+          player_name: prop.player_name,
+          team: prop.team,
+          stat_type: prop.prop_type,
+          line: prop.line,
+          over_odds: prop.over_odds ?? 0,
+          under_odds: prop.under_odds ?? 0,
+          provider: 'Optimal',
+          game_time: prop.game_time || new Date().toISOString(),
+          scraped_at: new Date().toISOString(),
+          sport: params.league,
+          league: params.league,
+          created_at: new Date().toISOString(),
+        });
 
         if (error) {
           errors.push(`Failed to insert prop for ${prop.player_name}: ${error.message}`);
@@ -70,25 +68,27 @@ export async function ingestOptimalProps(params: {
       }
     }
 
-    logger.info(`✅ Optimal ingestion complete`, { 
-      league: params.league, 
+    logger.info(`✅ Optimal ingestion complete`, {
+      league: params.league,
       propsIngested: insertedCount,
-      errors: errors.length 
+      errors: errors.length,
     });
 
     return {
       success: errors.length === 0,
       propsIngested: insertedCount,
-      errors
+      errors,
     };
-
   } catch (error) {
-    const errorContext = error instanceof Error ? { message: error.message, stack: error.stack } : { error: String(error) };
+    const errorContext =
+      error instanceof Error
+        ? { message: error.message, stack: error.stack }
+        : { error: String(error) };
     logger.error(`❌ Optimal ingestion failed for ${params.league}:`, errorContext);
     return {
       success: false,
       propsIngested: 0,
-      errors: [String(error)]
+      errors: [String(error)],
     };
   }
 }
@@ -99,9 +99,9 @@ export async function ingestSGOProps(params: {
   cycleCount: number;
 }): Promise<{ success: boolean; propsIngested: number; errors: string[] }> {
   try {
-    logger.info(`🔄 Ingesting SGO props for ${params.league} (fallback)`, { 
-      league: params.league, 
-      cycleCount: params.cycleCount 
+    logger.info(`🔄 Ingesting SGO props for ${params.league} (fallback)`, {
+      league: params.league,
+      cycleCount: params.cycleCount,
     });
 
     const apiKey = process.env['SGO_API_KEY'];
@@ -110,7 +110,7 @@ export async function ingestSGOProps(params: {
       return {
         success: true,
         propsIngested: 0,
-        errors: ['SGO API not configured - using dummy key']
+        errors: ['SGO API not configured - using dummy key'],
       };
     }
 
@@ -119,16 +119,18 @@ export async function ingestSGOProps(params: {
     return {
       success: true,
       propsIngested: 0,
-      errors: []
+      errors: [],
     };
-
   } catch (error) {
-    const errorContext = error instanceof Error ? { message: error.message, stack: error.stack } : { error: String(error) };
+    const errorContext =
+      error instanceof Error
+        ? { message: error.message, stack: error.stack }
+        : { error: String(error) };
     logger.error(`❌ SGO ingestion failed for ${params.league}:`, errorContext);
     return {
       success: false,
       propsIngested: 0,
-      errors: [String(error)]
+      errors: [String(error)],
     };
   }
 }
@@ -148,7 +150,7 @@ export async function validateIngestionData(params: {
       return {
         isValid: false,
         actualCount: 0,
-        issues: [`Database query failed: ${error.message}`]
+        issues: [`Database query failed: ${error.message}`],
       };
     }
 
@@ -162,14 +164,13 @@ export async function validateIngestionData(params: {
     return {
       isValid: issues.length === 0,
       actualCount,
-      issues
+      issues,
     };
-
   } catch (error) {
     return {
       isValid: false,
       actualCount: 0,
-      issues: [String(error)]
+      issues: [String(error)],
     };
   }
 }
@@ -186,14 +187,14 @@ export async function ingestOptimalGames(params: {
   try {
     logger.info(`🎮 Ingesting games from Optimal API for leagues: ${params.leagues.join(', ')}`, {
       leagues: params.leagues,
-      cycleCount: params.cycleCount
+      cycleCount: params.cycleCount,
     });
 
     // Fetch events from Optimal API
     const events = await fetchEvents();
-    
+
     // Filter for requested leagues
-    const filteredEvents = events.filter(event => 
+    const filteredEvents = events.filter(event =>
       params.leagues.map(l => l.toUpperCase()).includes(event.league?.toUpperCase())
     );
 
@@ -214,16 +215,30 @@ export async function ingestOptimalGames(params: {
         const homeTeam = `${event.home?.toUpperCase()}_${event.league?.toUpperCase()}`;
 
         // Ensure teams exist in teams table
-        await ensureTeamExists(event.away?.toUpperCase(), event.away_display, event.league?.toUpperCase());
-        await ensureTeamExists(event.home?.toUpperCase(), event.home_display, event.league?.toUpperCase());
+        await ensureTeamExists(
+          event.away?.toUpperCase(),
+          event.away_display,
+          event.league?.toUpperCase()
+        );
+        await ensureTeamExists(
+          event.home?.toUpperCase(),
+          event.home_display,
+          event.league?.toUpperCase()
+        );
 
         // Create game record
         const gameRecord = {
           external_game_id: event.id,
-          sport: event.league?.toUpperCase() === 'MLB' ? 'BASEBALL' : 
-                 event.league?.toUpperCase() === 'NFL' ? 'FOOTBALL' :
-                 event.league?.toUpperCase() === 'NBA' ? 'BASKETBALL' :
-                 event.league?.toUpperCase() === 'NHL' ? 'HOCKEY' : 'OTHER',
+          sport:
+            event.league?.toUpperCase() === 'MLB'
+              ? 'BASEBALL'
+              : event.league?.toUpperCase() === 'NFL'
+                ? 'FOOTBALL'
+                : event.league?.toUpperCase() === 'NBA'
+                  ? 'BASKETBALL'
+                  : event.league?.toUpperCase() === 'NHL'
+                    ? 'HOCKEY'
+                    : 'OTHER',
           league: event.league?.toUpperCase(),
           game_date: gameDate,
           start_time: startTime,
@@ -234,7 +249,7 @@ export async function ingestOptimalGames(params: {
           source: 'optimal',
           commence_time: event.commence_time,
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         };
 
         // Check if game already exists
@@ -250,7 +265,7 @@ export async function ingestOptimalGames(params: {
             .from('games')
             .update({
               ...gameRecord,
-              updated_at: new Date().toISOString()
+              updated_at: new Date().toISOString(),
             })
             .eq('external_game_id', event.id);
 
@@ -261,9 +276,7 @@ export async function ingestOptimalGames(params: {
           }
         } else {
           // Insert new game
-          const { error: insertError } = await supabase
-            .from('games')
-            .insert(gameRecord);
+          const { error: insertError } = await supabase.from('games').insert(gameRecord);
 
           if (insertError) {
             errors.push(`Failed to insert game ${event.id}: ${insertError.message}`);
@@ -282,16 +295,15 @@ export async function ingestOptimalGames(params: {
     return {
       success: errors.length === 0,
       gamesIngested: insertedCount,
-      errors
+      errors,
     };
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error(`❌ Games ingestion failed: ${errorMessage}`);
     return {
       success: false,
       gamesIngested: 0,
-      errors: [errorMessage]
+      errors: [errorMessage],
     };
   }
 }
@@ -299,7 +311,11 @@ export async function ingestOptimalGames(params: {
 /**
  * Helper function to ensure team exists in teams table
  */
-async function ensureTeamExists(teamCode: string, teamDisplayName: string, sport: string): Promise<void> {
+async function ensureTeamExists(
+  teamCode: string,
+  teamDisplayName: string,
+  sport: string
+): Promise<void> {
   if (!teamCode || !sport) return;
 
   try {
@@ -318,12 +334,10 @@ async function ensureTeamExists(teamCode: string, teamDisplayName: string, sport
         team_name: teamDisplayName || teamCode,
         city: teamDisplayName?.split(' ')[0] || teamCode,
         sport: sport,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
       };
 
-      const { error: teamError } = await supabase
-        .from('teams')
-        .insert(teamRecord);
+      const { error: teamError } = await supabase.from('teams').insert(teamRecord);
 
       if (teamError) {
         logger.warn(`Failed to create team ${teamCode}: ${teamError.message}`);

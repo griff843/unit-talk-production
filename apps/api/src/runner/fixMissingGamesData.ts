@@ -1,6 +1,6 @@
 /**
  * Fix Missing Games Data
- * The games table is empty for today but raw_props exist. 
+ * The games table is empty for today but raw_props exist.
  * This script populates the games table from Optimal API events.
  */
 
@@ -13,46 +13,43 @@ import { fetchEvents } from '../agents/FeedAgent/optimal';
 
 dotenv.config();
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
 async function fixMissingGamesData() {
   console.log('🔧 FIXING MISSING GAMES DATA');
   console.log('='.repeat(50));
-  
+
   try {
     // Check current state
     const today = new Date().toISOString().split('T')[0];
     console.log('Date:', today);
-    
+
     const { data: existingGames, count: gameCount } = await supabase
       .from('games')
       .select('*', { count: 'exact' })
       .eq('game_date', today);
-      
+
     console.log(`Current games for today: ${gameCount || 0}`);
-    
+
     // Fetch events from Optimal API
     console.log('\n📡 Fetching events from Optimal API...');
     const events = await fetchEvents();
-    
+
     if (events.length === 0) {
       console.log('❌ No events found from Optimal API');
       return;
     }
-    
+
     console.log(`Found ${events.length} events from Optimal API`);
-    
+
     // Filter for today's events
     const todaysEvents = events.filter(event => {
       const eventDate = event.start_date_code || event.start_date;
       return eventDate && eventDate.startsWith(today.replace(/-/g, ''));
     });
-    
+
     console.log(`Events for today: ${todaysEvents.length}`);
-    
+
     if (todaysEvents.length === 0) {
       console.log('⚠️  No events found for today');
       // Check what dates we do have
@@ -60,7 +57,7 @@ async function fixMissingGamesData() {
       console.log('Available event dates:', [...new Set(eventDates)].slice(0, 10));
       return;
     }
-    
+
     // Convert events to games format
     const gamesToInsert = todaysEvents.map(event => {
       return {
@@ -74,7 +71,7 @@ async function fixMissingGamesData() {
         status: event.status || 'scheduled',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        
+
         // Additional fields that might be required
         home_score: null,
         away_score: null,
@@ -91,83 +88,90 @@ async function fixMissingGamesData() {
         moneyline_home: null,
         moneyline_away: null,
         is_completed: false,
-        completed_at: null
+        completed_at: null,
       };
     });
-    
+
     console.log(`\n💾 Inserting ${gamesToInsert.length} games...`);
-    
+
     // Insert games
     const { data: insertedGames, error: insertError } = await supabase
       .from('games')
       .insert(gamesToInsert)
       .select('id, external_game_id, sport, home_team, away_team');
-      
+
     if (insertError) {
       console.error('❌ Insert failed:', insertError.message);
       console.log('Sample game data:', JSON.stringify(gamesToInsert[0], null, 2));
       return;
     }
-    
+
     console.log(`✅ Successfully inserted ${insertedGames?.length || 0} games`);
-    
+
     // Show sample inserted games
     if (insertedGames && insertedGames.length > 0) {
       console.log('\n📋 Sample inserted games:');
       insertedGames.slice(0, 5).forEach((game, i) => {
-        console.log(`${i+1}. ${game.sport}: ${game.away_team} @ ${game.home_team} (${game.external_game_id})`);
+        console.log(
+          `${i + 1}. ${game.sport}: ${game.away_team} @ ${game.home_team} (${game.external_game_id})`
+        );
       });
     }
-    
+
     // Verify final state
     console.log('\n🔍 Verifying final state...');
     const { count: finalCount } = await supabase
       .from('games')
       .select('*', { count: 'exact', head: true })
       .eq('game_date', today);
-      
+
     console.log(`Final games count for today: ${finalCount || 0}`);
-    
+
     // Check props can now link to games
     const { data: sampleProps } = await supabase
       .from('raw_props')
       .select('external_game_id, sport')
       .eq('game_date', today)
       .limit(5);
-      
+
     if (sampleProps && sampleProps.length > 0) {
-      console.log('\nSample prop external_game_ids:', sampleProps.map(p => p.external_game_id));
-      
+      console.log(
+        '\nSample prop external_game_ids:',
+        sampleProps.map(p => p.external_game_id)
+      );
+
       // Use a simpler approach to count linked props
       const { data: allTodayProps } = await supabase
         .from('raw_props')
         .select('external_game_id')
         .eq('game_date', today);
-        
+
       const { data: todayGames } = await supabase
         .from('games')
         .select('external_game_id')
         .eq('game_date', today);
-        
+
       const gameIds = new Set(todayGames?.map(g => g.external_game_id) || []);
-      const linkedPropsCount = allTodayProps?.filter(p => gameIds.has(p.external_game_id)).length || 0;
+      const linkedPropsCount =
+        allTodayProps?.filter(p => gameIds.has(p.external_game_id)).length || 0;
       const linkedProps = linkedPropsCount;
-        
+
       console.log(`Props that can link to games: ${linkedProps || 0}/${sampleProps.length}`);
     }
-    
+
     console.log('\n🎉 SUCCESS: Games data populated for today!');
-    
   } catch (error) {
     console.error('❌ Failed to fix missing games data:', error);
     throw error;
   }
 }
 
-fixMissingGamesData().then(() => {
-  console.log('\n✅ GAMES DATA FIX COMPLETE');
-  process.exit(0);
-}).catch(error => {
-  console.error('\n❌ Games data fix failed:', error);
-  process.exit(1);
-});
+fixMissingGamesData()
+  .then(() => {
+    console.log('\n✅ GAMES DATA FIX COMPLETE');
+    process.exit(0);
+  })
+  .catch(error => {
+    console.error('\n❌ Games data fix failed:', error);
+    process.exit(1);
+  });

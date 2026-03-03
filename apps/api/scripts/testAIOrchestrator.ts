@@ -1,4 +1,3 @@
-
 #!/usr/bin/env tsx
 
 /**
@@ -16,18 +15,18 @@ class AIOrchestrator {
   private models: AIModel[] = [
     { name: 'GPT-4', endpoint: 'openai', available: true },
     { name: 'Claude-3', endpoint: 'anthropic', available: true },
-    { name: 'Gemini-Pro', endpoint: 'google', available: true }
+    { name: 'Gemini-Pro', endpoint: 'google', available: true },
   ];
 
   async testMultiModelOrchestration(): Promise<void> {
     console.log('🤖 AI ORCHESTRATOR MULTI-MODEL TEST');
     console.log('===================================\n');
 
-    const testPrompt = "Analyze this betting scenario and provide confidence score";
-    
+    const testPrompt = 'Analyze this betting scenario and provide confidence score';
+
     for (const model of this.models) {
       console.log(`🔍 Testing ${model.name}...`);
-      
+
       try {
         // Simulate AI model call
         const response = await this.simulateModelCall(model, testPrompt);
@@ -50,11 +49,11 @@ class AIOrchestrator {
   private async simulateModelCall(model: AIModel, prompt: string): Promise<any> {
     // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, Math.random() * 1000 + 500));
-    
+
     return {
       confidence: Math.floor(Math.random() * 40 + 60), // 60-100%
-      latency: Math.floor(Math.random() * 500 + 200),  // 200-700ms
-      response: `Analysis from ${model.name}`
+      latency: Math.floor(Math.random() * 500 + 200), // 200-700ms
+      response: `Analysis from ${model.name}`,
     };
   }
 

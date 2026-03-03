@@ -48,4 +48,4 @@ export interface OperatorSummary {
   content: string;
   insights?: string[];
   recommendations?: string[];
-} 
+}

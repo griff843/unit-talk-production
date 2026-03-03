@@ -37,7 +37,7 @@ describe('wizardReducer', () => {
     it('should not duplicate completed steps', () => {
       let state = wizardReducer(initialWizardState, actions.completeStep(1));
       state = wizardReducer(state, actions.completeStep(1));
-      expect(state.completedSteps.filter((s) => s === 1)).toHaveLength(1);
+      expect(state.completedSteps.filter(s => s === 1)).toHaveLength(1);
     });
 
     it('should allow multiple steps to be completed', () => {
@@ -82,10 +82,7 @@ describe('wizardReducer', () => {
         ...initialWizardState,
         pick: { ...initialPickState, sport: 'NBA' },
       };
-      const state = wizardReducer(
-        stateWithSport,
-        actions.updatePick({ odds: '-110' })
-      );
+      const state = wizardReducer(stateWithSport, actions.updatePick({ odds: '-110' }));
       expect(state.pick.sport).toBe('NBA');
       expect(state.pick.odds).toBe('-110');
     });
@@ -122,10 +119,7 @@ describe('wizardReducer', () => {
 
   describe('SET_BET_CATEGORY', () => {
     it('should update bet category', () => {
-      const state = wizardReducer(
-        initialWizardState,
-        actions.setBetCategory('player_prop')
-      );
+      const state = wizardReducer(initialWizardState, actions.setBetCategory('player_prop'));
       expect(state.pick.betCategory).toBe('player_prop');
     });
 
@@ -212,9 +206,7 @@ describe('wizardReducer', () => {
     it('should not affect state if leg not found', () => {
       const stateWithLegs: WizardState = {
         ...initialWizardState,
-        legs: [
-          { id: 'leg-1', sport: 'NBA', bet_category: 'spread', odds: '-110', status: 'open' },
-        ],
+        legs: [{ id: 'leg-1', sport: 'NBA', bet_category: 'spread', odds: '-110', status: 'open' }],
       };
       const state = wizardReducer(stateWithLegs, actions.removeLeg('non-existent'));
       expect(state.legs).toHaveLength(1);
@@ -253,9 +245,7 @@ describe('wizardReducer', () => {
           sport: 'NBA',
           player: 'LeBron',
         },
-        legs: [
-          { id: 'leg-1', sport: 'NBA', bet_category: 'spread', odds: '-110', status: 'open' },
-        ],
+        legs: [{ id: 'leg-1', sport: 'NBA', bet_category: 'spread', odds: '-110', status: 'open' }],
       };
       const state = wizardReducer(stateWithLegs, actions.resetPick());
       expect(state.pick).toEqual(initialPickState);

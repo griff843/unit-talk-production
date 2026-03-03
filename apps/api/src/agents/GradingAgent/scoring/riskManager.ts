@@ -1,17 +1,17 @@
 // import { GradingFeatureSet } from '../../../types/GradingFeatureSet';
 
 export interface RiskConfig {
-  maxPositionSize: number;        // Maximum position size as % of bankroll
-  maxCorrelation: number;         // Maximum correlation between positions
-  maxDrawdown: number;            // Maximum drawdown threshold
-  minSharpeRatio: number;         // Minimum Sharpe ratio requirement
-  maxExposurePerSport: number;    // Maximum exposure per sport
-  maxExposurePerPlayer: number;   // Maximum exposure per player
-  maxDailyRisk: number;          // Maximum daily risk exposure
-  kellyMultiplier: number;       // Kelly fraction multiplier (default 0.25)
-  stopLossThreshold: number;     // Stop loss trigger threshold
-  maxVaR: number;               // Maximum Value at Risk
-  maxCVaR: number;              // Maximum Conditional Value at Risk
+  maxPositionSize: number; // Maximum position size as % of bankroll
+  maxCorrelation: number; // Maximum correlation between positions
+  maxDrawdown: number; // Maximum drawdown threshold
+  minSharpeRatio: number; // Minimum Sharpe ratio requirement
+  maxExposurePerSport: number; // Maximum exposure per sport
+  maxExposurePerPlayer: number; // Maximum exposure per player
+  maxDailyRisk: number; // Maximum daily risk exposure
+  kellyMultiplier: number; // Kelly fraction multiplier (default 0.25)
+  stopLossThreshold: number; // Stop loss trigger threshold
+  maxVaR: number; // Maximum Value at Risk
+  maxCVaR: number; // Maximum Conditional Value at Risk
 }
 
 export interface Position {
@@ -30,13 +30,13 @@ export interface Position {
 }
 
 export interface PositionRiskMetrics {
-  individualRisk: number;        // Risk of this position alone
-  correlationRisk: number;       // Risk from correlations
+  individualRisk: number; // Risk of this position alone
+  correlationRisk: number; // Risk from correlations
   portfolioContribution: number; // Contribution to portfolio risk
-  valueAtRisk: number;          // VaR for this position
-  expectedShortfall: number;    // Expected shortfall (CVaR)
-  liquidityRisk: number;        // Liquidity risk professional_score
-  concentrationRisk: number;    // Concentration risk professional_score
+  valueAtRisk: number; // VaR for this position
+  expectedShortfall: number; // Expected shortfall (CVaR)
+  liquidityRisk: number; // Liquidity risk professional_score
+  concentrationRisk: number; // Concentration risk professional_score
 }
 
 export interface PortfolioRisk {
@@ -78,7 +78,7 @@ export class RiskManager {
     kellyMultiplier: 0.25,
     stopLossThreshold: 0.15,
     maxVaR: 0.05,
-    maxCVaR: 0.08
+    maxCVaR: 0.08,
   };
   private positions: Map<string, Position> = new Map();
   private riskHistory: Array<{ timestamp: string; risk: PortfolioRisk }> = [];
@@ -99,21 +99,21 @@ export class RiskManager {
     riskFactors: Partial<PositionRiskMetrics> = {}
   ): Promise<number> {
     // Convert American odds to decimal
-    const decimalOdds = odds > 0 ? (odds / 100) + 1 : (100 / Math.abs(odds)) + 1;
-    
+    const decimalOdds = odds > 0 ? odds / 100 + 1 : 100 / Math.abs(odds) + 1;
+
     // Kelly formula: f = (bp - q) / b
     const b = decimalOdds - 1;
     const p = winProbability;
     const q = 1 - p;
-    
+
     let kellyFraction = (b * p - q) / b;
-    
+
     // Apply risk adjustments
     kellyFraction = this.applyRiskAdjustments(kellyFraction, confidence, riskFactors);
-    
+
     // Apply Kelly multiplier for conservative sizing
     kellyFraction *= this.config.kellyMultiplier;
-    
+
     // Ensure within position size limits
     return Math.max(0, Math.min(this.config.maxPositionSize, kellyFraction));
   }
@@ -127,29 +127,29 @@ export class RiskManager {
     riskFactors: Partial<PositionRiskMetrics>
   ): number {
     let adjustedFraction = kellyFraction;
-    
+
     // Confidence adjustment (reduce size for lower confidence)
     const confidenceAdjustment = Math.max(0.1, confidence / 100);
     adjustedFraction *= confidenceAdjustment;
-    
+
     // Correlation risk adjustment
     if (riskFactors.correlationRisk) {
-      const correlationAdjustment = Math.max(0.5, 1 - (riskFactors.correlationRisk / 10));
+      const correlationAdjustment = Math.max(0.5, 1 - riskFactors.correlationRisk / 10);
       adjustedFraction *= correlationAdjustment;
     }
-    
+
     // Liquidity risk adjustment
     if (riskFactors.liquidityRisk) {
-      const liquidityAdjustment = Math.max(0.7, 1 - (riskFactors.liquidityRisk / 20));
+      const liquidityAdjustment = Math.max(0.7, 1 - riskFactors.liquidityRisk / 20);
       adjustedFraction *= liquidityAdjustment;
     }
-    
+
     // Concentration risk adjustment
     if (riskFactors.concentrationRisk) {
-      const concentrationAdjustment = Math.max(0.6, 1 - (riskFactors.concentrationRisk / 15));
+      const concentrationAdjustment = Math.max(0.6, 1 - riskFactors.concentrationRisk / 15);
       adjustedFraction *= concentrationAdjustment;
     }
-    
+
     return adjustedFraction;
   }
 
@@ -163,30 +163,29 @@ export class RiskManager {
       currentExposure: number;
       correlatedPositions: Position[];
       availableCapital: number;
-     
-}
+    }
   ): Promise<number> {
     let positionSize = kellyFraction;
-    
+
     // Risk professional_score adjustment
-    const riskAdjustment = Math.max(0.1, 1 - (riskScore / 10));
+    const riskAdjustment = Math.max(0.1, 1 - riskScore / 10);
     positionSize *= riskAdjustment;
-    
+
     // Portfolio context adjustments
     if (portfolioContext) {
       // Reduce size if high current exposure
       if (portfolioContext.currentExposure > 0.7) {
         positionSize *= 0.5;
       }
-      
+
       // Reduce size based on correlated positions
       const correlationPenalty = Math.min(0.5, portfolioContext.correlatedPositions.length * 0.1);
-      positionSize *= (1 - correlationPenalty);
-      
+      positionSize *= 1 - correlationPenalty;
+
       // Ensure we don't exceed available capital
       positionSize = Math.min(positionSize, portfolioContext.availableCapital);
     }
-    
+
     return Math.max(0, Math.min(this.config.maxPositionSize, positionSize));
   }
 
@@ -209,33 +208,44 @@ export class RiskManager {
   }> {
     const riskMetrics = await this.calculatePositionRiskMetrics(prop);
     const riskFactors: string[] = [];
-    
+
     // Identify risk factors
-    if (riskMetrics.correlationRisk > 7) {riskFactors.push('High correlation risk');}
-    if (riskMetrics.concentrationRisk > 8) {riskFactors.push('High concentration risk');}
-    if (riskMetrics.liquidityRisk > 6) {riskFactors.push('Liquidity concerns');}
-    if (riskMetrics.valueAtRisk > this.config.maxVaR) {riskFactors.push('Excessive VaR');}
-    
+    if (riskMetrics.correlationRisk > 7) {
+      riskFactors.push('High correlation risk');
+    }
+    if (riskMetrics.concentrationRisk > 8) {
+      riskFactors.push('High concentration risk');
+    }
+    if (riskMetrics.liquidityRisk > 6) {
+      riskFactors.push('Liquidity concerns');
+    }
+    if (riskMetrics.valueAtRisk > this.config.maxVaR) {
+      riskFactors.push('Excessive VaR');
+    }
+
     // Calculate overall risk professional_score (0-10)
-    const overallRisk = (
+    const overallRisk =
       riskMetrics.individualRisk * 0.3 +
       riskMetrics.correlationRisk * 0.25 +
       riskMetrics.concentrationRisk * 0.2 +
       riskMetrics.liquidityRisk * 0.15 +
-      (riskMetrics.valueAtRisk * 100) * 0.1
-    );
-    
+      riskMetrics.valueAtRisk * 100 * 0.1;
+
     // Determine recommendation
     let recommendation: 'APPROVE' | 'REDUCE' | 'REJECT';
-    if (overallRisk <= 5 && prop.confidence >= 75) {recommendation = 'APPROVE';}
-    else if (overallRisk <= 7 && prop.confidence >= 60) {recommendation = 'REDUCE';}
-    else {recommendation = 'REJECT';}
-    
+    if (overallRisk <= 5 && prop.confidence >= 75) {
+      recommendation = 'APPROVE';
+    } else if (overallRisk <= 7 && prop.confidence >= 60) {
+      recommendation = 'REDUCE';
+    } else {
+      recommendation = 'REJECT';
+    }
+
     return {
       overallRisk,
       riskBreakdown: riskMetrics,
       riskFactors,
-      recommendation
+      recommendation,
     };
   }
 
@@ -245,25 +255,25 @@ export class RiskManager {
   private async calculatePositionRiskMetrics(prop: any): Promise<PositionRiskMetrics> {
     // Individual risk based on odds and confidence
     const individualRisk = this.calculateIndividualRisk(prop.odds, prop.confidence);
-    
+
     // Correlation risk with existing positions
     const correlationRisk = await this.calculateCorrelationRisk(prop);
-    
+
     // Portfolio contribution risk
     const portfolioContribution = await this.calculatePortfolioContribution(prop);
-    
+
     // Value at Risk calculation
     const valueAtRisk = this.calculateVaR(prop, 0.05); // 5% VaR
-    
+
     // Expected shortfall (Conditional VaR)
     const expectedShortfall = this.calculateCVaR(prop, 0.05);
-    
+
     // Liquidity risk assessment
     const liquidityRisk = this.assessLiquidityRisk(prop);
-    
+
     // Concentration risk
     const concentrationRisk = await this.calculateConcentrationRisk(prop);
-    
+
     return {
       individualRisk,
       correlationRisk,
@@ -271,7 +281,7 @@ export class RiskManager {
       valueAtRisk,
       expectedShortfall,
       liquidityRisk,
-      concentrationRisk
+      concentrationRisk,
     };
   }
 
@@ -282,7 +292,7 @@ export class RiskManager {
     // Higher odds = higher risk, lower confidence = higher risk
     const oddsRisk = Math.abs(odds) > 200 ? 8 : Math.abs(odds) > 150 ? 6 : 4;
     const confidenceRisk = confidence < 60 ? 8 : confidence < 75 ? 5 : 2;
-    
+
     return Math.min(10, (oddsRisk + confidenceRisk) / 2);
   }
 
@@ -292,21 +302,20 @@ export class RiskManager {
   private async calculateCorrelationRisk(prop: any): Promise<number> {
     let maxCorrelation = 0;
     let totalCorrelatedExposure = 0;
-    
+
     for (const [, position] of this.positions) {
       const correlation = await this.getCorrelation(prop, position);
-      
+
       if (correlation > this.config.maxCorrelation) {
         maxCorrelation = Math.max(maxCorrelation, correlation);
         totalCorrelatedExposure += position.stake;
-       
-}
+      }
     }
-    
+
     // Risk increases with correlation strength and correlated exposure
     const correlationPenalty = maxCorrelation * 10;
     const exposurePenalty = Math.min(5, totalCorrelatedExposure * 10);
-    
+
     return Math.min(10, correlationPenalty + exposurePenalty);
   }
 
@@ -315,14 +324,20 @@ export class RiskManager {
    */
   private async getCorrelation(prop1: any, prop2: Position): Promise<number> {
     // Same player = high correlation
-    if (prop1.player === prop2.player) {return 0.9;}
-    
+    if (prop1.player === prop2.player) {
+      return 0.9;
+    }
+
     // Same game = medium correlation
-    if (prop1.sport === prop2.sport && this.isSameGame(prop1, prop2)) {return 0.6;}
-    
+    if (prop1.sport === prop2.sport && this.isSameGame(prop1, prop2)) {
+      return 0.6;
+    }
+
     // Same sport, same day = low correlation
-    if (prop1.sport === prop2.sport) {return 0.3;}
-    
+    if (prop1.sport === prop2.sport) {
+      return 0.3;
+    }
+
     // Different sports = minimal correlation
     return 0.1;
   }
@@ -341,10 +356,10 @@ export class RiskManager {
    */
   private async calculatePortfolioContribution(prop: any): Promise<number> {
     const currentPortfolioRisk = await this.calculateCurrentPortfolioRisk();
-    
+
     // Simulate adding this position
     const simulatedRisk = await this.simulatePortfolioRisk(prop);
-    
+
     // Return the marginal risk contribution
     return Math.max(0, simulatedRisk.totalRisk - currentPortfolioRisk.totalRisk);
   }
@@ -357,7 +372,7 @@ export class RiskManager {
     // In production, this would use historical simulation or Monte Carlo
     const volatility = this.estimateVolatility(prop);
     const zScore = this.getZScore(confidenceLevel);
-    
+
     return volatility * zScore;
   }
 
@@ -376,17 +391,24 @@ export class RiskManager {
   private assessLiquidityRisk(prop: any): number {
     // Factors: market size, bet limits, time to event
     let liquidityRisk = 0;
-    
+
     // Higher odds typically mean less liquid markets
-    if (Math.abs(prop.odds) > 300) {liquidityRisk += 4;}
-    else if (Math.abs(prop.odds) > 200) {liquidityRisk += 2;}
-    
+    if (Math.abs(prop.odds) > 300) {
+      liquidityRisk += 4;
+    } else if (Math.abs(prop.odds) > 200) {
+      liquidityRisk += 2;
+    }
+
     // Player props typically less liquid than main markets
-    if (prop.marketType.includes('player')) {liquidityRisk += 2;}
-    
+    if (prop.marketType.includes('player')) {
+      liquidityRisk += 2;
+    }
+
     // Niche sports less liquid
-    if (!['NBA', 'NFL', 'MLB', 'NHL'].includes(prop.sport)) {liquidityRisk += 3;}
-    
+    if (!['NBA', 'NFL', 'MLB', 'NHL'].includes(prop.sport)) {
+      liquidityRisk += 3;
+    }
+
     return Math.min(10, liquidityRisk);
   }
 
@@ -395,26 +417,26 @@ export class RiskManager {
    */
   private async calculateConcentrationRisk(prop: any): Promise<number> {
     let concentrationRisk = 0;
-    
+
     // Check exposure to same player
     const playerExposure = this.getPlayerExposure(prop.player);
     if (playerExposure > this.config.maxExposurePerPlayer) {
       concentrationRisk += 5;
-     
-}
-    
+    }
+
     // Check exposure to same sport
     const sportExposure = this.getSportExposure(prop.sport);
     if (sportExposure > this.config.maxExposurePerSport) {
       concentrationRisk += 3;
     }
-    
+
     // Check exposure to same market type
     const marketExposure = this.getMarketTypeExposure(prop.marketType);
-    if (marketExposure > 0.2) { // 20% max per market type
+    if (marketExposure > 0.2) {
+      // 20% max per market type
       concentrationRisk += 2;
     }
-    
+
     return Math.min(10, concentrationRisk);
   }
 
@@ -462,7 +484,7 @@ export class RiskManager {
    */
   private async calculateCurrentPortfolioRisk(): Promise<PortfolioRisk> {
     const positions = Array.from(this.positions.values());
-    
+
     if (positions.length === 0) {
       return {
         totalExposure: 0,
@@ -473,10 +495,10 @@ export class RiskManager {
         expectedShortfall: 0,
         correlationMatrix: {},
         riskByCategory: {},
-        diversificationRatio: 1
+        diversificationRatio: 1,
       };
     }
-    
+
     const totalExposure = positions.reduce((sum, pos) => sum + pos.stake, 0);
     const totalRisk = await this.calculatePortfolioVariance(positions);
     const sharpeRatio = await this.calculateSharpeRatio(positions);
@@ -486,7 +508,7 @@ export class RiskManager {
     const correlationMatrix = await this.buildCorrelationMatrix(positions);
     const riskByCategory = this.calculateRiskByCategory(positions);
     const diversificationRatio = this.calculateDiversificationRatio(positions);
-    
+
     return {
       totalExposure,
       totalRisk,
@@ -496,7 +518,7 @@ export class RiskManager {
       expectedShortfall,
       correlationMatrix,
       riskByCategory,
-      diversificationRatio
+      diversificationRatio,
     };
   }
 
@@ -515,19 +537,18 @@ export class RiskManager {
       expectedValue: newProp.expectedValue,
       confidence: newProp.confidence,
       tier: 'B', // Default tier for simulation
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+    };
 
-};
-    
     // Add to positions temporarily
     this.positions.set(tempPosition.propId, tempPosition);
-    
+
     // Calculate risk
     const portfolioRisk = await this.calculateCurrentPortfolioRisk();
-    
+
     // Remove temporary position
     this.positions.delete(tempPosition.propId);
-    
+
     return portfolioRisk;
   }
 
@@ -537,7 +558,7 @@ export class RiskManager {
   public async checkStopLossConditions(): Promise<RiskAlert[]> {
     const alerts: RiskAlert[] = [];
     const portfolioRisk = await this.calculateCurrentPortfolioRisk();
-    
+
     // Check maximum drawdown
     if (portfolioRisk.maxDrawdown > this.config.maxDrawdown) {
       alerts.push({
@@ -548,11 +569,10 @@ export class RiskManager {
         threshold: this.config.maxDrawdown,
         current: portfolioRisk.maxDrawdown,
         recommendation: 'Reduce all positions by 50% and halt new positions',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
+    }
 
-}
-    
     // Check Value at Risk
     if (portfolioRisk.valueAtRisk > this.config.maxVaR) {
       alerts.push({
@@ -562,10 +582,10 @@ export class RiskManager {
         threshold: this.config.maxVaR,
         current: portfolioRisk.valueAtRisk,
         recommendation: 'Review high-risk positions and consider hedging',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
-    
+
     // Check total exposure
     if (portfolioRisk.totalExposure > 0.8) {
       alerts.push({
@@ -575,10 +595,10 @@ export class RiskManager {
         threshold: 0.8,
         current: portfolioRisk.totalExposure,
         recommendation: 'Consider reducing position sizes',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
-    
+
     this.alerts.push(...alerts);
     return alerts;
   }
@@ -588,21 +608,21 @@ export class RiskManager {
    */
   public async adjustPortfolioRisk(gradingResults: any[]): Promise<any[]> {
     const portfolioRisk = await this.calculateCurrentPortfolioRisk();
-    
+
     // If portfolio risk is acceptable, return as-is
     if (portfolioRisk.totalRisk <= 0.15) {
       return gradingResults;
     }
-    
+
     // Apply risk-based position size adjustments
     return gradingResults.map(result => {
       const riskAdjustment = Math.max(0.5, 1 - (portfolioRisk.totalRisk - 0.15));
-      
+
       return {
         ...result,
         positionSize: result.positionSize * riskAdjustment,
         riskAdjusted: true,
-        riskAdjustmentFactor: riskAdjustment
+        riskAdjustmentFactor: riskAdjustment,
       };
     });
   }
@@ -620,12 +640,12 @@ export class RiskManager {
     const alerts = await this.checkStopLossConditions();
     const recommendations = this.generateRiskRecommendations(portfolioRisk, alerts);
     const riskTrend = this.getRiskTrend();
-    
+
     return {
       portfolioRisk,
       alerts,
       recommendations,
-      riskTrend
+      riskTrend,
     };
   }
 
@@ -638,14 +658,16 @@ export class RiskManager {
   private getZScore(confidenceLevel: number): number {
     // Z-scores for common confidence levels
     const zScores: Record<number, number> = {
-      0.01: 2.33, 0.05: 1.645, 0.10: 1.28
+      0.01: 2.33,
+      0.05: 1.645,
+      0.1: 1.28,
     };
     return zScores[confidenceLevel] || 1.645;
   }
 
   private async calculatePortfolioVariance(_positions: Position[]): Promise<number> {
     // Simplified portfolio variance calculation
-    return 0.10; // 10% default portfolio risk
+    return 0.1; // 10% default portfolio risk
   }
 
   private async calculateSharpeRatio(_positions: Position[]): Promise<number> {
@@ -663,7 +685,9 @@ export class RiskManager {
     return 0.04; // 4% default VaR
   }
 
-  private async buildCorrelationMatrix(_positions: Position[]): Promise<Record<string, Record<string, number>>> {
+  private async buildCorrelationMatrix(
+    _positions: Position[]
+  ): Promise<Record<string, Record<string, number>>> {
     // Simplified correlation matrix
     return {};
   }
@@ -694,19 +718,19 @@ export class RiskManager {
 
   private generateRiskRecommendations(portfolioRisk: PortfolioRisk, alerts: RiskAlert[]): string[] {
     const recommendations: string[] = [];
-    
+
     if (portfolioRisk.totalRisk > 0.15) {
       recommendations.push('Reduce overall portfolio risk by decreasing position sizes');
     }
-    
+
     if (portfolioRisk.diversificationRatio < 0.5) {
       recommendations.push('Increase diversification across sports and market types');
     }
-    
+
     if (alerts.length > 0) {
       recommendations.push('Address critical risk alerts immediately');
     }
-    
+
     return recommendations;
   }
 
@@ -714,7 +738,7 @@ export class RiskManager {
     // Return last 30 days of risk data
     return this.riskHistory.slice(-30).map(entry => ({
       date: entry.timestamp,
-      risk: entry.risk.totalRisk
+      risk: entry.risk.totalRisk,
     }));
   }
 

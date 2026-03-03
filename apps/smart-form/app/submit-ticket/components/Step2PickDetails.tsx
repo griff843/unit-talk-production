@@ -104,14 +104,18 @@ export function Step2PickDetails({
       {/* Sport selector for parlays */}
       {isMultiLegTicket && (
         <div>
-          <label className="text-xs font-medium text-muted-foreground mb-1 block">Sport for this leg</label>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">
+            Sport for this leg
+          </label>
           <select
             value={legSport}
             onChange={e => setLegSport(e.target.value as Sport)}
             className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           >
             {SPORTS.map(sport => (
-              <option key={sport} value={sport}>{sport}</option>
+              <option key={sport} value={sport}>
+                {sport}
+              </option>
             ))}
           </select>
         </div>
@@ -214,10 +218,7 @@ export function Step2PickDetails({
             {data.ticket_type === 'single' ? ' (max 1)' : ''}
           </Badge>
         </div>
-        <SelectionsList
-          selections={data.game_selections || []}
-          onRemove={handleRemoveSelection}
-        />
+        <SelectionsList selections={data.game_selections || []} onRemove={handleRemoveSelection} />
       </div>
 
       {/* Notes */}
@@ -245,9 +246,7 @@ export function Step2PickDetails({
         </Button>
       </div>
 
-      {errors?.game_selections && (
-        <p className="text-sm text-red-600">{errors.game_selections}</p>
-      )}
+      {errors?.game_selections && <p className="text-sm text-red-600">{errors.game_selections}</p>}
     </div>
   );
 }

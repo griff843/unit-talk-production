@@ -2,13 +2,13 @@
 
 /**
  * Shadow Mode Invariants Test Script
- * 
+ *
  * Comprehensive production safety test that validates:
  * 1. Shadow mode NEVER publishes publicly
  * 2. Live mode NEVER bypasses safety checks
  * 3. Database invariants are maintained
  * 4. Proper audit logging occurs
- * 
+ *
  * Run this before ANY production deployment to ensure safety.
  */
 
@@ -69,14 +69,13 @@ class ShadowModeInvariantsTester {
 
       // Generate final report
       this.generateFinalReport();
-
     } catch (error) {
       logger.error('❌ Test suite failed with error:', error);
       this.addResult({
         passed: false,
         testName: 'Test Suite Execution',
         details: `Fatal error: ${error}`,
-        critical: true
+        critical: true,
       });
     }
   }
@@ -89,38 +88,39 @@ class ShadowModeInvariantsTester {
 
     try {
       const validation = await this.validator.validateShadowModeSetup();
-      
+
       this.addResult({
         passed: validation.valid,
         testName: 'Shadow Mode Configuration',
         details: `Errors: ${validation.errors.length}, Warnings: ${validation.warnings.length}`,
-        critical: true
+        critical: true,
       });
 
       // Test database checks
       this.addResult({
-        passed: validation.databaseChecks.shadowTableExists && 
-                validation.databaseChecks.unifiedPicksTableExists,
+        passed:
+          validation.databaseChecks.shadowTableExists &&
+          validation.databaseChecks.unifiedPicksTableExists,
         testName: 'Database Schema Validation',
         details: `Shadow table: ${validation.databaseChecks.shadowTableExists}, Unified picks: ${validation.databaseChecks.unifiedPicksTableExists}`,
-        critical: true
+        critical: true,
       });
 
       // Test invariant checks
       this.addResult({
-        passed: validation.invariantChecks.publishGuardActive &&
-                validation.invariantChecks.shadowLoggingActive,
+        passed:
+          validation.invariantChecks.publishGuardActive &&
+          validation.invariantChecks.shadowLoggingActive,
         testName: 'Core Invariants Active',
         details: `Publish guard: ${validation.invariantChecks.publishGuardActive}, Shadow logging: ${validation.invariantChecks.shadowLoggingActive}`,
-        critical: true
+        critical: true,
       });
-
     } catch (error) {
       this.addResult({
         passed: false,
         testName: 'Configuration Validation',
         details: `Validation failed: ${error}`,
-        critical: true
+        critical: true,
       });
     }
   }
@@ -142,7 +142,7 @@ class ShadowModeInvariantsTester {
         passed: !shadowError,
         testName: 'Shadow Decisions Table',
         details: shadowError ? `Error: ${shadowError.message}` : 'Table accessible',
-        critical: true
+        critical: true,
       });
 
       // Test unified_picks table with required columns
@@ -154,8 +154,10 @@ class ShadowModeInvariantsTester {
       this.addResult({
         passed: !unifiedError,
         testName: 'Unified Picks Table',
-        details: unifiedError ? `Error: ${unifiedError.message}` : 'Table accessible with required columns',
-        critical: true
+        details: unifiedError
+          ? `Error: ${unifiedError.message}`
+          : 'Table accessible with required columns',
+        critical: true,
       });
 
       // Test professional grading columns
@@ -167,16 +169,17 @@ class ShadowModeInvariantsTester {
       this.addResult({
         passed: !rawPropsError,
         testName: 'Professional Grading Columns',
-        details: rawPropsError ? `Migration needed: ${rawPropsError.message}` : 'Professional columns available',
-        critical: false
+        details: rawPropsError
+          ? `Migration needed: ${rawPropsError.message}`
+          : 'Professional columns available',
+        critical: false,
       });
-
     } catch (error) {
       this.addResult({
         passed: false,
         testName: 'Database Schema Test',
         details: `Schema test failed: ${error}`,
-        critical: true
+        critical: true,
       });
     }
   }
@@ -196,7 +199,7 @@ class ShadowModeInvariantsTester {
       passed: publishBlocked && alertBlocked && webhookBlocked,
       testName: 'Public Action Blocking',
       details: `Publish: ${publishBlocked}, Alert: ${alertBlocked}, Webhook: ${webhookBlocked}`,
-      critical: true
+      critical: true,
     });
 
     // Test 2: Shadow pick promotion never marks unified_picks as published
@@ -210,19 +213,19 @@ class ShadowModeInvariantsTester {
           player_name: 'Shadow Test Player',
           stat_type: 'test-stat',
           sport: 'TEST',
-          professional_score: 0.85
-        }
+          professional_score: 0.85,
+        },
       };
 
       const testOptions: PublishOptions = {
         tier: 'A',
-        isInstant: true
+        isInstant: true,
       };
 
       // Track database calls before promotion
       let unifiedPicksUpdateCalled = false;
       const originalFrom = supabaseClient.from;
-      
+
       supabaseClient.from = jest.fn().mockImplementation((table: string) => {
         if (table === 'unified_picks') {
           return {
@@ -231,14 +234,14 @@ class ShadowModeInvariantsTester {
                 unifiedPicksUpdateCalled = true;
               }
               return {
-                eq: jest.fn().mockResolvedValue({ data: null, error: null })
+                eq: jest.fn().mockResolvedValue({ data: null, error: null }),
               };
-            })
+            }),
           };
         }
         // For shadow_decisions table
         return {
-          insert: jest.fn().mockResolvedValue({ data: null, error: null })
+          insert: jest.fn().mockResolvedValue({ data: null, error: null }),
         };
       });
 
@@ -251,15 +254,14 @@ class ShadowModeInvariantsTester {
         passed: !result.published && result.shadowLogged && !unifiedPicksUpdateCalled,
         testName: 'Shadow Mode Never Publishes',
         details: `Published: ${result.published}, Shadow logged: ${result.shadowLogged}, DB update called: ${unifiedPicksUpdateCalled}`,
-        critical: true
+        critical: true,
       });
-
     } catch (error) {
       this.addResult({
         passed: false,
         testName: 'Shadow Mode Never Publishes',
         details: `Test failed: ${error}`,
-        critical: true
+        critical: true,
       });
     }
 
@@ -285,7 +287,7 @@ class ShadowModeInvariantsTester {
       passed: publishAllowed && alertAllowed && webhookAllowed,
       testName: 'Public Action Allowance',
       details: `Publish: ${publishAllowed}, Alert: ${alertAllowed}, Webhook: ${webhookAllowed}`,
-      critical: false
+      critical: false,
     });
 
     // Test 2: Live mode still requires approval
@@ -298,8 +300,8 @@ class ShadowModeInvariantsTester {
           id: 'test-live-reject-' + Date.now(),
           player_name: 'Live Test Player',
           stat_type: 'test-stat',
-          sport: 'TEST'
-        }
+          sport: 'TEST',
+        },
       };
 
       const result = await this.publishGuard.handlePromotionDecision(rejectedDecision);
@@ -308,15 +310,14 @@ class ShadowModeInvariantsTester {
         passed: !result.published && result.channelsNotified.length === 0,
         testName: 'Live Mode Requires Approval',
         details: `Rejected pick published: ${result.published}, Channels notified: ${result.channelsNotified.length}`,
-        critical: true
+        critical: true,
       });
-
     } catch (error) {
       this.addResult({
         passed: false,
         testName: 'Live Mode Requires Approval',
         details: `Test failed: ${error}`,
-        critical: true
+        critical: true,
       });
     }
 
@@ -332,22 +333,23 @@ class ShadowModeInvariantsTester {
 
     // Test 1: Publish guard intercepts all promotion decisions
     try {
-      const guardExists = this.publishGuard && 
-                         typeof this.publishGuard.handlePromotionDecision === 'function';
+      const guardExists =
+        this.publishGuard && typeof this.publishGuard.handlePromotionDecision === 'function';
 
       this.addResult({
         passed: guardExists,
         testName: 'Publish Guard Active',
-        details: guardExists ? 'Publish guard properly initialized' : 'Publish guard missing or malformed',
-        critical: true
+        details: guardExists
+          ? 'Publish guard properly initialized'
+          : 'Publish guard missing or malformed',
+        critical: true,
       });
-
     } catch (error) {
       this.addResult({
         passed: false,
         testName: 'Publish Guard Active',
         details: `Guard test failed: ${error}`,
-        critical: true
+        critical: true,
       });
     }
 
@@ -376,11 +378,16 @@ class ShadowModeInvariantsTester {
         deviggedEdge: 0.035,
         clvPct: 1.5,
         kellyFraction: 0.07,
-        risk: 0.12
+        risk: 0.12,
       };
 
       // Test different shadow actions
-      const actions: ShadowAction[] = ['instant', 'queued-10am', 'rejected-gate', 'rejected-recheck'];
+      const actions: ShadowAction[] = [
+        'instant',
+        'queued-10am',
+        'rejected-gate',
+        'rejected-recheck',
+      ];
       let allLogged = true;
 
       for (const action of actions) {
@@ -396,15 +403,14 @@ class ShadowModeInvariantsTester {
         passed: allLogged,
         testName: 'Shadow Logging Functionality',
         details: `All ${actions.length} shadow actions logged: ${allLogged}`,
-        critical: false
+        critical: false,
       });
-
     } catch (error) {
       this.addResult({
         passed: false,
         testName: 'Shadow Logging Functionality',
         details: `Shadow logging test failed: ${error}`,
-        critical: false
+        critical: false,
       });
     }
   }
@@ -421,15 +427,14 @@ class ShadowModeInvariantsTester {
         passed: true,
         testName: 'Shadow Cleanup Function',
         details: 'Shadow cleanup executed without error',
-        critical: false
+        critical: false,
       });
-
     } catch (error) {
       this.addResult({
         passed: false,
         testName: 'Shadow Cleanup Function',
         details: `Cleanup failed: ${error}`,
-        critical: false
+        critical: false,
       });
     }
   }
@@ -444,7 +449,7 @@ class ShadowModeInvariantsTester {
       passed: true,
       testName: 'Live Mode Auditing',
       details: 'Live mode audit logging verified (implementation dependent)',
-      critical: false
+      critical: false,
     });
   }
 
@@ -454,24 +459,20 @@ class ShadowModeInvariantsTester {
   private async testDatabaseHealth(): Promise<void> {
     try {
       // Simple connection test
-      const { data, error } = await supabaseClient
-        .from('raw_props')
-        .select('id')
-        .limit(1);
+      const { data, error } = await supabaseClient.from('raw_props').select('id').limit(1);
 
       this.addResult({
         passed: !error,
         testName: 'Database Connection Health',
         details: error ? `Connection failed: ${error.message}` : 'Database connection healthy',
-        critical: true
+        critical: true,
       });
-
     } catch (error) {
       this.addResult({
         passed: false,
         testName: 'Database Connection Health',
         details: `Health check failed: ${error}`,
-        critical: true
+        critical: true,
       });
     }
   }
@@ -482,16 +483,17 @@ class ShadowModeInvariantsTester {
   private testEnvironmentConsistency(): void {
     const shadowMode = process.env.SHADOW_MODE;
     const nodeEnv = process.env.NODE_ENV;
-    
+
     // Check for dangerous combinations
-    const dangerousCombination = (shadowMode === 'false' && nodeEnv !== 'production') ||
-                                (shadowMode === 'true' && nodeEnv === 'production');
+    const dangerousCombination =
+      (shadowMode === 'false' && nodeEnv !== 'production') ||
+      (shadowMode === 'true' && nodeEnv === 'production');
 
     this.addResult({
       passed: !dangerousCombination,
       testName: 'Environment Configuration Consistency',
       details: `SHADOW_MODE=${shadowMode}, NODE_ENV=${nodeEnv}`,
-      critical: false
+      critical: false,
     });
   }
 
@@ -500,10 +502,10 @@ class ShadowModeInvariantsTester {
    */
   private addResult(result: TestResult): void {
     this.results.push(result);
-    
+
     const status = result.passed ? '✅' : '❌';
     const criticality = result.critical ? '[CRITICAL]' : '[INFO]';
-    
+
     logger.info(`${status} ${criticality} ${result.testName}: ${result.details}`);
   }
 
@@ -545,10 +547,12 @@ class ShadowModeInvariantsTester {
 
     // Final verdict
     const productionReady = criticalFailures === 0;
-    
+
     if (productionReady) {
       logger.info('🚀 PRODUCTION READINESS: ✅ PASS');
-      logger.info(`   System is ready for ${this.shadowMode.isShadowMode() ? 'SHADOW MODE' : 'LIVE MODE'} deployment`);
+      logger.info(
+        `   System is ready for ${this.shadowMode.isShadowMode() ? 'SHADOW MODE' : 'LIVE MODE'} deployment`
+      );
     } else {
       logger.error('🚀 PRODUCTION READINESS: ❌ FAIL');
       logger.error('   Fix critical failures before deployment');

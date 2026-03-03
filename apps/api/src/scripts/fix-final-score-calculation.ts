@@ -2,7 +2,7 @@
 
 /**
  * Fix Final Score Calculation Issue
- * 
+ *
  * Fix the final professional_score calculation in GradingEngine that's causing NaN
  * for NBA and NFL props while MLB works fine
  */
@@ -17,18 +17,21 @@ config();
 async function fixFinalScoreCalculation() {
   console.log('🔧 FIXING FINAL SCORE CALCULATION ISSUE');
   console.log('=======================================');
-  
+
   try {
-    const gradingEnginePath = join(process.cwd(), 'src/agents/GradingAgent/scoring/gradingEngine.ts');
-    
+    const gradingEnginePath = join(
+      process.cwd(),
+      'src/agents/GradingAgent/scoring/gradingEngine.ts'
+    );
+
     console.log('📖 Reading gradingEngine.ts...');
     let content = readFileSync(gradingEnginePath, 'utf8');
-    
+
     console.log('🔧 Applying final professional_score calculation fixes...');
-    
+
     // 1. Fix the calculateCompositeScore method to ensure proper return structure
     console.log('  → Ensuring calculateCompositeScore returns valid structure');
-    
+
     // Find and replace the return statement in calculateCompositeScore
     content = content.replace(
       /const safeFinalScore = safeNumber\(compositeScore, 0\);\s*return \{\s*finalScore: Math\.max\(0, Math\.min\(100, safeFinalScore\)\),\s*edgeScore,\s*breakdown\s*\};/,
@@ -107,11 +110,11 @@ async function fixFinalScoreCalculation() {
 
     // 5. Add comprehensive error handling to the main gradeProp method
     console.log('  → Adding comprehensive error handling to gradeProp');
-    
+
     // Find the main return statement in gradeProp and add validation
     const returnPattern = /return \{\s*finalScore: compositeScore\.finalScore,[\s\S]*?\};/;
     const returnMatch = content.match(returnPattern);
-    
+
     if (returnMatch) {
       const newReturn = `// Validate all return values before returning
     const finalScore = safeNumber(compositeScore?.finalScore, 0);
@@ -145,7 +148,7 @@ async function fixFinalScoreCalculation() {
       enhancedCapperAnalysis,
       scenarioAnalysis
     };`;
-      
+
       content = content.replace(returnPattern, newReturn);
     }
 
@@ -184,7 +187,7 @@ async function fixFinalScoreCalculation() {
     // Write the fixed content back
     console.log('💾 Writing fixed gradingEngine.ts...');
     writeFileSync(gradingEnginePath, content);
-    
+
     console.log('✅ Final professional_score calculation fixes applied successfully!');
     console.log('\n🔧 FIXES APPLIED:');
     console.log('  ✓ Enhanced calculateCompositeScore return validation');
@@ -193,14 +196,13 @@ async function fixFinalScoreCalculation() {
     console.log('  ✓ Fixed Kelly fraction confidence adjustment');
     console.log('  ✓ Added comprehensive error handling to gradeProp');
     console.log('  ✓ Added ML predictions validation');
-    
+
     console.log('\n📊 KEY IMPROVEMENTS:');
     console.log('  • Added null-safe property access (compositeScore?.finalScore)');
     console.log('  • Added debug logging to identify NaN sources');
     console.log('  • Added validation for all return values');
     console.log('  • Added ML predictions structure validation');
     console.log('  • Added reasonable caps for Kelly fraction and position size');
-    
   } catch (error) {
     console.error('❌ Fix process failed:', error);
     throw error;
@@ -218,7 +220,7 @@ if (require.main === module) {
       console.log('  3. Check debug logs to identify remaining issues');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('💥 Fix process failed:', error);
       process.exit(1);
     });

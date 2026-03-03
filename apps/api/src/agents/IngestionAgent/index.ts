@@ -1,12 +1,16 @@
 import { RawProp } from '../../types/rawProps';
 import { createBaseAgentConfig } from '../BaseAgent/config';
 import { BaseAgent } from '../BaseAgent/index';
-import { BaseAgentConfig, BaseAgentDependencies, HealthStatus, BaseMetrics } from '../BaseAgent/types';
+import {
+  BaseAgentConfig,
+  BaseAgentDependencies,
+  HealthStatus,
+  BaseMetrics,
+} from '../BaseAgent/types';
 
 import { fetchRawProps } from './fetchRawProps';
 import { IngestionAgentConfigSchema, IngestionAgentConfig, IngestionMetrics } from './types';
-import { validateRawProp , normalizeRawProp } from './validation';
-
+import { validateRawProp, normalizeRawProp } from './validation';
 
 /**
  * Create a proper IngestionAgent configuration that extends BaseAgentConfig
@@ -23,16 +27,16 @@ function createIngestionAgentConfig(config: any): BaseAgentConfig {
     processingTimeout: config.processingTimeout || 30000,
     duplicateCheck: {
       enabled: config.duplicateCheck?.enabled ?? true,
-      lookbackHours: config.duplicateCheck?.lookbackHours || 24
+      lookbackHours: config.duplicateCheck?.lookbackHours || 24,
     },
     validation: {
       enabled: config.validation?.enabled ?? true,
-      strictMode: config.validation?.strictMode ?? false
+      strictMode: config.validation?.strictMode ?? false,
     },
     normalization: {
       enabled: config.normalization?.enabled ?? true,
-      autoCorrect: config.normalization?.autoCorrect ?? true
-    }
+      autoCorrect: config.normalization?.autoCorrect ?? true,
+    },
   };
   return ingestionConfig;
 }
@@ -70,7 +74,7 @@ export class IngestionAgent extends BaseAgent {
           enabled: enhancedConfig.metrics?.enabled ?? true,
           interval: enhancedConfig.metrics?.interval ?? 30000,
           port: enhancedConfig.metrics?.port,
-          endpoint: enhancedConfig.metrics?.endpoint
+          endpoint: enhancedConfig.metrics?.endpoint,
         },
         health: {
           enabled: enhancedConfig.health?.enabled ?? true,
@@ -78,7 +82,7 @@ export class IngestionAgent extends BaseAgent {
           timeout: enhancedConfig.health?.timeout ?? 5000,
           checkDb: enhancedConfig.health?.checkDb ?? true,
           checkExternal: enhancedConfig.health?.checkExternal ?? true,
-          endpoint: enhancedConfig.health?.endpoint
+          endpoint: enhancedConfig.health?.endpoint,
         },
         retry: {
           enabled: enhancedConfig.retry?.enabled ?? true,
@@ -86,16 +90,17 @@ export class IngestionAgent extends BaseAgent {
           backoffMs: enhancedConfig.retry?.backoffMs ?? 1000,
           maxBackoffMs: enhancedConfig.retry?.maxBackoffMs ?? 30000,
           exponential: enhancedConfig.retry?.exponential ?? true,
-          jitter: enhancedConfig.retry?.jitter ?? true
+          jitter: enhancedConfig.retry?.jitter ?? true,
         },
         providers: config.providers || [],
         batchSize: config.batchSize || 100,
         processingTimeout: config.processingTimeout || 30000,
         duplicateCheckEnabled: config.duplicateCheck?.enabled ?? true,
-        duplicateCheckWindow: config.duplicateCheck?.lookbackHours ?
-          config.duplicateCheck.lookbackHours * 60 * 60 * 1000 : 86400000, // Convert hours to ms
+        duplicateCheckWindow: config.duplicateCheck?.lookbackHours
+          ? config.duplicateCheck.lookbackHours * 60 * 60 * 1000
+          : 86400000, // Convert hours to ms
         validationEnabled: config.validation?.enabled ?? true,
-        normalizationEnabled: config.normalization?.enabled ?? true
+        normalizationEnabled: config.normalization?.enabled ?? true,
       };
     }
 
@@ -117,7 +122,7 @@ export class IngestionAgent extends BaseAgent {
       propsIngested: 0,
       duplicatesFiltered: 0,
       validationErrors: 0,
-      providerStats: {}
+      providerStats: {},
     };
   }
 
@@ -126,21 +131,21 @@ export class IngestionAgent extends BaseAgent {
    */
   protected async initialize(): Promise<void> {
     this.logger.info('🚀 Initializing IngestionAgent...');
-    
+
     try {
       // Initialize data providers
       this.ingestionMetrics.providersConfigured = this.fullConfig.providers.length;
-      
+
       // Initialize metrics
       this.ingestionMetrics.batchSize = this.fullConfig.batchSize;
-      
+
       this.logger.info('✅ IngestionAgent initialized successfully', {
         providersConfigured: this.ingestionMetrics.providersConfigured,
-        batchSize: this.ingestionMetrics.batchSize
+        batchSize: this.ingestionMetrics.batchSize,
       });
     } catch (error) {
       this.logger.error('❌ Failed to initialize IngestionAgent', {
-        err: error instanceof Error ? error.message : String(error)
+        err: error instanceof Error ? error.message : String(error),
       });
       throw error;
     }
@@ -151,13 +156,13 @@ export class IngestionAgent extends BaseAgent {
    */
   protected async process(): Promise<void> {
     const startTime = Date.now();
-    
+
     try {
       this.logger.info('🔄 Starting ingestion process...');
-      
+
       // Fetch raw props from all providers
       const rawProps = await this.fetchAllRawProps();
-      
+
       if (rawProps.length === 0) {
         this.logger.info('ℹ️ No props to process');
         return;
@@ -165,23 +170,22 @@ export class IngestionAgent extends BaseAgent {
 
       // Process props in batches
       await this.processPropsBatch(rawProps);
-      
+
       // Update metrics
       this.ingestionMetrics.processingTimeMs = Date.now() - startTime;
       this.lastIngestionTime = new Date();
       this.ingestionMetrics.lastIngestionTime = this.lastIngestionTime;
-      
+
       this.logger.info('✅ Ingestion process completed', {
         totalProps: rawProps.length,
         ingested: this.ingestedCount,
         skipped: this.skippedCount,
         errors: this.errorCount,
-        duration: this.ingestionMetrics.processingTimeMs
+        duration: this.ingestionMetrics.processingTimeMs,
       });
-      
     } catch (error) {
       this.logger.error('❌ Ingestion process failed', {
-        err: error instanceof Error ? error.message : String(error)
+        err: error instanceof Error ? error.message : String(error),
       });
       this.errorHandler?.handleError(error as Error);
       throw error;
@@ -195,27 +199,36 @@ export class IngestionAgent extends BaseAgent {
     const allProps: RawProp[] = [];
 
     for (const provider of this.fullConfig.providers) {
-      if (!provider.enabled) {continue;}
+      if (!provider.enabled) {
+        continue;
+      }
 
       try {
         this.logger.info(`Fetching from provider: ${provider.name}`);
         const props = await fetchRawProps(provider);
         allProps.push(...props);
-        
+
         // Update provider stats
         if (!this.ingestionMetrics.providerStats[provider.name]) {
-          this.ingestionMetrics.providerStats[provider.name] = { success: 0, failed: 0, lastFetch: null };
+          this.ingestionMetrics.providerStats[provider.name] = {
+            success: 0,
+            failed: 0,
+            lastFetch: null,
+          };
         }
         this.ingestionMetrics.providerStats[provider.name].success++;
         this.ingestionMetrics.providerStats[provider.name].lastFetch = new Date();
-        
       } catch (error) {
         this.logger.error(`Failed to fetch from provider: ${provider.name}`, {
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? error.message : String(error),
         });
 
         if (!this.ingestionMetrics.providerStats[provider.name]) {
-          this.ingestionMetrics.providerStats[provider.name] = { success: 0, failed: 0, lastFetch: null };
+          this.ingestionMetrics.providerStats[provider.name] = {
+            success: 0,
+            failed: 0,
+            lastFetch: null,
+          };
         }
         this.ingestionMetrics.providerStats[provider.name].failed++;
       }
@@ -244,7 +257,7 @@ export class IngestionAgent extends BaseAgent {
         stat_type: (prop as RawProp).stat_type,
         line: (prop as RawProp).line,
         sport: (prop as RawProp).sport,
-        provider: (prop as RawProp).provider
+        provider: (prop as RawProp).provider,
       });
 
       // Validate the prop
@@ -252,11 +265,11 @@ export class IngestionAgent extends BaseAgent {
         console.log('[DEBUG] Validation failed for prop:', {
           player_name: (prop as RawProp).player_name,
           stat_type: (prop as RawProp).stat_type,
-          keys: Object.keys(prop as any)
+          keys: Object.keys(prop as any),
         });
         this.logger.warn('Invalid prop skipped', {
           player_name: (prop as RawProp).player_name,
-          stat_type: (prop as RawProp).stat_type
+          stat_type: (prop as RawProp).stat_type,
         });
         this.skippedCount++;
         this.ingestionMetrics.validationErrors++;
@@ -271,7 +284,7 @@ export class IngestionAgent extends BaseAgent {
         console.log('[DEBUG] Duplicate found, skipping...');
         this.logger.debug('Duplicate prop skipped', {
           player_name: (prop as RawProp).player_name,
-          stat_type: (prop as RawProp).stat_type
+          stat_type: (prop as RawProp).stat_type,
         });
         this.skippedCount++;
         this.ingestionMetrics.duplicatesFiltered++;
@@ -302,11 +315,10 @@ export class IngestionAgent extends BaseAgent {
 
       this.ingestedCount++;
       this.ingestionMetrics.propsIngested++;
-
     } catch (error) {
       console.error('[DEBUG] Error processing prop:', error);
       this.logger.error('Failed to process prop', {
-        err: error instanceof Error ? error.message : String(error)
+        err: error instanceof Error ? error.message : String(error),
       });
       this.errorCount++;
       this.ingestionMetrics.errorCount++;
@@ -338,7 +350,7 @@ export class IngestionAgent extends BaseAgent {
       errorCount: this.ingestionMetrics.errorCount,
       warningCount: this.ingestionMetrics.warningCount,
       processingTimeMs: this.ingestionMetrics.processingTimeMs,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024,
     };
 
     return baseMetrics;
@@ -353,15 +365,15 @@ export class IngestionAgent extends BaseAgent {
       if (!this.supabase) {
         throw new Error('Supabase client is required for IngestionAgent');
       }
-      const { error } = await this.supabase
-        .from('raw_props')
-        .select('id')
-        .limit(1);
+      const { error } = await this.supabase.from('raw_props').select('id').limit(1);
 
-      if (error) {throw error;}
+      if (error) {
+        throw error;
+      }
 
-      const isRecentIngestion = this.ingestionMetrics.lastIngestionTime && 
-        (Date.now() - this.ingestionMetrics.lastIngestionTime.getTime()) < 3600000; // 1 hour
+      const isRecentIngestion =
+        this.ingestionMetrics.lastIngestionTime &&
+        Date.now() - this.ingestionMetrics.lastIngestionTime.getTime() < 3600000; // 1 hour
 
       const status = isRecentIngestion ? 'healthy' : 'degraded';
 
@@ -370,17 +382,16 @@ export class IngestionAgent extends BaseAgent {
         timestamp: new Date().toISOString(),
         details: {
           lastIngestionTime: this.ingestionMetrics.lastIngestionTime,
-          metrics: this.ingestionMetrics
-        }
+          metrics: this.ingestionMetrics,
+        },
       };
-
     } catch (error) {
       return {
         status: 'unhealthy',
         timestamp: new Date().toISOString(),
         details: {
-          err: error instanceof Error ? error.message : String(error)
-        }
+          err: error instanceof Error ? error.message : String(error),
+        },
       };
     }
   }

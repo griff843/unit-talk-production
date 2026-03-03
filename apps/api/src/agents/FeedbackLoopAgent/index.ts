@@ -1,6 +1,11 @@
 import { AIOrchestrator } from '../AlertAgent/aiOrchestrator';
 import { BaseAgent } from '../BaseAgent/index';
-import { BaseAgentConfig, BaseAgentDependencies, BaseMetrics, HealthStatus } from '../BaseAgent/types';
+import {
+  BaseAgentConfig,
+  BaseAgentDependencies,
+  BaseMetrics,
+  HealthStatus,
+} from '../BaseAgent/types';
 
 interface FeedbackMetrics extends BaseMetrics {
   'custom.feedbackProcessed': number;
@@ -51,7 +56,7 @@ export class FeedbackLoopAgent extends BaseAgent {
     feedbackProcessed: 0,
     insightsGenerated: 0,
     adaptationsApplied: 0,
-    modelOptimizations: 0
+    modelOptimizations: 0,
   };
 
   constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
@@ -61,21 +66,21 @@ export class FeedbackLoopAgent extends BaseAgent {
 
   protected async initialize(): Promise<void> {
     this.logger.info('Initializing FeedbackLoopAgent...');
-    
+
     try {
       // Initialize AI orchestrator
       await this.aiOrchestrator.initialize();
-      
+
       // Load historical feedback and insights
       await this.loadHistoricalData();
-      
+
       // Initialize adaptation rules
       await this.loadAdaptationRules();
-      
+
       this.logger.info('FeedbackLoopAgent initialized successfully');
     } catch (error) {
       this.logger.error('Failed to initialize FeedbackLoopAgent:', {
-        err: error instanceof Error ? error.message : 'Unknown error'
+        err: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -84,33 +89,33 @@ export class FeedbackLoopAgent extends BaseAgent {
   protected async process(): Promise<void> {
     try {
       this.logger.info('🔄 FeedbackLoopAgent processing cycle started');
-      
+
       // 1. Collect new feedback
       await this.collectFeedback();
-      
+
       // 2. Process pending feedback
       await this.processPendingFeedback();
-      
+
       // 3. Analyze patterns and generate insights
       await this.analyzePerformancePatterns();
-      
+
       // 4. Apply adaptations based on insights
       await this.adaptAIModels();
-      
+
       // 5. Optimize system parameters
       await this.optimizeSystemParameters();
-      
+
       // 6. Generate improvement recommendations
       await this.generateImprovementRecommendations();
-      
+
       this.logger.info('✅ FeedbackLoopAgent processing cycle completed', {
         feedbackProcessed: this.processingStats.feedbackProcessed,
         insightsGenerated: this.processingStats.insightsGenerated,
-        adaptationsApplied: this.processingStats.adaptationsApplied
+        adaptationsApplied: this.processingStats.adaptationsApplied,
       });
     } catch (error) {
       this.logger.error('FeedbackLoopAgent processing err:', {
-        err: error instanceof Error ? error.message : 'Unknown error'
+        err: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -118,20 +123,20 @@ export class FeedbackLoopAgent extends BaseAgent {
 
   protected async cleanup(): Promise<void> {
     this.logger.info('🧹 FeedbackLoopAgent cleanup');
-    
+
     // Save current state
     await this.saveState();
-    
+
     // Clear in-memory data
     this.feedbackQueue = [];
     this.learningInsights = [];
-    
+
     // Reset stats
     this.processingStats = {
       feedbackProcessed: 0,
       insightsGenerated: 0,
       adaptationsApplied: 0,
-      modelOptimizations: 0
+      modelOptimizations: 0,
     };
   }
 
@@ -142,7 +147,7 @@ export class FeedbackLoopAgent extends BaseAgent {
       errorCount: 0, // Track errors separately
       warningCount: 0,
       processingTimeMs: 0,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024,
     };
 
     const customMetrics: FeedbackMetrics = {
@@ -150,7 +155,7 @@ export class FeedbackLoopAgent extends BaseAgent {
       'custom.feedbackProcessed': this.processingStats.feedbackProcessed,
       'custom.insightsGenerated': this.processingStats.insightsGenerated,
       'custom.adaptationsApplied': this.processingStats.adaptationsApplied,
-      'custom.modelOptimizations': this.processingStats.modelOptimizations
+      'custom.modelOptimizations': this.processingStats.modelOptimizations,
     };
 
     return customMetrics;
@@ -158,7 +163,7 @@ export class FeedbackLoopAgent extends BaseAgent {
 
   public async checkHealth(): Promise<HealthStatus> {
     const checks: any[] = [];
-    
+
     try {
       // Check database connectivity
       if (!this.supabase) {
@@ -170,7 +175,7 @@ export class FeedbackLoopAgent extends BaseAgent {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       checks.push({ service: 'supabase', status: 'unhealthy', err: errorMessage });
     }
-    
+
     try {
       // Check AI orchestrator health
       const aiHealth = await this.aiOrchestrator.checkHealth();
@@ -179,9 +184,9 @@ export class FeedbackLoopAgent extends BaseAgent {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       checks.push({ service: 'ai_orchestrator', status: 'unhealthy', err: errorMessage });
     }
-    
+
     const isHealthy = checks.every(check => check.status === 'healthy');
-    
+
     return {
       status: isHealthy ? 'healthy' : 'unhealthy',
       timestamp: new Date().toISOString(),
@@ -190,18 +195,20 @@ export class FeedbackLoopAgent extends BaseAgent {
         queueSize: this.feedbackQueue.length,
         insightsCount: this.learningInsights.length,
         rulesCount: this.adaptationRules.length,
-        stats: this.processingStats
-      }
+        stats: this.processingStats,
+      },
     };
   }
 
   // Public methods for external feedback submission
-  public async submitFeedback(feedback: Omit<FeedbackItem, 'id' | 'timestamp' | 'processed'>): Promise<void> {
+  public async submitFeedback(
+    feedback: Omit<FeedbackItem, 'id' | 'timestamp' | 'processed'>
+  ): Promise<void> {
     const feedbackItem: FeedbackItem = {
       ...feedback,
       id: `feedback_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
       timestamp: new Date().toISOString(),
-      processed: false
+      processed: false,
     };
 
     this.feedbackQueue.push(feedbackItem);
@@ -225,16 +232,16 @@ export class FeedbackLoopAgent extends BaseAgent {
         .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()) // Last 7 days
         .order('created_at', { ascending: false })
         .limit(1000);
-      
+
       if (error) {
         this.logger.warn('Failed to load historical feedback:', {
           error: error.message,
           code: error.code,
-          details: error.details
+          details: error.details,
         });
         return;
       }
-      
+
       // Convert to internal format
       this.feedbackQueue = (feedback || []).map(item => ({
         id: item.id,
@@ -243,13 +250,13 @@ export class FeedbackLoopAgent extends BaseAgent {
         data: item.data,
         priority: item.priority,
         timestamp: item.created_at,
-        processed: item.processed || false
+        processed: item.processed || false,
       }));
-      
+
       this.logger.info(`Loaded ${this.feedbackQueue.length} historical feedback items`);
     } catch (error) {
       this.logger.error('Error loading historical data:', {
-        err: error instanceof Error ? error.message : 'Unknown error'
+        err: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -262,22 +269,22 @@ export class FeedbackLoopAgent extends BaseAgent {
         condition: 'model_accuracy < 0.7',
         action: 'switch_to_backup_model',
         priority: 1,
-        enabled: true
+        enabled: true,
       },
       {
         id: 'high_error_rate_throttle',
         condition: 'error_rate > 0.1',
         action: 'reduce_processing_rate',
         priority: 2,
-        enabled: true
+        enabled: true,
       },
       {
         id: 'positive_feedback_boost',
         condition: 'positive_feedback_ratio > 0.8',
         action: 'increase_confidence_threshold',
         priority: 3,
-        enabled: true
-      }
+        enabled: true,
+      },
     ];
   }
 
@@ -287,7 +294,7 @@ export class FeedbackLoopAgent extends BaseAgent {
       this.collectPickOutcomeFeedback(),
       this.collectUserRatingFeedback(),
       this.collectSystemPerformanceFeedback(),
-      this.collectModelAccuracyFeedback()
+      this.collectModelAccuracyFeedback(),
     ]);
   }
 
@@ -303,9 +310,11 @@ export class FeedbackLoopAgent extends BaseAgent {
         .not('outcome', 'is', null)
         .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Last 24 hours
         .limit(100);
-      
-      if (error || !picks) {return;}
-      
+
+      if (error || !picks) {
+        return;
+      }
+
       for (const pick of picks) {
         await this.submitFeedback({
           type: 'pick_outcome',
@@ -316,14 +325,14 @@ export class FeedbackLoopAgent extends BaseAgent {
             expectedValue: pick.expected_value,
             actualValue: pick.actual_value,
             confidence: pick.confidence,
-            tier: pick.tier
+            tier: pick.tier,
           },
-          priority: 'medium'
+          priority: 'medium',
         });
       }
     } catch (error) {
       this.logger.error('Error collecting pick outcome feedback:', {
-        err: error instanceof Error ? error.message : 'Unknown error'
+        err: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -336,16 +345,16 @@ export class FeedbackLoopAgent extends BaseAgent {
   private async collectSystemPerformanceFeedback(): Promise<void> {
     // Collect system performance metrics as feedback
     const memoryUsage = process.memoryUsage();
-    
+
     await this.submitFeedback({
       type: 'system_performance',
       source: 'system_monitor',
       data: {
         memoryUsage: memoryUsage.heapUsed / 1024 / 1024,
         uptime: process.uptime(),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       },
-      priority: 'low'
+      priority: 'low',
     });
   }
 
@@ -363,21 +372,21 @@ export class FeedbackLoopAgent extends BaseAgent {
           data: {
             modelName: model.name,
             accuracy,
-            evaluationTime: new Date().toISOString()
+            evaluationTime: new Date().toISOString(),
           },
-          priority: accuracy < 0.7 ? 'high' : 'low'
+          priority: accuracy < 0.7 ? 'high' : 'low',
         });
       }
     } catch (error) {
       this.logger.error('Error collecting model accuracy feedback:', {
-        err: error instanceof Error ? error.message : 'Unknown error'
+        err: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
 
   private async processPendingFeedback(): Promise<void> {
     const pendingFeedback = this.feedbackQueue.filter(item => !item.processed);
-    
+
     for (const feedback of pendingFeedback) {
       await this.processFeedbackItem(feedback);
     }
@@ -387,43 +396,42 @@ export class FeedbackLoopAgent extends BaseAgent {
     try {
       // Analyze feedback and generate insights
       const insights = await this.analyzeFeedback(feedback);
-      
+
       // Add insights to collection
       this.learningInsights.push(...insights);
-      
+
       // Mark as processed
       feedback.processed = true;
       this.processingStats.feedbackProcessed++;
-      
+
       // Save to database
       await this.saveFeedbackItem(feedback);
-      
     } catch (error) {
       this.logger.error(`Error processing feedback ${feedback.id}:`, {
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
 
   private async analyzeFeedback(feedback: FeedbackItem): Promise<LearningInsight[]> {
     const insights: LearningInsight[] = [];
-    
+
     // Implement feedback analysis logic based on type
     switch (feedback.type) {
       case 'pick_outcome':
-        insights.push(...await this.analyzePickOutcome(feedback));
+        insights.push(...(await this.analyzePickOutcome(feedback)));
         break;
       case 'model_accuracy':
-        insights.push(...await this.analyzeModelAccuracy(feedback));
+        insights.push(...(await this.analyzeModelAccuracy(feedback)));
         break;
       case 'system_performance':
-        insights.push(...await this.analyzeSystemPerformance(feedback));
+        insights.push(...(await this.analyzeSystemPerformance(feedback)));
         break;
       case 'user_rating':
-        insights.push(...await this.analyzeUserRating(feedback));
+        insights.push(...(await this.analyzeUserRating(feedback)));
         break;
     }
-    
+
     this.processingStats.insightsGenerated += insights.length;
     return insights;
   }
@@ -431,7 +439,7 @@ export class FeedbackLoopAgent extends BaseAgent {
   private async analyzePickOutcome(feedback: FeedbackItem): Promise<LearningInsight[]> {
     // Analyze pick outcome patterns
     const insights: LearningInsight[] = [];
-    
+
     // Example insight generation
     if (feedback.data['outcome'] === 'loss' && feedback.data['confidence'] > 0.8) {
       insights.push({
@@ -440,17 +448,20 @@ export class FeedbackLoopAgent extends BaseAgent {
         description: 'High confidence pick resulted in loss - may need confidence recalibration',
         confidence: 0.7,
         impact: 'medium',
-        recommendations: ['Review confidence calculation algorithm', 'Adjust confidence thresholds'],
-        timestamp: new Date().toISOString()
+        recommendations: [
+          'Review confidence calculation algorithm',
+          'Adjust confidence thresholds',
+        ],
+        timestamp: new Date().toISOString(),
       });
     }
-    
+
     return insights;
   }
 
   private async analyzeModelAccuracy(feedback: FeedbackItem): Promise<LearningInsight[]> {
     const insights: LearningInsight[] = [];
-    
+
     if (feedback.data['accuracy'] < 0.7) {
       insights.push({
         id: `insight_${Date.now()}`,
@@ -458,18 +469,23 @@ export class FeedbackLoopAgent extends BaseAgent {
         description: `Model ${feedback.data['modelName']} accuracy below threshold`,
         confidence: 0.9,
         impact: 'high',
-        recommendations: ['Consider model retraining', 'Switch to backup model', 'Review training data'],
-        timestamp: new Date().toISOString()
+        recommendations: [
+          'Consider model retraining',
+          'Switch to backup model',
+          'Review training data',
+        ],
+        timestamp: new Date().toISOString(),
       });
     }
-    
+
     return insights;
   }
 
   private async analyzeSystemPerformance(feedback: FeedbackItem): Promise<LearningInsight[]> {
     const insights: LearningInsight[] = [];
-    
-    if (feedback.data['memoryUsage'] > 500) { // 500MB threshold
+
+    if (feedback.data['memoryUsage'] > 500) {
+      // 500MB threshold
       insights.push({
         id: `insight_${Date.now()}`,
         category: 'system_resources',
@@ -477,10 +493,10 @@ export class FeedbackLoopAgent extends BaseAgent {
         confidence: 0.8,
         impact: 'medium',
         recommendations: ['Optimize memory usage', 'Consider scaling resources'],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
-    
+
     return insights;
   }
 
@@ -494,17 +510,23 @@ export class FeedbackLoopAgent extends BaseAgent {
     const recentInsights = this.learningInsights.filter(
       insight => Date.now() - new Date(insight.timestamp).getTime() < 24 * 60 * 60 * 1000
     );
-    
+
     // Group insights by category
-    const insightsByCategory = recentInsights.reduce((acc, insight) => {
-      if (!acc[insight.category]) {acc[insight.category] = [];}
-      acc[insight.category]!.push(insight);
-      return acc;
-    }, {} as Record<string, LearningInsight[]>);
-    
+    const insightsByCategory = recentInsights.reduce(
+      (acc, insight) => {
+        if (!acc[insight.category]) {
+          acc[insight.category] = [];
+        }
+        acc[insight.category]!.push(insight);
+        return acc;
+      },
+      {} as Record<string, LearningInsight[]>
+    );
+
     // Identify patterns and trends
     for (const [category, insights] of Object.entries(insightsByCategory)) {
-      if (insights.length > 3) { // Pattern threshold
+      if (insights.length > 3) {
+        // Pattern threshold
         this.logger.info(`Pattern detected in category ${category}: ${insights.length} insights`);
         // Trigger adaptation rules
         await this.triggerAdaptationRules(category, insights);
@@ -517,7 +539,7 @@ export class FeedbackLoopAgent extends BaseAgent {
     const highImpactInsights = this.learningInsights.filter(
       insight => insight.impact === 'high' && insight.confidence > 0.7
     );
-    
+
     for (const insight of highImpactInsights) {
       await this.applyModelAdaptation(insight);
     }
@@ -528,7 +550,7 @@ export class FeedbackLoopAgent extends BaseAgent {
     const performanceInsights = this.learningInsights.filter(
       insight => insight.category === 'system_resources'
     );
-    
+
     if (performanceInsights.length > 0) {
       // Apply system optimizations
       this.logger.info('Applying system parameter optimizations');
@@ -541,10 +563,10 @@ export class FeedbackLoopAgent extends BaseAgent {
     const recommendations = this.learningInsights
       .flatMap(insight => insight.recommendations)
       .filter((rec, index, arr) => arr.indexOf(rec) === index); // Deduplicate
-    
+
     if (recommendations.length > 0) {
       this.logger.info('Generated improvement recommendations:', {
-        recommendations: recommendations
+        recommendations: recommendations,
       });
 
       // Save recommendations to database
@@ -552,9 +574,12 @@ export class FeedbackLoopAgent extends BaseAgent {
     }
   }
 
-  private async triggerAdaptationRules(category: string, insights: LearningInsight[]): Promise<void> {
+  private async triggerAdaptationRules(
+    category: string,
+    insights: LearningInsight[]
+  ): Promise<void> {
     const applicableRules = this.adaptationRules.filter(rule => rule.enabled);
-    
+
     for (const rule of applicableRules) {
       if (await this.evaluateRuleCondition(rule, category, insights)) {
         await this.applyAdaptationRule(rule);
@@ -563,7 +588,11 @@ export class FeedbackLoopAgent extends BaseAgent {
     }
   }
 
-  private async evaluateRuleCondition(_: AdaptationRule, __: string, insights: LearningInsight[]): Promise<boolean> {
+  private async evaluateRuleCondition(
+    _: AdaptationRule,
+    __: string,
+    insights: LearningInsight[]
+  ): Promise<boolean> {
     // Implement rule condition evaluation logic
     // This is a simplified example
     return insights.length > 2 && insights.some(insight => insight.impact === 'high');
@@ -591,7 +620,7 @@ export class FeedbackLoopAgent extends BaseAgent {
   private async applyModelAdaptation(insight: LearningInsight): Promise<void> {
     // Apply specific model adaptations based on insights
     this.logger.info(`Applying model adaptation for insight: ${insight.description}`);
-    
+
     // Implementation depends on the specific insight and model architecture
     this.processingStats.modelOptimizations++;
   }
@@ -607,28 +636,26 @@ export class FeedbackLoopAgent extends BaseAgent {
       if (!this.supabase) {
         throw new Error('Supabase client is required for FeedbackLoopAgent');
       }
-      const { error } = await this.supabase
-        .from('feedback_log')
-        .upsert({
-          id: feedback.id,
-          type: feedback.type,
-          source: feedback.source,
-          data: feedback.data,
-          priority: feedback.priority,
-          processed: feedback.processed,
-          created_at: feedback.timestamp
-        });
+      const { error } = await this.supabase.from('feedback_log').upsert({
+        id: feedback.id,
+        type: feedback.type,
+        source: feedback.source,
+        data: feedback.data,
+        priority: feedback.priority,
+        processed: feedback.processed,
+        created_at: feedback.timestamp,
+      });
 
       if (error) {
         this.logger.error('Failed to save feedback item:', {
           error: error.message,
           code: error.code,
-          details: error.details
+          details: error.details,
         });
       }
     } catch (error) {
       this.logger.error('Error saving feedback item:', {
-        err: error instanceof Error ? error.message : 'Unknown error'
+        err: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -638,24 +665,22 @@ export class FeedbackLoopAgent extends BaseAgent {
       if (!this.supabase) {
         throw new Error('Supabase client is required for FeedbackLoopAgent');
       }
-      const { error } = await this.supabase
-        .from('improvement_recommendations')
-        .insert({
-          recommendations,
-          generated_at: new Date().toISOString(),
-          status: 'pending'
-        });
-      
+      const { error } = await this.supabase.from('improvement_recommendations').insert({
+        recommendations,
+        generated_at: new Date().toISOString(),
+        status: 'pending',
+      });
+
       if (error) {
         this.logger.error('Failed to save recommendations:', {
           error: error.message,
           code: error.code,
-          details: error.details
+          details: error.details,
         });
       }
     } catch (error) {
       this.logger.error('Error saving recommendations:', {
-        err: error instanceof Error ? error.message : 'Unknown error'
+        err: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -667,30 +692,28 @@ export class FeedbackLoopAgent extends BaseAgent {
         insights_count: this.learningInsights.length,
         rules_count: this.adaptationRules.length,
         processing_stats: this.processingStats,
-        last_updated: new Date().toISOString()
+        last_updated: new Date().toISOString(),
       };
 
       if (!this.supabase) {
         throw new Error('Supabase client is required for FeedbackLoopAgent');
       }
-      const { error } = await this.supabase
-        .from('agent_state')
-        .upsert({
-          agent_name: 'FeedbackLoopAgent',
-          state,
-          updated_at: new Date().toISOString()
-        });
-      
+      const { error } = await this.supabase.from('agent_state').upsert({
+        agent_name: 'FeedbackLoopAgent',
+        state,
+        updated_at: new Date().toISOString(),
+      });
+
       if (error) {
         this.logger.error('Failed to save agent state:', {
           error: error.message,
           code: error.code,
-          details: error.details
+          details: error.details,
         });
       }
     } catch (error) {
       this.logger.error('Error saving agent state:', {
-        err: error instanceof Error ? error.message : 'Unknown error'
+        err: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }

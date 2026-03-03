@@ -6,13 +6,7 @@ import { ErrorHandler } from '../../utils/errorHandling';
 import { Logger } from '../../utils/logger';
 import { BaseAgentConfig } from '../BaseAgent/types/index';
 
-import {
-  Contest,
-  ContestEvent,
-  Participant,
-  Sponsorship
-} from './types';
-
+import { Contest, ContestEvent, Participant, Sponsorship } from './types';
 
 // Validation schemas
 const contestRuleSchema = z.object({
@@ -21,36 +15,49 @@ const contestRuleSchema = z.object({
   conditions: z.record(z.any()),
   points: z.number(),
   bonuses: z.record(z.number()).optional(),
-  penalties: z.record(z.number()).optional()
+  penalties: z.record(z.number()).optional(),
 });
 
 const prizePoolSchema = z.object({
   totalAmount: z.number().positive(),
   totalValue: z.number().positive(),
   currency: z.string(),
-  distribution: z.array(z.object({
-    rank: z.union([z.number(), z.string()]),
-    value: z.number().positive(),
-    type: z.enum(['cash', 'credit', 'item', 'custom']),
-    conditions: z.record(z.any()).optional()
-  })),
+  distribution: z.array(
+    z.object({
+      rank: z.union([z.number(), z.string()]),
+      value: z.number().positive(),
+      type: z.enum(['cash', 'credit', 'item', 'custom']),
+      conditions: z.record(z.any()).optional(),
+    })
+  ),
   winners: z.array(z.string()).default([]),
-  specialPrizes: z.array(z.object({
-    id: z.string().uuid().default(() => crypto.randomUUID()),
-    name: z.string(),
-    value: z.number().positive(),
-    type: z.enum(['bonus', 'achievement', 'milestone']).default('bonus'),
-    criteria: z.record(z.any()).default({})
-  })).optional(),
-  sponsorships: z.array(z.object({
-    id: z.string().default(''),
-    sponsor: z.string(),
-    value: z.number().positive(),
-    type: z.string().default('cash'),
-    terms: z.record(z.any()).default({}),
-    requirements: z.record(z.any()),
-    benefits: z.record(z.any())
-  })).optional()
+  specialPrizes: z
+    .array(
+      z.object({
+        id: z
+          .string()
+          .uuid()
+          .default(() => crypto.randomUUID()),
+        name: z.string(),
+        value: z.number().positive(),
+        type: z.enum(['bonus', 'achievement', 'milestone']).default('bonus'),
+        criteria: z.record(z.any()).default({}),
+      })
+    )
+    .optional(),
+  sponsorships: z
+    .array(
+      z.object({
+        id: z.string().default(''),
+        sponsor: z.string(),
+        value: z.number().positive(),
+        type: z.string().default('cash'),
+        terms: z.record(z.any()).default({}),
+        requirements: z.record(z.any()),
+        benefits: z.record(z.any()),
+      })
+    )
+    .optional(),
 });
 
 const contestSchema = z.object({
@@ -64,30 +71,32 @@ const contestSchema = z.object({
   rules: z.array(contestRuleSchema),
   prizePool: prizePoolSchema.optional(),
   participants: z.array(z.string()).default([]),
-  metrics: z.object({
-    participation: z.object({
-      registered: z.number().default(0),
-      active: z.number().default(0),
-      completed: z.number().default(0),
-      disqualified: z.number().default(0)
-    }),
-    engagement: z.object({
-      averageActiveDays: z.number().default(0),
-      completionRate: z.number().default(0),
-      retentionRate: z.number().default(0)
-    }),
-    performance: z.object({
-      averageScore: z.number().default(0),
-      highestScore: z.number().default(0),
-      fairPlayRate: z.number().default(1)
-    }),
-    financial: z.object({
-      totalPrizeValue: z.number().default(0),
-      averagePrize: z.number().default(0),
-      revenueGenerated: z.number().optional()
+  metrics: z
+    .object({
+      participation: z.object({
+        registered: z.number().default(0),
+        active: z.number().default(0),
+        completed: z.number().default(0),
+        disqualified: z.number().default(0),
+      }),
+      engagement: z.object({
+        averageActiveDays: z.number().default(0),
+        completionRate: z.number().default(0),
+        retentionRate: z.number().default(0),
+      }),
+      performance: z.object({
+        averageScore: z.number().default(0),
+        highestScore: z.number().default(0),
+        fairPlayRate: z.number().default(1),
+      }),
+      financial: z.object({
+        totalPrizeValue: z.number().default(0),
+        averagePrize: z.number().default(0),
+        revenueGenerated: z.number().optional(),
+      }),
     })
-  }).optional(),
-  metadata: z.record(z.any()).optional()
+    .optional(),
+  metadata: z.record(z.any()).optional(),
 });
 
 export class ContestManager {
@@ -122,27 +131,25 @@ export class ContestManager {
       prizeValueDistributed: 0,
       errorCount: 0,
       processingTime: [],
-      lastUpdate: new Date().toISOString()
+      lastUpdate: new Date().toISOString(),
     };
   }
 
   private async logContestEvent(event: ContestEvent): Promise<void> {
     try {
       // Log contest event to database
-      const { error } = await this.supabase
-        .from('contest_events')
-        .insert([event]);
+      const { error } = await this.supabase.from('contest_events').insert([event]);
 
       if (error) {
         this.logger.error('Failed to log contest event', {
           error: error.message,
           code: error.code,
-          details: error.details
+          details: error.details,
         });
       }
     } catch (error) {
       this.logger.error('Error logging contest event:', {
-        err: error instanceof Error ? error.message : String(error)
+        err: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -155,7 +162,9 @@ export class ContestManager {
         .select('*')
         .eq('status', 'active');
 
-      if (error) {throw error;}
+      if (error) {
+        throw error;
+      }
 
       this.metrics.activeContests = contests?.length || 0;
       this.metrics.lastUpdate = new Date().toISOString();
@@ -163,26 +172,24 @@ export class ContestManager {
       // Set up real-time subscriptions
       this.realtimeChannel = this.supabase
         .channel('contest-updates')
-        .on('postgres_changes', 
-          { event: '*', schema: 'public', table: 'contests' },
-          (payload) => this.handleContestUpdate(payload)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'contests' }, payload =>
+          this.handleContestUpdate(payload)
         )
         .subscribe();
 
       this.logger.info('ContestManager initialized', {
-        activeContests: this.metrics.activeContests
+        activeContests: this.metrics.activeContests,
       });
-
     } catch (error) {
       if (error instanceof Error) {
         this.logger.error('Failed to initialize ContestManager', {
-          err: error.message
+          err: error.message,
         });
         this.errorHandler.handleError(error, { context: 'contest_init_error' });
       } else {
         const err = new Error(String(error));
         this.logger.error('Failed to initialize ContestManager', {
-          error: err.message
+          error: err.message,
         });
         this.errorHandler.handleError(err, { context: 'contest_error' });
       }
@@ -201,23 +208,24 @@ export class ContestManager {
         .eq('status', 'completed')
         .lt('endDate', toISOString(thirtyDaysAgo));
 
-      if (error) {throw error;}
+      if (error) {
+        throw error;
+      }
 
       // Clean up real-time subscriptions
       if (this.realtimeChannel) {
         await this.supabase.removeChannel(this.realtimeChannel);
       }
-
     } catch (err) {
       if (err instanceof Error) {
         this.logger.error('Failed to cleanup ContestManager', {
-          error: err.message
+          error: err.message,
         });
         this.errorHandler.handleError(err, { context: 'contest_error' });
       } else {
         const errorObj = new Error(String(err));
         this.logger.error('Failed to cleanup ContestManager', {
-          error: errorObj.message
+          error: errorObj.message,
         });
         this.errorHandler.handleError(errorObj, { context: 'contest_update_error' });
       }
@@ -234,7 +242,10 @@ export class ContestManager {
       // Validate prize pool if provided
       if (validatedPayload.prizePool) {
         // Add basic prize pool validation here instead of calling missing method
-        if (!validatedPayload.prizePool.totalAmount || validatedPayload.prizePool.totalAmount <= 0) {
+        if (
+          !validatedPayload.prizePool.totalAmount ||
+          validatedPayload.prizePool.totalAmount <= 0
+        ) {
           throw new Error('Prize pool must have a positive total amount');
         }
       }
@@ -246,28 +257,40 @@ export class ContestManager {
         description: `Rule for ${rule.type}`,
         type: rule.type,
         parameters: rule.conditions || {},
-        active: true
+        active: true,
       }));
 
       // Fix sponsorships to match expected structure and participants to Participant[]
       const mapSponsorships = (sponsorships: any[] | undefined): Sponsorship[] | undefined => {
-        if (!sponsorships) {return undefined;}
-        return sponsorships.map((sponsor: any, index: number): Sponsorship => ({
-          id: typeof sponsor.id === 'string' && sponsor.id.length > 0 ? sponsor.id : `sponsorship-${index}`,
-          sponsor: sponsor.sponsor,
-          value: typeof sponsor.value === 'number' ? sponsor.value : 0,
-          type: sponsor.type === 'cash' || sponsor.type === 'product' || sponsor.type === 'service' ? sponsor.type : 'cash',
-          terms: sponsor.terms ?? {}
-        }));
+        if (!sponsorships) {
+          return undefined;
+        }
+        return sponsorships.map(
+          (sponsor: any, index: number): Sponsorship => ({
+            id:
+              typeof sponsor.id === 'string' && sponsor.id.length > 0
+                ? sponsor.id
+                : `sponsorship-${index}`,
+            sponsor: sponsor.sponsor,
+            value: typeof sponsor.value === 'number' ? sponsor.value : 0,
+            type:
+              sponsor.type === 'cash' || sponsor.type === 'product' || sponsor.type === 'service'
+                ? sponsor.type
+                : 'cash',
+            terms: sponsor.terms ?? {},
+          })
+        );
       };
 
       const fixedSponsorships = mapSponsorships(validatedPayload.prizePool?.sponsorships);
 
       // Fix participants to Participant[]
-      const fixedParticipants: Participant[] = (validatedPayload.participants || []).map((participant: any) => ({
-        ...participant,
-        id: participant.id || crypto.randomUUID(),
-      }));
+      const fixedParticipants: Participant[] = (validatedPayload.participants || []).map(
+        (participant: any) => ({
+          ...participant,
+          id: participant.id || crypto.randomUUID(),
+        })
+      );
 
       // Construct the contest object to insert
       const contestToInsert: Omit<Contest, 'metrics'> & { id?: string } = {
@@ -275,34 +298,36 @@ export class ContestManager {
         name: validatedPayload.name || 'Untitled Contest',
         description: validatedPayload.description || 'No description provided',
         startDate: validatedPayload.startDate || toISOString(new Date()),
-        endDate: validatedPayload.endDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
+        endDate:
+          validatedPayload.endDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
         status: validatedPayload.status || 'draft',
         type: validatedPayload.type || 'daily',
         rules: fixedRules,
         ...(validatedPayload.prizePool && {
           prizePool: {
             totalAmount: validatedPayload.prizePool.totalAmount || 0,
-            totalValue: validatedPayload.prizePool.totalValue || validatedPayload.prizePool.totalAmount || 0,
+            totalValue:
+              validatedPayload.prizePool.totalValue || validatedPayload.prizePool.totalAmount || 0,
             currency: validatedPayload.prizePool.currency || 'USD',
             distribution: (validatedPayload.prizePool.distribution || []).map((dist, index) => ({
-              rank: dist.rank || (index + 1),
+              rank: dist.rank || index + 1,
               value: dist.value || 0,
-              type: dist.type || 'cash' as const,
-              ...(dist.conditions !== undefined && { conditions: dist.conditions })
+              type: dist.type || ('cash' as const),
+              ...(dist.conditions !== undefined && { conditions: dist.conditions }),
             })),
             winners: validatedPayload.prizePool.winners || [],
             specialPrizes: (validatedPayload.prizePool.specialPrizes || []).map((prize, index) => ({
               id: prize.id || crypto.randomUUID(),
               name: prize.name || `Special Prize ${index + 1}`,
               value: prize.value || 0,
-              type: prize.type || 'bonus' as const,
-              criteria: prize.criteria || {}
+              type: prize.type || ('bonus' as const),
+              criteria: prize.criteria || {},
             })),
-            ...(fixedSponsorships !== undefined && { sponsorships: fixedSponsorships })
-          }
+            ...(fixedSponsorships !== undefined && { sponsorships: fixedSponsorships }),
+          },
         }),
         participants: fixedParticipants,
-        metadata: validatedPayload.metadata || {}
+        metadata: validatedPayload.metadata || {},
       };
 
       // Insert into database
@@ -325,15 +350,17 @@ export class ContestManager {
         contestId: data.id,
         details: { name: data.name },
         severity: 'info',
-        correlationId: crypto.randomUUID()
+        correlationId: crypto.randomUUID(),
       });
 
       return data;
     } catch (err) {
       this.logger.error('Failed to create contest', {
-        error: err instanceof Error ? err.message : String(err)
+        error: err instanceof Error ? err.message : String(err),
       });
-      this.errorHandler.handleError(err instanceof Error ? err : new Error(String(err)), { context: 'contest_creation_error' });
+      this.errorHandler.handleError(err instanceof Error ? err : new Error(String(err)), {
+        context: 'contest_creation_error',
+      });
       throw err;
     } finally {
       const duration = Date.now() - startTime;
@@ -345,17 +372,24 @@ export class ContestManager {
     try {
       // Check database connectivity
       const { error } = await this.supabase.from('contests').select('count').limit(1);
-      if (error) {throw error;}
+      if (error) {
+        throw error;
+      }
 
-      // Check metrics freshness  
+      // Check metrics freshness
       const lastUpdateTime = new Date(this.metrics.lastUpdate).getTime();
-      const metricsFresh = (Date.now() - lastUpdateTime) < 5 * 60 * 1000; // 5 minutes
+      const metricsFresh = Date.now() - lastUpdateTime < 5 * 60 * 1000; // 5 minutes
 
       // Calculate health metrics
-      const averageProcessingTime = this.metrics.processingTime.length > 0 ?
-        this.metrics.processingTime.reduce((a, b) => a + b, 0) / this.metrics.processingTime.length : 0;
-      const errorRate = (this.metrics.activeContests + this.metrics.completedContests) > 0 ?
-        this.metrics.errorCount / (this.metrics.activeContests + this.metrics.completedContests) : 0;
+      const averageProcessingTime =
+        this.metrics.processingTime.length > 0
+          ? this.metrics.processingTime.reduce((a, b) => a + b, 0) /
+            this.metrics.processingTime.length
+          : 0;
+      const errorRate =
+        this.metrics.activeContests + this.metrics.completedContests > 0
+          ? this.metrics.errorCount / (this.metrics.activeContests + this.metrics.completedContests)
+          : 0;
 
       const status = metricsFresh && errorRate < 0.1 ? 'healthy' : 'degraded';
 
@@ -367,18 +401,17 @@ export class ContestManager {
           completedContests: this.metrics.completedContests,
           errorRate,
           averageProcessingTime,
-          metricsFresh
-        }
+          metricsFresh,
+        },
       };
-
     } catch (error) {
       this.logger.error('Health check failed', {
-        err: error instanceof Error ? error.message : String(error)
+        err: error instanceof Error ? error.message : String(error),
       });
       return {
         status: 'unhealthy',
         timestamp: toISOString(new Date()),
-        details: { error: error instanceof Error ? error : new Error(String(error)) }
+        details: { error: error instanceof Error ? error : new Error(String(error)) },
       };
     }
   }
@@ -389,27 +422,33 @@ export class ContestManager {
         active: this.metrics.activeContests,
         completed: this.metrics.completedContests,
         totalParticipants: 0, // Would need to query database
-        prizeValueDistributed: this.metrics.prizeValueDistributed
+        prizeValueDistributed: this.metrics.prizeValueDistributed,
       },
       fairPlay: {
         checksPerformed: 0, // Would need to implement
         violationsDetected: 0, // Would need to implement
         appealRate: 0, // Would need to implement
-        averageFairPlayScore: 1.0 // Would need to calculate
+        averageFairPlayScore: 1.0, // Would need to calculate
       },
       performance: {
-        processingTime: this.metrics.processingTime.length > 0 ? 
-          this.metrics.processingTime.reduce((a, b) => a + b, 0) / this.metrics.processingTime.length : 0,
+        processingTime:
+          this.metrics.processingTime.length > 0
+            ? this.metrics.processingTime.reduce((a, b) => a + b, 0) /
+              this.metrics.processingTime.length
+            : 0,
         updateFrequency: 0, // Would need to implement
-        errorRate: (this.metrics.activeContests + this.metrics.completedContests) > 0 ? 
-          this.metrics.errorCount / (this.metrics.activeContests + this.metrics.completedContests) : 0,
-        uptime: 1.0 // Would need to implement
+        errorRate:
+          this.metrics.activeContests + this.metrics.completedContests > 0
+            ? this.metrics.errorCount /
+              (this.metrics.activeContests + this.metrics.completedContests)
+            : 0,
+        uptime: 1.0, // Would need to implement
       },
       healthStatus: {
         status: 'healthy',
         timestamp: toISOString(new Date()),
-        details: {}
-      }
+        details: {},
+      },
     };
   }
 
@@ -418,4 +457,3 @@ export class ContestManager {
     this.logger.debug('Contest update received', { payload });
   }
 }
-

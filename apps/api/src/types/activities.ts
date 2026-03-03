@@ -6,11 +6,7 @@ export interface ActivityParams {
 // Feed Agent Activities
 export interface FeedAgentActivities {
   // Optimal API ingestion
-  ingestOptimalProps(params: {
-    league: string;
-    batchSize: number;
-    timeout: number;
-  }): Promise<{
+  ingestOptimalProps(params: { league: string; batchSize: number; timeout: number }): Promise<{
     success: boolean;
     batchId: string;
     propCount: number;
@@ -18,11 +14,7 @@ export interface FeedAgentActivities {
   }>;
 
   // Unified data ingestion (Elite Dual-API System)
-  ingestUnifiedData(params: {
-    league: string;
-    batchSize: number;
-    timeout: number;
-  }): Promise<{
+  ingestUnifiedData(params: { league: string; batchSize: number; timeout: number }): Promise<{
     success: boolean;
     batchId: string;
     propCount: number;
@@ -41,37 +33,26 @@ export interface FeedAgentActivities {
   }>;
 
   // Live game detection
-  getLiveGames(params: { league: string }): Promise<Array<{
-    id: string;
-    league: string;
-    homeTeam: string;
-    awayTeam: string;
-    startTime: Date;
-    status: 'scheduled' | 'live' | 'completed';
-    inningPeriod?: string;
-  }>>;
+  getLiveGames(params: { league: string }): Promise<
+    Array<{
+      id: string;
+      league: string;
+      homeTeam: string;
+      awayTeam: string;
+      startTime: Date;
+      status: 'scheduled' | 'live' | 'completed';
+      inningPeriod?: string;
+    }>
+  >;
 
   // Data processing
-  deduplicateAndNormalize(params: {
-    league: string;
-    batchId: string;
-  }): Promise<void>;
+  deduplicateAndNormalize(params: { league: string; batchId: string }): Promise<void>;
 
-  deduplicateProps(params: {
-    batchId: string;
-    league: string;
-  }): Promise<void>;
+  deduplicateProps(params: { batchId: string; league: string }): Promise<void>;
 
-  normalizeProps(params: {
-    batchId: string;
-    league: string;
-  }): Promise<void>;
+  normalizeProps(params: { batchId: string; league: string }): Promise<void>;
 
-  triggerGrading(params: {
-    batchId: string;
-    league: string;
-    propCount: number;
-  }): Promise<void>;
+  triggerGrading(params: { batchId: string; league: string; propCount: number }): Promise<void>;
 
   // Fetch feed data
   fetchFeed(params: ActivityParams): Promise<void>;
@@ -84,87 +65,86 @@ export interface AlertAgentActivities {
     leagues: string[];
     threshold: number;
     timeWindow: number;
-  }): Promise<Array<{
-    propId: string;
-    league: string;
-    oldLine: number;
-    newLine: number;
-    movement: number;
-    timestamp: Date;
-  }>>;
+  }): Promise<
+    Array<{
+      propId: string;
+      league: string;
+      oldLine: number;
+      newLine: number;
+      movement: number;
+      timestamp: Date;
+    }>
+  >;
 
   detectLineMovement(params: {
     leagues: string[];
     significantThreshold: number;
     timeWindow: number;
-  }): Promise<Array<{
-    propId: string;
-    league: string;
-    movement: number;
-    direction: 'up' | 'down';
-    timestamp: Date;
-  }>>;
+  }): Promise<
+    Array<{
+      propId: string;
+      league: string;
+      movement: number;
+      direction: 'up' | 'down';
+      timestamp: Date;
+    }>
+  >;
 
-  detectHedgeOpportunities(params: {
-    leagues: string[];
-    minProfitMargin: number;
-  }): Promise<Array<{
-    propId: string;
-    league: string;
-    hedgeOpportunity: {
-      originalBet: any;
-      hedgeBet: any;
-      guaranteedProfit: number;
-    };
-  }>>;
+  detectHedgeOpportunities(params: { leagues: string[]; minProfitMargin: number }): Promise<
+    Array<{
+      propId: string;
+      league: string;
+      hedgeOpportunity: {
+        originalBet: any;
+        hedgeBet: any;
+        guaranteedProfit: number;
+      };
+    }>
+  >;
 
-  detectMiddleOpportunities(params: {
-    leagues: string[];
-    minGap: number;
-  }): Promise<Array<{
-    propId: string;
-    league: string;
-    middleOpportunity: {
-      lowBet: any;
-      highBet: any;
-      gap: number;
-      winProbability: number;
-    };
-  }>>;
+  detectMiddleOpportunities(params: { leagues: string[]; minGap: number }): Promise<
+    Array<{
+      propId: string;
+      league: string;
+      middleOpportunity: {
+        lowBet: any;
+        highBet: any;
+        gap: number;
+        winProbability: number;
+      };
+    }>
+  >;
 
-  detectStaleLines(params: {
-    leagues: string[];
-    maxAge: number;
-  }): Promise<Array<{
-    propId: string;
-    league: string;
-    age: number;
-    lastUpdate: Date;
-  }>>;
+  detectStaleLines(params: { leagues: string[]; maxAge: number }): Promise<
+    Array<{
+      propId: string;
+      league: string;
+      age: number;
+      lastUpdate: Date;
+    }>
+  >;
 
-  detectInjuryImpacts(params: {
-    leagues: string[];
-    sources: string[];
-  }): Promise<Array<{
-    playerId: string;
-    playerName: string;
-    league: string;
-    injuryType: string;
-    severity: 'minor' | 'major' | 'season-ending';
-    affectedProps: string[];
-    source: string;
-  }>>;
+  detectInjuryImpacts(params: { leagues: string[]; sources: string[] }): Promise<
+    Array<{
+      playerId: string;
+      playerName: string;
+      league: string;
+      injuryType: string;
+      severity: 'minor' | 'major' | 'season-ending';
+      affectedProps: string[];
+      source: string;
+    }>
+  >;
 
-  detectSuspiciousActivity(params: {
-    leagues: string[];
-    patterns: string[];
-  }): Promise<Array<{
-    propId: string;
-    league: string;
-    pattern: string;
-    confidence: number;
-    details: any;
-  }>>;
+  detectSuspiciousActivity(params: { leagues: string[]; patterns: string[] }): Promise<
+    Array<{
+      propId: string;
+      league: string;
+      pattern: string;
+      confidence: number;
+      details: any;
+    }>
+  >;
 
   // Quota and health alerts
   sendQuotaWarning(params: {
@@ -187,15 +167,9 @@ export interface AlertAgentActivities {
     timestamp: Date;
   }): Promise<void>;
 
-  sendWeeklyReport(params: {
-    report: any;
-    webhook: string;
-  }): Promise<void>;
+  sendWeeklyReport(params: { report: any; webhook: string }): Promise<void>;
 
-  checkLeagueOpportunities(params: {
-    league: string;
-    enhanced: boolean;
-  }): Promise<void>;
+  checkLeagueOpportunities(params: { league: string; enhanced: boolean }): Promise<void>;
 
   // Process alerts
   processAlert(params: ActivityParams): Promise<void>;
@@ -204,21 +178,13 @@ export interface AlertAgentActivities {
 // Grading Agent Activities
 export interface GradingAgentActivities {
   // Grading operations
-  gradeNewProps(params: {
-    league: string;
-    isLiveMode: boolean;
-    cycleCount: number;
-  }): Promise<{
+  gradeNewProps(params: { league: string; isLiveMode: boolean; cycleCount: number }): Promise<{
     league: string;
     topTierProps: any[];
     gradedCount: number;
   }>;
 
-  scoreTopTierPicks(params: {
-    gradedProps: any[];
-    league: string;
-    cycleCount: number;
-  }): Promise<{
+  scoreTopTierPicks(params: { gradedProps: any[]; league: string; cycleCount: number }): Promise<{
     league: string;
     scoredPicks: any[];
     scoreCount: number;
@@ -230,9 +196,7 @@ export interface GradingAgentActivities {
     timestamp: Date;
   }): Promise<void>;
 
-  getNewUnifiedPicks(params: {
-    cycleCount: number;
-  }): Promise<any[]>;
+  getNewUnifiedPicks(params: { cycleCount: number }): Promise<any[]>;
 
   // Grade submission
   gradeSubmission(params: ActivityParams): Promise<void>;
@@ -261,19 +225,14 @@ export interface NotificationAgentActivities {
     cycleCount: number;
   }): Promise<void>;
 
-  buildPickEmbeds(params: {
-    picks: any[];
-    isLiveMode: boolean;
-  }): Promise<Array<{
-    embed: any;
-    priority: 'critical' | 'high' | 'medium';
-  }>>;
+  buildPickEmbeds(params: { picks: any[]; isLiveMode: boolean }): Promise<
+    Array<{
+      embed: any;
+      priority: 'critical' | 'high' | 'medium';
+    }>
+  >;
 
-  sendDiscordEmbed(params: {
-    embed: any;
-    webhook: string;
-    priority: string;
-  }): Promise<void>;
+  sendDiscordEmbed(params: { embed: any; webhook: string; priority: string }): Promise<void>;
 
   // Send notification
   sendNotification(params: ActivityParams): Promise<void>;
@@ -289,14 +248,9 @@ export interface OperatorAgentActivities {
     timestamp: Date;
   }): Promise<void>;
 
-  ensureLiveMode(params: {
-    reason: string;
-    games: any[];
-  }): Promise<void>;
+  ensureLiveMode(params: { reason: string; games: any[] }): Promise<void>;
 
-  ensureOffPeakMode(params: {
-    reason: string;
-  }): Promise<void>;
+  ensureOffPeakMode(params: { reason: string }): Promise<void>;
 
   // API quota management
   checkApiQuota(params: { provider: string }): Promise<{
@@ -308,10 +262,7 @@ export interface OperatorAgentActivities {
     status: 'healthy' | 'warning' | 'critical';
   }>;
 
-  getHourlyApiUsage(params: {
-    provider: string;
-    hour: number;
-  }): Promise<number>;
+  getHourlyApiUsage(params: { provider: string; hour: number }): Promise<number>;
 
   activateFallbackMode(params: {
     primary: string;
@@ -319,10 +270,7 @@ export interface OperatorAgentActivities {
     reason: string;
   }): Promise<void>;
 
-  logQuotaStatus(params: {
-    providers: any[];
-    timestamp: Date;
-  }): Promise<void>;
+  logQuotaStatus(params: { providers: any[]; timestamp: Date }): Promise<void>;
 
   // Health monitoring
   checkDatabaseHealth(): Promise<{
@@ -331,18 +279,16 @@ export interface OperatorAgentActivities {
     activeConnections: number;
   }>;
 
-  checkApiEndpoints(params: {
-    endpoints: string[];
-  }): Promise<Array<{
-    name: string;
-    healthy: boolean;
-    responseTime: number;
-    error?: string;
-  }>>;
+  checkApiEndpoints(params: { endpoints: string[] }): Promise<
+    Array<{
+      name: string;
+      healthy: boolean;
+      responseTime: number;
+      error?: string;
+    }>
+  >;
 
-  getWorkflowMetrics(params: {
-    timeWindow: number;
-  }): Promise<{
+  getWorkflowMetrics(params: { timeWindow: number }): Promise<{
     totalExecutions: number;
     successfulExecutions: number;
     failedExecutions: number;
@@ -373,34 +319,20 @@ export interface OperatorAgentActivities {
     currentDate: Date;
   }): Promise<boolean>;
 
-  enablePeakMonitoring(params: {
-    league: string;
-    reason: string;
-  }): Promise<void>;
+  enablePeakMonitoring(params: { league: string; reason: string }): Promise<void>;
 
-  enableStandardMonitoring(params: {
-    league: string;
-    reason: string;
-  }): Promise<void>;
+  enableStandardMonitoring(params: { league: string; reason: string }): Promise<void>;
 
   // Maintenance operations
-  cleanupOldLogs(params: {
-    retentionDays: number;
-  }): Promise<void>;
+  cleanupOldLogs(params: { retentionDays: number }): Promise<void>;
 
-  cleanupOldMetrics(params: {
-    retentionDays: number;
-  }): Promise<void>;
+  cleanupOldMetrics(params: { retentionDays: number }): Promise<void>;
 
-  cleanupOldRawProps(params: {
-    retentionDays: number;
-  }): Promise<void>;
+  cleanupOldRawProps(params: { retentionDays: number }): Promise<void>;
 
   optimizeDatabase(): Promise<void>;
 
-  generateDailySummary(params: {
-    date: Date;
-  }): Promise<void>;
+  generateDailySummary(params: { date: Date }): Promise<void>;
 
   generateWeeklyReport(params: {
     startDate: Date;
@@ -408,17 +340,10 @@ export interface OperatorAgentActivities {
     includeMetrics: string[];
   }): Promise<any>;
 
-  createNotionReport(params: {
-    report: any;
-    type: string;
-  }): Promise<void>;
+  createNotionReport(params: { report: any; type: string }): Promise<void>;
 
   // Error handling and logging
-  logCriticalAlert(params: {
-    type: string;
-    message: string;
-    timestamp: Date;
-  }): Promise<void>;
+  logCriticalAlert(params: { type: string; message: string; timestamp: Date }): Promise<void>;
 
   handleIngestionFailures(params: {
     failures: any[];
@@ -446,17 +371,9 @@ export interface OperatorAgentActivities {
     cycleCount: number;
   }): Promise<void>;
 
-  logUSPError(params: {
-    uspType: string;
-    error: string;
-    cycleCount: number;
-  }): Promise<void>;
+  logUSPError(params: { uspType: string; error: string; cycleCount: number }): Promise<void>;
 
-  logGradingError(params: {
-    error: string;
-    leagues: string[];
-    cycleCount: number;
-  }): Promise<void>;
+  logGradingError(params: { error: string; leagues: string[]; cycleCount: number }): Promise<void>;
 
   logDiscordMetrics(params: {
     picksCount: number;
@@ -465,10 +382,7 @@ export interface OperatorAgentActivities {
     deliveryTime: number;
   }): Promise<void>;
 
-  logDiscordError(params: {
-    error: string;
-    cycleCount: number;
-  }): Promise<void>;
+  logDiscordError(params: { error: string; cycleCount: number }): Promise<void>;
 
   updateProcessingMetrics(params: {
     league: string;

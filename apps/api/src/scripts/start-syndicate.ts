@@ -33,7 +33,7 @@ async function initializeSyndicateScheduling(): Promise<void> {
     logger.info('Syndicate scheduling initialized successfully', {});
   } catch (error) {
     logger.error('Failed to initialize syndicate scheduling', {
-      err: error instanceof Error ? error.message : String(error)
+      err: error instanceof Error ? error.message : String(error),
     });
     throw error;
   }
@@ -45,7 +45,7 @@ async function setupLeagueSchedules(scheduleManager: any): Promise<void> {
     scheduleId: 'league-ingestion',
     workflowType: 'leagueIngestionWorkflow',
     workflowArgs: [],
-    cronSchedule: '*/5 * * * *'
+    cronSchedule: '*/5 * * * *',
   });
 
   // USP processing schedule - every minute
@@ -53,7 +53,7 @@ async function setupLeagueSchedules(scheduleManager: any): Promise<void> {
     scheduleId: 'usp-processing',
     workflowType: 'uspProcessingWorkflow',
     workflowArgs: [],
-    cronSchedule: '* * * * *'
+    cronSchedule: '* * * * *',
   });
 
   // Grading and scoring schedule - every 2 minutes
@@ -61,7 +61,7 @@ async function setupLeagueSchedules(scheduleManager: any): Promise<void> {
     scheduleId: 'grading-scoring',
     workflowType: 'gradingAndScoringWorkflow',
     workflowArgs: [],
-    cronSchedule: '*/2 * * * *'
+    cronSchedule: '*/2 * * * *',
   });
 }
 
@@ -71,7 +71,7 @@ async function setupMonitoringSchedules(scheduleManager: any): Promise<void> {
     scheduleId: 'live-game-monitor',
     workflowType: 'liveGameMonitorWorkflow',
     workflowArgs: [],
-    cronSchedule: '* * * * *'
+    cronSchedule: '* * * * *',
   });
 
   // API quota monitoring - every 5 minutes
@@ -79,7 +79,7 @@ async function setupMonitoringSchedules(scheduleManager: any): Promise<void> {
     scheduleId: 'api-quota-monitor',
     workflowType: 'apiQuotaMonitorWorkflow',
     workflowArgs: [],
-    cronSchedule: '*/5 * * * *'
+    cronSchedule: '*/5 * * * *',
   });
 
   // System health monitoring - every minute
@@ -87,7 +87,7 @@ async function setupMonitoringSchedules(scheduleManager: any): Promise<void> {
     scheduleId: 'system-health-monitor',
     workflowType: 'systemHealthMonitorWorkflow',
     workflowArgs: [],
-    cronSchedule: '* * * * *'
+    cronSchedule: '* * * * *',
   });
 }
 
@@ -97,7 +97,7 @@ async function setupMaintenanceSchedules(scheduleManager: any): Promise<void> {
     scheduleId: 'daily-maintenance',
     workflowType: 'maintenanceWorkflow',
     workflowArgs: [{ type: 'daily' }],
-    cronSchedule: '0 3 * * *'
+    cronSchedule: '0 3 * * *',
   });
 
   // Weekly maintenance - run at 2 AM on Sundays
@@ -105,14 +105,14 @@ async function setupMaintenanceSchedules(scheduleManager: any): Promise<void> {
     scheduleId: 'weekly-maintenance',
     workflowType: 'maintenanceWorkflow',
     workflowArgs: [{ type: 'weekly' }],
-    cronSchedule: '0 2 * * 0'
+    cronSchedule: '0 2 * * 0',
   });
 }
 
 if (require.main === module) {
-  initializeSyndicateScheduling().catch((error) => {
+  initializeSyndicateScheduling().catch(error => {
     logger.error('Failed to start syndicate scheduling', {
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
     process.exit(1);
   });

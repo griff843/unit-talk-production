@@ -45,7 +45,7 @@ function exec(cmd: string): string {
       encoding: 'utf-8',
       cwd: SUPABASE_DIR,
       timeout: 30000,
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
     }).trim();
   } catch (error: any) {
     return error.stdout?.toString() || error.stderr?.toString() || error.message;
@@ -54,7 +54,7 @@ function exec(cmd: string): string {
 
 function addResult(check: string, passed: boolean, message: string, critical = true): void {
   results.push({ check, passed, message, critical });
-  const emoji = passed ? '[PASS]' : (critical ? '[FAIL]' : '[WARN]');
+  const emoji = passed ? '[PASS]' : critical ? '[FAIL]' : '[WARN]';
   log(emoji, `${check}: ${message}`);
 }
 
@@ -72,11 +72,7 @@ function checkProjectLinkFile(): void {
 
   const ref = fs.readFileSync(PROJECT_REF_FILE, 'utf-8').trim();
   if (ref !== EXPECTED_PROJECT_REF) {
-    addResult(
-      'Project Link File',
-      false,
-      `Linked to ${ref}, expected ${EXPECTED_PROJECT_REF}`
-    );
+    addResult('Project Link File', false, `Linked to ${ref}, expected ${EXPECTED_PROJECT_REF}`);
     return;
   }
 
@@ -88,11 +84,7 @@ function checkProjectsList(): void {
   const output = exec('npx supabase projects list');
 
   if (output.includes('error') || output.includes('Error')) {
-    addResult(
-      'Supabase Login',
-      false,
-      'Not logged in or API error. Run: npx supabase login'
-    );
+    addResult('Supabase Login', false, 'Not logged in or API error. Run: npx supabase login');
     return;
   }
 
@@ -162,28 +154,19 @@ function checkDbPushDryRun(): void {
   addResult('Migration Files', true, `Found ${files.length} migration files`);
 
   // Check for encoding issues that could cause problems
-  for (const file of files.slice(-5)) { // Check last 5 migrations
+  for (const file of files.slice(-5)) {
+    // Check last 5 migrations
     const filePath = path.join(migrationsDir, file);
     const content = fs.readFileSync(filePath, 'utf-8');
 
     // Check for BOM or unusual characters
-    if (content.charCodeAt(0) === 0xFEFF) {
-      addResult(
-        'File Encoding',
-        false,
-        `${file} has UTF-8 BOM. Convert to plain UTF-8`,
-        false
-      );
+    if (content.charCodeAt(0) === 0xfeff) {
+      addResult('File Encoding', false, `${file} has UTF-8 BOM. Convert to plain UTF-8`, false);
     }
 
     // Check for CRLF (warning only on Windows)
     if (content.includes('\r\n') && process.platform !== 'win32') {
-      addResult(
-        'Line Endings',
-        false,
-        `${file} has CRLF line endings. Convert to LF`,
-        false
-      );
+      addResult('Line Endings', false, `${file} has CRLF line endings. Convert to LF`, false);
     }
   }
 }
@@ -191,13 +174,7 @@ function checkDbPushDryRun(): void {
 // Check 5: Prevent raw SQL execution attempts
 function checkForRawSqlPatterns(): void {
   // Check for dangerous patterns in recent command history or scripts
-  const dangerousPatterns = [
-    'psql',
-    'db-url',
-    '--db-url',
-    'DATABASE_URL',
-    'POSTGRES_CONNECTION',
-  ];
+  const dangerousPatterns = ['psql', 'db-url', '--db-url', 'DATABASE_URL', 'POSTGRES_CONNECTION'];
 
   // Check environment for raw connection attempts
   const hasRawDbUrl = process.env.DATABASE_URL || process.env.POSTGRES_CONNECTION;
@@ -228,11 +205,7 @@ function checkCliVersion(): void {
 
   // Require at least v2.0.0
   if (major < 2) {
-    addResult(
-      'CLI Version',
-      false,
-      `CLI version ${match[1]} is too old. Update to v2.x+`
-    );
+    addResult('CLI Version', false, `CLI version ${match[1]} is too old. Update to v2.x+`);
     return;
   }
 

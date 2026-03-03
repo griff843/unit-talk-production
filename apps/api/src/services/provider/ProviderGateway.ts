@@ -1,8 +1,9 @@
 import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
+
+import { apiQuotaCoordinator } from '../APIQuotaCoordinator';
 import { cacheClient } from '../cacheClient.js';
 import { creditLogger } from '../creditLogger.js';
 import { circuitBreaker } from '../enhanced-circuit-breaker';
-import { apiQuotaCoordinator } from '../APIQuotaCoordinator';
 import {
   externalApiCalls,
   externalApiDuration,
@@ -15,12 +16,19 @@ import {
 } from '../metricsServer';
 
 // Simple in-memory token bucket per provider
-interface TokenBucket { capacity: number; tokens: number; refillRatePerSec: number; lastRefill: number; }
+interface TokenBucket {
+  capacity: number;
+  tokens: number;
+  refillRatePerSec: number;
+  lastRefill: number;
+}
 
 // Keep last-known remaining credits per provider
 const lastRemainingByProvider: Record<string, number | undefined> = {};
 
-function nowMs() { return Date.now(); }
+function nowMs() {
+  return Date.now();
+}
 
 function refill(bucket: TokenBucket) {
   const now = nowMs();
@@ -36,7 +44,12 @@ function getBucket(provider: string): TokenBucket {
   if (!buckets[provider]) {
     const rpm = parseInt(process.env.ODDS_API_RPM || '60', 10); // default 60 rpm
     const rps = Math.max(1, rpm) / 60;
-    buckets[provider] = { capacity: Math.max(1, rpm), tokens: Math.max(1, rpm), refillRatePerSec: rps, lastRefill: nowMs() };
+    buckets[provider] = {
+      capacity: Math.max(1, rpm),
+      tokens: Math.max(1, rpm),
+      refillRatePerSec: rps,
+      lastRefill: nowMs(),
+    };
   }
   return buckets[provider];
 }
@@ -57,7 +70,9 @@ export interface ProviderRequestOptions {
 
 export class ProviderGateway {
   private inFlight: Map<string, Promise<any>> = new Map();
-  private monthlyLimitByProvider: Record<string, number> = { oddsapi: parseInt(process.env.ODDS_API_MONTHLY_LIMIT || '5000000', 10) };
+  private monthlyLimitByProvider: Record<string, number> = {
+    oddsapi: parseInt(process.env.ODDS_API_MONTHLY_LIMIT || '5000000', 10),
+  };
 
   constructor() {
     // Wire circuit breaker metrics for provider(s)
@@ -82,7 +97,8 @@ export class ProviderGateway {
     const requestId = `${provider}:${endpoint}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
     const dedupKey = opts.dedupKey || `${provider}:${endpoint}:${JSON.stringify(params)}`;
     const cacheKey = opts.cacheKey || `${provider}:${endpoint}:${JSON.stringify(params)}`;
-    const ttl = opts.cacheTtlSeconds ?? parseInt(process.env.ODDS_EVENT_CACHE_TTL_SECONDS || '120', 10);
+    const ttl =
+      opts.cacheTtlSeconds ?? parseInt(process.env.ODDS_EVENT_CACHE_TTL_SECONDS || '120', 10);
 
     // Emergency freeze enforcement (oddsapi)
     if (provider === 'oddsapi' && process.env.ODDS_API_EMERGENCY_FREEZE === '1') {
@@ -105,7 +121,9 @@ export class ProviderGateway {
         return cached as T;
       }
       providerCacheMisses.labels(provider, endpoint).inc();
-      throw new Error(`[ProviderGateway] Remaining credits ${lastRemaining} below threshold ${minRemaining}`);
+      throw new Error(
+        `[ProviderGateway] Remaining credits ${lastRemaining} below threshold ${minRemaining}`
+      );
     }
 
     // Cache-first
@@ -120,14 +138,19 @@ export class ProviderGateway {
     const bucket = getBucket(provider);
     refill(bucket);
     if (bucket.tokens < 1) {
-      const waitMs = Math.ceil((1 - bucket.tokens) / bucket.refillRatePerSec * 1000);
+      const waitMs = Math.ceil(((1 - bucket.tokens) / bucket.refillRatePerSec) * 1000);
       await new Promise(res => setTimeout(res, waitMs));
       refill(bucket);
     }
     bucket.tokens -= 1;
 
     // Ask coordinator if allowed (runtime budgets)
-    const access = await apiQuotaCoordinator.requestAPIAccess(provider, endpoint, opts.priority || 5, { requestId });
+    const access = await apiQuotaCoordinator.requestAPIAccess(
+      provider,
+      endpoint,
+      opts.priority || 5,
+      { requestId }
+    );
     if (!access.allowed) {
       throw new Error(`[ProviderGateway] Quota denied: ${access.reason || 'unknown'}`);
     }
@@ -144,12 +167,17 @@ export class ProviderGateway {
       // Log request for cost tracking
       creditLogger.addCall(provider, 1, 1, dedupKey);
 
-      const url = provider === 'oddsapi'
-        ? `https://api.the-odds-api.com/v4${endpoint}`
-        : endpoint; // for other providers, endpoint should be full URL
+      const url = provider === 'oddsapi' ? `https://api.the-odds-api.com/v4${endpoint}` : endpoint; // for other providers, endpoint should be full URL
 
-      const apiKeyHeader = provider === 'oddsapi' ? { apiKey: process.env.ODDS_API_KEY as string } : {};
-      const requestConfig: AxiosRequestConfig = { method, url, params: { ...apiKeyHeader, ...params }, headers, timeout: 30000 };
+      const apiKeyHeader =
+        provider === 'oddsapi' ? { apiKey: process.env.ODDS_API_KEY as string } : {};
+      const requestConfig: AxiosRequestConfig = {
+        method,
+        url,
+        params: { ...apiKeyHeader, ...params },
+        headers,
+        timeout: 30000,
+      };
 
       try {
         const response: AxiosResponse<T> = await axios.request<T>(requestConfig);
@@ -159,7 +187,9 @@ export class ProviderGateway {
         externalApiDuration.labels(provider, endpoint, String(response.status)).observe(dur);
         externalApiCalls.labels(provider, endpoint, String(response.status)).inc();
 
-        const remaining = (response.headers['x-requests-remaining'] as any) || (response.headers['x-requests-available'] as any);
+        const remaining =
+          (response.headers['x-requests-remaining'] as any) ||
+          (response.headers['x-requests-available'] as any);
         if (remaining !== undefined) {
           const remainingInt = parseInt(String(remaining), 10);
           lastRemainingByProvider[provider] = remainingInt;
@@ -176,8 +206,12 @@ export class ProviderGateway {
 
         return response.data;
       } catch (err: any) {
-        externalApiErrors.labels(provider, err?.response?.status ? String(err.response.status) : 'error').inc();
-        externalApiCalls.labels(provider, endpoint, err?.response?.status ? String(err.response.status) : 'error').inc();
+        externalApiErrors
+          .labels(provider, err?.response?.status ? String(err.response.status) : 'error')
+          .inc();
+        externalApiCalls
+          .labels(provider, endpoint, err?.response?.status ? String(err.response.status) : 'error')
+          .inc();
         throw err;
       }
     };
@@ -195,4 +229,3 @@ export class ProviderGateway {
 }
 
 export const providerGateway = new ProviderGateway();
-

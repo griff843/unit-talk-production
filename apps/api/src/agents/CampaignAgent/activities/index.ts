@@ -8,7 +8,7 @@ const getDependencies = (): BaseAgentDependencies => {
   return {
     supabase: null as any,
     logger: console as any,
-    errorHandler: null as any
+    errorHandler: null as any,
   };
 };
 
@@ -30,4 +30,4 @@ export async function applyDiscounts(): Promise<void> {
 export async function cleanupExpiredCampaigns(): Promise<void> {
   const agent = CampaignAgent.getInstance(getDependencies());
   await agent.cleanupExpired();
-} 
+}

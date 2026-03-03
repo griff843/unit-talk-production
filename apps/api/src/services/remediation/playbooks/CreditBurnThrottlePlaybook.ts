@@ -9,7 +9,6 @@
  * @module services/remediation/playbooks/CreditBurnThrottlePlaybook
  */
 
-import { BasePlaybook } from './BasePlaybook';
 import {
   ActionRecord,
   ExecutionContext,
@@ -18,6 +17,8 @@ import {
   KnobResolutionResult,
   PlaybookId,
 } from '../types';
+
+import { BasePlaybook } from './BasePlaybook';
 
 // ============================================================================
 // CreditBurnThrottlePlaybook Class
@@ -89,7 +90,7 @@ export class CreditBurnThrottlePlaybook extends BasePlaybook {
       '2. Review API call patterns:',
       '   SELECT provider, COUNT(*) as calls, SUM(credits_used) as credits',
       '   FROM api_credit_log',
-      '   WHERE created_at > NOW() - INTERVAL \'1 hour\'',
+      "   WHERE created_at > NOW() - INTERVAL '1 hour'",
       '   GROUP BY provider',
       '   ORDER BY credits DESC;',
       '',

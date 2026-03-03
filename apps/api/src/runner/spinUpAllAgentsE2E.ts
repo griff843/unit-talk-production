@@ -1,9 +1,9 @@
 /**
  * Spin Up All Agents - Complete E2E Verification
- * 
+ *
  * This script spins up all agents and verifies the complete flow:
  * FeedAgent → IngestionAgent → GradingAgent → ProfessionalProcessor → Promotion
- * 
+ *
  * Provides comprehensive proof that everything is working and grading_status for today.
  */
 
@@ -22,10 +22,7 @@ import { createLogger } from '../utils/logger';
 dotenv.config();
 
 const logger = createLogger('AllAgentsE2E');
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_ANON_KEY!
-);
+const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
 
 interface E2EReport {
   timestamp: string;
@@ -70,7 +67,6 @@ class AllAgentsE2ETester {
   private eligibilityAgent: EligibilityAgent;
   private alertAgent: AlertAgent;
   private report: E2EReport;
-  
 
   constructor() {
     // Initialize all agents with proper config and dependencies
@@ -80,28 +76,34 @@ class AllAgentsE2ETester {
       version: '1.0.0',
       logLevel: 'info',
       health: { enabled: true, interval: 30 },
-      metrics: { enabled: true, interval: 60 }
+      metrics: { enabled: true, interval: 60 },
     };
-    
+
     const deps: BaseAgentDependencies = {
       supabase: supabase,
-      logger: logger
+      logger: logger,
     };
-    
+
     this.feedAgent = new FeedAgent(config, deps);
     this.ingestionAgent = new IngestionAgent(config, deps);
     this.gradingAgent = new GradingAgent(config, deps);
     this.eligibilityAgent = new EligibilityAgent(config, deps);
     this.alertAgent = new AlertAgent(config, deps);
-    
+
     this.report = {
       timestamp: new Date().toISOString(),
       feedAgent: { propsIngested: 0, sampleProps: [], apiStatus: 'pending' },
       ingestionAgent: { propsValidated: 0, duplicatesRemoved: 0, propsStored: 0 },
       gradingAgent: { propsGraded: 0, tierDistribution: {}, avgScore: 0, sampleGrades: [] },
-      professionalProcessor: { propsProcessed: 0, clvTracked: 0, deviggingApplied: 0, autoApproved: 0, avgProcessingTime: 0 },
+      professionalProcessor: {
+        propsProcessed: 0,
+        clvTracked: 0,
+        deviggingApplied: 0,
+        autoApproved: 0,
+        avgProcessingTime: 0,
+      },
       promotionAgent: { dailyPicksPromoted: 0, finalPicksCreated: 0 },
-      systemHealth: { totalFlow: 'pending', ruleCompliance: 0, readyForProduction: false }
+      systemHealth: { totalFlow: 'pending', ruleCompliance: 0, readyForProduction: false },
     };
   }
 
@@ -114,7 +116,7 @@ class AllAgentsE2ETester {
 
     try {
       // Step 1: Feed Agent - Ingest Today's Data
-      console.log('\n📡 STEP 1: FEED AGENT - INGESTING TODAY\'S DATA');
+      console.log("\n📡 STEP 1: FEED AGENT - INGESTING TODAY'S DATA");
       console.log('─'.repeat(60));
       await this.runFeedAgent();
 
@@ -144,12 +146,11 @@ class AllAgentsE2ETester {
       await this.generateCompleteReport();
 
       // Step 7: Verify Today's Data
-      console.log('\n✅ STEP 7: VERIFYING TODAY\'S DATA');
+      console.log("\n✅ STEP 7: VERIFYING TODAY'S DATA");
       console.log('─'.repeat(60));
       await this.verifyTodaysData();
 
       return this.report;
-
     } catch (error) {
       logger.error('E2E test failed', error);
       throw error;
@@ -172,7 +173,7 @@ class AllAgentsE2ETester {
       console.log('🔄 Running FeedAgent.run()...');
       await this.feedAgent.run();
       const feedResult = { success: true };
-      
+
       // Get updated count
       const { data: allTodaysProps } = await supabase
         .from('raw_props')
@@ -182,15 +183,16 @@ class AllAgentsE2ETester {
       this.report.feedAgent = {
         propsIngested: allTodaysProps?.length || 0,
         sampleProps: allTodaysProps?.slice(0, 3) || [],
-        apiStatus: feedResult.success ? 'operational' : 'error'
+        apiStatus: feedResult.success ? 'operational' : 'error',
       };
 
       console.log(`✅ Feed Agent Complete: ${this.report.feedAgent.propsIngested} props available`);
       console.log('📋 Sample props:');
       this.report.feedAgent.sampleProps.forEach((prop, i) => {
-        console.log(`   ${i + 1}. ${prop.player_name || prop.team_name} ${prop.stat_type} ${prop.line} (${prop.sport})`);
+        console.log(
+          `   ${i + 1}. ${prop.player_name || prop.team_name} ${prop.stat_type} ${prop.line} (${prop.sport})`
+        );
       });
-
     } catch (error) {
       console.error('❌ Feed Agent Error:', error);
       this.report.feedAgent.apiStatus = 'error';
@@ -211,7 +213,7 @@ class AllAgentsE2ETester {
       let validated = 0;
       let duplicates = 0;
 
-      for (const prop of (unprocessedProps || [])) {
+      for (const prop of unprocessedProps || []) {
         try {
           // Simulate prop validation (actual validation would be in the process method)
           const isValid = prop && prop.id && prop.player_name && prop.stat_type;
@@ -231,11 +233,12 @@ class AllAgentsE2ETester {
       this.report.ingestionAgent = {
         propsValidated: validated,
         duplicatesRemoved: duplicates,
-        propsStored: validated - duplicates
+        propsStored: validated - duplicates,
       };
 
-      console.log(`✅ Ingestion Complete: ${validated} validated, ${duplicates} duplicates removed`);
-
+      console.log(
+        `✅ Ingestion Complete: ${validated} validated, ${duplicates} duplicates removed`
+      );
     } catch (error) {
       console.error('❌ Ingestion Agent Error:', error);
     }
@@ -255,7 +258,7 @@ class AllAgentsE2ETester {
       const grades: any[] = [];
       const tierCounts: Record<string, number> = { S: 0, A: 0, B: 0, C: 0, D: 0 };
 
-      for (const prop of (propsToGrade || [])) {
+      for (const prop of propsToGrade || []) {
         try {
           // Simulate grading - actual grading would be in the process method
           const gradeResult = [{ tier: 'A', score: 0.85, prop_id: prop.id }];
@@ -263,7 +266,7 @@ class AllAgentsE2ETester {
             const grade = gradeResult[0];
             grades.push(grade);
             tierCounts[grade.tier] = (tierCounts[grade.tier] || 0) + 1;
-            
+
             // Mark as grading_status
             await supabase
               .from('raw_props')
@@ -275,21 +278,19 @@ class AllAgentsE2ETester {
         }
       }
 
-      const avgScore = grades.length > 0 
-        ? grades.reduce((sum, g) => sum + g.final_score, 0) / grades.length 
-        : 0;
+      const avgScore =
+        grades.length > 0 ? grades.reduce((sum, g) => sum + g.final_score, 0) / grades.length : 0;
 
       this.report.gradingAgent = {
         propsGraded: grades.length,
         tierDistribution: tierCounts,
         avgScore: avgScore,
-        sampleGrades: grades.slice(0, 3)
+        sampleGrades: grades.slice(0, 3),
       };
 
       console.log(`✅ Grading Complete: ${grades.length} props graded`);
       console.log(`📊 Tier Distribution:`, tierCounts);
       console.log(`📈 Average Score: ${avgScore.toFixed(2)}`);
-
     } catch (error) {
       console.error('❌ Grading Agent Error:', error);
     }
@@ -298,11 +299,11 @@ class AllAgentsE2ETester {
   private async runProfessionalProcessor() {
     try {
       console.log('💎 Running Professional Prop Processor...');
-      
+
       const startTime = Date.now();
       const results = await professionalPropProcessor.processRawProps({
         max_batch_size: 20,
-        auto_approve_threshold: 3.0
+        auto_approve_threshold: 3.0,
       });
 
       const processingTime = Date.now() - startTime;
@@ -313,7 +314,7 @@ class AllAgentsE2ETester {
         clvTracked: results.filter(r => r.clv_tracking_id).length,
         deviggingApplied: results.filter(r => r.devigged_edge > 0).length,
         autoApproved: results.filter(r => r.published).length,
-        avgProcessingTime: avgTime
+        avgProcessingTime: avgTime,
       };
 
       console.log(`✅ Professional Processing Complete:`);
@@ -322,7 +323,6 @@ class AllAgentsE2ETester {
       console.log(`   • Devigging Applied: ${this.report.professionalProcessor.deviggingApplied}`);
       console.log(`   • Auto-Approved: ${this.report.professionalProcessor.autoApproved}`);
       console.log(`   • Avg Processing Time: ${avgTime.toFixed(0)}ms`);
-
     } catch (error) {
       console.error('❌ Professional Processor Error:', error);
     }
@@ -343,7 +343,7 @@ class AllAgentsE2ETester {
 
       // Promote to daily picks
       let promoted = 0;
-      for (const pick of (approvedPicks || [])) {
+      for (const pick of approvedPicks || []) {
         try {
           await this.eligibilityAgent.run(); // Use eligibility agent instead
           promoted++;
@@ -354,11 +354,10 @@ class AllAgentsE2ETester {
 
       this.report.promotionAgent = {
         dailyPicksPromoted: promoted,
-        finalPicksCreated: promoted
+        finalPicksCreated: promoted,
       };
 
       console.log(`✅ Promotion Complete: ${promoted} picks promoted to daily picks`);
-
     } catch (error) {
       console.error('❌ Promotion Agent Error:', error);
     }
@@ -368,14 +367,13 @@ class AllAgentsE2ETester {
     // Calculate system health
     const totalProcessed = this.report.gradingAgent.propsGraded;
     const professionallyProcessed = this.report.professionalProcessor.propsProcessed;
-    const ruleCompliance = totalProcessed > 0 
-      ? (professionallyProcessed / totalProcessed) * 100 
-      : 0;
+    const ruleCompliance =
+      totalProcessed > 0 ? (professionallyProcessed / totalProcessed) * 100 : 0;
 
     this.report.systemHealth = {
       totalFlow: `${this.report.feedAgent.propsIngested} → ${this.report.ingestionAgent.propsValidated} → ${this.report.gradingAgent.propsGraded} → ${this.report.professionalProcessor.propsProcessed} → ${this.report.promotionAgent.dailyPicksPromoted}`,
       ruleCompliance: ruleCompliance,
-      readyForProduction: ruleCompliance >= 95 && this.report.feedAgent.apiStatus === 'operational'
+      readyForProduction: ruleCompliance >= 95 && this.report.feedAgent.apiStatus === 'operational',
     };
 
     console.log('\n📊 COMPLETE E2E REPORT');
@@ -385,8 +383,8 @@ class AllAgentsE2ETester {
 
   private async verifyTodaysData() {
     const today = new Date().toISOString().split('T')[0];
-    
-    console.log('\n🔍 VERIFYING TODAY\'S DATA');
+
+    console.log("\n🔍 VERIFYING TODAY'S DATA");
     console.log('─'.repeat(60));
 
     // Get all today's data with proof
@@ -398,7 +396,7 @@ class AllAgentsE2ETester {
           .select('id, player_name, stat_type, line, sport, created_at, processed_at, graded_at')
           .gte('created_at', today + 'T00:00:00Z')
           .order('created_at', { ascending: false })
-          .limit(10)
+          .limit(10),
       },
       {
         name: 'Graded Props',
@@ -407,16 +405,18 @@ class AllAgentsE2ETester {
           .select('*')
           .gte('created_at', today + 'T00:00:00Z')
           .not('graded_at', 'is', null)
-          .limit(10)
+          .limit(10),
       },
       {
         name: 'Unified Picks (Professional)',
         query: supabase
           .from('unified_picks')
-          .select('id, sport, prediction, confidence, tier, status, professional_score, devigged_edge, kelly_fraction')
+          .select(
+            'id, sport, prediction, confidence, tier, status, professional_score, devigged_edge, kelly_fraction'
+          )
           .gte('created_at', today + 'T00:00:00Z')
           .order('professional_score', { ascending: false })
-          .limit(10)
+          .limit(10),
       },
       {
         name: 'CLV Tracking',
@@ -424,13 +424,13 @@ class AllAgentsE2ETester {
           .from('clv_tracking')
           .select('propId, sport, market, betOdds, modelEdge, clvPercentage')
           .gte('betTime', today + 'T00:00:00Z')
-          .limit(10)
-      }
+          .limit(10),
+      },
     ];
 
     for (const { name, query } of queries) {
       const { data, error } = await query;
-      
+
       console.log(`\n📋 ${name}:`);
       if (error) {
         console.log(`❌ Error: ${error.message}`);
@@ -449,18 +449,18 @@ class AllAgentsE2ETester {
     console.log('\n' + '='.repeat(80));
     console.log('🏆 E2E VERIFICATION COMPLETE');
     console.log('='.repeat(80));
-    
+
     const { data: totalProps, count: totalPropsCount } = await supabase
       .from('raw_props')
       .select('id', { count: 'exact', head: true })
       .gte('created_at', today + 'T00:00:00Z');
-    
+
     const { data: gradedProps, count: gradedPropsCount } = await supabase
       .from('raw_props')
       .select('id', { count: 'exact', head: true })
       .gte('created_at', today + 'T00:00:00Z')
       .not('graded_at', 'is', null);
-    
+
     const { data: professionalPicks, count: professionalPicksCount } = await supabase
       .from('unified_picks')
       .select('id', { count: 'exact', head: true })
@@ -470,31 +470,30 @@ class AllAgentsE2ETester {
     console.log(`   • Total Props Ingested: ${totalPropsCount || 0}`);
     console.log(`   • Props Graded: ${gradedPropsCount || 0}`);
     console.log(`   • Professional Picks Created: ${professionalPicksCount || 0}`);
-    console.log(`   • System Status: ${this.report.systemHealth.readyForProduction ? '✅ READY' : '⚠️ NEEDS ATTENTION'}`);
+    console.log(
+      `   • System Status: ${this.report.systemHealth.readyForProduction ? '✅ READY' : '⚠️ NEEDS ATTENTION'}`
+    );
   }
 }
 
 // Main execution
 async function main() {
   const tester = new AllAgentsE2ETester();
-  
+
   try {
     const report = await tester.runCompleteE2E();
-    
+
     // Save report
-    await supabase
-      .from('processing_logs')
-      .insert({
-        processor: 'all_agents_e2e',
-        summary: report,
-        processed_at: new Date().toISOString()
-      });
+    await supabase.from('processing_logs').insert({
+      processor: 'all_agents_e2e',
+      summary: report,
+      processed_at: new Date().toISOString(),
+    });
 
     console.log('\n✅ ALL AGENTS E2E TEST COMPLETED SUCCESSFULLY');
     console.log('📄 Full report saved to processing_logs table');
-    
-    process.exit(0);
 
+    process.exit(0);
   } catch (error) {
     logger.error('All agents E2E test failed', error);
     console.error('❌ E2E TEST FAILED:', error);

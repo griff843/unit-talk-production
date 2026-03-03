@@ -1,6 +1,6 @@
 /**
  * FeedAgentBackfill Temporal Workflow
- * 
+ *
  * Pulls props for a date range, chunked by hour, idempotent on external_prop_id.
  * Includes safety flags: --dryRun, --maxCalls
  * After success, triggers Processor and Promoter workflows.
@@ -12,8 +12,9 @@ import {
   proxyActivities,
   setHandler,
   sleep,
-  workflowInfo
+  workflowInfo,
 } from '@temporalio/workflow';
+
 import type * as activities from '../activities/backfill';
 
 const {
@@ -22,7 +23,7 @@ const {
   triggerPromoter,
   validateBackfillRequest,
   checkIdempotency,
-  recordBackfillProgress
+  recordBackfillProgress,
 } = proxyActivities<typeof activities>({
   startToCloseTimeout: '5 minutes',
   retry: {
@@ -35,9 +36,9 @@ const {
 
 export interface BackfillRequest {
   startDate: string; // ISO date string
-  endDate: string;   // ISO date string
-  sport?: string;    // Optional sport filter
-  dryRun?: boolean;  // Safety flag - don't persist data
+  endDate: string; // ISO date string
+  sport?: string; // Optional sport filter
+  dryRun?: boolean; // Safety flag - don't persist data
   maxCalls?: number; // Safety flag - limit API calls
   batchSize?: number; // Props per hour chunk
   delayBetweenChunks?: number; // ms delay between chunks
@@ -59,12 +60,14 @@ export interface BackfillProgress {
 export const getProgressQuery = defineQuery<BackfillProgress>('getProgress');
 export const cancelSignal = defineSignal<[]>('cancel');
 
-export async function FeedAgentBackfillWorkflow(request: BackfillRequest): Promise<BackfillProgress> {
+export async function FeedAgentBackfillWorkflow(
+  request: BackfillRequest
+): Promise<BackfillProgress> {
   const workflowId = workflowInfo().workflowId;
   console.log(`[BackfillWorkflow] Starting workflow ${workflowId} with request:`, request);
 
   // Initialize progress tracking
-  let progress: BackfillProgress = {
+  const progress: BackfillProgress = {
     totalHours: 0,
     completedHours: 0,
     failedHours: 0,
@@ -72,7 +75,7 @@ export async function FeedAgentBackfillWorkflow(request: BackfillRequest): Promi
     processedProps: 0,
     duplicateProps: 0,
     apiCallCount: 0,
-    status: 'running'
+    status: 'running',
   };
 
   let cancelled = false;
@@ -106,8 +109,12 @@ export async function FeedAgentBackfillWorkflow(request: BackfillRequest): Promi
     const startDate = new Date(request.startDate);
     const endDate = new Date(request.endDate);
     const hourChunks: Date[] = [];
-    
-    for (let current = new Date(startDate); current <= endDate; current.setHours(current.getHours() + 1)) {
+
+    for (
+      let current = new Date(startDate);
+      current <= endDate;
+      current.setHours(current.getHours() + 1)
+    ) {
       hourChunks.push(new Date(current));
     }
 
@@ -116,22 +123,26 @@ export async function FeedAgentBackfillWorkflow(request: BackfillRequest): Promi
 
     // Safety check: Enforce maxCalls limit
     if (request.maxCalls && progress.totalHours > request.maxCalls) {
-      throw new Error(`Backfill would require ${progress.totalHours} calls, but maxCalls is set to ${request.maxCalls}`);
+      throw new Error(
+        `Backfill would require ${progress.totalHours} calls, but maxCalls is set to ${request.maxCalls}`
+      );
     }
 
     // Step 4: Process each hour chunk
     for (let i = 0; i < hourChunks.length && !cancelled; i++) {
       const hourChunk = hourChunks[i];
-      
+
       try {
-        console.log(`[BackfillWorkflow] Processing hour chunk ${i + 1}/${hourChunks.length}: ${hourChunk.toISOString()}`);
-        
+        console.log(
+          `[BackfillWorkflow] Processing hour chunk ${i + 1}/${hourChunks.length}: ${hourChunk.toISOString()}`
+        );
+
         // Backfill props for this hour
         const result = await backfillPropsForHour({
           date: hourChunk.toISOString(),
           sport: request.sport,
           dryRun: request.dryRun || false,
-          batchSize: request.batchSize || 100
+          batchSize: request.batchSize || 100,
         });
 
         // Update progress
@@ -147,17 +158,21 @@ export async function FeedAgentBackfillWorkflow(request: BackfillRequest): Promi
           hourChunk: hourChunk.toISOString(),
           result: {
             ...result,
-            hour: hourChunk.toISOString()
+            hour: hourChunk.toISOString(),
           },
-          progress
+          progress,
         });
 
-        console.log(`[BackfillWorkflow] Completed hour chunk: ${result.processedCount} props processed, ${result.duplicateCount} duplicates`);
-
+        console.log(
+          `[BackfillWorkflow] Completed hour chunk: ${result.processedCount} props processed, ${result.duplicateCount} duplicates`
+        );
       } catch (error) {
-        console.error(`[BackfillWorkflow] Failed to process hour chunk ${hourChunk.toISOString()}:`, error);
+        console.error(
+          `[BackfillWorkflow] Failed to process hour chunk ${hourChunk.toISOString()}:`,
+          error
+        );
         progress.failedHours++;
-        
+
         // Continue with other chunks unless it's a critical error
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         if (errorMessage.includes('rate limit') || errorMessage.includes('timeout')) {
@@ -176,8 +191,13 @@ export async function FeedAgentBackfillWorkflow(request: BackfillRequest): Promi
       await recordBackfillProgress({
         workflowId,
         hourChunk: hourChunk.toISOString(),
-        result: { processedCount: 0, duplicateCount: 0, totalCount: 0, hour: hourChunk.toISOString() },
-        progress
+        result: {
+          processedCount: 0,
+          duplicateCount: 0,
+          totalCount: 0,
+          hour: hourChunk.toISOString(),
+        },
+        progress,
       });
     }
 
@@ -190,20 +210,20 @@ export async function FeedAgentBackfillWorkflow(request: BackfillRequest): Promi
     // Step 5: Trigger downstream processing (only if not dry run)
     if (!request.dryRun && progress.processedProps > 0) {
       console.log('[BackfillWorkflow] Triggering downstream Processor and Promoter workflows...');
-      
+
       try {
         // Trigger Processor workflow
         await triggerProcessor({
           dateRange: { start: request.startDate, end: request.endDate },
           propCount: progress.processedProps,
-          source: 'backfill'
+          source: 'backfill',
         });
 
-        // Trigger Promoter workflow  
+        // Trigger Promoter workflow
         await triggerPromoter({
           dateRange: { start: request.startDate, end: request.endDate },
           propCount: progress.processedProps,
-          source: 'backfill'
+          source: 'backfill',
         });
 
         console.log('[BackfillWorkflow] Successfully triggered downstream workflows');
@@ -215,7 +235,7 @@ export async function FeedAgentBackfillWorkflow(request: BackfillRequest): Promi
 
     // Final status
     progress.status = progress.failedHours > 0 ? 'completed' : 'completed';
-    
+
     console.log(`[BackfillWorkflow] Completed backfill:`, {
       totalHours: progress.totalHours,
       completedHours: progress.completedHours,
@@ -224,24 +244,23 @@ export async function FeedAgentBackfillWorkflow(request: BackfillRequest): Promi
       processedProps: progress.processedProps,
       duplicateProps: progress.duplicateProps,
       apiCallCount: progress.apiCallCount,
-      dryRun: request.dryRun
+      dryRun: request.dryRun,
     });
 
     return progress;
-
   } catch (error) {
     console.error('[BackfillWorkflow] Workflow failed:', error);
     progress.status = 'failed';
     progress.error = error instanceof Error ? error.message : 'Unknown error';
-    
+
     // Record final progress with error
     await recordBackfillProgress({
       workflowId,
       hourChunk: 'workflow-error',
       result: { processedCount: 0, duplicateCount: 0, totalCount: 0, hour: 'workflow-error' },
-      progress
+      progress,
     });
-    
+
     return progress;
   }
 }

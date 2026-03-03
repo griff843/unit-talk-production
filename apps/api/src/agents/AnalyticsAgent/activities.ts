@@ -63,7 +63,7 @@ export class AnalyticsAgentActivitiesImpl {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       };
     }
   }
@@ -78,7 +78,7 @@ export class AnalyticsAgentActivitiesImpl {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       };
     }
   }
@@ -90,7 +90,7 @@ export class AnalyticsAgentActivitiesImpl {
     // TODO: Implement actual report generation logic
     return {
       success: true,
-      data: { message: 'Report generation not yet implemented' }
+      data: { message: 'Report generation not yet implemented' },
     };
   }
 
@@ -101,7 +101,7 @@ export class AnalyticsAgentActivitiesImpl {
     // TODO: Implement actual data export logic
     return {
       success: true,
-      data: { message: 'Data export not yet implemented' }
+      data: { message: 'Data export not yet implemented' },
     };
   }
 }

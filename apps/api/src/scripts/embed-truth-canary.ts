@@ -60,7 +60,7 @@ async function canaryPlayerProp(capperId: string, capperName: string): Promise<C
     sport: 'NBA',
     stat_type: 'PTS',
     bet_type: 'player_prop',
-    selection: 'Jaylen Brown Over 24.5 PTS',  // Full selection string
+    selection: 'Jaylen Brown Over 24.5 PTS', // Full selection string
     player_name: 'Jaylen Brown',
     line: 24.5,
     odds: -115,
@@ -230,7 +230,9 @@ async function canaryTeamSpread(capperId: string, capperName: string): Promise<C
 
   // Verify title contains team and line
   if (!presentation.title.includes('Lakers') || !presentation.title.includes('-3.5')) {
-    errors.push(`WRONG TITLE: Got "${presentation.title}" but expected to contain "Lakers" and "-3.5"`);
+    errors.push(
+      `WRONG TITLE: Got "${presentation.title}" but expected to contain "Lakers" and "-3.5"`
+    );
   }
 
   // Verify thumbnail is NOT league logo (should be team logo)
@@ -324,7 +326,9 @@ async function canaryGameTotal(capperId: string, capperName: string): Promise<Ca
 
   // Verify title contains direction and line
   if (!presentation.title.toLowerCase().includes('over') || !presentation.title.includes('224.5')) {
-    errors.push(`WRONG TITLE: Got "${presentation.title}" but expected to contain "Over" and "224.5"`);
+    errors.push(
+      `WRONG TITLE: Got "${presentation.title}" but expected to contain "Over" and "224.5"`
+    );
   }
 
   const passed = errors.length === 0;

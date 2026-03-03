@@ -1,4 +1,12 @@
-import { Client, GatewayIntentBits, EmbedBuilder, TextChannel, DMChannel, NewsChannel, ThreadChannel } from 'discord.js';
+import {
+  Client,
+  GatewayIntentBits,
+  EmbedBuilder,
+  TextChannel,
+  DMChannel,
+  NewsChannel,
+  ThreadChannel,
+} from 'discord.js';
 
 import { env } from '../config/env';
 import { logger } from '../shared/logger';
@@ -18,8 +26,8 @@ export class DiscordBotService {
       intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-      ]
+        GatewayIntentBits.MessageContent,
+      ],
     });
 
     this.readyPromise = this.initialize();
@@ -36,7 +44,7 @@ export class DiscordBotService {
     try {
       // Get Discord token from environment
       const discordToken = process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN;
-      
+
       if (!discordToken) {
         throw new Error('Discord bot token not found in environment variables');
       }
@@ -44,33 +52,32 @@ export class DiscordBotService {
       this.client.once('ready', () => {
         logger.info('Discord bot service initialized successfully', {
           botTag: this.client.user?.tag,
-          guildCount: this.client.guilds.cache.size
+          guildCount: this.client.guilds.cache.size,
         });
         this.isReady = true;
       });
 
-      this.client.on('error', (error) => {
+      this.client.on('error', error => {
         logger.error('Discord bot service error', {
           error: error.message,
-          stack: error.stack
+          stack: error.stack,
         });
       });
 
       await this.client.login(discordToken);
-      
+
       // Wait for ready event
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         if (this.isReady) {
           resolve();
         } else {
           this.client.once('ready', () => resolve());
         }
       });
-
     } catch (error) {
       logger.error('Failed to initialize Discord bot service', {
         error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined,
       });
       throw error;
     }
@@ -88,7 +95,7 @@ export class DiscordBotService {
 
     try {
       const channel = await this.client.channels.fetch(channelId);
-      
+
       if (!channel) {
         throw new Error(`Channel not found: ${channelId}`);
       }
@@ -97,21 +104,20 @@ export class DiscordBotService {
       if (channel.isTextBased()) {
         const textChannel = channel as TextChannel | DMChannel | NewsChannel | ThreadChannel;
         await textChannel.send({ embeds: [embed] });
-        
+
         logger.info('Message sent to Discord channel successfully', {
           channelId,
           channelName: 'name' in channel ? channel.name : 'DM',
-          embedTitle: embed.data.title
+          embedTitle: embed.data.title,
         });
       } else {
         throw new Error(`Channel ${channelId} is not text-based`);
       }
-
     } catch (error) {
       logger.error('Failed to send message to Discord channel', {
         channelId,
         error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined,
       });
       throw error;
     }
@@ -129,7 +135,7 @@ export class DiscordBotService {
 
     try {
       const channel = await this.client.channels.fetch(channelId);
-      
+
       if (!channel) {
         throw new Error(`Channel not found: ${channelId}`);
       }
@@ -137,20 +143,19 @@ export class DiscordBotService {
       if (channel.isTextBased()) {
         const textChannel = channel as TextChannel | DMChannel | NewsChannel | ThreadChannel;
         await textChannel.send(content);
-        
+
         logger.info('Text message sent to Discord channel successfully', {
           channelId,
           channelName: 'name' in channel ? channel.name : 'DM',
-          messageLength: content.length
+          messageLength: content.length,
         });
       } else {
         throw new Error(`Channel ${channelId} is not text-based`);
       }
-
     } catch (error) {
       logger.error('Failed to send text message to Discord channel', {
         channelId,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       throw error;
     }
@@ -169,7 +174,7 @@ export class DiscordBotService {
 
     try {
       const thread = await this.client.channels.fetch(threadId);
-      
+
       if (!thread) {
         throw new Error(`Thread not found: ${threadId}`);
       }
@@ -180,12 +185,12 @@ export class DiscordBotService {
       }
 
       const threadChannel = thread as ThreadChannel;
-      
+
       // Check if thread is archived
       if (threadChannel.archived) {
         logger.warn('Attempting to send message to archived thread', {
           threadId,
-          threadName: threadChannel.name
+          threadName: threadChannel.name,
         });
         // Try to unarchive if possible
         try {
@@ -196,19 +201,18 @@ export class DiscordBotService {
       }
 
       await threadChannel.send({ embeds: [embed] });
-      
+
       logger.info('Embed sent to Discord thread successfully', {
         threadId,
         threadName: threadChannel.name,
         parentChannelId: threadChannel.parentId,
-        embedTitle: embed.data.title
+        embedTitle: embed.data.title,
       });
-
     } catch (error) {
       logger.error('Failed to send embed to Discord thread', {
         threadId,
         error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined,
       });
       throw error;
     }
@@ -217,7 +221,11 @@ export class DiscordBotService {
   /**
    * Send message with embed to specific Discord thread
    */
-  public async sendMessageToThread(threadId: string, content: string, embed?: EmbedBuilder): Promise<void> {
+  public async sendMessageToThread(
+    threadId: string,
+    content: string,
+    embed?: EmbedBuilder
+  ): Promise<void> {
     await this.readyPromise;
 
     if (!this.isReady) {
@@ -226,7 +234,7 @@ export class DiscordBotService {
 
     try {
       const thread = await this.client.channels.fetch(threadId);
-      
+
       if (!thread) {
         throw new Error(`Thread not found: ${threadId}`);
       }
@@ -236,7 +244,7 @@ export class DiscordBotService {
       }
 
       const threadChannel = thread as ThreadChannel;
-      
+
       if (threadChannel.archived) {
         try {
           await threadChannel.setArchived(false);
@@ -251,18 +259,17 @@ export class DiscordBotService {
       }
 
       await threadChannel.send(messageOptions);
-      
+
       logger.info('Message sent to Discord thread successfully', {
         threadId,
         threadName: threadChannel.name,
         hasEmbed: !!embed,
-        messageLength: content.length
+        messageLength: content.length,
       });
-
     } catch (error) {
       logger.error('Failed to send message to Discord thread', {
         threadId,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       throw error;
     }
@@ -280,24 +287,23 @@ export class DiscordBotService {
 
     try {
       const user = await this.client.users.fetch(userId);
-      
+
       if (!user) {
         throw new Error(`User not found: ${userId}`);
       }
 
       await user.send({ embeds: [embed] });
-      
+
       logger.info('Direct message sent successfully', {
         userId,
         userTag: user.tag,
-        embedTitle: embed.data.title
+        embedTitle: embed.data.title,
       });
-
     } catch (error) {
       logger.error('Failed to send direct message', {
         userId,
         error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined,
       });
       throw error;
     }
@@ -309,7 +315,7 @@ export class DiscordBotService {
   public async testConnection(channelId?: string): Promise<boolean> {
     try {
       await this.readyPromise;
-      
+
       const testChannelId = channelId || env.alertsChannelId;
       if (!testChannelId) {
         throw new Error('No test channel ID provided');
@@ -318,16 +324,15 @@ export class DiscordBotService {
       const testEmbed = new EmbedBuilder()
         .setTitle('🔧 Discord Connection Test')
         .setDescription('Discord bot service is working correctly!')
-        .setColor(0x00FF00)
+        .setColor(0x00ff00)
         .setTimestamp()
         .setFooter({ text: 'Unit Talk Bot Service Test' });
 
       await this.sendEmbed(testChannelId, testEmbed);
       return true;
-
     } catch (error) {
       logger.error('Discord connection test failed', {
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       return false;
     }
@@ -340,7 +345,7 @@ export class DiscordBotService {
     return {
       ready: this.isReady,
       guildCount: this.client.guilds.cache.size,
-      userTag: this.client.user?.tag || null
+      userTag: this.client.user?.tag || null,
     };
   }
 

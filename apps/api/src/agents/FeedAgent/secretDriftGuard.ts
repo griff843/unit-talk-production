@@ -35,7 +35,7 @@ export class SecretDriftGuard {
   private loadSecretsFromEnv(): SecretConfig {
     return {
       odds_api_key: process.env.ODDS_API_KEY || '8014c48eb8a05f289de049c0961ac4cf',
-      optimal_api_key: process.env.OPTIMAL_API_KEY || 'optimalbet_LZsTNl2SGX0o9Bz9GhLurvSTQuAMQapp'
+      optimal_api_key: process.env.OPTIMAL_API_KEY || 'optimalbet_LZsTNl2SGX0o9Bz9GhLurvSTQuAMQapp',
     };
   }
 
@@ -43,10 +43,7 @@ export class SecretDriftGuard {
    * Compute SHA-256 short hash for secrets
    */
   private computeHash(secret: string): string {
-    return crypto.createHash('sha256')
-      .update(secret)
-      .digest('hex')
-      .substring(0, 8); // Short hash for logging/identification
+    return crypto.createHash('sha256').update(secret).digest('hex').substring(0, 8); // Short hash for logging/identification
   }
 
   /**
@@ -58,15 +55,15 @@ export class SecretDriftGuard {
       const metadata: SecretMetadata = {
         hash,
         lastUpdated: new Date(),
-        version: (this.secretMetadata.get(key)?.version || 0) + 1
+        version: (this.secretMetadata.get(key)?.version || 0) + 1,
       };
-      
+
       this.secretMetadata.set(key, metadata);
-      
+
       console.log(`Secret ${key} loaded`, {
         hash,
         version: metadata.version,
-        timestamp: metadata.lastUpdated.toISOString()
+        timestamp: metadata.lastUpdated.toISOString(),
       });
     });
 
@@ -84,8 +81,8 @@ export class SecretDriftGuard {
         {
           hash: metadata.hash,
           version: metadata.version,
-          lastUpdated: metadata.lastUpdated.toISOString()
-        }
+          lastUpdated: metadata.lastUpdated.toISOString(),
+        },
       ])
     );
 
@@ -104,23 +101,23 @@ export class SecretDriftGuard {
   }> {
     try {
       console.log('Starting secret hot-reload...');
-      
+
       // Store current secrets as previous
       this.previousSecrets = { ...this.currentSecrets };
-      
+
       // Load new secrets (from env or provided)
-      const newSecretConfig = newSecrets 
+      const newSecretConfig = newSecrets
         ? { ...this.currentSecrets, ...newSecrets }
         : this.loadSecretsFromEnv();
-      
+
       const updated: string[] = [];
       const failed: string[] = [];
-      
+
       // Test each new secret
       for (const [key, newValue] of Object.entries(newSecretConfig)) {
         if (newValue !== this.currentSecrets[key]) {
           const testResult = await this.testSecret(key, newValue);
-          
+
           if (testResult.success) {
             this.currentSecrets[key] = newValue;
             updated.push(key);
@@ -131,32 +128,31 @@ export class SecretDriftGuard {
           }
         }
       }
-      
+
       // Recompute hashes for updated secrets
       if (updated.length > 0) {
         this.computeAndEmitHashes();
       }
-      
+
       return {
         success: failed.length === 0,
         updated,
-        failed
+        failed,
       };
-      
     } catch (error) {
       console.error('Secret reload failed:', error);
-      
+
       // Restore previous secrets on failure
       if (this.previousSecrets) {
         this.currentSecrets = this.previousSecrets;
         console.log('Restored previous secrets after reload failure');
       }
-      
+
       return {
         success: false,
         updated: [],
         failed: Object.keys(newSecrets || this.currentSecrets),
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }
@@ -164,7 +160,10 @@ export class SecretDriftGuard {
   /**
    * Test a secret by making a validation API call
    */
-  private async testSecret(key: string, value: string): Promise<{ success: boolean; error?: string }> {
+  private async testSecret(
+    key: string,
+    value: string
+  ): Promise<{ success: boolean; error?: string }> {
     try {
       switch (key) {
         case 'odds_api_key':
@@ -177,7 +176,7 @@ export class SecretDriftGuard {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Test failed'
+        error: error instanceof Error ? error.message : 'Test failed',
       };
     }
   }
@@ -193,7 +192,7 @@ export class SecretDriftGuard {
     try {
       const response = await fetch(`https://api.the-odds-api.com/v4/sports?apiKey=${key}`, {
         signal: controller.signal,
-        headers: { 'Accept': 'application/json' }
+        headers: { Accept: 'application/json' },
       });
 
       clearTimeout(timeoutId);
@@ -207,14 +206,14 @@ export class SecretDriftGuard {
       }
     } catch (error) {
       clearTimeout(timeoutId);
-      
+
       if (error instanceof Error && error.name === 'AbortError') {
         return { success: false, error: 'Request timeout' };
       }
-      
+
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Network error'
+        error: error instanceof Error ? error.message : 'Network error',
       };
     }
   }
@@ -231,9 +230,9 @@ export class SecretDriftGuard {
       const response = await fetch('https://api.optimalbet.com/api/sports', {
         signal: controller.signal,
         headers: {
-          'Authorization': `Bearer ${key}`,
-          'Accept': 'application/json'
-        }
+          Authorization: `Bearer ${key}`,
+          Accept: 'application/json',
+        },
       });
 
       clearTimeout(timeoutId);
@@ -247,14 +246,14 @@ export class SecretDriftGuard {
       }
     } catch (error) {
       clearTimeout(timeoutId);
-      
+
       if (error instanceof Error && error.name === 'AbortError') {
         return { success: false, error: 'Request timeout' };
       }
-      
+
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Network error'
+        error: error instanceof Error ? error.message : 'Network error',
       };
     }
   }
@@ -295,11 +294,11 @@ export class SecretDriftGuard {
     for (const [key, value] of Object.entries(this.currentSecrets)) {
       const metadata = this.secretMetadata.get(key);
       const testResult = await this.testSecret(key, value);
-      
+
       secrets[key] = {
         status: testResult.success ? 'healthy' : 'failed',
         hash: metadata?.hash || 'unknown',
-        lastTested: new Date().toISOString()
+        lastTested: new Date().toISOString(),
       };
 
       if (!testResult.success) {

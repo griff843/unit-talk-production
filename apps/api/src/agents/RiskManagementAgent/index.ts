@@ -85,7 +85,7 @@ export class RiskManagementAgent extends BaseAgent {
 
   constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
     super(config, deps);
-    
+
     this.riskMetrics = {
       ...this.metrics,
       portfoliosAnalyzed: 0,
@@ -97,7 +97,7 @@ export class RiskManagementAgent extends BaseAgent {
       riskLimitViolations: 0,
       exposureReductions: 0,
       bankrollProtected: 0,
-      sharpeRatioImprovement: 0
+      sharpeRatioImprovement: 0,
     };
 
     // Initialize subsystems
@@ -110,11 +110,11 @@ export class RiskManagementAgent extends BaseAgent {
     // Default global risk limits
     this.globalRiskLimits = {
       maxSinglePosition: 0.05, // 5% of bankroll
-      maxDailyExposure: 0.20,  // 20% of bankroll
+      maxDailyExposure: 0.2, // 20% of bankroll
       maxCorrelatedExposure: 0.15, // 15% in correlated positions
-      maxDrawdownThreshold: 0.10,  // 10% max drawdown
-      minBankrollReserve: 0.20,    // 20% cash reserve
-      concentrationLimit: 0.25     // 25% max in single asset class
+      maxDrawdownThreshold: 0.1, // 10% max drawdown
+      minBankrollReserve: 0.2, // 20% cash reserve
+      concentrationLimit: 0.25, // 25% max in single asset class
     };
   }
 
@@ -126,7 +126,7 @@ export class RiskManagementAgent extends BaseAgent {
       this.portfolioOptimizer.initialize(),
       this.riskAnalyzer.initialize(),
       this.positionSizer.initialize(),
-      this.hedgeEngine.initialize()
+      this.hedgeEngine.initialize(),
       // ParlayHedgeCalculator doesn't need initialization
     ]);
 
@@ -141,34 +141,33 @@ export class RiskManagementAgent extends BaseAgent {
 
   protected async process(): Promise<void> {
     this.logger.info('🔄 Running RiskManagementAgent cycle...');
-    
+
     const cycleStartTime = Date.now();
 
     try {
       // 1. Analyze portfolio risks
       await this.analyzePortfolioRisks();
-      
+
       // 2. Check risk limit violations
       await this.checkRiskLimitViolations();
-      
+
       // 3. Optimize position sizes
       await this.optimizePositionSizes();
-      
+
       // 4. Generate hedge recommendations
       await this.generateHedgeRecommendations();
-      
+
       // 5. Analyze parlay hedge opportunities
       await this.analyzeParlayHedgeOpportunities();
-      
+
       // 6. Monitor market correlation changes
       await this.monitorCorrelationChanges();
-      
+
       // 7. Generate risk insights and alerts
       await this.generateRiskInsights();
-
     } catch (error) {
       this.logger.error('❌ Error in risk management cycle', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -180,7 +179,7 @@ export class RiskManagementAgent extends BaseAgent {
       cycleTimeMs: cycleTime,
       portfoliosAnalyzed: this.riskMetrics.portfoliosAnalyzed,
       alertsGenerated: this.riskMetrics.riskAlertsGenerated,
-      positionsOptimized: this.riskMetrics.positionsOptimized
+      positionsOptimized: this.riskMetrics.positionsOptimized,
     });
   }
 
@@ -195,7 +194,7 @@ export class RiskManagementAgent extends BaseAgent {
     for (const user of activeUsers) {
       try {
         const portfolioRisk = await this.analyzeUserPortfolio(user.id);
-        
+
         this.portfolioRisks.set(user.id, portfolioRisk);
         totalRiskScore += portfolioRisk.riskScore;
         portfoliosAnalyzed++;
@@ -204,20 +203,21 @@ export class RiskManagementAgent extends BaseAgent {
         if (portfolioRisk.riskScore > 0.8) {
           await this.generateImmediateRiskAlert(user.id, portfolioRisk);
         }
-
       } catch (error) {
         this.logger.error('❌ Failed to analyze portfolio risk', {
           userId: user.id,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
     }
 
     this.riskMetrics.portfoliosAnalyzed = portfoliosAnalyzed;
-    this.riskMetrics.averagePortfolioRisk = portfoliosAnalyzed > 0 ? 
-      totalRiskScore / portfoliosAnalyzed : 0;
+    this.riskMetrics.averagePortfolioRisk =
+      portfoliosAnalyzed > 0 ? totalRiskScore / portfoliosAnalyzed : 0;
 
-    this.logger.info(`✅ Analyzed ${portfoliosAnalyzed} portfolios, average risk: ${this.riskMetrics.averagePortfolioRisk.toFixed(3)}`);
+    this.logger.info(
+      `✅ Analyzed ${portfoliosAnalyzed} portfolios, average risk: ${this.riskMetrics.averagePortfolioRisk.toFixed(3)}`
+    );
   }
 
   private async checkRiskLimitViolations(): Promise<void> {
@@ -227,7 +227,7 @@ export class RiskManagementAgent extends BaseAgent {
 
     for (const [userId, portfolioRisk] of this.portfolioRisks) {
       const violations = await this.identifyRiskViolations(portfolioRisk);
-      
+
       if (violations.length > 0) {
         violationsFound += violations.length;
         await this.handleRiskViolations(userId, violations);
@@ -235,7 +235,7 @@ export class RiskManagementAgent extends BaseAgent {
     }
 
     this.riskMetrics.riskLimitViolations = violationsFound;
-    
+
     this.logger.info(`✅ Found ${violationsFound} risk limit violations`);
   }
 
@@ -252,19 +252,21 @@ export class RiskManagementAgent extends BaseAgent {
           await this.getUserBankroll(userId)
         );
 
-        const changesMade = await this.applyPositionOptimizations(userId, optimizedPositions.positions);
+        const changesMade = await this.applyPositionOptimizations(
+          userId,
+          optimizedPositions.positions
+        );
         positionsOptimized += changesMade;
-
       } catch (error) {
         this.logger.error('❌ Failed to optimize positions', {
           userId,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
     }
 
     this.riskMetrics.positionsOptimized = positionsOptimized;
-    
+
     this.logger.info(`✅ Optimized ${positionsOptimized} positions`);
   }
 
@@ -286,17 +288,16 @@ export class RiskManagementAgent extends BaseAgent {
             hedgesRecommended += hedgeOpportunities.length;
           }
         }
-
       } catch (error) {
         this.logger.error('❌ Failed to generate hedge recommendations', {
           userId,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
     }
 
     this.riskMetrics.hedgesRecommended = hedgesRecommended;
-    
+
     this.logger.info(`✅ Generated ${hedgesRecommended} hedge recommendations`);
   }
 
@@ -308,15 +309,16 @@ export class RiskManagementAgent extends BaseAgent {
     try {
       // Get all active parlays from all users
       const activeParlays = await this.getActiveParlayBets();
-      
+
       if (activeParlays.length === 0) {
         this.logger.info('No active parlay bets found');
         return;
       }
 
       // Identify hedge opportunities for each parlay
-      const hedgeOpportunities = await this.parlayHedgeCalculator.identifyActiveHedgeOpportunities(activeParlays);
-      
+      const hedgeOpportunities =
+        await this.parlayHedgeCalculator.identifyActiveHedgeOpportunities(activeParlays);
+
       for (const opportunity of hedgeOpportunities) {
         // Find the parlay bet
         const parlay = activeParlays.find(p => p.id === opportunity.parlayId);
@@ -331,17 +333,16 @@ export class RiskManagementAgent extends BaseAgent {
           userId: parlay.userId,
           completedLegs: opportunity.completedLegs,
           guaranteedProfit: opportunity.guaranteedProfit,
-          recommendation: opportunity.recommendation
+          recommendation: opportunity.recommendation,
         });
       }
 
       this.riskMetrics.parlayHedgesIdentified = parlayHedgesIdentified;
-      
-      this.logger.info(`✅ Identified ${parlayHedgesIdentified} parlay hedge opportunities`);
 
+      this.logger.info(`✅ Identified ${parlayHedgesIdentified} parlay hedge opportunities`);
     } catch (error) {
       this.logger.error('❌ Failed to analyze parlay hedge opportunities', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -351,16 +352,15 @@ export class RiskManagementAgent extends BaseAgent {
 
     try {
       const correlationChanges = await this.riskAnalyzer.detectCorrelationShifts();
-      
+
       for (const change of correlationChanges) {
         if (change.significanceLevel > 0.8) {
           await this.handleSignificantCorrelationChange(change);
         }
       }
-
     } catch (error) {
       this.logger.error('❌ Failed to monitor correlation changes', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -372,27 +372,25 @@ export class RiskManagementAgent extends BaseAgent {
       const insights = {
         totalPortfolios: this.portfolioRisks.size,
         averageRiskScore: this.riskMetrics.averagePortfolioRisk,
-        highRiskPortfolios: Array.from(this.portfolioRisks.values())
-          .filter(p => p.riskScore > 0.7).length,
+        highRiskPortfolios: Array.from(this.portfolioRisks.values()).filter(p => p.riskScore > 0.7)
+          .length,
         totalAlerts: this.riskMetrics.riskAlertsGenerated,
         riskDistribution: await this.analyzeRiskDistribution(),
         correlationAnalysis: await this.generateCorrelationInsights(),
         portfolioPerformance: await this.analyzePortfolioPerformance(),
         riskAdjustedReturns: await this.calculateRiskAdjustedReturns(),
-        recommendations: await this.generateSystemRecommendations()
+        recommendations: await this.generateSystemRecommendations(),
       };
 
       // Store insights
       await withCircuitBreaker.supabase(
         async () => {
           if (this.hasSupabase()) {
-            await this.requireSupabase()
-              .from('risk_insights')
-              .insert({
-                timestamp: new Date().toISOString(),
-                insights,
-                metrics: this.riskMetrics
-              });
+            await this.requireSupabase().from('risk_insights').insert({
+              timestamp: new Date().toISOString(),
+              insights,
+              metrics: this.riskMetrics,
+            });
           }
         },
         async () => {
@@ -410,12 +408,11 @@ export class RiskManagementAgent extends BaseAgent {
       this.logger.info('✅ Generated and stored risk insights', {
         portfolios: insights.totalPortfolios,
         highRiskCount: insights.highRiskPortfolios,
-        avgRisk: insights.averageRiskScore
+        avgRisk: insights.averageRiskScore,
       });
-
     } catch (error) {
       this.logger.error('❌ Failed to generate risk insights', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -443,7 +440,7 @@ export class RiskManagementAgent extends BaseAgent {
       correlations,
       limits: riskLimits,
       alerts: [],
-      lastUpdated: new Date()
+      lastUpdated: new Date(),
     };
 
     return portfolioRisk;
@@ -462,7 +459,7 @@ export class RiskManagementAgent extends BaseAgent {
           message: `Position ${position.id} exceeds single position limit`,
           recommendations: ['Reduce position size', 'Split position across multiple bets'],
           timestamp: new Date(),
-          acknowledged: false
+          acknowledged: false,
         });
       }
     }
@@ -476,7 +473,7 @@ export class RiskManagementAgent extends BaseAgent {
         message: 'Daily exposure limit exceeded',
         recommendations: ['Reduce overall position sizes', 'Close some positions'],
         timestamp: new Date(),
-        acknowledged: false
+        acknowledged: false,
       });
     }
 
@@ -489,7 +486,7 @@ export class RiskManagementAgent extends BaseAgent {
         message: 'Maximum drawdown threshold exceeded',
         recommendations: ['Implement stop-loss strategy', 'Reduce position sizes'],
         timestamp: new Date(),
-        acknowledged: false
+        acknowledged: false,
       });
     }
 
@@ -514,7 +511,10 @@ export class RiskManagementAgent extends BaseAgent {
     this.portfolioRisks.set(userId, portfolioRisk);
   }
 
-  private async applyPositionOptimizations(userId: string, optimizedPositions: any[]): Promise<number> {
+  private async applyPositionOptimizations(
+    userId: string,
+    optimizedPositions: any[]
+  ): Promise<number> {
     let changesMade = 0;
 
     for (const optimization of optimizedPositions) {
@@ -527,7 +527,10 @@ export class RiskManagementAgent extends BaseAgent {
     return changesMade;
   }
 
-  private async processHedgeRecommendations(userId: string, hedgeOpportunities: any[]): Promise<void> {
+  private async processHedgeRecommendations(
+    userId: string,
+    hedgeOpportunities: any[]
+  ): Promise<void> {
     for (const hedge of hedgeOpportunities) {
       await this.sendHedgeRecommendation(userId, hedge);
     }
@@ -537,13 +540,13 @@ export class RiskManagementAgent extends BaseAgent {
     this.logger.info('🔗 Significant correlation change detected', {
       assets: change.assets,
       oldCorrelation: change.oldCorrelation,
-      newCorrelation: change.newCorrelation
+      newCorrelation: change.newCorrelation,
     });
 
     // Update affected portfolios
     for (const [userId, portfolioRisk] of this.portfolioRisks) {
-      const affectedPositions = portfolioRisk.positions.filter(p => 
-        change.assets.includes(p.gameId) || change.assets.includes(p.betType)
+      const affectedPositions = portfolioRisk.positions.filter(
+        p => change.assets.includes(p.gameId) || change.assets.includes(p.betType)
       );
 
       if (affectedPositions.length > 0) {
@@ -552,7 +555,7 @@ export class RiskManagementAgent extends BaseAgent {
     }
   }
 
-  private async getActiveUsersWithPositions(): Promise<Array<{id: string, data: any}>> {
+  private async getActiveUsersWithPositions(): Promise<Array<{ id: string; data: any }>> {
     if (!this.hasSupabase()) {
       return Array.from(this.portfolioRisks.keys()).map(id => ({ id, data: {} }));
     }
@@ -603,8 +606,8 @@ export class RiskManagementAgent extends BaseAgent {
         riskContribution: 0.03,
         correlationGroup: 'nfl_week1',
         status: 'active',
-        timestamp: new Date()
-      } as Position
+        timestamp: new Date(),
+      } as Position,
     ];
   }
 
@@ -618,7 +621,10 @@ export class RiskManagementAgent extends BaseAgent {
     return cached ? JSON.parse(cached) : this.globalRiskLimits;
   }
 
-  private async calculateDiversificationRatio(positions: Position[], correlations: Map<string, number>): Promise<number> {
+  private async calculateDiversificationRatio(
+    positions: Position[],
+    correlations: Map<string, number>
+  ): Promise<number> {
     if (positions.length <= 1) return 1.0;
 
     // Calculate weighted average correlation
@@ -627,21 +633,31 @@ export class RiskManagementAgent extends BaseAgent {
 
     for (let i = 0; i < positions.length; i++) {
       for (let j = i + 1; j < positions.length; j++) {
-        const weight = (positions[i].stake * positions[j].stake) / Math.pow(positions.reduce((sum, p) => sum + p.stake, 0), 2);
-        const correlation = correlations.get(`${positions[i].correlationGroup}_${positions[j].correlationGroup}`) || 0;
-        
+        const weight =
+          (positions[i].stake * positions[j].stake) /
+          Math.pow(
+            positions.reduce((sum, p) => sum + p.stake, 0),
+            2
+          );
+        const correlation =
+          correlations.get(`${positions[i].correlationGroup}_${positions[j].correlationGroup}`) ||
+          0;
+
         weightedCorrelation += weight * correlation;
         totalWeight += weight;
       }
     }
 
     const avgCorrelation = totalWeight > 0 ? weightedCorrelation / totalWeight : 0;
-    
+
     // Diversification ratio: 1 / sqrt(1 + (n-1) * avg_correlation)
     return 1 / Math.sqrt(1 + (positions.length - 1) * avgCorrelation);
   }
 
-  private async generateImmediateRiskAlert(userId: string, portfolioRisk: PortfolioRisk): Promise<void> {
+  private async generateImmediateRiskAlert(
+    userId: string,
+    portfolioRisk: PortfolioRisk
+  ): Promise<void> {
     const alert: RiskAlert = {
       id: `alert_${userId}_${Date.now()}`,
       type: 'exposure',
@@ -650,10 +666,10 @@ export class RiskManagementAgent extends BaseAgent {
       recommendations: [
         'Review position sizes immediately',
         'Consider hedging highly correlated positions',
-        'Reduce overall exposure'
+        'Reduce overall exposure',
       ],
       timestamp: new Date(),
-      acknowledged: false
+      acknowledged: false,
     };
 
     await this.sendCriticalRiskAlert(userId, alert);
@@ -665,7 +681,7 @@ export class RiskManagementAgent extends BaseAgent {
       userId,
       alertType: alert.type,
       severity: alert.severity,
-      message: alert.message
+      message: alert.message,
     });
 
     // This would integrate with notification system
@@ -675,7 +691,7 @@ export class RiskManagementAgent extends BaseAgent {
     this.logger.info('🛡️ Hedge recommendation sent', {
       userId,
       hedgeType: hedge.type,
-      expectedReduction: hedge.riskReduction
+      expectedReduction: hedge.riskReduction,
     });
 
     // This would integrate with notification system
@@ -686,7 +702,7 @@ export class RiskManagementAgent extends BaseAgent {
       userId,
       parlayId: opportunity.parlayId,
       completedLegs: opportunity.completedLegs,
-      guaranteedProfit: opportunity.guaranteedProfit
+      guaranteedProfit: opportunity.guaranteedProfit,
     });
 
     // Create alert context for AlertAgent
@@ -701,8 +717,8 @@ export class RiskManagementAgent extends BaseAgent {
         hedgeSide: opportunity.hedgeSide,
         hedgeOdds: opportunity.hedgeOdds,
         remainingLeg: opportunity.remainingLeg.selection,
-        maxPayout: opportunity.maxPayout
-      }
+        maxPayout: opportunity.maxPayout,
+      },
     };
 
     // This would integrate with AlertAgent to dispatch the alert
@@ -730,16 +746,16 @@ export class RiskManagementAgent extends BaseAgent {
               status: 'won',
               sport: 'NFL',
               gameId: 'game_123',
-              betType: 'spread'
+              betType: 'spread',
             },
             {
-              id: 'leg_2', 
+              id: 'leg_2',
               selection: 'Over 47.5',
               odds: -115,
               status: 'won',
               sport: 'NFL',
               gameId: 'game_124',
-              betType: 'total'
+              betType: 'total',
             },
             {
               id: 'leg_3',
@@ -748,15 +764,15 @@ export class RiskManagementAgent extends BaseAgent {
               status: 'pending',
               sport: 'NBA',
               gameId: 'game_125',
-              betType: 'moneyline'
-            }
+              betType: 'moneyline',
+            },
           ],
           stake: 50,
           potentialPayout: 400,
           totalOdds: 8.0,
           status: 'active',
-          placedAt: new Date(Date.now() - 2 * 60 * 60 * 1000) // 2 hours ago
-        }
+          placedAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
+        },
       ];
 
       // Filter to only return parlays with 2+ legs won and 1 pending
@@ -765,20 +781,23 @@ export class RiskManagementAgent extends BaseAgent {
         const pendingLegs = parlay.legs.filter(leg => leg.status === 'pending').length;
         return wonLegs >= 2 && pendingLegs === 1;
       });
-
     } catch (error) {
       this.logger.error('❌ Failed to get active parlay bets', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return [];
     }
   }
 
-  private async notifyCorrelationChange(userId: string, change: any, affectedPositions: Position[]): Promise<void> {
+  private async notifyCorrelationChange(
+    userId: string,
+    change: any,
+    affectedPositions: Position[]
+  ): Promise<void> {
     this.logger.info('🔗 Correlation change notification', {
       userId,
       affectedPositions: affectedPositions.length,
-      correlationChange: change.newCorrelation - change.oldCorrelation
+      correlationChange: change.newCorrelation - change.oldCorrelation,
     });
 
     // This would integrate with notification system
@@ -790,7 +809,7 @@ export class RiskManagementAgent extends BaseAgent {
       positionId: optimization.positionId,
       changeType: optimization.changeType,
       oldSize: optimization.oldSize,
-      newSize: optimization.newSize
+      newSize: optimization.newSize,
     });
 
     // This would integrate with position management system
@@ -798,12 +817,12 @@ export class RiskManagementAgent extends BaseAgent {
 
   private async analyzeRiskDistribution(): Promise<any> {
     const risks = Array.from(this.portfolioRisks.values()).map(p => p.riskScore);
-    
+
     return {
       low: risks.filter(r => r < 0.3).length,
       medium: risks.filter(r => r >= 0.3 && r < 0.7).length,
       high: risks.filter(r => r >= 0.7).length,
-      average: risks.length > 0 ? risks.reduce((sum, r) => sum + r, 0) / risks.length : 0
+      average: risks.length > 0 ? risks.reduce((sum, r) => sum + r, 0) / risks.length : 0,
     };
   }
 
@@ -812,7 +831,7 @@ export class RiskManagementAgent extends BaseAgent {
       highestCorrelations: ['nfl_week1', 'college_football_saturday'],
       correlationTrends: 'increasing',
       riskClusters: 2,
-      diversificationOpportunities: ['mlb_games', 'tennis_matches']
+      diversificationOpportunities: ['mlb_games', 'tennis_matches'],
     };
   }
 
@@ -821,7 +840,7 @@ export class RiskManagementAgent extends BaseAgent {
       totalPortfolios: this.portfolioRisks.size,
       avgSharpeRatio: 0.85,
       bestPerformingSegment: 'medium_risk_diversified',
-      worstPerformingSegment: 'high_concentration'
+      worstPerformingSegment: 'high_concentration',
     };
   }
 
@@ -829,28 +848,28 @@ export class RiskManagementAgent extends BaseAgent {
     return {
       avgReturnOnRisk: 0.12,
       riskAdjustedPerformance: 'above_benchmark',
-      benchmarkComparison: 0.08
+      benchmarkComparison: 0.08,
     };
   }
 
   private async generateSystemRecommendations(): Promise<string[]> {
     const recommendations: string[] = [];
-    
+
     if (this.riskMetrics.averagePortfolioRisk > 0.7) {
       recommendations.push('Implement system-wide position size limits');
     }
-    
+
     if (this.riskMetrics.riskLimitViolations > this.portfolioRisks.size * 0.1) {
       recommendations.push('Review and tighten risk limit enforcement');
     }
-    
+
     return recommendations;
   }
 
   private async loadPortfolioRisks(): Promise<void> {
     try {
       const cachedRisks = await redisCache.getPattern('risk:portfolio:*');
-      
+
       for (const [key, data] of cachedRisks) {
         const userId = key.split(':').pop();
         if (userId) {
@@ -880,37 +899,37 @@ export class RiskManagementAgent extends BaseAgent {
 
   protected async cleanup(): Promise<void> {
     this.logger.info('🧹 RiskManagementAgent cleanup...');
-    
+
     // Save portfolio risks to cache
     for (const [userId, portfolioRisk] of this.portfolioRisks) {
       const serialized = {
         ...portfolioRisk,
-        correlations: Array.from(portfolioRisk.correlations.entries())
+        correlations: Array.from(portfolioRisk.correlations.entries()),
       };
-      
+
       await redisCache.set(
         `risk:portfolio:${userId}`,
         JSON.stringify(serialized),
         86400 // 24 hours TTL
       );
     }
-    
+
     await Promise.all([
       this.portfolioOptimizer.cleanup(),
       this.riskAnalyzer.cleanup(),
       this.positionSizer.cleanup(),
-      this.hedgeEngine.cleanup()
+      this.hedgeEngine.cleanup(),
     ]);
-    
+
     this.portfolioRisks.clear();
-    
+
     this.logger.info('✅ RiskManagementAgent cleanup complete');
   }
 
   protected async collectMetrics(): Promise<BaseMetrics> {
     return {
       ...this.riskMetrics,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024,
     };
   }
 
@@ -920,32 +939,36 @@ export class RiskManagementAgent extends BaseAgent {
     // Check subsystem health
     checks.push({
       component: 'portfolio_optimizer',
-      status: await this.portfolioOptimizer.isHealthy() ? 'healthy' : 'unhealthy'
+      status: (await this.portfolioOptimizer.isHealthy()) ? 'healthy' : 'unhealthy',
     });
 
     checks.push({
       component: 'risk_analyzer',
-      status: await this.riskAnalyzer.isHealthy() ? 'healthy' : 'unhealthy'
+      status: (await this.riskAnalyzer.isHealthy()) ? 'healthy' : 'unhealthy',
     });
 
     checks.push({
       component: 'position_sizer',
-      status: await this.positionSizer.isHealthy() ? 'healthy' : 'unhealthy'
+      status: (await this.positionSizer.isHealthy()) ? 'healthy' : 'unhealthy',
     });
 
     checks.push({
       component: 'hedge_engine',
-      status: await this.hedgeEngine.isHealthy() ? 'healthy' : 'unhealthy'
+      status: (await this.hedgeEngine.isHealthy()) ? 'healthy' : 'unhealthy',
     });
 
     checks.push({
       component: 'parlay_hedge_calculator',
-      status: await this.parlayHedgeCalculator.isHealthy() ? 'healthy' : 'unhealthy'
+      status: (await this.parlayHedgeCalculator.isHealthy()) ? 'healthy' : 'unhealthy',
     });
 
     const healthyComponents = checks.filter(c => c.status === 'healthy').length;
-    const overallStatus = healthyComponents === checks.length ? 'healthy' : 
-                         healthyComponents >= checks.length / 2 ? 'degraded' : 'unhealthy';
+    const overallStatus =
+      healthyComponents === checks.length
+        ? 'healthy'
+        : healthyComponents >= checks.length / 2
+          ? 'degraded'
+          : 'unhealthy';
 
     return {
       status: overallStatus,
@@ -953,8 +976,8 @@ export class RiskManagementAgent extends BaseAgent {
       details: {
         checks,
         metrics: this.riskMetrics,
-        portfolioCount: this.portfolioRisks.size
-      }
+        portfolioCount: this.portfolioRisks.size,
+      },
     };
   }
 }

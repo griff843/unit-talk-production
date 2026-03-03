@@ -1,9 +1,9 @@
 /**
  * Today's Props Testing Framework
- * 
+ *
  * Tests the professional betting system on today's live props to ensure
  * the system is working correctly with current data and all Sharp Grading Rules are followed.
- * 
+ *
  * Usage: npx tsx src/runner/testTodaysProps.ts
  */
 
@@ -54,30 +54,25 @@ class TodaysPropsTester {
   private testResults: TodaysTestResult[] = [];
 
   constructor() {
-    this.supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_ANON_KEY!
-    );
+    this.supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
   }
 
-  async runLiveTest(options: {
-    maxProps?: number;
-    testParlays?: boolean;
-    validateScheduler?: boolean;
-  } = {}): Promise<LiveTestSummary> {
-    const {
-      maxProps = 50,
-      testParlays = true,
-      validateScheduler = true
-    } = options;
+  async runLiveTest(
+    options: {
+      maxProps?: number;
+      testParlays?: boolean;
+      validateScheduler?: boolean;
+    } = {}
+  ): Promise<LiveTestSummary> {
+    const { maxProps = 50, testParlays = true, validateScheduler = true } = options;
 
     logger.info('🚀 Starting live props test', { maxProps, testParlays, validateScheduler });
 
     console.log('\n' + '='.repeat(80));
-    console.log('🔴 LIVE PROPS TESTING - TODAY\'S PROFESSIONAL SYSTEM VALIDATION');
+    console.log("🔴 LIVE PROPS TESTING - TODAY'S PROFESSIONAL SYSTEM VALIDATION");
     console.log('='.repeat(80));
     console.log('📋 VALIDATING NON-NEGOTIABLE SHARP GRADING RULES ON LIVE DATA');
-    console.log('⚡ Ensuring system is ready for live professional betting');  
+    console.log('⚡ Ensuring system is ready for live professional betting');
     console.log('='.repeat(80) + '\n');
 
     try {
@@ -90,7 +85,7 @@ class TodaysPropsTester {
 
       // 2. Fetch today's props
       const todaysProps = await this.fetchTodaysProps(maxProps);
-      
+
       if (todaysProps.length === 0) {
         console.log('❌ No props found for today - check data ingestion pipeline');
         return this.createEmptyTestSummary('No props available');
@@ -105,17 +100,22 @@ class TodaysPropsTester {
 
       for (const prop of todaysProps) {
         try {
-          console.log(`Processing ${++processed}/${todaysProps.length}: ${prop.player_name} ${prop.stat_type}...`);
-          
+          console.log(
+            `Processing ${++processed}/${todaysProps.length}: ${prop.player_name} ${prop.stat_type}...`
+          );
+
           const testResult = await this.testLiveProp(prop);
           this.testResults.push(testResult);
 
           // Show real-time progress
           if (processed % 10 === 0) {
-            const avgTime = this.testResults.reduce((sum, r) => sum + r.processingTimeMs, 0) / this.testResults.length;
-            console.log(`✅ Progress: ${processed}/${todaysProps.length} | Avg: ${avgTime.toFixed(0)}ms/prop`);
+            const avgTime =
+              this.testResults.reduce((sum, r) => sum + r.processingTimeMs, 0) /
+              this.testResults.length;
+            console.log(
+              `✅ Progress: ${processed}/${todaysProps.length} | Avg: ${avgTime.toFixed(0)}ms/prop`
+            );
           }
-
         } catch (error) {
           logger.error('Failed to test live prop', { propId: prop.id, error });
           console.log(`❌ Failed to process prop: ${error}`);
@@ -136,12 +136,11 @@ class TodaysPropsTester {
 
       // 6. Analyze results and generate summary
       const summary = this.analyzeLiveResults(totalTime);
-      
+
       // 7. Display results
       this.displayLiveResults(summary);
 
       return summary;
-
     } catch (error) {
       logger.error('Live props test failed', error);
       console.error('❌ LIVE TEST FAILED:', error);
@@ -151,14 +150,14 @@ class TodaysPropsTester {
 
   private async performSystemChecks(): Promise<boolean> {
     const checks = [];
-    
+
     try {
       // Database connectivity
       const { data, error } = await this.supabase.from('raw_props').select('count').limit(1);
       checks.push({
         name: 'Database Connection',
         passed: !error,
-        message: error?.message
+        message: error?.message,
       });
 
       // Professional services availability
@@ -166,7 +165,7 @@ class TodaysPropsTester {
       checks.push({
         name: 'Professional Processor',
         passed: processorHealthy,
-        message: processorHealthy ? 'Available' : 'Not responding'
+        message: processorHealthy ? 'Available' : 'Not responding',
       });
 
       // Devigging service
@@ -174,7 +173,7 @@ class TodaysPropsTester {
       checks.push({
         name: 'Devigging Service',
         passed: deviggingHealthy,
-        message: deviggingHealthy ? 'Available' : 'Not responding'
+        message: deviggingHealthy ? 'Available' : 'Not responding',
       });
 
       // CLV tracking
@@ -182,14 +181,13 @@ class TodaysPropsTester {
       checks.push({
         name: 'CLV Tracking Service',
         passed: clvHealthy,
-        message: clvHealthy ? 'Available' : 'Not responding'
+        message: clvHealthy ? 'Available' : 'Not responding',
       });
-
     } catch (error) {
       checks.push({
         name: 'System Check',
         passed: false,
-        message: error instanceof Error ? error.message : 'Unknown error'
+        message: error instanceof Error ? error.message : 'Unknown error',
       });
     }
 
@@ -201,7 +199,7 @@ class TodaysPropsTester {
 
     const allPassed = checks.every(check => check.passed);
     console.log(`\n🎯 System Health: ${allPassed ? '✅ READY' : '❌ NOT READY'}\n`);
-    
+
     return allPassed;
   }
 
@@ -216,16 +214,16 @@ class TodaysPropsTester {
         over_odds: -110,
         under_odds: -110,
         sport: 'test',
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
       };
 
       // This should not actually process, just validate service is available
       await professionalPropProcessor.processRawProps({
         max_batch_size: 1,
         auto_approve_threshold: 999, // Don't actually approve
-        timeout_ms: 5000
+        timeout_ms: 5000,
       });
-      
+
       return true;
     } catch (error) {
       logger.warn('Professional processor check failed', { error });
@@ -237,9 +235,9 @@ class TodaysPropsTester {
     try {
       const testMarket = {
         odds1: -110,
-        odds2: -110
+        odds2: -110,
       };
-      
+
       const result = deviggingService.devigTwoWay(testMarket);
       return result.outcome1.impliedProbability > 0 && result.outcome2.impliedProbability > 0;
     } catch (error) {
@@ -258,7 +256,7 @@ class TodaysPropsTester {
 
   private async fetchTodaysProps(maxProps: number): Promise<any[]> {
     const today = new Date().toISOString().split('T')[0];
-    
+
     const { data, error } = await this.supabase
       .from('raw_props')
       .select('*')
@@ -277,15 +275,14 @@ class TodaysPropsTester {
 
   private async testLiveProp(prop: any): Promise<TodaysTestResult> {
     const startTime = Date.now();
-    
+
     // Process through professional system
     const professionalResults = await professionalPropProcessor.processRawProps({
-        max_batch_size: 1,
-        auto_approve_threshold: 3.0,
-        timeout_ms: 15000
-      }
-    );
-    
+      max_batch_size: 1,
+      auto_approve_threshold: 3.0,
+      timeout_ms: 15000,
+    });
+
     // Extract first result
     const professionalResult = professionalResults[0];
 
@@ -301,29 +298,32 @@ class TodaysPropsTester {
       ruleCompliance,
       processingTimeMs,
       tier: professionalResult.tier || 'Unknown',
-      autoApproved: professionalResult.published || false
+      autoApproved: professionalResult.published || false,
     };
   }
 
   private checkLiveRuleCompliance(prop: any, result: any): RuleComplianceCheck {
     const violations: string[] = [];
-    
+
     // Rule checks
     const deviggingApplied = result.devigged_edge !== undefined && result.devigged_edge !== 0;
     if (!deviggingApplied) violations.push('Devigging not applied');
-    
-    const clvTrackingStarted = result.clv_tracking_id !== undefined && result.clv_tracking_id !== null;
+
+    const clvTrackingStarted =
+      result.clv_tracking_id !== undefined && result.clv_tracking_id !== null;
     if (!clvTrackingStarted) violations.push('CLV tracking not started');
-    
-    const professionalGradingUsed = result.professionalScore !== undefined && result.feature_contributions !== undefined;
+
+    const professionalGradingUsed =
+      result.professionalScore !== undefined && result.feature_contributions !== undefined;
     if (!professionalGradingUsed) violations.push('Professional grading not used');
-    
-    const kellyFractionCalculated = result.kelly_fraction !== undefined && result.kelly_fraction > 0;
+
+    const kellyFractionCalculated =
+      result.kelly_fraction !== undefined && result.kelly_fraction > 0;
     if (!kellyFractionCalculated) violations.push('Kelly fraction not calculated');
-    
+
     const allOddsProcessed = this.validateAllOddsProcessed(prop, result);
     if (!allOddsProcessed) violations.push('Not all odds processed');
-    
+
     const universalProcessing = result.processing_time !== undefined && result.processing_time > 0;
     if (!universalProcessing) violations.push('Universal processing not applied');
 
@@ -338,25 +338,25 @@ class TodaysPropsTester {
       allOddsProcessed,
       universalProcessing,
       complianceScore,
-      violations
+      violations,
     };
   }
 
   private validateAllOddsProcessed(prop: any, result: any): boolean {
     const hasOverOdds = prop.over_odds && prop.over_odds !== 0;
     const hasUnderOdds = prop.under_odds && prop.under_odds !== 0;
-    
+
     if (hasOverOdds && hasUnderOdds) {
       return result.professional_insights?.devigging !== undefined;
     }
-    
+
     return true;
   }
 
   private async testLiveParlayProcessing(props: any[]): Promise<void> {
     console.log('\n🎲 TESTING LIVE PARLAY PROCESSING:');
     console.log('='.repeat(50));
-    
+
     if (props.length < 2) {
       console.log('❌ Need at least 2 props for parlay testing');
       return;
@@ -374,10 +374,10 @@ class TodaysPropsTester {
         stat_type: prop.stat_type,
         line: prop.line,
         over_odds: prop.over_odds,
-        under_odds: prop.under_odds
+        under_odds: prop.under_odds,
       })),
       type: 'parlay',
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     };
 
     try {
@@ -385,34 +385,37 @@ class TodaysPropsTester {
       const parlayResults = [];
       for (const leg of parlayData.legs) {
         const legResults = await professionalPropProcessor.processRawProps({
-            max_batch_size: 1,
-            auto_approve_threshold: 3.0,
-            timeout_ms: 10000
-          }
-        );
+          max_batch_size: 1,
+          auto_approve_threshold: 3.0,
+          timeout_ms: 10000,
+        });
         parlayResults.push(legResults[0]);
       }
 
       // Validate all legs received professional treatment
-      const allLegsProcessed = parlayResults.every(result => 
-        result.professionalScore !== undefined &&
-        result.devigged_edge !== undefined &&
-        result.clv_tracking_id !== undefined
+      const allLegsProcessed = parlayResults.every(
+        result =>
+          result.professionalScore !== undefined &&
+          result.devigged_edge !== undefined &&
+          result.clv_tracking_id !== undefined
       );
 
-      console.log(`✅ Parlay legs professional processing: ${allLegsProcessed ? 'PASSED' : 'FAILED'}`);
-      
+      console.log(
+        `✅ Parlay legs professional processing: ${allLegsProcessed ? 'PASSED' : 'FAILED'}`
+      );
+
       if (allLegsProcessed) {
-        const avgScore = parlayResults.reduce((sum, r) => sum + r.professionalScore, 0) / parlayResults.length;
-        const combinedEdge = parlayResults.reduce((sum, r) => sum + r.devigged_edge, 0) / parlayResults.length;
-        
+        const avgScore =
+          parlayResults.reduce((sum, r) => sum + r.professionalScore, 0) / parlayResults.length;
+        const combinedEdge =
+          parlayResults.reduce((sum, r) => sum + r.devigged_edge, 0) / parlayResults.length;
+
         console.log(`Average Professional Score: ${avgScore.toFixed(2)}`);
         console.log(`Combined Devigged Edge: ${(combinedEdge * 100).toFixed(2)}%`);
         console.log('✅ All parlay legs received complete professional treatment');
       } else {
         console.log('❌ Some parlay legs did not receive full professional treatment');
       }
-
     } catch (error) {
       console.log(`❌ Parlay processing failed: ${error}`);
     }
@@ -424,10 +427,10 @@ class TodaysPropsTester {
 
     try {
       const schedulerStatus = professionalBettingScheduler.getStatus();
-      
+
       console.log(`Scheduler Running: ${schedulerStatus.isRunning ? '✅' : '❌'}`);
       console.log(`Scheduled Tasks: ${schedulerStatus.scheduledTasks.length}`);
-      
+
       if (!schedulerStatus.isRunning) {
         console.log('🔄 Starting professional scheduler...');
         professionalBettingScheduler.start();
@@ -437,7 +440,6 @@ class TodaysPropsTester {
       // Test CLV monitoring trigger
       await professionalBettingScheduler.triggerTask('clv_monitoring');
       console.log('✅ CLV monitoring task triggered successfully');
-
     } catch (error) {
       console.log(`❌ Scheduler validation failed: ${error}`);
     }
@@ -449,10 +451,12 @@ class TodaysPropsTester {
     }
 
     const results = this.testResults;
-    
+
     // Calculate metrics
-    const avgProcessingTime = results.reduce((sum, r) => sum + r.processingTimeMs, 0) / results.length;
-    const ruleComplianceRate = results.reduce((sum, r) => sum + r.ruleCompliance.complianceScore, 0) / results.length;
+    const avgProcessingTime =
+      results.reduce((sum, r) => sum + r.processingTimeMs, 0) / results.length;
+    const ruleComplianceRate =
+      results.reduce((sum, r) => sum + r.ruleCompliance.complianceScore, 0) / results.length;
     const autoApprovalRate = (results.filter(r => r.autoApproved).length / results.length) * 100;
 
     // Tier distribution
@@ -484,33 +488,37 @@ class TodaysPropsTester {
       tierDistribution,
       systemHealth,
       recommendations,
-      readyForLive: ruleComplianceRate >= 95 && avgProcessingTime < 5000 && systemHealth !== 'critical'
+      readyForLive:
+        ruleComplianceRate >= 95 && avgProcessingTime < 5000 && systemHealth !== 'critical',
     };
   }
 
   private generateLiveRecommendations(results: TodaysTestResult[]): string[] {
     const recommendations: string[] = [];
-    
-    const avgCompliance = results.reduce((sum, r) => sum + r.ruleCompliance.complianceScore, 0) / results.length;
-    const avgProcessingTime = results.reduce((sum, r) => sum + r.processingTimeMs, 0) / results.length;
-    
+
+    const avgCompliance =
+      results.reduce((sum, r) => sum + r.ruleCompliance.complianceScore, 0) / results.length;
+    const avgProcessingTime =
+      results.reduce((sum, r) => sum + r.processingTimeMs, 0) / results.length;
+
     if (avgCompliance < 95) {
       recommendations.push('⚠️ Rule compliance below target - investigate processing pipeline');
     }
-    
+
     if (avgProcessingTime > 3000) {
       recommendations.push('⚠️ Processing time above target - optimize performance');
     }
-    
+
     const violationCounts: Record<string, number> = {};
     results.forEach(result => {
       result.ruleCompliance.violations.forEach(violation => {
         violationCounts[violation] = (violationCounts[violation] || 0) + 1;
       });
     });
-    
+
     Object.entries(violationCounts).forEach(([violation, count]) => {
-      if (count > results.length * 0.1) { // More than 10%
+      if (count > results.length * 0.1) {
+        // More than 10%
         recommendations.push(`🔧 Common issue: ${violation} (${count} instances)`);
       }
     });
@@ -533,16 +541,25 @@ class TodaysPropsTester {
     console.log('\n🎯 TIER DISTRIBUTION:');
     Object.entries(summary.tierDistribution).forEach(([tier, count]) => {
       const percentage = ((count / summary.totalProcessed) * 100).toFixed(1);
-      const icon = tier === 'S' ? '🌟' : tier === 'A' ? '⭐' : tier === 'B' ? '🔸' : tier === 'C' ? '🔹' : '◽';
+      const icon =
+        tier === 'S'
+          ? '🌟'
+          : tier === 'A'
+            ? '⭐'
+            : tier === 'B'
+              ? '🔸'
+              : tier === 'C'
+                ? '🔹'
+                : '◽';
       console.log(`${icon} ${tier}-Tier: ${count} (${percentage}%)`);
     });
 
     console.log('\n❤️  SYSTEM HEALTH:');
     const healthIcon = {
       excellent: '🟢',
-      good: '🟡', 
+      good: '🟡',
       needs_attention: '🟠',
-      critical: '🔴'
+      critical: '🔴',
     }[summary.systemHealth];
     console.log(`${healthIcon} Status: ${summary.systemHealth.toUpperCase()}`);
 
@@ -559,7 +576,7 @@ class TodaysPropsTester {
       allViolations.forEach(violation => {
         violationCounts[violation] = (violationCounts[violation] || 0) + 1;
       });
-      
+
       Object.entries(violationCounts).forEach(([violation, count]) => {
         console.log(`• ${violation}: ${count} instances`);
       });
@@ -585,7 +602,7 @@ class TodaysPropsTester {
       tierDistribution: { S: 0, A: 0, B: 0, C: 0, D: 0 },
       systemHealth: 'critical',
       recommendations: [reason],
-      readyForLive: false
+      readyForLive: false,
     };
   }
 }
@@ -593,12 +610,12 @@ class TodaysPropsTester {
 // Main execution
 async function main() {
   const tester = new TodaysPropsTester();
-  
+
   try {
     const summary = await tester.runLiveTest({
       maxProps: 25, // Test reasonable sample
       testParlays: true,
-      validateScheduler: true
+      validateScheduler: true,
     });
 
     // Final status
@@ -610,7 +627,6 @@ async function main() {
     console.log(`🚀 Ready for Live: ${summary.readyForLive ? 'YES' : 'NO'}`);
 
     process.exit(summary.readyForLive ? 0 : 1);
-
   } catch (error) {
     logger.error('Live props testing failed', error);
     console.error('❌ LIVE TESTING FAILED:', error);

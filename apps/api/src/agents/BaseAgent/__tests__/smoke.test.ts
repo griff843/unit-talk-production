@@ -17,14 +17,20 @@ const mockConfig: BaseAgentConfig = {
     maxAttempts: 1,
     backoff: 200,
     exponential: false,
-    jitter: false
-  }
+    jitter: false,
+  },
 };
 
 const deps = {
   supabase: {} as any,
-  logger: { info: jest.fn(), error: jest.fn(), debug: jest.fn(), warn: jest.fn(), child: jest.fn() } as any,
-  errorHandler: { withRetry: (fn: any) => fn(), handleError: jest.fn() } as any
+  logger: {
+    info: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+    warn: jest.fn(),
+    child: jest.fn(),
+  } as any,
+  errorHandler: { withRetry: (fn: any) => fn(), handleError: jest.fn() } as any,
 } satisfies BaseAgentDependencies;
 
 class DummyAgent extends BaseAgent {
@@ -38,7 +44,7 @@ class DummyAgent extends BaseAgent {
     return {
       status: 'healthy',
       timestamp: new Date().toISOString(),
-      details: {}
+      details: {},
     };
   }
 
@@ -49,7 +55,7 @@ class DummyAgent extends BaseAgent {
       errorCount: 0,
       warningCount: 0,
       processingTimeMs: 0,
-      memoryUsageMb: 0
+      memoryUsageMb: 0,
     };
   }
 }
@@ -60,4 +66,4 @@ describe('BaseAgent smoke', () => {
     await expect(a.start()).resolves.not.toThrow();
     await expect(a.stop()).resolves.not.toThrow();
   });
-}); 
+});

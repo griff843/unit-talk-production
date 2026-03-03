@@ -8,13 +8,13 @@ export const AnalyticsConfigSchema = z.object({
     minPicksForAnalysis: z.number().min(1),
     roiTimeframes: z.array(z.number()),
     streakThreshold: z.number().min(2),
-    trendWindowDays: z.number().min(1)
+    trendWindowDays: z.number().min(1),
   }),
   alertConfig: z.object({
     roiAlertThreshold: z.number(),
     streakAlertThreshold: z.number(),
-    volatilityThreshold: z.number()
-  })
+    volatilityThreshold: z.number(),
+  }),
 });
 
 export type AnalyticsAgentConfig = z.infer<typeof AnalyticsConfigSchema>;

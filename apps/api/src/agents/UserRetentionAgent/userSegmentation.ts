@@ -56,11 +56,11 @@ export class UserSegmentation {
 
   async initialize(): Promise<void> {
     this.logger.info('🎯 Initializing UserSegmentation');
-    
+
     await this.createDefaultSegments();
     await this.loadSegmentHistory();
     await this.loadPerformanceData();
-    
+
     this.logger.info('✅ UserSegmentation initialized');
   }
 
@@ -95,7 +95,7 @@ export class UserSegmentation {
       .sort((a, b) => b.priority - a.priority);
 
     this.logger.info(`✅ Segmented users into ${populatedSegments.length} segments`, {
-      segmentSizes: populatedSegments.map(s => ({ name: s.name, size: s.userIds.length }))
+      segmentSizes: populatedSegments.map(s => ({ name: s.name, size: s.userIds.length })),
     });
 
     // Cache segmentation results
@@ -111,7 +111,7 @@ export class UserSegmentation {
 
   async getSegmentAnalytics(): Promise<any> {
     const segments = Array.from(this.segments.values());
-    
+
     const analytics = {
       totalSegments: segments.length,
       totalUsers: Array.from(this.userSegmentMapping.keys()).length,
@@ -120,12 +120,12 @@ export class UserSegmentation {
         userCount: segment.userIds.length,
         averageChurnRisk: segment.characteristics.averageChurnRisk,
         retentionRate: segment.characteristics.retentionRate,
-        priority: segment.priority
+        priority: segment.priority,
       })),
       highRiskSegments: segments.filter(s => s.characteristics.averageChurnRisk > 0.7).length,
       highValueSegments: segments.filter(s => s.characteristics.averageLifetimeValue > 500).length,
       mostEffectiveStrategies: await this.identifyMostEffectiveStrategies(),
-      segmentTrends: await this.analyzeSegmentTrends()
+      segmentTrends: await this.analyzeSegmentTrends(),
     };
 
     // Cache analytics
@@ -143,10 +143,10 @@ export class UserSegmentation {
 
     // Analyze segment performance
     const segmentPerformance = await this.analyzeSegmentPerformance();
-    
+
     // Identify underperforming segments
-    const underperformingSegments = segmentPerformance.filter(sp => 
-      sp.retentionRate < 0.5 || sp.interventionSuccess < 0.3
+    const underperformingSegments = segmentPerformance.filter(
+      sp => sp.retentionRate < 0.5 || sp.interventionSuccess < 0.3
     );
 
     // Refine segment criteria
@@ -174,7 +174,7 @@ export class UserSegmentation {
           daysSinceLastInteraction: { max: 3 },
           riskFactors: ['payment_issues', 'support_escalation', 'negative_feedback'],
           behaviorPatterns: ['declining_usage', 'support_heavy'],
-          subscriptionTier: ['premium', 'enterprise']
+          subscriptionTier: ['premium', 'enterprise'],
         },
         characteristics: {
           averageChurnRisk: 0.9,
@@ -183,10 +183,10 @@ export class UserSegmentation {
           commonRiskFactors: ['payment_issues', 'dissatisfaction'],
           retentionRate: 0.3,
           conversionPotential: 0.8,
-          interventionSuccess: 0.6
+          interventionSuccess: 0.6,
         },
         retentionStrategy: 'immediate_personal_outreach',
-        priority: 1
+        priority: 1,
       },
       {
         id: 'high_risk_medium_value',
@@ -199,7 +199,7 @@ export class UserSegmentation {
           daysSinceLastInteraction: { max: 7 },
           riskFactors: ['low_engagement', 'feature_confusion', 'cost_concerns'],
           behaviorPatterns: ['irregular_usage', 'limited_features'],
-          subscriptionTier: ['standard', 'basic']
+          subscriptionTier: ['standard', 'basic'],
         },
         characteristics: {
           averageChurnRisk: 0.75,
@@ -208,10 +208,10 @@ export class UserSegmentation {
           commonRiskFactors: ['low_engagement', 'cost_concerns'],
           retentionRate: 0.4,
           conversionPotential: 0.6,
-          interventionSuccess: 0.5
+          interventionSuccess: 0.5,
         },
         retentionStrategy: 'discount_and_education',
-        priority: 2
+        priority: 2,
       },
       {
         id: 'medium_risk_engaged',
@@ -224,7 +224,7 @@ export class UserSegmentation {
           daysSinceLastInteraction: { max: 14 },
           riskFactors: ['feature_limitations', 'competitor_interest'],
           behaviorPatterns: ['regular_usage', 'feature_exploration'],
-          subscriptionTier: ['standard', 'premium']
+          subscriptionTier: ['standard', 'premium'],
         },
         characteristics: {
           averageChurnRisk: 0.55,
@@ -233,10 +233,10 @@ export class UserSegmentation {
           commonRiskFactors: ['feature_limitations'],
           retentionRate: 0.7,
           conversionPotential: 0.8,
-          interventionSuccess: 0.7
+          interventionSuccess: 0.7,
         },
         retentionStrategy: 'feature_highlight_upgrade',
-        priority: 3
+        priority: 3,
       },
       {
         id: 'low_risk_loyal',
@@ -249,7 +249,7 @@ export class UserSegmentation {
           daysSinceLastInteraction: { max: 7 },
           riskFactors: [],
           behaviorPatterns: ['consistent_usage', 'high_engagement', 'referral_generation'],
-          subscriptionTier: ['premium', 'enterprise']
+          subscriptionTier: ['premium', 'enterprise'],
         },
         characteristics: {
           averageChurnRisk: 0.2,
@@ -258,10 +258,10 @@ export class UserSegmentation {
           commonRiskFactors: [],
           retentionRate: 0.95,
           conversionPotential: 0.9,
-          interventionSuccess: 0.9
+          interventionSuccess: 0.9,
         },
         retentionStrategy: 'loyalty_program_referral',
-        priority: 5
+        priority: 5,
       },
       {
         id: 'dormant_reactivation',
@@ -274,7 +274,7 @@ export class UserSegmentation {
           daysSinceLastInteraction: { max: 30 },
           riskFactors: ['long_inactivity', 'zero_engagement'],
           behaviorPatterns: ['dormant', 'previously_active'],
-          subscriptionTier: ['free', 'basic', 'cancelled']
+          subscriptionTier: ['free', 'basic', 'cancelled'],
         },
         characteristics: {
           averageChurnRisk: 0.8,
@@ -283,10 +283,10 @@ export class UserSegmentation {
           commonRiskFactors: ['long_inactivity'],
           retentionRate: 0.2,
           conversionPotential: 0.3,
-          interventionSuccess: 0.25
+          interventionSuccess: 0.25,
         },
         retentionStrategy: 'win_back_campaign',
-        priority: 4
+        priority: 4,
       },
       {
         id: 'new_users_onboarding',
@@ -299,7 +299,7 @@ export class UserSegmentation {
           daysSinceLastInteraction: { max: 7 },
           riskFactors: ['learning_curve', 'onboarding_confusion'],
           behaviorPatterns: ['new_user', 'exploring'],
-          subscriptionTier: ['free', 'trial']
+          subscriptionTier: ['free', 'trial'],
         },
         characteristics: {
           averageChurnRisk: 0.6,
@@ -308,11 +308,11 @@ export class UserSegmentation {
           commonRiskFactors: ['learning_curve'],
           retentionRate: 0.5,
           conversionPotential: 0.7,
-          interventionSuccess: 0.6
+          interventionSuccess: 0.6,
         },
         retentionStrategy: 'guided_onboarding_support',
-        priority: 3
-      }
+        priority: 3,
+      },
     ];
 
     for (const segmentData of defaultSegments) {
@@ -320,9 +320,9 @@ export class UserSegmentation {
         ...segmentData,
         userIds: [],
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
-      
+
       this.segments.set(segment.id, segment);
     }
 
@@ -332,7 +332,7 @@ export class UserSegmentation {
   private async loadSegmentHistory(): Promise<void> {
     try {
       const cachedSegments = await redisCache.getPattern('retention:segment:*');
-      
+
       for (const [key, data] of cachedSegments) {
         const segment = JSON.parse(data);
         segment.createdAt = new Date(segment.createdAt);
@@ -349,12 +349,12 @@ export class UserSegmentation {
   private async loadPerformanceData(): Promise<void> {
     // Load segment performance metrics
     const performanceData = {
-      'critical_risk_high_value': { retention_rate: 0.3, intervention_success: 0.6, avg_ltv: 750 },
-      'high_risk_medium_value': { retention_rate: 0.4, intervention_success: 0.5, avg_ltv: 300 },
-      'medium_risk_engaged': { retention_rate: 0.7, intervention_success: 0.7, avg_ltv: 200 },
-      'low_risk_loyal': { retention_rate: 0.95, intervention_success: 0.9, avg_ltv: 600 },
-      'dormant_reactivation': { retention_rate: 0.2, intervention_success: 0.25, avg_ltv: 50 },
-      'new_users_onboarding': { retention_rate: 0.5, intervention_success: 0.6, avg_ltv: 25 }
+      critical_risk_high_value: { retention_rate: 0.3, intervention_success: 0.6, avg_ltv: 750 },
+      high_risk_medium_value: { retention_rate: 0.4, intervention_success: 0.5, avg_ltv: 300 },
+      medium_risk_engaged: { retention_rate: 0.7, intervention_success: 0.7, avg_ltv: 200 },
+      low_risk_loyal: { retention_rate: 0.95, intervention_success: 0.9, avg_ltv: 600 },
+      dormant_reactivation: { retention_rate: 0.2, intervention_success: 0.25, avg_ltv: 50 },
+      new_users_onboarding: { retention_rate: 0.5, intervention_success: 0.6, avg_ltv: 25 },
     };
 
     for (const [segmentId, metrics] of Object.entries(performanceData)) {
@@ -373,7 +373,7 @@ export class UserSegmentation {
 
     // Sort by score and return best fit
     segmentScores.sort((a, b) => b.score - a.score);
-    
+
     // Only assign if score is above threshold
     return segmentScores[0]?.score > 0.6 ? segmentScores[0].segmentId : null;
   }
@@ -383,22 +383,28 @@ export class UserSegmentation {
     let totalCriteria = 0;
 
     // Churn risk fit
-    if (userProfile.churnRisk >= criteria.churnRisk.min && 
-        userProfile.churnRisk <= criteria.churnRisk.max) {
+    if (
+      userProfile.churnRisk >= criteria.churnRisk.min &&
+      userProfile.churnRisk <= criteria.churnRisk.max
+    ) {
       professional_score += 1;
     }
     totalCriteria++;
 
     // Lifetime value fit
-    if (userProfile.lifetimeValue >= criteria.lifetimeValue.min && 
-        userProfile.lifetimeValue <= criteria.lifetimeValue.max) {
+    if (
+      userProfile.lifetimeValue >= criteria.lifetimeValue.min &&
+      userProfile.lifetimeValue <= criteria.lifetimeValue.max
+    ) {
       professional_score += 1;
     }
     totalCriteria++;
 
     // Engagement professional_score fit
-    if (userProfile.engagementScore >= criteria.engagementScore.min && 
-        userProfile.engagementScore <= criteria.engagementScore.max) {
+    if (
+      userProfile.engagementScore >= criteria.engagementScore.min &&
+      userProfile.engagementScore <= criteria.engagementScore.max
+    ) {
       professional_score += 1;
     }
     totalCriteria++;
@@ -410,7 +416,7 @@ export class UserSegmentation {
     totalCriteria++;
 
     // Risk factors overlap
-    const riskFactorMatch = criteria.riskFactors.some(factor => 
+    const riskFactorMatch = criteria.riskFactors.some(factor =>
       userProfile.riskFactors.includes(factor)
     );
     if (riskFactorMatch || criteria.riskFactors.length === 0) {
@@ -426,7 +432,7 @@ export class UserSegmentation {
       if (segment.userIds.length === 0) continue;
 
       const segmentUsers = userProfiles.filter(up => segment.userIds.includes(up.userId));
-      
+
       if (segmentUsers.length > 0) {
         segment.characteristics = {
           averageChurnRisk: this.calculateAverage(segmentUsers, 'churnRisk'),
@@ -435,7 +441,7 @@ export class UserSegmentation {
           commonRiskFactors: this.findCommonRiskFactors(segmentUsers),
           retentionRate: this.segmentPerformance.get(segmentId)?.retention_rate || 0.5,
           conversionPotential: this.calculateConversionPotential(segmentUsers),
-          interventionSuccess: this.segmentPerformance.get(segmentId)?.intervention_success || 0.5
+          interventionSuccess: this.segmentPerformance.get(segmentId)?.intervention_success || 0.5,
         };
 
         segment.updatedAt = new Date();
@@ -451,7 +457,7 @@ export class UserSegmentation {
 
   private findCommonRiskFactors(users: UserProfile[]): string[] {
     const factorCounts: Record<string, number> = {};
-    
+
     users.forEach(user => {
       user.riskFactors.forEach(factor => {
         factorCounts[factor] = (factorCounts[factor] || 0) + 1;
@@ -467,11 +473,11 @@ export class UserSegmentation {
 
   private calculateConversionPotential(users: UserProfile[]): number {
     if (users.length === 0) return 0;
-    
+
     // Higher engagement and lower churn risk = higher conversion potential
     const avgEngagement = this.calculateAverage(users, 'engagementScore');
     const avgChurnRisk = this.calculateAverage(users, 'churnRisk');
-    
+
     return Math.max(0, Math.min(1, avgEngagement * (1 - avgChurnRisk)));
   }
 
@@ -484,12 +490,12 @@ export class UserSegmentation {
 
     // Cluster unassigned users
     const clusters = await this.clusterUsers(unassignedUsers);
-    
+
     for (const cluster of clusters) {
       if (cluster.users.length >= 5) {
         const dynamicSegment = await this.createDynamicSegment(cluster);
         this.segments.set(dynamicSegment.id, dynamicSegment);
-        
+
         // Assign users to the new segment
         cluster.users.forEach(user => {
           dynamicSegment.userIds.push(user.userId);
@@ -499,7 +505,9 @@ export class UserSegmentation {
     }
   }
 
-  private async clusterUsers(users: UserProfile[]): Promise<Array<{ users: UserProfile[]; centroid: any }>> {
+  private async clusterUsers(
+    users: UserProfile[]
+  ): Promise<Array<{ users: UserProfile[]; centroid: any }>> {
     // Simple k-means clustering implementation
     const k = Math.min(3, Math.max(1, Math.floor(users.length / 10))); // Dynamic cluster count
     const clusters: Array<{ users: UserProfile[]; centroid: any }> = [];
@@ -512,8 +520,8 @@ export class UserSegmentation {
         centroid: {
           churnRisk: randomUser.churnRisk,
           lifetimeValue: randomUser.lifetimeValue,
-          engagementScore: randomUser.engagementScore
-        }
+          engagementScore: randomUser.engagementScore,
+        },
       });
     }
 
@@ -540,13 +548,16 @@ export class UserSegmentation {
     const churnDiff = Math.abs(user.churnRisk - centroid.churnRisk);
     const ltvDiff = Math.abs(user.lifetimeValue - centroid.lifetimeValue) / 1000; // Normalize
     const engagementDiff = Math.abs(user.engagementScore - centroid.engagementScore);
-    
+
     return Math.sqrt(churnDiff ** 2 + ltvDiff ** 2 + engagementDiff ** 2);
   }
 
-  private async createDynamicSegment(cluster: { users: UserProfile[]; centroid: any }): Promise<UserSegment> {
+  private async createDynamicSegment(cluster: {
+    users: UserProfile[];
+    centroid: any;
+  }): Promise<UserSegment> {
     const segmentId = `dynamic_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-    
+
     const avgChurnRisk = this.calculateAverage(cluster.users, 'churnRisk');
     const avgLTV = this.calculateAverage(cluster.users, 'lifetimeValue');
     const avgEngagement = this.calculateAverage(cluster.users, 'engagementScore');
@@ -558,10 +569,13 @@ export class UserSegmentation {
       criteria: {
         churnRisk: { min: avgChurnRisk - 0.1, max: avgChurnRisk + 0.1 },
         lifetimeValue: { min: Math.max(0, avgLTV - 100), max: avgLTV + 100 },
-        engagementScore: { min: Math.max(0, avgEngagement - 0.2), max: Math.min(1, avgEngagement + 0.2) },
+        engagementScore: {
+          min: Math.max(0, avgEngagement - 0.2),
+          max: Math.min(1, avgEngagement + 0.2),
+        },
         daysSinceLastInteraction: { max: 30 },
         riskFactors: this.findCommonRiskFactors(cluster.users),
-        behaviorPatterns: ['dynamic_cluster']
+        behaviorPatterns: ['dynamic_cluster'],
       },
       userIds: [],
       characteristics: {
@@ -571,19 +585,19 @@ export class UserSegmentation {
         commonRiskFactors: this.findCommonRiskFactors(cluster.users),
         retentionRate: 0.5, // Default for new segments
         conversionPotential: this.calculateConversionPotential(cluster.users),
-        interventionSuccess: 0.5
+        interventionSuccess: 0.5,
       },
       retentionStrategy: this.determineRetentionStrategy(avgChurnRisk, avgLTV),
       priority: this.calculateSegmentPriority(avgChurnRisk, avgLTV),
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
 
     this.logger.info(`🆕 Created dynamic segment: ${segment.name}`, {
       segmentId,
       userCount: cluster.users.length,
       avgChurnRisk,
-      avgLTV
+      avgLTV,
     });
 
     return segment;
@@ -592,8 +606,9 @@ export class UserSegmentation {
   private generateSegmentName(churnRisk: number, ltv: number, engagement: number): string {
     const riskLevel = churnRisk > 0.7 ? 'High Risk' : churnRisk > 0.4 ? 'Medium Risk' : 'Low Risk';
     const valueLevel = ltv > 500 ? 'High Value' : ltv > 100 ? 'Medium Value' : 'Low Value';
-    const engagementLevel = engagement > 0.7 ? 'Engaged' : engagement > 0.4 ? 'Moderate' : 'Disengaged';
-    
+    const engagementLevel =
+      engagement > 0.7 ? 'Engaged' : engagement > 0.4 ? 'Moderate' : 'Disengaged';
+
     return `${riskLevel} ${valueLevel} ${engagementLevel}`;
   }
 
@@ -623,11 +638,7 @@ export class UserSegmentation {
 
     // Cache user-to-segment mapping
     const mappingData = Array.from(this.userSegmentMapping.entries());
-    await redisCache.set(
-      'retention:user_segment_mapping',
-      JSON.stringify(mappingData),
-      3600
-    );
+    await redisCache.set('retention:user_segment_mapping', JSON.stringify(mappingData), 3600);
   }
 
   private async analyzeSegmentPerformance(): Promise<any[]> {
@@ -637,11 +648,14 @@ export class UserSegmentation {
       userCount: segment.userIds.length,
       retentionRate: segment.characteristics.retentionRate,
       interventionSuccess: segment.characteristics.interventionSuccess,
-      conversionPotential: segment.characteristics.conversionPotential
+      conversionPotential: segment.characteristics.conversionPotential,
     }));
   }
 
-  private async refineSegmentCriteria(segmentId: string, userProfiles: UserProfile[]): Promise<void> {
+  private async refineSegmentCriteria(
+    segmentId: string,
+    userProfiles: UserProfile[]
+  ): Promise<void> {
     const segment = this.segments.get(segmentId);
     if (!segment) return;
 
@@ -653,15 +667,14 @@ export class UserSegmentation {
     segment.criteria.churnRisk.max = Math.min(1, segment.criteria.churnRisk.max + 0.05);
 
     segment.updatedAt = new Date();
-    
+
     this.logger.info(`🔧 Refined criteria for segment: ${segment.name}`);
   }
 
   private async createTargetedSegments(userProfiles: UserProfile[]): Promise<void> {
     // Identify high-value unassigned users
-    const highValueUnassigned = userProfiles.filter(up => 
-      up.lifetimeValue > 300 && 
-      !this.userSegmentMapping.has(up.userId)
+    const highValueUnassigned = userProfiles.filter(
+      up => up.lifetimeValue > 300 && !this.userSegmentMapping.has(up.userId)
     );
 
     if (highValueUnassigned.length >= 3) {
@@ -670,12 +683,12 @@ export class UserSegmentation {
         centroid: {
           churnRisk: this.calculateAverage(highValueUnassigned, 'churnRisk'),
           lifetimeValue: this.calculateAverage(highValueUnassigned, 'lifetimeValue'),
-          engagementScore: this.calculateAverage(highValueUnassigned, 'engagementScore')
-        }
+          engagementScore: this.calculateAverage(highValueUnassigned, 'engagementScore'),
+        },
       });
 
       this.segments.set(targetedSegment.id, targetedSegment);
-      
+
       highValueUnassigned.forEach(user => {
         targetedSegment.userIds.push(user.userId);
         this.userSegmentMapping.set(user.userId, targetedSegment.id);
@@ -704,7 +717,7 @@ export class UserSegmentation {
         .filter(s => s.userIds.length > 10)
         .map(s => s.name),
       decliningSegments: [],
-      emergingPatterns: ['high_value_disengaged', 'new_user_quick_activation']
+      emergingPatterns: ['high_value_disengaged', 'new_user_quick_activation'],
     };
   }
 

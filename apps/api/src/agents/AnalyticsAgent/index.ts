@@ -1,5 +1,10 @@
 import { BaseAgent } from '../BaseAgent/index';
-import { BaseAgentConfig, BaseAgentDependencies, HealthStatus, BaseMetrics } from '../BaseAgent/types';
+import {
+  BaseAgentConfig,
+  BaseAgentDependencies,
+  HealthStatus,
+  BaseMetrics,
+} from '../BaseAgent/types';
 
 interface AnalyticsMetrics extends BaseMetrics {
   totalAnalyzed: number;
@@ -52,8 +57,8 @@ export class AnalyticsAgent extends BaseAgent {
       lastRunStats: {
         startTime: '',
         endTime: '',
-        recordsProcessed: 0
-      }
+        recordsProcessed: 0,
+      },
     };
   }
 
@@ -65,7 +70,7 @@ export class AnalyticsAgent extends BaseAgent {
       'unified_picks',
       'analytics_summary',
       'roi_by_tier',
-      'roi_by_ticket_type'
+      'roi_by_ticket_type',
     ];
 
     for (const table of requiredTables) {
@@ -74,17 +79,14 @@ export class AnalyticsAgent extends BaseAgent {
           throw new Error(`Supabase client not available for table ${table}`);
         }
 
-        const { error } = await this.requireSupabase()
-          .from(table)
-          .select('id')
-          .limit(1);
+        const { error } = await this.requireSupabase().from(table).select('id').limit(1);
 
         if (error) {
           throw new Error(`Failed to access table ${table}: ${error.message}`);
         }
       } catch (error) {
         this.logger.error(`Table access check failed for ${table}:`, {
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
         throw error;
       }
@@ -101,26 +103,25 @@ export class AnalyticsAgent extends BaseAgent {
     try {
       // Enhanced batch processing approach
       const processingResult = await this.processBatchedAnalytics();
-      
+
       // Update comprehensive metrics
       this.updateProcessingMetrics(processingResult, Date.now() - startTime);
-      
+
       this.logger.info('✅ Analytics processing completed', {
         duration: this.metrics?.processingTimeMs,
         processedCappers: processingResult.cappersProcessed,
         batchesProcessed: processingResult.batchesProcessed,
         avgBatchTime: processingResult.avgBatchTimeMs,
         errors: this.metrics?.errorCount,
-        throughputPerMinute: processingResult.throughputPerMinute
+        throughputPerMinute: processingResult.throughputPerMinute,
       });
-
     } catch (error) {
       const metrics = this.metrics;
       if (metrics) {
         metrics.errorCount++;
       }
       this.logger.error('❌ Analytics processing failed:', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -137,27 +138,24 @@ export class AnalyticsAgent extends BaseAgent {
         return {
           status: 'unhealthy',
           timestamp: new Date().toISOString(),
-          details: { error: 'Supabase client not available' }
+          details: { error: 'Supabase client not available' },
         };
       }
 
       // Check database connectivity
-      const { error } = await this.requireSupabase()
-        .from('unified_picks')
-        .select('id')
-        .limit(1);
+      const { error } = await this.requireSupabase().from('unified_picks').select('id').limit(1);
 
       if (error) {
         return {
           status: 'unhealthy',
           timestamp: new Date().toISOString(),
-          details: { error: 'Database connectivity check failed: ' + error.message }
+          details: { error: 'Database connectivity check failed: ' + error.message },
         };
       }
 
       // Check metrics
-      const isHealthy = (this.metrics?.errorCount || 0) < 10 &&
-                       (this.metrics?.successCount || 0) > 0;
+      const isHealthy =
+        (this.metrics?.errorCount || 0) < 10 && (this.metrics?.successCount || 0) > 0;
 
       return {
         status: isHealthy ? 'healthy' : 'degraded',
@@ -165,15 +163,14 @@ export class AnalyticsAgent extends BaseAgent {
         details: {
           successCount: this.metrics?.successCount || 0,
           errorCount: this.metrics?.errorCount || 0,
-          lastProcessingTime: this.metrics?.processingTimeMs || 0
-        }
+          lastProcessingTime: this.metrics?.processingTimeMs || 0,
+        },
       };
-
     } catch (error) {
       return {
         status: 'unhealthy',
         timestamp: new Date().toISOString(),
-        details: { err: (error as Error).message }
+        details: { err: (error as Error).message },
       };
     }
   }
@@ -202,107 +199,108 @@ export class AnalyticsAgent extends BaseAgent {
   }> {
     const BATCH_SIZE = 20; // Process 20 cappers per batch
     const MAX_CONCURRENT_BATCHES = 3; // Limit concurrent batches
-    
+
     // Fetch all cappers with basic info in a single query
     const cappers = await this.fetchCappersForAnalysis();
-    
+
     if (cappers.length === 0) {
       return {
         cappersProcessed: 0,
         batchesProcessed: 0,
         avgBatchTimeMs: 0,
         throughputPerMinute: 0,
-        errors: 0
+        errors: 0,
       };
     }
 
     this.logger.info(`📊 Processing ${cappers.length} cappers in batches of ${BATCH_SIZE}`);
-    
+
     // Create batches
     const batches = this.createBatches(cappers, BATCH_SIZE);
     const batchTimes: number[] = [];
     let totalProcessed = 0;
     let totalErrors = 0;
-    
+
     // Process batches with controlled concurrency
     for (let i = 0; i < batches.length; i += MAX_CONCURRENT_BATCHES) {
       const batchGroup = batches.slice(i, i + MAX_CONCURRENT_BATCHES);
-      
+
       const batchPromises = batchGroup.map(async (batch, batchIndex) => {
         const batchStartTime = Date.now();
         const actualBatchIndex = i + batchIndex;
-        
+
         try {
           await this.processBatch(batch, actualBatchIndex);
           const batchTime = Date.now() - batchStartTime;
           batchTimes.push(batchTime);
-          
+
           this.logger.debug(`✅ Batch ${actualBatchIndex + 1} completed`, {
             batchSize: batch.length,
-            processingTimeMs: batchTime
+            processingTimeMs: batchTime,
           });
-          
+
           return batch.length;
         } catch (error) {
           totalErrors++;
           this.logger.error(`❌ Batch ${actualBatchIndex + 1} failed`, {
             batchSize: batch.length,
-            error: error instanceof Error ? error.message : 'Unknown error'
+            error: error instanceof Error ? error.message : 'Unknown error',
           });
           return 0;
         }
       });
-      
+
       const batchResults = await Promise.all(batchPromises);
       totalProcessed += batchResults.reduce((sum, count) => sum + count, 0);
-      
+
       // Brief pause between batch groups to prevent overwhelming the database
       if (i + MAX_CONCURRENT_BATCHES < batches.length) {
         await new Promise(resolve => setTimeout(resolve, 200));
       }
     }
-    
-    const avgBatchTime = batchTimes.length > 0 
-      ? batchTimes.reduce((sum, time) => sum + time, 0) / batchTimes.length 
-      : 0;
-    
+
+    const avgBatchTime =
+      batchTimes.length > 0
+        ? batchTimes.reduce((sum, time) => sum + time, 0) / batchTimes.length
+        : 0;
+
     const totalTimeMs = batchTimes.reduce((sum, time) => sum + time, 0);
-    const throughputPerMinute = totalTimeMs > 0 
-      ? Math.round((totalProcessed / totalTimeMs) * 60000)
-      : 0;
-    
+    const throughputPerMinute =
+      totalTimeMs > 0 ? Math.round((totalProcessed / totalTimeMs) * 60000) : 0;
+
     return {
       cappersProcessed: totalProcessed,
       batchesProcessed: batches.length,
       avgBatchTimeMs: avgBatchTime,
       throughputPerMinute,
-      errors: totalErrors
+      errors: totalErrors,
     };
   }
 
-  private async fetchCappersForAnalysis(): Promise<Array<{id: string, pickCount: number}>> {
+  private async fetchCappersForAnalysis(): Promise<Array<{ id: string; pickCount: number }>> {
     if (!this.hasSupabase()) {
       this.logger.error('⚠️ Supabase client not available for capper fetch');
       return [];
     }
 
     // Optimized query to get cappers with pick counts
-    const { data: capperStats, error } = await this.requireSupabase()
-      .rpc('get_capper_analytics_summary'); // Custom RPC function for better performance
+    const { data: capperStats, error } = await this.requireSupabase().rpc(
+      'get_capper_analytics_summary'
+    ); // Custom RPC function for better performance
 
     if (error) {
       this.logger.warn('⚠️ RPC function not available, falling back to standard query');
-      
+
       // Fallback to standard query
       const { data: cappers, error: fallbackError } = await this.requireSupabase()
         .from('unified_picks')
         .select('capper_id')
         .limit(1000);
-      
+
       if (fallbackError) {
         throw new Error(`Failed to fetch cappers: ${fallbackError.message}`);
       }
-      
+
       // Get unique cappers and estimate pick counts
       const uniqueCappers = Array.from(new Set(cappers?.map(c => c.capper_id) || []));
       return uniqueCappers.map(id => ({ id, pickCount: 10 })); // Estimated count
@@ -311,9 +309,12 @@ export class AnalyticsAgent extends BaseAgent {
     return capperStats || [];
   }
 
-  private async processBatch(cappers: Array<{id: string, pickCount: number}>, batchIndex: number): Promise<void> {
+  private async processBatch(
+    cappers: Array<{ id: string; pickCount: number }>,
+    batchIndex: number
+  ): Promise<void> {
     const cappersWithSufficientPicks = cappers.filter(c => c.pickCount >= 5);
-    
+
     if (cappersWithSufficientPicks.length === 0) {
       this.logger.debug(`📭 Batch ${batchIndex + 1}: No cappers with sufficient picks`);
       return;
@@ -322,24 +323,24 @@ export class AnalyticsAgent extends BaseAgent {
     // Fetch all picks for this batch in a single query for better performance
     const capperIds = cappersWithSufficientPicks.map(c => c.id);
     const picksData = await this.fetchPicksForCappers(capperIds);
-    
+
     // Process each capper's analytics
-    const analyticsPromises = cappersWithSufficientPicks.map(async (capper) => {
+    const analyticsPromises = cappersWithSufficientPicks.map(async capper => {
       try {
         const picks = picksData.get(capper.id) || [];
         await this.processCapperAnalytics(capper.id, picks);
-        
+
         this.metrics.successCount++;
         this.metrics.totalProcessed++;
       } catch (error) {
         this.metrics.errorCount++;
         this.logger.error(`❌ Failed to process capper ${capper.id}`, {
           error: error instanceof Error ? error.message : 'Unknown error',
-          capperId: capper.id
+          capperId: capper.id,
         });
       }
     });
-    
+
     await Promise.all(analyticsPromises);
   }
 
@@ -378,14 +379,14 @@ export class AnalyticsAgent extends BaseAgent {
       this.logger.debug('⚠️ Insufficient picks for analysis', {
         capperId,
         pickCount: picks.length,
-        required: 5
+        required: 5,
       });
       return;
     }
 
     // Calculate comprehensive analytics
     const analytics = this.calculateAdvancedAnalytics(picks);
-    
+
     // Update global metrics
     if (analytics.roi > 0) {
       this.metrics.profitableCappers++;
@@ -407,7 +408,7 @@ export class AnalyticsAgent extends BaseAgent {
       sharpe_ratio: analytics.sharpeRatio,
       tier_distribution: analytics.tierDistribution,
       analyzed_at: new Date().toISOString(),
-      last_activity: analytics.lastActivity
+      last_activity: analytics.lastActivity,
     });
 
     this.logger.debug('✅ Capper analytics processed successfully', {
@@ -415,7 +416,7 @@ export class AnalyticsAgent extends BaseAgent {
       pickCount: picks.length,
       winRate: Math.round(analytics.winRate * 100) / 100,
       roi: Math.round(analytics.roi * 100) / 100,
-      profitLoss: Math.round(analytics.profitLoss * 100) / 100
+      profitLoss: Math.round(analytics.profitLoss * 100) / 100,
     });
   }
 
@@ -437,14 +438,14 @@ export class AnalyticsAgent extends BaseAgent {
     const wins = picks.filter(p => p.result === 'win').length;
     const losses = picks.filter(p => p.result === 'loss').length;
     const pushes = picks.filter(p => p.result === 'push').length;
-    const winRate = (wins + losses) > 0 ? wins / (wins + losses) : 0;
-    
+    const winRate = wins + losses > 0 ? wins / (wins + losses) : 0;
+
     // ROI calculation
     const roi = this.calculateROI(picks);
-    
+
     // Average odds
     const avgOdds = picks.reduce((sum, pick) => sum + (pick.odds || 100), 0) / picks.length;
-    
+
     // Profit/Loss calculation
     let profitLoss = 0;
     picks.forEach(pick => {
@@ -457,12 +458,12 @@ export class AnalyticsAgent extends BaseAgent {
         profitLoss -= stake;
       }
     });
-    
+
     // Streak calculations
     let maxWinStreak = 0;
     let currentStreak = 0;
     let tempStreak = 0;
-    
+
     picks.forEach((pick, index) => {
       if (pick.result === 'win') {
         tempStreak++;
@@ -470,7 +471,7 @@ export class AnalyticsAgent extends BaseAgent {
       } else {
         tempStreak = 0;
       }
-      
+
       // Current streak (from most recent)
       if (index === picks.length - 1) {
         let i = picks.length - 1;
@@ -480,36 +481,36 @@ export class AnalyticsAgent extends BaseAgent {
         }
       }
     });
-    
+
     // Volatility (standard deviation of returns)
     const returns = picks.map(pick => {
       // const _stake = pick.stake || 100; // Unused variable removed
       if (pick.result === 'win') {
         const odds = pick.odds || 100;
-        return odds > 0 ? (odds / 100) : (100 / Math.abs(odds));
+        return odds > 0 ? odds / 100 : 100 / Math.abs(odds);
       }
       return -1;
     });
-    
+
     const avgReturn = returns.reduce((sum, ret) => sum + ret, 0) / returns.length;
-    const variance = returns.reduce((sum, ret) => sum + Math.pow(ret - avgReturn, 2), 0) / returns.length;
+    const variance =
+      returns.reduce((sum, ret) => sum + Math.pow(ret - avgReturn, 2), 0) / returns.length;
     const volatility = Math.sqrt(variance);
-    
+
     // Sharpe ratio (risk-adjusted returns)
     const sharpeRatio = volatility > 0 ? avgReturn / volatility : 0;
-    
+
     // Tier distribution
     const tierDistribution: Record<string, number> = { S: 0, A: 0, B: 0, C: 0, D: 0 };
     picks.forEach(pick => {
       const tier = pick.tier || 'C';
       tierDistribution[tier] = (tierDistribution[tier] || 0) + 1;
     });
-    
+
     // Last activity
-    const lastActivity = picks.length > 0 
-      ? picks[picks.length - 1].created_at 
-      : new Date().toISOString();
-    
+    const lastActivity =
+      picks.length > 0 ? picks[picks.length - 1].created_at : new Date().toISOString();
+
     return {
       wins,
       losses,
@@ -523,7 +524,7 @@ export class AnalyticsAgent extends BaseAgent {
       volatility,
       sharpeRatio,
       tierDistribution,
-      lastActivity
+      lastActivity,
     };
   }
 
@@ -550,7 +551,7 @@ export class AnalyticsAgent extends BaseAgent {
     for (const pick of picks) {
       const stake = pick.stake || 100; // Default stake
       totalStake += stake;
-      
+
       if (pick.result === 'win') {
         const odds = pick.odds || 1.9; // Default odds
         totalReturn += stake * odds;
@@ -572,7 +573,7 @@ export class AnalyticsAgent extends BaseAgent {
         .upsert({
           capper_id: capperId,
           ...summary,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         });
 
       if (error) {
@@ -581,7 +582,7 @@ export class AnalyticsAgent extends BaseAgent {
     } catch (error) {
       this.logger.error('Failed to store analytics summary', {
         err: error instanceof Error ? error.message : 'Unknown error',
-        capperId
+        capperId,
       });
       throw error;
     }

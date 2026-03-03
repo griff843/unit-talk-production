@@ -10,50 +10,62 @@ export function createTestDependencies(): BaseAgentDependencies {
   const mockSupabase = {
     from: jest.fn(() => ({
       select: jest.fn(() => ({
-        limit: jest.fn(() => Promise.resolve({
-          data: [],
-          error: null
-        })),
-        eq: jest.fn(() => Promise.resolve({
-          data: [],
-          error: null
-        })),
-        gte: jest.fn(() => Promise.resolve({
-          data: [],
-          error: null
-        }))
+        limit: jest.fn(() =>
+          Promise.resolve({
+            data: [],
+            error: null,
+          })
+        ),
+        eq: jest.fn(() =>
+          Promise.resolve({
+            data: [],
+            error: null,
+          })
+        ),
+        gte: jest.fn(() =>
+          Promise.resolve({
+            data: [],
+            error: null,
+          })
+        ),
       })),
       insert: jest.fn(() => ({
-        select: jest.fn(() => Promise.resolve({
-          data: [{ id: 'test-contest-id' }],
-          error: null
-        }))
+        select: jest.fn(() =>
+          Promise.resolve({
+            data: [{ id: 'test-contest-id' }],
+            error: null,
+          })
+        ),
       })),
       update: jest.fn(() => ({
-        eq: jest.fn(() => Promise.resolve({
-          data: null,
-          error: null
-        }))
-      }))
+        eq: jest.fn(() =>
+          Promise.resolve({
+            data: null,
+            error: null,
+          })
+        ),
+      })),
     })),
     channel: jest.fn(() => ({
       on: jest.fn(() => ({
-        subscribe: jest.fn(() => Promise.resolve())
+        subscribe: jest.fn(() => Promise.resolve()),
       })),
-      unsubscribe: jest.fn(() => Promise.resolve())
+      unsubscribe: jest.fn(() => Promise.resolve()),
     })),
     auth: {
-      getUser: jest.fn(() => Promise.resolve({
-        data: { user: { id: 'test-user' } },
-        error: null
-      }))
-    }
+      getUser: jest.fn(() =>
+        Promise.resolve({
+          data: { user: { id: 'test-user' } },
+          error: null,
+        })
+      ),
+    },
   };
 
   return {
     supabase: mockSupabase as any,
     logger: mockLogger,
-    errorHandler: mockErrorHandler
+    errorHandler: mockErrorHandler,
   };
 }
 
@@ -65,8 +77,8 @@ export function createTestConfig(overrides: Partial<BaseAgentConfig> = {}): Base
     logLevel: 'info',
     metrics: {
       enabled: true,
-      interval: 60000
+      interval: 60000,
     },
-    ...overrides
+    ...overrides,
   };
 }

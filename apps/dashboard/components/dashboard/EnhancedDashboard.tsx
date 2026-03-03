@@ -295,7 +295,9 @@ export default function EnhancedDashboard() {
               <Trophy className="h-8 w-8 text-yellow-600" />
               Unit Talk Dashboard
             </h1>
-            <p className="text-gray-600 mt-1">Last updated: {new Date(lastRefresh).toLocaleTimeString()}</p>
+            <p className="text-gray-600 mt-1">
+              Last updated: {new Date(lastRefresh).toLocaleTimeString()}
+            </p>
           </div>
 
           <div className="flex items-center gap-3">

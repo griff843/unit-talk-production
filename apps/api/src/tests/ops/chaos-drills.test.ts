@@ -10,8 +10,8 @@
  * @module tests/ops/chaos-drills
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // Mock Supabase
 vi.mock('@supabase/supabase-js', () => {
@@ -27,13 +27,15 @@ vi.mock('@supabase/supabase-js', () => {
           // Simulate cooldown/dedupe logic
           if (mockRpcResults.has(key)) {
             return Promise.resolve({
-              data: [{
-                should_execute: false,
-                reason: 'Already handling this incident',
-                last_execution_id: 'existing-uuid',
-                executions_this_hour: 1
-              }],
-              error: null
+              data: [
+                {
+                  should_execute: false,
+                  reason: 'Already handling this incident',
+                  last_execution_id: 'existing-uuid',
+                  executions_this_hour: 1,
+                },
+              ],
+              error: null,
             });
           }
 
@@ -41,38 +43,44 @@ vi.mock('@supabase/supabase-js', () => {
           const hourCount = mockRpcResults.get('hour_count') || 0;
           if (hourCount >= 3) {
             return Promise.resolve({
-              data: [{
-                should_execute: false,
-                reason: 'Rate limit exceeded: 3/3 executions this hour',
-                last_execution_id: null,
-                executions_this_hour: 3
-              }],
-              error: null
+              data: [
+                {
+                  should_execute: false,
+                  reason: 'Rate limit exceeded: 3/3 executions this hour',
+                  last_execution_id: null,
+                  executions_this_hour: 3,
+                },
+              ],
+              error: null,
             });
           }
 
           // Global disabled check
           if (mockRpcResults.get('global_disabled')) {
             return Promise.resolve({
-              data: [{
-                should_execute: false,
-                reason: 'Global remediation is disabled',
-                last_execution_id: null,
-                executions_this_hour: 0
-              }],
-              error: null
+              data: [
+                {
+                  should_execute: false,
+                  reason: 'Global remediation is disabled',
+                  last_execution_id: null,
+                  executions_this_hour: 0,
+                },
+              ],
+              error: null,
             });
           }
 
           // Allow execution
           return Promise.resolve({
-            data: [{
-              should_execute: true,
-              reason: 'Ready to execute',
-              last_execution_id: null,
-              executions_this_hour: hourCount
-            }],
-            error: null
+            data: [
+              {
+                should_execute: true,
+                reason: 'Ready to execute',
+                last_execution_id: null,
+                executions_this_hour: hourCount,
+              },
+            ],
+            error: null,
           });
         }
 
@@ -83,7 +91,7 @@ vi.mock('@supabase/supabase-js', () => {
           mockRpcResults.set('hour_count', (mockRpcResults.get('hour_count') || 0) + 1);
           return Promise.resolve({
             data: 'new-execution-uuid',
-            error: null
+            error: null,
           });
         }
 
@@ -96,16 +104,19 @@ vi.mock('@supabase/supabase-js', () => {
         order: vi.fn().mockReturnThis(),
         limit: vi.fn().mockReturnThis(),
         single: vi.fn().mockResolvedValue({
-          data: table === 'remediation_playbooks' ? {
-            playbook_id: 'PIPELINE_LAG_THROTTLE',
-            execution_type: 'EXECUTABLE',
-            enabled: false,
-            dry_run_only: true,
-            requires_approval: true,
-            cooldown_seconds: 3600,
-            max_executions_per_hour: 3
-          } : null,
-          error: null
+          data:
+            table === 'remediation_playbooks'
+              ? {
+                  playbook_id: 'PIPELINE_LAG_THROTTLE',
+                  execution_type: 'EXECUTABLE',
+                  enabled: false,
+                  dry_run_only: true,
+                  requires_approval: true,
+                  cooldown_seconds: 3600,
+                  max_executions_per_hour: 3,
+                }
+              : null,
+          error: null,
         }),
         insert: vi.fn().mockReturnThis(),
         update: vi.fn().mockReturnThis(),
@@ -119,7 +130,7 @@ vi.mock('@supabase/supabase-js', () => {
 });
 
 // Import mock controls
-const { __setMockResult, __clearMockResults } = await import('@supabase/supabase-js') as any;
+const { __setMockResult, __clearMockResults } = (await import('@supabase/supabase-js')) as any;
 
 describe('PR9: Chaos Drills', () => {
   let supabase: ReturnType<typeof createClient>;
@@ -144,7 +155,7 @@ describe('PR9: Chaos Drills', () => {
       // First execution attempt
       const first = await supabase.rpc('should_execute_playbook', {
         p_playbook_id: playbookId,
-        p_incident_id: incidentId
+        p_incident_id: incidentId,
       });
 
       expect(first.data?.[0].should_execute).toBe(true);
@@ -153,13 +164,13 @@ describe('PR9: Chaos Drills', () => {
       // Create the execution
       await supabase.rpc('create_remediation_execution', {
         p_playbook_id: playbookId,
-        p_incident_id: incidentId
+        p_incident_id: incidentId,
       });
 
       // Second execution attempt for SAME incident
       const second = await supabase.rpc('should_execute_playbook', {
         p_playbook_id: playbookId,
-        p_incident_id: incidentId
+        p_incident_id: incidentId,
       });
 
       expect(second.data?.[0].should_execute).toBe(false);
@@ -172,19 +183,19 @@ describe('PR9: Chaos Drills', () => {
       // First incident
       const first = await supabase.rpc('should_execute_playbook', {
         p_playbook_id: playbookId,
-        p_incident_id: 'incident-A'
+        p_incident_id: 'incident-A',
       });
       expect(first.data?.[0].should_execute).toBe(true);
 
       await supabase.rpc('create_remediation_execution', {
         p_playbook_id: playbookId,
-        p_incident_id: 'incident-A'
+        p_incident_id: 'incident-A',
       });
 
       // Different incident (should still be allowed, until rate limit)
       const second = await supabase.rpc('should_execute_playbook', {
         p_playbook_id: playbookId,
-        p_incident_id: 'incident-B'
+        p_incident_id: 'incident-B',
       });
       expect(second.data?.[0].should_execute).toBe(true);
     });
@@ -201,14 +212,14 @@ describe('PR9: Chaos Drills', () => {
       for (let i = 0; i < 3; i++) {
         await supabase.rpc('create_remediation_execution', {
           p_playbook_id: playbookId,
-          p_incident_id: `incident-${i}`
+          p_incident_id: `incident-${i}`,
         });
       }
 
       // Fourth attempt should be rate limited
       const fourth = await supabase.rpc('should_execute_playbook', {
         p_playbook_id: playbookId,
-        p_incident_id: 'incident-4'
+        p_incident_id: 'incident-4',
       });
 
       expect(fourth.data?.[0].should_execute).toBe(false);
@@ -221,7 +232,7 @@ describe('PR9: Chaos Drills', () => {
 
       const result = await supabase.rpc('should_execute_playbook', {
         p_playbook_id: 'PIPELINE_LAG_THROTTLE',
-        p_incident_id: 'new-incident'
+        p_incident_id: 'new-incident',
       });
 
       expect(result.data?.[0].should_execute).toBe(false);
@@ -287,9 +298,10 @@ describe('PR9: Chaos Drills', () => {
             enabled: false,
             dry_run_only: true,
             requires_approval: true,
-            description: 'Handles stale materialized views. Uses ops.logged_refresh_mv() for safe, audited refresh.'
+            description:
+              'Handles stale materialized views. Uses ops.logged_refresh_mv() for safe, audited refresh.',
           },
-          error: null
+          error: null,
         }),
       }));
     });
@@ -342,13 +354,13 @@ describe('PR9: Chaos Drills', () => {
       for (let i = 0; i < 10; i++) {
         const check = await supabase.rpc('should_execute_playbook', {
           p_playbook_id: playbookId,
-          p_incident_id: `storm-incident-${i}`
+          p_incident_id: `storm-incident-${i}`,
         });
 
         if (check.data?.[0].should_execute) {
           await supabase.rpc('create_remediation_execution', {
             p_playbook_id: playbookId,
-            p_incident_id: `storm-incident-${i}`
+            p_incident_id: `storm-incident-${i}`,
           });
         }
 
@@ -359,8 +371,8 @@ describe('PR9: Chaos Drills', () => {
       const executed = results.filter(r => r === true).length;
       const blocked = results.filter(r => r === false).length;
 
-      expect(executed).toBe(3);  // Rate limit
-      expect(blocked).toBe(7);   // Rest blocked
+      expect(executed).toBe(3); // Rate limit
+      expect(blocked).toBe(7); // Rest blocked
     });
   });
 
@@ -405,7 +417,7 @@ export const createTestIncident = async (
       trigger_value: 150,
       trigger_threshold: 100,
       evidence: { test: true },
-      opened_at: new Date().toISOString()
+      opened_at: new Date().toISOString(),
     })
     .select()
     .single();
@@ -419,18 +431,9 @@ export const cleanupTestData = async (
   incidentId: string
 ) => {
   // Delete in reverse dependency order
-  await supabase
-    .from('remediation_executions')
-    .delete()
-    .eq('incident_id', incidentId);
+  await supabase.from('remediation_executions').delete().eq('incident_id', incidentId);
 
-  await supabase
-    .from('incident_notifications')
-    .delete()
-    .eq('incident_key', incidentId);
+  await supabase.from('incident_notifications').delete().eq('incident_key', incidentId);
 
-  await supabase
-    .from('slo_incidents')
-    .delete()
-    .eq('id', incidentId);
+  await supabase.from('slo_incidents').delete().eq('id', incidentId);
 };

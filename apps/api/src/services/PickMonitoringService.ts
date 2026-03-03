@@ -3,10 +3,11 @@
  * Real-time monitoring of active picks with odds tracking and alert generation
  */
 
-import { Logger, createLogger } from '../utils/logger';
-import { supabaseClient } from './supabaseClient';
-import { autoRecheckService } from './AutoRecheckService';
 import { publishGuard } from '../promotion/PublishGuard';
+import { Logger, createLogger } from '../utils/logger';
+
+import { autoRecheckService } from './AutoRecheckService';
+import { supabaseClient } from './supabaseClient';
 
 export interface MonitoredPick {
   id: string;
@@ -27,21 +28,27 @@ export interface MonitoredPick {
 }
 
 export interface MonitoringConfig {
-  oddsMovementThreshold: number;     // BPS threshold for alerts
-  volumeThreshold: number;           // Volume threshold for alerts
-  steamThreshold: number;            // Steam strength threshold
-  clvThreshold: number;              // CLV change threshold
-  marketDepthThreshold: number;      // Minimum market depth
-  updateFrequency: number;           // Update frequency in seconds
-  alertCooldown: number;             // Cooldown between alerts in minutes
-  autoRecheckEnabled: boolean;       // Enable auto re-checks
-  suspensionEnabled: boolean;        // Enable auto-suspension
+  oddsMovementThreshold: number; // BPS threshold for alerts
+  volumeThreshold: number; // Volume threshold for alerts
+  steamThreshold: number; // Steam strength threshold
+  clvThreshold: number; // CLV change threshold
+  marketDepthThreshold: number; // Minimum market depth
+  updateFrequency: number; // Update frequency in seconds
+  alertCooldown: number; // Cooldown between alerts in minutes
+  autoRecheckEnabled: boolean; // Enable auto re-checks
+  suspensionEnabled: boolean; // Enable auto-suspension
 }
 
 export interface Alert {
   id: string;
   pickId: string;
-  type: 'odds_movement' | 'volume_spike' | 'steam_alert' | 'clv_change' | 'market_depth' | 'system_alert';
+  type:
+    | 'odds_movement'
+    | 'volume_spike'
+    | 'steam_alert'
+    | 'clv_change'
+    | 'market_depth'
+    | 'system_alert';
   severity: 'low' | 'medium' | 'high' | 'critical';
   timestamp: Date;
   message: string;
@@ -70,18 +77,18 @@ class PickMonitoringService {
   private monitoredPicks: Map<string, MonitoredPick> = new Map();
   private monitoringActive = false;
   private updateInterval: NodeJS.Timeout | null = null;
-  
+
   // Default monitoring configuration
   private readonly DEFAULT_CONFIG: MonitoringConfig = {
-    oddsMovementThreshold: 10,        // 10 BPS
-    volumeThreshold: 50000,           // $50K volume
-    steamThreshold: 15,               // 15 BPS steam
-    clvThreshold: 5,                  // 5 BPS CLV change
-    marketDepthThreshold: 10000,      // $10K minimum depth
-    updateFrequency: 60,              // 60 seconds
-    alertCooldown: 5,                 // 5 minutes
+    oddsMovementThreshold: 10, // 10 BPS
+    volumeThreshold: 50000, // $50K volume
+    steamThreshold: 15, // 15 BPS steam
+    clvThreshold: 5, // 5 BPS CLV change
+    marketDepthThreshold: 10000, // $10K minimum depth
+    updateFrequency: 60, // 60 seconds
+    alertCooldown: 5, // 5 minutes
     autoRecheckEnabled: true,
-    suspensionEnabled: true
+    suspensionEnabled: true,
   };
 
   private constructor() {
@@ -105,16 +112,16 @@ class PickMonitoringService {
     }
 
     this.logger.info('Starting pick monitoring service');
-    
+
     // Load active picks
     await this.loadActivePicks();
-    
+
     // Start monitoring loop
     this.startMonitoringLoop();
-    
+
     this.monitoringActive = true;
     this.logger.info('Pick monitoring service started', {
-      monitoredPicks: this.monitoredPicks.size
+      monitoredPicks: this.monitoredPicks.size,
     });
   }
 
@@ -123,12 +130,12 @@ class PickMonitoringService {
    */
   public stopMonitoring(): void {
     this.logger.info('Stopping pick monitoring service');
-    
+
     if (this.updateInterval) {
       clearInterval(this.updateInterval);
       this.updateInterval = null;
     }
-    
+
     this.monitoringActive = false;
     this.logger.info('Pick monitoring service stopped');
   }
@@ -138,7 +145,7 @@ class PickMonitoringService {
    */
   public async addPickToMonitoring(pick: any, config?: Partial<MonitoringConfig>): Promise<void> {
     const monitoringConfig = { ...this.DEFAULT_CONFIG, ...config };
-    
+
     const monitoredPick: MonitoredPick = {
       id: pick.id,
       propId: pick.prop_id,
@@ -164,12 +171,12 @@ class PickMonitoringService {
         alertsGenerated: 0,
         uptimePercentage: 100,
         lastSuccessfulUpdate: new Date(),
-        errorCount: 0
-      }
+        errorCount: 0,
+      },
     };
 
     this.monitoredPicks.set(pick.id, monitoredPick);
-    
+
     // Schedule auto re-checks if enabled
     if (monitoringConfig.autoRecheckEnabled) {
       await autoRecheckService.scheduleRecheckForPick(pick);
@@ -178,7 +185,7 @@ class PickMonitoringService {
     this.logger.info('Pick added to monitoring', {
       pickId: pick.id,
       propId: pick.prop_id,
-      tier: pick.tier
+      tier: pick.tier,
     });
   }
 
@@ -220,7 +227,7 @@ class PickMonitoringService {
 
     this.logger.info('Monitoring loop started', {
       updateFrequency: minFrequency,
-      monitoredPicks: this.monitoredPicks.size
+      monitoredPicks: this.monitoredPicks.size,
     });
   }
 
@@ -228,12 +235,12 @@ class PickMonitoringService {
    * Update all monitored picks
    */
   private async updateAllPicks(): Promise<void> {
-    const updatePromises = Array.from(this.monitoredPicks.values()).map(pick => 
+    const updatePromises = Array.from(this.monitoredPicks.values()).map(pick =>
       this.updateSinglePick(pick)
     );
 
     const results = await Promise.allSettled(updatePromises);
-    
+
     const successful = results.filter(r => r.status === 'fulfilled').length;
     const failed = results.filter(r => r.status === 'rejected').length;
 
@@ -241,7 +248,7 @@ class PickMonitoringService {
       this.logger.warn('Some pick updates failed', {
         successful,
         failed,
-        total: this.monitoredPicks.size
+        total: this.monitoredPicks.size,
       });
     }
   }
@@ -253,7 +260,7 @@ class PickMonitoringService {
     try {
       const now = new Date();
       const timeSinceLastUpdate = (now.getTime() - pick.lastUpdate.getTime()) / 1000;
-      
+
       // Skip if updated too recently based on config
       if (timeSinceLastUpdate < pick.monitoringConfig.updateFrequency) {
         return;
@@ -280,7 +287,10 @@ class PickMonitoringService {
       // Track odds changes
       if (Math.abs(oddsMovement) > 0.1) {
         pick.metrics.oddsChanges++;
-        pick.metrics.maxOddsMovement = Math.max(pick.metrics.maxOddsMovement, Math.abs(oddsMovement));
+        pick.metrics.maxOddsMovement = Math.max(
+          pick.metrics.maxOddsMovement,
+          Math.abs(oddsMovement)
+        );
       }
 
       // Track volume metrics
@@ -294,18 +304,17 @@ class PickMonitoringService {
 
       // Update uptime percentage
       const totalTime = (now.getTime() - pick.lastUpdate.getTime()) / 1000;
-      const successfulTime = totalTime - (pick.metrics.errorCount * 60); // Assume 60s per error
+      const successfulTime = totalTime - pick.metrics.errorCount * 60; // Assume 60s per error
       pick.metrics.uptimePercentage = (successfulTime / totalTime) * 100;
 
       // Store updated data
       await this.storePickUpdate(pick, oddsData);
-
     } catch (error) {
       pick.metrics.errorCount++;
       this.logger.error('Failed to update pick', {
         error,
         pickId: pick.id,
-        propId: pick.propId
+        propId: pick.propId,
       });
     }
   }
@@ -313,13 +322,20 @@ class PickMonitoringService {
   /**
    * Check for alerts based on updated data
    */
-  private async checkForAlerts(pick: MonitoredPick, oddsData: any, oddsMovement: number): Promise<void> {
+  private async checkForAlerts(
+    pick: MonitoredPick,
+    oddsData: any,
+    oddsMovement: number
+  ): Promise<void> {
     const config = pick.monitoringConfig;
     const now = new Date();
 
     // Check alert cooldown
     const lastAlert = pick.alertHistory[pick.alertHistory.length - 1];
-    if (lastAlert && (now.getTime() - lastAlert.timestamp.getTime()) < (config.alertCooldown * 60 * 1000)) {
+    if (
+      lastAlert &&
+      now.getTime() - lastAlert.timestamp.getTime() < config.alertCooldown * 60 * 1000
+    ) {
       return; // Still in cooldown period
     }
 
@@ -332,8 +348,8 @@ class PickMonitoringService {
         data: {
           previousOdds: pick.currentOdds,
           newOdds: oddsData.odds,
-          movement: oddsMovement
-        }
+          movement: oddsMovement,
+        },
       });
     }
 
@@ -345,8 +361,8 @@ class PickMonitoringService {
         message: `Volume spike: $${oddsData.volume.toLocaleString()}`,
         data: {
           volume: oddsData.volume,
-          threshold: config.volumeThreshold
-        }
+          threshold: config.volumeThreshold,
+        },
       });
     }
 
@@ -358,8 +374,8 @@ class PickMonitoringService {
         message: `Steam detected: ${oddsData.steam_strength > 0 ? '+' : ''}${oddsData.steam_strength} BPS`,
         data: {
           steamStrength: oddsData.steam_strength,
-          direction: oddsData.steam_strength > 0 ? 'favorable' : 'unfavorable'
-        }
+          direction: oddsData.steam_strength > 0 ? 'favorable' : 'unfavorable',
+        },
       });
 
       pick.metrics.steamEvents++;
@@ -373,8 +389,8 @@ class PickMonitoringService {
         message: `Low market depth: $${oddsData.market_depth.toLocaleString()}`,
         data: {
           marketDepth: oddsData.market_depth,
-          threshold: config.marketDepthThreshold
-        }
+          threshold: config.marketDepthThreshold,
+        },
       });
     }
 
@@ -387,8 +403,8 @@ class PickMonitoringService {
         message: `CLV changed ${clvChange > 0 ? '+' : ''}${clvChange.toFixed(1)} BPS`,
         data: {
           clvChange,
-          newCLV: oddsData.clv || 0
-        }
+          newCLV: oddsData.clv || 0,
+        },
       });
     }
   }
@@ -396,12 +412,15 @@ class PickMonitoringService {
   /**
    * Generate an alert
    */
-  private async generateAlert(pick: MonitoredPick, alertData: {
-    type: Alert['type'];
-    severity: Alert['severity'];
-    message: string;
-    data: Record<string, any>;
-  }): Promise<void> {
+  private async generateAlert(
+    pick: MonitoredPick,
+    alertData: {
+      type: Alert['type'];
+      severity: Alert['severity'];
+      message: string;
+      data: Record<string, any>;
+    }
+  ): Promise<void> {
     const alert: Alert = {
       id: `${pick.id}_${Date.now()}`,
       pickId: pick.id,
@@ -412,7 +431,7 @@ class PickMonitoringService {
       data: alertData.data,
       acknowledged: false,
       actionRequired: alertData.severity === 'critical',
-      autoResolved: false
+      autoResolved: false,
     };
 
     pick.alertHistory.push(alert);
@@ -439,7 +458,7 @@ class PickMonitoringService {
       pickId: pick.id,
       alertType: alert.type,
       severity: alert.severity,
-      message: alert.message
+      message: alert.message,
     });
   }
 
@@ -450,7 +469,10 @@ class PickMonitoringService {
     if (pick.monitoringConfig.suspensionEnabled) {
       // Auto-suspend pick for critical market depth issues
       if (alert.type === 'market_depth') {
-        await this.suspendPick(pick.id, `Auto-suspended due to critical market depth: ${alert.message}`);
+        await this.suspendPick(
+          pick.id,
+          `Auto-suspended due to critical market depth: ${alert.message}`
+        );
       }
     }
 
@@ -459,7 +481,7 @@ class PickMonitoringService {
       // Would trigger immediate re-check through AutoRecheckService
       this.logger.info('Triggering immediate re-check for critical alert', {
         pickId: pick.id,
-        alertType: alert.type
+        alertType: alert.type,
       });
     }
   }
@@ -480,7 +502,7 @@ class PickMonitoringService {
           status: 'suspended',
           suspension_reason: reason,
           suspended_at: new Date().toISOString(),
-          suspended_by: 'PickMonitoringService'
+          suspended_by: 'PickMonitoringService',
         })
         .eq('id', pickId);
 
@@ -542,15 +564,13 @@ class PickMonitoringService {
 
   private async storePickUpdate(pick: MonitoredPick, oddsData: any): Promise<void> {
     try {
-      await supabaseClient
-        .from('pick_monitoring_updates')
-        .insert({
-          pick_id: pick.id,
-          current_odds: pick.currentOdds,
-          odds_data: oddsData,
-          metrics: pick.metrics,
-          timestamp: new Date().toISOString()
-        });
+      await supabaseClient.from('pick_monitoring_updates').insert({
+        pick_id: pick.id,
+        current_odds: pick.currentOdds,
+        odds_data: oddsData,
+        metrics: pick.metrics,
+        timestamp: new Date().toISOString(),
+      });
     } catch (error) {
       this.logger.error('Failed to store pick update', { error, pickId: pick.id });
     }
@@ -558,19 +578,17 @@ class PickMonitoringService {
 
   private async storeAlert(alert: Alert): Promise<void> {
     try {
-      await supabaseClient
-        .from('pick_alerts')
-        .insert({
-          id: alert.id,
-          pick_id: alert.pickId,
-          type: alert.type,
-          severity: alert.severity,
-          message: alert.message,
-          data: alert.data,
-          acknowledged: alert.acknowledged,
-          action_required: alert.actionRequired,
-          created_at: alert.timestamp.toISOString()
-        });
+      await supabaseClient.from('pick_alerts').insert({
+        id: alert.id,
+        pick_id: alert.pickId,
+        type: alert.type,
+        severity: alert.severity,
+        message: alert.message,
+        data: alert.data,
+        acknowledged: alert.acknowledged,
+        action_required: alert.actionRequired,
+        created_at: alert.timestamp.toISOString(),
+      });
     } catch (error) {
       this.logger.error('Failed to store alert', { error, alertId: alert.id });
     }
@@ -589,13 +607,16 @@ class PickMonitoringService {
     alertBreakdown: Record<string, number>;
   } {
     const picks = Array.from(this.monitoredPicks.values());
-    
-    const alertBreakdown = picks.reduce((acc, pick) => {
-      pick.alertHistory.forEach(alert => {
-        acc[alert.type] = (acc[alert.type] || 0) + 1;
-      });
-      return acc;
-    }, {} as Record<string, number>);
+
+    const alertBreakdown = picks.reduce(
+      (acc, pick) => {
+        pick.alertHistory.forEach(alert => {
+          acc[alert.type] = (acc[alert.type] || 0) + 1;
+        });
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
     return {
       totalPicks: picks.length,
@@ -603,8 +624,9 @@ class PickMonitoringService {
       suspendedPicks: picks.filter(p => p.status === 'suspended').length,
       totalUpdates: picks.reduce((sum, p) => sum + p.metrics.totalUpdates, 0),
       totalAlerts: picks.reduce((sum, p) => sum + p.metrics.alertsGenerated, 0),
-      avgUptimePercentage: picks.reduce((sum, p) => sum + p.metrics.uptimePercentage, 0) / picks.length,
-      alertBreakdown
+      avgUptimePercentage:
+        picks.reduce((sum, p) => sum + p.metrics.uptimePercentage, 0) / picks.length,
+      alertBreakdown,
     };
   }
 

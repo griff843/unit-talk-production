@@ -25,10 +25,7 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!pick_id) {
-      return NextResponse.json(
-        { success: false, error: 'pick_id is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: 'pick_id is required' }, { status: 400 });
     }
 
     if (!drift_mode) {
@@ -46,9 +43,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Determine which API endpoint to call based on retry_type
-    const endpoint = retry_type === 'settlement'
-      ? `${getApiBaseUrl()}/ops/retry-settlement`
-      : `${getApiBaseUrl()}/ops/retry-posting`;
+    const endpoint =
+      retry_type === 'settlement'
+        ? `${getApiBaseUrl()}/ops/retry-settlement`
+        : `${getApiBaseUrl()}/ops/retry-posting`;
 
     // Get operator from request headers or use default
     const operator = request.headers.get('x-user-id') || 'command-center-operator';
@@ -58,7 +56,7 @@ export async function POST(request: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer admin-command-center',
+        Authorization: 'Bearer admin-command-center',
         'X-E2E-Test': 'true', // Bypass auth for internal calls
       },
       body: JSON.stringify({
@@ -73,7 +71,6 @@ export async function POST(request: NextRequest) {
 
     // Return the API response as-is
     return NextResponse.json(result, { status: apiResponse.status });
-
   } catch (error) {
     console.error('Retry proxy error:', error);
 

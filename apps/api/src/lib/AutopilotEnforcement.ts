@@ -14,9 +14,11 @@
  * @module AutopilotEnforcement
  */
 
-import { createLogger } from '../utils/logger';
-import { supabase as supabaseClient } from '../services/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
+
+import { supabase as supabaseClient } from '../services/supabaseClient';
+import { createLogger } from '../utils/logger';
+
 import {
   AutopilotPolicyEngine,
   getAutopilotPolicyEngine,
@@ -197,15 +199,13 @@ async function collectSystemState(): Promise<SystemState> {
       action_freezes: Object.keys(overrides.action_freezes || {}).filter(
         k => overrides.action_freezes[k]
       ) as AutopilotActionType[],
-      active_cooldowns: (cooldownData || []).map((c: {
-        entity_id: string;
-        action_type: string;
-        expires_at: string;
-      }) => ({
-        entity_id: c.entity_id,
-        action_type: c.action_type as AutopilotActionType,
-        expires_at: c.expires_at,
-      })),
+      active_cooldowns: (cooldownData || []).map(
+        (c: { entity_id: string; action_type: string; expires_at: string }) => ({
+          entity_id: c.entity_id,
+          action_type: c.action_type as AutopilotActionType,
+          expires_at: c.expires_at,
+        })
+      ),
       current_mode: (configData?.default_mode || 'SHADOW') as AutopilotMode,
       canary_percentage: configData?.canary_percentage || 10,
     };
@@ -409,10 +409,7 @@ export async function getAutopilotMode(): Promise<AutopilotMode> {
 /**
  * Set the autopilot mode (operator action)
  */
-export async function setAutopilotMode(
-  mode: AutopilotMode,
-  operatorId: string
-): Promise<boolean> {
+export async function setAutopilotMode(mode: AutopilotMode, operatorId: string): Promise<boolean> {
   const policyEngine = getAutopilotPolicyEngine();
   const success = await policyEngine.setMode(mode, operatorId);
 
@@ -426,10 +423,7 @@ export async function setAutopilotMode(
 /**
  * Set global freeze (operator action)
  */
-export async function setGlobalFreeze(
-  freeze: boolean,
-  operatorId: string
-): Promise<boolean> {
+export async function setGlobalFreeze(freeze: boolean, operatorId: string): Promise<boolean> {
   const policyEngine = getAutopilotPolicyEngine();
   const success = await policyEngine.setGlobalFreeze(freeze, operatorId);
 
@@ -547,17 +541,16 @@ export function AutopilotEnforced(actionType: AutopilotActionType) {
     descriptor.value = async function (...args: unknown[]) {
       // Extract context from first arg if it's an object with agent_id
       const firstArg = args[0];
-      const context: PolicyContext = (firstArg && typeof firstArg === 'object' && 'agent_id' in firstArg)
-        ? firstArg as PolicyContext
-        : {
-            agent_id: (this as { name?: string }).name || 'unknown',
-            agent_name: (this as { name?: string }).name || 'unknown',
-          };
+      const context: PolicyContext =
+        firstArg && typeof firstArg === 'object' && 'agent_id' in firstArg
+          ? (firstArg as PolicyContext)
+          : {
+              agent_id: (this as { name?: string }).name || 'unknown',
+              agent_name: (this as { name?: string }).name || 'unknown',
+            };
 
-      const result = await enforcePolicy(
-        actionType,
-        context,
-        () => originalMethod.apply(this, args)
+      const result = await enforcePolicy(actionType, context, () =>
+        originalMethod.apply(this, args)
       );
 
       if (!result.executed) {

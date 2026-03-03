@@ -20,20 +20,20 @@ export function normalizeRawProp(prop: RawProp): RawProp {
     sport_key: normalizeString(prop.sport_key),
     provider: normalizeString(prop.provider),
     source: normalizeString(prop.source),
-    
+
     // Normalize numeric fields
     line: normalizeNumber(prop.line),
     over_odds: normalizeOdds(prop.over_odds),
     under_odds: normalizeOdds(prop.under_odds),
     odds: normalizeOdds(prop.odds),
-    
+
     // Normalize dates
     game_time: normalizeDate(prop.game_time),
     game_date: normalizeGameDate(prop.game_date || prop.game_time),
     scraped_at: new Date().toISOString(),
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    
+
     // Normalize boolean fields
     is_valid: prop.is_valid ?? true,
     is_primary: prop.is_primary ?? false,
@@ -81,7 +81,7 @@ export function normalizeRawPropDetailed(prop: RawProp): NormalizationResult {
   return {
     normalized,
     changes,
-    warnings
+    warnings,
   };
 }
 
@@ -101,11 +101,13 @@ function normalizeString(value: string | null | undefined): string | null {
  */
 function normalizeTeam(team: string | null | undefined): string | null {
   const normalized = normalizeString(team);
-  if (!normalized) {return null;}
-  
+  if (!normalized) {
+    return null;
+  }
+
   // Convert to uppercase and handle common variations
   const upper = normalized.toUpperCase();
-  
+
   // Team name mappings for consistency
   const teamMappings: Record<string, string> = {
     'LA LAKERS': 'LAL',
@@ -126,22 +128,24 @@ function normalizeTeam(team: string | null | undefined): string | null {
  */
 function normalizeStatType(statType: string | null | undefined): string | null {
   const normalized = normalizeString(statType);
-  if (!normalized) {return null;}
-  
+  if (!normalized) {
+    return null;
+  }
+
   const upper = normalized.toUpperCase();
-  
+
   // Stat type mappings for consistency
   const statMappings: Record<string, string> = {
-    'POINTS': 'PTS',
-    'ASSISTS': 'AST',
-    'REBOUNDS': 'REB',
-    'THREE_POINTERS_MADE': '3PM',
+    POINTS: 'PTS',
+    ASSISTS: 'AST',
+    REBOUNDS: 'REB',
+    THREE_POINTERS_MADE: '3PM',
     'THREE POINTERS MADE': '3PM',
-    'THREES_MADE': '3PM',
-    'STEALS': 'STL',
-    'BLOCKS': 'BLK',
-    'TURNOVERS': 'TO',
-    'FIELD_GOALS_MADE': 'FGM',
+    THREES_MADE: '3PM',
+    STEALS: 'STL',
+    BLOCKS: 'BLK',
+    TURNOVERS: 'TO',
+    FIELD_GOALS_MADE: 'FGM',
     'FIELD GOALS MADE': 'FGM',
     // Add more mappings as needed
   };
@@ -154,8 +158,10 @@ function normalizeStatType(statType: string | null | undefined): string | null {
  */
 function normalizeSlug(name: string | null | undefined): string | null {
   const normalized = normalizeString(name);
-  if (!normalized) {return null;}
-  
+  if (!normalized) {
+    return null;
+  }
+
   return normalized
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
@@ -169,8 +175,10 @@ function normalizeSlug(name: string | null | undefined): string | null {
  */
 function normalizeMatchup(matchup: string | null | undefined): string | null {
   const normalized = normalizeString(matchup);
-  if (!normalized) {return null;}
-  
+  if (!normalized) {
+    return null;
+  }
+
   // Standardize matchup format (TEAM1 vs TEAM2 or TEAM1 @ TEAM2)
   return normalized
     .replace(/\s+vs?\s+/gi, ' vs ')
@@ -182,8 +190,10 @@ function normalizeMatchup(matchup: string | null | undefined): string | null {
  * Normalize numeric values
  */
 function normalizeNumber(value: number | string | null | undefined): number | null {
-  if (value === null || value === undefined) {return null;}
-  
+  if (value === null || value === undefined) {
+    return null;
+  }
+
   const num = typeof value === 'string' ? parseFloat(value) : value;
   return isNaN(num) ? null : num;
 }
@@ -193,15 +203,17 @@ function normalizeNumber(value: number | string | null | undefined): number | nu
  */
 function normalizeOdds(odds: number | string | null | undefined): number | null {
   const normalized = normalizeNumber(odds);
-  if (normalized === null) {return null;}
-  
+  if (normalized === null) {
+    return null;
+  }
+
   // Ensure odds are in American format (negative for favorites)
   // If odds are positive and less than 100, they might be decimal odds
   if (normalized > 0 && normalized < 100) {
     // Convert decimal odds to American odds
     return Math.round((normalized - 1) * 100);
   }
-  
+
   return Math.round(normalized);
 }
 
@@ -209,11 +221,15 @@ function normalizeOdds(odds: number | string | null | undefined): number | null 
  * Normalize date strings
  */
 function normalizeDate(date: string | Date | null | undefined): string | null {
-  if (!date) {return null;}
-  
+  if (!date) {
+    return null;
+  }
+
   try {
     const dateObj = new Date(date);
-    if (isNaN(dateObj.getTime())) {return null;}
+    if (isNaN(dateObj.getTime())) {
+      return null;
+    }
     return dateObj.toISOString();
   } catch {
     return null;
@@ -224,11 +240,15 @@ function normalizeDate(date: string | Date | null | undefined): string | null {
  * Normalize game date (date only, no time)
  */
 function normalizeGameDate(date: string | Date | null | undefined): string | null {
-  if (!date) {return null;}
-  
+  if (!date) {
+    return null;
+  }
+
   try {
     const dateObj = new Date(date);
-    if (isNaN(dateObj.getTime())) {return null;}
+    if (isNaN(dateObj.getTime())) {
+      return null;
+    }
     const datePart = dateObj.toISOString().split('T')[0];
     return datePart || null; // Return YYYY-MM-DD format
   } catch {

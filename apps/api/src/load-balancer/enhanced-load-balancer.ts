@@ -13,11 +13,14 @@ export class MLPredictionLoadBalancer {
     this.requestCounts = new Map();
   }
 
-  async routeRequest<T>(request: any, handler: (instance: ServerInstance, request: any) => Promise<T>): Promise<T> {
+  async routeRequest<T>(
+    request: any,
+    handler: (instance: ServerInstance, request: any) => Promise<T>
+  ): Promise<T> {
     try {
       // Get available instances
-      const availableInstances = this.instances.filter(instance =>
-        instance.status === 'active' && this.healthChecks.get(instance.id)
+      const availableInstances = this.instances.filter(
+        instance => instance.status === 'active' && this.healthChecks.get(instance.id)
       );
 
       if (availableInstances.length === 0) {
@@ -102,7 +105,11 @@ export class MLPredictionLoadBalancer {
     throw error;
   }
 
-  private async updateMetrics(_instance: ServerInstance, _request: any, _result: any): Promise<void> {
+  private async updateMetrics(
+    _instance: ServerInstance,
+    _request: any,
+    _result: any
+  ): Promise<void> {
     // Implementation would update metrics
   }
-} 
+}

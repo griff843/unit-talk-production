@@ -11,6 +11,7 @@
  */
 
 import { EmbedBuilder } from 'discord.js';
+
 import { IncidentRecord } from './OpsIncidentRouter';
 
 // ============================================================================
@@ -58,12 +59,12 @@ export interface OpsDigestData {
 // ============================================================================
 
 const COLORS = {
-  CRITICAL: 0xFF0000,     // Red
-  WARNING: 0xFFA500,      // Orange
-  RESOLVED: 0x00FF00,     // Green
-  ACKNOWLEDGED: 0xFFFF00, // Yellow
-  INFO: 0x0099FF,         // Blue
-  DIGEST: 0x7B68EE,       // Medium Slate Blue
+  CRITICAL: 0xff0000, // Red
+  WARNING: 0xffa500, // Orange
+  RESOLVED: 0x00ff00, // Green
+  ACKNOWLEDGED: 0xffff00, // Yellow
+  INFO: 0x0099ff, // Blue
+  DIGEST: 0x7b68ee, // Medium Slate Blue
 };
 
 const SEVERITY_EMOJIS = {
@@ -169,7 +170,8 @@ export function buildIncidentEmbed(
 
   // Duration field if resolved
   if (incident.resolved_at && incident.opened_at) {
-    const durationMs = new Date(incident.resolved_at).getTime() - new Date(incident.opened_at).getTime();
+    const durationMs =
+      new Date(incident.resolved_at).getTime() - new Date(incident.opened_at).getTime();
     const durationMinutes = Math.round(durationMs / 60000);
     embed.addFields({
       name: '⏲️ Resolution Time',
@@ -397,9 +399,7 @@ export function buildEscalationContent(
 /**
  * Build message content for digest
  */
-export function buildDigestContent(
-  digest: OpsDigestData
-): string {
+export function buildDigestContent(digest: OpsDigestData): string {
   const criticalCount = digest.incidentCounts.critical;
   if (criticalCount > 0) {
     return `📊 Weekly Ops Digest - **${criticalCount} critical incidents** this week\n`;

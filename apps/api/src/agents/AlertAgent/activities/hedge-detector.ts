@@ -8,9 +8,10 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
+
+import { withCircuitBreaker } from '../../../services/enhanced-circuit-breaker';
 import { Logger } from '../../../shared/logger/types';
 import { requireSupabase } from '../../../utils/supabaseUtils';
-import { withCircuitBreaker } from '../../../services/enhanced-circuit-breaker';
 
 export interface HedgeOpportunity {
   type: 'hedge' | 'arbitrage' | 'middle';
@@ -110,12 +111,7 @@ export async function detectHedgeOpportunities(
 
     // Analyze each matching prop for hedge opportunities
     for (const matchingProp of matchingProps) {
-      const opportunity = analyzeHedgeOpportunity(
-        newProp,
-        matchingProp,
-        detectionConfig,
-        logger
-      );
+      const opportunity = analyzeHedgeOpportunity(newProp, matchingProp, detectionConfig, logger);
 
       if (opportunity) {
         opportunities.push(opportunity);
@@ -264,11 +260,7 @@ function analyzeHedgeOpportunity(
     }
 
     // Determine alert priority
-    const alertPriority = determineHedgePriority(
-      opportunityType,
-      lineDiscrepancy,
-      profitPotential
-    );
+    const alertPriority = determineHedgePriority(opportunityType, lineDiscrepancy, profitPotential);
 
     const opportunity: HedgeOpportunity = {
       type: opportunityType,

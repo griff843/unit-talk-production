@@ -9,7 +9,7 @@ export const AuditIncidentSchema = z.object({
   description: z.string(),
   timestamp: z.date(),
   detectedAt: z.string().optional(),
-  type: z.string().optional()
+  type: z.string().optional(),
 });
 
 export type AuditIncident = z.infer<typeof AuditIncidentSchema>;

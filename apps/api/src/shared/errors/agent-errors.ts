@@ -35,7 +35,7 @@ export class AgentError extends Error {
       operation: this.operation,
       details: this.details,
       timestamp: this.timestamp,
-      severity: this.severity
+      severity: this.severity,
     };
   }
 }
@@ -48,7 +48,7 @@ export class AgentValidationError extends AgentError {
     if (data.zodError) {
       this.details = {
         ...this.details,
-        zodErrors: data.zodError.errors
+        zodErrors: data.zodError.errors,
       };
     }
   }
@@ -64,13 +64,16 @@ export class ProcessingError extends AgentError {
 
 // Network error
 export class NetworkError extends AgentError {
-  constructor(message: string, data: BaseAgentErrorData & { statusCode?: number; endpoint?: string }) {
+  constructor(
+    message: string,
+    data: BaseAgentErrorData & { statusCode?: number; endpoint?: string }
+  ) {
     super(message, data);
     this.name = 'NetworkError';
     this.details = {
       ...this.details,
       statusCode: data.statusCode,
-      endpoint: data.endpoint
+      endpoint: data.endpoint,
     };
   }
 }
@@ -83,20 +86,23 @@ export class DatabaseError extends AgentError {
     this.details = {
       ...this.details,
       table: data.table,
-      operation: data.operation
+      operation: data.operation,
     };
   }
 }
 
 // Temporal workflow error
 export class WorkflowError extends AgentError {
-  constructor(message: string, data: BaseAgentErrorData & { workflowId?: string; activityName?: string }) {
+  constructor(
+    message: string,
+    data: BaseAgentErrorData & { workflowId?: string; activityName?: string }
+  ) {
     super(message, data);
     this.name = 'WorkflowError';
     this.details = {
       ...this.details,
       workflowId: data.workflowId,
-      activityName: data.activityName
+      activityName: data.activityName,
     };
   }
 }
@@ -108,7 +114,7 @@ export class ConfigurationError extends AgentError {
     this.name = 'ConfigurationError';
     this.details = {
       ...this.details,
-      configKey: data.configKey
+      configKey: data.configKey,
     };
   }
 }
@@ -121,7 +127,7 @@ export class RateLimitError extends AgentError {
     this.details = {
       ...this.details,
       limit: data.limit,
-      resetTime: data.resetTime
+      resetTime: data.resetTime,
     };
   }
 }
@@ -134,31 +140,50 @@ export class ExternalServiceError extends AgentError {
     this.details = {
       ...this.details,
       service: data.service,
-      endpoint: data.endpoint
+      endpoint: data.endpoint,
     };
   }
 }
 
 // Error factory
-export const createAgentError = (type: string, message: string, data: BaseAgentErrorData): AgentError => {
+export const createAgentError = (
+  type: string,
+  message: string,
+  data: BaseAgentErrorData
+): AgentError => {
   switch (type) {
     case 'validation':
       return new AgentValidationError(message, data);
     case 'processing':
       return new ProcessingError(message, data);
     case 'network':
-      return new NetworkError(message, data as BaseAgentErrorData & { statusCode?: number; endpoint?: string });
+      return new NetworkError(
+        message,
+        data as BaseAgentErrorData & { statusCode?: number; endpoint?: string }
+      );
     case 'database':
-      return new DatabaseError(message, data as BaseAgentErrorData & { table?: string; operation?: string });
+      return new DatabaseError(
+        message,
+        data as BaseAgentErrorData & { table?: string; operation?: string }
+      );
     case 'workflow':
-      return new WorkflowError(message, data as BaseAgentErrorData & { workflowId?: string; activityName?: string });
+      return new WorkflowError(
+        message,
+        data as BaseAgentErrorData & { workflowId?: string; activityName?: string }
+      );
     case 'configuration':
       return new ConfigurationError(message, data as BaseAgentErrorData & { configKey?: string });
     case 'rateLimit':
-      return new RateLimitError(message, data as BaseAgentErrorData & { limit?: number; resetTime?: string });
+      return new RateLimitError(
+        message,
+        data as BaseAgentErrorData & { limit?: number; resetTime?: string }
+      );
     case 'externalService':
-      return new ExternalServiceError(message, data as BaseAgentErrorData & { service?: string; endpoint?: string });
+      return new ExternalServiceError(
+        message,
+        data as BaseAgentErrorData & { service?: string; endpoint?: string }
+      );
     default:
       return new AgentError(message, data);
   }
-}; 
+};

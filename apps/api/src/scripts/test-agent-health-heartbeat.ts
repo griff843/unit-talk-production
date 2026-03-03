@@ -61,7 +61,9 @@ async function main() {
     console.log(`   ERROR: ${countErr.message}`);
   } else {
     console.log(`   Total rows for smoke-test-agent: ${count}`);
-    console.log(`   ${count === 1 ? 'SUCCESS - Single row per agent' : 'FAILED - Multiple rows detected'}\n`);
+    console.log(
+      `   ${count === 1 ? 'SUCCESS - Single row per agent' : 'FAILED - Multiple rows detected'}\n`
+    );
   }
 
   // Cleanup

@@ -1,11 +1,11 @@
 import { EnhancedMonitoringSystem } from '../monitoring/enhanced-monitoring';
 import { logger } from '../shared/logger';
-import { 
+import {
   PortfolioConfig,
   PortfolioPosition,
   OptimizationResult,
   RiskMetrics,
-  PortfolioStrategy
+  PortfolioStrategy,
 } from '../types/portfolio';
 
 export class EnhancedPortfolioOptimizer {
@@ -80,19 +80,19 @@ export class EnhancedPortfolioOptimizer {
   public async optimizePortfolio(): Promise<OptimizationResult> {
     try {
       const currentMetrics = await this.calculatePortfolioMetrics();
-      
+
       // Apply optimization strategies
       const optimization = await this.applyOptimizationStrategy(currentMetrics);
-      
+
       // Update positions based on optimization
       await this.updatePositions(optimization);
-      
+
       // Store optimization result
       this.optimizationHistory.push(optimization);
-      
+
       // Report metrics
       await this.reportOptimizationMetrics(optimization);
-      
+
       this.logger.info('Portfolio optimization completed', optimization);
       return optimization;
     } catch (error) {
@@ -104,17 +104,21 @@ export class EnhancedPortfolioOptimizer {
   private async calculatePortfolioMetrics(): Promise<RiskMetrics> {
     const totalValue = this.positions.reduce((sum, pos) => sum + pos.value, 0);
     const totalRisk = this.positions.reduce((sum, pos) => sum + pos.risk, 0);
-    
+
     // Calculate weighted metrics
-    const weightedReturn = this.positions.reduce((sum, pos) => 
-      sum + (pos.expectedReturn * pos.value / totalValue), 0);
-    
-    const weightedRisk = this.positions.reduce((sum, pos) => 
-      sum + (pos.risk * pos.value / totalValue), 0);
+    const weightedReturn = this.positions.reduce(
+      (sum, pos) => sum + (pos.expectedReturn * pos.value) / totalValue,
+      0
+    );
+
+    const weightedRisk = this.positions.reduce(
+      (sum, pos) => sum + (pos.risk * pos.value) / totalValue,
+      0
+    );
 
     // Calculate diversification metrics
     const diversification = this.calculateDiversification();
-    
+
     // Calculate correlation matrix
     const correlations = this.calculateCorrelations();
 
@@ -128,98 +132,100 @@ export class EnhancedPortfolioOptimizer {
       correlations,
       positionCount: this.positions.length,
       sectorExposure: this.calculateSectorExposure(),
-      sportExposure: this.calculateSportExposure()
+      sportExposure: this.calculateSportExposure(),
     };
   }
 
   private calculateDiversification(): number {
-    if (this.positions.length === 0) {return 0;}
-    
+    if (this.positions.length === 0) {
+      return 0;
+    }
+
     // Calculate Herfindahl-Hirschman Index (HHI)
     const totalValue = this.positions.reduce((sum, pos) => sum + pos.value, 0);
     const hhi = this.positions.reduce((sum, pos) => {
       const share = pos.value / totalValue;
-      return sum + (share * share);
+      return sum + share * share;
     }, 0);
-    
+
     // Convert to diversification professional_score (1 = fully diversified, 0 = concentrated)
     return 1 - hhi;
   }
 
   private calculateCorrelations(): Map<string, Map<string, number>> {
     const correlations = new Map<string, Map<string, number>>();
-    
+
     // Calculate pairwise correlations between positions
     for (let i = 0; i < this.positions.length; i++) {
       const pos1 = this.positions[i];
       correlations.set(pos1.id, new Map());
-      
+
       for (let j = 0; j < this.positions.length; j++) {
         const pos2 = this.positions[j];
         const correlation = this.calculatePositionCorrelation(pos1, pos2);
         correlations.get(pos1.id)!.set(pos2.id, correlation);
       }
     }
-    
+
     return correlations;
   }
 
   private calculatePositionCorrelation(pos1: PortfolioPosition, pos2: PortfolioPosition): number {
     // Calculate correlation based on sport, market, and other factors
     let correlation = 0;
-    
+
     // Same sport correlation
     if (pos1.sport === pos2.sport) {
       correlation += 0.3;
     }
-    
+
     // Same market correlation
     if (pos1.market === pos2.market) {
       correlation += 0.2;
     }
-    
+
     // Same team correlation
     if (pos1.team === pos2.team) {
       correlation += 0.4;
     }
-    
+
     // Same player correlation
     if (pos1.player === pos2.player) {
       correlation += 0.5;
     }
-    
+
     return Math.min(correlation, 1.0);
   }
 
   private calculateSectorExposure(): Map<string, number> {
     const exposure = new Map<string, number>();
     const totalValue = this.positions.reduce((sum, pos) => sum + pos.value, 0);
-    
+
     this.positions.forEach(pos => {
       const sector = pos.sector;
       const current = exposure.get(sector) || 0;
       exposure.set(sector, current + pos.value / totalValue);
     });
-    
+
     return exposure;
   }
 
   private calculateSportExposure(): Map<string, number> {
     const exposure = new Map<string, number>();
     const totalValue = this.positions.reduce((sum, pos) => sum + pos.value, 0);
-    
+
     this.positions.forEach(pos => {
       const sport = pos.sport;
       const current = exposure.get(sport) || 0;
       exposure.set(sport, current + pos.value / totalValue);
     });
-    
+
     return exposure;
   }
 
   private async applyOptimizationStrategy(metrics: RiskMetrics): Promise<OptimizationResult> {
     const strategy = this.determineOptimizationStrategy(metrics);
-    
+
     switch (strategy) {
       case 'risk_parity':
         return this.applyRiskParityOptimization(metrics);
@@ -250,14 +256,14 @@ export class EnhancedPortfolioOptimizer {
   private async applyRiskParityOptimization(metrics: RiskMetrics): Promise<OptimizationResult> {
     // Risk parity optimization - equal risk contribution from each position
     const targetRiskPerPosition = metrics.totalRisk / this.positions.length;
-    
+
     const adjustments = this.positions.map(pos => {
       const currentRisk = pos.risk;
       const adjustment = targetRiskPerPosition / currentRisk;
       return {
         positionId: pos.id,
         newSize: pos.size * adjustment,
-        adjustment: adjustment
+        adjustment: adjustment,
       };
     });
 
@@ -267,7 +273,7 @@ export class EnhancedPortfolioOptimizer {
       expectedReturn: metrics.weightedReturn,
       expectedRisk: metrics.totalRisk,
       confidence: 0.85,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
   }
 
@@ -275,15 +281,15 @@ export class EnhancedPortfolioOptimizer {
     // Mean-variance optimization - maximize Sharpe ratio
     const adjustments = this.positions.map(pos => {
       const sharpeRatio = pos.expectedReturn / pos.risk;
-      const optimalSize = Math.max(0, Math.min(
-        pos.size * (sharpeRatio / metrics.sharpeRatio),
-        this.config.maxPositionSize
-      ));
-      
+      const optimalSize = Math.max(
+        0,
+        Math.min(pos.size * (sharpeRatio / metrics.sharpeRatio), this.config.maxPositionSize)
+      );
+
       return {
         positionId: pos.id,
         newSize: optimalSize,
-        adjustment: optimalSize / pos.size
+        adjustment: optimalSize / pos.size,
       };
     });
 
@@ -292,8 +298,8 @@ export class EnhancedPortfolioOptimizer {
       adjustments,
       expectedReturn: metrics.weightedReturn * 1.1, // 10% improvement
       expectedRisk: metrics.totalRisk * 0.95, // 5% risk reduction
-      confidence: 0.80,
-      timestamp: Date.now()
+      confidence: 0.8,
+      timestamp: Date.now(),
     };
   }
 
@@ -303,15 +309,18 @@ export class EnhancedPortfolioOptimizer {
       const winProbability = pos.confidence;
       const odds = pos.odds;
       const kellyFraction = (winProbability * odds - (1 - winProbability)) / odds;
-      const optimalSize = Math.max(0, Math.min(
-        pos.size * kellyFraction * 0.5, // Half Kelly for safety
-        this.config.maxPositionSize
-      ));
-      
+      const optimalSize = Math.max(
+        0,
+        Math.min(
+          pos.size * kellyFraction * 0.5, // Half Kelly for safety
+          this.config.maxPositionSize
+        )
+      );
+
       return {
         positionId: pos.id,
         newSize: optimalSize,
-        adjustment: optimalSize / pos.size
+        adjustment: optimalSize / pos.size,
       };
     });
 
@@ -319,9 +328,9 @@ export class EnhancedPortfolioOptimizer {
       strategy: 'kelly_criterion',
       adjustments,
       expectedReturn: metrics.weightedReturn * 1.15, // 15% improvement
-      expectedRisk: metrics.totalRisk * 0.90, // 10% risk reduction
-      confidence: 0.90,
-      timestamp: Date.now()
+      expectedRisk: metrics.totalRisk * 0.9, // 10% risk reduction
+      confidence: 0.9,
+      timestamp: Date.now(),
     };
   }
 
@@ -332,13 +341,13 @@ export class EnhancedPortfolioOptimizer {
       const marketView = this.getMarketView(pos);
       const confidence = pos.confidence;
       const combinedView = (marketView + confidence) / 2;
-      
+
       const optimalSize = pos.size * (combinedView / 0.5); // Normalize to 50% baseline
-      
+
       return {
         positionId: pos.id,
         newSize: Math.max(0, Math.min(optimalSize, this.config.maxPositionSize)),
-        adjustment: optimalSize / pos.size
+        adjustment: optimalSize / pos.size,
       };
     });
 
@@ -348,7 +357,7 @@ export class EnhancedPortfolioOptimizer {
       expectedReturn: metrics.weightedReturn * 1.08, // 8% improvement
       expectedRisk: metrics.totalRisk * 0.92, // 8% risk reduction
       confidence: 0.75,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
   }
 
@@ -359,7 +368,7 @@ export class EnhancedPortfolioOptimizer {
       return {
         positionId: pos.id,
         newSize: pos.size,
-        adjustment
+        adjustment,
       };
     });
 
@@ -369,26 +378,38 @@ export class EnhancedPortfolioOptimizer {
       expectedReturn: metrics.weightedReturn,
       expectedRisk: metrics.totalRisk,
       confidence: 0.95,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
   }
 
   private getMarketView(position: PortfolioPosition): number {
     // Get market view based on various factors
     let view = 0.5; // Neutral baseline
-    
+
     // Market sentiment
-    if (position.marketSentiment === 'bullish') {view += 0.1;}
-    if (position.marketSentiment === 'bearish') {view -= 0.1;}
-    
+    if (position.marketSentiment === 'bullish') {
+      view += 0.1;
+    }
+    if (position.marketSentiment === 'bearish') {
+      view -= 0.1;
+    }
+
     // Line movement
-    if (position.lineMovement && position.lineMovement > 0) {view += 0.05;}
-    if (position.lineMovement && position.lineMovement < 0) {view -= 0.05;}
-    
+    if (position.lineMovement && position.lineMovement > 0) {
+      view += 0.05;
+    }
+    if (position.lineMovement && position.lineMovement < 0) {
+      view -= 0.05;
+    }
+
     // Volume analysis
-    if (position.volumeAnalysis && position.volumeAnalysis > 1.5) {view += 0.05;}
-    if (position.volumeAnalysis && position.volumeAnalysis < 0.5) {view -= 0.05;}
-    
+    if (position.volumeAnalysis && position.volumeAnalysis > 1.5) {
+      view += 0.05;
+    }
+    if (position.volumeAnalysis && position.volumeAnalysis < 0.5) {
+      view -= 0.05;
+    }
+
     return Math.max(0, Math.min(1, view));
   }
 
@@ -406,14 +427,14 @@ export class EnhancedPortfolioOptimizer {
   private async rebalancePortfolio(): Promise<void> {
     try {
       this.logger.info('Starting portfolio rebalancing');
-      
+
       const optimization = await this.optimizePortfolio();
-      
+
       // Check if rebalancing is needed
-      const needsRebalancing = optimization.adjustments.some(adj => 
-        Math.abs(adj.adjustment - 1.0) > this.config.rebalancingThreshold
+      const needsRebalancing = optimization.adjustments.some(
+        adj => Math.abs(adj.adjustment - 1.0) > this.config.rebalancingThreshold
       );
-      
+
       if (needsRebalancing) {
         await this.executeRebalancing(optimization);
         this.logger.info('Portfolio rebalancing completed');
@@ -439,17 +460,17 @@ export class EnhancedPortfolioOptimizer {
   private async executeTrade(position: PortfolioPosition, targetSize: number): Promise<void> {
     // Execute trade to adjust position size
     const sizeDifference = targetSize - position.size;
-    
+
     if (Math.abs(sizeDifference) > this.config.minTradeSize) {
       // Execute the trade
       position.size = targetSize;
       position.value = position.size * position.price;
       position.lastTrade = Date.now();
-      
+
       this.logger.info('Trade executed', {
         positionId: position.id,
         sizeDifference,
-        newSize: targetSize
+        newSize: targetSize,
       });
     }
   }
@@ -457,25 +478,25 @@ export class EnhancedPortfolioOptimizer {
   private async monitorPortfolioPerformance(): Promise<void> {
     try {
       const metrics = await this.calculatePortfolioMetrics();
-      
+
       // Report metrics to monitoring system
       await this.monitoring.monitorMetric('portfolio_total_value', metrics.totalValue);
       await this.monitoring.monitorMetric('portfolio_total_risk', metrics.totalRisk);
       await this.monitoring.monitorMetric('portfolio_sharpe_ratio', metrics.sharpeRatio);
       await this.monitoring.monitorMetric('portfolio_diversification', metrics.diversification);
-      
+
       // Check for alerts
       if (metrics.totalRisk > this.config.maxRiskThreshold) {
         await this.monitoring.triggerAlert('portfolio_risk_high', {
           currentRisk: metrics.totalRisk,
-          threshold: this.config.maxRiskThreshold
+          threshold: this.config.maxRiskThreshold,
         });
       }
-      
+
       if (metrics.sharpeRatio < this.config.minSharpeRatio) {
         await this.monitoring.triggerAlert('portfolio_performance_low', {
           currentSharpe: metrics.sharpeRatio,
-          threshold: this.config.minSharpeRatio
+          threshold: this.config.minSharpeRatio,
         });
       }
     } catch (error) {
@@ -494,40 +515,42 @@ export class EnhancedPortfolioOptimizer {
     if (!position.id || !position.sport || !position.market) {
       throw new Error('Invalid position: missing required fields');
     }
-    
+
     if (position.size <= 0 || position.value <= 0) {
       throw new Error('Invalid position: size and value must be positive');
     }
-    
+
     if (position.confidence < 0 || position.confidence > 1) {
       throw new Error('Invalid position: confidence must be between 0 and 1');
     }
   }
 
-  private async checkPortfolioConstraints(position: PortfolioPosition): Promise<{ valid: boolean; reason?: string }> {
+  private async checkPortfolioConstraints(
+    position: PortfolioPosition
+  ): Promise<{ valid: boolean; reason?: string }> {
     // Check position size limits
     if (position.size > this.config.maxPositionSize) {
       return { valid: false, reason: 'Position size exceeds maximum' };
     }
-    
+
     // Check sector concentration
     const sectorExposure = this.calculateSectorExposure();
     const currentSectorExposure = sectorExposure.get(position.sector) || 0;
-    const newSectorExposure = currentSectorExposure + (position.value / this.getTotalValue());
-    
+    const newSectorExposure = currentSectorExposure + position.value / this.getTotalValue();
+
     if (newSectorExposure > this.config.maxSectorExposure) {
       return { valid: false, reason: 'Sector exposure exceeds maximum' };
     }
-    
+
     // Check sport concentration
     const sportExposure = this.calculateSportExposure();
     const currentSportExposure = sportExposure.get(position.sport) || 0;
-    const newSportExposure = currentSportExposure + (position.value / this.getTotalValue());
-    
+    const newSportExposure = currentSportExposure + position.value / this.getTotalValue();
+
     if (newSportExposure > this.config.maxSportExposure) {
       return { valid: false, reason: 'Sport exposure exceeds maximum' };
     }
-    
+
     return { valid: true };
   }
 
@@ -538,7 +561,7 @@ export class EnhancedPortfolioOptimizer {
   public async getPortfolioSummary(): Promise<any> {
     const metrics = await this.calculatePortfolioMetrics();
     const optimization = this.optimizationHistory[this.optimizationHistory.length - 1];
-    
+
     return {
       positions: this.positions.length,
       totalValue: metrics.totalValue,
@@ -547,7 +570,7 @@ export class EnhancedPortfolioOptimizer {
       diversification: metrics.diversification,
       lastOptimization: optimization,
       sectorExposure: metrics.sectorExposure,
-      sportExposure: metrics.sportExposure
+      sportExposure: metrics.sportExposure,
     };
   }
-} 
+}

@@ -1,4 +1,3 @@
-
 #!/usr/bin/env tsx
 
 /**
@@ -74,8 +73,10 @@ class ProductionSecurityAuditor {
 
     // Check if API keys are properly configured
     const apiKeys = [
-      'OPENAI_API_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 
-      'DISCORD_TOKEN', 'NOTION_API_KEY'
+      'OPENAI_API_KEY',
+      'SUPABASE_SERVICE_ROLE_KEY',
+      'DISCORD_TOKEN',
+      'NOTION_API_KEY',
     ];
 
     let validKeys = 0;
@@ -104,7 +105,7 @@ class ProductionSecurityAuditor {
       passed,
       status: passed ? 'SECURE' : 'NEEDS ATTENTION',
       issues,
-      recommendations
+      recommendations,
     };
   }
 
@@ -115,10 +116,10 @@ class ProductionSecurityAuditor {
     // Check .env file security
     const envExists = existsSync('.env');
     const gitignoreExists = existsSync('.gitignore');
-    
+
     if (envExists) {
       console.log('   ✅ .env file exists');
-      
+
       if (gitignoreExists) {
         const gitignore = readFileSync('.gitignore', 'utf8');
         if (gitignore.includes('.env')) {
@@ -152,7 +153,7 @@ class ProductionSecurityAuditor {
       passed,
       status: passed ? 'SECURE' : 'NEEDS IMPROVEMENT',
       issues,
-      recommendations
+      recommendations,
     };
   }
 
@@ -185,7 +186,7 @@ class ProductionSecurityAuditor {
       passed,
       status: passed ? 'PROTECTED' : 'VULNERABLE',
       issues,
-      recommendations
+      recommendations,
     };
   }
 
@@ -218,7 +219,7 @@ class ProductionSecurityAuditor {
       passed,
       status: passed ? 'SECURE' : 'NEEDS HARDENING',
       issues,
-      recommendations
+      recommendations,
     };
   }
 
@@ -251,7 +252,7 @@ class ProductionSecurityAuditor {
       passed,
       status: passed ? 'CONTROLLED' : 'NEEDS IMPLEMENTATION',
       issues,
-      recommendations
+      recommendations,
     };
   }
 

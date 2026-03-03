@@ -1,9 +1,9 @@
 /**
  * Cache Client
- * 
+ *
  * Stub implementation for TypeScript compilation.
  * Provides caching interface for provider gateway.
- * 
+ *
  * @module cacheClient
  */
 
@@ -24,7 +24,7 @@ export interface CacheClient {
 
 /**
  * In-Memory Cache Client
- * 
+ *
  * Stub implementation - provides minimal caching for compilation
  */
 class InMemoryCacheClient implements CacheClient {
@@ -50,7 +50,7 @@ class InMemoryCacheClient implements CacheClient {
   }
 
   async set(key: string, value: any, ttlSeconds?: number): Promise<void> {
-    const expiry = ttlSeconds ? Date.now() + (ttlSeconds * 1000) : 0;
+    const expiry = ttlSeconds ? Date.now() + ttlSeconds * 1000 : 0;
     const serialized = typeof value === 'string' ? value : JSON.stringify(value);
     this.cache.set(key, { value: serialized, expiry });
   }
@@ -73,4 +73,3 @@ class InMemoryCacheClient implements CacheClient {
  * Singleton cache client instance
  */
 export const cacheClient: CacheClient = new InMemoryCacheClient();
-

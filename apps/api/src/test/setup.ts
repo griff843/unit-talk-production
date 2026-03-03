@@ -21,7 +21,7 @@ process.env['HEALTH_CHECK_INTERVAL'] = '30000';
 // Mock crypto.randomUUID for consistent testing
 if (!global.crypto) {
   (global as any).crypto = {
-    randomUUID: () => 'test-uuid-' + Math.random().toString(36).substring(2, 11)
+    randomUUID: () => 'test-uuid-' + Math.random().toString(36).substring(2, 11),
   };
 }
 
@@ -44,11 +44,13 @@ const originalProcessListeners: { [event: string]: ((...args: any[]) => void)[] 
 beforeAll(() => {
   // Increase the max listeners limit to prevent warnings during tests
   process.setMaxListeners(50);
-  
+
   // Store original process listeners
   const events = ['SIGINT', 'SIGTERM', 'uncaughtException', 'unhandledRejection', 'exit'];
   events.forEach(event => {
-    originalProcessListeners[event] = process.listeners(event as any).slice() as ((...args: any[]) => void)[];
+    originalProcessListeners[event] = process.listeners(event as any).slice() as ((
+      ...args: any[]
+    ) => void)[];
   });
 });
 
@@ -78,7 +80,7 @@ afterAll(() => {
       });
     }
   });
-  
+
   // Reset max listeners to default
   process.setMaxListeners(10);
 });
@@ -103,12 +105,12 @@ jest.mock('@supabase/supabase-js', () => ({
       delete: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       single: jest.fn().mockResolvedValue({ data: null, error: null }),
-      then: jest.fn().mockResolvedValue({ data: [], error: null })
+      then: jest.fn().mockResolvedValue({ data: [], error: null }),
     })),
     auth: {
-      getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: null })
-    }
-  }))
+      getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: null }),
+    },
+  })),
 }));
 
 // Mock Temporal activities
@@ -117,10 +119,10 @@ jest.mock('@temporalio/activity', () => ({
     current: () => ({
       info: {
         activityId: 'test-activity-id',
-        workflowExecution: { workflowId: 'test-workflow-id' }
-      }
-    })
-  }
+        workflowExecution: { workflowId: 'test-workflow-id' },
+      },
+    }),
+  },
 }));
 
 // Mock Discord.js
@@ -128,17 +130,17 @@ jest.mock('discord.js', () => ({
   Client: jest.fn(() => ({
     login: jest.fn().mockResolvedValue('token'),
     on: jest.fn(),
-    user: { id: 'test-bot-id' }
+    user: { id: 'test-bot-id' },
   })),
   GatewayIntentBits: {
     Guilds: 1,
     GuildMessages: 2,
-    MessageContent: 4
+    MessageContent: 4,
   },
   EmbedBuilder: jest.fn(() => ({
     setTitle: jest.fn().mockReturnThis(),
     setDescription: jest.fn().mockReturnThis(),
     setColor: jest.fn().mockReturnThis(),
-    addFields: jest.fn().mockReturnThis()
-  }))
+    addFields: jest.fn().mockReturnThis(),
+  })),
 }));

@@ -19,10 +19,7 @@ export async function GET() {
     const sb = supabaseServer();
 
     // Query distinct sports from teams table
-    const { data, error } = await sb
-      .from('teams')
-      .select('sport')
-      .order('sport');
+    const { data, error } = await sb.from('teams').select('sport').order('sport');
 
     logDatabaseOperation(log, 'SELECT DISTINCT', 'teams', data, error);
 
@@ -47,29 +44,36 @@ export async function GET() {
       return NextResponse.json(body, { status: 503 });
     }
 
-    log.info({ sports_count: uniqueSports.length, duration_ms: Date.now() - startTime },
-      `Found ${uniqueSports.length} sports`);
+    log.info(
+      { sports_count: uniqueSports.length, duration_ms: Date.now() - startTime },
+      `Found ${uniqueSports.length} sports`
+    );
 
-    return NextResponse.json({
-      sports: uniqueSports,
-      meta: {
-        total: uniqueSports.length,
-        source: 'database',
-        timestamp: new Date().toISOString(),
+    return NextResponse.json(
+      {
+        sports: uniqueSports,
+        meta: {
+          total: uniqueSports.length,
+          source: 'database',
+          timestamp: new Date().toISOString(),
+        },
       },
-    }, {
-      status: 200,
-      headers: {
-        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=7200',
-      },
-    });
+      {
+        status: 200,
+        headers: {
+          'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=7200',
+        },
+      }
+    );
   } catch (error) {
     const body = metadataError(
       'SPORTS_REGISTRY_UNAVAILABLE',
       error instanceof Error ? error.message : 'Unknown error'
     );
-    log.error({ ...body, stack: error instanceof Error ? error.stack : undefined },
-      'Unexpected error in sports registry');
+    log.error(
+      { ...body, stack: error instanceof Error ? error.stack : undefined },
+      'Unexpected error in sports registry'
+    );
     return NextResponse.json(body, { status: 500 });
   }
 }

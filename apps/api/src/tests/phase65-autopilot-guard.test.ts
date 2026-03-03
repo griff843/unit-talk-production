@@ -13,22 +13,27 @@ jest.mock('../../services/supabaseClient', () => ({
     from: jest.fn().mockReturnValue({
       insert: jest.fn().mockReturnValue({
         select: jest.fn().mockReturnValue({
-          single: jest.fn().mockResolvedValue({ data: { id: 'test-evidence-id' }, error: null })
-        })
-      })
-    })
-  }
+          single: jest.fn().mockResolvedValue({ data: { id: 'test-evidence-id' }, error: null }),
+        }),
+      }),
+    }),
+  },
 }));
 
 // Mock shadowMode
 jest.mock('../../shadow/ShadowMode', () => ({
   shadowMode: {
     isShadowMode: jest.fn().mockReturnValue(false),
-    shouldSkipPublicAction: jest.fn().mockReturnValue(false)
-  }
+    shouldSkipPublicAction: jest.fn().mockReturnValue(false),
+  },
 }));
 
-import { AutopilotGuard, SideEffectContext, GuardResult, AutopilotMode } from '../../lib/AutopilotGuard';
+import {
+  AutopilotGuard,
+  SideEffectContext,
+  GuardResult,
+  AutopilotMode,
+} from '../../lib/AutopilotGuard';
 
 describe('Phase 6.5: AutopilotGuard', () => {
   let guard: AutopilotGuard;
@@ -80,7 +85,7 @@ describe('Phase 6.5: AutopilotGuard', () => {
       const context: SideEffectContext = {
         action: 'DISCORD_POST',
         agent_name: 'TestAgent',
-        pick_id: 'test-pick-123'
+        pick_id: 'test-pick-123',
       };
 
       const result = await guard.assertMayPerformSideEffect(context);
@@ -98,7 +103,7 @@ describe('Phase 6.5: AutopilotGuard', () => {
       const context: SideEffectContext = {
         action: 'DISCORD_ALERT',
         agent_name: 'AlertAgent',
-        pick_id: 'test-alert-456'
+        pick_id: 'test-alert-456',
       };
 
       const result = await guard.assertMayPerformSideEffect(context);
@@ -116,7 +121,7 @@ describe('Phase 6.5: AutopilotGuard', () => {
       const context: SideEffectContext = {
         action: 'NOTIFICATION_SEND',
         agent_name: 'NotificationAgent',
-        recipient_id: 'user-789'
+        recipient_id: 'user-789',
       };
 
       const result = await guard.assertMayPerformSideEffect(context);
@@ -137,7 +142,7 @@ describe('Phase 6.5: AutopilotGuard', () => {
         agent_name: 'TestAgent',
         pick_id: 'test-pick-123',
         correlation_id: 'corr-456',
-        metadata: { tier: 'S' }
+        metadata: { tier: 'S' },
       };
 
       const result = await guard.assertMayPerformSideEffect(context);
@@ -172,7 +177,7 @@ describe('Phase 6.5: AutopilotGuard', () => {
       const context: SideEffectContext = {
         action: 'DISCORD_POST',
         agent_name: 'TestAgent',
-        pick_id: 'test-pick-123'
+        pick_id: 'test-pick-123',
       };
 
       const result = await guard.assertMayPerformSideEffect(context);
@@ -189,7 +194,7 @@ describe('Phase 6.5: AutopilotGuard', () => {
       const context: SideEffectContext = {
         action: 'DISCORD_POST',
         agent_name: 'TestAgent',
-        pick_id: 'test-pick-123'
+        pick_id: 'test-pick-123',
       };
 
       const result = await guard.assertMayPerformSideEffect(context);
@@ -211,16 +216,16 @@ describe('Phase 6.5: AutopilotGuard', () => {
       'VIP_CHANNEL_POST',
       'GAME_THREAD_POST',
       'COACHING_DM',
-      'PROMO_PUBLISH'
+      'PROMO_PUBLISH',
     ];
 
-    it.each(actionTypes)('should handle %s action type', async (actionType) => {
+    it.each(actionTypes)('should handle %s action type', async actionType => {
       process.env.AUTOPILOT_MODE = 'off';
       guard = AutopilotGuard.getInstance();
 
       const context: SideEffectContext = {
         action: actionType,
-        agent_name: 'TestAgent'
+        agent_name: 'TestAgent',
       };
 
       const result = await guard.assertMayPerformSideEffect(context);

@@ -14,7 +14,7 @@ export function createBaseAgentConfig(overrides: Partial<BaseAgentConfig> = {}):
     metrics: {
       enabled: true,
       interval: 60,
-      ...overrides.metrics
+      ...overrides.metrics,
     },
     retry: {
       maxRetries: 3,
@@ -25,7 +25,7 @@ export function createBaseAgentConfig(overrides: Partial<BaseAgentConfig> = {}):
       backoff: 1000,
       exponential: true,
       jitter: false,
-      ...overrides.retry
+      ...overrides.retry,
     },
     health: {
       enabled: true,
@@ -33,8 +33,8 @@ export function createBaseAgentConfig(overrides: Partial<BaseAgentConfig> = {}):
       timeout: 5000,
       checkDb: true,
       checkExternal: false,
-      ...overrides.health
-    }
+      ...overrides.health,
+    },
   };
 }
 
@@ -46,6 +46,6 @@ export function validateBaseAgentConfig(config: any): BaseAgentConfig {
   if (!config.name || config.enabled === undefined || !config.version || !config.metrics) {
     return createBaseAgentConfig(config);
   }
-  
+
   return config as BaseAgentConfig;
 }

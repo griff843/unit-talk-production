@@ -1,9 +1,9 @@
 /**
  * Credit Logger
- * 
+ *
  * Stub implementation for TypeScript compilation.
  * Logs API credit usage for provider gateway.
- * 
+ *
  * @module creditLogger
  */
 
@@ -36,7 +36,7 @@ export interface CreditLogger {
 
 /**
  * In-Memory Credit Logger
- * 
+ *
  * Stub implementation - provides minimal logging for compilation
  */
 class InMemoryCreditLogger implements CreditLogger {
@@ -49,7 +49,7 @@ class InMemoryCreditLogger implements CreditLogger {
 
   logUsage(usage: CreditUsage): void {
     this.usageLog.push(usage);
-    
+
     if (usage.creditsRemaining !== undefined) {
       this.remainingCredits.set(usage.provider, usage.creditsRemaining);
     }
@@ -90,7 +90,12 @@ class InMemoryCreditLogger implements CreditLogger {
     return this.remainingCredits.get(provider);
   }
 
-  addCall(provider: string, creditsUsed: number, creditsRemaining: number, dedupKey?: string): void {
+  addCall(
+    provider: string,
+    creditsUsed: number,
+    creditsRemaining: number,
+    dedupKey?: string
+  ): void {
     this.logUsage({
       provider,
       endpoint: 'unknown',
@@ -106,4 +111,3 @@ class InMemoryCreditLogger implements CreditLogger {
  * Singleton credit logger instance
  */
 export const creditLogger: CreditLogger = new InMemoryCreditLogger();
-

@@ -53,25 +53,25 @@ export class DataAgent extends BaseAgent {
         total: 0,
         successful: 0,
         failed: 0,
-        avgDurationMs: 0
+        avgDurationMs: 0,
       },
       enrichmentJobs: {
         total: 0,
         successful: 0,
         failed: 0,
-        avgDurationMs: 0
+        avgDurationMs: 0,
       },
       qualityChecks: {
         total: 0,
         passed: 0,
         failed: 0,
-        avgScore: 0
+        avgScore: 0,
       },
       dataVolume: {
         recordsProcessed: 0,
         recordsEnriched: 0,
-        recordsRejected: 0
-      }
+        recordsRejected: 0,
+      },
     };
   }
 
@@ -92,23 +92,20 @@ export class DataAgent extends BaseAgent {
       if (!this.supabase) {
         throw new Error('Supabase client is required for DataAgent');
       }
-      const { error } = await this.supabase
-        .from('data_agent_events')
-        .select('id')
-        .limit(1);
+      const { error } = await this.supabase.from('data_agent_events').select('id').limit(1);
 
       if (error) {
         this.logger.warn('Data agent events table not accessible:', {
           error: error.message,
           code: error.code,
-          details: error.details
+          details: error.details,
         });
       }
 
       this.logger.info('DataAgent initialized successfully');
     } catch (error) {
       this.logger.error('Failed to initialize DataAgent:', {
-        err: (error as Error).message
+        err: (error as Error).message,
       });
       throw error;
     }
@@ -135,13 +132,12 @@ export class DataAgent extends BaseAgent {
         duration: this.metrics.processingTimeMs,
         etlJobs: this.metrics.etlJobs.total,
         enrichmentJobs: this.metrics.enrichmentJobs.total,
-        qualityChecks: this.metrics.qualityChecks.total
+        qualityChecks: this.metrics.qualityChecks.total,
       });
-
     } catch (error) {
       this.metrics.errorCount++;
       this.logger.error('DataAgent processing failed:', {
-        err: (error as Error).message
+        err: (error as Error).message,
       });
       throw error;
     }
@@ -158,10 +154,7 @@ export class DataAgent extends BaseAgent {
       if (!this.supabase) {
         throw new Error('Supabase client is required for DataAgent');
       }
-      const { error } = await this.supabase
-        .from('data_agent_events')
-        .select('id')
-        .limit(1);
+      const { error } = await this.supabase.from('data_agent_events').select('id').limit(1);
 
       if (error) {
         return {
@@ -169,8 +162,8 @@ export class DataAgent extends BaseAgent {
           timestamp: new Date().toISOString(),
           details: {
             error: error.message,
-            message: 'Database connectivity check failed'
-          }
+            message: 'Database connectivity check failed',
+          },
         };
       }
 
@@ -185,17 +178,16 @@ export class DataAgent extends BaseAgent {
           activeJobs: activeJobCount,
           etlJobs: this.metrics.etlJobs,
           enrichmentJobs: this.metrics.enrichmentJobs,
-          qualityChecks: this.metrics.qualityChecks
-        }
+          qualityChecks: this.metrics.qualityChecks,
+        },
       };
-
     } catch (error) {
       return {
         status: 'unhealthy',
         timestamp: new Date().toISOString(),
         details: {
-          err: (error as Error).message
-        }
+          err: (error as Error).message,
+        },
       };
     }
   }
@@ -224,7 +216,7 @@ export class DataAgent extends BaseAgent {
         return data.map(user => ({
           ...user,
           email: user.email?.toLowerCase(),
-          processed_at: new Date().toISOString()
+          processed_at: new Date().toISOString(),
         }));
       },
       load: async (data: any[], target: string) => {
@@ -232,8 +224,10 @@ export class DataAgent extends BaseAgent {
           throw new Error('Supabase client is required for DataAgent');
         }
         const { error } = await this.supabase.from(target).upsert(data);
-        if (error) {throw error;}
-      }
+        if (error) {
+          throw error;
+        }
+      },
     });
   }
 
@@ -249,9 +243,9 @@ export class DataAgent extends BaseAgent {
         return data.map(user => ({
           ...user,
           enriched_at: new Date().toISOString(),
-          profile_completeness: this.calculateProfileCompleteness(user)
+          profile_completeness: this.calculateProfileCompleteness(user),
         }));
-      }
+      },
     });
   }
 
@@ -267,7 +261,7 @@ export class DataAgent extends BaseAgent {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         const validEmails = data.filter(item => emailRegex.test(item.email));
         const professional_score = validEmails.length / data.length;
-        
+
         return {
           passed: professional_score >= 0.95,
           score: professional_score,
@@ -279,17 +273,19 @@ export class DataAgent extends BaseAgent {
               severity: 'medium' as const,
               message: `Invalid email format: ${item.email}`,
               field: 'email',
-              recordId: item.id
+              recordId: item.id,
             })),
-          metadata: { totalRecords: data.length, validRecords: validEmails.length }
+          metadata: { totalRecords: data.length, validRecords: validEmails.length },
         };
-      }
+      },
     });
   }
 
   private async runETLWorkflows(): Promise<void> {
     for (const [, workflow] of Array.from(this.etlWorkflows.entries())) {
-      if (!workflow.enabled) {continue;}
+      if (!workflow.enabled) {
+        continue;
+      }
 
       this.activeJobs.add(workflow.id);
       const startTime = Date.now();
@@ -309,13 +305,12 @@ export class DataAgent extends BaseAgent {
         this.metrics.etlJobs.successful++;
         this.logger.info(`ETL workflow completed: ${workflow.name}`, {
           duration: Date.now() - startTime,
-          recordsProcessed: extractedData?.length || 0
+          recordsProcessed: extractedData?.length || 0,
         });
-
       } catch (error) {
         this.metrics.etlJobs.failed++;
         this.logger.error(`ETL workflow failed: ${workflow.name}`, {
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? error.message : String(error),
         });
         throw error;
       } finally {
@@ -356,7 +351,9 @@ export class DataAgent extends BaseAgent {
    */
   private async runEnrichmentPipelines(): Promise<void> {
     for (const [key, pipeline] of Array.from(this.enrichmentPipelines)) {
-      if (!pipeline.enabled) {continue;}
+      if (!pipeline.enabled) {
+        continue;
+      }
 
       try {
         this.activeJobs.add(key);
@@ -367,13 +364,12 @@ export class DataAgent extends BaseAgent {
 
         this.metrics.enrichmentJobs.successful++;
         this.logger.info(`Enrichment pipeline completed: ${pipeline.name}`, {
-          duration: Date.now() - startTime
+          duration: Date.now() - startTime,
         });
-
       } catch (error) {
         this.metrics.enrichmentJobs.failed++;
         this.logger.error(`Enrichment pipeline failed: ${pipeline.name}`, {
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? error.message : String(error),
         });
       } finally {
         this.activeJobs.delete(key);
@@ -394,7 +390,9 @@ export class DataAgent extends BaseAgent {
    */
   private async runQualityChecks(): Promise<void> {
     for (const [, check] of Array.from(this.qualityChecks)) {
-      if (!check.enabled) {continue;}
+      if (!check.enabled) {
+        continue;
+      }
 
       try {
         this.logger.info(`Running quality check: ${check.name}`);
@@ -415,11 +413,10 @@ export class DataAgent extends BaseAgent {
             this.metrics.qualityChecks.failed++;
           }
         }
-
       } catch (error) {
         this.metrics.qualityChecks.failed++;
         this.logger.error(`Quality check failed: ${check.name}`, {
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? error.message : String(error),
         });
       }
     }
@@ -428,7 +425,10 @@ export class DataAgent extends BaseAgent {
   /**
    * Run a single quality check
    */
-  private async runQualityCheck(_: DataQualityCheck, _data: any[]): Promise<{ passed: boolean; score: number }> {
+  private async runQualityCheck(
+    _: DataQualityCheck,
+    _data: any[]
+  ): Promise<{ passed: boolean; score: number }> {
     // Mock implementation - would run actual quality check logic
     return { passed: true, score: 0.95 };
   }

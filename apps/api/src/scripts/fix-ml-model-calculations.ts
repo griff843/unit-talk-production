@@ -2,7 +2,7 @@
 
 /**
  * Fix ML Model Calculations
- * 
+ *
  * Fix the calculation issues in ML models that are causing NaN results
  * Focus on the calculateBaseScore method and feature handling
  */
@@ -17,15 +17,15 @@ config();
 async function fixMLModelCalculations() {
   console.log('🔧 FIXING ML MODEL CALCULATIONS');
   console.log('================================');
-  
+
   try {
     const mlModelPath = join(process.cwd(), 'src/agents/GradingAgent/scoring/mlModelManager.ts');
-    
+
     console.log('📖 Reading mlModelManager.ts...');
     let content = readFileSync(mlModelPath, 'utf8');
-    
+
     console.log('🔧 Applying ML model calculation fixes...');
-    
+
     // 1. Add safe number utility functions at the top
     const safeNumberUtilities = `
 /**
@@ -59,7 +59,8 @@ function safeDivide(numerator: any, denominator: any, defaultValue: number = 0):
     if (interfaceIndex === -1) {
       throw new Error('Could not find MLModelResult interface');
     }
-    content = content.slice(0, interfaceIndex) + safeNumberUtilities + content.slice(interfaceIndex);
+    content =
+      content.slice(0, interfaceIndex) + safeNumberUtilities + content.slice(interfaceIndex);
 
     // 2. Fix calculateBaseScore method with safe operations and better feature handling
     console.log('  → Fixing calculateBaseScore method');
@@ -329,7 +330,7 @@ function safeDivide(numerator: any, denominator: any, defaultValue: number = 0):
     // Write the fixed content back
     console.log('💾 Writing fixed mlModelManager.ts...');
     writeFileSync(mlModelPath, content);
-    
+
     console.log('✅ ML Model calculation fixes applied successfully!');
     console.log('\n🔧 FIXES APPLIED:');
     console.log('  ✓ Added safe number utility functions');
@@ -339,13 +340,12 @@ function safeDivide(numerator: any, denominator: any, defaultValue: number = 0):
     console.log('  ✓ Fixed applyRandomForestLogic with safe operations');
     console.log('  ✓ Added comprehensive error handling to all scoring methods');
     console.log('  ✓ Made calculateBaseScore public for testing');
-    
+
     console.log('\n📊 KEY IMPROVEMENTS:');
     console.log('  • Expected Value handling: Correctly handles small decimals (0.0217 -> 2.17%)');
     console.log('  • Feature scaling: All features properly scaled to prevent extreme values');
     console.log('  • Error handling: Each method has try-catch with fallback values');
     console.log('  • Safe operations: All math operations use safe number utilities');
-    
   } catch (error) {
     console.error('❌ Fix process failed:', error);
     throw error;
@@ -363,7 +363,7 @@ if (require.main === module) {
       console.log('  3. Check ML model outputs show proper individual scores');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('💥 Fix process failed:', error);
       process.exit(1);
     });

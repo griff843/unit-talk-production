@@ -17,12 +17,15 @@ async function main() {
   console.log('Connected to DB\n');
 
   // Check Phase D parlay ticket
-  const { rows: phaseD } = await client.query(`
+  const { rows: phaseD } = await client.query(
+    `
     SELECT id, bet_slip_id, leg_index, posted_to_discord, ticket_type, meta
     FROM unified_picks
     WHERE bet_slip_id = $1
     ORDER BY leg_index
-  `, [PHASE_D_PARLAY_ID]);
+  `,
+    [PHASE_D_PARLAY_ID]
+  );
 
   console.log(`Phase D Parlay (${PHASE_D_PARLAY_ID}):`);
   if (phaseD.length === 0) {
@@ -30,7 +33,9 @@ async function main() {
   } else {
     phaseD.forEach(p => {
       const msgId = p.meta?.discord_receipt?.message_id || 'none';
-      console.log(`  leg_index=${p.leg_index}, posted=${p.posted_to_discord}, discord_msg=${msgId}`);
+      console.log(
+        `  leg_index=${p.leg_index}, posted=${p.posted_to_discord}, discord_msg=${msgId}`
+      );
     });
   }
 

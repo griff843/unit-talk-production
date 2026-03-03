@@ -1,7 +1,13 @@
 import { redisCache } from '../../cache/enhanced-cache';
 import { Logger } from '../../shared/logger/types';
 
-import { MessageAnalysis, BehaviorEvent, FrustrationSignal, LearningSignal, ConversionSignal } from './types';
+import {
+  MessageAnalysis,
+  BehaviorEvent,
+  FrustrationSignal,
+  LearningSignal,
+  ConversionSignal,
+} from './types';
 
 export class BehaviorTracker {
   private readonly logger: Logger;
@@ -14,7 +20,7 @@ export class BehaviorTracker {
 
   async initialize(): Promise<void> {
     this.logger.info('🧠 Initializing BehaviorTracker');
-    
+
     // Load active tracking users from cache
     const activeUsers = await redisCache.get('onboarding:active_tracking');
     if (activeUsers) {
@@ -26,7 +32,7 @@ export class BehaviorTracker {
   async startTracking(userId: string): Promise<void> {
     this.activeTracking.add(userId);
     this.behaviorPatterns.set(userId, []);
-    
+
     // Persist to cache
     await redisCache.set(
       'onboarding:active_tracking',
@@ -40,7 +46,7 @@ export class BehaviorTracker {
   async stopTracking(userId: string): Promise<void> {
     this.activeTracking.delete(userId);
     this.behaviorPatterns.delete(userId);
-    
+
     await redisCache.set(
       'onboarding:active_tracking',
       JSON.stringify(Array.from(this.activeTracking)),
@@ -66,7 +72,7 @@ export class BehaviorTracker {
       questions: this.extractQuestions(content),
       frustrationIndicators: this.detectFrustration(content),
       learningIndicators: this.detectLearning(content),
-      conversionSignals: this.detectConversionSignals(content)
+      conversionSignals: this.detectConversionSignals(content),
     };
 
     // Store behavior event
@@ -79,10 +85,10 @@ export class BehaviorTracker {
         channelId: message.channelId,
         messageLength: content.length,
         hasAttachments: message.attachments?.size > 0,
-        hasMentions: message.mentions?.users?.size > 0
+        hasMentions: message.mentions?.users?.size > 0,
       },
       analysis,
-      context: await this.getEventContext(userId, message)
+      context: await this.getEventContext(userId, message),
     });
 
     return analysis;
@@ -90,7 +96,7 @@ export class BehaviorTracker {
 
   async analyzeInteraction(interaction: any): Promise<MessageAnalysis> {
     const userId = interaction.user?.id;
-    
+
     if (!userId || !this.activeTracking.has(userId)) {
       return this.getDefaultAnalysis();
     }
@@ -103,7 +109,7 @@ export class BehaviorTracker {
       questions: [],
       frustrationIndicators: [],
       learningIndicators: this.detectInteractionLearning(interaction),
-      conversionSignals: this.detectInteractionConversion(interaction)
+      conversionSignals: this.detectInteractionConversion(interaction),
     };
 
     await this.storeBehaviorEvent(userId, {
@@ -114,10 +120,10 @@ export class BehaviorTracker {
         type: interaction.type,
         customId: interaction.customId,
         componentType: interaction.componentType,
-        values: interaction.values
+        values: interaction.values,
       },
       analysis,
-      context: await this.getEventContext(userId, interaction)
+      context: await this.getEventContext(userId, interaction),
     });
 
     return analysis;
@@ -125,7 +131,7 @@ export class BehaviorTracker {
 
   async analyzeReaction(reaction: any, user: any): Promise<MessageAnalysis> {
     const userId = user.id;
-    
+
     if (!userId || !this.activeTracking.has(userId)) {
       return this.getDefaultAnalysis();
     }
@@ -140,19 +146,27 @@ export class BehaviorTracker {
       urgency: 'low',
       topicCategories: ['engagement'],
       questions: [],
-      frustrationIndicators: isNegative ? [{ 
-        type: 'confusion', 
-        severity: 'low', 
-        indicators: [emojiName], 
-        timeframe: 'immediate' 
-      }] : [],
-      learningIndicators: isPositive ? [{ 
-        concept: 'engagement', 
-        understanding: 'good', 
-        progression: 'normal', 
-        needsReinforcement: false 
-      }] : [],
-      conversionSignals: []
+      frustrationIndicators: isNegative
+        ? [
+            {
+              type: 'confusion',
+              severity: 'low',
+              indicators: [emojiName],
+              timeframe: 'immediate',
+            },
+          ]
+        : [],
+      learningIndicators: isPositive
+        ? [
+            {
+              concept: 'engagement',
+              understanding: 'good',
+              progression: 'normal',
+              needsReinforcement: false,
+            },
+          ]
+        : [],
+      conversionSignals: [],
     };
 
     await this.storeBehaviorEvent(userId, {
@@ -162,10 +176,10 @@ export class BehaviorTracker {
       eventData: {
         emoji: emojiName,
         messageId: reaction.message?.id,
-        channelId: reaction.message?.channelId
+        channelId: reaction.message?.channelId,
       },
       analysis,
-      context: await this.getEventContext(userId, reaction)
+      context: await this.getEventContext(userId, reaction),
     });
 
     return analysis;
@@ -173,7 +187,7 @@ export class BehaviorTracker {
 
   async analyzePresence(_oldPresence: any, newPresence: any): Promise<MessageAnalysis> {
     const userId = newPresence.userId || newPresence.user?.id;
-    
+
     if (!userId || !this.activeTracking.has(userId)) {
       return this.getDefaultAnalysis();
     }
@@ -186,7 +200,7 @@ export class BehaviorTracker {
       questions: [],
       frustrationIndicators: [],
       learningIndicators: [],
-      conversionSignals: []
+      conversionSignals: [],
     };
 
     await this.storeBehaviorEvent(userId, {
@@ -197,11 +211,11 @@ export class BehaviorTracker {
         status: newPresence.status,
         activities: newPresence.activities?.map((a: any) => ({
           name: a.name,
-          type: a.type
-        }))
+          type: a.type,
+        })),
       },
       analysis,
-      context: await this.getEventContext(userId, newPresence)
+      context: await this.getEventContext(userId, newPresence),
     });
 
     return analysis;
@@ -209,8 +223,8 @@ export class BehaviorTracker {
 
   async analyzeUserPatterns(userId: string): Promise<any> {
     const events = this.behaviorPatterns.get(userId) || [];
-    const recentEvents = events.filter(e => 
-      e.timestamp.getTime() > Date.now() - (24 * 60 * 60 * 1000) // Last 24 hours
+    const recentEvents = events.filter(
+      e => e.timestamp.getTime() > Date.now() - 24 * 60 * 60 * 1000 // Last 24 hours
     );
 
     if (recentEvents.length === 0) {
@@ -224,19 +238,29 @@ export class BehaviorTracker {
       frustrationLevel: this.calculateFrustrationLevel(recentEvents),
       conversionReadiness: this.calculateConversionReadiness(recentEvents),
       responsePatterns: this.analyzeResponsePatterns(recentEvents),
-      peakActivityTimes: this.identifyPeakTimes(recentEvents)
+      peakActivityTimes: this.identifyPeakTimes(recentEvents),
     };
   }
 
   // Analysis Helper Methods
-  private analyzeSentiment(content: string): 'positive' | 'negative' | 'neutral' | 'confused' | 'frustrated' {
-    const positiveWords = ['good', 'great', 'awesome', 'thanks', 'helpful', 'understand', 'perfect'];
+  private analyzeSentiment(
+    content: string
+  ): 'positive' | 'negative' | 'neutral' | 'confused' | 'frustrated' {
+    const positiveWords = [
+      'good',
+      'great',
+      'awesome',
+      'thanks',
+      'helpful',
+      'understand',
+      'perfect',
+    ];
     const negativeWords = ['bad', 'wrong', 'stupid', 'hate', 'difficult', 'sucks'];
-    const confusionWords = ['confused', 'lost', 'don\'t understand', 'help', 'what', 'how'];
-    const frustrationWords = ['frustrated', 'annoyed', 'doesn\'t work', 'broken', 'stupid'];
+    const confusionWords = ['confused', 'lost', "don't understand", 'help', 'what', 'how'];
+    const frustrationWords = ['frustrated', 'annoyed', "doesn't work", 'broken', 'stupid'];
 
     const words = content.split(' ');
-    
+
     if (words.some(_word => frustrationWords.some(fw => content.includes(fw)))) {
       return 'frustrated';
     }
@@ -249,48 +273,54 @@ export class BehaviorTracker {
     if (words.some(word => negativeWords.includes(word))) {
       return 'negative';
     }
-    
+
     return 'neutral';
   }
 
   private analyzeComplexity(content: string): 'basic' | 'intermediate' | 'advanced' {
-    const basicPhrases = ['what is', 'how do i', 'new to', 'don\'t know', 'explain'];
-    const advancedPhrases = ['expected value', 'roi', 'kelly criterion', 'variance', 'closing line'];
-    
+    const basicPhrases = ['what is', 'how do i', 'new to', "don't know", 'explain'];
+    const advancedPhrases = [
+      'expected value',
+      'roi',
+      'kelly criterion',
+      'variance',
+      'closing line',
+    ];
+
     if (advancedPhrases.some(phrase => content.includes(phrase))) {
       return 'advanced';
     }
     if (basicPhrases.some(phrase => content.includes(phrase))) {
       return 'basic';
     }
-    
+
     return 'intermediate';
   }
 
   private analyzeUrgency(content: string, _timestamp: number): 'low' | 'medium' | 'high' {
     const urgentWords = ['urgent', 'asap', 'quickly', 'immediate', 'help', 'stuck'];
     const isUrgent = urgentWords.some(word => content.includes(word));
-    
+
     // Check if repeated similar messages (indicates urgency)
     const isRepeated = false; // Would implement based on recent history
-    
+
     if (isUrgent || isRepeated) {
       return 'high';
     }
-    
+
     return 'low';
   }
 
   private categorizeTopics(content: string): string[] {
     const categories: string[] = [];
-    
+
     const topicMap = {
-      'betting': ['bet', 'wager', 'stake', 'bankroll'],
-      'picks': ['pick', 'prediction', 'tip', 'play'],
-      'analysis': ['analysis', 'stats', 'data', 'research'],
-      'technical': ['error', 'bug', 'not working', 'broken'],
-      'account': ['account', 'subscription', 'upgrade', 'tier'],
-      'learning': ['learn', 'understand', 'explain', 'tutorial']
+      betting: ['bet', 'wager', 'stake', 'bankroll'],
+      picks: ['pick', 'prediction', 'tip', 'play'],
+      analysis: ['analysis', 'stats', 'data', 'research'],
+      technical: ['error', 'bug', 'not working', 'broken'],
+      account: ['account', 'subscription', 'upgrade', 'tier'],
+      learning: ['learn', 'understand', 'explain', 'tutorial'],
     };
 
     for (const [category, keywords] of Object.entries(topicMap)) {
@@ -308,11 +338,11 @@ export class BehaviorTracker {
       /how (do|does|can|to)\b/gi,
       /why (is|are|does|do)\b/gi,
       /when (is|are|does|do)\b/gi,
-      /where (is|are|can)\b/gi
+      /where (is|are|can)\b/gi,
     ];
 
     const questions: any[] = [];
-    
+
     questionPatterns.forEach(pattern => {
       const matches = content.match(pattern);
       if (matches) {
@@ -321,7 +351,7 @@ export class BehaviorTracker {
             question: match,
             category: this.categorizeQuestion(match),
             confidence: 0.8,
-            previouslyAsked: false // Would check against history
+            previouslyAsked: false, // Would check against history
           });
         });
       }
@@ -335,7 +365,7 @@ export class BehaviorTracker {
       { pattern: /doesn't work|not working|broken/gi, type: 'technical_issue' as const },
       { pattern: /don't understand|confused|lost/gi, type: 'confusion' as const },
       { pattern: /stupid|dumb|ridiculous/gi, type: 'impatience' as const },
-      { pattern: /too hard|difficult|complicated/gi, type: 'difficulty' as const }
+      { pattern: /too hard|difficult|complicated/gi, type: 'difficulty' as const },
     ];
 
     const signals: FrustrationSignal[] = [];
@@ -347,7 +377,7 @@ export class BehaviorTracker {
           type: indicator.type,
           severity: matches.length > 1 ? 'high' : 'medium',
           indicators: matches,
-          timeframe: 'immediate'
+          timeframe: 'immediate',
         });
       }
     });
@@ -359,7 +389,7 @@ export class BehaviorTracker {
     const learningIndicators = [
       { pattern: /understand|got it|makes sense/gi, level: 'good' as const },
       { pattern: /thanks|helpful|clear/gi, level: 'excellent' as const },
-      { pattern: /still confused|not sure/gi, level: 'poor' as const }
+      { pattern: /still confused|not sure/gi, level: 'poor' as const },
     ];
 
     const signals: LearningSignal[] = [];
@@ -370,8 +400,9 @@ export class BehaviorTracker {
         signals.push({
           concept: 'general_understanding',
           understanding: indicator.level,
-          progression: indicator.level === 'good' || indicator.level === 'excellent' ? 'normal' : 'stuck',
-          needsReinforcement: indicator.level === 'poor'
+          progression:
+            indicator.level === 'good' || indicator.level === 'excellent' ? 'normal' : 'stuck',
+          needsReinforcement: indicator.level === 'poor',
         });
       }
     });
@@ -384,7 +415,7 @@ export class BehaviorTracker {
       { pattern: /upgrade|premium|vip/gi, type: 'interest' as const },
       { pattern: /price|cost|how much/gi, type: 'value_recognition' as const },
       { pattern: /trust|reliable|proven/gi, type: 'trust_building' as const },
-      { pattern: /ready|want to|let's do it/gi, type: 'ready_to_upgrade' as const }
+      { pattern: /ready|want to|let's do it/gi, type: 'ready_to_upgrade' as const },
     ];
 
     const signals: ConversionSignal[] = [];
@@ -396,7 +427,7 @@ export class BehaviorTracker {
           type: indicator.type,
           strength: matches.length > 1 ? 'strong' : 'moderate',
           timing: 'optimal', // Would be calculated based on user journey
-          barriers: [] // Would identify from context
+          barriers: [], // Would identify from context
         });
       }
     });
@@ -408,14 +439,14 @@ export class BehaviorTracker {
   private async storeBehaviorEvent(userId: string, event: BehaviorEvent): Promise<void> {
     const events = this.behaviorPatterns.get(userId) || [];
     events.push(event);
-    
+
     // Keep only last 100 events per user
     if (events.length > 100) {
       events.splice(0, events.length - 100);
     }
-    
+
     this.behaviorPatterns.set(userId, events);
-    
+
     // Cache recent events
     await redisCache.set(
       `behavior:${userId}:recent`,
@@ -426,13 +457,13 @@ export class BehaviorTracker {
 
   private async getEventContext(userId: string, sourceEvent: any): Promise<any> {
     const recentEvents = this.behaviorPatterns.get(userId)?.slice(-5) || [];
-    
+
     return {
       channel: sourceEvent.channelId || sourceEvent.channel?.id,
       messageId: sourceEvent.id,
       previousActivity: recentEvents,
       sessionDuration: this.calculateSessionDuration(recentEvents),
-      timeSinceLastActivity: this.calculateTimeSinceLastActivity(recentEvents)
+      timeSinceLastActivity: this.calculateTimeSinceLastActivity(recentEvents),
     };
   }
 
@@ -441,72 +472,69 @@ export class BehaviorTracker {
     return Math.min(events.length / 10, 1); // Normalize to 0-1
   }
 
-  private calculateEngagementTrend(events: BehaviorEvent[]): 'increasing' | 'stable' | 'decreasing' {
+  private calculateEngagementTrend(
+    events: BehaviorEvent[]
+  ): 'increasing' | 'stable' | 'decreasing' {
     if (events.length < 3) return 'stable';
-    
+
     const recent = events.slice(-3);
     const older = events.slice(-6, -3);
-    
+
     const recentAvg = recent.length;
     const olderAvg = older.length;
-    
+
     if (recentAvg > olderAvg * 1.2) return 'increasing';
     if (recentAvg < olderAvg * 0.8) return 'decreasing';
     return 'stable';
   }
 
   private calculateLearningVelocity(events: BehaviorEvent[]): number {
-    const learningEvents = events.filter(e => 
-      e.analysis.learningIndicators.length > 0
-    );
+    const learningEvents = events.filter(e => e.analysis.learningIndicators.length > 0);
     return learningEvents.length / Math.max(events.length, 1);
   }
 
   private calculateFrustrationLevel(events: BehaviorEvent[]): number {
-    const frustrationEvents = events.filter(e => 
-      e.analysis.frustrationIndicators.length > 0
-    );
+    const frustrationEvents = events.filter(e => e.analysis.frustrationIndicators.length > 0);
     return frustrationEvents.length / Math.max(events.length, 1);
   }
 
   private calculateConversionReadiness(events: BehaviorEvent[]): number {
-    const conversionEvents = events.filter(e => 
-      e.analysis.conversionSignals.length > 0
-    );
+    const conversionEvents = events.filter(e => e.analysis.conversionSignals.length > 0);
     return conversionEvents.length / Math.max(events.length, 1);
   }
 
   private analyzeResponsePatterns(events: BehaviorEvent[]): any {
     const messagePairs = [];
     for (let i = 1; i < events.length; i++) {
-      if (events[i].eventType === 'message' && events[i-1].eventType === 'message') {
-        const timeDiff = events[i].timestamp.getTime() - events[i-1].timestamp.getTime();
+      if (events[i].eventType === 'message' && events[i - 1].eventType === 'message') {
+        const timeDiff = events[i].timestamp.getTime() - events[i - 1].timestamp.getTime();
         messagePairs.push(timeDiff);
       }
     }
-    
+
     if (messagePairs.length === 0) {
       return { averageResponseTime: 0, consistency: 0 };
     }
-    
+
     const avgResponseTime = messagePairs.reduce((a, b) => a + b, 0) / messagePairs.length;
-    const variance = messagePairs.reduce((a, b) => a + Math.pow(b - avgResponseTime, 2), 0) / messagePairs.length;
+    const variance =
+      messagePairs.reduce((a, b) => a + Math.pow(b - avgResponseTime, 2), 0) / messagePairs.length;
     const consistency = 1 / (1 + Math.sqrt(variance) / avgResponseTime);
-    
+
     return {
       averageResponseTime: avgResponseTime / 1000, // Convert to seconds
-      consistency
+      consistency,
     };
   }
 
   private identifyPeakTimes(events: BehaviorEvent[]): number[] {
     const hourCounts: Record<number, number> = {};
-    
+
     events.forEach(event => {
       const hour = event.timestamp.getHours();
       hourCounts[hour] = (hourCounts[hour] || 0) + 1;
     });
-    
+
     const maxCount = Math.max(...Object.values(hourCounts));
     return Object.entries(hourCounts)
       .filter(([_, count]) => count >= maxCount * 0.7)
@@ -515,7 +543,7 @@ export class BehaviorTracker {
 
   private calculateSessionDuration(events: BehaviorEvent[]): number {
     if (events.length < 2) return 0;
-    
+
     const start = events[0].timestamp.getTime();
     const end = events[events.length - 1].timestamp.getTime();
     return (end - start) / 1000; // Return in seconds
@@ -523,7 +551,7 @@ export class BehaviorTracker {
 
   private calculateTimeSinceLastActivity(events: BehaviorEvent[]): number {
     if (events.length === 0) return Infinity;
-    
+
     const lastEvent = events[events.length - 1];
     return (Date.now() - lastEvent.timestamp.getTime()) / 1000; // Return in seconds
   }
@@ -552,24 +580,28 @@ export class BehaviorTracker {
 
   private detectInteractionLearning(interaction: any): LearningSignal[] {
     if (interaction.customId?.includes('understood')) {
-      return [{
-        concept: 'interaction_learning',
-        understanding: 'good',
-        progression: 'normal',
-        needsReinforcement: false
-      }];
+      return [
+        {
+          concept: 'interaction_learning',
+          understanding: 'good',
+          progression: 'normal',
+          needsReinforcement: false,
+        },
+      ];
     }
     return [];
   }
 
   private detectInteractionConversion(interaction: any): ConversionSignal[] {
     if (interaction.customId?.includes('upgrade') || interaction.customId?.includes('premium')) {
-      return [{
-        type: 'interest',
-        strength: 'strong',
-        timing: 'optimal',
-        barriers: []
-      }];
+      return [
+        {
+          type: 'interest',
+          strength: 'strong',
+          timing: 'optimal',
+          barriers: [],
+        },
+      ];
     }
     return [];
   }
@@ -583,7 +615,7 @@ export class BehaviorTracker {
       questions: [],
       frustrationIndicators: [],
       learningIndicators: [],
-      conversionSignals: []
+      conversionSignals: [],
     };
   }
 
@@ -595,7 +627,7 @@ export class BehaviorTracker {
       frustrationLevel: 0,
       conversionReadiness: 0,
       responsePatterns: { averageResponseTime: 0, consistency: 0 },
-      peakActivityTimes: []
+      peakActivityTimes: [],
     };
   }
 
@@ -616,7 +648,7 @@ export class BehaviorTracker {
     timestamp: Date;
   }): Promise<string> {
     const behaviorId = `behavior_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     // Create behavior event
     const behaviorEvent = {
       userId: data.userId,
@@ -624,19 +656,19 @@ export class BehaviorTracker {
       eventType: 'action' as const,
       eventData: {
         action: data.action,
-        metadata: data.metadata
+        metadata: data.metadata,
       },
       analysis: this.getDefaultAnalysis(),
-      context: await this.getEventContext(data.userId, data)
+      context: await this.getEventContext(data.userId, data),
     };
 
     // Store the behavior event
     await this.storeBehaviorEvent(data.userId, behaviorEvent);
-    
-    this.logger.info('📊 Behavior recorded', { 
-      userId: data.userId, 
+
+    this.logger.info('📊 Behavior recorded', {
+      userId: data.userId,
       action: data.action,
-      behaviorId 
+      behaviorId,
     });
 
     return behaviorId;

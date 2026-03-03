@@ -1,33 +1,20 @@
-import { 
-  mlbCoreStats, 
-  mlbSynergy 
-} from '../logic/scoring/rules/mlb';
-import { 
-  nbaCoreStats, 
-  nbaSynergy 
-} from '../logic/scoring/rules/nba';
-import { 
-  nflCoreStats, 
-  nflSynergy 
-} from '../logic/scoring/rules/nfl';
-import { 
-  nhlCoreStats, 
-  nhlSynergy 
-} from '../logic/scoring/rules/nhl';
-import { 
-  unifiedEdgeScore, 
-  EDGE_SCORING_VERSION, 
-  type EdgeScoreResult, 
+import { mlbCoreStats, mlbSynergy } from '../logic/scoring/rules/mlb';
+import { nbaCoreStats, nbaSynergy } from '../logic/scoring/rules/nba';
+import { nflCoreStats, nflSynergy } from '../logic/scoring/rules/nfl';
+import { nhlCoreStats, nhlSynergy } from '../logic/scoring/rules/nhl';
+import {
+  unifiedEdgeScore,
+  EDGE_SCORING_VERSION,
+  type EdgeScoreResult,
   type EdgeScoreConfig,
-  type ScoreBreakdown 
+  type ScoreBreakdown,
 } from '../logic/scoring/unified-edge-score';
 import { logger } from '../shared/logger';
+import { professionalScoreOf } from '../types/compat';
 import { PropObject } from '../types/propTypes';
 import { RawProp } from '../types/rawProps';
-import { professionalScoreOf } from '../types/compat';
 
 import { LLMService } from './llmService';
-
 
 interface ScoringResult extends EdgeScoreResult {
   aiEnhanced: boolean;
@@ -67,7 +54,7 @@ export class UnifiedScoringService {
       // Get base edge professional_score
       const baseScore = unifiedEdgeScore(prop, config as EdgeScoreConfig, {
         adminOverrideTier: options.adminOverrideTier,
-        useLeagueRules: options.useLeagueRules
+        useLeagueRules: options.useLeagueRules,
       });
 
       // Add league-specific scoring
@@ -90,7 +77,7 @@ export class UnifiedScoringService {
         aiEnhanced,
         confidence,
         insights,
-        leagueSpecific
+        leagueSpecific,
       };
     } catch (error) {
       logger.error('Error in unified scoring:', error);
@@ -103,7 +90,10 @@ export class UnifiedScoringService {
     synergy: ScoreBreakdown;
   }> {
     const leagueValue = (prop as PropObject)['league'] || (prop as RawProp)['league'] || '';
-    const league = typeof leagueValue === 'string' ? leagueValue.toUpperCase() : String(leagueValue).toUpperCase();
+    const league =
+      typeof leagueValue === 'string'
+        ? leagueValue.toUpperCase()
+        : String(leagueValue).toUpperCase();
     let coreStats: ScoreBreakdown = {};
     let synergy: ScoreBreakdown = {};
 
@@ -141,22 +131,23 @@ export class UnifiedScoringService {
   }> {
     try {
       const prompt = this.buildAIPrompt(prop, baseScore, leagueSpecific);
-      
+
       const response = await this.llmService.generateResponse({
         messages: [
           {
             role: 'system',
-            content: 'You are an expert sports betting analyst. Analyze this prop bet and provide insights.'
+            content:
+              'You are an expert sports betting analyst. Analyze this prop bet and provide insights.',
           },
           {
             role: 'user',
-            content: prompt
-          }
+            content: prompt,
+          },
         ],
         config: {
           temperature: 0.3,
-          maxTokens: 500
-        }
+          maxTokens: 500,
+        },
       });
 
       const result = JSON.parse(response.content) as {
@@ -166,13 +157,13 @@ export class UnifiedScoringService {
 
       return {
         confidence: result.confidence,
-        insights: result.insights
+        insights: result.insights,
       };
     } catch (error) {
       logger.error('Error enhancing score with AI:', error);
       return {
         confidence: professionalScoreOf(baseScore) / 100,
-        insights: []
+        insights: [],
       };
     }
   }
@@ -205,4 +196,4 @@ Provide a response in this JSON format:
   public getVersion(): typeof EDGE_SCORING_VERSION {
     return EDGE_SCORING_VERSION;
   }
-} 
+}

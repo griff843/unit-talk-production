@@ -1,10 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Bot,
   Play,
@@ -23,13 +19,20 @@ import {
   WifiOff,
   Shield,
 } from 'lucide-react';
-import { getStatusColor, timeAgo } from '@/lib/utils';
-import { useAgentMonitoring } from '@/hooks/useAgentMonitoring';
-import { useAgentLogs } from '@/hooks/useAgentLogs';
-import { AgentStatus } from '@/lib/agentMonitoring';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+
 import { AgentControlPanel } from '@/components/dashboard/AgentControlPanel';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAgentLogs } from '@/hooks/useAgentLogs';
+import { useAgentMonitoring } from '@/hooks/useAgentMonitoring';
+import { AgentStatus } from '@/lib/agentMonitoring';
+import { getStatusColor, timeAgo } from '@/lib/utils';
+
+
 
 // Agent descriptions mapping
 const agentDescriptions = {
@@ -265,330 +268,335 @@ export default function AgentDashboardPage() {
           )}
 
           {/* System Overview */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="metric-card" data-testid="stat-card">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Agents</CardTitle>
-            <Bot className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{systemMetrics.totalAgents}</div>
-            <div className="text-xs text-muted-foreground">
-              {systemMetrics.healthyAgents} healthy, {systemMetrics.warningAgents} warning,{' '}
-              {systemMetrics.errorAgents} error, {systemMetrics.inactiveAgents} inactive
-            </div>
-          </CardContent>
-        </Card>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card className="metric-card" data-testid="stat-card">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Agents</CardTitle>
+                <Bot className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{systemMetrics.totalAgents}</div>
+                <div className="text-xs text-muted-foreground">
+                  {systemMetrics.healthyAgents} healthy, {systemMetrics.warningAgents} warning,{' '}
+                  {systemMetrics.errorAgents} error, {systemMetrics.inactiveAgents} inactive
+                </div>
+              </CardContent>
+            </Card>
 
-        <Card className="metric-card" data-testid="stat-card">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Operations</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {systemMetrics.totalOperations.toLocaleString()}
-            </div>
-            <div className="text-xs text-muted-foreground">Across all agents</div>
-          </CardContent>
-        </Card>
+            <Card className="metric-card" data-testid="stat-card">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Operations</CardTitle>
+                <Activity className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {systemMetrics.totalOperations.toLocaleString()}
+                </div>
+                <div className="text-xs text-muted-foreground">Across all agents</div>
+              </CardContent>
+            </Card>
 
-        <Card className="metric-card" data-testid="stat-card">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Response</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{systemMetrics.avgResponseTime}ms</div>
-            <div className="text-xs text-muted-foreground">System-wide average</div>
-          </CardContent>
-        </Card>
+            <Card className="metric-card" data-testid="stat-card">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Avg Response</CardTitle>
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{systemMetrics.avgResponseTime}ms</div>
+                <div className="text-xs text-muted-foreground">System-wide average</div>
+              </CardContent>
+            </Card>
 
-        <Card className="metric-card" data-testid="stat-card">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Health Score</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{systemHealthPercentage}%</div>
-            <div className="text-xs text-muted-foreground">
-              {realTimeEnabled && connectionStatus === 'connected'
-                ? 'Real-time monitoring'
-                : connectionStatus === 'error'
-                  ? 'Polling fallback'
-                  : 'Database status'}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            <Card className="metric-card" data-testid="stat-card">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Health Score</CardTitle>
+                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{systemHealthPercentage}%</div>
+                <div className="text-xs text-muted-foreground">
+                  {realTimeEnabled && connectionStatus === 'connected'
+                    ? 'Real-time monitoring'
+                    : connectionStatus === 'error'
+                      ? 'Polling fallback'
+                      : 'Database status'}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-      {/* Agent Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {agents.map((agent: any) => (
-          <Card
-            key={agent.id || agent.name}
-            className={`cursor-pointer transition-all hover:shadow-lg ${
-              selectedAgent === agent.name ? 'ring-2 ring-primary' : ''
-            }`}
-            onClick={() => setSelectedAgent(selectedAgent === agent.name ? null : agent.name)}
-            data-testid="agent-card"
-          >
+          {/* Agent Grid */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {agents.map((agent: any) => (
+              <Card
+                key={agent.id || agent.name}
+                className={`cursor-pointer transition-all hover:shadow-lg ${
+                  selectedAgent === agent.name ? 'ring-2 ring-primary' : ''
+                }`}
+                onClick={() => setSelectedAgent(selectedAgent === agent.name ? null : agent.name)}
+                data-testid="agent-card"
+              >
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg agent-name">{agent.name}</CardTitle>
+                    <div className="flex items-center space-x-2">
+                      <div
+                        className={`h-3 w-3 rounded-full ${
+                          agent.status === 'healthy'
+                            ? 'bg-green-500'
+                            : agent.status === 'warning'
+                              ? 'bg-yellow-500'
+                              : agent.status === 'error'
+                                ? 'bg-red-500'
+                                : 'bg-gray-500'
+                        }`}
+                      />
+                      <Badge
+                        variant="outline"
+                        className={`${getStatusColor(agent.status)} agent-status`}
+                      >
+                        {agent.status}
+                      </Badge>
+                      {liveMode && agent.liveHealth && (
+                        <Badge variant="outline" className="text-xs bg-blue-50">
+                          LIVE
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  <CardDescription className="text-sm">
+                    {agentDescriptions[agent.name as keyof typeof agentDescriptions] ||
+                      'Agent description not available'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {/* Metrics */}
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Success Rate</p>
+                        <p className="font-mono font-medium">{agent.success_rate || 0}%</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Operations</p>
+                        <p className="font-mono font-medium">
+                          {(agent.total_operations || 0).toLocaleString()}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Response Time</p>
+                        <p className="font-mono font-medium">{agent.avg_response_time || 0}ms</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Type</p>
+                        <p className="font-mono font-medium capitalize">
+                          {agent.type || 'Unknown'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Live Health Data */}
+                    {liveMode && agent.liveHealth && (
+                      <div className="bg-blue-50 p-2 rounded text-xs space-y-1">
+                        <div className="flex justify-between">
+                          <span>Memory:</span>
+                          <span className="font-mono">{agent.liveHealth.memory || 0}MB</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>CPU:</span>
+                          <span className="font-mono">{agent.liveHealth.cpu || 0}%</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Uptime:</span>
+                          <span className="font-mono">
+                            {Math.round((agent.liveHealth.uptime || 0) / 3600)}h
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Last Run */}
+                    <div>
+                      <p className="text-muted-foreground text-sm">Last run</p>
+                      <p className="font-medium">
+                        {agent.last_run ? timeAgo(new Date(agent.last_run)) : 'Never'}
+                      </p>
+                    </div>
+
+                    {/* Controls */}
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <div className="flex items-center space-x-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleAgentAction('start', agent.name);
+                          }}
+                          disabled={agentActionMutation.isPending}
+                        >
+                          <Play className="h-4 w-4 text-green-600" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleAgentAction('stop', agent.name);
+                          }}
+                          disabled={agentActionMutation.isPending}
+                        >
+                          <Pause className="h-4 w-4 text-yellow-600" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleAgentAction('restart', agent.name);
+                          }}
+                          disabled={agentActionMutation.isPending}
+                        >
+                          <RotateCcw className="h-4 w-4 text-blue-600" />
+                        </Button>
+                        {liveMode && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={e => {
+                              e.stopPropagation();
+                              refreshAgent(agent.name);
+                            }}
+                          >
+                            <RefreshCw className="h-4 w-4 text-purple-600" />
+                          </Button>
+                        )}
+                      </div>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <Settings className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Agent Logs */}
+          <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg agent-name">{agent.name}</CardTitle>
+              <CardTitle className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <div
-                    className={`h-3 w-3 rounded-full ${
-                      agent.status === 'healthy'
-                        ? 'bg-green-500'
-                        : agent.status === 'warning'
-                          ? 'bg-yellow-500'
-                          : agent.status === 'error'
-                            ? 'bg-red-500'
-                            : 'bg-gray-500'
-                    }`}
-                  />
-                  <Badge
-                    variant="outline"
-                    className={`${getStatusColor(agent.status)} agent-status`}
-                  >
-                    {agent.status}
-                  </Badge>
-                  {liveMode && agent.liveHealth && (
-                    <Badge variant="outline" className="text-xs bg-blue-50">
-                      LIVE
+                  <Terminal className="h-5 w-5" />
+                  <span>Live Agent Logs</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {logsLastUpdate && (
+                    <Badge variant="outline" className="text-xs">
+                      Updated {timeAgo(logsLastUpdate)}
                     </Badge>
                   )}
+                  <Button variant="ghost" size="sm" onClick={refreshLogs} disabled={logsLoading}>
+                    <RefreshCw className={`w-4 h-4 ${logsLoading ? 'animate-spin' : ''}`} />
+                  </Button>
+                  {logsRealTimeEnabled ? (
+                    <Wifi className="w-4 h-4 text-green-500" />
+                  ) : (
+                    <WifiOff className="w-4 h-4 text-muted-foreground" />
+                  )}
                 </div>
-              </div>
-              <CardDescription className="text-sm">
-                {agentDescriptions[agent.name as keyof typeof agentDescriptions] ||
-                  'Agent description not available'}
+              </CardTitle>
+              <CardDescription>
+                Real-time log streaming from all agents{' '}
+                {logsRealTimeEnabled ? '(Live)' : '(Cached)'}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {/* Metrics */}
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Success Rate</p>
-                    <p className="font-mono font-medium">{agent.success_rate || 0}%</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Operations</p>
-                    <p className="font-mono font-medium">
-                      {(agent.total_operations || 0).toLocaleString()}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Response Time</p>
-                    <p className="font-mono font-medium">{agent.avg_response_time || 0}ms</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Type</p>
-                    <p className="font-mono font-medium capitalize">{agent.type || 'Unknown'}</p>
-                  </div>
+              {/* Loading State */}
+              {logsLoading && (
+                <div className="flex items-center justify-center py-8">
+                  <RefreshCw className="w-6 h-6 animate-spin mr-2" />
+                  <span>Loading agent logs...</span>
                 </div>
+              )}
 
-                {/* Live Health Data */}
-                {liveMode && agent.liveHealth && (
-                  <div className="bg-blue-50 p-2 rounded text-xs space-y-1">
-                    <div className="flex justify-between">
-                      <span>Memory:</span>
-                      <span className="font-mono">{agent.liveHealth.memory || 0}MB</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>CPU:</span>
-                      <span className="font-mono">{agent.liveHealth.cpu || 0}%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Uptime:</span>
-                      <span className="font-mono">
-                        {Math.round((agent.liveHealth.uptime || 0) / 3600)}h
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Last Run */}
-                <div>
-                  <p className="text-muted-foreground text-sm">Last run</p>
-                  <p className="font-medium">
-                    {agent.last_run ? timeAgo(new Date(agent.last_run)) : 'Never'}
-                  </p>
+              {/* Error State */}
+              {logsError && (
+                <div className="flex items-center space-x-2 p-4 rounded-lg bg-red-50 border border-red-200 text-red-600 mb-4">
+                  <AlertTriangle className="w-5 h-5" />
+                  <span>Failed to load logs: {logsError.message}</span>
                 </div>
+              )}
 
-                {/* Controls */}
-                <div className="flex items-center justify-between pt-2 border-t">
-                  <div className="flex items-center space-x-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                      onClick={e => {
-                        e.stopPropagation();
-                        handleAgentAction('start', agent.name);
-                      }}
-                      disabled={agentActionMutation.isPending}
+              {/* Logs Display */}
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {agentLogs.length > 0 ? (
+                  agentLogs.map((log, index) => (
+                    <div
+                      key={log.id || index}
+                      className="flex items-start space-x-3 p-3 rounded-lg border bg-muted/20 font-mono text-sm"
                     >
-                      <Play className="h-4 w-4 text-green-600" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                      onClick={e => {
-                        e.stopPropagation();
-                        handleAgentAction('stop', agent.name);
-                      }}
-                      disabled={agentActionMutation.isPending}
-                    >
-                      <Pause className="h-4 w-4 text-yellow-600" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                      onClick={e => {
-                        e.stopPropagation();
-                        handleAgentAction('restart', agent.name);
-                      }}
-                      disabled={agentActionMutation.isPending}
-                    >
-                      <RotateCcw className="h-4 w-4 text-blue-600" />
-                    </Button>
-                    {liveMode && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onClick={e => {
-                          e.stopPropagation();
-                          refreshAgent(agent.name);
-                        }}
-                      >
-                        <RefreshCw className="h-4 w-4 text-purple-600" />
-                      </Button>
-                    )}
+                      <div
+                        className={`h-2 w-2 rounded-full mt-2 flex-shrink-0 ${
+                          log.level === 'info'
+                            ? 'bg-blue-500'
+                            : log.level === 'warn'
+                              ? 'bg-yellow-500'
+                              : log.level === 'error'
+                                ? 'bg-red-500'
+                                : 'bg-gray-500'
+                        }`}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <span className="text-muted-foreground text-xs">
+                            {timeAgo(log.timestamp)}
+                          </span>
+                          <Badge variant="outline" className="text-xs">
+                            {log.agent}
+                          </Badge>
+                          <Badge
+                            variant={log.level === 'error' ? 'destructive' : 'outline'}
+                            className="text-xs"
+                          >
+                            {log.level.toUpperCase()}
+                          </Badge>
+                        </div>
+                        <p className="text-foreground text-sm">{log.message}</p>
+                        {log.correlationId && (
+                          <p className="text-muted-foreground text-xs mt-1">
+                            ID: {log.correlationId}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : !logsLoading ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Terminal className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <p>No agent logs available</p>
+                    <p className="text-xs mt-1">Logs will appear here as agents run</p>
                   </div>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                    <Settings className="h-4 w-4" />
-                  </Button>
+                ) : null}
+              </div>
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <span>Total Logs: {agentLogs.length}</span>
+                  <span>
+                    Errors: {agentLogs.filter(log => log.level === 'error').length} | Warnings:{' '}
+                    {agentLogs.filter(log => log.level === 'warn').length}
+                  </span>
                 </div>
+                <Button variant="outline" size="sm" className="w-full">
+                  View Full Log History
+                </Button>
               </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
-
-      {/* Agent Logs */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Terminal className="h-5 w-5" />
-              <span>Live Agent Logs</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              {logsLastUpdate && (
-                <Badge variant="outline" className="text-xs">
-                  Updated {timeAgo(logsLastUpdate)}
-                </Badge>
-              )}
-              <Button variant="ghost" size="sm" onClick={refreshLogs} disabled={logsLoading}>
-                <RefreshCw className={`w-4 h-4 ${logsLoading ? 'animate-spin' : ''}`} />
-              </Button>
-              {logsRealTimeEnabled ? (
-                <Wifi className="w-4 h-4 text-green-500" />
-              ) : (
-                <WifiOff className="w-4 h-4 text-muted-foreground" />
-              )}
-            </div>
-          </CardTitle>
-          <CardDescription>
-            Real-time log streaming from all agents {logsRealTimeEnabled ? '(Live)' : '(Cached)'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {/* Loading State */}
-          {logsLoading && (
-            <div className="flex items-center justify-center py-8">
-              <RefreshCw className="w-6 h-6 animate-spin mr-2" />
-              <span>Loading agent logs...</span>
-            </div>
-          )}
-
-          {/* Error State */}
-          {logsError && (
-            <div className="flex items-center space-x-2 p-4 rounded-lg bg-red-50 border border-red-200 text-red-600 mb-4">
-              <AlertTriangle className="w-5 h-5" />
-              <span>Failed to load logs: {logsError.message}</span>
-            </div>
-          )}
-
-          {/* Logs Display */}
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {agentLogs.length > 0 ? (
-              agentLogs.map((log, index) => (
-                <div
-                  key={log.id || index}
-                  className="flex items-start space-x-3 p-3 rounded-lg border bg-muted/20 font-mono text-sm"
-                >
-                  <div
-                    className={`h-2 w-2 rounded-full mt-2 flex-shrink-0 ${
-                      log.level === 'info'
-                        ? 'bg-blue-500'
-                        : log.level === 'warn'
-                          ? 'bg-yellow-500'
-                          : log.level === 'error'
-                            ? 'bg-red-500'
-                            : 'bg-gray-500'
-                    }`}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <span className="text-muted-foreground text-xs">
-                        {timeAgo(log.timestamp)}
-                      </span>
-                      <Badge variant="outline" className="text-xs">
-                        {log.agent}
-                      </Badge>
-                      <Badge
-                        variant={log.level === 'error' ? 'destructive' : 'outline'}
-                        className="text-xs"
-                      >
-                        {log.level.toUpperCase()}
-                      </Badge>
-                    </div>
-                    <p className="text-foreground text-sm">{log.message}</p>
-                    {log.correlationId && (
-                      <p className="text-muted-foreground text-xs mt-1">ID: {log.correlationId}</p>
-                    )}
-                  </div>
-                </div>
-              ))
-            ) : !logsLoading ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Terminal className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p>No agent logs available</p>
-                <p className="text-xs mt-1">Logs will appear here as agents run</p>
-              </div>
-            ) : null}
-          </div>
-          <div className="mt-4 space-y-3">
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>Total Logs: {agentLogs.length}</span>
-              <span>
-                Errors: {agentLogs.filter(log => log.level === 'error').length} | Warnings:{' '}
-                {agentLogs.filter(log => log.level === 'warn').length}
-              </span>
-            </div>
-            <Button variant="outline" size="sm" className="w-full">
-              View Full Log History
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
         </TabsContent>
       </Tabs>
     </div>

@@ -2,7 +2,7 @@
  * CLV (Closing Line Value) Tracking Service
  * The North Star metric for professional betting success
  * Tracks whether picks consistently beat the closing line
- * 
+ *
  * @module CLVTrackingService
  */
 
@@ -15,7 +15,7 @@ export interface CLVEntry {
   sport: string;
   market: string;
   book: string;
-  
+
   // Line data
   openingLine: number;
   openingOdds: number;
@@ -23,23 +23,23 @@ export interface CLVEntry {
   betOdds: number;
   closingLine: number;
   closingOdds: number;
-  
+
   // Timing
   openingTime: Date;
   betTime: Date;
   closingTime: Date;
   gameTime: Date;
-  
+
   // CLV metrics
-  clv: number;              // Raw CLV
-  clvPercentage: number;    // CLV as percentage
-  beatsClosing: boolean;    // Binary - did we beat closing?
-  
+  clv: number; // Raw CLV
+  clvPercentage: number; // CLV as percentage
+  beatsClosing: boolean; // Binary - did we beat closing?
+
   // Additional context
-  modelEdge: number;        // Our model's edge at bet time
-  actualResult?: boolean;   // Did the bet win?
-  profit?: number;          // Actual profit/loss
-  
+  modelEdge: number; // Our model's edge at bet time
+  actualResult?: boolean; // Did the bet win?
+  profit?: number; // Actual profit/loss
+
   // Devigged metrics
   deviggedOpeningProb: number;
   deviggedClosingProb: number;
@@ -52,13 +52,13 @@ export interface CLVStats {
   clvNegative: number;
   avgCLV: number;
   avgCLVPercentage: number;
-  
+
   // By timeframe
   last24h: CLVMetrics;
   last7d: CLVMetrics;
   last30d: CLVMetrics;
   allTime: CLVMetrics;
-  
+
   // By category
   bySport: Map<string, CLVMetrics>;
   byMarket: Map<string, CLVMetrics>;
@@ -77,7 +77,7 @@ export class CLVTrackingService {
   private static instance: CLVTrackingService;
   private logger: any;
   private clvCache: Map<string, CLVEntry> = new Map();
-  
+
   private constructor() {
     this.logger = createLogger('CLVTrackingService');
   }
@@ -117,7 +117,7 @@ export class CLVTrackingService {
         betTime: new Date(),
         gameTime: pick.gameTime,
         modelEdge: pick.modelEdge,
-        
+
         // Use provided opening or current as opening
         openingLine: pick.openingLine || pick.betLine,
         openingOdds: pick.openingOdds || pick.betOdds,
@@ -125,9 +125,7 @@ export class CLVTrackingService {
       };
 
       // Store in database
-      const { error } = await supabaseClient
-        .from('clv_tracking')
-        .insert(clvEntry);
+      const { error } = await supabaseClient.from('clv_tracking').insert(clvEntry);
 
       if (error) {
         this.logger.error('Failed to track CLV pick', error);
@@ -136,9 +134,9 @@ export class CLVTrackingService {
 
       // Cache for quick access
       this.clvCache.set(pick.propId, clvEntry as CLVEntry);
-      
+
       this.logger.info(`CLV tracking started for ${pick.propId}`);
-      
+
       // Return the propId as tracking identifier
       return pick.propId;
     } catch (error) {
@@ -150,7 +148,11 @@ export class CLVTrackingService {
   /**
    * Update closing line and calculate CLV
    */
-  async updateClosingLine(propId: string, closingLine: number, closingOdds: number): Promise<CLVEntry> {
+  async updateClosingLine(
+    propId: string,
+    closingLine: number,
+    closingOdds: number
+  ): Promise<CLVEntry> {
     try {
       // Get existing entry
       const { data: existing, error: fetchError } = await supabaseClient
@@ -179,7 +181,7 @@ export class CLVTrackingService {
         clv: clvMetrics.clv,
         clvPercentage: clvMetrics.clvPercentage,
         beatsClosing: clvMetrics.beatsClosing,
-        deviggedClosingProb: clvMetrics.deviggedClosingProb
+        deviggedClosingProb: clvMetrics.deviggedClosingProb,
       };
 
       const { data: updated, error: updateError } = await supabaseClient
@@ -194,7 +196,7 @@ export class CLVTrackingService {
       }
 
       this.logger.info(`CLV calculated for ${propId}: ${clvMetrics.clvPercentage.toFixed(2)}%`);
-      
+
       return updated;
     } catch (error) {
       this.logger.error('Error updating closing line', error);
@@ -219,47 +221,42 @@ export class CLVTrackingService {
     // Convert to probabilities
     const betProb = this.oddsToProb(betOdds);
     const closingProb = this.oddsToProb(closingOdds);
-    
+
     // For totals/spreads, also consider line movement
     let lineAdjustment = 0;
     if (betLine !== closingLine) {
       // Each 0.5 point is worth ~2.5% in probability
       lineAdjustment = (betLine - closingLine) * 0.025;
     }
-    
+
     // CLV is the difference in implied probability
     const clv = betProb - closingProb + lineAdjustment;
     const clvPercentage = clv * 100;
-    
+
     // Positive CLV means we beat the closing line
     const beatsClosing = clv > 0;
-    
+
     return {
       clv,
       clvPercentage,
       beatsClosing,
-      deviggedClosingProb: closingProb // This should use devigging service
+      deviggedClosingProb: closingProb, // This should use devigging service
     };
   }
 
   /**
    * Get CLV statistics
    */
-  async getCLVStats(
-    filters?: {
-      userId?: string;
-      sport?: string;
-      market?: string;
-      book?: string;
-      startDate?: Date;
-      endDate?: Date;
-    }
-  ): Promise<CLVStats> {
+  async getCLVStats(filters?: {
+    userId?: string;
+    sport?: string;
+    market?: string;
+    book?: string;
+    startDate?: Date;
+    endDate?: Date;
+  }): Promise<CLVStats> {
     try {
-      let query = supabaseClient
-        .from('clv_tracking')
-        .select('*')
-        .not('closingLine', 'is', null); // Only completed CLV entries
+      let query = supabaseClient.from('clv_tracking').select('*').not('closingLine', 'is', null); // Only completed CLV entries
 
       // Apply filters
       if (filters?.userId) query = query.eq('userId', filters.userId);
@@ -287,7 +284,7 @@ export class CLVTrackingService {
     const totalBets = entries.length;
     const clvPositive = entries.filter(e => e.beatsClosing).length;
     const clvNegative = totalBets - clvPositive;
-    
+
     const avgCLV = entries.reduce((sum, e) => sum + e.clv, 0) / totalBets;
     const avgCLVPercentage = entries.reduce((sum, e) => sum + e.clvPercentage, 0) / totalBets;
 
@@ -321,7 +318,7 @@ export class CLVTrackingService {
       allTime,
       bySport,
       byMarket,
-      byBook
+      byBook,
     };
   }
 
@@ -335,22 +332,25 @@ export class CLVTrackingService {
 
     const count = entries.length;
     const avgCLV = entries.reduce((sum, e) => sum + e.clvPercentage, 0) / count;
-    
+
     // Win rate (if we have results)
     const entriesWithResults = entries.filter(e => e.actualResult !== undefined);
-    const winRate = entriesWithResults.length > 0
-      ? entriesWithResults.filter(e => e.actualResult).length / entriesWithResults.length
-      : 0;
-    
+    const winRate =
+      entriesWithResults.length > 0
+        ? entriesWithResults.filter(e => e.actualResult).length / entriesWithResults.length
+        : 0;
+
     // ROI (if we have profit data)
     const entriesWithProfit = entries.filter(e => e.profit !== undefined);
-    const roi = entriesWithProfit.length > 0
-      ? entriesWithProfit.reduce((sum, e) => sum + (e.profit || 0), 0) / entriesWithProfit.length
-      : 0;
-    
+    const roi =
+      entriesWithProfit.length > 0
+        ? entriesWithProfit.reduce((sum, e) => sum + (e.profit || 0), 0) / entriesWithProfit.length
+        : 0;
+
     // Standard deviation
     const mean = avgCLV;
-    const variance = entries.reduce((sum, e) => sum + Math.pow(e.clvPercentage - mean, 2), 0) / count;
+    const variance =
+      entries.reduce((sum, e) => sum + Math.pow(e.clvPercentage - mean, 2), 0) / count;
     const stdDev = Math.sqrt(variance);
 
     return { count, avgCLV, winRate, roi, stdDev };
@@ -361,7 +361,7 @@ export class CLVTrackingService {
    */
   private groupAndCalculate(entries: CLVEntry[], groupBy: keyof CLVEntry): Map<string, CLVMetrics> {
     const grouped = new Map<string, CLVEntry[]>();
-    
+
     // Group entries
     entries.forEach(entry => {
       const key = String(entry[groupBy]);
@@ -370,13 +370,13 @@ export class CLVTrackingService {
       }
       grouped.get(key)!.push(entry);
     });
-    
+
     // Calculate metrics for each group
     const results = new Map<string, CLVMetrics>();
     grouped.forEach((groupEntries, key) => {
       results.set(key, this.calculateMetrics(groupEntries));
     });
-    
+
     return results;
   }
 
@@ -400,12 +400,12 @@ export class CLVTrackingService {
         .from('clv_tracking')
         .update({
           actualResult: won,
-          profit: profit
+          profit: profit,
         })
         .eq('propId', propId);
 
       if (error) throw error;
-      
+
       this.logger.info(`Result updated for ${propId}: ${won ? 'WIN' : 'LOSS'} (${profit})`);
     } catch (error) {
       this.logger.error('Error updating CLV result', error);
@@ -423,21 +423,21 @@ export class CLVTrackingService {
     message?: string;
   }> {
     const startTime = new Date(Date.now() - hours * 60 * 60 * 1000);
-    
+
     const stats = await this.getCLVStats({
-      startDate: startTime
+      startDate: startTime,
     });
 
     const avgCLV = stats.avgCLVPercentage;
-    
+
     // Determine trend by comparing periods
     const firstHalf = await this.getCLVStats({
       startDate: startTime,
-      endDate: new Date(Date.now() - (hours / 2) * 60 * 60 * 1000)
+      endDate: new Date(Date.now() - (hours / 2) * 60 * 60 * 1000),
     });
-    
+
     const secondHalf = await this.getCLVStats({
-      startDate: new Date(Date.now() - (hours / 2) * 60 * 60 * 1000)
+      startDate: new Date(Date.now() - (hours / 2) * 60 * 60 * 1000),
     });
 
     let trend: 'improving' | 'stable' | 'declining' = 'stable';
@@ -450,7 +450,7 @@ export class CLVTrackingService {
     // Alert conditions
     let alert = false;
     let message: string | undefined;
-    
+
     if (avgCLV < -2) {
       alert = true;
       message = `CRITICAL: CLV averaging ${avgCLV.toFixed(2)}% over last ${hours}h`;

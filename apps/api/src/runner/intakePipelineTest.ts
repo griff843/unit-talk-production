@@ -30,7 +30,7 @@ const ingestionConfig: BaseAgentConfig = {
   logLevel: 'info',
   metrics: {
     enabled: true,
-    interval: 60
+    interval: 60,
   },
 };
 
@@ -41,14 +41,14 @@ const campaignConfig: BaseAgentConfig = {
   logLevel: 'info',
   metrics: {
     enabled: true,
-    interval: 60
+    interval: 60,
   },
 };
 
 const deps = {
   supabase: getSupabase(),
   logger,
-  errorHandler
+  errorHandler,
 };
 
 // Full agent runner

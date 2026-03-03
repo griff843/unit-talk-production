@@ -2,7 +2,7 @@
 
 /**
  * Example usage of the Optimal API integration
- * 
+ *
  * This file demonstrates how to use the fetchOptimalProps function
  * to integrate with the Optimal API feed.
  */
@@ -26,9 +26,9 @@ async function exampleUsage() {
     // Fetch props for NBA on a specific date
     console.log('Fetching NBA props for 2024-01-15...');
     const nbaProps = await fetchOptimalProps('NBA', '2024-01-15');
-    
+
     console.log(`Received ${nbaProps.length} NBA props`);
-    
+
     // Display first few props as examples
     nbaProps.slice(0, 3).forEach((prop, index) => {
       console.log(`\nProp ${index + 1}:`);
@@ -44,9 +44,9 @@ async function exampleUsage() {
     // Example of batch fetching for multiple leagues
     const leagues = ['NBA', 'NFL', 'MLB'];
     const date = '2024-01-15';
-    
+
     console.log('\n--- Batch Fetching Example ---');
-    
+
     for (const league of leagues) {
       try {
         // Check rate limit before each request
@@ -59,16 +59,14 @@ async function exampleUsage() {
         console.log(`\nFetching ${league} props...`);
         const props = await fetchOptimalProps(league, date);
         console.log(`${league}: ${props.length} props fetched`);
-        
+
         // Brief delay between requests to be respectful
         await new Promise(resolve => setTimeout(resolve, 100));
-        
       } catch (error) {
         console.error(`Failed to fetch ${league} props:`, error);
         // Continue with other leagues even if one fails
       }
     }
-
   } catch (error) {
     console.error('Example failed:', error);
   }
@@ -78,15 +76,17 @@ async function exampleUsage() {
 function setupEnvironment() {
   console.log('Required environment variables:');
   console.log('- OPTIMAL_API_KEY: Your Optimal API key');
-  console.log('- OPTIMAL_API_BASE_URL: Base URL for Optimal API (optional, defaults to https://api.optimal.com)');
-  
+  console.log(
+    '- OPTIMAL_API_BASE_URL: Base URL for Optimal API (optional, defaults to https://api.optimal.com)'
+  );
+
   const apiKey = process.env['OPTIMAL_API_KEY'];
   const baseUrl = process.env['OPTIMAL_API_BASE_URL'];
-  
+
   if (!apiKey) {
     console.warn('WARNING: OPTIMAL_API_KEY not set. Please set this environment variable.');
   }
-  
+
   if (!baseUrl) {
     console.log('Using default base URL: https://api.optimal.com');
   }
@@ -95,9 +95,9 @@ function setupEnvironment() {
 // Integration with existing FeedAgent workflow example
 async function integrationExample() {
   console.log('\n--- Integration Example ---');
-  
+
   try {
-    const league = 'MLB';  // Changed from NBA to MLB
+    const league = 'MLB'; // Changed from NBA to MLB
     const currentDate = new Date().toISOString().split('T')[0]!; // Today's date
 
     // Initialize Supabase client
@@ -107,14 +107,14 @@ async function integrationExample() {
 
     // Fetch from Optimal API
     const optimalProps = await fetchOptimalProps(league, currentDate);
-    
+
     if (optimalProps.length === 0) {
       console.log('No props from Optimal, would fallback to SGO/OddsAPI');
       return;
     }
-    
+
     console.log(`Successfully fetched ${optimalProps.length} props from Optimal`);
-    
+
     // Deduplicate props
     const dedupedProps = await dedupePublicProps(optimalProps, 'Optimal', supabase);
     console.log(`After deduplication: ${dedupedProps.length} props`);
@@ -127,9 +127,7 @@ async function integrationExample() {
     for (let i = 0; i < dedupedProps.length; i += CHUNK_SIZE) {
       const chunk = dedupedProps.slice(i, i + CHUNK_SIZE);
       try {
-        const { error } = await supabase
-          .from('raw_props')
-          .insert(chunk);
+        const { error } = await supabase.from('raw_props').insert(chunk);
 
         if (error) {
           console.error(`Error inserting chunk ${i / CHUNK_SIZE + 1}:`, error);
@@ -151,7 +149,6 @@ async function integrationExample() {
     console.log(`- Total props: ${dedupedProps.length}`);
     console.log(`- Inserted: ${inserted}`);
     console.log(`- Failed chunks: ${errors}`);
-    
   } catch (error) {
     console.error('Optimal API failed:', error);
   }

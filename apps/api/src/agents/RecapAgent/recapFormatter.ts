@@ -7,7 +7,7 @@ import {
   ParlayGroup,
   MicroRecapData,
   RecapConfig,
-  HotStreak
+  HotStreak,
 } from '../../types/picks';
 
 /**
@@ -29,7 +29,7 @@ export class RecapFormatter {
       slashCommands: process.env['SLASH_COMMANDS'] === 'true',
       metricsEnabled: process.env['METRICS_ENABLED'] !== 'false',
       metricsPort: parseInt(process.env['METRICS_PORT'] || '3001'),
-      ...config
+      ...config,
     };
   }
 
@@ -44,26 +44,32 @@ export class RecapFormatter {
 
     // Performance summary
     const profitEmoji = summary.netUnits >= 0 ? '📈' : '📉';
-    const unitsText = summary.netUnits >= 0 ? `+${summary.netUnits.toFixed(1)}U` : `${summary.netUnits.toFixed(1)}U`;
-    
+    const unitsText =
+      summary.netUnits >= 0
+        ? `+${summary.netUnits.toFixed(1)}U`
+        : `${summary.netUnits.toFixed(1)}U`;
+
     embed.addFields({
       name: `${profitEmoji} Net: ${unitsText}`,
       value: `${summary.totalPicks}U Wagered • ${summary.wins}W-${summary.losses}L${summary.pushes > 0 ? `-${summary.pushes}P` : ''} • ${summary.winRate.toFixed(1)}% Win Rate`,
-      inline: false
+      inline: false,
     });
 
     // Performance breakdown
     const avgEdgeText = summary.avgEdge > 0 ? `${summary.avgEdge.toFixed(1)}` : 'N/A';
-    const clvText = this.config.clvDelta && summary.avgClvDelta !== undefined ? 
-      ` • CLV Δ: ${summary.avgClvDelta > 0 ? '+' : ''}${summary.avgClvDelta.toFixed(1)}` : '';
-    
+    const clvText =
+      this.config.clvDelta && summary.avgClvDelta !== undefined
+        ? ` • CLV Δ: ${summary.avgClvDelta > 0 ? '+' : ''}${summary.avgClvDelta.toFixed(1)}`
+        : '';
+
     embed.addFields({
       name: '🎯 Performance Breakdown',
-      value: `• Solo: ${this.getSoloStats(summary)}U wagered • ${this.getSoloWinRate(summary)}%\n` +
-             `• Parlays: ${this.getParlayStats(parlayGroups)}U wagered • ${this.getParlayWinRate(parlayGroups)}%\n` +
-             `• Total: ${summary.totalUnits}U wagered • ${unitsText}\n` +
-             `• Avg Edge: ${avgEdgeText}${clvText}`,
-      inline: false
+      value:
+        `• Solo: ${this.getSoloStats(summary)}U wagered • ${this.getSoloWinRate(summary)}%\n` +
+        `• Parlays: ${this.getParlayStats(parlayGroups)}U wagered • ${this.getParlayWinRate(parlayGroups)}%\n` +
+        `• Total: ${summary.totalUnits}U wagered • ${unitsText}\n` +
+        `• Avg Edge: ${avgEdgeText}${clvText}`,
+      inline: false,
     });
 
     // Solo picks section
@@ -73,7 +79,7 @@ export class RecapFormatter {
         embed.addFields({
           name: '🏈 Solo Picks',
           value: soloPicksText,
-          inline: false
+          inline: false,
         });
       }
     }
@@ -84,7 +90,7 @@ export class RecapFormatter {
       embed.addFields({
         name: '🎲 Parlay Results',
         value: parlayText,
-        inline: false
+        inline: false,
       });
     }
 
@@ -94,7 +100,7 @@ export class RecapFormatter {
       embed.addFields({
         name: '👥 Capper Breakdown',
         value: capperText,
-        inline: false
+        inline: false,
       });
     }
 
@@ -104,18 +110,19 @@ export class RecapFormatter {
       embed.addFields({
         name: '🔥 Hot Streaks',
         value: streakText,
-        inline: false
+        inline: false,
       });
     }
 
     // Add legend footer if enabled
     if (this.config.legendFooter) {
-      embed.setFooter({ 
-        text: this.getLegendFooter() + ` • Generated in ${summary.metadata?.processingTimeMs || 0}ms`
+      embed.setFooter({
+        text:
+          this.getLegendFooter() + ` • Generated in ${summary.metadata?.processingTimeMs || 0}ms`,
       });
     } else {
-      embed.setFooter({ 
-        text: `Unit Talk • Recap Engine v${summary.metadata?.version || '3.0.0'} • Generated in ${summary.metadata?.processingTimeMs || 0}ms`
+      embed.setFooter({
+        text: `Unit Talk • Recap Engine v${summary.metadata?.version || '3.0.0'} • Generated in ${summary.metadata?.processingTimeMs || 0}ms`,
       });
     }
 
@@ -125,7 +132,8 @@ export class RecapFormatter {
   /**
    * Build weekly recap embed
    */
-  buildWeeklyRecapEmbed(summary: RecapSummary,
+  buildWeeklyRecapEmbed(
+    summary: RecapSummary
     // parlayGroups: ParlayGroup[] = []
   ): EmbedBuilder {
     const embed = new EmbedBuilder()
@@ -135,15 +143,19 @@ export class RecapFormatter {
 
     // Weekly performance
     const profitEmoji = summary.netUnits >= 0 ? '📈' : '📉';
-    const unitsText = summary.netUnits >= 0 ? `+${summary.netUnits.toFixed(1)}U` : `${summary.netUnits.toFixed(1)}U`;
+    const unitsText =
+      summary.netUnits >= 0
+        ? `+${summary.netUnits.toFixed(1)}U`
+        : `${summary.netUnits.toFixed(1)}U`;
 
     embed.addFields({
       name: `${profitEmoji} Record: ${summary.wins}W - ${summary.losses}L`,
-      value: `Net Units: ${unitsText}\n` +
-             `ROI: ${summary.roi.toFixed(1)}%\n` +
-             `Win Rate: ${summary.winRate.toFixed(1)}%\n` +
-             `Avg Edge: ${summary.avgEdge.toFixed(1)}`,
-      inline: false
+      value:
+        `Net Units: ${unitsText}\n` +
+        `ROI: ${summary.roi.toFixed(1)}%\n` +
+        `Win Rate: ${summary.winRate.toFixed(1)}%\n` +
+        `Avg Edge: ${summary.avgEdge.toFixed(1)}`,
+      inline: false,
     });
 
     // Capper breakdown
@@ -152,7 +164,7 @@ export class RecapFormatter {
       embed.addFields({
         name: '👥 Capper Breakdown',
         value: capperText,
-        inline: false
+        inline: false,
       });
     }
 
@@ -173,7 +185,7 @@ export class RecapFormatter {
       embed.addFields({
         name: '🏆 Top Cappers',
         value: topCappersText,
-        inline: false
+        inline: false,
       });
     }
 
@@ -183,7 +195,7 @@ export class RecapFormatter {
       embed.addFields({
         name: '💫 Weekly Highlights',
         value: highlights,
-        inline: false
+        inline: false,
       });
     }
 
@@ -193,7 +205,7 @@ export class RecapFormatter {
       embed.addFields({
         name: '📊 Tier Performance Breakdown',
         value: tierText,
-        inline: false
+        inline: false,
       });
     }
 
@@ -201,7 +213,9 @@ export class RecapFormatter {
     if (this.config.legendFooter) {
       embed.setFooter({ text: this.getLegendFooter() });
     } else {
-      embed.setFooter({ text: `Unit Talk • Weekly Recap Engine v${summary.metadata?.version || '3.0.0'}` });
+      embed.setFooter({
+        text: `Unit Talk • Weekly Recap Engine v${summary.metadata?.version || '3.0.0'}`,
+      });
     }
 
     return embed;
@@ -210,7 +224,8 @@ export class RecapFormatter {
   /**
    * Build monthly recap embed
    */
-  buildMonthlyRecapEmbed(summary: RecapSummary,
+  buildMonthlyRecapEmbed(
+    summary: RecapSummary
     // parlayGroups: ParlayGroup[] = []
   ): EmbedBuilder {
     const embed = new EmbedBuilder()
@@ -220,29 +235,33 @@ export class RecapFormatter {
 
     // Monthly performance
     const profitEmoji = summary.netUnits >= 0 ? '📈' : '📉';
-    const unitsText = summary.netUnits >= 0 ? `+${summary.netUnits.toFixed(1)}U` : `${summary.netUnits.toFixed(1)}U`;
+    const unitsText =
+      summary.netUnits >= 0
+        ? `+${summary.netUnits.toFixed(1)}U`
+        : `${summary.netUnits.toFixed(1)}U`;
 
     embed.addFields({
       name: `${profitEmoji} Record: ${summary.wins}W - ${summary.losses}L`,
-      value: `Net Units: ${unitsText}\n` +
-             `ROI: ${summary.roi.toFixed(1)}%\n` +
-             `Win Rate: ${summary.winRate.toFixed(1)}%\n` +
-             `Avg Edge: ${summary.avgEdge.toFixed(1)}\n` +
-             `$100/Better Profit: $${(summary.netUnits * 100).toFixed(0)}`,
-      inline: false
+      value:
+        `Net Units: ${unitsText}\n` +
+        `ROI: ${summary.roi.toFixed(1)}%\n` +
+        `Win Rate: ${summary.winRate.toFixed(1)}%\n` +
+        `Avg Edge: ${summary.avgEdge.toFixed(1)}\n` +
+        `$100/Better Profit: $${(summary.netUnits * 100).toFixed(0)}`,
+      inline: false,
     });
 
     // Capper of the month
-    const topCapper = summary.capperBreakdown
-      .sort((a, b) => b.netUnits - a.netUnits)[0];
+    const topCapper = summary.capperBreakdown.sort((a, b) => b.netUnits - a.netUnits)[0];
 
     if (topCapper) {
       embed.addFields({
         name: '👑 Capper of the Month',
-        value: `${topCapper.capper}: ${topCapper.netUnits > 0 ? '+' : ''}${topCapper.netUnits.toFixed(1)}U • ` +
-               `${topCapper.winRate.toFixed(1)}% Win Rate • ` +
-               `${topCapper.roi.toFixed(1)}% ROI`,
-        inline: false
+        value:
+          `${topCapper.capper}: ${topCapper.netUnits > 0 ? '+' : ''}${topCapper.netUnits.toFixed(1)}U • ` +
+          `${topCapper.winRate.toFixed(1)}% Win Rate • ` +
+          `${topCapper.roi.toFixed(1)}% ROI`,
+        inline: false,
       });
     }
 
@@ -252,7 +271,7 @@ export class RecapFormatter {
       embed.addFields({
         name: '🌟 Monthly Highlights',
         value: highlights,
-        inline: false
+        inline: false,
       });
     }
 
@@ -262,7 +281,7 @@ export class RecapFormatter {
       embed.addFields({
         name: '📊 Tier Performance Breakdown',
         value: tierText,
-        inline: false
+        inline: false,
       });
     }
 
@@ -270,7 +289,9 @@ export class RecapFormatter {
     if (this.config.legendFooter) {
       embed.setFooter({ text: this.getLegendFooter() });
     } else {
-      embed.setFooter({ text: `Unit Talk • Monthly Recap Engine v${summary.metadata?.version || '3.0.0'}` });
+      embed.setFooter({
+        text: `Unit Talk • Monthly Recap Engine v${summary.metadata?.version || '3.0.0'}`,
+      });
     }
 
     return embed;
@@ -285,21 +306,24 @@ export class RecapFormatter {
       .setColor(microData.dailyRoi >= 0 ? 0x00ff00 : 0xff0000)
       .setTimestamp();
 
-    const triggerText = microData.trigger === 'last_pick_graded' ? 
-      '🏁 All picks graded' : 
-      `📊 ROI swing: ${microData.roiChange.toFixed(1)}U`;
+    const triggerText =
+      microData.trigger === 'last_pick_graded'
+        ? '🏁 All picks graded'
+        : `📊 ROI swing: ${microData.roiChange.toFixed(1)}U`;
 
-    const roiText = microData.dailyRoi >= 0 ? 
-      `+${microData.dailyRoi.toFixed(1)}%` : 
-      `${microData.dailyRoi.toFixed(1)}%`;
+    const roiText =
+      microData.dailyRoi >= 0
+        ? `+${microData.dailyRoi.toFixed(1)}%`
+        : `${microData.dailyRoi.toFixed(1)}%`;
 
     embed.addFields({
       name: triggerText,
-      value: `**Daily ROI:** ${roiText}\n` +
-             `**Record:** ${microData.winLoss}\n` +
-             `**Units:** Solo ${microData.unitBreakdown.solo}U • Parlay ${microData.unitBreakdown.parlay}U • Total ${microData.unitBreakdown.total}U\n` +
-             `**Top Capper:** ${microData.topCapper.name} (${microData.topCapper.netUnits > 0 ? '+' : ''}${microData.topCapper.netUnits.toFixed(1)}U, ${microData.topCapper.winRate.toFixed(1)}%)`,
-      inline: false
+      value:
+        `**Daily ROI:** ${roiText}\n` +
+        `**Record:** ${microData.winLoss}\n` +
+        `**Units:** Solo ${microData.unitBreakdown.solo}U • Parlay ${microData.unitBreakdown.parlay}U • Total ${microData.unitBreakdown.total}U\n` +
+        `**Top Capper:** ${microData.topCapper.name} (${microData.topCapper.netUnits > 0 ? '+' : ''}${microData.topCapper.netUnits.toFixed(1)}U, ${microData.topCapper.winRate.toFixed(1)}%)`,
+      inline: false,
     });
 
     if (this.config.legendFooter) {
@@ -321,14 +345,19 @@ export class RecapFormatter {
 
     // Add sample picks (in production, you'd get actual pick details)
     if (summary.bestPick) {
-      const profitLoss = typeof summary.bestPick['profit_loss'] === 'number' ?
-        summary.bestPick['profit_loss'].toFixed(1) : '0';
+      const profitLoss =
+        typeof summary.bestPick['profit_loss'] === 'number'
+          ? summary.bestPick['profit_loss'].toFixed(1)
+          : '0';
       picks.push(`✅ ${this.formatPick(summary.bestPick)} (+${profitLoss}U)`);
     }
 
     if (summary.worstPick) {
-      const profitLoss = (summary.worstPick['profit_loss'] !== null && typeof summary.worstPick['profit_loss'] === 'number') ?
-        summary.worstPick['profit_loss'].toFixed(1) : '0';
+      const profitLoss =
+        summary.worstPick['profit_loss'] !== null &&
+        typeof summary.worstPick['profit_loss'] === 'number'
+          ? summary.worstPick['profit_loss'].toFixed(1)
+          : '0';
       picks.push(`❌ ${this.formatPick(summary.worstPick)} (${profitLoss}U)`);
     }
 
@@ -336,75 +365,101 @@ export class RecapFormatter {
   }
 
   private buildParlayText(parlayGroups: ParlayGroup[]): string {
-    return parlayGroups.map(parlay => {
-      const outcome = parlay.outcome === 'win' ? '✅' : parlay.outcome === 'loss' ? '❌' : '🟡';
-      const profitText = parlay.profit_loss ? 
-        (parlay.profit_loss > 0 ? `(+${parlay.profit_loss.toFixed(1)}U)` : `(${parlay.profit_loss.toFixed(1)}U)`) : '';
-      
-      return `${outcome} ${parlay.capper || 'Unknown'} - Parlay (${parlay.picks.length} Legs) ${profitText}`;
-    }).join('\n');
+    return parlayGroups
+      .map(parlay => {
+        const outcome = parlay.outcome === 'win' ? '✅' : parlay.outcome === 'loss' ? '❌' : '🟡';
+        const profitText = parlay.profit_loss
+          ? parlay.profit_loss > 0
+            ? `(+${parlay.profit_loss.toFixed(1)}U)`
+            : `(${parlay.profit_loss.toFixed(1)}U)`
+          : '';
+
+        return `${outcome} ${parlay.capper || 'Unknown'} - Parlay (${parlay.picks.length} Legs) ${profitText}`;
+      })
+      .join('\n');
   }
 
   private buildCapperBreakdownText(cappers: CapperStats[]): string {
-    return cappers.map(capper => {
-      const unitsText = capper.netUnits >= 0 ? `+${capper.netUnits.toFixed(1)}U` : `${capper.netUnits.toFixed(1)}U`;
-      const roiText = `${capper.roi.toFixed(1)}%`;
-      const winRateText = `${capper.winRate.toFixed(1)}%`;
-      
-      let streakText = '';
-      if (capper.currentStreak > 0) {
-        const streakEmoji = capper.streakType === 'win' ? '🔥' : '❄️';
-        streakText = ` ${streakEmoji}${capper.currentStreak}`;
-      }
+    return cappers
+      .map(capper => {
+        const unitsText =
+          capper.netUnits >= 0
+            ? `+${capper.netUnits.toFixed(1)}U`
+            : `${capper.netUnits.toFixed(1)}U`;
+        const roiText = `${capper.roi.toFixed(1)}%`;
+        const winRateText = `${capper.winRate.toFixed(1)}%`;
 
-      let sparklineText = '';
-      if (this.config.streakSparkline && capper.streakSparkline) {
-        sparklineText = ` ${capper.streakSparkline}`;
-      }
+        let streakText = '';
+        if (capper.currentStreak > 0) {
+          const streakEmoji = capper.streakType === 'win' ? '🔥' : '❄️';
+          streakText = ` ${streakEmoji}${capper.currentStreak}`;
+        }
 
-      return `• ${capper.capper}: ${capper.picks}W-${capper.losses}L • ${unitsText} • ROI: ${roiText} • Win Rate: ${winRateText}${streakText}${sparklineText}`;
-    }).join('\n');
+        let sparklineText = '';
+        if (this.config.streakSparkline && capper.streakSparkline) {
+          sparklineText = ` ${capper.streakSparkline}`;
+        }
+
+        return `• ${capper.capper}: ${capper.picks}W-${capper.losses}L • ${unitsText} • ROI: ${roiText} • Win Rate: ${winRateText}${streakText}${sparklineText}`;
+      })
+      .join('\n');
   }
 
   private buildWeeklyCapperText(cappers: CapperStats[]): string {
-    return cappers.map(capper => {
-      const unitsText = capper.netUnits >= 0 ? `+${capper.netUnits.toFixed(1)}U` : `${capper.netUnits.toFixed(1)}U`;
-      return `• ${capper.capper}: ${capper.wins}W - ${capper.losses}L • ${unitsText} • ROI: ${capper.roi.toFixed(1)}% • Win Rate: ${capper.winRate.toFixed(1)}%`;
-    }).join('\n');
+    return cappers
+      .map(capper => {
+        const unitsText =
+          capper.netUnits >= 0
+            ? `+${capper.netUnits.toFixed(1)}U`
+            : `${capper.netUnits.toFixed(1)}U`;
+        return `• ${capper.capper}: ${capper.wins}W - ${capper.losses}L • ${unitsText} • ROI: ${capper.roi.toFixed(1)}% • Win Rate: ${capper.winRate.toFixed(1)}%`;
+      })
+      .join('\n');
   }
 
   private buildHotStreaksText(streaks: HotStreak[]): string {
-    return streaks.map(streak => {
-      const emoji = streak.streakType === 'win' ? '🔥' : '❄️';
-      return `${emoji} ${streak.capper}: ${streak.streakLength} ${streak.streakType} streak (${streak.totalUnits > 0 ? '+' : ''}${streak.totalUnits.toFixed(1)}U)`;
-    }).join('\n');
+    return streaks
+      .map(streak => {
+        const emoji = streak.streakType === 'win' ? '🔥' : '❄️';
+        return `${emoji} ${streak.capper}: ${streak.streakLength} ${streak.streakType} streak (${streak.totalUnits > 0 ? '+' : ''}${streak.totalUnits.toFixed(1)}U)`;
+      })
+      .join('\n');
   }
 
   private buildTierBreakdownText(tiers: TierStats[]): string {
-    return tiers.map(tier => {
-      const unitsText = tier.netUnits >= 0 ? `+${tier.netUnits.toFixed(1)}U` : `${tier.netUnits.toFixed(1)}U`;
-      return `• ${tier.tier}: ${tier.picks} picks • ${unitsText} • ${tier.winRate.toFixed(1)}% • ROI: ${tier.roi.toFixed(1)}%`;
-    }).join('\n');
+    return tiers
+      .map(tier => {
+        const unitsText =
+          tier.netUnits >= 0 ? `+${tier.netUnits.toFixed(1)}U` : `${tier.netUnits.toFixed(1)}U`;
+        return `• ${tier.tier}: ${tier.picks} picks • ${unitsText} • ${tier.winRate.toFixed(1)}% • ROI: ${tier.roi.toFixed(1)}%`;
+      })
+      .join('\n');
   }
 
   private buildWeeklyHighlights(summary: RecapSummary): string {
     const highlights = [];
 
     if (summary.bestPick) {
-      const profitLoss = typeof summary.bestPick['profit_loss'] === 'number' ?
-        summary.bestPick['profit_loss'].toFixed(1) : '0';
+      const profitLoss =
+        typeof summary.bestPick['profit_loss'] === 'number'
+          ? summary.bestPick['profit_loss'].toFixed(1)
+          : '0';
       highlights.push(`• Best Play: ${this.formatPick(summary.bestPick)} (+${profitLoss}U)`);
     }
 
     if (summary.badBeat) {
-      const profitLoss = typeof summary.badBeat['profit_loss'] === 'number' ?
-        summary.badBeat['profit_loss'].toFixed(1) : '0';
+      const profitLoss =
+        typeof summary.badBeat['profit_loss'] === 'number'
+          ? summary.badBeat['profit_loss'].toFixed(1)
+          : '0';
       highlights.push(`• Bad Beat: ${this.formatPick(summary.badBeat)} (${profitLoss}U)`);
     }
 
     if (summary.hotStreaks.length > 0) {
       const longestStreak = summary.hotStreaks[0]!;
-      highlights.push(`• Longest Streak: ${longestStreak.capper} (${longestStreak.streakLength} ${longestStreak.streakType}s)`);
+      highlights.push(
+        `• Longest Streak: ${longestStreak.capper} (${longestStreak.streakLength} ${longestStreak.streakType}s)`
+      );
     }
 
     return highlights.join('\n');
@@ -412,20 +467,24 @@ export class RecapFormatter {
 
   private buildMonthlyHighlights(summary: RecapSummary): string {
     const highlights = [];
-    
+
     if (summary.biggestWin) {
-      const profitLoss = typeof summary.biggestWin['profit_loss'] === 'number' ?
-        summary.biggestWin['profit_loss'].toFixed(1) : '0';
+      const profitLoss =
+        typeof summary.biggestWin['profit_loss'] === 'number'
+          ? summary.biggestWin['profit_loss'].toFixed(1)
+          : '0';
       highlights.push(`• Best Day: ${this.formatPick(summary.biggestWin)} (+${profitLoss}U)`);
     }
-    
+
     if (summary.badBeat) {
       highlights.push(`• Bad Beat: ${this.formatPick(summary.badBeat)}`);
     }
 
     if (summary.hotStreaks.length > 0) {
       const longestStreak = summary.hotStreaks[0]!;
-      highlights.push(`• Longest Streak: ${longestStreak.capper} (${longestStreak.streakLength} ${longestStreak.streakType}s)`);
+      highlights.push(
+        `• Longest Streak: ${longestStreak.capper} (${longestStreak.streakLength} ${longestStreak.streakType}s)`
+      );
     }
 
     highlights.push(`• Avg Units/Pick: ${(summary.totalUnits / summary.totalPicks).toFixed(1)}U`);
@@ -440,7 +499,7 @@ export class RecapFormatter {
     const parlayUnits = summary.tierBreakdown
       .filter(tier => tier.tier.toLowerCase().includes('parlay'))
       .reduce((sum, tier) => sum + tier.totalUnits, 0);
-    
+
     return summary.totalUnits - parlayUnits;
   }
 
@@ -448,7 +507,7 @@ export class RecapFormatter {
     // Calculate solo win rate (excluding parlays)
     const soloWins = summary.capperBreakdown.reduce((sum, capper) => sum + capper.wins, 0);
     const soloLosses = summary.capperBreakdown.reduce((sum, capper) => sum + capper.losses, 0);
-    
+
     return soloWins + soloLosses > 0 ? (soloWins / (soloWins + soloLosses)) * 100 : 0;
   }
 
@@ -459,7 +518,7 @@ export class RecapFormatter {
   private getParlayWinRate(parlayGroups: ParlayGroup[]): number {
     const wins = parlayGroups.filter(p => p.outcome === 'win').length;
     const losses = parlayGroups.filter(p => p.outcome === 'loss').length;
-    
+
     return wins + losses > 0 ? (wins / (wins + losses)) * 100 : 0;
   }
 
@@ -476,10 +535,10 @@ export class RecapFormatter {
 
   private formatDate(dateStr: string): string {
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: '2-digit', 
-      day: '2-digit' 
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
     });
   }
 

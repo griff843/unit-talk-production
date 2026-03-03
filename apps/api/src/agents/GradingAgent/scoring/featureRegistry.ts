@@ -75,8 +75,8 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [-50, 50],
     fallbackPolicy: 'neutral',
     fallbackValue: 0,
-    normalize: (raw) => linearScale(raw, -50, 50),
-    extract: (f) => (typeof f.expectedValue === 'number' ? f.expectedValue : undefined),
+    normalize: raw => linearScale(raw, -50, 50),
+    extract: f => (typeof f.expectedValue === 'number' ? f.expectedValue : undefined),
   },
   {
     name: 'lineMovement',
@@ -85,8 +85,8 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [0, 10],
     fallbackPolicy: 'neutral',
     fallbackValue: 0,
-    normalize: (raw) => linearScale(raw, 0, 10),
-    extract: (f) => (typeof f.lineMovement === 'number' ? f.lineMovement : undefined),
+    normalize: raw => linearScale(raw, 0, 10),
+    extract: f => (typeof f.lineMovement === 'number' ? f.lineMovement : undefined),
   },
   {
     name: 'matchupRating',
@@ -95,8 +95,8 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [0, 100],
     fallbackPolicy: 'neutral',
     fallbackValue: 50,
-    normalize: (raw) => clamp(raw, 0, 100),
-    extract: (f) => (typeof f.matchupRating === 'number' ? f.matchupRating : undefined),
+    normalize: raw => clamp(raw, 0, 100),
+    extract: f => (typeof f.matchupRating === 'number' ? f.matchupRating : undefined),
   },
   {
     name: 'playerForm',
@@ -105,8 +105,8 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [0, 100],
     fallbackPolicy: 'neutral',
     fallbackValue: 50,
-    normalize: (raw) => clamp(raw, 0, 100),
-    extract: (f) => (typeof f.playerForm === 'number' ? f.playerForm : undefined),
+    normalize: raw => clamp(raw, 0, 100),
+    extract: f => (typeof f.playerForm === 'number' ? f.playerForm : undefined),
   },
   {
     name: 'injuryImpact',
@@ -115,8 +115,8 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [0, 10],
     fallbackPolicy: 'neutral',
     fallbackValue: 0,
-    normalize: (raw) => linearScale(raw, 0, 10),
-    extract: (f) => (typeof f.injuryImpact === 'number' ? f.injuryImpact : undefined),
+    normalize: raw => linearScale(raw, 0, 10),
+    extract: f => (typeof f.injuryImpact === 'number' ? f.injuryImpact : undefined),
   },
   {
     name: 'weatherImpact',
@@ -125,8 +125,8 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [0, 10],
     fallbackPolicy: 'neutral',
     fallbackValue: 0,
-    normalize: (raw) => linearScale(raw, 0, 10),
-    extract: (f) => (typeof f.weatherImpact === 'number' ? f.weatherImpact : undefined),
+    normalize: raw => linearScale(raw, 0, 10),
+    extract: f => (typeof f.weatherImpact === 'number' ? f.weatherImpact : undefined),
   },
 
   // ── Market Intelligence (4) ───────────────────────────────────────────────
@@ -138,8 +138,8 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [0, 100],
     fallbackPolicy: 'neutral',
     fallbackValue: 50,
-    normalize: (raw) => clamp(raw, 0, 100),
-    extract: (f) => (typeof f.marketIntelligence === 'number' ? f.marketIntelligence : undefined),
+    normalize: raw => clamp(raw, 0, 100),
+    extract: f => (typeof f.marketIntelligence === 'number' ? f.marketIntelligence : undefined),
   },
   {
     name: 'sharpMoney',
@@ -148,8 +148,8 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [0, 100],
     fallbackPolicy: 'neutral',
     fallbackValue: 50,
-    normalize: (raw) => clamp(raw, 0, 100),
-    extract: (f) => (typeof f.sharpMoney === 'number' ? f.sharpMoney : undefined),
+    normalize: raw => clamp(raw, 0, 100),
+    extract: f => (typeof f.sharpMoney === 'number' ? f.sharpMoney : undefined),
   },
   {
     name: 'volumeProfile',
@@ -158,8 +158,8 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [0, 100],
     fallbackPolicy: 'neutral',
     fallbackValue: 50,
-    normalize: (raw) => clamp(raw, 0, 100),
-    extract: (f) => (typeof f.volumeProfile === 'number' ? f.volumeProfile : undefined),
+    normalize: raw => clamp(raw, 0, 100),
+    extract: f => (typeof f.volumeProfile === 'number' ? f.volumeProfile : undefined),
   },
   {
     name: 'closingLineValue',
@@ -168,8 +168,8 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [-20, 20],
     fallbackPolicy: 'neutral',
     fallbackValue: 0,
-    normalize: (raw) => linearScale(raw, -20, 20),
-    extract: (f) => (typeof f.closingLineValue === 'number' ? f.closingLineValue : undefined),
+    normalize: raw => linearScale(raw, -20, 20),
+    extract: f => (typeof f.closingLineValue === 'number' ? f.closingLineValue : undefined),
   },
 
   // ── Professional Capper Features (8) ──────────────────────────────────────
@@ -181,8 +181,8 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [0, 10],
     fallbackPolicy: 'neutral',
     fallbackValue: 5,
-    normalize: (raw) => linearScale(raw, 0, 10),
-    extract: (f) => {
+    normalize: raw => linearScale(raw, 0, 10),
+    extract: f => {
       if (f.steamMoveData?.detected !== undefined) {
         return clamp(f.steamMoveData.confidence * 10, 0, 10);
       }
@@ -201,8 +201,8 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [0, 10],
     fallbackPolicy: 'neutral',
     fallbackValue: 5,
-    normalize: (raw) => linearScale(raw, 0, 10),
-    extract: (f) => {
+    normalize: raw => linearScale(raw, 0, 10),
+    extract: f => {
       // Proxy from closingLineValue when available
       if (typeof f.closingLineValue === 'number' && f.closingLineValue !== 0) {
         return clamp(5 + f.closingLineValue, 0, 10);
@@ -217,8 +217,8 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [0, 10],
     fallbackPolicy: 'neutral',
     fallbackValue: 5,
-    normalize: (raw) => linearScale(raw, 0, 10),
-    extract: (f) => {
+    normalize: raw => linearScale(raw, 0, 10),
+    extract: f => {
       const hours = f.hoursToGame;
       if (typeof hours !== 'number') return undefined;
       if (hours >= 24) return 8;
@@ -234,10 +234,10 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [0, 10],
     fallbackPolicy: 'neutral',
     fallbackValue: 5,
-    normalize: (raw) => linearScale(raw, 0, 10),
-    extract: (f) => {
+    normalize: raw => linearScale(raw, 0, 10),
+    extract: f => {
       if (!f.multiBookLines || f.multiBookLines.length < 2) return undefined;
-      const odds = f.multiBookLines.map((b) => b.odds);
+      const odds = f.multiBookLines.map(b => b.odds);
       const spread = Math.abs(Math.max(...odds) - Math.min(...odds));
       return clamp(spread / 5, 0, 10);
     },
@@ -249,8 +249,8 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [0, 10],
     fallbackPolicy: 'neutral',
     fallbackValue: 5,
-    normalize: (raw) => linearScale(raw, 0, 10),
-    extract: (f) => {
+    normalize: raw => linearScale(raw, 0, 10),
+    extract: f => {
       if (!f.bettingPercentages) return undefined;
       const pub = f.bettingPercentages.public;
       if (pub > 70) return 8; // Strong contrarian
@@ -266,8 +266,8 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [0, 10],
     fallbackPolicy: 'neutral',
     fallbackValue: 5,
-    normalize: (raw) => linearScale(raw, 0, 10),
-    extract: (f) => {
+    normalize: raw => linearScale(raw, 0, 10),
+    extract: f => {
       if (typeof f.marketTimingScore === 'number') {
         return clamp(f.marketTimingScore, 0, 10);
       }
@@ -286,8 +286,8 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [0, 10],
     fallbackPolicy: 'neutral',
     fallbackValue: 5,
-    normalize: (raw) => linearScale(raw, 0, 10),
-    extract: (f) => {
+    normalize: raw => linearScale(raw, 0, 10),
+    extract: f => {
       if (!f.injuryNewsTimeline || f.injuryNewsTimeline.length === 0) return undefined;
       const latest = f.injuryNewsTimeline[f.injuryNewsTimeline.length - 1];
       const severity = latest.severity;
@@ -305,10 +305,10 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [0, 10],
     fallbackPolicy: 'neutral',
     fallbackValue: 5,
-    normalize: (raw) => linearScale(raw, 0, 10),
-    extract: (f) => {
+    normalize: raw => linearScale(raw, 0, 10),
+    extract: f => {
       if (!f.crossMarketProps || f.crossMarketProps.length === 0) return undefined;
-      const maxCorr = Math.max(...f.crossMarketProps.map((p) => p.correlation));
+      const maxCorr = Math.max(...f.crossMarketProps.map(p => p.correlation));
       if (maxCorr > 0.7) return 7;
       if (maxCorr > 0.5) return 5;
       return 3;
@@ -324,8 +324,8 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [0, 100],
     fallbackPolicy: 'neutral',
     fallbackValue: 50,
-    normalize: (raw) => clamp(raw, 0, 100),
-    extract: (f) => (typeof f.playerFatigue === 'number' ? f.playerFatigue : undefined),
+    normalize: raw => clamp(raw, 0, 100),
+    extract: f => (typeof f.playerFatigue === 'number' ? f.playerFatigue : undefined),
   },
   {
     name: 'venueAdvantage',
@@ -334,8 +334,8 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [0, 20],
     fallbackPolicy: 'neutral',
     fallbackValue: 10,
-    normalize: (raw) => linearScale(raw, 0, 20),
-    extract: (f) => (typeof f.venueAdvantage === 'number' ? f.venueAdvantage : undefined),
+    normalize: raw => linearScale(raw, 0, 20),
+    extract: f => (typeof f.venueAdvantage === 'number' ? f.venueAdvantage : undefined),
   },
   {
     name: 'refereeImpact',
@@ -344,8 +344,8 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [-10, 10],
     fallbackPolicy: 'neutral',
     fallbackValue: 0,
-    normalize: (raw) => linearScale(raw, -10, 10),
-    extract: (f) => (typeof f.refereeImpact === 'number' ? f.refereeImpact : undefined),
+    normalize: raw => linearScale(raw, -10, 10),
+    extract: f => (typeof f.refereeImpact === 'number' ? f.refereeImpact : undefined),
   },
   {
     name: 'paceImpact',
@@ -354,8 +354,8 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [0, 20],
     fallbackPolicy: 'neutral',
     fallbackValue: 10,
-    normalize: (raw) => linearScale(raw, 0, 20),
-    extract: (f) => (typeof f.paceImpact === 'number' ? f.paceImpact : undefined),
+    normalize: raw => linearScale(raw, 0, 20),
+    extract: f => (typeof f.paceImpact === 'number' ? f.paceImpact : undefined),
   },
   {
     name: 'motivationalFactors',
@@ -364,8 +364,8 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [0, 30],
     fallbackPolicy: 'neutral',
     fallbackValue: 15,
-    normalize: (raw) => linearScale(raw, 0, 30),
-    extract: (f) => (typeof f.motivationalFactors === 'number' ? f.motivationalFactors : undefined),
+    normalize: raw => linearScale(raw, 0, 30),
+    extract: f => (typeof f.motivationalFactors === 'number' ? f.motivationalFactors : undefined),
   },
 
   // ── Risk (3) — inverted: higher raw = worse ──────────────────────────────
@@ -377,8 +377,8 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [0, 1],
     fallbackPolicy: 'neutral',
     fallbackValue: 0.2,
-    normalize: (raw) => invertedScale(raw, 0, 1),
-    extract: (f) => (typeof f.correlationRisk === 'number' ? f.correlationRisk : undefined),
+    normalize: raw => invertedScale(raw, 0, 1),
+    extract: f => (typeof f.correlationRisk === 'number' ? f.correlationRisk : undefined),
   },
   {
     name: 'volatility',
@@ -387,8 +387,8 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [0, 10],
     fallbackPolicy: 'neutral',
     fallbackValue: 5,
-    normalize: (raw) => invertedScale(raw, 0, 10),
-    extract: (f) => (typeof f.volatility === 'number' ? f.volatility : undefined),
+    normalize: raw => invertedScale(raw, 0, 10),
+    extract: f => (typeof f.volatility === 'number' ? f.volatility : undefined),
   },
   {
     name: 'portfolioImpact',
@@ -397,8 +397,8 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [0, 1],
     fallbackPolicy: 'neutral',
     fallbackValue: 0.1,
-    normalize: (raw) => invertedScale(raw, 0, 1),
-    extract: (f) => (typeof f.portfolioImpact === 'number' ? f.portfolioImpact : undefined),
+    normalize: raw => invertedScale(raw, 0, 1),
+    extract: f => (typeof f.portfolioImpact === 'number' ? f.portfolioImpact : undefined),
   },
 
   // ── ML Ensemble (4) — excluded: no ML models in V2, weight redistributed ─
@@ -410,7 +410,7 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [0, 1],
     fallbackPolicy: 'excluded',
     fallbackValue: 0,
-    normalize: (raw) => raw * 100,
+    normalize: raw => raw * 100,
     extract: () => undefined,
   },
   {
@@ -420,7 +420,7 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [0, 1],
     fallbackPolicy: 'excluded',
     fallbackValue: 0,
-    normalize: (raw) => raw * 100,
+    normalize: raw => raw * 100,
     extract: () => undefined,
   },
   {
@@ -430,7 +430,7 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [0, 1],
     fallbackPolicy: 'excluded',
     fallbackValue: 0,
-    normalize: (raw) => raw * 100,
+    normalize: raw => raw * 100,
     extract: () => undefined,
   },
   {
@@ -440,7 +440,7 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     inputRange: [0, 1],
     fallbackPolicy: 'excluded',
     fallbackValue: 0,
-    normalize: (raw) => raw * 100,
+    normalize: raw => raw * 100,
     extract: () => undefined,
   },
 ];
@@ -449,12 +449,12 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
 
 /** Get all registry entries for a specific group */
 export function getRegistryByGroup(group: FeatureGroup): FeatureRegistryEntry[] {
-  return FEATURE_REGISTRY.filter((e) => e.group === group);
+  return FEATURE_REGISTRY.filter(e => e.group === group);
 }
 
 /** Get a registry entry by name */
 export function getRegistryEntry(name: string): FeatureRegistryEntry | undefined {
-  return FEATURE_REGISTRY.find((e) => e.name === name);
+  return FEATURE_REGISTRY.find(e => e.name === name);
 }
 
 // ─── Feature Vector Extraction ──────────────────────────────────────────────
@@ -472,7 +472,7 @@ export function extractFeatureVector(
   features: GradingFeatureSet,
   registry: FeatureRegistryEntry[] = FEATURE_REGISTRY
 ): FeatureVectorEntry[] {
-  return registry.map((entry) => {
+  return registry.map(entry => {
     const rawValue = entry.extract(features);
     const present = rawValue !== undefined && rawValue !== null;
 

@@ -16,7 +16,10 @@ export interface HistoricalPick {
  * Get historical picks for backtesting
  * This is a mock implementation - replace with actual database queries
  */
-export async function getHistoricalPicks(startDate: string, endDate: string): Promise<HistoricalPick[]> {
+export async function getHistoricalPicks(
+  startDate: string,
+  endDate: string
+): Promise<HistoricalPick[]> {
   // Mock data for testing - replace with actual database implementation
   const mockPicks: HistoricalPick[] = [
     {
@@ -33,7 +36,7 @@ export async function getHistoricalPicks(startDate: string, endDate: string): Pr
         market: {
           type: 'points',
           odds: -110,
-          line: 25.5
+          line: 25.5,
         },
         expectedValue: 15.2,
         lineMovement: 2.1,
@@ -56,14 +59,14 @@ export async function getHistoricalPicks(startDate: string, endDate: string): Pr
           dataValidationScore: 9.2,
           outlierScore: 8.8,
           consistencyScore: 9.0,
-          completeness: 0.95
+          completeness: 0.95,
         },
         version: '1.0',
         source: 'test',
         situationalPerformance: 7.2,
         volatility: 0.25,
         confidence: 82.5,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       },
       result: 'win',
       timestamp: '2024-01-15T20:00:00Z',
@@ -71,7 +74,7 @@ export async function getHistoricalPicks(startDate: string, endDate: string): Pr
       profit: 0.91,
       sport: 'NBA',
       player: 'LeBron James',
-      marketType: 'points'
+      marketType: 'points',
     },
     {
       id: '2',
@@ -87,7 +90,7 @@ export async function getHistoricalPicks(startDate: string, endDate: string): Pr
         market: {
           type: 'threes',
           odds: +105,
-          line: 4.5
+          line: 4.5,
         },
         expectedValue: 12.8,
         lineMovement: -1.5,
@@ -110,13 +113,13 @@ export async function getHistoricalPicks(startDate: string, endDate: string): Pr
           dataValidationScore: 8.9,
           outlierScore: 8.5,
           consistencyScore: 8.7,
-          completeness: 0.92
+          completeness: 0.92,
         },
         version: '1.0',
         source: 'test',
         volatility: 0.18,
         confidence: 75.3,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       },
       result: 'loss',
       timestamp: '2024-01-15T20:30:00Z',
@@ -124,14 +127,14 @@ export async function getHistoricalPicks(startDate: string, endDate: string): Pr
       profit: -1.0,
       sport: 'NBA',
       player: 'Stephen Curry',
-      marketType: 'threes'
-    }
+      marketType: 'threes',
+    },
   ];
 
   // Filter by date range (basic implementation)
   const start = new Date(startDate);
   const end = new Date(endDate);
-  
+
   return mockPicks.filter(pick => {
     const pickDate = new Date(pick.timestamp);
     return pickDate >= start && pickDate <= end;

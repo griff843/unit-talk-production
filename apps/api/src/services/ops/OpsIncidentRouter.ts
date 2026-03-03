@@ -13,9 +13,11 @@
  * @module services/ops/OpsIncidentRouter
  */
 
+import * as crypto from 'crypto';
+
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
-import * as crypto from 'crypto';
+
 import { makeLogger } from '../../utils/logger';
 
 const logger = makeLogger('OpsIncidentRouter');
@@ -218,13 +220,10 @@ export class OpsIncidentRouter {
    * Fetch incidents that need notification
    */
   private async getIncidentsPendingNotification(): Promise<IncidentRecord[]> {
-    const { data, error } = await this.supabase.rpc(
-      'get_incidents_pending_notification',
-      {
-        p_destination: 'discord', // Check against primary destination
-        p_limit: 50,
-      }
-    );
+    const { data, error } = await this.supabase.rpc('get_incidents_pending_notification', {
+      p_destination: 'discord', // Check against primary destination
+      p_limit: 50,
+    });
 
     if (error) {
       logger.error('Failed to fetch pending incidents', { error: error.message });
@@ -338,7 +337,9 @@ export class OpsIncidentRouter {
     });
 
     if (error) {
-      logger.warn('Failed to check notification status, defaulting to send', { error: error.message });
+      logger.warn('Failed to check notification status, defaulting to send', {
+        error: error.message,
+      });
       return { shouldSend: true, reason: 'check_failed' };
     }
 
@@ -414,10 +415,7 @@ export class OpsIncidentRouter {
       status: incident.status,
     };
 
-    const payloadHash = crypto
-      .createHash('sha256')
-      .update(JSON.stringify(payload))
-      .digest('hex');
+    const payloadHash = crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex');
 
     const { error } = await this.supabase.rpc('record_notification_sent', {
       p_incident_key: incident.incident_id,
@@ -555,5 +553,11 @@ export function createOpsIncidentRouter(
   discordSender?: (payload: DiscordPayload) => Promise<NotificationResult>,
   notionSender?: (payload: NotionPayload) => Promise<NotificationResult>
 ): OpsIncidentRouter {
-  return new OpsIncidentRouter(supabaseUrl, supabaseServiceKey, config, discordSender, notionSender);
+  return new OpsIncidentRouter(
+    supabaseUrl,
+    supabaseServiceKey,
+    config,
+    discordSender,
+    notionSender
+  );
 }

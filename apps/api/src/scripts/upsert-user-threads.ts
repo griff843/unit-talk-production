@@ -53,14 +53,15 @@ async function main() {
       imported_by: 'upsert-user-threads.ts',
     };
 
-    const { error } = await supabase
-      .from('user_threads')
-      .upsert({
+    const { error } = await supabase.from('user_threads').upsert(
+      {
         discord_id: row.discord_id,
         thread_type: row.thread_type,
         thread_id: row.thread_id,
         metadata,
-      }, { onConflict: 'discord_id,thread_type' });
+      },
+      { onConflict: 'discord_id,thread_type' }
+    );
 
     if (error) {
       console.error('Upsert failed:', { row, error: error.message });
@@ -74,8 +75,7 @@ async function main() {
   console.log(JSON.stringify({ upserted, total: rows.length }, null, 2));
 }
 
-main().catch((e) => {
+main().catch(e => {
   console.error('Fatal error:', e);
   process.exit(1);
 });
-

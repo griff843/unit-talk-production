@@ -1,6 +1,5 @@
 import { GradingFeatureSet } from '../../../types/GradingFeatureSet';
 
-
 /**
  * Safe mathematical operations to prevent NaN errors in ML calculations
  */
@@ -44,7 +43,7 @@ export interface EnsembleResult extends MLModelResult {
 export class MLModelManager {
   private modelVersions: Map<string, string> = new Map();
   private modelCache: Map<string, any> = new Map();
-  
+
   constructor() {
     this.initializeCache();
     this.initializeModels();
@@ -68,21 +67,21 @@ export class MLModelManager {
       // Simplified neural network scoring with safe operations
       const baseScore = this.calculateBaseScore(features);
       const nnAdjustment = this.applyNeuralNetworkLogic(features);
-      
+
       const finalScore = safeNumber(baseScore + nnAdjustment, 50);
       const clampedScore = Math.max(0, Math.min(100, finalScore));
-      
+
       return {
         score: clampedScore,
         confidence: 0.85,
-        featureImportance: this.calculateFeatureImportance(features, 'neuralNetwork')
+        featureImportance: this.calculateFeatureImportance(features, 'neuralNetwork'),
       };
     } catch (error) {
       console.warn('scoreWithNeuralNetwork failed:', error);
       return {
         score: 50,
         confidence: 0.5,
-        featureImportance: {}
+        featureImportance: {},
       };
     }
   }
@@ -95,21 +94,21 @@ export class MLModelManager {
       // Simplified gradient boosting scoring with safe operations
       const baseScore = this.calculateBaseScore(features);
       const gbAdjustment = this.applyGradientBoostingLogic(features);
-      
+
       const finalScore = safeNumber(baseScore + gbAdjustment, 50);
       const clampedScore = Math.max(0, Math.min(100, finalScore));
-      
+
       return {
         score: clampedScore,
         confidence: 0.88,
-        featureImportance: this.calculateFeatureImportance(features, 'gradientBoosting')
+        featureImportance: this.calculateFeatureImportance(features, 'gradientBoosting'),
       };
     } catch (error) {
       console.warn('scoreWithGradientBoosting failed:', error);
       return {
         score: 50,
         confidence: 0.5,
-        featureImportance: {}
+        featureImportance: {},
       };
     }
   }
@@ -122,21 +121,21 @@ export class MLModelManager {
       // Simplified random forest scoring with safe operations
       const baseScore = this.calculateBaseScore(features);
       const rfAdjustment = this.applyRandomForestLogic(features);
-      
+
       const finalScore = safeNumber(baseScore + rfAdjustment, 50);
       const clampedScore = Math.max(0, Math.min(100, finalScore));
-      
+
       return {
         score: clampedScore,
         confidence: 0.82,
-        featureImportance: this.calculateFeatureImportance(features, 'randomForest')
+        featureImportance: this.calculateFeatureImportance(features, 'randomForest'),
       };
     } catch (error) {
       console.warn('scoreWithRandomForest failed:', error);
       return {
         score: 50,
         confidence: 0.5,
-        featureImportance: {}
+        featureImportance: {},
       };
     }
   }
@@ -149,23 +148,19 @@ export class MLModelManager {
     const [nn, gb, rf] = await Promise.all([
       this.scoreWithNeuralNetwork(features),
       this.scoreWithGradientBoosting(features),
-      this.scoreWithRandomForest(features)
+      this.scoreWithRandomForest(features),
     ]);
 
     // Weighted ensemble
-    const weights = { nn: 0.35, gb: 0.40, rf: 0.25  
-};
-    const ensembleScore = (
-      nn.score * weights.nn +
-      gb.score * weights.gb +
-      rf.score * weights.rf
-    );
+    const weights = { nn: 0.35, gb: 0.4, rf: 0.25 };
+    const ensembleScore = nn.score * weights.nn + gb.score * weights.gb + rf.score * weights.rf;
 
     // Calculate model agreement
     const scores = [nn.score, gb.score, rf.score];
     const mean = scores.reduce((a, b) => a + b) / scores.length;
-    const variance = scores.reduce((acc, score) => acc + Math.pow(score - mean, 2), 0) / scores.length;
-    const agreement = Math.max(0, 1 - (variance / 100));
+    const variance =
+      scores.reduce((acc, score) => acc + Math.pow(score - mean, 2), 0) / scores.length;
+    const agreement = Math.max(0, 1 - variance / 100);
 
     return {
       score: ensembleScore,
@@ -174,9 +169,9 @@ export class MLModelManager {
       modelContributions: {
         'Neural Network': nn.professional_score * weights.nn,
         'Gradient Boosting': gb.professional_score * weights.gb,
-        'Random Forest': rf.professional_score * weights.rf
+        'Random Forest': rf.professional_score * weights.rf,
       },
-      agreement
+      agreement,
     };
   }
 
@@ -252,7 +247,7 @@ export class MLModelManager {
   private applyNeuralNetworkLogic(features: GradingFeatureSet): number {
     // Neural networks excel at non-linear relationships
     let adjustment = 0;
-    
+
     try {
       // Non-linear interactions - use safe operations
       const playerForm = safeNumber(features.playerForm, 50);
@@ -260,21 +255,21 @@ export class MLModelManager {
       if (playerForm > 0 && matchupRating > 0) {
         adjustment += Math.sqrt(playerForm * matchupRating) * 0.05; // Reduced multiplier
       }
-      
+
       // Complex feature interactions
       const marketIntel = safeNumber(features.marketIntelligence, 50);
       const sharpMoney = safeNumber(features.sharpMoney, 50);
       if (marketIntel > 0 && sharpMoney > 0) {
         adjustment += (marketIntel * sharpMoney) / 2000; // Scale down significantly
       }
-      
+
       // Expected value boost for neural network
       const evValue = safeNumber(features.expectedValue, 0);
       const evPercentage = evValue < 1 ? evValue * 100 : evValue;
       if (evPercentage > 0) {
         adjustment += Math.min(2, evPercentage / 5); // Cap at 2 points
       }
-      
+
       return safeNumber(adjustment, 0);
     } catch (error) {
       console.warn('applyNeuralNetworkLogic failed:', error);
@@ -288,30 +283,34 @@ export class MLModelManager {
   private applyGradientBoostingLogic(features: GradingFeatureSet): number {
     // Gradient boosting excels at feature importance and sequential learning
     let adjustment = 0;
-    
+
     try {
       // Sequential feature importance with proper thresholds
       const evValue = safeNumber(features.expectedValue, 0);
       const evPercentage = evValue < 1 ? evValue * 100 : evValue;
-      if (evPercentage > 2) { // 2% threshold
+      if (evPercentage > 2) {
+        // 2% threshold
         adjustment += Math.min(3, evPercentage / 3);
       }
-      
+
       const lineMovement = safeNumber(features.lineMovement, 0);
-      if (Math.abs(lineMovement) > 1) { // 1 point threshold
+      if (Math.abs(lineMovement) > 1) {
+        // 1 point threshold
         adjustment += Math.min(2, Math.abs(lineMovement) / 2);
       }
-      
+
       const marketIntel = safeNumber(features.marketIntelligence, 50);
-      if (marketIntel > 70) { // Above 70 threshold
+      if (marketIntel > 70) {
+        // Above 70 threshold
         adjustment += Math.min(4, (marketIntel - 70) / 7.5);
       }
-      
+
       const sharpMoney = safeNumber(features.sharpMoney, 50);
-      if (sharpMoney > 65) { // Above 65 threshold
+      if (sharpMoney > 65) {
+        // Above 65 threshold
         adjustment += Math.min(2, (sharpMoney - 65) / 17.5);
       }
-      
+
       return safeNumber(adjustment, 0);
     } catch (error) {
       console.warn('applyGradientBoostingLogic failed:', error);
@@ -325,7 +324,7 @@ export class MLModelManager {
   private applyRandomForestLogic(features: GradingFeatureSet): number {
     // Random Forest excels at handling diverse features and avoiding overfitting
     let adjustment = 0;
-    
+
     try {
       // Ensemble of simple rules with safe operations
       const rules = [
@@ -335,11 +334,11 @@ export class MLModelManager {
         safeNumber(features.venueAdvantage, 0) > 3 ? 1 : 0,
         safeNumber(features.motivationalFactors, 0) > 4 ? 0.5 : 0,
         safeNumber(features.matchupRating, 50) > 75 ? 1.5 : 0,
-        safeNumber(features.closingLineValue, 0) > 2 ? 1 : 0
+        safeNumber(features.closingLineValue, 0) > 2 ? 1 : 0,
       ];
-      
+
       adjustment = rules.reduce((sum, rule) => sum + rule, 0);
-      
+
       return safeNumber(adjustment, 0);
     } catch (error) {
       console.warn('applyRandomForestLogic failed:', error);
@@ -350,7 +349,10 @@ export class MLModelManager {
   /**
    * Calculate feature importance for a specific model
    */
-  private calculateFeatureImportance(features: GradingFeatureSet, modelType: string): Record<string, number> {
+  private calculateFeatureImportance(
+    features: GradingFeatureSet,
+    modelType: string
+  ): Record<string, number> {
     // Calculate feature importance based on model type
     const importance: Record<string, number> = {};
 
@@ -360,7 +362,7 @@ export class MLModelManager {
         importance['expectedValue'] = 0.25;
       }
       if (features.marketIntelligence !== undefined) {
-        importance['marketIntelligence'] = 0.20;
+        importance['marketIntelligence'] = 0.2;
       }
       if (features.playerForm !== undefined) {
         importance['playerForm'] = 0.15;
@@ -377,7 +379,7 @@ export class MLModelManager {
     } else if (modelType === 'gradientBoosting') {
       // Gradient boosting feature importance
       if (features.expectedValue !== undefined) {
-        importance['expectedValue'] = 0.30;
+        importance['expectedValue'] = 0.3;
       }
       if (features.lineMovement !== undefined) {
         importance['lineMovement'] = 0.18;
@@ -392,7 +394,7 @@ export class MLModelManager {
         importance['matchupRating'] = 0.12;
       }
       if (features.injuryImpact !== undefined) {
-        importance['injuryImpact'] = 0.10;
+        importance['injuryImpact'] = 0.1;
       }
     } else if (modelType === 'randomForest') {
       // Random forest feature importance
@@ -400,7 +402,7 @@ export class MLModelManager {
         importance['playerForm'] = 0.22;
       }
       if (features.expectedValue !== undefined) {
-        importance['expectedValue'] = 0.20;
+        importance['expectedValue'] = 0.2;
       }
       if (features.matchupRating !== undefined) {
         importance['matchupRating'] = 0.18;
@@ -424,17 +426,19 @@ export class MLModelManager {
    */
   private combineFeatureImportance(results: MLModelResult[]): Record<string, number> {
     const combined: Record<string, number> = {};
-    const weights = [0.35, 0.40, 0.25]; // NN, GB, RF weights
+    const weights = [0.35, 0.4, 0.25]; // NN, GB, RF weights
 
     results.forEach((result, index) => {
       if (result.featureImportance) {
         Object.entries(result.featureImportance).forEach(([feature, importance]) => {
-          if (!combined[feature]) {combined[feature] = 0;}
+          if (!combined[feature]) {
+            combined[feature] = 0;
+          }
           combined[feature] += (importance as number) * (weights[index] || 0);
         });
       }
     });
-    
+
     return combined;
   }
 
@@ -462,7 +466,7 @@ export class MLModelManager {
   private initializeCache(): void {
     // Initialize model cache with TTL
     this.modelCache = new Map();
-    
+
     // Set up cache cleanup
     setInterval(() => {
       this.cleanupCache();
@@ -472,7 +476,8 @@ export class MLModelManager {
   private cleanupCache(): void {
     const now = Date.now();
     for (const [key, value] of this.modelCache.entries()) {
-      if (now - value.timestamp > 1800000) { // 30 min TTL
+      if (now - value.timestamp > 1800000) {
+        // 30 min TTL
         this.modelCache.delete(key);
       }
     }

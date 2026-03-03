@@ -17,7 +17,7 @@ export async function logUSPError(params: {
       uspType: params.uspType,
       error: params.error,
       cycleCount: params.cycleCount,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
 
     // Send operator alert for critical USP errors
@@ -28,13 +28,16 @@ export async function logUSPError(params: {
       severity: 'high',
       metadata: {
         uspType: params.uspType,
-        cycleCount: params.cycleCount
-      }
+        cycleCount: params.cycleCount,
+      },
     });
 
     return { success: true };
   } catch (error) {
-    const errorContext = error instanceof Error ? { message: error.message, stack: error.stack } : { error: String(error) };
+    const errorContext =
+      error instanceof Error
+        ? { message: error.message, stack: error.stack }
+        : { error: String(error) };
     logger.error('Failed to log USP err:', errorContext);
     return { success: false };
   }
@@ -47,12 +50,12 @@ export async function monitorAPIQuota(params: {
 }): Promise<{ success: boolean; shouldFallback: boolean; percentage: number }> {
   try {
     const percentage = (params.currentUsage / params.limit) * 100;
-    
+
     logger.info(`API Quota Check - ${params.provider}:`, {
       provider: params.provider,
       currentUsage: params.currentUsage,
       limit: params.limit,
-      percentage: percentage.toFixed(2)
+      percentage: percentage.toFixed(2),
     });
 
     // Send warning if quota is high
@@ -62,23 +65,25 @@ export async function monitorAPIQuota(params: {
         provider: params.provider,
         currentUsage: params.currentUsage,
         limit: params.limit,
-        percentage
+        percentage,
       });
     }
 
     return {
       success: true,
       shouldFallback: percentage >= 95,
-      percentage
+      percentage,
     };
-
   } catch (error) {
-    const errorContext = error instanceof Error ? { message: error.message, stack: error.stack } : { error: String(error) };
+    const errorContext =
+      error instanceof Error
+        ? { message: error.message, stack: error.stack }
+        : { error: String(error) };
     logger.error(`API quota monitoring failed for ${params.provider}:`, errorContext);
     return {
       success: false,
       shouldFallback: true,
-      percentage: 100
+      percentage: 100,
     };
   }
 }
@@ -90,7 +95,7 @@ export async function checkSystemHealth(params: {
   try {
     logger.info(`System health check - Cycle ${params.cycleCount}`, {
       cycleCount: params.cycleCount,
-      components: params.components
+      components: params.components,
     });
 
     const issues: string[] = [];
@@ -120,24 +125,26 @@ export async function checkSystemHealth(params: {
         metadata: {
           healthScore,
           issues,
-          cycleCount: params.cycleCount
-        }
+          cycleCount: params.cycleCount,
+        },
       });
     }
 
     return {
       success: issues.length === 0,
       healthScore: Math.max(0, healthScore),
-      issues
+      issues,
     };
-
   } catch (error) {
-    const errorContext = error instanceof Error ? { message: error.message, stack: error.stack } : { error: String(error) };
+    const errorContext =
+      error instanceof Error
+        ? { message: error.message, stack: error.stack }
+        : { error: String(error) };
     logger.error('System health check failed:', errorContext);
     return {
       success: false,
       healthScore: 0,
-      issues: [String(error)]
+      issues: [String(error)],
     };
   }
 }
@@ -165,22 +172,24 @@ export async function detectLiveGames(params: {
     logger.info(`Live games detected:`, {
       leagues: params.leagues,
       liveGamesCount: liveGames.length,
-      errors: errors.length
+      errors: errors.length,
     });
 
     return {
       success: errors.length === 0,
       liveGames,
-      errors
+      errors,
     };
-
   } catch (error) {
-    const errorContext = error instanceof Error ? { message: error.message, stack: error.stack } : { error: String(error) };
+    const errorContext =
+      error instanceof Error
+        ? { message: error.message, stack: error.stack }
+        : { error: String(error) };
     logger.error('Live game detection failed:', errorContext);
     return {
       success: false,
       liveGames: [],
-      errors: [String(error)]
+      errors: [String(error)],
     };
   }
 }
@@ -198,11 +207,12 @@ export async function logWorkflowMetrics(params: {
       duration: params.duration,
       success: params.success,
       cycleCount: params.cycleCount,
-      ...params.metadata
+      ...params.metadata,
     });
 
     // Send alert for slow workflows
-    if (params.duration > 90000) { // 90 seconds
+    if (params.duration > 90000) {
+      // 90 seconds
       const { sendOperatorAlert } = await import('./alerts');
       await sendOperatorAlert({
         type: 'system_error',
@@ -211,21 +221,26 @@ export async function logWorkflowMetrics(params: {
         metadata: {
           workflowName: params.workflowName,
           duration: params.duration,
-          cycleCount: params.cycleCount
-        }
+          cycleCount: params.cycleCount,
+        },
       });
     }
 
     return { success: true };
   } catch (error) {
-    const errorContext = error instanceof Error ? { message: error.message, stack: error.stack } : { error: String(error) };
+    const errorContext =
+      error instanceof Error
+        ? { message: error.message, stack: error.stack }
+        : { error: String(error) };
     logger.error('Failed to log workflow metrics:', errorContext);
     return { success: false };
   }
 }
 
 // Helper functions
-async function checkComponentHealth(component: string): Promise<{ healthy: boolean; issue?: string }> {
+async function checkComponentHealth(
+  component: string
+): Promise<{ healthy: boolean; issue?: string }> {
   // Mock component health check - replace with actual implementation
   switch (component) {
     case 'database':
@@ -250,8 +265,8 @@ async function mockLiveGameDetection(league: string): Promise<any[]> {
       homeTeam: 'Team A',
       awayTeam: 'Team B',
       status: 'live',
-      startTime: new Date().toISOString()
-    }
+      startTime: new Date().toISOString(),
+    },
   ];
 }
 
@@ -268,7 +283,7 @@ export async function logError(params: {
       error: params.error,
       timestamp: params.timestamp,
       context: params.context || {},
-      loggedAt: new Date().toISOString()
+      loggedAt: new Date().toISOString(),
     });
 
     return { success: true };

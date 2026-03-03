@@ -4,9 +4,10 @@
  * All promotions are logged to shadow tables for testing and analysis
  */
 
-import { createLogger } from '../utils/logger';
-import { supabase as supabaseClient } from '../services/supabaseClient';
 import { Client as DiscordClient, EmbedBuilder, TextChannel } from 'discord.js';
+
+import { supabase as supabaseClient } from '../services/supabaseClient';
+import { createLogger } from '../utils/logger';
 
 export interface ShadowPick {
   rawPropId?: string;
@@ -95,7 +96,7 @@ export class ShadowModeService {
 
     this.logger.info('Shadow Mode Service initialized', {
       privateChannel: !!this.shadowChannelId,
-      maxDays: this.getMaxDays()
+      maxDays: this.getMaxDays(),
     });
   }
 
@@ -151,12 +152,10 @@ export class ShadowModeService {
         is_instant: pick.isInstant,
         group_key: pick.groupKey,
         decided_action: decidedAction,
-        reasons: reasons.length > 0 ? reasons : null
+        reasons: reasons.length > 0 ? reasons : null,
       };
 
-      const { error } = await supabaseClient
-        .from('shadow_decisions')
-        .insert(shadowRow);
+      const { error } = await supabaseClient.from('shadow_decisions').insert(shadowRow);
 
       if (error) {
         this.logger.error('Failed to write shadow pick', { error, pick });
@@ -164,7 +163,7 @@ export class ShadowModeService {
         this.logger.info('Shadow pick written', {
           player: pick.player,
           action: decidedAction,
-          reasons
+          reasons,
         });
       }
     } catch (error) {
@@ -181,7 +180,9 @@ export class ShadowModeService {
     }
 
     try {
-      const channel = await this.discordClient.channels.fetch(this.shadowChannelId) as TextChannel;
+      const channel = (await this.discordClient.channels.fetch(
+        this.shadowChannelId
+      )) as TextChannel;
       if (!channel) {
         this.logger.error('Shadow channel not found', { channelId: this.shadowChannelId });
         return;
@@ -189,12 +190,12 @@ export class ShadowModeService {
 
       // Create shadow-prefixed embed
       const shadowEmbed = this.createShadowEmbed(embed);
-      
+
       await channel.send({ embeds: [shadowEmbed] });
-      
+
       this.logger.info('Shadow preview published', {
         channel: this.shadowChannelId,
-        player: embed.player || 'Unknown'
+        player: embed.player || 'Unknown',
       });
     } catch (error) {
       this.logger.error('Failed to publish shadow preview', { error });
@@ -220,7 +221,7 @@ export class ShadowModeService {
         embed.addFields({
           name: field.name,
           value: field.value,
-          inline: field.inline !== false
+          inline: field.inline !== false,
         });
       });
     }
@@ -230,13 +231,13 @@ export class ShadowModeService {
     embed.addFields({
       name: '📊 Shadow Metrics',
       value: metrics,
-      inline: false
+      inline: false,
     });
 
     // Add footer
     embed.setFooter({
       text: 'Shadow Mode | Testing Only',
-      iconURL: 'https://cdn.discordapp.com/embed/avatars/0.png'
+      iconURL: 'https://cdn.discordapp.com/embed/avatars/0.png',
     });
 
     return embed;
@@ -247,7 +248,7 @@ export class ShadowModeService {
    */
   private formatShadowMetrics(embed: any): string {
     const metrics = [];
-    
+
     if (embed.devigged_edge !== undefined) {
       metrics.push(`**EV**: ${(embed.devigged_edge * 100).toFixed(2)}%`);
     }
@@ -291,26 +292,24 @@ export class ShadowModeService {
         completed_picks: snapshot.completedPicks,
         win_rate: snapshot.winRate,
         avg_odds: snapshot.avgOdds,
-        profit_factor: snapshot.profitFactor
+        profit_factor: snapshot.profitFactor,
       };
 
-      const { error } = await supabaseClient
-        .from('shadow_decisions')
-        .insert({
-          sport: snapshot.sport || 'overall',
-          market: 'metrics',
-          player: 'system',
-          decided_action: 'metrics-snapshot',
-          decision_type: 'metrics',
-          additional_data: metricsRow
-        });
+      const { error } = await supabaseClient.from('shadow_decisions').insert({
+        sport: snapshot.sport || 'overall',
+        market: 'metrics',
+        player: 'system',
+        decided_action: 'metrics-snapshot',
+        decision_type: 'metrics',
+        additional_data: metricsRow,
+      });
 
       if (error) {
         this.logger.error('Failed to write shadow metrics', { error, snapshot });
       } else {
         this.logger.info('Shadow metrics written', {
           window: snapshot.window,
-          sport: snapshot.sport || 'overall'
+          sport: snapshot.sport || 'overall',
         });
       }
     } catch (error) {
@@ -347,20 +346,18 @@ export class ShadowModeService {
         clv_at_recheck: metrics.clvAtRecheck,
         odds_movement: metrics.oddsMovement,
         action,
-        action_reason: `${validationStatus} at ${recheckType}`
+        action_reason: `${validationStatus} at ${recheckType}`,
       };
 
-      const { error } = await supabaseClient
-        .from('shadow_decisions')
-        .insert({
-          unified_pick_id: shadowPickId,
-          sport: 'unknown',
-          market: 'recheck',
-          player: 'system',
-          decided_action: 'rejected-recheck',
-          decision_type: 'recheck',
-          additional_data: recheckRow
-        });
+      const { error } = await supabaseClient.from('shadow_decisions').insert({
+        unified_pick_id: shadowPickId,
+        sport: 'unknown',
+        market: 'recheck',
+        player: 'system',
+        decided_action: 'rejected-recheck',
+        decision_type: 'recheck',
+        additional_data: recheckRow,
+      });
 
       if (error) {
         this.logger.error('Failed to write shadow recheck', { error });
@@ -368,7 +365,7 @@ export class ShadowModeService {
         this.logger.info('Shadow recheck written', {
           pickId: shadowPickId,
           type: recheckType,
-          action
+          action,
         });
       }
     } catch (error) {
@@ -398,20 +395,18 @@ export class ShadowModeService {
         message,
         data,
         would_suspend: severity === 'critical',
-        would_notify: severity === 'high' || severity === 'critical'
+        would_notify: severity === 'high' || severity === 'critical',
       };
 
-      const { error } = await supabaseClient
-        .from('shadow_decisions')
-        .insert({
-          unified_pick_id: shadowPickId,
-          sport: 'unknown',
-          market: 'alert',
-          player: 'system',
-          decided_action: alertType,
-          decision_type: 'alert',
-          additional_data: alertRow
-        });
+      const { error } = await supabaseClient.from('shadow_decisions').insert({
+        unified_pick_id: shadowPickId,
+        sport: 'unknown',
+        market: 'alert',
+        player: 'system',
+        decided_action: alertType,
+        decision_type: 'alert',
+        additional_data: alertRow,
+      });
 
       if (error) {
         this.logger.error('Failed to write shadow alert', { error });
@@ -419,7 +414,7 @@ export class ShadowModeService {
         this.logger.info('Shadow alert written', {
           pickId: shadowPickId,
           type: alertType,
-          severity
+          severity,
         });
       }
     } catch (error) {
@@ -432,10 +427,11 @@ export class ShadowModeService {
    */
   public async cleanupOldShadow(maxDays?: number): Promise<void> {
     const days = maxDays || this.getMaxDays();
-    
+
     try {
-      const { data, error } = await supabaseClient
-        .rpc('cleanup_old_shadow_data', { max_days: days });
+      const { data, error } = await supabaseClient.rpc('cleanup_old_shadow_data', {
+        max_days: days,
+      });
 
       if (error) {
         this.logger.error('Failed to cleanup shadow data', { error });
@@ -445,7 +441,7 @@ export class ShadowModeService {
           deletedPicks: data?.[0]?.deleted_picks || 0,
           deletedMetrics: data?.[0]?.deleted_metrics || 0,
           deletedRechecks: data?.[0]?.deleted_rechecks || 0,
-          deletedAlerts: data?.[0]?.deleted_alerts || 0
+          deletedAlerts: data?.[0]?.deleted_alerts || 0,
         });
       }
     } catch (error) {
@@ -462,21 +458,24 @@ export class ShadowModeService {
     const tomorrow3AM = new Date(now);
     tomorrow3AM.setDate(tomorrow3AM.getDate() + 1);
     tomorrow3AM.setHours(3, 0, 0, 0);
-    
+
     const msUntil3AM = tomorrow3AM.getTime() - now.getTime();
-    
+
     setTimeout(() => {
       // Run first cleanup
       this.cleanupOldShadow();
-      
+
       // Schedule recurring cleanup every 24 hours
-      this.cleanupInterval = setInterval(() => {
-        this.cleanupOldShadow();
-      }, 24 * 60 * 60 * 1000);
+      this.cleanupInterval = setInterval(
+        () => {
+          this.cleanupOldShadow();
+        },
+        24 * 60 * 60 * 1000
+      );
     }, msUntil3AM);
 
     this.logger.info('Shadow cleanup scheduled', {
-      firstRun: tomorrow3AM.toISOString()
+      firstRun: tomorrow3AM.toISOString(),
     });
   }
 
@@ -491,11 +490,11 @@ export class ShadowModeService {
 
     try {
       this.discordClient = new DiscordClient({
-        intents: ['Guilds', 'GuildMessages']
+        intents: ['Guilds', 'GuildMessages'],
       });
 
       await this.discordClient.login(process.env.DISCORD_TOKEN);
-      
+
       this.discordClient.once('ready', () => {
         this.logger.info('Discord client ready for shadow previews');
       });
@@ -532,7 +531,7 @@ export class ShadowModeService {
           byAction: {},
           bySport: {},
           byTier: {},
-          rejectionReasons: {}
+          rejectionReasons: {},
         };
       }
 
@@ -545,15 +544,15 @@ export class ShadowModeService {
       picks.forEach(pick => {
         // By action
         byAction[pick.decided_action] = (byAction[pick.decided_action] || 0) + 1;
-        
+
         // By sport
         bySport[pick.sport] = (bySport[pick.sport] || 0) + 1;
-        
+
         // By tier
         if (pick.tier) {
           byTier[pick.tier] = (byTier[pick.tier] || 0) + 1;
         }
-        
+
         // Rejection reasons
         if (pick.reasons && Array.isArray(pick.reasons)) {
           pick.reasons.forEach((reason: string) => {
@@ -567,7 +566,7 @@ export class ShadowModeService {
         byAction,
         bySport,
         byTier,
-        rejectionReasons
+        rejectionReasons,
       };
     } catch (error) {
       this.logger.error('Failed to get shadow stats', { error });
@@ -576,7 +575,7 @@ export class ShadowModeService {
         byAction: {},
         bySport: {},
         byTier: {},
-        rejectionReasons: {}
+        rejectionReasons: {},
       };
     }
   }
@@ -617,8 +616,9 @@ export const shadowMode = ShadowModeService.getInstance();
 
 // Export convenience functions
 export const isShadowMode = () => shadowMode.isShadowMode();
-export const shadowWritePick = (pick: ShadowPick, action: ShadowAction, reasons?: string[]) => 
+export const shadowWritePick = (pick: ShadowPick, action: ShadowAction, reasons?: string[]) =>
   shadowMode.shadowWritePick(pick, action, reasons);
 export const shadowPublishPreview = (embed: any) => shadowMode.shadowPublishPreview(embed);
-export const shadowWriteMetrics = (snapshot: ShadowMetricsSnapshot) => shadowMode.shadowWriteMetrics(snapshot);
+export const shadowWriteMetrics = (snapshot: ShadowMetricsSnapshot) =>
+  shadowMode.shadowWriteMetrics(snapshot);
 export const cleanupOldShadow = (maxDays?: number) => shadowMode.cleanupOldShadow(maxDays);

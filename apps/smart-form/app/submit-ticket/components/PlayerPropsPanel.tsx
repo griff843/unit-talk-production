@@ -95,9 +95,7 @@ export function PlayerPropsPanel({
       try {
         // Try the catalog props endpoint first (optimized MVs)
         // For game-specific props, we query by sport and let the MV handle it
-        const response = await fetch(
-          `/api/catalog/props?sport=${sport}&limit=50`
-        );
+        const response = await fetch(`/api/catalog/props?sport=${sport}&limit=50`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const result = await response.json();
 
@@ -292,7 +290,7 @@ export function PlayerPropsPanel({
           <Combobox
             items={playerItems}
             value={selectedPlayer}
-            onValueChange={(value) => {
+            onValueChange={value => {
               setSelectedPlayer(value);
               // SMARTFORM-ENTITY-RESOLUTION-001: Store full player data for entity IDs
               const playerData = playerItems.find(p => p.value === value);
@@ -323,13 +321,16 @@ export function PlayerPropsPanel({
                 <Button
                   key={opt.value}
                   variant={
-                    selectedProp?.id === prop.id && selection.includes(opt.label) ? 'default' : 'outline'
+                    selectedProp?.id === prop.id && selection.includes(opt.label)
+                      ? 'default'
+                      : 'outline'
                   }
                   size="sm"
                   className="flex-1"
                   onClick={() => handlePropSelectionChange(prop.id, opt.value)}
                 >
-                  {opt.label} ({opt.odds > 0 ? '+' : ''}{opt.odds})
+                  {opt.label} ({opt.odds > 0 ? '+' : ''}
+                  {opt.odds})
                 </Button>
               ))}
             </div>

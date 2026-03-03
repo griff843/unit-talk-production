@@ -21,7 +21,7 @@ export class ContestAgent extends BaseAgent {
   async checkHealth(): Promise<HealthCheckResult> {
     return {
       status: 'healthy',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -47,13 +47,13 @@ export class ContestAgent extends BaseAgent {
       this.logger.info('Contest processed successfully', {
         contestId,
         totalEntries: contest.entries.length,
-        totalRewards: contest.totalRewards
+        totalRewards: contest.totalRewards,
       });
     } catch (error) {
       // Log error
       this.logger.error('Failed to process contest', {
         error,
-        contestId
+        contestId,
       });
       throw error;
     }
@@ -65,7 +65,7 @@ export class ContestAgent extends BaseAgent {
       id: contestId,
       name: 'Daily Contest',
       entries: [],
-      totalRewards: 1000
+      totalRewards: 1000,
     };
   }
 

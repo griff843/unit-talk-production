@@ -11,11 +11,6 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import {
   Shield,
   CheckCircle2,
@@ -31,6 +26,12 @@ import {
   FileCheck,
   Lock,
 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
 
 // =============================================================================
 // INTERFACES
@@ -247,11 +248,23 @@ export function RolloutStatusWidget() {
       case 'live':
         return { variant: 'default' as const, color: 'bg-green-100 text-green-800', label: 'LIVE' };
       case 'production':
-        return { variant: 'secondary' as const, color: 'bg-blue-100 text-blue-800', label: 'PRODUCTION' };
+        return {
+          variant: 'secondary' as const,
+          color: 'bg-blue-100 text-blue-800',
+          label: 'PRODUCTION',
+        };
       case 'staging':
-        return { variant: 'secondary' as const, color: 'bg-yellow-100 text-yellow-800', label: 'STAGING' };
+        return {
+          variant: 'secondary' as const,
+          color: 'bg-yellow-100 text-yellow-800',
+          label: 'STAGING',
+        };
       default:
-        return { variant: 'outline' as const, color: 'bg-gray-100 text-gray-800', label: 'NOT STARTED' };
+        return {
+          variant: 'outline' as const,
+          color: 'bg-gray-100 text-gray-800',
+          label: 'NOT STARTED',
+        };
     }
   };
 
@@ -443,9 +456,7 @@ export function RolloutStatusWidget() {
                             OFF
                           </Badge>
                         )}
-                        {flag.safe && (
-                          <Shield className="w-4 h-4 text-green-500" />
-                        )}
+                        {flag.safe && <Shield className="w-4 h-4 text-green-500" />}
                       </div>
                     </div>
                   );

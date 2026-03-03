@@ -1,7 +1,6 @@
 {
-  "extends": [
-    "next/core-web-vitals"
-  ],
+  "root": true,
+  "extends": ["next/core-web-vitals"],
   "rules": {
     "no-console": "off",
     "@typescript-eslint/no-explicit-any": "off",
@@ -12,6 +11,7 @@
   },
   "globals": {
     "React": "readonly",
+    "NodeJS": "readonly",
     "localStorage": "readonly",
     "window": "readonly",
     "document": "readonly",

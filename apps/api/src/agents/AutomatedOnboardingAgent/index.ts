@@ -94,24 +94,24 @@ export class AutomatedOnboardingAgent extends BaseAgent {
   private userProfileManager: UserProfileManager;
   private interventionSystem: InterventionSystem;
   private onboardingMetrics: AutomatedOnboardingMetrics;
-  
+
   // 🧠 ENHANCED: Intelligent Learning System
   private learningPaths: Map<string, LearningPath> = new Map();
   private userProfiles: Map<string, EnhancedUserProfile> = new Map();
   private adaptiveLearningEngine: AdaptiveLearningEngine;
   private discordInteractionHandler: DiscordInteractionHandler;
-  
+
   // 🎯 PERFORMANCE TRACKING
   private readonly PERFORMANCE_THRESHOLDS = {
     engagementScore: 0.7,
     completionRate: 0.8,
     responseTime: 2000, // 2 seconds
-    adaptationAccuracy: 0.85
+    adaptationAccuracy: 0.85,
   };
 
   constructor(config: BaseAgentConfig, deps: BaseAgentDependencies) {
     super(config, deps);
-    
+
     this.onboardingMetrics = {
       ...this.metrics,
       usersOnboarded: 0,
@@ -124,13 +124,13 @@ export class AutomatedOnboardingAgent extends BaseAgent {
       upgradeConversions: 0,
       learningPathsCompleted: 0,
       adaptiveAdjustments: 0,
-      personalizedInteractions: 0
+      personalizedInteractions: 0,
     };
 
     // 🚀 INITIALIZE ENHANCED SYSTEMS
     this.adaptiveLearningEngine = new AdaptiveLearningEngine(this.logger);
     this.discordInteractionHandler = new DiscordInteractionHandler(this.logger);
-    
+
     // Initialize professional learning paths
     this.initializeProfessionalLearningPaths();
 
@@ -142,44 +142,50 @@ export class AutomatedOnboardingAgent extends BaseAgent {
   }
 
   protected async initialize(): Promise<void> {
-    this.logger.info('🤖 AutomatedOnboardingAgent initializing with enhanced learning intelligence...');
+    this.logger.info(
+      '🤖 AutomatedOnboardingAgent initializing with enhanced learning intelligence...'
+    );
 
     // Initialize core systems
     await this.behaviorTracker.initialize();
     await this.setupDiscordListeners();
     await this.userProfileManager.initialize();
     await this.interventionSystem.initialize();
-    
+
     // 🎆 ENHANCED: Initialize adaptive learning systems
     await this.adaptiveLearningEngine.initialize();
     // await this.discordInteractionHandler.initialize(); // DISABLED - handled by Discord bot
     await this.loadExistingUserProfiles();
-    
+
     // Validate learning path integrity
     await this.validateLearningPaths();
-    
-    this.logger.info('✅ AutomatedOnboardingAgent initialized with professional learning intelligence');
+
+    this.logger.info(
+      '✅ AutomatedOnboardingAgent initialized with professional learning intelligence'
+    );
   }
 
   private async setupDiscordListeners(): Promise<void> {
     // 🚨 DISABLED: Discord interaction handling moved to Discord bot layer
     // This API agent now focuses on backend analytics and behavior tracking only
-    
-    this.logger.info('📡 Discord interaction handling DISABLED - handled by Discord bot integration');
-    
+
+    this.logger.info(
+      '📡 Discord interaction handling DISABLED - handled by Discord bot integration'
+    );
+
     // REMOVED: Discord event handlers to prevent conflicts with Discord bot
     // The rebuilt AutomatedOnboardingIntegration in Discord bot handles all interactions
-    
+
     // Only keep non-interaction handlers for analytics
     const eventHandlers = {
-      'guildMemberAdd': this.handleNewUser.bind(this),
-      'messageCreate': this.handleMessage.bind(this),
+      guildMemberAdd: this.handleNewUser.bind(this),
+      messageCreate: this.handleMessage.bind(this),
       // 'interactionCreate': this.handleInteraction.bind(this), // DISABLED
-      'messageReactionAdd': this.handleReaction.bind(this),
-      'presenceUpdate': this.handlePresenceUpdate.bind(this)
+      messageReactionAdd: this.handleReaction.bind(this),
+      presenceUpdate: this.handlePresenceUpdate.bind(this),
     };
 
-    // Store minimal handlers for Discord integration  
+    // Store minimal handlers for Discord integration
     await redisCache.set(
       'onboarding:discord:handlers',
       JSON.stringify(Object.keys(eventHandlers)),
@@ -191,28 +197,27 @@ export class AutomatedOnboardingAgent extends BaseAgent {
 
   protected async process(): Promise<void> {
     this.logger.info('🔄 Running AutomatedOnboardingAgent cycle...');
-    
+
     const cycleStartTime = Date.now();
 
     try {
       // 1. Process pending interventions
       await this.processPendingInterventions();
-      
+
       // 2. Analyze user behavior patterns
       await this.analyzeUserBehaviors();
-      
+
       // 3. Update user profiles and engagement scores
       await this.updateUserProfiles();
-      
+
       // 4. Check for conversion opportunities
       await this.checkConversionOpportunities();
-      
+
       // 5. Generate onboarding insights
       await this.generateOnboardingInsights();
-
     } catch (error) {
       this.logger.error('❌ Error in onboarding agent cycle', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -222,7 +227,7 @@ export class AutomatedOnboardingAgent extends BaseAgent {
 
     this.logger.info('✅ AutomatedOnboardingAgent cycle completed', {
       cycleTimeMs: cycleTime,
-      metrics: this.onboardingMetrics
+      metrics: this.onboardingMetrics,
     });
   }
 
@@ -230,7 +235,7 @@ export class AutomatedOnboardingAgent extends BaseAgent {
   private async handleNewUser(member: any): Promise<void> {
     this.logger.info('👋 New user joined, starting onboarding', {
       userId: member.id,
-      username: member.user?.username
+      username: member.user?.username,
     });
 
     try {
@@ -240,8 +245,8 @@ export class AutomatedOnboardingAgent extends BaseAgent {
         platform: 'discord',
         initialContext: {
           source: 'discord_invite',
-          serverCount: member.user?.approximateGuildCount || 0
-        }
+          serverCount: member.user?.approximateGuildCount || 0,
+        },
       });
 
       // Start behavior tracking
@@ -251,11 +256,10 @@ export class AutomatedOnboardingAgent extends BaseAgent {
       await this.conversationEngine.sendWelcomeMessage(member.id, userProfile);
 
       this.onboardingMetrics.usersOnboarded++;
-
     } catch (error) {
       this.logger.error('❌ Failed to handle new user', {
         userId: member.id,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -264,20 +268,20 @@ export class AutomatedOnboardingAgent extends BaseAgent {
     if (message.author?.bot) return;
 
     const userId = message.author.id;
-    
+
     try {
       // Track message behavior
       const behaviorData = await this.behaviorTracker.analyzeMessage(message);
-      
+
       // Update user profile
       await this.userProfileManager.updateBehavior(userId, behaviorData);
-      
+
       // Check if intervention needed
       const interventionNeeded = await this.interventionSystem.assessIntervention(
-        userId, 
+        userId,
         behaviorData
       );
-      
+
       if (interventionNeeded) {
         await this.triggerIntervention(userId, interventionNeeded);
       }
@@ -292,11 +296,10 @@ export class AutomatedOnboardingAgent extends BaseAgent {
       if (response) {
         await this.sendUserMessage(userId, response);
       }
-
     } catch (error) {
       this.logger.error('❌ Failed to handle message', {
         userId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -304,29 +307,30 @@ export class AutomatedOnboardingAgent extends BaseAgent {
   private async handleInteraction(interaction: any): Promise<void> {
     // 🚨 DISABLED: Interaction handling moved to Discord bot layer to prevent conflicts
     // This API agent now focuses on backend analytics only
-    
-    this.logger.info('🚨 handleInteraction DISABLED - handled by Discord bot AutomatedOnboardingIntegration');
+
+    this.logger.info(
+      '🚨 handleInteraction DISABLED - handled by Discord bot AutomatedOnboardingIntegration'
+    );
     return;
-    
+
     const userId = interaction.user?.id;
     if (!userId) return;
 
     try {
       // Track interaction behavior
       const interactionData = await this.behaviorTracker.analyzeInteraction(interaction);
-      
+
       // Update user profile
       await this.userProfileManager.updateInteraction(userId, interactionData);
-      
+
       // Handle specific onboarding interactions
       if (interaction.customId?.startsWith('onboarding_')) {
         await this.handleOnboardingInteraction(userId, interaction);
       }
-
     } catch (error) {
       this.logger.error('❌ Failed to handle interaction', {
         userId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -337,14 +341,13 @@ export class AutomatedOnboardingAgent extends BaseAgent {
     try {
       // Track reaction behavior
       const reactionData = await this.behaviorTracker.analyzeReaction(reaction, user);
-      
+
       // Update engagement metrics
       await this.userProfileManager.updateEngagement(user.id, reactionData);
-
     } catch (error) {
       this.logger.error('❌ Failed to handle reaction', {
         userId: user.id,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -356,14 +359,13 @@ export class AutomatedOnboardingAgent extends BaseAgent {
     try {
       // Track presence patterns for engagement scoring
       const presenceData = await this.behaviorTracker.analyzePresence(oldPresence, newPresence);
-      
+
       // Update activity patterns
       await this.userProfileManager.updateActivity(userId, presenceData);
-
     } catch (error) {
       this.logger.error('❌ Failed to handle presence update', {
         userId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -371,7 +373,7 @@ export class AutomatedOnboardingAgent extends BaseAgent {
   // Core Processing Methods
   private async processPendingInterventions(): Promise<void> {
     const pendingInterventions = await this.interventionSystem.getPendingInterventions();
-    
+
     this.logger.info(`📋 Processing ${pendingInterventions.length} pending interventions`);
 
     for (const intervention of pendingInterventions) {
@@ -381,7 +383,7 @@ export class AutomatedOnboardingAgent extends BaseAgent {
       } catch (error) {
         this.logger.error('❌ Failed to execute intervention', {
           interventionId: intervention.id,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
     }
@@ -389,7 +391,7 @@ export class AutomatedOnboardingAgent extends BaseAgent {
 
   private async analyzeUserBehaviors(): Promise<void> {
     const activeUsers = await this.userProfileManager.getActiveUsers();
-    
+
     this.logger.info(`🧠 Analyzing behavior for ${activeUsers.length} active users`);
 
     for (const user of activeUsers) {
@@ -399,7 +401,7 @@ export class AutomatedOnboardingAgent extends BaseAgent {
       } catch (error) {
         this.logger.error('❌ Failed to analyze user behavior', {
           userId: user.id,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
     }
@@ -407,7 +409,7 @@ export class AutomatedOnboardingAgent extends BaseAgent {
 
   private async updateUserProfiles(): Promise<void> {
     const profiles = await this.userProfileManager.getAllProfiles();
-    
+
     let totalEngagement = 0;
 
     for (const profile of profiles) {
@@ -417,19 +419,19 @@ export class AutomatedOnboardingAgent extends BaseAgent {
       } catch (error) {
         this.logger.error('❌ Failed to update user profile', {
           userId: profile.id,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
     }
 
     // Update overall engagement metrics
-    this.onboardingMetrics.userEngagementScore = profiles.length > 0 ? 
-      totalEngagement / profiles.length : 0;
+    this.onboardingMetrics.userEngagementScore =
+      profiles.length > 0 ? totalEngagement / profiles.length : 0;
   }
 
   private async checkConversionOpportunities(): Promise<void> {
     const conversionCandidates = await this.userProfileManager.getConversionCandidates();
-    
+
     this.logger.info(`💰 Found ${conversionCandidates.length} conversion opportunities`);
 
     for (const candidate of conversionCandidates) {
@@ -446,7 +448,7 @@ export class AutomatedOnboardingAgent extends BaseAgent {
       } catch (error) {
         this.logger.error('❌ Failed to process conversion opportunity', {
           userId: candidate.id,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
     }
@@ -455,7 +457,7 @@ export class AutomatedOnboardingAgent extends BaseAgent {
   private async generateOnboardingInsights(): Promise<void> {
     try {
       const insights = await this.userProfileManager.generateInsights();
-      
+
       // Calculate key metrics
       this.onboardingMetrics.conversionRate = insights.conversionRate;
       this.onboardingMetrics.averageOnboardingTime = insights.averageCompletionTime;
@@ -465,23 +467,20 @@ export class AutomatedOnboardingAgent extends BaseAgent {
       await withCircuitBreaker.supabase(
         async () => {
           if (this.hasSupabase()) {
-            await this.requireSupabase()
-              .from('onboarding_insights')
-              .insert({
-                timestamp: new Date().toISOString(),
-                insights,
-                metrics: this.onboardingMetrics
-              });
+            await this.requireSupabase().from('onboarding_insights').insert({
+              timestamp: new Date().toISOString(),
+              insights,
+              metrics: this.onboardingMetrics,
+            });
           }
         },
         async () => {
           this.logger.warn('⚠️ Failed to store onboarding insights, Supabase circuit breaker open');
         }
       );
-
     } catch (error) {
       this.logger.error('❌ Failed to generate onboarding insights', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -489,19 +488,19 @@ export class AutomatedOnboardingAgent extends BaseAgent {
   // Helper Methods
   private async triggerIntervention(userId: string, intervention: any): Promise<void> {
     this.onboardingMetrics.interventionsTrigger++;
-    
+
     try {
       await this.interventionSystem.scheduleIntervention(userId, intervention);
-      
+
       this.logger.info('🚨 Intervention triggered', {
         userId,
         type: intervention.type,
-        urgency: intervention.urgency
+        urgency: intervention.urgency,
       });
     } catch (error) {
       this.logger.error('❌ Failed to trigger intervention', {
         userId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -522,7 +521,7 @@ export class AutomatedOnboardingAgent extends BaseAgent {
 
   private async handleOnboardingInteraction(userId: string, interaction: any): Promise<void> {
     const response = await this.conversationEngine.handleOnboardingFlow(userId, interaction);
-    
+
     if (response) {
       await interaction.reply(response);
     }
@@ -536,36 +535,36 @@ export class AutomatedOnboardingAgent extends BaseAgent {
           // Discord API call would go here
           this.logger.info('📤 Sending onboarding message', {
             userId,
-            messageType: message.type
+            messageType: message.type,
           });
         },
         async () => {
           this.logger.warn('⚠️ Failed to send message, Discord circuit breaker open', {
-            userId
+            userId,
           });
         }
       );
     } catch (error) {
       this.logger.error('❌ Failed to send user message', {
         userId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
 
   protected async cleanup(): Promise<void> {
     this.logger.info('🧹 AutomatedOnboardingAgent cleanup...');
-    
+
     await this.behaviorTracker.cleanup();
     await this.interventionSystem.cleanup();
-    
+
     this.logger.info('✅ AutomatedOnboardingAgent cleanup complete');
   }
 
   protected async collectMetrics(): Promise<BaseMetrics> {
     return {
       ...this.onboardingMetrics,
-      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024
+      memoryUsageMb: process.memoryUsage().heapUsed / 1024 / 1024,
     };
   }
 
@@ -575,44 +574,48 @@ export class AutomatedOnboardingAgent extends BaseAgent {
     // Check core systems
     checks.push({
       component: 'behavior_tracker',
-      status: await this.behaviorTracker.isHealthy() ? 'healthy' : 'unhealthy'
+      status: (await this.behaviorTracker.isHealthy()) ? 'healthy' : 'unhealthy',
     });
 
     checks.push({
-      component: 'conversation_engine', 
-      status: await this.conversationEngine.isHealthy() ? 'healthy' : 'unhealthy'
+      component: 'conversation_engine',
+      status: (await this.conversationEngine.isHealthy()) ? 'healthy' : 'unhealthy',
     });
 
     checks.push({
       component: 'user_profile_manager',
-      status: await this.userProfileManager.isHealthy() ? 'healthy' : 'unhealthy'
+      status: (await this.userProfileManager.isHealthy()) ? 'healthy' : 'unhealthy',
     });
 
     checks.push({
       component: 'intervention_system',
-      status: await this.interventionSystem.isHealthy() ? 'healthy' : 'unhealthy'
+      status: (await this.interventionSystem.isHealthy()) ? 'healthy' : 'unhealthy',
     });
-    
+
     // 🚀 ENHANCED: Check learning intelligence systems
     checks.push({
       component: 'adaptive_learning_engine',
-      status: await this.adaptiveLearningEngine.isHealthy() ? 'healthy' : 'unhealthy'
+      status: (await this.adaptiveLearningEngine.isHealthy()) ? 'healthy' : 'unhealthy',
     });
-    
+
     checks.push({
       component: 'discord_interaction_handler',
-      status: await this.discordInteractionHandler.isHealthy() ? 'healthy' : 'unhealthy'
+      status: (await this.discordInteractionHandler.isHealthy()) ? 'healthy' : 'unhealthy',
     });
-    
+
     checks.push({
       component: 'learning_paths',
       status: this.learningPaths.size > 0 ? 'healthy' : 'unhealthy',
-      details: { pathCount: this.learningPaths.size }
+      details: { pathCount: this.learningPaths.size },
     });
 
     const healthyComponents = checks.filter(c => c.status === 'healthy').length;
-    const overallStatus = healthyComponents === checks.length ? 'healthy' : 
-                         healthyComponents >= checks.length / 2 ? 'degraded' : 'unhealthy';
+    const overallStatus =
+      healthyComponents === checks.length
+        ? 'healthy'
+        : healthyComponents >= checks.length / 2
+          ? 'degraded'
+          : 'unhealthy';
 
     return {
       status: overallStatus,
@@ -624,16 +627,16 @@ export class AutomatedOnboardingAgent extends BaseAgent {
           activePaths: this.learningPaths.size,
           activeProfiles: this.userProfiles.size,
           averageCompletion: this.calculateAverageCompletion(),
-          adaptationAccuracy: this.getAdaptationAccuracy()
-        }
-      }
+          adaptationAccuracy: this.getAdaptationAccuracy(),
+        },
+      },
     };
   }
 
   // 🎓 INDUSTRY-LEADING LEARNING PATH SYSTEM
   private initializeProfessionalLearningPaths(): void {
     this.logger.info('🎓 Initializing professional learning paths...');
-    
+
     // 🔰 BEGINNER: Betting Fundamentals with Discord Integration
     this.learningPaths.set('beginner-fundamentals', {
       id: 'beginner-fundamentals',
@@ -643,10 +646,11 @@ export class AutomatedOnboardingAgent extends BaseAgent {
       difficulty: 'beginner',
       estimated_duration: 120, // 2 hours
       discord_integration: {
-        welcome_message: '🎯 Welcome to Unit Talk! Let\'s start your journey to profitable betting. React with 📚 to begin!',
+        welcome_message:
+          "🎯 Welcome to Unit Talk! Let's start your journey to profitable betting. React with 📚 to begin!",
         interactive_elements: ['reactions', 'buttons', 'progress_tracking'],
         progress_tracking: true,
-        community_integration: true
+        community_integration: true,
       },
       steps: [
         {
@@ -657,13 +661,21 @@ export class AutomatedOnboardingAgent extends BaseAgent {
           content: {
             discord_embed: {
               title: '🎯 Welcome to Unit Talk Professional Betting Community!',
-              description: 'Let\'s customize your learning experience',
+              description: "Let's customize your learning experience",
               fields: [
-                { name: '📊 Experience Level', value: 'React with your level:\n🔰 Complete Beginner\n📈 Some Experience\n🎯 Looking to Improve\n💎 Want Pro Strategies' },
-                { name: '💰 Goals', value: 'What\'s your main goal?\n💵 Side Income\n🏆 Consistent Profits\n📊 Learn Analytics\n🎓 Master Fundamentals' }
-              ]
+                {
+                  name: '📊 Experience Level',
+                  value:
+                    'React with your level:\n🔰 Complete Beginner\n📈 Some Experience\n🎯 Looking to Improve\n💎 Want Pro Strategies',
+                },
+                {
+                  name: '💰 Goals',
+                  value:
+                    "What's your main goal?\n💵 Side Income\n🏆 Consistent Profits\n📊 Learn Analytics\n🎓 Master Fundamentals",
+                },
+              ],
             },
-            reactions: ['🔰', '📈', '🎯', '💎', '💵', '🏆', '📊', '🎓']
+            reactions: ['🔰', '📈', '🎯', '💎', '💵', '🏆', '📊', '🎓'],
           },
           prerequisites: [],
           estimated_time: 5,
@@ -672,8 +684,8 @@ export class AutomatedOnboardingAgent extends BaseAgent {
             buttons: true,
             reactions: true,
             forms: false,
-            quizzes: false
-          }
+            quizzes: false,
+          },
         },
         {
           id: 'unit-talk-intro',
@@ -685,12 +697,24 @@ export class AutomatedOnboardingAgent extends BaseAgent {
               title: '🏛️ Welcome to Unit Talk - Where Pros Share Their Edge',
               description: 'Meet our verified professional cappers',
               fields: [
-                { name: '💎 Our Professional Cappers', value: '**Griff843** - NFL/NBA Specialist\n**Vicgo** - MLB Analytics Expert\n**Sauced** - NHL/Soccer Pro\n**MoneyReef** - Multi-Sport Veteran\n**Squirrel** - Props Specialist' },
-                { name: '📊 What Makes Us Different', value: '✅ 100% Transparent Records\n✅ Real-Time Performance Tracking\n✅ Professional Grade Analytics\n✅ Community-First Approach' },
-                { name: '🎯 Your Journey Starts Here', value: 'Follow along as we teach you:\n• How to read and interpret odds\n• Bankroll management strategies\n• How to follow our cappers\n• Community guidelines and culture' }
-              ]
+                {
+                  name: '💎 Our Professional Cappers',
+                  value:
+                    '**Griff843** - NFL/NBA Specialist\n**Vicgo** - MLB Analytics Expert\n**Sauced** - NHL/Soccer Pro\n**MoneyReef** - Multi-Sport Veteran\n**Squirrel** - Props Specialist',
+                },
+                {
+                  name: '📊 What Makes Us Different',
+                  value:
+                    '✅ 100% Transparent Records\n✅ Real-Time Performance Tracking\n✅ Professional Grade Analytics\n✅ Community-First Approach',
+                },
+                {
+                  name: '🎯 Your Journey Starts Here',
+                  value:
+                    'Follow along as we teach you:\n• How to read and interpret odds\n• Bankroll management strategies\n• How to follow our cappers\n• Community guidelines and culture',
+                },
+              ],
             },
-            next_action: 'React with 🚀 to continue your journey!'
+            next_action: 'React with 🚀 to continue your journey!',
           },
           prerequisites: ['welcome-assessment'],
           estimated_time: 10,
@@ -700,8 +724,8 @@ export class AutomatedOnboardingAgent extends BaseAgent {
             buttons: true,
             reactions: true,
             forms: false,
-            quizzes: false
-          }
+            quizzes: false,
+          },
         },
         {
           id: 'odds-mastery',
@@ -713,17 +737,29 @@ export class AutomatedOnboardingAgent extends BaseAgent {
               title: '📊 Odds Mastery - Your Foundation to Success',
               description: 'Learn to read odds like our professional cappers',
               fields: [
-                { name: '🇺🇸 American Odds', value: '**Favorites (-)**\n-150 = Risk $150 to win $100\n\n**Underdogs (+)**\n+130 = Risk $100 to win $130' },
-                { name: '🎯 Quick Practice', value: 'If Mahomes Over 2.5 TDs is -120:\n• How much to risk for $100 profit?\n• Is this good value?\n\nReact with 💭 for the answer!' },
-                { name: '💡 Pro Tip from Griff843', value: '"Always shop lines across books. A difference of -110 vs -120 adds up over time!"' }
-              ]
+                {
+                  name: '🇺🇸 American Odds',
+                  value:
+                    '**Favorites (-)**\n-150 = Risk $150 to win $100\n\n**Underdogs (+)**\n+130 = Risk $100 to win $130',
+                },
+                {
+                  name: '🎯 Quick Practice',
+                  value:
+                    'If Mahomes Over 2.5 TDs is -120:\n• How much to risk for $100 profit?\n• Is this good value?\n\nReact with 💭 for the answer!',
+                },
+                {
+                  name: '💡 Pro Tip from Griff843',
+                  value:
+                    '"Always shop lines across books. A difference of -110 vs -120 adds up over time!"',
+                },
+              ],
             },
             interactive_quiz: {
               question: 'If a bet is +200, how much do you win on a $50 bet?',
               options: ['$100', '$150', '$200', '$250'],
               correct_answer: '$100',
-              explanation: 'At +200, you win $2 for every $1 risked. $50 × 2 = $100 profit!'
-            }
+              explanation: 'At +200, you win $2 for every $1 risked. $50 × 2 = $100 profit!',
+            },
           },
           prerequisites: ['unit-talk-intro'],
           estimated_time: 15,
@@ -732,8 +768,8 @@ export class AutomatedOnboardingAgent extends BaseAgent {
             buttons: true,
             reactions: true,
             forms: false,
-            quizzes: true
-          }
+            quizzes: true,
+          },
         },
         {
           id: 'bankroll-fundamentals',
@@ -745,11 +781,23 @@ export class AutomatedOnboardingAgent extends BaseAgent {
               title: '💰 Bankroll Management - The Foundation of Long-Term Success',
               description: 'Learn how professionals protect their capital',
               fields: [
-                { name: '📏 Unit Sizing', value: '**Conservative**: 1-2% per bet\n**Moderate**: 2-3% per bet\n**Aggressive**: 3-5% per bet\n\nNever bet more than 5% on any single play!' },
-                { name: '🎯 MoneyReef\'s Golden Rules', value: '1. Never chase losses\n2. Set daily/weekly limits\n3. Track every bet\n4. Withdraw profits regularly\n5. Separate betting money from life money' },
-                { name: '📊 Bankroll Calculator', value: 'Starting Bankroll: $1000\nUnit Size (3%): $30\nMonthly Goal: 10-15% growth\n\nUse `/calculator` for personalized sizing!' }
-              ]
-            }
+                {
+                  name: '📏 Unit Sizing',
+                  value:
+                    '**Conservative**: 1-2% per bet\n**Moderate**: 2-3% per bet\n**Aggressive**: 3-5% per bet\n\nNever bet more than 5% on any single play!',
+                },
+                {
+                  name: "🎯 MoneyReef's Golden Rules",
+                  value:
+                    '1. Never chase losses\n2. Set daily/weekly limits\n3. Track every bet\n4. Withdraw profits regularly\n5. Separate betting money from life money',
+                },
+                {
+                  name: '📊 Bankroll Calculator',
+                  value:
+                    'Starting Bankroll: $1000\nUnit Size (3%): $30\nMonthly Goal: 10-15% growth\n\nUse `/calculator` for personalized sizing!',
+                },
+              ],
+            },
           },
           prerequisites: ['odds-mastery'],
           estimated_time: 20,
@@ -759,8 +807,8 @@ export class AutomatedOnboardingAgent extends BaseAgent {
             buttons: true,
             reactions: true,
             forms: true,
-            quizzes: false
-          }
+            quizzes: false,
+          },
         },
         {
           id: 'capper-following',
@@ -772,15 +820,27 @@ export class AutomatedOnboardingAgent extends BaseAgent {
               title: '👥 Following Unit Talk Pros - Your Path to Consistent Profits',
               description: 'Learn the art of following professional cappers',
               fields: [
-                { name: '🎯 Capper Specialties', value: '**Griff843**: NFL totals, NBA unders\n**Vicgo**: MLB analytics, sabermetrics\n**Sauced**: NHL favorites, soccer value\n**MoneyReef**: Multi-sport, live betting\n**Squirrel**: Player props, niche markets' },
-                { name: '📊 How to Track Performance', value: '• Check daily/weekly records\n• Review historical performance\n• Understand their betting style\n• Follow their reasoning\n• Use `/stats capper-name` for details' },
-                { name: '🚀 Getting Started', value: 'Start with one capper whose style matches your goals. Monitor their picks, learn their reasoning, and gradually build confidence.' }
-              ]
+                {
+                  name: '🎯 Capper Specialties',
+                  value:
+                    '**Griff843**: NFL totals, NBA unders\n**Vicgo**: MLB analytics, sabermetrics\n**Sauced**: NHL favorites, soccer value\n**MoneyReef**: Multi-sport, live betting\n**Squirrel**: Player props, niche markets',
+                },
+                {
+                  name: '📊 How to Track Performance',
+                  value:
+                    '• Check daily/weekly records\n• Review historical performance\n• Understand their betting style\n• Follow their reasoning\n• Use `/stats capper-name` for details',
+                },
+                {
+                  name: '🚀 Getting Started',
+                  value:
+                    'Start with one capper whose style matches your goals. Monitor their picks, learn their reasoning, and gradually build confidence.',
+                },
+              ],
             },
             practical_exercise: {
               task: 'Follow one capper for 3 days, track their performance, and share your observations',
-              tracking_required: true
-            }
+              tracking_required: true,
+            },
           },
           prerequisites: ['bankroll-fundamentals'],
           estimated_time: 25,
@@ -790,8 +850,8 @@ export class AutomatedOnboardingAgent extends BaseAgent {
             buttons: true,
             reactions: true,
             forms: true,
-            quizzes: false
-          }
+            quizzes: false,
+          },
         },
         {
           id: 'community-integration',
@@ -803,34 +863,46 @@ export class AutomatedOnboardingAgent extends BaseAgent {
               title: '🤝 Welcome to the Unit Talk Family!',
               description: 'Community guidelines and culture integration',
               fields: [
-                { name: '📜 Community Guidelines', value: '✅ Respect all members\n✅ No spam or excessive posting\n✅ Constructive discussions only\n✅ Follow capper reasoning, don\'t blindly tail\n✅ Share wins AND losses honestly' },
-                { name: '🎯 How to Get the Most Value', value: '• Ask thoughtful questions\n• Share your analysis\n• Participate in discussions\n• Learn from other members\n• Support the community culture' },
-                { name: '🏆 Graduation Requirements', value: 'To complete onboarding:\n✅ Acknowledge community guidelines\n✅ Follow at least one capper\n✅ Make your first thoughtful comment\n✅ Set up your profile with `/profile`' }
-              ]
-            }
+                {
+                  name: '📜 Community Guidelines',
+                  value:
+                    "✅ Respect all members\n✅ No spam or excessive posting\n✅ Constructive discussions only\n✅ Follow capper reasoning, don't blindly tail\n✅ Share wins AND losses honestly",
+                },
+                {
+                  name: '🎯 How to Get the Most Value',
+                  value:
+                    '• Ask thoughtful questions\n• Share your analysis\n• Participate in discussions\n• Learn from other members\n• Support the community culture',
+                },
+                {
+                  name: '🏆 Graduation Requirements',
+                  value:
+                    'To complete onboarding:\n✅ Acknowledge community guidelines\n✅ Follow at least one capper\n✅ Make your first thoughtful comment\n✅ Set up your profile with `/profile`',
+                },
+              ],
+            },
           },
           prerequisites: ['capper-following'],
           estimated_time: 15,
-          completion_criteria: { 
+          completion_criteria: {
             guidelines_acknowledged: true,
             profile_setup: true,
-            first_interaction: true
+            first_interaction: true,
           },
           discord_commands: ['/profile', '/guidelines'],
           interactive_elements: {
             buttons: true,
             reactions: true,
             forms: true,
-            quizzes: false
-          }
-        }
-      ]
+            quizzes: false,
+          },
+        },
+      ],
     });
 
     this.logger.info(`✅ Initialized ${this.learningPaths.size} professional learning paths`);
   }
 
-  // 🧠 ADAPTIVE LEARNING ENGINE METHODS  
+  // 🧠 ADAPTIVE LEARNING ENGINE METHODS
   private async loadExistingUserProfiles(): Promise<void> {
     try {
       if (!this.hasSupabase()) {
@@ -856,50 +928,52 @@ export class AutomatedOnboardingAgent extends BaseAgent {
       }
     } catch (error) {
       this.logger.error('❌ Error loading user profiles:', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
 
   private async validateLearningPaths(): Promise<void> {
     this.logger.info('🔍 Validating learning path integrity...');
-    
+
     for (const [pathId, path] of this.learningPaths) {
       // Validate step dependencies
       for (const step of path.steps) {
         for (const prereq of step.prerequisites) {
           const prereqExists = path.steps.some(s => s.id === prereq);
           if (!prereq || !prereqExists) {
-            this.logger.warn(`⚠️ Invalid prerequisite '${prereq}' in step '${step.id}' of path '${pathId}'`);
+            this.logger.warn(
+              `⚠️ Invalid prerequisite '${prereq}' in step '${step.id}' of path '${pathId}'`
+            );
           }
         }
       }
-      
+
       // Validate Discord integration
       if (path.discord_integration.interactive_elements.length === 0) {
         this.logger.warn(`⚠️ Learning path '${pathId}' has no Discord interactive elements`);
       }
     }
-    
+
     this.logger.info('✅ Learning path validation completed');
   }
 
   // 📊 PERFORMANCE ANALYTICS
   private calculateAverageCompletion(): number {
     if (this.userProfiles.size === 0) return 0;
-    
+
     let totalCompletion = 0;
     for (const profile of this.userProfiles.values()) {
       totalCompletion += profile.learning_progress.completion_percentage;
     }
-    
+
     return totalCompletion / this.userProfiles.size;
   }
 
   private getAdaptationAccuracy(): number {
     // Calculate how well our adaptive system is performing
-    return this.onboardingMetrics.adaptiveAdjustments > 0 ? 
-           this.onboardingMetrics.successfulInterventions / this.onboardingMetrics.adaptiveAdjustments : 
-           0;
+    return this.onboardingMetrics.adaptiveAdjustments > 0
+      ? this.onboardingMetrics.successfulInterventions / this.onboardingMetrics.adaptiveAdjustments
+      : 0;
   }
 }

@@ -28,10 +28,10 @@ const RATE_LIMIT_MS = 300; // Core API can handle faster requests
 
 // Sport-specific ESPN endpoints
 const SPORT_CONFIG: Record<string, { endpoint: string; leagueId: string }> = {
-  'NBA': { endpoint: 'basketball/nba', leagueId: '46' },
-  'NFL': { endpoint: 'football/nfl', leagueId: '28' },
-  'MLB': { endpoint: 'baseball/mlb', leagueId: '10' },
-  'NHL': { endpoint: 'hockey/nhl', leagueId: '90' },
+  NBA: { endpoint: 'basketball/nba', leagueId: '46' },
+  NFL: { endpoint: 'football/nfl', leagueId: '28' },
+  MLB: { endpoint: 'baseball/mlb', leagueId: '10' },
+  NHL: { endpoint: 'hockey/nhl', leagueId: '90' },
 };
 
 // ============================================================================
@@ -39,7 +39,7 @@ const SPORT_CONFIG: Record<string, { endpoint: string; leagueId: string }> = {
 // ============================================================================
 
 interface PlayerSeasonStats {
-  espn_id: string;  // ESPN player ID (not stored, just for tracking)
+  espn_id: string; // ESPN player ID (not stored, just for tracking)
   player_name: string;
   team: string;
   sport: string;
@@ -166,7 +166,6 @@ async function fetchNBASeasonStats(season: string, supabase: SupabaseClient): Pr
           if (imported % 50 === 0) {
             console.log(`    ✅ Imported ${imported} players so far...`);
           }
-
         } catch (playerErr) {
           // Skip players without stats (rookies, injured, etc.)
           skipped++;
@@ -265,15 +264,20 @@ async function fetchNFLSeasonStats(season: string, supabase: SupabaseClient): Pr
             sport: 'NFL',
             season,
             games_played: gamesPlayed,
-            passing_yards_per_game: stats.passingYards ? stats.passingYards / gamesPlayed : undefined,
-            rushing_yards_per_game: stats.rushingYards ? stats.rushingYards / gamesPlayed : undefined,
-            receiving_yards_per_game: stats.receivingYards ? stats.receivingYards / gamesPlayed : undefined,
+            passing_yards_per_game: stats.passingYards
+              ? stats.passingYards / gamesPlayed
+              : undefined,
+            rushing_yards_per_game: stats.rushingYards
+              ? stats.rushingYards / gamesPlayed
+              : undefined,
+            receiving_yards_per_game: stats.receivingYards
+              ? stats.receivingYards / gamesPlayed
+              : undefined,
             receptions_per_game: stats.receptions ? stats.receptions / gamesPlayed : undefined,
           };
 
           await upsertPlayerStats(supabase, playerStats);
           imported++;
-
         } catch (playerErr) {
           // Skip individual player errors
         }
@@ -329,12 +333,13 @@ async function fetchMLBSeasonStats(season: string, supabase: SupabaseClient): Pr
             hits_per_game: stats.hits ? stats.hits / gamesPlayed : undefined,
             home_runs_per_game: stats.homeRuns ? stats.homeRuns / gamesPlayed : undefined,
             rbis_per_game: stats.rbis ? stats.rbis / gamesPlayed : undefined,
-            strikeouts_pitcher_per_game: stats.strikeouts ? stats.strikeouts / gamesPlayed : undefined,
+            strikeouts_pitcher_per_game: stats.strikeouts
+              ? stats.strikeouts / gamesPlayed
+              : undefined,
           };
 
           await upsertPlayerStats(supabase, playerStats);
           imported++;
-
         } catch (playerErr) {
           // Skip individual player errors
         }
@@ -394,7 +399,6 @@ async function fetchNHLSeasonStats(season: string, supabase: SupabaseClient): Pr
 
           await upsertPlayerStats(supabase, playerStats);
           imported++;
-
         } catch (playerErr) {
           // Skip individual player errors
         }
@@ -514,14 +518,30 @@ function extractNBAStats(categories: any[]): Record<string, number> {
     for (const stat of cat.stats) {
       const value = parseFloat(stat.value) || 0;
       switch (stat.name) {
-        case 'avgMinutes': stats.minutes = value; break;
-        case 'avgPoints': stats.points = value; break;
-        case 'avgRebounds': stats.rebounds = value; break;
-        case 'avgAssists': stats.assists = value; break;
-        case 'avgSteals': stats.steals = value; break;
-        case 'avgBlocks': stats.blocks = value; break;
-        case 'avgThreePointersMade': stats.threes = value; break;
-        case 'avgTurnovers': stats.turnovers = value; break;
+        case 'avgMinutes':
+          stats.minutes = value;
+          break;
+        case 'avgPoints':
+          stats.points = value;
+          break;
+        case 'avgRebounds':
+          stats.rebounds = value;
+          break;
+        case 'avgAssists':
+          stats.assists = value;
+          break;
+        case 'avgSteals':
+          stats.steals = value;
+          break;
+        case 'avgBlocks':
+          stats.blocks = value;
+          break;
+        case 'avgThreePointersMade':
+          stats.threes = value;
+          break;
+        case 'avgTurnovers':
+          stats.turnovers = value;
+          break;
       }
     }
   }
@@ -541,11 +561,21 @@ function extractNFLStats(statistics: any[]): Record<string, number> {
       for (const stat of cat.stats) {
         const value = parseFloat(stat.value) || 0;
         switch (stat.name) {
-          case 'gamesPlayed': stats.gamesPlayed = value; break;
-          case 'passingYards': stats.passingYards = value; break;
-          case 'rushingYards': stats.rushingYards = value; break;
-          case 'receivingYards': stats.receivingYards = value; break;
-          case 'receptions': stats.receptions = value; break;
+          case 'gamesPlayed':
+            stats.gamesPlayed = value;
+            break;
+          case 'passingYards':
+            stats.passingYards = value;
+            break;
+          case 'rushingYards':
+            stats.rushingYards = value;
+            break;
+          case 'receivingYards':
+            stats.receivingYards = value;
+            break;
+          case 'receptions':
+            stats.receptions = value;
+            break;
         }
       }
     }
@@ -566,11 +596,21 @@ function extractMLBStats(statistics: any[]): Record<string, number> {
       for (const stat of cat.stats) {
         const value = parseFloat(stat.value) || 0;
         switch (stat.name) {
-          case 'gamesPlayed': stats.gamesPlayed = value; break;
-          case 'hits': stats.hits = value; break;
-          case 'homeRuns': stats.homeRuns = value; break;
-          case 'RBIs': stats.rbis = value; break;
-          case 'strikeouts': stats.strikeouts = value; break;
+          case 'gamesPlayed':
+            stats.gamesPlayed = value;
+            break;
+          case 'hits':
+            stats.hits = value;
+            break;
+          case 'homeRuns':
+            stats.homeRuns = value;
+            break;
+          case 'RBIs':
+            stats.rbis = value;
+            break;
+          case 'strikeouts':
+            stats.strikeouts = value;
+            break;
         }
       }
     }
@@ -591,10 +631,18 @@ function extractNHLStats(statistics: any[]): Record<string, number> {
       for (const stat of cat.stats) {
         const value = parseFloat(stat.value) || 0;
         switch (stat.name) {
-          case 'gamesPlayed': stats.gamesPlayed = value; break;
-          case 'goals': stats.goals = value; break;
-          case 'assists': stats.assists = value; break;
-          case 'shots': stats.shots = value; break;
+          case 'gamesPlayed':
+            stats.gamesPlayed = value;
+            break;
+          case 'goals':
+            stats.goals = value;
+            break;
+          case 'assists':
+            stats.assists = value;
+            break;
+          case 'shots':
+            stats.shots = value;
+            break;
         }
       }
     }
@@ -607,12 +655,14 @@ function extractNHLStats(statistics: any[]): Record<string, number> {
 // Database Operations
 // ============================================================================
 
-async function upsertPlayerStats(supabase: SupabaseClient, stats: PlayerSeasonStats): Promise<void> {
+async function upsertPlayerStats(
+  supabase: SupabaseClient,
+  stats: PlayerSeasonStats
+): Promise<void> {
   // Note: player_id is UUID type in DB but we don't have UUIDs from ESPN
   // The unique constraint is on (player_name, sport, season, team) so we skip player_id
-  const { error } = await supabase
-    .from('player_season_stats')
-    .upsert({
+  const { error } = await supabase.from('player_season_stats').upsert(
+    {
       player_name: stats.player_name,
       team: stats.team,
       sport: stats.sport,
@@ -639,9 +689,11 @@ async function upsertPlayerStats(supabase: SupabaseClient, stats: PlayerSeasonSt
       shots_per_game: stats.shots_per_game,
       last_updated: new Date().toISOString(),
       source: 'espn',
-    }, {
+    },
+    {
       onConflict: 'player_name,sport,season,team',
-    });
+    }
+  );
 
   if (error && error.code !== '23505') {
     console.error(`  ❌ Failed to upsert ${stats.player_name}: ${error.message}`);
@@ -665,7 +717,8 @@ async function main() {
 
   // Initialize Supabase
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
     console.error('❌ Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
@@ -685,9 +738,8 @@ async function main() {
   let totalImported = 0;
 
   try {
-    const sports = sportArg.toLowerCase() === 'all'
-      ? ['NBA', 'NFL', 'MLB', 'NHL']
-      : [sportArg.toUpperCase()];
+    const sports =
+      sportArg.toLowerCase() === 'all' ? ['NBA', 'NFL', 'MLB', 'NHL'] : [sportArg.toUpperCase()];
 
     for (const sport of sports) {
       switch (sport) {
@@ -711,7 +763,6 @@ async function main() {
     console.log('\n╔════════════════════════════════════════════════════════════════╗');
     console.log(`║  ✅ COMPLETE: Imported ${totalImported} player stat records           ║`);
     console.log('╚════════════════════════════════════════════════════════════════╝');
-
   } catch (error) {
     console.error('❌ Import failed:', error);
     process.exit(1);

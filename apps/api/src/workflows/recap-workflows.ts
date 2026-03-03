@@ -1,5 +1,12 @@
 // src/workflows/recap-workflows.ts
-import { proxyActivities, defineSignal, setHandler, sleep, CancellationScope, log } from '@temporalio/workflow';
+import {
+  proxyActivities,
+  defineSignal,
+  setHandler,
+  sleep,
+  CancellationScope,
+  log,
+} from '@temporalio/workflow';
 
 import { env } from '../config/env';
 
@@ -50,7 +57,7 @@ export const triggerMonthlyRecapSignal = defineSignal('triggerMonthlyRecap');
 export async function dailyRecapWorkflow(): Promise<void> {
   // Initialize state
   const state: RecapState = {
-    manualTriggers: { daily: 0, weekly: 0, monthly: 0 }
+    manualTriggers: { daily: 0, weekly: 0, monthly: 0 },
   };
 
   // Set up signal handlers for manual triggering
@@ -93,7 +100,7 @@ export async function dailyRecapWorkflow(): Promise<void> {
 export async function weeklyRecapWorkflow(): Promise<void> {
   // Initialize state
   const state: RecapState = {
-    manualTriggers: { daily: 0, weekly: 0, monthly: 0 }
+    manualTriggers: { daily: 0, weekly: 0, monthly: 0 },
   };
 
   // Set up signal handlers for manual triggering
@@ -141,7 +148,7 @@ export async function weeklyRecapWorkflow(): Promise<void> {
 export async function monthlyRecapWorkflow(): Promise<void> {
   // Initialize state
   const state: RecapState = {
-    manualTriggers: { daily: 0, weekly: 0, monthly: 0 }
+    manualTriggers: { daily: 0, weekly: 0, monthly: 0 },
   };
 
   // Set up signal handlers for manual triggering
@@ -188,7 +195,7 @@ export async function monthlyRecapWorkflow(): Promise<void> {
 export async function microRecapWorkflow(): Promise<void> {
   // Initialize state
   const state: RecapState = {
-    manualTriggers: { daily: 0, weekly: 0, monthly: 0 }
+    manualTriggers: { daily: 0, weekly: 0, monthly: 0 },
   };
 
   // Main workflow loop - continues indefinitely
@@ -198,7 +205,9 @@ export async function microRecapWorkflow(): Promise<void> {
       const now = new Date();
 
       // Check if cooldown period has passed
-      const cooldownUntil = state.microRecapCooldownUntil ? new Date(state.microRecapCooldownUntil) : null;
+      const cooldownUntil = state.microRecapCooldownUntil
+        ? new Date(state.microRecapCooldownUntil)
+        : null;
       if (!cooldownUntil || now > cooldownUntil) {
         // Execute micro recap check
         await recapActivities.checkMicroRecapTriggers();
@@ -242,7 +251,7 @@ export async function combinedRecapWorkflow(): Promise<void> {
     }),
     CancellationScope.cancellable(async () => {
       await microRecapWorkflow();
-    })
+    }),
   ]);
 }
 

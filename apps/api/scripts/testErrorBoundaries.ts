@@ -1,4 +1,3 @@
-
 #!/usr/bin/env tsx
 
 /**
@@ -14,11 +13,11 @@ class ErrorBoundaryPermissionTester {
     // Test error boundaries
     console.log('🔍 Testing error boundaries...');
     const errorBoundaryResults = await this.testErrorBoundaries();
-    
+
     // Test permissions
     console.log('\n🔍 Testing permissions...');
     const permissionResults = await this.testPermissions();
-    
+
     // Test recovery mechanisms
     console.log('\n🔍 Testing recovery mechanisms...');
     const recoveryResults = await this.testRecoveryMechanisms();
@@ -27,7 +26,7 @@ class ErrorBoundaryPermissionTester {
     const allResults = [...errorBoundaryResults, ...permissionResults, ...recoveryResults];
     const passedTests = allResults.filter(r => r.passed).length;
     const totalTests = allResults.length;
-    
+
     console.log(`\n📊 ERROR HANDLING & PERMISSIONS SUMMARY`);
     console.log(`=======================================`);
     console.log(`Passed Tests: ${passedTests}/${totalTests}`);
@@ -50,29 +49,29 @@ class ErrorBoundaryPermissionTester {
       { name: 'Database Connection Loss', test: 'db_connection' },
       { name: 'API Rate Limit Handling', test: 'rate_limit' },
       { name: 'Invalid Input Handling', test: 'invalid_input' },
-      { name: 'Memory Overflow Protection', test: 'memory_overflow' }
+      { name: 'Memory Overflow Protection', test: 'memory_overflow' },
     ];
 
     const results = [];
-    
+
     for (const test of tests) {
       console.log(`   🧪 Testing ${test.name}...`);
-      
+
       try {
         const passed = await this.simulateErrorScenario(test.test);
         console.log(`   ${passed ? '✅' : '❌'} ${test.name}: ${passed ? 'HANDLED' : 'FAILED'}`);
-        
+
         results.push({
           test: test.name,
           passed,
-          status: passed ? 'HANDLED' : 'FAILED'
+          status: passed ? 'HANDLED' : 'FAILED',
         });
       } catch (error) {
         console.log(`   ❌ ${test.name}: ERROR - ${error.message}`);
         results.push({
           test: test.name,
           passed: false,
-          status: 'ERROR'
+          status: 'ERROR',
         });
       }
     }
@@ -86,29 +85,29 @@ class ErrorBoundaryPermissionTester {
       { name: 'Service Role Access', test: 'service_role' },
       { name: 'Database Permissions', test: 'db_permissions' },
       { name: 'File System Access', test: 'file_access' },
-      { name: 'Network Access Control', test: 'network_access' }
+      { name: 'Network Access Control', test: 'network_access' },
     ];
 
     const results = [];
-    
+
     for (const test of tests) {
       console.log(`   🔐 Testing ${test.name}...`);
-      
+
       try {
         const passed = await this.testPermissionScenario(test.test);
         console.log(`   ${passed ? '✅' : '❌'} ${test.name}: ${passed ? 'SECURE' : 'VULNERABLE'}`);
-        
+
         results.push({
           test: test.name,
           passed,
-          status: passed ? 'SECURE' : 'VULNERABLE'
+          status: passed ? 'SECURE' : 'VULNERABLE',
         });
       } catch (error) {
         console.log(`   ❌ ${test.name}: ERROR - ${error.message}`);
         results.push({
           test: test.name,
           passed: false,
-          status: 'ERROR'
+          status: 'ERROR',
         });
       }
     }
@@ -121,29 +120,29 @@ class ErrorBoundaryPermissionTester {
       { name: 'Graceful Degradation', test: 'graceful_degradation' },
       { name: 'Circuit Breaker', test: 'circuit_breaker' },
       { name: 'Retry Logic', test: 'retry_logic' },
-      { name: 'Fallback Mechanisms', test: 'fallback' }
+      { name: 'Fallback Mechanisms', test: 'fallback' },
     ];
 
     const results = [];
-    
+
     for (const test of tests) {
       console.log(`   🔄 Testing ${test.name}...`);
-      
+
       try {
         const passed = await this.testRecoveryScenario(test.test);
         console.log(`   ${passed ? '✅' : '❌'} ${test.name}: ${passed ? 'WORKING' : 'FAILED'}`);
-        
+
         results.push({
           test: test.name,
           passed,
-          status: passed ? 'WORKING' : 'FAILED'
+          status: passed ? 'WORKING' : 'FAILED',
         });
       } catch (error) {
         console.log(`   ❌ ${test.name}: ERROR - ${error.message}`);
         results.push({
           test: test.name,
           passed: false,
-          status: 'ERROR'
+          status: 'ERROR',
         });
       }
     }

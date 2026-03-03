@@ -39,7 +39,7 @@ export async function sendSMSNotification(
       await twilioClient.messages.create({
         body: message,
         from: config.fromNumber,
-        to: recipient
+        to: recipient,
       });
     }
   } catch (error) {
@@ -53,9 +53,8 @@ function formatSMSContent(payload: NotificationPayload): string {
 
   // SMS should be concise, so we'll truncate if necessary
   const maxLength = 160 - title.length;
-  const truncatedMessage = message.length > maxLength
-    ? `${message.substring(0, maxLength - 3)}...`
-    : message;
+  const truncatedMessage =
+    message.length > maxLength ? `${message.substring(0, maxLength - 3)}...` : message;
 
   return `${title}${truncatedMessage}`;
-} 
+}

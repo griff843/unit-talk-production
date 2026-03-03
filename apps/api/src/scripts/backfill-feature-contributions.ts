@@ -188,10 +188,7 @@ async function runBackfill() {
 
       try {
         // Skip if already has contributions (idempotent check)
-        if (
-          pick.feature_contributions &&
-          Object.keys(pick.feature_contributions).length > 0
-        ) {
+        if (pick.feature_contributions && Object.keys(pick.feature_contributions).length > 0) {
           stats.skipped++;
           continue;
         }
@@ -315,12 +312,12 @@ async function runBackfill() {
     console.log(`  With feature_contributions: ${newWithContribs}`);
     console.log(`  Total settled: ${totalSettled}`);
     console.log(
-      `  Coverage: ${totalSettled ? ((newWithContribs || 0) / (totalSettled || 1) * 100).toFixed(1) : 0}%`
+      `  Coverage: ${totalSettled ? (((newWithContribs || 0) / (totalSettled || 1)) * 100).toFixed(1) : 0}%`
     );
   }
 }
 
-runBackfill().catch((err) => {
+runBackfill().catch(err => {
   console.error('Backfill failed:', err);
   process.exit(1);
 });

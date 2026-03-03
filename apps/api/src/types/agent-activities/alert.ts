@@ -20,4 +20,4 @@ export interface AlertAgentActivities {
     reason: string;
     context?: Record<string, unknown>;
   }): Promise<AlertResult>;
-} 
+}

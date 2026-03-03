@@ -2,13 +2,13 @@
 
 /**
  * Data Lifecycle Setup Script
- * 
+ *
  * Sets up enterprise-grade data lifecycle management for raw_props:
  * - Creates historical tables (raw_props_recent, raw_props_historical)
  * - Sets up proper indexes for performance
  * - Configures retention policies
  * - Tests DataLifecycleAgent functionality
- * 
+ *
  * Run this before deploying DataLifecycleAgent to production.
  */
 
@@ -34,13 +34,13 @@ async function setupDataLifecycle() {
   console.log('=====================================================');
 
   const logger = new Logger('setup-data-lifecycle');
-  
+
   const results: SetupResults = {
     tablesCreated: false,
     indexesCreated: false,
     retentionPolicyConfigured: false,
     agentTested: false,
-    migrationCompleted: false
+    migrationCompleted: false,
   };
 
   try {
@@ -81,20 +81,19 @@ async function setupDataLifecycle() {
     console.log('✅ Performance indexes: game_date, scraped_at, player_name');
     console.log('✅ Retention policies: 1 day hot, 30 days warm, 365 days cold');
     console.log('✅ DataLifecycleAgent: Initialized and tested');
-    
+
     console.log('\n🚀 DEPLOYMENT RECOMMENDATIONS:');
     console.log('1. Set up daily cron job to run DataLifecycleAgent');
-    console.log('2. Monitor tier sizes via Redis cache: lifecycle:insights');  
+    console.log('2. Monitor tier sizes via Redis cache: lifecycle:insights');
     console.log('3. Set up alerts for retention policy violations');
     console.log('4. Configure compression for historical data if needed');
-    
+
     console.log('\n📊 IMMEDIATE BENEFITS:');
     console.log('- 🔥 Hot tier (raw_props): Fast queries for live betting');
     console.log('- 💧 Warm tier (raw_props_recent): Quick analytics access');
     console.log('- 🧊 Cold tier (raw_props_historical): Long-term backtesting');
     console.log('- 💰 Cost savings: Reduced Supabase storage costs');
     console.log('- ⚡ Performance: Faster queries on smaller tables');
-
   } catch (error) {
     console.error('\n❌ Setup failed:', error instanceof Error ? error.message : 'Unknown error');
     console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
@@ -104,7 +103,7 @@ async function setupDataLifecycle() {
 
 async function createHistoricalTables(): Promise<void> {
   console.log('  📋 Creating raw_props_recent table...');
-  
+
   const createRecentTableSQL = `
     -- Create raw_props_recent table (warm tier - last 30 days)
     CREATE TABLE IF NOT EXISTS raw_props_recent (
@@ -130,7 +129,7 @@ async function createHistoricalTables(): Promise<void> {
   try {
     // Execute table creation
     const { error: recentError } = await supabaseClient.rpc('exec_sql', {
-      sql: createRecentTableSQL
+      sql: createRecentTableSQL,
     });
 
     if (recentError && !recentError.message.includes('already exists')) {
@@ -138,7 +137,7 @@ async function createHistoricalTables(): Promise<void> {
     }
 
     const { error: historicalError } = await supabaseClient.rpc('exec_sql', {
-      sql: createHistoricalTableSQL
+      sql: createHistoricalTableSQL,
     });
 
     if (historicalError && !historicalError.message.includes('already exists')) {
@@ -147,11 +146,10 @@ async function createHistoricalTables(): Promise<void> {
 
     console.log('  ✅ raw_props_recent table ready');
     console.log('  ✅ raw_props_historical table ready');
-
   } catch (error) {
     // Fallback: Try direct table creation if RPC fails
     console.log('  ⚠️ RPC failed, trying direct SQL execution...');
-    
+
     try {
       // Try creating via direct query (limited functionality)
       await supabaseClient.from('raw_props_recent').select('id').limit(1);
@@ -171,7 +169,7 @@ async function createHistoricalTables(): Promise<void> {
 
 async function createPerformanceIndexes(): Promise<void> {
   console.log('  🔍 Creating indexes for optimal query performance...');
-  
+
   const indexSQL = `
     -- Indexes for raw_props_recent (warm tier)
     CREATE INDEX IF NOT EXISTS idx_raw_props_recent_game_date 
@@ -200,16 +198,15 @@ async function createPerformanceIndexes(): Promise<void> {
 
   try {
     const { error } = await supabaseClient.rpc('exec_sql', { sql: indexSQL });
-    
+
     if (error && !error.message.includes('already exists')) {
       throw new Error(`Failed to create indexes: ${error.message}`);
     }
 
     console.log('  ✅ Performance indexes created');
     console.log('    - game_date indexes for time-based queries');
-    console.log('    - player_name indexes for player lookups');  
+    console.log('    - player_name indexes for player lookups');
     console.log('    - Composite indexes for analytics');
-
   } catch (error) {
     console.log('  ⚠️ Index creation may require manual setup:', error);
   }
@@ -217,14 +214,14 @@ async function createPerformanceIndexes(): Promise<void> {
 
 async function configureRetentionPolicies(): Promise<void> {
   console.log('  ⚙️ Setting up retention policy configuration...');
-  
+
   const retentionConfig = {
-    hotTierDays: 1,      // Keep in raw_props for 1 day
-    warmTierDays: 30,    // Keep in raw_props_recent for 30 days  
-    coldTierDays: 365,   // Keep in raw_props_historical for 1 year
+    hotTierDays: 1, // Keep in raw_props for 1 day
+    warmTierDays: 30, // Keep in raw_props_recent for 30 days
+    coldTierDays: 365, // Keep in raw_props_historical for 1 year
     compressionEnabled: true,
     autoDeleteEnabled: false, // Disabled by default for safety
-    batchSize: 10000
+    batchSize: 10000,
   };
 
   console.log('  📋 Retention Policy Configuration:');
@@ -232,7 +229,9 @@ async function configureRetentionPolicies(): Promise<void> {
   console.log(`    💧 Warm Tier (raw_props_recent): ${retentionConfig.warmTierDays} days`);
   console.log(`    🧊 Cold Tier (raw_props_historical): ${retentionConfig.coldTierDays} days`);
   console.log(`    🗜️ Compression: ${retentionConfig.compressionEnabled ? 'Enabled' : 'Disabled'}`);
-  console.log(`    🗑️ Auto-delete: ${retentionConfig.autoDeleteEnabled ? 'Enabled' : 'Disabled (Safety)'}`);
+  console.log(
+    `    🗑️ Auto-delete: ${retentionConfig.autoDeleteEnabled ? 'Enabled' : 'Disabled (Safety)'}`
+  );
   console.log(`    📦 Batch Size: ${retentionConfig.batchSize} records`);
 
   // Save to environment variables template
@@ -252,13 +251,13 @@ ARCHIVE_BATCH_SIZE=${retentionConfig.batchSize}
 
 async function testDataLifecycleAgent(logger: Logger): Promise<void> {
   console.log('  🧪 Initializing DataLifecycleAgent for testing...');
-  
+
   try {
     const agent = new DataLifecycleAgent(
       {
         name: 'DataLifecycleAgent',
         enabled: true,
-        logLevel: 'info'
+        logLevel: 'info',
       },
       { logger, supabase: supabaseClient }
     );
@@ -279,7 +278,6 @@ async function testDataLifecycleAgent(logger: Logger): Promise<void> {
     console.log(`  ✅ Metrics collected: ${Object.keys(metrics).length} metrics`);
 
     console.log('  🎉 DataLifecycleAgent is ready for deployment!');
-
   } catch (error) {
     console.error('  ❌ Agent testing failed:', error);
     throw error;
@@ -288,22 +286,24 @@ async function testDataLifecycleAgent(logger: Logger): Promise<void> {
 
 async function analyzeCurrentData(): Promise<void> {
   console.log('  📊 Analyzing current raw_props data...');
-  
+
   try {
     // Get current data stats
-    const { count: totalProps } = await supabaseClient
+    const { count: totalProps } = (await supabaseClient
       .from('raw_props')
-      .select('*', { count: 'exact', head: true }) || { count: 0 };
+      .select('*', { count: 'exact', head: true })) || { count: 0 };
 
-    const { count: todayProps } = await supabaseClient
+    const { count: todayProps } = (await supabaseClient
       .from('raw_props')
       .select('*', { count: 'exact', head: true })
-      .gte('game_date', new Date().toISOString().split('T')[0]) || { count: 0 };
+      .gte('game_date', new Date().toISOString().split('T')[0])) || { count: 0 };
 
-    const { count: oldProps } = await supabaseClient
+    const { count: oldProps } = (await supabaseClient
       .from('raw_props')
       .select('*', { count: 'exact', head: true })
-      .lt('game_date', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]) || { count: 0 };
+      .lt('game_date', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0])) || {
+      count: 0,
+    };
 
     console.log('  📈 Current Data Analysis:');
     console.log(`    📊 Total Props: ${totalProps || 0}`);
@@ -315,7 +315,6 @@ async function analyzeCurrentData(): Promise<void> {
     } else {
       console.log('  ✅ No immediate archiving needed');
     }
-
   } catch (error) {
     console.log('  ⚠️ Data analysis failed, but setup is complete:', error);
   }
@@ -329,7 +328,7 @@ if (require.main === module) {
       console.log('🚀 You can now deploy DataLifecycleAgent to production');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('\n💥 Setup failed:', error);
       process.exit(1);
     });

@@ -1,5 +1,5 @@
-import axios from "axios";
-import { DateTime } from "luxon";
+import axios from 'axios';
+import { DateTime } from 'luxon';
 
 // ---- Type definitions ----
 export interface SGOFlattenedProp {
@@ -43,7 +43,7 @@ export async function fetchSGOEvents({
   oddsAvailable?: boolean;
   limit?: number;
 }): Promise<any[]> {
-  const endpoint = "https://api.sportsgameodds.com/v2/events";
+  const endpoint = 'https://api.sportsgameodds.com/v2/events';
   const params = {
     apiKey,
     leagueID,
@@ -64,19 +64,9 @@ export async function fetchSGOEvents({
 export function flattenSGOEvents(events: any[]): SGOFlattenedProp[] {
   const results: SGOFlattenedProp[] = [];
   for (const evt of events) {
-    const {
-      eventID,
-      leagueID,
-      sportID,
-      teams,
-      odds,
-      startsAt,
-      status,
-      players,
-      info,
-    } = evt;
+    const { eventID, leagueID, sportID, teams, odds, startsAt, status, players, info } = evt;
 
-    if (!odds || typeof odds !== "object" || Object.keys(odds).length === 0) {
+    if (!odds || typeof odds !== 'object' || Object.keys(odds).length === 0) {
       // No odds to flatten
       continue;
     }
@@ -84,10 +74,10 @@ export function flattenSGOEvents(events: any[]): SGOFlattenedProp[] {
     // Format UTC and ET
     const startsAtUTC = startsAt ?? status?.startsAt;
     const startsAtET = startsAtUTC
-      ? DateTime.fromISO(startsAtUTC, { zone: "utc" })
-          .setZone("America/New_York")
-          .toFormat("yyyy-MM-dd HH:mm z")
-      : "";
+      ? DateTime.fromISO(startsAtUTC, { zone: 'utc' })
+          .setZone('America/New_York')
+          .toFormat('yyyy-MM-dd HH:mm z')
+      : '';
 
     // Meta info
     const meta = {
@@ -98,10 +88,10 @@ export function flattenSGOEvents(events: any[]): SGOFlattenedProp[] {
     };
 
     // Extract teams
-    const homeTeam = teams?.home?.names?.full ?? teams?.home?.teamID ?? "";
-    const awayTeam = teams?.away?.names?.full ?? teams?.away?.teamID ?? "";
-    const homeTeamID = teams?.home?.teamID ?? "";
-    const awayTeamID = teams?.away?.teamID ?? "";
+    const homeTeam = teams?.home?.names?.full ?? teams?.home?.teamID ?? '';
+    const awayTeam = teams?.away?.names?.full ?? teams?.away?.teamID ?? '';
+    const homeTeamID = teams?.home?.teamID ?? '';
+    const awayTeamID = teams?.away?.teamID ?? '';
 
     // Core fix: Typecast each offer so TS doesn't whine
     for (const [marketKey, offerRaw] of Object.entries(odds ?? {})) {
@@ -109,7 +99,7 @@ export function flattenSGOEvents(events: any[]): SGOFlattenedProp[] {
 
       let playerId: string | null = null;
       let playerName: string | null = null;
-      const statType: string = offer.statID ?? "";
+      const statType: string = offer.statID ?? '';
 
       if (offer.playerID && players?.[offer.playerID]?.name) {
         playerId = offer.playerID;
@@ -119,8 +109,7 @@ export function flattenSGOEvents(events: any[]): SGOFlattenedProp[] {
         playerName = players[offer.statEntityID].name;
       }
 
-      const ou: string | null =
-        offer.fairOverUnder ?? offer.openFairOverUnder ?? null;
+      const ou: string | null = offer.fairOverUnder ?? offer.openFairOverUnder ?? null;
       const line: number | string | null =
         offer.line ?? offer.ou ?? offer.fairOverUnder ?? offer.openFairOverUnder ?? null;
       const odds: number | string | null =
@@ -155,7 +144,9 @@ export function flattenSGOEvents(events: any[]): SGOFlattenedProp[] {
 }
 
 // ---- COMBINED: Fetch and Flatten in One ----
-export async function fetchAndFlattenSGOProps(opts: Parameters<typeof fetchSGOEvents>[0]): Promise<SGOFlattenedProp[]> {
+export async function fetchAndFlattenSGOProps(
+  opts: Parameters<typeof fetchSGOEvents>[0]
+): Promise<SGOFlattenedProp[]> {
   const events = await fetchSGOEvents(opts);
   return flattenSGOEvents(events);
 }

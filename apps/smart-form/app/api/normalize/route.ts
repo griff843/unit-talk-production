@@ -70,14 +70,17 @@ export async function POST(request: NextRequest) {
       result = await normalizePlayer(sb, queryLower, sport, team);
     }
 
-    log.info({
-      type,
-      query,
-      found: result.found,
-      canonical: result.canonical,
-      confidence: result.confidence,
-      duration_ms: Date.now() - startTime,
-    }, result.found ? 'Normalization successful' : 'No match found');
+    log.info(
+      {
+        type,
+        query,
+        found: result.found,
+        canonical: result.canonical,
+        confidence: result.confidence,
+        duration_ms: Date.now() - startTime,
+      },
+      result.found ? 'Normalization successful' : 'No match found'
+    );
 
     return NextResponse.json({
       ...result,
@@ -91,10 +94,15 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    log.error({ error: error instanceof Error ? error.message : 'Unknown error' },
-      'Normalization failed');
+    log.error(
+      { error: error instanceof Error ? error.message : 'Unknown error' },
+      'Normalization failed'
+    );
     return NextResponse.json(
-      { error: 'Normalization failed', details: error instanceof Error ? error.message : 'Unknown' },
+      {
+        error: 'Normalization failed',
+        details: error instanceof Error ? error.message : 'Unknown',
+      },
       { status: 500 }
     );
   }
@@ -106,10 +114,7 @@ async function normalizeTeam(
   sport?: string
 ): Promise<NormalizedResult> {
   // Build query for teams
-  let dbQuery = sb
-    .from('teams')
-    .select('id, name, abbr, sport, team_uuid')
-    .order('name');
+  let dbQuery = sb.from('teams').select('id, name, abbr, sport, team_uuid').order('name');
 
   if (sport) {
     dbQuery = dbQuery.eq('sport', sport.toUpperCase());
@@ -123,43 +128,45 @@ async function normalizeTeam(
   }
 
   // Score each team against the query
-  const scoredTeams = (allTeams as any[]).map(team => {
-    const nameLower = team.name?.toLowerCase() || '';
-    const abbrLower = team.abbr?.toLowerCase() || '';
+  const scoredTeams = (allTeams as any[])
+    .map(team => {
+      const nameLower = team.name?.toLowerCase() || '';
+      const abbrLower = team.abbr?.toLowerCase() || '';
 
-    let score = 0;
+      let score = 0;
 
-    // Exact match on name
-    if (nameLower === query) {
-      score = 100;
-    }
-    // Exact match on abbreviation
-    else if (abbrLower === query) {
-      score = 95;
-    }
-    // Name contains query as a word
-    else if (nameLower.split(/\s+/).includes(query)) {
-      score = 90;
-    }
-    // Name starts with query
-    else if (nameLower.startsWith(query)) {
-      score = 85;
-    }
-    // Name contains query
-    else if (nameLower.includes(query)) {
-      score = 75;
-    }
-    // Abbreviation contains query
-    else if (abbrLower.includes(query)) {
-      score = 70;
-    }
-    // Query contains name word (e.g., "boston celtics" contains "celtics")
-    else if (query.includes(nameLower.split(/\s+/).pop() || '')) {
-      score = 65;
-    }
+      // Exact match on name
+      if (nameLower === query) {
+        score = 100;
+      }
+      // Exact match on abbreviation
+      else if (abbrLower === query) {
+        score = 95;
+      }
+      // Name contains query as a word
+      else if (nameLower.split(/\s+/).includes(query)) {
+        score = 90;
+      }
+      // Name starts with query
+      else if (nameLower.startsWith(query)) {
+        score = 85;
+      }
+      // Name contains query
+      else if (nameLower.includes(query)) {
+        score = 75;
+      }
+      // Abbreviation contains query
+      else if (abbrLower.includes(query)) {
+        score = 70;
+      }
+      // Query contains name word (e.g., "boston celtics" contains "celtics")
+      else if (query.includes(nameLower.split(/\s+/).pop() || '')) {
+        score = 65;
+      }
 
-    return { ...team, score };
-  }).filter(t => t.score > 0);
+      return { ...team, score };
+    })
+    .filter(t => t.score > 0);
 
   // Sort by score descending
   scoredTeams.sort((a, b) => b.score - a.score);
@@ -227,46 +234,48 @@ async function normalizePlayer(
   const players = Array.from(playerMap.values());
 
   // Score each player
-  const scoredPlayers = players.map(player => {
-    const nameLower = player.name.toLowerCase();
-    const teamLower = player.team?.toLowerCase() || '';
+  const scoredPlayers = players
+    .map(player => {
+      const nameLower = player.name.toLowerCase();
+      const teamLower = player.team?.toLowerCase() || '';
 
-    let score = 0;
+      let score = 0;
 
-    // Exact match
-    if (nameLower === query) {
-      score = 100;
-    }
-    // Name starts with query
-    else if (nameLower.startsWith(query)) {
-      score = 90;
-    }
-    // Last name matches
-    else if (nameLower.split(/\s+/).pop() === query) {
-      score = 85;
-    }
-    // First name matches
-    else if (nameLower.split(/\s+/)[0] === query) {
-      score = 80;
-    }
-    // Name contains query
-    else if (nameLower.includes(query)) {
-      score = 70;
-    }
-
-    // V1.1 COMPLIANCE: If team specified, boost matches and penalize mismatches
-    if (team) {
-      const teamQueryLower = team.toLowerCase();
-      if (teamLower.includes(teamQueryLower) || teamQueryLower.includes(teamLower)) {
-        score += 10; // Boost for team match
-      } else if (score > 0) {
-        score -= 20; // Penalize team mismatch (but don't go negative)
-        if (score < 0) score = 0;
+      // Exact match
+      if (nameLower === query) {
+        score = 100;
       }
-    }
+      // Name starts with query
+      else if (nameLower.startsWith(query)) {
+        score = 90;
+      }
+      // Last name matches
+      else if (nameLower.split(/\s+/).pop() === query) {
+        score = 85;
+      }
+      // First name matches
+      else if (nameLower.split(/\s+/)[0] === query) {
+        score = 80;
+      }
+      // Name contains query
+      else if (nameLower.includes(query)) {
+        score = 70;
+      }
 
-    return { ...player, score };
-  }).filter(p => p.score > 0);
+      // V1.1 COMPLIANCE: If team specified, boost matches and penalize mismatches
+      if (team) {
+        const teamQueryLower = team.toLowerCase();
+        if (teamLower.includes(teamQueryLower) || teamQueryLower.includes(teamLower)) {
+          score += 10; // Boost for team match
+        } else if (score > 0) {
+          score -= 20; // Penalize team mismatch (but don't go negative)
+          if (score < 0) score = 0;
+        }
+      }
+
+      return { ...player, score };
+    })
+    .filter(p => p.score > 0);
 
   // Sort by score descending
   scoredPlayers.sort((a, b) => b.score - a.score);

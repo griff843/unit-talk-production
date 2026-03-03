@@ -11,11 +11,10 @@
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
 import { makeLogger } from '../../utils/logger';
-import {
-  KnobDefinition,
-  KnobResolutionResult,
-} from './types';
+
+import { KnobDefinition, KnobResolutionResult } from './types';
 
 const logger = makeLogger('KnobResolver');
 
@@ -304,9 +303,10 @@ export class KnobResolver {
       exists: true,
       type: definition.type,
       can_execute: false,
-      reason: definition.type === 'ENV_VAR'
-        ? 'Environment variables cannot be changed at runtime'
-        : 'Derived knobs are auto-computed',
+      reason:
+        definition.type === 'ENV_VAR'
+          ? 'Environment variables cannot be changed at runtime'
+          : 'Derived knobs are auto-computed',
     };
     this.knobCache.set(knobId, result);
     return result;
@@ -526,9 +526,6 @@ export function getKnobResolver(): KnobResolver {
   return resolverInstance;
 }
 
-export function createKnobResolver(
-  supabaseUrl: string,
-  supabaseServiceKey: string
-): KnobResolver {
+export function createKnobResolver(supabaseUrl: string, supabaseServiceKey: string): KnobResolver {
   return new KnobResolver(supabaseUrl, supabaseServiceKey);
 }

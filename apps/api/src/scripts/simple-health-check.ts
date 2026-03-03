@@ -26,7 +26,7 @@ class SimpleHealthValidator {
 
   async validateHealth(): Promise<HealthReport> {
     logger.info('🏥 Starting simple system health check');
-    
+
     // Run basic health checks
     this.checkMemoryUsage();
     this.checkProcessHealth();
@@ -60,14 +60,13 @@ class SimpleHealthValidator {
         component: 'memory',
         status,
         message,
-        details: { heapUsedMB, heapTotalMB, rssUsedMB }
+        details: { heapUsedMB, heapTotalMB, rssUsedMB },
       });
-
     } catch (error) {
       this.healthChecks.push({
         component: 'memory',
         status: 'UNHEALTHY',
-        message: `Memory check failed: ${error instanceof Error ? error.message : String(error)}`
+        message: `Memory check failed: ${error instanceof Error ? error.message : String(error)}`,
       });
     }
   }
@@ -91,14 +90,13 @@ class SimpleHealthValidator {
         component: 'process',
         status,
         message,
-        details: { pid, uptime, nodeVersion, platform }
+        details: { pid, uptime, nodeVersion, platform },
       });
-
     } catch (error) {
       this.healthChecks.push({
         component: 'process',
         status: 'UNHEALTHY',
-        message: `Process check failed: ${error instanceof Error ? error.message : String(error)}`
+        message: `Process check failed: ${error instanceof Error ? error.message : String(error)}`,
       });
     }
   }
@@ -111,39 +109,34 @@ class SimpleHealthValidator {
       // Test file system access
       const testDir = path.join(process.cwd(), 'logs');
       await fs.mkdir(testDir, { recursive: true });
-      
+
       const testFile = path.join(testDir, 'health-check-test.tmp');
       const testData = `Health check test - ${new Date().toISOString()}`;
-      
+
       await fs.writeFile(testFile, testData);
       const readData = await fs.readFile(testFile, 'utf-8');
       await fs.unlink(testFile);
 
       const isValid = readData === testData;
-      
+
       this.healthChecks.push({
         component: 'filesystem',
         status: isValid ? 'HEALTHY' : 'UNHEALTHY',
         message: isValid ? 'File system access working' : 'File system access failed',
-        details: { testDir, testPassed: isValid }
+        details: { testDir, testPassed: isValid },
       });
-
     } catch (error) {
       this.healthChecks.push({
         component: 'filesystem',
         status: 'UNHEALTHY',
-        message: `File system check failed: ${error instanceof Error ? error.message : String(error)}`
+        message: `File system check failed: ${error instanceof Error ? error.message : String(error)}`,
       });
     }
   }
 
   private checkEnvironmentVariables(): void {
     try {
-      const requiredEnvVars = [
-        'NODE_ENV',
-        'TEMPORAL_SERVER_URL',
-        'TEMPORAL_TASK_QUEUE'
-      ];
+      const requiredEnvVars = ['NODE_ENV', 'TEMPORAL_SERVER_URL', 'TEMPORAL_TASK_QUEUE'];
 
       const missingVars: string[] = [];
       const presentVars: string[] = [];
@@ -168,14 +161,13 @@ class SimpleHealthValidator {
         component: 'environment',
         status,
         message,
-        details: { presentVars, missingVars }
+        details: { presentVars, missingVars },
       });
-
     } catch (error) {
       this.healthChecks.push({
         component: 'environment',
         status: 'UNHEALTHY',
-        message: `Environment check failed: ${error instanceof Error ? error.message : String(error)}`
+        message: `Environment check failed: ${error instanceof Error ? error.message : String(error)}`,
       });
     }
   }
@@ -212,14 +204,13 @@ class SimpleHealthValidator {
         component: 'agent_classes',
         status,
         message,
-        details: { loadedAgents, failedAgents }
+        details: { loadedAgents, failedAgents },
       });
-
     } catch (error) {
       this.healthChecks.push({
         component: 'agent_classes',
         status: 'UNHEALTHY',
-        message: `Agent class check failed: ${error instanceof Error ? error.message : String(error)}`
+        message: `Agent class check failed: ${error instanceof Error ? error.message : String(error)}`,
       });
     }
   }
@@ -235,7 +226,7 @@ class SimpleHealthValidator {
         'publicVsSharpSplit',
         'marketTimingAdvantage',
         'injuryTimingEdge',
-        'crossMarketDiscrepancy'
+        'crossMarketDiscrepancy',
       ];
 
       const featureWeights: Record<string, number> = {};
@@ -262,21 +253,25 @@ class SimpleHealthValidator {
         component: 'professional_features',
         status,
         message,
-        details: { 
+        details: {
           totalFeatures: professionalFeatures.length,
           configuredFeatures,
-          sampleWeights: Object.keys(featureWeights).slice(0, 3).reduce((acc, key) => {
-            acc[key] = Math.round(featureWeights[key] * 100) / 100;
-            return acc;
-          }, {} as Record<string, number>)
-        }
+          sampleWeights: Object.keys(featureWeights)
+            .slice(0, 3)
+            .reduce(
+              (acc, key) => {
+                acc[key] = Math.round(featureWeights[key] * 100) / 100;
+                return acc;
+              },
+              {} as Record<string, number>
+            ),
+        },
       });
-
     } catch (error) {
       this.healthChecks.push({
         component: 'professional_features',
         status: 'UNHEALTHY',
-        message: `Professional features check failed: ${error instanceof Error ? error.message : String(error)}`
+        message: `Professional features check failed: ${error instanceof Error ? error.message : String(error)}`,
       });
     }
   }
@@ -285,7 +280,7 @@ class SimpleHealthValidator {
     const healthyCount = this.healthChecks.filter(c => c.status === 'HEALTHY').length;
     const degradedCount = this.healthChecks.filter(c => c.status === 'DEGRADED').length;
     const unhealthyCount = this.healthChecks.filter(c => c.status === 'UNHEALTHY').length;
-    
+
     const totalCount = this.healthChecks.length;
     const healthScore = Math.round((healthyCount / totalCount) * 100);
 
@@ -304,7 +299,7 @@ class SimpleHealthValidator {
       overallStatus,
       healthScore,
       components: this.healthChecks,
-      summary
+      summary,
     };
   }
 }
@@ -312,7 +307,7 @@ class SimpleHealthValidator {
 // CLI Interface
 async function main() {
   const validator = new SimpleHealthValidator();
-  
+
   console.log('🏥 Unit Talk Simple Health Check');
   console.log('================================');
   console.log('Basic system health validation without external dependencies');
@@ -320,11 +315,11 @@ async function main() {
 
   try {
     const report = await validator.validateHealth();
-    
+
     // Display results
-    const statusIcon = report.overallStatus === 'HEALTHY' ? '✅' :
-                      report.overallStatus === 'DEGRADED' ? '⚠️' : '❌';
-    
+    const statusIcon =
+      report.overallStatus === 'HEALTHY' ? '✅' : report.overallStatus === 'DEGRADED' ? '⚠️' : '❌';
+
     console.log('📊 HEALTH CHECK RESULTS');
     console.log('=======================');
     console.log(`${statusIcon} Overall Status: ${report.overallStatus}`);
@@ -336,12 +331,12 @@ async function main() {
     // Component details
     console.log('🔧 COMPONENT STATUS');
     console.log('==================');
-    
+
     for (const component of report.components) {
-      const icon = component.status === 'HEALTHY' ? '✅' :
-                   component.status === 'DEGRADED' ? '⚠️' : '❌';
+      const icon =
+        component.status === 'HEALTHY' ? '✅' : component.status === 'DEGRADED' ? '⚠️' : '❌';
       console.log(`${icon} ${component.component}: ${component.message}`);
-      
+
       if (component.details && Object.keys(component.details).length > 0) {
         const details = Object.entries(component.details)
           .map(([key, value]) => `${key}=${value}`)
@@ -353,7 +348,7 @@ async function main() {
     console.log('');
     console.log('💡 SYSTEM STATUS');
     console.log('================');
-    
+
     if (report.overallStatus === 'HEALTHY') {
       console.log('✅ System components are functioning normally');
       console.log('🚀 Ready for production operations');
@@ -372,7 +367,7 @@ async function main() {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const filename = `simple-health-${timestamp}.json`;
       const filepath = path.join(process.cwd(), 'logs', filename);
-      
+
       await fs.writeFile(filepath, JSON.stringify(report, null, 2));
       console.log('');
       console.log(`📁 Report saved to: ${filepath}`);
@@ -383,10 +378,9 @@ async function main() {
 
     // Exit with appropriate code
     process.exit(report.overallStatus === 'UNHEALTHY' ? 1 : 0);
-
   } catch (error) {
-    logger.error('Health check failed:', { 
-      error: error instanceof Error ? error.message : String(error) 
+    logger.error('Health check failed:', {
+      error: error instanceof Error ? error.message : String(error),
     });
     console.log('❌ Health check failed with error');
     process.exit(1);

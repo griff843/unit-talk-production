@@ -1,16 +1,5 @@
 'use client';
 
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import {
   Calendar,
   Clock,
@@ -28,13 +17,24 @@ import {
   Zap,
   History,
 } from 'lucide-react';
-import { Pick } from '@/hooks/usePicks';
-import { getTierColor, formatCurrency, formatPercentage } from '@/lib/utils';
-import { cn } from '@/lib/utils';
-import { LifecycleBadge } from '@/components/ui/LifecycleBadge';
+
 import { LifecycleTimeline } from '@/components/LifecycleTimeline';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { LifecycleBadge } from '@/components/ui/LifecycleBadge';
+import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Pick } from '@/hooks/usePicks';
 import { buildTimeline, deriveLifecycleStage } from '@/lib/lifecycleDisplay';
+import { getTierColor, formatCurrency, formatPercentage , cn } from '@/lib/utils';
 
 interface PickDetailsModalProps {
   pick: Pick | null;
@@ -108,9 +108,15 @@ export function PickDetailsModal({
             <DialogTitle className="text-2xl font-bold">Pick Details</DialogTitle>
             <LifecycleBadge
               pick={{
-                status: pick.status === 'approved' ? 'pending' : pick.status === 'rejected' ? 'cancelled' : 'pending',
+                status:
+                  pick.status === 'approved'
+                    ? 'pending'
+                    : pick.status === 'rejected'
+                      ? 'cancelled'
+                      : 'pending',
                 promotion_status: pick.status === 'approved' ? 'promoted' : 'not_promoted',
-                blocked_reason: pick.status === 'rejected' ? 'BLOCKED_PROMOTION_INELIGIBLE' : undefined,
+                blocked_reason:
+                  pick.status === 'rejected' ? 'BLOCKED_PROMOTION_INELIGIBLE' : undefined,
               }}
               size="md"
             />
@@ -223,9 +229,15 @@ export function PickDetailsModal({
                   created_at: pick.created_at || pick.submitted_at,
                 })}
                 currentStage={deriveLifecycleStage({
-                  status: pick.status === 'approved' ? 'pending' : pick.status === 'rejected' ? 'cancelled' : 'pending',
+                  status:
+                    pick.status === 'approved'
+                      ? 'pending'
+                      : pick.status === 'rejected'
+                        ? 'cancelled'
+                        : 'pending',
                   promotion_status: pick.status === 'approved' ? 'promoted' : 'not_promoted',
-                  blocked_reason: pick.status === 'rejected' ? 'BLOCKED_PROMOTION_INELIGIBLE' : undefined,
+                  blocked_reason:
+                    pick.status === 'rejected' ? 'BLOCKED_PROMOTION_INELIGIBLE' : undefined,
                 })}
                 blockedReason={pick.status === 'rejected' ? 'Pick was rejected' : undefined}
               />

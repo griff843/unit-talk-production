@@ -42,7 +42,9 @@ const SPORT_PLACEHOLDERS: Record<string, { home: string; away: string }> = {
 
 function getPlaceholder(sport?: string, side: 'home' | 'away' = 'home'): string {
   if (!sport) return side === 'home' ? 'e.g., Home Team' : 'e.g., Away Team';
-  return SPORT_PLACEHOLDERS[sport]?.[side] || (side === 'home' ? 'e.g., Home Team' : 'e.g., Away Team');
+  return (
+    SPORT_PLACEHOLDERS[sport]?.[side] || (side === 'home' ? 'e.g., Home Team' : 'e.g., Away Team')
+  );
 }
 
 /** Player metadata keyed by player value (UUID) */
@@ -348,7 +350,9 @@ export function ManualEntryForm({
     // SMARTFORM-CANONICAL-FLOW-004: HARD BLOCK - player_id REQUIRED for player props
     const resolvedPlayerId = selectedPlayer || selectedProp?.player_id;
     if (!resolvedPlayerId) {
-      alert('Player props require selecting a player from the search. Please use the player search dropdown to select a valid player.');
+      alert(
+        'Player props require selecting a player from the search. Please use the player search dropdown to select a valid player.'
+      );
       return;
     }
 
@@ -382,7 +386,12 @@ export function ManualEntryForm({
       <AlertTriangle className="h-4 w-4 shrink-0" />
       <span className="flex-1">{message}</span>
       {onRetry && (
-        <Button variant="ghost" size="sm" onClick={onRetry} className="text-red-700 hover:text-red-900 hover:bg-red-100 shrink-0">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onRetry}
+          className="text-red-700 hover:text-red-900 hover:bg-red-100 shrink-0"
+        >
           <RefreshCw className="h-3.5 w-3.5 mr-1" />
           Retry
         </Button>
@@ -435,7 +444,9 @@ export function ManualEntryForm({
           className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
         >
           {LEG_BET_TYPES.map(opt => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
           ))}
         </select>
       </div>
@@ -447,7 +458,9 @@ export function ManualEntryForm({
       <div className="space-y-4 border-2 border-dashed border-primary/30 rounded-lg p-4">
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-semibold text-foreground">Manual Player Prop</h4>
-          <Badge variant="outline" className="text-xs">Manual</Badge>
+          <Badge variant="outline" className="text-xs">
+            Manual
+          </Badge>
         </div>
 
         {/* Bet type selector for parlays */}
@@ -471,7 +484,9 @@ export function ManualEntryForm({
                 onValueChange={handlePlayerSelect}
                 placeholder="Type 3+ chars to search players..."
                 searchPlaceholder="Search players..."
-                emptyText={playerQuery.length < 3 ? 'Type at least 3 characters' : 'No players found'}
+                emptyText={
+                  playerQuery.length < 3 ? 'Type at least 3 characters' : 'No players found'
+                }
                 loading={playersLoading}
                 onSearch={handlePlayerSearch}
               />
@@ -504,19 +519,28 @@ export function ManualEntryForm({
                       {prop.selection_options?.map((opt: any) => (
                         <Button
                           key={opt.value}
-                          variant={selectedProp?.id === prop.id && propSelection.includes(opt.label) ? 'default' : 'outline'}
+                          variant={
+                            selectedProp?.id === prop.id && propSelection.includes(opt.label)
+                              ? 'default'
+                              : 'outline'
+                          }
                           size="sm"
                           className="flex-1"
                           onClick={() => handlePropSelection(prop.id, opt.value)}
                         >
-                          {opt.label} ({opt.odds > 0 ? '+' : ''}{opt.odds})
+                          {opt.label} ({opt.odds > 0 ? '+' : ''}
+                          {opt.odds})
                         </Button>
                       ))}
                     </div>
                   </div>
                 ))}
                 {selectedProp && propSelection && (
-                  <Button onClick={handleAddPropSelection} disabled={!propSelection || !propOdds} className="w-full">
+                  <Button
+                    onClick={handleAddPropSelection}
+                    disabled={!propSelection || !propOdds}
+                    className="w-full"
+                  >
                     Add Selection
                   </Button>
                 )}
@@ -535,7 +559,9 @@ export function ManualEntryForm({
     <div className="space-y-4 border-2 border-dashed border-primary/30 rounded-lg p-4">
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold text-foreground">Manual Entry</h4>
-        <Badge variant="outline" className="text-xs">Manual</Badge>
+        <Badge variant="outline" className="text-xs">
+          Manual
+        </Badge>
       </div>
 
       {/* Bet type selector for parlays */}
@@ -548,13 +574,19 @@ export function ManualEntryForm({
 
       <div>
         <label className="text-xs font-medium text-muted-foreground mb-1 block">Game Date</label>
-        <Input type="date" value={manualGameDate} onChange={e => setManualGameDate(e.target.value)} />
+        <Input
+          type="date"
+          value={manualGameDate}
+          onChange={e => setManualGameDate(e.target.value)}
+        />
       </div>
 
       {homeDisplay && awayDisplay && (
         <>
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Selection</label>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">
+              Selection
+            </label>
             <select
               value={selection}
               onChange={e => setSelection(e.target.value)}
@@ -562,7 +594,9 @@ export function ManualEntryForm({
             >
               <option value="">Choose your pick</option>
               {getSelectionOptions().map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
               ))}
             </select>
           </div>
@@ -570,12 +604,25 @@ export function ManualEntryForm({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Odds</label>
-              <Input type="number" placeholder="-110" value={odds} onChange={e => setOdds(e.target.value)} />
+              <Input
+                type="number"
+                placeholder="-110"
+                value={odds}
+                onChange={e => setOdds(e.target.value)}
+              />
             </div>
-            {(effectiveBetType === 'spread' || effectiveBetType === 'total' || effectiveBetType === 'team_total') && (
+            {(effectiveBetType === 'spread' ||
+              effectiveBetType === 'total' ||
+              effectiveBetType === 'team_total') && (
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Line</label>
-                <Input type="number" step="0.5" placeholder="e.g., 3.5" value={line} onChange={e => setLine(e.target.value)} />
+                <Input
+                  type="number"
+                  step="0.5"
+                  placeholder="e.g., 3.5"
+                  value={line}
+                  onChange={e => setLine(e.target.value)}
+                />
               </div>
             )}
           </div>
@@ -587,7 +634,9 @@ export function ManualEntryForm({
       )}
 
       {(!homeDisplay || !awayDisplay) && (
-        <p className="text-xs text-muted-foreground text-center py-2">Select both teams to see pick options</p>
+        <p className="text-xs text-muted-foreground text-center py-2">
+          Select both teams to see pick options
+        </p>
       )}
     </div>
   );

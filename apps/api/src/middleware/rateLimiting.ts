@@ -26,7 +26,7 @@ class SimpleRateLimiter {
       if (requests.length >= this.maxRequests) {
         res.status(429).json({
           error: this.message,
-          retryAfter: Math.ceil(this.windowMs / 1000)
+          retryAfter: Math.ceil(this.windowMs / 1000),
         });
         return;
       }
@@ -36,7 +36,8 @@ class SimpleRateLimiter {
       this.requests.set(key, requests);
 
       // Clean up old entries periodically
-      if (Math.random() < 0.01) { // 1% chance
+      if (Math.random() < 0.01) {
+        // 1% chance
         this.cleanup();
       }
 
@@ -67,7 +68,7 @@ export const apiLimiter = new SimpleRateLimiter(
   100, // max requests
   {
     error: 'Too many requests from this IP',
-    retryAfter: '15 minutes'
+    retryAfter: '15 minutes',
   }
 ).middleware();
 
@@ -77,7 +78,7 @@ export const strictLimiter = new SimpleRateLimiter(
   10, // max requests
   {
     error: 'Rate limit exceeded for sensitive operation',
-    retryAfter: '15 minutes'
+    retryAfter: '15 minutes',
   }
 ).middleware();
 
@@ -87,7 +88,7 @@ export const pickSubmissionLimiter = new SimpleRateLimiter(
   50, // max requests
   {
     error: 'Too many pick submissions. Please wait before submitting more.',
-    retryAfter: '1 hour'
+    retryAfter: '1 hour',
   }
 ).middleware();
 
@@ -126,7 +127,7 @@ export const abuseProtection = (req: Request, res: Response, next: NextFunction)
   if (checkForSuspiciousContent(requestData)) {
     res.status(400).json({
       error: 'Request contains potentially malicious content',
-      code: 'SUSPICIOUS_CONTENT'
+      code: 'SUSPICIOUS_CONTENT',
     });
     return;
   }
@@ -142,7 +143,7 @@ export const requestSizeLimit = (maxSize: number = 1024 * 1024) => {
     if (contentLength > maxSize) {
       res.status(413).json({
         error: 'Request entity too large',
-        maxSize: `${maxSize} bytes`
+        maxSize: `${maxSize} bytes`,
       });
       return;
     }
@@ -152,10 +153,7 @@ export const requestSizeLimit = (maxSize: number = 1024 * 1024) => {
 };
 
 // IP whitelist/blacklist middleware
-export const ipFilter = (options: {
-  whitelist?: string[];
-  blacklist?: string[];
-}) => {
+export const ipFilter = (options: { whitelist?: string[]; blacklist?: string[] }) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     const clientIP = req.ip || req.socket.remoteAddress;
 

@@ -11,14 +11,14 @@ export async function loadBaseAgentConfig(name: string): Promise<BaseAgentConfig
     metrics: {
       enabled: true,
       interval: 60,
-      port: 9002
+      port: 9002,
     },
     health: {
       enabled: true,
       interval: 30,
       timeout: 5000,
       checkDb: true,
-      checkExternal: false
+      checkExternal: false,
     },
     retry: {
       enabled: true,
@@ -28,7 +28,7 @@ export async function loadBaseAgentConfig(name: string): Promise<BaseAgentConfig
       maxAttempts: 3,
       backoff: 500,
       exponential: true,
-      jitter: false
-    }
+      jitter: false,
+    },
   };
 }

@@ -12,7 +12,7 @@ export {
   type SideEffectAction,
   type SideEffectContext,
   type GuardResult,
-  type AutopilotMode
+  type AutopilotMode,
 } from './AutopilotGuard';
 
 // Phase 6.5: Workflow Registry - Runtime workflow tracking
@@ -22,7 +22,7 @@ export {
   type WorkflowStatus,
   type WorkflowRegistration,
   type RegisteredWorkflow,
-  type WorkflowStats
+  type WorkflowStats,
 } from './WorkflowRegistry';
 
 // Existing exports (if any)

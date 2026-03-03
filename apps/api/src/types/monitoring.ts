@@ -2,14 +2,14 @@ export enum AlertLevel {
   CRITICAL = 'CRITICAL',
   HIGH = 'HIGH',
   MEDIUM = 'MEDIUM',
-  LOW = 'LOW'
+  LOW = 'LOW',
 }
 
 export enum SystemComponent {
   ML = 'ML',
   RISK = 'RISK',
   DATA = 'DATA',
-  INFRASTRUCTURE = 'INFRASTRUCTURE'
+  INFRASTRUCTURE = 'INFRASTRUCTURE',
 }
 
 export interface MetricStream {
@@ -51,7 +51,7 @@ export interface MonitoringConfig {
       alertLevel: AlertLevel;
       threshold: number;
       description: string;
-    }
+    };
   };
   streams: {
     maxSize: number;
@@ -75,7 +75,7 @@ export interface HealthStatus {
         [key: string]: number;
       };
       lastUpdate: string;
-    }
+    };
   };
   timestamp: string;
 }
@@ -102,4 +102,4 @@ export interface SystemStatus {
       memory: any;
     };
   };
-} 
+}

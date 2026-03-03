@@ -16,34 +16,16 @@ import { getNhlHeadshot, getNhlPhysicals } from '../enrichment/nhlEnrichment';
  * Test data for each league with known players
  */
 const testPlayers = {
-  MLB: [
-    'Mike Trout',
-    'Mookie Betts',
-    'Aaron Judge',
-    'Ronald Acuña Jr.',
-    'Shohei Ohtani'
-  ],
-  NBA: [
-    'LeBron James',
-    'Stephen Curry',
-    'Kevin Durant',
-    'Giannis Antetokounmpo',
-    'Luka Doncic'
-  ],
-  NFL: [
-    'Tom Brady',
-    'Aaron Rodgers',
-    'Patrick Mahomes',
-    'Josh Allen',
-    'Lamar Jackson'
-  ],
+  MLB: ['Mike Trout', 'Mookie Betts', 'Aaron Judge', 'Ronald Acuña Jr.', 'Shohei Ohtani'],
+  NBA: ['LeBron James', 'Stephen Curry', 'Kevin Durant', 'Giannis Antetokounmpo', 'Luka Doncic'],
+  NFL: ['Tom Brady', 'Aaron Rodgers', 'Patrick Mahomes', 'Josh Allen', 'Lamar Jackson'],
   NHL: [
     'Connor McDavid',
     'Sidney Crosby',
     'Alexander Ovechkin',
     'Nathan MacKinnon',
-    'Leon Draisaitl'
-  ]
+    'Leon Draisaitl',
+  ],
 };
 
 /**
@@ -68,7 +50,7 @@ interface TestResult {
  * Test headshot and physicals for a specific player and league
  */
 async function testPlayerEnrichment(
-  playerName: string, 
+  playerName: string,
   league: string,
   headshotFn: (name: string) => Promise<string | null>,
   physicalsFn: (name: string) => Promise<PlayerPhysicals>
@@ -77,7 +59,7 @@ async function testPlayerEnrichment(
     player: playerName,
     league,
     headshot: { success: false, url: null },
-    physicals: { success: false, data: { height_cm: null, weight_kg: null, birthday: null } }
+    physicals: { success: false, data: { height_cm: null, weight_kg: null, birthday: null } },
   };
 
   // Test headshot enrichment
@@ -93,9 +75,8 @@ async function testPlayerEnrichment(
   try {
     const physicals = await physicalsFn(playerName);
     result.physicals.data = physicals;
-    result.physicals.success = physicals.height_cm !== null || 
-                               physicals.weight_kg !== null || 
-                               physicals.birthday !== null;
+    result.physicals.success =
+      physicals.height_cm !== null || physicals.weight_kg !== null || physicals.birthday !== null;
   } catch (error) {
     result.physicals.error = error instanceof Error ? error.message : String(error);
   }
@@ -108,7 +89,7 @@ async function testPlayerEnrichment(
  */
 async function testLeague(league: keyof typeof testPlayers): Promise<TestResult[]> {
   console.log(`\n🏟️  Testing ${league} enrichment...`);
-  
+
   const players = testPlayers[league];
   const results: TestResult[] = [];
 
@@ -140,7 +121,7 @@ async function testLeague(league: keyof typeof testPlayers): Promise<TestResult[
     console.log(`   Testing ${player}...`);
     const result = await testPlayerEnrichment(player, league, headshotFn, physicalsFn);
     results.push(result);
-    
+
     // Brief result summary
     const headshotStatus = result.headshot.success ? '✅' : '❌';
     const physicalsStatus = result.physicals.success ? '✅' : '❌';
@@ -159,17 +140,19 @@ function displayResults(allResults: TestResult[]) {
   console.log(`${'='.repeat(80)}`);
 
   const leagues = ['MLB', 'NBA', 'NFL', 'NHL'];
-  
+
   leagues.forEach(league => {
     const leagueResults = allResults.filter(r => r.league === league);
-    if (leagueResults.length === 0) {return;}
+    if (leagueResults.length === 0) {
+      return;
+    }
 
     console.log(`\n🏟️  ${league} RESULTS:`);
     console.log(`${'─'.repeat(50)}`);
 
     leagueResults.forEach(result => {
       console.log(`\n👤 ${result.player}:`);
-      
+
       // Headshot results
       if (result.headshot.success) {
         console.log(`   📸 Headshot: ✅ Found`);
@@ -185,9 +168,15 @@ function displayResults(allResults: TestResult[]) {
       if (result.physicals.success) {
         console.log(`   📊 Physicals: ✅ Found`);
         const { height_cm, weight_kg, birthday } = result.physicals.data;
-        if (height_cm) {console.log(`      Height: ${height_cm} cm`);}
-        if (weight_kg) {console.log(`      Weight: ${weight_kg} kg`);}
-        if (birthday) {console.log(`      Birthday: ${birthday}`);}
+        if (height_cm) {
+          console.log(`      Height: ${height_cm} cm`);
+        }
+        if (weight_kg) {
+          console.log(`      Weight: ${weight_kg} kg`);
+        }
+        if (birthday) {
+          console.log(`      Birthday: ${birthday}`);
+        }
       } else {
         console.log(`   📊 Physicals: ❌ Not found`);
         if (result.physicals.error) {
@@ -207,10 +196,12 @@ function displaySummary(allResults: TestResult[]) {
   console.log(`${'='.repeat(80)}`);
 
   const leagues = ['MLB', 'NBA', 'NFL', 'NHL'];
-  
+
   leagues.forEach(league => {
     const leagueResults = allResults.filter(r => r.league === league);
-    if (leagueResults.length === 0) {return;}
+    if (leagueResults.length === 0) {
+      return;
+    }
 
     const headshotSuccesses = leagueResults.filter(r => r.headshot.success).length;
     const physicalsSuccesses = leagueResults.filter(r => r.physicals.success).length;
@@ -229,9 +220,15 @@ function displaySummary(allResults: TestResult[]) {
     const weightSuccesses = leagueResults.filter(r => r.physicals.data.weight_kg !== null).length;
     const birthdaySuccesses = leagueResults.filter(r => r.physicals.data.birthday !== null).length;
 
-    console.log(`   📏 Height Found: ${heightSuccesses}/${total} (${((heightSuccesses / total) * 100).toFixed(1)}%)`);
-    console.log(`   ⚖️  Weight Found: ${weightSuccesses}/${total} (${((weightSuccesses / total) * 100).toFixed(1)}%)`);
-    console.log(`   🎂 Birthday Found: ${birthdaySuccesses}/${total} (${((birthdaySuccesses / total) * 100).toFixed(1)}%)`);
+    console.log(
+      `   📏 Height Found: ${heightSuccesses}/${total} (${((heightSuccesses / total) * 100).toFixed(1)}%)`
+    );
+    console.log(
+      `   ⚖️  Weight Found: ${weightSuccesses}/${total} (${((weightSuccesses / total) * 100).toFixed(1)}%)`
+    );
+    console.log(
+      `   🎂 Birthday Found: ${birthdaySuccesses}/${total} (${((birthdaySuccesses / total) * 100).toFixed(1)}%)`
+    );
   });
 
   // Overall statistics
@@ -241,8 +238,12 @@ function displaySummary(allResults: TestResult[]) {
 
   console.log(`\n🌟 OVERALL STATISTICS:`);
   console.log(`   Total Players Tested: ${totalTests}`);
-  console.log(`   📸 Overall Headshot Success: ${totalHeadshotSuccesses}/${totalTests} (${((totalHeadshotSuccesses / totalTests) * 100).toFixed(1)}%)`);
-  console.log(`   📊 Overall Physicals Success: ${totalPhysicalsSuccesses}/${totalTests} (${((totalPhysicalsSuccesses / totalTests) * 100).toFixed(1)}%)`);
+  console.log(
+    `   📸 Overall Headshot Success: ${totalHeadshotSuccesses}/${totalTests} (${((totalHeadshotSuccesses / totalTests) * 100).toFixed(1)}%)`
+  );
+  console.log(
+    `   📊 Overall Physicals Success: ${totalPhysicalsSuccesses}/${totalTests} (${((totalPhysicalsSuccesses / totalTests) * 100).toFixed(1)}%)`
+  );
 
   console.log(`\n${'='.repeat(80)}`);
 }
@@ -274,7 +275,6 @@ async function runTests() {
 
     console.log(`⏱️  Total test execution time: ${duration} seconds`);
     console.log(`✅ Test suite completed successfully!\n`);
-
   } catch (error) {
     console.error(`\n❌ Test suite failed:`, error);
     process.exit(1);

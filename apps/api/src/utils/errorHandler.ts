@@ -21,7 +21,9 @@ export class ErrorHandler {
         return await fn();
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        this.logger.warn(`${operation} failed (attempt ${attempt}/${maxRetries})`, { error: lastError.message });
+        this.logger.warn(`${operation} failed (attempt ${attempt}/${maxRetries})`, {
+          error: lastError.message,
+        });
 
         if (attempt === maxRetries) {
           break;

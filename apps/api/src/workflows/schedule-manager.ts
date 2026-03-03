@@ -1,4 +1,10 @@
-import { Client, Connection, ScheduleHandle, ScheduleOverlapPolicy, ScheduleSpec } from '@temporalio/client';
+import {
+  Client,
+  Connection,
+  ScheduleHandle,
+  ScheduleOverlapPolicy,
+  ScheduleSpec,
+} from '@temporalio/client';
 
 import { getEnv } from '../utils/getEnv';
 import { makeLogger } from '../utils/logger';
@@ -29,8 +35,8 @@ export class SyndicateScheduleManager {
   constructor() {
     this.client = new Client({
       connection: Connection.lazy({
-        address: env.TEMPORAL_SERVER_URL
-      })
+        address: env.TEMPORAL_SERVER_URL,
+      }),
     });
   }
 
@@ -45,21 +51,31 @@ export class SyndicateScheduleManager {
       await this.createSchedule({
         scheduleId: 'syndicate-main-scheduler',
         workflowType: 'syndicateSchedulerWorkflow',
-        args: [{
-          leagues: ['MLB', 'WNBA', 'MLS', 'EPL', 'NBA', 'NFL', 'NHL'],
-          liveGameMode: true,
-          intervalMinutes: 2,
-          enableUSPs: ['steam', 'line_movement', 'hedge', 'middle', 'stale_line', 'injury', 'suspicious'],
-          apiQuotaLimit: 900
-        }],
+        args: [
+          {
+            leagues: ['MLB', 'WNBA', 'MLS', 'EPL', 'NBA', 'NFL', 'NHL'],
+            liveGameMode: true,
+            intervalMinutes: 2,
+            enableUSPs: [
+              'steam',
+              'line_movement',
+              'hedge',
+              'middle',
+              'stale_line',
+              'injury',
+              'suspicious',
+            ],
+            apiQuotaLimit: 900,
+          },
+        ],
         spec: {
-          intervals: [{ every: '2m' }] // Start immediately, run every 2 minutes
+          intervals: [{ every: '2m' }], // Start immediately, run every 2 minutes
         },
         policies: {
           overlap: 'SKIP', // Skip if previous cycle still running
           catchupWindow: '1m',
-          pauseOnFailure: false
-        }
+          pauseOnFailure: false,
+        },
       });
 
       // 2. LIVE GAME DETECTOR - RUNS EVERY 30 MINUTES
@@ -68,12 +84,12 @@ export class SyndicateScheduleManager {
         workflowType: 'liveGameDetectorWorkflow',
         args: [{}],
         spec: {
-          intervals: [{ every: '30m' }]
+          intervals: [{ every: '30m' }],
         },
         policies: {
           overlap: 'CANCEL_OTHER',
-          pauseOnFailure: false
-        }
+          pauseOnFailure: false,
+        },
       });
 
       // 3. API QUOTA MONITOR - RUNS EVERY 5 MINUTES
@@ -82,12 +98,12 @@ export class SyndicateScheduleManager {
         workflowType: 'apiQuotaMonitorWorkflow',
         args: [{ providers: ['optimal', 'sgo', 'oddsapi'] }],
         spec: {
-          intervals: [{ every: '5m' }]
+          intervals: [{ every: '5m' }],
         },
         policies: {
           overlap: 'SKIP',
-          pauseOnFailure: false
-        }
+          pauseOnFailure: false,
+        },
       });
 
       // 4. SYSTEM HEALTH MONITOR - RUNS EVERY MINUTE
@@ -96,12 +112,12 @@ export class SyndicateScheduleManager {
         workflowType: 'systemHealthMonitorWorkflow',
         args: [{}],
         spec: {
-          intervals: [{ every: '1m' }]
+          intervals: [{ every: '1m' }],
         },
         policies: {
           overlap: 'SKIP',
-          pauseOnFailure: false
-        }
+          pauseOnFailure: false,
+        },
       });
 
       // 5. DAILY CLEANUP - RUNS AT 3 AM DAILY
@@ -110,16 +126,18 @@ export class SyndicateScheduleManager {
         workflowType: 'dailyCleanupWorkflow',
         args: [{}],
         spec: {
-          calendars: [{
-            comment: 'Daily cleanup at 3 AM',
-            hour: 3,
-            minute: 0
-          }]
+          calendars: [
+            {
+              comment: 'Daily cleanup at 3 AM',
+              hour: 3,
+              minute: 0,
+            },
+          ],
         },
         policies: {
           overlap: 'CANCEL_OTHER',
-          pauseOnFailure: true
-        }
+          pauseOnFailure: true,
+        },
       });
 
       // 6. WEEKLY PERFORMANCE REPORT - RUNS SUNDAY AT 6 AM
@@ -128,17 +146,19 @@ export class SyndicateScheduleManager {
         workflowType: 'weeklyPerformanceReportWorkflow',
         args: [{}],
         spec: {
-          calendars: [{
-            comment: 'Weekly performance report on Sunday at 6 AM',
-            dayOfWeek: 'SUNDAY',
-            hour: 6,
-            minute: 0
-          }]
+          calendars: [
+            {
+              comment: 'Weekly performance report on Sunday at 6 AM',
+              dayOfWeek: 'SUNDAY',
+              hour: 6,
+              minute: 0,
+            },
+          ],
         },
         policies: {
           overlap: 'CANCEL_OTHER',
-          pauseOnFailure: true
-        }
+          pauseOnFailure: true,
+        },
       });
 
       // 7. LEAGUE-SPECIFIC SCHEDULES FOR PEAK HOURS
@@ -149,25 +169,27 @@ export class SyndicateScheduleManager {
         { league: 'EPL', peakHours: '7-17', season: 'AUG-MAY' },
         { league: 'NBA', peakHours: '17-23', season: 'OCT-JUN' },
         { league: 'NFL', peakHours: '13-23', season: 'SEP-FEB' },
-        { league: 'NHL', peakHours: '17-23', season: 'OCT-JUN' }
+        { league: 'NHL', peakHours: '17-23', season: 'OCT-JUN' },
       ];
 
       for (const leagueConfig of leagueSchedules) {
         await this.createSchedule({
           scheduleId: `${leagueConfig.league.toLowerCase()}-peak-monitor`,
           workflowType: 'leaguePeakMonitorWorkflow',
-          args: [{ 
-            league: leagueConfig.league,
-            peakHours: leagueConfig.peakHours,
-            season: leagueConfig.season
-          }],
+          args: [
+            {
+              league: leagueConfig.league,
+              peakHours: leagueConfig.peakHours,
+              season: leagueConfig.season,
+            },
+          ],
           spec: {
-            intervals: [{ every: '1m' }] // Check every minute during season
+            intervals: [{ every: '1m' }], // Check every minute during season
           },
           policies: {
             overlap: 'SKIP',
-            pauseOnFailure: false
-          }
+            pauseOnFailure: false,
+          },
         });
       }
 
@@ -184,17 +206,19 @@ export class SyndicateScheduleManager {
           workflowType: 'dailyRecapWorkflow',
           args: [],
           spec: {
-            calendars: [{
-              comment: 'Daily recap at 9 AM',
-              hour: 9,
-              minute: 0
-            }]
+            calendars: [
+              {
+                comment: 'Daily recap at 9 AM',
+                hour: 9,
+                minute: 0,
+              },
+            ],
           },
           policies: {
             overlap: 'SKIP',
             catchupWindow: '1m',
-            pauseOnFailure: false
-          }
+            pauseOnFailure: false,
+          },
         });
 
         // 9. WEEKLY RECAP - Monday 10 AM
@@ -203,18 +227,20 @@ export class SyndicateScheduleManager {
           workflowType: 'weeklyRecapWorkflow',
           args: [],
           spec: {
-            calendars: [{
-              comment: 'Weekly recap on Monday at 10 AM',
-              dayOfWeek: 'MONDAY',
-              hour: 10,
-              minute: 0
-            }]
+            calendars: [
+              {
+                comment: 'Weekly recap on Monday at 10 AM',
+                dayOfWeek: 'MONDAY',
+                hour: 10,
+                minute: 0,
+              },
+            ],
           },
           policies: {
             overlap: 'SKIP',
             catchupWindow: '1m',
-            pauseOnFailure: false
-          }
+            pauseOnFailure: false,
+          },
         });
 
         // 10. MONTHLY RECAP - 1st of month at 11 AM
@@ -223,18 +249,20 @@ export class SyndicateScheduleManager {
           workflowType: 'monthlyRecapWorkflow',
           args: [],
           spec: {
-            calendars: [{
-              comment: 'Monthly recap on 1st at 11 AM',
-              dayOfMonth: 1,
-              hour: 11,
-              minute: 0
-            }]
+            calendars: [
+              {
+                comment: 'Monthly recap on 1st at 11 AM',
+                dayOfMonth: 1,
+                hour: 11,
+                minute: 0,
+              },
+            ],
           },
           policies: {
             overlap: 'SKIP',
             catchupWindow: '1m',
-            pauseOnFailure: true
-          }
+            pauseOnFailure: true,
+          },
         });
 
         logger.info('✅ Recap schedules registered (daily, weekly, monthly)');
@@ -243,7 +271,6 @@ export class SyndicateScheduleManager {
       }
 
       logger.info('✅ All syndicate schedules initialized successfully');
-
     } catch (error) {
       logger.error('❌ Failed to initialize syndicate schedules:', error);
       throw error;
@@ -257,26 +284,25 @@ export class SyndicateScheduleManager {
     try {
       // Check if schedule already exists
       let schedule: ScheduleHandle;
-      
+
       try {
         schedule = this.client.schedule.getHandle(config.scheduleId);
         await schedule.describe(); // Test if it exists
-        
+
         // Update existing schedule
-        await schedule.update((prev) => ({
+        await schedule.update(prev => ({
           ...prev,
           action: {
             type: 'startWorkflow',
             workflowType: config.workflowType,
             args: config.args,
-            taskQueue: env.TEMPORAL_TASK_QUEUE
+            taskQueue: env.TEMPORAL_TASK_QUEUE,
           },
           spec: config.spec,
-          policies: config.policies
+          policies: config.policies,
         }));
-        
+
         logger.info(`📅 Updated schedule: ${config.scheduleId}`);
-        
       } catch (error) {
         // Schedule doesn't exist, create new one
         schedule = await this.client.schedule.create({
@@ -287,17 +313,16 @@ export class SyndicateScheduleManager {
             args: config.args,
             taskQueue: env.TEMPORAL_TASK_QUEUE,
             workflowExecutionTimeout: '10m',
-            workflowTaskTimeout: '1m'
+            workflowTaskTimeout: '1m',
           },
           spec: config.spec,
-          policies: config.policies
+          policies: config.policies,
         });
-        
+
         logger.info(`📅 Created schedule: ${config.scheduleId}`);
       }
 
       this.schedules.set(config.scheduleId, schedule);
-
     } catch (error) {
       logger.error(`❌ Failed to create/update schedule ${config.scheduleId}:`, error);
       throw error;
@@ -345,7 +370,7 @@ export class SyndicateScheduleManager {
       state: description.scheduleId,
       spec: description.spec,
       info: description.info,
-      recentActions: description.info.recentActions?.slice(0, 10) || []
+      recentActions: description.info.recentActions?.slice(0, 10) || [],
     };
   }
 
@@ -354,8 +379,8 @@ export class SyndicateScheduleManager {
    */
   async emergencyStopAll(reason: string): Promise<void> {
     logger.warn(`🚨 EMERGENCY STOP ALL SCHEDULES - Reason: ${reason}`);
-    
-    const pausePromises = Array.from(this.schedules.keys()).map(scheduleId => 
+
+    const pausePromises = Array.from(this.schedules.keys()).map(scheduleId =>
       this.pauseSchedule(scheduleId, `EMERGENCY: ${reason}`)
     );
 
@@ -368,8 +393,8 @@ export class SyndicateScheduleManager {
    */
   async resumeAllAfterEmergency(reason: string): Promise<void> {
     logger.info(`🔄 Resuming all schedules after emergency - Reason: ${reason}`);
-    
-    const resumePromises = Array.from(this.schedules.keys()).map(scheduleId => 
+
+    const resumePromises = Array.from(this.schedules.keys()).map(scheduleId =>
       this.resumeSchedule(scheduleId, `RECOVERY: ${reason}`)
     );
 
@@ -382,10 +407,10 @@ export class SyndicateScheduleManager {
    */
   async getSystemStatus(): Promise<any> {
     const statuses = await Promise.all(
-      Array.from(this.schedules.keys()).map(scheduleId => 
+      Array.from(this.schedules.keys()).map(scheduleId =>
         this.getScheduleStatus(scheduleId).catch(error => ({
           scheduleId,
-          error: error.message
+          error: error.message,
         }))
       )
     );
@@ -400,7 +425,7 @@ export class SyndicateScheduleManager {
       paused,
       errored,
       schedules: statuses,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
   }
 }

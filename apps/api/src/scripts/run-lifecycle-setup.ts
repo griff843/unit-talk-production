@@ -2,7 +2,7 @@
 
 /**
  * Run Data Lifecycle Setup Directly
- * 
+ *
  * Attempts to run the table setup and data migration directly via Supabase client
  */
 
@@ -23,14 +23,16 @@ async function runLifecycleSetup() {
   try {
     // 1. Check current state
     console.log('\n📊 Step 1: Current state analysis...');
-    const { count: currentTotal } = await supabaseClient
+    const { count: currentTotal } = (await supabaseClient
       .from('raw_props')
-      .select('*', { count: 'exact', head: true }) || { count: 0 };
+      .select('*', { count: 'exact', head: true })) || { count: 0 };
 
-    const { count: oldProps } = await supabaseClient
+    const { count: oldProps } = (await supabaseClient
       .from('raw_props')
       .select('*', { count: 'exact', head: true })
-      .lt('game_date', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]) || { count: 0 };
+      .lt('game_date', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0])) || {
+      count: 0,
+    };
 
     console.log(`Current total props: ${currentTotal}`);
     console.log(`Old props to archive: ${oldProps}`);
@@ -42,7 +44,7 @@ async function runLifecycleSetup() {
 
     // 2. Try to create tables via direct insert approach
     console.log('\n🏗️ Step 2: Creating historical tables...');
-    
+
     // Test if historical table exists by trying to select from it
     try {
       await supabaseClient.from('raw_props_historical').select('id').limit(1);
@@ -60,7 +62,7 @@ async function runLifecycleSetup() {
 
     // 3. If tables exist, proceed with data migration
     console.log('\n📦 Step 3: Attempting data migration...');
-    
+
     // Try to migrate in small batches to avoid timeouts
     const BATCH_SIZE = 1000;
     let migratedCount = 0;
@@ -114,11 +116,12 @@ async function runLifecycleSetup() {
         }
 
         migratedCount += recordsToMigrate.length;
-        console.log(`✅ Migrated batch: ${recordsToMigrate.length} records (total: ${migratedCount})`);
+        console.log(
+          `✅ Migrated batch: ${recordsToMigrate.length} records (total: ${migratedCount})`
+        );
 
         // Small delay between batches
         await new Promise(resolve => setTimeout(resolve, 100));
-
       } catch (error) {
         console.error(`❌ Batch migration failed:`, error);
         break;
@@ -127,14 +130,16 @@ async function runLifecycleSetup() {
 
     // 4. Final state check
     console.log('\n📈 Step 4: Final state analysis...');
-    const { count: finalTotal } = await supabaseClient
+    const { count: finalTotal } = (await supabaseClient
       .from('raw_props')
-      .select('*', { count: 'exact', head: true }) || { count: 0 };
+      .select('*', { count: 'exact', head: true })) || { count: 0 };
 
-    const { count: finalOld } = await supabaseClient
+    const { count: finalOld } = (await supabaseClient
       .from('raw_props')
       .select('*', { count: 'exact', head: true })
-      .lt('game_date', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]) || { count: 0 };
+      .lt('game_date', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0])) || {
+      count: 0,
+    };
 
     console.log(`Final total props: ${finalTotal}`);
     console.log(`Remaining old props: ${finalOld}`);
@@ -142,16 +147,17 @@ async function runLifecycleSetup() {
 
     if (migratedCount > 0) {
       console.log(`\n🎉 SUCCESS: Migrated ${migratedCount} records!`);
-      console.log(`📈 Performance improvement: ${((migratedCount / (currentTotal || 1)) * 100).toFixed(1)}%`);
+      console.log(
+        `📈 Performance improvement: ${((migratedCount / (currentTotal || 1)) * 100).toFixed(1)}%`
+      );
     } else {
       console.log('\n⚠️ No records migrated - manual table setup required');
       console.log('📋 Please run the SQL from manual-table-setup.sql in Supabase dashboard');
     }
-
   } catch (error) {
     console.error('\n❌ Setup failed:', error instanceof Error ? error.message : 'Unknown error');
     console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
-    
+
     console.log('\n📋 MANUAL SETUP REQUIRED:');
     console.log('1. Go to Supabase Dashboard → SQL Editor');
     console.log('2. Run the SQL from apps/api/src/scripts/manual-table-setup.sql');
@@ -166,7 +172,7 @@ if (require.main === module) {
       console.log('\n✅ Lifecycle setup completed');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('\n💥 Setup crashed:', error);
       process.exit(1);
     });

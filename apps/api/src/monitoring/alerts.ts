@@ -60,7 +60,7 @@ export class EnhancedAlertManager {
   private escalationChains: Map<string, string[]> = new Map([
     ['critical', ['sms-oncall', 'email-critical', 'discord-alerts']],
     ['warning', ['email-business', 'discord-alerts']],
-    ['info', ['discord-alerts']]
+    ['info', ['discord-alerts']],
   ]);
 
   constructor() {
@@ -77,16 +77,16 @@ export class EnhancedAlertManager {
       sms: {
         critical: {
           title: 'CRITICAL ALERT',
-          body: 'Urgent action required: {message}'
+          body: 'Urgent action required: {message}',
         },
         warning: {
           title: 'High Priority Alert',
-          body: 'Important: {message}'
+          body: 'Important: {message}',
         },
         info: {
           title: 'Alert',
-          body: '{message}'
-        }
+          body: '{message}',
+        },
       },
       discord: {
         critical: {
@@ -95,7 +95,7 @@ export class EnhancedAlertManager {
           channel: 'discord',
           severity: 'critical',
           template: `🚨 **CRITICAL Alert: {{title}}**\n\n{{description}}\n\nValue: {{value}} (Threshold: {{threshold}})\nTime: {{timestamp}}\nTags: {{tags}}`,
-          variables: ['title', 'description', 'value', 'threshold', 'timestamp', 'tags']
+          variables: ['title', 'description', 'value', 'threshold', 'timestamp', 'tags'],
         },
         warning: {
           id: 'discord-warning',
@@ -103,7 +103,7 @@ export class EnhancedAlertManager {
           channel: 'discord',
           severity: 'warning',
           template: `⚠️ **Warning Alert: {{title}}**\n\n{{description}}\n\nValue: {{value}} (Threshold: {{threshold}})\nTime: {{timestamp}}\nTags: {{tags}}`,
-          variables: ['title', 'description', 'value', 'threshold', 'timestamp', 'tags']
+          variables: ['title', 'description', 'value', 'threshold', 'timestamp', 'tags'],
         },
         info: {
           id: 'discord-info',
@@ -111,9 +111,9 @@ export class EnhancedAlertManager {
           channel: 'discord',
           severity: 'info',
           template: `ℹ️ **Info Alert: {{title}}**\n\n{{description}}\n\nValue: {{value}} (Threshold: {{threshold}})\nTime: {{timestamp}}\nTags: {{tags}}`,
-          variables: ['title', 'description', 'value', 'threshold', 'timestamp', 'tags']
-        }
-      }
+          variables: ['title', 'description', 'value', 'threshold', 'timestamp', 'tags'],
+        },
+      },
     };
 
     // Ensure channelType exists, default to 'discord'
@@ -121,12 +121,13 @@ export class EnhancedAlertManager {
     const channelTemplates = templates[channelTypeKey] || templates['discord'];
 
     // Ensure severity exists, default to 'info'
-    const severityKey = channelTemplates && Object.keys(channelTemplates).includes(severity) ? severity : 'info';
+    const severityKey =
+      channelTemplates && Object.keys(channelTemplates).includes(severity) ? severity : 'info';
 
     if (!channelTemplates) {
       return {
         title: 'Default Alert',
-        body: 'No templates configured for this channel type: {message}'
+        body: 'No templates configured for this channel type: {message}',
       };
     }
 
@@ -134,7 +135,7 @@ export class EnhancedAlertManager {
     if (!template) {
       return {
         title: 'Default Alert',
-        body: 'No templates configured for this severity: {message}'
+        body: 'No templates configured for this severity: {message}',
       };
     }
 
@@ -172,8 +173,8 @@ export class EnhancedAlertManager {
         cooldownMinutes: 30,
         channels: ['discord-alerts', 'sms-oncall'],
         tags: ['system', 'health'],
-        description: 'System health is critically low'
-      }
+        description: 'System health is critically low',
+      },
     ];
 
     defaultRules.forEach(rule => this.rules.set(rule.id, rule));
@@ -189,7 +190,7 @@ export class EnhancedAlertManager {
         type: 'discord',
         config: { ['webhookUrl']: process.env['DISCORD_WEBHOOK_URL'] },
         enabled: true,
-        severityFilter: ['info', 'warning', 'critical']
+        severityFilter: ['info', 'warning', 'critical'],
       },
       {
         id: 'sms-oncall',
@@ -197,8 +198,8 @@ export class EnhancedAlertManager {
         type: 'sms',
         config: { ['phoneNumber']: process.env['ONCALL_PHONE_NUMBER'] },
         enabled: true,
-        severityFilter: ['critical']
-      }
+        severityFilter: ['critical'],
+      },
     ];
 
     defaultChannels.forEach(channel => this.channels.set(channel.id, channel));
@@ -214,8 +215,8 @@ export class EnhancedAlertManager {
         channel: 'discord',
         severity: 'critical',
         template: `🚨 **CRITICAL Alert: {{title}}**\n\n{{description}}\n\nValue: {{value}} (Threshold: {{threshold}})\nTime: {{timestamp}}\nTags: {{tags}}`,
-        variables: ['title', 'description', 'value', 'threshold', 'timestamp', 'tags']
-      }
+        variables: ['title', 'description', 'value', 'threshold', 'timestamp', 'tags'],
+      },
     ];
 
     defaultTemplates.forEach(template => this.templates.set(template.id, template));
@@ -225,20 +226,23 @@ export class EnhancedAlertManager {
   public startAlertProcessor(): void {
     // Placeholder for alert processing logic
     // Could include periodic cleanup of old alerts, checking for unresolved critical alerts, etc.
-    const cleanupInterval = setInterval(() => {
-      // Remove alerts older than 24 hours
-      const cutoffTime = Date.now() - 24 * 60 * 60 * 1000;
-      this.alertHistory = this.alertHistory.filter(alert => 
-        new Date(alert.timestamp).getTime() > cutoffTime
-      );
+    const cleanupInterval = setInterval(
+      () => {
+        // Remove alerts older than 24 hours
+        const cutoffTime = Date.now() - 24 * 60 * 60 * 1000;
+        this.alertHistory = this.alertHistory.filter(
+          alert => new Date(alert.timestamp).getTime() > cutoffTime
+        );
 
-      // Check and reset cooldowns
-      for (const [ruleId, cooldownTime] of this.cooldowns.entries()) {
-        if (Date.now() > cooldownTime) {
-          this.cooldowns.delete(ruleId);
+        // Check and reset cooldowns
+        for (const [ruleId, cooldownTime] of this.cooldowns.entries()) {
+          if (Date.now() > cooldownTime) {
+            this.cooldowns.delete(ruleId);
+          }
         }
-      }
-    }, 60 * 60 * 1000); // Run every hour
+      },
+      60 * 60 * 1000
+    ); // Run every hour
 
     // Prevent the interval from keeping the process running
     if (typeof (globalThis as any).ref === 'function') {
@@ -269,21 +273,34 @@ export class EnhancedAlertManager {
   // Public method to send SMS alert
   public async sendSMSAlert(channel: AlertChannel, message: string, alert: Alert): Promise<void> {
     // Placeholder for SMS alert sending logic
-    logger.info(`Sending SMS alert to ${channel.config['phoneNumber']}`, { message, alertId: alert.id });
+    logger.info(`Sending SMS alert to ${channel.config['phoneNumber']}`, {
+      message,
+      alertId: alert.id,
+    });
     // Implement actual SMS sending logic here
   }
 
   // Public method to send email alert
   public async sendEmailAlert(channel: AlertChannel, message: string, alert: Alert): Promise<void> {
     // Placeholder for email alert sending logic
-    logger.info(`Sending email alert to ${channel.config['email']}`, { message, alertId: alert.id });
+    logger.info(`Sending email alert to ${channel.config['email']}`, {
+      message,
+      alertId: alert.id,
+    });
     // Implement actual email sending logic here
   }
 
   // Public method to send Discord alert
-  public async sendDiscordAlert(channel: AlertChannel, message: string, alert: Alert): Promise<void> {
+  public async sendDiscordAlert(
+    channel: AlertChannel,
+    message: string,
+    alert: Alert
+  ): Promise<void> {
     // Placeholder for Discord alert sending logic
-    logger.info(`Sending Discord alert to ${channel.config['webhookUrl']}`, { message, alertId: alert.id });
+    logger.info(`Sending Discord alert to ${channel.config['webhookUrl']}`, {
+      message,
+      alertId: alert.id,
+    });
     // Implement actual Discord webhook sending logic here
   }
 
@@ -304,7 +321,13 @@ export class EnhancedAlertManager {
       // Find channels for this type in alert.channels and enabled
       const channels = alert.channels
         .map(chId => this.channels.get(chId))
-        .filter(ch => ch && ch.type === channelType && ch.enabled && ch.severityFilter.includes(alert.severity));
+        .filter(
+          ch =>
+            ch &&
+            ch.type === channelType &&
+            ch.enabled &&
+            ch.severityFilter.includes(alert.severity)
+        );
 
       for (const channel of channels) {
         try {
@@ -313,7 +336,9 @@ export class EnhancedAlertManager {
 
           // Send alert to the channel using new sendAlert method
           await this.sendAlert(channel!, message, alert);
-          logger.info(`Alert sent to channel via escalation: ${channel!.name}`, { alertId: alert.id });
+          logger.info(`Alert sent to channel via escalation: ${channel!.name}`, {
+            alertId: alert.id,
+          });
 
           // Once sent to a channel in this step of escalation, break to next escalation step
           break;

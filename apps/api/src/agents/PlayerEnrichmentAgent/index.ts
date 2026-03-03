@@ -1,7 +1,12 @@
 // src/agents/PlayerEnrichmentAgent/index.ts
 
 import { BaseAgent } from '../BaseAgent/index';
-import { BaseAgentConfig, BaseAgentDependencies, BaseMetrics, HealthCheckResult } from '../BaseAgent/types';
+import {
+  BaseAgentConfig,
+  BaseAgentDependencies,
+  BaseMetrics,
+  HealthCheckResult,
+} from '../BaseAgent/types';
 import { enrichAllPlayers, EnrichmentSummary, SupportedLeague } from '../PlayerEnrichmentAgent';
 
 /**
@@ -23,7 +28,7 @@ interface PlayerEnrichmentMetrics extends BaseMetrics {
 /**
  * PlayerEnrichmentAgent - Handles player data enrichment operations for all major sports
  * Extends BaseAgent with multi-league player enrichment capabilities
- * 
+ *
  * Supports: MLB, NBA, NFL, NHL
  */
 export class PlayerEnrichmentAgent extends BaseAgent {
@@ -65,7 +70,9 @@ export class PlayerEnrichmentAgent extends BaseAgent {
   protected async process(): Promise<void> {
     // This agent is primarily used for on-demand enrichment
     // No continuous processing needed
-    this.logger.debug('PlayerEnrichmentAgent process method called - no continuous processing needed');
+    this.logger.debug(
+      'PlayerEnrichmentAgent process method called - no continuous processing needed'
+    );
   }
 
   /**
@@ -94,18 +101,18 @@ export class PlayerEnrichmentAgent extends BaseAgent {
         MLB: 'Mike Trout',
         NBA: 'LeBron James',
         NFL: 'Tom Brady',
-        NHL: 'Connor McDavid'
+        NHL: 'Connor McDavid',
       };
 
       const leagueTests = await Promise.allSettled([
         this.getMlbHeadshot(testPlayers.MLB),
         this.getNbaHeadshot(testPlayers.NBA),
         this.getNflHeadshot(testPlayers.NFL),
-        this.getNhlHeadshot(testPlayers.NHL)
+        this.getNhlHeadshot(testPlayers.NHL),
       ]);
 
       const failedTests = leagueTests.filter(result => result.status === 'rejected');
-      
+
       if (failedTests.length > 0) {
         return {
           status: 'degraded',
@@ -114,9 +121,9 @@ export class PlayerEnrichmentAgent extends BaseAgent {
             leagueApiTests: leagueTests.map((result, index) => ({
               league: Object.keys(testPlayers)[index],
               status: result.status,
-              error: result.status === 'rejected' ? result.reason?.message : null
-            }))
-          }
+              error: result.status === 'rejected' ? result.reason?.message : null,
+            })),
+          },
         };
       }
 
@@ -125,16 +132,16 @@ export class PlayerEnrichmentAgent extends BaseAgent {
         details: {
           message: 'PlayerEnrichmentAgent healthy - all league APIs accessible',
           supportedLeagues: ['MLB', 'NBA', 'NFL', 'NHL'],
-          leagueApiTests: 'All passed'
-        }
+          leagueApiTests: 'All passed',
+        },
       };
     } catch (error) {
       return {
         status: 'unhealthy',
         details: {
           message: 'PlayerEnrichmentAgent health check failed',
-          err: error instanceof Error ? error.message : 'Unknown error'
-        }
+          err: error instanceof Error ? error.message : 'Unknown error',
+        },
       };
     }
   }
@@ -144,21 +151,24 @@ export class PlayerEnrichmentAgent extends BaseAgent {
    */
   public async enrichLeague(league?: SupportedLeague): Promise<EnrichmentSummary> {
     this.logger.info(`Starting player enrichment${league ? ` for ${league}` : ' for all leagues'}`);
-    
+
     try {
       const summary = await enrichAllPlayers(league);
       this.metrics.lastEnrichmentSummary = summary;
       this.metrics.totalPlayersProcessed += summary.totalProcessed;
       this.metrics.successfulEnrichments += summary.successfulEnrichments;
       this.metrics.playersNotFound += summary.notFound;
-      
+
       // Update league-specific metrics
       Object.entries(summary.leagueBreakdown).forEach(([leagueKey, breakdown]) => {
-        const metricKey = `${leagueKey.toLowerCase()}PlayersProcessed` as keyof typeof this.metrics.leagueMetrics;
+        const metricKey =
+          `${leagueKey.toLowerCase()}PlayersProcessed` as keyof typeof this.metrics.leagueMetrics;
         this.metrics.leagueMetrics[metricKey] += breakdown.processed;
       });
-      
-      this.logger.info(`Player enrichment completed: ${summary.successfulEnrichments}/${summary.totalProcessed} successful`);
+
+      this.logger.info(
+        `Player enrichment completed: ${summary.successfulEnrichments}/${summary.totalProcessed} successful`
+      );
       return summary;
     } catch (error) {
       this.logger.error('Error during player enrichment:', error);
@@ -170,12 +180,15 @@ export class PlayerEnrichmentAgent extends BaseAgent {
   /**
    * Get headshot for a specific player and league
    */
-  public async getPlayerHeadshot(playerName: string, league: SupportedLeague): Promise<string | null> {
+  public async getPlayerHeadshot(
+    playerName: string,
+    league: SupportedLeague
+  ): Promise<string | null> {
     this.logger.info(`Getting headshot for ${playerName} (${league})`);
-    
+
     try {
       let result: string | null = null;
-      
+
       switch (league) {
         case 'MLB':
           result = await this.getMlbHeadshot(playerName);
@@ -192,18 +205,19 @@ export class PlayerEnrichmentAgent extends BaseAgent {
         default:
           throw new Error(`Unsupported league: ${league}`);
       }
-      
+
       // Update metrics
-      const leagueKey = `${league.toLowerCase()}PlayersProcessed` as keyof typeof this.metrics.leagueMetrics;
+      const leagueKey =
+        `${league.toLowerCase()}PlayersProcessed` as keyof typeof this.metrics.leagueMetrics;
       this.metrics.leagueMetrics[leagueKey]++;
-      
+
       if (result) {
         this.metrics.successfulEnrichments++;
       } else {
         this.metrics.playersNotFound++;
         this.metrics.warningCount++;
       }
-      
+
       return result;
     } catch (error) {
       this.logger.error(`Error getting headshot for ${playerName} (${league}):`, error);

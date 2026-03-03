@@ -12,7 +12,7 @@ export async function withRetry<T>(
   context: string = 'database operation'
 ): Promise<T> {
   let lastError: Error | null = null;
-  
+
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       return await operation();
@@ -26,7 +26,7 @@ export async function withRetry<T>(
       await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * attempt));
     }
   }
-  
+
   throw new GradingError(`${context} failed after ${maxAttempts} attempts: ${lastError?.message}`);
 }
 
@@ -50,13 +50,17 @@ export async function logFailedPick(
   pickId: string,
   error: Error
 ): Promise<void> {
-  await withRetry(async () => {
-    await supabase.from('failed_picks_log').insert({
-      pick_id: pickId,
-      error_message: error.message,
-      error_stack: error.stack,
-      retry_count: 0,
-      status: 'pending_retry'
-    });
-  }, 3, 'logging failed pick');
-} 
+  await withRetry(
+    async () => {
+      await supabase.from('failed_picks_log').insert({
+        pick_id: pickId,
+        error_message: error.message,
+        error_stack: error.stack,
+        retry_count: 0,
+        status: 'pending_retry',
+      });
+    },
+    3,
+    'logging failed pick'
+  );
+}

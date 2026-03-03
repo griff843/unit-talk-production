@@ -2,13 +2,17 @@
 
 /**
  * Investigate Credit Tracking Issue
- * 
+ *
  * Tests actual API credit consumption and validates tracking accuracy
  */
 
 import { config } from 'dotenv';
 
-import { getCreditUsageStatus, fetchAvailableSports, clearCreditUsageCache } from '../agents/FeedAgent/oddsApi';
+import {
+  getCreditUsageStatus,
+  fetchAvailableSports,
+  clearCreditUsageCache,
+} from '../agents/FeedAgent/oddsApi';
 import { Logger } from '../shared/logger';
 
 config();
@@ -22,7 +26,7 @@ async function investigateCreditTracking() {
   try {
     console.log('\n📊 PHASE 1: CURRENT CREDIT STATUS');
     console.log('==================================');
-    
+
     // Check current status
     const initialStatus = getCreditUsageStatus();
     console.log('📈 Initial Credit Status:');
@@ -33,27 +37,28 @@ async function investigateCreditTracking() {
 
     console.log('\n🧪 PHASE 2: TEST SMALL API CALL');
     console.log('================================');
-    
+
     console.log('Making small API call to test credit consumption...');
     console.log('Calling fetchAvailableSports() - should use 1 credit');
-    
+
     try {
       const sports = await fetchAvailableSports();
       console.log(`✅ API call successful: ${sports.length} sports returned`);
-      
+
       // Check sports returned
       console.log('📊 Available sports:');
       for (const sport of sports.slice(0, 5)) {
         console.log(`  - ${sport.title} (${sport.key}) - Active: ${sport.active}`);
       }
-      
     } catch (error) {
-      console.error(`❌ API call failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error(
+        `❌ API call failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
 
     console.log('\n📈 PHASE 3: CHECK CREDIT STATUS AFTER CALL');
     console.log('==========================================');
-    
+
     // Check status after API call
     const afterStatus = getCreditUsageStatus();
     console.log('📊 Credit Status After API Call:');
@@ -64,9 +69,9 @@ async function investigateCreditTracking() {
 
     console.log('\n🔍 PHASE 4: CREDIT TRACKING ANALYSIS');
     console.log('====================================');
-    
+
     const creditDifference = afterStatus.monthlyUsed - initialStatus.monthlyUsed;
-    
+
     if (creditDifference === 0) {
       console.log('⚠️ ISSUE DETECTED: Credit usage did not increase');
       console.log('Possible causes:');
@@ -84,7 +89,7 @@ async function investigateCreditTracking() {
 
     console.log('\n🔧 PHASE 5: CREDIT SYSTEM DEEP DIVE');
     console.log('===================================');
-    
+
     console.log('📍 Current Implementation Analysis:');
     console.log('===================================');
     console.log('Credit tracking is in-memory only:');
@@ -102,7 +107,7 @@ async function investigateCreditTracking() {
 
     console.log('\n🎯 PHASE 6: RECOMMENDATIONS');
     console.log('============================');
-    
+
     console.log('🔧 Fix Credit Tracking:');
     console.log('=======================');
     console.log('1. Store credit usage in database or file');
@@ -116,14 +121,14 @@ async function investigateCreditTracking() {
     console.log('  ✅ 1 call per sport gets ALL games');
     console.log('  ✅ 132x more efficient than per-game calls');
     console.log('  ✅ NCAAF: 1 call = 132 games = 3,220 props');
-    
+
     console.log('\nRecommended API allocation:');
     console.log('  - Odds API: NCAAF, NCAAB, Settlement (exclusive data)');
     console.log('  - Optimal API: NFL, NBA, MLB, NHL (better player props)');
 
     console.log('\n📊 PHASE 7: CREDIT EFFICIENCY VALIDATION');
     console.log('=========================================');
-    
+
     console.log('✅ Current implementation is highly efficient:');
     console.log('');
     console.log('Single API Call Structure:');
@@ -153,9 +158,11 @@ async function investigateCreditTracking() {
     console.log('2. ⚠️ Fix credit tracking persistence');
     console.log('3. 🔄 Configure Optimal API for NFL/NBA/MLB/NHL');
     console.log('4. 📊 Monitor actual credit consumption');
-
   } catch (error) {
-    console.error('\n❌ Investigation failed:', error instanceof Error ? error.message : 'Unknown error');
+    console.error(
+      '\n❌ Investigation failed:',
+      error instanceof Error ? error.message : 'Unknown error'
+    );
     throw error;
   }
 }
@@ -167,7 +174,7 @@ if (require.main === module) {
       console.log('\n✅ Credit tracking investigation completed');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('\n💥 Investigation crashed:', error);
       process.exit(1);
     });

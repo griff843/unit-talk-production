@@ -8,6 +8,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
+
 import { useToast } from '@/components/ui/use-toast';
 
 /**
@@ -107,7 +108,7 @@ export function useAgentControl() {
    * Fetch all agents from control API
    */
   const fetchAgents = useCallback(async () => {
-    setState((prev) => ({ ...prev, loading: true, error: null }));
+    setState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
       const response = await fetch('/api/agents/control');
@@ -118,7 +119,7 @@ export function useAgentControl() {
         throw new Error(result.error || 'Failed to fetch agents');
       }
 
-      setState((prev) => ({
+      setState(prev => ({
         ...prev,
         agents: result.data?.agents || [],
         summary: result.data?.summary || null,
@@ -126,7 +127,7 @@ export function useAgentControl() {
       }));
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      setState((prev) => ({
+      setState(prev => ({
         ...prev,
         loading: false,
         error: message,
@@ -183,7 +184,7 @@ export function useAgentControl() {
       agentId: string,
       reason?: string
     ): Promise<ControlCommandResult | null> => {
-      setState((prev) => ({ ...prev, loading: true }));
+      setState(prev => ({ ...prev, loading: true }));
 
       try {
         const response = await fetch('/api/agents/control', {
@@ -208,10 +209,10 @@ export function useAgentControl() {
         }
 
         // Update local state
-        setState((prev) => ({
+        setState(prev => ({
           ...prev,
           loading: false,
-          agents: prev.agents.map((agent) =>
+          agents: prev.agents.map(agent =>
             agent.agentId === agentId
               ? {
                   ...agent,
@@ -232,7 +233,7 @@ export function useAgentControl() {
         return result.data || null;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        setState((prev) => ({ ...prev, loading: false, error: message }));
+        setState(prev => ({ ...prev, loading: false, error: message }));
 
         toast({
           title: `Failed to ${action} agent`,
@@ -283,7 +284,7 @@ export function useAgentControl() {
    */
   const requestKillConfirmation = useCallback(
     async (agentId: string, reason: string): Promise<KillConfirmationResult | null> => {
-      setState((prev) => ({ ...prev, loading: true }));
+      setState(prev => ({ ...prev, loading: true }));
 
       try {
         const response = await fetch('/api/agents/control', {
@@ -307,7 +308,7 @@ export function useAgentControl() {
           return null;
         }
 
-        setState((prev) => ({
+        setState(prev => ({
           ...prev,
           loading: false,
           pendingKillConfirmation: result.data || null,
@@ -321,7 +322,7 @@ export function useAgentControl() {
         return result.data || null;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        setState((prev) => ({ ...prev, loading: false, error: message }));
+        setState(prev => ({ ...prev, loading: false, error: message }));
 
         toast({
           title: 'Failed to request kill confirmation',
@@ -340,7 +341,7 @@ export function useAgentControl() {
    */
   const confirmKill = useCallback(
     async (confirmationToken: string): Promise<ControlCommandResult | null> => {
-      setState((prev) => ({ ...prev, loading: true }));
+      setState(prev => ({ ...prev, loading: true }));
 
       try {
         const response = await fetch('/api/agents/control', {
@@ -355,7 +356,7 @@ export function useAgentControl() {
           throw new Error(result.error || 'Failed to confirm kill');
         }
 
-        setState((prev) => ({
+        setState(prev => ({
           ...prev,
           loading: false,
           pendingKillConfirmation: null,
@@ -373,7 +374,7 @@ export function useAgentControl() {
         return result.data || null;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        setState((prev) => ({ ...prev, loading: false, error: message }));
+        setState(prev => ({ ...prev, loading: false, error: message }));
 
         toast({
           title: 'Failed to kill agent',
@@ -391,7 +392,7 @@ export function useAgentControl() {
    * Cancel pending kill confirmation
    */
   const cancelKillConfirmation = useCallback(() => {
-    setState((prev) => ({ ...prev, pendingKillConfirmation: null }));
+    setState(prev => ({ ...prev, pendingKillConfirmation: null }));
     toast({
       title: 'Kill cancelled',
       description: 'Kill confirmation has been cancelled',
@@ -403,7 +404,7 @@ export function useAgentControl() {
    */
   const emergencyStopAll = useCallback(
     async (reason: string): Promise<boolean> => {
-      setState((prev) => ({ ...prev, loading: true }));
+      setState(prev => ({ ...prev, loading: true }));
 
       try {
         const response = await fetch('/api/agents/control', {
@@ -427,7 +428,7 @@ export function useAgentControl() {
           return false;
         }
 
-        setState((prev) => ({ ...prev, loading: false }));
+        setState(prev => ({ ...prev, loading: false }));
 
         toast({
           title: 'Emergency stop activated',
@@ -441,7 +442,7 @@ export function useAgentControl() {
         return true;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        setState((prev) => ({ ...prev, loading: false, error: message }));
+        setState(prev => ({ ...prev, loading: false, error: message }));
 
         toast({
           title: 'Emergency stop failed',
@@ -473,12 +474,12 @@ export function useAgentControl() {
     const timeLeft = expiresAt - now;
 
     if (timeLeft <= 0) {
-      setState((prev) => ({ ...prev, pendingKillConfirmation: null }));
+      setState(prev => ({ ...prev, pendingKillConfirmation: null }));
       return;
     }
 
     const timer = setTimeout(() => {
-      setState((prev) => ({ ...prev, pendingKillConfirmation: null }));
+      setState(prev => ({ ...prev, pendingKillConfirmation: null }));
       toast({
         title: 'Kill confirmation expired',
         description: 'The 60-second confirmation window has expired',

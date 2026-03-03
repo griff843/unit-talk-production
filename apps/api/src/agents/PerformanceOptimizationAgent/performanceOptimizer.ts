@@ -55,7 +55,9 @@ export class PerformanceOptimizer {
     this.logger.info('✅ PerformanceOptimizer initialized');
   }
 
-  async generateRecommendations(context: OptimizationContext): Promise<OptimizationRecommendation[]> {
+  async generateRecommendations(
+    context: OptimizationContext
+  ): Promise<OptimizationRecommendation[]> {
     const recommendations: OptimizationRecommendation[] = [];
 
     // CPU optimization recommendations
@@ -103,14 +105,14 @@ export class PerformanceOptimizer {
     this.logger.info('🔧 Applying optimization', {
       recommendationId: recommendation.id,
       type: recommendation.type,
-      component: recommendation.component
+      component: recommendation.component,
     });
 
     const result: OptimizationResult = {
       recommendationId: recommendation.id,
       status: 'pending',
       beforeMetrics: await this.captureCurrentMetrics(),
-      appliedAt: new Date()
+      appliedAt: new Date(),
     };
 
     try {
@@ -132,23 +134,24 @@ export class PerformanceOptimizer {
 
       this.logger.info('✅ Optimization applied successfully', {
         recommendationId: recommendation.id,
-        impact: result.impact
+        impact: result.impact,
       });
-
     } catch (error) {
       result.status = 'failed';
       result.notes = error instanceof Error ? error.message : 'Unknown error';
 
       this.logger.error('❌ Optimization failed', {
         recommendationId: recommendation.id,
-        error: result.notes
+        error: result.notes,
       });
     }
 
     return result;
   }
 
-  private createCpuOptimizationRecommendation(context: OptimizationContext): OptimizationRecommendation {
+  private createCpuOptimizationRecommendation(
+    context: OptimizationContext
+  ): OptimizationRecommendation {
     return {
       id: `cpu_opt_${Date.now()}`,
       type: 'resource',
@@ -164,20 +167,22 @@ export class PerformanceOptimizer {
           action: 'optimize_worker_processes',
           parameters: { targetCpuUsage: 0.7 },
           automated: true,
-          safetyRating: 0.9
+          safetyRating: 0.9,
         },
         {
           action: 'enable_cpu_scaling',
           parameters: { threshold: 0.8 },
           automated: true,
-          safetyRating: 0.8
-        }
+          safetyRating: 0.8,
+        },
       ],
-      metrics: { currentCpuUsage: context.metrics.systemCpuUsage }
+      metrics: { currentCpuUsage: context.metrics.systemCpuUsage },
     };
   }
 
-  private createMemoryOptimizationRecommendation(context: OptimizationContext): OptimizationRecommendation {
+  private createMemoryOptimizationRecommendation(
+    context: OptimizationContext
+  ): OptimizationRecommendation {
     return {
       id: `memory_opt_${Date.now()}`,
       type: 'resource',
@@ -193,20 +198,22 @@ export class PerformanceOptimizer {
           action: 'force_garbage_collection',
           parameters: { aggressive: false },
           automated: true,
-          safetyRating: 0.95
+          safetyRating: 0.95,
         },
         {
           action: 'optimize_memory_pools',
           parameters: { targetUsage: 0.7 },
           automated: true,
-          safetyRating: 0.85
-        }
+          safetyRating: 0.85,
+        },
       ],
-      metrics: { currentMemoryUsage: context.metrics.systemMemoryUsage }
+      metrics: { currentMemoryUsage: context.metrics.systemMemoryUsage },
     };
   }
 
-  private createDatabaseOptimizationRecommendation(context: OptimizationContext): OptimizationRecommendation {
+  private createDatabaseOptimizationRecommendation(
+    context: OptimizationContext
+  ): OptimizationRecommendation {
     return {
       id: `db_opt_${Date.now()}`,
       type: 'query',
@@ -222,20 +229,22 @@ export class PerformanceOptimizer {
           action: 'optimize_connection_pool',
           parameters: { poolSize: 20, maxIdleTime: 300 },
           automated: true,
-          safetyRating: 0.9
+          safetyRating: 0.9,
         },
         {
           action: 'enable_query_caching',
           parameters: { cacheSize: '512MB', ttl: 3600 },
           automated: true,
-          safetyRating: 0.85
-        }
+          safetyRating: 0.85,
+        },
       ],
-      metrics: { currentQueryTime: context.metrics.databaseQueryTime }
+      metrics: { currentQueryTime: context.metrics.databaseQueryTime },
     };
   }
 
-  private createCacheOptimizationRecommendation(context: OptimizationContext): OptimizationRecommendation {
+  private createCacheOptimizationRecommendation(
+    context: OptimizationContext
+  ): OptimizationRecommendation {
     return {
       id: `cache_opt_${Date.now()}`,
       type: 'caching',
@@ -251,20 +260,22 @@ export class PerformanceOptimizer {
           action: 'optimize_cache_keys',
           parameters: { compression: true, ttlOptimization: true },
           automated: true,
-          safetyRating: 0.9
+          safetyRating: 0.9,
         },
         {
           action: 'increase_cache_size',
           parameters: { newSize: '1GB' },
           automated: true,
-          safetyRating: 0.8
-        }
+          safetyRating: 0.8,
+        },
       ],
-      metrics: { currentHitRate: context.metrics.cacheHitRate }
+      metrics: { currentHitRate: context.metrics.cacheHitRate },
     };
   }
 
-  private createNetworkOptimizationRecommendation(context: OptimizationContext): OptimizationRecommendation {
+  private createNetworkOptimizationRecommendation(
+    context: OptimizationContext
+  ): OptimizationRecommendation {
     return {
       id: `network_opt_${Date.now()}`,
       type: 'configuration',
@@ -280,20 +291,22 @@ export class PerformanceOptimizer {
           action: 'optimize_connection_pooling',
           parameters: { keepAlive: true, maxSockets: 50 },
           automated: true,
-          safetyRating: 0.85
+          safetyRating: 0.85,
         },
         {
           action: 'enable_compression',
           parameters: { level: 6 },
           automated: true,
-          safetyRating: 0.9
-        }
+          safetyRating: 0.9,
+        },
       ],
-      metrics: { currentLatency: context.metrics.networkLatency }
+      metrics: { currentLatency: context.metrics.networkLatency },
     };
   }
 
-  private createErrorRateOptimizationRecommendation(context: OptimizationContext): OptimizationRecommendation {
+  private createErrorRateOptimizationRecommendation(
+    context: OptimizationContext
+  ): OptimizationRecommendation {
     return {
       id: `error_opt_${Date.now()}`,
       type: 'code',
@@ -309,26 +322,29 @@ export class PerformanceOptimizer {
           action: 'enhance_error_handling',
           parameters: { retryAttempts: 3, backoffMs: 1000 },
           automated: true,
-          safetyRating: 0.95
+          safetyRating: 0.95,
         },
         {
           action: 'enable_circuit_breakers',
           parameters: { failureThreshold: 5, timeout: 30000 },
           automated: true,
-          safetyRating: 0.9
-        }
+          safetyRating: 0.9,
+        },
       ],
-      metrics: { currentErrorRate: context.metrics.errorRate }
+      metrics: { currentErrorRate: context.metrics.errorRate },
     };
   }
 
-  private createBottleneckRecommendation(bottleneck: any, context: OptimizationContext): OptimizationRecommendation | null {
+  private createBottleneckRecommendation(
+    bottleneck: any,
+    context: OptimizationContext
+  ): OptimizationRecommendation | null {
     const bottleneckOptimizations: Record<string, any> = {
-      'cpu': () => this.createCpuOptimizationRecommendation(context),
-      'memory': () => this.createMemoryOptimizationRecommendation(context),
-      'database': () => this.createDatabaseOptimizationRecommendation(context),
-      'cache': () => this.createCacheOptimizationRecommendation(context),
-      'network': () => this.createNetworkOptimizationRecommendation(context)
+      cpu: () => this.createCpuOptimizationRecommendation(context),
+      memory: () => this.createMemoryOptimizationRecommendation(context),
+      database: () => this.createDatabaseOptimizationRecommendation(context),
+      cache: () => this.createCacheOptimizationRecommendation(context),
+      network: () => this.createNetworkOptimizationRecommendation(context),
     };
 
     const optimizer = bottleneckOptimizations[bottleneck.type];
@@ -401,17 +417,20 @@ export class PerformanceOptimizer {
       memoryTotal: memoryUsage.heapTotal,
       cpuUser: cpuUsage.user,
       cpuSystem: cpuUsage.system,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
   }
 
-  private calculateOptimizationImpact(beforeMetrics: Record<string, number>, afterMetrics: Record<string, number>): number {
+  private calculateOptimizationImpact(
+    beforeMetrics: Record<string, number>,
+    afterMetrics: Record<string, number>
+  ): number {
     // Simple impact calculation based on memory reduction
     const memoryBefore = beforeMetrics.memoryUsed || 0;
     const memoryAfter = afterMetrics.memoryUsed || 0;
-    
+
     if (memoryBefore === 0) return 0;
-    
+
     const memoryReduction = (memoryBefore - memoryAfter) / memoryBefore;
     return Math.max(0, Math.min(1, memoryReduction));
   }
@@ -419,21 +438,21 @@ export class PerformanceOptimizer {
   private async loadOptimizationTemplates(): Promise<void> {
     // Load predefined optimization templates
     const templates = {
-      'cpu_optimization': {
+      cpu_optimization: {
         actions: ['optimize_worker_processes', 'enable_cpu_scaling'],
         safetyRating: 0.85,
-        expectedImpact: 0.7
+        expectedImpact: 0.7,
       },
-      'memory_optimization': {
+      memory_optimization: {
         actions: ['force_garbage_collection', 'optimize_memory_pools'],
         safetyRating: 0.9,
-        expectedImpact: 0.6
+        expectedImpact: 0.6,
       },
-      'database_optimization': {
+      database_optimization: {
         actions: ['optimize_connection_pool', 'enable_query_caching'],
         safetyRating: 0.8,
-        expectedImpact: 0.8
-      }
+        expectedImpact: 0.8,
+      },
     };
 
     for (const [key, template] of Object.entries(templates)) {
@@ -470,7 +489,7 @@ export class PerformanceOptimizer {
 
     this.optimizationTemplates.clear();
     this.appliedOptimizations.clear();
-    
+
     this.logger.info('🧹 PerformanceOptimizer cleanup completed');
   }
 }

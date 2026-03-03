@@ -37,7 +37,8 @@ interface ReadinessReport {
 
 async function checkFeatureReadiness(): Promise<void> {
   // Use Supabase pooler URL (production database)
-  const connectionString = process.env.DATABASE_POOLER_URL ||
+  const connectionString =
+    process.env.DATABASE_POOLER_URL ||
     'postgresql://postgres.cqfnsozknjzvyiziwicl:Adalise843!@aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require';
 
   const client = new Client({
@@ -76,7 +77,8 @@ async function checkFeatureReadiness(): Promise<void> {
     printRecommendations(report.recommendations);
 
     // Save to file
-    const outputPath = 'C:\\Users\\griff\\OneDrive\\Desktop\\unit-talk-production-main\\apps\\api\\out\\ops\\feature-readiness.json';
+    const outputPath =
+      'C:\\Users\\griff\\OneDrive\\Desktop\\unit-talk-production-main\\apps\\api\\out\\ops\\feature-readiness.json';
     const fs = require('fs');
     const output = {
       generatedAt: new Date().toISOString(),
@@ -90,7 +92,6 @@ async function checkFeatureReadiness(): Promise<void> {
       console.log('\n⚠️  System not ready for full ML feature deployment');
       process.exit(1);
     }
-
   } catch (error) {
     console.error('❌ Error checking feature readiness:', error);
     throw error;
@@ -234,7 +235,7 @@ async function checkCLVPredictionReadiness(client: Client): Promise<FeatureReadi
 }
 
 function generateReadinessReport(features: FeatureReadiness[]): ReadinessReport {
-  const featuresReady = features.filter((f) => f.ready).length;
+  const featuresReady = features.filter(f => f.ready).length;
   const featuresTotal = features.length;
   const overallReady = featuresReady === featuresTotal;
 
@@ -246,21 +247,27 @@ function generateReadinessReport(features: FeatureReadiness[]): ReadinessReport 
   } else {
     recommendations.push('⚠️  Continue polling to gather more historical data');
 
-    features.forEach((feature) => {
+    features.forEach(feature => {
       if (!feature.ready) {
         if (feature.progress < 25) {
-          recommendations.push(`❌ ${feature.featureName}: Critical - only ${feature.progress.toFixed(1)}% ready`);
+          recommendations.push(
+            `❌ ${feature.featureName}: Critical - only ${feature.progress.toFixed(1)}% ready`
+          );
         } else if (feature.progress < 50) {
-          recommendations.push(`⚠️  ${feature.featureName}: Low - ${feature.progress.toFixed(1)}% ready`);
+          recommendations.push(
+            `⚠️  ${feature.featureName}: Low - ${feature.progress.toFixed(1)}% ready`
+          );
         } else {
-          recommendations.push(`ℹ️  ${feature.featureName}: Almost ready - ${feature.progress.toFixed(1)}% complete`);
+          recommendations.push(
+            `ℹ️  ${feature.featureName}: Almost ready - ${feature.progress.toFixed(1)}% complete`
+          );
         }
       }
     });
   }
 
   // Estimate time to ready
-  const minProgress = Math.min(...features.map((f) => f.progress));
+  const minProgress = Math.min(...features.map(f => f.progress));
   let estimatedTimeToReady = 'Unknown';
   if (minProgress < 10) {
     estimatedTimeToReady = '12-24 hours';
@@ -290,7 +297,7 @@ function printFeatureStatus(features: FeatureReadiness[]): void {
   console.log('\n📊 FEATURE STATUS');
   console.log('-'.repeat(80));
 
-  features.forEach((feature) => {
+  features.forEach(feature => {
     const statusIcon = feature.ready ? '✅' : '⏳';
     const progressBar = generateProgressBar(feature.progress);
 
@@ -316,7 +323,7 @@ function printOverallStatus(report: ReadinessReport): void {
 function printRecommendations(recommendations: string[]): void {
   console.log('\n💡 RECOMMENDATIONS');
   console.log('-'.repeat(80));
-  recommendations.forEach((rec) => {
+  recommendations.forEach(rec => {
     console.log(`  ${rec}`);
   });
 }
@@ -334,7 +341,7 @@ if (require.main === module) {
       console.log('\n✅ Feature readiness check complete');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('❌ Fatal error:', error);
       process.exit(1);
     });

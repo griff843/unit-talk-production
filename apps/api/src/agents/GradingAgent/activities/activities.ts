@@ -2,7 +2,10 @@ import { GradingAgentActivities } from '../../../types/agent-activities/grading'
 import { BaseAgentActivitiesImpl } from '../../BaseAgent/activities';
 import { BaseAgentConfig, BaseAgentDependencies } from '../../BaseAgent/types';
 
-export class GradingAgentActivitiesImpl extends BaseAgentActivitiesImpl implements GradingAgentActivities {
+export class GradingAgentActivitiesImpl
+  extends BaseAgentActivitiesImpl
+  implements GradingAgentActivities
+{
   private agent: any; // Using any to avoid circular dependency
   private config: BaseAgentConfig;
   private deps: BaseAgentDependencies;
@@ -78,9 +81,7 @@ export class GradingAgentActivitiesImpl extends BaseAgentActivitiesImpl implemen
     }
   }
 
-  async getNewUnifiedPicks(params: {
-    cycleCount: number;
-  }): Promise<any[]> {
+  async getNewUnifiedPicks(params: { cycleCount: number }): Promise<any[]> {
     try {
       const agent = await this.getAgent();
       const result = await agent.getNewUnifiedPicks(params);
@@ -134,7 +135,7 @@ export class GradingAgentActivitiesImpl extends BaseAgentActivitiesImpl implemen
         propId: params.propId,
         grade: 'A',
         confidence: 0.85,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
     } catch (error) {
       this.deps.logger!.error('Error in gradeProp activity', { error, params });
@@ -157,9 +158,9 @@ export class GradingAgentActivitiesImpl extends BaseAgentActivitiesImpl implemen
         data: {
           valid: true,
           reasons: [],
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         },
-        success: true
+        success: true,
       };
     } catch (error) {
       this.deps.logger!.error('Error in validateGrade activity', { error, params });
@@ -183,7 +184,7 @@ export class GradingAgentActivitiesImpl extends BaseAgentActivitiesImpl implemen
         totalGraded: 0,
         avgConfidence: 0,
         avgQuality: 0,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
     } catch (error) {
       this.deps.logger!.error('Error in monitorGrading activity', { error, params });
@@ -197,7 +198,7 @@ export class GradingAgentActivitiesImpl extends BaseAgentActivitiesImpl implemen
       // Initialize the grading agent
       return {
         initialized: true,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
     } catch (error) {
       this.deps.logger!.error('Error in initialize activity', { error });
@@ -205,16 +206,13 @@ export class GradingAgentActivitiesImpl extends BaseAgentActivitiesImpl implemen
     }
   }
 
-  async healthCheck(params: {
-    components: string[];
-    timeout?: number;
-  }): Promise<any> {
+  async healthCheck(params: { components: string[]; timeout?: number }): Promise<any> {
     try {
       // Check health of grading agent components
       return {
         healthy: true,
         components: params.components.map(c => ({ name: c, healthy: true })),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
     } catch (error) {
       this.deps.logger!.error('Error in healthCheck activity', { error, params });
@@ -230,9 +228,9 @@ export class GradingAgentActivitiesImpl extends BaseAgentActivitiesImpl implemen
         details: {
           database: true,
           models: true,
-          cache: true
+          cache: true,
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
     } catch (error) {
       this.deps.logger!.error('Error in validateDependencies activity', { error });
