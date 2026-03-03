@@ -1,0 +1,23 @@
+{
+  "name": "@unit-talk/huly-os",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "report:dry-run": "tsx daemon/index.ts --dry-run",
+    "report:run": "tsx daemon/index.ts --run",
+    "huly:smoke": "tsx daemon/index.ts --smoke",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@octokit/rest": "^21.1.1",
+    "dotenv": "^17.2.1",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.8",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.4"
+  }
+}

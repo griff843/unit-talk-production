@@ -268,6 +268,23 @@ module.exports = {
         'no-console': 'off',
       },
     },
+    // Ops tooling (tools/huly-os) - scoped override for daemon/adapter code
+    // SPRINT-HULY-OS-ESLINT-GATE-UNBLOCK-001: CLI/daemon tooling needs console, longer functions
+    // Security rules remain ON (detect-non-literal-fs-filename etc.)
+    {
+      files: ['tools/huly-os/**/*.ts', 'tools/huly-os/**/*.tsx'],
+      env: {
+        node: true,
+      },
+      rules: {
+        'max-lines-per-function': 'off',
+        'max-lines': 'off',
+        complexity: 'off',
+        'max-depth': 'off',
+        'max-params': 'off',
+        'no-console': 'off',
+      },
+    },
     // Configuration files
     {
       files: ['*.config.js', '*.config.ts', '.eslintrc.js'],
