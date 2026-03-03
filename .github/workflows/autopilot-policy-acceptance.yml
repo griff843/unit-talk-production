@@ -69,7 +69,7 @@ jobs:
           test -f pnpm-lock.yaml || { echo "ERROR: pnpm-lock.yaml not found"; exit 1; }
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Check Policy Engine compilation
         run: |
@@ -112,7 +112,7 @@ jobs:
           cache: "pnpm"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Run Policy Engine tests
         run: |
@@ -255,7 +255,7 @@ jobs:
           cache: "pnpm"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Run verification script
         run: |
