@@ -7,7 +7,8 @@
     "report:dry-run": "tsx daemon/index.ts --dry-run",
     "report:run": "tsx daemon/index.ts --run",
     "huly:smoke": "tsx daemon/index.ts --smoke",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "lint": "eslint . --ext .ts"
   },
   "dependencies": {
     "@octokit/rest": "^21.1.1",

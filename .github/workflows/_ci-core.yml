@@ -231,7 +231,7 @@ jobs:
 
       - name: Lint
         if: inputs.run_lint
-        run: npm run lint
+        run: pnpm run lint
 
       - name: Discord Bot Lint Budget
         if: inputs.run_lint

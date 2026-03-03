@@ -20,7 +20,7 @@
     "test:coverage": "npm run test:coverage --workspaces --if-present",
     "format:check": "prettier --check \"apps/*/src/**/*.{ts,tsx}\" \"apps/*/app/**/*.{ts,tsx}\" \"apps/*/components/**/*.{ts,tsx}\" \"apps/*/lib/**/*.{ts,tsx}\" \"packages/*/src/**/*.{ts,tsx}\"",
     "format:write": "prettier --write \"apps/*/src/**/*.{ts,tsx}\" \"apps/*/app/**/*.{ts,tsx}\" \"apps/*/components/**/*.{ts,tsx}\" \"apps/*/lib/**/*.{ts,tsx}\" \"packages/*/src/**/*.{ts,tsx}\"",
-    "lint": "npm run lint --workspaces",
+    "lint": "pnpm -r run lint",
     "lint:prod": "npm run lint:prod --workspaces --if-present",
     "type-check": "npm run type-check --workspaces --if-present",
     "clean": "npm run clean --workspaces && rm -rf node_modules",
