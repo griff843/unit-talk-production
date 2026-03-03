@@ -151,7 +151,7 @@ export async function runReport(options: RunOptions): Promise<void> {
     if (!dryRun && summary) {
       try {
         console.log('Generating GitHub tasks from summary...');
-        const issuesAdapter = new GitHubIssuesAdapter(config, audit);
+        const issuesAdapter = await GitHubIssuesAdapter.create(config, audit);
         const repo = `${config.GITHUB_OWNER}/${config.GITHUB_REPO}`;
         const taskResult = await generateTasks(issuesAdapter, summary, SPRINT_ID, repo);
         const tasksMd = renderTasksMarkdown(taskResult);

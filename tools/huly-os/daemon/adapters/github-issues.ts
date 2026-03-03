@@ -1,9 +1,12 @@
-// SPRINT-LLM-TASK-GENERATOR-006: GitHub Issues adapter for task generation
+// SPRINT-GITHUB-AUTH-TRUTH-LOCK-007: GitHub Issues adapter for task generation
 // Supports idempotent create/update via sha256 fingerprint embedded in issue body.
+// Uses layered auth: App → Classic PAT → GH_TOKEN (local only).
 
 import { createHash } from 'node:crypto';
 
 import { Octokit } from '@octokit/rest';
+
+import { getGitHubAuth, type AuthSource } from './github-auth.js';
 
 import type { AuditLogger } from '../audit-log.js';
 import type { DaemonConfig } from '../config.js';
@@ -39,15 +42,49 @@ export class GitHubIssuesAdapter {
   private owner: string;
   private repo: string;
   private audit: AuditLogger;
+  private authSource: AuthSource;
 
-  constructor(config: DaemonConfig, audit: AuditLogger) {
-    // Prefer GH_TOKEN (gh CLI OAuth token with issues:write) over GITHUB_TOKEN
-    // which may be a fine-grained PAT without issues scope.
-    const token = process.env.GH_TOKEN ?? config.GITHUB_TOKEN;
-    this.octokit = new Octokit({ auth: token });
-    this.owner = config.GITHUB_OWNER;
-    this.repo = config.GITHUB_REPO;
+  private constructor(
+    octokit: Octokit,
+    owner: string,
+    repo: string,
+    audit: AuditLogger,
+    authSource: AuthSource
+  ) {
+    this.octokit = octokit;
+    this.owner = owner;
+    this.repo = repo;
     this.audit = audit;
+    this.authSource = authSource;
+  }
+
+  /**
+   * Create an adapter with layered auth resolution.
+   * Logs which credential source was selected.
+   */
+  static async create(config: DaemonConfig, audit: AuditLogger): Promise<GitHubIssuesAdapter> {
+    const auth = await getGitHubAuth();
+    console.log(`GitHub issues auth: source=${auth.source}`);
+    audit.log({
+      source: 'github',
+      op: 'auth_resolved',
+      target: auth.source,
+      ok: true,
+      latencyMs: 0,
+    });
+    const octokit = new Octokit({ auth: auth.token });
+    return new GitHubIssuesAdapter(
+      octokit,
+      config.GITHUB_OWNER,
+      config.GITHUB_REPO,
+      audit,
+      auth.source
+    );
+  }
+
+  /** Returns the auth source used for this adapter instance */
+  getAuthSource(): AuthSource {
+    return this.authSource;
   }
 
   /** Search for an open issue containing the given fingerprint */
