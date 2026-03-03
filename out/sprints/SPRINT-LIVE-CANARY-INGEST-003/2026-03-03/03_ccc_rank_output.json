@@ -1,0 +1,11 @@
+{
+  "ranking_method": "professional_score descending",
+  "tier_gate": [
+    "S",
+    "A",
+    "B"
+  ],
+  "total_ranked": 6429,
+  "total_promotion_eligible": 6429,
+  "total_tier_blocked": 0
+}

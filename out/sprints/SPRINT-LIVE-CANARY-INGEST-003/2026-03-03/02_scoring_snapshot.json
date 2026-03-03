@@ -1,0 +1,17 @@
+{
+  "scoring_engine": "v2",
+  "total_scored": 6429,
+  "total_eligible": 6429,
+  "tier_gate": [
+    "S",
+    "A",
+    "B"
+  ],
+  "cycle_summaries": [
+    {
+      "cycle": 1,
+      "props_scored": 6429,
+      "promotion_eligible": 6429
+    }
+  ]
+}

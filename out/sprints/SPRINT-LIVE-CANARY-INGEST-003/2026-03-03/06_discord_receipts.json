@@ -1,0 +1,52 @@
+{
+  "total_receipts": 5,
+  "target_surface": "CANARY",
+  "all_snowflakes_valid": true,
+  "receipts": [
+    {
+      "cycle": 1,
+      "pick_id": "sgo-1O1PPcrZwr0YCEdcFsTn-assists-NOAH_CLOWNEY_1_NBA-1q-ou-under-c1",
+      "db_id": "05d9c546-862f-4e12-a62d-59f7c8b754ea",
+      "discord_message_id": "1478381237587415062",
+      "snowflake_valid": true,
+      "latency_ms": 594,
+      "target_surface": "CANARY"
+    },
+    {
+      "cycle": 1,
+      "pick_id": "sgo-1O1PPcrZwr0YCEdcFsTn-assists-TYLER_HERRO_1_NBA-1q-ou-under-c1",
+      "db_id": "8bcef18d-9a45-4f38-88d0-361855f9061f",
+      "discord_message_id": "1478381244235649054",
+      "snowflake_valid": true,
+      "latency_ms": 385,
+      "target_surface": "CANARY"
+    },
+    {
+      "cycle": 1,
+      "pick_id": "sgo-1O1PPcrZwr0YCEdcFsTn-blocks_steals-DANIEL_WOLF_1_NBA-game-ou-under-c1",
+      "db_id": "5a994ce3-e679-4bf3-84fc-dc7d58a67c16",
+      "discord_message_id": "1478381249281392690",
+      "snowflake_valid": true,
+      "latency_ms": 345,
+      "target_surface": "CANARY"
+    },
+    {
+      "cycle": 1,
+      "pick_id": "sgo-1O1PPcrZwr0YCEdcFsTn-blocks_steals-DAVION_MITCHELL_1_NBA-game-ou-under-c1",
+      "db_id": "6ab79abc-ae5c-4fea-aa63-bc345a4e2083",
+      "discord_message_id": "1478381254448779427",
+      "snowflake_valid": true,
+      "latency_ms": 356,
+      "target_surface": "CANARY"
+    },
+    {
+      "cycle": 1,
+      "pick_id": "sgo-1O1PPcrZwr0YCEdcFsTn-blocks_steals-JAIME_JAQUEZ_JR_1_NBA-game-ou-under-c1",
+      "db_id": "2b21e8cb-5fa1-420e-a138-d9f6718a5adb",
+      "discord_message_id": "1478381259137880230",
+      "snowflake_valid": true,
+      "latency_ms": 382,
+      "target_surface": "CANARY"
+    }
+  ]
+}
