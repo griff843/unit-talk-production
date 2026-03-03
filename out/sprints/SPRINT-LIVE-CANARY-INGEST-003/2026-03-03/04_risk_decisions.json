@@ -1,0 +1,70 @@
+{
+  "risk_engine": "RiskEngine (DB-backed config)",
+  "fail_closed": true,
+  "canary_override": true,
+  "total_evaluated": 5,
+  "allowed": 0,
+  "blocked": 5,
+  "decisions": [
+    {
+      "cycle": 1,
+      "pick_id": "sgo-1O1PPcrZwr0YCEdcFsTn-assists-NOAH_CLOWNEY_1_NBA-1q-ou-under-c1",
+      "decision": "BLOCK",
+      "allowed": false,
+      "blocked_reasons": [
+        "total_kelly_critical:2.3803>1"
+      ],
+      "warnings": [],
+      "trace_id": "risk-sgo-1O1PPcrZwr0YCEdcFsTn-assists-NOAH_CLOWNEY_1_NBA-1q-ou-under-c1-1772543952199",
+      "total_kelly_exposure": 2.38033
+    },
+    {
+      "cycle": 1,
+      "pick_id": "sgo-1O1PPcrZwr0YCEdcFsTn-assists-TYLER_HERRO_1_NBA-1q-ou-under-c1",
+      "decision": "BLOCK",
+      "allowed": false,
+      "blocked_reasons": [
+        "total_kelly_critical:2.3803>1"
+      ],
+      "warnings": [],
+      "trace_id": "risk-sgo-1O1PPcrZwr0YCEdcFsTn-assists-TYLER_HERRO_1_NBA-1q-ou-under-c1-1772543954808",
+      "total_kelly_exposure": 2.38033
+    },
+    {
+      "cycle": 1,
+      "pick_id": "sgo-1O1PPcrZwr0YCEdcFsTn-blocks_steals-DANIEL_WOLF_1_NBA-game-ou-under-c1",
+      "decision": "BLOCK",
+      "allowed": false,
+      "blocked_reasons": [
+        "total_kelly_critical:2.3803>1"
+      ],
+      "warnings": [],
+      "trace_id": "risk-sgo-1O1PPcrZwr0YCEdcFsTn-blocks_steals-DANIEL_WOLF_1_NBA-game-ou-under-c1-1772543956030",
+      "total_kelly_exposure": 2.38033
+    },
+    {
+      "cycle": 1,
+      "pick_id": "sgo-1O1PPcrZwr0YCEdcFsTn-blocks_steals-DAVION_MITCHELL_1_NBA-game-ou-under-c1",
+      "decision": "BLOCK",
+      "allowed": false,
+      "blocked_reasons": [
+        "total_kelly_critical:2.3803>1"
+      ],
+      "warnings": [],
+      "trace_id": "risk-sgo-1O1PPcrZwr0YCEdcFsTn-blocks_steals-DAVION_MITCHELL_1_NBA-game-ou-under-c1-1772543957234",
+      "total_kelly_exposure": 2.38033
+    },
+    {
+      "cycle": 1,
+      "pick_id": "sgo-1O1PPcrZwr0YCEdcFsTn-blocks_steals-JAIME_JAQUEZ_JR_1_NBA-game-ou-under-c1",
+      "decision": "BLOCK",
+      "allowed": false,
+      "blocked_reasons": [
+        "total_kelly_critical:2.3803>1"
+      ],
+      "warnings": [],
+      "trace_id": "risk-sgo-1O1PPcrZwr0YCEdcFsTn-blocks_steals-JAIME_JAQUEZ_JR_1_NBA-game-ou-under-c1-1772543958489",
+      "total_kelly_exposure": 2.38033
+    }
+  ]
+}

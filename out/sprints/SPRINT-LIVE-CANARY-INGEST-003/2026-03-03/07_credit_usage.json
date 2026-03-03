@@ -1,0 +1,17 @@
+{
+  "provider": "SportsGameOdds (SGO)",
+  "total_api_calls": 1,
+  "all_db_logged": true,
+  "api_calls": [
+    {
+      "cycle": 1,
+      "timestamp": "2026-03-03T13:19:11.522Z",
+      "provider": "sgo",
+      "endpoint": "/v2/events?leagueID=NBA",
+      "latencyMs": 2144,
+      "eventsReturned": 10,
+      "propsFlattened": 6429,
+      "dbLogged": true
+    }
+  ]
+}

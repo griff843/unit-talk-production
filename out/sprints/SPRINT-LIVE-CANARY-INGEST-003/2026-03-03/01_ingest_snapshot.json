@@ -1,0 +1,42 @@
+{
+  "provider": "SportsGameOdds (SGO)",
+  "total_cycles": 1,
+  "api_calls": 1,
+  "cache_hits": 0,
+  "total_events": 10,
+  "total_props_generated": 6429,
+  "stale_offers_detected": 0,
+  "stale_offers_sample": [],
+  "cache_metrics": {
+    "redis_mode": "Redis",
+    "hits": 0,
+    "misses": 1,
+    "errors": 0,
+    "hit_rate": "0.0000",
+    "cache_ttl_seconds": 90
+  },
+  "api_call_log": [
+    {
+      "cycle": 1,
+      "timestamp": "2026-03-03T13:19:11.522Z",
+      "provider": "sgo",
+      "endpoint": "/v2/events?leagueID=NBA",
+      "latencyMs": 2144,
+      "eventsReturned": 10,
+      "propsFlattened": 6429,
+      "dbLogged": true
+    }
+  ],
+  "cycles": [
+    {
+      "cycle": 1,
+      "timestamp": "2026-03-03T13:19:09.225Z",
+      "api_called": true,
+      "cache_hit": false,
+      "events": 10,
+      "props": 6429,
+      "stale_offers": 0,
+      "duration_ms": 10539
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "lifecycle_adapter": "lifecycleInsert + lifecycleUpdate",
+  "writer_role_insert": "submitter",
+  "writer_role_promote": "promoter",
+  "total_inserted": 5,
+  "total_published": 5,
+  "max_posts_cap": 5,
+  "cap_reached": true,
+  "bet_slip_prefix": "SPRINT-003-LIVE-",
+  "inserted_pick_ids": [
+    "05d9c546-862f-4e12-a62d-59f7c8b754ea",
+    "8bcef18d-9a45-4f38-88d0-361855f9061f",
+    "5a994ce3-e679-4bf3-84fc-dc7d58a67c16",
+    "6ab79abc-ae5c-4fea-aa63-bc345a4e2083",
+    "2b21e8cb-5fa1-420e-a138-d9f6718a5adb"
+  ]
+}

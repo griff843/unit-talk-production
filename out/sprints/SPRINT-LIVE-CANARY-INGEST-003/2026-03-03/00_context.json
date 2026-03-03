@@ -1,0 +1,19 @@
+{
+  "sprint_id": "SPRINT-LIVE-CANARY-INGEST-003",
+  "sprint_date": "2026-03-03",
+  "mode": "LIVE_CANARY_INGESTION",
+  "sport": "NBA",
+  "provider": "SportsGameOdds (SGO)",
+  "max_posts": 5,
+  "max_posts_hard_cap": 10,
+  "cycle_count_planned": 1,
+  "cycle_count_actual": 1,
+  "cycle_interval_ms": 180000,
+  "discord_mode": "canary",
+  "redis_mode": "Redis",
+  "redis_connected": true,
+  "supabase_url": "https://cqfnsozknjzvyiziwicl.supabase.co",
+  "kill_reason": null,
+  "total_duration_ms": 12042,
+  "generated_at": "2026-03-03T13:19:19.764Z"
+}
