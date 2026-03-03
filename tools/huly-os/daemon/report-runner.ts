@@ -5,14 +5,16 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import { GitHubAdapter } from './adapters/github-adapter.js';
+import { GitHubIssuesAdapter } from './adapters/github-issues.js';
 import { HulyAdapter } from './adapters/huly-adapter.js';
 import { AuditLogger } from './audit-log.js';
 import { loadConfig, loadConfigGitHubOnly, type DaemonConfig } from './config.js';
 import { evaluateDrift } from './drift-rules.js';
 import { buildReport, type ReportInputs } from './formatters/json-report.js';
 import { renderMarkdown } from './formatters/markdown-report.js';
-import { summarizeReport } from './llm/llm-summarizer.js';
+import { summarizeReport, type ReportSummary } from './llm/llm-summarizer.js';
 import { renderSummaryMarkdown } from './llm/render-summary.js';
+import { generateTasks, renderTasksMarkdown } from './llm/task-generator.js';
 import { publish } from './publish-orchestrator.js';
 
 import type { HulyIssue, RealityReport } from './adapters/types.js';
@@ -128,9 +130,10 @@ export async function runReport(options: RunOptions): Promise<void> {
     let markdownContent = renderMarkdown(report);
 
     // AI summarization step — fail-safe (never blocks publishing)
+    let summary: ReportSummary | null = null;
     try {
       console.log('Generating AI summary...');
-      const summary = summarizeReport(report);
+      summary = summarizeReport(report);
       const summaryMd = renderSummaryMarkdown(summary);
       markdownContent += '\n\n---\n\n' + summaryMd;
       writeArtifact(audit, outDir, 'summary.json', JSON.stringify(summary, null, 2));
@@ -142,6 +145,28 @@ export async function runReport(options: RunOptions): Promise<void> {
       );
     } catch (err) {
       console.warn(`AI summarizer failed (non-fatal): ${(err as Error).message}`);
+    }
+
+    // Task generation step — fail-safe (never blocks publishing)
+    if (!dryRun && summary) {
+      try {
+        console.log('Generating GitHub tasks from summary...');
+        const issuesAdapter = new GitHubIssuesAdapter(config, audit);
+        const repo = `${config.GITHUB_OWNER}/${config.GITHUB_REPO}`;
+        const taskResult = await generateTasks(issuesAdapter, summary, SPRINT_ID, repo);
+        const tasksMd = renderTasksMarkdown(taskResult);
+        if (tasksMd) {
+          markdownContent += '\n\n---\n\n' + tasksMd;
+        }
+        writeArtifact(audit, outDir, 'tasks.json', JSON.stringify(taskResult, null, 2));
+        console.log(
+          `Tasks: ${taskResult.created.length} created, ` +
+            `${taskResult.updated.length} updated, ` +
+            `${taskResult.failed.length} failed`
+        );
+      } catch (err) {
+        console.warn(`Task generator failed (non-fatal): ${(err as Error).message}`);
+      }
     }
 
     // Write local artifacts
