@@ -69,6 +69,12 @@ jobs:
       - name: Install deps
         run: pnpm install --frozen-lockfile --ignore-scripts
 
+      - name: Build shared packages (required for tsx scripts)
+        run: |
+          pnpm --filter @unit-talk/shared-types build
+          pnpm --filter @unit-talk/shared-utils build
+          pnpm --filter @unit-talk/config build
+
       - name: Mask secrets
         run: |
           echo "::add-mask::${{ secrets.SUPABASE_ACCESS_TOKEN }}"
