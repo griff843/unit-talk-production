@@ -84,7 +84,7 @@ jobs:
 
       - name: Install Playwright browsers
         working-directory: apps/api
-        run: npx playwright install chromium
+        run: pnpm exec playwright install chromium
 
       - name: Run E2E Business Flow Test
         id: e2e_test
@@ -94,7 +94,7 @@ jobs:
           window="${{ github.event.inputs.window || 'next-3h' }}"
 
           echo "Running E2E test for $sport with $window window"
-          npx tsx scripts/e2e-business-flow.ts --sport="$sport" --window="$window"
+          pnpm exec tsx scripts/e2e-business-flow.ts --sport="$sport" --window="$window"
 
       - name: Upload screenshots
         if: always()

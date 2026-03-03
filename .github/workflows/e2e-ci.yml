@@ -121,21 +121,21 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: npx tsx apps/api/src/scripts/ci-run-admin-rpcs.ts
+        run: pnpm exec tsx apps/api/src/scripts/ci-run-admin-rpcs.ts
 
       - name: Verify gates (must hard-fail on red)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         # SPRINT-B7-VERIFY-SLO-REAL-003: Use --strict for fail-closed CI
-        run: npx tsx apps/api/src/scripts/verify-gates.ts --strict
+        run: pnpm exec tsx apps/api/src/scripts/verify-gates.ts --strict
 
       - name: Verify SLOs (must hard-fail on breach)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         # SPRINT-B7-VERIFY-SLO-REAL-003: Use --strict for fail-closed CI
-        run: npx tsx apps/api/src/scripts/verify-slo.ts --strict
+        run: pnpm exec tsx apps/api/src/scripts/verify-slo.ts --strict
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

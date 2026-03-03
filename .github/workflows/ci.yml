@@ -75,8 +75,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
+      - name: Build shared packages (required for smart-form)
+        run: |
+          pnpm --filter @unit-talk/shared-types build
+
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+        run: pnpm exec playwright install --with-deps chromium
         working-directory: apps/smart-form
 
       # PHASE 1: Run static gates (7 gates that don't require HAR)
@@ -91,7 +95,7 @@ jobs:
         if: env.NEXT_PUBLIC_SUPABASE_URL != ''
         run: |
           pnpm --filter unit-talk-smart-form build
-          npx playwright test tests/e2e/integration/runtime-audit.spec.ts --project=integration
+          pnpm exec playwright test tests/e2e/integration/runtime-audit.spec.ts --project=integration
         working-directory: apps/smart-form
         env:
           NODE_ENV: test
@@ -259,7 +263,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ci-test-placeholder
 
       - name: Run Lifecycle Idempotency Tests
-        run: npx vitest run src/lib/lifecycle/__tests__/idempotency.test.ts --reporter=verbose
+        run: pnpm exec vitest run src/lib/lifecycle/__tests__/idempotency.test.ts --reporter=verbose
         working-directory: apps/api
         env:
           NODE_ENV: test
@@ -296,7 +300,7 @@ jobs:
         run: npm run build --workspace=@unit-talk/shared-utils
 
       - name: Type-check smoke test script
-        run: npx tsc --project scripts/e2e-smoke/tsconfig.json
+        run: pnpm exec tsc --project scripts/e2e-smoke/tsconfig.json
         env:
           NODE_ENV: test
 
@@ -403,6 +407,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
+      - name: Build shared packages (workspace prereqs)
+        run: |
+          pnpm --filter @unit-talk/shared-types build
+          pnpm --filter @unit-talk/shared-utils build
+
       - name: Build ${{ matrix.app }}
         run: npm run build --workspace=apps/${{ matrix.app }}
 
@@ -437,7 +446,7 @@ jobs:
 
       - name: Dependency vulnerability check
         run: |
-          npx audit-ci --high --report-type summary
+          pnpm exec audit-ci --high --report-type summary
 
   # Performance Testing
   performance:
@@ -496,7 +505,7 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps
+        run: pnpm exec playwright install --with-deps
 
       - name: Run E2E tests
         run: npm run test:e2e

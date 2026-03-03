@@ -1000,7 +1000,7 @@ jobs:
           LANE="${{ steps.freeze-config.outputs.lane }}"
 
           # Build freeze command
-          FREEZE_CMD="npx tsx scripts/ops/set-autopilot-mode.ts --mode=SAFE"
+          FREEZE_CMD="pnpm exec tsx scripts/ops/set-autopilot-mode.ts --mode=SAFE"
           FREEZE_CMD="$FREEZE_CMD --reason=\"$REASON\""
           FREEZE_CMD="$FREEZE_CMD --scope=$SCOPE"
           FREEZE_CMD="$FREEZE_CMD --triggered-by=ci-failure-resolver"
@@ -1059,7 +1059,7 @@ jobs:
           echo "Auto-unfreeze:   In 4 hours"
           echo ""
           echo "To manually unfreeze:"
-          echo "  npx tsx scripts/ops/set-autopilot-mode.ts --mode=NORMAL"
+          echo "  pnpm exec tsx scripts/ops/set-autopilot-mode.ts --mode=NORMAL"
           echo ""
           echo "See: docs/ops/AUTOPILOT_FREEZE_MATRIX.md"
           echo "==================================================================="
@@ -1111,7 +1111,7 @@ jobs:
 
           **Option 2: Manual unfreeze**
           \`\`\`bash
-          npx tsx scripts/ops/set-autopilot-mode.ts --mode=NORMAL
+          pnpm exec tsx scripts/ops/set-autopilot-mode.ts --mode=NORMAL
           git add runtime_config/autopilot_state.json
           git commit -m "ci: unfreeze autopilot (manual)"
           git push
@@ -1119,7 +1119,7 @@ jobs:
 
           **Option 3: Check current status**
           \`\`\`bash
-          npx tsx scripts/ops/set-autopilot-mode.ts --status
+          pnpm exec tsx scripts/ops/set-autopilot-mode.ts --status
           \`\`\`
 
           ### Evidence

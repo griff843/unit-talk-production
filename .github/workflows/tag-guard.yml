@@ -116,7 +116,7 @@ jobs:
             echo ""
             echo ">>> Gate 3: Phase 1 Runtime Truth Gate"
             if [ -f "scripts/gates/phase1-runtime-truth-gate.ts" ]; then
-              npx tsx scripts/gates/phase1-runtime-truth-gate.ts || {
+              pnpm exec tsx scripts/gates/phase1-runtime-truth-gate.ts || {
                 echo "GATE FAILED: Phase 1 Runtime Truth Gate"
                 echo "Tag $TAG_NAME is INVALID - gates do not pass"
                 exit 1
