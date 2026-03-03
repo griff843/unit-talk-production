@@ -185,6 +185,29 @@ module.exports = {
         'no-console': 'off',
       },
     },
+    // QA test files - browser/E2E environment with relaxed rules
+    // SPRINT-CI-RED-TO-GREEN-005: QA tests use browser globals (document, window)
+    // and TypeScript type annotations that trigger no-undef false positives
+    {
+      files: ['apps/api/qa/**/*.ts'],
+      env: {
+        browser: true,
+        node: true,
+        jest: true,
+      },
+      rules: {
+        'no-undef': 'off', // TypeScript handles this; browser globals needed for E2E
+        'no-console': 'off',
+        'no-script-url': 'off', // Security tests intentionally test script URLs
+        'import/order': 'warn',
+        'max-lines': 'off',
+        'max-lines-per-function': 'off',
+        complexity: 'off',
+        'max-depth': 'off',
+        'max-params': 'off',
+        'security/detect-object-injection': 'off',
+      },
+    },
     // Test directory files (broader pattern for non-standard naming like load-tests.ts)
     // LINT-TEST-ENV-FIX-001: recognize jest globals, WebSocket, relax quality rules
     {

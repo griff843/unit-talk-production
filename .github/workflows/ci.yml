@@ -247,12 +247,18 @@ jobs:
         working-directory: apps/api
         env:
           NODE_ENV: test
+          # SPRINT-CI-RED-TO-GREEN-005: Dummy env vars for module-level getEnv()
+          # Tests mock Supabase; these prevent process.exit(1) at import time
+          SUPABASE_URL: http://localhost:0
+          SUPABASE_SERVICE_ROLE_KEY: ci-test-placeholder
 
       - name: Run Lifecycle Idempotency Tests
         run: npx vitest run src/lib/lifecycle/__tests__/idempotency.test.ts --reporter=verbose
         working-directory: apps/api
         env:
           NODE_ENV: test
+          SUPABASE_URL: http://localhost:0
+          SUPABASE_SERVICE_ROLE_KEY: ci-test-placeholder
 
   # E2E Smoke Test Verification
   # Sprint: SPRINT-E2E-SMOKE-AUTOMATION-005

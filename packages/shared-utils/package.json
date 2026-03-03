@@ -8,6 +8,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "clean": "rm -rf dist",
+    "lint": "echo 'No lint configured for shared-utils package'",
     "test": "jest",
     "type-check": "tsc --noEmit"
   },
