@@ -113,6 +113,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-security": "^3.0.1",
+    "js-yaml": "^4.1.0",
     "lint-staged": "^16.1.4",
     "pg": "^8.18.0",
     "prettier": "^3.0.0",

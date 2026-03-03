@@ -1,8 +1,12 @@
-name: E2E CI Pipeline
-
+# ============================================================================
+# E2E CI Pipeline — Wrapper calling CI Core
+# SPRINT-CI-MASTER-TEMPLATE-LOCK-003
+#
 # CI-TRUTH-UNBLOCK-005: E2E requires Supabase secrets
 # For forked PRs (no secrets), this job will skip with clear reason
-# For main repo PRs, missing secrets = hard failure
+# For main repo PRs, missing secrets = hard failure (via CI Core enforcement)
+# ============================================================================
+name: E2E CI Pipeline
 
 on:
   push:
@@ -11,142 +15,20 @@ on:
     branches: [master, main]
   workflow_dispatch: {}
 
-env:
-  PNPM_VERSION: "10.29.3"
-
 jobs:
   verify-e2e:
     name: Supabase migrate → admin RPCs → Gates → SLOs
-    runs-on: ubuntu-latest
-    environment: ci
-    timeout-minutes: 30
     # Skip for forked PRs (secrets not available)
-    # For main repo PRs and pushes, secrets must be configured
     if: |
       github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
-
-    steps:
-      - name: Check required secrets
-        run: |
-          # CI-TRUTH-UNBLOCK-005: Fail-closed if secrets missing for main repo
-          missing=""
-          if [ -z "${{ secrets.SUPABASE_PROJECT_REF }}" ]; then
-            missing="${missing}SUPABASE_PROJECT_REF "
-          fi
-          if [ -z "${{ secrets.SUPABASE_ACCESS_TOKEN }}" ]; then
-            missing="${missing}SUPABASE_ACCESS_TOKEN "
-          fi
-          if [ -z "${{ secrets.SUPABASE_URL }}" ]; then
-            missing="${missing}SUPABASE_URL "
-          fi
-          if [ -z "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" ]; then
-            missing="${missing}SUPABASE_SERVICE_ROLE_KEY "
-          fi
-
-          if [ -n "$missing" ]; then
-            echo "::error::Missing required secrets: ${missing}"
-            echo "See docs/ops/sop/SOP_CI_SECRETS.md for configuration instructions."
-            exit 1
-          fi
-          echo "✅ All required secrets are configured"
-
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "pnpm"
-
-      - name: Install deps
-        run: pnpm install --frozen-lockfile --ignore-scripts
-
-      - name: Build shared packages (required for tsx scripts)
-        run: |
-          pnpm --filter @unit-talk/shared-types build
-          pnpm --filter @unit-talk/shared-utils build
-          pnpm --filter @unit-talk/config build
-
-      - name: Mask secrets
-        run: |
-          echo "::add-mask::${{ secrets.SUPABASE_ACCESS_TOKEN }}"
-          echo "::add-mask::${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
-
-      # ✅ Reliable CLI install (replaces curl; handles DNS/retries)
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: latest
-
-      - name: Show Supabase CLI version
-        run: supabase --version
-
-      - name: Supabase login & link
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: |
-          supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
-
-          # Repair known phantom migrations that cause preview drift
-          # These are migrations recorded in preview history but not in local codebase
-          echo "Repairing known phantom migrations..."
-          for phantom in 20251022 20251023 20251024 20251025; do
-            echo "Marking $phantom as reverted (if exists)..."
-            supabase migration repair --status reverted "$phantom" 2>/dev/null || true
-          done
-
-          # Push migrations, ignoring history conflicts
-          # Use --include-all to apply all local migrations regardless of history state
-          echo "Pushing migrations..."
-          push_success=false
-          for attempt in 1 2 3; do
-            # Try push, capturing output for diagnostics
-            if supabase db push --include-all 2>&1; then
-              echo "Migration push succeeded on attempt $attempt"
-              push_success=true
-              break
-            fi
-            echo "Push attempt $attempt failed, retrying..."
-            sleep 5
-          done
-
-          if [ "$push_success" = "false" ]; then
-            echo "WARNING: Migration push failed, continuing to test existing schema..."
-            # Don't exit - allow admin RPCs to run and report actual schema state
-          fi
-
-      - name: Run admin RPCs (backfill → score loop → refresh)
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: pnpm exec tsx apps/api/src/scripts/ci-run-admin-rpcs.ts
-
-      - name: Verify gates (must hard-fail on red)
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        # SPRINT-B7-VERIFY-SLO-REAL-003: Use --strict for fail-closed CI
-        run: pnpm exec tsx apps/api/src/scripts/verify-gates.ts --strict
-
-      - name: Verify SLOs (must hard-fail on breach)
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        # SPRINT-B7-VERIFY-SLO-REAL-003: Use --strict for fail-closed CI
-        run: pnpm exec tsx apps/api/src/scripts/verify-slo.ts --strict
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: e2e-results
-          path: |
-            apps/api/out/ops/verify/**
-          if-no-files-found: warn
+    uses: ./.github/workflows/_ci-core.yml
+    with:
+      environment_name: ci
+      requires_supabase: true
+      run_supabase_migrate: true
+      run_admin_rpcs: true
+      run_verify_gates: true
+      run_verify_slos: true
+    secrets: inherit

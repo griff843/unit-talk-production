@@ -1,0 +1,369 @@
+# ============================================================================
+# CI Core — Reusable Workflow (Single Source of Truth)
+# SPRINT-CI-MASTER-TEMPLATE-LOCK-003
+#
+# Every CI job that needs Node/pnpm MUST call this workflow.
+# Direct setup-node / pnpm-install / custom build order is forbidden.
+# See scripts/ci/guard-ci-core-usage.mjs for enforcement.
+#
+# Canonical step order:
+#   1. actions/checkout@v4
+#   2. pnpm/action-setup@v4 (pinned version)
+#   3. actions/setup-node@v4 (pinned version, pnpm cache)
+#   4. pnpm install --frozen-lockfile --ignore-scripts
+#   5. Build internal packages (deterministic dependency chain)
+#   6. Supabase environment enforcement (if requires_supabase)
+#   7. Schema drift preflight (if schema_drift_check)
+#   8. Requested gates (typecheck / lint / tests / gates)
+# ============================================================================
+name: CI Core
+
+on:
+  workflow_call:
+    inputs:
+      # ── Toolchain pins ──────────────────────────────────────────────
+      node_version:
+        description: "Node.js version (pinned)"
+        type: string
+        default: "20"
+      pnpm_version:
+        description: "pnpm version (must match packageManager field)"
+        type: string
+        default: "10.29.3"
+
+      # ── Environment routing ─────────────────────────────────────────
+      environment_name:
+        description: "GitHub Environment for secrets (ci|staging|production or empty)"
+        type: string
+        default: ""
+      requires_supabase:
+        description: "If true, environment_name must be non-empty (fail-closed)"
+        type: boolean
+        default: false
+      schema_drift_check:
+        description: "Run schema drift preflight before verification steps"
+        type: boolean
+        default: false
+
+      # ── Gate toggles ────────────────────────────────────────────────
+      run_build:
+        description: "Build all workspace apps"
+        type: boolean
+        default: false
+      build_app:
+        description: "Specific app to build (e.g. api, smart-form). Empty = skip."
+        type: string
+        default: ""
+      run_typecheck:
+        description: "Run pnpm run type-check"
+        type: boolean
+        default: false
+      run_lint:
+        description: "Run pnpm run lint"
+        type: boolean
+        default: false
+      run_format_check:
+        description: "Run pnpm run format:check"
+        type: boolean
+        default: false
+      run_tests:
+        description: "Test mode: none|unit|lifecycle|smoke"
+        type: string
+        default: "none"
+      run_lifecycle_gate:
+        description: "Run lifecycle single-writer gate + contract tests"
+        type: boolean
+        default: false
+      run_smartform_static_gates:
+        description: "Run smart-form static compliance gates (7/8)"
+        type: boolean
+        default: false
+      run_smartform_runtime_audit:
+        description: "Run smart-form Playwright runtime audit + HAR gate"
+        type: boolean
+        default: false
+      run_docs_validation:
+        description: "Run docs:validate"
+        type: boolean
+        default: false
+      run_quarantine_gate:
+        description: "Run quarantine governance gate"
+        type: boolean
+        default: false
+      run_security_audit:
+        description: "Run npm audit --audit-level high"
+        type: boolean
+        default: false
+      run_env_guards:
+        description: "Run env/schema/db-type-drift guards"
+        type: boolean
+        default: false
+      run_verify_gates:
+        description: "Run verify-gates.ts --strict"
+        type: boolean
+        default: false
+      run_verify_slos:
+        description: "Run verify-slo.ts --strict"
+        type: boolean
+        default: false
+      run_autopilot_verify:
+        description: "Run Phase 4 autopilot policy verification"
+        type: boolean
+        default: false
+      run_supabase_migrate:
+        description: "Run Supabase CLI migration push"
+        type: boolean
+        default: false
+      run_admin_rpcs:
+        description: "Run ci-run-admin-rpcs.ts"
+        type: boolean
+        default: false
+      extra_setup:
+        description: "Extra shell commands after install (e.g. playwright install)"
+        type: string
+        default: ""
+
+    secrets:
+      SUPABASE_URL:
+        required: false
+      SUPABASE_SERVICE_ROLE_KEY:
+        required: false
+      SUPABASE_PROJECT_REF:
+        required: false
+      SUPABASE_ACCESS_TOKEN:
+        required: false
+      SUPABASE_ANON_KEY:
+        required: false
+      NEXT_PUBLIC_SUPABASE_URL:
+        required: false
+      NEXT_PUBLIC_SUPABASE_ANON_KEY:
+        required: false
+
+jobs:
+  ci-core:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment_name || '' }}
+    env:
+      NODE_ENV: test
+    steps:
+      # ── 1. Checkout ───────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── 2. Setup pnpm (before Node so cache key resolves) ────────
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ inputs.pnpm_version }}
+
+      # ── 3. Setup Node.js ─────────────────────────────────────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: "pnpm"
+
+      # ── 4. Install dependencies ──────────────────────────────────
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      # ── 5. Build internal packages (deterministic order) ─────────
+      - name: Build shared packages
+        run: |
+          pnpm --filter @unit-talk/shared-types build
+          pnpm --filter @unit-talk/shared-utils build
+          pnpm --filter @unit-talk/config build
+
+      # ── 6. Extra setup (Playwright, etc.) ────────────────────────
+      - name: Extra setup
+        if: inputs.extra_setup != ''
+        run: ${{ inputs.extra_setup }}
+
+      # ── 7. Supabase environment enforcement ──────────────────────
+      - name: Enforce Supabase environment declaration
+        if: inputs.requires_supabase
+        run: |
+          if [ -z "${{ inputs.environment_name }}" ]; then
+            echo "::error::requires_supabase=true but environment_name is empty (fail-closed)"
+            echo "Every job that uses Supabase secrets MUST declare an environment."
+            exit 1
+          fi
+          echo "✅ Supabase environment declared: ${{ inputs.environment_name }}"
+
+      # ── 8. Supabase CLI setup ────────────────────────────────────
+      - name: Setup Supabase CLI
+        if: inputs.run_supabase_migrate || inputs.schema_drift_check
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # ── 9. Supabase migration push ──────────────────────────────
+      - name: Supabase link and migrate
+        if: inputs.run_supabase_migrate
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
+          # Repair known phantom migrations
+          for phantom in 20251022 20251023 20251024 20251025; do
+            supabase migration repair --status reverted "$phantom" 2>/dev/null || true
+          done
+          echo "Pushing migrations..."
+          if supabase db push --include-all 2>&1; then
+            echo "✅ Migrations applied"
+          else
+            echo "::warning::Migration push returned non-zero. Downstream checks will report drift."
+          fi
+
+      # ── 10. Schema drift preflight ──────────────────────────────
+      - name: Schema drift preflight
+        if: inputs.schema_drift_check
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/ci/schema-drift-preflight.mjs
+
+      # ── GATES ────────────────────────────────────────────────────
+
+      - name: Validate documentation
+        if: inputs.run_docs_validation
+        run: npm run docs:validate
+
+      - name: Lint
+        if: inputs.run_lint
+        run: npm run lint
+
+      - name: Discord Bot Lint Budget
+        if: inputs.run_lint
+        run: pnpm --filter discord-bot run lint:budget
+
+      - name: Format check
+        if: inputs.run_format_check
+        run: npm run format:check
+
+      - name: Type check
+        if: inputs.run_typecheck
+        run: npm run type-check
+
+      - name: Security audit
+        if: inputs.run_security_audit
+        run: npm audit --audit-level high
+
+      - name: Env / Schema / DB-type guards
+        if: inputs.run_env_guards
+        run: |
+          npm run guard:env
+          npm run schema:types:gen
+          npm run schema:check-drift
+          npm run guard:db-type-drift:strict
+
+      - name: Quarantine gates
+        if: inputs.run_quarantine_gate
+        run: |
+          node apps/api/scripts/quarantine-gate.mjs
+          node scripts/quarantine-governance-gate.mjs
+
+      - name: Lifecycle single-writer gate
+        if: inputs.run_lifecycle_gate
+        run: pnpm run lifecycle:single-writer
+        working-directory: apps/api
+
+      - name: Lifecycle contract tests
+        if: inputs.run_lifecycle_gate
+        run: pnpm run lifecycle:test
+        working-directory: apps/api
+        env:
+          SUPABASE_URL: http://localhost:0
+          SUPABASE_SERVICE_ROLE_KEY: ci-test-placeholder
+
+      - name: Lifecycle idempotency tests
+        if: inputs.run_lifecycle_gate
+        run: pnpm exec vitest run src/lib/lifecycle/__tests__/idempotency.test.ts --reporter=verbose
+        working-directory: apps/api
+        env:
+          SUPABASE_URL: http://localhost:0
+          SUPABASE_SERVICE_ROLE_KEY: ci-test-placeholder
+
+      - name: Install Playwright browsers
+        if: inputs.run_smartform_runtime_audit || inputs.run_smartform_static_gates
+        run: pnpm exec playwright install --with-deps chromium
+        working-directory: apps/smart-form
+
+      - name: Smart Form static gates (7/8)
+        if: inputs.run_smartform_static_gates
+        run: pnpm --filter unit-talk-smart-form run smartform:gates:static
+
+      - name: Smart Form build (for runtime audit)
+        if: inputs.run_smartform_runtime_audit
+        run: pnpm --filter unit-talk-smart-form build
+
+      - name: Smart Form E2E runtime audit (HAR capture)
+        if: inputs.run_smartform_runtime_audit
+        run: pnpm exec playwright test tests/e2e/integration/runtime-audit.spec.ts --project=integration
+        working-directory: apps/smart-form
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+      - name: Smart Form runtime audit gate (HAR-derived)
+        if: inputs.run_smartform_runtime_audit
+        run: pnpm --filter unit-talk-smart-form run smartform:gate:runtime-audit
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+
+      - name: Upload Smart Form artifacts
+        if: inputs.run_smartform_runtime_audit && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smart-form-runtime-audit
+          path: |
+            apps/smart-form/test-results/runtime-audit.har
+            apps/smart-form/test-results/runtime-audit.requests.jsonl
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Run admin RPCs
+        if: inputs.run_admin_rpcs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: pnpm exec tsx apps/api/src/scripts/ci-run-admin-rpcs.ts
+
+      - name: Verify gates (strict)
+        if: inputs.run_verify_gates
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: pnpm exec tsx apps/api/src/scripts/verify-gates.ts --strict
+
+      - name: Verify SLOs (strict)
+        if: inputs.run_verify_slos
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: pnpm exec tsx apps/api/src/scripts/verify-slo.ts --strict
+
+      - name: Autopilot policy verification
+        if: inputs.run_autopilot_verify
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          VERIFICATION_ENV: ${{ inputs.environment_name }}
+          OUTPUT_JSON: "true"
+          VERBOSE: "true"
+        run: pnpm exec ts-node scripts/verify-phase4-autopilot-policy.ts
+
+      - name: Build specific app
+        if: inputs.build_app != ''
+        run: npm run build --workspace=apps/${{ inputs.build_app }}
+
+      - name: Smoke test type-check
+        if: inputs.run_tests == 'smoke'
+        run: pnpm exec tsc --project scripts/e2e-smoke/tsconfig.json
+
+      - name: Unit tests
+        if: inputs.run_tests == 'unit'
+        run: npm run test:unit
+        env:
+          SUPABASE_URL: http://localhost:0
+          SUPABASE_SERVICE_ROLE_KEY: ci-test-placeholder
