@@ -29,7 +29,7 @@ const hasSupabase = requireSupabaseEnv();
 test.skip(!hasSupabase, 'Skipping integration tests: Supabase credentials not configured');
 
 // HAR output path - consumed by smartform:gate:runtime-audit
-const HAR_OUTPUT_DIR = path.resolve(__dirname, '../../test-results');
+const HAR_OUTPUT_DIR = path.resolve(__dirname, '../../../test-results');
 const HAR_OUTPUT_PATH = path.join(HAR_OUTPUT_DIR, 'runtime-audit.har');
 
 // Track all network requests for endpoint compliance

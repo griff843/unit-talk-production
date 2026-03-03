@@ -49,7 +49,7 @@ const hasSupabase = requireSupabaseEnv();
 test.skip(!hasSupabase, 'Skipping integration tests: Supabase credentials not configured');
 
 // Output paths
-const OUTPUT_DIR = path.resolve(__dirname, '../../test-results');
+const OUTPUT_DIR = path.resolve(__dirname, '../../../test-results');
 const HAR_FILE = path.join(OUTPUT_DIR, 'runtime-audit.har');
 const REQUESTS_JSONL_FILE = path.join(OUTPUT_DIR, 'runtime-audit.requests.jsonl');
 
