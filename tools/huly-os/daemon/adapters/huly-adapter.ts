@@ -29,6 +29,7 @@ export class HulyAdapter implements IHulyAdapter {
   private accountToken: string | null = null;
   private workspaceToken: string | null = null;
   private workspaceId: string | null = null;
+  private socialId: string | null = null;
 
   constructor(config: DaemonConfig, audit: AuditLogger) {
     this.baseUrl = config.HULY_URL.replace(/\/$/, '');
@@ -39,7 +40,7 @@ export class HulyAdapter implements IHulyAdapter {
   }
 
   /** Step 1: Login via account service JSON-RPC */
-  private async login(): Promise<string> {
+  private async login(): Promise<{ token: string; socialId: string }> {
     return this.audit.traced('huly', 'login', this.baseUrl, async () => {
       const res = await fetch(`${this.baseUrl}/_accounts/`, {
         method: 'POST',
@@ -62,7 +63,10 @@ export class HulyAdapter implements IHulyAdapter {
         throw new Error('Huly login: no token in response');
       }
 
-      return body.result.token;
+      return {
+        token: body.result.token,
+        socialId: String(body.result.socialId ?? ''),
+      };
     });
   }
 
@@ -103,10 +107,27 @@ export class HulyAdapter implements IHulyAdapter {
   }
 
   async connect(): Promise<void> {
-    this.accountToken = await this.login();
+    const loginResult = await this.login();
+    this.accountToken = loginResult.token;
+    this.socialId = loginResult.socialId;
     const ws = await this.selectWorkspace(this.accountToken);
     this.workspaceToken = ws.token;
     this.workspaceId = ws.workspace;
+  }
+
+  /**
+   * Wrap TX fields with the envelope required by Huly v0.7 _NormalizeTxMiddleware.
+   * Required: _id, space (core:space:Tx), modifiedBy (socialId), modifiedOn.
+   */
+  private buildTx(fields: Record<string, unknown>): Record<string, unknown> {
+    const txId = `tx-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    return {
+      _id: txId,
+      space: 'core:space:Tx',
+      modifiedBy: this.socialId,
+      modifiedOn: Date.now(),
+      ...fields,
+    };
   }
 
   async ping(): Promise<boolean> {
@@ -215,7 +236,7 @@ export class HulyAdapter implements IHulyAdapter {
     if (existing) {
       // Update existing document
       await this.audit.traced('huly', 'update_doc', `${teamspaceName}/${docTitle}`, async () => {
-        const tx = {
+        const tx = this.buildTx({
           _class: 'core:class:TxUpdateDoc',
           objectId: existing.id,
           objectClass: 'document:class:Document',
@@ -223,7 +244,7 @@ export class HulyAdapter implements IHulyAdapter {
           operations: {
             content: markdownContent,
           },
-        };
+        });
 
         const res = await fetch(`${this.baseUrl}/_transactor/api/v1/tx/${this.workspaceId}`, {
           method: 'POST',
@@ -250,7 +271,7 @@ export class HulyAdapter implements IHulyAdapter {
       async () => {
         const docId = `doc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-        const tx = {
+        const tx = this.buildTx({
           _class: 'core:class:TxCreateDoc',
           objectId: docId,
           objectClass: 'document:class:Document',
@@ -259,7 +280,7 @@ export class HulyAdapter implements IHulyAdapter {
             title: docTitle,
             content: markdownContent,
           },
-        };
+        });
 
         const res = await fetch(`${this.baseUrl}/_transactor/api/v1/tx/${this.workspaceId}`, {
           method: 'POST',
@@ -335,13 +356,13 @@ export class HulyAdapter implements IHulyAdapter {
       async () => {
         const id = `issue-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-        const tx = {
+        const tx = this.buildTx({
           _class: 'core:class:TxCreateDoc',
           objectId: id,
           objectClass: 'tracker:class:Issue',
           objectSpace: projectIdentifier,
           attributes: { title, description: body },
-        };
+        });
 
         const res = await fetch(`${this.baseUrl}/_transactor/api/v1/tx/${this.workspaceId}`, {
           method: 'POST',
@@ -374,13 +395,13 @@ export class HulyAdapter implements IHulyAdapter {
     }
 
     await this.audit.traced('huly', 'update_issue', issueId, async () => {
-      const tx = {
+      const tx = this.buildTx({
         _class: 'core:class:TxUpdateDoc',
         objectId: issueId,
         objectClass: 'tracker:class:Issue',
         objectSpace: 'tracker:project:default',
         operations: { description: body },
-      };
+      });
 
       const res = await fetch(`${this.baseUrl}/_transactor/api/v1/tx/${this.workspaceId}`, {
         method: 'POST',
@@ -410,13 +431,13 @@ export class HulyAdapter implements IHulyAdapter {
     const commentId = await this.audit.traced('huly', 'add_comment', issueId, async () => {
       const id = `comment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-      const tx = {
+      const tx = this.buildTx({
         _class: 'core:class:TxCreateDoc',
         objectId: id,
         objectClass: 'chunter:class:ChatMessage',
         objectSpace: issueId,
         attributes: { message: body },
-      };
+      });
 
       const res = await fetch(`${this.baseUrl}/_transactor/api/v1/tx/${this.workspaceId}`, {
         method: 'POST',
