@@ -1,0 +1,16 @@
+{
+  "redis_mode": "Memory Cache",
+  "redis_connected": false,
+  "total_lookups": 1,
+  "hits": 0,
+  "misses": 1,
+  "hit_rate": "0.0000",
+  "errors": 0,
+  "cache_ttl_seconds": 90,
+  "top_keys": [
+    {
+      "key": "canary:nba:oddsapi:SPRINT-LIVE-CANARY-INGEST-003",
+      "count": 1
+    }
+  ]
+}

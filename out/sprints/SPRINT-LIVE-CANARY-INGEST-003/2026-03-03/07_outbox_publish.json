@@ -1,0 +1,15 @@
+{
+  "total_inserted": 5,
+  "total_published": 5,
+  "max_posts_cap": 5,
+  "cap_reached": true,
+  "backlog_growth_streak": 0,
+  "kill_reason": null,
+  "inserted_pick_ids": [
+    "f33b52c1-c540-4568-a685-68f5d8b238ad",
+    "b7378a31-03be-4489-947c-f1e2eae6195c",
+    "53ace2f8-d53a-445a-a138-559018e97ac7",
+    "167bc3d0-2b47-49f6-a077-e468739dffff",
+    "aad17c54-2900-4880-b05b-279375a47f03"
+  ]
+}

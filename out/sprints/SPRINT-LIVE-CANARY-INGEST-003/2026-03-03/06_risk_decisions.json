@@ -1,0 +1,69 @@
+{
+  "risk_engine": "RiskEngine (DB-backed config)",
+  "fail_closed": true,
+  "total_evaluated": 5,
+  "allowed": 0,
+  "blocked": 5,
+  "decisions": [
+    {
+      "cycle": 1,
+      "pick_id": "oa-1da265a6a1035935a4d2f806af7c3a74-h2h-Phoenix_Suns-betmgm-c1",
+      "decision": "BLOCK",
+      "allowed": false,
+      "blocked_reasons": [
+        "total_kelly_critical:2.3803>1"
+      ],
+      "warnings": [],
+      "trace_id": "risk-oa-1da265a6a1035935a4d2f806af7c3a74-h2h-Phoenix_Suns-betmgm-c1-1772537546433",
+      "total_kelly_exposure": 2.38033
+    },
+    {
+      "cycle": 1,
+      "pick_id": "oa-1da265a6a1035935a4d2f806af7c3a74-h2h-Phoenix_Suns-betonlineag-c1",
+      "decision": "BLOCK",
+      "allowed": false,
+      "blocked_reasons": [
+        "total_kelly_critical:2.3803>1"
+      ],
+      "warnings": [],
+      "trace_id": "risk-oa-1da265a6a1035935a4d2f806af7c3a74-h2h-Phoenix_Suns-betonlineag-c1-1772537558609",
+      "total_kelly_exposure": 2.38033
+    },
+    {
+      "cycle": 1,
+      "pick_id": "oa-1da265a6a1035935a4d2f806af7c3a74-h2h-Phoenix_Suns-betrivers-c1",
+      "decision": "BLOCK",
+      "allowed": false,
+      "blocked_reasons": [
+        "total_kelly_critical:2.3803>1"
+      ],
+      "warnings": [],
+      "trace_id": "risk-oa-1da265a6a1035935a4d2f806af7c3a74-h2h-Phoenix_Suns-betrivers-c1-1772537559957",
+      "total_kelly_exposure": 2.38033
+    },
+    {
+      "cycle": 1,
+      "pick_id": "oa-1da265a6a1035935a4d2f806af7c3a74-h2h-Phoenix_Suns-betus-c1",
+      "decision": "BLOCK",
+      "allowed": false,
+      "blocked_reasons": [
+        "total_kelly_critical:2.3803>1"
+      ],
+      "warnings": [],
+      "trace_id": "risk-oa-1da265a6a1035935a4d2f806af7c3a74-h2h-Phoenix_Suns-betus-c1-1772537561185",
+      "total_kelly_exposure": 2.38033
+    },
+    {
+      "cycle": 1,
+      "pick_id": "oa-1da265a6a1035935a4d2f806af7c3a74-h2h-Phoenix_Suns-draftkings-c1",
+      "decision": "BLOCK",
+      "allowed": false,
+      "blocked_reasons": [
+        "total_kelly_critical:2.3803>1"
+      ],
+      "warnings": [],
+      "trace_id": "risk-oa-1da265a6a1035935a4d2f806af7c3a74-h2h-Phoenix_Suns-draftkings-c1-1772537562548",
+      "total_kelly_exposure": 2.38033
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "sprint_id": "SPRINT-LIVE-CANARY-INGEST-003",
+  "bet_slip_prefix": "SPRINT-003-LIVE-",
+  "picks_inserted": 5,
+  "picks_cleaned": 5,
+  "cleanup_error": null,
+  "residual_rows": 0,
+  "residual_error": null,
+  "clean": true
+}

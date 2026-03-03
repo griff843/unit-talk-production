@@ -1,0 +1,12 @@
+{
+  "scoring_engine": "v2",
+  "total_scored": 480,
+  "total_eligible": 480,
+  "cycle_summaries": [
+    {
+      "cycle": 1,
+      "props_scored": 480,
+      "promotion_eligible": 480
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "total_receipts": 5,
+  "target_surface": "CANARY",
+  "all_snowflakes_valid": true,
+  "receipts": [
+    {
+      "cycle": 1,
+      "pick_id": "oa-1da265a6a1035935a4d2f806af7c3a74-h2h-Phoenix_Suns-betmgm-c1",
+      "db_id": "f33b52c1-c540-4568-a685-68f5d8b238ad",
+      "discord_message_id": "1478354410588475464",
+      "snowflake_valid": true,
+      "latency_ms": 1505,
+      "target_surface": "CANARY"
+    },
+    {
+      "cycle": 1,
+      "pick_id": "oa-1da265a6a1035935a4d2f806af7c3a74-h2h-Phoenix_Suns-betonlineag-c1",
+      "db_id": "b7378a31-03be-4489-947c-f1e2eae6195c",
+      "discord_message_id": "1478354416276082770",
+      "snowflake_valid": true,
+      "latency_ms": 484,
+      "target_surface": "CANARY"
+    },
+    {
+      "cycle": 1,
+      "pick_id": "oa-1da265a6a1035935a4d2f806af7c3a74-h2h-Phoenix_Suns-betrivers-c1",
+      "db_id": "53ace2f8-d53a-445a-a138-559018e97ac7",
+      "discord_message_id": "1478354422001172605",
+      "snowflake_valid": true,
+      "latency_ms": 364,
+      "target_surface": "CANARY"
+    },
+    {
+      "cycle": 1,
+      "pick_id": "oa-1da265a6a1035935a4d2f806af7c3a74-h2h-Phoenix_Suns-betus-c1",
+      "db_id": "167bc3d0-2b47-49f6-a077-e468739dffff",
+      "discord_message_id": "1478354427168686224",
+      "snowflake_valid": true,
+      "latency_ms": 416,
+      "target_surface": "CANARY"
+    },
+    {
+      "cycle": 1,
+      "pick_id": "oa-1da265a6a1035935a4d2f806af7c3a74-h2h-Phoenix_Suns-draftkings-c1",
+      "db_id": "aad17c54-2900-4880-b05b-279375a47f03",
+      "discord_message_id": "1478354432881201183",
+      "snowflake_valid": true,
+      "latency_ms": 373,
+      "target_surface": "CANARY"
+    }
+  ]
+}

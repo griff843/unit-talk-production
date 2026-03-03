@@ -1,0 +1,6 @@
+{
+  "threshold_seconds": 300,
+  "total_stale": 0,
+  "unique_events": 0,
+  "stale_offers": []
+}
