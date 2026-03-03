@@ -1,4 +1,3 @@
-
 #!/usr/bin/env tsx
 
 /**
@@ -19,27 +18,33 @@ class AlertSystemTester {
       type: 'info' as const,
       message: 'Test alert for production validation',
       timestamp: new Date().toISOString(),
-      priority: 'medium' as const
+      priority: 'medium' as const,
     };
 
     // Test Discord integration
     console.log('🔍 Testing Discord integration...');
     const discordResult = await this.testDiscordAlert(testAlert);
-    console.log(`${discordResult ? '✅' : '❌'} Discord: ${discordResult ? 'WORKING' : 'NEEDS CONFIGURATION'}\n`);
+    console.log(
+      `${discordResult ? '✅' : '❌'} Discord: ${discordResult ? 'WORKING' : 'NEEDS CONFIGURATION'}\n`
+    );
 
     // Test Email service
     console.log('🔍 Testing Email service...');
     const emailResult = await this.testEmailAlert(testAlert);
-    console.log(`${emailResult ? '✅' : '❌'} Email: ${emailResult ? 'WORKING' : 'NEEDS CONFIGURATION'}\n`);
+    console.log(
+      `${emailResult ? '✅' : '❌'} Email: ${emailResult ? 'WORKING' : 'NEEDS CONFIGURATION'}\n`
+    );
 
     // Test SMS service
     console.log('🔍 Testing SMS service...');
     const smsResult = await this.testSMSAlert(testAlert);
-    console.log(`${smsResult ? '✅' : '❌'} SMS: ${smsResult ? 'WORKING' : 'NEEDS CONFIGURATION'}\n`);
+    console.log(
+      `${smsResult ? '✅' : '❌'} SMS: ${smsResult ? 'WORKING' : 'NEEDS CONFIGURATION'}\n`
+    );
 
     const workingChannels = [discordResult, emailResult, smsResult].filter(Boolean).length;
     console.log(`📊 Alert Channels: ${workingChannels}/3 operational`);
-    
+
     if (workingChannels >= 2) {
       console.log('🎉 Alert system meets production requirements!');
     } else {
@@ -55,7 +60,7 @@ class AlertSystemTester {
         console.log('   ⚠️ Discord webhook URL not configured');
         return false;
       }
-      
+
       console.log('   ✅ Discord webhook configured');
       return true;
     } catch (error) {

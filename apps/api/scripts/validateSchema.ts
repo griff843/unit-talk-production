@@ -1,4 +1,3 @@
-
 #!/usr/bin/env tsx
 
 /**
@@ -8,8 +7,16 @@
 
 class DatabaseSchemaValidator {
   private requiredTables = [
-    'agents', 'alerts', 'bets', 'cappers', 'games', 'picks', 
-    'users', 'notifications', 'analytics', 'recaps'
+    'agents',
+    'alerts',
+    'bets',
+    'cappers',
+    'games',
+    'picks',
+    'users',
+    'notifications',
+    'analytics',
+    'recaps',
   ];
 
   async validateSchema(): Promise<void> {
@@ -19,7 +26,7 @@ class DatabaseSchemaValidator {
     // Check environment
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    
+
     if (!supabaseUrl || !supabaseKey) {
       console.log('❌ Supabase credentials not configured');
       return;
@@ -31,7 +38,7 @@ class DatabaseSchemaValidator {
     // Validate required tables (simulated)
     console.log('\n🔍 Validating required tables...');
     const tableResults = [];
-    
+
     for (const table of this.requiredTables) {
       // Simulate table check
       const exists = await this.checkTableExists(table);
@@ -41,46 +48,61 @@ class DatabaseSchemaValidator {
 
     // Check agent-specific requirements
     console.log('\n🤖 Validating agent-specific schema requirements...');
-    
+
     const agentRequirements = [
       { agent: 'AlertAgent', requirement: 'alerts table with type, message, timestamp columns' },
       { agent: 'DataAgent', requirement: 'bets table with odds, confidence, status columns' },
       { agent: 'IngestionAgent', requirement: 'games table with teams, date, league columns' },
       { agent: 'RecapAgent', requirement: 'recaps table with content, date, metrics columns' },
-      { agent: 'AnalyticsAgent', requirement: 'analytics table with metrics, period, data columns' }
+      {
+        agent: 'AnalyticsAgent',
+        requirement: 'analytics table with metrics, period, data columns',
+      },
     ];
 
     const agentResults = [];
     for (const req of agentRequirements) {
       const compatible = await this.checkAgentCompatibility(req.agent);
-      console.log(`${compatible ? '✅' : '❌'} ${req.agent}: ${compatible ? 'COMPATIBLE' : 'NEEDS SCHEMA UPDATES'}`);
+      console.log(
+        `${compatible ? '✅' : '❌'} ${req.agent}: ${compatible ? 'COMPATIBLE' : 'NEEDS SCHEMA UPDATES'}`
+      );
       agentResults.push({ agent: req.agent, compatible });
     }
 
     // Generate schema report
     const existingTables = tableResults.filter(r => r.exists).length;
     const compatibleAgents = agentResults.filter(r => r.compatible).length;
-    
+
     console.log(`\n📊 Schema Validation Summary:`);
     console.log(`   Tables: ${existingTables}/${this.requiredTables.length} exist`);
-    console.log(`   Agent Compatibility: ${compatibleAgents}/${agentRequirements.length} compatible`);
-    
-    const schemaHealth = Math.floor(((existingTables + compatibleAgents) / (this.requiredTables.length + agentRequirements.length)) * 100);
+    console.log(
+      `   Agent Compatibility: ${compatibleAgents}/${agentRequirements.length} compatible`
+    );
+
+    const schemaHealth = Math.floor(
+      ((existingTables + compatibleAgents) /
+        (this.requiredTables.length + agentRequirements.length)) *
+        100
+    );
     console.log(`   Overall Schema Health: ${schemaHealth}%`);
-    
+
     if (schemaHealth >= 80) {
       console.log('\n🎉 Database schema ready for production!');
     } else {
       console.log('\n⚠️ Database schema needs updates before production');
       console.log('\n📋 Recommended Actions:');
-      
-      tableResults.filter(r => !r.exists).forEach(r => {
-        console.log(`   • Create table: ${r.table}`);
-      });
-      
-      agentResults.filter(r => !r.compatible).forEach(r => {
-        console.log(`   • Update schema for: ${r.agent}`);
-      });
+
+      tableResults
+        .filter(r => !r.exists)
+        .forEach(r => {
+          console.log(`   • Create table: ${r.table}`);
+        });
+
+      agentResults
+        .filter(r => !r.compatible)
+        .forEach(r => {
+          console.log(`   • Update schema for: ${r.agent}`);
+        });
     }
   }
 

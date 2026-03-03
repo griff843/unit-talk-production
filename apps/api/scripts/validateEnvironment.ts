@@ -1,4 +1,3 @@
-
 #!/usr/bin/env tsx
 
 /**
@@ -8,10 +7,18 @@
 
 class ProductionEnvironmentValidator {
   private requiredVars = [
-    'SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY',
-    'OPENAI_API_KEY', 'DISCORD_TOKEN', 'DISCORD_WEBHOOK_URL',
-    'NOTION_API_KEY', 'NOTION_DATABASE_ID',
-    'REDIS_HOST', 'REDIS_PORT', 'SMTP_HOST', 'SMTP_USER'
+    'SUPABASE_URL',
+    'SUPABASE_ANON_KEY',
+    'SUPABASE_SERVICE_ROLE_KEY',
+    'OPENAI_API_KEY',
+    'DISCORD_TOKEN',
+    'DISCORD_WEBHOOK_URL',
+    'NOTION_API_KEY',
+    'NOTION_DATABASE_ID',
+    'REDIS_HOST',
+    'REDIS_PORT',
+    'SMTP_HOST',
+    'SMTP_USER',
   ];
 
   async validateEnvironment(): Promise<void> {
@@ -19,7 +26,7 @@ class ProductionEnvironmentValidator {
     console.log('===================================\n');
 
     const results = [];
-    
+
     // Check environment variables
     console.log('📋 Checking environment variables...');
     for (const varName of this.requiredVars) {
@@ -31,19 +38,23 @@ class ProductionEnvironmentValidator {
 
     // Test service connections
     console.log('\n🔗 Testing service connections...');
-    
+
     // Test Supabase connection
     const supabaseResult = await this.testSupabaseConnection();
-    console.log(`${supabaseResult ? '✅' : '❌'} Supabase: ${supabaseResult ? 'CONNECTED' : 'FAILED'}`);
-    
+    console.log(
+      `${supabaseResult ? '✅' : '❌'} Supabase: ${supabaseResult ? 'CONNECTED' : 'FAILED'}`
+    );
+
     // Test OpenAI connection
     const openaiResult = await this.testOpenAIConnection();
     console.log(`${openaiResult ? '✅' : '❌'} OpenAI: ${openaiResult ? 'CONNECTED' : 'FAILED'}`);
-    
+
     // Test Discord webhook
     const discordResult = await this.testDiscordWebhook();
-    console.log(`${discordResult ? '✅' : '❌'} Discord: ${discordResult ? 'CONNECTED' : 'FAILED'}`);
-    
+    console.log(
+      `${discordResult ? '✅' : '❌'} Discord: ${discordResult ? 'CONNECTED' : 'FAILED'}`
+    );
+
     // Test Notion API
     const notionResult = await this.testNotionAPI();
     console.log(`${notionResult ? '✅' : '❌'} Notion: ${notionResult ? 'CONNECTED' : 'FAILED'}`);
@@ -52,10 +63,10 @@ class ProductionEnvironmentValidator {
     const setVars = results.filter(r => r.status === 'SET').length;
     const totalVars = results.length;
     const configCompletion = Math.floor((setVars / totalVars) * 100);
-    
+
     console.log(`\n📊 Environment Configuration: ${configCompletion}% complete`);
     console.log(`✅ Configured: ${setVars}/${totalVars} variables`);
-    
+
     if (configCompletion >= 90) {
       console.log('🎉 Environment ready for production!');
     } else {
@@ -67,9 +78,9 @@ class ProductionEnvironmentValidator {
     try {
       const url = process.env.SUPABASE_URL;
       const key = process.env.SUPABASE_ANON_KEY;
-      
+
       if (!url || !key) return false;
-      
+
       // Test connection (simplified)
       return url.includes('supabase') && key.length > 20;
     } catch (error) {

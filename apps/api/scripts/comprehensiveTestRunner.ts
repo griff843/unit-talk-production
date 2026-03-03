@@ -1,4 +1,3 @@
-
 #!/usr/bin/env tsx
 
 import { execSync } from 'child_process';
@@ -11,7 +10,7 @@ class ComprehensiveTestRunner {
     const testSuites = [
       { name: 'Unit Tests', command: 'npm test -- --testPathPattern=\.test\.' },
       { name: 'Integration Tests', command: 'npm test -- --testPathPattern=integration' },
-      { name: 'Agent Tests', command: 'npx tsx scripts/testCoreAgents.ts' }
+      { name: 'Agent Tests', command: 'npx tsx scripts/testCoreAgents.ts' },
     ];
 
     const results = [];
@@ -36,7 +35,7 @@ class ComprehensiveTestRunner {
 
     const passRate = (results.filter(r => r.status === 'PASSED').length / results.length) * 100;
     console.log(`\n📈 Overall Pass Rate: ${passRate.toFixed(1)}%`);
-    
+
     if (passRate >= 80) {
       console.log('🎉 Test suite meets production standards!');
     } else {
